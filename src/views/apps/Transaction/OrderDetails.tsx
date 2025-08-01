@@ -2,7 +2,17 @@ import React, { useState, useEffect, Dispatch, SetStateAction } from 'react';
 import { Row, Col, Card } from 'react-bootstrap';
 import { fetchItemGroup, ItemGroupItem, fetchMenu } from '@/utils/commonfunction';
 
-// Interface for menu items
+// Interface for menu items from API
+interface APIMenuItem {
+  menuid: number;
+  item_no: number;
+  item_name: string;
+  print_name: string;
+  short_name: string;
+  status: number;
+}
+
+// Interface for menu items used in state
 interface MenuItem {
   id: number;
   name: string;
@@ -16,6 +26,7 @@ interface CardItem {
   itemCode: string;
   ItemName: string;
   shortName: string;
+ mechanu_name:string
   price: number;
   cardStatus: string;
 }
@@ -69,7 +80,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
   invalidTable,
   setInvalidTable,
 }) => {
-  const [, setDropdownState] = useState<DropdownState>({
+  const [dropdownState, setDropdownState] = useState<DropdownState>({
     Appetizers: false,
     MainCourse: false,
     Desserts: false,
@@ -94,6 +105,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
   const [isTableInvalid, setIsTableInvalid] = useState<boolean>(false);
   const [itemGroup, setItemGroup] = useState<ItemGroupItem[]>([]);
   const [itemGroupId, setItemGroupId] = useState<number | null>(null);
+  const [cardItems, setCardItems] = useState<CardItem[]>([]); // State for fetched menu items
 
   const validTables = [
     'F1', 'F2', 'F3', 'F4', 'F5', 'F5A', 'F6', 'R2', 'R3', 'R4',
@@ -143,50 +155,54 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
     fetchData();
   }, []);
 
-  const cardItems: CardItem[] = [
-    { userId: '1', itemCode: '1', ItemName: 'Chicken Biryani (CB)', shortName: 'CB', price: 12.99, cardStatus: '✅ Available' },
-    { userId: '2', itemCode: '2', ItemName: 'Paneer Tikka', shortName: 'PT', price: 9.99, cardStatus: '✅ Available' },
-    { userId: '3', itemCode: '3', ItemName: 'Butter Naan', shortName: 'BN', price: 2.99, cardStatus: '✅ Available' },
-    { userId: '4', itemCode: '4', ItemName: 'Cold Drink', shortName: 'CD', price: 1.99, cardStatus: '✅ Available' },
-    { userId: '5', itemCode: '5', ItemName: 'Mineral Water', shortName: 'MW', price: 0.99, cardStatus: '✅ Available' },
-    { userId: '6', itemCode: '6', ItemName: 'Dal Tadka', shortName: 'DT', price: 7.99, cardStatus: '✅ Available' },
-    { userId: '7', itemCode: '7', ItemName: 'Mojito', shortName: 'MJ', price: 5.99, cardStatus: '✅ Available' },
-    { userId: '8', itemCode: '8', ItemName: 'Margarita', shortName: 'MG', price: 6.49, cardStatus: '✅ Available' },
-    { userId: '9', itemCode: '9', ItemName: 'Caesar Salad', shortName: 'CS', price: 4.99, cardStatus: '✅ Available' },
-    { userId: '10', itemCode: '10', ItemName: 'Greek Salad', shortName: 'GS', price: 5.49, cardStatus: '✅ Available' },
-    { userId: '11', itemCode: '11', ItemName: 'Tomato Soup', shortName: 'TS', price: 3.99, cardStatus: '✅ Available' },
-    { userId: '12', itemCode: '12', ItemName: 'Lentil Soup', shortName: 'LS', price: 3.49, cardStatus: '✅ Available' },
-    { userId: '13', itemCode: '13', ItemName: 'Mini Pizza', shortName: 'MP', price: 4.49, cardStatus: '✅ Available' },
-    { userId: '14', itemCode: '14', ItemName: 'Cheese Sandwich', shortName: 'CHS', price: 3.99, cardStatus: '✅ Available' },
-    { userId: '15', itemCode: '15', ItemName: 'Pancakes', shortName: 'PC', price: 5.99, cardStatus: '✅ Available' },
-    { userId: '16', itemCode: '16', ItemName: 'Omelette', shortName: 'OM', price: 4.99, cardStatus: '✅ Available' },
-    { userId: '17', itemCode: '17', ItemName: 'Vegan Curry', shortName: 'VC', price: 8.99, cardStatus: '✅ Available' },
-    { userId: '18', itemCode: '18', ItemName: 'Tofu Stir Fry', shortName: 'TSF', price: 7.49, cardStatus: '✅ Available' },
-    { userId: '19', itemCode: '19', ItemName: 'Mango Smoothie', shortName: 'MS', price: 4.99, cardStatus: '✅ Available' },
-    { userId: '20', itemCode: '20', ItemName: 'Berry Smoothie', shortName: 'BS', price: 4.49, cardStatus: '✅ Available' },
-  ];
+  // Fetch menu items on mount
+  useEffect(() => {
+    const fetchMenuData = async () => {
+      try {
+        await fetchMenu(
+          (data: APIMenuItem[]) => {
+            // Map API menu items to CardItem interface
+            const mappedItems: CardItem[] = data
+              .filter(item => item.status === 0) // Filter active items (status === 0)
+              .map(item => ({
+                userId: item.menuid.toString(),
+                itemCode: item.item_no.toString(),
+                ItemName: item.item_name,
+                shortName: item.short_name,
+                price: 0, // Price not provided in API, set default or fetch from another source if available
+                cardStatus: '✅ Available',
+              }));
+            setCardItems(mappedItems);
+          },
+          (id: number) => {
+            // Handle menu ID if needed
+            console.log('Fetched menu ID:', id);
+          }
+        );
+      } catch (error) {
+        console.error('Fetch menu items error:', error);
+        setCardItems([]);
+      }
+    };
+    fetchMenuData();
+  }, []);
 
+  // Dynamic item categories based on itemGroup or fallback to all items
   const itemCategories: { [key in Category]: CardItem[] } = {
-    Appetizers: cardItems.filter(item => ['Paneer Tikka'].includes(item.ItemName)),
-    MainCourse: cardItems.filter(item => ['Chicken Biryani (CB)', 'Dal Tadka'].includes(item.ItemName)),
-    Desserts: [],
-    Beverages: cardItems.filter(item => ['Cold Drink', 'Mineral Water'].includes(item.ItemName)),
-    Cocktails: cardItems.filter(item => ['Mojito', 'Margarita'].includes(item.ItemName)),
-    Salads: cardItems.filter(item => ['Caesar Salad', 'Greek Salad'].includes(item.ItemName)),
-    Soups: cardItems.filter(item => ['Tomato Soup', 'Lentil Soup'].includes(item.ItemName)),
-    KidsMenu: cardItems.filter(item => ['Mini Pizza', 'Cheese Sandwich'].includes(item.ItemName)),
-    Breakfast: cardItems.filter(item => ['Pancakes', 'Omelette'].includes(item.ItemName)),
-    VeganOptions: cardItems.filter(item => ['Dal Tadka', 'Vegan Curry', 'Tofu Stir Fry'].includes(item.ItemName)),
-    Smoothies: cardItems.filter(item => ['Mango Smoothie', 'Berry Smoothie'].includes(item.ItemName)),
+    Appetizers: cardItems.filter(item => itemGroup.some(group => group.itemgroupname.toLowerCase().includes('appetizers') && item.ItemName.toLowerCase().includes('appetizer'))),
+    MainCourse: cardItems.filter(item => itemGroup.some(group => group.itemgroupname.toLowerCase().includes('maincourse') && item.ItemName.toLowerCase().includes('main')) || item.ItemName === 'Dal Tadka'),
+    Desserts: cardItems.filter(item => itemGroup.some(group => group.itemgroupname.toLowerCase().includes('desserts') && item.ItemName.toLowerCase().includes('dessert'))),
+    Beverages: cardItems.filter(item => itemGroup.some(group => group.itemgroupname.toLowerCase().includes('beverages') && item.ItemName.toLowerCase().includes('drink'))),
+    Cocktails: cardItems.filter(item => itemGroup.some(group => group.itemgroupname.toLowerCase().includes('cocktails') && item.ItemName.toLowerCase().includes('cocktail'))),
+    Salads: cardItems.filter(item => itemGroup.some(group => group.itemgroupname.toLowerCase().includes('salads') && item.ItemName.toLowerCase().includes('salad'))),
+    Soups: cardItems.filter(item => itemGroup.some(group => group.itemgroupname.toLowerCase().includes('soups') && item.ItemName.toLowerCase().includes('soup'))),
+    KidsMenu: cardItems.filter(item => itemGroup.some(group => group.itemgroupname.toLowerCase().includes('kidsmenu') && item.ItemName.toLowerCase().includes('kids'))),
+    Breakfast: cardItems.filter(item => itemGroup.some(group => group.itemgroupname.toLowerCase().includes('breakfast') && item.ItemName.toLowerCase().includes('breakfast'))),
+    VeganOptions: cardItems.filter(item => itemGroup.some(group => group.itemgroupname.toLowerCase().includes('veganoptions') && item.ItemName.toLowerCase().includes('vegan')) || item.ItemName === 'Dal Tadka'),
+    Smoothies: cardItems.filter(item => itemGroup.some(group => group.itemgroupname.toLowerCase().includes('smoothies') && item.ItemName.toLowerCase().includes('smoothie'))),
   };
 
-  const allItems: CardItem[] = Array.from(
-    new Map(
-      Object.values(itemCategories)
-        .flat()
-        .map(item => [item.ItemName, item])
-    ).values()
-  );
+  const allItems: CardItem[] = cardItems; // Use all fetched items directly
 
   const toggleDropdown = (category: Category | 'All') => {
     if (category === 'All') {
@@ -234,7 +250,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
 
   useEffect(() => {
     setFilteredItems(filterItems());
-  }, [searchCode, searchName, items, selectedCategory, categoryClicked, tableId]);
+  }, [searchCode, searchName, items, selectedCategory, categoryClicked, tableId, cardItems]);
 
   const handleCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const code = e.target.value.trim();
@@ -254,7 +270,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
     if (e.key === 'Enter' && searchCode) {
       e.preventDefault();
       const matchedItem = cardItems.find(
-        item => item.itemCode.toLowerCase() === searchCode.toLowerCase()
+        item => item.itemCode.toLowerCase() === code.toLowerCase()
       );
       if (matchedItem) {
         const qty = parseInt(quantity) || 1;
@@ -535,7 +551,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
                     </button>
                   </li>
                   {itemGroup
-                    .filter(group => String(group.status) === '0') // Filter out inactive groups (status !== '0')
+                    .filter(group => String(group.status) === '0')
                     .map((group) => {
                       const category = getCategoryFromItemGroup(group.itemgroupname);
                       return (

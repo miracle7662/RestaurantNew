@@ -328,14 +328,14 @@ CREATE TABLE IF NOT EXISTS msttablemanagement (
     marketid INTEGER
   );
 
-  CREATE TABLE IF NOT EXISTS mstcustomer (
+ CREATE TABLE IF NOT EXISTS mstcustomer (
     customerid INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     countryCode TEXT NOT NULL,
     mobile TEXT NOT NULL,
     mail TEXT NOT NULL, 
     cityid TEXT NOT NULL,
-    address1 TEXT NOT NULL,
+    address1 TEXT ,
     address2 TEXT,
     stateid TEXT,
     pincode TEXT,

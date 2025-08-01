@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import Swal from 'sweetalert2';
 import { toast } from 'react-hot-toast';
 import { Preloader } from '@/components/Misc/Preloader';
@@ -60,6 +60,8 @@ interface AddCustomerModalProps {
   show: boolean;
   onHide: () => void;
   onSuccess: () => void;
+  customers: Customer[];
+  setCustomers: (customers: Customer[]) => void;
 }
 
 // EditCustomerModal Props
@@ -69,6 +71,8 @@ interface EditCustomerModalProps {
   mstcustomer: Customer | null;
   onSuccess: () => void;
   onUpdateSelectedCustomer: (mstcustomer: Customer) => void;
+  customers: Customer[];
+  setCustomers: (customers: Customer[]) => void;
 }
 
 // Main CustomerPage Component
@@ -265,7 +269,7 @@ const CustomerPage: React.FC = () => {
               <Preloader />
             </Stack>
           ) : (
-            <div style={{ width: '100%', overflowX: 'auto' }}>
+            <div style={{ width: '100%', overflowX: 'auto', overflowY: 'auto', maxHeight: '500px' }}>
               <Table responsive className="mb-0" style={{ tableLayout: 'auto', width: '100%' }}>
                 <thead>
                   {table.getHeaderGroups().map((headerGroup) => (
@@ -318,6 +322,8 @@ const CustomerPage: React.FC = () => {
         show={showAddCustomerModal}
         onHide={() => setShowAddCustomerModal(false)}
         onSuccess={fetchCustomers}
+        customers={customers}
+        setCustomers={setCustomers}
       />
       <EditCustomerModal
         show={showEditCustomerModal}
@@ -328,12 +334,14 @@ const CustomerPage: React.FC = () => {
         mstcustomer={selectedCustomer}
         onSuccess={fetchCustomers}
         onUpdateSelectedCustomer={setSelectedCustomer}
+        customers={customers}
+        setCustomers={setCustomers}
       />
     </>
   );
 };
 
-const AddCustomerModal: React.FC<AddCustomerModalProps> = ({ show, onHide, onSuccess }) => {
+const AddCustomerModal: React.FC<AddCustomerModalProps> = ({ show, onHide, onSuccess, customers, setCustomers }) => {
   const [name, setName] = useState<string>('');
   const [countryCode, setCountryCode] = useState<string>('+91');
   const [mobile, setMobile] = useState<string>('');
@@ -351,38 +359,44 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({ show, onHide, onSuc
   const [loading, setLoading] = useState<boolean>(false);
   const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null);
   const { user } = useAuthContext();
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [stateid, setStateId] = useState<number | null>(null);
   const [states, setStates] = useState<StateItem[]>([]);
-  const [cityid, setCityid] = useState<number | null>(null);
   const [cities, setCities] = useState<CityItem[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [stateSearch, setStateSearch] = useState<string>('');
   const [citySearch, setCitySearch] = useState<string>('');
   const [showStateDropdown, setShowStateDropdown] = useState<boolean>(false);
   const [showCityDropdown, setShowCityDropdown] = useState<boolean>(false);
+  const stateDropdownRef = useRef<HTMLDivElement>(null);
+  const cityDropdownRef = useRef<HTMLDivElement>(null);
+  const [stateHighlightIndex, setStateHighlightIndex] = useState<number>(-1);
+  const [cityHighlightIndex, setCityHighlightIndex] = useState<number>(-1);
+  const [stateid, setStateId] = useState<number | null>(null);
+  const [cityid, setCityid] = useState<number | null>(null);
 
   useEffect(() => {
-    fetchStates(setStates, setStateId);
-    fetchCities(setCities, setCityid);
-    const fetchCustomers = async () => {
-      try {
-        const res = await fetch('http://localhost:3001/api/customer');
-        if (res.ok) {
-          const data = await res.json();
-          setCustomers(data);
-        }
-      } catch (err) {
-        toast.error('Error fetching customers');
-      }
-    };
-    fetchCustomers();
+    fetchStates(setStates, setStateId).catch((err) => toast.error('Error fetching states'));
+    fetchCities(setCities, setCityid).catch((err) => toast.error('Error fetching cities'));
   }, []);
 
   const handleMobileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const mobileValue = e.target.value;
-    setMobile(mobileValue);
+    const mobileValue = e.target.value.replace(/\D/g, ''); // Allow only digits
+    if (mobileValue.length <= 10) setMobile(mobileValue);
     setSearchTerm(mobileValue);
+  };
+
+  const handlePincodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const pincodeValue = e.target.value.replace(/\D/g, ''); // Allow only digits
+    if (pincodeValue.length <= 6) setPincode(pincodeValue);
+  };
+
+  const handleAadharChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const aadharValue = e.target.value.replace(/\D/g, ''); // Allow only digits
+    if (aadharValue.length <= 12) setAadharNo(aadharValue);
+  };
+
+  const handlePanChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const panValue = e.target.value.replace(/[^a-zA-Z0-9]/g, ''); // Allow alphanumeric only
+    if (panValue.length <= 10) setPanNo(panValue.toUpperCase());
   };
 
   const resetForm = () => {
@@ -408,13 +422,60 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({ show, onHide, onSuc
     setCitySearch('');
     setShowStateDropdown(false);
     setShowCityDropdown(false);
+    setStateHighlightIndex(-1);
+    setCityHighlightIndex(-1);
+  };
+
+  const validateForm = () => {
+    if (!name.trim()) {
+      toast.error('Name is required');
+      return false;
+    }
+    if (!mobile.trim()) {
+      toast.error('Mobile is required');
+      return false;
+    }
+    if (!countryCode.trim()) {
+      toast.error('Country code is required');
+      return false;
+    }
+    if (mobile && !/^\d{10}$/.test(mobile)) {
+      toast.error('Mobile number must be exactly 10 digits');
+      return false;
+    }
+    if (mail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) {
+      toast.error('Please enter a valid email address');
+      return false;
+    }
+    if (birthday && new Date(birthday) > new Date('2025-08-01')) {
+      toast.error('Birthday cannot be in the future');
+      return false;
+    }
+    if (anniversary && (!/^\d{4}-\d{2}-\d{2}$/.test(anniversary) || new Date(anniversary) > new Date('2025-08-01'))) {
+      toast.error('Anniversary must be a valid date up to today');
+      return false;
+    }
+    if (aadharNo && !/^\d{12}$/.test(aadharNo)) {
+      toast.error('Aadhar number must be exactly 12 digits');
+      return false;
+    }
+    if (panNo && !/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(panNo)) {
+      toast.error('PAN number must be exactly 10 characters (e.g., ABCDE1234F)');
+      return false;
+    }
+    if (pincode && !/^\d{6}$/.test(pincode)) {
+      toast.error('Pincode must be exactly 6 digits');
+      return false;
+    }
+    if (gstNo && !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[0-9A-Z]{1}Z[0-9A-Z]{1}$/.test(gstNo)) {
+      toast.error('GST number must be a valid 15-digit alphanumeric format (e.g., 22AAAAA0000A1Z5)');
+      return false;
+    }
+    return true;
   };
 
   const handleSubmit = async () => {
-    if (!name || !mobile || !mail || cityid === null || !address1) {
-      toast.error('Please fill all required fields: Name, Mobile, Email, City, Address 1');
-      return;
-    }
+    if (!validateForm()) return;
     setLoading(true);
     try {
       const currentDate = new Date().toISOString();
@@ -445,14 +506,12 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({ show, onHide, onSuc
 
       let res;
       if (selectedCustomerId) {
-        // Update existing customer
         res = await fetch(`http://localhost:3001/api/customer/${selectedCustomerId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
       } else {
-        // Add new customer
         res = await fetch('http://localhost:3001/api/customer', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -463,10 +522,14 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({ show, onHide, onSuc
       if (res.ok) {
         const message = selectedCustomerId ? 'Customer updated successfully' : 'Customer added successfully';
         toast.success(message);
+        const updatedCustomers = selectedCustomerId
+          ? customers.map((c) => (c.customerid === selectedCustomerId ? { ...c, ...payload } : c))
+          : [...customers, payload as Customer];
+        setCustomers(updatedCustomers);
         resetForm();
         onSuccess();
       } else {
-        const errorData = await res.json();
+        const errorData = await res.json().catch(() => ({}));
         toast.error(errorData.message || `Failed to ${selectedCustomerId ? 'update' : 'add'} customer`);
       }
     } catch (err) {
@@ -499,6 +562,8 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({ show, onHide, onSuc
     setCitySearch(customer.city_name || '');
     setShowStateDropdown(false);
     setShowCityDropdown(false);
+    setStateHighlightIndex(-1);
+    setCityHighlightIndex(-1);
   };
 
   const filteredCustomers = customers.filter(customer =>
@@ -541,14 +606,16 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({ show, onHide, onSuc
   const handleStateSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setStateSearch(e.target.value);
     setShowStateDropdown(true);
-    setStateId(null); // Reset stateid until an option is selected
+    setStateId(null);
+    setStateHighlightIndex(-1);
   };
 
   // Handle city input change
   const handleCitySearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setCitySearch(e.target.value);
     setShowCityDropdown(true);
-    setCityid(null); // Reset cityid until an option is selected
+    setCityid(null);
+    setCityHighlightIndex(-1);
   };
 
   // Handle state selection from dropdown
@@ -556,6 +623,7 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({ show, onHide, onSuc
     setStateId(state.stateid);
     setStateSearch(state.state_name);
     setShowStateDropdown(false);
+    setStateHighlightIndex(-1);
   };
 
   // Handle city selection from dropdown
@@ -563,6 +631,61 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({ show, onHide, onSuc
     setCityid(city.cityid);
     setCitySearch(city.city_name);
     setShowCityDropdown(false);
+    setCityHighlightIndex(-1);
+  };
+
+  // Handle keyboard navigation for state dropdown
+  const handleStateKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!showStateDropdown || filteredStates.length === 0) return;
+
+    switch (e.key) {
+      case 'ArrowUp':
+        e.preventDefault();
+        setStateHighlightIndex((prev) => (prev > 0 ? prev - 1 : filteredStates.length - 1));
+        break;
+      case 'ArrowDown':
+        e.preventDefault();
+        setStateHighlightIndex((prev) => (prev < filteredStates.length - 1 ? prev + 1 : 0));
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (stateHighlightIndex >= 0 && stateHighlightIndex < filteredStates.length) {
+          handleStateSelect(filteredStates[stateHighlightIndex]);
+        }
+        break;
+      case 'Escape':
+        e.preventDefault();
+        setShowStateDropdown(false);
+        setStateHighlightIndex(-1);
+        break;
+    }
+  };
+
+  // Handle keyboard navigation for city dropdown
+  const handleCityKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!showCityDropdown || filteredCities.length === 0) return;
+
+    switch (e.key) {
+      case 'ArrowUp':
+        e.preventDefault();
+        setCityHighlightIndex((prev) => (prev > 0 ? prev - 1 : filteredCities.length - 1));
+        break;
+      case 'ArrowDown':
+        e.preventDefault();
+        setCityHighlightIndex((prev) => (prev < filteredCities.length - 1 ? prev + 1 : 0));
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (cityHighlightIndex >= 0 && cityHighlightIndex < filteredCities.length) {
+          handleCitySelect(filteredCities[cityHighlightIndex]);
+        }
+        break;
+      case 'Escape':
+        e.preventDefault();
+        setShowCityDropdown(false);
+        setCityHighlightIndex(-1);
+        break;
+    }
   };
 
   if (!show) return null;
@@ -582,7 +705,7 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({ show, onHide, onSuc
       }}
     >
       <div
-        className="modal-content bg-white"
+        className="modal-content"
         style={{
           padding: '20px',
           width: '60%',
@@ -598,21 +721,22 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({ show, onHide, onSuc
         <div className="container-fluid">
           {/* First Row - Country Code and Mobile */}
           <div className="row g-2 mb-2">
-            <div className="col-md-2">
-              <label className="form-label" style={{ fontSize: '0.85rem' }}>Country Code</label>
+            <div className="col-md-1">
+              <label className="form-label" style={{ fontSize: '0.85rem' }}> Code *</label>
               <select
                 className="form-control form-control-sm"
                 value={countryCode}
                 onChange={(e) => setCountryCode(e.target.value)}
                 disabled={loading}
                 style={{ padding: '0.25rem 0.5rem', fontSize: '0.85rem' }}
+                required
+                tabIndex={1}
               >
                 <option value="+91">+91</option>
                 <option value="+1">+1</option>
                 <option value="+44">+44</option>
               </select>
             </div>
-
             <div className="col-md-4">
               <label className="form-label" style={{ fontSize: '0.85rem' }}>Mobile *</label>
               <input
@@ -623,6 +747,9 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({ show, onHide, onSuc
                 onChange={handleMobileChange}
                 disabled={loading}
                 style={{ fontSize: '0.85rem' }}
+                maxLength={10}
+                required
+                tabIndex={2}
               />
             </div>
           </div>
@@ -639,9 +766,10 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({ show, onHide, onSuc
                 onChange={(e) => setName(e.target.value)}
                 disabled={loading}
                 style={{ fontSize: '0.85rem' }}
+                required
+                tabIndex={3}
               />
             </div>
-
             <div className="col-md-6">
               <label className="form-label" style={{ fontSize: '0.85rem' }}>Email</label>
               <input
@@ -652,11 +780,12 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({ show, onHide, onSuc
                 onChange={(e) => setMail(e.target.value)}
                 disabled={loading}
                 style={{ fontSize: '0.85rem' }}
+                tabIndex={10}
               />
             </div>
           </div>
 
-          {/* Address Fields */}
+          {/* Third Row - Address1 and Address2 */}
           <div className="row g-2 mb-2">
             <div className="col-md-6">
               <label className="form-label" style={{ fontSize: '0.85rem' }}>Address 1</label>
@@ -668,9 +797,9 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({ show, onHide, onSuc
                 onChange={(e) => setAddress1(e.target.value)}
                 disabled={loading}
                 style={{ fontSize: '0.85rem' }}
+                tabIndex={4}
               />
             </div>
-
             <div className="col-md-6">
               <label className="form-label" style={{ fontSize: '0.85rem' }}>Address 2</label>
               <input
@@ -681,24 +810,13 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({ show, onHide, onSuc
                 onChange={(e) => setAddress2(e.target.value)}
                 disabled={loading}
                 style={{ fontSize: '0.85rem' }}
+                tabIndex={11}
               />
             </div>
           </div>
 
-          {/* Location Fields */}
+          {/* Fourth Row - State, City, Birthday, Anniversary */}
           <div className="row g-2 mb-2">
-            <div className="col-md-3">
-              <label className="form-label" style={{ fontSize: '0.85rem' }}>Birthday</label>
-              <input
-                type="date"
-                className="form-control form-control-sm"
-                value={birthday}
-                onChange={(e) => setBirthday(e.target.value)}
-                disabled={loading}
-                style={{ fontSize: '0.85rem' }}
-              />
-            </div>
-
             <div className="col-md-3">
               <label className="form-label" style={{ fontSize: '0.85rem' }}>State</label>
               <input
@@ -709,11 +827,14 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({ show, onHide, onSuc
                 onChange={handleStateSearch}
                 onFocus={() => setShowStateDropdown(true)}
                 onBlur={() => setTimeout(() => setShowStateDropdown(false), 200)}
+                onKeyDown={handleStateKeyDown}
                 disabled={loading}
                 style={{ fontSize: '0.85rem' }}
+                tabIndex={5}
               />
               {showStateDropdown && (
                 <div
+                  ref={stateDropdownRef}
                   style={{
                     position: 'absolute',
                     background: 'white',
@@ -727,18 +848,19 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({ show, onHide, onSuc
                   }}
                 >
                   {filteredStates.length > 0 ? (
-                    filteredStates.map((state) => (
+                    filteredStates.map((state, index) => (
                       <div
                         key={state.stateid}
                         onClick={() => handleStateSelect(state)}
+                        onMouseEnter={() => setStateHighlightIndex(index)}
                         style={{
                           padding: '8px',
                           cursor: 'pointer',
                           fontSize: '0.85rem',
                           borderBottom: '1px solid #f0f0f0',
-                          background: state.stateid === stateid ? '#e9ecef' : 'white',
+                          background: index === stateHighlightIndex ? '#e9ecef' : 'white',
                         }}
-                        onMouseDown={(e) => e.preventDefault()} // Prevent blur on click
+                        onMouseDown={(e) => e.preventDefault()}
                       >
                         {state.state_name}
                       </div>
@@ -751,7 +873,6 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({ show, onHide, onSuc
                 </div>
               )}
             </div>
-
             <div className="col-md-3">
               <label className="form-label" style={{ fontSize: '0.85rem' }}>City</label>
               <input
@@ -762,11 +883,14 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({ show, onHide, onSuc
                 onChange={handleCitySearch}
                 onFocus={() => setShowCityDropdown(true)}
                 onBlur={() => setTimeout(() => setShowCityDropdown(false), 200)}
+                onKeyDown={handleCityKeyDown}
                 disabled={loading}
                 style={{ fontSize: '0.85rem' }}
+                tabIndex={6}
               />
               {showCityDropdown && (
                 <div
+                  ref={cityDropdownRef}
                   style={{
                     position: 'absolute',
                     background: 'white',
@@ -780,18 +904,19 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({ show, onHide, onSuc
                   }}
                 >
                   {filteredCities.length > 0 ? (
-                    filteredCities.map((city) => (
+                    filteredCities.map((city, index) => (
                       <div
                         key={city.cityid}
                         onClick={() => handleCitySelect(city)}
+                        onMouseEnter={() => setCityHighlightIndex(index)}
                         style={{
                           padding: '8px',
                           cursor: 'pointer',
                           fontSize: '0.85rem',
                           borderBottom: '1px solid #f0f0f0',
-                          background: city.cityid === cityid ? '#e9ecef' : 'white',
+                          background: index === cityHighlightIndex ? '#e9ecef' : 'white',
                         }}
-                        onMouseDown={(e) => e.preventDefault()} // Prevent blur on click
+                        onMouseDown={(e) => e.preventDefault()}
                       >
                         {city.city_name}
                       </div>
@@ -804,23 +929,19 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({ show, onHide, onSuc
                 </div>
               )}
             </div>
-
             <div className="col-md-3">
-              <label className="form-label" style={{ fontSize: '0.85rem' }}>Pincode</label>
+              <label className="form-label" style={{ fontSize: '0.85rem' }}>Birthday</label>
               <input
-                type="text"
+                type="date"
                 className="form-control form-control-sm"
-                placeholder="Pincode"
-                value={pincode}
-                onChange={(e) => setPincode(e.target.value)}
+                value={birthday}
+                onChange={(e) => setBirthday(e.target.value)}
                 disabled={loading}
                 style={{ fontSize: '0.85rem' }}
+                max="2025-08-01"
+                tabIndex={12}
               />
             </div>
-          </div>
-
-          {/* Document Fields */}
-          <div className="row g-2 mb-2">
             <div className="col-md-3">
               <label className="form-label" style={{ fontSize: '0.85rem' }}>Anniversary</label>
               <input
@@ -830,22 +951,32 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({ show, onHide, onSuc
                 onChange={(e) => setAnniversary(e.target.value)}
                 disabled={loading}
                 style={{ fontSize: '0.85rem' }}
+                max="2025-08-01"
+                tabIndex={13}
               />
             </div>
+          </div>
 
-            <div className="col-md-3">
-              <label className="form-label" style={{ fontSize: '0.85rem' }}>Aadhar No.</label>
+          {/* Fifth Row - Pincode */}
+          <div className="row g-2 mb-2">
+            <div className="col-md-6">
+              <label className="form-label" style={{ fontSize: '0.85rem' }}>Pincode</label>
               <input
                 type="text"
                 className="form-control form-control-sm"
-                placeholder="Aadhar"
-                value={aadharNo}
-                onChange={(e) => setAadharNo(e.target.value)}
+                placeholder="Pincode"
+                value={pincode}
+                onChange={handlePincodeChange}
                 disabled={loading}
                 style={{ fontSize: '0.85rem' }}
+                maxLength={6}
+                tabIndex={7}
               />
             </div>
+          </div>
 
+          {/* Sixth Row - GST No and Aadhar No */}
+          <div className="row g-2 mb-2">
             <div className="col-md-3">
               <label className="form-label" style={{ fontSize: '0.85rem' }}>GST No.</label>
               <input
@@ -856,9 +987,23 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({ show, onHide, onSuc
                 onChange={(e) => setGstNo(e.target.value)}
                 disabled={loading}
                 style={{ fontSize: '0.85rem' }}
+                tabIndex={8}
               />
             </div>
-
+            <div className="col-md-3">
+              <label className="form-label" style={{ fontSize: '0.85rem' }}>Aadhar No.</label>
+              <input
+                type="text"
+                className="form-control form-control-sm"
+                placeholder="Aadhar"
+                value={aadharNo}
+                onChange={handleAadharChange}
+                disabled={loading}
+                style={{ fontSize: '0.85rem' }}
+                maxLength={12}
+                tabIndex={9}
+              />
+            </div>
             <div className="col-md-3">
               <label className="form-label" style={{ fontSize: '0.85rem' }}>FSSAI</label>
               <input
@@ -869,12 +1014,9 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({ show, onHide, onSuc
                 onChange={(e) => setFssai(e.target.value)}
                 disabled={loading}
                 style={{ fontSize: '0.85rem' }}
+                tabIndex={14}
               />
             </div>
-          </div>
-
-          {/* Last Row */}
-          <div className="row g-2 mb-2">
             <div className="col-md-3">
               <label className="form-label" style={{ fontSize: '0.85rem' }}>PAN No.</label>
               <input
@@ -882,24 +1024,28 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({ show, onHide, onSuc
                 className="form-control form-control-sm"
                 placeholder="PAN"
                 value={panNo}
-                onChange={(e) => setPanNo(e.target.value)}
+                onChange={handlePanChange}
                 disabled={loading}
                 style={{ fontSize: '0.85rem' }}
+                maxLength={10}
+                tabIndex={15}
               />
             </div>
+          </div>
 
-            <div className="col-md-3 d-flex align-items-end">
-              <div className="form-check">
-                <input
-                  type="checkbox"
-                  className="form-check-input"
-                  checked={createWallet}
-                  onChange={(e) => setCreateWallet(e.target.checked)}
-                  disabled={loading}
-                  style={{ marginTop: '0' }}
-                />
-                <label className="form-check-label ms-2" style={{ fontSize: '0.85rem' }}>Create Wallet</label>
-              </div>
+          {/* New Row - Create Wallet */}
+          <div className="row g-2 mb-2">
+            <div className="col-md-3">
+              <label className="form-label" style={{ fontSize: '0.85rem' }}>Create Wallet</label>
+              <input
+                type="checkbox"
+                className="form-check-input"
+                checked={createWallet}
+                onChange={(e) => setCreateWallet(e.target.checked)}
+                disabled={loading}
+                style={{ marginTop: '0.25rem' }}
+                tabIndex={16}
+              />
             </div>
           </div>
 
@@ -910,6 +1056,7 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({ show, onHide, onSuc
               onClick={onHide}
               disabled={loading}
               style={{ padding: '0.25rem 0.75rem', fontSize: '0.85rem' }}
+              tabIndex={17}
             >
               Close
             </button>
@@ -918,6 +1065,7 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({ show, onHide, onSuc
               onClick={resetForm}
               disabled={loading}
               style={{ padding: '0.25rem 0.75rem', fontSize: '0.85rem' }}
+              tabIndex={18}
             >
               Clear Form
             </button>
@@ -926,6 +1074,7 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({ show, onHide, onSuc
               onClick={handleSubmit}
               disabled={loading}
               style={{ padding: '0.25rem 0.75rem', fontSize: '0.85rem' }}
+              tabIndex={19}
             >
               {loading ? (selectedCustomerId ? 'Updating...' : 'Adding...') : (selectedCustomerId ? 'Update' : 'Add')}
             </button>
@@ -944,6 +1093,7 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({ show, onHide, onSuc
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 style={{ fontSize: '0.85rem' }}
+                tabIndex={20}
               />
             </div>
           </div>
@@ -957,7 +1107,6 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({ show, onHide, onSuc
             <table className="table table-bordered table-sm mb-0">
               <thead style={{
                 top: 0,
-                background: '#f8f9fa',
                 zIndex: 1,
                 boxShadow: '0 2px 2px -1px rgba(0, 0, 0, 0.1)'
               }}>
@@ -968,7 +1117,6 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({ show, onHide, onSuc
                     whiteSpace: 'nowrap',
                     position: 'sticky',
                     left: 0,
-                    background: '#f8f9fa',
                     zIndex: 2
                   }}>Sr No</th>
                   <th style={{ fontSize: '0.85rem', padding: '8px', whiteSpace: 'nowrap' }}>C NAME</th>
@@ -987,7 +1135,6 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({ show, onHide, onSuc
                       whiteSpace: 'nowrap',
                       position: 'sticky',
                       left: 0,
-                      background: 'white',
                       zIndex: 1
                     }}>{index + 1}</td>
                     <td style={{ fontSize: '0.85rem', padding: '8px', whiteSpace: 'nowrap' }}>{customer.name}</td>
@@ -1012,6 +1159,8 @@ const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
   mstcustomer,
   onSuccess,
   onUpdateSelectedCustomer,
+  customers,
+  setCustomers,
 }) => {
   const [name, setName] = useState<string>('');
   const [countryCode, setCountryCode] = useState<string>('+91');
@@ -1033,11 +1182,19 @@ const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
   const { user } = useAuthContext();
   const [states, setStates] = useState<StateItem[]>([]);
   const [cities, setCities] = useState<CityItem[]>([]);
+  const [stateSearch, setStateSearch] = useState<string>('');
+  const [citySearch, setCitySearch] = useState<string>('');
+  const [showStateDropdown, setShowStateDropdown] = useState<boolean>(false);
+  const [showCityDropdown, setShowCityDropdown] = useState<boolean>(false);
+  const stateDropdownRef = useRef<HTMLDivElement>(null);
+  const cityDropdownRef = useRef<HTMLDivElement>(null);
+  const [stateHighlightIndex, setStateHighlightIndex] = useState<number>(-1);
+  const [cityHighlightIndex, setCityHighlightIndex] = useState<number>(-1);
 
   // Fetch states and cities
   useEffect(() => {
-    fetchStates(setStates, setStateId);
-    fetchCities(setCities, setCityid);
+    fetchStates(setStates, setStateId).catch((err) => toast.error('Error fetching states'));
+    fetchCities(setCities, setCityid).catch((err) => toast.error('Error fetching cities'));
   }, []);
 
   // Initialize form fields when mstcustomer changes
@@ -1059,16 +1216,199 @@ const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
       setBirthday(mstcustomer.birthday || '');
       setAnniversary(mstcustomer.anniversary || '');
       setCreateWallet(mstcustomer.createWallet || false);
+      setStateSearch(mstcustomer.state_name || '');
+      setCitySearch(mstcustomer.city_name || '');
     }
   }, [mstcustomer]);
 
-  // Handle form submission (UPDATE)
-  const handleEdit = async () => {
-    if (!mstcustomer || !name || !mobile || !mail || cityid === null || !address1) {
-      toast.error('Please fill all required fields: Name, Mobile, Email, City, Address 1');
-      return;
-    }
+  const handleMobileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const mobileValue = e.target.value.replace(/\D/g, ''); // Allow only digits
+    if (mobileValue.length <= 10) setMobile(mobileValue);
+  };
 
+  const handlePincodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const pincodeValue = e.target.value.replace(/\D/g, ''); // Allow only digits
+    if (pincodeValue.length <= 6) setPincode(pincodeValue);
+  };
+
+  const handleAadharChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const aadharValue = e.target.value.replace(/\D/g, ''); // Allow only digits
+    if (aadharValue.length <= 12) setAadharNo(aadharValue);
+  };
+
+  const handlePanChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const panValue = e.target.value.replace(/[^a-zA-Z0-9]/g, ''); // Allow alphanumeric only
+    if (panValue.length <= 10) setPanNo(panValue.toUpperCase());
+  };
+
+  // Filter and sort states based on search input
+  const filteredStates = useMemo(() => {
+    if (!stateSearch) return states.filter((s) => String(s.status) === '0');
+    const lowerSearch = stateSearch.toLowerCase();
+    const filtered = states.filter(
+      (s) => String(s.status) === '0' && s.state_name.toLowerCase().includes(lowerSearch)
+    );
+    return filtered.sort((a, b) => {
+      const aName = a.state_name.toLowerCase();
+      const bName = b.state_name.toLowerCase();
+      if (aName.startsWith(lowerSearch) && !bName.startsWith(lowerSearch)) return -1;
+      if (!aName.startsWith(lowerSearch) && bName.startsWith(lowerSearch)) return 1;
+      return aName.localeCompare(bName);
+    });
+  }, [states, stateSearch]);
+
+  // Filter and sort cities based on search input
+  const filteredCities = useMemo(() => {
+    if (!citySearch) return cities.filter((c) => String(c.status) === '0');
+    const lowerSearch = citySearch.toLowerCase();
+    const filtered = cities.filter(
+      (c) => String(c.status) === '0' && c.city_name.toLowerCase().includes(lowerSearch)
+    );
+    return filtered.sort((a, b) => {
+      const aName = a.city_name.toLowerCase();
+      const bName = b.city_name.toLowerCase();
+      if (aName.startsWith(lowerSearch) && !bName.startsWith(lowerSearch)) return -1;
+      if (!aName.startsWith(lowerSearch) && bName.startsWith(lowerSearch)) return 1;
+      return aName.localeCompare(bName);
+    });
+  }, [cities, citySearch]);
+
+  // Handle state input change
+  const handleStateSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setStateSearch(e.target.value);
+    setShowStateDropdown(true);
+    setStateId(null);
+    setStateHighlightIndex(-1);
+  };
+
+  // Handle city input change
+  const handleCitySearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setCitySearch(e.target.value);
+    setShowCityDropdown(true);
+    setCityid(null);
+    setCityHighlightIndex(-1);
+  };
+
+  // Handle state selection from dropdown
+  const handleStateSelect = (state: StateItem) => {
+    setStateId(state.stateid);
+    setStateSearch(state.state_name);
+    setShowStateDropdown(false);
+    setStateHighlightIndex(-1);
+  };
+
+  // Handle city selection from dropdown
+  const handleCitySelect = (city: CityItem) => {
+    setCityid(city.cityid);
+    setCitySearch(city.city_name);
+    setShowCityDropdown(false);
+    setCityHighlightIndex(-1);
+  };
+
+  // Handle keyboard navigation for state dropdown
+  const handleStateKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!showStateDropdown || filteredStates.length === 0) return;
+
+    switch (e.key) {
+      case 'ArrowUp':
+        e.preventDefault();
+        setStateHighlightIndex((prev) => (prev > 0 ? prev - 1 : filteredStates.length - 1));
+        break;
+      case 'ArrowDown':
+        e.preventDefault();
+        setStateHighlightIndex((prev) => (prev < filteredStates.length - 1 ? prev + 1 : 0));
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (stateHighlightIndex >= 0 && stateHighlightIndex < filteredStates.length) {
+          handleStateSelect(filteredStates[stateHighlightIndex]);
+        }
+        break;
+      case 'Escape':
+        e.preventDefault();
+        setShowStateDropdown(false);
+        setStateHighlightIndex(-1);
+        break;
+    }
+  };
+
+  // Handle keyboard navigation for city dropdown
+  const handleCityKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!showCityDropdown || filteredCities.length === 0) return;
+
+    switch (e.key) {
+      case 'ArrowUp':
+        e.preventDefault();
+        setCityHighlightIndex((prev) => (prev > 0 ? prev - 1 : filteredCities.length - 1));
+        break;
+      case 'ArrowDown':
+        e.preventDefault();
+        setCityHighlightIndex((prev) => (prev < filteredCities.length - 1 ? prev + 1 : 0));
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (cityHighlightIndex >= 0 && cityHighlightIndex < filteredCities.length) {
+          handleCitySelect(filteredCities[cityHighlightIndex]);
+        }
+        break;
+      case 'Escape':
+        e.preventDefault();
+        setShowCityDropdown(false);
+        setCityHighlightIndex(-1);
+        break;
+    }
+  };
+
+  const validateForm = () => {
+    if (!name.trim()) {
+      toast.error('Name is required');
+      return false;
+    }
+    if (!mobile.trim()) {
+      toast.error('Mobile is required');
+      return false;
+    }
+    if (!countryCode.trim()) {
+      toast.error('Country code is required');
+      return false;
+    }
+    if (mobile && !/^\d{10}$/.test(mobile)) {
+      toast.error('Mobile number must be exactly 10 digits');
+      return false;
+    }
+    if (mail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) {
+      toast.error('Please enter a valid email address');
+      return false;
+    }
+    if (birthday && new Date(birthday) > new Date('2025-08-01')) {
+      toast.error('Birthday cannot be in the future');
+      return false;
+    }
+    if (anniversary && (!/^\d{4}-\d{2}-\d{2}$/.test(anniversary) || new Date(anniversary) > new Date('2025-08-01'))) {
+      toast.error('Anniversary must be a valid date up to today');
+      return false;
+    }
+    if (aadharNo && !/^\d{12}$/.test(aadharNo)) {
+      toast.error('Aadhar number must be exactly 12 digits');
+      return false;
+    }
+    if (panNo && !/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(panNo)) {
+      toast.error('PAN number must be exactly 10 characters (e.g., ABCDE1234F)');
+      return false;
+    }
+    if (pincode && !/^\d{6}$/.test(pincode)) {
+      toast.error('Pincode must be exactly 6 digits');
+      return false;
+    }
+    if (gstNo && !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[0-9A-Z]{1}Z[0-9A-Z]{1}$/.test(gstNo)) {
+      toast.error('GST number must be a valid 15-digit alphanumeric format (e.g., 22AAAAA0000A1Z5)');
+      return false;
+    }
+    return true;
+  };
+
+  const handleEdit = async () => {
+    if (!validateForm()) return;
     setLoading(true);
     try {
       const currentDate = new Date().toISOString();
@@ -1078,7 +1418,7 @@ const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
         countryCode,
         mobile,
         mail,
-        cityid: cityid.toString(),
+        cityid: cityid?.toString() || '',
         city_name: cities.find((c) => c.cityid === cityid)?.city_name || '',
         address1,
         address2: address2 || undefined,
@@ -1104,11 +1444,15 @@ const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
 
       if (res.ok) {
         toast.success('Customer updated successfully');
+        const updatedCustomers = customers.map((c) =>
+          c.customerid === mstcustomer.customerid ? { ...c, ...payload } : c
+        );
+        setCustomers(updatedCustomers);
         onSuccess();
         onUpdateSelectedCustomer(payload);
         onHide();
       } else {
-        const errorData = await res.json();
+        const errorData = await res.json().catch(() => ({}));
         toast.error(errorData.message || 'Failed to update customer');
       }
     } catch (err) {
@@ -1149,9 +1493,38 @@ const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
 
         <div className="container-fluid">
           <div className="row g-3">
-            {/* First Row */}
+            {/* First Row - Country Code and Mobile */}
+            <div className="col-md-2" style={{ width: '10%' }}>
+              <label className="form-label"> Code *</label>
+              <select
+                className="form-control"
+                value={countryCode}
+                onChange={(e) => setCountryCode(e.target.value)}
+                disabled={loading}
+                required
+              >
+                <option value="+91">India +91</option>
+                <option value="+1">USA +1</option>
+                <option value="+44">UK +44</option>
+              </select>
+            </div>
             <div className="col-md-3">
-              <label className="form-label">Name <span className="text-danger">*</span></label>
+              <label className="form-label">Mobile *</label>
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Enter mobile number"
+                value={mobile}
+                onChange={handleMobileChange}
+                disabled={loading}
+                maxLength={10}
+                required
+              />
+            </div>
+
+            {/* Second Row - Name and Email */}
+            <div className="col-md-3">
+              <label className="form-label">Name *</label>
               <input
                 type="text"
                 className="form-control"
@@ -1159,36 +1532,10 @@ const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 disabled={loading}
+                required
               />
             </div>
-
-            <div className="col-md-3">
-              <label className="form-label">Country Code</label>
-              <select
-                className="form-control"
-                value={countryCode}
-                onChange={(e) => setCountryCode(e.target.value)}
-                disabled={loading}
-              >
-                <option value="+91">India +91</option>
-                <option value="+1">USA +1</option>
-                <option value="+44">UK +44</option>
-              </select>
-            </div>
-
-            <div className="col-md-3">
-              <label className="form-label">Mobile <span className="text-danger">*</span></label>
-              <input
-                type="text"
-                className="form-control"
-                placeholder="Enter mobile number"
-                value={mobile}
-                onChange={(e) => setMobile(e.target.value)}
-                disabled={loading}
-              />
-            </div>
-
-            <div className="col-md-3">
+            <div className="col-md-4">
               <label className="form-label">Email</label>
               <input
                 type="email"
@@ -1200,62 +1547,177 @@ const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
               />
             </div>
 
-            {/* Second Row */}
+            {/* Third Row - Address 1 and Address 2 */}
+            <div className="col-md-6">
+              <label className="form-label">Address 1</label>
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Enter address line 1"
+                value={address1}
+                onChange={(e) => setAddress1(e.target.value)}
+                disabled={loading}
+              />
+            </div>
+            <div className="col-md-6">
+              <label className="form-label">Address 2</label>
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Enter address line 2"
+                value={address2}
+                onChange={(e) => setAddress2(e.target.value)}
+                disabled={loading}
+              />
+            </div>
+
+            {/* Fourth Row - State, City, Birthday, Anniversary */}
+            <div className="col-md-3">
+              <label className="form-label">State</label>
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Search state"
+                value={stateSearch}
+                onChange={handleStateSearch}
+                onFocus={() => setShowStateDropdown(true)}
+                onBlur={() => setTimeout(() => setShowStateDropdown(false), 200)}
+                onKeyDown={handleStateKeyDown}
+                disabled={loading}
+              />
+              {showStateDropdown && (
+                <div
+                  ref={stateDropdownRef}
+                  style={{
+                    position: 'absolute',
+                    background: 'white',
+                    border: '1px solid #dee2e6',
+                    borderRadius: '4px',
+                    maxHeight: '150px',
+                    overflowY: 'auto',
+                    width: 'calc(25% - 8px)',
+                    zIndex: 1001,
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                  }}
+                >
+                  {filteredStates.length > 0 ? (
+                    filteredStates.map((state, index) => (
+                      <div
+                        key={state.stateid}
+                        onClick={() => handleStateSelect(state)}
+                        onMouseEnter={() => setStateHighlightIndex(index)}
+                        style={{
+                          padding: '8px',
+                          cursor: 'pointer',
+                          fontSize: '0.85rem',
+                          borderBottom: '1px solid #f0f0f0',
+                          background: index === stateHighlightIndex ? '#e9ecef' : 'white',
+                        }}
+                        onMouseDown={(e) => e.preventDefault()}
+                      >
+                        {state.state_name}
+                      </div>
+                    ))
+                  ) : (
+                    <div style={{ padding: '8px', fontSize: '0.85rem', color: '#6c757d' }}>
+                      No states found
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="col-md-3">
+              <label className="form-label">City</label>
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Search city"
+                value={citySearch}
+                onChange={handleCitySearch}
+                onFocus={() => setShowCityDropdown(true)}
+                onBlur={() => setTimeout(() => setShowCityDropdown(false), 200)}
+                onKeyDown={handleCityKeyDown}
+                disabled={loading}
+              />
+              {showCityDropdown && (
+                <div
+                  ref={cityDropdownRef}
+                  style={{
+                    position: 'absolute',
+                    background: 'white',
+                    border: '1px solid #dee2e6',
+                    borderRadius: '4px',
+                    maxHeight: '150px',
+                    overflowY: 'auto',
+                    width: 'calc(25% - 8px)',
+                    zIndex: 1001,
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                  }}
+                >
+                  {filteredCities.length > 0 ? (
+                    filteredCities.map((city, index) => (
+                      <div
+                        key={city.cityid}
+                        onClick={() => handleCitySelect(city)}
+                        onMouseEnter={() => setCityHighlightIndex(index)}
+                        style={{
+                          padding: '8px',
+                          cursor: 'pointer',
+                          fontSize: '0.85rem',
+                          borderBottom: '1px solid #f0f0f0',
+                          background: index === cityHighlightIndex ? '#e9ecef' : 'white',
+                        }}
+                        onMouseDown={(e) => e.preventDefault()}
+                      >
+                        {city.city_name}
+                      </div>
+                    ))
+                  ) : (
+                    <div style={{ padding: '8px', fontSize: '0.85rem', color: '#6c757d' }}>
+                      No cities found
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
             <div className="col-md-3">
               <label className="form-label">Birthday</label>
               <input
                 type="date"
                 className="form-control"
-                placeholder="dd-mm-yyyy"
                 value={birthday}
                 onChange={(e) => setBirthday(e.target.value)}
                 disabled={loading}
+                max="2025-08-01"
+              />
+            </div>
+            <div className="col-md-3">
+              <label className="form-label">Anniversary</label>
+              <input
+                type="date"
+                className="form-control"
+                value={anniversary}
+                onChange={(e) => setAnniversary(e.target.value)}
+                disabled={loading}
+                max="2025-08-01"
               />
             </div>
 
-            <div className="col-md-3">
-              <label className="form-label">State</label>
-              <select
-                className="form-control"
-                value={stateid ?? ''}
-                onChange={(e) => setStateId(e.target.value === '' ? null : Number(e.target.value))}
-                disabled={loading}
-              >
-                <option value="">Enter state</option>
-                {states.filter((s) => String(s.status) === '0').map((s) => (
-                  <option key={s.stateid} value={s.stateid}>{s.state_name}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="col-md-3">
-              <label className="form-label">City</label>
-              <select
-                className="form-control"
-                value={cityid ?? ''}
-                onChange={(e) => setCityid(e.target.value === '' ? null : Number(e.target.value))}
-                disabled={loading}
-              >
-                <option value="">Enter city</option>
-                {cities.filter((city) => String(city.status) === '0').map((city) => (
-                  <option key={city.cityid} value={city.cityid}>{city.city_name}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="col-md-3">
+            {/* Fifth Row - Pincode */}
+            <div className="col-md-6">
               <label className="form-label">Pincode</label>
               <input
                 type="text"
                 className="form-control"
                 placeholder="Enter pincode"
                 value={pincode}
-                onChange={(e) => setPincode(e.target.value)}
+                onChange={handlePincodeChange}
                 disabled={loading}
+                maxLength={6}
               />
             </div>
 
-            {/* Third Row */}
+            {/* Sixth Row - GST No, Aadhar No, FSSAI, PAN */}
             <div className="col-md-3">
               <label className="form-label">GST No.</label>
               <input
@@ -1267,7 +1729,18 @@ const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
                 disabled={loading}
               />
             </div>
-
+            <div className="col-md-3">
+              <label className="form-label">Aadhar No.</label>
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Enter Aadhar number"
+                value={aadharNo}
+                onChange={handleAadharChange}
+                disabled={loading}
+                maxLength={12}
+              />
+            </div>
             <div className="col-md-3">
               <label className="form-label">FSSAI</label>
               <input
@@ -1279,7 +1752,6 @@ const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
                 disabled={loading}
               />
             </div>
-
             <div className="col-md-3">
               <label className="form-label">PAN No.</label>
               <input
@@ -1287,66 +1759,29 @@ const EditCustomerModal: React.FC<EditCustomerModalProps> = ({
                 className="form-control"
                 placeholder="Enter PAN number"
                 value={panNo}
-                onChange={(e) => setPanNo(e.target.value)}
+                onChange={handlePanChange}
                 disabled={loading}
+                maxLength={10}
               />
             </div>
 
-            <div className="col-md-3">
-              <label className="form-label">Aadhar No.</label>
-              <input
-                type="text"
-                className="form-control"
-                placeholder="Enter Aadhar number"
-                value={aadharNo}
-                onChange={(e) => setAadharNo(e.target.value)}
+            {/* Action Buttons */}
+            <div className="col-12 d-flex justify-content-end mt-4">
+              <button
+                className="btn btn-outline-secondary me-2"
+                onClick={onHide}
                 disabled={loading}
-              />
-            </div>
-
-            {/* Fourth Row */}
-            <div className="col-md-3">
-              <label className="form-label">Anniversary</label>
-              <input
-                type="date"
-                className="form-control"
-                placeholder="dd-mm-yyyy"
-                value={anniversary}
-                onChange={(e) => setAnniversary(e.target.value)}
+              >
+                Exit
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={handleEdit}
                 disabled={loading}
-              />
+              >
+                {loading ? 'Saving...' : 'Save'}
+              </button>
             </div>
-
-            <div className="col-md-3 d-flex align-items-center">
-              <div className="form-check">
-                <input
-                  type="checkbox"
-                  className="form-check-input"
-                  checked={createWallet}
-                  onChange={(e) => setCreateWallet(e.target.checked)}
-                  disabled={loading}
-                />
-                <label className="form-check-label ms-2">Create Wallet</label>
-              </div>
-            </div>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="d-flex justify-content-end mt-4">
-            <button
-              className="btn btn-outline-secondary me-2"
-              onClick={onHide}
-              disabled={loading}
-            >
-              Exit
-            </button>
-            <button
-              className="btn btn-primary"
-              onClick={handleEdit}
-              disabled={loading}
-            >
-              {loading ? 'Saving...' : 'Save'}
-            </button>
           </div>
         </div>
       </div>
