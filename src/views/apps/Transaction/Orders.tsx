@@ -49,7 +49,7 @@ const Order = () => {
   const [selectedTable, setSelectedTable] = useState<string | null>('');
   const [items, setItems] = useState<MenuItem[]>([]);
   const [activeTab, setActiveTab] = useState<string>('Dine-in');
-  const [showOrderDetails, setShowOrderDetails] = useState(false);
+  const [showOrderDetails, setShowOrderDetails] = useState<boolean>(false);
   const [selectedCountryCode, setSelectedCountryCode] = useState<string>('+91');
   const [showCountryOptions, setShowCountryOptions] = useState<boolean>(false);
   const [showNewCustomerForm, setShowNewCustomerForm] = useState<boolean>(false);
@@ -96,7 +96,7 @@ const Order = () => {
   const { user } = useAuthContext();
   const itemListRef = useRef<HTMLDivElement>(null);
 
-  // Fetch tables from the table management API
+  // Fetch tables from the TableManagement API
   const fetchTableManagement = async () => {
     setLoading(true);
     try {
@@ -105,13 +105,19 @@ const Order = () => {
       });
       if (res.ok) {
         const data: TableItem[] = await res.json();
-        setTableItems(data);
-        setFilteredTables(data); // Initialize filteredTables with all tables
+        console.log('Fetched tables:', data);
+        if (data.length === 0) {
+          setErrorMessage('No tables found in TableManagement API.');
+        } else {
+          setTableItems(data);
+          setFilteredTables(data);
+        }
       } else {
-        setErrorMessage('Failed to fetch table data');
+        setErrorMessage(`Failed to fetch tables: ${res.status} ${res.statusText}`);
       }
     } catch (err) {
-      setErrorMessage('Failed to fetch table data');
+      console.error('Table fetch error:', err);
+      setErrorMessage('Failed to fetch tables. Please check the API endpoint.');
     } finally {
       setLoading(false);
     }
@@ -153,14 +159,14 @@ const Order = () => {
         return;
       }
 
-      if (user.role_level === 'outlet_user' && (!user.outletid || !user.hotelid || user.outletid.length === 0)) {
+      if (user.role_level === 'outlet_user' && (!user.hotelid || !user.outletid)) {
         setErrorMessage('Outlet user missing required hotelid or outletid.');
         setLoading(false);
         console.log('Outlet user data issue:', user);
         return;
       }
 
-      if (user.role_level !== 'outlet_user' && (!user.hotelid)) {
+      if (user.role_level !== 'outlet_user' && !user.hotelid) {
         setErrorMessage('User missing required hotelid.');
         setLoading(false);
         console.log('User data issue:', user);
@@ -171,33 +177,15 @@ const Order = () => {
         setLoading(true);
         setErrorMessage('');
         
-        if (user.role_level === 'outlet_user' && user.outletid && user.outletid.length > 0) {
+        if (user.role_level === 'outlet_user' && user.outletid) {
           console.log('Outlet user detected, fetching outlets with outletid filter:', user.outletid);
-          console.log('User object for outlet user:', {
-            id: user.id,
-            role_level: user.role_level,
-            hotelid: user.hotelid,
-            outletids: user.outletid,
-            brand_id: user.brand_id
-          });
-          
-          await fetchOutlets(
-            {
-              ...user,
-              outletids: user.outletid,
-            },
-            setOutlets,
-            setLoading,
-          );
+          await fetchOutlets(user, setOutlets, setLoading);
         } else {
           console.log('Fetching all outlets for user:', { userid: user.id, hotelid: user.hotelid, outletid: user.outletid });
           await fetchOutlets(user, setOutlets, setLoading);
         }
         
-        console.log('Fetch completed, checking outlets state...');
-        console.log('Current outlets state after fetch:', outlets);
-        console.log('Current loading state after fetch:', loading);
-        console.log('Current errorMessage state after fetch:', errorMessage);
+        console.log('Outlets fetched:', outlets);
       } catch (error: any) {
         console.error('Error in fetchOutletsData:', error);
         setErrorMessage(
@@ -212,74 +200,76 @@ const Order = () => {
     };
     
     fetchOutletsData();
-    fetchTableManagement(); // Fetch tables when component mounts
+    fetchTableManagement();
   }, [user?.id, user?.hotelid, user?.outletid, user?.role_level]);
 
   useEffect(() => {
     if (!loading && outlets.length === 0 && !errorMessage && user) {
-      console.log('No outlets found after fetch, setting error message');
-      console.log('Current state:', { loading, outletsLength: outlets.length, errorMessage, user });
+      console.log('No outlets found:', { loading, outletsLength: outlets.length, errorMessage, user });
     }
   }, [outlets, loading, errorMessage, user]);
 
   useEffect(() => {
-    console.log('Outlets state changed:', { outletsLength: outlets.length, outlets });
-  }, [outlets]);
+    console.log('Outlets state changed:', outlets);
+    console.log('TableItems state changed:', tableItems);
+  }, [outlets, tableItems]);
 
   useEffect(() => {
+    console.log('ActiveNavTab:', activeNavTab, 'Outlets:', outlets, 'TableItems:', tableItems);
     const selectedOutlet = outlets.find(outlet => outlet.outlet_name === activeNavTab);
+    let filtered: TableItem[] = [];
+    
     if (selectedOutlet) {
-      setFilteredTables(
-        tableItems.filter(table => 
-          table.outlet_name === activeNavTab || table.isCommonToAllDepartments
-        )
+      filtered = tableItems.filter(table => 
+        (table.outlet_name === activeNavTab || table.isCommonToAllDepartments)
       );
     } else {
       switch (activeNavTab) {
         case 'ALL':
-          setFilteredTables(tableItems);
+          filtered = tableItems;
           break;
         case 'FamilyDine in':
-          setFilteredTables(
-            tableItems.filter(table => 
-              table.table_name.startsWith('F') || table.isCommonToAllDepartments
-            )
+          filtered = tableItems.filter(table => 
+            table.table_name.startsWith('F') || table.isCommonToAllDepartments
           );
           break;
         case 'Restaurant':
-          setFilteredTables(
-            tableItems.filter(table => 
-              table.table_name.startsWith('R') || table.isCommonToAllDepartments
-            )
+          filtered = tableItems.filter(table => 
+            table.table_name.startsWith('R') || table.isCommonToAllDepartments
           );
           break;
         case 'Rooms':
-          setFilteredTables(
-            tableItems.filter(table => 
-              /^\d+$/.test(table.table_name) || table.isCommonToAllDepartments
-            )
+          filtered = tableItems.filter(table => 
+            /^\d+$/.test(table.table_name) || table.isCommonToAllDepartments
           );
           break;
         case 'Pickup':
         case 'Quick Bill':
         case 'Delivery':
-          setFilteredTables([]);
+          filtered = [];
           break;
         default:
-          setFilteredTables(tableItems);
+          filtered = tableItems;
           break;
       }
     }
+    
+    setFilteredTables(filtered);
+    console.log(`Filtered tables for ${activeNavTab}:`, filtered);
   }, [activeNavTab, outlets, tableItems]);
 
   const handleTableClick = (seat: string) => {
+    console.log('Button clicked for table:', seat);
     setSelectedTable(seat);
     setItems([]);
     setShowOrderDetails(true);
     setInvalidTable('');
+    console.log('After handleTableClick - selectedTable:', seat, 'showOrderDetails:', true);
   };
 
   const handleTabClick = (tab: string) => {
+    console.log('Tab clicked:', tab);
+    setDescribe('Tab clicked:', tab);
     setActiveTab(tab);
     if (['Pickup', 'Delivery', 'Quick Bill', 'Order/KOT', 'Billing'].includes(tab)) {
       setSelectedTable(null);
@@ -402,6 +392,10 @@ const Order = () => {
 
     setSavedKOTs(savedKOTs);
   };
+
+  useEffect(() => {
+    console.log('State update - showOrderDetails:', showOrderDetails, 'selectedTable:', selectedTable);
+  }, [showOrderDetails, selectedTable]);
 
   return (
     <div className="container-fluid p-0 m-0" style={{ height: '100vh' }}>
@@ -643,17 +637,21 @@ const Order = () => {
                   filteredTables.map((table, index) => (
                     <div key={index} className="p-1">
                       <button
-                        className={`btn ${selectedTable === table.table_name ? 'btn-success' : 'btn-outline-success'} ${!table.isActive ? 'disabled' : ''}`}
+                        className={`btn ${selectedTable === table.table_name ? 'btn-success' : 'btn-outline-success'}`}
                         style={{ width: '90px', height: '80px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
-                        onClick={() => handleTableClick(table.table_name)}
-                        disabled={!table.isActive}
+                        onClick={() => {
+                          console.log('Button clicked for table:', table.table_name, 'isActive:', table.isActive);
+                          handleTableClick(table.table_name);
+                        }}
                       >
-                        {table.table_name}
+                        {table.table_name} {table.isActive ? '' : ''}
                       </button>
                     </div>
                   ))
                 ) : (
-                  <p className="text-center text-muted mb-0">No tables available</p>
+                  <p className="text-center text-muted mb-0">
+                    No tables available for {activeNavTab}. Please check TableManagement data.
+                  </p>
                 )}
               </div>
             </div>
