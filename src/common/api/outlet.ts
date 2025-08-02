@@ -78,6 +78,11 @@ class OutletService {
   deleteOutlet = (id: number) => {
     return api.delete(`/api/outlets/${id}`)
   }
+
+  // Get outlets for dropdown
+  getOutletsForDropdown = (params?: { role_level?: string; hotelid?: number; brandId?: number }) => {
+    return api.get('/api/outlets', params || {})
+  }
 }
 
 export default new OutletService() 

@@ -510,6 +510,58 @@ export const fetchAllOutletsForHotelUser = async (
   }
 }
 
+export const fetchOutletsForDropdown = async (
+  user: any,
+  setOutlets: (data: OutletData[]) => void,
+  setLoading: (value: boolean) => void,
+) => {
+  try {
+    setLoading(true);
+    console.log('Fetching outlets for dropdown...');
+
+    const params: any = {
+      roleLevel: user?.role_level,
+      hotelid: user?.hotelid,
+      brandId: user?.brand_id || null,
+      userid: user?.id, // Ensure this is set (e.g., 70 for miracle456)
+    };
+
+    console.log('Fetching dropdown outlets with params:', params);
+    console.log('Current user details:', {
+      userid: user?.id,
+      role_level: user?.role_level,
+      brand_id: user?.brand_id,
+      hotelid: user?.hotelid,
+    });
+
+    const response = await outletService.getOutletsForDropdown(params);
+    console.log('Dropdown outlet response:', response);
+
+    if (response && response.data) {
+      const sortedOutlets = response.data.sort((a: OutletData, b: OutletData) => {
+        return a.outlet_name.localeCompare(b.outlet_name);
+      });
+      setOutlets(sortedOutlets);
+      console.log('Sorted outlets set:', sortedOutlets);
+    } else {
+      console.error('Invalid response format:', response);
+      toast.error('No outlets found or invalid response from server');
+      setOutlets([]);
+    }
+  } catch (error: any) {
+    console.error('Error fetching dropdown outlets:', error);
+    if (error.response?.status === 404) {
+      toast.error('Outlets endpoint not found. Please check backend route configuration.');
+    } else if (error.response?.status === 400) {
+      toast.error('User ID is required or invalid. Please check user authentication.');
+    } else {
+      toast.error('Failed to fetch outlets for dropdown. Error: ' + (error.message || 'Unknown error'));
+    }
+    setOutlets([]);
+  } finally {
+    setLoading(false);
+  }
+};
 // export const fetchOutletuserById = async (
 //   id: number,
 //   user: { role_level: string; hotelid: number; brand_id: number; userid: number },

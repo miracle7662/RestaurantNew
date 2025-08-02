@@ -20,8 +20,8 @@ import {
   ItemGroupItem,
   ItemMainGroupItem,
 } from '@/utils/commonfunction';
-import { fetchOutlets } from '@/utils/commonfunction';
-import { OutletData } from '@/common/api/outlet';
+import { fetchOutletsForDropdown } from '@/utils/commonfunction'; // 
+import  { OutletData } from '@/common/api/outlet';
 import { fetchBrands } from '@/utils/commonfunction';
 
 // Define interfaces
@@ -738,9 +738,13 @@ const AddItemModal: React.FC<ModalProps> = ({ show, onHide, onSuccess, setData, 
     fetchKitchenSubCategory(setKitchenSubCategory, setKitchenSubCategoryid);
     fetchItemGroup(setitemgroup, setitemgroupid);
     fetchItemMainGroup(setItemMainGroup, setitemmaingroupid);
-    fetchOutlets(user, setOutlets, setLoading);
+    fetchOutletsForDropdown(user, setOutlets, setLoading);
     fetchBrands(user, setBrands);
   }, [kitchen_category_id, user]);
+
+  const handleOutletChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setSelectedOutlet(Number(e.target.value));
+  };
 
   // Initialize outletRates when outlets are fetched
   useEffect(() => {
@@ -919,22 +923,18 @@ const AddItemModal: React.FC<ModalProps> = ({ show, onHide, onSuccess, setData, 
                   Outlet
                 </Form.Label>
                 <Col sm={8}>
-                  <select
+                <select
                     className="form-control rounded-lg"
                     value={selectedOutlet || ''}
-                    onChange={(e) => {
-                      const value = e.target.value ? Number(e.target.value) : null;
-                      setSelectedOutlet(value);
-                      setoutletid(value ? String(value) : null);
-                    }}
-                    disabled={loading}
-                  >
-                    <option value="">Select Outlet</option>
-                    {outlets.map((outlet) => (
-                      <option key={outlet.outletid} value={outlet.outletid}>
-                        {outlet.outlet_name} ({outlet.outlet_code})
-                      </option>
-                    ))}
+            onChange={handleOutletChange}
+            disabled={loading}
+          >
+            <option value="">Select an outlet</option>
+            {outlets.map((outlet) => (
+              <option key={outlet.outletid} value={outlet.outletid}>
+                {outlet.outlet_name} ({outlet.brand_name})
+              </option>
+            ))}
                   </select>
                 </Col>
               </Form.Group>
@@ -1482,9 +1482,13 @@ const EditItemModal: React.FC<ModalProps> = ({
     fetchKitchenSubCategory(setKitchenSubCategory, setKitchenSubCategoryid);
     fetchItemGroup(setitemgroup, setitemgroupid);
     fetchItemMainGroup(setItemMainGroup, setitemmaingroupid);
-    fetchOutlets(user, setOutlets, setLoading);
+   fetchOutletsForDropdown(user, setOutlets, setLoading);
     fetchBrands(user, setBrands);
   }, [kitchen_category_id, user]);
+
+  const handleOutletChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setSelectedOutlet(Number(e.target.value));
+  };
 
   // Initialize outletRates when outlets are fetched
   useEffect(() => {
@@ -1686,19 +1690,15 @@ const EditItemModal: React.FC<ModalProps> = ({
                   <select
                     className="form-control rounded-lg"
                     value={selectedOutlet || ''}
-                    onChange={(e) => {
-                      const value = e.target.value ? Number(e.target.value) : null;
-                      setSelectedOutlet(value);
-                      setoutletid(value ? String(value) : null);
-                    }}
-                    disabled={loading}
-                  >
-                    <option value="">Select Outlet</option>
-                    {outlets.map((outlet) => (
-                      <option key={outlet.outletid} value={outlet.outletid}>
-                        {outlet.outlet_name} ({outlet.outlet_code})
-                      </option>
-                    ))}
+            onChange={handleOutletChange}
+            disabled={loading}
+          >
+            <option value="">Select an outlet</option>
+            {outlets.map((outlet) => (
+              <option key={outlet.outletid} value={outlet.outletid}>
+                {outlet.outlet_name} ({outlet.brand_name})
+              </option>
+            ))}
                   </select>
                 </Col>
               </Form.Group>

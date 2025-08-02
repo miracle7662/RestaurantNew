@@ -9,8 +9,7 @@ router.get('/', outletUserController.getOutletUsers);
 router.get('/hotel-admins', outletUserController.getHotelAdmins);
 
 // Get outlets for dropdown (filtered by role)
-router.get('/outlets', outletUserController.getOutletsForDropdown);
-
+router.get('/outlets-dropdown', outletUserController.getOutletsForDropdown); // Changed from /outlets
 // Get designations for dropdown
 router.get('/designations', outletUserController.getDesignations);
 

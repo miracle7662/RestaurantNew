@@ -20,4 +20,8 @@ router.put('/:id', outletController.updateOutlet);
 // Delete outlet
 router.delete('/:id', outletController.deleteOutlet);
 
+// // Get outlets for dropdown outlet
+
+// router.get('/outlets/dropdown', outletController.getOutletsForDropdown);
+
 module.exports = router; 
