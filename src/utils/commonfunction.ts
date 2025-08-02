@@ -469,6 +469,47 @@ export const fetchOutlets = async (
   }
 }
 
+export const fetchAllOutletsForHotelUser = async (
+  user: any,
+  setOutlets: (data: OutletData[]) => void,
+  setLoading: (value: boolean) => void,
+) => {
+  try {
+    setLoading(true)
+    console.log('Fetching all outlets for hotel user...')
+
+    const params: any = {
+      role_level: user?.role_level === 'outlet_user' ? 'outlet_user' : 'hotel_admin', // Use role accordingly
+      hotelid: user?.hotelid,
+    }
+
+    console.log('Fetching outlets with params:', params)
+    console.log('Current user details:', {
+      userid: user?.userid,
+      role_level: user?.role_level,
+      hotelid: user?.hotelid,
+    })
+
+    const response = await outletService.getOutlets(params)
+    console.log('Outlet response:', response)
+
+    if (response && response.data) {
+      const sortedOutlets = response.data.sort((a: OutletData, b: OutletData) => {
+        return new Date(a.registered_at || '').getTime() - new Date(b.registered_at || '').getTime()
+      })
+      setOutlets(sortedOutlets)
+    } else {
+      console.error('Invalid response format:', response)
+      toast.error('Invalid response from server')
+    }
+  } catch (error) {
+    console.error('Error fetching all outlets for hotel user:', error)
+    toast.error('Failed to fetch outlets. Please check if the backend server is running.')
+  } finally {
+    setLoading(false)
+  }
+}
+
 // export const fetchOutletuserById = async (
 //   id: number,
 //   user: { role_level: string; hotelid: number; brand_id: number; userid: number },
