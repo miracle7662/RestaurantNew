@@ -382,11 +382,12 @@ exports.getOutletuserById = (req, res) => {
       return res.status(400).json({ error: 'Invalid hotel ID' });
     }
     let query = `
-     SELECT o.*,o.outlet_name, h.hotel_name as brand_name 
+    SELECT o.*,o.outlet_name, h.hotel_name as brand_name 
             FROM mst_outlets o              
-            inner JOIN msthotelmasters h ON h.hotelid = o.hotelid
-            inner join mst_users mu on mu.outletid =o.outletid
-            where
+            inner JOIN msthotelmasters h ON h.hotelid = o.hotelid        
+            inner join user_outlet_mapping uom on uom.outletid=o.outletid
+                inner join mst_users mu on mu.userid =uom.userid
+            
     `;
     let params = [];
     if (role_level === 'hotel_admin') {
@@ -398,7 +399,7 @@ exports.getOutletuserById = (req, res) => {
     } else if (role_level === 'superadmin') {
       // No filter
     } else if (role_level === 'outlet_user' && userid && outletid) {
-      query += ' WHERE mu.hotelid = ? AND mu.userid = 33 AND mu.outletid = ?';
+      query += ' WHERE o.hotelid = ?';
       params.push(hotelId, created_by_id, outletid);
     } else if (created_by_id) {
       query += ' WHERE o.created_by_id = ?';
