@@ -92,9 +92,9 @@ const Order = () => {
   const [outlets, setOutlets] = useState<OutletData[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
-
   const { user } = useAuthContext();
   const itemListRef = useRef<HTMLDivElement>(null);
+  const [describe, setDescribe] = useState<string>(''); // Define the state variable and its update function
 
   // Fetch tables from the TableManagement API
   const fetchTableManagement = async () => {
@@ -269,7 +269,7 @@ const Order = () => {
 
   const handleTabClick = (tab: string) => {
     console.log('Tab clicked:', tab);
-    setDescribe('Tab clicked:', tab);
+setDescribe(`Tab clicked: ${tab}`);
     setActiveTab(tab);
     if (['Pickup', 'Delivery', 'Quick Bill', 'Order/KOT', 'Billing'].includes(tab)) {
       setSelectedTable(null);

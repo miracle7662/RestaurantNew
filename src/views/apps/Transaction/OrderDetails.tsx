@@ -26,7 +26,7 @@ interface CardItem {
   itemCode: string;
   ItemName: string;
   shortName: string;
- mechanu_name:string
+ //mechanu_name:string
   price: number;
   cardStatus: string;
 }
@@ -270,7 +270,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
     if (e.key === 'Enter' && searchCode) {
       e.preventDefault();
       const matchedItem = cardItems.find(
-        item => item.itemCode.toLowerCase() === code.toLowerCase()
+        item => item.itemCode.toLowerCase() === searchCode.toLowerCase()
       );
       if (matchedItem) {
         const qty = parseInt(quantity) || 1;
