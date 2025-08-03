@@ -31,7 +31,7 @@ exports.login = async (req, res) => {
             LEFT JOIN msthotelmasters b ON u.brand_id = b.hotelid
             LEFT JOIN user_outlet_mapping uom ON u.userid = uom.userid
             LEFT JOIN msthotelmasters h ON uom.outletid = h.hotelid
-            WHERE u.email = ? AND u.status = 1
+            WHERE u.email = ? AND u.status = 0
              
             `).get(email);
         } else {
@@ -45,7 +45,7 @@ exports.login = async (req, res) => {
             LEFT JOIN msthotelmasters b ON u.brand_id = b.hotelid
             LEFT JOIN user_outlet_mapping uom ON u.userid = uom.userid
             LEFT JOIN msthotelmasters h ON uom.outletid = h.hotelid
-            WHERE u.username = ? AND u.status = 1
+            WHERE u.username = ? AND u.status = 0
               
             `).get(username);
         }
@@ -72,7 +72,8 @@ exports.login = async (req, res) => {
                 role_level: user.role_level,
                 brand_id: user.brand_id,
                 hotelid: user.hotelid,
-                outletid: user.outletid // Ensure this is included
+                outletid: user.outletid, // Ensure this is included
+                created_by_id: user.created_by_id || null // Ensure it’s included, even if null
             },
             JWT_SECRET,
             { expiresIn: '24h' }
@@ -92,6 +93,7 @@ exports.login = async (req, res) => {
             outlet_name: user.outlet_name, // Adjusted to use outlet_name alias
             brand_name: user.brand_name,
             hotel_name: user.hotel_name,  
+            created_by_id: user.created_by_id || null, // Ensure it’s included, even if null
             token: token
         };
 
@@ -149,7 +151,7 @@ exports.getCurrentUser = async (req, res) => {
             LEFT JOIN user_outlet_mapping uom ON u.userid = uom.userid
             LEFT JOIN msthotelmasters h ON uom.outletid = h.hotelid
             LEFT JOIN mst_outlets d ON uom.outletid = d.outletid
-            WHERE u.userid = ? AND u.status = 1
+            WHERE u.userid = ? AND u.status = 0
            
         `).get(decoded.userid);
 

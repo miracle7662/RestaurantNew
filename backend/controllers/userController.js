@@ -13,7 +13,7 @@ exports.getUsers = (req, res) => {
             FROM mst_users u
             LEFT JOIN msthotelmasters b ON u.brand_id = b.hotelid
             LEFT JOIN msthotelmasters h ON u.hotelid = h.hotelid
-            WHERE u.is_active = 1
+            WHERE u.is_active = 0
         `;
         
         const params = [];

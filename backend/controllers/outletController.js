@@ -23,84 +23,63 @@ exports.getBrands = (req, res) => {
   }
 }
 
-exports.getOutlets = (req, res) => {
+exports.getOutlets = (req, res) => { // Assuming this is the endpoint
   try {
-    console.log('getOutlets req.query:', req.query)
-    const { role_level, hotelid, brand_id, created_by_id, outletid } = req.query
+    const { role_level, brandId, hotelid, userid } = req.query;
+    const user = req.user || {};
+
+    console.log('Received req.query:', req.query);
+
     let query = `
-            SELECT o.*, h.hotel_name as brand_name 
-            FROM mst_outlets o 
-            inner JOIN msthotelmasters h ON o.hotelid = h.hotelid
-
-
-        `
-    let whereConditions = []
-    let params = []
-
-    // Filter based on user role and permissions
-    if (role_level === 'hotel_admin') {
-      if (brand_id || hotelid) {
-        whereConditions.push('o.hotelid = ?')
-        params.push(brand_id || hotelid) // Prefer brand_id if provided
-      }
-      // Remove the created_by_id filter for hotel_admin so they can see all outlets for their hotel
-      // if (created_by_id) {
-      //   whereConditions.push('o.created_by_id = ?')
-      //   params.push(created_by_id)
-      // }
-    } else if (role_level === 'brand_admin') {
-      if (brand_id || hotelid) {
-        whereConditions.push('o.hotelid = ?')
-        params.push(brand_id || hotelid)
-      }
-    } else if (role_level === 'outlet_user') {
-      // Outlet users can only see their assigned outlets (support multiple)
-      if (outletid) {
-        const outletIdsArray = outletid.split(',').map(id => id.trim()).filter(id => id.length > 0)
-        if (outletIdsArray.length === 1) {
-          whereConditions.push('o.outletid = ?')
-          params.push(outletIdsArray[0])
-        } else if (outletIdsArray.length > 1) {
-          const placeholders = outletIdsArray.map(() => '?').join(',')
-          whereConditions.push(`o.outletid IN (${placeholders})`)
-          params.push(...outletIdsArray)
+      SELECT o.outletid, o.outlet_name, o.outlet_code, 
+             b.hotel_name as brand_name
+      FROM mst_outlets o
+      INNER JOIN msthotelmasters b ON o.hotelid = b.hotelid
+      INNER JOIN user_outlet_mapping uom ON o.outletid = uom.outletid
+      INNER JOIN mst_users u ON u.userid = uom.userid
+      WHERE o.status = 0
+    `;
+    
+    const params = [];
+    
+    switch (role_level) {
+      case 'superadmin':
+        break; // All active outlets
+      case 'brand_admin':
+        query += ' AND o.brand_id = ?';
+        params.push(brandId);
+        break;
+      case 'hotel_admin':
+        query += ' AND o.hotelid = ?';
+        params.push(hotelid);
+        break;
+      case 'outlet_user':
+        query += ' AND o.hotelid = ? AND uom.userid = ?';
+        params.push(hotelid, userid || user.userid);
+        if (!params[params.length - 1]) {
+          return res.status(400).json({ message: 'User ID is required for outlet_user' });
         }
-      } else {
-        // If no outletid provided, return empty array
-        res.status(200).json([])
-        return
-      }
-    } else if (role_level === 'superadmin') {
-      // No filter for superadmin
-    } else {
-      if (created_by_id) {
-        whereConditions.push('o.created_by_id = ?')
-        params.push(created_by_id)
-      }
+        break;
+      default:
+        return res.status(403).json({ message: 'Insufficient permissions' });
     }
-
-    // Add WHERE clause only if there are conditions
-    if (whereConditions.length > 0) {
-      query += ' WHERE ' + whereConditions.join(' AND ')
+    
+    query += ' ORDER BY o.outlet_name';
+    
+    console.log('Constructed query:', query, 'with params:', params);
+    const outlets = db.prepare(query).all(...params);
+    console.log('Found outlets:', outlets);
+    
+    if (outlets.length === 0) {
+      return res.status(404).json({ message: 'No outlets found for the user' });
     }
-
-    query += ' ORDER BY o.created_date DESC'
-
-    console.log('Final query:', query)
-    console.log('Query params:', params)
-
-    const outlets = db.prepare(query).all(...params)
-    console.log('Found outlets:', outlets)
-    res.status(200).json(outlets)
+    
+    res.json(outlets);
   } catch (error) {
-    console.error('Error fetching outlets:', {
-      message: error.message,
-      stack: error.stack,
-      query: req.query,
-    })
-    res.status(500).json({ error: 'Failed to fetch outlets', details: error.message })
+    console.error('Error fetching outlets:', error);
+    res.status(500).json({ message: 'Internal server error', error: error.message });
   }
-}
+};
 exports.addOutlet = (req, res) => {
   try {
     const {

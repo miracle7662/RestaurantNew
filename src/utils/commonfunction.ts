@@ -519,11 +519,11 @@ export const fetchOutletsForDropdown = async (
     setLoading(true);
     console.log('Fetching outlets for dropdown...');
 
-    const params: any = {
-      roleLevel: user?.role_level,
-      hotelid: user?.hotelid,
+    const params = {
+      role_level: user?.role_level || 'outlet_user', // Match working URL
+      hotelid: user?.hotelid, // e.g., 19 for Shubharambh Hotel
+      userid: user?.id, // e.g., 70 for miracle456
       brandId: user?.brand_id || null,
-      userid: user?.id, // Ensure this is set (e.g., 70 for miracle456)
     };
 
     console.log('Fetching dropdown outlets with params:', params);
