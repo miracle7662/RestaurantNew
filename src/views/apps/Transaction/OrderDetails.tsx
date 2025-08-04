@@ -1,5 +1,5 @@
-import React, { useState, useEffect, Dispatch, SetStateAction } from 'react';
-import { Row, Col, Card } from 'react-bootstrap';
+import React, { useState, useEffect, Dispatch, SetStateAction, useRef } from 'react';
+import { Row, Col, Card, Dropdown } from 'react-bootstrap';
 import { fetchItemGroup, ItemGroupItem, fetchMenu } from '@/utils/commonfunction';
 
 // Interface for menu items from API
@@ -10,6 +10,7 @@ interface APIMenuItem {
   print_name: string;
   short_name: string;
   status: number;
+  price: number;
 }
 
 // Interface for menu items used in state
@@ -26,7 +27,6 @@ interface CardItem {
   itemCode: string;
   ItemName: string;
   shortName: string;
- //mechanu_name:string
   price: number;
   cardStatus: string;
 }
@@ -105,7 +105,13 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
   const [isTableInvalid, setIsTableInvalid] = useState<boolean>(false);
   const [itemGroup, setItemGroup] = useState<ItemGroupItem[]>([]);
   const [itemGroupId, setItemGroupId] = useState<number | null>(null);
-  const [cardItems, setCardItems] = useState<CardItem[]>([]); // State for fetched menu items
+  const [cardItems, setCardItems] = useState<CardItem[]>([]);
+  const [showCodeDropdown, setShowCodeDropdown] = useState<boolean>(false);
+  const [showNameDropdown, setShowNameDropdown] = useState<boolean>(false);
+
+  const codeInputRef = useRef<HTMLInputElement>(null);
+  const nameInputRef = React.createRef<HTMLSelectElement>();
+  const quantityInputRef = useRef<HTMLInputElement>(null);
 
   const validTables = [
     'F1', 'F2', 'F3', 'F4', 'F5', 'F5A', 'F6', 'R2', 'R3', 'R4',
@@ -142,7 +148,6 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
     }
   }, [searchTable, setSelectedTable, setItems, setInvalidTable, hasTyped]);
 
-  // Fetch item groups on mount
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -155,27 +160,24 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
     fetchData();
   }, []);
 
-  // Fetch menu items on mount
   useEffect(() => {
     const fetchMenuData = async () => {
       try {
         await fetchMenu(
           (data: APIMenuItem[]) => {
-            // Map API menu items to CardItem interface
             const mappedItems: CardItem[] = data
-              .filter(item => item.status === 0) // Filter active items (status === 0)
+              .filter(item => item.status === 0)
               .map(item => ({
                 userId: item.menuid.toString(),
                 itemCode: item.item_no.toString(),
                 ItemName: item.item_name,
                 shortName: item.short_name,
-                price: 0, // Price not provided in API, set default or fetch from another source if available
+                price: item.price,
                 cardStatus: '✅ Available',
               }));
             setCardItems(mappedItems);
           },
           (id: number) => {
-            // Handle menu ID if needed
             console.log('Fetched menu ID:', id);
           }
         );
@@ -187,10 +189,9 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
     fetchMenuData();
   }, []);
 
-  // Dynamic item categories based on itemGroup or fallback to all items
   const itemCategories: { [key in Category]: CardItem[] } = {
     Appetizers: cardItems.filter(item => itemGroup.some(group => group.itemgroupname.toLowerCase().includes('appetizers') && item.ItemName.toLowerCase().includes('appetizer'))),
-    MainCourse: cardItems.filter(item => itemGroup.some(group => group.itemgroupname.toLowerCase().includes('maincourse') && item.ItemName.toLowerCase().includes('main')) || item.ItemName === 'Dal Tadka'),
+    MainCourse: cardItems.filter(item => itemGroup.some(group => group.itemgroupname.toLowerCase().includes('maincourse') && item.ItemName.toLowerCase().includes('main')) && item.ItemName.toLowerCase().includes('course')),
     Desserts: cardItems.filter(item => itemGroup.some(group => group.itemgroupname.toLowerCase().includes('desserts') && item.ItemName.toLowerCase().includes('dessert'))),
     Beverages: cardItems.filter(item => itemGroup.some(group => group.itemgroupname.toLowerCase().includes('beverages') && item.ItemName.toLowerCase().includes('drink'))),
     Cocktails: cardItems.filter(item => itemGroup.some(group => group.itemgroupname.toLowerCase().includes('cocktails') && item.ItemName.toLowerCase().includes('cocktail'))),
@@ -202,7 +203,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
     Smoothies: cardItems.filter(item => itemGroup.some(group => group.itemgroupname.toLowerCase().includes('smoothies') && item.ItemName.toLowerCase().includes('smoothie'))),
   };
 
-  const allItems: CardItem[] = cardItems; // Use all fetched items directly
+  const allItems: CardItem[] = cardItems;
 
   const toggleDropdown = (category: Category | 'All') => {
     if (category === 'All') {
@@ -232,22 +233,40 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
     }
   };
 
-  const filterItems = () => {
-    const baseItems = categoryClicked && selectedCategory ? itemCategories[selectedCategory] : allItems;
+  // Filter items for the "search name" dropdown (updated to use filterItems with shortName)
+const filterItems = () => {
+  const baseItems = categoryClicked && selectedCategory ? itemCategories[selectedCategory] || [] : allItems;
 
-    return baseItems.filter((item) => {
-      const matchesCode = searchCode
+  return baseItems.filter((item) => {
+    const matchesCode = searchCode
+      ? item.itemCode.toLowerCase().includes(searchCode.toLowerCase())
+      : true;
+
+    const matchesName = searchName
+      ? item.ItemName.toLowerCase().includes(searchName.toLowerCase()) || 
+        item.shortName.toLowerCase().includes(searchName.toLowerCase())
+      : true;
+
+    return matchesCode && matchesName;
+  });
+};
+
+const filterDropdownItems = (type: 'code' | 'name') => {
+  const baseItems = categoryClicked && selectedCategory ? itemCategories[selectedCategory] || [] : allItems;
+
+  return baseItems.filter((item) => {
+    if (type === 'code') {
+      return searchCode
         ? item.itemCode.toLowerCase().includes(searchCode.toLowerCase())
-        : true;
-
-      const matchesName = searchName
-        ? item.ItemName.toLowerCase().includes(searchName.toLowerCase())
-        : true;
-
-      return matchesCode && matchesName;
-    });
-  };
-
+        : false;
+    } else {
+      return searchName
+        ? item.ItemName.toLowerCase().includes(searchName.toLowerCase()) || 
+          item.shortName.toLowerCase().includes(searchName.toLowerCase())
+        : false;
+    }
+  }).slice(0, 5); // Limit to 5 suggestions
+};
   useEffect(() => {
     setFilteredItems(filterItems());
   }, [searchCode, searchName, items, selectedCategory, categoryClicked, tableId, cardItems]);
@@ -255,7 +274,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
   const handleCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const code = e.target.value.trim();
     setSearchCode(code);
-
+    setShowCodeDropdown(!!code);
     const matchedItem = cardItems.find(
       item => item.itemCode.toLowerCase() === code.toLowerCase()
     );
@@ -266,6 +285,40 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
     }
   };
 
+  // Handle name input change (updated to sync searchCode on selection)
+  // Handle name input change (updated to clear searchCode when name is removed)
+const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const value = e.target.value.trim();
+  setSearchName(value);
+  console.log('handleNameChange - searchName:', value); // Debug
+
+  // Update searchCode when a valid item is selected, clear when name is removed
+  if (value === '') {
+    setSearchCode(''); // Clear searchCode when name is removed
+  } else {
+    const matchedItem = allItems.find(item => item.ItemName === value);
+    if (matchedItem) {
+      setSearchCode(matchedItem.itemCode);
+    }
+  }
+};
+
+  const handleCodeSelect = (item: CardItem) => {
+    setSearchCode(item.itemCode);
+    setSearchName(item.ItemName);
+    setShowCodeDropdown(false);
+    setShowNameDropdown(false);
+    quantityInputRef.current?.focus();
+  };
+
+  const handleNameSelect = (item: CardItem) => {
+    setSearchName(item.ItemName);
+    setSearchCode(item.itemCode);
+    setShowNameDropdown(false);
+    setShowCodeDropdown(false);
+    quantityInputRef.current?.focus();
+  };
+
   const handleCodeKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && searchCode) {
       e.preventDefault();
@@ -273,26 +326,40 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
         item => item.itemCode.toLowerCase() === searchCode.toLowerCase()
       );
       if (matchedItem) {
+        setSearchName(matchedItem.ItemName);
+        quantityInputRef.current?.focus();
+      }
+    }
+  };
+
+  const handleNameKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && searchName.trim()) {
+      e.preventDefault();
+      const matchedItem = cardItems.find(item => item.ItemName.toLowerCase() === searchName.toLowerCase());
+      if (matchedItem) {
+        setSearchCode(matchedItem.itemCode);
+      }
+      quantityInputRef.current?.focus();
+    }
+  };
+
+  const handleQuantityKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && (searchName || searchCode)) {
+      e.preventDefault();
+      const matchedItem = cardItems.find(
+        item =>
+          item.ItemName.toLowerCase() === searchName.toLowerCase() ||
+          item.itemCode.toLowerCase() === searchCode.toLowerCase()
+      );
+      if (matchedItem) {
         const qty = parseInt(quantity) || 1;
         handleAddItem({ name: matchedItem.ItemName, price: matchedItem.price }, qty);
         setSearchCode('');
         setSearchName('');
         setQuantity('1');
-      }
-    }
-  };
-
-  const handleQuantityKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && searchName) {
-      e.preventDefault();
-      const matchedItem = cardItems.find(
-        item => item.ItemName.toLowerCase() === searchName.toLowerCase()
-      );
-      if (matchedItem) {
-        const qty = parseInt(quantity) || 1;
-        handleAddItem({ name: matchedItem.ItemName, price: matchedItem.price }, qty);
-        setSearchName('');
-        setQuantity('1');
+        setShowCodeDropdown(false);
+        setShowNameDropdown(false);
+        codeInputRef.current?.focus();
       }
     }
   };
@@ -409,6 +476,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
                   .rounded-search {
                     border-radius: 20px !important;
                     overflow: hidden;
+                    position: relative;
                   }
                   .rounded-search .form-control {
                     border-radius: 20px !important;
@@ -423,6 +491,20 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
                   .rounded-button {
                     border-radius: 20px !important;
                   }
+                  .dropdown-menu {
+                    width: 100%;
+                    max-height: 200px;
+                    overflow-y: auto;
+                    border-radius: 8px;
+                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+                  }
+                  .dropdown-item {
+                    font-size: 0.875rem;
+                    padding: 0.5rem 1rem;
+                  }
+                  .dropdown-item:hover {
+                    background-color: #e9ecef;
+                  }
                   @media (max-width: 768px) {
                     .search-row {
                       flex-wrap: nowrap;
@@ -435,6 +517,12 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
                     }
                     .search-row .btn {
                       white-space: nowrap;
+                    }
+                    .rounded-search .form-control {
+                      width: 120px;
+                    }
+                    .dropdown-menu {
+                      width: 120px;
                     }
                   }
                 `}
@@ -464,16 +552,29 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
                     value={searchCode}
                     onChange={handleCodeChange}
                     onKeyPress={handleCodeKeyPress}
+                    ref={codeInputRef}
                   />
+
                 </div>
-                <div className="input-group rounded-search" style={{ maxWidth: '300px' }}>
+                <div className="input-group rounded-search" style={{ maxWidth: '300px', position: 'relative' }}>
                   <input
                     type="text"
-                    className="form-control"
-                    placeholder=" Name"
+                    className="form-control rounded-lg"
+                    placeholder="Search Name"
                     value={searchName}
-                    onChange={(e) => setSearchName(e.target.value)}
+                    onChange={handleNameChange}
+                    onKeyPress={handleNameKeyPress}
+                    list="itemSuggestions"
+                    autoComplete="off"
                   />
+                  <datalist id="itemSuggestions">
+                    {filteredItems.map((item) => (
+                      <option key={item.userId} value={item.ItemName}>
+                        {item.ItemName} ({item.itemCode})
+                      </option>
+                    ))}
+
+                  </datalist>
                 </div>
                 <div className="input-group rounded-search" style={{ maxWidth: '100px' }}>
                   <input
@@ -484,6 +585,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
                     onChange={(e) => setQuantity(e.target.value)}
                     onKeyPress={handleQuantityKeyPress}
                     min="1"
+                    ref={quantityInputRef}
                   />
                 </div>
                 <button
@@ -611,7 +713,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
                                 {item.itemCode} | {item.shortName}
                               </Card.Text>
                               <Card.Text style={{ fontSize: '12px', color: '#6b7280' }}>
-                                ${item.price.toFixed(2)}
+                                {item.price.toFixed(2)}
                               </Card.Text>
                               <Card.Text style={{ fontSize: '12px', color: '#6b7280' }}>
                                 {item.cardStatus}

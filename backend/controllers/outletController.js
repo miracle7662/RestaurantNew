@@ -31,13 +31,13 @@ exports.getOutlets = (req, res) => { // Assuming this is the endpoint
     console.log('Received req.query:', req.query);
 
     let query = `
-      SELECT o.outletid, o.outlet_name, o.outlet_code, 
+     SELECT o.outletid, o.outlet_name, o.outlet_code, 
              b.hotel_name as brand_name
       FROM mst_outlets o
       INNER JOIN msthotelmasters b ON o.hotelid = b.hotelid
-      INNER JOIN user_outlet_mapping uom ON o.outletid = uom.outletid
-      INNER JOIN mst_users u ON u.userid = uom.userid
-      WHERE o.status = 0
+      left JOIN user_outlet_mapping uom ON o.outletid = uom.outletid
+      left JOIN mst_users u ON u.userid = uom.userid
+      WHERE o.status = 0 
     `;
     
     const params = [];
@@ -351,53 +351,53 @@ exports.getOutletById = (req, res) => {
   }
 }
 
-exports.getOutletuserById = (req, res) => {
-  try {
-    const { role_level, hotelid, brand_id, userid,created_by_id, outletid } = req.query;
-    const user = req.user || {};
-    const hotelId = Number(brand_id || hotelid || user.hotelid );
-    const createdById = Number(user.userid || created_by_id );
-    if (isNaN(hotelId)) {
-      return res.status(400).json({ error: 'Invalid hotel ID' });
-    }
-    let query = `
-    SELECT o.*,o.outlet_name, h.hotel_name as brand_name 
-            FROM mst_outlets o              
-            inner JOIN msthotelmasters h ON h.hotelid = o.hotelid        
-            inner join user_outlet_mapping uom on uom.outletid=o.outletid
-                inner join mst_users mu on mu.userid =uom.userid
+// exports.getOutletuserById = (req, res) => {
+//   try {
+//     const { role_level, hotelid, brand_id, userid,created_by_id, outletid } = req.query;
+//     const user = req.user || {};
+//     const hotelId = Number(brand_id || hotelid || user.hotelid );
+//     const createdById = Number(user.userid || created_by_id );
+//     if (isNaN(hotelId)) {
+//       return res.status(400).json({ error: 'Invalid hotel ID' });
+//     }
+//     let query = `
+//     SELECT o.*,o.outlet_name, h.hotel_name as brand_name 
+//             FROM mst_outlets o              
+//             inner JOIN msthotelmasters h ON h.hotelid = o.hotelid        
+//             inner join user_outlet_mapping uom on uom.outletid=o.outletid
+//                 inner join mst_users mu on mu.userid =uom.userid
             
-    `;
-    let params = [];
-    if (role_level === 'hotel_admin') {
-      query += ' WHERE o.hotelid = ?';
-      params.push(hotelId);
-    } else if (role_level === 'brand_admin') {
-      query += ' WHERE o.hotelid = ?';
-      params.push(hotelId);
-    } else if (role_level === 'superadmin') {
-      // No filter
-    } else if (role_level === 'outlet_user' && userid && outletid) {
-      query += ' WHERE o.hotelid = ?';
-      params.push(hotelId, created_by_id, outletid);
-    } else if (created_by_id) {
-      query += ' WHERE o.created_by_id = ?';
-      params.push(createdById);
-    }
-    query += ' ORDER BY o.created_date DESC';
-    console.log('Final query:', query);
-    console.log('Query params:', params);
-    const outlets = db.prepare(query).all(...params);
-    if (!outlets || outlets.length === 0) {
-      return res.status(404).json({ error: 'No outlets found' });
-    }
-    res.json(outlets);
-  } catch (error) {
-    console.error('Error fetching outlets:', {
-      message: error.message,
-      stack: error.stack,
-      query: req.query,
-    });
-    res.status(500).json({ error: 'Failed to fetch outlets', details: error.message });
-  }
-};
+//     `;
+//     let params = [];
+//     if (role_level === 'hotel_admin') {
+//       query += ' WHERE o.hotelid = ?';
+//       params.push(hotelId);
+//     } else if (role_level === 'brand_admin') {
+//       query += ' WHERE o.hotelid = ?';
+//       params.push(hotelId);
+//     } else if (role_level === 'superadmin') {
+//       // No filter
+//     } else if (role_level === 'outlet_user' && userid && outletid) {
+//       query += ' WHERE o.hotelid = ?';
+//       params.push(hotelId, created_by_id, outletid);
+//     } else if (created_by_id) {
+//       query += ' WHERE o.created_by_id = ?';
+//       params.push(createdById);
+//     }
+//     query += ' ORDER BY o.created_date DESC';
+//     console.log('Final query:', query);
+//     console.log('Query params:', params);
+//     const outlets = db.prepare(query).all(...params);
+//     if (!outlets || outlets.length === 0) {
+//       return res.status(404).json({ error: 'No outlets found' });
+//     }
+//     res.json(outlets);
+//   } catch (error) {
+//     console.error('Error fetching outlets:', {
+//       message: error.message,
+//       stack: error.stack,
+//       query: req.query,
+//     });
+//     res.status(500).json({ error: 'Failed to fetch outlets', details: error.message });
+//   }
+// };

@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { Button, Modal, Form, Table } from 'react-bootstrap';
 import OrderDetails from './OrderDetails';
-import { fetchOutlets, OutletData } from '@/utils/commonfunction';
+import { fetchOutletsForDropdown } from '@/utils/commonfunction'; // 
 import { useAuthContext } from '@/common';
+import  { OutletData } from '@/common/api/outlet';
+
 
 interface MenuItem {
   id: number;
@@ -179,10 +181,12 @@ const Order = () => {
         
         if (user.role_level === 'outlet_user' && user.outletid) {
           console.log('Outlet user detected, fetching outlets with outletid filter:', user.outletid);
-          await fetchOutlets(user, setOutlets, setLoading);
+          await     fetchOutletsForDropdown(user, setOutlets, setLoading);
+          
         } else {
           console.log('Fetching all outlets for user:', { userid: user.id, hotelid: user.hotelid, outletid: user.outletid });
-          await fetchOutlets(user, setOutlets, setLoading);
+          await     fetchOutletsForDropdown(user, setOutlets, setLoading);
+          
         }
         
         console.log('Outlets fetched:', outlets);

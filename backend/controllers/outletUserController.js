@@ -570,44 +570,44 @@ exports.updateHotelAdmin = async (req, res) => {
     }
 };
 
-exports.AllOutletsForHotelUser = (req, res) => {
-    try {
-        const { currentUserId, roleLevel, hotelid, outletid } = req.query;
+// exports.AllOutletsForHotelUser = (req, res) => {
+//     try {
+//         const { currentUserId, roleLevel, hotelid, outletid } = req.query;
         
-        let query = `
-            SELECT u.*, 
-                   h.hotel_name as hotel_name,
-                   o.outlet_name
-            FROM mst_users u
-            LEFT JOIN msthotelmasters h ON u.hotelid = h.hotelid
-            LEFT JOIN user_outlet_mapping uom ON u.userid = uom.userid
-            LEFT JOIN mst_outlets o ON uom.outletid = o.outletid
-            WHERE u.status = 0 AND (u.role_level = 'outlet_user' OR u.role_level = 'hotel_admin')
-        `;
+//         let query = `
+//             SELECT u.*, 
+//                    h.hotel_name as hotel_name,
+//                    o.outlet_name
+//             FROM mst_users u
+//             LEFT JOIN msthotelmasters h ON u.hotelid = h.hotelid
+//             LEFT JOIN user_outlet_mapping uom ON u.userid = uom.userid
+//             LEFT JOIN mst_outlets o ON uom.outletid = o.outletid
+//             WHERE u.status = 0 AND (u.role_level = 'outlet_user' OR u.role_level = 'hotel_admin')
+//         `;
         
-        const params = [];
+//         const params = [];
         
-        switch(roleLevel) {
-            case 'superadmin':
-                break;          
-            case 'hotel_admin':
-                query += ' AND u.hotelid = ?';
-                params.push(hotelid);
-                break;
-                case 'outlet_user':
-                query += ' AND u.hotelid = ?';
-                params.push(hotelid);
-                break;
-            default:
-                return res.status(403).json({ message: 'Insufficient permissions' });
-        }
+//         switch(roleLevel) {
+//             case 'superadmin':
+//                 break;          
+//             case 'hotel_admin':
+//                 query += ' AND u.hotelid = ?';
+//                 params.push(hotelid);
+//                 break;
+//                 case 'outlet_user':
+//                 query += ' AND u.hotelid = ?';
+//                 params.push(hotelid);
+//                 break;
+//             default:
+//                 return res.status(403).json({ message: 'Insufficient permissions' });
+//         }
         
-        query += ' ORDER BY CASE WHEN u.role_level = \'hotel_admin\' THEN 0 ELSE 1 END, u.created_date DESC';
+//         query += ' ORDER BY CASE WHEN u.role_level = \'hotel_admin\' THEN 0 ELSE 1 END, u.created_date DESC';
         
-        const users = db.prepare(query).all(...params);
-        res.json(users);
-    } catch (error) {
-        console.error('Error fetching outlet users:', error);
-        res.status(500).json({ message: 'Internal server error' });
-    }
-};
+//         const users = db.prepare(query).all(...params);
+//         res.json(users);
+//     } catch (error) {
+//         console.error('Error fetching outlet users:', error);
+//         res.status(500).json({ message: 'Internal server error' });
+//     }
+// };
