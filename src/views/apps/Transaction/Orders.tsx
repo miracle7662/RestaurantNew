@@ -575,91 +575,156 @@ setDescribe(`Tab clicked: ${tab}`);
       </style>
       <div className="main-container d-flex flex-column flex-md-row gap-3">
         <div className="table-container flex-grow-1 me-md-3">
-          {activeTab === 'Dine-in' && !showOrderDetails && (
-            <div>
-              <ul
-                className="nav nav-tabs rounded shadow-sm mb-3"
-                role="tablist"
-                style={{ padding: '5px', display: 'flex', gap: '5px' }}
-              >
-                <li className="nav-item flex-fill">
+{activeTab === 'Dine-in' && !showOrderDetails && (
+  <div>
+    <ul
+      className="nav nav-tabs rounded shadow-sm mb-3"
+      role="tablist"
+      style={{ padding: '5px', display: 'flex', gap: '5px' }}
+    >
+      <li className="nav-item flex-fill">
+        <button
+          className={`nav-link ${activeNavTab === 'ALL' ? 'active bg-primary text-white' : 'text-dark'}`}
+          onClick={() => setActiveNavTab('ALL')}
+          role="tab"
+          style={{ border: 'none', borderRadius: '5px', padding: '8px 12px', fontSize: '14px', fontWeight: 500, textAlign: 'center' }}
+        >
+          ALL
+        </button>
+      </li>
+      {loading ? (
+        <li className="nav-item flex-fill">
+          <span>Loading outlets...</span>
+        </li>
+      ) : outlets.length === 0 ? (
+        <li className="nav-item flex-fill">
+          <span style={{ color: 'red' }}>
+            {user?.role_level === 'outlet_user' 
+              ? 'No assigned outlet found for outlet user.' 
+              : 'Failed to load outlets or no outlets available'}
+          </span>
+        </li>
+      ) : (
+        outlets.map((outlet, index) => (
+          <li className="nav-item flex-fill" key={index}>
+            <button
+              className={`nav-link ${activeNavTab === outlet.outlet_name ? 'active bg-primary text-white' : 'text-dark'}`}
+              onClick={() => setActiveNavTab(outlet.outlet_name)}
+              role="tab"
+              style={{ border: 'none', borderRadius: '5px', padding: '8px 12px', fontSize: '14px', fontWeight: 500, textAlign: 'center' }}
+            >
+              {outlet.outlet_name} ({outlet.outletid})
+              {user?.role_level === 'outlet_user' && ' (Assigned)'}
+            </button>
+          </li>
+        ))
+      )}
+      {['Pickup', 'Quick Bill', 'Delivery'].map((tab, index) => (
+        <li className="nav-item flex-fill" key={index + outlets.length}>
+          <button
+            className={`nav-link ${tab === activeNavTab ? 'active bg-primary text-white' : 'text-dark'}`}
+            onClick={() => setActiveNavTab(tab)}
+            role="tab"
+            style={{ border: 'none', borderRadius: '5px', padding: '8px 12px', fontSize: '14px', fontWeight: 500, textAlign: 'center' }}
+          >
+            {tab}
+          </button>
+        </li>
+      ))}
+    </ul>
+    <div
+      className="d-flex flex-column justify-content-start align-items-start rounded shadow-sm p-1 mt-3"
+    >
+      {loading ? (
+        <p className="text-center text-muted mb-0">Loading tables...</p>
+      ) : activeNavTab === 'ALL' ? (
+        <>
+          {/* All tables row */}
+          <div>
+            <p style={{ color: 'green', fontWeight: 'bold', margin: '10px 0 5px' }}>ALL</p>
+            <div className="d-flex flex-wrap gap-1">
+              {tableItems.map((table, index) => (
+                <div key={index} className="p-1">
                   <button
-                    className={`nav-link ${activeNavTab === 'ALL' ? 'active bg-primary text-white' : 'text-dark'}`}
-                    onClick={() => setActiveNavTab('ALL')}
-                    role="tab"
-                    style={{ border: 'none', borderRadius: '5px', padding: '8px 12px', fontSize: '14px', fontWeight: 500, textAlign: 'center' }}
+                    className={`btn ${selectedTable === table.table_name ? 'btn-success' : 'btn-outline-success'}`}
+                    style={{ width: '90px', height: '80px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+                    onClick={() => {
+                      console.log('Button clicked for table:', table.table_name, 'isActive:', table.isActive);
+                      handleTableClick(table.table_name);
+                    }}
                   >
-                    ALL
+                    {table.table_name} {table.isActive ? '' : ''}
                   </button>
-                </li>
-                {loading ? (
-                  <li className="nav-item flex-fill">
-                    <span>Loading outlets...</span>
-                  </li>
-                ) : outlets.length === 0 ? (
-                  <li className="nav-item flex-fill">
-                    <span style={{ color: 'red' }}>
-                      {user?.role_level === 'outlet_user' 
-                        ? 'No assigned outlet found for outlet user.' 
-                        : 'Failed to load outlets or no outlets available'}
-                    </span>
-                  </li>
-                ) : (
-                  outlets.map((outlet, index) => (
-                    <li className="nav-item flex-fill" key={index}>
-                      <button
-                        className={`nav-link ${activeNavTab === outlet.outlet_name ? 'active bg-primary text-white' : 'text-dark'}`}
-                        onClick={() => setActiveNavTab(outlet.outlet_name)}
-                        role="tab"
-                        style={{ border: 'none', borderRadius: '5px', padding: '8px 12px', fontSize: '14px', fontWeight: 500, textAlign: 'center' }}
-                      >
-                        {outlet.outlet_name} ({outlet.outletid})
-                        {user?.role_level === 'outlet_user' && ' (Assigned)'}
-                      </button>
-                    </li>
-                  ))
-                )}
-                {['Pickup', 'Quick Bill', 'Delivery'].map((tab, index) => (
-                  <li className="nav-item flex-fill" key={index + outlets.length}>
-                    <button
-                      className={`nav-link ${tab === activeNavTab ? 'active bg-primary text-white' : 'text-dark'}`}
-                      onClick={() => setActiveNavTab(tab)}
-                      role="tab"
-                      style={{ border: 'none', borderRadius: '5px', padding: '8px 12px', fontSize: '14px', fontWeight: 500, textAlign: 'center' }}
-                    >
-                      {tab}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-              <div
-                className="d-flex flex-wrap justify-content-start align-items-center rounded shadow-sm p-1 mt-3"
-              >
-                {loading ? (
-                  <p className="text-center text-muted mb-0">Loading tables...</p>
-                ) : filteredTables.length > 0 ? (
-                  filteredTables.map((table, index) => (
-                    <div key={index} className="p-1">
-                      <button
-                        className={`btn ${selectedTable === table.table_name ? 'btn-success' : 'btn-outline-success'}`}
-                        style={{ width: '90px', height: '80px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
-                        onClick={() => {
-                          console.log('Button clicked for table:', table.table_name, 'isActive:', table.isActive);
-                          handleTableClick(table.table_name);
-                        }}
-                      >
-                        {table.table_name} {table.isActive ? '' : ''}
-                      </button>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-center text-muted mb-0">
-                    No tables available for {activeNavTab}. Please check TableManagement data.
-                  </p>
-                )}
-              </div>
+                </div>
+              ))}
             </div>
-          )}
+          </div>
+
+          {/* Outlet abcd row */}
+          <div>
+            <p style={{ color: 'green', fontWeight: 'bold', margin: '10px 0 5px' }}>Outlet abcd</p>
+            <div className="d-flex flex-wrap gap-1">
+              {tableItems.filter(table => table.outlet_name && table.outlet_name.toLowerCase() === 'abcd'.toLowerCase()).map((table, index) => (
+                <div key={index} className="p-1">
+                  <button
+                    className={`btn ${selectedTable === table.table_name ? 'btn-success' : 'btn-outline-success'}`}
+                    style={{ width: '90px', height: '80px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+                    onClick={() => {
+                      console.log('Button clicked for table:', table.table_name, 'isActive:', table.isActive);
+                      handleTableClick(table.table_name);
+                    }}
+                  >
+                    {table.table_name} {table.isActive ? '' : ''}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* qwert row */}
+          <div>
+            <p style={{ color: 'green', fontWeight: 'bold', margin: '10px 0 5px' }}>qwert</p>
+            <div className="d-flex flex-wrap gap-1">
+              {tableItems.filter(table => table.outlet_name && table.outlet_name.toLowerCase() === 'qwert'.toLowerCase()).map((table, index) => (
+                <div key={index} className="p-1">
+                  <button
+                    className={`btn ${selectedTable === table.table_name ? 'btn-success' : 'btn-outline-success'}`}
+                    style={{ width: '90px', height: '80px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+                    onClick={() => {
+                      console.log('Button clicked for table:', table.table_name, 'isActive:', table.isActive);
+                      handleTableClick(table.table_name);
+                    }}
+                  >
+                    {table.table_name} {table.isActive ? '' : ''}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      ) : filteredTables.length > 0 ? (
+        filteredTables.map((table, index) => (
+          <div key={index} className="p-1">
+            <button
+              className={`btn ${selectedTable === table.table_name ? 'btn-success' : 'btn-outline-success'}`}
+              style={{ width: '90px', height: '80px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+              onClick={() => {
+                console.log('Button clicked for table:', table.table_name, 'isActive:', table.isActive);
+                handleTableClick(table.table_name);
+              }}
+            >
+              {table.table_name} {table.isActive ? '' : ''}
+            </button>
+          </div>
+        ))
+      ) : (
+        <p className="text-center text-muted mb-0">
+          No tables available for {activeNavTab}. Please check TableManagement data.
+        </p>
+      )}
+    </div>
+  </div>
+)}
 
           {showOrderDetails && (
             <div className="rounded shadow-sm p-3 mt-3">

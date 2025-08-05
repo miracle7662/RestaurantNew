@@ -469,7 +469,7 @@ const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
                 {`
                   .no-hover:hover, .no-hover input:hover, .no-hover button:hover {
                     background-color: inherit !important;
-                    border-color: #ced4da !important;
+                    border-color: rgba(65, 149, 246, 1) !important;
                     box-shadow: none !important;
                     transform: none !important;
                   }
@@ -528,7 +528,7 @@ const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
                 `}
               </style>
               <div className="d-flex flex-nowrap justify-content-start gap-1 no-hover search-row align-items-start">
-                <div style={{ maxWidth: '100px', minHeight: '48px' }}>
+                <div style={{ maxWidth: '100px', minHeight: '38px' }}>
                   <div className="input-group rounded-search">
                     <input
                       type="text"
@@ -536,6 +536,8 @@ const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
                       placeholder=" Table"
                       value={searchTable}
                       onChange={(e) => setSearchTable(e.target.value)}
+                      style={{ maxWidth: '100px', minHeight: '68px',fontSize: '1.2rem' }}
+                      
                     />
                   </div>
                   {isTableInvalid && (
@@ -553,29 +555,65 @@ const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
                     onChange={handleCodeChange}
                     onKeyPress={handleCodeKeyPress}
                     ref={codeInputRef}
+                    style={{ maxWidth: '100px', minHeight: '48px' }}
                   />
 
                 </div>
-                <div className="input-group rounded-search" style={{ maxWidth: '300px', position: 'relative' }}>
-                  <input
-                    type="text"
-                    className="form-control rounded-lg"
-                    placeholder="Search Name"
-                    value={searchName}
-                    onChange={handleNameChange}
-                    onKeyPress={handleNameKeyPress}
-                    list="itemSuggestions"
-                    autoComplete="off"
-                  />
-                  <datalist id="itemSuggestions">
-                    {filteredItems.map((item) => (
-                      <option key={item.userId} value={item.ItemName}>
-                        {item.ItemName} ({item.itemCode})
-                      </option>
-                    ))}
+                <div style={{ position: 'relative', width: '100%', maxWidth: '500px' }}>
+  <input
+    type="text"
+    className="form-control"
+    placeholder="Search Name"
+    value={searchName}
+    onChange={handleNameChange}
+    onKeyPress={handleNameKeyPress}
+    autoComplete="off"
+    onFocus={() => setShowNameDropdown(true)}
+    onBlur={() => setTimeout(() => setShowNameDropdown(false), 150)}
+    style={{
+      borderRadius: '20px',
+      height: '48px',
+      padding: '10px 16px',
+      fontSize: '16px',
+      border: '1px solid #ced4da',
+    }}
+  />
+  {showNameDropdown && (
+    <div
+      style={{
+        position: 'absolute',
+        top: '100%',
+        left: 0,
+        zIndex: 1000,
+        backgroundColor: '#fff',
+        border: '1px solid #ced4da',
+        borderRadius: '20px',
+        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
+        maxHeight: '200px',
+        overflowY: 'auto',
+        width: '100%',
+      }}
+    >
+      {filterDropdownItems('name')
+        .filter((item) => item.ItemName !== searchName)
+        .slice(0, 7)
+        .map((item) => (
+          <div
+            key={item.userId}
+            onClick={() => handleNameSelect(item)}
+            className="dropdown-item"
+            style={{ cursor: 'pointer', fontSize: '1rem' }}
+          >
+            <strong>{item.ItemName}</strong> | {item.itemCode} | ₹{item.price.toFixed(2)}
+          </div>
+        ))}
+      {filterDropdownItems('name').length === 0 && (
+        <div className="dropdown-item text-muted">No matches found</div>
+      )}
+    </div>
+  )}
+</div>
 
-                  </datalist>
-                </div>
                 <div className="input-group rounded-search" style={{ maxWidth: '100px' }}>
                   <input
                     type="number"
@@ -586,11 +624,13 @@ const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
                     onKeyPress={handleQuantityKeyPress}
                     min="1"
                     ref={quantityInputRef}
+                    style={{ maxWidth: '100px', minHeight: '48px' }}
                   />
                 </div>
                 <button
                   className="btn btn-sm btn-outline-danger rounded-button px-2"
                   onClick={handleDeleteAll}
+                  style={{ minWidth: '80px', height: '48px' }}
                 >
                   Delete
                 </button>
