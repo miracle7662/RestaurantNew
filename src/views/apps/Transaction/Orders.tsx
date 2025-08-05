@@ -639,26 +639,7 @@ setDescribe(`Tab clicked: ${tab}`);
         <p className="text-center text-muted mb-0">Loading tables...</p>
       ) : activeNavTab === 'ALL' ? (
         <>
-          {/* All tables row */}
-          <div>
-            <p style={{ color: 'green', fontWeight: 'bold', margin: '10px 0 5px' }}>ALL</p>
-            <div className="d-flex flex-wrap gap-1">
-              {tableItems.map((table, index) => (
-                <div key={index} className="p-1">
-                  <button
-                    className={`btn ${selectedTable === table.table_name ? 'btn-success' : 'btn-outline-success'}`}
-                    style={{ width: '90px', height: '80px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
-                    onClick={() => {
-                      console.log('Button clicked for table:', table.table_name, 'isActive:', table.isActive);
-                      handleTableClick(table.table_name);
-                    }}
-                  >
-                    {table.table_name} {table.isActive ? '' : ''}
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
+          
 
           {/* Outlet abcd row */}
           <div>
@@ -727,7 +708,7 @@ setDescribe(`Tab clicked: ${tab}`);
 )}
 
           {showOrderDetails && (
-            <div className="rounded shadow-sm p-3 mt-3">
+            <div className="rounded shadow-sm p-1 mt-0">
               <OrderDetails
                 tableId={selectedTable}
                 onChangeTable={handleBackToTables}
