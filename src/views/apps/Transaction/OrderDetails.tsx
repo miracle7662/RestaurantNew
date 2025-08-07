@@ -234,39 +234,39 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
   };
 
   // Filter items for the "search name" dropdown (updated to use filterItems with shortName)
-const filterItems = () => {
-  const baseItems = categoryClicked && selectedCategory ? itemCategories[selectedCategory] || [] : allItems;
+  const filterItems = () => {
+    const baseItems = categoryClicked && selectedCategory ? itemCategories[selectedCategory] || [] : allItems;
 
-  return baseItems.filter((item) => {
-    const matchesCode = searchCode
-      ? item.itemCode.toLowerCase().includes(searchCode.toLowerCase())
-      : true;
-
-    const matchesName = searchName
-      ? item.ItemName.toLowerCase().includes(searchName.toLowerCase()) || 
-        item.shortName.toLowerCase().includes(searchName.toLowerCase())
-      : true;
-
-    return matchesCode && matchesName;
-  });
-};
-
-const filterDropdownItems = (type: 'code' | 'name') => {
-  const baseItems = categoryClicked && selectedCategory ? itemCategories[selectedCategory] || [] : allItems;
-
-  return baseItems.filter((item) => {
-    if (type === 'code') {
-      return searchCode
+    return baseItems.filter((item) => {
+      const matchesCode = searchCode
         ? item.itemCode.toLowerCase().includes(searchCode.toLowerCase())
-        : false;
-    } else {
-      return searchName
-        ? item.ItemName.toLowerCase().includes(searchName.toLowerCase()) || 
+        : true;
+
+      const matchesName = searchName
+        ? item.ItemName.toLowerCase().includes(searchName.toLowerCase()) ||
+        item.shortName.toLowerCase().includes(searchName.toLowerCase())
+        : true;
+
+      return matchesCode && matchesName;
+    });
+  };
+
+  const filterDropdownItems = (type: 'code' | 'name') => {
+    const baseItems = categoryClicked && selectedCategory ? itemCategories[selectedCategory] || [] : allItems;
+
+    return baseItems.filter((item) => {
+      if (type === 'code') {
+        return searchCode
+          ? item.itemCode.toLowerCase().includes(searchCode.toLowerCase())
+          : false;
+      } else {
+        return searchName
+          ? item.ItemName.toLowerCase().includes(searchName.toLowerCase()) ||
           item.shortName.toLowerCase().includes(searchName.toLowerCase())
-        : false;
-    }
-  }).slice(0, 5); // Limit to 5 suggestions
-};
+          : false;
+      }
+    }).slice(0, 5); // Limit to 5 suggestions
+  };
   useEffect(() => {
     setFilteredItems(filterItems());
   }, [searchCode, searchName, items, selectedCategory, categoryClicked, tableId, cardItems]);
@@ -287,21 +287,21 @@ const filterDropdownItems = (type: 'code' | 'name') => {
 
   // Handle name input change (updated to sync searchCode on selection)
   // Handle name input change (updated to clear searchCode when name is removed)
-const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-  const value = e.target.value.trim();
-  setSearchName(value);
-  console.log('handleNameChange - searchName:', value); // Debug
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.trim();
+    setSearchName(value);
+    console.log('handleNameChange - searchName:', value); // Debug
 
-  // Update searchCode when a valid item is selected, clear when name is removed
-  if (value === '') {
-    setSearchCode(''); // Clear searchCode when name is removed
-  } else {
-    const matchedItem = allItems.find(item => item.ItemName === value);
-    if (matchedItem) {
-      setSearchCode(matchedItem.itemCode);
+    // Update searchCode when a valid item is selected, clear when name is removed
+    if (value === '') {
+      setSearchCode(''); // Clear searchCode when name is removed
+    } else {
+      const matchedItem = allItems.find(item => item.ItemName === value);
+      if (matchedItem) {
+        setSearchCode(matchedItem.itemCode);
+      }
     }
-  }
-};
+  };
 
   const handleCodeSelect = (item: CardItem) => {
     setSearchCode(item.itemCode);
@@ -312,37 +312,39 @@ const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
   };
 
   const handleNameSelect = (item: CardItem) => {
-    setSearchName(item.ItemName);
-    setSearchCode(item.itemCode);
-    setShowNameDropdown(false);
-    setShowCodeDropdown(false);
-    quantityInputRef.current?.focus();
-  };
+  setSearchName(item.ItemName);
+  setSearchCode(item.itemCode);
+  setShowNameDropdown(false);
+  quantityInputRef.current?.focus();
+  quantityInputRef.current?.setSelectionRange(0, quantityInputRef.current.value.length); // Select quantity
+};
 
-  const handleCodeKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && searchCode) {
-      e.preventDefault();
-      const matchedItem = cardItems.find(
-        item => item.itemCode.toLowerCase() === searchCode.toLowerCase()
-      );
-      if (matchedItem) {
-        setSearchName(matchedItem.ItemName);
-        quantityInputRef.current?.focus();
-      }
-    }
-  };
-
-  const handleNameKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && searchName.trim()) {
-      e.preventDefault();
-      const matchedItem = cardItems.find(item => item.ItemName.toLowerCase() === searchName.toLowerCase());
-      if (matchedItem) {
-        setSearchCode(matchedItem.itemCode);
-      }
+const handleCodeKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  if (e.key === 'Enter' && searchCode) {
+    e.preventDefault();
+    const matchedItem = cardItems.find(
+      item => item.itemCode.toLowerCase() === searchCode.toLowerCase()
+    );
+    if (matchedItem) {
+      setSearchName(matchedItem.ItemName);
       quantityInputRef.current?.focus();
+      setTimeout(() => {
+        if (quantityInputRef.current) {
+          quantityInputRef.current.setSelectionRange(0, quantityInputRef.current.value.length);
+        }
+      }, 0); // Minimal delay to ensure focus is applied
     }
-  };
-
+  }
+};
+const handleNameKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  if (e.key === 'Enter' && searchName) {
+    e.preventDefault();
+    const matchedItem = cardItems.find(item => item.ItemName.toLowerCase() === searchName.toLowerCase());
+    if (matchedItem) setSearchCode(matchedItem.itemCode);
+    quantityInputRef.current?.focus();
+    quantityInputRef.current?.setSelectionRange(0, quantityInputRef.current.value.length); // Select quantity
+  }
+};
   const handleQuantityKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && (searchName || searchCode)) {
       e.preventDefault();
@@ -409,7 +411,7 @@ const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
           <div className="row">
             <div className="col-12 p-2 border-bottom w-100">
               <nav className="navbar navbar-expand-lg navbar-light">
-                <div className="container-fluid">
+                <div className="container-fluid m-0 p-0">
                   <button
                     className="navbar-toggler"
                     type="button"
@@ -536,8 +538,8 @@ const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
                       placeholder=" Table"
                       value={searchTable}
                       onChange={(e) => setSearchTable(e.target.value)}
-                      style={{ maxWidth: '100px', minHeight: '68px',fontSize: '1.2rem' }}
-                      
+                      style={{ maxWidth: '100px', minHeight: '68px', fontSize: '1.2rem' }}
+
                     />
                   </div>
                   {isTableInvalid && (
@@ -559,7 +561,7 @@ const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
                   />
 
                 </div>
-                <div style={{ position: 'relative', width: '100%', maxWidth: '500px' }}>
+             <div style={{ position: 'relative', width: '100%', maxWidth: '500px' }}>
   <input
     type="text"
     className="form-control"
@@ -569,7 +571,13 @@ const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     onKeyPress={handleNameKeyPress}
     autoComplete="off"
     onFocus={() => setShowNameDropdown(true)}
-    onBlur={() => setTimeout(() => setShowNameDropdown(false), 150)}
+    onBlur={(e) => {
+      // Delay hiding dropdown only if not clicking a dropdown item
+      const relatedTarget = e.relatedTarget as HTMLElement;
+      if (!relatedTarget?.closest('.dropdown-item')) {
+        setTimeout(() => setShowNameDropdown(false), 150);
+      }
+    }}
     style={{
       borderRadius: '20px',
       height: '48px',
@@ -587,7 +595,7 @@ const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         zIndex: 1000,
         backgroundColor: '#fff',
         border: '1px solid #ced4da',
-        borderRadius: '20px',
+        borderRadius: '8px',
         boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
         maxHeight: '200px',
         overflowY: 'auto',
@@ -600,11 +608,14 @@ const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         .map((item) => (
           <div
             key={item.userId}
-            onClick={() => handleNameSelect(item)}
+            onClick={() => {
+              handleNameSelect(item);
+              setShowNameDropdown(false); // Close dropdown immediately after selection
+            }}
             className="dropdown-item"
             style={{ cursor: 'pointer', fontSize: '1rem' }}
           >
-            <strong>{item.ItemName}</strong> | {item.itemCode} | ₹{item.price.toFixed(2)}
+            <strong>{item.ItemName}</strong> | {item.shortName} | {item.itemCode} | ₹{item.price.toFixed(2)}
           </div>
         ))}
       {filterDropdownItems('name').length === 0 && (
@@ -616,16 +627,16 @@ const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 
                 <div className="input-group rounded-search" style={{ maxWidth: '100px' }}>
                   <input
-                    type="number"
-                    className="form-control"
-                    placeholder="Qty"
-                    value={quantity}
-                    onChange={(e) => setQuantity(e.target.value)}
-                    onKeyPress={handleQuantityKeyPress}
-                    min="1"
-                    ref={quantityInputRef}
-                    style={{ maxWidth: '100px', minHeight: '48px' }}
-                  />
+  type="number"
+  className="form-control"
+  placeholder="Qty"
+  value={quantity}
+  onChange={(e) => setQuantity(e.target.value)}
+  onKeyPress={handleQuantityKeyPress}
+  min="1"
+  ref={quantityInputRef}
+  style={{ maxWidth: '100px', minHeight: '48px' }}
+/>
                 </div>
                 <button
                   className="btn btn-sm btn-outline-danger rounded-button px-2"
