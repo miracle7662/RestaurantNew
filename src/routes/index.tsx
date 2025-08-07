@@ -58,7 +58,6 @@ const KitchenSubCategories = React.lazy(() => import('../views/apps/Masters/Rest
 const KitchenCategories =React.lazy(() => import ('../views/apps/Masters/RestaurantMasters/KitchenCategories'))
 const OutletMenu = React.lazy(() => import('../views/apps/Masters/RestaurantMasters/OutletMenu'))
 const TaxProuductGroup = React.lazy(() => import('../views/apps/Masters/RestaurantMasters/TaxProuductGroup'))
-const TaxConfiguration = React.lazy(() => import ('../views/apps/Masters/RestaurantMasters/TaxConfiguration')) 
 const TableManagement = React.lazy(() => import('../views/apps/Masters/RestaurantMasters/TableManagement'))
 const UnitMaster = React.lazy(() => import('../views/apps/Masters/RestaurantMasters/UnitMaster'))
 
@@ -363,9 +362,9 @@ const appsRoutes: RoutesProps = {
       route: PrivateRoute,
     },
      {
-      path: '/apps/TaxConfiguration',
-      name: 'TaxConfiguration',
-      element: <TaxConfiguration />,
+      path: '/apps/Restaxmaster',
+      name: 'Restaxmaster',
+      element: <TaxProuductGroup />,
       route: PrivateRoute,
     },
      {

@@ -106,7 +106,7 @@ export interface UserTypeItem {
   status: number
 }
 
- export interface MenuItem {
+export interface MenuItem {
  menuid: number
  item_no: number
  item_name: string
@@ -114,8 +114,29 @@ export interface UserTypeItem {
  short_name : string
  price: number
  status: number
+}
 
-
+export interface HotelMasterItem {
+  hotelid: number
+  hotel_name: string
+  marketid?: number
+  short_name?: string
+  phone?: string
+  email?: string
+  fssai_no?: string
+  trn_gstno?: string
+  panno?: string
+  website?: string
+  address?: string
+  stateid?: number
+  hoteltypeid?: number
+  Masteruserid?: number
+  status?: number
+  created_by_id?: number
+  created_date?: string
+  updated_by_id?: number
+  updated_date?: string
+  market_name?: string
 }
 export const fetchCountries = async (
   setCountryItems: (data: CountryItem[]) => void,
@@ -563,6 +584,56 @@ export const fetchOutletsForDropdown = async (
     setLoading(false);
   }
 };
+
+export const fetchhotelmasters = async (
+  setHotels: (data: HotelMasterItem[]) => void,
+  user?: User,
+  setLoading?: (value: boolean) => void,
+): Promise<void> => {
+  try {
+    if (setLoading) setLoading(true);
+    
+    const params: { role_level?: string; hotelid?: number } = {};
+    
+    if (user?.role_level) {
+      params.role_level = user.role_level;
+    }
+    
+    if (user?.role_level === 'hotel_admin' && user?.hotelid) {
+      params.hotelid = user.hotelid;
+    }
+
+    const url = new URL('http://localhost:3001/api/HotelMasters');
+    Object.keys(params).forEach(key => {
+      if (params[key as keyof typeof params] !== undefined) {
+        url.searchParams.append(key, params[key as keyof typeof params]!.toString());
+      }
+    });
+
+    const res = await fetch(url.toString());
+    const data: HotelMasterItem[] = await res.json();
+    
+    // Filter to only include active hotels and extract just the needed fields
+    const activeHotels = data
+      .filter(hotel => hotel.status === 1)
+      .map(hotel => ({
+        hotelid: hotel.hotelid,
+        hotel_name: hotel.hotel_name,
+        marketid: hotel.marketid,
+        short_name: hotel.short_name,
+        status: hotel.status
+      }));
+    
+    setHotels(activeHotels);
+  } catch (err) {
+    toast.error('Failed to fetch hotels');
+    console.error('Fetch hotels error:', err);
+    setHotels([]);
+  } finally {
+    if (setLoading) setLoading(false);
+  }
+};
+
 // export const fetchOutletuserById = async (
 //   id: number,
 //   user: { role_level: string; hotelid: number; brand_id: number; userid: number },

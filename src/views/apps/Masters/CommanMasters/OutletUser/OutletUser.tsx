@@ -258,26 +258,26 @@ const handleModalSubmit = async () => {
       console.warn('Validation failed: Invalid username', { username });
       return;
     }
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      toast.error('Please enter a valid email address');
-      console.warn('Validation failed: Invalid email', { email });
-      return;
-    }
-    if (!password && modalType === 'Add Outlet User') {
-      toast.error('Please enter a password');
-      console.warn('Validation failed: Password is missing');
-      return;
-    }
-    if (!fullName || fullName.length < 2) {
-      toast.error('Please enter a valid full name (minimum 2 characters)');
-      console.warn('Validation failed: Invalid full name', { fullName });
-      return;
-    }
-    if (!selectedOutlet || selectedOutlet.length === 0) {
-      toast.error('Please select at least one outlet');
-      console.warn('Validation failed: Outlet is not selected', { selectedOutlet });
-      return;
-    }
+    // if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    //   toast.error('Please enter a valid email address');
+    //   console.warn('Validation failed: Invalid email', { email });
+    //   return;
+    // }
+    // if (!password && modalType === 'Add Outlet User') {
+    //   toast.error('Please enter a password');
+    //   console.warn('Validation failed: Password is missing');
+    //   return;
+    // }
+    // if (!fullName || fullName.length < 2) {
+    //   toast.error('Please enter a valid full name (minimum 2 characters)');
+    //   console.warn('Validation failed: Invalid full name', { fullName });
+    //   return;
+    // }
+    // if (!selectedOutlet || selectedOutlet.length === 0) {
+    //   toast.error('Please select at least one outlet');
+    //   console.warn('Validation failed: Outlet is not selected', { selectedOutlet });
+    //   return;
+    // }
 
     // Ensure selectedOutlet is an array
     if (!Array.isArray(selectedOutlet)) {

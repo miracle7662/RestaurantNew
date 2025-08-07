@@ -2,11 +2,12 @@
 const path = require('path');
 const Database = require('better-sqlite3');
 
+
 // ✅ Connect to SQLite DB (creates file if not exist)
 // const db = new Database(path.join(__dirname, 'miresto.db'));
 //const db = new Database(path.join('F:','newmidb', 'newmidb.db'));
 
-  // const db = new Database(path.join('D:','Restrauntdb', 'miresto.db')); //sudarshan
+
 
   // const db = new Database(path.join('D:','Restrauntdb', 'miresto.db')); //sudarshan
 
@@ -351,6 +352,37 @@ CREATE TABLE IF NOT EXISTS msttablemanagement (
     updated_by_id INTEGER,
     updated_date DATETIME
 );
+CREATE TABLE IF NOT EXISTS  msttaxgroup (
+    taxgroupid    INTEGER PRIMARY KEY AUTOINCREMENT,
+    taxgroup_name TEXT NOT NULL,
+    hotelid       INTEGER REFERENCES msthotelmasters (hotelid),
+    status        INTEGER DEFAULT 1,
+    created_by_id INTEGER,
+    created_date  TEXT,
+    updated_by_id INTEGER,
+    updated_date  TEXT
+);
+
+  CREATE TABLE IF NOT EXISTS mst_resttaxmaster (
+    resttaxid INTEGER PRIMARY KEY AUTOINCREMENT,
+  
+    hotelid INTEGER,
+    outletid INTEGER,   
+    isapplicablealloutlet INTEGER,
+    resttax_name TEXT,
+    resttax_value TEXT,
+    restcgst TEXT,
+    restsgst TEXT,
+    restigst TEXT,
+    taxgroupid INTEGER, 
+    status INTEGER DEFAULT 1, 
+    created_by_id INTEGER,
+    created_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_by_id INTEGER,
+    updated_date DATETIME,
+    FOREIGN KEY (hotelid) REFERENCES HotelMasters(hotelid)
+)
+    
 
 -- Insert default SuperAdmin user (password will be properly hashed by the checkSuperAdmin script)
 -- This is just a placeholder, the actual SuperAdmin will be created by the script

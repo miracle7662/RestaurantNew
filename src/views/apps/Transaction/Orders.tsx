@@ -1,10 +1,10 @@
+
 import { useState, useEffect, useRef } from 'react';
 import { Button, Modal, Form, Table } from 'react-bootstrap';
 import OrderDetails from './OrderDetails';
-import { fetchOutletsForDropdown } from '@/utils/commonfunction'; // 
+import { fetchOutletsForDropdown } from '@/utils/commonfunction';
 import { useAuthContext } from '@/common';
-import  { OutletData } from '@/common/api/outlet';
-
+import { OutletData } from '@/common/api/outlet';
 
 interface MenuItem {
   id: number;
@@ -55,6 +55,8 @@ const Order = () => {
   const [selectedCountryCode, setSelectedCountryCode] = useState<string>('+91');
   const [showCountryOptions, setShowCountryOptions] = useState<boolean>(false);
   const [showNewCustomerForm, setShowNewCustomerForm] = useState<boolean>(false);
+  const [searchTable, setSearchTable] = useState<string>('');
+  const [isTableInvalid, setIsTableInvalid] = useState<boolean>(false);
 
   const [customers, setCustomers] = useState<Customer[]>([
     { srNo: 1, name: 'xyz', countryCode: '91', mobile: '123', mail: '', city: '', address1: '', address2: '' },
@@ -96,7 +98,7 @@ const Order = () => {
   const [errorMessage, setErrorMessage] = useState<string>('');
   const { user } = useAuthContext();
   const itemListRef = useRef<HTMLDivElement>(null);
-  const [describe, setDescribe] = useState<string>(''); // Define the state variable and its update function
+  const [describe, setDescribe] = useState<string>('');
 
   // Fetch tables from the TableManagement API
   const fetchTableManagement = async () => {
@@ -107,7 +109,7 @@ const Order = () => {
       });
       if (res.ok) {
         const data: TableItem[] = await res.json();
-        console.log('Fetched tables:', data);
+        console.log('Raw tableItems data:', JSON.stringify(data, null, 2));
         if (data.length === 0) {
           setErrorMessage('No tables found in TableManagement API.');
         } else {
@@ -181,12 +183,10 @@ const Order = () => {
         
         if (user.role_level === 'outlet_user' && user.outletid) {
           console.log('Outlet user detected, fetching outlets with outletid filter:', user.outletid);
-          await     fetchOutletsForDropdown(user, setOutlets, setLoading);
-          
+          await fetchOutletsForDropdown(user, setOutlets, setLoading);
         } else {
           console.log('Fetching all outlets for user:', { userid: user.id, hotelid: user.hotelid, outletid: user.outletid });
-          await     fetchOutletsForDropdown(user, setOutlets, setLoading);
-          
+          await fetchOutletsForDropdown(user, setOutlets, setLoading);
         }
         
         console.log('Outlets fetched:', outlets);
@@ -225,6 +225,7 @@ const Order = () => {
     
     if (selectedOutlet) {
       filtered = tableItems.filter(table => 
+        table && table.outlet_name && 
         (table.outlet_name === activeNavTab || table.isCommonToAllDepartments)
       );
     } else {
@@ -234,17 +235,20 @@ const Order = () => {
           break;
         case 'FamilyDine in':
           filtered = tableItems.filter(table => 
-            table.table_name.startsWith('F') || table.isCommonToAllDepartments
+            table && table.table_name && 
+            (table.table_name.startsWith('F') || table.isCommonToAllDepartments)
           );
           break;
         case 'Restaurant':
           filtered = tableItems.filter(table => 
-            table.table_name.startsWith('R') || table.isCommonToAllDepartments
+            table && table.table_name && 
+            (table.table_name.startsWith('R') || table.isCommonToAllDepartments)
           );
           break;
         case 'Rooms':
           filtered = tableItems.filter(table => 
-            /^\d+$/.test(table.table_name) || table.isCommonToAllDepartments
+            table && table.table_name && 
+            (/^\d+$/.test(table.table_name) || table.isCommonToAllDepartments)
           );
           break;
         case 'Pickup':
@@ -259,8 +263,22 @@ const Order = () => {
     }
     
     setFilteredTables(filtered);
-    console.log(`Filtered tables for ${activeNavTab}:`, filtered);
+    console.log(`Filtered tables for ${activeNavTab}:`, JSON.stringify(filtered, null, 2));
   }, [activeNavTab, outlets, tableItems]);
+
+  // Validate searchTable input
+  useEffect(() => {
+    if (searchTable) {
+      const isValidTable = filteredTables.some(table => 
+        table && table.table_name && table.table_name.toLowerCase() === searchTable.toLowerCase()
+      );
+      setIsTableInvalid(!isValidTable);
+      setInvalidTable(!isValidTable ? searchTable : '');
+    } else {
+      setIsTableInvalid(false);
+      setInvalidTable('');
+    }
+  }, [searchTable, filteredTables]);
 
   const handleTableClick = (seat: string) => {
     console.log('Button clicked for table:', seat);
@@ -273,7 +291,7 @@ const Order = () => {
 
   const handleTabClick = (tab: string) => {
     console.log('Tab clicked:', tab);
-setDescribe(`Tab clicked: ${tab}`);
+    setDescribe(`Tab clicked: ${tab}`);
     setActiveTab(tab);
     if (['Pickup', 'Delivery', 'Quick Bill', 'Order/KOT', 'Billing'].includes(tab)) {
       setSelectedTable(null);
@@ -575,157 +593,201 @@ setDescribe(`Tab clicked: ${tab}`);
       </style>
       <div className="main-container d-flex flex-column flex-md-row gap-3">
         <div className="table-container flex-grow-1 me-md-3">
-{activeTab === 'Dine-in' && !showOrderDetails && (
-  <div>
-    <ul
-      className="nav nav-tabs rounded shadow-sm mb-3"
-      role="tablist"
-      style={{ padding: '5px', display: 'flex', gap: '5px' }}
-    >
-      <li className="nav-item flex-fill">
-        <button
-          className={`nav-link ${activeNavTab === 'ALL' ? 'active bg-primary text-white' : 'text-dark'}`}
-          onClick={() => setActiveNavTab('ALL')}
-          role="tab"
-          style={{ border: 'none', borderRadius: '5px', padding: '8px 12px', fontSize: '14px', fontWeight: 500, textAlign: 'center' }}
-        >
-          ALL
-        </button>
-      </li>
-      {loading ? (
-        <li className="nav-item flex-fill">
-          <span>Loading outlets...</span>
-        </li>
-      ) : outlets.length === 0 ? (
-        <li className="nav-item flex-fill">
-          <span style={{ color: 'red' }}>
-            {user?.role_level === 'outlet_user' 
-              ? 'No assigned outlet found for outlet user.' 
-              : 'Failed to load outlets or no outlets available'}
-          </span>
-        </li>
-      ) : (
-        outlets.map((outlet, index) => (
-          <li className="nav-item flex-fill" key={index}>
-            <button
-              className={`nav-link ${activeNavTab === outlet.outlet_name ? 'active bg-primary text-white' : 'text-dark'}`}
-              onClick={() => setActiveNavTab(outlet.outlet_name)}
-              role="tab"
-              style={{ border: 'none', borderRadius: '5px', padding: '8px 12px', fontSize: '14px', fontWeight: 500, textAlign: 'center' }}
-            >
-              {outlet.outlet_name} ({outlet.outletid})
-              {user?.role_level === 'outlet_user' && ' (Assigned)'}
-            </button>
-          </li>
-        ))
-      )}
-      {['Pickup', 'Quick Bill', 'Delivery'].map((tab, index) => (
-        <li className="nav-item flex-fill" key={index + outlets.length}>
-          <button
-            className={`nav-link ${tab === activeNavTab ? 'active bg-primary text-white' : 'text-dark'}`}
-            onClick={() => setActiveNavTab(tab)}
-            role="tab"
-            style={{ border: 'none', borderRadius: '5px', padding: '8px 12px', fontSize: '14px', fontWeight: 500, textAlign: 'center' }}
-          >
-            {tab}
-          </button>
-        </li>
-      ))}
-    </ul>
-    <div
-      className="d-flex flex-column justify-content-start align-items-start rounded shadow-sm p-1 mt-3"
-    >
-      {loading ? (
-        <p className="text-center text-muted mb-0">Loading tables...</p>
-      ) : activeNavTab === 'ALL' ? (
-        <>
-          
-
-          {/* Outlet abcd row */}
-          <div>
-            <p style={{ color: 'green', fontWeight: 'bold', margin: '10px 0 5px' }}>Outlet abcd</p>
-            <div className="d-flex flex-wrap gap-1">
-              {tableItems.filter(table => table.outlet_name && table.outlet_name.toLowerCase() === 'abcd'.toLowerCase()).map((table, index) => (
-                <div key={index} className="p-1">
-                  <button
-                    className={`btn ${selectedTable === table.table_name ? 'btn-success' : 'btn-outline-success'}`}
-                    style={{ width: '90px', height: '80px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
-                    onClick={() => {
-                      console.log('Button clicked for table:', table.table_name, 'isActive:', table.isActive);
-                      handleTableClick(table.table_name);
-                    }}
-                  >
-                    {table.table_name} {table.isActive ? '' : ''}
-                  </button>
+          <>
+            {activeTab === 'Dine-in' && !showOrderDetails && (
+              <div>
+                <ul
+                  className="nav nav-tabs rounded shadow-sm mb-3"
+                  role="tablist"
+                  style={{ padding: '5px', display: 'flex', gap: '5px' }}
+                >
+                  <li className="nav-item flex-fill">
+                    <button
+                      className={`nav-link ${activeNavTab === 'ALL' ? 'active bg-primary text-white' : 'text-dark'}`}
+                      onClick={() => setActiveNavTab('ALL')}
+                      role="tab"
+                      style={{ border: 'none', borderRadius: '5px', padding: '8px 12px', fontSize: '14px', fontWeight: 500, textAlign: 'center' }}
+                    >
+                      ALL
+                    </button>
+                  </li>
+                  {loading ? (
+                    <li className="nav-item flex-fill">
+                      <span>Loading outlets...</span>
+                    </li>
+                  ) : outlets.length === 0 ? (
+                    <li className="nav-item flex-fill">
+                      <span style={{ color: 'red' }}>
+                        {user?.role_level === 'outlet_user'
+                          ? 'No assigned outlet found for outlet user.'
+                          : 'Failed to load outlets or no outlets available'}
+                      </span>
+                    </li>
+                  ) : (
+                    outlets.map((outlet, index) => (
+                      <li className="nav-item flex-fill" key={index}>
+                        <button
+                          className={`nav-link ${activeNavTab === outlet.outlet_name ? 'active bg-primary text-white' : 'text-dark'}`}
+                          onClick={() => setActiveNavTab(outlet.outlet_name)}
+                          role="tab"
+                          style={{ border: 'none', borderRadius: '5px', padding: '8px 12px', fontSize: '14px', fontWeight: 500, textAlign: 'center' }}
+                        >
+                          {outlet.outlet_name} ({outlet.outletid})
+                          {user?.role_level === 'outlet_user' && ' (Assigned)'}
+                        </button>
+                      </li>
+                    ))
+                  )}
+                  {['Pickup', 'Quick Bill', 'Delivery'].map((tab, index) => (
+                    <li className="nav-item flex-fill" key={index + outlets.length}>
+                      <button
+                        className={`nav-link ${tab === activeNavTab ? 'active bg-primary text-white' : 'text-dark'}`}
+                        onClick={() => setActiveNavTab(tab)}
+                        role="tab"
+                        style={{ border: 'none', borderRadius: '5px', padding: '8px 12px', fontSize: '14px', fontWeight: 500, textAlign: 'center' }}
+                      >
+                        {tab}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                <div
+                  className="d-flex flex-column justify-content-start align-items-start rounded shadow-sm p-1 mt-3"
+                >
+                  {loading ? (
+                    <p className="text-center text-muted mb-0">Loading tables...</p>
+                  ) : activeNavTab === 'ALL' ? (
+                    <>
+                      {outlets.map((outlet, index) => (
+                        <div key={index}>
+                          <p style={{ color: 'green', fontWeight: 'bold', margin: '10px 0 5px' }}>
+                            Outlet {outlet.outlet_name}
+                          </p>
+                          <div className="d-flex flex-wrap gap-1">
+                            {tableItems
+                              .filter(table => 
+                                table && table.outlet_name && 
+                                table.outlet_name.toLowerCase() === outlet.outlet_name.toLowerCase()
+                              )
+                              .map((table, tableIndex) => (
+                                table.table_name ? (
+                                  <div key={tableIndex} className="p-1">
+                                    <button
+                                      className={`btn ${selectedTable === table.table_name ? 'btn-success' : 'btn-outline-success'}`}
+                                      style={{ width: '90px', height: '80px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+                                      onClick={() => {
+                                        console.log('Button clicked for table:', table.table_name, 'isActive:', table.isActive);
+                                        handleTableClick(table.table_name);
+                                      }}
+                                    >
+                                      {table.table_name} {table.isActive ? '' : ''}
+                                    </button>
+                                  </div>
+                                ) : null
+                              ))}
+                            {tableItems.filter(table => 
+                              table && table.outlet_name && 
+                              table.outlet_name.toLowerCase() === outlet.outlet_name.toLowerCase()
+                            ).length === 0 && (
+                              <p className="text-center text-muted mb-0">
+                                No tables available for {outlet.outlet_name}.
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                      {outlets.length === 0 && (
+                        <p className="text-center text-muted mb-0">
+                          No outlets available. Please check outlet data.
+                        </p>
+                      )}
+                    </>
+                  ) : activeNavTab === 'abcd' || activeNavTab === 'qwert' ? (
+                    <div>
+                      <p style={{ color: 'green', fontWeight: 'bold', margin: '10px 0 5px' }}>Outlet {activeNavTab}</p>
+                      <div className="d-flex flex-wrap gap-1">
+                        {filteredTables
+                          .filter(table => 
+                            table && table.outlet_name && 
+                            table.outlet_name.toLowerCase() === activeNavTab.toLowerCase()
+                          )
+                          .map((table, index) => (
+                            table.table_name ? (
+                              <div key={index} className="p-1">
+                                <button
+                                  className={`btn ${selectedTable === table.table_name ? 'btn-success' : 'btn-outline-success'}`}
+                                  style={{ width: '90px', height: '80px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+                                  onClick={() => {
+                                    console.log('Button clicked for table:', table.table_name, 'isActive:', table.isActive);
+                                    handleTableClick(table.table_name);
+                                  }}
+                                >
+                                  {table.table_name} {table.isActive ? '' : ''}
+                                </button>
+                              </div>
+                            ) : null
+                          ))}
+                        {filteredTables.filter(table => 
+                          table && table.outlet_name && 
+                          table.outlet_name.toLowerCase() === activeNavTab.toLowerCase()
+                        ).length === 0 && (
+                          <p className="text-center text-muted mb-0">
+                            No tables available for {activeNavTab}. Please check TableManagement data.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ) : filteredTables.length > 0 ? (
+                    <div className="d-flex flex-wrap gap-1">
+                      {filteredTables
+                        .filter(table => table && table.table_name)
+                        .map((table, index) => (
+                          <div key={index} className="p-1">
+                            <button
+                              className={`btn ${selectedTable === table.table_name ? 'btn-success' : 'btn-outline-success'}`}
+                              style={{ width: '90px', height: '80px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+                              onClick={() => {
+                                console.log('Button clicked for table:', table.table_name, 'isActive:', table.isActive);
+                                handleTableClick(table.table_name);
+                              }}
+                            >
+                              {table.table_name} {table.isActive ? '' : ''}
+                            </button>
+                          </div>
+                        ))}
+                    </div>
+                  ) : (
+                    <p className="text-center text-muted mb-0">
+                      No tables available for {activeNavTab}. Please check TableManagement data.
+                    </p>
+                  )}
                 </div>
-              ))}
-            </div>
-          </div>
-
-          {/* qwert row */}
-          <div>
-            <p style={{ color: 'green', fontWeight: 'bold', margin: '10px 0 5px' }}>qwert</p>
-            <div className="d-flex flex-wrap gap-1">
-              {tableItems.filter(table => table.outlet_name && table.outlet_name.toLowerCase() === 'qwert'.toLowerCase()).map((table, index) => (
-                <div key={index} className="p-1">
-                  <button
-                    className={`btn ${selectedTable === table.table_name ? 'btn-success' : 'btn-outline-success'}`}
-                    style={{ width: '90px', height: '80px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
-                    onClick={() => {
-                      console.log('Button clicked for table:', table.table_name, 'isActive:', table.isActive);
-                      handleTableClick(table.table_name);
-                    }}
-                  >
-                    {table.table_name} {table.isActive ? '' : ''}
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        </>
-      ) : filteredTables.length > 0 ? (
-        filteredTables.map((table, index) => (
-          <div key={index} className="p-1">
-            <button
-              className={`btn ${selectedTable === table.table_name ? 'btn-success' : 'btn-outline-success'}`}
-              style={{ width: '90px', height: '80px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
-              onClick={() => {
-                console.log('Button clicked for table:', table.table_name, 'isActive:', table.isActive);
-                handleTableClick(table.table_name);
-              }}
-            >
-              {table.table_name} {table.isActive ? '' : ''}
-            </button>
-          </div>
-        ))
-      ) : (
-        <p className="text-center text-muted mb-0">
-          No tables available for {activeNavTab}. Please check TableManagement data.
-        </p>
-      )}
-    </div>
-  </div>
-)}
-
-          {showOrderDetails && (
-            <div className="rounded shadow-sm p-1 mt-0">
-              <OrderDetails
-                tableId={selectedTable}
-                onChangeTable={handleBackToTables}
-                items={items}
-                setItems={setItems}
-                setSelectedTable={setSelectedTable}
-                invalidTable={invalidTable}
-                setInvalidTable={setInvalidTable}
-              />
-            </div>
-          )}
+              </div>
+            )}
+            {showOrderDetails && (
+              <div className="rounded shadow-sm p-1 mt-0">
+                <OrderDetails
+                  tableId={selectedTable}
+                  onChangeTable={handleBackToTables}
+                  items={items}
+                  setItems={setItems}
+                  setSelectedTable={setSelectedTable}
+                  invalidTable={invalidTable}
+                  setInvalidTable={setInvalidTable}
+                  searchTable={searchTable}
+                  setSearchTable={setSearchTable}
+                  isTableInvalid={isTableInvalid}
+                  setIsTableInvalid={setIsTableInvalid}
+                />
+              </div>
+            )}
+          </>
         </div>
         <div className="billing-panel border-start p-0">
           <div className="rounded shadow-sm p-1 w-100 billing-panel-inner">
             <div>
               <div className="d-flex flex-wrap gap-1 border-bottom pb-0">
-                <div className="d-flex flex-wrap gap- flex-grow-1">
+                <div className="d-flex flex-wrap gap-1 flex-grow-1">
                   {['Dine-in', 'Pickup', 'Delivery', 'Quick Bill', 'Order/KOT', 'Billing'].map((tab, index) => (
                     <button
                       key={index}
@@ -910,12 +972,23 @@ setDescribe(`Tab clicked: ${tab}`);
                   style={{ width: '150px', height: '30px', fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}
                 />
                 {activeTab === 'Dine-in' && (
-                  <input
-                    type="text"
-                    placeholder="Covers"
-                    className="form-control"
-                    style={{ width: '120px', height: '30px', fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}
-                  />
+                  <div style={{ maxWidth: '100px', minHeight: '38px' }}>
+                    <div className="input-group rounded-search">
+                      <input
+                        type="text"
+                        className="form-control"
+                        placeholder="Table"
+                        value={searchTable}
+                        onChange={(e) => setSearchTable(e.target.value)}
+                        style={{ maxWidth: '100px', minHeight: '38px', fontSize: '1.2rem' }}
+                      />
+                    </div>
+                    {isTableInvalid && (
+                      <div className="text-danger small text-center mt-1">
+                        Invalid Table
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
               <div className="mt-1">
@@ -944,244 +1017,244 @@ setDescribe(`Tab clicked: ${tab}`);
               </div>
             </div>
           </div>
-        </div>
 
-        <Modal show={showNewCustomerForm} onHide={() => setShowNewCustomerForm(false)} centered size="lg">
-          <Modal.Header closeButton>
-            <Modal.Title>Add New Customer</Modal.Title>
-          </Modal.Header>
-          <Modal.Body style={{ maxHeight: '590px' }}>
-            <Form>
-              <div className="form-row grid gap-3">
-                <Form.Group controlId="name">
-                  <Form.Label>Name *</Form.Label>
-                  <Form.Control
+          <Modal show={showNewCustomerForm} onHide={() => setShowNewCustomerForm(false)} centered size="lg">
+            <Modal.Header closeButton>
+              <Modal.Title>Add New Customer</Modal.Title>
+            </Modal.Header>
+            <Modal.Body style={{ maxHeight: '590px' }}>
+              <Form>
+                <div className="form-row grid gap-3">
+                  <Form.Group controlId="name">
+                    <Form.Label>Name *</Form.Label>
+                    <Form.Control
+                      type="text"
+                      placeholder="Enter name"
+                      value={newCustomer.name}
+                      onChange={(e) => setNewCustomer({ ...newCustomer, name: e.target.value })}
+                    />
+                  </Form.Group>
+                  <Form.Group controlId="countryCode">
+                    <Form.Label>Country Code</Form.Label>
+                    <Form.Select
+                      value={newCustomer.countryCode}
+                      onChange={(e) => setNewCustomer({ ...newCustomer, countryCode: e.target.value })}
+                    >
+                      <option value="+91">India +91</option>
+                      <option value="+1">USA +1</option>
+                      <option value="+44">UK +44</option>
+                    </Form.Select>
+                  </Form.Group>
+                  <Form.Group controlId="mobile">
+                    <Form.Label>Mobile *</Form.Label>
+                    <Form.Control
+                      type="text"
+                      placeholder="Enter mobile number"
+                      value={newCustomer.mobile}
+                      onChange={(e) => setNewCustomer({ ...newCustomer, mobile: e.target.value })}
+                    />
+                  </Form.Group>
+                  <Form.Group controlId="email">
+                    <Form.Label>Email</Form.Label>
+                    <Form.Control
+                      type="email"
+                      placeholder="Enter email"
+                      value={newCustomer.mail}
+                      onChange={(e) => setNewCustomer({ ...newCustomer, mail: e.target.value })}
+                    />
+                  </Form.Group>
+                  <Form.Group controlId="birthday">
+                    <Form.Label>Birthday</Form.Label>
+                    <Form.Control
+                      type="date"
+                      value={newCustomer.birthday}
+                      onChange={(e) => setNewCustomer({ ...newCustomer, birthday: e.target.value })}
+                    />
+                  </Form.Group>
+                  <Form.Group controlId="city">
+                    <Form.Label>City</Form.Label>
+                    <Form.Control
+                      type="text"
+                      placeholder="Enter city"
+                      value={newCustomer.city}
+                      onChange={(e) => setNewCustomer({ ...newCustomer, city: e.target.value })}
+                    />
+                  </Form.Group>
+                  <Form.Group controlId="state">
+                    <Form.Label>State</Form.Label>
+                    <Form.Control
+                      type="text"
+                      placeholder="Enter state"
+                      value={newCustomer.state}
+                      onChange={(e) => setNewCustomer({ ...newCustomer, state: e.target.value })}
+                    />
+                  </Form.Group>
+                  <Form.Group controlId="pincode">
+                    <Form.Label>Pincode</Form.Label>
+                    <Form.Control
+                      type="text"
+                      placeholder="Enter pincode"
+                      value={newCustomer.pincode}
+                      onChange={(e) => setNewCustomer({ ...newCustomer, pincode: e.target.value })}
+                    />
+                  </Form.Group>
+                  <Form.Group controlId="gstNo">
+                    <Form.Label>GST No.</Form.Label>
+                    <Form.Control
+                      type="text"
+                      placeholder="Enter GST number"
+                      value={newCustomer.gstNo}
+                      onChange={(e) => setNewCustomer({ ...newCustomer, gstNo: e.target.value })}
+                    />
+                  </Form.Group>
+                  <Form.Group controlId="fssai">
+                    <Form.Label>FSSAI</Form.Label>
+                    <Form.Control
+                      type="text"
+                      placeholder="Enter FSSAI"
+                      value={newCustomer.fssai}
+                      onChange={(e) => setNewCustomer({ ...newCustomer, fssai: e.target.value })}
+                    />
+                  </Form.Group>
+                  <Form.Group controlId="panNo">
+                    <Form.Label>PAN No.</Form.Label>
+                    <Form.Control
+                      type="text"
+                      placeholder="Enter PAN number"
+                      value={newCustomer.panNo}
+                      onChange={(e) => setNewCustomer({ ...newCustomer, panNo: e.target.value })}
+                    />
+                  </Form.Group>
+                  <Form.Group controlId="aadharNo">
+                    <Form.Label>Aadhar No.</Form.Label>
+                    <Form.Control
+                      type="text"
+                      placeholder="Enter Aadhar number"
+                      value={newCustomer.aadharNo}
+                      onChange={(e) => setNewCustomer({ ...newCustomer, aadharNo: e.target.value })}
+                    />
+                  </Form.Group>
+                  <Form.Group controlId="anniversary">
+                    <Form.Label>Anniversary</Form.Label>
+                    <Form.Control
+                      type="date"
+                      value={newCustomer.anniversary}
+                      onChange={(e) => setNewCustomer({ ...newCustomer, anniversary: e.target.value })}
+                    />
+                  </Form.Group>
+                  <Form.Group controlId="createWallet">
+                    <Form.Label>Create Wallet</Form.Label>
+                    <Form.Check
+                      type="checkbox"
+                      label="Create wallet"
+                      checked={newCustomer.createWallet}
+                      onChange={(e) => setNewCustomer({ ...newCustomer, createWallet: e.target.checked })}
+                    />
+                  </Form.Group>
+                </div>
+                <div className="d-flex justify-content-between align-items-center mt-3">
+                  <Button variant="success" onClick={handleAddCustomerSubmit}>
+                    Add
+                  </Button>
+                  <input
                     type="text"
-                    placeholder="Enter name"
-                    value={newCustomer.name}
-                    onChange={(e) => setNewCustomer({ ...newCustomer, name: e.target.value })}
+                    placeholder="Search..."
+                    className="form-control"
+                    style={{ width: '200px' }}
+                    value={searchTerm}
+                    onChange={handleSearchChange}
                   />
-                </Form.Group>
-                <Form.Group controlId="countryCode">
-                  <Form.Label>Country Code</Form.Label>
-                  <Form.Select
-                    value={newCustomer.countryCode}
-                    onChange={(e) => setNewCustomer({ ...newCustomer, countryCode: e.target.value })}
-                  >
-                    <option value="+91">India +91</option>
-                    <option value="+1">USA +1</option>
-                    <option value="+44">UK +44</option>
-                  </Form.Select>
-                </Form.Group>
-                <Form.Group controlId="mobile">
-                  <Form.Label>Mobile *</Form.Label>
-                  <Form.Control
-                    type="text"
-                    placeholder="Enter mobile number"
-                    value={newCustomer.mobile}
-                    onChange={(e) => setNewCustomer({ ...newCustomer, mobile: e.target.value })}
-                  />
-                </Form.Group>
-                <Form.Group controlId="email">
-                  <Form.Label>Email</Form.Label>
-                  <Form.Control
-                    type="email"
-                    placeholder="Enter email"
-                    value={newCustomer.mail}
-                    onChange={(e) => setNewCustomer({ ...newCustomer, mail: e.target.value })}
-                  />
-                </Form.Group>
-                <Form.Group controlId="birthday">
-                  <Form.Label>Birthday</Form.Label>
-                  <Form.Control
-                    type="date"
-                    value={newCustomer.birthday}
-                    onChange={(e) => setNewCustomer({ ...newCustomer, birthday: e.target.value })}
-                  />
-                </Form.Group>
-                <Form.Group controlId="city">
-                  <Form.Label>City</Form.Label>
-                  <Form.Control
-                    type="text"
-                    placeholder="Enter city"
-                    value={newCustomer.city}
-                    onChange={(e) => setNewCustomer({ ...newCustomer, city: e.target.value })}
-                  />
-                </Form.Group>
-                <Form.Group controlId="state">
-                  <Form.Label>State</Form.Label>
-                  <Form.Control
-                    type="text"
-                    placeholder="Enter state"
-                    value={newCustomer.state}
-                    onChange={(e) => setNewCustomer({ ...newCustomer, state: e.target.value })}
-                  />
-                </Form.Group>
-                <Form.Group controlId="pincode">
-                  <Form.Label>Pincode</Form.Label>
-                  <Form.Control
-                    type="text"
-                    placeholder="Enter pincode"
-                    value={newCustomer.pincode}
-                    onChange={(e) => setNewCustomer({ ...newCustomer, pincode: e.target.value })}
-                  />
-                </Form.Group>
-                <Form.Group controlId="gstNo">
-                  <Form.Label>GST No.</Form.Label>
-                  <Form.Control
-                    type="text"
-                    placeholder="Enter GST number"
-                    value={newCustomer.gstNo}
-                    onChange={(e) => setNewCustomer({ ...newCustomer, gstNo: e.target.value })}
-                  />
-                </Form.Group>
-                <Form.Group controlId="fssai">
-                  <Form.Label>FSSAI</Form.Label>
-                  <Form.Control
-                    type="text"
-                    placeholder="Enter FSSAI"
-                    value={newCustomer.fssai}
-                    onChange={(e) => setNewCustomer({ ...newCustomer, fssai: e.target.value })}
-                  />
-                </Form.Group>
-                <Form.Group controlId="panNo">
-                  <Form.Label>PAN No.</Form.Label>
-                  <Form.Control
-                    type="text"
-                    placeholder="Enter PAN number"
-                    value={newCustomer.panNo}
-                    onChange={(e) => setNewCustomer({ ...newCustomer, panNo: e.target.value })}
-                  />
-                </Form.Group>
-                <Form.Group controlId="aadharNo">
-                  <Form.Label>Aadhar No.</Form.Label>
-                  <Form.Control
-                    type="text"
-                    placeholder="Enter Aadhar number"
-                    value={newCustomer.aadharNo}
-                    onChange={(e) => setNewCustomer({ ...newCustomer, aadharNo: e.target.value })}
-                  />
-                </Form.Group>
-                <Form.Group controlId="anniversary">
-                  <Form.Label>Anniversary</Form.Label>
-                  <Form.Control
-                    type="date"
-                    value={newCustomer.anniversary}
-                    onChange={(e) => setNewCustomer({ ...newCustomer, anniversary: e.target.value })}
-                  />
-                </Form.Group>
-                <Form.Group controlId="createWallet">
-                  <Form.Label>Create Wallet</Form.Label>
-                  <Form.Check
-                    type="checkbox"
-                    label="Create wallet"
-                    checked={newCustomer.createWallet}
-                    onChange={(e) => setNewCustomer({ ...newCustomer, createWallet: e.target.checked })}
-                  />
-                </Form.Group>
-              </div>
-              <div className="d-flex justify-content-between align-items-center mt-3">
-                <Button variant="success" onClick={handleAddCustomerSubmit}>
-                  Add
-                </Button>
-                <input
-                  type="text"
-                  placeholder="Search..."
-                  className="form-control"
-                  style={{ width: '200px' }}
-                  value={searchTerm}
-                  onChange={handleSearchChange}
-                />
-              </div>
-            </Form>
+                </div>
+              </Form>
 
-            <div className="modal-table-container" style={{ maxHeight: '200px', overflowY: 'auto', marginTop: '20px' }}>
-              <div className="table-responsive">
+              <div className="modal-table-container" style={{ maxHeight: '200px', overflowY: 'auto', marginTop: '20px' }}>
+                <div className="table-responsive">
+                  <Table bordered hover>
+                    <thead>
+                      <tr>
+                        <th>Sr No</th>
+                        <th>C NAME</th>
+                        <th>COUNTRY CODE</th>
+                        <th>MOBILE</th>
+                        <th>MAIL</th>
+                        <th>CITY</th>
+                        <th>ADDRESS 1</th>
+                        <th>ADDRESS 2</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredCustomers.map((customer) => (
+                        <tr key={customer.srNo}>
+                          <td>{customer.srNo}</td>
+                          <td>{customer.name}</td>
+                          <td>{customer.countryCode}</td>
+                          <td>{customer.mobile}</td>
+                          <td>{customer.mail}</td>
+                          <td>{customer.city}</td>
+                          <td>{customer.address1}</td>
+                          <td>{customer.address2}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
+                </div>
+              </div>
+            </Modal.Body>
+            <Modal.Footer>
+              <Button variant="secondary" onClick={() => setShowNewCustomerForm(false)}>
+                Close
+              </Button>
+            </Modal.Footer>
+          </Modal>
+
+          <Modal show={showSavedKOTsModal} onHide={() => setShowSavedKOTsModal(false)} centered size="lg">
+            <Modal.Header closeButton>
+              <Modal.Title>Saved KOTs</Modal.Title>
+            </Modal.Header>
+            <Modal.Body style={{ maxHeight: '500px', overflowY: 'auto' }}>
+              {savedKOTs.length === 0 ? (
+                <p className="text-center text-muted">No KOTs saved yet.</p>
+              ) : (
                 <Table bordered hover>
                   <thead>
                     <tr>
-                      <th>Sr No</th>
-                      <th>C NAME</th>
-                      <th>COUNTRY CODE</th>
-                      <th>MOBILE</th>
-                      <th>MAIL</th>
-                      <th>CITY</th>
-                      <th>ADDRESS 1</th>
-                      <th>ADDRESS 2</th>
+                      <th>#</th>
+                      <th>Table</th>
+                      <th>Items</th>
+                      <th>Total</th>
+                      <th>Timestamp</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredCustomers.map((customer) => (
-                      <tr key={customer.srNo}>
-                        <td>{customer.srNo}</td>
-                        <td>{customer.name}</td>
-                        <td>{customer.countryCode}</td>
-                        <td>{customer.mobile}</td>
-                        <td>{customer.mail}</td>
-                        <td>{customer.city}</td>
-                        <td>{customer.address1}</td>
-                        <td>{customer.address2}</td>
+                    {savedKOTs.map((kot, index) => (
+                      <tr key={index}>
+                        <td>{index + 1}</td>
+                        <td>{kot.table}</td>
+                        <td>
+                          {kot.items.map((item, idx) => (
+                            <div key={idx}>
+                              {item.name} (Qty: {item.qty}, Price: ${item.price.toFixed(2)})
+                            </div>
+                          ))}
+                        </td>
+                        <td>${kot.total.toFixed(2)}</td>
+                        <td>{kot.timestamp}</td>
                       </tr>
                     ))}
                   </tbody>
                 </Table>
-              </div>
-            </div>
-          </Modal.Body>
-          <Modal.Footer>
-            <Button variant="secondary" onClick={() => setShowNewCustomerForm(false)}>
-              Close
-            </Button>
-          </Modal.Footer>
-        </Modal>
-
-        <Modal show={showSavedKOTsModal} onHide={() => setShowSavedKOTsModal(false)} centered size="lg">
-          <Modal.Header closeButton>
-            <Modal.Title>Saved KOTs</Modal.Title>
-          </Modal.Header>
-          <Modal.Body style={{ maxHeight: '500px', overflowY: 'auto' }}>
-            {savedKOTs.length === 0 ? (
-              <p className="text-center text-muted">No KOTs saved yet.</p>
-            ) : (
-              <Table bordered hover>
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>Table</th>
-                    <th>Items</th>
-                    <th>Total</th>
-                    <th>Timestamp</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {savedKOTs.map((kot, index) => (
-                    <tr key={index}>
-                      <td>{index + 1}</td>
-                      <td>{kot.table}</td>
-                      <td>
-                        {kot.items.map((item, idx) => (
-                          <div key={idx}>
-                            {item.name} (Qty: {item.qty}, Price: ${item.price.toFixed(2)})
-                          </div>
-                        ))}
-                      </td>
-                      <td>${kot.total.toFixed(2)}</td>
-                      <td>{kot.timestamp}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
-            )}
-          </Modal.Body>
-          <Modal.Footer>
-            <Button variant="secondary" onClick={() => setShowSavedKOTsModal(false)}>
-              Close
-            </Button>
-          </Modal.Footer>
-        </Modal>
+              )}
+            </Modal.Body>
+            <Modal.Footer>
+              <Button variant="secondary" onClick={() => setShowSavedKOTsModal(false)}>
+                Close
+              </Button>
+            </Modal.Footer>
+          </Modal>
+        </div>
       </div>
-    </div>
-  );
+       </div>
+    );
 };
 
 export default Order;
