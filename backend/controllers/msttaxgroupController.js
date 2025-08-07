@@ -24,19 +24,7 @@ function sendSuccessResponse(res, data, message = null, statusCode = 200) {
   res.status(statusCode).json(response);
 }
 
-function checkDuplicateTaxGroup(taxgroup_name, hotelid, excludeId = null) {
-  let sql = `
-    SELECT COUNT(*) as count
-    FROM msttaxgroup
-    WHERE LOWER(TRIM(taxgroup_name)) = LOWER(TRIM(?)) AND hotelid = ?
-  `;
-  const params = [taxgroup_name, hotelid];
-  if (excludeId !== null) {
-    sql += ' AND taxgroupid != ?';
-    params.push(excludeId);
-  }
-  return db.prepare(sql).get(...params);
-}
+// Duplicate check functionality removed as requested
 
 exports.getAllTaxGroups = (req, res) => {
   try {
@@ -86,12 +74,6 @@ exports.createTaxGroup = (req, res) => {
       return sendErrorResponse(res, 'Missing required field: taxgroup_name', null, 400);
     }
 
-    const duplicateCheck = checkDuplicateTaxGroup(taxgroup_name, hotelid);
-
-    if (duplicateCheck.count > 0) {
-      return sendErrorResponse(res, 'Tax group name already exists for this hotel', null, 409);
-    }
-
     const sql = `
       INSERT INTO msttaxgroup (taxgroup_name, hotelid, status, created_by_id, created_date)
       VALUES (?, ?, ?, ?, datetime('now'))
@@ -118,12 +100,6 @@ exports.updateTaxGroup = (req, res) => {
       updated_by_id === undefined || updated_by_id === null
     ) {
       return sendErrorResponse(res, 'Missing required fields: taxgroup_name, hotelid, status, updated_by_id', null, 400);
-    }
-
-    const duplicateCheck = checkDuplicateTaxGroup(taxgroup_name, hotelid, parseInt(id));
-
-    if (duplicateCheck.count > 0) {
-      return sendErrorResponse(res, 'Tax group name already exists for this hotel', null, 409);
     }
 
     const sql = `
@@ -160,3 +136,4 @@ exports.deleteTaxGroup = (req, res) => {
   } catch (error) {
     sendErrorResponse(res, 'Error deleting tax group:', error);
   }
+}

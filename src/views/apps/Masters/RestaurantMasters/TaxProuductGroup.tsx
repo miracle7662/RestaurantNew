@@ -43,7 +43,7 @@ const TaxProductGroup: React.FC = () => {
       
       // Fetch tax groups using axios
       const taxGroupsRes = await axios.get('/api/taxgroup');
-      setTaxGroups(taxGroupsRes.data.data || []);
+      setTaxGroups(taxGroupsRes.data.data?.taxGroups || []);
       
       // Fetch hotels using the common fetchhotelmasters function
       await fetchhotelmasters(setHotels, user);   
@@ -223,33 +223,41 @@ const TaxProductGroup: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {taxGroups.map((group) => (
-                      <tr key={group.taxgroupid}>
-                        <td>{group.taxgroupid}</td>
-                        <td>{group.taxgroup_name}</td>
-                        <td>{group.hotel_name}</td>
-                        <td>{getStatusBadge(group.status)}</td>
-                        <td>{group.created_by_id}</td>
-                        <td>{new Date(group.created_date).toLocaleDateString()}</td>
-                        <td>
-                          <Button 
-                            variant="warning" 
-                            size="sm" 
-                            className="me-2"
-                            onClick={() => handleEdit(group)}
-                          >
-                            Edit
-                          </Button>
-                          <Button 
-                            variant="danger" 
-                            size="sm"
-                            onClick={() => handleDelete(group.taxgroupid)}
-                          >
-                            Delete
-                          </Button>
+                    {Array.isArray(taxGroups) && taxGroups.length > 0 ? (
+                      taxGroups.map((group) => (
+                        <tr key={group.taxgroupid}>
+                          <td>{group.taxgroupid}</td>
+                          <td>{group.taxgroup_name}</td>
+                          <td>{group.hotel_name}</td>
+                          <td>{getStatusBadge(group.status)}</td>
+                          <td>{group.created_by_id}</td>
+                          <td>{new Date(group.created_date).toLocaleDateString()}</td>
+                          <td>
+                            <Button 
+                              variant="warning" 
+                              size="sm" 
+                              className="me-2"
+                              onClick={() => handleEdit(group)}
+                            >
+                              Edit
+                            </Button>
+                            <Button 
+                              variant="danger" 
+                              size="sm"
+                              onClick={() => handleDelete(group.taxgroupid)}
+                            >
+                              Delete
+                            </Button>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={7} className="text-center">
+                          {loading ? 'Loading...' : 'No tax groups found'}
                         </td>
                       </tr>
-                    ))}
+                    )}
                   </tbody>
                 </Table>
               )}
