@@ -138,6 +138,17 @@ export interface HotelMasterItem {
   updated_date?: string
   market_name?: string
 }
+
+export interface TaxGroup {
+  taxgroupid: number
+  taxgroup_name: string
+  status: number
+}
+export interface unitmasterItem {
+  unitid: number
+  unit_name: string
+  status: number
+}
 export const fetchCountries = async (
   setCountryItems: (data: CountryItem[]) => void,
   setCountryId: (id: number) => void,
@@ -401,6 +412,53 @@ export const fetchTableManagement = async (
     }
   }
 
+  export const fetchData = async (
+  setTaxGroup: (data: any[]) => void,    
+  settaxgroupid: (id: number) => void,
+  currenttaxgroupid?: string
+) => {
+  try {
+    const res = await fetch('http://localhost:3001/api/taxgroup');
+    const result = await res.json();
+
+    // ✅ Extract the array safely
+    const taxGroups = Array.isArray(result)
+      ? result
+      : Array.isArray(result.data)
+      ? result.data
+      : [];
+
+    setTaxGroup(taxGroups);
+
+    if (taxGroups.length > 0 && !currenttaxgroupid) {
+      settaxgroupid(taxGroups[0].taxgroupid);
+    }
+  } catch (err) {
+    toast.error('Failed to fetch tax groups');
+    console.error('Fetch tax groups error:', err);
+    setTaxGroup([]);
+  }
+};
+export const fetchunitmaster = async (
+  setStockUnits: (data: unitmasterItem[]) => void,
+  setStockUnit: (id: number) => void,
+  currentStockUnit?: string,
+) => {
+  try {
+    const res = await fetch('http://localhost:3001/api/unitmaster');
+    const data = await res.json();
+    setStockUnits(data);
+
+    // Set first item if nothing is selected
+    if (data.length > 0 && !currentStockUnit) {
+      setStockUnit(data[0].unit_name);
+    }
+  } catch (err) {
+    toast.error('Failed to fetch stock units');
+    console.error('Fetch stock units error:', err);
+    setStockUnits([]);
+  }
+};
 
 // Fetch brands (adapted from fetchHotelData)
 export const fetchBrands = async (

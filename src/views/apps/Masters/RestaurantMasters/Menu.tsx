@@ -8,24 +8,27 @@ import {
   fetchKitchenSubCategory,
   fetchItemGroup,
   fetchItemMainGroup,
+  fetchData,
+  fetchunitmaster,
   KitchenCategoryItem,
   KitchenMainGroupItem,
   KitchenSubCategoryItem,
   ItemGroupItem,
   ItemMainGroupItem,
+  TaxGroup,
+  unitmasterItem,
 } from '@/utils/commonfunction';
-import { fetchOutletsForDropdown } from '@/utils/commonfunction';
-import { OutletData } from '@/common/api/outlet';
+import { fetchOutletsForDropdown, OutletData } from '@/utils/commonfunction';
 import { fetchBrands } from '@/utils/commonfunction';
 
 interface MenuItem {
-  menuid: number;
-  outlet_id: number | null;
-  hotel_name_id: number | null;
+  restitemid: number;
+  hotelid: number | null;
+  hotel_name: string | null;
   item_no: string | null;
   item_name: string;
-  print_name?: string | null;
-  short_name?: string | null;
+  print_name: string | null;
+  short_name: string | null;
   kitchen_category_id: number | null;
   kitchen_sub_category_id: number | null;
   kitchen_main_group_id: number | null;
@@ -33,14 +36,23 @@ interface MenuItem {
   item_main_group_id: number | null;
   stock_unit: string | null;
   price: number;
-  tax?: number | null;
-  runtime_rates: boolean;
-  is_common_to_all_departments: boolean;
-  status?: number | string;
-  created_by_id?: number | null;
-  created_date?: string | null;
-  updated_by_id?: number | null;
-  updated_date?: string | null;
+  taxgroupid: number | null;
+  is_runtime_rates: number;
+  is_common_to_all_departments: number;
+  item_description: string | null;
+  item_hsncode: string | null;
+  status: number;
+  created_by_id: number | null;
+  created_date: string | null;
+  updated_by_id: number | null;
+  updated_date: string | null;
+  itemdetailsid: number | null;
+  outletid: number | null;
+  outlet_name: string | null;
+  item_rate: number | null;
+  unitid: number | null;
+  servingunitid: number | null;
+  IsConversion: number | null;
 }
 
 interface CardItem {
@@ -54,7 +66,7 @@ interface CardItem {
 }
 
 interface NewItem {
-  outletRates: { outletid: number | undefined; outletName: string; rate: number; }[];
+  outletRates: { outletid: number | undefined; outletName: string; rate: number; unitid: number | null; servingunitid: number | null; IsConversion: number }[];
 }
 
 type Category =
@@ -112,6 +124,9 @@ const Menu: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<Category>('All');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [outlets, setOutlets] = useState<OutletData[]>([]);
+  const [brands, setBrands] = useState<{ hotelid: number; hotel_name: string }[]>([]);
+  const { user } = useAuthContext();
 
   const [itemCategories, setItemCategories] = useState<{ [key in Category]: CardItem[] }>({
     All: [],
@@ -129,19 +144,19 @@ const Menu: React.FC = () => {
   const fetchMenu = async () => {
     try {
       setLoading(true);
-      const res = await fetch('http://localhost:3001/api/Menu');
+      const res = await fetch('http://localhost:3001/api/menu');
       if (!res.ok) throw new Error('Failed to fetch menu');
       const menuData: MenuItem[] = await res.json();
       setData(menuData);
 
       const updatedCardItems = menuData.map((item) => ({
-        userId: String(item.menuid),
+        userId: String(item.restitemid),
         itemId: item.item_no || '',
         ItemName: item.item_name,
         aliasName: item.short_name || '',
         price: item.price || 0,
         visits: 0,
-        cardStatus: item.status === 0 ? '✅ Available' : '❌ Unavailable',
+        cardStatus: item.status === 1 ? '✅ Available' : '❌ Unavailable',
       }));
 
       const updatedCategories: { [key in Category]: CardItem[] } = {
@@ -158,7 +173,7 @@ const Menu: React.FC = () => {
       };
       menuData.forEach((item) => {
         const category = getItemCategory(item.item_group_id, itemGroup);
-        const cardItem = updatedCardItems.find((ci) => ci.userId === String(item.menuid));
+        const cardItem = updatedCardItems.find((ci) => ci.userId === String(item.restitemid));
         if (cardItem && category !== 'All') {
           updatedCategories[category].push(cardItem);
         }
@@ -174,9 +189,44 @@ const Menu: React.FC = () => {
     }
   };
 
+  const handleDeleteItem = async (restitemid: number) => {
+    if (!window.confirm('Are you sure you want to delete this item?')) return;
+    try {
+      const res = await fetch(`http://localhost:3001/api/menu/${restitemid}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) {
+        toast.error(`Failed to delete item (status: ${res.status})`);
+        return;
+      }
+      setData((prev) => prev.filter((item) => item.restitemid !== restitemid));
+      setCardItems((prev) => prev.filter((item) => item.userId !== String(restitemid)));
+      setItemCategories((prev) => {
+        const updatedCategories = { ...prev };
+        Object.keys(updatedCategories).forEach((key) => {
+          updatedCategories[key as Category] = updatedCategories[key as Category].filter(
+            (item) => item.userId !== String(restitemid)
+          );
+        });
+        return updatedCategories;
+      });
+      toast.success('Item deleted successfully');
+    } catch (err) {
+      console.error('Delete item error:', err);
+      toast.error('Failed to delete item');
+    }
+  };
+
   useEffect(() => {
     fetchMenu();
     fetchItemGroup(setItemGroup, setItemGroupId).catch(() => toast.error('Failed to fetch item groups'));
+    fetchOutletsForDropdown(user, (data) => {
+      const uniqueOutlets = Array.from(
+        new Map(data.map((outlet) => [outlet.outletid, outlet])).values()
+      );
+      setOutlets(uniqueOutlets);
+    }, setLoading);
+    fetchBrands(user, setBrands).catch(() => toast.error('Failed to fetch brands'));
   }, []);
 
   const handleCategoryClick = (group: ItemGroupItem) => {
@@ -192,17 +242,17 @@ const Menu: React.FC = () => {
     setShowEditModal(true);
   };
 
-  const updateStatusInDatabase = async (menuid: number, newStatus: number) => {
+  const updateStatusInDatabase = async (restitemid: number, newStatus: number) => {
     try {
-      const item = data.find((item) => item.menuid === menuid);
+      const item = data.find((item) => item.restitemid === restitemid);
       if (!item) {
         toast.error('Item not found');
         return;
       }
-      const res = await fetch(`http://localhost:3001/api/Menu/${menuid}`, {
+      const res = await fetch(`http://localhost:3001/api/menu/${restitemid}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...item, status: newStatus, updated_by_id: 2, updated_date: new Date().toISOString() }),
+        body: JSON.stringify({ ...item, status: newStatus, updated_by_id: user?.id || 2 }),
       });
       if (!res.ok) {
         toast.error(`Server error (${res.status})`);
@@ -210,7 +260,7 @@ const Menu: React.FC = () => {
       }
       setData((prev) =>
         prev.map((item) =>
-          item.menuid === menuid ? { ...item, status: newStatus, updated_by_id: 2, updated_date: new Date().toISOString() } : item
+          item.restitemid === restitemid ? { ...item, status: newStatus, updated_by_id: user?.id || 2, updated_date: new Date().toISOString() } : item
         )
       );
       toast.success('Status updated successfully');
@@ -372,7 +422,7 @@ const Menu: React.FC = () => {
                               }));
                               data
                                 .filter((d) => d.item_group_id === group.item_groupid)
-                                .forEach((item) => updateStatusInDatabase(item.menuid, statusValue));
+                                .forEach((item) => updateStatusInDatabase(item.restitemid, statusValue));
                             }}
                             size="sm"
                             style={{
@@ -401,7 +451,7 @@ const Menu: React.FC = () => {
           <div style={{ maxHeight: 'calc(100vh - 80px)', paddingRight: '10px' }}>
             <Row xs={1} sm={2} md={3} lg={4} className="g-3 mb-4">
               {cardItems.map((item, index) => {
-                const menuItem = data.find((p) => p.menuid === Number(item.userId));
+                const menuItem = data.find((p) => p.restitemid === Number(item.userId));
                 return (
                   <Col key={index}>
                     <Card
@@ -457,10 +507,10 @@ const Menu: React.FC = () => {
                               if (menuItem) {
                                 setData((prevData) =>
                                   prevData.map((d) =>
-                                    d.menuid === menuItem.menuid ? { ...d, status: updatedStatus === '✅ Available' ? 0 : 1 } : d
+                                    d.restitemid === menuItem.restitemid ? { ...d, status: updatedStatus === '✅ Available' ? 0 : 1 } : d
                                   )
                                 );
-                                updateStatusInDatabase(menuItem.menuid, updatedStatus === '✅ Available' ? 0 : 1);
+                                updateStatusInDatabase(menuItem.restitemid, updatedStatus === '✅ Available' ? 0 : 1);
                               }
                             }}
                             size="sm"
@@ -496,186 +546,210 @@ const Menu: React.FC = () => {
           itemCategories={itemCategories}
           setItemCategories={setItemCategories}
         />
-       <EditItemModal
-  show={showEditModal}
-  onHide={() => setShowEditModal(false)}
-  onSuccess={fetchMenu}
-  setData={setData}
-  setCardItems={setCardItems}
-  mstmenu={editItem ?? undefined}
-  itemCategories={itemCategories}
-  setItemCategories={setItemCategories}
-/>
+        <EditItemModal
+          show={showEditModal}
+          onHide={() => setShowEditModal(false)}
+          onSuccess={fetchMenu}
+          setData={setData}
+          setCardItems={setCardItems}
+          mstmenu={editItem ?? undefined}
+          itemCategories={itemCategories}
+          setItemCategories={setItemCategories}
+        />
       </div>
     </div>
   );
 };
 
 const AddItemModal: React.FC<ModalProps> = ({ show, onHide, onSuccess, setData, setCardItems, itemCategories, setItemCategories }) => {
-  const [outletId, setOutletId] = useState<string | null>(null);
-  const [hotelNameId, setHotelNameId] = useState<string | null>(null);
+  const [selectedOutlet, setSelectedOutlet] = useState<number | null>(null);
+  const [selectedBrand, setSelectedBrand] = useState<number | null>(null);
   const [itemNo, setItemNo] = useState<string | null>(null);
   const [itemName, setItemName] = useState('');
   const [printName, setPrintName] = useState<string | null>(null);
   const [shortName, setShortName] = useState<string | null>(null);
-  const [kitchenCategory, setKitchenCategory] = useState<KitchenCategoryItem[]>([]);
   const [kitchenCategoryId, setKitchenCategoryId] = useState<number | null>(null);
-  const [kitchenSubCategory, setKitchenSubCategory] = useState<KitchenSubCategoryItem[]>([]);
   const [kitchenSubCategoryId, setKitchenSubCategoryId] = useState<number | null>(null);
-  const [kitchenMainGroup, setKitchenMainGroup] = useState<KitchenMainGroupItem[]>([]);
   const [kitchenMainGroupId, setKitchenMainGroupId] = useState<number | null>(null);
-  const [itemGroup, setItemGroup] = useState<ItemGroupItem[]>([]);
   const [itemGroupId, setItemGroupId] = useState<number | null>(null);
-  const [itemMainGroup, setItemMainGroup] = useState<ItemMainGroupItem[]>([]);
   const [itemMainGroupId, setItemMainGroupId] = useState<number | null>(null);
   const [stockUnit, setStockUnit] = useState<string | null>(null);
-  const [price, setPrice] = useState('');
-  const [tax, setTax] = useState<number | null>(null);
+  const [price, setPrice] = useState<string>('');
+  const [taxgroupid, setTaxgroupid] = useState<number | null>(null);
   const [runtimeRates, setRuntimeRates] = useState(false);
   const [isCommonToAllDepartments, setIsCommonToAllDepartments] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState('Active');
-  const [outlets, setOutlets] = useState<OutletData[]>([]);
-  const [selectedOutlet, setSelectedOutlet] = useState<number | null>(null);
-  const { user } = useAuthContext();
+  const [itemDescription, setItemDescription] = useState<string | null>(null);
+  const [itemHsncode, setItemHsncode] = useState<string | null>(null);
   const [newItem, setNewItem] = useState<NewItem>({ outletRates: [] });
+  const [kitchenCategory, setKitchenCategory] = useState<KitchenCategoryItem[]>([]);
+  const [kitchenSubCategory, setKitchenSubCategory] = useState<KitchenSubCategoryItem[]>([]);
+  const [kitchenMainGroup, setKitchenMainGroup] = useState<KitchenMainGroupItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [itemGroup, setItemGroup] = useState<ItemGroupItem[]>([]);
+  const [itemMainGroup, setItemMainGroup] = useState<ItemMainGroupItem[]>([]);
   const [brands, setBrands] = useState<Array<{ hotelid: number; hotel_name: string }>>([]);
-  const [selectedBrand, setSelectedBrand] = useState<number | null>(null);
-
-  const taxOptions = [
-    { value: 0, label: '0%' },
-    { value: 5, label: '5%' },
-    { value: 12, label: '12%' },
-    { value: 18, label: '18%' },
-    { value: 28, label: '28%' },
-  ];
+  const [outlets, setOutlets] = useState<OutletData[]>([]);
+  const [outletsLoaded, setOutletsLoaded] = useState(false);
+  const [taxGroups, setTaxGroups] = useState<TaxGroup[]>([]);
+  const [stockUnits, setStockUnits] = useState<unitmasterItem[]>([]);
+  const { user } = useAuthContext();
 
   useEffect(() => {
-    fetchKitchenCategory(setKitchenCategory, setKitchenCategoryId, kitchenCategoryId ?? undefined);
-    fetchKitchenMainGroup(setKitchenMainGroup, setKitchenMainGroupId);
-    fetchKitchenSubCategory(setKitchenSubCategory, setKitchenSubCategoryId);
-    fetchItemGroup(setItemGroup, setItemGroupId);
-    fetchItemMainGroup(setItemMainGroup, setItemMainGroupId);
-    fetchOutletsForDropdown(user, setOutlets, setLoading);
-    fetchBrands(user, setBrands);
-  }, [kitchenCategoryId, user]);
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        await Promise.all([
+          fetchKitchenCategory(setKitchenCategory, setKitchenCategoryId, undefined),
+          fetchKitchenMainGroup(setKitchenMainGroup, setKitchenMainGroupId),
+          fetchKitchenSubCategory(setKitchenSubCategory, setKitchenSubCategoryId),
+          fetchItemGroup(setItemGroup, setItemGroupId),
+          fetchItemMainGroup(setItemMainGroup, setItemMainGroupId),
+          fetchBrands(user, setBrands),
+          fetchData(setTaxGroups, setTaxgroupid),
+          fetchunitmaster(setStockUnits),
+          fetchOutletsForDropdown(user, (data) => {
+            const uniqueOutlets = Array.from(
+              new Map(data.map((outlet) => [outlet.outletid, outlet])).values()
+            );
+            setOutlets(uniqueOutlets);
+            setOutletsLoaded(true);
+          }, setLoading),
+        ]);
+      } catch (err) {
+        console.error('Error loading data:', err);
+        toast.error('Failed to load dropdown data');
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, [user]);
 
-  useEffect(() => {
-    if (outlets.length > 0 && newItem.outletRates.length === 0) {
-      const initialOutletRates = outlets.map((outlet) => ({
-        outletid: outlet.outletid,
-        outletName: outlet.outlet_name,
-        rate: 0,
-      }));
-      setNewItem({ outletRates: initialOutletRates });
-    }
-  }, [outlets, newItem.outletRates.length]);
-
-  const handleAdd = async () => {
-    if (!itemName || itemName.trim() === '') {
-      toast.error('Item Name is required');
+  const handleAddOutletRate = () => {
+    if (!outletsLoaded) {
+      toast.error('Outlets are still loading, please wait');
       return;
     }
-    if (!price || isNaN(parseFloat(price)) || parseFloat(price) < 0) {
-      toast.error('Price is required and must be a valid non-negative number');
+    if (!selectedOutlet) {
+      toast.error('Please select an outlet');
       return;
     }
-    if (!status) {
-      toast.error('Status is required');
+    const outlet = outlets.find((o) => o.outletid === selectedOutlet);
+    if (!outlet) {
+      toast.error('Invalid outlet selected');
       return;
     }
+    if (newItem.outletRates.some((rate) => rate.outletid === selectedOutlet)) {
+      toast.error('This outlet is already added');
+      return;
+    }
+    setNewItem((prev) => ({
+      outletRates: [
+        ...prev.outletRates,
+        {
+          outletid: selectedOutlet,
+          outletName: outlet.outlet_name || `Outlet ${selectedOutlet}`,
+          rate: 0,
+          unitid: null,
+          servingunitid: null,
+          IsConversion: 0,
+        },
+      ],
+    }));
+    setSelectedOutlet(null);
+  };
 
+  const handleRemoveOutletRate = (outletid: number | undefined) => {
+    setNewItem((prev) => ({
+      outletRates: prev.outletRates.filter((rate) => rate.outletid !== outletid),
+    }));
+  };
+
+  const handleAddItem = async () => {
+    if (!itemName || !price || !selectedBrand) {
+      toast.error('Please fill in all required fields: Item Name, Price, and Hotel');
+      return;
+    }
+    if (isNaN(parseFloat(price)) || parseFloat(price) < 0) {
+      toast.error('Price must be a valid non-negative number');
+      return;
+    }
     setLoading(true);
-    try {
-      const statusValue = status === 'Active' ? 0 : 1;
-      const currentDate = new Date().toISOString();
-      const payload = {
-        outlet_id: outletId ? parseInt(outletId) : null,
-        hotel_name_id: hotelNameId ? parseInt(hotelNameId) : null,
-        item_no: itemNo || null,
-        item_name: itemName.trim(),
-        print_name: printName || null,
-        short_name: shortName || null,
-        kitchen_category_id: kitchenCategoryId,
-        kitchen_sub_category_id: kitchenSubCategoryId,
-        kitchen_main_group_id: kitchenMainGroupId,
-        item_group_id: itemGroupId,
-        item_main_group_id: itemMainGroupId,
-        stock_unit: stockUnit || null,
-        price: parseFloat(price).toFixed(2),
-        tax: tax !== null ? tax : null,
-        runtime_rates: runtimeRates ? 1 : 0,
-        is_common_to_all_departments: isCommonToAllDepartments ? 1 : 0,
-        status: statusValue,
-        created_by_id: 1,
-        created_date: currentDate,
-        outletRates: newItem.outletRates.map(({ outletid, rate }) => ({ outletid, rate })),
-      };
+    const payload = {
+      hotelid: selectedBrand,
+      item_no: itemNo,
+      item_name: itemName,
+      print_name: printName,
+      short_name: shortName,
+      kitchen_category_id: kitchenCategoryId,
+      kitchen_sub_category_id: kitchenSubCategoryId,
+      kitchen_main_group_id: kitchenMainGroupId,
+      item_group_id: itemGroupId,
+      item_main_group_id: itemMainGroupId,
+      stock_unit: stockUnit,
+      price: parseFloat(price),
+      taxgroupid: taxgroupid,
+      is_runtime_rates: runtimeRates ? 1 : 0,
+      is_common_to_all_departments: isCommonToAllDepartments ? 1 : 0,
+      item_description: itemDescription,
+      item_hsncode: itemHsncode,
+      created_by_id: user?.id || 2,
+      outlet_details: newItem.outletRates.map(({ outletid, rate, unitid, servingunitid, IsConversion }) => ({
+        outlet_name: outlets.find((o) => o.outletid === outletid)?.outlet_name || '',
+        outletid,
+        item_rate: rate,
+        unitid,
+        servingunitid,
+        IsConversion,
+      })),
+    };
 
-      const res = await fetch('http://localhost:3001/api/Menu', {
+    try {
+      const res = await fetch('http://localhost:3001/api/menu', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
-        const text = await res.text();
-        console.error('Server response:', text.slice(0, 200));
-        toast.error('Failed to add item');
+        const errorData = await res.json();
+        toast.error(`Failed to add item: ${errorData.message || 'Unknown error'}`);
         return;
       }
 
-      const newItemResponse = await res.json();
+      const addedItem: MenuItem = await res.json();
       toast.success('Item added successfully');
-      setData((prev) => [...prev, newItemResponse]);
-      const newCardItem = {
-        userId: String(newItemResponse.menuid),
-        itemId: newItemResponse.item_no || '',
-        ItemName: newItemResponse.item_name,
-        aliasName: newItemResponse.short_name || '',
-        price: parseFloat(newItemResponse.price) || 0,
-        visits: 0,
-        cardStatus: newItemResponse.status === 0 ? '✅ Available' : '❌ Unavailable',
-      };
-      setCardItems((prev) => [...prev, newCardItem]);
 
-      const category = getItemCategory(newItemResponse.item_group_id, itemGroup);
+      setData((prev) => [...prev, addedItem]);
+
+      const newCardItem = {
+        userId: String(addedItem.restitemid),
+        itemId: addedItem.item_no || '',
+        ItemName: addedItem.item_name,
+        aliasName: addedItem.short_name || '',
+        price: addedItem.price || 0,
+        visits: 0,
+        cardStatus: addedItem.status === 1 ? '✅ Available' : '❌ Unavailable',
+      };
+
+      const category = getItemCategory(addedItem.item_group_id, itemGroup);
+      setCardItems((prev) => [...prev, newCardItem]);
       setItemCategories((prev) => ({
         ...prev,
         All: [...prev.All, newCardItem],
-        [category]: [...(prev[category] || []), newCardItem],
+        [category]: category !== 'All' ? [...prev[category], newCardItem] : prev[category],
       }));
 
-      setOutletId(null);
-      setHotelNameId(null);
-      setItemNo(null);
-      setItemName('');
-      setPrintName(null);
-      setShortName(null);
-      setKitchenCategoryId(null);
-      setKitchenSubCategoryId(null);
-      setKitchenMainGroupId(null);
-      setItemGroupId(null);
-      setItemMainGroupId(null);
-      setStockUnit(null);
-      setPrice('');
-      setTax(null);
-      setRuntimeRates(false);
-      setIsCommonToAllDepartments(false);
-      setStatus('Active');
-      setSelectedOutlet(null);
-      setNewItem({ outletRates: [] });
       onSuccess();
       onHide();
     } catch (err: any) {
-      console.error('Add Item error:', err.message);
+      console.error('Add Item error:', err);
       toast.error(`Failed to add item: ${err.message || 'Please check server status.'}`);
     } finally {
       setLoading(false);
     }
   };
 
-  if (!show) return null;
   return (
     <Modal show={show} onHide={onHide} size="lg" centered className="shadow-lg">
       <Modal.Header closeButton className="bg-white border-bottom-0 py-1">
@@ -688,9 +762,18 @@ const AddItemModal: React.FC<ModalProps> = ({ show, onHide, onSuccess, setData, 
               <Form.Group as={Row} className="align-items-center">
                 <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Outlet</Form.Label>
                 <Col sm={8}>
-                  <Form.Select value={selectedOutlet || ''} onChange={(e) => setSelectedOutlet(Number(e.target.value))} disabled={loading} className="rounded-lg">
+                  <Form.Select
+                    value={selectedOutlet || ''}
+                    onChange={(e) => setSelectedOutlet(e.target.value ? Number(e.target.value) : null)}
+                    disabled={loading || !outletsLoaded}
+                    className="rounded-lg"
+                  >
                     <option value="">Select an outlet</option>
-                    {outlets.map((outlet) => <option key={outlet.outletid} value={outlet.outletid}>{outlet.outlet_name}</option>)}
+                    {outlets.map((outlet) => (
+                      <option key={outlet.outletid} value={outlet.outletid}>
+                        {outlet.outlet_name}
+                      </option>
+                    ))}
                   </Form.Select>
                 </Col>
               </Form.Group>
@@ -699,9 +782,19 @@ const AddItemModal: React.FC<ModalProps> = ({ show, onHide, onSuccess, setData, 
               <Form.Group as={Row} className="align-items-center">
                 <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Hotel Name</Form.Label>
                 <Col sm={8}>
-                  <Form.Select value={selectedBrand || ''} onChange={(e) => setSelectedBrand(e.target.value ? Number(e.target.value) : null)} disabled={loading} className="rounded-lg">
+                  <Form.Select
+                    value={selectedBrand || ''}
+                    onChange={(e) => setSelectedBrand(e.target.value ? Number(e.target.value) : null)}
+                    disabled={loading}
+                    className="rounded-lg"
+                    required
+                  >
                     <option value="">Select Hotel</option>
-                    {brands.map((brand) => <option key={brand.hotelid} value={brand.hotelid}>{brand.hotel_name}</option>)}
+                    {brands.map((brand) => (
+                      <option key={brand.hotelid} value={brand.hotelid}>
+                        {brand.hotel_name}
+                      </option>
+                    ))}
                   </Form.Select>
                 </Col>
               </Form.Group>
@@ -711,13 +804,30 @@ const AddItemModal: React.FC<ModalProps> = ({ show, onHide, onSuccess, setData, 
             <Col xs={12} sm={6}>
               <Form.Group as={Row} className="align-items-center">
                 <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Item Number</Form.Label>
-                <Col sm={8}><Form.Control type="text" value={itemNo ?? ''} onChange={(e) => setItemNo(e.target.value || null)} placeholder="Enter item number" className="rounded-lg" /></Col>
+                <Col sm={8}>
+                  <Form.Control
+                    type="text"
+                    value={itemNo ?? ''}
+                    onChange={(e) => setItemNo(e.target.value || null)}
+                    placeholder="Enter item number"
+                    className="rounded-lg"
+                  />
+                </Col>
               </Form.Group>
             </Col>
             <Col xs={12} sm={6}>
               <Form.Group as={Row} className="align-items-center">
                 <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Item Name</Form.Label>
-                <Col sm={8}><Form.Control type="text" value={itemName} onChange={(e) => setItemName(e.target.value)} placeholder="Enter item name" className="rounded-lg" required /></Col>
+                <Col sm={8}>
+                  <Form.Control
+                    type="text"
+                    value={itemName}
+                    onChange={(e) => setItemName(e.target.value)}
+                    placeholder="Enter item name"
+                    className="rounded-lg"
+                    required
+                  />
+                </Col>
               </Form.Group>
             </Col>
           </Row>
@@ -725,13 +835,29 @@ const AddItemModal: React.FC<ModalProps> = ({ show, onHide, onSuccess, setData, 
             <Col xs={12} sm={6}>
               <Form.Group as={Row} className="align-items-center">
                 <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Print Name</Form.Label>
-                <Col sm={8}><Form.Control type="text" value={printName ?? ''} onChange={(e) => setPrintName(e.target.value || null)} placeholder="Enter print name" className="rounded-lg" /></Col>
+                <Col sm={8}>
+                  <Form.Control
+                    type="text"
+                    value={printName ?? ''}
+                    onChange={(e) => setPrintName(e.target.value || null)}
+                    placeholder="Enter print name"
+                    className="rounded-lg"
+                  />
+                </Col>
               </Form.Group>
             </Col>
             <Col xs={12} sm={6}>
               <Form.Group as={Row} className="align-items-center">
                 <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Short Name</Form.Label>
-                <Col sm={8}><Form.Control type="text" value={shortName ?? ''} onChange={(e) => setShortName(e.target.value || null)} placeholder="Enter short name" className="rounded-lg" /></Col>
+                <Col sm={8}>
+                  <Form.Control
+                    type="text"
+                    value={shortName ?? ''}
+                    onChange={(e) => setShortName(e.target.value || null)}
+                    placeholder="Enter short name"
+                    className="rounded-lg"
+                  />
+                </Col>
               </Form.Group>
             </Col>
           </Row>
@@ -740,9 +866,18 @@ const AddItemModal: React.FC<ModalProps> = ({ show, onHide, onSuccess, setData, 
               <Form.Group as={Row} className="align-items-center">
                 <Form.Label column sm={6} className="text-sm font-medium text-gray-700">Kitchen Main Group</Form.Label>
                 <Col sm={6}>
-                  <Form.Select value={kitchenMainGroupId ?? ''} onChange={(e) => setKitchenMainGroupId(e.target.value === '' ? null : Number(e.target.value))} className="rounded-lg" disabled={loading}>
+                  <Form.Select
+                    value={kitchenMainGroupId ?? ''}
+                    onChange={(e) => setKitchenMainGroupId(e.target.value === '' ? null : Number(e.target.value))}
+                    className="rounded-lg"
+                    disabled={loading}
+                  >
                     <option value="">Select Kitchen Main Group</option>
-                    {kitchenMainGroup.filter((group) => String(group.status) === '0').map((group) => <option key={group.kitchenmaingroupid} value={group.kitchenmaingroupid}>{group.Kitchen_main_Group}</option>)}
+                    {kitchenMainGroup.filter((group) => String(group.status) === '0').map((group) => (
+                      <option key={group.kitchenmaingroupid} value={group.kitchenmaingroupid}>
+                        {group.Kitchen_main_Group}
+                      </option>
+                    ))}
                   </Form.Select>
                 </Col>
               </Form.Group>
@@ -751,9 +886,18 @@ const AddItemModal: React.FC<ModalProps> = ({ show, onHide, onSuccess, setData, 
               <Form.Group as={Row} className="align-items-center">
                 <Form.Label column sm={6} className="text-sm font-medium text-gray-700">Kitchen Category</Form.Label>
                 <Col sm={6}>
-                  <Form.Select value={kitchenCategoryId ?? ''} onChange={(e) => setKitchenCategoryId(e.target.value === '' ? null : Number(e.target.value))} className="rounded-lg" disabled={loading}>
+                  <Form.Select
+                    value={kitchenCategoryId ?? ''}
+                    onChange={(e) => setKitchenCategoryId(e.target.value === '' ? null : Number(e.target.value))}
+                    className="rounded-lg"
+                    disabled={loading}
+                  >
                     <option value="">Select Kitchen Category</option>
-                    {kitchenCategory.filter((category) => String(category.status) === '0').map((category) => <option key={category.kitchencategoryid} value={category.kitchencategoryid}>{category.Kitchen_Category}</option>)}
+                    {kitchenCategory.filter((category) => String(category.status) === '0').map((category) => (
+                      <option key={category.kitchencategoryid} value={category.kitchencategoryid}>
+                        {category.Kitchen_Category}
+                      </option>
+                    ))}
                   </Form.Select>
                 </Col>
               </Form.Group>
@@ -762,9 +906,18 @@ const AddItemModal: React.FC<ModalProps> = ({ show, onHide, onSuccess, setData, 
               <Form.Group as={Row} className="align-items-center">
                 <Form.Label column sm={6} className="text-sm font-medium text-gray-700">Kitchen Sub Category</Form.Label>
                 <Col sm={6}>
-                  <Form.Select value={kitchenSubCategoryId ?? ''} onChange={(e) => setKitchenSubCategoryId(e.target.value === '' ? null : Number(e.target.value))} className="rounded-lg" disabled={loading}>
+                  <Form.Select
+                    value={kitchenSubCategoryId ?? ''}
+                    onChange={(e) => setKitchenSubCategoryId(e.target.value === '' ? null : Number(e.target.value))}
+                    className="rounded-lg"
+                    disabled={loading}
+                  >
                     <option value="">Select Kitchen Sub Category</option>
-                    {kitchenSubCategory.filter((subCategory) => String(subCategory.status) === '0').map((subCategory) => <option key={subCategory.kitchensubcategoryid} value={subCategory.kitchensubcategoryid}>{subCategory.Kitchen_sub_category}</option>)}
+                    {kitchenSubCategory.filter((subCategory) => String(subCategory.status) === '0').map((subCategory) => (
+                      <option key={subCategory.kitchensubcategoryid} value={subCategory.kitchensubcategoryid}>
+                        {subCategory.Kitchen_sub_category}
+                      </option>
+                    ))}
                   </Form.Select>
                 </Col>
               </Form.Group>
@@ -775,9 +928,18 @@ const AddItemModal: React.FC<ModalProps> = ({ show, onHide, onSuccess, setData, 
               <Form.Group as={Row} className="align-items-center">
                 <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Item Main Group</Form.Label>
                 <Col sm={8}>
-                  <Form.Select value={itemMainGroupId ?? ''} onChange={(e) => setItemMainGroupId(e.target.value === '' ? null : Number(e.target.value))} className="rounded-lg" disabled={loading}>
+                  <Form.Select
+                    value={itemMainGroupId ?? ''}
+                    onChange={(e) => setItemMainGroupId(e.target.value === '' ? null : Number(e.target.value))}
+                    className="rounded-lg"
+                    disabled={loading}
+                  >
                     <option value="">Select Item Main Group</option>
-                    {itemMainGroup.filter((group) => String(group.status) === '0').map((group) => <option key={group.item_maingroupid} value={group.item_maingroupid}>{group.item_group_name}</option>)}
+                    {itemMainGroup.filter((group) => String(group.status) === '0').map((group) => (
+                      <option key={group.item_maingroupid} value={group.item_maingroupid}>
+                        {group.item_group_name}
+                      </option>
+                    ))}
                   </Form.Select>
                 </Col>
               </Form.Group>
@@ -786,9 +948,18 @@ const AddItemModal: React.FC<ModalProps> = ({ show, onHide, onSuccess, setData, 
               <Form.Group as={Row} className="align-items-center">
                 <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Item Group</Form.Label>
                 <Col sm={8}>
-                  <Form.Select value={itemGroupId ?? ''} onChange={(e) => setItemGroupId(e.target.value === '' ? null : Number(e.target.value))} className="rounded-lg" disabled={loading}>
+                  <Form.Select
+                    value={itemGroupId ?? ''}
+                    onChange={(e) => setItemGroupId(e.target.value === '' ? null : Number(e.target.value))}
+                    className="rounded-lg"
+                    disabled={loading}
+                  >
                     <option value="">Select Item Group</option>
-                    {itemGroup.filter((group) => String(group.status) === '0').map((group) => <option key={group.item_groupid} value={group.item_groupid}>{group.itemgroupname}</option>)}
+                    {itemGroup.filter((group) => String(group.status) === '0').map((group) => (
+                      <option key={group.item_groupid} value={group.item_groupid}>
+                        {group.itemgroupname}
+                      </option>
+                    ))}
                   </Form.Select>
                 </Col>
               </Form.Group>
@@ -799,12 +970,18 @@ const AddItemModal: React.FC<ModalProps> = ({ show, onHide, onSuccess, setData, 
               <Form.Group as={Row} className="align-items-center">
                 <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Stock Unit</Form.Label>
                 <Col sm={8}>
-                  <Form.Select value={stockUnit ?? ''} onChange={(e) => setStockUnit(e.target.value || null)} className="rounded-lg">
+                  <Form.Select
+                    value={stockUnit ?? ''}
+                    onChange={(e) => setStockUnit(e.target.value || null)}
+                    className="rounded-lg"
+                    disabled={loading}
+                  >
                     <option value="">Select Stock Unit</option>
-                    <option value="Piece">Piece</option>
-                    <option value="Kg">Kg</option>
-                    <option value="Liter">Liter</option>
-                    <option value="Unit">Unit</option>
+                    {stockUnits.map((unit) => (
+                      <option key={unit.unitid} value={unit.unitid}>
+                        {unit.unit_name}
+                      </option>
+                    ))}
                   </Form.Select>
                 </Col>
               </Form.Group>
@@ -812,18 +989,38 @@ const AddItemModal: React.FC<ModalProps> = ({ show, onHide, onSuccess, setData, 
             <Col xs={12} sm={6}>
               <Form.Group as={Row} className="align-items-center">
                 <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Price</Form.Label>
-                <Col sm={8}><Form.Control type="number" step="0.01" min="0" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="Enter price" className="rounded-lg" required /></Col>
+                <Col sm={8}>
+                  <Form.Control
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={price}
+                    onChange={(e) => setPrice(e.target.value)}
+                    placeholder="Enter price"
+                    className="rounded-lg"
+                    required
+                  />
+                </Col>
               </Form.Group>
             </Col>
           </Row>
           <Row className="mb-3">
             <Col xs={12} sm={6}>
               <Form.Group as={Row} className="align-items-center">
-                <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Tax (%)</Form.Label>
+                <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Tax Group</Form.Label>
                 <Col sm={8}>
-                  <Form.Select value={tax ?? ''} onChange={(e) => setTax(e.target.value === '' ? null : parseFloat(e.target.value))} className="rounded-lg">
-                    <option value="">Select Tax</option>
-                    {taxOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                  <Form.Select
+                    value={taxgroupid ?? ''}
+                    onChange={(e) => setTaxgroupid(e.target.value === '' ? null : Number(e.target.value))}
+                    className="rounded-lg"
+                    disabled={loading}
+                  >
+                    <option value="">Select Tax Group</option>
+                    {taxGroups.map((tg) => (
+                      <option key={tg.taxgroupid} value={tg.taxgroupid}>
+                        {tg.taxgroup_name}
+                      </option>
+                    ))}
                   </Form.Select>
                 </Col>
               </Form.Group>
@@ -832,31 +1029,146 @@ const AddItemModal: React.FC<ModalProps> = ({ show, onHide, onSuccess, setData, 
           <Row className="mb-3">
             <Col xs={12} sm={6}>
               <Form.Group as={Row} className="align-items-center">
-                <Col sm={12}><label className="d-flex align-items-center gap-2 cursor-pointer"><Form.Check type="checkbox" checked={runtimeRates} onChange={(e) => setRuntimeRates(e.target.checked)} className="mt-0" /><span className="text-sm text-gray-700">Runtime Rates</span></label></Col>
+                <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Item Description</Form.Label>
+                <Col sm={8}>
+                  <Form.Control
+                    type="text"
+                    value={itemDescription ?? ''}
+                    onChange={(e) => setItemDescription(e.target.value || null)}
+                    placeholder="Enter item description"
+                    className="rounded-lg"
+                  />
+                </Col>
               </Form.Group>
             </Col>
             <Col xs={12} sm={6}>
               <Form.Group as={Row} className="align-items-center">
-                <Col sm={12}><label className="d-flex align-items-center gap-2 cursor-pointer"><Form.Check type="checkbox" checked={isCommonToAllDepartments} onChange={(e) => setIsCommonToAllDepartments(e.target.checked)} className="mt-0" /><span className="text-sm text-gray-600">Is Common to All Departments</span></label></Col>
+                <Form.Label column sm={4} className="text-sm font-medium text-gray-700">HSN Code</Form.Label>
+                <Col sm={8}>
+                  <Form.Control
+                    type="text"
+                    value={itemHsncode ?? ''}
+                    onChange={(e) => setItemHsncode(e.target.value || null)}
+                    placeholder="Enter HSN code"
+                    className="rounded-lg"
+                  />
+                </Col>
               </Form.Group>
             </Col>
           </Row>
           <Row className="mb-3">
+            <Col xs={12} sm={6}>
+              <Form.Group as={Row} className="align-items-center">
+                <Col sm={12}>
+                  <label className="d-flex align-items-center gap-2 cursor-pointer">
+                    <Form.Check
+                      type="checkbox"
+                      checked={runtimeRates}
+                      onChange={(e) => setRuntimeRates(e.target.checked)}
+                      className="mt-0"
+                    />
+                    <span className="text-sm text-gray-700">Runtime Rates</span>
+                  </label>
+                </Col>
+              </Form.Group>
+            </Col>
+            <Col xs={12} sm={6}>
+              <Form.Group as={Row} className="align-items-center">
+                <Col sm={12}>
+                  <label className="d-flex align-items-center gap-2 cursor-pointer">
+                    <Form.Check
+                      type="checkbox"
+                      checked={isCommonToAllDepartments}
+                      onChange={(e) => setIsCommonToAllDepartments(e.target.checked)}
+                      className="mt-0"
+                    />
+                    <span className="text-sm text-gray-600">Is Common to All Departments</span>
+                  </label>
+                </Col>
+              </Form.Group>
+            </Col>
+          </Row>
+          <Row className="mb-3">
+            <Col sm={12}>
+              <Button
+                variant="outline-primary"
+                onClick={handleAddOutletRate}
+                disabled={loading || !outletsLoaded}
+                style={{ borderRadius: '8px', padding: '6px 16px', fontSize: '14px', fontWeight: '500' }}
+              >
+                Add Outlet Rate
+              </Button>
+            </Col>
+          </Row>
+          <Row className="mb-3">
             <Col sm={10}>
-              <div style={{ maxHeight: '150px', overflowY: 'auto' }}>
+              <div style={{ 
+                maxHeight: '150px', 
+                overflowY: 'auto', 
+                width: '100%', 
+                border: '1px solid #dee2e6', 
+                borderRadius: '4px',
+                scrollbarWidth: 'thin',
+                scrollbarColor: '#adb5bd #f8f9fa'
+              }}>
+                <style>
+                  {`
+                    div::-webkit-scrollbar {
+                      width: 8px;
+                    }
+                    div::-webkit-scrollbar-track {
+                      background: #f8f9fa;
+                      borderRadius: 4px;
+                    }
+                    div::-webkit-scrollbar-thumb {
+                      background: #adb5bd;
+                      borderRadius: 4px;
+                    }
+                    div::-webkit-scrollbar-thumb:hover {
+                      background: #6c757d;
+                    }
+                  `}
+                </style>
                 <Table bordered size="sm" className="m-0">
                   <thead className="bg-gray-100">
-                    <tr><th className="text-sm font-medium text-gray-700 py-2">Outlet Name</th><th className="text-sm font-medium text-gray-700 py-2">Rate</th></tr>
+                    <tr>
+                      <th className="text-sm font-medium text-gray-700 py-2">Outlet Name</th>
+                      <th className="text-sm font-medium text-gray-700 py-2">Rate</th>
+                      <th className="text-sm font-medium text-gray-700 py-2">Action</th>
+                    </tr>
                   </thead>
                   <tbody>
                     {newItem.outletRates.map((outlet, index) => (
-                      <tr key={outlet.outletid}>
+                      <tr key={`outlet-${outlet.outletid}-${index}`}>
                         <td className="text-sm text-gray-600 py-2">{outlet.outletName}</td>
-                        <td><Form.Control type="number" step="0.01" min="0" value={outlet.rate} onChange={(e) => {
-                          const updatedRates = [...newItem.outletRates];
-                          updatedRates[index] = { ...updatedRates[index], rate: e.target.value ? parseFloat(e.target.value) : 0 };
-                          setNewItem({ outletRates: updatedRates });
-                        }} placeholder="Enter rate" className="rounded-lg" /></td>
+                        <td>
+                          <Form.Control
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={outlet.rate}
+                            onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                              const updatedRates = [...newItem.outletRates];
+                              updatedRates[index] = {
+                                ...updatedRates[index],
+                                rate: e.target.value ? parseFloat(e.target.value) : 0,
+                              };
+                              setNewItem({ outletRates: updatedRates });
+                            }}
+                            placeholder="Enter rate"
+                            className="rounded-lg"
+                          />
+                        </td>
+                        <td>
+                          <Button
+                            variant="outline-danger"
+                            size="sm"
+                            onClick={() => handleRemoveOutletRate(outlet.outletid)}
+                            title="Remove Outlet"
+                          >
+                            Remove
+                          </Button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -865,21 +1177,25 @@ const AddItemModal: React.FC<ModalProps> = ({ show, onHide, onSuccess, setData, 
             </Col>
           </Row>
           <Row className="mb-3 align-items-center">
-            <Col xs={12} sm={4}>
-              <Form.Group as={Row} className="align-items-center">
-                <Form.Label column sm={6} className="text-sm font-medium text-gray-700">Status</Form.Label>
-                <Col sm={6}>
-                  <Form.Select value={status} onChange={(e) => setStatus(e.target.value)} className="rounded-lg">
-                    <option value="Active">✅ Available</option>
-                    <option value="Inactive">❌ Unavailable</option>
-                  </Form.Select>
-                </Col>
-              </Form.Group>
-            </Col>
+            <Col xs={12} sm={4}></Col>
             <Col xs={12} sm={4}></Col>
             <Col xs={12} sm={4} className="d-flex justify-content-end gap-2">
-              <Button variant="secondary" onClick={onHide} disabled={loading} style={{ borderRadius: '8px', padding: '6px 16px', fontSize: '14px', fontWeight: '500', backgroundColor: '#e5e7eb', borderColor: '#e5e7eb', color: '#1a202c' }}>Back</Button>
-              <Button variant="primary" onClick={handleAdd} disabled={loading} style={{ borderRadius: '8px', padding: '6px 16px', fontSize: '14px', fontWeight: '500', backgroundColor: '#3b82f6', borderColor: '#3b82f6' }}>{loading ? 'Saving...' : 'Save Item'}</Button>
+              <Button
+                variant="secondary"
+                onClick={onHide}
+                disabled={loading}
+                style={{ borderRadius: '8px', padding: '6px 16px', fontSize: '14px', fontWeight: '500', backgroundColor: '#e5e7eb', borderColor: '#e5e7eb', color: '#1a202c' }}
+              >
+                Back
+              </Button>
+              <Button
+                variant="primary"
+                onClick={handleAddItem}
+                disabled={loading}
+                style={{ borderRadius: '8px', padding: '6px 16px', fontSize: '14px', fontWeight: '500', backgroundColor: '#3b82f6', borderColor: '#3b82f6' }}
+              >
+                {loading ? 'Saving...' : 'Add Item'}
+              </Button>
             </Col>
           </Row>
         </Form>
@@ -888,190 +1204,317 @@ const AddItemModal: React.FC<ModalProps> = ({ show, onHide, onSuccess, setData, 
   );
 };
 
-const EditItemModal: React.FC<ModalProps> = ({ show, onHide, onSuccess, setData, setCardItems, mstmenu, itemCategories, setItemCategories }) => {
-  const [outletId, setOutletId] = useState<string | null>(null);
-  const [hotelNameId, setHotelNameId] = useState<string | null>(null);
-  const [itemNo, setItemNo] = useState<string | null>(null);
-  const [itemName, setItemName] = useState('');
-  const [printName, setPrintName] = useState<string | null>(null);
-  const [shortName, setShortName] = useState<string | null>(null);
+const EditItemModal: React.FC<ModalProps> = ({
+  show,
+  onHide,
+  onSuccess,
+  mstmenu,
+  setData,
+  setCardItems,
+  itemCategories,
+  setItemCategories,
+}) => {
+  const [selectedOutlet, setSelectedOutlet] = useState<number | null>(mstmenu?.outletid || null);
+  const [selectedBrand, setSelectedBrand] = useState<number | null>(mstmenu?.hotelid || null);
+  const [itemNo, setItemNo] = useState<string | null>(mstmenu?.item_no || null);
+  const [itemName, setItemName] = useState(mstmenu?.item_name || '');
+  const [printName, setPrintName] = useState<string | null>(mstmenu?.print_name || null);
+  const [shortName, setShortName] = useState<string | null>(mstmenu?.short_name || null);
+  const [kitchenCategoryId, setKitchenCategoryId] = useState<number | null>(mstmenu?.kitchen_category_id || null);
+  const [kitchenSubCategoryId, setKitchenSubCategoryId] = useState<number | null>(mstmenu?.kitchen_sub_category_id || null);
+  const [kitchenMainGroupId, setKitchenMainGroupId] = useState<number | null>(mstmenu?.kitchen_main_group_id || null);
+  const [itemGroupId, setItemGroupId] = useState<number | null>(mstmenu?.item_group_id || null);
+  const [itemMainGroupId, setItemMainGroupId] = useState<number | null>(mstmenu?.item_main_group_id || null);
+  const [stockUnit, setStockUnit] = useState<string | null>(mstmenu?.stock_unit || null);
+  const [price, setPrice] = useState<string>(mstmenu?.price.toString() || '');
+  const [taxgroupid, setTaxgroupid] = useState<number | null>(mstmenu?.taxgroupid || null);
+  const [runtimeRates, setRuntimeRates] = useState(mstmenu?.is_runtime_rates === 1);
+  const [isCommonToAllDepartments, setIsCommonToAllDepartments] = useState(mstmenu?.is_common_to_all_departments === 1);
+  const [itemDescription, setItemDescription] = useState<string | null>(mstmenu?.item_description || null);
+  const [itemHsncode, setItemHsncode] = useState<string | null>(mstmenu?.item_hsncode || null);
+  const [status, setStatus] = useState<string>(mstmenu?.status === 1 ? 'Active' : 'Inactive');
+  const [newItem, setNewItem] = useState<NewItem>({
+    outletRates: mstmenu && mstmenu.outletid
+      ? [{
+          outletid: mstmenu.outletid,
+          outletName: mstmenu.outlet_name || '',
+          rate: mstmenu.item_rate || 0,
+          unitid: mstmenu.unitid || null,
+          servingunitid: mstmenu.servingunitid || null,
+          IsConversion: mstmenu.IsConversion || 0,
+        }]
+      : [],
+  });
   const [kitchenCategory, setKitchenCategory] = useState<KitchenCategoryItem[]>([]);
-  const [kitchenCategoryId, setKitchenCategoryId] = useState<number | null>(null);
   const [kitchenSubCategory, setKitchenSubCategory] = useState<KitchenSubCategoryItem[]>([]);
-  const [kitchenSubCategoryId, setKitchenSubCategoryId] = useState<number | null>(null);
   const [kitchenMainGroup, setKitchenMainGroup] = useState<KitchenMainGroupItem[]>([]);
-  const [kitchenMainGroupId, setKitchenMainGroupId] = useState<number | null>(null);
-  const [itemGroup, setItemGroup] = useState<ItemGroupItem[]>([]);
-  const [itemGroupId, setItemGroupId] = useState<number | null>(null);
-  const [itemMainGroup, setItemMainGroup] = useState<ItemMainGroupItem[]>([]);
-  const [itemMainGroupId, setItemMainGroupId] = useState<number | null>(null);
-  const [stockUnit, setStockUnit] = useState<string | null>(null);
-  const [price, setPrice] = useState('');
-  const [tax, setTax] = useState<number | null>(null);
-  const [runtimeRates, setRuntimeRates] = useState(false);
-  const [isCommonToAllDepartments, setIsCommonToAllDepartments] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState('Active');
-  const [outlets, setOutlets] = useState<OutletData[]>([]);
-  const [selectedOutlet, setSelectedOutlet] = useState<number | null>(null);
-  const { user } = useAuthContext();
-  const [newItem, setNewItem] = useState<NewItem>({ outletRates: [] });
+  const [itemGroup, setItemGroup] = useState<ItemGroupItem[]>([]);
+  const [itemMainGroup, setItemMainGroup] = useState<ItemMainGroupItem[]>([]);
   const [brands, setBrands] = useState<Array<{ hotelid: number; hotel_name: string }>>([]);
-  const [selectedBrand, setSelectedBrand] = useState<number | null>(null);
-
-  const taxOptions = [
-    { value: 0, label: '0%' },
-    { value: 5, label: '5%' },
-    { value: 12, label: '12%' },
-    { value: 18, label: '18%' },
-    { value: 28, label: '28%' },
-  ];
+  const [outlets, setOutlets] = useState<OutletData[]>([]);
+  const [outletsLoaded, setOutletsLoaded] = useState(false);
+  const [taxGroups, setTaxGroups] = useState<TaxGroup[]>([]);
+  const [stockUnits, setStockUnits] = useState<unitmasterItem[]>([]);
+  const { user } = useAuthContext();
 
   useEffect(() => {
-    if (mstmenu) {
-      setOutletId(mstmenu.outlet_id ? String(mstmenu.outlet_id) : null);
-      setHotelNameId(mstmenu.hotel_name_id ? String(mstmenu.hotel_name_id) : null);
-      setItemNo(mstmenu.item_no || null);
-      setItemName(mstmenu.item_name || '');
-      setPrintName(mstmenu.print_name || null);
-      setShortName(mstmenu.short_name || null);
-      setKitchenCategoryId(mstmenu.kitchen_category_id ?? null);
-      setKitchenSubCategoryId(mstmenu.kitchen_sub_category_id ?? null);
-      setKitchenMainGroupId(mstmenu.kitchen_main_group_id ?? null);
-      setItemGroupId(mstmenu.item_group_id ?? null);
-      setItemMainGroupId(mstmenu.item_main_group_id ?? null);
-      setStockUnit(mstmenu.stock_unit || null);
-      setPrice(mstmenu.price ? String(mstmenu.price) : '');
-      setTax(mstmenu.tax ?? null);
-      setRuntimeRates(!!mstmenu.runtime_rates);
-      setIsCommonToAllDepartments(!!mstmenu.is_common_to_all_departments);
-      setStatus(mstmenu.status === 0 ? 'Active' : 'Inactive');
-      setSelectedOutlet(mstmenu.outlet_id || null);
-      setNewItem({ outletRates: outlets.map((outlet) => ({ outletid: outlet.outletid, outletName: outlet.outlet_name, rate: 0 })) });
-    }
-  }, [mstmenu, outlets]);
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        await Promise.all([
+          fetchKitchenCategory(setKitchenCategory, setKitchenCategoryId, kitchenCategoryId ?? undefined),
+          fetchKitchenMainGroup(setKitchenMainGroup, setKitchenMainGroupId),
+          fetchKitchenSubCategory(setKitchenSubCategory, setKitchenSubCategoryId),
+          fetchItemGroup(setItemGroup, setItemGroupId),
+          fetchItemMainGroup(setItemMainGroup, setItemMainGroupId),
+          fetchBrands(user, setBrands),
+          fetchData(setTaxGroups, setTaxgroupid),
+          fetchunitmaster(setStockUnits),
+          fetchOutletsForDropdown(user, (data) => {
+            const uniqueOutlets = Array.from(
+              new Map(data.map((outlet) => [outlet.outletid, outlet])).values()
+            );
+            setOutlets(uniqueOutlets);
+            setOutletsLoaded(true);
+          }, setLoading),
+        ]);
+      } catch (err) {
+        console.error('Error loading data:', err);
+        toast.error('Failed to load dropdown data');
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, [user]);
 
-  useEffect(() => {
-    fetchKitchenCategory(setKitchenCategory, setKitchenCategoryId, kitchenCategoryId ?? undefined);
-    fetchKitchenMainGroup(setKitchenMainGroup, setKitchenMainGroupId);
-    fetchKitchenSubCategory(setKitchenSubCategory, setKitchenSubCategoryId);
-    fetchItemGroup(setItemGroup, setItemGroupId);
-    fetchItemMainGroup(setItemMainGroup, setItemMainGroupId);
-    fetchOutletsForDropdown(user, setOutlets, setLoading);
-    fetchBrands(user, setBrands);
-  }, [kitchenCategoryId, user]);
-
-  useEffect(() => {
-    if (outlets.length > 0 && newItem.outletRates.length === 0) {
-      setNewItem({ outletRates: outlets.map((outlet) => ({ outletid: outlet.outletid, outletName: outlet.outlet_name, rate: 0 })) });
-    }
-  }, [outlets, newItem.outletRates.length]);
-
-  const handleUpdate = async () => {
-    if (!mstmenu) {
-      toast.error('No item selected for editing');
+  const handleAddOutletRate = () => {
+    if (!outletsLoaded) {
+      toast.error('Outlets are still loading, please wait');
       return;
     }
-    if (!itemName || itemName.trim() === '') {
-      toast.error('Item Name is required');
+    if (!selectedOutlet) {
+      toast.error('Please select an outlet');
       return;
     }
-    if (!price || isNaN(parseFloat(price)) || parseFloat(price) < 0) {
-      toast.error('Price is required and must be a valid non-negative number');
+    const outlet = outlets.find((o) => o.outletid === selectedOutlet);
+    if (!outlet) {
+      toast.error('Invalid outlet selected');
       return;
     }
-    if (!status) {
-      toast.error('Status is required');
+    if (newItem.outletRates.some((rate) => rate.outletid === selectedOutlet)) {
+      toast.error('This outlet is already added');
+      return;
+    }
+    setNewItem((prev) => ({
+      outletRates: [
+        ...prev.outletRates,
+        {
+          outletid: selectedOutlet,
+          outletName: outlet.outlet_name || `Outlet ${selectedOutlet}`,
+          rate: 0,
+          unitid: null,
+          servingunitid: null,
+          IsConversion: 0,
+        },
+      ],
+    }));
+    setSelectedOutlet(null);
+  };
+
+  const handleRemoveOutletRate = (outletid: number | undefined) => {
+    setNewItem((prev) => ({
+      outletRates: prev.outletRates.filter((rate) => rate.outletid !== outletid),
+    }));
+  };
+
+const handleUpdate = async () => {
+  if (!mstmenu || !itemName || !price || !selectedBrand) {
+    toast.error('Please fill in all required fields: Item Name, Price, and Hotel');
+    return;
+  }
+  if (isNaN(parseFloat(price)) || parseFloat(price) < 0) {
+    toast.error('Price must be a valid non-negative number');
+    return;
+  }
+  setLoading(true);
+  const currentDate = new Date().toISOString();
+  const statusValue = status === 'Active' ? 1 : 0;
+
+  const payload = {
+    item_no: itemNo,
+    item_name: itemName,
+    print_name: printName,
+    short_name: shortName,
+    kitchen_category_id: kitchenCategoryId,
+    kitchen_sub_category_id: kitchenSubCategoryId,
+    kitchen_main_group_id: kitchenMainGroupId,
+    item_group_id: itemGroupId,
+    item_main_group_id: itemMainGroupId,
+    stock_unit: stockUnit,
+    price: parseFloat(price),
+    taxgroupid,
+    is_runtime_rates: runtimeRates ? 1 : 0,
+    is_common_to_all_departments: isCommonToAllDepartments ? 1 : 0,
+    item_description: itemDescription,
+    item_hsncode: itemHsncode,
+    status: statusValue,
+    updated_by_id: user?.id || 2,
+    updated_date: currentDate,
+    outlet_details: newItem.outletRates.map(({ outletid, rate, unitid, servingunitid, IsConversion }) => ({
+      outletid,
+      item_rate: rate,
+      unitid,
+      servingunitid,
+      IsConversion,
+    })),
+  };
+
+  try {
+    const res = await fetch(`http://localhost:3001/api/menu/${mstmenu.restitemid}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    console.log('Response Status:', res.status);
+    console.log('Response Headers:', Object.fromEntries(res.headers));
+
+    if (!res.ok) {
+      const responseText = await res.text();
+      console.error('Response Text:', responseText);
+      let errorMessage = `Failed to update item: HTTP ${res.status}`;
+      try {
+        const errorData = JSON.parse(responseText);
+        errorMessage += ` - ${errorData.message || 'Unknown error'}`;
+      } catch (e) {
+        errorMessage += ` - ${responseText || 'No error details provided'}`;
+      }
+      toast.error(errorMessage);
       return;
     }
 
-    setLoading(true);
-    try {
-      const statusValue = status === 'Active' ? 0 : 1;
-      const currentDate = new Date().toISOString();
-      const payload = {
-        outlet_id: outletId ? parseInt(outletId) : null,
-        hotel_name_id: hotelNameId ? parseInt(hotelNameId) : null,
-        item_no: itemNo || null,
-        item_name: itemName.trim(),
-        print_name: printName || null,
-        short_name: shortName || null,
-        kitchen_category_id: kitchenCategoryId,
-        kitchen_sub_category_id: kitchenSubCategoryId,
-        kitchen_main_group_id: kitchenMainGroupId,
-        item_group_id: itemGroupId,
-        item_main_group_id: itemMainGroupId,
-        stock_unit: stockUnit || null,
-        price: parseFloat(price).toFixed(2),
-        tax: tax !== null ? tax : null,
-        runtime_rates: runtimeRates ? 1 : 0,
-        is_common_to_all_departments: isCommonToAllDepartments ? 1 : 0,
-        status: statusValue,
-        updated_by_id: 2,
-        updated_date: currentDate,
-        outletRates: newItem.outletRates.map(({ outletid, rate }) => ({ outletid, rate })),
+    // Check for empty response body
+    const contentLength = res.headers.get('content-length');
+    if (contentLength === '0' || !res.body) {
+      console.error('Empty response body received');
+      // Fallback: Use the payload as the updated item if server doesn't return data
+      const fallbackItem: MenuItem = {
+        ...mstmenu,
+        ...payload,
+        restitemid: mstmenu.restitemid,
+        outlet_name: newItem.outletRates[0]?.outletName || mstmenu.outlet_name,
+        item_rate: newItem.outletRates[0]?.rate || mstmenu.item_rate,
+        unitid: newItem.outletRates[0]?.unitid || mstmenu.unitid,
+        servingunitid: newItem.outletRates[0]?.servingunitid || mstmenu.servingunitid,
+        IsConversion: newItem.outletRates[0]?.IsConversion || mstmenu.IsConversion,
       };
 
-      const res = await fetch(`http://localhost:3001/api/Menu/${mstmenu.menuid}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (!res.ok) {
-        const text = await res.text();
-        console.error('Server response:', text.slice(0, 200));
-        toast.error('Failed to update item');
-        return;
-      }
-
-      const updatedItem = await res.json();
-      toast.success('Item updated successfully');
+      toast.warn('Item updated, but server returned no data. Using local data.');
 
       const oldCategory = getItemCategory(mstmenu.item_group_id, itemGroup);
       const newCategory = getItemCategory(payload.item_group_id, itemGroup);
 
       const updatedCardItem = {
-        userId: String(mstmenu.menuid),
+        userId: String(mstmenu.restitemid),
         itemId: payload.item_no || '',
         ItemName: payload.item_name,
         aliasName: payload.short_name || '',
-        price: parseFloat(payload.price) || 0,
-        visits: itemCategories.All.find((item) => item.userId === String(mstmenu.menuid))?.visits || 0,
-        cardStatus: statusValue === 0 ? '✅ Available' : '❌ Unavailable',
+        price: parseFloat(payload.price.toString()) || 0,
+        visits: itemCategories.All.find((item) => item.userId === String(mstmenu.restitemid))?.visits || 0,
+        cardStatus: statusValue === 1 ? '✅ Available' : '❌ Unavailable',
       };
 
       setCardItems((prev) =>
-        prev.map((item) => (item.userId === String(mstmenu.menuid) ? updatedCardItem : item))
+        prev.map((item) => (item.userId === String(mstmenu.restitemid) ? updatedCardItem : item))
       );
 
       setItemCategories((prev) => {
         const updatedCategories = { ...prev };
         if (oldCategory !== newCategory && oldCategory !== 'All') {
-          updatedCategories[oldCategory] = updatedCategories[oldCategory].filter((item) => item.userId !== String(mstmenu.menuid));
+          updatedCategories[oldCategory] = updatedCategories[oldCategory].filter(
+            (item) => item.userId !== String(mstmenu.restitemid)
+          );
         }
         updatedCategories.All = updatedCategories.All.map((item) =>
-          item.userId === String(mstmenu.menuid) ? updatedCardItem : item
+          item.userId === String(mstmenu.restitemid) ? updatedCardItem : item
         );
         if (newCategory !== 'All') {
-          updatedCategories[newCategory] = updatedCategories[newCategory].map((item) =>
-            item.userId === String(mstmenu.menuid) ? updatedCardItem : item
-          ).concat(updatedCardItem);
+          updatedCategories[newCategory] = updatedCategories[newCategory]
+            .filter((item) => item.userId !== String(mstmenu.restitemid))
+            .concat(updatedCardItem);
         }
         return updatedCategories;
       });
 
+      setData((prev) =>
+        prev.map((item) => (item.restitemid === mstmenu.restitemid ? fallbackItem : item))
+      );
+
       onSuccess();
       onHide();
-    } catch (err: any) {
-      console.error('Update Item error:', err.message);
-      toast.error(`Failed to update item: ${err.message || 'Please check server status.'}`);
-    } finally {
-      setLoading(false);
+      return;
     }
-  };
+
+    // Parse JSON response
+    const updatedItem: MenuItem = await res.json();
+
+    toast.success('Item updated successfully');
+
+    const oldCategory = getItemCategory(mstmenu.item_group_id, itemGroup);
+    const newCategory = getItemCategory(payload.item_group_id, itemGroup);
+
+    const updatedCardItem = {
+      userId: String(mstmenu.restitemid),
+      itemId: payload.item_no || '',
+      ItemName: payload.item_name,
+      aliasName: payload.short_name || '',
+      price: parseFloat(payload.price.toString()) || 0,
+      visits: itemCategories.All.find((item) => item.userId === String(mstmenu.restitemid))?.visits || 0,
+      cardStatus: statusValue === 1 ? '✅ Available' : '❌ Unavailable',
+    };
+
+    setCardItems((prev) =>
+      prev.map((item) => (item.userId === String(mstmenu.restitemid) ? updatedCardItem : item))
+    );
+
+    setItemCategories((prev) => {
+      const updatedCategories = { ...prev };
+      if (oldCategory !== newCategory && oldCategory !== 'All') {
+        updatedCategories[oldCategory] = updatedCategories[oldCategory].filter(
+          (item) => item.userId !== String(mstmenu.restitemid)
+        );
+      }
+      updatedCategories.All = updatedCategories.All.map((item) =>
+        item.userId === String(mstmenu.restitemid) ? updatedCardItem : item
+      );
+      if (newCategory !== 'All') {
+        updatedCategories[newCategory] = updatedCategories[newCategory]
+          .filter((item) => item.userId !== String(mstmenu.restitemid))
+          .concat(updatedCardItem);
+      }
+      return updatedCategories;
+    });
+
+    setData((prev) =>
+      prev.map((item) => (item.restitemid === mstmenu.restitemid ? updatedItem : item))
+    );
+
+    onSuccess();
+    onHide();
+  } catch (err: any) {
+    console.error('Update Item error:', err);
+    toast.error(`Failed to update item: ${err.message || 'Unexpected error occurred'}`);
+  } finally {
+    setLoading(false);
+  }
+};
 
   if (!show || !mstmenu) return null;
+
+ 
+
   return (
     <Modal show={show} onHide={onHide} size="lg" centered className="shadow-lg">
       <Modal.Header closeButton className="bg-white border-bottom-0 py-1">
@@ -1084,9 +1527,18 @@ const EditItemModal: React.FC<ModalProps> = ({ show, onHide, onSuccess, setData,
               <Form.Group as={Row} className="align-items-center">
                 <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Outlet</Form.Label>
                 <Col sm={8}>
-                  <Form.Select value={selectedOutlet || ''} onChange={(e) => setSelectedOutlet(Number(e.target.value))} disabled={loading} className="rounded-lg">
+                  <Form.Select
+                    value={selectedOutlet || ''}
+                    onChange={(e) => setSelectedOutlet(e.target.value ? Number(e.target.value) : null)}
+                    disabled={loading}
+                    className="rounded-lg"
+                  >
                     <option value="">Select an outlet</option>
-                    {outlets.map((outlet) => <option key={outlet.outletid} value={outlet.outletid}>{outlet.outlet_name}</option>)}
+                    {outlets.map((outlet) => (
+                      <option key={outlet.outletid} value={outlet.outletid}>
+                        {outlet.outlet_name}
+                      </option>
+                    ))}
                   </Form.Select>
                 </Col>
               </Form.Group>
@@ -1095,9 +1547,18 @@ const EditItemModal: React.FC<ModalProps> = ({ show, onHide, onSuccess, setData,
               <Form.Group as={Row} className="align-items-center">
                 <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Hotel Name</Form.Label>
                 <Col sm={8}>
-                  <Form.Select value={selectedBrand || ''} onChange={(e) => setSelectedBrand(e.target.value ? Number(e.target.value) : null)} disabled={loading} className="rounded-lg">
+                  <Form.Select
+                    value={selectedBrand || ''}
+                    onChange={(e) => setSelectedBrand(e.target.value ? Number(e.target.value) : null)}
+                    disabled={loading}
+                    className="rounded-lg"
+                  >
                     <option value="">Select Hotel</option>
-                    {brands.map((brand) => <option key={brand.hotelid} value={brand.hotelid}>{brand.hotel_name}</option>)}
+                    {brands.map((brand) => (
+                      <option key={brand.hotelid} value={brand.hotelid}>
+                        {brand.hotel_name}
+                      </option>
+                    ))}
                   </Form.Select>
                 </Col>
               </Form.Group>
@@ -1107,13 +1568,30 @@ const EditItemModal: React.FC<ModalProps> = ({ show, onHide, onSuccess, setData,
             <Col xs={12} sm={6}>
               <Form.Group as={Row} className="align-items-center">
                 <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Item Number</Form.Label>
-                <Col sm={8}><Form.Control type="text" value={itemNo ?? ''} onChange={(e) => setItemNo(e.target.value || null)} placeholder="Enter item number" className="rounded-lg" /></Col>
+                <Col sm={8}>
+                  <Form.Control
+                    type="text"
+                    value={itemNo ?? ''}
+                    onChange={(e) => setItemNo(e.target.value || null)}
+                    placeholder="Enter item number"
+                    className="rounded-lg"
+                  />
+                </Col>
               </Form.Group>
             </Col>
             <Col xs={12} sm={6}>
               <Form.Group as={Row} className="align-items-center">
                 <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Item Name</Form.Label>
-                <Col sm={8}><Form.Control type="text" value={itemName} onChange={(e) => setItemName(e.target.value)} placeholder="Enter item name" className="rounded-lg" required /></Col>
+                <Col sm={8}>
+                  <Form.Control
+                    type="text"
+                    value={itemName}
+                    onChange={(e) => setItemName(e.target.value)}
+                    placeholder="Enter item name"
+                    className="rounded-lg"
+                    required
+                  />
+                </Col>
               </Form.Group>
             </Col>
           </Row>
@@ -1121,13 +1599,29 @@ const EditItemModal: React.FC<ModalProps> = ({ show, onHide, onSuccess, setData,
             <Col xs={12} sm={6}>
               <Form.Group as={Row} className="align-items-center">
                 <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Print Name</Form.Label>
-                <Col sm={8}><Form.Control type="text" value={printName ?? ''} onChange={(e) => setPrintName(e.target.value || null)} placeholder="Enter print name" className="rounded-lg" /></Col>
+                <Col sm={8}>
+                  <Form.Control
+                    type="text"
+                    value={printName ?? ''}
+                    onChange={(e) => setPrintName(e.target.value || null)}
+                    placeholder="Enter print name"
+                    className="rounded-lg"
+                  />
+                </Col>
               </Form.Group>
             </Col>
             <Col xs={12} sm={6}>
               <Form.Group as={Row} className="align-items-center">
                 <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Short Name</Form.Label>
-                <Col sm={8}><Form.Control type="text" value={shortName ?? ''} onChange={(e) => setShortName(e.target.value || null)} placeholder="Enter short name" className="rounded-lg" /></Col>
+                <Col sm={8}>
+                  <Form.Control
+                    type="text"
+                    value={shortName ?? ''}
+                    onChange={(e) => setShortName(e.target.value || null)}
+                    placeholder="Enter short name"
+                    className="rounded-lg"
+                  />
+                </Col>
               </Form.Group>
             </Col>
           </Row>
@@ -1136,9 +1630,18 @@ const EditItemModal: React.FC<ModalProps> = ({ show, onHide, onSuccess, setData,
               <Form.Group as={Row} className="align-items-center">
                 <Form.Label column sm={6} className="text-sm font-medium text-gray-700">Kitchen Main Group</Form.Label>
                 <Col sm={6}>
-                  <Form.Select value={kitchenMainGroupId ?? ''} onChange={(e) => setKitchenMainGroupId(e.target.value === '' ? null : Number(e.target.value))} className="rounded-lg" disabled={loading}>
+                  <Form.Select
+                    value={kitchenMainGroupId ?? ''}
+                    onChange={(e) => setKitchenMainGroupId(e.target.value === '' ? null : Number(e.target.value))}
+                    className="rounded-lg"
+                    disabled={loading}
+                  >
                     <option value="">Select Kitchen Main Group</option>
-                    {kitchenMainGroup.filter((group) => String(group.status) === '0').map((group) => <option key={group.kitchenmaingroupid} value={group.kitchenmaingroupid}>{group.Kitchen_main_Group}</option>)}
+                    {kitchenMainGroup.filter((group) => String(group.status) === '0').map((group) => (
+                      <option key={group.kitchenmaingroupid} value={group.kitchenmaingroupid}>
+                        {group.Kitchen_main_Group}
+                      </option>
+                    ))}
                   </Form.Select>
                 </Col>
               </Form.Group>
@@ -1147,9 +1650,18 @@ const EditItemModal: React.FC<ModalProps> = ({ show, onHide, onSuccess, setData,
               <Form.Group as={Row} className="align-items-center">
                 <Form.Label column sm={6} className="text-sm font-medium text-gray-700">Kitchen Category</Form.Label>
                 <Col sm={6}>
-                  <Form.Select value={kitchenCategoryId ?? ''} onChange={(e) => setKitchenCategoryId(e.target.value === '' ? null : Number(e.target.value))} className="rounded-lg" disabled={loading}>
+                  <Form.Select
+                    value={kitchenCategoryId ?? ''}
+                    onChange={(e) => setKitchenCategoryId(e.target.value === '' ? null : Number(e.target.value))}
+                    className="rounded-lg"
+                    disabled={loading}
+                  >
                     <option value="">Select Kitchen Category</option>
-                    {kitchenCategory.filter((category) => String(category.status) === '0').map((category) => <option key={category.kitchencategoryid} value={category.kitchencategoryid}>{category.Kitchen_Category}</option>)}
+                    {kitchenCategory.filter((category) => String(category.status) === '0').map((category) => (
+                      <option key={category.kitchencategoryid} value={category.kitchencategoryid}>
+                        {category.Kitchen_Category}
+                      </option>
+                    ))}
                   </Form.Select>
                 </Col>
               </Form.Group>
@@ -1158,9 +1670,18 @@ const EditItemModal: React.FC<ModalProps> = ({ show, onHide, onSuccess, setData,
               <Form.Group as={Row} className="align-items-center">
                 <Form.Label column sm={6} className="text-sm font-medium text-gray-700">Kitchen Sub Category</Form.Label>
                 <Col sm={6}>
-                  <Form.Select value={kitchenSubCategoryId ?? ''} onChange={(e) => setKitchenSubCategoryId(e.target.value === '' ? null : Number(e.target.value))} className="rounded-lg" disabled={loading}>
+                  <Form.Select
+                    value={kitchenSubCategoryId ?? ''}
+                    onChange={(e) => setKitchenSubCategoryId(e.target.value === '' ? null : Number(e.target.value))}
+                    className="rounded-lg"
+                    disabled={loading}
+                  >
                     <option value="">Select Kitchen Sub Category</option>
-                    {kitchenSubCategory.filter((subCategory) => String(subCategory.status) === '0').map((subCategory) => <option key={subCategory.kitchensubcategoryid} value={subCategory.kitchensubcategoryid}>{subCategory.Kitchen_sub_category}</option>)}
+                    {kitchenSubCategory.filter((subCategory) => String(subCategory.status) === '0').map((subCategory) => (
+                      <option key={subCategory.kitchensubcategoryid} value={subCategory.kitchensubcategoryid}>
+                        {subCategory.Kitchen_sub_category}
+                      </option>
+                    ))}
                   </Form.Select>
                 </Col>
               </Form.Group>
@@ -1171,9 +1692,18 @@ const EditItemModal: React.FC<ModalProps> = ({ show, onHide, onSuccess, setData,
               <Form.Group as={Row} className="align-items-center">
                 <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Item Main Group</Form.Label>
                 <Col sm={8}>
-                  <Form.Select value={itemMainGroupId ?? ''} onChange={(e) => setItemMainGroupId(e.target.value === '' ? null : Number(e.target.value))} className="rounded-lg" disabled={loading}>
+                  <Form.Select
+                    value={itemMainGroupId ?? ''}
+                    onChange={(e) => setItemMainGroupId(e.target.value === '' ? null : Number(e.target.value))}
+                    className="rounded-lg"
+                    disabled={loading}
+                  >
                     <option value="">Select Item Main Group</option>
-                    {itemMainGroup.filter((group) => String(group.status) === '0').map((group) => <option key={group.item_maingroupid} value={group.item_maingroupid}>{group.item_group_name}</option>)}
+                    {itemMainGroup.filter((group) => String(group.status) === '0').map((group) => (
+                      <option key={group.item_maingroupid} value={group.item_maingroupid}>
+                        {group.item_group_name}
+                      </option>
+                    ))}
                   </Form.Select>
                 </Col>
               </Form.Group>
@@ -1182,9 +1712,18 @@ const EditItemModal: React.FC<ModalProps> = ({ show, onHide, onSuccess, setData,
               <Form.Group as={Row} className="align-items-center">
                 <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Item Group</Form.Label>
                 <Col sm={8}>
-                  <Form.Select value={itemGroupId ?? ''} onChange={(e) => setItemGroupId(e.target.value === '' ? null : Number(e.target.value))} className="rounded-lg" disabled={loading}>
+                  <Form.Select
+                    value={itemGroupId ?? ''}
+                    onChange={(e) => setItemGroupId(e.target.value === '' ? null : Number(e.target.value))}
+                    className="rounded-lg"
+                    disabled={loading}
+                  >
                     <option value="">Select Item Group</option>
-                    {itemGroup.filter((group) => String(group.status) === '0').map((group) => <option key={group.item_groupid} value={group.item_groupid}>{group.itemgroupname}</option>)}
+                    {itemGroup.filter((group) => String(group.status) === '0').map((group) => (
+                      <option key={group.item_groupid} value={group.item_groupid}>
+                        {group.itemgroupname}
+                      </option>
+                    ))}
                   </Form.Select>
                 </Col>
               </Form.Group>
@@ -1195,12 +1734,18 @@ const EditItemModal: React.FC<ModalProps> = ({ show, onHide, onSuccess, setData,
               <Form.Group as={Row} className="align-items-center">
                 <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Stock Unit</Form.Label>
                 <Col sm={8}>
-                  <Form.Select value={stockUnit ?? ''} onChange={(e) => setStockUnit(e.target.value || null)} className="rounded-lg">
+                  <Form.Select
+                    value={stockUnit ?? ''}
+                    onChange={(e) => setStockUnit(e.target.value || null)}
+                    className="rounded-lg"
+                    disabled={loading}
+                  >
                     <option value="">Select Stock Unit</option>
-                    <option value="Piece">Piece</option>
-                    <option value="Kg">Kg</option>
-                    <option value="Liter">Liter</option>
-                    <option value="Unit">Unit</option>
+                    {stockUnits.map((unit) => (
+                      <option key={unit.unitid} value={unit.unitid}>
+                        {unit.unit_name}
+                      </option>
+                    ))}
                   </Form.Select>
                 </Col>
               </Form.Group>
@@ -1208,18 +1753,38 @@ const EditItemModal: React.FC<ModalProps> = ({ show, onHide, onSuccess, setData,
             <Col xs={12} sm={6}>
               <Form.Group as={Row} className="align-items-center">
                 <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Price</Form.Label>
-                <Col sm={8}><Form.Control type="number" step="0.01" min="0" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="Enter price" className="rounded-lg" required /></Col>
+                <Col sm={8}>
+                  <Form.Control
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={price}
+                    onChange={(e) => setPrice(e.target.value)}
+                    placeholder="Enter price"
+                    className="rounded-lg"
+                    required
+                  />
+                </Col>
               </Form.Group>
             </Col>
           </Row>
           <Row className="mb-3">
             <Col xs={12} sm={6}>
               <Form.Group as={Row} className="align-items-center">
-                <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Tax (%)</Form.Label>
+                <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Tax Group</Form.Label>
                 <Col sm={8}>
-                  <Form.Select value={tax ?? ''} onChange={(e) => setTax(e.target.value === '' ? null : parseFloat(e.target.value))} className="rounded-lg">
-                    <option value="">Select Tax</option>
-                    {taxOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                  <Form.Select
+                    value={taxgroupid ?? ''}
+                    onChange={(e) => setTaxgroupid(e.target.value === '' ? null : Number(e.target.value))}
+                    className="rounded-lg"
+                    disabled={loading}
+                  >
+                    <option value="">Select Tax Group</option>
+                    {taxGroups.map((taxGroup) => (
+                      <option key={taxGroup.taxgroupid} value={taxGroup.taxgroupid}>
+                        {taxGroup.taxgroup_name}
+                      </option>
+                    ))}
                   </Form.Select>
                 </Col>
               </Form.Group>
@@ -1228,13 +1793,75 @@ const EditItemModal: React.FC<ModalProps> = ({ show, onHide, onSuccess, setData,
           <Row className="mb-3">
             <Col xs={12} sm={6}>
               <Form.Group as={Row} className="align-items-center">
-                <Col sm={12}><label className="d-flex align-items-center gap-2 cursor-pointer"><Form.Check type="checkbox" checked={runtimeRates} onChange={(e) => setRuntimeRates(e.target.checked)} className="mt-0" /><span className="text-sm text-gray-700">Runtime Rates</span></label></Col>
+                <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Item Description</Form.Label>
+                <Col sm={8}>
+                  <Form.Control
+                    type="text"
+                    value={itemDescription ?? ''}
+                    onChange={(e) => setItemDescription(e.target.value || null)}
+                    placeholder="Enter item description"
+                    className="rounded-lg"
+                  />
+                </Col>
               </Form.Group>
             </Col>
             <Col xs={12} sm={6}>
               <Form.Group as={Row} className="align-items-center">
-                <Col sm={12}><label className="d-flex align-items-center gap-2 cursor-pointer"><Form.Check type="checkbox" checked={isCommonToAllDepartments} onChange={(e) => setIsCommonToAllDepartments(e.target.checked)} className="mt-0" /><span className="text-sm text-gray-600">Is Common to All Departments</span></label></Col>
+                <Form.Label column sm={4} className="text-sm font-medium text-gray-700">HSN Code</Form.Label>
+                <Col sm={8}>
+                  <Form.Control
+                    type="text"
+                    value={itemHsncode ?? ''}
+                    onChange={(e) => setItemHsncode(e.target.value || null)}
+                    placeholder="Enter HSN code"
+                    className="rounded-lg"
+                  />
+                </Col>
               </Form.Group>
+            </Col>
+          </Row>
+          <Row className="mb-3">
+            <Col xs={12} sm={6}>
+              <Form.Group as={Row} className="align-items-center">
+                <Col sm={12}>
+                  <label className="d-flex align-items-center gap-2 cursor-pointer">
+                    <Form.Check
+                      type="checkbox"
+                      checked={runtimeRates}
+                      onChange={(e) => setRuntimeRates(e.target.checked)}
+                      className="mt-0"
+                    />
+                    <span className="text-sm text-gray-700">Runtime Rates</span>
+                  </label>
+                </Col>
+              </Form.Group>
+            </Col>
+            <Col xs={12} sm={6}>
+              <Form.Group as={Row} className="align-items-center">
+                <Col sm={12}>
+                  <label className="d-flex align-items-center gap-2 cursor-pointer">
+                    <Form.Check
+                      type="checkbox"
+                      checked={isCommonToAllDepartments}
+                      onChange={(e) => setIsCommonToAllDepartments(e.target.checked)}
+                      className="mt-0"
+                    />
+                    <span className="text-sm text-gray-600">Is Common to All Departments</span>
+                  </label>
+                </Col>
+              </Form.Group>
+            </Col>
+          </Row>
+          <Row className="mb-3">
+            <Col sm={12}>
+              <Button
+                variant="outline-primary"
+                onClick={handleAddOutletRate}
+                disabled={loading || !outletsLoaded}
+                style={{ borderRadius: '8px', padding: '6px 16px', fontSize: '14px', fontWeight: '500' }}
+              >
+                Add Outlet Rate
+              </Button>
             </Col>
           </Row>
           <Row className="mb-3">
@@ -1242,17 +1869,91 @@ const EditItemModal: React.FC<ModalProps> = ({ show, onHide, onSuccess, setData,
               <div style={{ maxHeight: '150px', overflowY: 'auto' }}>
                 <Table bordered size="sm" className="m-0">
                   <thead className="bg-gray-100">
-                    <tr><th className="text-sm font-medium text-gray-700 py-2">Outlet Name</th><th className="text-sm font-medium text-gray-700 py-2">Rate</th></tr>
+                    <tr>
+                      <th className="text-sm font-medium text-gray-700 py-2">Outlet Name</th>
+                      <th className="text-sm font-medium text-gray-700 py-2">Rate</th>
+                      <th className="text-sm font-medium text-gray-700 py-2">Unit</th>
+                      <th className="text-sm font-medium text-gray-700 py-2">Serving Unit</th>
+                      <th className="text-sm font-medium text-gray-700 py-2">Conversion</th>
+                      <th className="text-sm font-medium text-gray-700 py-2">Action</th>
+                    </tr>
                   </thead>
                   <tbody>
                     {newItem.outletRates.map((outlet, index) => (
                       <tr key={outlet.outletid}>
                         <td className="text-sm text-gray-600 py-2">{outlet.outletName}</td>
-                        <td><Form.Control type="number" step="0.01" min="0" value={outlet.rate} onChange={(e) => {
-                          const updatedRates = [...newItem.outletRates];
-                          updatedRates[index] = { ...updatedRates[index], rate: e.target.value ? parseFloat(e.target.value) : 0 };
-                          setNewItem({ outletRates: updatedRates });
-                        }} placeholder="Enter rate" className="rounded-lg" /></td>
+                        <td>
+                          <Form.Control
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={outlet.rate}
+                            onChange={(e) => {
+                              const updatedRates = [...newItem.outletRates];
+                              updatedRates[index] = { ...updatedRates[index], rate: e.target.value ? parseFloat(e.target.value) : 0 };
+                              setNewItem({ outletRates: updatedRates });
+                            }}
+                            placeholder="Enter rate"
+                            className="rounded-lg"
+                          />
+                        </td>
+                        <td>
+                          <Form.Select
+                            value={outlet.unitid ?? ''}
+                            onChange={(e) => {
+                              const updatedRates = [...newItem.outletRates];
+                              updatedRates[index] = { ...updatedRates[index], unitid: e.target.value ? Number(e.target.value) : null };
+                              setNewItem({ outletRates: updatedRates });
+                            }}
+                            className="rounded-lg"
+                          >
+                            <option value="">Select Unit</option>
+                            {stockUnits.map((unit) => (
+                              <option key={unit.unitid} value={unit.unitid}>
+                                {unit.unit_name}
+                              </option>
+                            ))}
+                          </Form.Select>
+                        </td>
+                        <td>
+                          <Form.Select
+                            value={outlet.servingunitid ?? ''}
+                            onChange={(e) => {
+                              const updatedRates = [...newItem.outletRates];
+                              updatedRates[index] = { ...updatedRates[index], servingunitid: e.target.value ? Number(e.target.value) : null };
+                              setNewItem({ outletRates: updatedRates });
+                            }}
+                            className="rounded-lg"
+                          >
+                            <option value="">Select Serving Unit</option>
+                            {stockUnits.map((unit) => (
+                              <option key={unit.unitid} value={unit.unitid}>
+                                {unit.unit_name}
+                              </option>
+                            ))}
+                          </Form.Select>
+                        </td>
+                        <td>
+                          <Form.Check
+                            type="checkbox"
+                            checked={outlet.IsConversion === 1}
+                            onChange={(e) => {
+                              const updatedRates = [...newItem.outletRates];
+                              updatedRates[index] = { ...updatedRates[index], IsConversion: e.target.checked ? 1 : 0 };
+                              setNewItem({ outletRates: updatedRates });
+                            }}
+                          />
+                        </td>
+                        <td>
+                          <Button
+                            variant="outline-danger"
+                            size="sm"
+                            onClick={() => handleRemoveOutletRate(outlet.outletid)}
+                            title="Remove Outlet"
+                          >
+                            Remove
+                          </Button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -1265,7 +1966,11 @@ const EditItemModal: React.FC<ModalProps> = ({ show, onHide, onSuccess, setData,
               <Form.Group as={Row} className="align-items-center">
                 <Form.Label column sm={6} className="text-sm font-medium text-gray-700">Status</Form.Label>
                 <Col sm={6}>
-                  <Form.Select value={status} onChange={(e) => setStatus(e.target.value)} className="rounded-lg">
+                  <Form.Select
+                    value={status}
+                    onChange={(e) => setStatus(e.target.value)}
+                    className="rounded-lg"
+                  >
                     <option value="Active">✅ Available</option>
                     <option value="Inactive">❌ Unavailable</option>
                   </Form.Select>
@@ -1274,8 +1979,22 @@ const EditItemModal: React.FC<ModalProps> = ({ show, onHide, onSuccess, setData,
             </Col>
             <Col xs={12} sm={4}></Col>
             <Col xs={12} sm={4} className="d-flex justify-content-end gap-2">
-              <Button variant="secondary" onClick={onHide} disabled={loading} style={{ borderRadius: '8px', padding: '6px 16px', fontSize: '14px', fontWeight: '500', backgroundColor: '#e5e7eb', borderColor: '#e5e7eb', color: '#1a202c' }}>Back</Button>
-              <Button variant="primary" onClick={handleUpdate} disabled={loading} style={{ borderRadius: '8px', padding: '6px 16px', fontSize: '14px', fontWeight: '500', backgroundColor: '#3b82f6', borderColor: '#3b82f6' }}>{loading ? 'Saving...' : 'Save Item'}</Button>
+              <Button
+                variant="secondary"
+                onClick={onHide}
+                disabled={loading}
+                style={{ borderRadius: '8px', padding: '6px 16px', fontSize: '14px', fontWeight: '500', backgroundColor: '#e5e7eb', borderColor: '#e5e7eb', color: '#1a202c' }}
+              >
+                Back
+              </Button>
+              <Button
+                variant="primary"
+                onClick={handleUpdate}
+                disabled={loading}
+                style={{ borderRadius: '8px', padding: '6px 16px', fontSize: '14px', fontWeight: '500', backgroundColor: '#3b82f6', borderColor: '#3b82f6' }}
+              >
+                {loading ? 'Saving...' : 'Save Item'}
+              </Button>
             </Col>
           </Row>
         </Form>
