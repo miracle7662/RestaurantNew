@@ -30,8 +30,9 @@ const authRoutes = require('./routes/authRoutes');
 const authController = require('./controllers/authController');
 const TableManagementRoutes = require('./routes/TableManagementRoutes');
 const CustomerRoutes = require('./routes/CustomerRoutes');
-const taxGroupRoutes = require('./routes/msttaxgroupRoutes');
 
+const taxGroupRoutes = require('./routes/msttaxgroupRoutes');
+const restTaxMasterRoutes = require('./routes/restTaxMasterRoutes');
 
 // ✅ Correct order of middleware
 app.use(cors());
@@ -65,11 +66,13 @@ app.use('/api/auth', authRoutes);
 app.use('/api/tablemanagement', TableManagementRoutes);
 app.use('/api/customer', CustomerRoutes);
 app.use('/api/taxgroup', taxGroupRoutes);
+app.use('/api/resttaxmaster', restTaxMasterRoutes);
 
 // ✅ Add a health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'Server is running', cors: 'enabled' });
 });
+
 
 // ✅ Start server
 app.listen(port, () => {

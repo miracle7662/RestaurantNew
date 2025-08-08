@@ -1,13 +1,9 @@
-
 const path = require('path');
 const Database = require('better-sqlite3');
-
 
 // ✅ Connect to SQLite DB (creates file if not exist)
 // const db = new Database(path.join(__dirname, 'miresto.db'));
 //const db = new Database(path.join('F:','newmidb', 'newmidb.db'));
-
-
 
   // const db = new Database(path.join('D:','Restrauntdb', 'miresto.db')); //sudarshan
 
@@ -216,8 +212,8 @@ CREATE TABLE IF NOT EXISTS mst_users (
     phone TEXT,
     role_level TEXT NOT NULL, -- 'superadmin', 'brand_admin', 'hotel_admin', 'outlet_user'
     parent_user_id INTEGER, -- References the user who created this user
-    brand_id INTEGER, -- References HotelMasters.Hotelid
-    hotelid INTEGER, -- References HotelMasters.Hotelid (for hotel_admin and outlet_user)
+    brand_id INTEGER, -- References msthotelmasters.hotelid
+    hotelid INTEGER, -- References msthotelmasters.hotelid (for hotel_admin and outlet_user)
    
     designation TEXT, -- Designation for outlet user
     user_type TEXT, -- User type for outlet user
@@ -241,8 +237,8 @@ CREATE TABLE IF NOT EXISTS mst_users (
     updated_by_id INTEGER,
     updated_date DATETIME,
     FOREIGN KEY (parent_user_id) REFERENCES mst_users(userid),
-    FOREIGN KEY (brand_id) REFERENCES HotelMasters(Hotelid),
-    FOREIGN KEY (hotelid) REFERENCES HotelMasters(Hotelid)
+    FOREIGN KEY (brand_id) REFERENCES msthotelmasters(hotelid),
+    FOREIGN KEY (hotelid) REFERENCES msthotelmasters(hotelid)
    
 );
 
@@ -276,7 +272,7 @@ CREATE TABLE IF NOT EXISTS mst_brand_structure (
     has_separate_hotel_admin INTEGER DEFAULT 0, -- 0: brand_admin acts as hotel_admin, 1: separate hotel_admin
     created_by_id INTEGER,
     created_date DATETIME,
-    FOREIGN KEY (brand_id) REFERENCES HotelMasters(Hotelid)
+    FOREIGN KEY (brand_id) REFERENCES msthotelmasters(hotelid)
 );
 
 CREATE TABLE IF NOT EXISTS mst_outlets (
@@ -312,7 +308,9 @@ CREATE TABLE IF NOT EXISTS mst_outlets (
     created_date DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_by_id INTEGER,
     updated_date DATETIME,
-    FOREIGN KEY (brand_id) REFERENCES HotelMasters(Hotelid)
+    FOREIGN KEY (brand_id) REFERENCES msthotelmasters(hotelid)
+    
+    
 );
 
 CREATE TABLE IF NOT EXISTS msttablemanagement (
@@ -364,24 +362,26 @@ CREATE TABLE IF NOT EXISTS  msttaxgroup (
 );
 
   CREATE TABLE IF NOT EXISTS mst_resttaxmaster (
-    resttaxid INTEGER PRIMARY KEY AUTOINCREMENT,
-  
-    hotelid INTEGER,
-    outletid INTEGER,   
-    isapplicablealloutlet INTEGER,
-    resttax_name TEXT,
-    resttax_value TEXT,
-    restcgst TEXT,
-    restsgst TEXT,
-    restigst TEXT,
-    taxgroupid INTEGER, 
-    status INTEGER DEFAULT 1, 
-    created_by_id INTEGER,
-    created_date DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_by_id INTEGER,
-    updated_date DATETIME,
-    FOREIGN KEY (hotelid) REFERENCES HotelMasters(hotelid)
-)
+  resttaxid INTEGER PRIMARY KEY AUTOINCREMENT,
+  hotelid INTEGER,
+  outletid INTEGER,
+  isapplicablealloutlet INTEGER,
+  resttax_name TEXT,
+  resttax_value TEXT,
+  restcgst TEXT,
+  restsgst TEXT,
+  restigst TEXT,
+  taxgroupid INTEGER,
+  status INTEGER DEFAULT 1,
+  created_by_id INTEGER,
+  created_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_by_id INTEGER,
+  updated_date DATETIME,
+  FOREIGN KEY (hotelid) REFERENCES msthotelmasters(hotelid),
+  FOREIGN KEY (outletid) REFERENCES mst_outlets(outletid),
+  FOREIGN KEY (taxgroupid) REFERENCES msttaxgroup(taxgroupid)
+);
+
     
 
 -- Insert default SuperAdmin user (password will be properly hashed by the checkSuperAdmin script)

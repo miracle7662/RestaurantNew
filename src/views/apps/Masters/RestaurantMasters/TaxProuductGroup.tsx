@@ -13,6 +13,7 @@ interface TaxGroup {
   status: number;
   created_by_id: string;
   created_date: string;
+  created_by?: string; // Optional, if you want to show created by user name
 }
 
 interface Hotel {
@@ -230,7 +231,7 @@ const TaxProductGroup: React.FC = () => {
                           <td>{group.taxgroup_name}</td>
                           <td>{group.hotel_name}</td>
                           <td>{getStatusBadge(group.status)}</td>
-                          <td>{group.created_by_id}</td>
+                          <td>{group.created_by}</td>
                           <td>{new Date(group.created_date).toLocaleDateString()}</td>
                           <td>
                             <Button 

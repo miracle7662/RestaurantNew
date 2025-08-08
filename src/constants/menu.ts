@@ -188,9 +188,9 @@ const MENU_ITEMS: MenuItemTypes[] = [
         parentKey: 'apps',
       },
       {
-        key: 'Restaxmaster',
-        label: 'Restaxmaster',
-        url: '/apps/Restaxmaster',
+        key: 'Resttaxmaster',
+        label: 'Resttaxmaster',
+        url: '/apps/Resttaxmaster',
         parentKey: 'apps',
       },
       {
