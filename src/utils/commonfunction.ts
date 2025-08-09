@@ -412,7 +412,7 @@ export const fetchTableManagement = async (
     }
   }
 
-  export const fetchData = async (
+export const fetchData = async (
   setTaxGroup: (data: any[]) => void,    
   settaxgroupid: (id: number) => void,
   currenttaxgroupid?: string
@@ -421,12 +421,8 @@ export const fetchTableManagement = async (
     const res = await fetch('http://localhost:3001/api/taxgroup');
     const result = await res.json();
 
-    // ✅ Extract the array safely
-    const taxGroups = Array.isArray(result)
-      ? result
-      : Array.isArray(result.data)
-      ? result.data
-      : [];
+    // ✅ Extract the nested taxGroups array safely
+    const taxGroups = result?.data?.taxGroups || [];
 
     setTaxGroup(taxGroups);
 
@@ -643,54 +639,54 @@ export const fetchOutletsForDropdown = async (
   }
 };
 
-export const fetchhotelmasters = async (
-  setHotels: (data: HotelMasterItem[]) => void,
-  user?: User,
-  setLoading?: (value: boolean) => void,
-): Promise<void> => {
-  try {
-    if (setLoading) setLoading(true);
+// export const fetchhotelmasters = async (
+//   setHotels: (data: HotelMasterItem[]) => void,
+//   user?: User,
+//   setLoading?: (value: boolean) => void,
+// ): Promise<void> => {
+//   try {
+//     if (setLoading) setLoading(true);
     
-    const params: { role_level?: string; hotelid?: number } = {};
+//     const params: { role_level?: string; hotelid?: number } = {};
     
-    if (user?.role_level) {
-      params.role_level = user.role_level;
-    }
+//     if (user?.role_level) {
+//       params.role_level = user.role_level;
+//     }
     
-    if (user?.role_level === 'hotel_admin' && user?.hotelid) {
-      params.hotelid = user.hotelid;
-    }
+//     if (user?.role_level === 'hotel_admin' && user?.hotelid) {
+//       params.hotelid = user.hotelid;
+//     }
 
-    const url = new URL('http://localhost:3001/api/HotelMasters');
-    Object.keys(params).forEach(key => {
-      if (params[key as keyof typeof params] !== undefined) {
-        url.searchParams.append(key, params[key as keyof typeof params]!.toString());
-      }
-    });
+//     const url = new URL('http://localhost:3001/api/HotelMasters');
+//     Object.keys(params).forEach(key => {
+//       if (params[key as keyof typeof params] !== undefined) {
+//         url.searchParams.append(key, params[key as keyof typeof params]!.toString());
+//       }
+//     });
 
-    const res = await fetch(url.toString());
-    const data: HotelMasterItem[] = await res.json();
+//     const res = await fetch(url.toString());
+//     const data: HotelMasterItem[] = await res.json();
     
-    // Filter to only include active hotels and extract just the needed fields
-    const activeHotels = data
-      .filter(hotel => hotel.status === 1)
-      .map(hotel => ({
-        hotelid: hotel.hotelid,
-        hotel_name: hotel.hotel_name,
-        marketid: hotel.marketid,
-        short_name: hotel.short_name,
-        status: hotel.status
-      }));
+//     // Filter to only include active hotels and extract just the needed fields
+//     const activeHotels = data
+//       .filter(hotel => hotel.status === 1)
+//       .map(hotel => ({
+//         hotelid: hotel.hotelid,
+//         hotel_name: hotel.hotel_name,
+//         marketid: hotel.marketid,
+//         short_name: hotel.short_name,
+//         status: hotel.status
+//       }));
     
-    setHotels(activeHotels);
-  } catch (err) {
-    toast.error('Failed to fetch hotels');
-    console.error('Fetch hotels error:', err);
-    setHotels([]);
-  } finally {
-    if (setLoading) setLoading(false);
-  }
-};
+//     setHotels(activeHotels);
+//   } catch (err) {
+//     toast.error('Failed to fetch hotels');
+//     console.error('Fetch hotels error:', err);
+//     setHotels([]);
+//   } finally {
+//     if (setLoading) setLoading(false);
+//   }
+// };
 
 // export const fetchOutletuserById = async (
 //   id: number,
