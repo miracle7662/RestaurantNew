@@ -355,8 +355,65 @@ CREATE TABLE IF NOT EXISTS msttablemanagement (
 -- Insert default SuperAdmin user (password will be properly hashed by the checkSuperAdmin script)
 -- This is just a placeholder, the actual SuperAdmin will be created by the script
 
-`);
 
+  CREATE TABLE IF NOT EXISTS mst_resttaxmaster (
+  resttaxid INTEGER PRIMARY KEY AUTOINCREMENT,
+  hotelid INTEGER,
+  outletid INTEGER,
+  isapplicablealloutlet INTEGER,
+  resttax_name TEXT,
+  resttax_value TEXT,
+  restcgst TEXT,
+  restsgst TEXT,
+  restigst TEXT,
+  taxgroupid INTEGER,
+  status INTEGER DEFAULT 1,
+  created_by_id INTEGER,
+  created_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_by_id INTEGER,
+  updated_date DATETIME,
+  FOREIGN KEY (hotelid) REFERENCES msthotelmasters(hotelid),
+  FOREIGN KEY (outletid) REFERENCES mst_outlets(outletid),
+  FOREIGN KEY (taxgroupid) REFERENCES msttaxgroup(taxgroupid)
+);
+
+CREATE TABLE IF NOT EXISTS mstrestmenu (
+    restitemid                   INTEGER PRIMARY KEY AUTOINCREMENT,
+    hotelid                      INTEGER REFERENCES msthotelmasters (hotelid),
+    item_no                      INTEGER,
+    item_name                    TEXT (200) NOT NULL,
+    print_name                   TEXT (200),
+    short_name                   TEXT (200),
+  kitchen_category_id            INTEGER,
+    kitchen_sub_category_id      INTEGER,
+    kitchen_main_group_id        INTEGER,
+    item_group_id                INTEGER,
+    item_main_group_id           INTEGER,
+    stock_unit                   INTEGER (11),
+    price                        NUMERIC (19, 2) NOT NULL,
+    taxgroupid                   INTEGER REFERENCES msttaxgroup (taxgroupid),
+    is_runtime_rates             INTEGER NOT NULL DEFAULT 0 CHECK (is_runtime_rates IN (0,1)),
+    is_common_to_all_departments INTEGER NOT NULL DEFAULT 0 CHECK (is_common_to_all_departments IN (0,1)),
+    item_description             TEXT (400),
+    item_hsncode                 TEXT (100),
+    status                       INTEGER DEFAULT 1 CHECK (status IN (0,1)),
+    created_by_id                INTEGER REFERENCES mst_users (userid),
+    created_date                 DATETIME,
+    updated_by_id                INTEGER REFERENCES mst_users (userid),
+    updated_date                 DATETIME
+);
+
+CREATE TABLE IF NOT EXISTS mstrestmenudetails (
+    itemdetailsid INTEGER PRIMARY KEY AUTOINCREMENT,
+    restitemid    INTEGER NOT NULL REFERENCES mstrestmenu (restitemid),
+    outletid      INTEGER REFERENCES mst_outlets (outletid),
+    item_rate     NUMERIC (19, 2) NOT NULL,
+    unitid        INTEGER,
+    servingunitid INTEGER,
+    IsConversion  INTEGER DEFAULT 0,  -- 0 = No, 1 = Yes
+    hotelid       INTEGER REFERENCES msthotelmasters (hotelid)
+);
+`);
 
 
 module.exports = db;

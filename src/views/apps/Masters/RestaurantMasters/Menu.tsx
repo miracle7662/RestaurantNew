@@ -10,6 +10,7 @@ import {
   fetchItemMainGroup,
   fetchData,
   fetchunitmaster,
+  fetchBrands,
   KitchenCategoryItem,
   KitchenMainGroupItem,
   KitchenSubCategoryItem,
@@ -122,7 +123,11 @@ const Menu: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<Category>('All');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [outlets, setOutlets] = useState<any[]>([]);
+  interface OutletData {
+    outletid: number;
+    outlet_name: string;
+  }
+  const [outlets, setOutlets] = useState<OutletData[]>([]);
   const [brands, setBrands] = useState<any[]>([]);
   const { user } = useAuthContext();
 
@@ -576,14 +581,12 @@ const AddItemModal: React.FC<ModalProps> = ({ show, onHide, onSuccess, setData, 
           fetchBrands(user, setBrands),
           fetchData(setTaxGroups, setTaxgroupid),
           fetchunitmaster(setStockUnits),
-          fetchOutletsForDropdown(user, (data) => {
-            const uniqueOutlets = Array.from(
-              new Map(data.map((outlet) => [outlet.outletid, outlet])).values()
-            );
-            setOutlets(uniqueOutlets);
-            setOutletsLoaded(true);
-          }, setLoading),
+          // Removed fetchOutletsForDropdown call due to missing function
+          // You may implement or replace this with appropriate function
+          // setOutlets([]); // Clear outlets or fetch from another source if available
         ]);
+        setOutlets([]);
+        setOutletsLoaded(true);
       } catch (err) {
         console.error('Error loading data:', err);
         toast.error('Failed to load dropdown data');

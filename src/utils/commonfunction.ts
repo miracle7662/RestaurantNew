@@ -217,3 +217,102 @@ export const fetchData = async (
     setTaxGroups([]);
   }
 }
+
+export interface StateItem {
+  stateid: number
+  state_name: string
+  status: number | string
+}
+
+export interface CityItem {
+  cityid: number
+  city_name: string
+  status: number | string
+}
+
+export const fetchStates = async (
+  setStates: (data: StateItem[]) => void,
+  setStateId: (id: number) => void,
+  currentStateId?: number,
+) => {
+  try {
+    const res = await fetch('http://localhost:3001/api/states')
+    const data: StateItem[] = await res.json()
+    setStates(data)
+    if (data.length > 0 && !currentStateId) {
+      setStateId(data[0].stateid)
+    }
+  } catch (err) {
+    toast.error('Failed to fetch states')
+    console.error('Fetch states error:', err)
+  }
+}
+
+export const fetchCities = async (
+  setCities: (data: CityItem[]) => void,
+  setCityId: (id: number) => void,
+  currentCityId?: number,
+) => {
+  try {
+    const res = await fetch('http://localhost:3001/api/cities')
+    const data: CityItem[] = await res.json()
+    setCities(data)
+    if (data.length > 0 && !currentCityId) {
+      setCityId(data[0].cityid)
+    }
+  } catch (err) {
+    toast.error('Failed to fetch cities')
+    console.error('Fetch cities error:', err)
+  }
+}
+
+export const fetchBrands = async (
+  user: any,
+  setBrands: React.Dispatch<React.SetStateAction<Array<{ hotelid: number; hotel_name: string }>>>
+) => {
+  try {
+    const res = await fetch('http://localhost:3001/api/brands', {
+      headers: {
+        'Content-Type': 'application/json',
+        // Add authorization header if needed, e.g.:
+        // 'Authorization': `Bearer ${user?.token}`,
+      },
+    });
+    if (!res.ok) {
+      throw new Error(`HTTP error! status: ${res.status}`);
+    }
+    const data = await res.json();
+    setBrands(data);
+  } catch (err) {
+    toast.error('Failed to fetch brands');
+    console.error('Fetch brands error:', err);
+  }
+};
+
+// New function to fetch outlets for dropdown
+export const fetchOutletsForDropdown = async (
+  user: any,
+  setOutlets: React.Dispatch<React.SetStateAction<Array<{ outletid: number; outlet_name: string }>>>,
+  setLoading: React.Dispatch<React.SetStateAction<boolean>>
+) => {
+  try {
+    setLoading(true);
+    const res = await fetch('http://localhost:3001/api/outlets', {
+      headers: {
+        'Content-Type': 'application/json',
+        // Add authorization header if needed, e.g.:
+        // 'Authorization': `Bearer ${user?.token}`,
+      },
+    });
+    if (!res.ok) {
+      throw new Error(`HTTP error! status: ${res.status}`);
+    }
+    const data = await res.json();
+    setOutlets(data);
+  } catch (err) {
+    toast.error('Failed to fetch outlets');
+    console.error('Fetch outlets error:', err);
+  } finally {
+    setLoading(false);
+  }
+};
