@@ -1,31 +1,40 @@
-import { Route, Navigate, RouteProps } from 'react-router-dom'
-
+import React from 'react'
+import { Route, Navigate } from 'react-router-dom'
 import { useAuthContext } from '@/common'
 
 /**
- * Private Route forces the authorization before the route can be accessed
- * @param {*} param0
- * @returns
+ * PrivateRoute component to protect routes based on authentication and roles
+ * @param {object} props
+ * @param {React.Component} props.component - Component to render
+ * @param {string[]} [props.roles] - Allowed roles for the route
+ * @param {...any} rest - Other props
  */
-
 const PrivateRoute = ({ component: Component, roles, ...rest }: any) => {
-  const { isAuthenticated } = useAuthContext()
+  const { isAuthenticated, user } = useAuthContext()
+
   return (
     <Route
       {...rest}
-      render={(props: RouteProps) => {
+      render={(props: any) => {
         if (!isAuthenticated) {
+          // Not logged in, redirect to login
           return (
             <Navigate
               to={{
                 pathname: '/auth/minimal/login',
+                state: { from: props.location },
               }}
             />
           )
         }
-        if (isAuthenticated) {
-          return <Navigate to={{ pathname: '/' }} />
+
+        // If roles are specified, check if user role is allowed
+        if (roles && roles.length > 0 && !roles.includes(user?.role_level)) {
+          // Role not authorized, redirect to access denied page
+          return <Navigate to={{ pathname: '/access-denied' }} />
         }
+
+        // Authorized, render the component
         return <Component {...props} />
       }}
     />

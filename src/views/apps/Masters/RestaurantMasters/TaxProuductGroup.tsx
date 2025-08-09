@@ -1,325 +1,353 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import Swal from 'sweetalert2';
-import { toast } from 'react-hot-toast';
-import { Preloader } from '@/components/Misc/Preloader';
-import { Button, Card, Stack, Table } from 'react-bootstrap';
-import TitleHelmet from '@/components/Common/TitleHelmet';
-import {
-  useReactTable,
-  getCoreRowModel,
-  getFilteredRowModel,
-  ColumnDef,
-  flexRender,
-} from '@tanstack/react-table';
+import React, { useState, useEffect } from 'react';
+import { Card, Col, Row, Button, Form, Table, Modal, Alert } from 'react-bootstrap';
+import axios from 'axios';
+import { useAuthContext } from '../../../../common/context/useAuthContext';
+import { fetchhotelmasters, HotelMasterItem } from '../../../../utils/commonfunction';
+import { fetchBrands } from '@/utils/commonfunction';
 
-// Define tax product group data type
-interface TaxProductGroup {
-  id: string;
-  name: string;
+interface TaxGroup {
+  taxgroupid: number;
+  taxgroup_name: string;
+  hotelid: number;
+  hotel_name: string;
+  status: number;
+  created_by_id: string;
+  created_date: string;
+  created_by?: string; // Optional, if you want to show created by user name
 }
 
-// Sample tax product group data
-const initialTaxProductGroups: TaxProductGroup[] = [
-  {
-    id: '1',
-    name: 'Food',
-  },
-];
+interface Hotel {
+  hotelid: number;
+  hotel_name: string;
+}
 
-// AddTaxProductGroupModal component
-const AddTaxProductGroupModal: React.FC<{
-  show: boolean;
-  onHide: () => void;
-  onAddTaxProductGroup: (taxProductGroupData: Omit<TaxProductGroup, 'id'>) => void;
-}> = ({ show, onHide, onAddTaxProductGroup }) => {
-  const [name, setName] = useState<string>('');
-
-  if (!show) return null;
-
-  const handleAdd = () => {
-    onAddTaxProductGroup({ name });
-    setName('');
-    onHide();
-  };
-
-  return (
-    <div className="modal" style={{ display: 'block', background: 'rgba(0,0,0,0.5)', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
-      <div className="modal-content" style={{ background: 'white', padding: '20px', maxWidth: '500px', margin: '100px auto', borderRadius: '8px' }}>
-        <h3>Add New Tax Product Group</h3>
-        <input
-          type="text"
-          className="form-control mb-3"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Tax Product Group Name (e.g., Food)"
-        />
-        <div className="d-flex justify-content-end">
-          <button className="btn btn-outline-secondary me-2" onClick={onHide}>
-            Cancel
-          </button>
-          <button className="btn btn-primary" onClick={handleAdd}>
-            Add
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// EditTaxProductGroupModal component
-const EditTaxProductGroupModal: React.FC<{
-  show: boolean;
-  onHide: () => void;
-  taxProductGroup: TaxProductGroup | null;
-  onEditTaxProductGroup: (id: string, updatedData: Omit<TaxProductGroup, 'id'>) => void;
-}> = ({ show, onHide, taxProductGroup, onEditTaxProductGroup }) => {
-  const [name, setName] = useState<string>(taxProductGroup?.name || '');
-
-  useEffect(() => {
-    if (taxProductGroup) {
-      setName(taxProductGroup.name);
-    }
-  }, [taxProductGroup]);
-
-  if (!show || !taxProductGroup) return null;
-
-  const handleEdit = () => {
-    onEditTaxProductGroup(taxProductGroup.id, { name });
-    onHide();
-  };
-
-  return (
-    <div className="modal" style={{ display: 'block', background: 'rgba(0,0,0,0.5)', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
-      <div className="modal-content" style={{ background: 'white', padding: '20px', maxWidth: '500px', margin: '100px auto', borderRadius: '8px' }}>
-        <h3>Edit Tax Product Group</h3>
-        <input
-          type="text"
-          className="form-control mb-3"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Tax Product Group Name"
-        />
-        <div className="d-flex justify-content-end">
-          <button className="btn btn-outline-secondary me-2" onClick={onHide}>
-            Cancel
-          </button>
-          <button className="btn btn-primary" onClick={handleEdit}>
-            Save
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const TaxProductGroupPage: React.FC = () => {
-  const [taxProductGroups, setTaxProductGroups] = useState<TaxProductGroup[]>(initialTaxProductGroups);
-  const [filteredTaxProductGroups, setFilteredTaxProductGroups] = useState<TaxProductGroup[]>(taxProductGroups);
-  const [selectedTaxProductGroup, setSelectedTaxProductGroup] = useState<TaxProductGroup | null>(null);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [showAddTaxProductGroupModal, setShowAddTaxProductGroupModal] = useState(false);
-  const [showEditTaxProductGroupModal, setShowEditTaxProductGroupModal] = useState(false);
-
-  // Define columns for react-table
-  const columns = React.useMemo<ColumnDef<TaxProductGroup>[]>(
-    () => [
-      
-      {
-        accessorKey: 'id',
-        header: 'Sr. No.',
-        size: 50,
-        cell: (info) => <span>{info.getValue<string>()}</span>,
-      },
-      {
-        accessorKey: 'name',
-        header: 'Tax Product Group Name',
-        size: 200,
-        cell: (info) => <span>{info.getValue<string>()}</span>,
-      },
-      {
-        id: 'actions',
-        header: 'Action',
-        size: 100,
-        cell: ({ row }) => (
-          <div className="d-flex gap-2">
-            <button
-              className="btn btn-sm"
-              style={{ backgroundColor: '#2E8B57', borderColor: '#2E8B57', padding: '4px 8px' }}
-              onClick={() => handleEditTaxProductGroupClick(row.original)}
-            >
-              <i className="fi fi-rr-edit" style={{ color: 'white' }}></i>
-            </button>
-            <button
-              className="btn btn-sm btn-danger"
-              style={{ padding: '4px 8px' }}
-              onClick={() => handleDeleteTaxProductGroup(row.original)}
-            >
-              <i className="fi fi-rr-trash"></i>
-            </button>
-          </div>
-        ),
-      },
-    ],
-    []
-  );
-
-  // Initialize react-table
-  const table = useReactTable({
-    data: filteredTaxProductGroups,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
+const TaxProductGroup: React.FC = () => {
+  const { user } = useAuthContext();
+  const [taxGroups, setTaxGroups] = useState<TaxGroup[]>([]);
+  const [hotels, setHotels] = useState<Hotel[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [brands, setBrands] = useState<Array<{ hotelid: number; hotel_name: string }>>([]);
+  const [formData, setFormData] = useState({
+    taxgroup_name: '',
+    hotelid: '',
+    status: '1'
   });
 
-  const handleAddTaxProductGroup = useCallback((taxProductGroupData: Omit<TaxProductGroup, 'id'>) => {
-    const newTaxProductGroup: TaxProductGroup = {
-      id: (taxProductGroups.length + 1).toString(),
-      name: taxProductGroupData.name,
-    };
+  // Fetch tax groups and hotels
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch tax groups using axios
+      const taxGroupsRes = await axios.get('/api/taxgroup');
+      setTaxGroups(taxGroupsRes.data.data?.taxGroups || []);
+      
+      // Fetch hotels using the common fetchhotelmasters function
+      await fetchhotelmasters(setHotels, user);   
+          
+          fetchBrands(user, setBrands);
+     
+      
+    } catch (err) {
+      setError('Failed to fetch data');
+      console.error('Error fetching data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    const updatedTaxProductGroups = [...taxProductGroups, newTaxProductGroup];
-    setTaxProductGroups(updatedTaxProductGroups);
-    setFilteredTaxProductGroups(updatedTaxProductGroups);
+  useEffect(() => {
+    fetchData();
+  }, [user]);
 
-    toast.success('Tax Product Group added successfully');
-  }, [taxProductGroups, filteredTaxProductGroups]);
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
 
-  const handleEditTaxProductGroup = useCallback((id: string, updatedData: Omit<TaxProductGroup, 'id'>) => {
-    const updatedTaxProductGroups = taxProductGroups.map((item) =>
-      item.id === id ? { ...item, name: updatedData.name } : item
-    );
-    setTaxProductGroups(updatedTaxProductGroups);
-    setFilteredTaxProductGroups(updatedTaxProductGroups);
+  const resetForm = () => {
+    setFormData({
+      taxgroup_name: '',
+      hotelid: '',
+      status: '1'
+    });
+    setEditingId(null);
+    setError(null);
+  };
 
-    if (selectedTaxProductGroup?.id === id) {
-      setSelectedTaxProductGroup({ ...selectedTaxProductGroup, name: updatedData.name });
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Validate required fields
+    if (!formData.taxgroup_name || !formData.hotelid || formData.status === '') {
+      setError('Please fill all required fields');
+      return;
     }
 
-    toast.success('Tax Product Group updated successfully');
-  }, [taxProductGroups, selectedTaxProductGroup]);
+    // Validate hotelid is a valid number
+    const hotelIdNum = parseInt(formData.hotelid);
+    if (isNaN(hotelIdNum)) {
+      setError('Please select a valid hotel');
+      return;
+    }
 
-  const handleEditTaxProductGroupClick = useCallback((taxProductGroup: TaxProductGroup) => {
-    setSelectedTaxProductGroup(taxProductGroup);
-    setShowEditTaxProductGroupModal(true);
-  }, []);
+    // Validate status is 0 or 1
+    const statusNum = parseInt(formData.status);
+    if (statusNum !== 0 && statusNum !== 1) {
+      setError('Please select a valid status');
+      return;
+    }
 
-  const handleDeleteTaxProductGroup = useCallback((taxProductGroup: TaxProductGroup) => {
-    Swal.fire({
-      title: 'Are you sure?',
-      text: 'You will not be able to recover this tax product group!',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#d33',
-      cancelButtonColor: '#3E97FF',
-      confirmButtonText: 'Yes, delete it!',
-    }).then((result) => {
-      if (result.isConfirmed) {
-        setLoading(true);
-
-        setTimeout(() => {
-          const updatedTaxProductGroups = taxProductGroups.filter((item) => item.id !== taxProductGroup.id);
-          setTaxProductGroups(updatedTaxProductGroups);
-          setFilteredTaxProductGroups(updatedTaxProductGroups);
-
-          if (updatedTaxProductGroups.length === 0) {
-            setFilteredTaxProductGroups([]);
-          }
-          if (selectedTaxProductGroup?.id === taxProductGroup.id) {
-            setSelectedTaxProductGroup(null);
-          }
-          setLoading(false);
-          toast.success('Tax Product Group deleted successfully');
-        }, 1500);
+    try {
+      let payload;
+      if (editingId) {
+        payload = {
+          ...formData,
+          taxgroup_name: formData.taxgroup_name.toString(),
+          hotelid: hotelIdNum,
+          status: statusNum,
+          updated_by_id: user?.id ?? 1,
+          updated_date: new Date().toISOString()
+        };
+        await axios.put(`/api/taxgroup/${editingId}`, payload);
+        setSuccess('Tax group updated successfully');
+      } else {
+        payload = {
+          ...formData,
+          taxgroup_name: formData.taxgroup_name.toString(),
+          hotelid: hotelIdNum,
+          status: statusNum,
+          created_by_id: user?.id ?? 1,
+          created_date: new Date().toISOString()
+        };
+        await axios.post('/api/taxgroup', payload);
+        setSuccess('Tax group created successfully');
       }
+
+      setShowModal(false);
+      resetForm();
+      fetchData();
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Operation failed');
+      console.error('Error submitting form:', err);
+    }
+  };
+
+  const handleEdit = (taxGroup: TaxGroup) => {
+    setFormData({
+      taxgroup_name: taxGroup.taxgroup_name,
+      hotelid: taxGroup.hotelid.toString(),
+      status: taxGroup.status.toString()
     });
-    
-  }, [taxProductGroups, selectedTaxProductGroup]);
+    setEditingId(taxGroup.taxgroupid);
+    setShowModal(true);
+  };
+
+  const handleDelete = async (id: number) => {
+    if (window.confirm('Are you sure you want to delete this tax group?')) {
+      try {
+        await axios.delete(`/api/taxgroup/${id}`);
+        setSuccess('Tax group deleted successfully');
+        fetchData();
+      } catch (err) {
+        setError('Failed to delete tax group');
+        console.error('Error deleting tax group:', err);
+      }
+    }
+  };
+
+  const getStatusBadge = (status: number) => {
+    return status === 1 ? (
+      <span className="badge bg-success">Active</span>
+    ) : (
+      <span className="badge bg-danger">Inactive</span>
+    );
+  };
 
   return (
-    <>
-      <TitleHelmet title="Tax Product Groups" />
-      <Card className="m-1">
-        <div className="d-flex justify-content-between align-items-center p-3 border-bottom">
-          <h4 className="mb-0">
-            <i className="bi bi-grid-fill me-2"></i>Tax Product Group
-          </h4>
-          <Button
-            style={{ backgroundColor: '#4682B4', borderColor: '#4682B4' }}
-            onClick={() => setShowAddTaxProductGroupModal(true)}
-          >
-            <i className="bi bi-plus"></i> Add New Tax Product Group
-          </Button>
-        </div>
-        <div className="p-3">
-          {loading ? (
-            <Stack className="align-items-center justify-content-center flex-grow-1 h-100">
-              <Preloader />
-            </Stack>
-          ) : (
-            <div style={{ width: '100%', overflowX: 'hidden' }}>
-              <Table
-                responsive
-                className="mb-0"
-                style={{ tableLayout: 'auto', width: '100%' }}
+    <div className="container-fluid">
+      <Row>
+        <Col>
+          <h2 className="page-title">Tax Product Group Management</h2>
+        </Col>
+      </Row>
+
+      {success && (
+        <Alert variant="success" dismissible onClose={() => setSuccess(null)}>
+          {success}
+        </Alert>
+      )}
+
+      {error && !showModal && (
+        <Alert variant="danger" dismissible onClose={() => setError(null)}>
+          {error}
+        </Alert>
+      )}
+
+      <Row>
+        <Col>
+          <Card>
+            <Card.Header className="d-flex justify-content-between align-items-center">
+              <h5 className="mb-0">Tax Groups</h5>
+              <Button 
+                variant="primary" 
+                onClick={() => {
+                  resetForm();
+                  setShowModal(true);
+                }}
               >
-                <thead>
-                  {table.getHeaderGroups().map((headerGroup) => (
-                    <tr key={headerGroup.id}>
-                      {headerGroup.headers.map((header) => (
-                        <th
-                          key={header.id}
-                          colSpan={header.colSpan}
-                          style={{
-                            width: header.column.columnDef.size,
-                            whiteSpace: 'normal',
-                            padding: '8px',
-                            textAlign: 'left',
-                          }}
-                        >
-                          {header.isPlaceholder ? null : (
-                            <div>{flexRender(header.column.columnDef.header, header.getContext())}</div>
-                          )}
-                        </th>
-                      ))}
+                Add New Tax Group
+              </Button>
+            </Card.Header>
+            <Card.Body>
+              {loading ? (
+                <div className="text-center">
+                  <div className="spinner-border" role="status">
+                    <span className="visually-hidden">Loading...</span>
+                  </div>
+                </div>
+              ) : (
+                <Table responsive hover>
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Tax Group Name</th>
+                      <th>Hotel</th>
+                      <th>Status</th>
+                      <th>Created By</th>
+                      <th>Created Date</th>
+                      <th>Actions</th>
                     </tr>
-                  ))}
-                </thead>
-                <tbody>
-                  {table.getRowModel().rows.map((row) => (
-                    <tr key={row.id}>
-                      {row.getVisibleCells().map((cell) => (
-                        <td
-                          key={cell.id}
-                          style={{
-                            whiteSpace: 'normal',
-                            padding: '8px',
-                            textAlign: 'left',
-                          }}
-                        >
-                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </thead>
+                  <tbody>
+                    {Array.isArray(taxGroups) && taxGroups.length > 0 ? (
+                      taxGroups.map((group) => (
+                        <tr key={group.taxgroupid}>
+                          <td>{group.taxgroupid}</td>
+                          <td>{group.taxgroup_name}</td>
+                          <td>{group.hotel_name}</td>
+                          <td>{getStatusBadge(group.status)}</td>
+                          <td>{group.created_by}</td>
+                          <td>{new Date(group.created_date).toLocaleDateString()}</td>
+                          <td>
+                            <Button 
+                              variant="warning" 
+                              size="sm" 
+                              className="me-2"
+                              onClick={() => handleEdit(group)}
+                            >
+                              Edit
+                            </Button>
+                            <Button 
+                              variant="danger" 
+                              size="sm"
+                              onClick={() => handleDelete(group.taxgroupid)}
+                            >
+                              Delete
+                            </Button>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={7} className="text-center">
+                          {loading ? 'Loading...' : 'No tax groups found'}
                         </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
-            </div>
+                      </tr>
+                    )}
+                  </tbody>
+                </Table>
+              )}
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Add/Edit Modal */}
+      <Modal show={showModal} onHide={() => setShowModal(false)} size="lg">
+        <Modal.Header closeButton>
+          <Modal.Title>
+            {editingId ? 'Edit Tax Group' : 'Add New Tax Group'}
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {error && showModal && (
+            <Alert variant="danger" dismissible onClose={() => setError(null)}>
+              {error}
+            </Alert>
           )}
-        </div>
-      </Card>
-      <AddTaxProductGroupModal
-        show={showAddTaxProductGroupModal}
-        onHide={() => setShowAddTaxProductGroupModal(false)}
-        onAddTaxProductGroup={handleAddTaxProductGroup}
-      />
-      <EditTaxProductGroupModal
-        show={showEditTaxProductGroupModal}
-        onHide={() => setShowEditTaxProductGroupModal(false)}
-        taxProductGroup={selectedTaxProductGroup}
-        onEditTaxProductGroup={handleEditTaxProductGroup}
-      />
-    </>
+          
+          <Form onSubmit={handleSubmit}>
+            <Row>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Tax Group Name <span className="text-danger">*</span></Form.Label>
+                  <Form.Control
+                    type="text"
+                    name="taxgroup_name"
+                    value={formData.taxgroup_name}
+                    onChange={handleInputChange}
+                    placeholder="Enter tax group name"
+                    required
+                  />
+                </Form.Group>
+              </Col>
+              
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Hotel <span className="text-danger">*</span></Form.Label>
+                  <Form.Select
+                    name="hotelid"
+                    value={formData.hotelid}
+                    onChange={handleInputChange}
+                    disabled={loading}
+                  >
+                    <option value="">Select Hotel</option>
+                    {brands.map((brand) => (
+                      <option key={brand.hotelid} value={brand.hotelid}>
+                        {brand.hotel_name}
+                      </option>
+                    ))}
+                  </Form.Select>
+                </Form.Group>
+              </Col>
+              {/* Removed Event Problem dropdown */}
+            </Row>
+            
+            <Row>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Status <span className="text-danger">*</span></Form.Label>
+                  <Form.Select
+                    name="status"
+                    value={formData.status}
+                    onChange={handleInputChange}
+                    required
+                  >
+                    <option value="1">Active</option>
+                    <option value="0">Inactive</option>
+                  </Form.Select>
+                </Form.Group>
+              </Col>
+            </Row>
+            
+            <div className="text-end">
+              <Button variant="secondary" onClick={() => setShowModal(false)} className="me-2">
+                Cancel
+              </Button>
+              <Button variant="primary" type="submit">
+                {editingId ? 'Update' : 'Create'}
+              </Button>
+            </div>
+          </Form>
+        </Modal.Body>
+      </Modal>
+    </div>
   );
 };
 
-export default TaxProductGroupPage;
+export default TaxProductGroup;  

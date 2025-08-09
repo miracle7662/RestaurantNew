@@ -188,9 +188,9 @@ const MENU_ITEMS: MenuItemTypes[] = [
         parentKey: 'apps',
       },
       {
-        key: 'TaxConfiguration',
-        label: 'TaxConfiguration',
-        url: '/apps/TaxConfiguration',
+        key: 'Resttaxmaster',
+        label: 'Resttaxmaster',
+        url: '/apps/Resttaxmaster',
         parentKey: 'apps',
       },
       {

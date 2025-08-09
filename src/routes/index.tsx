@@ -43,6 +43,7 @@ const BillPrintSettings = React.lazy(() => import('../views/apps/Masters/CommanM
 const HotelTypeMasters = React.lazy(() => import('../views/apps/Masters/CommanMasters/HotelTypeMasters'))
 const UserType  = React.lazy(() => import('../views/apps/Masters/CommanMasters/UserType'))
 
+
 // const ManagePosAccessLevel = React.lazy(() => import('../views/OutletConfigration/ManagePosAccessLevel'))
 // const Manage = React.lazy(() => import('./../views/OutletConfigration/Manage'))
 // const ManageStore = React.lazy(() => import('./../views/OutletConfigration/ManageStore'))
@@ -58,9 +59,9 @@ const KitchenSubCategories = React.lazy(() => import('../views/apps/Masters/Rest
 const KitchenCategories =React.lazy(() => import ('../views/apps/Masters/RestaurantMasters/KitchenCategories'))
 const OutletMenu = React.lazy(() => import('../views/apps/Masters/RestaurantMasters/OutletMenu'))
 const TaxProuductGroup = React.lazy(() => import('../views/apps/Masters/RestaurantMasters/TaxProuductGroup'))
-const TaxConfiguration = React.lazy(() => import ('../views/apps/Masters/RestaurantMasters/TaxConfiguration')) 
 const TableManagement = React.lazy(() => import('../views/apps/Masters/RestaurantMasters/TableManagement'))
 const UnitMaster = React.lazy(() => import('../views/apps/Masters/RestaurantMasters/UnitMaster'))
+const Resttaxmaster = React.lazy(() => import('../views/apps/Masters/RestaurantMasters/Resttaxmaster'))
 
 
 
@@ -363,9 +364,9 @@ const appsRoutes: RoutesProps = {
       route: PrivateRoute,
     },
      {
-      path: '/apps/TaxConfiguration',
-      name: 'TaxConfiguration',
-      element: <TaxConfiguration />,
+      path: '/apps/Resttaxmaster',
+      name: 'Resttaxmaster',
+      element: <Resttaxmaster />,
       route: PrivateRoute,
     },
      {
