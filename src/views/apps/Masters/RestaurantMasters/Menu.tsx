@@ -11,6 +11,7 @@ import {
   fetchData,
   fetchunitmaster,
   fetchBrands,
+  fetchOutletsForDropdown,
   KitchenCategoryItem,
   KitchenMainGroupItem,
   KitchenSubCategoryItem,
@@ -110,6 +111,11 @@ const getItemCategory = (itemGroupId: number | null, itemGroup: ItemGroupItem[])
   return categoryMap[cleanName] || 'All';
 };
 
+interface OutletData {
+  outletid: number;
+  outlet_name: string;
+}
+
 const Menu: React.FC = () => {
   const [data, setData] = useState<MenuItem[]>([]);
   const [cardItems, setCardItems] = useState<CardItem[]>([]);
@@ -123,10 +129,6 @@ const Menu: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<Category>('All');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  interface OutletData {
-    outletid: number;
-    outlet_name: string;
-  }
   const [outlets, setOutlets] = useState<OutletData[]>([]);
   const [brands, setBrands] = useState<any[]>([]);
   const { user } = useAuthContext();
@@ -196,12 +198,15 @@ const Menu: React.FC = () => {
   useEffect(() => {
     fetchMenu();
     fetchItemGroup(setItemGroup, setItemGroupId).catch(() => toast.error('Failed to fetch item groups'));
-    // Removed fetchOutletsForDropdown call due to missing function
-    // You may implement or replace this with appropriate function
-    // setOutlets([]); // Clear outlets or fetch from another source if available
-    // Removed fetchBrands call due to missing function
-    // setBrands([]); // Clear brands or fetch from another source if available
-  }, []);
+    fetchOutletsForDropdown(user, (data: OutletData[]) => {
+      const uniqueOutlets = Array.from(
+        new Map(data.map((outlet) => [outlet.outletid, outlet])).values()
+      );
+      setOutlets(uniqueOutlets);
+      setLoading(false);
+    });
+    fetchBrands(user, setBrands);
+  }, [user]);
 
   const handleCategoryClick = (group: ItemGroupItem) => {
     const category = getItemCategory(group.item_groupid, itemGroup);
@@ -581,12 +586,14 @@ const AddItemModal: React.FC<ModalProps> = ({ show, onHide, onSuccess, setData, 
           fetchBrands(user, setBrands),
           fetchData(setTaxGroups, setTaxgroupid),
           fetchunitmaster(setStockUnits),
-          // Removed fetchOutletsForDropdown call due to missing function
-          // You may implement or replace this with appropriate function
-          // setOutlets([]); // Clear outlets or fetch from another source if available
+          fetchOutletsForDropdown(user, (data: OutletData[]) => {
+            const uniqueOutlets = Array.from(
+              new Map(data.map((outlet) => [outlet.outletid, outlet])).values()
+            );
+            setOutlets(uniqueOutlets);
+            setOutletsLoaded(true);
+          }),
         ]);
-        setOutlets([]);
-        setOutletsLoaded(true);
       } catch (err) {
         console.error('Error loading data:', err);
         toast.error('Failed to load dropdown data');
@@ -596,6 +603,69 @@ const AddItemModal: React.FC<ModalProps> = ({ show, onHide, onSuccess, setData, 
     };
     loadData();
   }, [user]);
+<<<<<<< REPLACE
+<<<<<<< SEARCH
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        await Promise.all([
+          fetchKitchenCategory(setKitchenCategory, setKitchenCategoryId, mstmenu?.kitchen_category_id),
+          fetchKitchenMainGroup(setKitchenMainGroup, setKitchenMainGroupId, mstmenu?.kitchen_main_group_id?.toString()),
+          fetchKitchenSubCategory(setKitchenSubCategory, setKitchenSubCategoryId, mstmenu?.kitchen_sub_category_id?.toString()),
+          fetchItemGroup(setItemGroup, setItemGroupId, mstmenu?.item_group_id?.toString()),
+          fetchItemMainGroup(setItemMainGroup, setItemMainGroupId, mstmenu?.item_main_group_id?.toString()),
+          fetchBrands(user, setBrands),
+          fetchData(setTaxGroups, setTaxgroupid, mstmenu?.taxgroupid?.toString()),
+          fetchunitmaster(setStockUnits, setStockUnit, mstmenu?.stock_unit?.toString()),
+          fetchOutletsForDropdown(user, (data: OutletData[]) => {
+            const uniqueOutlets = Array.from(
+              new Map(data.map((outlet) => [outlet.outletid, outlet])).values()
+            );
+            setOutlets(uniqueOutlets);
+            setOutletsLoaded(true);
+          }),
+        ]);
+      } catch (err) {
+        console.error('Error loading data:', err);
+        toast.error('Failed to load dropdown data');
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, [user, mstmenu]);
+=======
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        await Promise.all([
+          fetchKitchenCategory(setKitchenCategory, setKitchenCategoryId, mstmenu?.kitchen_category_id),
+          fetchKitchenMainGroup(setKitchenMainGroup, setKitchenMainGroupId, mstmenu?.kitchen_main_group_id?.toString()),
+          fetchKitchenSubCategory(setKitchenSubCategory, setKitchenSubCategoryId, mstmenu?.kitchen_sub_category_id?.toString()),
+          fetchItemGroup(setItemGroup, setItemGroupId, mstmenu?.item_group_id?.toString()),
+          fetchItemMainGroup(setItemMainGroup, setItemMainGroupId, mstmenu?.item_main_group_id?.toString()),
+          fetchBrands(user, setBrands),
+          fetchData(setTaxGroups, setTaxgroupid, mstmenu?.taxgroupid?.toString()),
+          fetchunitmaster(setStockUnits, setStockUnit, mstmenu?.stock_unit?.toString()),
+          fetchOutletsForDropdown(user, (data: OutletData[]) => {
+            const uniqueOutlets = Array.from(
+              new Map(data.map((outlet) => [outlet.outletid, outlet])).values()
+            );
+            setOutlets(uniqueOutlets);
+            setOutletsLoaded(true);
+          }),
+        ]);
+      } catch (err) {
+        console.error('Error loading data:', err);
+        toast.error('Failed to load dropdown data');
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, [user, mstmenu]);
 
   const handleAddOutletRate = () => {
     if (!outletsLoaded) {
@@ -1242,8 +1312,8 @@ const EditItemModal: React.FC<ModalProps> = ({
           fetchItemMainGroup(setItemMainGroup, setItemMainGroupId, mstmenu?.item_main_group_id?.toString()),
           fetchBrands(user, setBrands),
           fetchData(setTaxGroups, setTaxgroupid, mstmenu?.taxgroupid?.toString()),
-          fetchunitmaster(setStockUnits, setStockUnit, mstmenu?.stock_unit?.toString()),
-          fetchOutletsForDropdown(user, (data) => {
+          fetchunitmaster(setStockUnits, setStockUnit),
+          fetchOutletsForDropdown(user, (data: OutletData[]) => {
             const uniqueOutlets = Array.from(
               new Map(data.map((outlet) => [outlet.outletid, outlet])).values()
             );
