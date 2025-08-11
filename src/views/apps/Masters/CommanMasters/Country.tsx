@@ -1,4 +1,4 @@
-<<<<<<< REPLACE
+
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Swal from 'sweetalert2';
 import { toast } from 'react-hot-toast';
@@ -6,6 +6,14 @@ import { Button, Card, Stack, Pagination, Table, Modal, Form } from 'react-boots
 import { Preloader } from '@/components/Misc/Preloader';
 import { ContactSearchBar, ContactSidebar } from '@/components/Apps/Contact';
 import TitleHelmet from '@/components/Common/TitleHelmet';
+import {
+  useReactTable,
+  getCoreRowModel,
+  getPaginationRowModel,
+  getFilteredRowModel,
+  ColumnDef,
+  flexRender,
+} from '@tanstack/react-table';
 
 // Interfaces
 interface CountryItem {
@@ -34,19 +42,14 @@ interface Label {
   gradient: string;
 }
 
-interface ModalProps {
+interface CountryModalProps {
   show: boolean;
   onHide: () => void;
+  country?: CountryItem | null;
   onSuccess: () => void;
+  onUpdateSelectedCountry?: (country: CountryItem) => void;
 }
 
-interface EditCountryModalProps extends ModalProps {
-  country: CountryItem | null;
-  onUpdateSelectedCountry: (country: CountryItem) => void;
-}
-
-
-//1
 // Utility Functions
 const debounce = <T extends (...args: any[]) => void>(func: T, wait: number) => {
   let timeout: NodeJS.Timeout;
@@ -54,6 +57,15 @@ const debounce = <T extends (...args: any[]) => void>(func: T, wait: number) => 
     clearTimeout(timeout);
     timeout = setTimeout(() => func(...args), wait);
   };
+};
+
+// Status badge for table
+const getStatusBadge = (status: number) => {
+  return status === 0 ? (
+    <span className="badge bg-success">Active</span>
+  ) : (
+    <span className="badge bg-danger">Inactive</span>
+  );
 };
 
 // Main Component
@@ -96,15 +108,15 @@ const Country: React.FC = () => {
       id: 'srNo',
       header: 'Sr No',
       size: 20,
-      cell: ({ row }) => <span>{row.index + 1}</span>,
+      cell: (cell) => <span>{cell.row.index + 1}</span>,
     },
     {
       accessorKey: 'country_code',
       header: 'Code',
       size: 10,
-      cell: ({ getValue }) => (
+      cell: (cell) => (
         <div className="avatar avatar-md rounded-circle bg-light text-muted">
-          {getValue<string>()}
+          {cell.getValue<string>()}
         </div>
       ),
     },
@@ -112,30 +124,31 @@ const Country: React.FC = () => {
       accessorKey: 'country_name',
       header: 'Country',
       size: 10,
-      cell: ({ getValue }) => <h6 className="mb-1">{getValue<string>()}</h6>,
+      cell: (cell) => <h6 className="mb-1">{cell.getValue<string>()}</h6>,
     },
-
-
     {
-        accessorKey: 'status',
-        header: 'Status',
-        size: 150,
-        cell: (info) => {
-          const statusValue = info.getValue<string | number>();
-          console.log('Status value:', statusValue, typeof statusValue); // Debug log
-          return <div style={{ textAlign: 'center' }}>{statusValue == '0' || statusValue === 0 ? 'Active' : 'Inactive'}</div>;
-        },
+      accessorKey: 'status',
+      header: 'Status',
+      size: 150,
+      cell: (cell) => {
+        const statusValue = cell.getValue<string | number>();
+        console.log('Status value:', statusValue, typeof statusValue); // Debug log
+        return getStatusBadge(Number(statusValue));
       },
+    },
     {
       id: 'actions',
       header: 'Actions',
       size: 30,
-      cell: ({ row }) => (
+      cell: (cell) => (
         <div className="d-flex gap-2">
           <Button
             size="sm"
             variant="success"
-            onClick={() => setShowEditModal(true)}
+            onClick={() => {
+              setSelectedCountry(cell.row.original);
+              setShowEditModal(true);
+            }}
             style={{ padding: '4px 8px' }}
           >
             <i className="fi fi-rr-edit" />
@@ -143,7 +156,7 @@ const Country: React.FC = () => {
           <Button
             size="sm"
             variant="danger"
-            onClick={() => handleDeleteCountry(row.original)}
+            onClick={() => handleDeleteCountry(cell.row.original)}
             style={{ padding: '4px 8px' }}
           >
             <i className="fi fi-rr-trash" />
@@ -151,7 +164,6 @@ const Country: React.FC = () => {
         </div>
       ),
     },
-    
   ], []);
 
   // Initialize table
@@ -189,14 +201,23 @@ const Country: React.FC = () => {
   );
 
   // Search handler
-  const handleSearch = useCallback(
+  const handleSearch = (value: string) => {
+    setSearchTerm(value); // Update input immediately
+    filterCountries(value); // Debounced filtering
+  };
+
+  const filterCountries = useCallback(
     debounce((value: string) => {
-      setSearchTerm(value);
-      const filtered = countryItems.filter((item) =>
-        item.country_name.toLowerCase().includes(value.toLowerCase())
-      );
+      const searchValue = value.toLowerCase();
+      const filtered = countryItems.filter((item) => {
+        return (
+          item.country_name.toLowerCase().includes(searchValue) ||
+          item.country_code.toLowerCase().includes(searchValue) ||
+          item.country_capital.toLowerCase().includes(searchValue)
+        );
+      });
       setFilteredCountries(filtered);
-    }, 300),
+    }, 500),
     [countryItems]
   );
 
@@ -314,9 +335,9 @@ const Country: React.FC = () => {
           <div className="apps-sidebar-content" style={{ display: 'flex', flexDirection: 'column', height: '100%', minWidth: '250px' }}>
             <Table responsive size="sm" className="mb-0" style={{ minWidth: '300px' }}>
               <thead>
-                {table.getHeaderGroups().map((headerGroup) => (
+                {table.getHeaderGroups().map((headerGroup: any) => (
                   <tr key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => (
+                    {headerGroup.headers.map((header: any) => (
                       <th key={header.id} style={{ width: header.column.columnDef.size }}>
                         {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                       </th>
@@ -324,23 +345,23 @@ const Country: React.FC = () => {
                   </tr>
                 ))}
               </thead>
-<tbody>
-  {table.getRowModel().rows.map((row) => {
-    const isActive = row.original.status === 0 || row.original.status === '0';
-    return (
-      <tr
-        key={row.id}
-        className={selectedCountry?.countryid === row.original.countryid ? 'active' : ''}
-        style={{ color: isActive ? 'black' : 'gray', fontWeight: isActive ? 'bold' : 'normal' }}
-        onClick={() => handleCountryItemClick(row.original)}
-      >
-        {row.getVisibleCells().map((cell) => (
-          <td key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>
-        ))}
-      </tr>
-    );
-  })}
-</tbody>
+              <tbody>
+                {table.getRowModel().rows.map((row: any) => {
+                  const isActive = row.original.status === 0 || row.original.status === '0';
+                  return (
+                    <tr
+                      key={row.id}
+                      className={selectedCountry?.countryid === row.original.countryid ? 'active' : ''}
+                      style={{ color: isActive ? 'black' : 'gray', fontWeight: isActive ? 'bold' : 'normal' }}
+                      onClick={() => handleCountryItemClick(row.original)}
+                    >
+                      {row.getVisibleCells().map((cell: any) => (
+                        <td key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>
+                      ))}
+                    </tr>
+                  );
+                })}
+              </tbody>
             </Table>
             <Stack className="p-2 border-top d-flex flex-row align-items-center justify-content-between" style={{ gap: '6px', padding: '8px 12px' }}>
               <select
@@ -445,8 +466,8 @@ const Country: React.FC = () => {
         </div>
         <div className="custom-backdrop" onClick={() => setSidebarMiniToggle(false)} />
       </Card>
-      <AddCountryModal show={showAddModal} onHide={() => setShowAddModal(false)} onSuccess={fetchCountries} />
-      <EditCountryModal
+      <CountryModal show={showAddModal} onHide={() => setShowAddModal(false)} onSuccess={fetchCountries} />
+      <CountryModal
         show={showEditModal}
         onHide={() => setShowEditModal(false)}
         country={selectedCountry}
@@ -456,16 +477,32 @@ const Country: React.FC = () => {
     </>
   );
 };
-// 2
-// Add Country Modal
-const AddCountryModal: React.FC<ModalProps> = ({ show, onHide, onSuccess }) => {
+
+// CountryModal Component
+const CountryModal: React.FC<CountryModalProps> = ({ show, onHide, onSuccess, country, onUpdateSelectedCountry }) => {
   const [country_name, setName] = useState('');
   const [country_code, setCode] = useState('');
   const [country_capital, setCapital] = useState('');
+  const [status, setStatus] = useState('Active');
   const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState('Active'); // Default to 'Active'
 
-  const handleAdd = async () => {
+  const isEditMode = !!country;
+
+  useEffect(() => {
+    if (country && isEditMode) {
+      setName(country.country_name);
+      setCode(country.country_code);
+      setCapital(country.country_capital);
+      setStatus(String(country.status) === '0' ? 'Active' : 'Inactive');
+    } else {
+      setName('');
+      setCode('');
+      setCapital('');
+      setStatus('Active');
+    }
+  }, [country, show]);
+
+  const handleSubmit = async () => {
     if (!country_name || !country_code || !country_capital || !status) {
       toast.error('All fields are required');
       return;
@@ -474,32 +511,47 @@ const AddCountryModal: React.FC<ModalProps> = ({ show, onHide, onSuccess }) => {
     setLoading(true);
     try {
       const statusValue = status === 'Active' ? 0 : 1;
-      const currentDate = new Date().toISOString(); // Timestamp: e.g., 2025-07-01T04:00:00.000Z
+      const currentDate = new Date().toISOString();
       const payload = {
         country_name,
         country_code,
         country_capital,
         status: statusValue,
-       
-        created_by_id: 1, // Default to null (or 0 if backend requires)
-        created_date: currentDate,
+        ...(isEditMode
+          ? { countryid: country!.countryid, updated_by_id: '2', updated_date: currentDate }
+          : { created_by_id: '1', created_date: currentDate }),
       };
-      console.log('Sending to backend:', payload); // Debug log
-      const res = await fetch('http://localhost:3001/api/countries', {
-        method: 'POST',
+
+      const url = isEditMode
+        ? `http://localhost:3001/api/countries/${country!.countryid}`
+        : 'http://localhost:3001/api/countries';
+      const method = isEditMode ? 'PUT' : 'POST';
+
+      console.log('Sending to backend:', payload);
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
+
       if (res.ok) {
-        toast.success('Country added successfully');
-        setName(''); 
-        setCode('');
-        setCapital('');
-        setStatus('Active'); // Reset to 'Active' after successful add
+        toast.success(`Country ${isEditMode ? 'updated' : 'added'} successfully`);
+        if (isEditMode && country && onUpdateSelectedCountry) {
+          const updatedCountry = {
+            ...country,
+            country_name,
+            country_code,
+            country_capital,
+            status: statusValue,
+            updated_by_id: '2',
+            updated_date: currentDate,
+          };
+          onUpdateSelectedCountry(updatedCountry);
+        }
         onSuccess();
         onHide();
       } else {
-        toast.error('Failed to add country');
+        toast.error(`Failed to ${isEditMode ? 'update' : 'add'} country`);
       }
     } catch {
       toast.error('Something went wrong');
@@ -511,7 +563,7 @@ const AddCountryModal: React.FC<ModalProps> = ({ show, onHide, onSuccess }) => {
   return (
     <Modal show={show} onHide={onHide}>
       <Modal.Header closeButton>
-        <Modal.Title>Add New Country</Modal.Title>
+        <Modal.Title>{isEditMode ? 'Edit Country' : 'Add New Country'}</Modal.Title>
       </Modal.Header>
       <Modal.Body>
         <Form>
@@ -532,18 +584,17 @@ const AddCountryModal: React.FC<ModalProps> = ({ show, onHide, onSuccess }) => {
               <Form.Group>
                 <Form.Label>Country Code <span style={{ color: 'red' }}>*</span></Form.Label>
                 <Form.Control
-                  type="number"
+                  type="text"
                   placeholder="Enter country code"
                   value={country_code}
-                  onChange={(e) => setCode(e.target.value)}
-                  maxLength={3}
-                  min="0"
-                  max="999"
-                  style={{ borderColor: '#ccc' }}
-                  onInput={(e) => {
-                    const target = e.target as HTMLInputElement;
-                    target.value = target.value.replace(/[^0-9]/g, '').slice(0, 3);
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (value.length <= 3 && /^[0-9]*$/.test(value)) {
+                      setCode(value);
+                    }
                   }}
+                  maxLength={3}
+                  style={{ borderColor: '#ccc' }}
                 />
               </Form.Group>
             </div>
@@ -551,7 +602,7 @@ const AddCountryModal: React.FC<ModalProps> = ({ show, onHide, onSuccess }) => {
           <div className="row">
             <div className="col-md-6 mb-3">
               <Form.Group>
-                <Form.Label>Capital City</Form.Label>
+                <Form.Label>Capital City <span style={{ color: 'red' }}>*</span></Form.Label>
                 <Form.Control
                   type="text"
                   placeholder="Enter capital city"
@@ -563,7 +614,7 @@ const AddCountryModal: React.FC<ModalProps> = ({ show, onHide, onSuccess }) => {
             </div>
             <div className="col-md-6 mb-3">
               <Form.Group>
-                <Form.Label>Status</Form.Label>
+                <Form.Label>Status <span style={{ color: 'red' }}>*</span></Form.Label>
                 <Form.Select
                   value={status}
                   onChange={(e) => setStatus(e.target.value)}
@@ -581,152 +632,8 @@ const AddCountryModal: React.FC<ModalProps> = ({ show, onHide, onSuccess }) => {
         <Button variant="secondary" onClick={onHide} disabled={loading}>
           Cancel
         </Button>
-        <Button variant="primary" onClick={handleAdd} disabled={loading}>
-          {loading ? 'Adding...' : 'Save'}
-        </Button>
-      </Modal.Footer>
-    </Modal>
-  );
-};
-
-//3
-
-// Edit Country Modal
-const EditCountryModal: React.FC<EditCountryModalProps> = ({ show, onHide, country, onSuccess, onUpdateSelectedCountry }) => {
-  const [country_name, setName] = useState('');
-  const [country_code, setCode] = useState('');
-  const [country_capital, setCapital] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState('');
-  
-  
-
-  useEffect(() => {
-    if (country) {
-      setName(country.country_name);
-      setCode(country.country_code);
-      setCapital(country.country_capital);
-      setStatus(String(country.status) === '0' ? 'Active' : 'Inactive');
-      console.log('Edit country status:', country.status, typeof country.status); // Debug log
-    }
-  }, [country]);
-
-  const handleEdit = async () => {
-    if (!country_name || !country_code || !country_capital || !status || !country) {
-      toast.error('All fields are required');
-      return;
-    }
-
-    setLoading(true);
-    try {
-       const statusValue = status === 'Active' ? 0 : 1;
-      const currentDate = new Date().toISOString(); // Timestamp: e.g., 2025-07-01T04:51:00.000Z
-      const payload = {
-        country_name,
-        country_code,
-        country_capital,
-        status: statusValue,
-        countryid: country.countryid, // Ensure this is included
-        updated_by_id: '2', // Default to "0" (string)
-        updated_date: currentDate,
-       
-      };
-      console.log('Sending to backend:', payload); // Debug log
-      const res = await fetch(`http://localhost:3001/api/countries/${country.countryid}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (res.ok) {
-        toast.success('Country updated successfully');
-        onSuccess();
-        onUpdateSelectedCountry({ ...country, country_name, country_code, country_capital });
-        onHide();
-      } else {
-        toast.error('Failed to update country');
-      }
-    } catch {
-      toast.error('Something went wrong');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <Modal show={show} onHide={onHide}>
-      <Modal.Header closeButton>
-        <Modal.Title>Edit Country</Modal.Title>
-      </Modal.Header>
-      <Modal.Body>
-        <Form>
-          <div className="row">
-            <div className="col-md-6 mb-3">
-              <Form.Group>
-                <Form.Label>Country Name <span style={{ color: 'red' }}>*</span></Form.Label>
-                <Form.Control
-                  type="text"
-                  placeholder="Enter country name"
-                  value={country_name}
-                  onChange={(e) => setName(e.target.value)}
-                  style={{ borderColor: '#ccc' }}
-                />
-              </Form.Group>
-            </div>
-            <div className="col-md-6 mb-3">
-              <Form.Group>
-                <Form.Label>Country Code <span style={{ color: 'red' }}>*</span></Form.Label>
-                <Form.Control
-                  type="number"
-                  placeholder="Enter country code"
-                  value={country_code}
-                  onChange={(e) => setCode(e.target.value)}
-                  maxLength={3}
-                  min="0"
-                  max="999"
-                  style={{ borderColor: '#ccc' }}
-                  onInput={(e) => {
-                    const target = e.target as HTMLInputElement;
-                    target.value = target.value.replace(/[^0-9]/g, '').slice(0, 3);
-                  }}
-                />
-              </Form.Group>
-            </div>
-          </div>
-          <div className="row">
-            <div className="col-md-6 mb-3">
-              <Form.Group>
-                <Form.Label>Capital City</Form.Label>
-                <Form.Control
-                  type="text"
-                  placeholder="Enter capital city"
-                  value={country_capital}
-                  onChange={(e) => setCapital(e.target.value)}
-                  style={{ borderColor: '#ccc' }}
-                />
-              </Form.Group>
-            </div>
-            <div className="col-md-6 mb-3">
-              <Form.Group>
-                <Form.Label>Status</Form.Label>
-                <Form.Select
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value)}
-                  style={{ borderColor: '#ccc' }}
-                >
-                  <option value="Active">Active</option>
-                  <option value="Inactive">Inactive</option>
-                </Form.Select>
-              </Form.Group>
-            </div>
-          </div>
-        </Form>
-      </Modal.Body>
-      <Modal.Footer>
-        <Button variant="secondary" onClick={onHide} disabled={loading}>
-          Cancel
-        </Button>
-        <Button variant="primary" onClick={handleEdit} disabled={loading}>
-          {loading ? 'Updating...' : 'Save'}
+        <Button variant="primary" onClick={handleSubmit} disabled={loading}>
+          {loading ? (isEditMode ? 'Updating...' : 'Adding...') : 'Save'}
         </Button>
       </Modal.Footer>
     </Modal>

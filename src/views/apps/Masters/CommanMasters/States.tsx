@@ -3,7 +3,7 @@ import Swal from 'sweetalert2';
 import { toast } from 'react-hot-toast';
 import { Preloader } from '@/components/Misc/Preloader';
 import { Button, Card, Stack, Pagination, Table, Modal, Form } from 'react-bootstrap';
-import { ContactSearchBar } from '@/components/Apps/Contact';
+import { ContactSearchBar, ContactSidebar } from '@/components/Apps/Contact';
 import TitleHelmet from '@/components/Common/TitleHelmet';
 import {
   useReactTable,
@@ -15,7 +15,7 @@ import {
 } from '@tanstack/react-table';
 import { fetchCountries, CountryItem } from '../../../../utils/commonfunction';
 
-// Define state data type
+// Interfaces
 interface StateItem {
   stateid: string;
   state_name: string;
@@ -23,47 +23,80 @@ interface StateItem {
   state_capital: string;
   countryid: string;
   country_name?: string;
-  status: string | number;
+  status: number;
   created_by_id: string;
   created_date: string;
   updated_by_id: string;
   updated_date: string;
 }
 
+interface Category {
+  name: string;
+  value: string;
+  icon: string;
+  badge?: number;
+  badgeClassName?: string;
+}
 
+interface Label {
+  name: string;
+  value: string;
+  gradient: string;
+}
 
+interface StateModalProps {
+  show: boolean;
+  onHide: () => void;
+  state?: StateItem | null;
+  onSuccess: () => void;
+  onUpdateSelectedState?: (state: StateItem) => void;
+}
 
-// Debounce utility function
-const debounce = (func: (...args: any[]) => void, wait: number) => {
+// Utility Functions
+const debounce = <T extends (...args: any[]) => void>(func: T, wait: number) => {
   let timeout: NodeJS.Timeout;
-  return (...args: any[]) => {
+  return (...args: Parameters<T>) => {
     clearTimeout(timeout);
     timeout = setTimeout(() => func(...args), wait);
   };
 };
+
+// Status badge for table
+const getStatusBadge = (status: number) => {
+  return status === 0 ? (
+    <span className="badge bg-success">Active</span>
+  ) : (
+    <span className="badge bg-danger">Inactive</span>
+  );
+};
+
+// Main Component
 const States: React.FC = () => {
   const [stateItems, setStateItems] = useState<StateItem[]>([]);
-  const [selectedCategory, 
-  ] = useState<string>('alls');
+  const [selectedCategory, setSelectedCategory] = useState<string>('alls');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [filteredStates, setFilteredStates] = useState<StateItem[]>([]);
   const [selectedState, setSelectedState] = useState<StateItem | null>(null);
   const [selectedStateIndex, setSelectedStateIndex] = useState<number>(-1);
-  const [loading] = useState<boolean>(false);
-  const [showAddStateModal, setShowAddStateModal] = useState(false);
-  const [showEditStateModal, setShowEditStateModal] = useState(false);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [sidebarLeftToggle, setSidebarLeftToggle] = useState<boolean>(false);
   const [sidebarMiniToggle, setSidebarMiniToggle] = useState<boolean>(false);
   const [containerToggle, setContainerToggle] = useState<boolean>(false);
 
+  // Fetch states from API
   const fetchStates = async () => {
+    setLoading(true);
     try {
       const res = await fetch('http://localhost:3001/api/states');
       const data = await res.json();
       setStateItems(data);
       setFilteredStates(data);
-    } catch (err) {
+    } catch {
       toast.error('Failed to fetch states');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -71,192 +104,207 @@ const States: React.FC = () => {
     fetchStates();
   }, []);
 
-  // Define columns for react-table with explicit widths
-  const columns = useMemo<ColumnDef<StateItem>[]>(
-    () => [
-      {
-        id: 'srNo',
-        header: 'Sr No',
-        size: 10,
-        cell: ({ row }) => <span>{row.index + 1}</span>,
-      },
-      {
-        accessorKey: 'state_code',
-        header: 'Code',
-        size: 10,
-        cell: (info) => (
-          <div className="avatar avatar-md rounded-circle bg-light text-muted">
-            {info.getValue<string>()}
-          </div>
-        ),
-      },
-      {
-        accessorKey: 'state_name',
-        header: 'State',
-        size: 10,
-        cell: (info) => <h6 className="mb-1">{info.getValue<string>()}</h6>,
-      },
-      {
-        accessorKey: 'status',
-        header: 'Status',
-        size: 15,
-        cell: (info) => {
-          const statusValue = info.getValue<string | number>();
-          return <div style={{ textAlign: 'center' }}>{statusValue == '0' || statusValue === 0 ? 'Active' : 'Inactive'}</div>;
-        },
-      },
-      {
-        id: 'actions',
-        header: 'Actions',
-        size: 30,
-        cell: ({ row }) => (
-          <div className="d-flex gap-2">
-            <button
-              className="btn btn-sm btn-success"
-              onClick={() => handleEditStateClick(row.original)}
-              style={{ padding: '4px 8px' }}
-            >
-              <i className="fi fi-rr-edit"></i>
-            </button>
-            <button
-              className="btn btn-sm btn-danger"
-              onClick={() => handleDeleteState(row.original)}
-              style={{ padding: '4px 8px' }}
-            >
-              <i className="fi fi-rr-trash"></i>
-            </button>
-          </div>
-        ),
-      },
-    ],
-    [],
-  );
+  // Table columns
+  const columns = useMemo<ColumnDef<StateItem>[]>(() => [
+    {
+      id: 'srNo',
+      header: 'Sr No',
+      size: 20,
+      cell: (cell) => <span>{cell.row.index + 1}</span>,
+    },
+    {
+      accessorKey: 'state_code',
+      header: 'Code',
+      size: 10,
+      cell: (cell) => (
+        <div className="avatar avatar-md rounded-circle bg-light text-muted">
+          {cell.getValue<string>()}
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'state_name',
+      header: 'State',
+      size: 10,
+      cell: (cell) => <h6 className="mb-1">{cell.getValue<string>()}</h6>,
+    },
 
-  // Initialize react-table with pagination
+    {
+      accessorKey: 'status',
+      header: 'Status',
+      size: 150,
+      cell: (cell) => {
+        const statusValue = cell.getValue<string | number>();
+        return getStatusBadge(Number(statusValue));
+      },
+    },
+    {
+      id: 'actions',
+      header: 'Actions',
+      size: 30,
+      cell: (cell) => (
+        <div className="d-flex gap-2">
+          <Button
+            size="sm"
+            variant="success"
+            onClick={() => {
+              setSelectedState(cell.row.original);
+              setShowEditModal(true);
+            }}
+            style={{ padding: '4px 8px' }}
+          >
+            <i className="fi fi-rr-edit" />
+          </Button>
+          <Button
+            size="sm"
+            variant="danger"
+            onClick={() => handleDeleteState(cell.row.original)}
+            style={{ padding: '4px 8px' }}
+          >
+            <i className="fi fi-rr-trash" />
+          </Button>
+        </div>
+      ),
+    },
+  ], []);
+
+  // Initialize table
   const table = useReactTable({
     data: filteredStates,
     columns,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    initialState: {
-      pagination: {
-        pageSize: 10,
-      },
-    },
+    initialState: { pagination: { pageSize: 10 } },
   });
 
-  useEffect(() => {
-    setFilteredStates(stateItems.filter((item) => item));
-  }, [stateItems]);
-
-  const handleSearch = useCallback(
-    debounce((value: string) => {
-      setSearchTerm(value);
-      const filteredStatesByCategory = stateItems.filter((item) => item);
-      const filteredStatesBySearch = filteredStatesByCategory.filter((item) =>
-        item.state_name.toLowerCase().includes(value.toLowerCase()),
-      );
-      setFilteredStates(filteredStatesBySearch);
-    }, 300),
-    [stateItems, selectedCategory],
+  // Sidebar categories and labels
+  const categories: Category[] = useMemo(
+    () => [
+      {
+        name: 'States',
+        value: 'alls',
+        icon: 'fi-rr-map',
+        badge: stateItems.length,
+        badgeClassName: 'bg-primary-subtle text-primary',
+      },
+    ],
+    [stateItems.length]
   );
 
-  // const handleCategoryChange = useCallback(
-  //   (categoryValue: string) => {
-  //     setSelectedCategory(categoryValue);
-  //     setSearchTerm('');
-  //     setFilteredStates(stateItems.filter((item) => item));
-  //   },
-  //   [stateItems],
-  // );
+  const labels: Label[] = useMemo(
+    () => [
+      { name: 'North Region', value: 'north', gradient: 'success' },
+      { name: 'South Region', value: 'south', gradient: 'warning' },
+      { name: 'East Region', value: 'east', gradient: 'danger' },
+      { name: 'West Region', value: 'west', gradient: 'info' },
+    ],
+    []
+  );
 
-  const handleStateItemClick = useCallback((mststatemaster: StateItem) => {
-    setSelectedState(mststatemaster);
+  // Search handler
+  const handleSearch = (value: string) => {
+    setSearchTerm(value);
+    filterStates(value);
+  };
+
+  const filterStates = useCallback(
+    debounce((value: string) => {
+      const searchValue = value.toLowerCase();
+      const filtered = stateItems.filter((item) => {
+        return (
+          item.state_name.toLowerCase().includes(searchValue) ||
+          item.state_code.toLowerCase().includes(searchValue) ||
+          item.state_capital.toLowerCase().includes(searchValue) ||
+          (item.country_name && item.country_name.toLowerCase().includes(searchValue))
+        );
+      });
+      setFilteredStates(filtered);
+    }, 500),
+    [stateItems]
+  );
+
+  // Category change handler
+  const handleCategoryChange = useCallback(
+    (categoryValue: string) => {
+      setSelectedCategory(categoryValue);
+      setSearchTerm('');
+      setFilteredStates(stateItems);
+    },
+    [stateItems]
+  );
+
+  // State selection handler
+  const handleStateItemClick = useCallback((state: StateItem) => {
+    setSelectedState(state);
     setContainerToggle(true);
   }, []);
 
-  const handleEditStateClick = useCallback((mststatemaster: StateItem) => {
-    setSelectedState(mststatemaster);
-    setShowEditStateModal(true);
-  }, []);
+  // Delete state handler
+  const handleDeleteState = async (state: StateItem) => {
+    const result = await Swal.fire({
+      title: 'Are you sure?',
+      text: 'You will not be able to recover this state!',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3E97FF',
+      confirmButtonText: 'Yes, delete it!',
+    });
 
-  const handleDeleteState = useCallback(
-    async (mststatemaster: StateItem) => {
-      const res = await Swal.fire({
-        title: 'Are you sure?',
-        text: 'You will not be able to recover this state!',
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#d33',
-        cancelButtonColor: '#3E97FF',
-        confirmButtonText: 'Yes, delete it!',
-      });
-
-      if (res.isConfirmed) {
-        try {
-          await fetch(`http://localhost:3001/api/states/${mststatemaster.stateid}`, { method: 'DELETE' });
-          setSelectedState(null);
-          setContainerToggle(false);
-          setStateItems((prev) => prev.filter((s) => s.stateid !== mststatemaster.stateid));
-          setFilteredStates((prev) => prev.filter((s) => s.stateid !== mststatemaster.stateid));
-          if (selectedState && selectedState.stateid === mststatemaster.stateid) {
-            setSelectedStateIndex(-1);
-          }
-          toast.success('State deleted successfully');
-          await fetchStates();
-        } catch (error) {
-          toast.error('Failed to delete state');
-          console.error('Deletion error:', error);
-        }
+    if (result.isConfirmed) {
+      try {
+        await fetch(`http://localhost:3001/api/states/${state.stateid}`, { method: 'DELETE' });
+        toast.success('State deleted successfully');
+        fetchStates();
+        setSelectedState(null);
+        setContainerToggle(false);
+      } catch {
+        toast.error('Failed to delete state');
       }
-    },
-    [selectedState, fetchStates],
-  );
+    }
+  };
 
+  // Update selected state index
   useEffect(() => {
-    const index = filteredStates.findIndex(
-      (mststatemaster) => mststatemaster.stateid === (selectedState?.stateid || ''),
-    );
+    const index = filteredStates.findIndex((state) => state.stateid === selectedState?.stateid);
     setSelectedStateIndex(index);
   }, [filteredStates, selectedState]);
 
+  // Navigation handlers
   const handleNext = useCallback(() => {
     if (selectedStateIndex < filteredStates.length - 1) {
-      const nextIndex = selectedStateIndex + 1;
-      setSelectedState(filteredStates[nextIndex]);
+      setSelectedState(filteredStates[selectedStateIndex + 1]);
       setContainerToggle(true);
     }
   }, [selectedStateIndex, filteredStates]);
 
   const handlePrev = useCallback(() => {
     if (selectedStateIndex > 0) {
-      const prevIndex = selectedStateIndex - 1;
-      setSelectedState(filteredStates[prevIndex]);
+      setSelectedState(filteredStates[selectedStateIndex - 1]);
       setContainerToggle(true);
     }
   }, [selectedStateIndex, filteredStates]);
 
+  // Card classes
   const cardClasses = useMemo(() => {
-    let classes = 'apps-card';
-    if (sidebarMiniToggle) classes += ' apps-sidebar-mini-toggle';
-    if (containerToggle) classes += ' apps-container-toggle';
-    if (sidebarLeftToggle) classes += ' apps-sidebar-left-toggle';
-    return classes;
+    const classes = ['apps-card'];
+    if (sidebarMiniToggle) classes.push('apps-sidebar-mini-toggle');
+    if (containerToggle) classes.push('apps-container-toggle');
+    if (sidebarLeftToggle) classes.push('apps-sidebar-left-toggle');
+    return classes.join(' ');
   }, [sidebarMiniToggle, containerToggle, sidebarLeftToggle]);
 
+  // Handle window resize
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth <= 991.98 && sidebarLeftToggle) {
         setSidebarLeftToggle(false);
       }
     };
-
     window.addEventListener('resize', handleResize);
     handleResize();
-    return () => {
-      window.removeEventListener('resize', handleResize);
-    };
+    return () => window.removeEventListener('resize', handleResize);
   }, [sidebarLeftToggle]);
 
   const handleMenuClick = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
@@ -269,85 +317,61 @@ const States: React.FC = () => {
       <TitleHelmet title="States" />
       <style>
         {`
-          .apps-card {
-            transition: all 0.3s ease-in-out;
-          }
+          .apps-card,
           .apps-sidebar-left,
           .apps-container {
-            transition: width 0.3s ease-in-out;
+            transition: all 0.3s ease-in-out;
           }
         `}
       </style>
       <Card className={cardClasses}>
-        <div className="apps-sidebar apps-sidebar-left apps-sidebar-md" style={{ minWidth: '580px' }}>
+        <div className="apps-sidebar-mini w-70">
+          <ContactSidebar
+            categories={categories}
+            labels={labels}
+            selectedCategory={selectedCategory}
+            handleCategoryChange={handleCategoryChange}
+            setSidebarMiniToggle={setSidebarMiniToggle}
+          />
+        </div>
+        <div className="apps-sidebar apps-sidebar-left apps-sidebar-md" style={{ minWidth: '530px' }}>
           <ContactSearchBar searchTerm={searchTerm} handleSearch={handleSearch} />
-          <div
-            className="apps-sidebar-content"
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              height: '100%',
-              minWidth: '250px',
-            }}
-          >
-            <div className="d-flex justify-content-between align-items-center mb-0 px-1">
-              <span className="text-muted fw-bold"></span>
-              <span className="text-muted fw-bold"></span>
-            </div>
-            <div style={{ marginLeft: '10px' }}>
-              <Table responsive size="sm" className="mb-0" style={{ minWidth: '300px' }}>
-                <thead>
-                  {table.getHeaderGroups().map((headerGroup) => (
-                    <tr key={headerGroup.id}>
-                      {headerGroup.headers.map((header) => (
-                        <th
-                          key={header.id}
-                          colSpan={header.colSpan}
-                          style={{ width: header.column.columnDef.size }}
-                        >
-                          {header.isPlaceholder ? null : (
-                            <div>{flexRender(header.column.columnDef.header, header.getContext())}</div>
-                          )}
-                        </th>
-                      ))}
-                    </tr>
-                  ))}
-                </thead>
-                <tbody>
-                  {table.getRowModel().rows.map((row) => (
+          <div className="apps-sidebar-content" style={{ display: 'flex', flexDirection: 'column', height: '100%', minWidth: '250px' }}>
+            <Table responsive size="sm" className="mb-0" style={{ minWidth: '300px' }}>
+              <thead>
+                {table.getHeaderGroups().map((headerGroup: any) => (
+                  <tr key={headerGroup.id}>
+                    {headerGroup.headers.map((header: any) => (
+                      <th key={header.id} style={{ width: header.column.columnDef.size }}>
+                        {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                      </th>
+                    ))}
+                  </tr>
+                ))}
+              </thead>
+              <tbody>
+                {table.getRowModel().rows.map((row: any) => {
+                  const isActive = row.original.status === 0 || row.original.status === '0';
+                  return (
                     <tr
                       key={row.id}
                       className={selectedState?.stateid === row.original.stateid ? 'active' : ''}
+                      style={{ color: isActive ? 'black' : 'gray', fontWeight: isActive ? 'bold' : 'normal' }}
                       onClick={() => handleStateItemClick(row.original)}
                     >
-                      {row.getVisibleCells().map((cell) => (
+                      {row.getVisibleCells().map((cell: any) => (
                         <td key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>
                       ))}
                     </tr>
-                  ))}
-                </tbody>
-              </Table>
-            </div>
-            <Stack
-              className="p-2 border-top d-flex flex-row align-items-center justify-content-between"
-              style={{ gap: '6px', padding: '8px 12px' }}
-            >
+                  );
+                })}
+              </tbody>
+            </Table>
+            <Stack className="p-2 border-top d-flex flex-row align-items-center justify-content-between" style={{ gap: '6px', padding: '8px 12px' }}>
               <select
                 value={table.getState().pagination.pageSize}
-                onChange={(e) => {
-                  table.setPageSize(Number(e.target.value));
-                }}
-                style={{
-                  border: '1px solid #0d6efd',
-                  borderRadius: '4px',
-                  padding: '2px 4px',
-                  fontSize: '12px',
-                  backgroundColor: '#fff',
-                  color: '#6c757d',
-                  cursor: 'pointer',
-                  width: '100px',
-                  height: '30px',
-                }}
+                onChange={(e) => table.setPageSize(Number(e.target.value))}
+                style={{ border: '1px solid #0d6efd', borderRadius: '4px', padding: '2px 4px', fontSize: '12px', backgroundColor: '#fff', color: '#6c757d', cursor: 'pointer', width: '100px', height: '30px' }}
               >
                 {[10, 20, 30].map((pageSize) => (
                   <option key={pageSize} value={pageSize}>
@@ -355,58 +379,24 @@ const States: React.FC = () => {
                   </option>
                 ))}
               </select>
-              <Pagination
-                className="m-0"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '3px',
-                  marginRight: '20px',
-                }}
-              >
+              <Pagination className="m-0" style={{ display: 'flex', alignItems: 'center', gap: '3px', marginRight: '20px' }}>
                 <Pagination.Prev
                   onClick={() => table.setPageIndex(table.getState().pagination.pageIndex - 1)}
                   disabled={table.getState().pagination.pageIndex === 0}
-                  style={{
-                    border: '1px solid #e5e7eb',
-                    color: table.getState().pagination.pageIndex === 0 ? '#d3d3d3' : '#6c757d',
-                    padding: '2px 4px',
-                    borderRadius: '4px',
-                    backgroundColor: 'transparent',
-                    fontSize: '12px',
-                    lineHeight: '1',
-                  }}
+                  style={{ border: '1px solid #e5e7eb', color: table.getState().pagination.pageIndex === 0 ? '#d3d3d3' : '#6c757d', padding: '2px 4px', borderRadius: '4px', backgroundColor: 'transparent', fontSize: '12px', lineHeight: '1' }}
                 >
                   <i className="fi fi-rr-angle-left" style={{ fontSize: '12px' }} />
                 </Pagination.Prev>
                 <Pagination.Item
                   active
-                  style={{
-                    backgroundColor: '#0d6efd',
-                    border: '1px solid #0d6efd',
-                    color: '#fff',
-                    padding: '2px 6px',
-                    borderRadius: '4px',
-                    fontSize: '12px',
-                    minWidth: '24px',
-                    textAlign: 'center',
-                    lineHeight: '1',
-                  }}
+                  style={{ backgroundColor: '#0d6efd', border: '1px solid #0d6efd', color: '#fff', padding: '2px 6px', borderRadius: '4px', fontSize: '12px', lineHeight: '1', minWidth: '24px', textAlign: 'center' }}
                 >
                   {table.getState().pagination.pageIndex + 1}
                 </Pagination.Item>
                 <Pagination.Next
                   onClick={() => table.setPageIndex(table.getState().pagination.pageIndex + 1)}
                   disabled={table.getState().pagination.pageIndex === table.getPageCount() - 1}
-                  style={{
-                    border: '1px solid #e5e7eb',
-                    color: table.getState().pagination.pageIndex === table.getPageCount() - 1 ? '#d3d3d3' : '#6c757d',
-                    padding: '2px 4px',
-                    borderRadius: '4px',
-                    backgroundColor: 'transparent',
-                    fontSize: '12px',
-                    lineHeight: '1',
-                  }}
+                  style={{ border: '1px solid #e5e7eb', color: table.getState().pagination.pageIndex === table.getPageCount() - 1 ? '#d3d3d3' : '#6c757d', padding: '2px 4px', borderRadius: '4px', backgroundColor: 'transparent', fontSize: '12px', lineHeight: '1' }}
                 >
                   <i className="fi fi-rr-angle-right" style={{ fontSize: '12px' }} />
                 </Pagination.Next>
@@ -415,27 +405,18 @@ const States: React.FC = () => {
           </div>
         </div>
         <div className={`apps-container ${containerToggle ? 'w-full' : ''}`}>
-          <div className="apps-container-inner" style={{ minHeight: 'calc(100vh)' }}>
+          <div className="apps-container-inner" style={{ minHeight: '100vh' }}>
             {loading ? (
               <Stack className="align-items-center justify-content-center h-100">
                 <Preloader />
               </Stack>
             ) : !selectedState ? (
-              <Stack
-                className="d-none d-lg-flex align-items-center justify-content-center flex-grow-1 h-100 mx-auto text-center"
-                style={{ maxWidth: '420px' }}
-              >
-                <i className="fi fi-rr-globe fs-48 mb-6"></i>
+              <Stack className="d-none d-lg-flex align-items-center justify-content-center flex-grow-1 h-100 mx-auto text-center" style={{ maxWidth: '420px' }}>
+                <i className="fi fi-rr-map fs-48 mb-6" />
                 <h4 className="fw-bold">Select a state to view</h4>
-                <p className="fs-15 fw-light text-muted mb-4">
-                  Select a state from the left sidebar to view its details.
-                </p>
-                <Button
-                  variant=""
-                  className="btn-neutral"
-                  onClick={() => setShowAddStateModal(true)}
-                >
-                  <i className="fi fi-br-plus fs-10"></i>
+                <p className="fs-15 fw-light text-muted mb-4">Select a state from the left sidebar to view its details.</p>
+                <Button variant="neutral" onClick={() => setShowAddModal(true)}>
+                  <i className="fi fi-br-plus fs-10" />
                   <span className="ms-2">Add New State</span>
                 </Button>
               </Stack>
@@ -444,51 +425,33 @@ const States: React.FC = () => {
                 <div className="apps-contact-details-header p-3 border-bottom">
                   <div className="d-flex align-items-center justify-content-between">
                     <div className="d-flex align-items-center">
-                      <button
-                        className="btn btn-sm btn-icon btn-light me-3"
+                      <Button
+                        variant="light"
+                        size="sm"
+                        className="btn-icon me-3"
                         onClick={() => {
                           setSelectedState(null);
                           setContainerToggle(false);
                           setSidebarLeftToggle(false);
                         }}
                       >
-                        <i className="fi fi-rr-arrow-left"></i>
-                      </button>
-                      <div className="flex-grow-1">
-                        <h5 className="mb-1">States</h5>
-                      </div>
+                        <i className="fi fi-rr-arrow-left" />
+                      </Button>
+                      <h5 className="mb-1">States</h5>
                     </div>
                     <div className="d-flex gap-2">
-                      <button
-                        className="btn btn-icon btn-light"
-                        onClick={handleMenuClick}
-                        style={{ padding: '8px', fontSize: '1.2rem' }}
-                      >
-                        <i className="fi fi-rr-menu-burger"></i>
-                      </button>
-                      <button
-                        className="btn btn-icon btn-light"
-                        onClick={handlePrev}
-                        disabled={selectedStateIndex <= 0}
-                        style={{ padding: '8px', fontSize: '1.2rem' }}
-                      >
-                        <i className="fi fi-rr-angle-left"></i>
-                      </button>
-                      <button
-                        className="btn btn-icon btn-light"
-                        onClick={handleNext}
-                        disabled={selectedStateIndex >= filteredStates.length - 1}
-                        style={{ padding: '8px', fontSize: '1.2rem' }}
-                      >
-                        <i className="fi fi-rr-angle-right"></i>
-                      </button>
-                      <button
-                        className="btn btn-icon btn-light"
-                        onClick={() => handleDeleteState(selectedState)}
-                        style={{ padding: '8px', fontSize: '1.2rem' }}
-                      >
-                        <i className="fi fi-rr-trash"></i>
-                      </button>
+                      <Button variant="light" className="btn-icon" onClick={handleMenuClick} style={{ padding: '8px', fontSize: '1.2rem' }}>
+                        <i className="fi fi-rr-menu-burger" />
+                      </Button>
+                      <Button variant="light" className="btn-icon" onClick={handlePrev} disabled={selectedStateIndex <= 0} style={{ padding: '8px', fontSize: '1.2rem' }}>
+                        <i className="fi fi-rr-angle-left" />
+                      </Button>
+                      <Button variant="light" className="btn-icon" onClick={handleNext} disabled={selectedStateIndex >= filteredStates.length - 1} style={{ padding: '8px', fontSize: '1.2rem' }}>
+                        <i className="fi fi-rr-angle-right" />
+                      </Button>
+                      <Button variant="light" className="btn-icon" onClick={() => handleDeleteState(selectedState)} style={{ padding: '8px', fontSize: '1.2rem' }}>
+                        <i className="fi fi-rr-trash" />
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -498,42 +461,39 @@ const States: React.FC = () => {
                     <p className="text-muted mb-0">State Code: {selectedState.state_code}</p>
                   </div>
                   <div className="mb-4">
-                    <p className="text-muted mb-0">Country: {selectedState.country_name}</p>
+                    <p className="text-muted mb-0">Country: {selectedState.country_name || 'N/A'}</p>
                   </div>
                   <div className="mb-4">
                     <p className="text-muted mb-0">Capital: {selectedState.state_capital}</p>
+                  </div>
+                  <div className="mb-4">
+                    <p className="text-muted mb-0">Status: {selectedState.status === 0 ? 'Active' : 'Inactive'}</p>
                   </div>
                 </div>
               </div>
             )}
           </div>
         </div>
-        <div className="custom-backdrop" onClick={() => setSidebarMiniToggle(false)}></div>
+        <div className="custom-backdrop" onClick={() => setSidebarMiniToggle(false)} />
       </Card>
-      <AddStateModal
-        show={showAddStateModal}
-        onHide={() => setShowAddStateModal(false)}
+      <StateModal
+        show={showAddModal}
+        onHide={() => setShowAddModal(false)}
         onSuccess={fetchStates}
       />
-      <EditStateModal
-        show={showEditStateModal}
-        onHide={() => setShowEditStateModal(false)}
-        mststatemaster={selectedState}
+      <StateModal
+        show={showEditModal}
+        onHide={() => setShowEditModal(false)}
+        state={selectedState}
         onSuccess={fetchStates}
-        onUpdateSelectedState={(updatedState) => setSelectedState(updatedState)}
+        onUpdateSelectedState={setSelectedState}
       />
     </>
   );
 };
 
-// AddStateModal component
-interface AddStateModalProps {
-  show: boolean;
-  onHide: () => void;
-  onSuccess: () => void;
-}
-
-const AddStateModal: React.FC<AddStateModalProps> = ({ show, onHide, onSuccess }) => {
+// Add State Modal
+const StateModal: React.FC<StateModalProps> = ({ show, onHide, onSuccess, state, onUpdateSelectedState }) => {
   const [state_name, setName] = useState('');
   const [state_code, setCode] = useState('');
   const [state_capital, setCapital] = useState('');
@@ -542,12 +502,30 @@ const AddStateModal: React.FC<AddStateModalProps> = ({ show, onHide, onSuccess }
   const [countryItems, setCountryItems] = useState<CountryItem[]>([]);
   const [countryId, setCountryId] = useState<number | null>(null);
 
+  const isEditMode = !!state;
+
   useEffect(() => {
     fetchCountries(setCountryItems, setCountryId);
   }, []);
 
-  const handleAdd = async () => {
-    if (!state_name || !state_code || !state_capital || !status) {
+  useEffect(() => {
+    if (state && isEditMode) {
+      setName(state.state_name);
+      setCode(state.state_code);
+      setCapital(state.state_capital);
+      setCountryId(Number(state.countryid));
+      setStatus(String(state.status) === '0' ? 'Active' : 'Inactive');
+    } else {
+      setName('');
+      setCode('');
+      setCapital('');
+      setCountryId(null);
+      setStatus('Active');
+    }
+  }, [state, show]);
+
+  const handleSubmit = async () => {
+    if (!state_name || !state_code || !state_capital || !countryId || !status) {
       toast.error('All fields are required');
       return;
     }
@@ -562,169 +540,32 @@ const AddStateModal: React.FC<AddStateModalProps> = ({ show, onHide, onSuccess }
         state_capital,
         countryid: countryId,
         status: statusValue,
-        created_by_id: 1,
-        created_date: currentDate,
+        ...(isEditMode ? { stateid: state!.stateid, updated_by_id: '2', updated_date: currentDate } : { created_by_id: '1', created_date: currentDate }),
       };
+
+      const url = isEditMode
+        ? `http://localhost:3001/api/states/${state!.stateid}`
+        : 'http://localhost:3001/api/states';
+      const method = isEditMode ? 'PUT' : 'POST';
+
       console.log('Sending to backend:', payload);
-      const res = await fetch('http://localhost:3001/api/states', {
-        method: 'POST',
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
+
       if (res.ok) {
-        toast.success('State added successfully');
-        setName('');
-        setCode('');
-        setCapital('');
-        setCountryId(null);
-        setStatus('Active');
-        onSuccess();
-        onHide();
-      } else {
-        toast.error('Failed to add state');
-      }
-    } catch (err) {
-      toast.error('Something went wrong');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <Modal show={show} onHide={onHide}>
-      <Modal.Header closeButton>
-        <Modal.Title>Add State</Modal.Title>
-      </Modal.Header>
-      <Modal.Body>
-        <Form.Group className="mb-3">
-          <Form.Label>State Name</Form.Label>
-          <Form.Control type="text" value={state_name} onChange={(e) => setName(e.target.value)} />
-        </Form.Group>
-        <Form.Group className="mb-3">
-          <Form.Label>State Code</Form.Label>
-          <Form.Control type="text" value={state_code} onChange={(e) => setCode(e.target.value)} />
-        </Form.Group>
-        <Form.Group className="mb-3">
-          <Form.Label>Capital</Form.Label>
-          <Form.Control type="text" value={state_capital} onChange={(e) => setCapital(e.target.value)} />
-        </Form.Group>
-        <Form.Group className="mb-3">
-          <Form.Label>Country</Form.Label>
-          <select
-            className="form-control"
-            value={countryId ?? ''}
-            onChange={(e) => {
-              const value = e.target.value;
-              setCountryId(value === '' ? null : Number(value));
-            }}
-          >
-            <option value="">Select a country</option>
-            {countryItems
-              .filter((country) => String(country.status) === '0')
-              .map((country) => (
-                <option key={country.countryid} value={country.countryid}>
-                  {country.country_name}
-                </option>
-              ))}
-          </select>
-        </Form.Group>
-        <Form.Group className="mb-3">
-          <Form.Label>Status</Form.Label>
-          <Form.Select value={status} onChange={(e) => setStatus(e.target.value)}>
-            <option value="Active">Active</option>
-            <option value="Inactive">Inactive</option>
-          </Form.Select>
-        </Form.Group>
-      </Modal.Body>
-      <Modal.Footer>
-        <Button variant="secondary" onClick={onHide} disabled={loading}>
-          Cancel
-        </Button>
-        <Button variant="primary" onClick={handleAdd} disabled={loading}>
-          {loading ? 'Adding...' : 'Add State'}
-        </Button>
-      </Modal.Footer>
-    </Modal>
-  );
-};
-
-// EditStateModal component
-interface EditStateModalProps {
-  show: boolean;
-  onHide: () => void;
-  mststatemaster: StateItem | null;
-  onSuccess: () => void;
-  onUpdateSelectedState: (mststatemaster: StateItem) => void;
-}
-
-const EditStateModal: React.FC<EditStateModalProps> = ({ show, onHide, mststatemaster, onSuccess, onUpdateSelectedState }) => {
-  const [state_name, setName] = useState('');
-  const [state_code, setCode] = useState('');
-  const [state_capital, setCapital] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState('');
-  const [countryItems, setCountryItems] = useState<CountryItem[]>([]);
-  const [countryId, setCountryId] = useState<number | null>(null);
-
-  useEffect(() => {
-    fetchCountries(setCountryItems, setCountryId);
-  }, []);
-
-  useEffect(() => {
-    if (mststatemaster) {
-      setName(mststatemaster.state_name);
-      setCode(mststatemaster.state_code);
-      setCapital(mststatemaster.state_capital);
-      setCountryId(Number(mststatemaster.countryid));
-      setStatus(String(mststatemaster.status) === '0' ? 'Active' : 'Inactive');
-    }
-  }, [mststatemaster]);
-
-  const handleEdit = async () => {
-    if (!state_name || !state_code || !state_capital || !countryId || !status || !mststatemaster) {
-      toast.error('All fields are required');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const statusValue = status === 'Active' ? 0 : 1;
-      const currentDate = new Date().toISOString();
-      const payload = {
-        state_name,
-        state_code,
-        state_capital,
-        countryid: countryId,
-        status: statusValue,
-        stateid: mststatemaster.stateid,
-        updated_by_id: '2',
-        updated_date: currentDate,
-      };
-      console.log('Sending to backend:', payload);
-      const res = await fetch(`http://localhost:3001/api/states/${mststatemaster.stateid}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (res.ok) {
-        toast.success('State updated successfully');
-        onSuccess();
-        if (mststatemaster) {
-          const updatedState: StateItem = {
-            ...mststatemaster,
-            state_name,
-            state_code,
-            state_capital,
-            countryid: String(countryId),
-            status: statusValue,
-          };
-          onUpdateSelectedState(updatedState);
+        toast.success(`State ${isEditMode ? 'updated' : 'added'} successfully`);
+        if (isEditMode && state && onUpdateSelectedState) {
+          onUpdateSelectedState({ ...state, state_name, state_code, state_capital, countryid: String(countryId), status: statusValue });
         }
+        onSuccess();
         onHide();
       } else {
-        toast.error('Failed to update state');
+        toast.error(`Failed to ${isEditMode ? 'update' : 'add'} state`);
       }
-    } catch (err) {
+    } catch {
       toast.error('Something went wrong');
     } finally {
       setLoading(false);
@@ -734,60 +575,101 @@ const EditStateModal: React.FC<EditStateModalProps> = ({ show, onHide, mststatem
   return (
     <Modal show={show} onHide={onHide}>
       <Modal.Header closeButton>
-        <Modal.Title>Edit State</Modal.Title>
+        <Modal.Title>{isEditMode ? 'Edit State' : 'Add New State'}</Modal.Title>
       </Modal.Header>
       <Modal.Body>
-        <Form.Group className="mb-3">
-          <Form.Label>State Name</Form.Label>
-          <Form.Control type="text" value={state_name} onChange={(e) => setName(e.target.value)} />
-        </Form.Group>
-        <Form.Group className="mb-3">
-          <Form.Label>State Code</Form.Label>
-          <Form.Control type="text" value={state_code} onChange={(e) => setCode(e.target.value)} />
-        </Form.Group>
-        <Form.Group className="mb-3">
-          <Form.Label>Capital</Form.Label>
-          <Form.Control type="text" value={state_capital} onChange={(e) => setCapital(e.target.value)} />
-        </Form.Group>
-        <Form.Group className="mb-3">
-          <Form.Label>Country</Form.Label>
-          <select
-            className="form-control"
-            value={countryId ?? ''}
-            onChange={(e) => {
-              const value = e.target.value;
-              setCountryId(value === '' ? null : Number(value));
-            }}
-            disabled={loading}
-          >
-            <option value="">Select a country</option>
-            {countryItems
-              .filter((country) => String(country.status) === '0')
-              .map((country) => (
-                <option key={country.countryid} value={country.countryid}>
-                  {country.country_name}
-                </option>
-              ))}
-          </select>
-        </Form.Group>
-        <Form.Group className="mb-3">
-          <Form.Label>Status <span style={{ color: 'red' }}>*</span></Form.Label>
-          <select
-            className="form-control"
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-          >
-            <option value="Active">Active</option>
-            <option value="Inactive">Inactive</option>
-          </select>
-        </Form.Group>
+        <Form>
+          <div className="row">
+            <div className="col-md-6 mb-3">
+              <Form.Group>
+                <Form.Label>State Name <span style={{ color: 'red' }}>*</span></Form.Label>
+                <Form.Control
+                  type="text"
+                  placeholder="Enter state name"
+                  value={state_name}
+                  onChange={(e) => setName(e.target.value)}
+                  style={{ borderColor: '#ccc' }}
+                />
+              </Form.Group>
+            </div>
+            <div className="col-md-6 mb-3">
+              <Form.Group>
+                <Form.Label>State Code <span style={{ color: 'red' }}>*</span></Form.Label>
+                <Form.Control
+                  type="text"
+                  placeholder="Enter state code"
+                  value={state_code}
+                  onChange={(e) => {
+                    const value = e.target.value.toUpperCase();
+                    if (value.length <= 4 && /^[A-Z0-9]*$/.test(value)) {
+                      setCode(value);
+                    }
+                  }}
+                  maxLength={4}
+                  style={{ borderColor: '#ccc' }}
+                />
+              </Form.Group>
+            </div>
+          </div>
+          <div className="row">
+            <div className="col-md-6 mb-3">
+              <Form.Group>
+                <Form.Label>Capital City <span style={{ color: 'red' }}>*</span></Form.Label>
+                <Form.Control
+                  type="text"
+                  placeholder="Enter capital city"
+                  value={state_capital}
+                  onChange={(e) => setCapital(e.target.value)}
+                  style={{ borderColor: '#ccc' }}
+                />
+              </Form.Group>
+            </div>
+            <div className="col-md-6 mb-3">
+              <Form.Group>
+                <Form.Label>Country <span style={{ color: 'red' }}>*</span></Form.Label>
+                <Form.Select
+                  value={countryId ?? ''}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setCountryId(value === '' ? null : Number(value));
+                  }}
+                  style={{ borderColor: '#ccc' }}
+                >
+                  <option value="">Select a country</option>
+                  {countryItems
+                    .filter((country) => String(country.status) === '0')
+                    .map((country) => (
+                      <option key={country.countryid} value={country.countryid}>
+                        {country.country_name}
+                      </option>
+                    ))}
+                </Form.Select>
+              </Form.Group>
+            </div>
+          </div>
+          <div className="row">
+            <div className="col-md-6 mb-3">
+              <Form.Group>
+                <Form.Label>Status</Form.Label>
+                <Form.Select
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value)}
+                  style={{ borderColor: '#ccc' }}
+                >
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
+                </Form.Select>
+              </Form.Group>
+            </div>
+          </div>
+        </Form>
       </Modal.Body>
       <Modal.Footer>
         <Button variant="secondary" onClick={onHide} disabled={loading}>
           Cancel
         </Button>
-        <Button variant="primary" onClick={handleEdit} disabled={loading}>
-          {loading ? 'Updating...' : 'Update State'}
+        <Button variant="primary" onClick={handleSubmit} disabled={loading}>
+          {loading ? (isEditMode ? 'Updating...' : 'Adding...') : 'Save'}
         </Button>
       </Modal.Footer>
     </Modal>

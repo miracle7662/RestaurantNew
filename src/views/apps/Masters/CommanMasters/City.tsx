@@ -1,12 +1,9 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Button, Card, Stack, Pagination, Table, Modal, Form } from 'react-bootstrap';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Swal from 'sweetalert2';
 import { toast } from 'react-hot-toast';
 import { Preloader } from '@/components/Misc/Preloader';
-import {
-  ContactSearchBar,
-  ContactSidebar,
-} from '@/components/Apps/Contact';
+import { Button, Card, Stack, Pagination, Table, Modal, Form } from 'react-bootstrap';
+import { ContactSearchBar, ContactSidebar } from '@/components/Apps/Contact';
 import TitleHelmet from '@/components/Common/TitleHelmet';
 import {
   useReactTable,
@@ -16,23 +13,21 @@ import {
   ColumnDef,
   flexRender,
 } from '@tanstack/react-table';
-import {
- 
-  fetchStates,
-  StateItem,
-} from '../../../../utils/commonfunction';
+import { fetchStates, StateItem } from '../../../../utils/commonfunction';
 
-// Define types inline
+// Interfaces
 interface CityItem {
-  cityid : string;
+  cityid: string;
   city_name: string;
-  city_Code: string;
-  stateId: string;
-  isCoastal: boolean;
-  status: string | number; // Use string or number based on your backend response
+  city_code: string;
+  stateid: string;
+  state_name?: string;
+  countryid: string;
+  country_name?: string;
+  status: number;
   created_by_id: string;
   created_date: string;
-  updated_by_id: string;  
+  updated_by_id: string;
   updated_date: string;
 }
 
@@ -49,16 +44,34 @@ interface Label {
   value: string;
   gradient: string;
 }
-//1
-// Debounce utility function
-const debounce = (func: (...args: any[]) => void, wait: number) => {
+
+interface CityModalProps {
+  show: boolean;
+  onHide: () => void;
+  city?: CityItem | null;
+  onSuccess: () => void;
+  onUpdateSelectedCity?: (city: CityItem) => void;
+}
+
+// Utility Functions
+const debounce = <T extends (...args: any[]) => void>(func: T, wait: number) => {
   let timeout: NodeJS.Timeout;
-  return (...args: any[]) => {
+  return (...args: Parameters<T>) => {
     clearTimeout(timeout);
     timeout = setTimeout(() => func(...args), wait);
   };
 };
 
+// Status badge for table
+const getStatusBadge = (status: number) => {
+  return status === 0 ? (
+    <span className="badge bg-success">Active</span>
+  ) : (
+    <span className="badge bg-danger">Inactive</span>
+  );
+};
+
+// Main Component
 const City: React.FC = () => {
   const [cityItems, setCityItems] = useState<CityItem[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('alls');
@@ -66,26 +79,30 @@ const City: React.FC = () => {
   const [filteredCities, setFilteredCities] = useState<CityItem[]>([]);
   const [selectedCity, setSelectedCity] = useState<CityItem | null>(null);
   const [selectedCityIndex, setSelectedCityIndex] = useState<number>(-1);
-  const [loading] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [containerToggle, setContainerToggle] = useState<boolean>(false);
   const [sidebarLeftToggle, setSidebarLeftToggle] = useState<boolean>(false);
   const [sidebarMiniToggle, setSidebarMiniToggle] = useState<boolean>(false);
+  const [containerToggle, setContainerToggle] = useState<boolean>(false);
 
+  // Fetch cities from API
   const fetchCities = async () => {
+    setLoading(true);
     try {
       const res = await fetch('http://localhost:3001/api/cities');
       const data = await res.json();
-      // Convert isCoastal from integer to boolean
-      const citiesWithBoolean = data.map((mstcitymaster: any) => ({
-        ...mstcitymaster,
-        isCoastal: Boolean(mstcitymaster.isCoastal)
+      // Map city_Code to city_code for frontend consistency
+      const mappedData = data.map((item: any) => ({
+        ...item,
+        city_code: item.city_Code,
       }));
-      setCityItems(citiesWithBoolean);
-      setFilteredCities(citiesWithBoolean);
-    } catch (err) {
+      setCityItems(mappedData);
+      setFilteredCities(mappedData);
+    } catch {
       toast.error('Failed to fetch cities');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -93,135 +110,145 @@ const City: React.FC = () => {
     fetchCities();
   }, []);
 
-  // Define columns for react-table with explicit widths
-  const columns = React.useMemo<ColumnDef<CityItem>[]>(
-    () => [
-      {
-        id: 'srNo',
-        header: 'Sr No',
-        size: 20,
-        cell: ({ row }) => <span>{row.index + 1}</span>,
+  // Table columns
+  const columns = useMemo<ColumnDef<CityItem>[]>(() => [
+    {
+      id: 'srNo',
+      header: 'Sr No',
+      size: 20,
+      cell: (cell) => <span>{cell.row.index + 1}</span>,
+    },
+    {
+      accessorKey: 'city_code',
+      header: 'Code',
+      size: 10,
+      cell: (cell) => (
+        <div className="avatar avatar-md rounded-circle bg-light text-muted">
+          {cell.getValue<string>()}
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'city_name',
+      header: 'City',
+      size: 10,
+      cell: (cell) => <h6 className="mb-1">{cell.getValue<string>()}</h6>,
+    },
+   
+    {
+      accessorKey: 'status',
+      header: 'Status',
+      size: 150,
+      cell: (cell) => {
+        const statusValue = cell.getValue<string | number>();
+        return getStatusBadge(Number(statusValue));
       },
-      {
-        accessorKey: 'city_Code',
-        header: 'Code',
-        size: 10,
-        cell: (info) => (
-          <div className="avatar avatar-md rounded-circle bg-light text-muted">
-            {info.getValue<string>()}
-          </div>
-        ),
-      },
-      {
-        accessorKey: 'city_name',
-        header: 'City',
-        size: 10,
-        cell: (info) => <h6 className="mb-1">{info.getValue<string>()}</h6>,
-      },
+    },
+    {
+      id: 'actions',
+      header: 'Actions',
+      size: 30,
+      cell: (cell) => (
+        <div className="d-flex gap-2">
+          <Button
+            size="sm"
+            variant="success"
+            onClick={() => {
+              setSelectedCity(cell.row.original);
+              setShowEditModal(true);
+            }}
+            style={{ padding: '4px 8px' }}
+          >
+            <i className="fi fi-rr-edit" />
+          </Button>
+          <Button
+            size="sm"
+            variant="danger"
+            onClick={() => handleDeleteCity(cell.row.original)}
+            style={{ padding: '4px 8px' }}
+          >
+            <i className="fi fi-rr-trash" />
+          </Button>
+        </div>
+      ),
+    },
+  ], []);
 
-      {
-        accessorKey: 'status',
-        header: 'Status',
-        size: 50,
-        cell: (info) => {
-          const statusValue = info.getValue<string | number>();
-          console.log('Status value:', statusValue, typeof statusValue); // Debug log
-          return <div style={{ textAlign: 'center' }}>{statusValue == '0' || statusValue === 0 ? 'Active' : 'Inactive'}</div>;
-        },
-      },
-      {
-        id: 'actions',
-        header: 'Actions',
-        size: 30,
-        cell: ({ row }) => (
-          <div className="d-flex gap-2">
-            <button
-              className="btn btn-sm btn-success"
-              onClick={() => handleEditClick(row.original)}
-              style={{ padding: '4px 8px' }}
-            >
-              <i className="fi fi-rr-edit"></i>
-            </button>
-            <button
-              className="btn btn-sm btn-danger"
-              onClick={() => handleDeleteCity(row.original)}
-              style={{ padding: '4px 8px' }}
-            >
-              <i className="fi fi-rr-trash"></i>
-            </button>
-          </div>
-        ),
-      },
-    ],
-    []
-  );
-
-  // Initialize react-table with pagination
+  // Initialize table
   const table = useReactTable({
     data: filteredCities,
     columns,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    initialState: {
-      pagination: {
-        pageSize: 10,
-      },
-    },
+    initialState: { pagination: { pageSize: 10 } },
   });
 
-  const categories: Category[] = useMemo(() => [
-    {
-      name: 'Cities',
-      value: 'alls',
-      icon: 'fi-rr-building',
-      badge: cityItems.length,
-      badgeClassName: 'bg-primary-subtle text-primary',
-    },
-  ], [cityItems.length]);
-
-  const labels: Label[] = useMemo(() => [
-    { name: 'Coastal', value: 'coastal', gradient: 'success' },
-    { name: 'Inland', value: 'inland', gradient: 'warning' },
-  ], []);
-
-  useEffect(() => {
-    setFilteredCities(cityItems.filter((item) => item));
-  }, [cityItems]);
-
-  const handleSearch = useCallback(
-    debounce((value: string) => {
-      setSearchTerm(value);
-
-      const filteredCitiesByCategory = cityItems.filter(
-        (item) => item,
-      );
-      const filteredCitiesBySearch = filteredCitiesByCategory.filter((item) =>
-        item.city_name.toLowerCase().includes(value.toLowerCase()),
-      );
-      setFilteredCities(filteredCitiesBySearch);
-    }, 300),
-    [cityItems, selectedCategory]
+  // Sidebar categories and labels
+  const categories: Category[] = useMemo(
+    () => [
+      {
+        name: 'Cities',
+        value: 'alls',
+        icon: 'fi-rr-map',
+        badge: cityItems.length,
+        badgeClassName: 'bg-primary-subtle text-primary',
+      },
+    ],
+    [cityItems.length]
   );
 
-  const handleCategoryChange = useCallback((categoryValue: string) => {
-    setSelectedCategory(categoryValue);
-    setSearchTerm('');
-    setFilteredCities(cityItems.filter((item) => item));
-  }, [cityItems]);
+  const labels: Label[] = useMemo(
+    () => [
+      { name: 'Metro Cities', value: 'metro', gradient: 'success' },
+      { name: 'Tier 2 Cities', value: 'tier2', gradient: 'warning' },
+      { name: 'Tier 3 Cities', value: 'tier3', gradient: 'danger' },
+      { name: 'Rural Areas', value: 'rural', gradient: 'info' },
+    ],
+    []
+  );
 
-  const handleCityItemClick = useCallback((mstcitymaster: CityItem) => {
-    setSelectedCity(mstcitymaster);
+  // Search handler
+  const handleSearch = (value: string) => {
+    setSearchTerm(value);
+    filterCities(value);
+  };
+
+  const filterCities = useCallback(
+    debounce((value: string) => {
+      const searchValue = value.toLowerCase();
+      const filtered = cityItems.filter((item) => {
+        return (
+          item.city_name.toLowerCase().includes(searchValue) ||
+          item.city_code.toLowerCase().includes(searchValue) ||
+          (item.state_name && item.state_name.toLowerCase().includes(searchValue)) ||
+          (item.country_name && item.country_name.toLowerCase().includes(searchValue))
+        );
+      });
+      setFilteredCities(filtered);
+    }, 500),
+    [cityItems]
+  );
+
+  // Category change handler
+  const handleCategoryChange = useCallback(
+    (categoryValue: string) => {
+      setSelectedCategory(categoryValue);
+      setSearchTerm('');
+      setFilteredCities(cityItems);
+    },
+    [cityItems]
+  );
+
+  // City selection handler
+  const handleCityItemClick = useCallback((city: CityItem) => {
+    setSelectedCity(city);
     setContainerToggle(true);
   }, []);
 
-  const handleEditClick = (mstcitymaster: CityItem) => {
-    setSelectedCity(mstcitymaster);
-    setShowEditModal(true);
-  };
-
-  const handleDeleteCity = async (mstcitymaster: CityItem) => {
-    const res = await Swal.fire({
+  // Delete city handler
+  const handleDeleteCity = async (city: CityItem) => {
+    const result = await Swal.fire({
       title: 'Are you sure?',
       text: 'You will not be able to recover this city!',
       icon: 'warning',
@@ -230,72 +257,60 @@ const City: React.FC = () => {
       cancelButtonColor: '#3E97FF',
       confirmButtonText: 'Yes, delete it!',
     });
-    if (res.isConfirmed) {
+
+    if (result.isConfirmed) {
       try {
-        await fetch(`http://localhost:3001/api/cities/${mstcitymaster.cityid}`, { method: 'DELETE' });
-        toast.success('Deleted successfully aBCD');
+        await fetch(`http://localhost:3001/api/cities/${city.cityid}`, { method: 'DELETE' });
+        toast.success('City deleted successfully');
         fetchCities();
-
         setSelectedCity(null);
-        setCityItems((prev) => prev.filter((c) => c.cityid !== mstcitymaster.cityid));
-        setFilteredCities((prev) => prev.filter((c) => c.cityid !== mstcitymaster.cityid));
-        // if (selectedCity && selectedCity.id === city.id) {
-
-        //   //setContainerToggle(false);
-        // }
-
-      } catch (error) {
-        toast.error('Failed to delete');
+        setContainerToggle(false);
+      } catch {
+        toast.error('Failed to delete city');
       }
     }
   };
 
+  // Update selected city index
   useEffect(() => {
-    const index = filteredCities.findIndex(
-      (city) => city.cityid === (selectedCity?.cityid || ''),
-    );
+    const index = filteredCities.findIndex((city) => city.cityid === selectedCity?.cityid);
     setSelectedCityIndex(index);
   }, [filteredCities, selectedCity]);
 
+  // Navigation handlers
   const handleNext = useCallback(() => {
     if (selectedCityIndex < filteredCities.length - 1) {
-      const nextIndex = selectedCityIndex + 1;
-      setSelectedCity(filteredCities[nextIndex]);
+      setSelectedCity(filteredCities[selectedCityIndex + 1]);
       setContainerToggle(true);
     }
   }, [selectedCityIndex, filteredCities]);
 
   const handlePrev = useCallback(() => {
     if (selectedCityIndex > 0) {
-      const prevIndex = selectedCityIndex - 1;
-      setSelectedCity(filteredCities[prevIndex]);
+      setSelectedCity(filteredCities[selectedCityIndex - 1]);
       setContainerToggle(true);
     }
   }, [selectedCityIndex, filteredCities]);
 
-  // Compute the card classes based on state
+  // Card classes
   const cardClasses = useMemo(() => {
-    let classes = 'apps-card';
-    if (sidebarMiniToggle) classes += ' apps-sidebar-mini-toggle';
-    if (containerToggle) classes += ' apps-container-toggle';
-    if (sidebarLeftToggle) classes += ' apps-sidebar-left-toggle';
-    return classes;
+    const classes = ['apps-card'];
+    if (sidebarMiniToggle) classes.push('apps-sidebar-mini-toggle');
+    if (containerToggle) classes.push('apps-container-toggle');
+    if (sidebarLeftToggle) classes.push('apps-sidebar-left-toggle');
+    return classes.join(' ');
   }, [sidebarMiniToggle, containerToggle, sidebarLeftToggle]);
 
-  // Handle resize for sidebarLeftToggle
+  // Handle window resize
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth <= 991.98 && sidebarLeftToggle) {
         setSidebarLeftToggle(false);
       }
     };
-
     window.addEventListener('resize', handleResize);
     handleResize();
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-    };
+    return () => window.removeEventListener('resize', handleResize);
   }, [sidebarLeftToggle]);
 
   const handleMenuClick = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
@@ -308,102 +323,55 @@ const City: React.FC = () => {
       <TitleHelmet title="Cities" />
       <style>
         {`
-          .apps-card {
-            transition: all 0.3s ease-in-out;
-          }
+          .apps-card,
           .apps-sidebar-left,
           .apps-container {
-            transition: width 0.3s ease-in-out;
+            transition: all 0.3s ease-in-out;
           }
         `}
       </style>
       <Card className={cardClasses}>
         <div className="apps-sidebar-mini w-70">
-          <ContactSidebar
-            categories={categories}
-            labels={labels}
-            selectedCategory={selectedCategory}
-            handleCategoryChange={handleCategoryChange}
-            setSidebarMiniToggle={setSidebarMiniToggle}
-          />
+         
         </div>
-
         <div className="apps-sidebar apps-sidebar-left apps-sidebar-md" style={{ minWidth: '530px' }}>
           <ContactSearchBar searchTerm={searchTerm} handleSearch={handleSearch} />
-          <div
-            className="apps-sidebar-content"
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              height: '100%',
-              minWidth: '250px'
-            }}
-          >
-            <div className="d-flex justify-content-between align-items-center mb-0 px-1 ">
-              <span className="text-muted fw-bold"></span>
-              <span className="text-muted fw-bold"></span>
-            </div>
-            <div style={{ marginLeft: '10px' }}>
-              <Table
-                responsive
-                size='sm'
-                className="mb-0"
-                style={{ minWidth: '300px' }}
-              >
-                <thead>
-                  {table.getHeaderGroups().map((headerGroup) => (
-                    <tr key={headerGroup.id}>
-                      {headerGroup.headers.map((header) => (
-                        <th
-                          key={header.id}
-                          colSpan={header.colSpan}
-                          style={{ width: header.column.columnDef.size }}
-                        >
-                          {header.isPlaceholder ? null : (
-                            <div>{flexRender(header.column.columnDef.header, header.getContext())}</div>
-                          )}
-                        </th>
-                      ))}
-                    </tr>
-                  ))}
-                </thead>
-                <tbody>
-                  {table.getRowModel().rows.map((row) => (
+          <div className="apps-sidebar-content" style={{ display: 'flex', flexDirection: 'column', height: '100%', minWidth: '250px' }}>
+            <Table responsive size="sm" className="mb-0" style={{ minWidth: '300px' }}>
+              <thead>
+                {table.getHeaderGroups().map((headerGroup: any) => (
+                  <tr key={headerGroup.id}>
+                    {headerGroup.headers.map((header: any) => (
+                      <th key={header.id} style={{ width: header.column.columnDef.size }}>
+                        {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                      </th>
+                    ))}
+                  </tr>
+                ))}
+              </thead>
+              <tbody>
+                {table.getRowModel().rows.map((row: any) => {
+                  const isActive = row.original.status === 0 || row.original.status === '0';
+                  return (
                     <tr
                       key={row.id}
                       className={selectedCity?.cityid === row.original.cityid ? 'active' : ''}
+                      style={{ color: isActive ? 'black' : 'gray', fontWeight: isActive ? 'bold' : 'normal' }}
                       onClick={() => handleCityItemClick(row.original)}
                     >
-                      {row.getVisibleCells().map((cell) => (
-                        <td key={cell.id}>
-                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                        </td>
+                      {row.getVisibleCells().map((cell: any) => (
+                        <td key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>
                       ))}
                     </tr>
-                  ))}
-                </tbody>
-              </Table>
-            </div>
-            <Stack
-              className="p-2 border-top d-flex flex-row align-items-center justify-content-between"
-              style={{ gap: '6px', padding: '8px 12px' }}
-            >
+                  );
+                })}
+              </tbody>
+            </Table>
+            <Stack className="p-2 border-top d-flex flex-row align-items-center justify-content-between" style={{ gap: '6px', padding: '8px 12px' }}>
               <select
                 value={table.getState().pagination.pageSize}
-                onChange={(e) => {
-                  table.setPageSize(Number(e.target.value));
-                }}
-                style={{
-                  border: '1px solid #0d6efd',
-                  borderRadius: '4px',
-                  padding: '2px 4px',
-                  fontSize: '12px',
-                  backgroundColor: '#fff',
-                  color: '#6c757d',
-                  cursor: 'pointer',
-                  width: '100px',
-                  height: '30px',
-                }}
+                onChange={(e) => table.setPageSize(Number(e.target.value))}
+                style={{ border: '1px solid #0d6efd', borderRadius: '4px', padding: '2px 4px', fontSize: '12px', backgroundColor: '#fff', color: '#6c757d', cursor: 'pointer', width: '100px', height: '30px' }}
               >
                 {[10, 20, 30].map((pageSize) => (
                   <option key={pageSize} value={pageSize}>
@@ -411,58 +379,24 @@ const City: React.FC = () => {
                   </option>
                 ))}
               </select>
-              <Pagination
-                className="m-0"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '3px',
-                  marginRight: '20px',
-                }}
-              >
+              <Pagination className="m-0" style={{ display: 'flex', alignItems: 'center', gap: '3px', marginRight: '20px' }}>
                 <Pagination.Prev
                   onClick={() => table.setPageIndex(table.getState().pagination.pageIndex - 1)}
                   disabled={table.getState().pagination.pageIndex === 0}
-                  style={{
-                    border: '1px solid #e5e7eb',
-                    color: table.getState().pagination.pageIndex === 0 ? '#d3d3d3' : '#6c757d',
-                    padding: '2px 4px',
-                    borderRadius: '4px',
-                    backgroundColor: 'transparent',
-                    fontSize: '12px',
-                    lineHeight: '1',
-                  }}
+                  style={{ border: '1px solid #e5e7eb', color: table.getState().pagination.pageIndex === 0 ? '#d3d3d3' : '#6c757d', padding: '2px 4px', borderRadius: '4px', backgroundColor: 'transparent', fontSize: '12px', lineHeight: '1' }}
                 >
                   <i className="fi fi-rr-angle-left" style={{ fontSize: '12px' }} />
                 </Pagination.Prev>
                 <Pagination.Item
                   active
-                  style={{
-                    backgroundColor: '#0d6efd',
-                    border: '1px solid #0d6efd',
-                    color: '#fff',
-                    padding: '2px 6px',
-                    borderRadius: '4px',
-                    fontSize: '12px',
-                    minWidth: '24px',
-                    textAlign: 'center',
-                    lineHeight: '1',
-                  }}
+                  style={{ backgroundColor: '#0d6efd', border: '1px solid #0d6efd', color: '#fff', padding: '2px 6px', borderRadius: '4px', fontSize: '12px', lineHeight: '1', minWidth: '24px', textAlign: 'center' }}
                 >
                   {table.getState().pagination.pageIndex + 1}
                 </Pagination.Item>
                 <Pagination.Next
                   onClick={() => table.setPageIndex(table.getState().pagination.pageIndex + 1)}
                   disabled={table.getState().pagination.pageIndex === table.getPageCount() - 1}
-                  style={{
-                    border: '1px solid #e5e7eb',
-                    color: table.getState().pagination.pageIndex === table.getPageCount() - 1 ? '#d3d3d3' : '#6c757d',
-                    padding: '2px 4px',
-                    borderRadius: '4px',
-                    backgroundColor: 'transparent',
-                    fontSize: '12px',
-                    lineHeight: '1',
-                  }}
+                  style={{ border: '1px solid #e5e7eb', color: table.getState().pagination.pageIndex === table.getPageCount() - 1 ? '#d3d3d3' : '#6c757d', padding: '2px 4px', borderRadius: '4px', backgroundColor: 'transparent', fontSize: '12px', lineHeight: '1' }}
                 >
                   <i className="fi fi-rr-angle-right" style={{ fontSize: '12px' }} />
                 </Pagination.Next>
@@ -471,27 +405,18 @@ const City: React.FC = () => {
           </div>
         </div>
         <div className={`apps-container ${containerToggle ? 'w-full' : ''}`}>
-          <div className="apps-container-inner" style={{ minHeight: 'calc(100vh )' }}>
+          <div className="apps-container-inner" style={{ minHeight: '100vh' }}>
             {loading ? (
-              <Stack className="align-items-center justify-content-center  h-100">
+              <Stack className="align-items-center justify-content-center h-100">
                 <Preloader />
               </Stack>
             ) : !selectedCity ? (
-              <Stack
-                className="d-none d-lg-flex align-items-center justify-content-center flex-grow-1 h-100 mx-auto text-center"
-                style={{ maxWidth: '420px' }}
-              >
-                <i className="fi fi-rr-building fs-48 mb-6"></i>
+              <Stack className="d-none d-lg-flex align-items-center justify-content-center flex-grow-1 h-100 mx-auto text-center" style={{ maxWidth: '420px' }}>
+                <i className="fi fi-rr-map fs-48 mb-6" />
                 <h4 className="fw-bold">Select a city to view</h4>
-                <p className="fs-15 fw-light text-muted mb-4">
-                  Select a city from the left sidebar to view its details.
-                </p>
-                <Button
-                  variant=""
-                  className="btn-neutral"
-                  onClick={() => setShowAddModal(true)}
-                >
-                  <i className="fi fi-br-plus fs-10"></i>
+                <p className="fs-15 fw-light text-muted mb-4">Select a city from the left sidebar to view its details.</p>
+                <Button variant="neutral" onClick={() => setShowAddModal(true)}>
+                  <i className="fi fi-br-plus fs-10" />
                   <span className="ms-2">Add New City</span>
                 </Button>
               </Stack>
@@ -500,114 +425,104 @@ const City: React.FC = () => {
                 <div className="apps-contact-details-header p-3 border-bottom">
                   <div className="d-flex align-items-center justify-content-between">
                     <div className="d-flex align-items-center">
-                      <button
-                        className="btn btn-sm btn-icon btn-light me-3"
+                      <Button
+                        variant="light"
+                        size="sm"
+                        className="btn-icon me-3"
                         onClick={() => {
                           setSelectedCity(null);
                           setContainerToggle(false);
                           setSidebarLeftToggle(false);
                         }}
                       >
-                        <i className="fi fi-rr-arrow-left"></i>
-                      </button>
-                      <div className="flex-grow-1">
-                        <h5 className="mb-1">Cities</h5>
-                      </div>
+                        <i className="fi fi-rr-arrow-left" />
+                      </Button>
+                      <h5 className="mb-1">Cities</h5>
                     </div>
                     <div className="d-flex gap-2">
-                      <button
-                        className="btn btn-icon btn-light"
-                        onClick={handleMenuClick}
-                        style={{ padding: '8px', fontSize: '1.2rem' }}
-                      >
-                        <i className="fi fi-rr-menu-burger"></i>
-                      </button>
-                      <button
-                        className="btn btn-icon btn-light"
-                        onClick={handlePrev}
-                        disabled={selectedCityIndex <= 0}
-                        style={{ padding: '8px', fontSize: '1.2rem' }}
-                      >
-                        <i className="fi fi-rr-angle-left"></i>
-                      </button>
-                      <button
-                        className="btn btn-icon btn-light"
-                        onClick={handleNext}
-                        disabled={selectedCityIndex >= filteredCities.length - 1}
-                        style={{ padding: '8px', fontSize: '1.2rem' }}
-                      >
-                        <i className="fi fi-rr-angle-right"></i>
-                      </button>
-                      <button
-                        className="btn btn-icon btn-light"
-                        onClick={() => handleDeleteCity(selectedCity)}
-                        style={{ padding: '8px', fontSize: '1.2rem' }}
-                      >
-                        <i className="fi fi-rr-trash"></i>
-                      </button>
+                      <Button variant="light" className="btn-icon" onClick={handleMenuClick} style={{ padding: '8px', fontSize: '1.2rem' }}>
+                        <i className="fi fi-rr-menu-burger" />
+                      </Button>
+                      <Button variant="light" className="btn-icon" onClick={handlePrev} disabled={selectedCityIndex <= 0} style={{ padding: '8px', fontSize: '1.2rem' }}>
+                        <i className="fi fi-rr-angle-left" />
+                      </Button>
+                      <Button variant="light" className="btn-icon" onClick={handleNext} disabled={selectedCityIndex >= filteredCities.length - 1} style={{ padding: '8px', fontSize: '1.2rem' }}>
+                        <i className="fi fi-rr-angle-right" />
+                      </Button>
+                      <Button variant="light" className="btn-icon" onClick={() => handleDeleteCity(selectedCity)} style={{ padding: '8px', fontSize: '1.2rem' }}>
+                        <i className="fi fi-rr-trash" />
+                      </Button>
                     </div>
                   </div>
                 </div>
                 <div className="apps-contact-details p-4">
                   <div className="mb-4">
                     <h5 className="mb-2">{selectedCity.city_name}</h5>
-                    <p className="text-muted mb-0">City Code: {selectedCity.city_Code}</p>
+                    <p className="text-muted mb-0">City Code: {selectedCity.city_code}</p>
                   </div>
                   <div className="mb-4">
-                    <p className="text-muted mb-0">State ID: {selectedCity.stateId}</p>
+                    <p className="text-muted mb-0">State: {selectedCity.state_name || 'N/A'}</p>
                   </div>
-                 
                   <div className="mb-4">
-                    <p className="text-muted mb-0">Type: {selectedCity.isCoastal ? 'Coastal City' : 'Inland City'}</p>
+                    <p className="text-muted mb-0">Country: {selectedCity.country_name || 'N/A'}</p>
+                  </div>
+                  <div className="mb-4">
+                    <p className="text-muted mb-0">Status: {selectedCity.status === 0 ? 'Active' : 'Inactive'}</p>
                   </div>
                 </div>
               </div>
             )}
           </div>
         </div>
-        <div className="custom-backdrop" onClick={() => setSidebarMiniToggle(false)}></div>
+        <div className="custom-backdrop" onClick={() => setSidebarMiniToggle(false)} />
       </Card>
-      <AddCityModal show={showAddModal} onHide={() => setShowAddModal(false)} onSuccess={fetchCities} />
-      <EditCityModal
+      <CityModal
+        show={showAddModal}
+        onHide={() => setShowAddModal(false)}
+        onSuccess={fetchCities}
+      />
+      <CityModal
         show={showEditModal}
         onHide={() => setShowEditModal(false)}
-        mstcitymaster={selectedCity}
+        city={selectedCity}
         onSuccess={fetchCities}
-        onUpdateSelectedCity={(updatedCity) => setSelectedCity(updatedCity)}
+        onUpdateSelectedCity={setSelectedCity}
       />
     </>
   );
 };
-//2
 
-// AddCityModal component
-interface AddCityModalProps {
-  show: boolean;
-  onHide: () => void;
-  onSuccess: () => void;
-}
-
-const AddCityModal: React.FC<AddCityModalProps> = ({ show, onHide, onSuccess }) => {
+// Add City Modal
+const CityModal: React.FC<CityModalProps> = ({ show, onHide, onSuccess, city, onUpdateSelectedCity }) => {
   const [city_name, setName] = useState('');
-  const [city_Code, setCityCode] = useState('');
-  const [stateId, setStateId] = useState<number | null>(null);
-  const [isCoastal, setIsCoastal] = useState(false);
+  const [city_code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState('Active'); // Default to 'Active'
-  const [states, setStates] = useState<StateItem[]>([]);
-  
+  const [status, setStatus] = useState('Active');
+  const [stateItems, setStateItems] = useState<StateItem[]>([]);
+  const [stateId, setStateId] = useState<number | null>(null);
 
-  // Fetch states when modal opens
+  const isEditMode = !!city;
+
   useEffect(() => {
-    fetchStates(setStates, setStateId, undefined,);
-
+    fetchStates(setStateItems, setStateId);
   }, []);
 
+  useEffect(() => {
+    if (city && isEditMode) {
+      setName(city.city_name);
+      setCode(city.city_code);
+      setStateId(Number(city.stateid));
+      setStatus(String(city.status) === '0' ? 'Active' : 'Inactive');
+    } else {
+      setName('');
+      setCode('');
+      setStateId(null);
+      setStatus('Active');
+    }
+  }, [city, show]);
 
-
-
-  const handleAdd = async () => {
-    if (!city_name || !city_Code || !stateId || !status) {
+  const handleSubmit = async () => {
+    if (!city_name || !city_code || !stateId || !status) {
       toast.error('All fields are required');
       return;
     }
@@ -615,271 +530,142 @@ const AddCityModal: React.FC<AddCityModalProps> = ({ show, onHide, onSuccess }) 
     setLoading(true);
     try {
       const statusValue = status === 'Active' ? 0 : 1;
-      const currentDate = new Date().toISOString(); // Timestamp: e.g., 2025-07-01T04:00:00.000Z
-      const payload = {
-        city_name,
-        city_Code,
-        stateId,
-        isCoastal,
-        status: statusValue,       
-        created_by_id: 1, // Default to null (or 0 if backend requires)
-        created_date: currentDate,
-      };
-      console.log('Sending to backend:', payload); // Debug log
-      const res = await fetch('http://localhost:3001/api/cities', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (res.ok) {
-        toast.success('City added successfully');
-        setName('');
-        setCityCode('');
-        setStateId(null);
-        setIsCoastal(false);
-        setStatus('Active'); // Reset to 'Active' after successful add
-        onSuccess();
-        onHide();
-      } else {
-        toast.error('Failed to add city');
-      }
-    } catch (err) {
-      toast.error('Something went wrong');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <Modal show={show} onHide={onHide}>
-      <Modal.Header closeButton>
-        <Modal.Title>Add City</Modal.Title>
-      </Modal.Header>
-      <Modal.Body>
-        <Form.Group className="mb-3">
-          <Form.Label>City Name</Form.Label>
-          <Form.Control type="text" value={city_name} onChange={(e) => setName(e.target.value)} />
-        </Form.Group>
-        <Form.Group className="mb-3">
-          <Form.Label>City Code</Form.Label>
-          <Form.Control type="text" value={city_Code} onChange={(e) => setCityCode(e.target.value)} />
-        </Form.Group>
-        <Form.Group className="mb-3">
-          <Form.Label>State</Form.Label>
-          <select
-            className="form-control"
-            value={stateId ?? ''}
-            onChange={(e) => {
-              const value = e.target.value;
-              setStateId(value === '' ? null : Number(value));
-            }}
-            disabled={loading}
-          >
-            <option value="">Select a state</option>
-            {states  .filter((states) => String(states.status) === '0')  .map((state) => (
-              <option key={state.stateid} value={state.stateid}>
-                {state.state_name}
-              </option>
-            ))}
-          </select>
-        </Form.Group>
-       
-        <Form.Group className="mb-3">
-          <div className="col-md-12">
-            <label className="form-label">Status <span style={{ color: 'red' }}>*</span></label>
-            <select
-              className="form-control"
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-            >
-              <option value="Active">Active</option>
-              <option value="Inactive">Inactive</option>
-            </select>
-          </div>
-        </Form.Group>
-        <Form.Group className="mb-3">
-          <Form.Check
-            type="checkbox"
-            label="Is Coastal City"
-            checked={isCoastal}
-            onChange={(e) => setIsCoastal(e.target.checked)}
-          />
-        </Form.Group>
-        
-      </Modal.Body>
-      <Modal.Footer>
-        <Button variant="secondary" onClick={onHide} disabled={loading}>
-          Cancel
-        </Button>
-        <Button variant="primary" onClick={handleAdd} disabled={loading}>
-          {loading ? 'Adding...' : 'Add City'}
-        </Button>
-      </Modal.Footer>
-    </Modal>
-  );
-};
-//3
-// EditCityModal component
-interface EditCityModalProps {
-  show: boolean;
-  onHide: () => void;
-  mstcitymaster: CityItem | null;
-  onSuccess: () => void;
-  onUpdateSelectedCity: (mstcitymaster: CityItem) => void;
-}
-
-const EditCityModal: React.FC<EditCityModalProps> = ({ show, onHide, mstcitymaster, onSuccess, onUpdateSelectedCity }) => {
-  const [city_name, setName] = useState('');
-  const [city_Code, setCityCode] = useState('');
-  const [stateId, setStateId] = useState<number | null>(null);
-  const [isCoastal, setIsCoastal] = useState(false);
-  const [status, setStatus] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [states, setStates] = useState<StateItem[]>([]);
- 
-
-  // Fetch states when modal opens
-  useEffect(() => {
-    fetchStates(setStates, setStateId, undefined,);
-
-  }, []);
-
-
-
-
-  useEffect(() => {
-    if (mstcitymaster) {
-      setName(mstcitymaster.city_name);
-      setCityCode(mstcitymaster.city_Code);
-      setStateId(mstcitymaster.stateId ? Number(mstcitymaster.stateId) : null);
-      setIsCoastal(mstcitymaster.isCoastal);
-      setStateId(Number(mstcitymaster.stateId)); // ✅ FIXED LINE
-      setStatus(String(mstcitymaster.status) === '0' ? 'Active' : 'Inactive');
+      const currentDate = new Date().toISOString();
       
-    }
-  }, [mstcitymaster]);
- const handleEdit = async () => {
-    if (!city_name || !city_Code || !status || !mstcitymaster) {
-      toast.error('All fields are required');
-      return;
-    }
-
-    setLoading(true);
-    try {
-     const statusValue = status === 'Active' ? 0 : 1;
-      const currentDate = new Date().toISOString(); // Timestamp: e.g., 2025-07-01T04:51:00.000Z
+      // Map frontend fields to backend expected fields
       const payload = {
         city_name,
-        city_Code,
-        isCoastal,
-        stateId,
+        city_Code: city_code, // Fix: backend expects city_Code (capital C)
+        stateId: stateId,     // Fix: backend expects stateId (capital I)
+        iscoastal: 0,         // Add: backend expects iscoastal field
         status: statusValue,
-        cityid: mstcitymaster.cityid, // Ensure cityid is included
-        updated_by_id: '2', // Default to "0" (string)
-        updated_date: currentDate,
-       
+        ...(isEditMode 
+          ? { 
+              updated_by_id: '2', 
+              updated_date: currentDate 
+            } 
+          : { 
+              created_by_id: '1', 
+              created_date: currentDate 
+            }
+        ),
       };
-      console.log('Sending to backend:', payload); // Debug log
-      const res = await fetch(`http://localhost:3001/api/cities/${mstcitymaster.cityid}`, {
-        method: 'PUT',
+
+      const url = isEditMode
+        ? `http://localhost:3001/api/cities/${city!.cityid}`
+        : 'http://localhost:3001/api/cities';
+      const method = isEditMode ? 'PUT' : 'POST';
+
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      if (res.ok) {
-        toast.success('City updated successfully');
-        onSuccess();
-        // Update the selected city in the parent component
-        const updatedCity = {
-          ...mstcitymaster,
-          city_name,
-          city_Code,
-          status: statusValue,
 
-          stateId: stateId !== null ? stateId.toString() : '',
-          
-          isCoastal: isCoastal ?? false, // <-- default to false if undefined
-          updated_by_id: '2', // Default to "0" (string)
-          updated_date: currentDate, // Use the current date
-        };
-        onUpdateSelectedCity(updatedCity);
+      if (res.ok) {
+        const responseData = await res.json();
+        toast.success(`City ${isEditMode ? 'updated' : 'added'} successfully`);
+        
+        if (isEditMode && city && onUpdateSelectedCity) {
+          onUpdateSelectedCity({ 
+            ...city, 
+            city_name, 
+            city_code, 
+            stateid: String(stateId), 
+            status: statusValue 
+          });
+        }
+        
+        onSuccess();
         onHide();
       } else {
-        toast.error('Failed to update city');
+        const errorData = await res.json();
+        toast.error(errorData.message || `Failed to ${isEditMode ? 'update' : 'add'} city`);
       }
-    } catch (err) {
+    } catch (error) {
+      console.error('Error:', error);
       toast.error('Something went wrong');
     } finally {
       setLoading(false);
     }
   };
 
-
-
   return (
     <Modal show={show} onHide={onHide}>
       <Modal.Header closeButton>
-        <Modal.Title>Edit City</Modal.Title>
+        <Modal.Title>{isEditMode ? 'Edit City' : 'Add New City'}</Modal.Title>
       </Modal.Header>
       <Modal.Body>
-        <Form.Group className="mb-3">
-          <Form.Label>City Name</Form.Label>
-          <Form.Control type="text" value={city_name} onChange={(e) => setName(e.target.value)} />
-        </Form.Group>
-        <Form.Group className="mb-3">
-          <Form.Label>City Code</Form.Label>
-          <Form.Control type="text" value={ city_Code} onChange={(e) => setCityCode(e.target.value)} />
-        </Form.Group>
-        <Form.Group className="mb-3">
-          <Form.Label>State</Form.Label>
-          <select
-            className="form-control"
-            value={stateId ?? ''}
-            onChange={(e) => {
-              const value = e.target.value;
-              setStateId(value === '' ? null : Number(value));
-            }}
-            disabled={loading}
-          >
-            <option value="">Select a state</option>
-            {states  .filter((states) => String(states.status) === '0')  .map((state) => (
-              <option key={state.stateid} value={state.stateid}>
-                {state.state_name}
-              </option>
-            ))}
-          </select>
-        </Form.Group>
-       
-         <Form.Label>Status Name</Form.Label>
-          <select
-              className="form-control"
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-            >
-              <option value="Active">Active</option>
-              <option value="Inactive">Inactive</option>
-            </select>
-        <Form.Group className="mb-3">
-          <Form.Check
-            type="checkbox"
-            label="Is Coastal City"
-            checked={isCoastal}
-            onChange={(e) => setIsCoastal(e.target.checked)}
-          />
-        </Form.Group>
+        <Form>
+          <div className="row">
+            <div className="col-md-6 mb-3">
+              <Form.Group>
+                <Form.Label>City Name <span style={{ color: 'red' }}>*</span></Form.Label>
+                <Form.Control
+                  type="text"
+                  placeholder="Enter city name"
+                  value={city_name}
+                  onChange={(e) => setName(e.target.value)}
+                />
+              </Form.Group>
+            </div>
+            <div className="col-md-6 mb-3">
+              <Form.Group>
+                <Form.Label>City Code <span style={{ color: 'red' }}>*</span></Form.Label>
+                <Form.Control
+                  type="text"
+                  placeholder="Enter city code"
+                  value={city_code}
+                  onChange={(e) => setCode(e.target.value.toUpperCase())}
+                  maxLength={4}
+                />
+              </Form.Group>
+            </div>
+          </div>
+          <div className="row">
+            <div className="col-md-6 mb-3">
+              <Form.Group>
+                <Form.Label>State <span style={{ color: 'red' }}>*</span></Form.Label>
+                <Form.Select
+                  value={stateId ?? ''}
+                  onChange={(e) => setStateId(Number(e.target.value))}
+                >
+                  <option value="">Select a state</option>
+                  {stateItems
+                    .filter((state) => String(state.status) === '0')
+                    .map((state) => (
+                      <option key={state.stateid} value={state.stateid}>
+                        {state.state_name}
+                      </option>
+                    ))}
+                </Form.Select>
+              </Form.Group>
+            </div>
+            <div className="col-md-6 mb-3">
+              <Form.Group>
+                <Form.Label>Status</Form.Label>
+                <Form.Select
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value)}
+                >
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
+                </Form.Select>
+              </Form.Group>
+            </div>
+          </div>
+        </Form>
       </Modal.Body>
       <Modal.Footer>
         <Button variant="secondary" onClick={onHide} disabled={loading}>
           Cancel
         </Button>
-        <Button variant="primary" onClick={handleEdit} disabled={loading}>
-          {loading ? 'Updating...' : 'Update City'}
+        <Button variant="primary" onClick={handleSubmit} disabled={loading}>
+          {loading ? (isEditMode ? 'Updating...' : 'Adding...') : 'Save'}
         </Button>
-
       </Modal.Footer>
     </Modal>
   );
 };
-
 
 export default City;
-
