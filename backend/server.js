@@ -19,6 +19,7 @@ const KitchenSubCategoryRoutes = require('./routes/KitchenSubCategoryRoutes');
 const HotelMastersRoutes = require('./routes/HotelMastersRoutes');
 const ItemMainGroupRoutes = require('./routes/ItemMainGroupRoutes');
 const ItemGroupRoutes = require('./routes/ItemGroupRoutes');
+const itemGroupRoutes = require('./routes/itemGroupRoutes');
 const messagemasterRoutes = require('./routes/messagemasterRoutes');
 const menuRoutes = require("./routes/mstrestmenuRoutes");
 const outletRoutes = require('./routes/outletRoutes');

@@ -61,6 +61,8 @@ export interface ItemGroupItem {
   item_groupid: number
   itemgroupname: string // Adjust based on your API response structure
   status: number
+  code?: string
+  kitchencategoryid?: number | null
 }
 
 export interface ItemMainGroupItem {
@@ -331,6 +333,25 @@ export const fetchItemMainGroup = async (
     toast.error('Failed to fetch item main groups')
     console.error('Fetch item main groups error:', err)
     setItemMainGroup([])
+  }
+}
+
+export const fetchItemGroupsWithMenuItems = async (
+  setItemGroup: (data: ItemGroupItem[]) => void,
+  setitemgroupid: (id: number) => void,
+  currentitemgroupid?: string,
+) => {
+  try {
+    const res = await fetch('http://localhost:3001/api/itemgroup/withmenuitems')
+    const data: ItemGroupItem[] = await res.json()
+    setItemGroup(data)
+    if (data.length > 0 && !currentitemgroupid) {
+      setitemgroupid(data[0].item_groupid)
+    }
+  } catch (err) {
+    toast.error('Failed to fetch item groups with menu items')
+    console.error('Fetch item groups with menu items error:', err)
+    setItemGroup([])
   }
 }
 

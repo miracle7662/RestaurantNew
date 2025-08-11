@@ -1,11 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const controller = require('../controllers/ItemGroupController');
+const itemGroupController = require('../controllers/itemGroupController');
 
-router.get('/', controller.getItemGroup);
-router.post('/', controller.addItemGroup);
-router.put('/:id', controller.updateItemGroup);
-router.delete('/:id', controller.deleteItemGroup);
-
+// Get item groups that have menu items
+router.get('/withmenuitems', itemGroupController.getItemGroupsWithMenuItems);
 
 module.exports = router;

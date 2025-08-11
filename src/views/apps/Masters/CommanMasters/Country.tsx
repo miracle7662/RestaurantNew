@@ -1,15 +1,8 @@
+<<<<<<< REPLACE
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Swal from 'sweetalert2';
 import { toast } from 'react-hot-toast';
 import { Button, Card, Stack, Pagination, Table, Modal, Form } from 'react-bootstrap';
-import {
-  useReactTable,
-  getCoreRowModel,
-  getPaginationRowModel,
-  getFilteredRowModel,
-  ColumnDef,
-  flexRender,
-} from '@tanstack/react-table';
 import { Preloader } from '@/components/Misc/Preloader';
 import { ContactSearchBar, ContactSidebar } from '@/components/Apps/Contact';
 import TitleHelmet from '@/components/Common/TitleHelmet';
@@ -331,21 +324,23 @@ const Country: React.FC = () => {
                   </tr>
                 ))}
               </thead>
-              <tbody>
-                {table.getRowModel().rows.map((row) => (
-                  <tr
-                    key={row.id}
-                    className={selectedCountry?.countryid === row.original.countryid ? 'active' : ''}
-                    onClick={() => handleCountryItemClick(row.original)}
-                  >
-                   
-
-                    {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
+<tbody>
+  {table.getRowModel().rows.map((row) => {
+    const isActive = row.original.status === 0 || row.original.status === '0';
+    return (
+      <tr
+        key={row.id}
+        className={selectedCountry?.countryid === row.original.countryid ? 'active' : ''}
+        style={{ color: isActive ? 'black' : 'gray', fontWeight: isActive ? 'bold' : 'normal' }}
+        onClick={() => handleCountryItemClick(row.original)}
+      >
+        {row.getVisibleCells().map((cell) => (
+          <td key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>
+        ))}
+      </tr>
+    );
+  })}
+</tbody>
             </Table>
             <Stack className="p-2 border-top d-flex flex-row align-items-center justify-content-between" style={{ gap: '6px', padding: '8px 12px' }}>
               <select
@@ -497,7 +492,7 @@ const AddCountryModal: React.FC<ModalProps> = ({ show, onHide, onSuccess }) => {
       });
       if (res.ok) {
         toast.success('Country added successfully');
-        setName('');
+        setName(''); 
         setCode('');
         setCapital('');
         setStatus('Active'); // Reset to 'Active' after successful add
@@ -516,41 +511,78 @@ const AddCountryModal: React.FC<ModalProps> = ({ show, onHide, onSuccess }) => {
   return (
     <Modal show={show} onHide={onHide}>
       <Modal.Header closeButton>
-        <Modal.Title>Add Country</Modal.Title>
+        <Modal.Title>Add New Country</Modal.Title>
       </Modal.Header>
       <Modal.Body>
-        <Form.Group className="mb-3">
-          <Form.Label>Country Name</Form.Label>
-          <Form.Control type="text" value={country_name} onChange={(e) => setName(e.target.value)} style={{ borderColor: '#ccc' }} />
-        </Form.Group>
-        <Form.Group className="mb-3">
-          <Form.Label>Country Code</Form.Label>
-          <Form.Control type="text" value={country_code} onChange={(e) => setCode(e.target.value)} style={{ borderColor: '#ccc' }} />
-        </Form.Group>
-        <Form.Group className="mb-3">
-          <Form.Label>Capital</Form.Label>
-          <Form.Control type="text" value={country_capital} onChange={(e) => setCapital(e.target.value)} style={{ borderColor: '#ccc' }} />
-        </Form.Group>
-         <Form.Group className="mb-3">
-                    <div className="col-md-12">
-            <label className="form-label">Status <span style={{ color: 'red' }}>*</span></label>
-            <select
-              className="form-control"
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-            >
-              <option value="Active">Active</option>
-              <option value="Inactive">Inactive</option>
-            </select>
+        <Form>
+          <div className="row">
+            <div className="col-md-6 mb-3">
+              <Form.Group>
+                <Form.Label>Country Name <span style={{ color: 'red' }}>*</span></Form.Label>
+                <Form.Control
+                  type="text"
+                  placeholder="Enter country name"
+                  value={country_name}
+                  onChange={(e) => setName(e.target.value)}
+                  style={{ borderColor: '#ccc' }}
+                />
+              </Form.Group>
+            </div>
+            <div className="col-md-6 mb-3">
+              <Form.Group>
+                <Form.Label>Country Code <span style={{ color: 'red' }}>*</span></Form.Label>
+                <Form.Control
+                  type="number"
+                  placeholder="Enter country code"
+                  value={country_code}
+                  onChange={(e) => setCode(e.target.value)}
+                  maxLength={3}
+                  min="0"
+                  max="999"
+                  style={{ borderColor: '#ccc' }}
+                  onInput={(e) => {
+                    const target = e.target as HTMLInputElement;
+                    target.value = target.value.replace(/[^0-9]/g, '').slice(0, 3);
+                  }}
+                />
+              </Form.Group>
+            </div>
           </div>
-        </Form.Group>
+          <div className="row">
+            <div className="col-md-6 mb-3">
+              <Form.Group>
+                <Form.Label>Capital City</Form.Label>
+                <Form.Control
+                  type="text"
+                  placeholder="Enter capital city"
+                  value={country_capital}
+                  onChange={(e) => setCapital(e.target.value)}
+                  style={{ borderColor: '#ccc' }}
+                />
+              </Form.Group>
+            </div>
+            <div className="col-md-6 mb-3">
+              <Form.Group>
+                <Form.Label>Status</Form.Label>
+                <Form.Select
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value)}
+                  style={{ borderColor: '#ccc' }}
+                >
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
+                </Form.Select>
+              </Form.Group>
+            </div>
+          </div>
+        </Form>
       </Modal.Body>
       <Modal.Footer>
         <Button variant="secondary" onClick={onHide} disabled={loading}>
           Cancel
         </Button>
         <Button variant="primary" onClick={handleAdd} disabled={loading}>
-          {loading ? 'Adding...' : 'Add Country'}
+          {loading ? 'Adding...' : 'Save'}
         </Button>
       </Modal.Footer>
     </Modal>
@@ -626,38 +658,75 @@ const EditCountryModal: React.FC<EditCountryModalProps> = ({ show, onHide, count
         <Modal.Title>Edit Country</Modal.Title>
       </Modal.Header>
       <Modal.Body>
-        <Form.Group className="mb-3">
-          <Form.Label>Country Name</Form.Label>
-          <Form.Control type="text" value={country_name} onChange={(e) => setName(e.target.value)} style={{ borderColor: '#ccc' }} />
-        </Form.Group>
-        <Form.Group className="mb-3">
-          <Form.Label>Country Code</Form.Label>
-          <Form.Control type="text" value={country_code} onChange={(e) => setCode(e.target.value)} style={{ borderColor: '#ccc' }} />
-        </Form.Group>
-        <Form.Group className="mb-3">
-          <Form.Label>Capital</Form.Label>
-          <Form.Control type="text" value={country_capital} onChange={(e) => setCapital(e.target.value)} style={{ borderColor: '#ccc' }} />
-        </Form.Group>
-         <Form.Group className="mb-3">
-         <div className="col-md-12">
-            <label className="form-label">Status <span style={{ color: 'red' }}>*</span></label>
-            <select
-              className="form-control"
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-            >
-              <option value="Active">Active</option>
-              <option value="Inactive">Inactive</option>
-            </select>
+        <Form>
+          <div className="row">
+            <div className="col-md-6 mb-3">
+              <Form.Group>
+                <Form.Label>Country Name <span style={{ color: 'red' }}>*</span></Form.Label>
+                <Form.Control
+                  type="text"
+                  placeholder="Enter country name"
+                  value={country_name}
+                  onChange={(e) => setName(e.target.value)}
+                  style={{ borderColor: '#ccc' }}
+                />
+              </Form.Group>
+            </div>
+            <div className="col-md-6 mb-3">
+              <Form.Group>
+                <Form.Label>Country Code <span style={{ color: 'red' }}>*</span></Form.Label>
+                <Form.Control
+                  type="number"
+                  placeholder="Enter country code"
+                  value={country_code}
+                  onChange={(e) => setCode(e.target.value)}
+                  maxLength={3}
+                  min="0"
+                  max="999"
+                  style={{ borderColor: '#ccc' }}
+                  onInput={(e) => {
+                    const target = e.target as HTMLInputElement;
+                    target.value = target.value.replace(/[^0-9]/g, '').slice(0, 3);
+                  }}
+                />
+              </Form.Group>
+            </div>
           </div>
-        </Form.Group>
+          <div className="row">
+            <div className="col-md-6 mb-3">
+              <Form.Group>
+                <Form.Label>Capital City</Form.Label>
+                <Form.Control
+                  type="text"
+                  placeholder="Enter capital city"
+                  value={country_capital}
+                  onChange={(e) => setCapital(e.target.value)}
+                  style={{ borderColor: '#ccc' }}
+                />
+              </Form.Group>
+            </div>
+            <div className="col-md-6 mb-3">
+              <Form.Group>
+                <Form.Label>Status</Form.Label>
+                <Form.Select
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value)}
+                  style={{ borderColor: '#ccc' }}
+                >
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
+                </Form.Select>
+              </Form.Group>
+            </div>
+          </div>
+        </Form>
       </Modal.Body>
       <Modal.Footer>
         <Button variant="secondary" onClick={onHide} disabled={loading}>
           Cancel
         </Button>
         <Button variant="primary" onClick={handleEdit} disabled={loading}>
-          {loading ? 'Updating...' : 'Update Country'}
+          {loading ? 'Updating...' : 'Save'}
         </Button>
       </Modal.Footer>
     </Modal>

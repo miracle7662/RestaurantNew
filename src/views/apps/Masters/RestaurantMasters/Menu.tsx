@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, ChangeEvent } from 'react';
 import { toast } from 'react-hot-toast';
 import { useAuthContext } from '@/common';
@@ -7,6 +8,7 @@ import {
   fetchKitchenMainGroup,
   fetchKitchenSubCategory,
   fetchItemGroup,
+  fetchItemGroupsWithMenuItems,
   fetchItemMainGroup,
   fetchData,
   fetchunitmaster,
@@ -129,21 +131,21 @@ const Menu: React.FC = () => {
   const [globalFilter, setGlobalFilter] = useState<string>('');
   const [showSidebar, setShowSidebar] = useState(false);
   const [itemGroup, setItemGroup] = useState<ItemGroupItem[]>([]);
-  const [itemGroupId, setItemGroupId] = useState<number | null>(null);
   const [itemGroupStatus, setItemGroupStatus] = useState<{ [key: number]: number }>({}); // Store status of each item group
+  const [itemGroupId, setItemGroupId] = useState<number | null>(null);
 
-  // Fetch item groups and store their status
   useEffect(() => {
     const fetchGroups = async () => {
       try {
-        const groups = await fetchItemGroup();
-        setItemGroup(groups);
-        const statusMap: { [key: number]: number } = {};
-        groups.forEach((group: ItemGroupItem) => {
-          statusMap[group.item_groupid] = group.status;
-        });
-        setItemGroupStatus(statusMap);
-      } catch (error) {
+        const groups = await fetchItemGroup(setItemGroup, setItemGroupId);
+        if (Array.isArray(groups)) {
+          const statusMap: { [key: number]: number } = {};
+          groups.forEach((group) => {
+            statusMap[group.item_groupid] = group.status;
+          });
+          setItemGroupStatus(statusMap);
+        }
+      } catch {
         toast.error('Failed to fetch item groups');
       }
     };
@@ -251,8 +253,24 @@ const Menu: React.FC = () => {
 
   
   useEffect(() => {
-    fetchMenu();
-    fetchItemGroup(setItemGroup, setItemGroupId).catch(() => toast.error('Failed to fetch item groups'));
+    const fetchGroups = async () => {
+      try {
+        const groups = await fetchItemGroupsWithMenuItems(setItemGroup, setItemGroupId);
+        // After item groups are fetched, build status map from groups directly
+        const statusMap: { [key: number]: number } = {};
+        if (Array.isArray(groups)) {
+          groups.forEach((group) => {
+            statusMap[group.item_groupid] = group.status;
+          });
+        }
+        setItemGroupStatus(statusMap);
+        fetchMenu();
+      } catch {
+        toast.error('Failed to fetch item groups');
+      }
+    };
+    fetchGroups();
+    console.log('User info before fetching outlets and brands:', user);
     fetchOutletsForDropdown(user, setOutlets, setLoading);
     fetchBrands(user, setBrands);
   }, [user]);
@@ -419,38 +437,64 @@ const Menu: React.FC = () => {
                             id={`sidebar-toggle-${group.item_groupid}`}
                             type="checkbox"
                             variant="outline-success"
-                            checked={isAvailable}
+                            checked={itemGroupStatus[group.item_groupid] === 0}
                             value="1"
-                            onChange={() => {
-                              const updatedStatus = isAvailable ? '❌ Unavailable' : '✅ Available';
-                              const statusValue = updatedStatus === '✅ Available' ? 0 : 1;
-                              setData((prevData) =>
-                                prevData.map((d) =>
-                                  d.item_group_id === group.item_groupid ? { ...d, status: statusValue } : d
-                                )
-                              );
-                              setCardItems((prevCardItems) =>
-                                prevCardItems.map((item) =>
-                                  itemCategories[category].some((catItem) => catItem.userId === item.userId)
-                                    ? { ...item, cardStatus: updatedStatus }
-                                    : item
-                                )
-                              );
-                              setItemCategories((prev) => ({
-                                ...prev,
-                                All: prev.All.map((item) =>
-                                  itemCategories[category].some((catItem) => catItem.userId === item.userId)
-                                    ? { ...item, cardStatus: updatedStatus }
-                                    : item
-                                ),
-                                [category]: prev[category].map((item) => ({
-                                  ...item,
-                                  cardStatus: updatedStatus,
-                                })),
-                              }));
-                              data
-                                .filter((d) => d.item_group_id === group.item_groupid)
-                                .forEach((item) => updateStatusInDatabase(item.restitemid, statusValue));
+                            onChange={async () => {
+                              const newStatus = itemGroupStatus[group.item_groupid] === 0 ? 1 : 0;
+                              // Update backend item group status
+                              try {
+                                const res = await fetch(`http://localhost:3001/api/itemgroup/${group.item_groupid}`, {
+                                  method: 'PUT',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({
+                                    itemgroupname: group.itemgroupname,
+                                    code: group.code,
+                                    kitchencategoryid: group.kitchencategoryid,
+                                    status: newStatus,
+                                    updated_by_id: user?.id || 2,
+                                    updated_date: new Date().toISOString(),
+                                  }),
+                                });
+                                if (!res.ok) {
+                                  toast.error(`Failed to update item group status (${res.status})`);
+                                  return;
+                                }
+                                // Update frontend state
+                                setItemGroupStatus((prev) => ({
+                                  ...prev,
+                                  [group.item_groupid]: newStatus,
+                                }));
+                                // Optionally update items status in this group in frontend state
+                                setData((prevData) =>
+                                  prevData.map((d) =>
+                                    d.item_group_id === group.item_groupid ? { ...d, status: newStatus } : d
+                                  )
+                                );
+                                // Update cardItems and itemCategories accordingly
+                                const updatedCardStatus = newStatus === 0 ? '✅ Available' : '❌ Unavailable';
+                                setCardItems((prevCardItems) =>
+                                  prevCardItems.map((item) =>
+                                    itemCategories[category].some((catItem) => catItem.userId === item.userId)
+                                      ? { ...item, cardStatus: updatedCardStatus }
+                                      : item
+                                  )
+                                );
+                                setItemCategories((prev) => ({
+                                  ...prev,
+                                  All: prev.All.map((item) =>
+                                    itemCategories[category].some((catItem) => catItem.userId === item.userId)
+                                      ? { ...item, cardStatus: updatedCardStatus }
+                                      : item
+                                  ),
+                                  [category]: prev[category].map((item) => ({
+                                    ...item,
+                                    cardStatus: updatedCardStatus,
+                                  })),
+                                }));
+                                toast.success('Item group status updated successfully');
+                              } catch (error) {
+                                toast.error('Error updating item group status');
+                              }
                             }}
                             size="sm"
                             style={{
@@ -460,8 +504,8 @@ const Menu: React.FC = () => {
                               padding: '0',
                               display: 'flex',
                               alignItems: 'center',
-                              justifyContent: isAvailable ? 'flex-end' : 'flex-start',
-                              backgroundColor: isAvailable ? '#28a745' : '#6c757d',
+                              justifyContent: itemGroupStatus[group.item_groupid] === 0 ? 'flex-end' : 'flex-start',
+                              backgroundColor: itemGroupStatus[group.item_groupid] === 0 ? '#28a745' : '#6c757d',
                             }}
                           >
                             <div style={{ width: '16px', height: '16px', backgroundColor: 'white', borderRadius: '50%', margin: '2px' }} />
@@ -796,23 +840,23 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
       );
 
       setItemCategories((prev) => {
-        let updatedCategories = { ...prev };
-        updatedCategories.All = isEdit
-          ? updatedCategories.All.map((item) => (item.userId === String(updatedItem.restitemid) ? updatedCardItem : item))
-          : [...updatedCategories.All, updatedCardItem];
+      const updatedCategories = { ...prev };
+      updatedCategories.All = isEdit
+        ? updatedCategories.All.map((item) => (item.userId === String(updatedItem.restitemid) ? updatedCardItem : item))
+        : [...updatedCategories.All, updatedCardItem];
 
-        if (isEdit && oldCategory !== newCategory && oldCategory !== 'All') {
-          updatedCategories[oldCategory] = updatedCategories[oldCategory].filter(
-            (item) => item.userId !== String(updatedItem.restitemid)
-          );
-        }
-        if (newCategory !== 'All') {
-          const categoryItems = updatedCategories[newCategory].filter(
-            (item) => item.userId !== String(updatedItem.restitemid)
-          );
-          updatedCategories[newCategory] = [...categoryItems, updatedCardItem];
-        }
-        return updatedCategories;
+      if (isEdit && oldCategory !== newCategory && oldCategory !== 'All') {
+        updatedCategories[oldCategory] = updatedCategories[oldCategory].filter(
+          (item) => item.userId !== String(updatedItem.restitemid)
+        );
+      }
+      if (newCategory !== 'All') {
+        const categoryItems = updatedCategories[newCategory].filter(
+          (item) => item.userId !== String(updatedItem.restitemid)
+        );
+        updatedCategories[newCategory] = [...categoryItems, updatedCardItem];
+      }
+      return updatedCategories;
       });
 
       onSuccess();
