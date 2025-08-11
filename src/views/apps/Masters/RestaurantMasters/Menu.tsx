@@ -130,6 +130,57 @@ const Menu: React.FC = () => {
   const [showSidebar, setShowSidebar] = useState(false);
   const [itemGroup, setItemGroup] = useState<ItemGroupItem[]>([]);
   const [itemGroupId, setItemGroupId] = useState<number | null>(null);
+  const [itemGroupStatus, setItemGroupStatus] = useState<{ [key: number]: number }>({}); // Store status of each item group
+
+  // Fetch item groups and store their status
+  useEffect(() => {
+    const fetchGroups = async () => {
+      try {
+        const groups = await fetchItemGroup();
+        setItemGroup(groups);
+        const statusMap: { [key: number]: number } = {};
+        groups.forEach((group: ItemGroupItem) => {
+          statusMap[group.item_groupid] = group.status;
+        });
+        setItemGroupStatus(statusMap);
+      } catch (error) {
+        toast.error('Failed to fetch item groups');
+      }
+    };
+    fetchGroups();
+  }, []);
+
+  // Function to update item group status in backend
+  const updateItemGroupStatus = async (groupId: number, newStatus: number) => {
+    try {
+      const group = itemGroup.find((g) => g.item_groupid === groupId);
+      if (!group) {
+        toast.error('Item group not found');
+        return;
+      }
+      const payload = {
+        itemgroupname: group.itemgroupname,
+        code: group.code || '',
+        kitchencategoryid: group.kitchencategoryid || null,
+        status: newStatus,
+        updated_by_id: user?.id || 2,
+        updated_date: new Date().toISOString(),
+      };
+      const res = await fetch(`http://localhost:3001/api/itemgroup/${groupId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        toast.error(`Failed to update item group status (${res.status})`);
+        return;
+      }
+      setItemGroupStatus((prev) => ({ ...prev, [groupId]: newStatus }));
+      toast.success('Item group status updated');
+    } catch (err: any) {
+      toast.error(`Error updating item group status: ${err.message}`);
+    }
+  };
   const [selectedCategory, setSelectedCategory] = useState<Category>('All');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -321,7 +372,7 @@ const Menu: React.FC = () => {
               <Table striped bordered hover size="sm" style={{ marginBottom: 0, tableLayout: 'fixed', width: '100%' }}>
                 <thead>
                   <tr>
-                    <th style={{ width: '70%', padding: '8px', backgroundColor: '#f8f9fa', fontWeight: '600', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Item Name</th>
+                    <th style={{ width: '70%', padding: '8px', backgroundColor: '#f8f9fa', fontWeight: '600', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Item Group</th>
                     <th style={{ width: '30%', padding: '8px', backgroundColor: '#f8f9fa', fontWeight: '600', textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Status</th>
                   </tr>
                 </thead>
