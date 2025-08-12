@@ -20,7 +20,7 @@ interface CityItem {
   cityid: string;
   city_name: string;
   city_code: string;
-  stateid: string;
+  stateId: string;
   state_name?: string;
   countryid: string;
   country_name?: string;
@@ -511,7 +511,7 @@ const CityModal: React.FC<CityModalProps> = ({ show, onHide, onSuccess, city, on
     if (city && isEditMode) {
       setName(city.city_name);
       setCode(city.city_code);
-      setStateId(Number(city.stateid));
+      setStateId(Number(city.stateId));
       setStatus(String(city.status) === '0' ? 'Active' : 'Inactive');
     } else {
       setName('');
@@ -571,7 +571,7 @@ const CityModal: React.FC<CityModalProps> = ({ show, onHide, onSuccess, city, on
             ...city, 
             city_name, 
             city_code, 
-            stateid: String(stateId), 
+            stateId: String(stateId), 
             status: statusValue 
           });
         }

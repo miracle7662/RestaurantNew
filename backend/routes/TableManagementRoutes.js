@@ -1,10 +1,13 @@
-const express = require('express');
+// backend/routes/TableManagementRoutes.js
+const express = require("express");
 const router = express.Router();
-const controller = require('../controllers/TableManagementController');
 
-router.get('/', controller.getTableManagement);
-router.post('/', controller.addTableManagement);
-router.put('/:id', controller.updateTableManagement);
-router.delete('/:id', controller.deleteTableManagement);
+const TableManagementController = require("../controllers/TableManagementController");
+
+// CRUD Routes
+router.get("/", TableManagementController.getAllTables);           // Get all tables
+router.post("/", TableManagementController.createTable);           // Create new table
+router.put("/:tableid", TableManagementController.updateTable);    // Update table
+router.delete("/:tableid", TableManagementController.deleteTable); // Delete table
 
 module.exports = router;
