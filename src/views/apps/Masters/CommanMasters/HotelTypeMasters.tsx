@@ -64,6 +64,24 @@ const HoteltypeMasters: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('alls');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [filteredHoteltypes, setFilteredHoteltypes] = useState<HoteltypeItem[]>([]);
+
+  // Debounced search handler
+  const handleSearch = useCallback(
+    debounce((value: string) => {
+      const filtered = hoteltypeItems.filter((item) =>
+        item.hotel_type.toLowerCase().includes(value.toLowerCase())
+      );
+      setFilteredHoteltypes(filtered);
+    }, 500),
+    [hoteltypeItems]
+  );
+  
+  // Update search term and trigger debounced search
+  const onSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+    handleSearch(value);
+  };
   const [selectedHoteltype, setSelectedHoteltype] = useState<HoteltypeItem | null>(null);
   const [selectedHoteltypeIndex, setSelectedHoteltypeIndex] = useState<number>(-1);
   const [loading, setLoading] = useState<boolean>(false);
@@ -72,6 +90,11 @@ const HoteltypeMasters: React.FC = () => {
   const [sidebarLeftToggle, setSidebarLeftToggle] = useState<boolean>(false);
   const [sidebarMiniToggle, setSidebarMiniToggle] = useState<boolean>(false);
   const [containerToggle, setContainerToggle] = useState<boolean>(false);
+
+  // Fetch hotel types on component mount
+  useEffect(() => {
+    fetchHoteltypes();
+  }, []);
 
   // CRUD operations
   const handleDeleteHoteltype = async (hoteltype: HoteltypeItem) => {
@@ -177,9 +200,19 @@ const HoteltypeMasters: React.FC = () => {
     <div className="flex-grow-1 p-4" style={{ overflowY: 'auto' }}>
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h4>Hotel Type Management</h4>
-        <Button variant="success" onClick={() => setShowAddModal(true)}>
-          <i className="bi bi-plus"></i> Add Hotel Type
-        </Button>
+        <div>
+          <input
+            type="text"
+            className="form-control"
+            placeholder="Search hotel types..."
+            value={searchTerm}
+            onChange={onSearchChange}
+            style={{ width: '250px', display: 'inline-block', marginRight: '10px' }}
+          />
+          <Button variant="success" onClick={() => setShowAddModal(true)}>
+            <i className="bi bi-plus"></i> Add Hotel Type
+          </Button>
+        </div>
       </div>
 
       {loading ? (
