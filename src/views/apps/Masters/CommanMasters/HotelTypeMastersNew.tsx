@@ -64,6 +64,21 @@ const HoteltypeMasters: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('alls');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [filteredHoteltypes, setFilteredHoteltypes] = useState<HoteltypeItem[]>([]);
+
+  // Debounced search handler
+  const debouncedSearch = useCallback(
+    debounce((value: string) => {
+      fetchHoteltypes(value);
+    }, 500),
+    []
+  );
+  
+  // Handle search input change
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+    debouncedSearch(value);
+  };
   const [selectedHoteltype, setSelectedHoteltype] = useState<HoteltypeItem | null>(null);
   const [selectedHoteltypeIndex, setSelectedHoteltypeIndex] = useState<number>(-1);
   const [loading, setLoading] = useState<boolean>(false);
@@ -98,10 +113,11 @@ const HoteltypeMasters: React.FC = () => {
   };
 
   // Fetch hotel types from API
-  const fetchHoteltypes = async () => {
+  const fetchHoteltypes = async (search: string = '') => {
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:3001/api/hoteltype');
+      const url = search ? `http://localhost:3001/api/hoteltype?search=${encodeURIComponent(search)}` : 'http://localhost:3001/api/hoteltype';
+      const res = await fetch(url);
       const data = await res.json();
       setHoteltypeItems(data);
       setFilteredHoteltypes(data);
@@ -177,6 +193,14 @@ const HoteltypeMasters: React.FC = () => {
     <div className="flex-grow-1 p-4" style={{ overflowY: 'auto' }}>
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h4>Hotel Type Management</h4>
+        <input
+          type="text"
+          className="form-control w-25"
+          placeholder="Search Hotel Type"
+          value={searchTerm}
+          onChange={handleSearchChange}
+          style={{ marginRight: '10px' }}
+        />
         <Button variant="success" onClick={() => setShowAddModal(true)}>
           <i className="bi bi-plus"></i> Add Hotel Type
         </Button>
