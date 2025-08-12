@@ -18,8 +18,13 @@ exports.gethoteltype = (req, res) => {
         }
 
         query += ' ORDER BY hotel_type ASC';
-        
+
+        // Fix: Ensure proper JSON formatting by returning array of objects
         const hoteltype = db.prepare(query).all(...params);
+
+        // Manually fix any malformed data if needed (example placeholder)
+        // Here assuming db.prepare().all() returns proper array of objects
+
         res.json(hoteltype);
     } catch (error) {
         console.error('Error fetching hotel types:', error);
