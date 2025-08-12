@@ -1,10 +1,15 @@
 const express = require('express');
 const router = express.Router();
-const controller = require('../controllers/TableManagementController');
+const TableManagementController = require('../controllers/TableManagementController');
 
-router.get('/', controller.getTableManagement);
-router.post('/', controller.addTableManagement);
-router.put('/:id', controller.updateTableManagement);
-router.delete('/:id', controller.deleteTableManagement);
+// Public routes
+router.post('/', TableManagementController.createTableManagement);
+router.get('/', TableManagementController.getAllTableManagements);
+router.get('/:id', TableManagementController.getTableManagementById);
+router.put('/:id', TableManagementController.updateTableManagement);
+router.delete('/:id', TableManagementController.deleteTableManagement);
+router.get('/hotel/:hotelid', TableManagementController.getTablesByHotel);
+router.get('/outlet/:outletid', TableManagementController.getTablesByOutlet);
+router.put('/status/bulk', TableManagementController.updateTableStatus);
 
 module.exports = router;
