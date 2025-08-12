@@ -12,27 +12,32 @@ import {
   ColumnDef,
   flexRender,
 } from '@tanstack/react-table';
-import { fetchOutlets } from '@/utils/commonfunction';
+import { fetchOutletsForDropdown } from '@/utils/commonfunction';
 import { OutletData } from '@/common/api/outlet';
-
 import { fetchBrands } from '@/utils/commonfunction';
 
 // Define TableItem interface
 interface TableItem {
   tablemanagementid: string;
   table_name: string;
-  hotel_name: string;
-  outlet_name: string;
+  hotelid: number | string;
+  outletid: number | string;
   status: string;
   created_by_id: string;
   created_date: string;
   updated_by_id: string;
   updated_date: string;
-  hotelid: string;
   marketid: string;
-  isActive: boolean;
-  isCommonToAllDepartments: boolean;
 }
+
+// Status badge for table
+const getStatusBadge = (status: number) => {
+  return status === 0 ? (
+    <span className="badge bg-success">Active</span>
+  ) : (
+    <span className="badge bg-danger">Inactive</span>
+  );
+};
 
 // Debounce utility function
 const debounce = (func: (...args: any[]) => void, wait: number) => {
@@ -68,6 +73,7 @@ const TableManagement: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [filteredTable, setFilteredTable] = useState<TableItem[]>([]);
   const [brands, setBrands] = useState<Array<{ hotelid: number; hotel_name: string }>>([]);
+  const [outlets, setOutlets] = useState<OutletData[]>([]);
   const [selectedTable, setSelectedTable] = useState<TableItem | null>(null);
   const { user } = useAuthContext();
 
@@ -95,6 +101,7 @@ const TableManagement: React.FC = () => {
   useEffect(() => {
     fetchTableManagement();
     fetchBrands(user, setBrands);
+    fetchOutletsForDropdown(user, setOutlets, setLoading);
   }, [user]);
 
   // Define table columns
@@ -130,25 +137,32 @@ const TableManagement: React.FC = () => {
         cell: (info) => <span>{info.getValue<string>()}</span>,
       },
       {
-        accessorKey: 'hotel_name',
+        accessorKey: 'hotelid',
         header: 'Hotel Name',
         size: 150,
-        cell: (info) => <span>{info.getValue<string>()}</span>,
+        cell: (info) => {
+          const hotelId = info.getValue<number | string>();
+          const brand = brands.find((brand) => brand.hotelid === Number(hotelId));
+          return <span>{brand ? brand.hotel_name : hotelId}</span>;
+        },
       },
       {
-        accessorKey: 'outlet_name',
+        accessorKey: 'outletid',
         header: 'Outlet Name',
         size: 200,
-        cell: (info) => <span>{info.getValue<string>()}</span>,
+        cell: (info) => {
+          const outletId = info.getValue<number | string>();
+          const outlet = outlets.find((outlet) => outlet.outletid === Number(outletId));
+          return <span>{outlet ? `${outlet.outlet_name} (${outlet.outlet_code})` : outletId}</span>;
+        },
       },
       {
         accessorKey: 'status',
         header: 'Status',
         size: 15,
         cell: (info) => {
-          const statusValue = info.getValue<string | number>();
-          console.log('Status value:', statusValue, typeof statusValue); // Debug log
-          return <div style={{ textAlign: 'center' }}>{statusValue == '0' || statusValue === 0 ? 'Active' : 'Inactive'}</div>;
+          const statusValue = Number(info.getValue<string | number>());
+          return <div style={{ textAlign: 'center' }}>{getStatusBadge(statusValue)}</div>;
         },
       },
       {
@@ -175,7 +189,7 @@ const TableManagement: React.FC = () => {
         ),
       },
     ],
-    []
+    [brands, outlets]
   );
 
   // Initialize react-table
@@ -190,12 +204,18 @@ const TableManagement: React.FC = () => {
   const handleSearch = useCallback(
     debounce((value: string) => {
       setSearchTerm(value);
-      const filtered = tableItems.filter((item) =>
-        item.table_name.toLowerCase().includes(value.toLowerCase())
-      );
+      const filtered = tableItems.filter((item) => {
+        const brand = brands.find((brand) => brand.hotelid === Number(item.hotelid));
+        const outlet = outlets.find((outlet) => outlet.outletid === Number(item.outletid));
+        return (
+          item.table_name.toLowerCase().includes(value.toLowerCase()) ||
+          (brand && brand.hotel_name.toLowerCase().includes(value.toLowerCase())) ||
+          (outlet && outlet.outlet_name.toLowerCase().includes(value.toLowerCase()))
+        );
+      });
       setFilteredTable(filtered);
     }, 300),
-    [tableItems]
+    [tableItems, brands, outlets]
   );
 
   // Handle edit button click
@@ -259,9 +279,10 @@ const TableManagement: React.FC = () => {
           <div className="mb-3">
             <input
               type="text"
-              className="form-control"
-              placeholder="Search by Table Name"
+              className="form-control rounded-pill"
+              placeholder="Search..."
               onChange={(e) => handleSearch(e.target.value)}
+              style={{ width: '350px', borderColor: '#ccc', borderWidth: '2px' }}
             />
           </div>
           {loading ? (
@@ -346,12 +367,11 @@ const AddTableModal: React.FC<AddTableModalProps> = ({ show, onHide, onSuccess }
   const [selectedOutlet, setSelectedOutlet] = useState<number | null>(null);
   const [selectedBrand, setSelectedBrand] = useState<number | null>(null);
   const [brands, setBrands] = useState<Array<{ hotelid: number; hotel_name: string }>>([]);
-  const [isCommonToAllDepartments, setIsCommonToAllDepartments] = useState<boolean>(false);
   const { user } = useAuthContext();
 
   // Fetch outlets
   useEffect(() => {
-    fetchOutlets(user, setOutlets, setLoading);
+    fetchOutletsForDropdown(user, setOutlets, setLoading);
     fetchBrands(user, setBrands);
   }, [user]);
 
@@ -364,25 +384,16 @@ const AddTableModal: React.FC<AddTableModalProps> = ({ show, onHide, onSuccess }
 
     setLoading(true);
     try {
-      const selectedOutletData = outlets.find((outlet) => outlet.outletid === selectedOutlet);
-      const outlet_name = selectedOutletData ? selectedOutletData.outlet_name : '';
-      const selectedBrandData = brands.find((brand) => brand.hotelid === selectedBrand);
-      const hotel_name = selectedBrandData ? selectedBrandData.hotel_name : '';
       const statusValue = status === 'Active' ? 0 : 1;
       const currentDate = new Date().toISOString();
       const payload = {
         table_name,
-        hotel_name,
-        outlet_name,
+        hotelid: selectedBrand?.toString() || '1',
+        outletid: selectedOutlet?.toString() || '1',
         status: statusValue,
         created_by_id: user?.id || '1',
         created_date: currentDate,
-        updated_by_id: user?.id || '1',
-        updated_date: currentDate,
-        hotelid: selectedBrand?.toString() || '1',
         marketid: '1',
-        isActive: status === 'Active',
-        isCommonToAllDepartments,
       };
 
       const res = await fetch('http://localhost:3001/api/tablemanagement', {
@@ -397,7 +408,6 @@ const AddTableModal: React.FC<AddTableModalProps> = ({ show, onHide, onSuccess }
         setStatus('Active');
         setSelectedOutlet(null);
         setSelectedBrand(null);
-        setIsCommonToAllDepartments(false);
         onSuccess();
         onHide();
       } else {
@@ -454,7 +464,7 @@ const AddTableModal: React.FC<AddTableModalProps> = ({ show, onHide, onSuccess }
             ))}
           </select>
         </div>
-        
+
         {/* Row 2: Hotel Name Dropdown */}
         <div className="mb-3">
           <label className="form-label">Hotel Name <span style={{ color: 'red' }}>*</span></label>
@@ -472,7 +482,7 @@ const AddTableModal: React.FC<AddTableModalProps> = ({ show, onHide, onSuccess }
             ))}
           </select>
         </div>
-        
+
         {/* Row 3: Table Name */}
         <div className="mb-3">
           <label className="form-label">Table Name <span style={{ color: 'red' }}>*</span></label>
@@ -485,7 +495,7 @@ const AddTableModal: React.FC<AddTableModalProps> = ({ show, onHide, onSuccess }
             disabled={loading}
           />
         </div>
-        
+
         {/* Row 4: Status */}
         <div className="mb-3">
           <label className="form-label">Status <span style={{ color: 'red' }}>*</span></label>
@@ -493,25 +503,12 @@ const AddTableModal: React.FC<AddTableModalProps> = ({ show, onHide, onSuccess }
             className="form-control"
             value={status}
             onChange={(e) => setStatus(e.target.value)}
-            disabled={loading}
           >
             <option value="Active">Active</option>
             <option value="Inactive">Inactive</option>
           </select>
         </div>
-        
-        {/* Row 5: Is Table Common to All Departments Checkbox */}
-        <div className="form-check mb-3">
-          <input
-            type="checkbox"
-            className="form-check-input"
-            checked={isCommonToAllDepartments}
-            onChange={(e) => setIsCommonToAllDepartments(e.target.checked)}
-            disabled={loading}
-          />
-          <label className="form-check-label">Is Table Common to All Departments</label>
-        </div>
-        
+
         {/* Buttons */}
         <div className="d-flex justify-content-end">
           <button
@@ -549,29 +546,21 @@ const EditTableModal: React.FC<EditTableModalProps> = ({
   const [selectedBrand, setSelectedBrand] = useState<number | null>(null);
   const [brands, setBrands] = useState<Array<{ hotelid: number; hotel_name: string }>>([]);
   const [selectedOutlet, setSelectedOutlet] = useState<number | null>(null);
-  const [isCommonToAllDepartments, setIsCommonToAllDepartments] = useState<boolean>(false);
   const { user } = useAuthContext();
 
   // Initialize form fields when msttablemanagement changes
   useEffect(() => {
     if (msttablemanagement) {
       setTableName(msttablemanagement.table_name);
-      setStatus(msttablemanagement.isActive ? 'Active' : 'Inactive');
-      setIsCommonToAllDepartments(msttablemanagement.isCommonToAllDepartments);
-      const matchingOutlet = outlets.find(
-        (outlet) => outlet.outlet_name === msttablemanagement.outlet_name
-      );
-      setSelectedOutlet(matchingOutlet ? Number(matchingOutlet.outletid) : null);
-      const matchingBrand = brands.find(
-        (brand) => brand.hotel_name === msttablemanagement.hotel_name
-      );
-      setSelectedBrand(matchingBrand ? matchingBrand.hotelid : null);
+      setStatus(String(msttablemanagement.status) === '0' ? 'Active' : 'Inactive');
+      setSelectedOutlet(msttablemanagement.outletid ? Number(msttablemanagement.outletid) : null);
+      setSelectedBrand(msttablemanagement.hotelid ? Number(msttablemanagement.hotelid) : null);
     }
-  }, [msttablemanagement, outlets, brands]);
+  }, [msttablemanagement]);
 
   // Fetch outlets
   useEffect(() => {
-    fetchOutlets(user, setOutlets, setLoading);
+    fetchOutletsForDropdown(user, setOutlets, setLoading);
     fetchBrands(user, setBrands);
   }, [user]);
 
@@ -584,20 +573,15 @@ const EditTableModal: React.FC<EditTableModalProps> = ({
 
     setLoading(true);
     try {
-      const selectedOutletData = outlets.find((outlet) => outlet.outletid === selectedOutlet);
-      const outlet_name = selectedOutletData ? selectedOutletData.outlet_name : '';
-      const selectedBrandData = brands.find((brand) => brand.hotelid === selectedBrand);
-      const hotel_name = selectedBrandData ? selectedBrandData.hotel_name : '';
       const statusValue = status === 'Active' ? 0 : 1;
       const currentDate = new Date().toISOString();
       const payload = {
         table_name,
-        hotel_name,
-        outlet_name,
+        hotelid: selectedBrand?.toString() || '1',
+        outletid: selectedOutlet?.toString() || '1',
         status: statusValue,
         updated_by_id: user?.id || '2',
         updated_date: currentDate,
-        isCommonToAllDepartments,
       };
 
       const res = await fetch(
@@ -614,12 +598,11 @@ const EditTableModal: React.FC<EditTableModalProps> = ({
         const updatedTable: TableItem = {
           ...msttablemanagement,
           table_name,
-          outlet_name,
-          hotel_name,
+          hotelid: selectedBrand?.toString() || '1',
+          outletid: selectedOutlet?.toString() || '1',
           status: statusValue.toString(),
           updated_by_id: user?.id || '2',
           updated_date: currentDate,
-          isCommonToAllDepartments,
         };
         onUpdateSelectedTable(updatedTable);
         onSuccess();
@@ -661,7 +644,7 @@ const EditTableModal: React.FC<EditTableModalProps> = ({
         }}
       >
         <h3>Edit Table</h3>
-        
+
         {/* Outlet Name Dropdown */}
         <div className="mb-3">
           <label className="form-label">Outlet Name <span style={{ color: 'red' }}>*</span></label>
@@ -673,17 +656,16 @@ const EditTableModal: React.FC<EditTableModalProps> = ({
           >
             <option value="">Select Outlet</option>
             {outlets.map((outlet) => (
-              <option 
-                key={outlet.outletid} 
+              <option
+                key={outlet.outletid}
                 value={outlet.outletid}
-                selected={selectedOutlet === outlet.outletid}
               >
                 {outlet.outlet_name} ({outlet.outlet_code})
               </option>
             ))}
           </select>
         </div>
-        
+
         {/* Hotel Name Dropdown */}
         <div className="mb-3">
           <label className="form-label">Hotel Name <span style={{ color: 'red' }}>*</span></label>
@@ -695,17 +677,16 @@ const EditTableModal: React.FC<EditTableModalProps> = ({
           >
             <option value="">Select Hotel</option>
             {brands.map((brand) => (
-              <option 
-                key={brand.hotelid} 
+              <option
+                key={brand.hotelid}
                 value={brand.hotelid}
-                selected={selectedBrand === brand.hotelid}
               >
                 {brand.hotel_name}
               </option>
             ))}
           </select>
         </div>
-        
+
         {/* Table Name Input */}
         <div className="mb-3">
           <label className="form-label">Table Name <span style={{ color: 'red' }}>*</span></label>
@@ -718,33 +699,20 @@ const EditTableModal: React.FC<EditTableModalProps> = ({
             disabled={loading}
           />
         </div>
-        
+
         {/* Status Dropdown */}
         <div className="mb-3">
           <label className="form-label">Status <span style={{ color: 'red' }}>*</span></label>
           <select
             className="form-control"
-            value={status || 'Active'}
+            value={status}
             onChange={(e) => setStatus(e.target.value)}
-            disabled={loading}
           >
             <option value="Active">Active</option>
             <option value="Inactive">Inactive</option>
           </select>
         </div>
-        
-        {/* Common Table Checkbox */}
-        <div className="form-check mb-3">
-          <input
-            type="checkbox"
-            className="form-check-input"
-            checked={isCommonToAllDepartments || false}
-            onChange={(e) => setIsCommonToAllDepartments(e.target.checked)}
-            disabled={loading}
-          />
-          <label className="form-check-label">Is Table Common to All Departments</label>
-        </div>
-        
+
         {/* Action Buttons */}
         <div className="d-flex justify-content-end">
           <button

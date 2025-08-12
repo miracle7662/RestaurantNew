@@ -2,13 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { Card, Col, Row, Button, Form, Table, Modal, Alert } from 'react-bootstrap';
 import axios from 'axios';
 import { useAuthContext } from '../../../../common/context/useAuthContext';
-import { fetchhotelmasters, HotelMasterItem } from '../../../../utils/commonfunction';
 import { fetchBrands } from '@/utils/commonfunction';
 
 interface TaxGroup {
   taxgroupid: number;
   taxgroup_name: string;
   hotelid: number;
+  outletid: number;
   hotel_name: string;
   status: number;
   created_by_id: string;
@@ -34,7 +34,8 @@ const TaxProductGroup: React.FC = () => {
   const [formData, setFormData] = useState({
     taxgroup_name: '',
     hotelid: '',
-    status: '1'
+    status: '1',
+    outletid: ''
   });
 
   // Fetch tax groups and hotels
@@ -47,11 +48,8 @@ const TaxProductGroup: React.FC = () => {
       setTaxGroups(taxGroupsRes.data.data?.taxGroups || []);
       
       // Fetch hotels using the common fetchhotelmasters function
-      await fetchhotelmasters(setHotels, user);   
-          
-          fetchBrands(user, setBrands);
-     
-      
+      await fetchBrands(user, setBrands);
+
     } catch (err) {
       setError('Failed to fetch data');
       console.error('Error fetching data:', err);
@@ -73,7 +71,8 @@ const TaxProductGroup: React.FC = () => {
     setFormData({
       taxgroup_name: '',
       hotelid: '',
-      status: '1'
+      status: '1',
+      outletid: ''
     });
     setEditingId(null);
     setError(null);
@@ -120,6 +119,7 @@ const TaxProductGroup: React.FC = () => {
           ...formData,
           taxgroup_name: formData.taxgroup_name.toString(),
           hotelid: hotelIdNum,
+          outletid: parseInt(formData.outletid) || 0, // Assuming outletid is optional
           status: statusNum,
           created_by_id: user?.id ?? 1,
           created_date: new Date().toISOString()
@@ -141,7 +141,9 @@ const TaxProductGroup: React.FC = () => {
     setFormData({
       taxgroup_name: taxGroup.taxgroup_name,
       hotelid: taxGroup.hotelid.toString(),
-      status: taxGroup.status.toString()
+      
+      status: taxGroup.status.toString(),
+      outletid: taxGroup.outletid.toString()
     });
     setEditingId(taxGroup.taxgroupid);
     setShowModal(true);

@@ -10,9 +10,9 @@ const Database = require('better-sqlite3');
 
   // const db = new Database(path.join('D:','Restrauntdb', 'miresto.db')); //sudarshan
 
-//const db = new Database(path.join('D:', 'Restaurant_Database', 'miresto.db'));//Sharmin
+const db = new Database(path.join('D:', 'Restaurant_Database', 'miresto.db'));//Sharmin
 
-db = new Database(path.join('E:', 'ReactHotelData', 'miresto.db'));
+// db = new Database(path.join('E:', 'ReactHotelData', 'miresto.db'));
 
 // ✅ Create tables (once)
 db.exec(`
@@ -44,7 +44,7 @@ db.exec(`
     cityid INTEGER PRIMARY KEY AUTOINCREMENT,
     city_name TEXT NOT NULL,
     city_Code TEXT NOT NULL,
-    stateId TEXT NOT NULL,    
+    stateId INTEGER,    
     iscoastal BOOLEAN DEFAULT 0,
     status INTEGER DEFAULT 1,
     created_by_id INTEGER,
@@ -317,14 +317,13 @@ CREATE TABLE IF NOT EXISTS mst_outlets (
 CREATE TABLE IF NOT EXISTS msttablemanagement (
     tablemanagementid INTEGER PRIMARY KEY AUTOINCREMENT,
     table_name TEXT NOT NULL,
-    hotel_name TEXT NOT NULL,
-    outlet_name TEXT NOT NULL,
+    hotelid INTEGER,
+    outletid INTEGER NOT NULL,
     status INTEGER DEFAULT 1,
     created_by_id INTEGER,
     created_date DATETIME,
     updated_by_id INTEGER,
     updated_date DATETIME,
-    hotelid INTEGER,
     marketid INTEGER
   );
 
