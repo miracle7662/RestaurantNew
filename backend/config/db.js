@@ -315,7 +315,7 @@ CREATE TABLE IF NOT EXISTS mst_outlets (
 );
 
 CREATE TABLE IF NOT EXISTS msttablemanagement (
-    tablemanagementid INTEGER PRIMARY KEY AUTOINCREMENT,
+    tableid INTEGER PRIMARY KEY AUTOINCREMENT,
     table_name TEXT NOT NULL,
     hotelid INTEGER,
     outletid INTEGER NOT NULL,
