@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Swal from 'sweetalert2';
 import { toast } from 'react-hot-toast';
-import { Button, Card, Stack, Pagination, Table, Modal, Form, Row, Col } from 'react-bootstrap';
+import { Button, Stack, Pagination, Table, Modal, Form } from 'react-bootstrap';
 import { Preloader } from '@/components/Misc/Preloader';
 import TitleHelmet from '@/components/Common/TitleHelmet';
 import {
@@ -14,9 +14,10 @@ import {
 } from '@tanstack/react-table';
 
 // Interfaces
-interface HoteltypeItem {
+interface HotelTypeItem {
   hoteltypeid: string;
   hotel_type: string;
+  description?: string;
   status: number;
   created_by_id: string;
   created_date: string;
@@ -24,23 +25,7 @@ interface HoteltypeItem {
   updated_date: string;
 }
 
-interface Category {
-  name: string;
-  value: string;
-  icon: string;
-  badge?: number;
-  badgeClassName?: string;
-}
-
-interface HoteltypeModalProps {
-  show: boolean;
-  onHide: () => void;
-  hoteltype?: HoteltypeItem | null;
-  onSuccess: () => void;
-  onUpdateSelectedHoteltype?: (hoteltype: HoteltypeItem) => void;
-}
-
-// Utility Functions
+// Utility debounce function
 const debounce = <T extends (...args: any[]) => void>(func: T, wait: number) => {
   let timeout: NodeJS.Timeout;
   return (...args: Parameters<T>) => {
@@ -49,7 +34,7 @@ const debounce = <T extends (...args: any[]) => void>(func: T, wait: number) => 
   };
 };
 
-// Status badge for table
+// Status badge component
 const getStatusBadge = (status: number) => {
   return status === 0 ? (
     <span className="badge bg-success">Active</span>
@@ -58,76 +43,23 @@ const getStatusBadge = (status: number) => {
   );
 };
 
-// Main Component
-const HoteltypeMasters: React.FC = () => {
-  const [hoteltypeItems, setHoteltypeItems] = useState<HoteltypeItem[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string>('alls');
-  const [searchTerm, setSearchTerm] = useState<string>('');
-  const [filteredHoteltypes, setFilteredHoteltypes] = useState<HoteltypeItem[]>([]);
-
-  // Debounced search handler
-  const handleSearch = useCallback(
-    debounce((value: string) => {
-      const filtered = hoteltypeItems.filter((item) =>
-        item.hotel_type.toLowerCase().includes(value.toLowerCase())
-      );
-      setFilteredHoteltypes(filtered);
-    }, 500),
-    [hoteltypeItems]
-  );
-  
-  // Update search term and trigger debounced search
-  const onSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setSearchTerm(value);
-    handleSearch(value);
-  };
-  const [selectedHoteltype, setSelectedHoteltype] = useState<HoteltypeItem | null>(null);
-  const [selectedHoteltypeIndex, setSelectedHoteltypeIndex] = useState<number>(-1);
-  const [loading, setLoading] = useState<boolean>(false);
+const HotelTypeMasters: React.FC = () => {
+  const [hotelTypeItems, setHotelTypeItems] = useState<HotelTypeItem[]>([]);
+  const [filteredHotelTypes, setFilteredHotelTypes] = useState<HotelTypeItem[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedHotelType, setSelectedHotelType] = useState<HotelTypeItem | null>(null);
+  const [loading, setLoading] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [sidebarLeftToggle, setSidebarLeftToggle] = useState<boolean>(false);
-  const [sidebarMiniToggle, setSidebarMiniToggle] = useState<boolean>(false);
-  const [containerToggle, setContainerToggle] = useState<boolean>(false);
 
-  // Fetch hotel types on component mount
-  useEffect(() => {
-    fetchHoteltypes();
-  }, []);
-
-  // CRUD operations
-  const handleDeleteHoteltype = async (hoteltype: HoteltypeItem) => {
-    const result = await Swal.fire({
-      title: 'Are you sure?',
-      text: 'You will not be able to recover this hotel type!',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#d33',
-      cancelButtonColor: '#3E97FF',
-      confirmButtonText: 'Yes, delete it!',
-    });
-
-    if (result.isConfirmed) {
-      try {
-        await fetch(`http://localhost:3001/api/hoteltype/${hoteltype.hoteltypeid}`, { method: 'DELETE' });
-        toast.success('Deleted successfully');
-        await fetchHoteltypes();
-        setSelectedHoteltype(null);
-      } catch {
-        toast.error('Failed to delete');
-      }
-    }
-  };
-
-  // Fetch hotel types from API
-  const fetchHoteltypes = async () => {
+  // Fetch hotel types
+  const fetchHotelTypes = async () => {
     setLoading(true);
     try {
       const res = await fetch('http://localhost:3001/api/hoteltype');
       const data = await res.json();
-      setHoteltypeItems(data);
-      setFilteredHoteltypes(data);
+      setHotelTypeItems(data);
+      setFilteredHotelTypes(data);
     } catch {
       toast.error('Failed to fetch hotel types');
     } finally {
@@ -135,8 +67,12 @@ const HoteltypeMasters: React.FC = () => {
     }
   };
 
-  // Table columns
-  const columns = useMemo<ColumnDef<HoteltypeItem>[]>(() => [
+  useEffect(() => {
+    fetchHotelTypes();
+  }, []);
+
+  // Columns definition
+  const columns = useMemo<ColumnDef<HotelTypeItem>[]>(() => [
     {
       id: 'srNo',
       header: 'Sr No',
@@ -148,6 +84,12 @@ const HoteltypeMasters: React.FC = () => {
       header: 'Hotel Type',
       size: 200,
       cell: (cell) => <h6 className="mb-1">{cell.getValue<string>()}</h6>,
+    },
+    {
+      accessorKey: 'description',
+      header: 'Description',
+      size: 300,
+      cell: (cell) => <span>{cell.getValue<string>() || 'N/A'}</span>,
     },
     {
       accessorKey: 'status',
@@ -165,7 +107,7 @@ const HoteltypeMasters: React.FC = () => {
             size="sm"
             variant="success"
             onClick={() => {
-              setSelectedHoteltype(cell.row.original);
+              setSelectedHotelType(cell.row.original);
               setShowEditModal(true);
             }}
             title="Edit Hotel Type"
@@ -175,7 +117,7 @@ const HoteltypeMasters: React.FC = () => {
           <Button
             size="sm"
             variant="danger"
-            onClick={() => handleDeleteHoteltype(cell.row.original)}
+            onClick={() => handleDeleteHotelType(cell.row.original)}
             title="Delete Hotel Type"
           >
             <i className="fi fi-rr-trash" />
@@ -185,9 +127,9 @@ const HoteltypeMasters: React.FC = () => {
     },
   ], []);
 
-  // Initialize table
+  // React Table instance
   const table = useReactTable({
-    data: filteredHoteltypes,
+    data: filteredHotelTypes,
     columns,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
@@ -195,129 +137,92 @@ const HoteltypeMasters: React.FC = () => {
     initialState: { pagination: { pageSize: 10 } },
   });
 
-  // Main content component
-  const MainContent = () => (
-    <div className="flex-grow-1 p-4" style={{ overflowY: 'auto' }}>
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <h4>Hotel Type Management</h4>
-        <div>
-          <input
-            type="text"
-            className="form-control"
-            placeholder="Search hotel types..."
-            value={searchTerm}
-            onChange={onSearchChange}
-            style={{ width: '250px', display: 'inline-block', marginRight: '10px' }}
-          />
-          <Button variant="success" onClick={() => setShowAddModal(true)}>
-            <i className="bi bi-plus"></i> Add Hotel Type
-          </Button>
-        </div>
-      </div>
-
-      {loading ? (
-        <Stack className="align-items-center justify-content-center h-100">
-          <Preloader />
-        </Stack>
-      ) : (
-        <>
-          <Table responsive hover className="mb-4">
-            <thead>
-              {table.getHeaderGroups().map((headerGroup) => (
-                <tr key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
-                    <th key={header.id} style={{ width: header.column.columnDef.size }}>
-                      {flexRender(header.column.columnDef.header, header.getContext())}
-                    </th>
-                  ))}
-                </tr>
-              ))}
-            </thead>
-            <tbody>
-              {table.getRowModel().rows.map((row) => (
-                <tr key={row.id}>
-                  {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </Table>
-
-          <Stack direction="horizontal" className="justify-content-between align-items-center">
-            <div>
-              <span className="text-muted">
-                Showing {table.getRowModel().rows.length} of {filteredHoteltypes.length} entries
-              </span>
-            </div>
-            <Pagination>
-              <Pagination.Prev
-                onClick={() => table.setPageIndex(table.getState().pagination.pageIndex - 1)}
-                disabled={!table.getCanPreviousPage()}
-              />
-              <Pagination.Item active>
-                {table.getState().pagination.pageIndex + 1}
-              </Pagination.Item>
-              <Pagination.Next
-                onClick={() => table.setPageIndex(table.getState().pagination.pageIndex + 1)}
-                disabled={!table.getCanNextPage()}
-              />
-            </Pagination>
-          </Stack>
-        </>
-      )}
-    </div>
+  // Debounced search filter
+  const filterHotelTypes = useCallback(
+    debounce((value: string) => {
+      const searchValue = value.toLowerCase();
+      const filtered = hotelTypeItems.filter((item) =>
+        item.hotel_type.toLowerCase().includes(searchValue) ||
+        (item.description && item.description.toLowerCase().includes(searchValue))
+      );
+      setFilteredHotelTypes(filtered);
+    }, 500),
+    [hotelTypeItems]
   );
 
-  // Modal for Add/Edit
-  const HoteltypeModal: React.FC<HoteltypeModalProps> = ({ show, onHide, hoteltype, onSuccess, onUpdateSelectedHoteltype }) => {
-    const [hotel_type, setName] = useState('');
+  const handleSearch = (value: string) => {
+    setSearchTerm(value);
+    filterHotelTypes(value);
+  };
+
+  // Delete handler
+  const handleDeleteHotelType = async (hotelType: HotelTypeItem) => {
+    const result = await Swal.fire({
+      title: 'Are you sure?',
+      text: 'You will not be able to recover this hotel type!',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3E97FF',
+      confirmButtonText: 'Yes, delete it!',
+    });
+
+    if (result.isConfirmed) {
+      try {
+        await fetch(`http://localhost:3001/api/hoteltype/${hotelType.hoteltypeid}`, { method: 'DELETE' });
+        toast.success('Hotel type deleted successfully');
+        fetchHotelTypes();
+        setSelectedHotelType(null);
+      } catch {
+        toast.error('Failed to delete hotel type');
+      }
+    }
+  };
+
+  // Modal component for Add/Edit
+  const HotelTypeModal: React.FC<{
+    show: boolean;
+    onHide: () => void;
+    hotelType?: HotelTypeItem | null;
+    onSuccess: () => void;
+  }> = ({ show, onHide, hotelType, onSuccess }) => {
+    const [hotel_type, setHotelType] = useState('');
+    const [description, setDescription] = useState('');
     const [status, setStatus] = useState('Active');
     const [loading, setLoading] = useState(false);
 
-    const isEditMode = !!hoteltype;
+    const isEditMode = !!hotelType;
 
     useEffect(() => {
-      if (hoteltype && isEditMode) {
-        setName(hoteltype.hotel_type);
-        setStatus(hoteltype.status === 0 ? 'Active' : 'Inactive');
+      if (hotelType && isEditMode) {
+        setHotelType(hotelType.hotel_type);
+        setDescription(hotelType.description || '');
+        setStatus(hotelType.status === 0 ? 'Active' : 'Inactive');
       } else {
-        setName('');
+        setHotelType('');
+        setDescription('');
         setStatus('Active');
       }
-    }, [hoteltype, show]);
+    }, [hotelType, show]);
 
     const handleSubmit = async () => {
-      if (!hotel_type || !status) {
-        toast.error('All fields are required');
+      if (!hotel_type) {
+        toast.error('Hotel Type is required');
         return;
       }
 
       setLoading(true);
       try {
         const statusValue = status === 'Active' ? 0 : 1;
-        const currentDate = new Date().toISOString();
-        
         const payload = {
           hotel_type,
+          description,
           status: statusValue,
-          ...(isEditMode 
-            ? { 
-                hoteltypeid: hoteltype!.hoteltypeid,
-                updated_by_id: '2',
-                updated_date: currentDate
-              }
-            : {
-                created_by_id: '1',
-                created_date: currentDate
-              }
-          ),
+          ...(isEditMode ? { hoteltypeid: hotelType!.hoteltypeid } : {}),
         };
 
         const url = isEditMode
-          ? `http://localhost:3001/api/hoteltype/${hoteltype!.hoteltypeid}`
+          ? `http://localhost:3001/api/hoteltype/${hotelType!.hoteltypeid}`
           : 'http://localhost:3001/api/hoteltype';
         const method = isEditMode ? 'PUT' : 'POST';
 
@@ -332,7 +237,7 @@ const HoteltypeMasters: React.FC = () => {
           onSuccess();
           onHide();
         } else {
-          toast.error('Failed to save hotel type');
+          toast.error(`Failed to ${isEditMode ? 'update' : 'add'} hotel type`);
         }
       } catch {
         toast.error('Something went wrong');
@@ -341,42 +246,42 @@ const HoteltypeMasters: React.FC = () => {
       }
     };
 
-    if (!show) return null;
-
     return (
-      <Modal show={show} onHide={onHide} size="lg">
+      <Modal show={show} onHide={onHide}>
         <Modal.Header closeButton>
           <Modal.Title>{isEditMode ? 'Edit Hotel Type' : 'Add Hotel Type'}</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <Form>
-            <Row>
-              <Col md={12}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Hotel Type <span className="text-danger">*</span></Form.Label>
-                  <Form.Control
-                    type="text"
-                    value={hotel_type}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Enter hotel type name"
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
-            <Row>
-              <Col md={12}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Status <span className="text-danger">*</span></Form.Label>
-                  <Form.Select
-                    value={status}
-                    onChange={(e) => setStatus(e.target.value)}
-                  >
-                    <option value="Active">Active</option>
-                    <option value="Inactive">Inactive</option>
-                  </Form.Select>
-                </Form.Group>
-              </Col>
-            </Row>
+            <Form.Group className="mb-3">
+              <Form.Label>Hotel Type *</Form.Label>
+              <Form.Control
+                type="text"
+                value={hotel_type}
+                onChange={(e) => setHotelType(e.target.value)}
+                placeholder="Enter hotel type"
+              />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Description</Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={3}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Enter description"
+              />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Status</Form.Label>
+              <Form.Select
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+              >
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
+              </Form.Select>
+            </Form.Group>
           </Form>
         </Modal.Body>
         <Modal.Footer>
@@ -384,7 +289,7 @@ const HoteltypeMasters: React.FC = () => {
             Cancel
           </Button>
           <Button variant="primary" onClick={handleSubmit} disabled={loading}>
-            {loading ? 'Saving...' : 'Save'}
+            {loading ? (isEditMode ? 'Updating...' : 'Adding...') : 'Save'}
           </Button>
         </Modal.Footer>
       </Modal>
@@ -395,24 +300,94 @@ const HoteltypeMasters: React.FC = () => {
     <>
       <TitleHelmet title="Hotel Type Management" />
       <div className="d-flex" style={{ height: 'calc(100vh - 60px)' }}>
-        <MainContent />
+        <div className="flex-grow-1 p-4" style={{ overflowY: 'auto' }}>
+          <div className="d-flex justify-content-between align-items-center mb-4">
+            <h4>Hotel Type Management</h4>
+            <div className="d-flex gap-2">
+              <input
+                type="text"
+                className="form-control rounded-pill"
+                placeholder="Search..."
+                value={searchTerm}
+                onChange={(e) => handleSearch(e.target.value)}
+                style={{ width: '250px' }}
+              />
+              <Button variant="success" onClick={() => setShowAddModal(true)}>
+                <i className="bi bi-plus"></i> Add Hotel Type
+              </Button>
+            </div>
+          </div>
+
+          {loading ? (
+            <Stack className="align-items-center justify-content-center h-100">
+              <Preloader />
+            </Stack>
+          ) : (
+            <>
+              <Table responsive hover className="mb-4">
+                <thead>
+                  {table.getHeaderGroups().map((headerGroup) => (
+                    <tr key={headerGroup.id}>
+                      {headerGroup.headers.map((header) => (
+                        <th key={header.id} style={{ width: header.column.columnDef.size }}>
+                          {flexRender(header.column.columnDef.header, header.getContext())}
+                        </th>
+                      ))}
+                    </tr>
+                  ))}
+                </thead>
+                <tbody>
+                  {table.getRowModel().rows.map((row) => (
+                    <tr key={row.id}>
+                      {row.getVisibleCells().map((cell) => (
+                        <td key={cell.id}>
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+
+              <Stack direction="horizontal" className="justify-content-between align-items-center">
+                <div>
+                  <span className="text-muted">
+                    Showing {table.getRowModel().rows.length} of {filteredHotelTypes.length} entries
+                  </span>
+                </div>
+                <Pagination>
+                  <Pagination.Prev
+                    onClick={() => table.setPageIndex(table.getState().pagination.pageIndex - 1)}
+                    disabled={!table.getCanPreviousPage()}
+                  />
+                  <Pagination.Item active>
+                    {table.getState().pagination.pageIndex + 1}
+                  </Pagination.Item>
+                  <Pagination.Next
+                    onClick={() => table.setPageIndex(table.getState().pagination.pageIndex + 1)}
+                    disabled={!table.getCanNextPage()}
+                  />
+                </Pagination>
+              </Stack>
+            </>
+          )}
+        </div>
       </div>
-      
-      <HoteltypeModal
+
+      <HotelTypeModal
         show={showAddModal}
         onHide={() => setShowAddModal(false)}
-        onSuccess={fetchHoteltypes}
+        onSuccess={fetchHotelTypes}
       />
-      
-      <HoteltypeModal
+
+      <HotelTypeModal
         show={showEditModal}
         onHide={() => setShowEditModal(false)}
-        hoteltype={selectedHoteltype}
-        onSuccess={fetchHoteltypes}
-        onUpdateSelectedHoteltype={setSelectedHoteltype}
+        hotelType={selectedHotelType}
+        onSuccess={fetchHotelTypes}
       />
     </>
   );
 };
 
-export default HoteltypeMasters;
+export default HotelTypeMasters;
