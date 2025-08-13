@@ -27,81 +27,133 @@ interface HoteltypeItem {
 interface HoteltypeModalProps {
   show: boolean;
   onHide: () => void;
-  hoteltype?: HoteltypeItem | null;
+  hoteltype: HoteltypeItem | null;
   onSuccess: () => void;
-  onUpdateSelectedHoteltype?: (hoteltype: HoteltypeItem) => void;
+  onUpdateSelectedHoteltype: (hoteltype: HoteltypeItem) => void;
 }
 
 // Utility Functions
-const debounce = <T extends (...args: any[]) => void>(func: T, wait: number) => {
+const debounce = (func: (...args: any[]) => void, wait: number) => {
   let timeout: NodeJS.Timeout;
-  return (...args: Parameters<T>) => {
+  return (...args: any[]) => {
     clearTimeout(timeout);
     timeout = setTimeout(() => func(...args), wait);
   };
 };
 
-// Status badge for table
-const getStatusBadge = (status: number) => {
-  return status === 0 ? (
-    <span className="badge bg-success">Active</span>
-  ) : (
-    <span className="badge bg-danger">Inactive</span>
-  );
-};
-
 // Main Component
 const HoteltypeMasters: React.FC = () => {
   const [hoteltypeItems, setHoteltypeItems] = useState<HoteltypeItem[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string>('alls');
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [selectedHoteltype, setSelectedHoteltype] = useState<HoteltypeItem | null>(null);
-  const [selectedHoteltypeIndex, setSelectedHoteltypeIndex] = useState<number>(-1);
   const [loading, setLoading] = useState<boolean>(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [sidebarLeftToggle, setSidebarLeftToggle] = useState<boolean>(false);
-  const [sidebarMiniToggle, setSidebarMiniToggle] = useState<boolean>(false);
-  const [containerToggle, setContainerToggle] = useState<boolean>(false);
+  const [selectedHoteltype, setSelectedHoteltype] = useState<HoteltypeItem | null>(null);
 
   // Fetch hotel types from API
   const fetchHoteltypes = async () => {
-    setLoading(true);
     try {
+      setLoading(true);
       const res = await fetch('http://localhost:3001/api/hoteltype');
       const data = await res.json();
+      console.log('Fetched hotel types:', data); // Debug log
       setHoteltypeItems(data);
-      table.setGlobalFilter(''); // Reset filter on data fetch
-    } catch {
+    } catch (err) {
       toast.error('Failed to fetch hotel types');
     } finally {
       setLoading(false);
     }
   };
 
-  // Debounced search handler
+  useEffect(() => {
+    fetchHoteltypes();
+  }, []);
+
+  // Define columns for react-table with explicit widths
+  const columns = useMemo<ColumnDef<HoteltypeItem>[]>(() => [
+    {
+      id: 'srNo',
+      header: 'Sr No',
+      size: 50,
+      cell: ({ row }) => <div style={{ textAlign: 'center' }}>{row.index + 1}</div>,
+    },
+    {
+      accessorKey: 'hotel_type',
+      header: 'Hotel Type',
+      size: 200,
+      cell: (info) => <div style={{ textAlign: 'center' }}>{info.getValue<string>()}</div>,
+    },
+    {
+      accessorKey: 'status',
+      header: 'Status',
+      size: 150,
+      cell: (info) => {
+        const statusValue = info.getValue<number>();
+        return <div style={{ textAlign: 'center' }}>{statusValue === 0 ? 'Active' : 'Inactive'}</div>;
+      },
+    },
+    {
+      id: 'actions',
+      header: () => <div style={{ textAlign: 'center' }}>Action</div>,
+      size: 150,
+      cell: ({ row }) => (
+        <div className="d-flex gap-2 justify-content-center">
+          <Button
+            size="sm"
+            variant="success"
+            onClick={() => {
+              setSelectedHoteltype(row.original);
+              setShowEditModal(true);
+            }}
+            title="Edit Hotel Type"
+          >
+            <i className="fi fi-rr-edit"></i>
+          </Button>
+          <Button
+            size="sm"
+            variant="danger"
+            onClick={() => handleDeleteHoteltype(row.original)}
+            title="Delete Hotel Type"
+          >
+            <i className="fi fi-rr-trash"></i>
+          </Button>
+        </div>
+      ),
+    },
+  ], []);
+
+  // Initialize react-table with pagination
+  const table = useReactTable({
+    data: hoteltypeItems,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    initialState: {
+      pagination: {
+        pageSize: 10,
+      },
+    },
+    state: {
+      globalFilter: searchTerm,
+    },
+  });
+
   const handleSearch = useCallback(
     debounce((value: string) => {
-      table.setGlobalFilter(value); // Use table's global filter
-    }, 500),
-    []
+      table.setGlobalFilter(value);
+    }, 300),
+    [table]
   );
 
-  // Update search term and trigger debounced search
   const onSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSearchTerm(value);
     handleSearch(value);
   };
 
-  // Fetch hotel types on component mount
-  useEffect(() => {
-    fetchHoteltypes();
-  }, []);
-
-  // CRUD operations
   const handleDeleteHoteltype = async (hoteltype: HoteltypeItem) => {
-    const result = await Swal.fire({
+    const res = await Swal.fire({
       title: 'Are you sure?',
       text: 'You will not be able to recover this hotel type!',
       icon: 'warning',
@@ -110,12 +162,11 @@ const HoteltypeMasters: React.FC = () => {
       cancelButtonColor: '#3E97FF',
       confirmButtonText: 'Yes, delete it!',
     });
-
-    if (result.isConfirmed) {
+    if (res.isConfirmed) {
       try {
         await fetch(`http://localhost:3001/api/hoteltype/${hoteltype.hoteltypeid}`, { method: 'DELETE' });
         toast.success('Deleted successfully');
-        await fetchHoteltypes();
+        fetchHoteltypes();
         setSelectedHoteltype(null);
       } catch {
         toast.error('Failed to delete');
@@ -123,178 +174,31 @@ const HoteltypeMasters: React.FC = () => {
     }
   };
 
-  // Table columns
-  const columns = useMemo<ColumnDef<HoteltypeItem>[]>(() => [
-    {
-      id: 'srNo',
-      header: 'Sr No',
-      size: 20,
-      cell: (cell) => <span>{cell.row.index + 1}</span>,
-    },
-    {
-      accessorKey: 'hotel_type',
-      header: 'Hotel Type',
-      size: 200,
-      cell: (cell) => <h6 className="mb-1">{cell.getValue<string>()}</h6>,
-    },
-    {
-      accessorKey: 'status',
-      header: 'Status',
-      size: 100,
-      cell: (cell) => getStatusBadge(Number(cell.getValue<number>())),
-    },
-    {
-      id: 'actions',
-      header: 'Actions',
-      size: 120,
-      cell: (cell) => (
-        <div className="d-flex gap-2">
-          <Button
-            size="sm"
-            variant="success"
-            onClick={() => {
-              setSelectedHoteltype(cell.row.original);
-              setShowEditModal(true);
-            }}
-            title="Edit Hotel Type"
-          >
-            <i className="fi fi-rr-edit" />
-          </Button>
-          <Button
-            size="sm"
-            variant="danger"
-            onClick={() => handleDeleteHoteltype(cell.row.original)}
-            title="Delete Hotel Type"
-          >
-            <i className="fi fi-rr-trash" />
-          </Button>
-        </div>
-      ),
-    },
-  ], []);
-
-  // Initialize table
-  const table = useReactTable({
-    data: hoteltypeItems,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    initialState: { pagination: { pageSize: 10 } },
-  });
-
-  // Pagination logic
-  const totalPages = table.getPageCount();
-  const currentPage = table.getState().pagination.pageIndex + 1;
-  const pageSize = table.getState().pagination.pageSize;
-
   const getPaginationItems = () => {
     const items = [];
     const maxPagesToShow = 5;
-    let startPage = Math.max(1, currentPage - Math.floor(maxPagesToShow / 2));
-    const endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
+    const pageIndex = table.getState().pagination.pageIndex;
+    const totalPages = table.getPageCount();
+    let startPage = Math.max(0, pageIndex - Math.floor(maxPagesToShow / 2));
+    const endPage = Math.min(totalPages - 1, startPage + maxPagesToShow - 1);
 
     if (endPage - startPage < maxPagesToShow - 1) {
-      startPage = Math.max(1, endPage - maxPagesToShow + 1);
+      startPage = Math.max(0, endPage - maxPagesToShow + 1);
     }
 
     for (let i = startPage; i <= endPage; i++) {
       items.push(
         <Pagination.Item
           key={i}
-          active={i === currentPage}
-          onClick={() => table.setPageIndex(i - 1)}
+          active={i === pageIndex}
+          onClick={() => table.setPageIndex(i)}
         >
-          {i}
+          {i + 1}
         </Pagination.Item>
       );
     }
     return items;
   };
-
-  // Main content component
-  const MainContent = () => (
-    <div className="flex-grow-1 p-4" style={{ overflowY: 'auto' }}>
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <h4>Hotel Type Management</h4>
-        <div>
-          <input
-            type="text"
-            className="form-control"
-            placeholder="Search hotel types..."
-            value={searchTerm}
-            onChange={onSearchChange}
-            style={{ width: '250px', display: 'inline-block', marginRight: '10px' }}
-          />
-          <Button variant="success" onClick={() => setShowAddModal(true)}>
-            <i className="bi bi-plus"></i> Add Hotel Type
-          </Button>
-        </div>
-      </div>
-
-      {loading ? (
-        <Stack className="align-items-center justify-content-center h-100">
-          <Preloader />
-        </Stack>
-      ) : (
-        <>
-          <Table responsive hover className="mb-4">
-            <thead>
-              {table.getHeaderGroups().map((headerGroup) => (
-                <tr key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
-                    <th key={header.id} style={{ width: header.column.columnDef.size }}>
-                      {flexRender(header.column.columnDef.header, header.getContext())}
-                    </th>
-                  ))}
-                </tr>
-              ))}
-            </thead>
-            <tbody>
-              {table.getRowModel().rows.map((row) => (
-                <tr key={row.id}>
-                  {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </Table>
-
-          <Stack direction="horizontal" className="justify-content-between align-items-center">
-            <div>
-              <Form.Select
-                value={pageSize}
-                onChange={(e) => table.setPageSize(Number(e.target.value))}
-                style={{ width: '100px', display: 'inline-block', marginRight: '10px' }}
-              >
-                <option value="5">5</option>
-                <option value="10">10</option>
-                <option value="20">20</option>
-                <option value="50">50</option>
-              </Form.Select>
-              <span className="text-muted">
-                Showing {table.getRowModel().rows.length} of {hoteltypeItems.length} entries
-              </span>
-            </div>
-            <Pagination>
-              <Pagination.Prev
-                onClick={() => table.setPageIndex(table.getState().pagination.pageIndex - 1)}
-                disabled={!table.getCanPreviousPage()}
-              />
-              {getPaginationItems()}
-              <Pagination.Next
-                onClick={() => table.setPageIndex(table.getState().pagination.pageIndex + 1)}
-                disabled={!table.getCanNextPage()}
-              />
-            </Pagination>
-          </Stack>
-        </>
-      )}
-    </div>
-  );
 
   // Modal for Add/Edit
   const HoteltypeModal: React.FC<HoteltypeModalProps> = ({ show, onHide, hoteltype, onSuccess, onUpdateSelectedHoteltype }) => {
@@ -302,12 +206,11 @@ const HoteltypeMasters: React.FC = () => {
     const [status, setStatus] = useState('Active');
     const [loading, setLoading] = useState(false);
 
-    const isEditMode = !!hoteltype;
-
     useEffect(() => {
-      if (hoteltype && isEditMode) {
+      if (hoteltype) {
         setName(hoteltype.hotel_type);
         setStatus(hoteltype.status === 0 ? 'Active' : 'Inactive');
+        console.log('Edit hoteltype status:', hoteltype.status, typeof hoteltype.status); // Debug log
       } else {
         setName('');
         setStatus('Active');
@@ -324,27 +227,26 @@ const HoteltypeMasters: React.FC = () => {
       try {
         const statusValue = status === 'Active' ? 0 : 1;
         const currentDate = new Date().toISOString();
-        
         const payload = {
           hotel_type,
           status: statusValue,
-          ...(isEditMode 
-            ? { 
-                hoteltypeid: hoteltype!.hoteltypeid,
+          ...(hoteltype
+            ? {
+                hoteltypeid: hoteltype.hoteltypeid,
                 updated_by_id: '2',
-                updated_date: currentDate
+                updated_date: currentDate,
               }
             : {
                 created_by_id: '1',
-                created_date: currentDate
-              }
-          ),
+                created_date: currentDate,
+              }),
         };
+        console.log('Sending to backend:', payload); // Debug log
 
-        const url = isEditMode
-          ? `http://localhost:3001/api/hoteltype/${hoteltype!.hoteltypeid}`
+        const url = hoteltype
+          ? `http://localhost:3001/api/hoteltype/${hoteltype.hoteltypeid}`
           : 'http://localhost:3001/api/hoteltype';
-        const method = isEditMode ? 'PUT' : 'POST';
+        const method = hoteltype ? 'PUT' : 'POST';
 
         const res = await fetch(url, {
           method,
@@ -353,13 +255,26 @@ const HoteltypeMasters: React.FC = () => {
         });
 
         if (res.ok) {
-          toast.success(`Hotel type ${isEditMode ? 'updated' : 'added'} successfully`);
+          toast.success(`Hotel type ${hoteltype ? 'updated' : 'added'} successfully`);
+          if (hoteltype) {
+            const updatedHoteltype = {
+              ...hoteltype,
+              hotel_type,
+              status: statusValue,
+              updated_by_id: '2',
+              updated_date: currentDate,
+            };
+            onUpdateSelectedHoteltype(updatedHoteltype);
+          }
           onSuccess();
           onHide();
         } else {
+          const errorData = await res.json();
+          console.log('Backend error:', errorData); // Debug log
           toast.error('Failed to save hotel type');
         }
-      } catch {
+      } catch (err) {
+        console.error('Save hoteltype error:', err); // Debug log
         toast.error('Something went wrong');
       } finally {
         setLoading(false);
@@ -371,7 +286,7 @@ const HoteltypeMasters: React.FC = () => {
     return (
       <Modal show={show} onHide={onHide} size="lg">
         <Modal.Header closeButton>
-          <Modal.Title>{isEditMode ? 'Edit Hotel Type' : 'Add Hotel Type'}</Modal.Title>
+          <Modal.Title>{hoteltype ? 'Edit Hotel Type' : 'Add Hotel Type'}</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <Form>
@@ -405,11 +320,11 @@ const HoteltypeMasters: React.FC = () => {
           </Form>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={onHide} disabled={loading}>
-            Cancel
+          <Button variant="danger" onClick={onHide} disabled={loading}>
+            Close
           </Button>
-          <Button variant="primary" onClick={handleSubmit} disabled={loading}>
-            {loading ? 'Saving...' : 'Save'}
+          <Button variant="success" onClick={handleSubmit} disabled={loading}>
+            {loading ? 'Saving...' : hoteltype ? 'Save' : 'Create'}
           </Button>
         </Modal.Footer>
       </Modal>
@@ -418,17 +333,96 @@ const HoteltypeMasters: React.FC = () => {
 
   return (
     <>
-      <TitleHelmet title="Hotel Type Management" />
-      <div className="d-flex" style={{ height: 'calc(100vh - 60px)' }}>
-        <MainContent />
-      </div>
-      
+      <TitleHelmet title="Hotel Type List" />
+      <Card className="m-1">
+        <div className="d-flex justify-content-between align-items-center p-3 border-bottom">
+          <h4 className="mb-0">Hotel Type List</h4>
+          <div style={{ display: 'flex', gap: '4px' }}>
+            <Button variant="success" onClick={() => setShowAddModal(true)}>
+              <i className="bi bi-plus"></i> Add Hotel Type
+            </Button>
+          </div>
+        </div>
+        <div className="p-3">
+          <div className="mb-3">
+            <input
+              type="text"
+              className="form-control rounded-pill"
+              placeholder="Search hotel types..."
+              value={searchTerm}
+              onChange={onSearchChange}
+              style={{ width: '350px', borderColor: '#ccc', borderWidth: '2px' }}
+            />
+          </div>
+          {loading ? (
+            <Stack className="align-items-center justify-content-center flex-grow-1 h-100">
+              <Preloader />
+            </Stack>
+          ) : (
+            <>
+              <Table responsive hover className="mb-4">
+                <thead>
+                  {table.getHeaderGroups().map((headerGroup) => (
+                    <tr key={headerGroup.id}>
+                      {headerGroup.headers.map((header) => (
+                        <th key={header.id} style={{ width: header.column.columnDef.size, textAlign: header.id === 'actions' ? 'left' : 'center' }}>
+                          {flexRender(header.column.columnDef.header, header.getContext())}
+                        </th>
+                      ))}
+                    </tr>
+                  ))}
+                </thead>
+                <tbody>
+                  {table.getRowModel().rows.map((row) => (
+                    <tr key={row.id}>
+                      {row.getVisibleCells().map((cell) => (
+                        <td key={cell.id} style={{ textAlign: cell.column.id === 'actions' ? 'left' : 'center' }}>
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+              <Stack direction="horizontal" className="justify-content-between align-items-center">
+                <div>
+                  <Form.Select
+                    value={table.getState().pagination.pageSize}
+                    onChange={(e) => table.setPageSize(Number(e.target.value))}
+                    style={{ width: '100px', display: 'inline-block', marginRight: '10px' }}
+                  >
+                    <option value="5">5</option>
+                    <option value="10">10</option>
+                    <option value="20">20</option>
+                    <option value="50">50</option>
+                  </Form.Select>
+                  <span className="text-muted">
+                    Showing {table.getRowModel().rows.length} of {hoteltypeItems.length} entries
+                  </span>
+                </div>
+                <Pagination>
+                  <Pagination.Prev
+                    onClick={() => table.previousPage()}
+                    disabled={!table.getCanPreviousPage()}
+                  />
+                  {getPaginationItems()}
+                  <Pagination.Next
+                    onClick={() => table.nextPage()}
+                    disabled={!table.getCanNextPage()}
+                  />
+                </Pagination>
+              </Stack>
+            </>
+          )}
+        </div>
+      </Card>
       <HoteltypeModal
         show={showAddModal}
         onHide={() => setShowAddModal(false)}
+        hoteltype={null}
         onSuccess={fetchHoteltypes}
+        onUpdateSelectedHoteltype={setSelectedHoteltype}
       />
-      
       <HoteltypeModal
         show={showEditModal}
         onHide={() => setShowEditModal(false)}

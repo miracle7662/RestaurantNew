@@ -1,19 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Col, Row, Button, Form, Table, Modal, Alert } from 'react-bootstrap';
+import { Card, Col, Row, Button, Form, Table, Modal, Alert, Pagination } from 'react-bootstrap';
 import axios from 'axios';
 import { useAuthContext } from '@/common/context/useAuthContext';
-import { fetchBrands } from '@/utils/commonfunction';
+import { fetchBrands, fetchOutletsForDropdown } from '@/utils/commonfunction';
 import { OutletData } from '@/common/api/outlet';
-import { fetchOutletsForDropdown } from '@/utils/commonfunction';
-
-
 
 interface RestTaxMaster {
   resttaxid: number;
   hotelid: number;
   hotel_name: string;
   outletid: number | null;
-  isapplicablealloutlet: number; // Changed to number to match SQLite (0 or 1)
+  isapplicablealloutlet: number;
   resttax_name: string;
   resttax_value: number;
   restcgst: number;
@@ -24,7 +21,7 @@ interface RestTaxMaster {
   status: number;
   created_by_id: string;
   created_date: string;
-  username?: string; // Optional, if you want to show created by user name
+  username?: string;
 }
 
 interface Brand {
@@ -40,6 +37,7 @@ interface TaxGroup {
 const RestTaxMaster: React.FC = () => {
   const { user } = useAuthContext();
   const [restTaxes, setRestTaxes] = useState<RestTaxMaster[]>([]);
+  const [filteredRestTaxes, setFilteredRestTaxes] = useState<RestTaxMaster[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
   const [taxGroups, setTaxGroups] = useState<TaxGroup[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -48,9 +46,11 @@ const RestTaxMaster: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [outlets, setOutlets] = useState<OutletData[]>([]);
-    const [selectedOutlet, setSelectedOutlet] = useState<number | null>(null);
-  
-  
+  const [selectedOutlet, setSelectedOutlet] = useState<number | null>(null);
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(10);
+
   const [formData, setFormData] = useState({
     hotelid: '',
     outletid: '',
@@ -68,18 +68,17 @@ const RestTaxMaster: React.FC = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      // Fetch rest taxes
       const restTaxesRes = await axios.get('/api/resttaxmaster');
-      console.log('Fetched rest taxes:', restTaxesRes.data); // Debug log
-      setRestTaxes(Array.isArray(restTaxesRes.data) ? restTaxesRes.data : []);
+      console.log('Fetched rest taxes:', restTaxesRes.data);
+      const taxes = Array.isArray(restTaxesRes.data) ? restTaxesRes.data : [];
+      setRestTaxes(taxes);
+      setFilteredRestTaxes(taxes);
 
-      // Fetch brands
       await fetchBrands(user, setBrands);
-      console.log('Fetched brands:', brands); // Debug log
+      console.log('Fetched brands:', brands);
 
-      // Fetch tax groups
       const taxGroupsRes = await axios.get('/api/taxgroup');
-      console.log('Fetched tax groups:', taxGroupsRes.data); // Debug log
+      console.log('Fetched tax groups:', taxGroupsRes.data);
       setTaxGroups(Array.isArray(taxGroupsRes.data.data?.taxGroups) ? taxGroupsRes.data.data.taxGroups : []);
     } catch (err: any) {
       setError('Failed to fetch data: ' + (err.response?.data?.message || err.message));
@@ -94,16 +93,27 @@ const RestTaxMaster: React.FC = () => {
     fetchOutletsForDropdown(user, setOutlets, setLoading);
   }, [user]);
 
-  // Handle input changes
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-  const { name, value, type, checked } = e.target as HTMLInputElement;
-  setFormData((prev) => ({
-    ...prev,
-    [name]: type === 'checkbox' ? checked : value,
-  }));
-};
+  // Handle search input
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+    const filtered = restTaxes.filter(
+      (tax) =>
+        tax.resttax_name.toLowerCase().includes(value.toLowerCase()) ||
+        tax.hotel_name.toLowerCase().includes(value.toLowerCase())
+    );
+    setFilteredRestTaxes(filtered);
+    setCurrentPage(1);
+  };
 
-  // Reset form to initial state
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value, type, checked } = e.target as HTMLInputElement;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value,
+    }));
+  };
+
   const resetForm = () => {
     setFormData({
       hotelid: '',
@@ -121,18 +131,15 @@ const RestTaxMaster: React.FC = () => {
     setError(null);
   };
 
-  // Handle form submission for create/update
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    // Validate required fields
     if (!formData.resttax_name || !formData.hotelid || !formData.taxgroupid || !formData.status) {
       setError('Please fill all required fields (Tax Name, Hotel, Tax Group, Status)');
       return;
     }
 
-    // Validate numeric fields
     const hotelIdNum = parseInt(formData.hotelid);
     const taxGroupIdNum = parseInt(formData.taxgroupid);
     const taxValueNum = parseFloat(formData.resttax_value) || 0;
@@ -151,11 +158,6 @@ const RestTaxMaster: React.FC = () => {
       return;
     }
 
-    if (statusNum !== 0 && statusNum !== 1) {
-      setError('Please select a valid status');
-      return;
-    }
-
     const payload = {
       hotelid: hotelIdNum,
       outletid: formData.outletid ? parseInt(formData.outletid) : null,
@@ -171,7 +173,7 @@ const RestTaxMaster: React.FC = () => {
     };
 
     try {
-      console.log('Submitting payload:', payload); // Debug log
+      console.log('Submitting payload:', payload);
       let response;
       if (editingId) {
         response = await axios.put(`/api/resttaxmaster/${editingId}`, payload);
@@ -180,10 +182,10 @@ const RestTaxMaster: React.FC = () => {
         response = await axios.post('/api/resttaxmaster', payload);
         setSuccess('Rest tax created successfully');
       }
-      console.log('Server response:', response.data); // Debug log
+      console.log('Server response:', response.data);
       setShowModal(false);
       resetForm();
-      await fetchData(); // Refresh data after save
+      await fetchData();
     } catch (err: any) {
       const errorMessage = err.response?.data?.message || err.message || 'Operation failed';
       setError(errorMessage);
@@ -191,7 +193,6 @@ const RestTaxMaster: React.FC = () => {
     }
   };
 
-  // Handle edit button click
   const handleEdit = (restTax: RestTaxMaster) => {
     setFormData({
       hotelid: restTax.hotelid.toString(),
@@ -209,12 +210,11 @@ const RestTaxMaster: React.FC = () => {
     setShowModal(true);
   };
 
-  // Handle delete button click
   const handleDelete = async (id: number) => {
     if (window.confirm('Are you sure you want to delete this rest tax?')) {
       try {
         const response = await axios.delete(`/api/resttaxmaster/${id}`);
-        console.log('Delete response:', response.data); // Debug log
+        console.log('Delete response:', response.data);
         setSuccess('Rest tax deleted successfully');
         await fetchData();
       } catch (err: any) {
@@ -224,7 +224,7 @@ const RestTaxMaster: React.FC = () => {
     }
   };
 
-  // Status badge for table
+
   const getStatusBadge = (status: number) => {
     return status === 1 ? (
       <span className="badge bg-success">Active</span>
@@ -233,14 +233,49 @@ const RestTaxMaster: React.FC = () => {
     );
   };
 
-  return (
-    <div className="container-fluid">
-      <Row>
-        <Col>
-          <h2 className="page-title">Rest Tax Master Management</h2>
-        </Col>
-      </Row>
+  // Pagination logic
+  const totalItems = filteredRestTaxes.length;
+  const totalPages = Math.ceil(totalItems / pageSize);
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = startIndex + pageSize;
+  const currentItems = filteredRestTaxes.slice(startIndex, endIndex);
 
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handlePageSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setPageSize(parseInt(e.target.value));
+    setCurrentPage(1);
+  };
+
+  const getPaginationItems = () => {
+    const items = [];
+    const maxPagesToShow = 5;
+    let startPage = Math.max(1, currentPage - Math.floor(maxPagesToShow / 2));
+    const endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
+
+    if (endPage - startPage < maxPagesToShow - 1) {
+      startPage = Math.max(1, endPage - maxPagesToShow + 1);
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+      items.push(
+        <Pagination.Item
+          key={i}
+          active={i === currentPage}
+          onClick={() => handlePageChange(i)}
+        >
+          {i}
+        </Pagination.Item>
+      );
+    }
+    return items;
+  };
+
+  return (
+    <div className="container-fluid" style={{ overflowY: 'auto' }}>
+      
       {success && (
         <Alert variant="success" dismissible onClose={() => setSuccess(null)}>
           {success}
@@ -256,7 +291,7 @@ const RestTaxMaster: React.FC = () => {
       <Row>
         <Col>
           <Card>
-            <Card.Header className="d-flex justify-content-between align-items-center">
+            <Card.Header className="d-flex justify-content-between align-items-center py-1 px-2 m-0">
               <h5 className="mb-0">Rest Taxes</h5>
               <Button
                 variant="primary"
@@ -269,6 +304,16 @@ const RestTaxMaster: React.FC = () => {
               </Button>
             </Card.Header>
             <Card.Body>
+              <Form.Group className="mb-3">
+                <Form.Control
+                  type="text"
+                  className="form-control rounded-pill"
+                  placeholder="Search by tax name or hotel..."
+                  value={searchTerm}
+                  onChange={handleSearch}
+                  style={{ maxWidth: '300px' }}
+                />
+              </Form.Group>
               {loading ? (
                 <div className="text-center">
                   <div className="spinner-border" role="status">
@@ -276,66 +321,96 @@ const RestTaxMaster: React.FC = () => {
                   </div>
                 </div>
               ) : (
-                <Table responsive hover>
-                  <thead>
-                    <tr>
-                      <th>ID</th>
-                      <th>Tax Name</th>
-                      <th>Hotel</th>
-                      <th>Tax Group</th>
-                      <th>Tax Value</th>
-                      <th>CGST</th>
-                      <th>SGST</th>
-                      <th>IGST</th>
-                      <th>Status</th>
-                      <th>Created By</th>
-                      <th>Created Date</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {restTaxes.length > 0 ? (
-                      restTaxes.map((tax) => (
-                        <tr key={tax.resttaxid}>
-                          <td>{tax.resttaxid}</td>
-                          <td>{tax.resttax_name}</td>
-                          <td>{tax.hotel_name}</td>
-                          <td>{tax.taxgroup_name}</td>
-                          <td>{tax.resttax_value}%</td>
-                          <td>{tax.restcgst}%</td>
-                          <td>{tax.restsgst}%</td>
-                          <td>{tax.restigst}%</td>
-                          <td>{getStatusBadge(tax.status)}</td>
-                          <td>{tax.username}</td>
-                          <td>{new Date(tax.created_date).toLocaleDateString()}</td>
-                          <td>
-                            <Button
-                              variant="warning"
-                              size="sm"
-                              className="me-2"
-                              onClick={() => handleEdit(tax)}
-                            >
-                              Edit
-                            </Button>
-                            <Button
-                              variant="danger"
-                              size="sm"
-                              onClick={() => handleDelete(tax.resttaxid)}
-                            >
-                              Delete
-                            </Button>
+                <>
+                  <Table responsive hover className="mb-4">
+                    <thead>
+                      <tr>
+                        <th>ID</th>
+                        <th>Tax Name</th>
+                        <th>Hotel</th>
+                        <th>Tax Group</th>
+                        <th>Tax Value</th>
+                        <th>CGST</th>
+                        <th>SGST</th>
+                        <th>IGST</th>
+                        <th>Status</th>
+                        <th>Created By</th>
+                        <th>Created Date</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {currentItems.length > 0 ? (
+                        currentItems.map((tax) => (
+                          <tr key={tax.resttaxid}>
+                            <td>{tax.resttaxid}</td>
+                            <td>{tax.resttax_name}</td>
+                            <td>{tax.hotel_name}</td>
+                            <td>{tax.taxgroup_name}</td>
+                            <td>{tax.resttax_value}%</td>
+                            <td>{tax.restcgst}%</td>
+                            <td>{tax.restsgst}%</td>
+                            <td>{tax.restigst}%</td>
+                            <td>{getStatusBadge(tax.status)}</td>
+                            <td>{tax.username}</td>
+                            <td>{new Date(tax.created_date).toLocaleDateString()}</td>
+                            <td>
+                              <Button
+                                variant="warning"
+                                size="sm"
+                                className="me-2"
+                                onClick={() => handleEdit(tax)}
+                              >
+                                Edit
+                              </Button>
+                              <Button
+                                variant="danger"
+                                size="sm"
+                                onClick={() => handleDelete(tax.resttaxid)}
+                              >
+                                Delete
+                              </Button>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={12} className="text-center">
+                            {loading ? 'Loading...' : 'No rest taxes found'}
                           </td>
                         </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan={12} className="text-center">
-                          No rest taxes found
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </Table>
+                      )}
+                    </tbody>
+                  </Table>
+                  <div className="d-flex justify-content-between align-items-center">
+                    <div>
+                      <Form.Select
+                        value={pageSize}
+                        onChange={handlePageSizeChange}
+                        style={{ width: '100px', display: 'inline-block', marginRight: '10px' }}
+                      >
+                        <option value="5">5</option>
+                        <option value="10">10</option>
+                        <option value="20">20</option>
+                        <option value="50">50</option>
+                      </Form.Select>
+                      <span className="text-muted">
+                        Showing {currentItems.length} of {totalItems} entries
+                      </span>
+                    </div>
+                    <Pagination>
+                      <Pagination.Prev
+                        onClick={() => handlePageChange(currentPage - 1)}
+                        disabled={currentPage === 1}
+                      />
+                      {getPaginationItems()}
+                      <Pagination.Next
+                        onClick={() => handlePageChange(currentPage + 1)}
+                        disabled={currentPage === totalPages}
+                      />
+                    </Pagination>
+                  </div>
+                </>
               )}
             </Card.Body>
           </Card>
@@ -371,17 +446,17 @@ const RestTaxMaster: React.FC = () => {
                 <Form.Group className="mb-3">
                   <Form.Label>Outlet</Form.Label>
                   <Form.Select
-                     className="form-control"
-            value={selectedOutlet || ''}
-            onChange={(e) => setSelectedOutlet(e.target.value ? Number(e.target.value) : null)}
-            disabled={loading}
-          >
-            <option value="">Select Outlet</option>
-            {outlets.map((outlet) => (
-              <option key={outlet.outletid} value={outlet.outletid}>
-                {outlet.outlet_name} ({outlet.outlet_code})
-              </option>
-            ))}
+                    className="form-control"
+                    value={selectedOutlet || ''}
+                    onChange={(e) => setSelectedOutlet(e.target.value ? Number(e.target.value) : null)}
+                    disabled={loading}
+                  >
+                    <option value="">Select Outlet</option>
+                    {outlets.map((outlet) => (
+                      <option key={outlet.outletid} value={outlet.outletid}>
+                        {outlet.outlet_name} ({outlet.outlet_code})
+                      </option>
+                    ))}
                   </Form.Select>
                 </Form.Group>
               </Col>

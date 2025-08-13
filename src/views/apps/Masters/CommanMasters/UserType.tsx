@@ -221,7 +221,6 @@ const UserType: React.FC = () => {
         const payload = {
           User_type,
           status: statusValue,
-
           created_by_id: 1, // Default to null (or 0 if backend requires)
           created_date: currentDate,
         };
@@ -329,7 +328,6 @@ const UserType: React.FC = () => {
           usertypeid: mstuserType.usertypeid,
           updated_by_id: '2', // Default to "0" (string)
           updated_date: currentDate,
-
         };
         console.log('Sending to backend:', payload); // Debug log
         const res = await fetch(`http://localhost:3001/api/usertype/${mstuserType.usertypeid}`, {
@@ -346,7 +344,6 @@ const UserType: React.FC = () => {
             updated_by_id: '2',
             updated_date: currentDate,
             usertypeid: mstuserType.usertypeid,
-
           };
           onUpdateSelectedUserType(updatedUserType);
           onSuccess();
@@ -411,81 +408,85 @@ const UserType: React.FC = () => {
       <Card className="m-1">
         <div className="d-flex justify-content-between align-items-center p-3 border-bottom">
           <h4 className="mb-0">User Type List</h4>
-          <div className="d-flex align-items-center">
-            <input
-              type="text"
-              className="form-control me-2"
-              placeholder="Search..."
-              value={searchTerm}
-              onChange={onSearchChange}
-              style={{ width: '250px' }}
-            />
+          <div style={{ display: 'flex', gap: '4px' }}>
             <Button variant="success" onClick={() => setShowAddModal(true)}>
               <i className="bi bi-plus"></i> Add User Type
             </Button>
           </div>
         </div>
-        <div className="flex-grow-1 p-4" style={{ overflowY: 'auto' }}>
-          {loading ? (
-            <Stack className="align-items-center justify-content-center flex-grow-1 h-100">
-              <Preloader />
-            </Stack>
-          ) : (
-            <>
-              <Table responsive hover className="mb-4">
-                <thead>
-                  {table.getHeaderGroups().map((headerGroup) => (
-                    <tr key={headerGroup.id}>
-                      {headerGroup.headers.map((header) => (
-                        <th key={header.id} style={{ width: header.column.columnDef.size, textAlign: header.id === 'actions' ? 'left' : 'center' }}>
-                          {flexRender(header.column.columnDef.header, header.getContext())}
-                        </th>
-                      ))}
-                    </tr>
-                  ))}
-                </thead>
-                <tbody>
-                  {table.getRowModel().rows.map((row) => (
-                    <tr key={row.id}>
-                      {row.getVisibleCells().map((cell) => (
-                        <td key={cell.id} style={{ textAlign: cell.column.id === 'actions' ? 'left' : 'center' }}>
-                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
-              <Stack direction="horizontal" className="justify-content-between align-items-center">
-                <div>
-                  <Form.Select
-                    value={table.getState().pagination.pageSize}
-                    onChange={(e) => table.setPageSize(Number(e.target.value))}
-                    style={{ width: '100px', display: 'inline-block', marginRight: '10px' }}
-                  >
-                    <option value="5">5</option>
-                    <option value="10">10</option>
-                    <option value="20">20</option>
-                    <option value="50">50</option>
-                  </Form.Select>
-                  <span className="text-muted">
-                    Showing {table.getRowModel().rows.length} of {UserTypeItem.length} entries
-                  </span>
-                </div>
-                <Pagination>
-                  <Pagination.Prev
-                    onClick={() => table.previousPage()}
-                    disabled={!table.getCanPreviousPage()}
-                  />
-                  {getPaginationItems()}
-                  <Pagination.Next
-                    onClick={() => table.nextPage()}
-                    disabled={!table.getCanNextPage()}
-                  />
-                </Pagination>
+        <div className="p-3">
+          <div className="mb-3">
+            <input
+              type="text"
+              className="form-control rounded-pill"
+              placeholder="Search..."
+              value={searchTerm}
+              onChange={onSearchChange}
+              style={{ width: '350px', borderColor: '#ccc', borderWidth: '2px' }}
+            />
+          </div>
+          <div className="flex-grow-1" style={{ overflowY: 'auto' }}>
+            {loading ? (
+              <Stack className="align-items-center justify-content-center flex-grow-1 h-100">
+                <Preloader />
               </Stack>
-            </>
-          )}
+            ) : (
+              <>
+                <Table responsive hover className="mb-4">
+                  <thead>
+                    {table.getHeaderGroups().map((headerGroup) => (
+                      <tr key={headerGroup.id}>
+                        {headerGroup.headers.map((header) => (
+                          <th key={header.id} style={{ width: header.column.columnDef.size, textAlign: header.id === 'actions' ? 'left' : 'center' }}>
+                            {flexRender(header.column.columnDef.header, header.getContext())}
+                          </th>
+                        ))}
+                      </tr>
+                    ))}
+                  </thead>
+                  <tbody>
+                    {table.getRowModel().rows.map((row) => (
+                      <tr key={row.id}>
+                        {row.getVisibleCells().map((cell) => (
+                          <td key={cell.id} style={{ textAlign: cell.column.id === 'actions' ? 'left' : 'center' }}>
+                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </Table>
+                <Stack direction="horizontal" className="justify-content-between align-items-center">
+                  <div>
+                    <Form.Select
+                      value={table.getState().pagination.pageSize}
+                      onChange={(e) => table.setPageSize(Number(e.target.value))}
+                      style={{ width: '100px', display: 'inline-block', marginRight: '10px' }}
+                    >
+                      <option value="5">5</option>
+                      <option value="10">10</option>
+                      <option value="20">20</option>
+                      <option value="50">50</option>
+                    </Form.Select>
+                    <span className="text-muted">
+                      Showing {table.getRowModel().rows.length} of {UserTypeItem.length} entries
+                    </span>
+                  </div>
+                  <Pagination>
+                    <Pagination.Prev
+                      onClick={() => table.previousPage()}
+                      disabled={!table.getCanPreviousPage()}
+                    />
+                    {getPaginationItems()}
+                    <Pagination.Next
+                      onClick={() => table.nextPage()}
+                      disabled={!table.getCanNextPage()}
+                    />
+                  </Pagination>
+                </Stack>
+              </>
+            )}
+          </div>
         </div>
       </Card>
       <AddUserTypeModal show={showAddModal} onHide={() => setShowAddModal(false)} onSuccess={fetchUserType} />

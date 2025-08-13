@@ -263,6 +263,7 @@ const TaxProductGroup: React.FC = () => {
               <Form.Group className="mb-3">
                 <Form.Control
                   type="text"
+                  className="form-control rounded-pill"
                   placeholder="Search by tax group name or hotel..."
                   value={searchTerm}
                   onChange={handleSearch}
