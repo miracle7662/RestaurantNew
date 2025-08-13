@@ -24,14 +24,6 @@ interface HoteltypeItem {
   updated_date: string;
 }
 
-interface Category {
-  name: string;
-  value: string;
-  icon: string;
-  badge?: number;
-  badgeClassName?: string;
-}
-
 interface HoteltypeModalProps {
   show: boolean;
   onHide: () => void;
@@ -63,25 +55,6 @@ const HoteltypeMasters: React.FC = () => {
   const [hoteltypeItems, setHoteltypeItems] = useState<HoteltypeItem[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('alls');
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [filteredHoteltypes, setFilteredHoteltypes] = useState<HoteltypeItem[]>([]);
-
-  // Debounced search handler
-  const handleSearch = useCallback(
-    debounce((value: string) => {
-      const filtered = hoteltypeItems.filter((item) =>
-        item.hotel_type.toLowerCase().includes(value.toLowerCase())
-      );
-      setFilteredHoteltypes(filtered);
-    }, 500),
-    [hoteltypeItems]
-  );
-  
-  // Update search term and trigger debounced search
-  const onSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setSearchTerm(value);
-    handleSearch(value);
-  };
   const [selectedHoteltype, setSelectedHoteltype] = useState<HoteltypeItem | null>(null);
   const [selectedHoteltypeIndex, setSelectedHoteltypeIndex] = useState<number>(-1);
   const [loading, setLoading] = useState<boolean>(false);
@@ -90,6 +63,36 @@ const HoteltypeMasters: React.FC = () => {
   const [sidebarLeftToggle, setSidebarLeftToggle] = useState<boolean>(false);
   const [sidebarMiniToggle, setSidebarMiniToggle] = useState<boolean>(false);
   const [containerToggle, setContainerToggle] = useState<boolean>(false);
+
+  // Fetch hotel types from API
+  const fetchHoteltypes = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('http://localhost:3001/api/hoteltype');
+      const data = await res.json();
+      setHoteltypeItems(data);
+      table.setGlobalFilter(''); // Reset filter on data fetch
+    } catch {
+      toast.error('Failed to fetch hotel types');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Debounced search handler
+  const handleSearch = useCallback(
+    debounce((value: string) => {
+      table.setGlobalFilter(value); // Use table's global filter
+    }, 500),
+    []
+  );
+
+  // Update search term and trigger debounced search
+  const onSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+    handleSearch(value);
+  };
 
   // Fetch hotel types on component mount
   useEffect(() => {
@@ -117,21 +120,6 @@ const HoteltypeMasters: React.FC = () => {
       } catch {
         toast.error('Failed to delete');
       }
-    }
-  };
-
-  // Fetch hotel types from API
-  const fetchHoteltypes = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch('http://localhost:3001/api/hoteltype');
-      const data = await res.json();
-      setHoteltypeItems(data);
-      setFilteredHoteltypes(data);
-    } catch {
-      toast.error('Failed to fetch hotel types');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -187,13 +175,42 @@ const HoteltypeMasters: React.FC = () => {
 
   // Initialize table
   const table = useReactTable({
-    data: filteredHoteltypes,
+    data: hoteltypeItems,
     columns,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     initialState: { pagination: { pageSize: 10 } },
   });
+
+  // Pagination logic
+  const totalPages = table.getPageCount();
+  const currentPage = table.getState().pagination.pageIndex + 1;
+  const pageSize = table.getState().pagination.pageSize;
+
+  const getPaginationItems = () => {
+    const items = [];
+    const maxPagesToShow = 5;
+    let startPage = Math.max(1, currentPage - Math.floor(maxPagesToShow / 2));
+    const endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
+
+    if (endPage - startPage < maxPagesToShow - 1) {
+      startPage = Math.max(1, endPage - maxPagesToShow + 1);
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+      items.push(
+        <Pagination.Item
+          key={i}
+          active={i === currentPage}
+          onClick={() => table.setPageIndex(i - 1)}
+        >
+          {i}
+        </Pagination.Item>
+      );
+    }
+    return items;
+  };
 
   // Main content component
   const MainContent = () => (
@@ -248,8 +265,18 @@ const HoteltypeMasters: React.FC = () => {
 
           <Stack direction="horizontal" className="justify-content-between align-items-center">
             <div>
+              <Form.Select
+                value={pageSize}
+                onChange={(e) => table.setPageSize(Number(e.target.value))}
+                style={{ width: '100px', display: 'inline-block', marginRight: '10px' }}
+              >
+                <option value="5">5</option>
+                <option value="10">10</option>
+                <option value="20">20</option>
+                <option value="50">50</option>
+              </Form.Select>
               <span className="text-muted">
-                Showing {table.getRowModel().rows.length} of {filteredHoteltypes.length} entries
+                Showing {table.getRowModel().rows.length} of {hoteltypeItems.length} entries
               </span>
             </div>
             <Pagination>
@@ -257,9 +284,7 @@ const HoteltypeMasters: React.FC = () => {
                 onClick={() => table.setPageIndex(table.getState().pagination.pageIndex - 1)}
                 disabled={!table.getCanPreviousPage()}
               />
-              <Pagination.Item active>
-                {table.getState().pagination.pageIndex + 1}
-              </Pagination.Item>
+              {getPaginationItems()}
               <Pagination.Next
                 onClick={() => table.setPageIndex(table.getState().pagination.pageIndex + 1)}
                 disabled={!table.getCanNextPage()}

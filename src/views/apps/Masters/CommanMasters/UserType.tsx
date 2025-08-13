@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Swal from 'sweetalert2';
 import { toast } from 'react-hot-toast';
 import { Preloader } from '@/components/Misc/Preloader';
-import { Button, Card, Stack, Table } from 'react-bootstrap';
+import { Button, Card, Stack, Pagination, Table, Form } from 'react-bootstrap';
 import TitleHelmet from '@/components/Common/TitleHelmet';
 import {
   useReactTable,
@@ -30,7 +30,7 @@ interface AddUserTypeModalProps {
   onHide: () => void;
   onSuccess: () => void;
 }
-//1 
+
 // Debounce utility function
 const debounce = (func: (...args: any[]) => void, wait: number) => {
   let timeout: NodeJS.Timeout;
@@ -44,7 +44,6 @@ const debounce = (func: (...args: any[]) => void, wait: number) => {
 const UserType: React.FC = () => {
   const [UserTypeItem, setUserTypeItem] = useState<UserTypeItem[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [filteredUserType, setFilteredUserType] = useState<UserTypeItem[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -57,7 +56,6 @@ const UserType: React.FC = () => {
       const data = await res.json();
       console.log('Fetched user types:', data); // Debug log
       setUserTypeItem(data);
-      setFilteredUserType(data);
     } catch (err) {
       toast.error('Failed to fetch UserType');
     } finally {
@@ -123,7 +121,7 @@ const UserType: React.FC = () => {
 
   // Initialize react-table with pagination
   const table = useReactTable({
-    data: filteredUserType,
+    data: UserTypeItem,
     columns,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
@@ -133,18 +131,23 @@ const UserType: React.FC = () => {
         pageSize: 10,
       },
     },
+    state: {
+      globalFilter: searchTerm,
+    },
   });
 
-  (
+  const handleSearch = useCallback(
     debounce((value: string) => {
-      setSearchTerm(value);
-      const filteredUserTypeBySearch = UserTypeItem.filter((item) =>
-        item.User_type.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-      setFilteredUserType(filteredUserTypeBySearch);
+      table.setGlobalFilter(value);
     }, 300),
-    [UserTypeItem]
+    [table]
   );
+
+  const onSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+    handleSearch(value);
+  };
 
   const handleEditClick = (usertype: UserTypeItem) => {
     setSelectedUserType(usertype);
@@ -172,7 +175,33 @@ const UserType: React.FC = () => {
       }
     }
   };
-  //2
+
+  const getPaginationItems = () => {
+    const items = [];
+    const maxPagesToShow = 5;
+    const pageIndex = table.getState().pagination.pageIndex;
+    const totalPages = table.getPageCount();
+    let startPage = Math.max(0, pageIndex - Math.floor(maxPagesToShow / 2));
+    const endPage = Math.min(totalPages - 1, startPage + maxPagesToShow - 1);
+
+    if (endPage - startPage < maxPagesToShow - 1) {
+      startPage = Math.max(0, endPage - maxPagesToShow + 1);
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+      items.push(
+        <Pagination.Item
+          key={i}
+          active={i === pageIndex}
+          onClick={() => table.setPageIndex(i)}
+        >
+          {i + 1}
+        </Pagination.Item>
+      );
+    }
+    return items;
+  };
+
   // AddUserTypeModal Component
   const AddUserTypeModal: React.FC<AddUserTypeModalProps> = ({ show, onHide, onSuccess }) => {
     const [User_type, setName] = useState('');
@@ -261,7 +290,7 @@ const UserType: React.FC = () => {
       </div>
     );
   };
-  //3
+
   // EditUserTypeModal Component
   interface EditUserTypeModalProps {
     show: boolean;
@@ -335,7 +364,7 @@ const UserType: React.FC = () => {
       }
     };
 
-    if (!show || !UserType) return null;
+    if (!show || !mstuserType) return null;
 
     return (
       <div className="modal" style={{ display: show ? 'block' : 'none', background: 'rgba(0,0,0,0.5)', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
@@ -382,40 +411,80 @@ const UserType: React.FC = () => {
       <Card className="m-1">
         <div className="d-flex justify-content-between align-items-center p-3 border-bottom">
           <h4 className="mb-0">User Type List</h4>
-          <Button variant="success" onClick={() => setShowAddModal(true)}>
-            <i className="bi bi-plus"></i> Add User Type
-          </Button>
+          <div className="d-flex align-items-center">
+            <input
+              type="text"
+              className="form-control me-2"
+              placeholder="Search..."
+              value={searchTerm}
+              onChange={onSearchChange}
+              style={{ width: '250px' }}
+            />
+            <Button variant="success" onClick={() => setShowAddModal(true)}>
+              <i className="bi bi-plus"></i> Add User Type
+            </Button>
+          </div>
         </div>
-        <div className="p-3">
+        <div className="flex-grow-1 p-4" style={{ overflowY: 'auto' }}>
           {loading ? (
             <Stack className="align-items-center justify-content-center flex-grow-1 h-100">
               <Preloader />
             </Stack>
           ) : (
-            <Table responsive>
-              <thead>
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <tr key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => (
-                      <th key={header.id} style={{ width: header.column.columnDef.size, textAlign: header.id === 'actions' ? 'left' : 'center' }}>
-                        {flexRender(header.column.columnDef.header, header.getContext())}
-                      </th>
-                    ))}
-                  </tr>
-                ))}
-              </thead>
-              <tbody>
-                {table.getRowModel().rows.map((row) => (
-                  <tr key={row.id}>
-                    {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} style={{ textAlign: cell.column.id === 'actions' ? 'left' : 'center' }}>
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </Table>
+            <>
+              <Table responsive hover className="mb-4">
+                <thead>
+                  {table.getHeaderGroups().map((headerGroup) => (
+                    <tr key={headerGroup.id}>
+                      {headerGroup.headers.map((header) => (
+                        <th key={header.id} style={{ width: header.column.columnDef.size, textAlign: header.id === 'actions' ? 'left' : 'center' }}>
+                          {flexRender(header.column.columnDef.header, header.getContext())}
+                        </th>
+                      ))}
+                    </tr>
+                  ))}
+                </thead>
+                <tbody>
+                  {table.getRowModel().rows.map((row) => (
+                    <tr key={row.id}>
+                      {row.getVisibleCells().map((cell) => (
+                        <td key={cell.id} style={{ textAlign: cell.column.id === 'actions' ? 'left' : 'center' }}>
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+              <Stack direction="horizontal" className="justify-content-between align-items-center">
+                <div>
+                  <Form.Select
+                    value={table.getState().pagination.pageSize}
+                    onChange={(e) => table.setPageSize(Number(e.target.value))}
+                    style={{ width: '100px', display: 'inline-block', marginRight: '10px' }}
+                  >
+                    <option value="5">5</option>
+                    <option value="10">10</option>
+                    <option value="20">20</option>
+                    <option value="50">50</option>
+                  </Form.Select>
+                  <span className="text-muted">
+                    Showing {table.getRowModel().rows.length} of {UserTypeItem.length} entries
+                  </span>
+                </div>
+                <Pagination>
+                  <Pagination.Prev
+                    onClick={() => table.previousPage()}
+                    disabled={!table.getCanPreviousPage()}
+                  />
+                  {getPaginationItems()}
+                  <Pagination.Next
+                    onClick={() => table.nextPage()}
+                    disabled={!table.getCanNextPage()}
+                  />
+                </Pagination>
+              </Stack>
+            </>
           )}
         </div>
       </Card>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Col, Row, Button, Form, Table, Modal, Alert } from 'react-bootstrap';
+import { Card, Col, Row, Button, Form, Table, Modal, Alert, Pagination } from 'react-bootstrap';
 import axios from 'axios';
 import { useAuthContext } from '../../../../common/context/useAuthContext';
 import { fetchBrands } from '@/utils/commonfunction';
@@ -24,6 +24,7 @@ interface Hotel {
 const TaxProductGroup: React.FC = () => {
   const { user } = useAuthContext();
   const [taxGroups, setTaxGroups] = useState<TaxGroup[]>([]);
+  const [filteredTaxGroups, setFilteredTaxGroups] = useState<TaxGroup[]>([]);
   const [hotels, setHotels] = useState<Hotel[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -31,6 +32,9 @@ const TaxProductGroup: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [brands, setBrands] = useState<Array<{ hotelid: number; hotel_name: string }>>([]);
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(10);
   const [formData, setFormData] = useState({
     taxgroup_name: '',
     hotelid: '',
@@ -46,8 +50,9 @@ const TaxProductGroup: React.FC = () => {
       // Fetch tax groups using axios
       const taxGroupsRes = await axios.get('/api/taxgroup');
       setTaxGroups(taxGroupsRes.data.data?.taxGroups || []);
+      setFilteredTaxGroups(taxGroupsRes.data.data?.taxGroups || []);
       
-      // Fetch hotels using the common fetchhotelmasters function
+      // Fetch hotels using the common fetchBrands function
       await fetchBrands(user, setBrands);
 
     } catch (err) {
@@ -61,6 +66,19 @@ const TaxProductGroup: React.FC = () => {
   useEffect(() => {
     fetchData();
   }, [user]);
+
+  // Handle search input
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+    const filtered = taxGroups.filter(
+      (group) =>
+        group.taxgroup_name.toLowerCase().includes(value.toLowerCase()) ||
+        group.hotel_name.toLowerCase().includes(value.toLowerCase())
+    );
+    setFilteredTaxGroups(filtered);
+    setCurrentPage(1); // Reset to first page on search
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -141,7 +159,6 @@ const TaxProductGroup: React.FC = () => {
     setFormData({
       taxgroup_name: taxGroup.taxgroup_name,
       hotelid: taxGroup.hotelid.toString(),
-      
       status: taxGroup.status.toString(),
       outletid: taxGroup.outletid.toString()
     });
@@ -170,13 +187,50 @@ const TaxProductGroup: React.FC = () => {
     );
   };
 
+  // Pagination logic
+  const totalItems = filteredTaxGroups.length;
+  const totalPages = Math.ceil(totalItems / pageSize);
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = startIndex + pageSize;
+  const currentItems = filteredTaxGroups.slice(startIndex, endIndex);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handlePageSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setPageSize(parseInt(e.target.value));
+    setCurrentPage(1); // Reset to first page when page size changes
+  };
+
+  // Generate pagination items
+  const getPaginationItems = () => {
+    const items = [];
+    const maxPagesToShow = 5;
+    let startPage = Math.max(1, currentPage - Math.floor(maxPagesToShow / 2));
+    const endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
+
+    if (endPage - startPage < maxPagesToShow - 1) {
+      startPage = Math.max(1, endPage - maxPagesToShow + 1);
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+      items.push(
+        <Pagination.Item
+          key={i}
+          active={i === currentPage}
+          onClick={() => handlePageChange(i)}
+        >
+          {i}
+        </Pagination.Item>
+      );
+    }
+    return items;
+  };
+
   return (
-    <div className="container-fluid">
-      <Row>
-        <Col>
-          <h2 className="page-title">Tax Product Group Management</h2>
-        </Col>
-      </Row>
+    <div className="flex-grow-1 p-4" style={{ overflowY: 'auto' }}>
+      
 
       {success && (
         <Alert variant="success" dismissible onClose={() => setSuccess(null)}>
@@ -193,7 +247,7 @@ const TaxProductGroup: React.FC = () => {
       <Row>
         <Col>
           <Card>
-            <Card.Header className="d-flex justify-content-between align-items-center">
+<Card.Header className="d-flex justify-content-between align-items-center py-1 px-2 m-0">
               <h5 className="mb-0">Tax Groups</h5>
               <Button 
                 variant="primary" 
@@ -206,6 +260,15 @@ const TaxProductGroup: React.FC = () => {
               </Button>
             </Card.Header>
             <Card.Body>
+              <Form.Group className="mb-3">
+                <Form.Control
+                  type="text"
+                  placeholder="Search by tax group name or hotel..."
+                  value={searchTerm}
+                  onChange={handleSearch}
+                  style={{ maxWidth: '300px' }}
+                />
+              </Form.Group>
               {loading ? (
                 <div className="text-center">
                   <div className="spinner-border" role="status">
@@ -213,56 +276,86 @@ const TaxProductGroup: React.FC = () => {
                   </div>
                 </div>
               ) : (
-                <Table responsive hover>
-                  <thead>
-                    <tr>
-                      <th>ID</th>
-                      <th>Tax Group Name</th>
-                      <th>Hotel</th>
-                      <th>Status</th>
-                      <th>Created By</th>
-                      <th>Created Date</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {Array.isArray(taxGroups) && taxGroups.length > 0 ? (
-                      taxGroups.map((group) => (
-                        <tr key={group.taxgroupid}>
-                          <td>{group.taxgroupid}</td>
-                          <td>{group.taxgroup_name}</td>
-                          <td>{group.hotel_name}</td>
-                          <td>{getStatusBadge(group.status)}</td>
-                          <td>{group.created_by}</td>
-                          <td>{new Date(group.created_date).toLocaleDateString()}</td>
-                          <td>
-                            <Button 
-                              variant="warning" 
-                              size="sm" 
-                              className="me-2"
-                              onClick={() => handleEdit(group)}
-                            >
-                              Edit
-                            </Button>
-                            <Button 
-                              variant="danger" 
-                              size="sm"
-                              onClick={() => handleDelete(group.taxgroupid)}
-                            >
-                              Delete
-                            </Button>
+                <>
+                  <Table responsive hover className="mb-4">
+                    <thead>
+                      <tr>
+                        <th>ID</th>
+                        <th>Tax Group Name</th>
+                        <th>Hotel</th>
+                        <th>Status</th>
+                        <th>Created By</th>
+                        <th>Created Date</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Array.isArray(currentItems) && currentItems.length > 0 ? (
+                        currentItems.map((group) => (
+                          <tr key={group.taxgroupid}>
+                            <td>{group.taxgroupid}</td>
+                            <td>{group.taxgroup_name}</td>
+                            <td>{group.hotel_name}</td>
+                            <td>{getStatusBadge(group.status)}</td>
+                            <td>{group.created_by}</td>
+                            <td>{new Date(group.created_date).toLocaleDateString()}</td>
+                            <td>
+                              <Button 
+                                variant="warning" 
+                                size="sm" 
+                                className="me-2"
+                                onClick={() => handleEdit(group)}
+                              >
+                                Edit
+                              </Button>
+                              <Button 
+                                variant="danger" 
+                                size="sm"
+                                onClick={() => handleDelete(group.taxgroupid)}
+                              >
+                                Delete
+                              </Button>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={7} className="text-center">
+                            {loading ? 'Loading...' : 'No tax groups found'}
                           </td>
                         </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan={7} className="text-center">
-                          {loading ? 'Loading...' : 'No tax groups found'}
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </Table>
+                      )}
+                    </tbody>
+                  </Table>
+                  <div className="d-flex justify-content-between align-items-center">
+                    <div>
+                      <Form.Select
+                        value={pageSize}
+                        onChange={handlePageSizeChange}
+                        style={{ width: '100px', display: 'inline-block', marginRight: '10px' }}
+                      >
+                        <option value="5">5</option>
+                        <option value="10">10</option>
+                        <option value="20">20</option>
+                        <option value="50">50</option>
+                      </Form.Select>
+                      <span className="text-muted">
+                        Showing {currentItems.length} of {totalItems} entries
+                      </span>
+                    </div>
+                    <Pagination>
+                      <Pagination.Prev
+                        onClick={() => handlePageChange(currentPage - 1)}
+                        disabled={currentPage === 1}
+                      />
+                      {getPaginationItems()}
+                      <Pagination.Next
+                        onClick={() => handlePageChange(currentPage + 1)}
+                        disabled={currentPage === totalPages}
+                      />
+                    </Pagination>
+                  </div>
+                </>
               )}
             </Card.Body>
           </Card>
@@ -317,7 +410,6 @@ const TaxProductGroup: React.FC = () => {
                   </Form.Select>
                 </Form.Group>
               </Col>
-              {/* Removed Event Problem dropdown */}
             </Row>
             
             <Row>
@@ -352,4 +444,4 @@ const TaxProductGroup: React.FC = () => {
   );
 };
 
-export default TaxProductGroup;  
+export default TaxProductGroup;

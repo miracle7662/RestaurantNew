@@ -2,7 +2,7 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import Swal from 'sweetalert2';
 import { toast } from 'react-hot-toast';
 import { Preloader } from '@/components/Misc/Preloader';
-import { Button, Card, Stack, Table, Pagination } from 'react-bootstrap';
+import { Button, Card, Stack, Table } from 'react-bootstrap';
 import TitleHelmet from '@/components/Common/TitleHelmet';
 import { useAuthContext } from '@/common';
 import {
@@ -77,32 +77,27 @@ const TableManagement: React.FC = () => {
   const [showAddTableModal, setShowAddTableModal] = useState(false);
   const [showEditTableModal, setShowEditTableModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [currentPage, setCurrentPage] = useState<number>(1);
-  const [totalPages, setTotalPages] = useState<number>(1);
   const [selectedTable, setSelectedTable] = useState<TableItem | null>(null);
   const [outlets, setOutlets] = useState<OutletData[]>([]);
   const [brands, setBrands] = useState<Array<{ hotelid: number; hotel_name: string }>>([]);
   
-  
   const { user } = useAuthContext();
-  const limit = 10;
 
   // Fetch table data
-  const fetchTableManagement = async (page: number, search: string = '') => {
+  const fetchTableManagement = async (search: string = '') => {
     setLoading(true);
     try {
-      const res = await fetch(`http://localhost:3001/api/tablemanagement?search=${encodeURIComponent(search)}&page=${page}&limit=${limit}`, {
+      const res = await fetch(`http://localhost:3001/api/tablemanagement?search=${encodeURIComponent(search)}`, {
         headers: { 'Content-Type': 'application/json' },
       });
       if (res.ok) {
         const data = await res.json();
-          if (data.success) {
-            setTableItems(data.data);
-            setFilteredTableItems(data.data);
-            setTotalPages(Math.ceil(data.pagination?.total / limit) || 1);
-          } else {
-            toast.error(data.message || 'Failed to fetch table data');
-          }
+        if (data.success) {
+          setTableItems(data.data);
+          setFilteredTableItems(data.data);
+        } else {
+          toast.error(data.message || 'Failed to fetch table data');
+        }
       } else {
         toast.error('Failed to fetch table data');
       }
@@ -114,10 +109,10 @@ const TableManagement: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchTableManagement(currentPage, searchTerm);
+    fetchTableManagement(searchTerm);
     fetchBrands(user, setBrands);
     fetchOutletsForDropdown(user, setOutlets, setLoading);
-  }, [user, currentPage, searchTerm]);
+  }, [user, searchTerm]);
 
   // Define table columns
   const columns = useMemo<ColumnDef<TableItem>[]>(
@@ -215,19 +210,20 @@ const TableManagement: React.FC = () => {
     getFilteredRowModel: getFilteredRowModel(),
   });
 
-// Handle search
-const handleSearch = useCallback(
-  debounce((value: string) => {
-    setSearchTerm(value);
-    const filtered = tableItems.filter((item) =>
-      item.table_name.toLowerCase().includes(value.toLowerCase()) ||
-      item.hotel_name.toLowerCase().includes(value.toLowerCase()) ||
-      item.outlet_name.toLowerCase().includes(value.toLowerCase())
-    );
-    setFilteredTableItems(filtered); // Corrected to match the state variable
-  }, 300),
-  [tableItems]
-);
+  // Handle search
+  const handleSearch = useCallback(
+    debounce((value: string) => {
+      setSearchTerm(value);
+      const filtered = tableItems.filter((item) =>
+        item.table_name.toLowerCase().includes(value.toLowerCase()) ||
+        item.hotel_name.toLowerCase().includes(value.toLowerCase()) ||
+        item.outlet_name.toLowerCase().includes(value.toLowerCase())
+      );
+      setFilteredTableItems(filtered);
+    }, 300),
+    [tableItems]
+  );
+
   // Handle edit button click
   const handleEditClick = (table: TableItem) => {
     setSelectedTable(table);
@@ -257,7 +253,7 @@ const handleSearch = useCallback(
         const data = await response.json();
         if (response.ok && data.success) {
           toast.success(data.message || 'Table deleted successfully');
-          fetchTableManagement(currentPage, searchTerm);
+          fetchTableManagement(searchTerm);
           setSelectedTable(null);
         } else {
           toast.error(data.message || 'Failed to delete table');
@@ -268,46 +264,41 @@ const handleSearch = useCallback(
     }
   };
 
-  // Handle pagination
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-  };
-
   return (
     <>
       <TitleHelmet title="Table Management" />
-      <Card className="m-1">
-        <div className="d-flex justify-content-between align-items-center p-3 border-bottom">
-          <h4 className="mb-0">Table Management</h4>
-          <div style={{ display: 'flex', gap: '4px' }}>
-            <Button variant="success" className="me-1" onClick={() => setShowAddTableModal(true)}>
-              <i className="bi bi-plus"></i> Add New
-            </Button>
-            <Button variant="primary" className="me-1">
-              <i className="bi bi-upload"></i> Upload Tables
-            </Button>
-            <Button variant="primary">
-              <i className="bi bi-download"></i> Download Table Format
-            </Button>
+      <div style={{ maxHeight: '80vh', overflowY: 'auto', padding: '10px' }}>
+        <Card className="m-1">
+          <div className="d-flex justify-content-between align-items-center p-3 border-bottom">
+            <h4 className="mb-0">Table Management</h4>
+            <div style={{ display: 'flex', gap: '4px' }}>
+              <Button variant="success" className="me-1" onClick={() => setShowAddTableModal(true)}>
+                <i className="bi bi-plus"></i> Add New
+              </Button>
+              <Button variant="primary" className="me-1">
+                <i className="bi bi-upload"></i> Upload Tables
+              </Button>
+              <Button variant="primary">
+                <i className="bi bi-download"></i> Download Table Format
+              </Button>
+            </div>
           </div>
-        </div>
-        <div className="p-3">
-          <div className="mb-3">
-            <input
-              type="text"
-              className="form-control rounded-pill"
-              placeholder="Search..."
-              onChange={(e) => handleSearch(e.target.value)}
-              style={{ width: '350px', borderColor: '#ccc', borderWidth: '2px' }}
-            />
-          </div>
-          {loading ? (
-            <Stack className="align-items-center justify-content-center flex-grow-1 h-100">
-              <Preloader />
-            </Stack>
-          ) : (
-            <>
-              <div style={{ width: '100%', overflowX: 'auto' }}>
+          <div className="p-3">
+            <div className="mb-3">
+              <input
+                type="text"
+                className="form-control rounded-pill"
+                placeholder="Search..."
+                onChange={(e) => handleSearch(e.target.value)}
+                style={{ width: '350px', borderColor: '#ccc', borderWidth: '2px' }}
+              />
+            </div>
+            {loading ? (
+              <Stack className="align-items-center justify-content-center flex-grow-1 h-100">
+                <Preloader />
+              </Stack>
+            ) : (
+              <div style={{ maxHeight: '500px', overflowY: 'auto', width: '100%' }}>
                 <Table responsive className="mb-0" style={{ tableLayout: 'auto', width: '100%' }}>
                   <thead>
                     {table.getHeaderGroups().map((headerGroup) => (
@@ -353,33 +344,14 @@ const handleSearch = useCallback(
                   </tbody>
                 </Table>
               </div>
-              <Pagination className="justify-content-center mt-3">
-                <Pagination.Prev
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1}
-                />
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                  <Pagination.Item
-                    key={page}
-                    active={page === currentPage}
-                    onClick={() => handlePageChange(page)}
-                  >
-                    {page}
-                  </Pagination.Item>
-                ))}
-                <Pagination.Next
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                />
-              </Pagination>
-            </>
-          )}
-        </div>
-      </Card>
+            )}
+          </div>
+        </Card>
+      </div>
       <AddTableModal
         show={showAddTableModal}
         onHide={() => setShowAddTableModal(false)}
-        onSuccess={() => fetchTableManagement(currentPage, searchTerm)}
+        onSuccess={() => fetchTableManagement(searchTerm)}
       />
       <EditTableModal
         show={showEditTableModal}
@@ -388,7 +360,7 @@ const handleSearch = useCallback(
           setSelectedTable(null);
         }}
         tableItem={selectedTable}
-        onSuccess={() => fetchTableManagement(currentPage, searchTerm)}
+        onSuccess={() => fetchTableManagement(searchTerm)}
         onUpdateSelectedTable={setSelectedTable}
       />
     </>
