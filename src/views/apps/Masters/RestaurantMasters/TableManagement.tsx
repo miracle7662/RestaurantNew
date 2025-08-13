@@ -80,7 +80,8 @@ const TableManagement: React.FC = () => {
   const [selectedTable, setSelectedTable] = useState<TableItem | null>(null);
   const [outlets, setOutlets] = useState<OutletData[]>([]);
   const [brands, setBrands] = useState<Array<{ hotelid: number; hotel_name: string }>>([]);
-  
+  const [selectedOutletId, setSelectedOutletId] = useState<number | null>(null); // New state for outlet filter
+
   const { user } = useAuthContext();
 
   // Fetch table data
@@ -210,19 +211,56 @@ const TableManagement: React.FC = () => {
     getFilteredRowModel: getFilteredRowModel(),
   });
 
-  // Handle search
+  // Handle search and outlet filter
   const handleSearch = useCallback(
     debounce((value: string) => {
       setSearchTerm(value);
-      const filtered = tableItems.filter((item) =>
-        item.table_name.toLowerCase().includes(value.toLowerCase()) ||
-        item.hotel_name.toLowerCase().includes(value.toLowerCase()) ||
-        item.outlet_name.toLowerCase().includes(value.toLowerCase())
-      );
+      let filtered = [...tableItems];
+
+      // Apply outlet filter first if selected
+      if (selectedOutletId !== null && selectedOutletId !== undefined) {
+        filtered = filtered.filter((item) => Number(item.outletid) === selectedOutletId);
+      }
+
+      // Apply search term filter
+      if (value) {
+        filtered = filtered.filter((item) =>
+          item.table_name.toLowerCase().includes(value.toLowerCase()) ||
+          item.hotel_name.toLowerCase().includes(value.toLowerCase()) ||
+          item.outlet_name.toLowerCase().includes(value.toLowerCase())
+        );
+      }
+
       setFilteredTableItems(filtered);
     }, 300),
-    [tableItems]
+    [tableItems, selectedOutletId]
   );
+
+  // Handle outlet filter change
+  const handleOutletFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const outletId = e.target.value ? Number(e.target.value) : null;
+    setSelectedOutletId(outletId);
+    let filtered = [...tableItems];
+
+    // Apply outlet filter
+    if (outletId !== null && outletId !== undefined) {
+      filtered = filtered.filter((item) => {
+        const itemOutletId = Number(item.outletid); // Ensure outletid is a number
+        return itemOutletId === outletId;
+      });
+    }
+
+    // Apply search term filter if any
+    if (searchTerm) {
+      filtered = filtered.filter((item) =>
+        item.table_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.hotel_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.outlet_name.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    setFilteredTableItems(filtered);
+  };
 
   // Handle edit button click
   const handleEditClick = (table: TableItem) => {
@@ -267,7 +305,7 @@ const TableManagement: React.FC = () => {
   return (
     <>
       <TitleHelmet title="Table Management" />
-      <div style={{ maxHeight: '80vh', overflowY: 'auto', padding: '10px' }}>
+      <div >
         <Card className="m-1">
           <div className="d-flex justify-content-between align-items-center p-3 border-bottom">
             <h4 className="mb-0">Table Management</h4>
@@ -284,7 +322,7 @@ const TableManagement: React.FC = () => {
             </div>
           </div>
           <div className="p-3">
-            <div className="mb-3">
+            <div className="mb-3" style={{ display: 'flex', gap: '10px' }}>
               <input
                 type="text"
                 className="form-control rounded-pill"
@@ -292,6 +330,19 @@ const TableManagement: React.FC = () => {
                 onChange={(e) => handleSearch(e.target.value)}
                 style={{ width: '350px', borderColor: '#ccc', borderWidth: '2px' }}
               />
+              <select
+                className="form-control"
+                value={selectedOutletId || ''}
+                onChange={handleOutletFilterChange}
+                style={{ width: '200px', borderColor: '#ccc', borderWidth: '2px' }}
+              >
+                <option value="">All Outlets</option>
+                {outlets.map((outlet) => (
+                  <option key={outlet.outletid} value={outlet.outletid}>
+                    {outlet.outlet_name} ({outlet.outlet_code})
+                  </option>
+                ))}
+              </select>
             </div>
             {loading ? (
               <Stack className="align-items-center justify-content-center flex-grow-1 h-100">
@@ -366,7 +417,6 @@ const TableManagement: React.FC = () => {
     </>
   );
 };
-
 // AddTableModal Component
 const AddTableModal: React.FC<AddTableModalProps> = ({ show, onHide, onSuccess }) => {
   const [table_name, setTableName] = useState<string>('');

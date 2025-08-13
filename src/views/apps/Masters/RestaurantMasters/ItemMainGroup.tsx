@@ -13,6 +13,7 @@ import {
 import { Preloader } from '@/components/Misc/Preloader';
 import { ContactSearchBar, ContactSidebar } from '@/components/Apps/Contact';
 import TitleHelmet from '@/components/Common/TitleHelmet';
+import { useAuthContext } from '../../../../common/context/useAuthContext';
 
 // Interfaces
 interface ItemMainGroupItem {
@@ -41,19 +42,14 @@ interface Label {
   gradient: string;
 }
 
-interface ModalProps {
+interface ItemMainGroupModalProps {
   show: boolean;
   onHide: () => void;
+  itemMainGroup?: ItemMainGroupItem | null;
   onSuccess: () => void;
+  onUpdateSelectedItemMainGroup?: (itemMainGroup: ItemMainGroupItem) => void;
 }
 
-interface EditItemMainGroupModalProps extends ModalProps {
-  mst_Item_Main_Group: ItemMainGroupItem | null;
-  onUpdateSelectedItemMainGroup: (mst_Item_Main_Group: ItemMainGroupItem) => void;
-}
-
-
-//1
 // Utility Functions
 const debounce = <T extends (...args: any[]) => void>(func: T, wait: number) => {
   let timeout: NodeJS.Timeout;
@@ -63,9 +59,18 @@ const debounce = <T extends (...args: any[]) => void>(func: T, wait: number) => 
   };
 };
 
+// Status badge for table
+const getStatusBadge = (status: number) => {
+  return status === 0 ? (
+    <span className="badge bg-success">Active</span>
+  ) : (
+    <span className="badge bg-danger">Inactive</span>
+  );
+};
+
 // Main Component
 const ItemMainGroup: React.FC = () => {
-  const [ItemMainGroupItem, setItemMainGroupItem] = useState<ItemMainGroupItem[]>([]);
+  const [itemMainGroupItems, setItemMainGroupItems] = useState<ItemMainGroupItem[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('alls');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [filteredItemMainGroup, setFilteredItemMainGroup] = useState<ItemMainGroupItem[]>([]);
@@ -84,7 +89,7 @@ const ItemMainGroup: React.FC = () => {
     try {
       const res = await fetch('http://localhost:3001/api/ItemMainGroup');
       const data = await res.json();
-      setItemMainGroupItem(data);
+      setItemMainGroupItems(data);
       setFilteredItemMainGroup(data);
     } catch {
       toast.error('Failed to fetch ItemMainGroup');
@@ -103,53 +108,46 @@ const ItemMainGroup: React.FC = () => {
       id: 'srNo',
       header: 'Sr No',
       size: 20,
-      cell: ({ row }) => <span>{row.index + 1}</span>,
+      cell: (cell) => <span>{cell.row.index + 1}</span>,
     },
-    
     {
       accessorKey: 'item_group_name',
-      header: 'Main Item ',
+      header: 'Main Item',
       size: 10,
-      cell: ({ getValue }) => <h6 className="mb-1">{getValue<string>()}</h6>,
+      cell: (cell) => <h6 className="mb-1">{cell.getValue<string>()}</h6>,
     },
-
-
     {
-        accessorKey: 'status',
-        header: 'Status',
-        size: 15,
-        cell: (info) => {
-          const statusValue = info.getValue<string | number>();
-          console.log('Status value:', statusValue, typeof statusValue); // Debug log
-          return <div style={{ textAlign: 'left' }}>{statusValue == '0' || statusValue === 0 ? 'Active' : 'Inactive'}</div>;
-        },
-      },
+      accessorKey: 'status',
+      header: 'Status',
+      size: 150,
+      cell: (cell) => getStatusBadge(Number(cell.getValue<string | number>())),
+    },
     {
       id: 'actions',
       header: 'Actions',
       size: 30,
-      cell: ({ row }) => (
+      cell: (cell) => (
         <div className="d-flex gap-2">
           <Button
             size="sm"
             variant="success"
-            onClick={() => setShowEditModal(true)}
-            style={{ padding: '4px 8px' }}
+            onClick={() => {
+              setSelectedItemMainGroup(cell.row.original);
+              setShowEditModal(true);
+            }}
           >
             <i className="fi fi-rr-edit" />
           </Button>
           <Button
             size="sm"
             variant="danger"
-            onClick={() => handleDeleteItemMainGroup(row.original)}
-            style={{ padding: '4px 8px' }}
+            onClick={() => handleDeleteItemMainGroup(cell.row.original)}
           >
             <i className="fi fi-rr-trash" />
           </Button>
         </div>
       ),
     },
-    
   ], []);
 
   // Initialize table
@@ -166,36 +164,39 @@ const ItemMainGroup: React.FC = () => {
   const categories: Category[] = useMemo(
     () => [
       {
-        name: 'Countries',
+        name: 'ItemMainGroups',
         value: 'alls',
         icon: 'fi-rr-globe',
-        badge: ItemMainGroupItem.length,
+        badge: itemMainGroupItems.length,
         badgeClassName: 'bg-primary-subtle text-primary',
       },
     ],
-    [ItemMainGroupItem.length]
+    [itemMainGroupItems.length]
   );
 
   const labels: Label[] = useMemo(
     () => [
-      { name: 'North America', value: 'north_america', gradient: 'success' },
-      { name: 'Europe', value: 'europe', gradient: 'warning' },
-      { name: 'Asia', value: 'asia', gradient: 'danger' },
-      { name: 'Africa', value: 'africa', gradient: 'info' },
+      { name: 'Active', value: 'active', gradient: 'success' },
+      { name: 'Inactive', value: 'inactive', gradient: 'danger' },
     ],
     []
   );
 
   // Search handler
-  const handleSearch = useCallback(
+  const handleSearch = (value: string) => {
+    setSearchTerm(value);
+    filterCountries(value);
+  };
+
+  const filterCountries = useCallback(
     debounce((value: string) => {
-      setSearchTerm(value);
-      const filtered = ItemMainGroupItem.filter((item) =>
-        item.item_group_name.toLowerCase().includes(value.toLowerCase())
+      const searchValue = value.toLowerCase();
+      const filtered = itemMainGroupItems.filter((item) =>
+        item.item_group_name.toLowerCase().includes(searchValue)
       );
       setFilteredItemMainGroup(filtered);
-    }, 300),
-    [ItemMainGroupItem]
+    }, 500),
+    [itemMainGroupItems]
   );
 
   // Category change handler
@@ -203,22 +204,22 @@ const ItemMainGroup: React.FC = () => {
     (categoryValue: string) => {
       setSelectedCategory(categoryValue);
       setSearchTerm('');
-      setFilteredItemMainGroup(ItemMainGroupItem);
+      setFilteredItemMainGroup(itemMainGroupItems);
     },
-    [ItemMainGroupItem]
+    [itemMainGroupItems]
   );
 
   // ItemMainGroup selection handler
-  const handleItemMainGroupItemClick = useCallback((mst_Item_Main_Group: ItemMainGroupItem) => {
-    setSelectedItemMainGroup(mst_Item_Main_Group);
+  const handleItemMainGroupItemClick = useCallback((itemMainGroup: ItemMainGroupItem) => {
+    setSelectedItemMainGroup(itemMainGroup);
     setContainerToggle(true);
   }, []);
 
   // Delete ItemMainGroup handler
-  const handleDeleteItemMainGroup = async (mst_Item_Main_Group: ItemMainGroupItem) => {
+  const handleDeleteItemMainGroup = async (itemMainGroup: ItemMainGroupItem) => {
     const result = await Swal.fire({
       title: 'Are you sure?',
-      text: 'You will not be able to recover thisItemMainGroup!',
+      text: 'You will not be able to recover this ItemMainGroup!',
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#d33',
@@ -228,7 +229,7 @@ const ItemMainGroup: React.FC = () => {
 
     if (result.isConfirmed) {
       try {
-        await fetch(`http://localhost:3001/api/ItemMainGroup/${mst_Item_Main_Group.item_maingroupid}`, { method: 'DELETE' });
+        await fetch(`http://localhost:3001/api/ItemMainGroup/${itemMainGroup.item_maingroupid}`, { method: 'DELETE' });
         toast.success('Deleted successfully');
         fetchItemMainGroup();
         setSelectedItemMainGroup(null);
@@ -240,7 +241,9 @@ const ItemMainGroup: React.FC = () => {
 
   // Update selected ItemMainGroup index
   useEffect(() => {
-    const index = filteredItemMainGroup.findIndex((mst_Item_Main_Group) => mst_Item_Main_Group.item_maingroupid === selectedItemMainGroup?.item_maingroupid);
+    const index = filteredItemMainGroup.findIndex(
+      (itemMainGroup) => itemMainGroup.item_maingroupid === selectedItemMainGroup?.item_maingroupid
+    );
     setSelectedItemMainGroupIndex(index);
   }, [filteredItemMainGroup, selectedItemMainGroup]);
 
@@ -287,7 +290,7 @@ const ItemMainGroup: React.FC = () => {
 
   return (
     <>
-      <TitleHelmet title="Countries" />
+      <TitleHelmet title="Item Main Groups" />
       <style>
         {`
           .apps-card,
@@ -323,19 +326,21 @@ const ItemMainGroup: React.FC = () => {
                 ))}
               </thead>
               <tbody>
-                {table.getRowModel().rows.map((row) => (
-                  <tr
-                    key={row.id}
-                    className={selectedItemMainGroup?.item_maingroupid === row.original.item_maingroupid ? 'active' : ''}
-                    onClick={() => handleItemMainGroupItemClick(row.original)}
-                  >
-                   
-
-                    {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>
-                    ))}
-                  </tr>
-                ))}
+                {table.getRowModel().rows.map((row) => {
+const isActive = Number(row.original.status) === 0;
+                  return (
+                    <tr
+                      key={row.id}
+                      className={selectedItemMainGroup?.item_maingroupid === row.original.item_maingroupid ? 'active' : ''}
+                      style={{ color: isActive ? 'black' : 'gray', fontWeight: isActive ? 'bold' : 'normal' }}
+                      onClick={() => handleItemMainGroupItemClick(row.original)}
+                    >
+                      {row.getVisibleCells().map((cell) => (
+                        <td key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>
+                      ))}
+                    </tr>
+                  );
+                })}
               </tbody>
             </Table>
             <Stack className="p-2 border-top d-flex flex-row align-items-center justify-content-between" style={{ gap: '6px', padding: '8px 12px' }}>
@@ -408,7 +413,7 @@ const ItemMainGroup: React.FC = () => {
                       >
                         <i className="fi fi-rr-arrow-left" />
                       </Button>
-                      <h5 className="mb-1">ItemMainGroup</h5>
+                      <h5 className="mb-1">ItemMainGroups</h5>
                     </div>
                     <div className="d-flex gap-2">
                       <Button variant="light" className="btn-icon" onClick={handleMenuClick} style={{ padding: '8px', fontSize: '1.2rem' }}>
@@ -426,33 +431,51 @@ const ItemMainGroup: React.FC = () => {
                     </div>
                   </div>
                 </div>
-                
+                <div className="apps-contact-details p-4">
+                  <div className="mb-4">
+                    <h5 className="mb-2">{selectedItemMainGroup.item_group_name}</h5>
+                    <p className="text-muted mb-0">Status: {selectedItemMainGroup.status === 0 ? 'Active' : 'Inactive'}</p>
+                  </div>
+                </div>
               </div>
             )}
           </div>
         </div>
         <div className="custom-backdrop" onClick={() => setSidebarMiniToggle(false)} />
       </Card>
-      <AddItemMainGroupModal show={showAddModal} onHide={() => setShowAddModal(false)} onSuccess={fetchItemMainGroup} />
-      <EditItemMainGroupModal
+      <ItemMainGroupModal show={showAddModal} onHide={() => setShowAddModal(false)} onSuccess={fetchItemMainGroup} />
+      <ItemMainGroupModal
         show={showEditModal}
         onHide={() => setShowEditModal(false)}
-        mst_Item_Main_Group={selectedItemMainGroup}
+        itemMainGroup={selectedItemMainGroup}
         onSuccess={fetchItemMainGroup}
         onUpdateSelectedItemMainGroup={setSelectedItemMainGroup}
       />
     </>
   );
 };
-// 2
-// Add ItemMainGroup Modal
-const AddItemMainGroupModal: React.FC<ModalProps> = ({ show, onHide, onSuccess }) => {
-  const [item_group_name, setitem_group_name] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState('Active'); // Default to 'Active'
 
-  const handleAdd = async () => {
-    if (!item_group_name ||  !status) {
+// ItemMainGroupModal Component
+const ItemMainGroupModal: React.FC<ItemMainGroupModalProps> = ({ show, onHide, onSuccess, itemMainGroup, onUpdateSelectedItemMainGroup }) => {
+  const { user } = useAuthContext();
+  const [item_group_name, setItemGroupName] = useState('');
+  const [status, setStatus] = useState('Active');
+  const [loading, setLoading] = useState(false);
+
+  const isEditMode = !!itemMainGroup;
+
+  useEffect(() => {
+    if (itemMainGroup && isEditMode) {
+      setItemGroupName(itemMainGroup.item_group_name);
+      setStatus(String(itemMainGroup.status) === '0' ? 'Active' : 'Inactive');
+    } else {
+      setItemGroupName('');
+      setStatus('Active');
+    }
+  }, [itemMainGroup, show]);
+
+  const handleSubmit = async () => {
+    if (!item_group_name || !status) {
       toast.error('All fields are required');
       return;
     }
@@ -460,28 +483,49 @@ const AddItemMainGroupModal: React.FC<ModalProps> = ({ show, onHide, onSuccess }
     setLoading(true);
     try {
       const statusValue = status === 'Active' ? 0 : 1;
-      const currentDate = new Date().toISOString(); // Timestamp: e.g., 2025-07-01T04:00:00.000Z
+      const currentDate = new Date().toISOString();
       const payload = {
         item_group_name,
         status: statusValue,
-       
-        created_by_id: 1, // Default to null (or 0 if backend requires)
-        created_date: currentDate,
+        ...(isEditMode
+          ? { 
+              item_maingroupid: itemMainGroup!.item_maingroupid, 
+              updated_by_id: user?.id ?? 1, 
+              updated_date: currentDate 
+            }
+          : { 
+              created_by_id: user?.id ?? 1, 
+              created_date: currentDate 
+            }),
       };
-      console.log('Sending to backend:', payload); // Debug log
-      const res = await fetch('http://localhost:3001/api/ItemMainGroup', {
-        method: 'POST',
+
+      const url = isEditMode
+        ? `http://localhost:3001/api/ItemMainGroup/${itemMainGroup!.item_maingroupid}`
+        : 'http://localhost:3001/api/ItemMainGroup';
+      const method = isEditMode ? 'PUT' : 'POST';
+
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
+
       if (res.ok) {
-        toast.success('ItemMainGroup added successfully');
-        setitem_group_name('');
-        setStatus('Active'); // Reset to 'Active' after successful add
+        toast.success(`ItemMainGroup ${isEditMode ? 'updated' : 'added'} successfully`);
+        if (isEditMode && itemMainGroup && onUpdateSelectedItemMainGroup) {
+          const updatedItemMainGroup = {
+            ...itemMainGroup,
+            item_group_name,
+            status: statusValue,
+            updated_by_id: '2',
+            updated_date: currentDate,
+          };
+          onUpdateSelectedItemMainGroup(updatedItemMainGroup);
+        }
         onSuccess();
         onHide();
       } else {
-        toast.error('Failed to add ItemMainGroup');
+        toast.error(`Failed to ${isEditMode ? 'update' : 'add'} ItemMainGroup`);
       }
     } catch {
       toast.error('Something went wrong');
@@ -493,126 +537,39 @@ const AddItemMainGroupModal: React.FC<ModalProps> = ({ show, onHide, onSuccess }
   return (
     <Modal show={show} onHide={onHide}>
       <Modal.Header closeButton>
-        <Modal.Title>Add ItemMainGroup</Modal.Title>
+        <Modal.Title>{isEditMode ? 'Edit ItemMainGroup' : 'Add New ItemMainGroup'}</Modal.Title>
       </Modal.Header>
       <Modal.Body>
-        <Form.Group className="mb-3">
-          <Form.Label>ItemMainGroup Name</Form.Label>
-          <Form.Control type="text" value={item_group_name} onChange={(e) => setitem_group_name(e.target.value)} style={{ borderColor: '#ccc' }} />
-        </Form.Group>
-         <Form.Group className="mb-3">
-                    <div className="col-md-12">
-            <label className="form-label">Status <span style={{ color: 'red' }}>*</span></label>
-            <select
-              className="form-control"
+        <Form>
+          <Form.Group className="mb-3">
+            <Form.Label>ItemMainGroup Name <span style={{ color: 'red' }}>*</span></Form.Label>
+            <Form.Control
+              type="text"
+              placeholder="Enter ItemMainGroup name"
+              value={item_group_name}
+              onChange={(e) => setItemGroupName(e.target.value)}
+              style={{ borderColor: '#ccc' }}
+            />
+          </Form.Group>
+          <Form.Group className="mb-3">
+            <Form.Label>Status <span style={{ color: 'red' }}>*</span></Form.Label>
+            <Form.Select
               value={status}
               onChange={(e) => setStatus(e.target.value)}
+              style={{ borderColor: '#ccc' }}
             >
               <option value="Active">Active</option>
               <option value="Inactive">Inactive</option>
-            </select>
-          </div>
-        </Form.Group>
+            </Form.Select>
+          </Form.Group>
+        </Form>
       </Modal.Body>
       <Modal.Footer>
         <Button variant="secondary" onClick={onHide} disabled={loading}>
           Cancel
         </Button>
-        <Button variant="primary" onClick={handleAdd} disabled={loading}>
-          {loading ? 'Adding...' : 'Add ItemMainGroup'}
-        </Button>
-      </Modal.Footer>
-    </Modal>
-  );
-};
-
-//3
-
-// Edit ItemMainGroup Modal
-const EditItemMainGroupModal: React.FC<EditItemMainGroupModalProps> = ({ show, onHide, mst_Item_Main_Group, onSuccess, onUpdateSelectedItemMainGroup }) => {
-  const [item_group_name, setitem_group_name] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState('');
-  
-  
-
-  useEffect(() => {
-    if (mst_Item_Main_Group) {
-      setitem_group_name(mst_Item_Main_Group.item_group_name);
-      setStatus(String(mst_Item_Main_Group.status) === '0' ? 'Active' : 'Inactive');
-      console.log('Edit ItemMainGroup status:', mst_Item_Main_Group.status, typeof mst_Item_Main_Group.status); // Debug log
-    }
-  }, [mst_Item_Main_Group]);
-
-  const handleEdit = async () => {
-    if (!item_group_name || !status || !mst_Item_Main_Group) {
-      toast.error('All fields are required');
-      return;
-    }
-
-    setLoading(true);
-    try {
-       const statusValue = status === 'Active' ? 0 : 1;
-      const currentDate = new Date().toISOString(); // Timestamp: e.g., 2025-07-01T04:51:00.000Z
-      const payload = {
-        item_group_name,
-        status: statusValue,
-        item_maingroupid: mst_Item_Main_Group.item_maingroupid, // Ensure this is included
-        updated_by_id: '2', // Default to "0" (string)
-        updated_date: currentDate,
-       
-      };
-      console.log('Sending to backend:', payload); // Debug log
-      const res = await fetch(`http://localhost:3001/api/ItemMainGroup/${mst_Item_Main_Group.item_maingroupid}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (res.ok) {
-        toast.success('ItemMainGroup updated successfully');
-        onSuccess();
-        onUpdateSelectedItemMainGroup({ ...mst_Item_Main_Group, item_group_name });
-        onHide();
-      } else {
-        toast.error('Failed to update ItemMainGroup');
-      }
-    } catch {
-      toast.error('Something went wrong');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <Modal show={show} onHide={onHide}>
-      <Modal.Header closeButton>
-        <Modal.Title>Edit ItemMainGroup</Modal.Title>
-      </Modal.Header>
-      <Modal.Body>
-        <Form.Group className="mb-3">
-          <Form.Label>ItemMainGroup Name</Form.Label>
-          <Form.Control type="text" value={item_group_name} onChange={(e) => setitem_group_name(e.target.value)} style={{ borderColor: '#ccc' }} />
-        </Form.Group>
-         <Form.Group className="mb-3">
-         <div className="col-md-12">
-            <label className="form-label">Status <span style={{ color: 'red' }}>*</span></label>
-            <select
-              className="form-control"
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-            >
-              <option value="Active">Active</option>
-              <option value="Inactive">Inactive</option>
-            </select>
-          </div>
-        </Form.Group>
-      </Modal.Body>
-      <Modal.Footer>
-        <Button variant="secondary" onClick={onHide} disabled={loading}>
-          Cancel
-        </Button>
-        <Button variant="primary" onClick={handleEdit} disabled={loading}>
-          {loading ? 'Updating...' : 'Update ItemMainGroup'}
+        <Button variant="primary" onClick={handleSubmit} disabled={loading}>
+          {loading ? (isEditMode ? 'Updating...' : 'Adding...') : 'Save'}
         </Button>
       </Modal.Footer>
     </Modal>

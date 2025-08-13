@@ -1,13 +1,7 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
-import Swal from 'sweetalert2'
-import { toast } from 'react-hot-toast'
-import { Preloader } from '@/components/Misc/Preloader'
-import { Button, Card, Stack, Pagination, Table, Modal, Form } from 'react-bootstrap'
-import {
-  ContactSearchBar,
-
-} from '@/components/Apps/Contact'
-import TitleHelmet from '@/components/Common/TitleHelmet'
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import Swal from 'sweetalert2';
+import { toast } from 'react-hot-toast';
+import { Button, Card, Stack, Pagination, Table, Modal, Form } from 'react-bootstrap';
 import {
   useReactTable,
   getCoreRowModel,
@@ -15,63 +9,94 @@ import {
   getFilteredRowModel,
   ColumnDef,
   flexRender,
-} from '@tanstack/react-table'
-import {
-  fetchKitchenCategory,
-  KitchenCategoryItem,
+} from '@tanstack/react-table';
+import { Preloader } from '@/components/Misc/Preloader';
+import { ContactSearchBar, ContactSidebar } from '@/components/Apps/Contact';
+import TitleHelmet from '@/components/Common/TitleHelmet';
+import { useAuthContext } from '../../../../common/context/useAuthContext';
 
-} from '../../../../utils/commonfunction';
-
-
-// Define state data type
+// Interfaces
 interface ItemGroupItem {
   item_groupid: string;
   itemgroupname: string;
-  code: string;
   kitchencategoryid: string;
-  status: string | number // Use string or number based on your backend response
-  created_by_id: string
-  created_date: string
-  updated_by_id: string
-  updated_date: string
-  hotelid: string
-  marketid: string
+  item_maingroup_name: string;
+  status: number;
+  created_by_id: string;
+  created_date: string;
+  updated_by_id: string;
+  updated_date: string;
+  hotelid: string;
+  marketid: string;
 }
 
-
-
-//1
-// Debounce utility function
-const debounce = (func: (...args: any[]) => void, wait: number) => {
-  let timeout: NodeJS.Timeout
-  return (...args: any[]) => {
-    clearTimeout(timeout)
-    timeout = setTimeout(() => func(...args), wait)
-  }
+interface Category {
+  name: string;
+  value: string;
+  icon: string;
+  badge?: number;
+  badgeClassName?: string;
 }
 
+interface Label {
+  name: string;
+  value: string;
+  gradient: string;
+}
+
+interface ItemGroupModalProps {
+  show: boolean;
+  onHide: () => void;
+  itemGroup?: ItemGroupItem | null;
+  onSuccess: () => void;
+  onUpdateSelectedItemGroup?: (itemGroup: ItemGroupItem) => void;
+}
+
+// Utility Functions
+const debounce = <T extends (...args: any[]) => void>(func: T, wait: number) => {
+  let timeout: NodeJS.Timeout;
+  return (...args: Parameters<T>) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  };
+};
+
+// Status badge for table
+const getStatusBadge = (status: number) => {
+  return status === 0 ? (
+    <span className="badge bg-success">Active</span>
+  ) : (
+    <span className="badge bg-danger">Inactive</span>
+  );
+};
+
+// Main Component
 const ItemGroup: React.FC = () => {
-  const [ItemGroupItem, setItemGroupItem] = useState<ItemGroupItem[]>([])
-  const [selectedCategory, ] = useState<string>('alls')
-  const [searchTerm, setSearchTerm] = useState<string>('')
-  const [filteredItemGroup, setFilteredItemGroup] = useState<ItemGroupItem[]>([])
-  const [selectedItemGroup, setSelectedItemGroup] = useState<ItemGroupItem | null>(null)
-  const [selectedItemGroupIndex, setSelectedItemGroupIndex] = useState<number>(-1)
-  const [loading] = useState<boolean>(false)
-  const [showAddItemGroupModal, setShowAddItemGroupModal] = useState(false)
-  const [ShowEditItemGroupModal, setShowEditItemGroupModal] = useState(false)
-  const [sidebarLeftToggle, setSidebarLeftToggle] = useState<boolean>(false)
-  const [sidebarMiniToggle, setSidebarMiniToggle] = useState<boolean>(false)
-  const [containerToggle, setContainerToggle] = useState<boolean>(false)
+  const [itemGroupItems, setItemGroupItems] = useState<ItemGroupItem[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>('alls');
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [filteredItemGroup, setFilteredItemGroup] = useState<ItemGroupItem[]>([]);
+  const [selectedItemGroup, setSelectedItemGroup] = useState<ItemGroupItem | null>(null);
+  const [selectedItemGroupIndex, setSelectedItemGroupIndex] = useState<number>(-1);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [sidebarLeftToggle, setSidebarLeftToggle] = useState<boolean>(false);
+  const [sidebarMiniToggle, setSidebarMiniToggle] = useState<boolean>(false);
+  const [containerToggle, setContainerToggle] = useState<boolean>(false);
 
+  // Fetch ItemGroup from API
   const fetchItemGroup = async () => {
+    setLoading(true);
     try {
       const res = await fetch('http://localhost:3001/api/ItemGroup');
       const data = await res.json();
-      setItemGroupItem(data);
+      setItemGroupItems(data);
       setFilteredItemGroup(data);
-    } catch (err) {
+    } catch {
       toast.error('Failed to fetch ItemGroup');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -79,134 +104,123 @@ const ItemGroup: React.FC = () => {
     fetchItemGroup();
   }, []);
 
-  // Define columns for react-table with explicit widths
-  const columns = React.useMemo<ColumnDef<ItemGroupItem>[]>(
-    () => [
-      {
-        id: 'srNo',
-        header: 'Sr No',
-        size: 10,
-        cell: ({ row }) => <span>{row.index + 1}</span>,
-      },
-      
-      {
-        accessorKey: 'itemgroupname',
-        header: 'item groupname',
-        size: 10,
-        cell: (info) => <h6 className="mb-1">{info.getValue<string>()}</h6>,
-      },
+  // Table columns
+  const columns = useMemo<ColumnDef<ItemGroupItem>[]>(() => [
+    {
+      id: 'srNo',
+      header: 'Sr No',
+      size: 20,
+      cell: (cell) => <span>{cell.row.index + 1}</span>,
+    },
+    {
+      accessorKey: 'itemgroupname',
+      header: 'Group Name',
+      size: 10,
+      cell: (cell) => <h6 className="mb-1">{cell.getValue<string>()}</h6>,
+    },
+    
+    {
+      accessorKey: 'status',
+      header: 'Status',
+      size: 150,
+      cell: (cell) => getStatusBadge(Number(cell.getValue<string | number>())),
+    },
+    {
+      id: 'actions',
+      header: 'Actions',
+      size: 30,
+      cell: (cell) => (
+        <div className="d-flex gap-2">
+          <Button
+            size="sm"
+            variant="success"
+            onClick={() => {
+              setSelectedItemGroup(cell.row.original);
+              setShowEditModal(true);
+            }}
+          >
+            <i className="fi fi-rr-edit" />
+          </Button>
+          <Button
+            size="sm"
+            variant="danger"
+            onClick={() => handleDeleteItemGroup(cell.row.original)}
+          >
+            <i className="fi fi-rr-trash" />
+          </Button>
+        </div>
+      ),
+    },
+  ], []);
 
-      {
-        accessorKey: 'code',
-        header: 'code',
-        size: 10,
-        cell: (info) => <h6 className="mb-1">{info.getValue<string>()}</h6>,
-      },
-
-      // {
-      //   accessorKey: 'itemgroupname',
-      //   header: 'itemgroupname',
-      //   size: 10,
-      //   cell: (info) => ( <div style={{ textAlign: 'center' }}> {info.getValue<string>()}</div>
-      //   ),
-      // },
-      // {
-      //   accessorKey: 'code',
-      //   header: 'code',
-      //   size: 10,
-      //   cell: (info) => <h6 className="mb-1">{info.getValue<string>()}</h6>,
-      // },
-
-      {
-        accessorKey: 'status',
-        header: 'Status',
-        size: 15,
-        cell: (info) => {
-          const statusValue = info.getValue<string | number>();
-          console.log('Status value:', statusValue, typeof statusValue); // Debug log
-          return <div style={{ textAlign: 'center' }}>{statusValue == '0' || statusValue === 0 ? 'Active' : 'Inactive'}</div>;
-        },
-      },
-      {
-        id: 'actions',
-        header: 'Actions',
-        size: 30,
-        cell: ({ row }) => (
-          <div className="d-flex gap-2">
-            <button
-              className="btn btn-sm btn-success"
-              onClick={() => handleEditItemGroupClick(row.original)}
-              style={{ padding: '4px 8px' }}
-            >
-              <i className="fi fi-rr-edit"></i>
-            </button>
-            <button
-              className="btn btn-sm btn-danger"
-              onClick={() => handleDeleteItemGroup(row.original)}
-              style={{ padding: '4px 8px' }}
-            >
-              <i className="fi fi-rr-trash"></i>
-            </button>
-          </div>
-        ),
-      },
-    ],
-    [],
-  )
-
-  // Initialize react-table with pagination
+  // Initialize table
   const table = useReactTable({
     data: filteredItemGroup,
     columns,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    initialState: {
-      pagination: {
-        pageSize: 10,
+    initialState: { pagination: { pageSize: 10 } },
+  });
+
+  // Sidebar categories and labels
+  const categories: Category[] = useMemo(
+    () => [
+      {
+        name: 'ItemGroups',
+        value: 'alls',
+        icon: 'fi-rr-globe',
+        badge: itemGroupItems.length,
+        badgeClassName: 'bg-primary-subtle text-primary',
       },
-    },
-  })
+    ],
+    [itemGroupItems.length]
+  );
 
+  const labels: Label[] = useMemo(
+    () => [
+      { name: 'Active', value: 'active', gradient: 'success' },
+      { name: 'Inactive', value: 'inactive', gradient: 'danger' },
+    ],
+    []
+  );
 
+  // Search handler
+  const handleSearch = (value: string) => {
+    setSearchTerm(value);
+    filterCountries(value);
+  };
 
-  useEffect(() => {
-    setFilteredItemGroup(ItemGroupItem.filter((item) => item))
-  }, [ItemGroupItem])
-
-  const handleSearch = useCallback(
+  const filterCountries = useCallback(
     debounce((value: string) => {
-      setSearchTerm(value)
+      const searchValue = value.toLowerCase();
+      const filtered = itemGroupItems.filter((item) =>
+        item.itemgroupname.toLowerCase().includes(searchValue)
+      );
+      setFilteredItemGroup(filtered);
+    }, 500),
+    [itemGroupItems]
+  );
 
-      const filteredItemGroupsByCategory = ItemGroupItem.filter(
-        (item) => item,
-      )
-      const filteredItemGroupBySearch = filteredItemGroupsByCategory.filter((item) =>
-        item.itemgroupname.toLowerCase().includes(value.toLowerCase()),
-      )
-      setFilteredItemGroup(filteredItemGroupBySearch)
-    }, 300),
-    [ItemGroupItem, selectedCategory]
-  )
+  // Category change handler
+  const handleCategoryChange = useCallback(
+    (categoryValue: string) => {
+      setSelectedCategory(categoryValue);
+      setSearchTerm('');
+      setFilteredItemGroup(itemGroupItems);
+    },
+    [itemGroupItems]
+  );
 
-  // const handleCategoryChange = useCallback((categoryValue: string) => {
-  //   setSelectedCategory(categoryValue)
-  //   setSearchTerm('')
-  //   setFilteredItemGroup(ItemGroupItem.filter((item) => item))
-  // }, [ItemGroupItem])
+  // ItemGroup selection handler
+  const handleItemGroupItemClick = useCallback((itemGroup: ItemGroupItem) => {
+    setSelectedItemGroup(itemGroup);
+    setContainerToggle(true);
+  }, []);
 
-  const handleItemGroupItemClick = useCallback((mst_Item_Group: ItemGroupItem) => {
-    setSelectedItemGroup(mst_Item_Group)
-    setContainerToggle(true)
-  }, [])
-
-  const handleEditItemGroupClick = useCallback((mst_Item_Group: ItemGroupItem) => {
-    setSelectedItemGroup(mst_Item_Group)
-    setShowEditItemGroupModal(true)
-  }, [])
-
-  const handleDeleteItemGroup = useCallback(async (mst_Item_Group: ItemGroupItem) => {
-    const res = await Swal.fire({
+  // Delete ItemGroup handler
+  const handleDeleteItemGroup = async (itemGroup: ItemGroupItem) => {
+    const result = await Swal.fire({
       title: 'Are you sure?',
       text: 'You will not be able to recover this ItemGroup!',
       icon: 'warning',
@@ -216,175 +230,127 @@ const ItemGroup: React.FC = () => {
       confirmButtonText: 'Yes, delete it!',
     });
 
-    if (res.isConfirmed) {
+    if (result.isConfirmed) {
       try {
-        await fetch(`http://localhost:3001/api/ItemGroup/${mst_Item_Group.item_groupid}`, { method: 'DELETE' });
+        await fetch(`http://localhost:3001/api/ItemGroup/${itemGroup.item_groupid}`, { method: 'DELETE' });
+        toast.success('Deleted successfully');
+        fetchItemGroup();
         setSelectedItemGroup(null);
-        setContainerToggle(false);
-        // Immediately update local ItemGroup to remove the deleted ItemGroup
-        setItemGroupItem((prev) => prev.filter((s) => s.item_groupid !== mst_Item_Group.item_groupid));
-        setFilteredItemGroup((prev) => prev.filter((s) => s.item_groupid !== mst_Item_Group.item_groupid));
-        // Clear the right panel if the deleted ItemGroup was selected
-        if (selectedItemGroup && selectedItemGroup.item_groupid === mst_Item_Group.item_groupid) {
-
-          setSelectedItemGroupIndex(-1); // Reset the index to prevent navigation issues
-        }
-        toast.success('ItemGroup deleted successfully');
-        // Refresh from backend to ensure consistency
-        await fetchItemGroup();
-      } catch (error) {
-        toast.error('Failed to delete ItemGroup');
-        console.error('Deletion error:', error);
+      } catch {
+        toast.error('Failed to delete');
       }
     }
-  }, [selectedItemGroup, fetchItemGroup])
+  };
 
+  // Update selected ItemGroup index
   useEffect(() => {
     const index = filteredItemGroup.findIndex(
-      (mst_Item_Group) => mst_Item_Group.item_groupid === (selectedItemGroup?.item_groupid || ''),
-    )
-    setSelectedItemGroupIndex(index)
-  }, [filteredItemGroup, selectedItemGroup])
+      (itemGroup) => itemGroup.item_groupid === selectedItemGroup?.item_groupid
+    );
+    setSelectedItemGroupIndex(index);
+  }, [filteredItemGroup, selectedItemGroup]);
 
+  // Navigation handlers
   const handleNext = useCallback(() => {
     if (selectedItemGroupIndex < filteredItemGroup.length - 1) {
-      const nextIndex = selectedItemGroupIndex + 1
-      setSelectedItemGroup(filteredItemGroup[nextIndex])
-      setContainerToggle(true)
+      setSelectedItemGroup(filteredItemGroup[selectedItemGroupIndex + 1]);
+      setContainerToggle(true);
     }
-  }, [selectedItemGroupIndex, filteredItemGroup])
+  }, [selectedItemGroupIndex, filteredItemGroup]);
 
   const handlePrev = useCallback(() => {
     if (selectedItemGroupIndex > 0) {
-      const prevIndex = selectedItemGroupIndex - 1
-      setSelectedItemGroup(filteredItemGroup[prevIndex])
-      setContainerToggle(true)
+      setSelectedItemGroup(filteredItemGroup[selectedItemGroupIndex - 1]);
+      setContainerToggle(true);
     }
-  }, [selectedItemGroupIndex, filteredItemGroup])
+  }, [selectedItemGroupIndex, filteredItemGroup]);
 
-  // Compute the card classes based on ItemGroup
+  // Card classes
   const cardClasses = useMemo(() => {
-    let classes = 'apps-card'
-    if (sidebarMiniToggle) classes += ' apps-sidebar-mini-toggle'
-    if (containerToggle) classes += ' apps-container-toggle'
-    if (sidebarLeftToggle) classes += ' apps-sidebar-left-toggle'
-    return classes
-  }, [sidebarMiniToggle, containerToggle, sidebarLeftToggle])
+    const classes = ['apps-card'];
+    if (sidebarMiniToggle) classes.push('apps-sidebar-mini-toggle');
+    if (containerToggle) classes.push('apps-container-toggle');
+    if (sidebarLeftToggle) classes.push('apps-sidebar-left-toggle');
+    return classes.join(' ');
+  }, [sidebarMiniToggle, containerToggle, sidebarLeftToggle]);
 
-  // Handle resize for sidebarLeftToggle
+  // Handle window resize
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth <= 991.98 && sidebarLeftToggle) {
-        setSidebarLeftToggle(false)
+        setSidebarLeftToggle(false);
       }
-    }
-
-    window.addEventListener('resize', handleResize)
-    handleResize()
-
-    return () => {
-      window.removeEventListener('resize', handleResize)
-    }
-  }, [sidebarLeftToggle])
+    };
+    window.addEventListener('resize', handleResize);
+    handleResize();
+    return () => window.removeEventListener('resize', handleResize);
+  }, [sidebarLeftToggle]);
 
   const handleMenuClick = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
-    e.stopPropagation()
-    setSidebarLeftToggle((prev) => !prev)
-  }, [])
+    e.stopPropagation();
+    setSidebarLeftToggle((prev) => !prev);
+  }, []);
 
   return (
     <>
-      <TitleHelmet title="States" />
+      <TitleHelmet title="Item Groups" />
       <style>
         {`
-          .apps-card {
-            transition: all 0.3s ease-in-out;
-          }
+          .apps-card,
           .apps-sidebar-left,
           .apps-container {
-            transition: width 0.3s ease-in-out;
+            transition: all 0.3s ease-in-out;
           }
         `}
       </style>
       <Card className={cardClasses}>
-
-
-        <div className="apps-sidebar apps-sidebar-left apps-sidebar-md" style={{ minWidth: '580px' }}>
+        <div className="apps-sidebar-mini w-70">
+          <ContactSidebar
+            categories={categories}
+            labels={labels}
+            selectedCategory={selectedCategory}
+            handleCategoryChange={handleCategoryChange}
+            setSidebarMiniToggle={setSidebarMiniToggle}
+          />
+        </div>
+        <div className="apps-sidebar apps-sidebar-left apps-sidebar-md" style={{ minWidth: '530px' }}>
           <ContactSearchBar searchTerm={searchTerm} handleSearch={handleSearch} />
-          <div
-            className="apps-sidebar-content"
-            style={{
-              
-              flexDirection: 'column',
-              height: '100%',
-              minWidth: '250px'
-            }}
-          >
-            <div className="d-flex justify-content-between align-items-center mb-0 px-1 ">
-              <span className="text-muted fw-bold"></span>
-              <span className="text-muted fw-bold"></span>
-            </div>
-            <div style={{ marginLeft: '10px' }}>
-              <Table
-                responsive
-                size='sm'
-                className="mb-0"
-                style={{ minWidth: '300px' }}
-              >
-                <thead>
-                  {table.getHeaderGroups().map((headerGroup) => (
-                    <tr key={headerGroup.id}>
-                      {headerGroup.headers.map((header) => (
-                        <th
-                          key={header.id}
-                          colSpan={header.colSpan}
-                          style={{ width: header.column.columnDef.size }}
-                        >
-                          {header.isPlaceholder ? null : (
-                            <div>{flexRender(header.column.columnDef.header, header.getContext())}</div>
-                          )}
-                        </th>
-                      ))}
-                    </tr>
-                  ))}
-                </thead>
-                <tbody>
-                  {table.getRowModel().rows.map((row) => (
+          <div className="apps-sidebar-content" style={{  flexDirection: 'column', height: '100%', minWidth: '250px' }}>
+            <Table responsive size="sm" className="mb-0" style={{ minWidth: '300px' }}>
+              <thead>
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <tr key={headerGroup.id}>
+                    {headerGroup.headers.map((header) => (
+                      <th key={header.id} style={{ width: header.column.columnDef.size }}>
+                        {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                      </th>
+                    ))}
+                  </tr>
+                ))}
+              </thead>
+              <tbody>
+                {table.getRowModel().rows.map((row) => {
+const isActive = Number(row.original.status) === 0;
+                  return (
                     <tr
                       key={row.id}
                       className={selectedItemGroup?.item_groupid === row.original.item_groupid ? 'active' : ''}
+                      style={{ color: isActive ? 'black' : 'gray', fontWeight: isActive ? 'bold' : 'normal' }}
                       onClick={() => handleItemGroupItemClick(row.original)}
                     >
                       {row.getVisibleCells().map((cell) => (
-                        <td key={cell.id}>
-                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                        </td>
+                        <td key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>
                       ))}
                     </tr>
-                  ))}
-                </tbody>
-              </Table>
-            </div>
-            <Stack
-              className="p-2 border-top d-flex flex-row align-items-center justify-content-between"
-              style={{ gap: '6px', padding: '8px 12px' }}
-            >
+                  );
+                })}
+              </tbody>
+            </Table>
+            <Stack className="p-2 border-top d-flex flex-row align-items-center justify-content-between" style={{ gap: '6px', padding: '8px 12px' }}>
               <select
                 value={table.getState().pagination.pageSize}
-                onChange={(e) => {
-                  table.setPageSize(Number(e.target.value))
-                }}
-                style={{
-                  border: '1px solid #0d6efd',
-                  borderRadius: '4px',
-                  padding: '2px 4px',
-                  fontSize: '12px',
-                  backgroundColor: '#fff',
-                  color: '#6c757d',
-                  cursor: 'pointer',
-                  width: '100px',
-                  height: '30px',
-                }}
+                onChange={(e) => table.setPageSize(Number(e.target.value))}
+                style={{ border: '1px solid #0d6efd', borderRadius: '4px', padding: '2px 4px', fontSize: '12px', backgroundColor: '#fff', color: '#6c757d', cursor: 'pointer', width: '100px', height: '30px' }}
               >
                 {[10, 20, 30].map((pageSize) => (
                   <option key={pageSize} value={pageSize}>
@@ -392,58 +358,24 @@ const ItemGroup: React.FC = () => {
                   </option>
                 ))}
               </select>
-              <Pagination
-                className="m-0"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '3px',
-                  marginRight: '20px',
-                }}
-              >
+              <Pagination className="m-0" style={{ display: 'flex', alignItems: 'center', gap: '3px', marginRight: '20px' }}>
                 <Pagination.Prev
                   onClick={() => table.setPageIndex(table.getState().pagination.pageIndex - 1)}
                   disabled={table.getState().pagination.pageIndex === 0}
-                  style={{
-                    border: '1px solid #e5e7eb',
-                    color: table.getState().pagination.pageIndex === 0 ? '#d3d3d3' : '#6c757d',
-                    padding: '2px 4px',
-                    borderRadius: '4px',
-                    backgroundColor: 'transparent',
-                    fontSize: '12px',
-                    lineHeight: '1',
-                  }}
+                  style={{ border: '1px solid #e5e7eb', color: table.getState().pagination.pageIndex === 0 ? '#d3d3d3' : '#6c757d', padding: '2px 4px', borderRadius: '4px', backgroundColor: 'transparent', fontSize: '12px', lineHeight: '1' }}
                 >
                   <i className="fi fi-rr-angle-left" style={{ fontSize: '12px' }} />
                 </Pagination.Prev>
                 <Pagination.Item
                   active
-                  style={{
-                    backgroundColor: '#0d6efd',
-                    border: '1px solid #0d6efd',
-                    color: '#fff',
-                    padding: '2px 6px',
-                    borderRadius: '4px',
-                    fontSize: '12px',
-                    minWidth: '24px',
-                    textAlign: 'center',
-                    lineHeight: '1',
-                  }}
+                  style={{ backgroundColor: '#0d6efd', border: '1px solid #0d6efd', color: '#fff', padding: '2px 6px', borderRadius: '4px', fontSize: '12px', lineHeight: '1', minWidth: '24px', textAlign: 'center' }}
                 >
                   {table.getState().pagination.pageIndex + 1}
                 </Pagination.Item>
                 <Pagination.Next
                   onClick={() => table.setPageIndex(table.getState().pagination.pageIndex + 1)}
                   disabled={table.getState().pagination.pageIndex === table.getPageCount() - 1}
-                  style={{
-                    border: '1px solid #e5e7eb',
-                    color: table.getState().pagination.pageIndex === table.getPageCount() - 1 ? '#d3d3d3' : '#6c757d',
-                    padding: '2px 4px',
-                    borderRadius: '4px',
-                    backgroundColor: 'transparent',
-                    fontSize: '12px',
-                    lineHeight: '1',
-                  }}
+                  style={{ border: '1px solid #e5e7eb', color: table.getState().pagination.pageIndex === table.getPageCount() - 1 ? '#d3d3d3' : '#6c757d', padding: '2px 4px', borderRadius: '4px', backgroundColor: 'transparent', fontSize: '12px', lineHeight: '1' }}
                 >
                   <i className="fi fi-rr-angle-right" style={{ fontSize: '12px' }} />
                 </Pagination.Next>
@@ -452,27 +384,18 @@ const ItemGroup: React.FC = () => {
           </div>
         </div>
         <div className={`apps-container ${containerToggle ? 'w-full' : ''}`}>
-          <div className="apps-container-inner" style={{ minHeight: 'calc(100vh )' }}>
+          <div className="apps-container-inner" style={{ minHeight: '100vh' }}>
             {loading ? (
-              <Stack className="align-items-center justify-content-center  h-100">
+              <Stack className="align-items-center justify-content-center h-100">
                 <Preloader />
               </Stack>
             ) : !selectedItemGroup ? (
-              <Stack
-                className="d-none d-lg-flex align-items-center justify-content-center flex-grow-1 h-100 mx-auto text-center"
-                style={{ maxWidth: '420px' }}
-              >
-                <i className="fi fi-rr-globe fs-48 mb-6"></i>
+              <Stack className="d-none d-lg-flex align-items-center justify-content-center flex-grow-1 h-100 mx-auto text-center" style={{ maxWidth: '420px' }}>
+                <i className="fi fi-rr-globe fs-48 mb-6" />
                 <h4 className="fw-bold">Select a ItemGroup to view</h4>
-                <p className="fs-15 fw-light text-muted mb-4">
-                  Select a ItemGroup from the left sidebar to view its details.
-                </p>
-                <Button
-                  variant=""
-                  className="btn-neutral"
-                  onClick={() => setShowAddItemGroupModal(true)}
-                >
-                  <i className="fi fi-br-plus fs-10"></i>
+                <p className="fs-15 fw-light text-muted mb-4">Select a ItemGroup from the left sidebar to view its details.</p>
+                <Button variant="neutral" onClick={() => setShowAddModal(true)}>
+                  <i className="fi fi-br-plus fs-10" />
                   <span className="ms-2">Add New ItemGroup</span>
                 </Button>
               </Stack>
@@ -481,118 +404,100 @@ const ItemGroup: React.FC = () => {
                 <div className="apps-contact-details-header p-3 border-bottom">
                   <div className="d-flex align-items-center justify-content-between">
                     <div className="d-flex align-items-center">
-                      <button
-                        className="btn btn-sm btn-icon btn-light me-3"
+                      <Button
+                        variant="light"
+                        size="sm"
+                        className="btn-icon me-3"
                         onClick={() => {
-                          setSelectedItemGroup(null)
-                          setContainerToggle(false)
-                          setSidebarLeftToggle(false)
+                          setSelectedItemGroup(null);
+                          setContainerToggle(false);
+                          setSidebarLeftToggle(false);
                         }}
                       >
-                        <i className="fi fi-rr-arrow-left"></i>
-                      </button>
-                      <div className="flex-grow-1">
-                        <h5 className="mb-1">ItemGroup</h5>
-                      </div>
+                        <i className="fi fi-rr-arrow-left" />
+                      </Button>
+                      <h5 className="mb-1">ItemGroups</h5>
                     </div>
                     <div className="d-flex gap-2">
-                      <button
-                        className="btn btn-icon btn-light"
-                        onClick={handleMenuClick}
-                        style={{ padding: '8px', fontSize: '1.2rem' }}
-                      >
-                        <i className="fi fi-rr-menu-burger"></i>
-                      </button>
-                      <button
-                        className="btn btn-icon btn-light"
-                        onClick={handlePrev}
-                        disabled={selectedItemGroupIndex <= 0}
-                        style={{ padding: '8px', fontSize: '1.2rem' }}
-                      >
-                        <i className="fi fi-rr-angle-left"></i>
-                      </button>
-                      <button
-                        className="btn btn-icon btn-light"
-                        onClick={handleNext}
-                        disabled={selectedItemGroupIndex >= filteredItemGroup.length - 1}
-                        style={{ padding: '8px', fontSize: '1.2rem' }}
-                      >
-                        <i className="fi fi-rr-angle-right"></i>
-                      </button>
-                      <button
-                        className="btn btn-icon btn-light"
-                        onClick={() => handleDeleteItemGroup(selectedItemGroup)}
-                        style={{ padding: '8px', fontSize: '1.2rem' }}
-                      >
-                        <i className="fi fi-rr-trash"></i>
-                      </button>
+                      <Button variant="light" className="btn-icon" onClick={handleMenuClick} style={{ padding: '8px', fontSize: '1.2rem' }}>
+                        <i className="fi fi-rr-menu-burger" />
+                      </Button>
+                      <Button variant="light" className="btn-icon" onClick={handlePrev} disabled={selectedItemGroupIndex <= 0} style={{ padding: '8px', fontSize: '1.2rem' }}>
+                        <i className="fi fi-rr-angle-left" />
+                      </Button>
+                      <Button variant="light" className="btn-icon" onClick={handleNext} disabled={selectedItemGroupIndex >= filteredItemGroup.length - 1} style={{ padding: '8px', fontSize: '1.2rem' }}>
+                        <i className="fi fi-rr-angle-right" />
+                      </Button>
+                      <Button variant="light" className="btn-icon" onClick={() => handleDeleteItemGroup(selectedItemGroup)} style={{ padding: '8px', fontSize: '1.2rem' }}>
+                        <i className="fi fi-rr-trash" />
+                      </Button>
                     </div>
                   </div>
                 </div>
                 <div className="apps-contact-details p-4">
                   <div className="mb-4">
                     <h5 className="mb-2">{selectedItemGroup.itemgroupname}</h5>
-                    <p className="text-muted mb-0"> Code: {selectedItemGroup.code}</p>
-                  </div>
-                  <div className="mb-4">
-                    <p className="text-muted mb-0">kitchencategoryid: {selectedItemGroup.kitchencategoryid}</p>
-                  </div>
-                  <div className="mb-4">
-                    <p className="text-muted mb-0">Status: {selectedItemGroup.status}</p>
+                    <p className="text-muted mb-0">Main Group: {selectedItemGroup.item_maingroup_name}</p>
+                    <p className="text-muted mb-0">Status: {selectedItemGroup.status === 0 ? 'Active' : 'Inactive'}</p>
                   </div>
                 </div>
               </div>
             )}
           </div>
         </div>
-        <div className="custom-backdrop" onClick={() => setSidebarMiniToggle(false)}></div>
+        <div className="custom-backdrop" onClick={() => setSidebarMiniToggle(false)} />
       </Card>
-      <AddItemGroupModal
-        show={showAddItemGroupModal}
-        onHide={() => setShowAddItemGroupModal(false)}
+      <ItemGroupModal show={showAddModal} onHide={() => setShowAddModal(false)} onSuccess={fetchItemGroup} />
+      <ItemGroupModal
+        show={showEditModal}
+        onHide={() => setShowEditModal(false)}
+        itemGroup={selectedItemGroup}
         onSuccess={fetchItemGroup}
-      />
-      <EditItemGroupModal
-        show={ShowEditItemGroupModal}
-        onHide={() => setShowEditItemGroupModal(false)}
-        mst_Item_Group={selectedItemGroup}
-        onSuccess={fetchItemGroup}
-        onUpdateSelectedItemGroup={(updatedItemGroup) => setSelectedItemGroup(updatedItemGroup)}
+        onUpdateSelectedItemGroup={setSelectedItemGroup}
       />
     </>
-  )
-}
+  );
+};
 
-//2
-// AddItemGroupModal component
-interface AddItemGroupModalProps {
-  show: boolean;
-  onHide: () => void;
-  onSuccess: () => void;
-}
-
-const AddItemGroupModal: React.FC<AddItemGroupModalProps> = ({ show, onHide, onSuccess }) => {
-  const [itemgroupname, setitemgroupname] = useState('');
-  const [code, setcode] = useState('');
-
+// ItemGroupModal Component
+const ItemGroupModal: React.FC<ItemGroupModalProps> = ({ show, onHide, onSuccess, itemGroup, onUpdateSelectedItemGroup }) => {
+  const { user } = useAuthContext();
+  const [itemgroupname, setItemGroupName] = useState('');
+  const [item_maingroupid, setItemMainGroupId] = useState('');
+  const [item_maingroups, setItemMainGroups] = useState<any[]>([]);
+  const [status, setStatus] = useState('Active');
   const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState('Active'); // Default to 'Active'
 
-  
- const [kitchencategoryid, setkitchencategoryid] = useState<number | null>(null);
-const [kitchenCategory, setKitchenCategory] = useState<KitchenCategoryItem[]>([]);
+  const isEditMode = !!itemGroup;
 
-  
   useEffect(() => {
-      if (show) {
-        fetchKitchenCategory(setKitchenCategory, setkitchencategoryid, kitchencategoryid ?? undefined);
+    fetchItemMainGroups();
+  }, []);
 
-      }
-    }, [show]);
+  const fetchItemMainGroups = async () => {
+    try {
+      const res = await fetch('http://localhost:3001/api/ItemMainGroup');
+      const data = await res.json();
+      setItemMainGroups(data);
+    } catch {
+      toast.error('Failed to fetch ItemMainGroups');
+    }
+  };
 
+  useEffect(() => {
+    if (itemGroup && isEditMode) {
+      setItemGroupName(itemGroup.itemgroupname);
+      setItemMainGroupId(itemGroup.item_maingroupid);
+      setStatus(String(itemGroup.status) === '0' ? 'Active' : 'Inactive');
+    } else {
+      setItemGroupName('');
+      setItemMainGroupId('');
+      setStatus('Active');
+    }
+  }, [itemGroup, show]);
 
-  const handleAdd = async () => {
-    if (!itemgroupname || !code || !kitchencategoryid || !status) {
+  const handleSubmit = async () => {
+    if (!itemgroupname || !item_maingroupid || !status) {
       toast.error('All fields are required');
       return;
     }
@@ -600,268 +505,51 @@ const [kitchenCategory, setKitchenCategory] = useState<KitchenCategoryItem[]>([]
     setLoading(true);
     try {
       const statusValue = status === 'Active' ? 0 : 1;
-      const currentDate = new Date().toISOString(); // Timestamp: e.g., 2025-07-01T04:00:00.000Z
+      const currentDate = new Date().toISOString();
       const payload = {
         itemgroupname,
-        code,
-        kitchencategoryid: kitchencategoryid, // Use the selected country ID
+        item_maingroupid,
         status: statusValue,
-        created_by_id: 1, // Default to null (or 0 if backend requires)
-        created_date: currentDate,
+        ...(isEditMode
+          ? { 
+              item_groupid: itemGroup!.item_groupid, 
+              updated_by_id: user?.id ?? 1, 
+              updated_date: currentDate 
+            }
+          : { 
+              created_by_id: user?.id ?? 1, 
+              created_date: currentDate 
+            }),
       };
-      console.log('Sending to backend:', payload); // Debug log
-      const res = await fetch('http://localhost:3001/api/ItemGroup', {
-        method: 'POST',
+
+      const url = isEditMode
+        ? `http://localhost:3001/api/ItemGroup/${itemGroup!.item_groupid}`
+        : 'http://localhost:3001/api/ItemGroup';
+      const method = isEditMode ? 'PUT' : 'POST';
+
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
+
       if (res.ok) {
-        toast.success('ItemGroup added successfully');
-        setitemgroupname('');
-        setcode('');
-        
-        //setCountry('');
-        setStatus('Active'); // Reset to 'Active' after successful add
+        toast.success(`ItemGroup ${isEditMode ? 'updated' : 'added'} successfully`);
+        if (isEditMode && itemGroup && onUpdateSelectedItemGroup) {
+          const updatedItemGroup = {
+            ...itemGroup,
+            itemgroupname,
+            item_maingroupid,
+            status: statusValue,
+            updated_by_id: '2',
+            updated_date: currentDate,
+          };
+          onUpdateSelectedItemGroup(updatedItemGroup);
+        }
         onSuccess();
         onHide();
       } else {
-        toast.error('Failed to add ItemGroup');
-      }
-    } catch (err) {
-      toast.error('Something went wrong');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <Modal show={show} onHide={onHide}>
-      <Modal.Header closeButton>
-        <Modal.Title>Add ItemGroup</Modal.Title>
-      </Modal.Header>
-      <Modal.Body>
-        <Form.Group className="mb-3">
-          <Form.Label>ItemGroup Name</Form.Label>
-          <Form.Control type="text" value={itemgroupname} onChange={(e) => setitemgroupname(e.target.value)} />
-        </Form.Group>
-        <Form.Group className="mb-3">
-          <Form.Label>ItemGroup Code</Form.Label>
-          <Form.Control type="text" value={code} onChange={(e) => setcode(e.target.value)} />
-        </Form.Group>
-        
-        <Form.Group className="mb-3">
-          <Form.Label>Kitchen KitchenCategory</Form.Label>
-           <select
-              className="form-control"
-              value={kitchencategoryid ?? ''}
-              onChange={(e) => {
-                const value = e.target.value;
-                setkitchencategoryid(value === '' ? null : Number(value));
-              }}
-             
-            >
-              <option value=" ">Select a KitchenCategory</option>
-              {kitchenCategory.filter((KitchenCategory) => String(KitchenCategory.status) === '0')  .map((KitchenCategory) => (
-                <option key={KitchenCategory.kitchencategoryid} value={KitchenCategory.kitchencategoryid}>
-                  {KitchenCategory.Kitchen_Category}
-                </option>
-              ))}
-            </select>
-        </Form.Group>
-        <Form.Group className="mb-3">
-          <Form.Label>Status</Form.Label>
-          <Form.Select value={status} onChange={(e) => setStatus(e.target.value)} >
-            <option value="Active">Active</option>
-            <option value="Inactive">Inactive</option>
-          </Form.Select>
-        </Form.Group>
-
-      </Modal.Body>
-      <Modal.Footer>
-        <Button variant="secondary" onClick={onHide} disabled={loading}>
-          Cancel
-        </Button>
-        <Button variant="primary" onClick={handleAdd} disabled={loading}>
-          {loading ? 'Adding...' : 'Add ItemGroup'}
-        </Button>
-      </Modal.Footer>
-    </Modal>
-  );
-};
-
-//3
-// EditItemGroupModal component
-interface EditItemGroupModalProps {
-  show: boolean;
-  onHide: () => void;
-  mst_Item_Group: ItemGroupItem | null;
-  onSuccess: () => void;
-  onUpdateSelectedItemGroup: (mst_Item_Group: ItemGroupItem) => void;
-}
-
-// const EditItemGroupModal: React.FC<EditItemGroupModalProps> = ({ show, onHide, mst_Item_Group, onSuccess, onUpdateSelectedItemGroup }) => {
-//   const [itemgroupname, setitemgroupname] = useState('');
-//   const [code, setcode] = useState('');
-//   const [kitchencategoryid, setkitchencategoryid] = useState<number | null>(null);
-//   const [kitchenCategory, setKitchenCategory] = useState<KitchenCategoryItem[]>([]);
-//   const [loading, setLoading] = useState(false);
-//   const [status, setStatus] = useState('');
-
- 
-//   // Fetch countries when modal opens
-// useEffect(() => {
-//     if (show) {
-//       fetchKitchenCategory(setKitchenCategory, setkitchencategoryid, kitchencategoryid ?? undefined);
-      
-//     }
-//   }, [show]);
-
-//   useEffect(() => {
-//     if (mst_Item_Group) {
-//       setitemgroupname(mst_Item_Group.itemgroupname);
-//       setitemgroupname(mst_Item_Group.code);
-      
-//       setkitchencategoryid(Number(mst_Item_Group.kitchencategoryid)); // ✅ FIXED LINE
-//       setStatus(String(mst_Item_Group.status) === '0' ? 'Active' : 'Inactive');
-//     }
-//   }, [mst_Item_Group]);
-
-
-//   const handleEdit = async () => {
-//     if (!itemgroupname || !code  || !Status || !mst_Item_Group) {
-//       toast.error('All fields are required');
-//       return;
-//     }
-
-//     setLoading(true);
-//     try {
-//       const statusValue = status === 'Active' ? 0 : 1;
-//       const currentDate = new Date().toISOString(); // Timestamp: e.g., 2025-07-01T04:51:00.000Z
-//       const payload = {
-//         itemgroupname,
-//         code,
-//         kitchencategoryid,
-//         status: statusValue,
-//         stateid: mst_Item_Group.item_groupid,
-//         updated_by_id: '2', // Default to "0" (string)
-//         updated_date: currentDate,
-
-//       };
-//       console.log('Sending to backend:', payload); // Debug log
-//       const res = await fetch(`http://localhost:3001/api/ItemGroup/${mst_Item_Group.item_groupid}`, {
-//         method: 'PUT',
-//         headers: { 'Content-Type': 'application/json' },
-//         body: JSON.stringify(payload),
-//       });
-//       if (res.ok) {
-//         toast.success('ItemGroup updated successfully');
-//         onSuccess();
-//         // Update the selected ItemGroup in the parent component
-//         if (mst_Item_Group) {
-//           const updatedItemGroup: ItemGroupItem = { ...mst_Item_Group, itemgroupname, code,  status: statusValue };
-//           onUpdateSelectedItemGroup(updatedItemGroup);
-//         }
-//         onHide();
-//       } else {
-//         toast.error('Failed to update ItemGroup');
-//       }
-//     } catch (err) {
-//       toast.error('Something went wrong');
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
-
-//   return (
-//     <Modal show={show} onHide={onHide}>
-//       <Modal.Header closeButton>
-//         <Modal.Title>Edit ItemGroup New</Modal.Title>
-//       </Modal.Header>
-//       <Modal.Body>
-        
-
-//    <Form.Group className="mb-3">
-//             <Form.Label>City Name</Form.Label>
-//             <Form.Control type="text" value={itemgroupname} onChange={(e) => setitemgroupname(e.target.value)} />
-//           </Form.Group>
-        
-//         <Form.Group className="mb-3">
-//           <div className="col-md-12">
-//             <label className="form-label">Status <span style={{ color: 'red' }}>*</span></label>
-//             <select
-//               className="form-control"
-//               value={status}
-//               onChange={(e) => setStatus(e.target.value)}
-//             >
-//               <option value="Active">Active</option>
-//               <option value="Inactive">Inactive</option>
-//             </select>
-//           </div>
-//         </Form.Group>
-//       </Modal.Body>
-//       <Modal.Footer>
-//         <Button variant="secondary" onClick={onHide} disabled={loading}>
-//           Cancel
-//         </Button>
-//         <Button variant="primary" onClick={handleEdit} disabled={loading}>
-//           {loading ? 'Updating...' : 'Update ItemGroup'}
-//         </Button>
-//       </Modal.Footer>
-//     </Modal>
-//   );
-// };
-
-const EditItemGroupModal: React.FC<EditItemGroupModalProps> = ({ show, onHide, mst_Item_Group, onSuccess, onUpdateSelectedItemGroup }) => {
-  const [itemgroupname, setName] = useState('');
-  const [code, setCode] = useState('');
-  const [kitchencategoryid, setCapital] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState('');
-  
-  
-
-  useEffect(() => {
-    if (mst_Item_Group) {
-      setName(mst_Item_Group.itemgroupname);
-      setCode(mst_Item_Group.code);
-      setCapital(mst_Item_Group.kitchencategoryid);
-      setStatus(String(mst_Item_Group.status) === '0' ? 'Active' : 'Inactive');
-      console.log('Edit country status:', mst_Item_Group.status, typeof mst_Item_Group.status); // Debug log
-    }
-  }, [mst_Item_Group]);
-
-  const handleEdit = async () => {
-    if (!itemgroupname || !code  || !status || !mst_Item_Group) {
-      toast.error('All fields are required');
-      return;
-    }
-
-    setLoading(true);
-    try {
-       const statusValue = status === 'Active' ? 0 : 1;
-      const currentDate = new Date().toISOString(); // Timestamp: e.g., 2025-07-01T04:51:00.000Z
-      const payload = {
-        itemgroupname,
-        code,        
-        status: statusValue,
-        kitchencategoryid: mst_Item_Group.kitchencategoryid, // Ensure this is included
-        updated_by_id: '2', // Default to "0" (string)
-        updated_date: currentDate,
-       
-      };
-      console.log('Sending to backend:', payload); // Debug log
-      const res = await fetch(`http://localhost:3001/api/ItemGroup/${mst_Item_Group.item_groupid}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (res.ok) {
-        toast.success('Country updated successfully');
-        onSuccess();
-        onUpdateSelectedItemGroup({ ...mst_Item_Group, itemgroupname,code, kitchencategoryid });
-        onHide();
-      } else {
-        toast.error('Failed to update country');
+        toast.error(`Failed to ${isEditMode ? 'update' : 'add'} ItemGroup`);
       }
     } catch {
       toast.error('Something went wrong');
@@ -873,46 +561,58 @@ const EditItemGroupModal: React.FC<EditItemGroupModalProps> = ({ show, onHide, m
   return (
     <Modal show={show} onHide={onHide}>
       <Modal.Header closeButton>
-        <Modal.Title>Edit ItemGroup</Modal.Title>
+        <Modal.Title>{isEditMode ? 'Edit ItemGroup' : 'Add New ItemGroup'}</Modal.Title>
       </Modal.Header>
       <Modal.Body>
-        <Form.Group className="mb-3">
-          <Form.Label>Item Group</Form.Label>
-          <Form.Control type="text" value={itemgroupname} onChange={(e) => setName(e.target.value)} style={{ borderColor: '#ccc' }} />
-        </Form.Group>
-        <Form.Group className="mb-3">
-          <Form.Label>Code</Form.Label>
-          <Form.Control type="text" value={code} onChange={(e) => setCode(e.target.value)} style={{ borderColor: '#ccc' }} />
-        </Form.Group>
-        <Form.Group className="mb-3">
-          <Form.Label>Kitchen Category</Form.Label>
-          <Form.Control type="text" value={kitchencategoryid} onChange={(e) => setCapital(e.target.value)} style={{ borderColor: '#ccc' }} />
-        </Form.Group>
-         <Form.Group className="mb-3">
-         <div className="col-md-12">
-            <label className="form-label">Status <span style={{ color: 'red' }}>*</span></label>
-            <select
-              className="form-control"
+        <Form>
+          <Form.Group className="mb-3">
+            <Form.Label>ItemGroup Name <span style={{ color: 'red' }}>*</span></Form.Label>
+            <Form.Control
+              type="text"
+              placeholder="Enter ItemGroup name"
+              value={itemgroupname}
+              onChange={(e) => setItemGroupName(e.target.value)}
+              style={{ borderColor: '#ccc' }}
+            />
+          </Form.Group>
+          <Form.Group className="mb-3">
+            <Form.Label>Item Main Group <span style={{ color: 'red' }}>*</span></Form.Label>
+            <Form.Select
+              value={item_maingroupid}
+              onChange={(e) => setItemMainGroupId(e.target.value)}
+              style={{ borderColor: '#ccc' }}
+            >
+              <option value="">Select Item Main Group</option>
+              {item_maingroups.map((group) => (
+                <option key={group.item_maingroupid} value={group.item_maingroupid}>
+                  {group.item_group_name}
+                </option>
+              ))}
+            </Form.Select>
+          </Form.Group>
+          <Form.Group className="mb-3">
+            <Form.Label>Status <span style={{ color: 'red' }}>*</span></Form.Label>
+            <Form.Select
               value={status}
               onChange={(e) => setStatus(e.target.value)}
+              style={{ borderColor: '#ccc' }}
             >
               <option value="Active">Active</option>
               <option value="Inactive">Inactive</option>
-            </select>
-          </div>
-        </Form.Group>
+            </Form.Select>
+          </Form.Group>
+        </Form>
       </Modal.Body>
       <Modal.Footer>
         <Button variant="secondary" onClick={onHide} disabled={loading}>
           Cancel
         </Button>
-        <Button variant="primary" onClick={handleEdit} disabled={loading}>
-          {loading ? 'Updating...' : 'Update Item Group'}
+        <Button variant="primary" onClick={handleSubmit} disabled={loading}>
+          {loading ? (isEditMode ? 'Updating...' : 'Adding...') : 'Save'}
         </Button>
       </Modal.Footer>
     </Modal>
   );
 };
 
-
-export default React.memo(ItemGroup)
+export default ItemGroup;

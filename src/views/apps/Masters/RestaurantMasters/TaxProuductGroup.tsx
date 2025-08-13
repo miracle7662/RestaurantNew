@@ -16,16 +16,12 @@ interface TaxGroup {
   created_by?: string; // Optional, if you want to show created by user name
 }
 
-interface Hotel {
-  hotelid: number;
-  hotel_name: string;
-}
+
 
 const TaxProductGroup: React.FC = () => {
   const { user } = useAuthContext();
   const [taxGroups, setTaxGroups] = useState<TaxGroup[]>([]);
   const [filteredTaxGroups, setFilteredTaxGroups] = useState<TaxGroup[]>([]);
-  const [hotels, setHotels] = useState<Hotel[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -38,20 +34,20 @@ const TaxProductGroup: React.FC = () => {
   const [formData, setFormData] = useState({
     taxgroup_name: '',
     hotelid: '',
-    status: '1',
-    outletid: ''
+    status: '1'
+
   });
 
   // Fetch tax groups and hotels
   const fetchData = async () => {
     try {
       setLoading(true);
-      
+
       // Fetch tax groups using axios
       const taxGroupsRes = await axios.get('/api/taxgroup');
       setTaxGroups(taxGroupsRes.data.data?.taxGroups || []);
       setFilteredTaxGroups(taxGroupsRes.data.data?.taxGroups || []);
-      
+
       // Fetch hotels using the common fetchBrands function
       await fetchBrands(user, setBrands);
 
@@ -90,7 +86,7 @@ const TaxProductGroup: React.FC = () => {
       taxgroup_name: '',
       hotelid: '',
       status: '1',
-      outletid: ''
+
     });
     setEditingId(null);
     setError(null);
@@ -137,7 +133,6 @@ const TaxProductGroup: React.FC = () => {
           ...formData,
           taxgroup_name: formData.taxgroup_name.toString(),
           hotelid: hotelIdNum,
-          outletid: parseInt(formData.outletid) || 0, // Assuming outletid is optional
           status: statusNum,
           created_by_id: user?.id ?? 1,
           created_date: new Date().toISOString()
@@ -159,13 +154,11 @@ const TaxProductGroup: React.FC = () => {
     setFormData({
       taxgroup_name: taxGroup.taxgroup_name,
       hotelid: taxGroup.hotelid.toString(),
-      status: taxGroup.status.toString(),
-      outletid: taxGroup.outletid.toString()
+      status: taxGroup.status.toString()
     });
     setEditingId(taxGroup.taxgroupid);
     setShowModal(true);
   };
-
   const handleDelete = async (id: number) => {
     if (window.confirm('Are you sure you want to delete this tax group?')) {
       try {
@@ -230,7 +223,7 @@ const TaxProductGroup: React.FC = () => {
 
   return (
     <div className="flex-grow-1 p-4" style={{ overflowY: 'auto' }}>
-      
+
 
       {success && (
         <Alert variant="success" dismissible onClose={() => setSuccess(null)}>
@@ -247,10 +240,10 @@ const TaxProductGroup: React.FC = () => {
       <Row>
         <Col>
           <Card>
-<Card.Header className="d-flex justify-content-between align-items-center py-1 px-2 m-0">
+            <Card.Header className="d-flex justify-content-between align-items-center py-1 px-2 m-0">
               <h5 className="mb-0">Tax Groups</h5>
-              <Button 
-                variant="primary" 
+              <Button
+                variant="primary"
                 onClick={() => {
                   resetForm();
                   setShowModal(true);
@@ -301,16 +294,16 @@ const TaxProductGroup: React.FC = () => {
                             <td>{group.created_by}</td>
                             <td>{new Date(group.created_date).toLocaleDateString()}</td>
                             <td>
-                              <Button 
-                                variant="warning" 
-                                size="sm" 
+                              <Button
+                                variant="warning"
+                                size="sm"
                                 className="me-2"
                                 onClick={() => handleEdit(group)}
                               >
                                 Edit
                               </Button>
-                              <Button 
-                                variant="danger" 
+                              <Button
+                                variant="danger"
                                 size="sm"
                                 onClick={() => handleDelete(group.taxgroupid)}
                               >
@@ -376,7 +369,7 @@ const TaxProductGroup: React.FC = () => {
               {error}
             </Alert>
           )}
-          
+
           <Form onSubmit={handleSubmit}>
             <Row>
               <Col md={6}>
@@ -392,7 +385,7 @@ const TaxProductGroup: React.FC = () => {
                   />
                 </Form.Group>
               </Col>
-              
+
               <Col md={6}>
                 <Form.Group className="mb-3">
                   <Form.Label>Hotel <span className="text-danger">*</span></Form.Label>
@@ -412,7 +405,7 @@ const TaxProductGroup: React.FC = () => {
                 </Form.Group>
               </Col>
             </Row>
-            
+
             <Row>
               <Col md={6}>
                 <Form.Group className="mb-3">
@@ -429,7 +422,7 @@ const TaxProductGroup: React.FC = () => {
                 </Form.Group>
               </Col>
             </Row>
-            
+
             <div className="text-end">
               <Button variant="secondary" onClick={() => setShowModal(false)} className="me-2">
                 Cancel

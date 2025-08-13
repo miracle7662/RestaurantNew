@@ -108,10 +108,16 @@ const Order = () => {
         headers: { 'Content-Type': 'application/json' },
       });
       if (res.ok) {
-        const data: TableItem[] = await res.json();
+        const data = await res.json();
         console.log('Raw tableItems data:', JSON.stringify(data, null, 2));
-        if (data.length === 0) {
+        if (!Array.isArray(data)) {
+          setErrorMessage('Invalid data format received from TableManagement API.');
+          setTableItems([]);
+          setFilteredTables([]);
+        } else if (data.length === 0) {
           setErrorMessage('No tables found in TableManagement API.');
+          setTableItems([]);
+          setFilteredTables([]);
         } else {
           setTableItems(data);
           setFilteredTables(data);
@@ -218,54 +224,60 @@ const Order = () => {
     console.log('TableItems state changed:', tableItems);
   }, [outlets, tableItems]);
 
-  useEffect(() => {
-    console.log('ActiveNavTab:', activeNavTab, 'Outlets:', outlets, 'TableItems:', tableItems);
-    const selectedOutlet = outlets.find(outlet => outlet.outlet_name === activeNavTab);
-    let filtered: TableItem[] = [];
-    
-    if (selectedOutlet) {
-      filtered = tableItems.filter(table => 
-        table && table.outlet_name && 
-        (table.outlet_name === activeNavTab || table.isCommonToAllDepartments)
-      );
-    } else {
-      switch (activeNavTab) {
-        case 'ALL':
-          filtered = tableItems;
-          break;
-        case 'FamilyDine in':
-          filtered = tableItems.filter(table => 
-            table && table.table_name && 
-            (table.table_name.startsWith('F') || table.isCommonToAllDepartments)
-          );
-          break;
-        case 'Restaurant':
-          filtered = tableItems.filter(table => 
-            table && table.table_name && 
-            (table.table_name.startsWith('R') || table.isCommonToAllDepartments)
-          );
-          break;
-        case 'Rooms':
-          filtered = tableItems.filter(table => 
-            table && table.table_name && 
-            (/^\d+$/.test(table.table_name) || table.isCommonToAllDepartments)
-          );
-          break;
-        case 'Pickup':
-        case 'Quick Bill':
-        case 'Delivery':
-          filtered = [];
-          break;
-        default:
-          filtered = tableItems;
-          break;
-      }
-    }
-    
-    setFilteredTables(filtered);
-    console.log(`Filtered tables for ${activeNavTab}:`, JSON.stringify(filtered, null, 2));
-  }, [activeNavTab, outlets, tableItems]);
+useEffect(() => {
+  console.log('ActiveNavTab:', activeNavTab, 'Outlets:', outlets, 'TableItems:', tableItems);
+  const selectedOutlet = outlets.find(outlet => outlet.outlet_name === activeNavTab);
+  let filtered: TableItem[] = [];
 
+  // Ensure tableItems is an array
+  if (!Array.isArray(tableItems)) {
+    console.error('tableItems is not an array:', tableItems);
+    setFilteredTables([]);
+    return;
+  }
+
+  if (selectedOutlet) {
+    filtered = tableItems.filter(table => 
+      table && table.outlet_name && 
+      (table.outlet_name === activeNavTab || table.isCommonToAllDepartments)
+    );
+  } else {
+    switch (activeNavTab) {
+      case 'ALL':
+        filtered = tableItems;
+        break;
+      case 'FamilyDine in':
+        filtered = tableItems.filter(table => 
+          table && table.table_name && 
+          (table.table_name.startsWith('F') || table.isCommonToAllDepartments)
+        );
+        break;
+      case 'Restaurant':
+        filtered = tableItems.filter(table => 
+          table && table.table_name && 
+          (table.table_name.startsWith('R') || table.isCommonToAllDepartments)
+        );
+        break;
+      case 'Rooms':
+        filtered = tableItems.filter(table => 
+          table && table.table_name && 
+          (/^\d+$/.test(table.table_name) || table.isCommonToAllDepartments)
+        );
+        break;
+      case 'Pickup':
+      case 'Quick Bill':
+      case 'Delivery':
+        filtered = [];
+        break;
+      default:
+        filtered = tableItems;
+        break;
+    }
+  }
+  
+  setFilteredTables(filtered);
+  console.log(`Filtered tables for ${activeNavTab}:`, JSON.stringify(filtered, null, 2));
+}, [activeNavTab, outlets, tableItems]);
   // Validate searchTable input
   useEffect(() => {
     if (searchTable) {
@@ -664,35 +676,35 @@ const Order = () => {
                             Outlet {outlet.outlet_name}
                           </p>
                           <div className="d-flex flex-wrap gap-1">
-                            {tableItems
-                              .filter(table => 
-                                table && table.outlet_name && 
-                                table.outlet_name.toLowerCase() === outlet.outlet_name.toLowerCase()
-                              )
-                              .map((table, tableIndex) => (
-                                table.table_name ? (
-                                  <div key={tableIndex} className="p-1">
-                                    <button
-                                      className={`btn ${selectedTable === table.table_name ? 'btn-success' : 'btn-outline-success'}`}
-                                      style={{ width: '90px', height: '80px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
-                                      onClick={() => {
-                                        console.log('Button clicked for table:', table.table_name, 'isActive:', table.isActive);
-                                        handleTableClick(table.table_name);
-                                      }}
-                                    >
-                                      {table.table_name} {table.isActive ? '' : ''}
-                                    </button>
-                                  </div>
-                                ) : null
-                              ))}
-                            {tableItems.filter(table => 
-                              table && table.outlet_name && 
-                              table.outlet_name.toLowerCase() === outlet.outlet_name.toLowerCase()
-                            ).length === 0 && (
-                              <p className="text-center text-muted mb-0">
-                                No tables available for {outlet.outlet_name}.
-                              </p>
-                            )}
+                      {Array.isArray(tableItems) ? tableItems
+                        .filter(table => 
+                          table && table.outlet_name && 
+                          table.outlet_name.toLowerCase() === outlet.outlet_name.toLowerCase()
+                        )
+                        .map((table, tableIndex) => (
+                          table.table_name ? (
+                            <div key={tableIndex} className="p-1">
+                              <button
+                                className={`btn ${selectedTable === table.table_name ? 'btn-success' : 'btn-outline-success'}`}
+                                style={{ width: '90px', height: '80px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+                                onClick={() => {
+                                  console.log('Button clicked for table:', table.table_name, 'isActive:', table.isActive);
+                                  handleTableClick(table.table_name);
+                                }}
+                              >
+                                {table.table_name} {table.isActive ? '' : ''}
+                              </button>
+                            </div>
+                          ) : null
+                        )) : null}
+                      {Array.isArray(tableItems) && tableItems.filter(table => 
+                        table && table.outlet_name && 
+                        table.outlet_name.toLowerCase() === outlet.outlet_name.toLowerCase()
+                      ).length === 0 && (
+                        <p className="text-center text-muted mb-0">
+                          No tables available for {outlet.outlet_name}.
+                        </p>
+                      )}
                           </div>
                         </div>
                       ))}
@@ -706,55 +718,55 @@ const Order = () => {
                     <div>
                       <p style={{ color: 'green', fontWeight: 'bold', margin: '10px 0 5px' }}>Outlet {activeNavTab}</p>
                       <div className="d-flex flex-wrap gap-1">
-                        {filteredTables
-                          .filter(table => 
-                            table && table.outlet_name && 
-                            table.outlet_name.toLowerCase() === activeNavTab.toLowerCase()
-                          )
-                          .map((table, index) => (
-                            table.table_name ? (
-                              <div key={index} className="p-1">
-                                <button
-                                  className={`btn ${selectedTable === table.table_name ? 'btn-success' : 'btn-outline-success'}`}
-                                  style={{ width: '90px', height: '80px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
-                                  onClick={() => {
-                                    console.log('Button clicked for table:', table.table_name, 'isActive:', table.isActive);
-                                    handleTableClick(table.table_name);
-                                  }}
-                                >
-                                  {table.table_name} {table.isActive ? '' : ''}
-                                </button>
-                              </div>
-                            ) : null
-                          ))}
-                        {filteredTables.filter(table => 
+                      {Array.isArray(filteredTables) ? filteredTables
+                        .filter(table => 
                           table && table.outlet_name && 
                           table.outlet_name.toLowerCase() === activeNavTab.toLowerCase()
-                        ).length === 0 && (
-                          <p className="text-center text-muted mb-0">
-                            No tables available for {activeNavTab}. Please check TableManagement data.
-                          </p>
-                        )}
+                        )
+                        .map((table, index) => (
+                          table.table_name ? (
+                            <div key={index} className="p-1">
+                              <button
+                                className={`btn ${selectedTable === table.table_name ? 'btn-success' : 'btn-outline-success'}`}
+                                style={{ width: '90px', height: '80px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+                                onClick={() => {
+                                  console.log('Button clicked for table:', table.table_name, 'isActive:', table.isActive);
+                                  handleTableClick(table.table_name);
+                                }}
+                              >
+                                {table.table_name} {table.isActive ? '' : ''}
+                              </button>
+                            </div>
+                          ) : null
+                        )) : null}
+                      {Array.isArray(filteredTables) && filteredTables.filter(table => 
+                        table && table.outlet_name && 
+                        table.outlet_name.toLowerCase() === activeNavTab.toLowerCase()
+                      ).length === 0 && (
+                        <p className="text-center text-muted mb-0">
+                          No tables available for {activeNavTab}. Please check TableManagement data.
+                        </p>
+                      )}
                       </div>
                     </div>
                   ) : filteredTables.length > 0 ? (
                     <div className="d-flex flex-wrap gap-1">
-                      {filteredTables
-                        .filter(table => table && table.table_name)
-                        .map((table, index) => (
-                          <div key={index} className="p-1">
-                            <button
-                              className={`btn ${selectedTable === table.table_name ? 'btn-success' : 'btn-outline-success'}`}
-                              style={{ width: '90px', height: '80px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
-                              onClick={() => {
-                                console.log('Button clicked for table:', table.table_name, 'isActive:', table.isActive);
-                                handleTableClick(table.table_name);
-                              }}
-                            >
-                              {table.table_name} {table.isActive ? '' : ''}
-                            </button>
-                          </div>
-                        ))}
+                    {Array.isArray(filteredTables) ? filteredTables
+                      .filter(table => table && table.table_name)
+                      .map((table, index) => (
+                        <div key={index} className="p-1">
+                          <button
+                            className={`btn ${selectedTable === table.table_name ? 'btn-success' : 'btn-outline-success'}`}
+                            style={{ width: '90px', height: '80px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+                            onClick={() => {
+                              console.log('Button clicked for table:', table.table_name, 'isActive:', table.isActive);
+                              handleTableClick(table.table_name);
+                            }}
+                          >
+                            {table.table_name} {table.isActive ? '' : ''}
+                          </button>
+                        </div>
+                      )) : null}
                     </div>
                   ) : (
                     <p className="text-center text-muted mb-0">
@@ -774,10 +786,6 @@ const Order = () => {
                   setSelectedTable={setSelectedTable}
                   invalidTable={invalidTable}
                   setInvalidTable={setInvalidTable}
-                  searchTable={searchTable}
-                  setSearchTable={setSearchTable}
-                  isTableInvalid={isTableInvalid}
-                  setIsTableInvalid={setIsTableInvalid}
                 />
               </div>
             )}
