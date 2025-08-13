@@ -299,11 +299,11 @@ const HotelTypeMasters: React.FC = () => {
   return (
     <>
       <TitleHelmet title="Hotel Type Management" />
-      <div className="d-flex" style={{ height: 'calc(100vh - 60px)' }}>
-        <div className="flex-grow-1 p-4" style={{ overflowY: 'auto' }}>
-          <div className="d-flex justify-content-between align-items-center mb-4">
-            <h4>Hotel Type Management</h4>
-            <div className="d-flex gap-2">
+      <div className="d-flex" style={{ height: 'calc(100vh - 70px)' }}>
+        <div className="flex-grow-1" style={{ overflowY: 'auto' }}>
+          <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap" style={{ maxWidth: '100%', gap: '10px' }}>
+            <div className="d-flex align-items-center gap-3 flex-wrap" style={{ flexGrow: 1, minWidth: '300px' }}>
+              <h4 className="mb-0" style={{ minWidth: '200px' }}>Hotel Type Master</h4>
               <input
                 type="text"
                 className="form-control rounded-pill"
@@ -312,65 +312,71 @@ const HotelTypeMasters: React.FC = () => {
                 onChange={(e) => handleSearch(e.target.value)}
                 style={{ width: '250px' }}
               />
-              <Button variant="success" onClick={() => setShowAddModal(true)}>
+            </div>
+            <div className="d-flex gap-2 flex-wrap">
+              <Button variant="primary" onClick={() => alert('New Button Clicked')} className="mt-2 mt-sm-0">
+                <i className="bi bi-plus-circle"></i> New Button
+              </Button>
+              <Button variant="success" onClick={() => setShowAddModal(true)} className="mt-2 mt-sm-0">
                 <i className="bi bi-plus"></i> Add Hotel Type
               </Button>
             </div>
           </div>
-
-          {loading ? (
-            <Stack className="align-items-center justify-content-center h-100">
-              <Preloader />
-            </Stack>
-          ) : (
-            <>
-              <Table responsive hover className="mb-4">
-                <thead>
-                  {table.getHeaderGroups().map((headerGroup) => (
-                    <tr key={headerGroup.id}>
-                      {headerGroup.headers.map((header) => (
-                        <th key={header.id} style={{ width: header.column.columnDef.size }}>
-                          {flexRender(header.column.columnDef.header, header.getContext())}
-                        </th>
-                      ))}
-                    </tr>
-                  ))}
-                </thead>
-                <tbody>
-                  {table.getRowModel().rows.map((row) => (
-                    <tr key={row.id}>
-                      {row.getVisibleCells().map((cell) => (
-                        <td key={cell.id}>
-                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
-
-              <Stack direction="horizontal" className="justify-content-between align-items-center">
-                <div>
-                  <span className="text-muted">
-                    Showing {table.getRowModel().rows.length} of {filteredHotelTypes.length} entries
-                  </span>
-                </div>
-                <Pagination>
-                  <Pagination.Prev
-                    onClick={() => table.setPageIndex(table.getState().pagination.pageIndex - 1)}
-                    disabled={!table.getCanPreviousPage()}
-                  />
-                  <Pagination.Item active>
-                    {table.getState().pagination.pageIndex + 1}
-                  </Pagination.Item>
-                  <Pagination.Next
-                    onClick={() => table.setPageIndex(table.getState().pagination.pageIndex + 1)}
-                    disabled={!table.getCanNextPage()}
-                  />
-                </Pagination>
+          <div className="p-4">
+            {loading ? (
+              <Stack className="align-items-center justify-content-center h-100">
+                <Preloader />
               </Stack>
-            </>
-          )}
+            ) : (
+              <>
+                <Table responsive hover className="mb-4">
+                  <thead style={{ backgroundColor: 'var(--window-gray-200)' }}>
+                    {table.getHeaderGroups().map((headerGroup) => (
+                      <tr key={headerGroup.id}>
+                        {headerGroup.headers.map((header) => (
+                          <th key={header.id} style={{ width: header.column.columnDef.size, backgroundColor: 'var(--window-gray-200)' }}>
+                            {flexRender(header.column.columnDef.header, header.getContext())}
+                          </th>
+                        ))}
+                      </tr>
+                    ))}
+                  </thead>
+                  <tbody>
+                    {table.getRowModel().rows.map((row) => (
+                      <tr key={row.id}>
+                        {row.getVisibleCells().map((cell) => (
+                          <td key={cell.id}>
+                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </Table>
+
+                <Stack direction="horizontal" className="justify-content-between align-items-center">
+                  <div>
+                    <span className="text-muted">
+                      Showing {table.getRowModel().rows.length} of {filteredHotelTypes.length} entries
+                    </span>
+                  </div>
+                  <Pagination>
+                    <Pagination.Prev
+                      onClick={() => table.setPageIndex(table.getState().pagination.pageIndex - 1)}
+                      disabled={!table.getCanPreviousPage()}
+                    />
+                    <Pagination.Item active>
+                      {table.getState().pagination.pageIndex + 1}
+                    </Pagination.Item>
+                    <Pagination.Next
+                      onClick={() => table.setPageIndex(table.getState().pagination.pageIndex + 1)}
+                      disabled={!table.getCanNextPage()}
+                    />
+                  </Pagination>
+                </Stack>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
