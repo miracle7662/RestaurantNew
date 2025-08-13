@@ -4,10 +4,7 @@ import { toast } from 'react-hot-toast';
 import { Preloader } from '@/components/Misc/Preloader';
 import { Button, Card, Stack, Pagination, Table, Modal, Form } from 'react-bootstrap';
 import { useAuthContext } from '../../../../common/context/useAuthContext';
-
-import {
-  ContactSearchBar,
-} from '@/components/Apps/Contact';
+import { ContactSearchBar, ContactSidebar } from '@/components/Apps/Contact';
 import TitleHelmet from '@/components/Common/TitleHelmet';
 import {
   useReactTable,
@@ -39,6 +36,20 @@ interface KitchenSubCategoryItem {
   marketid: string;
 }
 
+interface Category {
+  name: string;
+  value: string;
+  icon: string;
+  badge?: number;
+  badgeClassName?: string;
+}
+
+interface Label {
+  name: string;
+  value: string;
+  gradient: string;
+}
+
 // Debounce utility function
 const debounce = (func: (...args: any[]) => void, wait: number) => {
   let timeout: NodeJS.Timeout;
@@ -60,18 +71,17 @@ const getStatusBadge = (status: number) => {
 // Main KitchenSubCategory Component
 const KitchenSubCategory: React.FC = () => {
   const [kitchenSubCategoryItem, setKitchenSubCategoryItem] = useState<KitchenSubCategoryItem[]>([]);
-  const [selectedCategory] = useState<string>('alls');
+  const [selectedCategory, setSelectedCategory] = useState<string>('alls');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [filteredKitchenSubCategory, setFilteredKitchenSubCategory] = useState<KitchenSubCategoryItem[]>([]);
   const [selectedKitchenSubCategory, setSelectedKitchenSubCategory] = useState<KitchenSubCategoryItem | null>(null);
   const [selectedKitchenSubCategoryIndex, setSelectedKitchenSubCategoryIndex] = useState<number>(-1);
   const [loading, setLoading] = useState<boolean>(false);
-  const [showAddKitchenSubCategoryModal, setShowAddKitchenSubCategoryModal] = useState(false);
-  const [showEditKitchenSubCategoryModal, setShowEditKitchenSubCategoryModal] = useState(false);
+  const [showKitchenSubCategoryModal, setShowKitchenSubCategoryModal] = useState(false);
   const [sidebarLeftToggle, setSidebarLeftToggle] = useState<boolean>(false);
   const [sidebarMiniToggle, setSidebarMiniToggle] = useState<boolean>(false);
   const [containerToggle, setContainerToggle] = useState<boolean>(false);
-  const currentUserId = localStorage.getItem('userId') || '1'; // Get actual user ID from auth context
+ 
 
   const fetchKitchenSubCategory = async () => {
     setLoading(true);
@@ -96,7 +106,7 @@ const KitchenSubCategory: React.FC = () => {
     {
       id: 'srNo',
       header: 'Sr No',
-      size: 10,
+      size: 20,
       cell: ({ row }) => <span>{row.index + 1}</span>,
     },
     {
@@ -105,14 +115,13 @@ const KitchenSubCategory: React.FC = () => {
       size: 10,
       cell: (info) => <h6 className="mb-1">{info.getValue<string>()}</h6>,
     },
-   
     {
       accessorKey: 'status',
       header: 'Status',
       size: 15,
       cell: (info) => {
         const statusValue = info.getValue<string | number>();
-        return <div style={{ textAlign: 'center' }}>{getStatusBadge(Number(statusValue))}</div>;
+        return <div style={{ textAlign: 'left' }}>{getStatusBadge(Number(statusValue))}</div>;
       },
     },
     {
@@ -121,20 +130,22 @@ const KitchenSubCategory: React.FC = () => {
       size: 30,
       cell: ({ row }) => (
         <div className="d-flex gap-2">
-          <button
-            className="btn btn-sm btn-success"
+          <Button
+            size="sm"
+            variant="success"
             onClick={() => handleEditKitchenSubCategoryClick(row.original)}
             style={{ padding: '4px 8px' }}
           >
             <i className="fi fi-rr-edit"></i>
-          </button>
-          <button
-            className="btn btn-sm btn-danger"
+          </Button>
+          <Button
+            size="sm"
+            variant="danger"
             onClick={() => handleDeleteKitchenSubCategory(row.original)}
             style={{ padding: '4px 8px' }}
           >
             <i className="fi fi-rr-trash"></i>
-          </button>
+          </Button>
         </div>
       ),
     },
@@ -154,10 +165,31 @@ const KitchenSubCategory: React.FC = () => {
     },
   });
 
-  useEffect(() => {
-    setFilteredKitchenSubCategory(kitchenSubCategoryItem.filter((item) => item));
-  }, [kitchenSubCategoryItem]);
+  // Sidebar categories and labels
+  const categories: Category[] = useMemo(
+    () => [
+      {
+        name: 'Kitchen Subcategories',
+        value: 'alls',
+        icon: 'fi-rr-globe',
+        badge: kitchenSubCategoryItem.length,
+        badgeClassName: 'bg-primary-subtle text-primary',
+      },
+    ],
+    [kitchenSubCategoryItem.length]
+  );
 
+  const labels: Label[] = useMemo(
+    () => [
+      { name: 'North America', value: 'north_america', gradient: 'success' },
+      { name: 'Europe', value: 'europe', gradient: 'warning' },
+      { name: 'Asia', value: 'asia', gradient: 'danger' },
+      { name: 'Africa', value: 'africa', gradient: 'info' },
+    ],
+    []
+  );
+
+  // Search handler
   const handleSearch = useCallback(
     debounce((value: string) => {
       setSearchTerm(value);
@@ -169,6 +201,16 @@ const KitchenSubCategory: React.FC = () => {
     [kitchenSubCategoryItem]
   );
 
+  // Category change handler
+  const handleCategoryChange = useCallback(
+    (categoryValue: string) => {
+      setSelectedCategory(categoryValue);
+      setSearchTerm('');
+      setFilteredKitchenSubCategory(kitchenSubCategoryItem);
+    },
+    [kitchenSubCategoryItem]
+  );
+
   const handleKitchenSubCategoryItemClick = useCallback((kitchenSubCategory: KitchenSubCategoryItem) => {
     setSelectedKitchenSubCategory(kitchenSubCategory);
     setContainerToggle(true);
@@ -176,7 +218,7 @@ const KitchenSubCategory: React.FC = () => {
 
   const handleEditKitchenSubCategoryClick = useCallback((kitchenSubCategory: KitchenSubCategoryItem) => {
     setSelectedKitchenSubCategory(kitchenSubCategory);
-    setShowEditKitchenSubCategoryModal(true);
+    setShowKitchenSubCategoryModal(true);
   }, []);
 
   const handleDeleteKitchenSubCategory = useCallback(async (kitchenSubCategory: KitchenSubCategoryItem) => {
@@ -265,12 +307,10 @@ const KitchenSubCategory: React.FC = () => {
       <TitleHelmet title="Kitchen Subcategories" />
       <style>
         {`
-          .apps-card {
-            transition: all 0.3s ease-in-out;
-          }
+          .apps-card,
           .apps-sidebar-left,
           .apps-container {
-            transition: width 0.3s ease-in-out;
+            transition: all 0.3s ease-in-out;
           }
           .mobile-add-button-container {
             display: none;
@@ -292,7 +332,16 @@ const KitchenSubCategory: React.FC = () => {
         `}
       </style>
       <Card className={cardClasses}>
-        <div className="apps-sidebar apps-sidebar-left apps-sidebar-md" style={{ minWidth: '580px' }}>
+        <div className="apps-sidebar-mini w-70">
+          <ContactSidebar
+            categories={categories}
+            labels={labels}
+            selectedCategory={selectedCategory}
+            handleCategoryChange={handleCategoryChange}
+            setSidebarMiniToggle={setSidebarMiniToggle}
+          />
+        </div>
+        <div className="apps-sidebar apps-sidebar-left apps-sidebar-md" style={{ minWidth: '530px' }}>
           <ContactSearchBar searchTerm={searchTerm} handleSearch={handleSearch} />
           <div
             className="apps-sidebar-content"
@@ -303,51 +352,45 @@ const KitchenSubCategory: React.FC = () => {
               position: 'relative'
             }}
           >
-            <div className="d-flex justify-content-between align-items-center mb-0 px-1 ">
-              <span className="text-muted fw-bold"></span>
-              <span className="text-muted fw-bold"></span>
-            </div>
-            <div style={{ marginLeft: '10px', flex: 1 }}>
-              <Table
-                responsive
-                size="sm"
-                className="mb-0"
-                style={{ minWidth: '350px' }}
-              >
-                <thead>
-                  {table.getHeaderGroups().map((headerGroup) => (
-                    <tr key={headerGroup.id}>
-                      {headerGroup.headers.map((header) => (
-                        <th
-                          key={header.id}
-                          colSpan={header.colSpan}
-                          style={{ width: header.column.columnDef.size }}
-                        >
-                          {header.isPlaceholder ? null : (
-                            <div>{flexRender(header.column.columnDef.header, header.getContext())}</div>
-                          )}
-                        </th>
-                      ))}
-                    </tr>
-                  ))}
-                </thead>
-                <tbody>
-                  {table.getRowModel().rows.map((row) => (
-                    <tr
-                      key={row.id}
-                      className={selectedKitchenSubCategory?.kitchensubcategoryid === row.original.kitchensubcategoryid ? 'active' : ''}
-                      onClick={() => handleKitchenSubCategoryItemClick(row.original)}
-                    >
-                      {row.getVisibleCells().map((cell) => (
-                        <td key={cell.id}>
-                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
-            </div>
+            <Table
+              responsive
+              size="sm"
+              className="mb-0"
+              style={{ minWidth: '300px' }}
+            >
+              <thead>
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <tr key={headerGroup.id}>
+                    {headerGroup.headers.map((header) => (
+                      <th
+                        key={header.id}
+                        colSpan={header.colSpan}
+                        style={{ width: header.column.columnDef.size }}
+                      >
+                        {header.isPlaceholder ? null : (
+                          <div>{flexRender(header.column.columnDef.header, header.getContext())}</div>
+                        )}
+                      </th>
+                    ))}
+                  </tr>
+                ))}
+              </thead>
+              <tbody>
+                {table.getRowModel().rows.map((row) => (
+                  <tr
+                    key={row.id}
+                    className={selectedKitchenSubCategory?.kitchensubcategoryid === row.original.kitchensubcategoryid ? 'active' : ''}
+                    onClick={() => handleKitchenSubCategoryItemClick(row.original)}
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <td key={cell.id}>
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
             <Stack
               className="p-2 border-top d-flex flex-row align-items-center justify-content-between"
               style={{ gap: '6px', padding: '8px 12px' }}
@@ -436,7 +479,7 @@ const KitchenSubCategory: React.FC = () => {
               <Button
                 variant="primary"
                 className="w-100"
-                onClick={() => setShowAddKitchenSubCategoryModal(true)}
+                onClick={() => setShowKitchenSubCategoryModal(true)}
               >
                 <i className="fi fi-br-plus fs-10"></i>
                 <span className="ms-2">Add New Kitchen Subcategory</span>
@@ -461,9 +504,9 @@ const KitchenSubCategory: React.FC = () => {
                   Select a Kitchen Subcategory from the left sidebar to view its details.
                 </p>
                 <Button
-                  variant=""
-                  className="btn-neutral desktop-add-button"
-                  onClick={() => setShowAddKitchenSubCategoryModal(true)}
+                  variant="neutral"
+                  className="desktop-add-button"
+                  onClick={() => setShowKitchenSubCategoryModal(true)}
                 >
                   <i className="fi fi-br-plus fs-10"></i>
                   <span className="ms-2">Add New Kitchen Subcategory</span>
@@ -474,8 +517,10 @@ const KitchenSubCategory: React.FC = () => {
                 <div className="apps-contact-details-header p-3 border-bottom">
                   <div className="d-flex align-items-center justify-content-between">
                     <div className="d-flex align-items-center">
-                      <button
-                        className="btn btn-sm btn-icon btn-light me-3"
+                      <Button
+                        variant="light"
+                        size="sm"
+                        className="btn-icon me-3"
                         onClick={() => {
                           setSelectedKitchenSubCategory(null);
                           setContainerToggle(false);
@@ -483,42 +528,44 @@ const KitchenSubCategory: React.FC = () => {
                         }}
                       >
                         <i className="fi fi-rr-arrow-left"></i>
-                      </button>
-                      <div className="flex-grow-1">
-                        <h5 className="mb-1">Kitchen Subcategory</h5>
-                      </div>
+                      </Button>
+                      <h5 className="mb-1">Kitchen Subcategory</h5>
                     </div>
                     <div className="d-flex gap-2">
-                      <button
-                        className="btn btn-icon btn-light"
+                      <Button
+                        variant="light"
+                        className="btn-icon"
                         onClick={handleMenuClick}
                         style={{ padding: '8px', fontSize: '1.2rem' }}
                       >
                         <i className="fi fi-rr-menu-burger"></i>
-                      </button>
-                      <button
-                        className="btn btn-icon btn-light"
+                      </Button>
+                      <Button
+                        variant="light"
+                        className="btn-icon"
                         onClick={handlePrev}
                         disabled={selectedKitchenSubCategoryIndex <= 0}
                         style={{ padding: '8px', fontSize: '1.2rem' }}
                       >
                         <i className="fi fi-rr-angle-left"></i>
-                      </button>
-                      <button
-                        className="btn btn-icon btn-light"
+                      </Button>
+                      <Button
+                        variant="light"
+                        className="btn-icon"
                         onClick={handleNext}
                         disabled={selectedKitchenSubCategoryIndex >= filteredKitchenSubCategory.length - 1}
                         style={{ padding: '8px', fontSize: '1.2rem' }}
                       >
                         <i className="fi fi-rr-angle-right"></i>
-                      </button>
-                      <button
-                        className="btn btn-icon btn-light"
+                      </Button>
+                      <Button
+                        variant="light"
+                        className="btn-icon"
                         onClick={() => handleDeleteKitchenSubCategory(selectedKitchenSubCategory)}
                         style={{ padding: '8px', fontSize: '1.2rem' }}
                       >
                         <i className="fi fi-rr-trash"></i>
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -543,33 +590,35 @@ const KitchenSubCategory: React.FC = () => {
         </div>
         <div className="custom-backdrop" onClick={() => setSidebarMiniToggle(false)}></div>
       </Card>
-      <AddKitchenSubCategoryModal
-        show={showAddKitchenSubCategoryModal}
-        onHide={() => setShowAddKitchenSubCategoryModal(false)}
-        onSuccess={fetchKitchenSubCategory}
-        currentUserId={currentUserId}
-      />
-      <EditKitchenSubCategoryModal
-        show={showEditKitchenSubCategoryModal}
-        onHide={() => setShowEditKitchenSubCategoryModal(false)}
+      <KitchenSubCategoryModal
+        show={showKitchenSubCategoryModal}
+        onHide={() => setShowKitchenSubCategoryModal(false)}
         kitchenSubCategory={selectedKitchenSubCategory}
         onSuccess={fetchKitchenSubCategory}
         onUpdateSelectedKitchenSubCategory={(updatedKitchenSubCategory) => setSelectedKitchenSubCategory(updatedKitchenSubCategory)}
-        currentUserId={currentUserId}
+       
       />
     </>
   );
 };
 
-// AddKitchenSubCategoryModal component
-interface AddKitchenSubCategoryModalProps {
+// Unified KitchenSubCategoryModal component
+interface KitchenSubCategoryModalProps {
   show: boolean;
   onHide: () => void;
+  kitchenSubCategory: KitchenSubCategoryItem | null;
   onSuccess: () => void;
-  currentUserId: string;
+  onUpdateSelectedKitchenSubCategory: (kitchenSubCategory: KitchenSubCategoryItem) => void;
 }
 
-const AddKitchenSubCategoryModal: React.FC<AddKitchenSubCategoryModalProps> = ({ show, onHide, onSuccess, currentUserId }) => {
+const KitchenSubCategoryModal: React.FC<KitchenSubCategoryModalProps> = ({
+  show,
+  onHide,
+  kitchenSubCategory,
+  onSuccess,
+  onUpdateSelectedKitchenSubCategory,
+
+}) => {
   const [kitchenSubCategoryName, setKitchenSubCategoryName] = useState('');
   const [kitchencategoryid, setKitchenCategoryId] = useState<number | null>(null);
   const [kitchenmaingroupid, setKitchenMainGroupId] = useState<number | null>(null);
@@ -577,17 +626,32 @@ const AddKitchenSubCategoryModal: React.FC<AddKitchenSubCategoryModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [kitchenCategory, setKitchenCategory] = useState<KitchenCategoryItem[]>([]);
   const [kitchenMainGroup, setKitchenMainGroup] = useState<KitchenMainGroupItem[]>([]);
-    const { user } = useAuthContext();
-  
+  const { user } = useAuthContext();
+
+  const isEditMode = !!kitchenSubCategory;
 
   useEffect(() => {
     if (show) {
-      fetchKitchenCategory(setKitchenCategory, setKitchenCategoryId, undefined);
-      fetchKitchenMainGroup(setKitchenMainGroup, setKitchenMainGroupId);
+      fetchKitchenCategory(setKitchenCategory, setKitchenCategoryId, isEditMode ? Number(kitchenSubCategory?.kitchencategoryid) : undefined);
+      fetchKitchenMainGroup(setKitchenMainGroup, setKitchenMainGroupId, isEditMode ? Number(kitchenSubCategory?.kitchenmaingroupid) : undefined);
     }
-  }, [show]);
+  }, [show, kitchenSubCategory]);
 
-  const handleAdd = async () => {
+  useEffect(() => {
+    if (isEditMode && kitchenSubCategory) {
+      setKitchenSubCategoryName(kitchenSubCategory.Kitchen_sub_category);
+      setKitchenCategoryId(Number(kitchenSubCategory.kitchencategoryid) || null);
+      setKitchenMainGroupId(Number(kitchenSubCategory.kitchenmaingroupid) || null);
+      setStatus(kitchenSubCategory.status == '0' || kitchenSubCategory.status === 0 ? 'Active' : 'Inactive');
+    } else {
+      setKitchenSubCategoryName('');
+      setKitchenCategoryId(null);
+      setKitchenMainGroupId(null);
+      setStatus('Active');
+    }
+  }, [kitchenSubCategory, show]);
+
+  const handleSubmit = async () => {
     if (!kitchenSubCategoryName || !kitchencategoryid || !kitchenmaingroupid || !status) {
       toast.error('All fields are required');
       return;
@@ -602,25 +666,39 @@ const AddKitchenSubCategoryModal: React.FC<AddKitchenSubCategoryModalProps> = ({
         kitchencategoryid,
         kitchenmaingroupid,
         status: statusValue,
-        created_by_id: user?.id ?? 1, // Replace with actual user ID
-        created_date: currentDate,
+        ...(isEditMode ? { updated_by_id: user?.id ?? 1, updated_date: currentDate } : { created_by_id: user?.id ?? 1, created_date: currentDate }),
       };
       console.log('Sending to backend:', payload);
-      const res = await fetch('http://localhost:3001/api/KitchenSubCategory', {
-        method: 'POST',
+
+      const url = isEditMode
+        ? `http://localhost:3001/api/KitchenSubCategory/${kitchenSubCategory!.kitchensubcategoryid}`
+        : 'http://localhost:3001/api/KitchenSubCategory';
+      const method = isEditMode ? 'PUT' : 'POST';
+
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
+
       if (res.ok) {
-        toast.success('Kitchen Subcategory added successfully');
-        setKitchenSubCategoryName('');
-        setKitchenCategoryId(null);
-        setKitchenMainGroupId(null);
-        setStatus('Active');
+        toast.success(`Kitchen Subcategory ${isEditMode ? 'updated' : 'added'} successfully`);
+        if (isEditMode && kitchenSubCategory) {
+          const updatedKitchenSubCategory = {
+            ...kitchenSubCategory,
+            Kitchen_sub_category: kitchenSubCategoryName,
+            kitchencategoryid: kitchencategoryid.toString(), // convert to string
+            kitchenmaingroupid: kitchenmaingroupid.toString(), // convert to string
+            status: statusValue,
+            updated_by_id: '2',
+            updated_date: currentDate,
+          };
+          onUpdateSelectedKitchenSubCategory(updatedKitchenSubCategory);
+        }
         onSuccess();
         onHide();
       } else {
-        toast.error('Failed to add Kitchen Subcategory');
+        toast.error(`Failed to ${isEditMode ? 'update' : 'add'} Kitchen Subcategory`);
       }
     } catch (err) {
       toast.error('Something went wrong');
@@ -632,11 +710,11 @@ const AddKitchenSubCategoryModal: React.FC<AddKitchenSubCategoryModalProps> = ({
   return (
     <Modal show={show} onHide={onHide}>
       <Modal.Header closeButton>
-        <Modal.Title>Add Kitchen Subcategory</Modal.Title>
+        <Modal.Title>{isEditMode ? 'Edit Kitchen Subcategory' : 'Add Kitchen Subcategory'}</Modal.Title>
       </Modal.Header>
       <Modal.Body>
         <Form.Group className="mb-3">
-          <Form.Label>Kitchen Subcategory Name</Form.Label>
+          <Form.Label>Kitchen Subcategory Name <span style={{ color: 'red' }}>*</span></Form.Label>
           <Form.Control
             style={{ borderColor: '#ccc' }}
             type="text"
@@ -645,7 +723,7 @@ const AddKitchenSubCategoryModal: React.FC<AddKitchenSubCategoryModalProps> = ({
           />
         </Form.Group>
         <Form.Group className="mb-3">
-          <Form.Label>Kitchen Category</Form.Label>
+          <Form.Label>Kitchen Category <span style={{ color: 'red' }}>*</span></Form.Label>
           <select
             className="form-control"
             value={kitchencategoryid ?? ''}
@@ -666,7 +744,7 @@ const AddKitchenSubCategoryModal: React.FC<AddKitchenSubCategoryModalProps> = ({
           </select>
         </Form.Group>
         <Form.Group className="mb-3">
-          <Form.Label>Kitchen Main Group</Form.Label>
+          <Form.Label>Kitchen Main Group <span style={{ color: 'red' }}>*</span></Form.Label>
           <select
             className="form-control"
             value={kitchenmaingroupid ?? ''}
@@ -687,7 +765,7 @@ const AddKitchenSubCategoryModal: React.FC<AddKitchenSubCategoryModalProps> = ({
           </select>
         </Form.Group>
         <Form.Group className="mb-3">
-          <Form.Label>Status</Form.Label>
+          <Form.Label>Status <span style={{ color: 'red' }}>*</span></Form.Label>
           <select
             className="form-control"
             value={status}
@@ -702,183 +780,12 @@ const AddKitchenSubCategoryModal: React.FC<AddKitchenSubCategoryModalProps> = ({
         <Button variant="secondary" onClick={onHide} disabled={loading}>
           Cancel
         </Button>
-        <Button variant="primary" onClick={handleAdd} disabled={loading}>
-          {loading ? 'Adding...' : 'Add Kitchen Subcategory'}
+        <Button variant="primary" onClick={handleSubmit} disabled={loading}>
+          {loading ? (isEditMode ? 'Updating...' : 'Adding...') : (isEditMode ? 'Update Kitchen Subcategory' : 'Add Kitchen Subcategory')}
         </Button>
       </Modal.Footer>
     </Modal>
   );
 };
 
-// EditKitchenSubCategoryModal component
-interface EditKitchenSubCategoryModalProps {
-  show: boolean;
-  onHide: () => void;
-  kitchenSubCategory: KitchenSubCategoryItem | null;
-  onSuccess: () => void;
-  onUpdateSelectedKitchenSubCategory: (kitchenSubCategory: KitchenSubCategoryItem) => void;
-  currentUserId: string;
-}
-
-const EditKitchenSubCategoryModal: React.FC<EditKitchenSubCategoryModalProps> = ({
-  show,
-  onHide,
-  kitchenSubCategory,
-  onSuccess,
-  onUpdateSelectedKitchenSubCategory,
-  currentUserId,
-}) => {
-  const [kitchenSubCategoryName, setKitchenSubCategoryName] = useState('');
-  const [kitchencategoryid, setKitchenCategoryId] = useState<number | null>(null);
-  const [kitchenmaingroupid, setKitchenMainGroupId] = useState<number | null>(null);
-  const [status, setStatus] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [kitchenCategory, setKitchenCategory] = useState<KitchenCategoryItem[]>([]);
-  const [kitchenMainGroup, setKitchenMainGroup] = useState<KitchenMainGroupItem[]>([]);
-
-  useEffect(() => {
-    if (show && kitchenSubCategory) {
-      fetchKitchenCategory(setKitchenCategory, setKitchenCategoryId, Number(kitchenSubCategory.kitchencategoryid));
-      fetchKitchenMainGroup(setKitchenMainGroup, setKitchenMainGroupId, Number(kitchenSubCategory.kitchenmaingroupid));
-    }
-  }, [show, kitchenSubCategory]);
-
-  useEffect(() => {
-    if (kitchenSubCategory) {
-      setKitchenSubCategoryName(kitchenSubCategory.Kitchen_sub_category);
-      setKitchenCategoryId(Number(kitchenSubCategory.kitchencategoryid) || null);
-      setKitchenMainGroupId(Number(kitchenSubCategory.kitchenmaingroupid) || null);
-      setStatus(kitchenSubCategory.status == '0' || kitchenSubCategory.status === 0 ? 'Active' : 'Inactive');
-    }
-  }, [kitchenSubCategory]);
-
-  const handleEdit = async () => {
-    if (!kitchenSubCategoryName || !kitchencategoryid || !kitchenmaingroupid || !status || !kitchenSubCategory) {
-      toast.error('All fields are required');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const statusValue = status === 'Active' ? 0 : 1;
-      const currentDate = new Date().toISOString();
-      const payload = {
-        Kitchen_sub_category: kitchenSubCategoryName,
-        kitchencategoryid,
-        kitchenmaingroupid,
-        status: statusValue,
-        updated_by_id: currentUserId,
-        updated_date: currentDate,
-      };
-      console.log('Sending to backend:', payload);
-      const res = await fetch(`http://localhost:3001/api/KitchenSubCategory/${kitchenSubCategory.kitchensubcategoryid}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (res.ok) {
-        toast.success('Kitchen Subcategory updated successfully');
-        const updatedKitchenSubCategory = {
-          ...kitchenSubCategory,
-          Kitchen_sub_category: kitchenSubCategoryName,
-          kitchencategoryid,
-          kitchenmaingroupid,
-          status: statusValue,
-          updated_by_id: currentUserId,
-          updated_date: currentDate,
-        };
-        onUpdateSelectedKitchenSubCategory(updatedKitchenSubCategory);
-        onSuccess();
-        onHide();
-      } else {
-        toast.error('Failed to update Kitchen Subcategory');
-      }
-    } catch (err) {
-      toast.error('Something went wrong');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <Modal show={show} onHide={onHide}>
-      <Modal.Header closeButton>
-        <Modal.Title>Edit Kitchen Subcategory</Modal.Title>
-      </Modal.Header>
-      <Modal.Body>
-        <Form.Group className="mb-3">
-          <Form.Label>Kitchen Subcategory Name</Form.Label>
-          <Form.Control
-            style={{ borderColor: '#ccc' }}
-            type="text"
-            value={kitchenSubCategoryName}
-            onChange={(e) => setKitchenSubCategoryName(e.target.value)}
-          />
-        </Form.Group>
-        <Form.Group className="mb-3">
-          <Form.Label>Kitchen Category</Form.Label>
-          <select
-            className="form-control"
-            value={kitchencategoryid ?? ''}
-            onChange={(e) => {
-              const value = e.target.value;
-              setKitchenCategoryId(value === '' ? null : Number(value));
-            }}
-            disabled={loading}
-          >
-            <option value="">Select a Kitchen Category</option>
-            {kitchenCategory
-              .filter((category) => String(category.status) === '0')
-              .map((category) => (
-                <option key={category.kitchencategoryid} value={category.kitchencategoryid}>
-                  {category.Kitchen_Category}
-                </option>
-              ))}
-          </select>
-        </Form.Group>
-        <Form.Group className="mb-3">
-          <Form.Label>Kitchen Main Group</Form.Label>
-          <select
-            className="form-control"
-            value={kitchenmaingroupid ?? ''}
-            onChange={(e) => {
-              const value = e.target.value;
-              setKitchenMainGroupId(value === '' ? null : Number(value));
-            }}
-            disabled={loading}
-          >
-            <option value="">Select a Kitchen Main Group</option>
-            {kitchenMainGroup
-              .filter((group) => String(group.status) === '0')
-              .map((group) => (
-                <option key={group.kitchenmaingroupid} value={group.kitchenmaingroupid}>
-                  {group.Kitchen_main_Group}
-                </option>
-              ))}
-          </select>
-        </Form.Group>
-        <Form.Group className="mb-3">
-          <Form.Label>Status</Form.Label>
-          <select
-            className="form-control"
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-          >
-            <option value="Active">Active</option>
-            <option value="Inactive">Inactive</option>
-          </select>
-        </Form.Group>
-      </Modal.Body>
-      <Modal.Footer>
-        <Button variant="secondary" onClick={onHide} disabled={loading}>
-          Cancel
-        </Button>
-        <Button variant="primary" onClick={handleEdit} disabled={loading}>
-          {loading ? 'Updating...' : 'Update Kitchen Subcategory'}
-        </Button>
-      </Modal.Footer>
-    </Modal>
-  );
-};
-
-export default React.memo(KitchenSubCategory);
+export default KitchenSubCategory;
