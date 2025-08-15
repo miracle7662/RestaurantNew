@@ -22,7 +22,7 @@ interface KitchenCategoryItem {
   alternative_category_name: string;
   digital_order_image: File | null;
   categorycolor: string;
-  status: string;
+  status: number;
   created_by_id: string;
   created_date: string;
   updated_by_id: string;
@@ -49,9 +49,8 @@ const debounce = (func: (...args: any[]) => void, wait: number) => {
 };
 
 // Function to get status badge
-const getStatusBadge = (status: string | number) => {
-  const statusValue = typeof status === 'string' ? parseInt(status) : status;
-  return statusValue === 0 ? (
+const getStatusBadge = (status: number) => {
+  return status === 0 ? (
     <span className="badge bg-success">Active</span>
   ) : (
     <span className="badge bg-danger">Inactive</span>
@@ -72,7 +71,12 @@ const KitchenCategory: React.FC = () => {
       const res = await fetch('http://localhost:3001/api/KitchenCategory');
       const data = await res.json();
       console.log('Fetched KitchenCategory:', data);
-      setKitchenCategoryItems(data);
+      // Ensure status is treated as a number
+      const formattedData = data.map((item: any) => ({
+        ...item,
+        status: Number(item.status),
+      }));
+      setKitchenCategoryItems(formattedData);
     } catch (err) {
       toast.error('Failed to fetch KitchenCategory');
     } finally {
@@ -146,7 +150,7 @@ const KitchenCategory: React.FC = () => {
         size: 150,
         cell: (info) => (
           <div style={{ textAlign: 'center' }}>
-            {getStatusBadge(parseInt(info.getValue<string>()))}
+            {getStatusBadge(info.getValue<number>())}
           </div>
         ),
       },
@@ -296,7 +300,7 @@ const KitchenCategory: React.FC = () => {
         setalternative_category_Description(KitchenCategory.alternative_category_Description);
         setcategorycolor(KitchenCategory.categorycolor);
         setdigital_order_image(KitchenCategory.digital_order_image);
-        setStatus(KitchenCategory.status === '0' ? 'Active' : 'Inactive');
+        setStatus(KitchenCategory.status === 0 ? 'Active' : 'Inactive');
       } else {
         setKitchen_Category('');
         setalternative_category_name('');
@@ -314,39 +318,36 @@ const KitchenCategory: React.FC = () => {
         return;
       }
 
-         // Use authenticated user ID and context
-     
       const hotelId = user.hotelid || '1';
       const marketId = user.marketid || '1';
-
 
       setLoading(true);
       try {
         const statusValue = status === 'Active' ? 0 : 1;
         const currentDate = new Date().toISOString();
-       const payload = {
-  Kitchen_Category,
-  alternative_category_name,
-  Description,
-  alternative_category_Description,
-  digital_order_image: digital_order_image ? digital_order_image.name : null,
-  categorycolor,
-  status: statusValue,
-  ...(KitchenCategory
-    ? {
-        kitchencategoryid: KitchenCategory.kitchencategoryid,
-        updated_by_id: user?.id ?? 1,
-        updated_date: currentDate,
-        hotelid: !KitchenCategory.hotelid || hotelId,
-        marketid: !KitchenCategory.marketid || marketId
-      }
-    : {
-        created_by_id: user?.id ?? 1,
-        created_date: currentDate,
-        hotelid: hotelId,
-        marketid: marketId,
-      }),
-};
+        const payload = {
+          Kitchen_Category,
+          alternative_category_name,
+          Description,
+          alternative_category_Description,
+          digital_order_image: digital_order_image ? digital_order_image.name : null,
+          categorycolor,
+          status: statusValue,
+          ...(KitchenCategory
+            ? {
+                kitchencategoryid: KitchenCategory.kitchencategoryid,
+                updated_by_id: user?.id ?? '1',
+                updated_date: currentDate,
+                hotelid: KitchenCategory.hotelid || hotelId,
+                marketid: KitchenCategory.marketid || marketId,
+              }
+            : {
+                created_by_id: user?.id ?? '1',
+                created_date: currentDate,
+                hotelid: hotelId,
+                marketid: marketId,
+              }),
+        };
         console.log('Sending to backend:', payload);
         const url = KitchenCategory
           ? `http://localhost:3001/api/KitchenCategory/${KitchenCategory.kitchencategoryid}`
@@ -358,6 +359,7 @@ const KitchenCategory: React.FC = () => {
           body: JSON.stringify(payload),
         });
         if (res.ok) {
+          const responseData = await res.json();
           toast.success(`KitchenCategory ${KitchenCategory ? 'updated' : 'added'} successfully`);
           if (KitchenCategory) {
             const updatedKitchenCategory = {
@@ -368,9 +370,11 @@ const KitchenCategory: React.FC = () => {
               alternative_category_Description,
               digital_order_image,
               categorycolor,
-              status: statusValue.toString(),
-              updated_by_id: user?.id || '2',
+              status: statusValue,
+              updated_by_id: user?.id || '1',
               updated_date: currentDate,
+              hotelid: KitchenCategory.hotelid || hotelId,
+              marketid: KitchenCategory.marketid || marketId,
             };
             onUpdateSelectedKitchenCategory(updatedKitchenCategory);
           }
@@ -405,7 +409,7 @@ const KitchenCategory: React.FC = () => {
     if (!show) return null;
 
     return (
-      <div className="modal" style={{ display: 'block', background: 'rgba(0,0,0,0.5)', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
+      <div className="modal" style={{ display: 'block', background: 'rgba(0,0,0,0.5)', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1050 }}>
         <div className="modal-content" style={{ background: 'white', padding: '20px', maxWidth: '800px', margin: '100px auto', borderRadius: '8px' }}>
           <div className="d-flex justify-content-between align-items-center mb-3">
             <h3 className="mb-0">{KitchenCategory ? 'Edit Category' : 'Add Category'}</h3>
@@ -540,109 +544,111 @@ const KitchenCategory: React.FC = () => {
   return (
     <>
       <TitleHelmet title="Kitchen Categories List" />
-      <Card className="m-1">
-        <div className="d-flex justify-content-between align-items-center p-3 border-bottom">
-          <h4 className="mb-0">
-            <i className="bi bi-grid-fill me-2"></i>Kitchen Categories
-          </h4>
-          <div style={{ display: 'flex', gap: '4px' }}>
-            <Button
-              variant="success"
-              onClick={() => {
-                setSelectedKitchenCategory(null);
-                setShowModal(true);
-              }}
-            >
-              <i className="bi bi-plus"></i> Add Kitchen Category
-            </Button>
+      <div style={{ height: '100vh', overflowY: 'auto', padding: '0 10px' }}>
+        <Card className="m-1">
+          <div className="d-flex justify-content-between align-items-center p-3 border-bottom">
+            <h4 className="mb-0">
+              <i className="bi bi-grid-fill me-2"></i>Kitchen Categories
+            </h4>
+            <div style={{ display: 'flex', gap: '4px' }}>
+              <Button
+                variant="success"
+                onClick={() => {
+                  setSelectedKitchenCategory(null);
+                  setShowModal(true);
+                }}
+              >
+                <i className="bi bi-plus"></i> Add Kitchen Category
+              </Button>
+            </div>
           </div>
-        </div>
-        <div className="p-3">
-          <div className="mb-3">
-            <input
-              type="text"
-              className="form-control rounded-pill"
-              placeholder="Search..."
-              value={searchTerm}
-              onChange={onSearchChange}
-              style={{ width: '350px', borderColor: '#ccc', borderWidth: '2px' }}
-            />
-          </div>
-          <div className="flex-grow-1" style={{ overflowY: 'auto' }}>
-            {loading ? (
-              <Stack className="align-items-center justify-content-center flex-grow-1 h-100">
-                <Preloader />
-              </Stack>
-            ) : (
-              <>
-                <Table responsive hover className="mb-4">
-                  <thead>
-                    {table.getHeaderGroups().map((headerGroup) => (
-                      <tr key={headerGroup.id}>
-                        {headerGroup.headers.map((header) => (
-                          <th
-                            key={header.id}
-                            style={{
-                              width: header.column.columnDef.size,
-                              textAlign: header.id === 'actions' ? 'left' : 'center',
-                            }}
-                          >
-                            {header.isPlaceholder ? null : (
-                              <div>{flexRender(header.column.columnDef.header, header.getContext())}</div>
-                            )}
-                          </th>
-                        ))}
-                      </tr>
-                    ))}
-                  </thead>
-                  <tbody>
-                    {table.getRowModel().rows.map((row) => (
-                      <tr key={row.id}>
-                        {row.getVisibleCells().map((cell) => (
-                          <td
-                            key={cell.id}
-                            style={{ textAlign: cell.column.id === 'actions' ? 'left' : 'center' }}
-                          >
-                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </Table>
-                <Stack direction="horizontal" className="justify-content-between align-items-center">
-                  <div>
-                    <Form.Select
-                      value={table.getState().pagination.pageSize}
-                      onChange={(e) => table.setPageSize(Number(e.target.value))}
-                      style={{ width: '100px', display: 'inline-block', marginRight: '10px' }}
-                    >
-                      <option value="5">5</option>
-                      <option value="10">10</option>
-                      <option value="20">20</option>
-                      <option value="50">50</option>
-                    </Form.Select>
-                    <span className="text-muted">
-                      Showing {table.getRowModel().rows.length} of {kitchenCategoryItems.length} entries
-                    </span>
-                  </div>
-                  <Pagination>
-                    <Pagination.Prev
-                      onClick={() => table.previousPage()}
-                      disabled={!table.getCanPreviousPage()}
-                    />
-                    {getPaginationItems()}
-                    <Pagination.Next
-                      onClick={() => table.nextPage()}
-                      disabled={!table.getCanNextPage()}
-                    />
-                  </Pagination>
+          <div className="p-3">
+            <div className="mb-3">
+              <input
+                type="text"
+                className="form-control rounded-pill"
+                placeholder="Search..."
+                value={searchTerm}
+                onChange={onSearchChange}
+                style={{ width: '350px', borderColor: '#ccc', borderWidth: '2px' }}
+              />
+            </div>
+            <div className="flex-grow-1" style={{ overflowY: 'auto' }}>
+              {loading ? (
+                <Stack className="align-items-center justify-content-center flex-grow-1 h-100">
+                  <Preloader />
                 </Stack>
-              </>
-            )}
+              ) : (
+                <>
+                  <Table responsive hover className="mb-4">
+                    <thead>
+                      {table.getHeaderGroups().map((headerGroup) => (
+                        <tr key={headerGroup.id}>
+                          {headerGroup.headers.map((header) => (
+                            <th
+                              key={header.id}
+                              style={{
+                                width: header.column.columnDef.size,
+                                textAlign: header.id === 'actions' ? 'left' : 'center',
+                              }}
+                            >
+                              {header.isPlaceholder ? null : (
+                                <div>{flexRender(header.column.columnDef.header, header.getContext())}</div>
+                              )}
+                            </th>
+                          ))}
+                        </tr>
+                      ))}
+                    </thead>
+                    <tbody>
+                      {table.getRowModel().rows.map((row) => (
+                        <tr key={row.id}>
+                          {row.getVisibleCells().map((cell) => (
+                            <td
+                              key={cell.id}
+                              style={{ textAlign: cell.column.id === 'actions' ? 'left' : 'center' }}
+                            >
+                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
+                  <Stack direction="horizontal" className="justify-content-between align-items-center">
+                    <div>
+                      <Form.Select
+                        value={table.getState().pagination.pageSize}
+                        onChange={(e) => table.setPageSize(Number(e.target.value))}
+                        style={{ width: '100px', display: 'inline-block', marginRight: '10px' }}
+                      >
+                        <option value="5">5</option>
+                        <option value="10">10</option>
+                        <option value="20">20</option>
+                        <option value="50">50</option>
+                      </Form.Select>
+                      <span className="text-muted">
+                        Showing {table.getRowModel().rows.length} of {kitchenCategoryItems.length} entries
+                      </span>
+                    </div>
+                    <Pagination>
+                      <Pagination.Prev
+                        onClick={() => table.previousPage()}
+                        disabled={!table.getCanPreviousPage()}
+                      />
+                      {getPaginationItems()}
+                      <Pagination.Next
+                        onClick={() => table.nextPage()}
+                        disabled={!table.getCanNextPage()}
+                      />
+                    </Pagination>
+                  </Stack>
+                </>
+              )}
+            </div>
           </div>
-        </div>
-      </Card>
+        </Card>
+      </div>
       <KitchenCategoryModal
         show={showModal}
         onHide={() => setShowModal(false)}

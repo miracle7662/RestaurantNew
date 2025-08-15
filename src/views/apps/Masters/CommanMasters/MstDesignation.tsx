@@ -234,7 +234,7 @@ const Designation: React.FC = () => {
     }, [designation, isEditMode]);
 
     const handleSubmit = async () => {
-      if (!Designation || !status) {
+      if (!designationName || !status) {
         toast.error('Designation Name and Status are required');
         return;
       }
@@ -289,7 +289,7 @@ const Designation: React.FC = () => {
             };
             onUpdateSelectedDesignation(updatedDesignation);
           }
-          setDesignationName('');
+         
           setStatus('Active');
           onSuccess();
           onHide();
