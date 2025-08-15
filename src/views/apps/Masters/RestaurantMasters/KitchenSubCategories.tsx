@@ -189,17 +189,20 @@ const KitchenSubCategory: React.FC = () => {
     []
   );
 
-  // Search handler
-  const handleSearch = useCallback(
-    debounce((value: string) => {
-      setSearchTerm(value);
+// Update the handleSearch function
+const handleSearch = useCallback(
+  (value: string) => {
+    setSearchTerm(value); // Update searchTerm immediately
+    const debouncedFilter = debounce((searchValue: string) => {
       const filtered = kitchenSubCategoryItem.filter((item) =>
-        item.Kitchen_sub_category.toLowerCase().includes(value.toLowerCase())
+        item.Kitchen_sub_category.toLowerCase().includes(searchValue.toLowerCase())
       );
       setFilteredKitchenSubCategory(filtered);
-    }, 300),
-    [kitchenSubCategoryItem]
-  );
+    }, 300);
+    debouncedFilter(value);
+  },
+  [kitchenSubCategoryItem]
+);
 
   // Category change handler
   const handleCategoryChange = useCallback(
@@ -690,7 +693,7 @@ const KitchenSubCategoryModal: React.FC<KitchenSubCategoryModalProps> = ({
             kitchencategoryid: kitchencategoryid.toString(), // convert to string
             kitchenmaingroupid: kitchenmaingroupid.toString(), // convert to string
             status: statusValue,
-            updated_by_id: '2',
+            updated_by_id: user?.id || '2',
             updated_date: currentDate,
           };
           onUpdateSelectedKitchenSubCategory(updatedKitchenSubCategory);

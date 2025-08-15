@@ -517,7 +517,7 @@ const ItemMainGroupModal: React.FC<ItemMainGroupModalProps> = ({ show, onHide, o
             ...itemMainGroup,
             item_group_name,
             status: statusValue,
-            updated_by_id: '2',
+           updated_by_id: user?.id || '2',
             updated_date: currentDate,
           };
           onUpdateSelectedItemMainGroup(updatedItemMainGroup);
