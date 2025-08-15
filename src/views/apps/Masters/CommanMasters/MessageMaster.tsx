@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Swal from 'sweetalert2';
 import { toast } from 'react-hot-toast';
@@ -12,23 +11,23 @@ import {
   flexRender,
 } from '@tanstack/react-table';
 import { Preloader } from '@/components/Misc/Preloader';
-import { ContactSearchBar, ContactSidebar } from '@/components/Apps/Contact';
 import TitleHelmet from '@/components/Common/TitleHelmet';
+import { useAuthContext } from '@/common/context/useAuthContext';
 
 // Interfaces
 interface MessageMasterItem {
-  messagemasterid: string;
+  messagemasterid: number;
   Department: string;
   message: string;
   fromdate: string;
   todate: string;
-  status: number | string;
-  created_by_id: string;
-  created_date: string;
-  updated_by_id: string;
-  updated_date: string;
-  hotelid: string;
-  marketid: string;
+  status: string | number;
+  created_by_id?: string;
+  created_date?: string;
+  updated_by_id?: string;
+  updated_date?: string;
+  hotelid?: string;
+  marketid?: string;
 }
 
 interface Category {
@@ -54,6 +53,7 @@ interface ModalProps {
 interface EditMessageMasterModalProps extends ModalProps {
   mstmessagemaster: MessageMasterItem | null;
   onUpdateSelectedMessageMaster: (MessageMasterItem: MessageMasterItem) => void;
+  isEdit?: boolean;
 }
 
 // Utility Functions
@@ -73,6 +73,25 @@ const getStatusBadge = (status: number | string) => {
   );
 };
 
+// ContactSearchBar Component
+const ContactSearchBar: React.FC<{
+  searchTerm: string;
+  handleSearch: (e: React.ChangeEvent<HTMLInputElement>) => void;
+}> = ({ searchTerm, handleSearch }) => {
+  return (
+    <div className="search-bar p-3 border-bottom">
+      <input
+        type="text"
+        className="form-control rounded-pill"
+        placeholder="Search Messages..."
+        value={searchTerm}
+        onChange={handleSearch}
+        style={{ width: '350px', borderColor: '#ccc', borderWidth: '2px' }}
+      />
+    </div>
+  );
+};
+
 // Main Component
 const MessageMaster: React.FC = () => {
   const [MessageMasterItem, setMessageMasterItem] = useState<MessageMasterItem[]>([]);
@@ -82,8 +101,7 @@ const MessageMaster: React.FC = () => {
   const [selectedMessageMaster, setSelectedMessageMaster] = useState<MessageMasterItem | null>(null);
   const [selectedMessageMasterIndex, setSelectedMessageMasterIndex] = useState<number>(-1);
   const [loading, setLoading] = useState<boolean>(false);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
+  const [showModal, setShowModal] = useState(false);
   const [sidebarLeftToggle, setSidebarLeftToggle] = useState<boolean>(false);
   const [sidebarMiniToggle, setSidebarMiniToggle] = useState<boolean>(false);
   const [containerToggle, setContainerToggle] = useState<boolean>(false);
@@ -94,8 +112,12 @@ const MessageMaster: React.FC = () => {
       const res = await fetch('http://localhost:3001/api/messagemaster');
       const data = await res.json();
       console.log('Fetched MessageMaster:', data);
-      setMessageMasterItem(data);
-      setFilteredMessageMaster(data);
+      const formattedData = data.map((item: any) => ({
+        ...item,
+        messagemasterid: Number(item.messagemasterid),
+      }));
+      setMessageMasterItem(formattedData);
+      setFilteredMessageMaster(formattedData);
     } catch {
       toast.error('Failed to fetch MessageMaster');
     } finally {
@@ -159,7 +181,7 @@ const MessageMaster: React.FC = () => {
             variant="success"
             onClick={() => {
               setSelectedMessageMaster(row.original);
-              setShowEditModal(true);
+              setShowModal(true);
             }}
             style={{ padding: '4px 8px' }}
             title="Edit MessageMaster"
@@ -190,6 +212,22 @@ const MessageMaster: React.FC = () => {
     state: { globalFilter: searchTerm },
   });
 
+  const handleSearch = useCallback(
+    debounce ((value: string) => {
+      table.setGlobalFilter(value);
+    }, 300),
+    [table]
+  );
+
+  const onSearchChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const value = e.target.value;
+      setSearchTerm(value);
+      handleSearch(value);
+    },
+    [handleSearch]
+  );
+
   const categories: Category[] = useMemo(
     () => [
       {
@@ -211,22 +249,6 @@ const MessageMaster: React.FC = () => {
       { name: 'Africa', value: 'africa', gradient: 'info' },
     ],
     []
-  );
-
-  const handleSearch = useCallback(
-    debounce((value: string) => {
-      table.setGlobalFilter(value);
-    }, 300),
-    [table]
-  );
-
-  const onSearchChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const value = e.target.value;
-      setSearchTerm(value);
-      handleSearch(value);
-    },
-    [handleSearch]
   );
 
   const handleCategoryChange = useCallback(
@@ -307,7 +329,6 @@ const MessageMaster: React.FC = () => {
           key={i}
           active={i === pageIndex}
           onClick={() => table.setPageIndex(i)}
-          style={{ borderRadius: '4px', fontSize: '14px', padding: '4px 12px' }}
         >
           {i + 1}
         </Pagination.Item>
@@ -347,13 +368,6 @@ const MessageMaster: React.FC = () => {
         {`
           .apps-card, .apps-sidebar-left, .apps-container {
             transition: all 0.3s ease-in-out;
-          }
-          .market-list-header {
-            padding: 10px 15px;
-            border-bottom: 1px solid #eee;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
           }
           .market-table th {
             background-color: #f8f9fa;
@@ -397,30 +411,18 @@ const MessageMaster: React.FC = () => {
           }
         `}
       </style>
-      <Card className={cardClasses}>
-        <div className="apps-sidebar-mini w-70">
-          <ContactSidebar
-            categories={categories}
-            labels={labels}
-            selectedCategory={selectedCategory}
-            handleCategoryChange={handleCategoryChange}
-            setSidebarMiniToggle={setSidebarMiniToggle}
-          />
-        </div>
-        <div className="apps-sidebar apps-sidebar-left apps-sidebar-md" style={{ maxWidth: '100%' }}>
-          <div className="market-list-header">
-            <ContactSearchBar
-              searchTerm={searchTerm}
-              handleSearch={(value: string) => {
-                setSearchTerm(value);
-                handleSearch(value);
-              }}
-            />
-            <Button className="add-market-btn desktop-add-button" onClick={() => setShowAddModal(true)}>
-              <i className="bi bi-plus"></i> Add Message
+      <Card className="m-1">
+        <div className="d-flex justify-content-between align-items-center p-3 border-bottom">
+          <h4 className="mb-0">Message Master List</h4>
+          <div style={{ display: 'flex', gap: '4px' }}>
+            <Button variant="success" onClick={() => setShowModal(true)}>
+              <i className="bi bi-plus"></i> Add Message Master
             </Button>
           </div>
+        </div>
+        <div className="apps-sidebar apps-sidebar-left apps-sidebar-md" style={{ maxWidth: '100%' }}>
           <div className="apps-sidebar-content" style={{ flexDirection: 'column', height: 'calc(100% - 60px)', minWidth: '250px', padding: '10px' }}>
+            <ContactSearchBar searchTerm={searchTerm} handleSearch={onSearchChange} />
             {loading ? (
               <Stack className="align-items-center justify-content-center h-100">
                 <Preloader />
@@ -453,12 +455,12 @@ const MessageMaster: React.FC = () => {
                     ))}
                   </tbody>
                 </Table>
-                <Stack className="p-2 border-top d-flex flex-row align-items-center justify-content-between" style={{ gap: '6px', padding: '8px 12px' }}>
+                <Stack direction="horizontal" className="justify-content-between align-items-center">
                   <div>
                     <Form.Select
                       value={table.getState().pagination.pageSize}
                       onChange={(e) => table.setPageSize(Number(e.target.value))}
-                      style={{ width: '100px', display: 'inline-block', marginRight: '10px', border: '1px solid #ced4da', borderRadius: '4px', padding: '4px 8px', fontSize: '14px' }}
+                      style={{ width: '100px', display: 'inline-block', marginRight: '10px' }}
                     >
                       <option value="5">5</option>
                       <option value="10">10</option>
@@ -469,29 +471,23 @@ const MessageMaster: React.FC = () => {
                       Showing {table.getRowModel().rows.length} of {filteredMessageMaster.length} entries
                     </span>
                   </div>
-                  <Pagination className="m-0" style={{ display: 'flex', alignItems: 'center', gap: '4px', margin: 0 }}>
+                  <Pagination>
                     <Pagination.Prev
                       onClick={() => table.previousPage()}
                       disabled={!table.getCanPreviousPage()}
-                      style={{ border: '1px solid #ced4da', color: table.getCanPreviousPage() ? '#495057' : '#6c757d', padding: '4px 10px', borderRadius: '4px', backgroundColor: '#fff', fontSize: '14px' }}
-                    >
-                      <i className="fi fi-rr-angle-left" />
-                    </Pagination.Prev>
+                    />
                     {getPaginationItems()}
                     <Pagination.Next
                       onClick={() => table.nextPage()}
                       disabled={!table.getCanNextPage()}
-                      style={{ border: '1px solid #ced4da', color: table.getCanNextPage() ? '#495057' : '#6c757d', padding: '4px 10px', borderRadius: '4px', backgroundColor: '#fff', fontSize: '14px' }}
-                    >
-                      <i className="fi fi-rr-angle-right" />
-                    </Pagination.Next>
+                    />
                   </Pagination>
                 </Stack>
                 <div className="mobile-add-button-container">
                   <Button
                     variant="primary"
                     className="w-100"
-                    onClick={() => setShowAddModal(true)}
+                    onClick={() => setShowModal(true)}
                   >
                     <i className="fi fi-br-plus fs-10"></i>
                     <span className="ms-2">Add New Message</span>
@@ -501,269 +497,35 @@ const MessageMaster: React.FC = () => {
             )}
           </div>
         </div>
-        <div className={`apps-container ${containerToggle ? 'w-full' : ''}`}>
-          <div className="apps-container-inner" style={{ minHeight: 'calc(100vh)' }}>
-            {loading ? (
-              <Stack className="align-items-center justify-content-center h-100">
-                <Preloader />
-              </Stack>
-            ) : !selectedMessageMaster ? (
-              <Stack
-                className="d-none d-lg-flex align-items-center justify-content-center flex-grow-1 h-100 mx-auto text-center"
-                style={{ maxWidth: '420px' }}
-              >
-                <i className="fi fi-rr-globe fs-48 mb-6"></i>
-                <h4 className="fw-bold">Select a Message to view</h4>
-                <p className="fs-15 fw-light text-muted mb-4">
-                  Select a Message from the left sidebar to view its details.
-                </p>
-                <Button
-                  variant="neutral"
-                  className="desktop-add-button"
-                  onClick={() => setShowAddModal(true)}
-                >
-                  <i className="fi fi-br-plus fs-10"></i>
-                  <span className="ms-2">Add New Message</span>
-                </Button>
-              </Stack>
-            ) : (
-              <div>
-                <div className="apps-contact-details-header p-3 border-bottom">
-                  <div className="d-flex align-items-center justify-content-between">
-                    <div className="d-flex align-items-center">
-                      <Button
-                        variant="light"
-                        size="sm"
-                        className="btn-icon me-3"
-                        onClick={() => {
-                          setSelectedMessageMaster(null);
-                          setContainerToggle(false);
-                          setSidebarLeftToggle(false);
-                        }}
-                      >
-                        <i className="fi fi-rr-arrow-left"></i>
-                      </Button>
-                      <h5 className="mb-1">Message Details</h5>
-                    </div>
-                    <div className="d-flex gap-2">
-                      <Button
-                        variant="light"
-                        className="btn-icon"
-                        onClick={handleMenuClick}
-                        style={{ padding: '8px', fontSize: '1.2rem' }}
-                      >
-                        <i className="fi fi-rr-menu-burger"></i>
-                      </Button>
-                      <Button
-                        variant="light"
-                        className="btn-icon"
-                        onClick={handlePrev}
-                        disabled={selectedMessageMasterIndex <= 0}
-                        style={{ padding: '8px', fontSize: '1.2rem' }}
-                      >
-                        <i className="fi fi-rr-angle-left"></i>
-                      </Button>
-                      <Button
-                        variant="light"
-                        className="btn-icon"
-                        onClick={handleNext}
-                        disabled={selectedMessageMasterIndex >= filteredMessageMaster.length - 1}
-                        style={{ padding: '8px', fontSize: '1.2rem' }}
-                      >
-                        <i className="fi fi-rr-angle-right"></i>
-                      </Button>
-                      <Button
-                        variant="light"
-                        className="btn-icon"
-                        onClick={() => handleDeleteMessageMaster(selectedMessageMaster)}
-                        style={{ padding: '8px', fontSize: '1.2rem' }}
-                      >
-                        <i className="fi fi-rr-trash"></i>
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-                <div className="apps-contact-details p-4">
-                  <div className="mb-4">
-                    <h5 className="mb-2">{selectedMessageMaster.Department}</h5>
-                    <p className="text-muted mb-0">Message: {selectedMessageMaster.message}</p>
-                  </div>
-                  <div className="mb-4">
-                    <p className="text-muted mb-0">From Date: {selectedMessageMaster.fromdate}</p>
-                  </div>
-                  <div className="mb-4">
-                    <p className="text-muted mb-0">To Date: {selectedMessageMaster.todate}</p>
-                  </div>
-                  <div className="mb-4">
-                    <p className="text-muted mb-0">Status: {getStatusBadge(selectedMessageMaster.status)}</p>
-                  </div>
-                  <div className="mb-4">
-                    <p className="text-muted mb-0">Created By: {selectedMessageMaster.created_by_id}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
         <div className="custom-backdrop" onClick={() => setSidebarMiniToggle(false)} />
       </Card>
-      <AddMessageMasterModal show={showAddModal} onHide={() => setShowAddModal(false)} onSuccess={fetchMessageMaster} />
-      <EditMessageMasterModal
-        show={showEditModal}
-        onHide={() => setShowEditModal(false)}
+      <MessageMasterModal
+        show={showModal}
+        onHide={() => setShowModal(false)}
         mstmessagemaster={selectedMessageMaster}
         onSuccess={fetchMessageMaster}
         onUpdateSelectedMessageMaster={setSelectedMessageMaster}
+        isEdit={!!selectedMessageMaster}
       />
     </>
   );
 };
 
-// Add MessageMaster Modal
-const AddMessageMasterModal: React.FC<ModalProps> = ({ show, onHide, onSuccess }) => {
-  const [Department, setDepartment] = useState('');
-  const [message, setMessage] = useState('');
-  const [fromdate, setFromDate] = useState('');
-  const [todate, setToDate] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState('Active');
-
-  const handleAdd = async () => {
-    if (!Department || !message || !fromdate || !todate || !status) {
-      toast.error('All fields are required');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const statusValue = status === 'Active' ? 0 : 1;
-      const currentDate = new Date().toISOString();
-      const payload = {
-        Department,
-        message,
-        fromdate,
-        todate,
-        status: statusValue,
-        created_by_id: '1',
-        created_date: currentDate,
-        hotelid: '1',
-        marketid: '1',
-      };
-      console.log('Sending to backend:', payload);
-      const res = await fetch('http://localhost:3001/api/messagemaster', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (res.ok) {
-        toast.success('MessageMaster added successfully');
-        setDepartment('');
-        setMessage('');
-        setFromDate('');
-        setToDate('');
-        setStatus('Active');
-        onSuccess();
-        onHide();
-      } else {
-        toast.error('Failed to add MessageMaster');
-      }
-    } catch {
-      toast.error('Something went wrong');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <Modal show={show} onHide={onHide} centered>
-      <Modal.Header closeButton style={{ borderBottom: '1px solid #eee', padding: '12px 20px' }}>
-        <Modal.Title style={{ fontSize: '18px', color: '#333' }}>Add MessageMaster</Modal.Title>
-      </Modal.Header>
-      <Modal.Body style={{ padding: '20px' }}>
-        <Form.Group className="mb-3">
-          <Form.Label style={{ fontSize: '14px', color: '#495057' }}>Department <span style={{ color: 'red' }}>*</span></Form.Label>
-          <Form.Control
-            type="text"
-            value={Department}
-            onChange={(e) => setDepartment(e.target.value)}
-            style={{ border: '1px solid #ced4da', borderRadius: '4px', padding: '8px' }}
-          />
-        </Form.Group>
-        <Form.Group className="mb-3">
-          <Form.Label style={{ fontSize: '14px', color: '#495057' }}>Message <span style={{ color: 'red' }}>*</span></Form.Label>
-          <Form.Control
-            type="text"
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            style={{ border: '1px solid #ced4da', borderRadius: '4px', padding: '8px' }}
-          />
-        </Form.Group>
-        <Form.Group className="mb-3">
-          <Form.Label style={{ fontSize: '14px', color: '#495057' }}>From Date <span style={{ color: 'red' }}>*</span></Form.Label>
-          <Form.Control
-            type="date"
-            value={fromdate}
-            onChange={(e) => setFromDate(e.target.value)}
-            style={{ border: '1px solid #ced4da', borderRadius: '4px', padding: '8px' }}
-          />
-        </Form.Group>
-        <Form.Group className="mb-3">
-          <Form.Label style={{ fontSize: '14px', color: '#495057' }}>To Date <span style={{ color: 'red' }}>*</span></Form.Label>
-          <Form.Control
-            type="date"
-            value={todate}
-            onChange={(e) => setToDate(e.target.value)}
-            style={{ border: '1px solid #ced4da', borderRadius: '4px', padding: '8px' }}
-          />
-        </Form.Group>
-        <Form.Group className="mb-3">
-          <Form.Label style={{ fontSize: '14px', color: '#495057' }}>Status <span style={{ color: 'red' }}>*</span></Form.Label>
-          <select
-            className="form-control"
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-            style={{ border: '1px solid #ced4da', borderRadius: '4px', padding: '8px', width: '100%' }}
-          >
-            <option value="Active">Active</option>
-            <option value="Inactive">Inactive</option>
-          </select>
-        </Form.Group>
-      </Modal.Body>
-      <Modal.Footer style={{ borderTop: '1px solid #eee', padding: '12px 20px' }}>
-        <Button
-          variant="secondary"
-          onClick={onHide}
-          disabled={loading}
-          style={{ borderRadius: '4px', padding: '6px 12px', fontSize: '14px' }}
-        >
-          Cancel
-        </Button>
-        <Button
-          variant="primary"
-          onClick={handleAdd}
-          disabled={loading}
-          style={{ borderRadius: '4px', padding: '6px 12px', fontSize: '14px' }}
-        >
-          {loading ? 'Adding...' : 'Add MessageMaster'}
-        </Button>
-      </Modal.Footer>
-    </Modal>
-  );
-};
-
-// Edit MessageMaster Modal
-const EditMessageMasterModal: React.FC<EditMessageMasterModalProps> = ({
+// MessageMaster Modal (Combined Add/Edit)
+const MessageMasterModal: React.FC<EditMessageMasterModalProps> = ({
   show,
   onHide,
   mstmessagemaster,
   onSuccess,
   onUpdateSelectedMessageMaster,
+  isEdit = false,
 }) => {
+  const { user } = useAuthContext();
   const [Department, setDepartment] = useState('');
   const [message, setMessage] = useState('');
   const [fromdate, setFromDate] = useState('');
   const [todate, setToDate] = useState('');
-  const [status, setStatus] = useState('');
+  const [status, setStatus] = useState('Active');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -774,53 +536,71 @@ const EditMessageMasterModal: React.FC<EditMessageMasterModalProps> = ({
       setToDate(mstmessagemaster.todate);
       setStatus(String(mstmessagemaster.status) === '0' ? 'Active' : 'Inactive');
       console.log('Edit MessageMaster status:', mstmessagemaster.status, typeof mstmessagemaster.status);
+    } else {
+      setDepartment('');
+      setMessage('');
+      setFromDate('');
+      setToDate('');
+      setStatus('Active');
     }
   }, [mstmessagemaster]);
 
-  const handleEdit = async () => {
-    if (!Department || !message || !fromdate || !todate || !status || !mstmessagemaster) {
+  const handleSubmit = async () => {
+    if (!Department || !message || !fromdate || !todate || !status) {
       toast.error('All fields are required');
       return;
     }
+
+   
 
     setLoading(true);
     try {
       const statusValue = status === 'Active' ? 0 : 1;
       const currentDate = new Date().toISOString();
+      
+      // Use authenticated user ID and context
+      const userId = user.id;
+      const hotelId = user.hotelid || '1';
+      const marketId = user.marketid || '1';
+      
       const payload = {
         Department,
         message,
         fromdate,
         todate,
         status: statusValue,
-        messagemasterid: mstmessagemaster.messagemasterid,
-        updated_by_id: '2',
-        updated_date: currentDate,
-        hotelid: mstmessagemaster.hotelid,
-        marketid: mstmessagemaster.marketid,
+        ...(mstmessagemaster && { messagemasterid: mstmessagemaster.messagemasterid }),
+        ...(mstmessagemaster && { 
+          updated_by_id: userId, 
+          updated_date: currentDate,
+          hotelid: mstmessagemaster.hotelid || hotelId,
+          marketid: mstmessagemaster.marketid || marketId
+        }),
+        ...(isEdit ? {} : { 
+          created_by_id: userId, 
+          created_date: currentDate, 
+          hotelid: hotelId, 
+          marketid: marketId 
+        }),
       };
       console.log('Sending to backend:', payload);
-      const res = await fetch(`http://localhost:3001/api/messagemaster/${mstmessagemaster.messagemasterid}`, {
-        method: 'PUT',
+      const url = isEdit && mstmessagemaster
+        ? `http://localhost:3001/api/messagemaster/${mstmessagemaster.messagemasterid}`
+        : 'http://localhost:3001/api/messagemaster';
+      const method = isEdit ? 'PUT' : 'POST';
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
       if (res.ok) {
-        toast.success('MessageMaster updated successfully');
-        onUpdateSelectedMessageMaster({
-          ...mstmessagemaster,
-          Department,
-          message,
-          fromdate,
-          todate,
-          status: statusValue,
-          updated_by_id: '2',
-          updated_date: currentDate,
-        });
+        const newItem = isEdit ? { ...mstmessagemaster, ...payload } : await res.json();
+        toast.success(`MessageMaster ${isEdit ? 'updated' : 'added'} successfully`);
+        onUpdateSelectedMessageMaster(newItem as MessageMasterItem);
         onSuccess();
         onHide();
       } else {
-        toast.error('Failed to update MessageMaster');
+        toast.error(`Failed to ${isEdit ? 'update' : 'add'} MessageMaster`);
       }
     } catch {
       toast.error('Something went wrong');
@@ -832,7 +612,7 @@ const EditMessageMasterModal: React.FC<EditMessageMasterModalProps> = ({
   return (
     <Modal show={show} onHide={onHide} centered>
       <Modal.Header closeButton style={{ borderBottom: '1px solid #eee', padding: '12px 20px' }}>
-        <Modal.Title style={{ fontSize: '18px', color: '#333' }}>Edit MessageMaster</Modal.Title>
+        <Modal.Title style={{ fontSize: '18px', color: '#333' }}>{isEdit ? 'Edit' : 'Add'} MessageMaster</Modal.Title>
       </Modal.Header>
       <Modal.Body style={{ padding: '20px' }}>
         <Form.Group className="mb-3">
@@ -895,11 +675,11 @@ const EditMessageMasterModal: React.FC<EditMessageMasterModalProps> = ({
         </Button>
         <Button
           variant="primary"
-          onClick={handleEdit}
+          onClick={handleSubmit}
           disabled={loading}
           style={{ borderRadius: '4px', padding: '6px 12px', fontSize: '14px' }}
         >
-          {loading ? 'Updating...' : 'Update MessageMaster'}
+          {loading ? (isEdit ? 'Updating...' : 'Adding...') : isEdit ? 'Update MessageMaster' : 'Add MessageMaster'}
         </Button>
       </Modal.Footer>
     </Modal>

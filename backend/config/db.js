@@ -168,8 +168,6 @@ Masteruserid INTEGER
 CREATE TABLE IF NOT EXISTS mst_Item_Main_Group (
 item_maingroupid INTEGER PRIMARY KEY AUTOINCREMENT,
 item_group_name text(200),
-description text(200),
-kitchencategoryid INTEGER ,
 status INTEGER ,
 created_by_id INTEGER,
 created_date DATETIME,

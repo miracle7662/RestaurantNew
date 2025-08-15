@@ -636,7 +636,7 @@ const KitchenSubCategoryModal: React.FC<KitchenSubCategoryModalProps> = ({
   useEffect(() => {
     if (show) {
       fetchKitchenCategory(setKitchenCategory, setKitchenCategoryId, isEditMode ? Number(kitchenSubCategory?.kitchencategoryid) : undefined);
-      fetchKitchenMainGroup(setKitchenMainGroup, setKitchenMainGroupId, isEditMode ? Number(kitchenSubCategory?.kitchenmaingroupid) : undefined);
+      fetchKitchenMainGroup(setKitchenMainGroup, setKitchenMainGroupId, isEditMode ? String(kitchenSubCategory?.kitchenmaingroupid) : undefined);
     }
   }, [show, kitchenSubCategory]);
 
@@ -659,18 +659,34 @@ const KitchenSubCategoryModal: React.FC<KitchenSubCategoryModalProps> = ({
       toast.error('All fields are required');
       return;
     }
+       // Use authenticated user ID and context
+      const hotelId = user.hotelid || '1';
+      const marketId = user.marketid || '1';
+
 
     setLoading(true);
     try {
       const statusValue = status === 'Active' ? 0 : 1;
       const currentDate = new Date().toISOString();
-      const payload = {
-        Kitchen_sub_category: kitchenSubCategoryName,
-        kitchencategoryid,
-        kitchenmaingroupid,
-        status: statusValue,
-        ...(isEditMode ? { updated_by_id: user?.id ?? 1, updated_date: currentDate } : { created_by_id: user?.id ?? 1, created_date: currentDate }),
-      };
+     const payload = {
+  Kitchen_sub_category: kitchenSubCategoryName,
+  kitchencategoryid,
+  kitchenmaingroupid,
+  status: statusValue,
+  ...(isEditMode
+    ? {
+        updated_by_id: user?.id ?? 1,
+        updated_date: currentDate,
+        hotelid: kitchenSubCategory!.hotelid || hotelId,
+        marketid: kitchenSubCategory!.marketid || marketId
+      }
+    : {
+        created_by_id: user?.id ?? 1,
+        created_date: currentDate,
+        hotelid: hotelId,
+        marketid: marketId,
+      }),
+};
       console.log('Sending to backend:', payload);
 
       const url = isEditMode

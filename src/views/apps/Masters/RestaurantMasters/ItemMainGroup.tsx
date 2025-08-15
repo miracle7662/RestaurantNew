@@ -312,7 +312,7 @@ const ItemMainGroup: React.FC = () => {
         </div>
         <div className="apps-sidebar apps-sidebar-left apps-sidebar-md" style={{ minWidth: '530px' }}>
           <ContactSearchBar searchTerm={searchTerm} handleSearch={handleSearch} />
-          <div className="apps-sidebar-content" style={{  flexDirection: 'column', height: '100%', minWidth: '250px' }}>
+          <div className="apps-sidebar-content" style={{ flexDirection: 'column', height: '100%', minWidth: '250px' }}>
             <Table responsive size="sm" className="mb-0" style={{ minWidth: '300px' }}>
               <thead>
                 {table.getHeaderGroups().map((headerGroup) => (
@@ -327,7 +327,7 @@ const ItemMainGroup: React.FC = () => {
               </thead>
               <tbody>
                 {table.getRowModel().rows.map((row) => {
-const isActive = Number(row.original.status) === 0;
+                  const isActive = Number(row.original.status) === 0;
                   return (
                     <tr
                       key={row.id}
@@ -480,6 +480,11 @@ const ItemMainGroupModal: React.FC<ItemMainGroupModalProps> = ({ show, onHide, o
       return;
     }
 
+    // Use authenticated user ID and context
+    const userId = user.id;
+    const hotelId = user.hotelid || '1';
+    const marketId = user.marketid || '1';
+
     setLoading(true);
     try {
       const statusValue = status === 'Active' ? 0 : 1;
@@ -488,15 +493,20 @@ const ItemMainGroupModal: React.FC<ItemMainGroupModalProps> = ({ show, onHide, o
         item_group_name,
         status: statusValue,
         ...(isEditMode
-          ? { 
-              item_maingroupid: itemMainGroup!.item_maingroupid, 
-              updated_by_id: user?.id ?? 1, 
-              updated_date: currentDate 
-            }
-          : { 
-              created_by_id: user?.id ?? 1, 
-              created_date: currentDate 
-            }),
+          ? {
+            item_maingroupid: itemMainGroup!.item_maingroupid,
+            updated_by_id: userId,
+            updated_date: currentDate,
+            hotelid: itemMainGroup!.hotelid || hotelId,
+            marketid: itemMainGroup!.marketid || marketId
+
+          }
+          : {
+            created_by_id: userId,
+            created_date: currentDate,
+            hotelid: hotelId,
+            marketid: marketId
+          }),
       };
 
       const url = isEditMode
@@ -517,7 +527,7 @@ const ItemMainGroupModal: React.FC<ItemMainGroupModalProps> = ({ show, onHide, o
             ...itemMainGroup,
             item_group_name,
             status: statusValue,
-           updated_by_id: user?.id || '2',
+            updated_by_id: user?.id || '2',
             updated_date: currentDate,
           };
           onUpdateSelectedItemMainGroup(updatedItemMainGroup);

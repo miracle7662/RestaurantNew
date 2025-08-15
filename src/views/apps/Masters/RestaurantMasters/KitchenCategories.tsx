@@ -49,8 +49,9 @@ const debounce = (func: (...args: any[]) => void, wait: number) => {
 };
 
 // Function to get status badge
-const getStatusBadge = (status: number) => {
-  return status === 0 ? (
+const getStatusBadge = (status: string | number) => {
+  const statusValue = typeof status === 'string' ? parseInt(status) : status;
+  return statusValue === 0 ? (
     <span className="badge bg-success">Active</span>
   ) : (
     <span className="badge bg-danger">Inactive</span>
@@ -313,26 +314,39 @@ const KitchenCategory: React.FC = () => {
         return;
       }
 
+         // Use authenticated user ID and context
+     
+      const hotelId = user.hotelid || '1';
+      const marketId = user.marketid || '1';
+
+
       setLoading(true);
       try {
         const statusValue = status === 'Active' ? 0 : 1;
         const currentDate = new Date().toISOString();
-        const payload = {
-          Kitchen_Category,
-          alternative_category_name,
-          Description,
-          alternative_category_Description,
-          digital_order_image: digital_order_image ? digital_order_image.name : null,
-          categorycolor,
-          status: statusValue,
-          created_by_id: user?.id ?? 1,
-          created_date: KitchenCategory ? undefined : currentDate,
-          updated_by_id: user?.id ?? 1,
-          updated_date: currentDate,
-          hotelid: KitchenCategory?.hotelid || '1',
-          marketid: KitchenCategory?.marketid || '1',
-          kitchencategoryid: KitchenCategory?.kitchencategoryid,
-        };
+       const payload = {
+  Kitchen_Category,
+  alternative_category_name,
+  Description,
+  alternative_category_Description,
+  digital_order_image: digital_order_image ? digital_order_image.name : null,
+  categorycolor,
+  status: statusValue,
+  ...(KitchenCategory
+    ? {
+        kitchencategoryid: KitchenCategory.kitchencategoryid,
+        updated_by_id: user?.id ?? 1,
+        updated_date: currentDate,
+        hotelid: !KitchenCategory.hotelid || hotelId,
+        marketid: !KitchenCategory.marketid || marketId
+      }
+    : {
+        created_by_id: user?.id ?? 1,
+        created_date: currentDate,
+        hotelid: hotelId,
+        marketid: marketId,
+      }),
+};
         console.log('Sending to backend:', payload);
         const url = KitchenCategory
           ? `http://localhost:3001/api/KitchenCategory/${KitchenCategory.kitchencategoryid}`
