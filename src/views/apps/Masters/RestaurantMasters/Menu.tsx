@@ -437,7 +437,7 @@ const Menu: React.FC = () => {
                             id={`sidebar-toggle-${group.item_groupid}`}
                             type="checkbox"
                             variant="outline-success"
-                            checked={itemGroupStatus[group.item_groupid] === 0}
+checked={true}
                             value="1"
                             onChange={async () => {
                               const newStatus = itemGroupStatus[group.item_groupid] === 0 ? 1 : 0;
