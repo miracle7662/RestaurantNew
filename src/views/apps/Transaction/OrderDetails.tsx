@@ -1,27 +1,16 @@
-import React, { useState, useEffect, Dispatch, SetStateAction, useRef } from 'react';
+import React, { useState, useEffect, Dispatch, SetStateAction, useRef, useMemo } from 'react';
 import { Row, Col, Card } from 'react-bootstrap';
-import { fetchItemGroup, ItemGroupItem, fetchMenu } from '@/utils/commonfunction';
-
-// Interface for menu items from API
-interface APIMenuItem {
-  menuid: number;
-  item_no: number;
-  item_name: string;
-  print_name: string;
-  short_name: string;
-  status: number;
-  price: number;
-}
+import { fetchItemGroup, ItemGroupItem, fetchMenu, MenuItem } from '@/utils/commonfunction';
 
 // Interface for menu items used in state
-interface MenuItem {
+interface MenuItemState {
   id: number;
   name: string;
   price: number;
   qty: number;
 }
 
-// Interface for card items
+// Interface for card items (aligned with Menu.tsx)
 interface CardItem {
   userId: string;
   itemCode: string;
@@ -29,21 +18,23 @@ interface CardItem {
   shortName: string;
   price: number;
   cardStatus: string;
+  item_group_id: number | null; // Supports categorization
 }
 
 // Interface for component props
 interface OrderDetailsProps {
   tableId?: string | null;
   onChangeTable?: () => void;
-  items: MenuItem[];
-  setItems: Dispatch<SetStateAction<MenuItem[]>>;
+  items: MenuItemState[];
+  setItems: Dispatch<SetStateAction<MenuItemState[]>>;
   setSelectedTable: Dispatch<SetStateAction<string | null>>;
   invalidTable: string;
   setInvalidTable: Dispatch<SetStateAction<string>>;
 }
 
-// Define the category keys as a union type
+// Define the category keys as a union type (aligned with Menu.tsx)
 type Category =
+  | 'All'
   | 'Appetizers'
   | 'MainCourse'
   | 'Desserts'
@@ -51,10 +42,8 @@ type Category =
   | 'Cocktails'
   | 'Salads'
   | 'Soups'
-  | 'KidsMenu'
   | 'Breakfast'
-  | 'VeganOptions'
-  | 'Smoothies';
+  | 'VeganOptions';
 
 // Interface for dropdownState
 interface DropdownState {
@@ -65,10 +54,8 @@ interface DropdownState {
   Cocktails: boolean;
   Salads: boolean;
   Soups: boolean;
-  KidsMenu: boolean;
   Breakfast: boolean;
   VeganOptions: boolean;
-  Smoothies: boolean;
 }
 
 const OrderDetails: React.FC<OrderDetailsProps> = ({
@@ -88,12 +75,10 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
     Cocktails: false,
     Salads: false,
     Soups: false,
-    KidsMenu: false,
     Breakfast: false,
     VeganOptions: false,
-    Smoothies: false,
   });
-  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<Category>('All');
   const [categoryClicked, setCategoryClicked] = useState<boolean>(false);
   const [searchTable, setSearchTable] = useState<string>(tableId || '');
   const [searchCode, setSearchCode] = useState<string>('');
@@ -117,6 +102,26 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
     'R5', 'R6', 'R7', 'R8', 'R9', 'R12', 'R14', 'R15', 'S1', 'S2',
     'S3', '104', '105',
   ];
+
+  // Function to map item_group_id to Category (aligned with Menu.tsx)
+  const getCategoryFromItemGroup = (itemGroupId: number | null): Category => {
+    if (!itemGroupId) return 'All';
+    const group = itemGroup.find(g => g.item_groupid === itemGroupId);
+    if (!group) return 'All';
+    const cleanName = group.itemgroupname.replace(/\.\.\./, '').trim().toLowerCase();
+    const categoryMap: { [key: string]: Category } = {
+      appetizers: 'Appetizers',
+      maincourse: 'MainCourse',
+      desserts: 'Desserts',
+      beverages: 'Beverages',
+      cocktails: 'Cocktails',
+      salads: 'Salads',
+      soups: 'Soups',
+      breakfast: 'Breakfast',
+      veganoptions: 'VeganOptions',
+    };
+    return categoryMap[cleanName] || 'All';
+  };
 
   useEffect(() => {
     const handleResize = () => {
@@ -150,107 +155,108 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
   useEffect(() => {
     const fetchData = async () => {
       try {
+        // Fetch item groups first
         await fetchItemGroup(setItemGroup, setItemGroupId);
         console.log('Fetched itemGroup:', itemGroup);
-      } catch (error) {
-        console.error('Fetch item groups error:', error);
-      }
-    };
-    fetchData();
-  }, []);
 
-  useEffect(() => {
-    const fetchMenuData = async () => {
-      try {
+        // Fetch menu after item groups
         await fetchMenu(
-          (data: APIMenuItem[]) => {
+          (data: MenuItem[]) => {
             const mappedItems: CardItem[] = data
-              .filter(item => item.status === 0)
+              .filter(item => item.status === 1) // Align with Menu.tsx (status === 1 is active)
               .map(item => ({
-                userId: item.menuid.toString(),
-                itemCode: item.item_no.toString(),
+                userId: String(item.menuid), // Use menuid instead of restitemid
+                itemCode: String(item.item_no), // Ensure string type
                 ItemName: item.item_name,
-                shortName: item.short_name,
-                price: item.price,
-                cardStatus: '✅ Available',
+                shortName: item.short_name || '',
+                price: item.price || 0,
+                item_group_id: item.item_group_id, // Map item_group_id
+                cardStatus: item.status === 1 ? '✅ Available' : '❌ Unavailable',
               }));
             setCardItems(mappedItems);
+            console.log('Set cardItems:', mappedItems);
           },
           (id: number) => {
             console.log('Fetched menu ID:', id);
           }
         );
       } catch (error) {
-        console.error('Fetch menu items error:', error);
+        console.error('Fetch error:', error);
         setCardItems([]);
       }
     };
-    fetchMenuData();
+    fetchData();
   }, []);
 
-  const itemCategories: { [key in Category]: CardItem[] } = {
-    Appetizers: cardItems.filter(item => itemGroup.some(group => group.itemgroupname.toLowerCase().includes('appetizers') && item.ItemName.toLowerCase().includes('appetizer'))),
-    MainCourse: cardItems.filter(item => itemGroup.some(group => group.itemgroupname.toLowerCase().includes('maincourse') && item.ItemName.toLowerCase().includes('main')) && item.ItemName.toLowerCase().includes('course')),
-    Desserts: cardItems.filter(item => itemGroup.some(group => group.itemgroupname.toLowerCase().includes('desserts') && item.ItemName.toLowerCase().includes('dessert'))),
-    Beverages: cardItems.filter(item => itemGroup.some(group => group.itemgroupname.toLowerCase().includes('beverages') && item.ItemName.toLowerCase().includes('drink'))),
-    Cocktails: cardItems.filter(item => itemGroup.some(group => group.itemgroupname.toLowerCase().includes('cocktails') && item.ItemName.toLowerCase().includes('cocktail'))),
-    Salads: cardItems.filter(item => itemGroup.some(group => group.itemgroupname.toLowerCase().includes('salads') && item.ItemName.toLowerCase().includes('salad'))),
-    Soups: cardItems.filter(item => itemGroup.some(group => group.itemgroupname.toLowerCase().includes('soups') && item.ItemName.toLowerCase().includes('soup'))),
-    KidsMenu: cardItems.filter(item => itemGroup.some(group => group.itemgroupname.toLowerCase().includes('kidsmenu') && item.ItemName.toLowerCase().includes('kids'))),
-    Breakfast: cardItems.filter(item => itemGroup.some(group => group.itemgroupname.toLowerCase().includes('breakfast') && item.ItemName.toLowerCase().includes('breakfast'))),
-    VeganOptions: cardItems.filter(item => itemGroup.some(group => group.itemgroupname.toLowerCase().includes('veganoptions') && item.ItemName.toLowerCase().includes('vegan')) || item.ItemName === 'Dal Tadka'),
-    Smoothies: cardItems.filter(item => itemGroup.some(group => group.itemgroupname.toLowerCase().includes('smoothies') && item.ItemName.toLowerCase().includes('smoothie'))),
-  };
+  // Categorize items based on item_group_id
+  const itemCategories = useMemo(() => {
+    const categories: { [key in Category]: CardItem[] } = {
+      All: cardItems,
+      Appetizers: [],
+      MainCourse: [],
+      Desserts: [],
+      Beverages: [],
+      Cocktails: [],
+      Salads: [],
+      Soups: [],
+      Breakfast: [],
+      VeganOptions: [],
+    };
+
+    cardItems.forEach((item) => {
+      const category = getCategoryFromItemGroup(item.item_group_id);
+      if (category !== 'All') {
+        categories[category].push(item);
+      }
+    });
+
+    console.log('Populated itemCategories:', categories);
+    return categories;
+  }, [cardItems, itemGroup]);
 
   const allItems: CardItem[] = cardItems;
 
-  const toggleDropdown = (category: Category | 'All') => {
-    if (category === 'All') {
-      setDropdownState(prevState => ({
-        ...prevState,
-        Appetizers: false,
-        MainCourse: false,
-        Desserts: false,
-        Beverages: false,
-        Cocktails: false,
-        Salads: false,
-        Soups: false,
-        KidsMenu: false,
-        Breakfast: false,
-        VeganOptions: false,
-        Smoothies: false,
-      }));
-      setSelectedCategory(null);
-      setCategoryClicked(true);
-    } else {
-      setDropdownState(prevState => ({
-        ...prevState,
-        [category]: !prevState[category],
-      }));
-      setSelectedCategory(category);
-      setCategoryClicked(true);
-    }
+  const toggleDropdown = (category: Category) => {
+    setDropdownState(prevState => ({
+      ...prevState,
+      Appetizers: category === 'Appetizers' ? !prevState.Appetizers : false,
+      MainCourse: category === 'MainCourse' ? !prevState.MainCourse : false,
+      Desserts: category === 'Desserts' ? !prevState.Desserts : false,
+      Beverages: category === 'Beverages' ? !prevState.Beverages : false,
+      Cocktails: category === 'Cocktails' ? !prevState.Cocktails : false,
+      Salads: category === 'Salads' ? !prevState.Salads : false,
+      Soups: category === 'Soups' ? !prevState.Soups : false,
+      Breakfast: category === 'Breakfast' ? !prevState.Breakfast : false,
+      VeganOptions: category === 'VeganOptions' ? !prevState.VeganOptions : false,
+    }));
+    setSelectedCategory(category);
+    setCategoryClicked(true);
   };
 
   const filterItems = () => {
-    const baseItems = categoryClicked && selectedCategory ? itemCategories[selectedCategory] || [] : allItems;
+    const baseItems = categoryClicked && selectedCategory !== 'All' ? itemCategories[selectedCategory] || [] : allItems;
 
-    return baseItems.filter((item) => {
+    const filtered = baseItems.filter((item) => {
       const matchesCode = searchCode
         ? item.itemCode.toLowerCase().includes(searchCode.toLowerCase())
         : true;
-
       const matchesName = searchName
         ? item.ItemName.toLowerCase().includes(searchName.toLowerCase()) ||
           item.shortName.toLowerCase().includes(searchName.toLowerCase())
         : true;
-
       return matchesCode && matchesName;
     });
+
+    console.log('Filtered items:', filtered);
+    return filtered;
   };
 
+  useEffect(() => {
+    setFilteredItems(filterItems());
+  }, [searchCode, searchName, selectedCategory, categoryClicked, cardItems]);
+
   const filterDropdownItems = (type: 'code' | 'name') => {
-    const baseItems = categoryClicked && selectedCategory ? itemCategories[selectedCategory] || [] : allItems;
+    const baseItems = categoryClicked && selectedCategory !== 'All' ? itemCategories[selectedCategory] || [] : allItems;
 
     return baseItems.filter((item) => {
       if (type === 'code') {
@@ -265,10 +271,6 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
       }
     }).slice(0, 5);
   };
-
-  useEffect(() => {
-    setFilteredItems(filterItems());
-  }, [searchCode, searchName, items, selectedCategory, categoryClicked, tableId, cardItems]);
 
   const handleCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const code = e.target.value.trim();
@@ -388,7 +390,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
     }
   };
 
-  const handleAddItem = (newItem: Omit<MenuItem, 'id' | 'qty'>, qty: number = 1) => {
+  const handleAddItem = (newItem: Omit<MenuItemState, 'id' | 'qty'>, qty: number = 1) => {
     const existingItem = items.find((item) => item.name === newItem.name);
     if (existingItem) {
       setItems(
@@ -407,24 +409,6 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
 
   const totalAmount = items.reduce((sum, item) => sum + item.price * item.qty, 0);
   console.log('Total Amount:', totalAmount.toFixed(2));
-
-  const getCategoryFromItemGroup = (itemGroupName: string): Category | 'All' => {
-    const cleanName = itemGroupName.replace(/\.\.\./, '').trim().toLowerCase();
-    const categoryMap: { [key: string]: Category } = {
-      appetizers: 'Appetizers',
-      maincourse: 'MainCourse',
-      desserts: 'Desserts',
-      beverages: 'Beverages',
-      cocktails: 'Cocktails',
-      salads: 'Salads',
-      soups: 'Soups',
-      kidsmenu: 'KidsMenu',
-      breakfast: 'Breakfast',
-      veganoptions: 'VeganOptions',
-      smoothies: 'Smoothies',
-    };
-    return categoryMap[cleanName] || 'All';
-  };
 
   return (
     <div className="container-fluid vh-100 d-flex flex-column p-0">
@@ -741,15 +725,17 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
                   >
                     All
                   </button>
-                  {Object.keys(itemCategories).map((category) => (
-                    <button
-                      key={category}
-                      className="btn btn-sm btn-outline-secondary category-btn"
-                      onClick={() => toggleDropdown(category as Category)}
-                    >
-                      {category.replace(/([A-Z])/g, ' $1').trim()}
-                    </button>
-                  ))}
+                  {Object.keys(itemCategories)
+                    .filter(category => category !== 'All')
+                    .map((category) => (
+                      <button
+                        key={category}
+                        className="btn btn-sm btn-outline-secondary category-btn"
+                        onClick={() => toggleDropdown(category as Category)}
+                      >
+                        {category.replace(/([A-Z])/g, ' $1').trim()}
+                      </button>
+                    ))}
                 </div>
               </div>
             </div>
@@ -769,9 +755,9 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
                     </button>
                   </li>
                   {itemGroup
-                    .filter(group => String(group.status) === '0')
+                    .filter(group => group.status === 0) // Align status with active groups
                     .map((group) => {
-                      const category = getCategoryFromItemGroup(group.itemgroupname);
+                      const category = getCategoryFromItemGroup(group.item_groupid);
                       return (
                         <li className="mb-2" key={group.item_groupid}>
                           <button

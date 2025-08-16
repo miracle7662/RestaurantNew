@@ -2,7 +2,8 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Swal from 'sweetalert2';
 import { toast } from 'react-hot-toast';
 import { Preloader } from '@/components/Misc/Preloader';
-import { Button, Card, Stack, Table } from 'react-bootstrap';
+import { Button, Card, Stack, Pagination, Table, Form } from 'react-bootstrap';
+import { useAuthContext } from '../../../../common/context/useAuthContext';
 import TitleHelmet from '@/components/Common/TitleHelmet';
 import {
   useReactTable,
@@ -21,7 +22,7 @@ interface KitchenCategoryItem {
   alternative_category_name: string;
   digital_order_image: File | null;
   categorycolor: string;
-  status: string;
+  status: number;
   created_by_id: string;
   created_date: string;
   updated_by_id: string;
@@ -30,13 +31,7 @@ interface KitchenCategoryItem {
   marketid: string;
 }
 
-interface AddKitchenCategoryModalProps {
-  show: boolean;
-  onHide: () => void;
-  onSuccess: () => void;
-}
-
-interface EditKitchenCategoryModalProps {
+interface KitchenCategoryModalProps {
   show: boolean;
   onHide: () => void;
   KitchenCategory: KitchenCategoryItem | null;
@@ -53,14 +48,21 @@ const debounce = (func: (...args: any[]) => void, wait: number) => {
   };
 };
 
+// Function to get status badge
+const getStatusBadge = (status: number) => {
+  return status === 0 ? (
+    <span className="badge bg-success">Active</span>
+  ) : (
+    <span className="badge bg-danger">Inactive</span>
+  );
+};
+
 // Main KitchenCategory Component
 const KitchenCategory: React.FC = () => {
   const [kitchenCategoryItems, setKitchenCategoryItems] = useState<KitchenCategoryItem[]>([]);
-  const [filteredKitchenCategory, setFilteredKitchenCategory] = useState<KitchenCategoryItem[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
+  const [showModal, setShowModal] = useState(false);
   const [selectedKitchenCategory, setSelectedKitchenCategory] = useState<KitchenCategoryItem | null>(null);
 
   const fetchKitchenCategory = async () => {
@@ -69,8 +71,12 @@ const KitchenCategory: React.FC = () => {
       const res = await fetch('http://localhost:3001/api/KitchenCategory');
       const data = await res.json();
       console.log('Fetched KitchenCategory:', data);
-      setKitchenCategoryItems(data);
-      setFilteredKitchenCategory(data);
+      // Ensure status is treated as a number
+      const formattedData = data.map((item: any) => ({
+        ...item,
+        status: Number(item.status),
+      }));
+      setKitchenCategoryItems(formattedData);
     } catch (err) {
       toast.error('Failed to fetch KitchenCategory');
     } finally {
@@ -82,18 +88,7 @@ const KitchenCategory: React.FC = () => {
     fetchKitchenCategory();
   }, []);
 
-  // Handle search
-  const handleSearch = useCallback(
-    debounce((value: string) => {
-      setSearchTerm(value);
-      const filtered = kitchenCategoryItems.filter((item) =>
-        item.Kitchen_Category.toLowerCase().includes(value.toLowerCase())
-      );
-      setFilteredKitchenCategory(filtered);
-    }, 300),
-    [kitchenCategoryItems]
-  );
-
+  // Define columns for react-table
   const columns = useMemo<ColumnDef<KitchenCategoryItem>[]>(
     () => [
       {
@@ -108,7 +103,7 @@ const KitchenCategory: React.FC = () => {
         size: 150,
         cell: (info) => (
           <div style={{ textAlign: 'center' }}>
-            {info.getValue<File>() ? info.getValue<File>().name : 'No Image'}
+            {info.getValue() ? (info.getValue() as File).name : 'No Image'}
           </div>
         ),
       },
@@ -155,7 +150,7 @@ const KitchenCategory: React.FC = () => {
         size: 150,
         cell: (info) => (
           <div style={{ textAlign: 'center' }}>
-            {info.getValue<string>() === '0' ? 'Active' : 'Inactive'}
+            {getStatusBadge(info.getValue<number>())}
           </div>
         ),
       },
@@ -188,8 +183,9 @@ const KitchenCategory: React.FC = () => {
     []
   );
 
+  // Initialize react-table with pagination
   const table = useReactTable({
-    data: filteredKitchenCategory,
+    data: kitchenCategoryItems,
     columns,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
@@ -199,11 +195,27 @@ const KitchenCategory: React.FC = () => {
         pageSize: 10,
       },
     },
+    state: {
+      globalFilter: searchTerm,
+    },
   });
+
+  const handleSearch = useCallback(
+    debounce((value: string) => {
+      table.setGlobalFilter(value);
+    }, 300),
+    [table]
+  );
+
+  const onSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+    handleSearch(value);
+  };
 
   const handleEditClick = useCallback((kitchenCategory: KitchenCategoryItem) => {
     setSelectedKitchenCategory(kitchenCategory);
-    setShowEditModal(true);
+    setShowModal(true);
   }, []);
 
   const handleDeleteKitchenCategory = useCallback((kitchenCategory: KitchenCategoryItem) => {
@@ -236,22 +248,78 @@ const KitchenCategory: React.FC = () => {
     });
   }, [selectedKitchenCategory]);
 
-  // AddKitchenCategoryModal Component
-  const AddKitchenCategoryModal: React.FC<AddKitchenCategoryModalProps> = ({ show, onHide, onSuccess }) => {
+  const getPaginationItems = () => {
+    const items = [];
+    const maxPagesToShow = 5;
+    const pageIndex = table.getState().pagination.pageIndex;
+    const totalPages = table.getPageCount();
+    let startPage = Math.max(0, pageIndex - Math.floor(maxPagesToShow / 2));
+    const endPage = Math.min(totalPages - 1, startPage + maxPagesToShow - 1);
+
+    if (endPage - startPage < maxPagesToShow - 1) {
+      startPage = Math.max(0, endPage - maxPagesToShow + 1);
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+      items.push(
+        <Pagination.Item
+          key={i}
+          active={i === pageIndex}
+          onClick={() => table.setPageIndex(i)}
+        >
+          {i + 1}
+        </Pagination.Item>
+      );
+    }
+    return items;
+  };
+
+  // KitchenCategoryModal Component (Combined Add/Edit Modal)
+  const KitchenCategoryModal: React.FC<KitchenCategoryModalProps> = ({
+    show,
+    onHide,
+    KitchenCategory,
+    onSuccess,
+    onUpdateSelectedKitchenCategory,
+  }) => {
     const [Kitchen_Category, setKitchen_Category] = useState('');
+    const [alternative_category_name, setalternative_category_name] = useState('');
     const [Description, setDescription] = useState('');
     const [alternative_category_Description, setalternative_category_Description] = useState('');
-    const [alternative_category_name, setalternative_category_name] = useState('');
-    const [digital_order_image, setdigital_order_image] = useState<File | null>(null);
     const [categorycolor, setcategorycolor] = useState('');
+    const [digital_order_image, setdigital_order_image] = useState<File | null>(null);
     const [status, setStatus] = useState('Active');
     const [loading, setLoading] = useState(false);
+    const { user } = useAuthContext();
 
-    const handleAdd = async () => {
-      if (!Kitchen_Category || !Description || !alternative_category_Description || !alternative_category_name || !status) {
-        toast.error('All required fields must be filled');
+    useEffect(() => {
+      if (KitchenCategory) {
+        setKitchen_Category(KitchenCategory.Kitchen_Category);
+        setalternative_category_name(KitchenCategory.alternative_category_name);
+        setDescription(KitchenCategory.Description);
+        setalternative_category_Description(KitchenCategory.alternative_category_Description);
+        setcategorycolor(KitchenCategory.categorycolor);
+        setdigital_order_image(KitchenCategory.digital_order_image);
+        setStatus(KitchenCategory.status === 0 ? 'Active' : 'Inactive');
+      } else {
+        setKitchen_Category('');
+        setalternative_category_name('');
+        setDescription('');
+        setalternative_category_Description('');
+        setcategorycolor('');
+        setdigital_order_image(null);
+        setStatus('Active');
+      }
+    }, [KitchenCategory]);
+
+    const handleSave = async () => {
+      if (!Kitchen_Category || !alternative_category_name || !status) {
+        toast.error('Category Name, Alternative Category Name, and Status are required');
         return;
       }
+
+      const hotelId = user.hotelid || '1';
+      const marketId = user.marketid || '1';
 
       setLoading(true);
       try {
@@ -265,37 +333,67 @@ const KitchenCategory: React.FC = () => {
           digital_order_image: digital_order_image ? digital_order_image.name : null,
           categorycolor,
           status: statusValue,
-          created_by_id: '1',
-          created_date: currentDate,
-          updated_by_id: '1',
-          updated_date: currentDate,
-          hotelid: '1',
-          marketid: '1',
+          ...(KitchenCategory
+            ? {
+                kitchencategoryid: KitchenCategory.kitchencategoryid,
+                updated_by_id: user?.id ?? '1',
+                updated_date: currentDate,
+                hotelid: KitchenCategory.hotelid || hotelId,
+                marketid: KitchenCategory.marketid || marketId,
+              }
+            : {
+                created_by_id: user?.id ?? '1',
+                created_date: currentDate,
+                hotelid: hotelId,
+                marketid: marketId,
+              }),
         };
         console.log('Sending to backend:', payload);
-        const res = await fetch('http://localhost:3001/api/KitchenCategory', {
-          method: 'POST',
+        const url = KitchenCategory
+          ? `http://localhost:3001/api/KitchenCategory/${KitchenCategory.kitchencategoryid}`
+          : 'http://localhost:3001/api/KitchenCategory';
+        const method = KitchenCategory ? 'PUT' : 'POST';
+        const res = await fetch(url, {
+          method,
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
         if (res.ok) {
-          toast.success('KitchenCategory added successfully');
+          const responseData = await res.json();
+          toast.success(`KitchenCategory ${KitchenCategory ? 'updated' : 'added'} successfully`);
+          if (KitchenCategory) {
+            const updatedKitchenCategory = {
+              ...KitchenCategory,
+              Kitchen_Category,
+              alternative_category_name,
+              Description,
+              alternative_category_Description,
+              digital_order_image,
+              categorycolor,
+              status: statusValue,
+              updated_by_id: user?.id || '1',
+              updated_date: currentDate,
+              hotelid: KitchenCategory.hotelid || hotelId,
+              marketid: KitchenCategory.marketid || marketId,
+            };
+            onUpdateSelectedKitchenCategory(updatedKitchenCategory);
+          }
           setKitchen_Category('');
+          setalternative_category_name('');
           setDescription('');
           setalternative_category_Description('');
-          setalternative_category_name('');
-          setdigital_order_image(null);
           setcategorycolor('');
+          setdigital_order_image(null);
           setStatus('Active');
           onSuccess();
           onHide();
         } else {
           const errorData = await res.json();
           console.log('Backend error:', errorData);
-          toast.error('Failed to add KitchenCategory');
+          toast.error(`Failed to ${KitchenCategory ? 'update' : 'add'} KitchenCategory`);
         }
       } catch (err) {
-        console.error('Add KitchenCategory error:', err);
+        console.error(`${KitchenCategory ? 'Edit' : 'Add'} KitchenCategory error:`, err);
         toast.error('Something went wrong');
       } finally {
         setLoading(false);
@@ -311,239 +409,10 @@ const KitchenCategory: React.FC = () => {
     if (!show) return null;
 
     return (
-      <div className="modal" style={{ display: 'block', background: 'rgba(0,0,0,0.5)', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
-        <div className="modal-content" style={{ padding: '20px', maxWidth: '800px', margin: '100px auto', borderRadius: '8px', background: 'white' }}>
-          <div className="d-flex justify-content-between align-items-center mb-3">
-            <h3 className="mb-0">Add Category</h3>
-            <button className="btn btn-sm btn-close" onClick={onHide}></button>
-          </div>
-
-          <div className="row mb-3">
-            <div className="col-md-6">
-              <label className="form-label">
-                Category Name: <span className="text-danger">*</span>
-              </label>
-              <input
-                type="text"
-                className="form-control"
-                value={Kitchen_Category}
-                onChange={(e) => setKitchen_Category(e.target.value)}
-                placeholder="Enter Category Name"
-              />
-              <div className="mt-3">
-                <label className="form-label">Description</label>
-                <textarea
-                  className="form-control"
-                  value={Description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Description"
-                  rows={3}
-                />
-              </div>
-            </div>
-
-            <div className="col-md-6">
-              <label className="form-label">
-                Alternative Category Name: <span className="text-danger">*</span>
-              </label>
-              <input
-                type="text"
-                className="form-control"
-                value={alternative_category_name}
-                onChange={(e) => setalternative_category_name(e.target.value)}
-                placeholder="Alternative Category Name"
-              />
-              <div className="mt-3">
-                <label className="form-label">Alternative Description</label>
-                <textarea
-                  className="form-control"
-                  value={alternative_category_Description}
-                  onChange={(e) => setalternative_category_Description(e.target.value)}
-                  placeholder="Alternative Description"
-                  rows={3}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="row mb-3">
-            <div className="col-md-6">
-              <label className="form-label">Color:</label>
-              <div className="d-flex align-items-center">
-                <input
-                  type="text"
-                  className="form-control me-2"
-                  value={categorycolor}
-                  onChange={(e) => setcategorycolor(e.target.value)}
-                  placeholder="Color"
-                />
-                <input
-                  type="color"
-                  value={categorycolor}
-                  onChange={(e) => setcategorycolor(e.target.value)}
-                  style={{ width: '40px', height: '40px', padding: '0', border: 'none' }}
-                />
-              </div>
-            </div>
-
-            <div className="col-md-6">
-              <label className="form-label">Status <span style={{ color: 'red' }}>*</span></label>
-              <select
-                className="form-control"
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-              >
-                <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="row mb-3">
-            <div className="col-md-6">
-              <label className="form-label">Image</label>
-              <div className="input-group">
-                <input
-                  type="text"
-                  className="form-control"
-                  value={digital_order_image ? digital_order_image.name : ''}
-                  placeholder="Choose a File or Drop it Here"
-                  readOnly
-                  disabled={loading}
-                />
-                <button
-                  className="btn btn-outline-secondary"
-                  onClick={() => document.getElementById('fileInputAdd')?.click()}
-                  disabled={loading}
-                >
-                  Browse
-                </button>
-                <input
-                  id="fileInputAdd"
-                  type="file"
-                  hidden
-                  onChange={handleImageChange}
-                  disabled={loading}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="d-flex justify-content-end">
-            <button className="btn btn-outline-secondary me-2" onClick={onHide}>
-              Cancel
-            </button>
-            <button className="btn btn-primary" onClick={handleAdd} disabled={loading}>
-              Create
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // EditKitchenCategoryModal Component
-  const EditKitchenCategoryModal: React.FC<EditKitchenCategoryModalProps> = ({
-    show,
-    onHide,
-    KitchenCategory,
-    onSuccess,
-    onUpdateSelectedKitchenCategory,
-  }) => {
-    const [Kitchen_Category, setKitchen_Category] = useState('');
-    const [alternative_category_name, setalternative_category_name] = useState('');
-    const [Description, setDescription] = useState('');
-    const [alternative_category_Description, setalternative_category_Description] = useState('');
-    const [categorycolor, setcategorycolor] = useState('');
-    const [digital_order_image, setdigital_order_image] = useState<File | null>(null);
-    const [status, setStatus] = useState('');
-    const [loading, setLoading] = useState(false);
-
-    useEffect(() => {
-      if (KitchenCategory) {
-        setKitchen_Category(KitchenCategory.Kitchen_Category);
-        setalternative_category_name(KitchenCategory.alternative_category_name);
-        setDescription(KitchenCategory.Description);
-        setalternative_category_Description(KitchenCategory.alternative_category_Description);
-        setcategorycolor(KitchenCategory.categorycolor);
-        setdigital_order_image(KitchenCategory.digital_order_image);
-        setStatus(KitchenCategory.status === '0' ? 'Active' : 'Inactive');
-      }
-    }, [KitchenCategory]);
-
-    const handleEdit = async () => {
-      if (!Kitchen_Category || !alternative_category_name || !status) {
-        toast.error('Category Name, Alternative Category Name, and Status are required');
-        return;
-      }
-
-      setLoading(true);
-      try {
-        const statusValue = status === 'Active' ? 0 : 1;
-        const currentDate = new Date().toISOString();
-        const payload = {
-          Kitchen_Category,
-          alternative_category_name,
-          Description,
-          alternative_category_Description,
-          digital_order_image: digital_order_image ? digital_order_image.name : null,
-          categorycolor,
-          status: statusValue,
-          kitchencategoryid: KitchenCategory?.kitchencategoryid,
-          updated_by_id: '2',
-          updated_date: currentDate,
-          hotelid: KitchenCategory?.hotelid || '1',
-          marketid: KitchenCategory?.marketid || '1',
-        };
-        console.log('Sending to backend:', payload);
-        const res = await fetch(`http://localhost:3001/api/KitchenCategory/${KitchenCategory?.kitchencategoryid}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-        if (res.ok) {
-          toast.success('KitchenCategory updated successfully');
-          onSuccess();
-          const updatedKitchenCategory = {
-            ...KitchenCategory!,
-            Kitchen_Category,
-            alternative_category_name,
-            Description,
-            alternative_category_Description,
-            digital_order_image,
-            categorycolor,
-            status: statusValue.toString(),
-            updated_by_id: '2',
-            updated_date: currentDate,
-          };
-          onUpdateSelectedKitchenCategory(updatedKitchenCategory);
-          onHide();
-        } else {
-          const errorData = await res.json();
-          console.log('Backend error:', errorData);
-          toast.error('Failed to update KitchenCategory');
-        }
-      } catch (err) {
-        console.error('Edit KitchenCategory error:', err);
-        toast.error('Something went wrong');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      if (e.target.files && e.target.files[0]) {
-        setdigital_order_image(e.target.files[0]);
-      }
-    };
-
-    if (!show || !KitchenCategory) return null;
-
-    return (
-      <div className="modal" style={{ display: 'block', background: 'rgba(0,0,0,0.5)', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
+      <div className="modal" style={{ display: 'block', background: 'rgba(0,0,0,0.5)', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1050 }}>
         <div className="modal-content" style={{ background: 'white', padding: '20px', maxWidth: '800px', margin: '100px auto', borderRadius: '8px' }}>
           <div className="d-flex justify-content-between align-items-center mb-3">
-            <h3 className="mb-0">Edit Category</h3>
+            <h3 className="mb-0">{KitchenCategory ? 'Edit Category' : 'Add Category'}</h3>
             <button className="btn btn-sm btn-close" onClick={onHide}></button>
           </div>
 
@@ -643,13 +512,13 @@ const KitchenCategory: React.FC = () => {
                 />
                 <button
                   className="btn btn-outline-secondary"
-                  onClick={() => document.getElementById('fileInputEdit')?.click()}
+                  onClick={() => document.getElementById(`fileInput${KitchenCategory ? 'Edit' : 'Add'}`)?.click()}
                   disabled={loading}
                 >
                   Browse
                 </button>
                 <input
-                  id="fileInputEdit"
+                  id={`fileInput${KitchenCategory ? 'Edit' : 'Add'}`}
                   type="file"
                   hidden
                   onChange={handleImageChange}
@@ -660,11 +529,11 @@ const KitchenCategory: React.FC = () => {
           </div>
 
           <div className="d-flex justify-content-end">
-            <button className="btn btn-outline-secondary me-2" onClick={onHide}>
+            <button className="btn btn-outline-secondary me-2" onClick={onHide} disabled={loading}>
               Cancel
             </button>
-            <button className="btn btn-primary" onClick={handleEdit} disabled={loading}>
-              Save
+            <button className="btn btn-primary" onClick={handleSave} disabled={loading}>
+              {KitchenCategory ? 'Save' : 'Create'}
             </button>
           </div>
         </div>
@@ -675,110 +544,114 @@ const KitchenCategory: React.FC = () => {
   return (
     <>
       <TitleHelmet title="Kitchen Categories List" />
-      <Card className="m-1">
-        <div className="d-flex justify-content-between align-items-center p-3 border-bottom">
-          <h4 className="mb-0">
-            <i className="bi bi-grid-fill me-2"></i>Kitchen Categories
-          </h4>
-          <div className="d-flex align-items-center gap-2">
-            <input
-              type="text"
-              className="form-control"
-              placeholder="Search by Category Name..."
-              value={searchTerm}
-              onChange={(e) => handleSearch(e.target.value)}
-              style={{ maxWidth: '300px' }}
-            />
-            <Button
-              style={{ backgroundColor: '#4682B4', borderColor: '#4682B4' }}
-              onClick={() => setShowAddModal(true)}
-            >
-              <i className="bi bi-plus"></i> Add Kitchen Category
-            </Button>
+      <div style={{ height: '100vh', overflowY: 'auto', padding: '0 10px' }}>
+        <Card className="m-1">
+          <div className="d-flex justify-content-between align-items-center p-3 border-bottom">
+            <h4 className="mb-0">
+              <i className="bi bi-grid-fill me-2"></i>Kitchen Categories
+            </h4>
+            <div style={{ display: 'flex', gap: '4px' }}>
+              <Button
+                variant="success"
+                onClick={() => {
+                  setSelectedKitchenCategory(null);
+                  setShowModal(true);
+                }}
+              >
+                <i className="bi bi-plus"></i> Add Kitchen Category
+              </Button>
+            </div>
           </div>
-        </div>
-        <div className="p-3">
-          {loading ? (
-            <Stack className="align-items-center justify-content-center flex-grow-1 h-100">
-              <Preloader />
-            </Stack>
-          ) : (
-            <>
-              <div style={{ width: '100%', overflowX: 'auto' }}>
-                <Table responsive className="mb-0" style={{ tableLayout: 'auto', width: '100%' }}>
-                  <thead>
-                    {table.getHeaderGroups().map((headerGroup) => (
-                      <tr key={headerGroup.id}>
-                        {headerGroup.headers.map((header) => (
-                          <th
-                            key={header.id}
-                            style={{
-                              width: header.column.columnDef.size,
-                              whiteSpace: 'normal',
-                              padding: '8px',
-                              textAlign: header.id === 'actions' ? 'center' : 'center',
-                            }}
-                          >
-                            {header.isPlaceholder ? null : (
-                              <div>{flexRender(header.column.columnDef.header, header.getContext())}</div>
-                            )}
-                          </th>
-                        ))}
-                      </tr>
-                    ))}
-                  </thead>
-                  <tbody>
-                    {table.getRowModel().rows.map((row) => (
-                      <tr key={row.id}>
-                        {row.getVisibleCells().map((cell) => (
-                          <td
-                            key={cell.id}
-                            style={{
-                              whiteSpace: 'normal',
-                              padding: '8px',
-                              textAlign: cell.column.id === 'actions' ? 'center' : 'center',
-                            }}
-                          >
-                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </Table>
-              </div>
-              <div className="d-flex justify-content-between align-items-center mt-3">
-                <div>
-                  <Button
-                    variant="outline-secondary"
-                    size="sm"
-                    onClick={() => table.previousPage()}
-                    disabled={!table.getCanPreviousPage()}
-                  >
-                    Previous
-                  </Button>
-                  <Button
-                    variant="outline-secondary"
-                    size="sm"
-                    onClick={() => table.nextPage()}
-                    disabled={!table.getCanNextPage()}
-                    className="ms-2"
-                  >
-                    Next
-                  </Button>
-                </div>
-                <div>
-                  Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-      </Card>
-      <AddKitchenCategoryModal show={showAddModal} onHide={() => setShowAddModal(false)} onSuccess={fetchKitchenCategory} />
-      <EditKitchenCategoryModal
-        show={showEditModal}
-        onHide={() => setShowEditModal(false)}
+          <div className="p-3">
+            <div className="mb-3">
+              <input
+                type="text"
+                className="form-control rounded-pill"
+                placeholder="Search..."
+                value={searchTerm}
+                onChange={onSearchChange}
+                style={{ width: '350px', borderColor: '#ccc', borderWidth: '2px' }}
+              />
+            </div>
+            <div className="flex-grow-1" style={{ overflowY: 'auto' }}>
+              {loading ? (
+                <Stack className="align-items-center justify-content-center flex-grow-1 h-100">
+                  <Preloader />
+                </Stack>
+              ) : (
+                <>
+                  <Table responsive hover className="mb-4">
+                    <thead>
+                      {table.getHeaderGroups().map((headerGroup) => (
+                        <tr key={headerGroup.id}>
+                          {headerGroup.headers.map((header) => (
+                            <th
+                              key={header.id}
+                              style={{
+                                width: header.column.columnDef.size,
+                                textAlign: header.id === 'actions' ? 'left' : 'center',
+                              }}
+                            >
+                              {header.isPlaceholder ? null : (
+                                <div>{flexRender(header.column.columnDef.header, header.getContext())}</div>
+                              )}
+                            </th>
+                          ))}
+                        </tr>
+                      ))}
+                    </thead>
+                    <tbody>
+                      {table.getRowModel().rows.map((row) => (
+                        <tr key={row.id}>
+                          {row.getVisibleCells().map((cell) => (
+                            <td
+                              key={cell.id}
+                              style={{ textAlign: cell.column.id === 'actions' ? 'left' : 'center' }}
+                            >
+                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
+                  <Stack direction="horizontal" className="justify-content-between align-items-center">
+                    <div>
+                      <Form.Select
+                        value={table.getState().pagination.pageSize}
+                        onChange={(e) => table.setPageSize(Number(e.target.value))}
+                        style={{ width: '100px', display: 'inline-block', marginRight: '10px' }}
+                      >
+                        <option value="5">5</option>
+                        <option value="10">10</option>
+                        <option value="20">20</option>
+                        <option value="50">50</option>
+                      </Form.Select>
+                      <span className="text-muted">
+                        Showing {table.getRowModel().rows.length} of {kitchenCategoryItems.length} entries
+                      </span>
+                    </div>
+                    <Pagination>
+                      <Pagination.Prev
+                        onClick={() => table.previousPage()}
+                        disabled={!table.getCanPreviousPage()}
+                      />
+                      {getPaginationItems()}
+                      <Pagination.Next
+                        onClick={() => table.nextPage()}
+                        disabled={!table.getCanNextPage()}
+                      />
+                    </Pagination>
+                  </Stack>
+                </>
+              )}
+            </div>
+          </div>
+        </Card>
+      </div>
+      <KitchenCategoryModal
+        show={showModal}
+        onHide={() => setShowModal(false)}
         KitchenCategory={selectedKitchenCategory}
         onSuccess={fetchKitchenCategory}
         onUpdateSelectedKitchenCategory={setSelectedKitchenCategory}

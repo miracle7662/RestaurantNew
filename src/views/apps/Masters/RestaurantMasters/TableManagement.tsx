@@ -12,9 +12,8 @@ import {
   ColumnDef,
   flexRender,
 } from '@tanstack/react-table';
-import { fetchOutletsForDropdown } from '@/utils/commonfunction';
+import { fetchOutletsForDropdown, fetchBrands } from '@/utils/commonfunction';
 import { OutletData } from '@/common/api/outlet';
-import { fetchBrands } from '@/utils/commonfunction';
 
 // Define TableItem interface
 interface TableItem {
@@ -25,7 +24,7 @@ interface TableItem {
   outletid: number | string;
   hotelid: number | string;
   marketid: string;
-  status: string;
+  status: number; // Changed to number to match backend expectation
   created_by_id: string;
   created_date: string;
   updated_by_id: string;
@@ -33,6 +32,15 @@ interface TableItem {
   hotel_details?: string;
   outlet_details?: string;
   market_details?: string;
+}
+
+// TableModal Props
+interface TableModalProps {
+  show: boolean;
+  onHide: () => void;
+  tableItem: TableItem | null;
+  onSuccess: () => void;
+  onUpdateSelectedTable: (tableItem: TableItem) => void;
 }
 
 // Status badge for table
@@ -53,35 +61,17 @@ const debounce = (func: (...args: any[]) => void, wait: number) => {
   };
 };
 
-// AddTableModal Props
-interface AddTableModalProps {
-  show: boolean;
-  onHide: () => void;
-  onSuccess: () => void;
-}
-
-// EditTableModal Props
-interface EditTableModalProps {
-  show: boolean;
-  onHide: () => void;
-  tableItem: TableItem | null;
-  onSuccess: () => void;
-  onUpdateSelectedTable: (tableItem: TableItem) => void;
-}
-
 // Main TableManagement Component
 const TableManagement: React.FC = () => {
   const [tableItems, setTableItems] = useState<TableItem[]>([]);
   const [filteredTableItems, setFilteredTableItems] = useState<TableItem[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
-  const [showAddTableModal, setShowAddTableModal] = useState(false);
-  const [showEditTableModal, setShowEditTableModal] = useState(false);
+  const [showTableModal, setShowTableModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [selectedTable, setSelectedTable] = useState<TableItem | null>(null);
   const [outlets, setOutlets] = useState<OutletData[]>([]);
   const [brands, setBrands] = useState<Array<{ hotelid: number; hotel_name: string }>>([]);
-  const [selectedOutletId, setSelectedOutletId] = useState<number | null>(null); // New state for outlet filter
-
+  const [selectedOutletId, setSelectedOutletId] = useState<number | null>(null);
   const { user } = useAuthContext();
 
   // Fetch table data
@@ -94,8 +84,12 @@ const TableManagement: React.FC = () => {
       if (res.ok) {
         const data = await res.json();
         if (data.success) {
-          setTableItems(data.data);
-          setFilteredTableItems(data.data);
+          const formattedData = data.data.map((item: any) => ({
+            ...item,
+            status: Number(item.status), // Convert status to number
+          }));
+          setTableItems(formattedData);
+          setFilteredTableItems(formattedData);
         } else {
           toast.error(data.message || 'Failed to fetch table data');
         }
@@ -172,7 +166,7 @@ const TableManagement: React.FC = () => {
         header: 'Status',
         size: 15,
         cell: (info) => {
-          const statusValue = Number(info.getValue<string | number>());
+          const statusValue = Number(info.getValue<number>());
           return <div style={{ textAlign: 'center' }}>{getStatusBadge(statusValue)}</div>;
         },
       },
@@ -244,10 +238,7 @@ const TableManagement: React.FC = () => {
 
     // Apply outlet filter
     if (outletId !== null && outletId !== undefined) {
-      filtered = filtered.filter((item) => {
-        const itemOutletId = Number(item.outletid); // Ensure outletid is a number
-        return itemOutletId === outletId;
-      });
+      filtered = filtered.filter((item) => Number(item.outletid) === outletId);
     }
 
     // Apply search term filter if any
@@ -265,7 +256,7 @@ const TableManagement: React.FC = () => {
   // Handle edit button click
   const handleEditClick = (table: TableItem) => {
     setSelectedTable(table);
-    setShowEditTableModal(true);
+    setShowTableModal(true);
   };
 
   // Handle delete operation
@@ -302,15 +293,225 @@ const TableManagement: React.FC = () => {
     }
   };
 
+  // TableModal Component (Combined Add/Edit Modal)
+  const TableModal: React.FC<TableModalProps> = ({
+    show,
+    onHide,
+    tableItem,
+    onSuccess,
+    onUpdateSelectedTable,
+  }) => {
+    const [table_name, setTableName] = useState<string>('');
+    const [outletid, setOutletId] = useState<number | null>(null);
+    const [status, setStatus] = useState<string>('Active');
+    const [selectedBrand, setSelectedBrand] = useState<number | null>(null);
+    const [loading, setLoading] = useState<boolean>(false);
+    const [outlets, setOutlets] = useState<OutletData[]>([]);
+    const [brands, setBrands] = useState<Array<{ hotelid: number; hotel_name: string }>>([]);
+    const { user } = useAuthContext();
+
+    useEffect(() => {
+      if (tableItem) {
+        setTableName(tableItem.table_name);
+        setOutletId(tableItem.outletid ? Number(tableItem.outletid) : null);
+        setStatus(tableItem.status === 1 ? 'Active' : 'Inactive');
+        setSelectedBrand(tableItem.hotelid ? Number(tableItem.hotelid) : null);
+      } else {
+        setTableName('');
+        setOutletId(null);
+        setStatus('Active');
+        setSelectedBrand(null);
+      }
+      fetchOutletsForDropdown(user, setOutlets, setLoading);
+      fetchBrands(user, setBrands);
+    }, [tableItem, user]);
+
+    const handleSave = async () => {
+      if (!table_name || !selectedBrand || !outletid) {
+        toast.error('Please fill all required fields');
+        return;
+      }
+
+      setLoading(true);
+      try {
+        const statusValue = status === 'Active' ? 1 : 0;
+        const payload = {
+          table_name,
+          outletid: outletid.toString(),
+          hotelid: selectedBrand.toString(),
+          marketid: tableItem?.marketid || '1',
+          status: statusValue,
+          ...(tableItem
+            ? {
+                updated_by_id: user?.id || '2',
+                updated_date: new Date().toISOString(),
+              }
+            : {
+                created_by_id: user?.id || '1',
+                created_date: new Date().toISOString(),
+              }),
+        };
+
+        const url = tableItem
+          ? `http://localhost:3001/api/tablemanagement/${tableItem.tableid}`
+          : 'http://localhost:3001/api/tablemanagement';
+        const method = tableItem ? 'PUT' : 'POST';
+
+        const res = await fetch(url, {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        const data = await res.json();
+        if (res.ok && data.success) {
+          toast.success(data.message || `Table ${tableItem ? 'updated' : 'added'} successfully`);
+          if (tableItem) {
+            const updatedTable: TableItem = {
+              ...tableItem,
+              table_name,
+              outletid: outletid.toString(),
+              hotelid: selectedBrand.toString(),
+              status: statusValue,
+              updated_by_id: user?.id || '2',
+              updated_date: new Date().toISOString(),
+              marketid: tableItem.marketid || '1',
+            };
+            onUpdateSelectedTable(updatedTable);
+          }
+          setTableName('');
+          setOutletId(null);
+          setStatus('Active');
+          setSelectedBrand(null);
+          onSuccess();
+          onHide();
+        } else {
+          toast.error(data.message || `Failed to ${tableItem ? 'update' : 'add'} table`);
+        }
+      } catch (err) {
+        toast.error('Something went wrong');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (!show) return null;
+
+    return (
+      <div
+        className="modal"
+        style={{
+          display: 'block',
+          background: 'rgba(0,0,0,0.5)',
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 1050,
+        }}
+      >
+        <div
+          className="modal-content"
+          style={{
+            background: 'white',
+            padding: '20px',
+            maxWidth: '500px',
+            margin: '100px auto',
+            borderRadius: '8px',
+          }}
+        >
+          <div className="d-flex justify-content-between align-items-center mb-3">
+            <h3 className="mb-0">{tableItem ? 'Edit Table' : 'Add New Table'}</h3>
+            <button className="btn btn-sm btn-close" onClick={onHide}></button>
+          </div>
+          <div className="mb-3">
+            <label className="form-label">Table Name <span style={{ color: 'red' }}>*</span></label>
+            <input
+              type="text"
+              className="form-control"
+              value={table_name}
+              onChange={(e) => setTableName(e.target.value)}
+              placeholder="e.g., Conference, 106, R15"
+              disabled={loading}
+            />
+          </div>
+          <div className="mb-3">
+            <label className="form-label">Hotel Name <span style={{ color: 'red' }}>*</span></label>
+            <select
+              className="form-control"
+              value={selectedBrand || ''}
+              onChange={(e) => setSelectedBrand(e.target.value ? Number(e.target.value) : null)}
+              disabled={loading}
+            >
+              <option value="">Select Hotel</option>
+              {brands.map((brand) => (
+                <option key={brand.hotelid} value={brand.hotelid}>
+                  {brand.hotel_name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="mb-3">
+            <label className="form-label">Outlet Name <span style={{ color: 'red' }}>*</span></label>
+            <select
+              className="form-control"
+              value={outletid || ''}
+              onChange={(e) => setOutletId(e.target.value ? Number(e.target.value) : null)}
+              disabled={loading}
+            >
+              <option value="">Select Outlet</option>
+              {outlets.map((outlet) => (
+                <option key={outlet.outletid} value={outlet.outletid}>
+                  {outlet.outlet_name} ({outlet.outlet_code})
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="mb-3">
+            <label className="form-label">Status <span style={{ color: 'red' }}>*</span></label>
+            <select
+              className="form-control"
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+            >
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+          </div>
+          <div className="d-flex justify-content-end">
+            <button
+              className="btn btn-outline-secondary me-2"
+              onClick={onHide}
+              disabled={loading}
+            >
+              Cancel
+            </button>
+            <button
+              className="btn btn-primary"
+              onClick={handleSave}
+              disabled={loading}
+            >
+              {loading ? 'Saving...' : tableItem ? 'Save' : 'Add'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <>
       <TitleHelmet title="Table Management" />
-      <div >
+      <div style={{ height: '100vh', overflowY: 'auto', padding: '0 10px' }}>
         <Card className="m-1">
           <div className="d-flex justify-content-between align-items-center p-3 border-bottom">
             <h4 className="mb-0">Table Management</h4>
             <div style={{ display: 'flex', gap: '4px' }}>
-              <Button variant="success" className="me-1" onClick={() => setShowAddTableModal(true)}>
+              <Button variant="success" className="me-1" onClick={() => {
+                setSelectedTable(null);
+                setShowTableModal(true);
+              }}>
                 <i className="bi bi-plus"></i> Add New
               </Button>
               <Button variant="primary" className="me-1">
@@ -349,7 +550,7 @@ const TableManagement: React.FC = () => {
                 <Preloader />
               </Stack>
             ) : (
-              <div style={{ maxHeight: '500px', overflowY: 'auto', width: '100%' }}>
+              <div style={{  overflowY: 'auto', width: '100%' }}>
                 <Table responsive className="mb-0" style={{ tableLayout: 'auto', width: '100%' }}>
                   <thead>
                     {table.getHeaderGroups().map((headerGroup) => (
@@ -399,15 +600,10 @@ const TableManagement: React.FC = () => {
           </div>
         </Card>
       </div>
-      <AddTableModal
-        show={showAddTableModal}
-        onHide={() => setShowAddTableModal(false)}
-        onSuccess={() => fetchTableManagement(searchTerm)}
-      />
-      <EditTableModal
-        show={showEditTableModal}
+      <TableModal
+        show={showTableModal}
         onHide={() => {
-          setShowEditTableModal(false);
+          setShowTableModal(false);
           setSelectedTable(null);
         }}
         tableItem={selectedTable}
@@ -415,352 +611,6 @@ const TableManagement: React.FC = () => {
         onUpdateSelectedTable={setSelectedTable}
       />
     </>
-  );
-};
-// AddTableModal Component
-const AddTableModal: React.FC<AddTableModalProps> = ({ show, onHide, onSuccess }) => {
-  const [table_name, setTableName] = useState<string>('');
-  const [outletid, setOutletId] = useState<number | null>(null);
-  const [status, setStatus] = useState<string>('Active');
-  const [loading, setLoading] = useState<boolean>(false);
-  const [outlets, setOutlets] = useState<OutletData[]>([]);
-  const [selectedBrand, setSelectedBrand] = useState<number | null>(null);
-  const [brands, setBrands] = useState<Array<{ hotelid: number; hotel_name: string }>>([]);
-  const { user } = useAuthContext();
-
-  useEffect(() => {
-    fetchOutletsForDropdown(user, setOutlets, setLoading);
-    fetchBrands(user, setBrands);
-  }, [user]);
-
-  const handleAdd = async () => {
-    if (!table_name || !selectedBrand || !outletid) {
-      toast.error('Please fill all required fields');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const statusValue = status === 'Active' ? 1 : 0;
-      const payload = {
-        table_name,
-        outletid: outletid.toString(),
-        hotelid: selectedBrand.toString(),
-        marketid: '1', // Placeholder, adjust as needed
-        status: statusValue,
-        created_by_id: user?.id || '1',
-      };
-
-      const res = await fetch('http://localhost:3001/api/tablemanagement', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await res.json();
-      if (res.ok && data.success) {
-        toast.success(data.message || 'Table added successfully');
-        setTableName('');
-        setOutletId(null);
-        setStatus('Active');
-        setSelectedBrand(null);
-        onSuccess();
-        onHide();
-      } else {
-        toast.error(data.message || 'Failed to add table');
-      }
-    } catch (err) {
-      toast.error('Something went wrong');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (!show) return null;
-
-  return (
-    <div
-      className="modal"
-      style={{
-        display: 'block',
-        background: 'rgba(0,0,0,0.5)',
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        zIndex: 1050,
-      }}
-    >
-      <div
-        className="modal-content"
-        style={{
-          background: 'white',
-          padding: '20px',
-          maxWidth: '500px',
-          margin: '100px auto',
-          borderRadius: '8px',
-        }}
-      >
-        <h3>Add New Table</h3>
-        <div className="mb-3">
-          <label className="form-label">Table Name <span style={{ color: 'red' }}>*</span></label>
-          <input
-            type="text"
-            className="form-control"
-            value={table_name}
-            onChange={(e) => setTableName(e.target.value)}
-            placeholder="e.g., Conference, 106, R15"
-            disabled={loading}
-          />
-        </div>
-        <div className="mb-3">
-          <label className="form-label">Hotel Name <span style={{ color: 'red' }}>*</span></label>
-          <select
-            className="form-control"
-            value={selectedBrand || ''}
-            onChange={(e) => setSelectedBrand(e.target.value ? Number(e.target.value) : null)}
-            disabled={loading}
-          >
-            <option value="">Select Hotel</option>
-            {brands.map((brand) => (
-              <option key={brand.hotelid} value={brand.hotelid}>
-                {brand.hotel_name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="mb-3">
-          <label className="form-label">Outlet Name <span style={{ color: 'red' }}>*</span></label>
-          <select
-            className="form-control"
-            value={outletid || ''}
-            onChange={(e) => setOutletId(e.target.value ? Number(e.target.value) : null)}
-            disabled={loading}
-          >
-            <option value="">Select Outlet</option>
-            {outlets.map((outlet) => (
-              <option key={outlet.outletid} value={outlet.outletid}>
-                {outlet.outlet_name} ({outlet.outlet_code})
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="mb-3">
-          <label className="form-label">Status <span style={{ color: 'red' }}>*</span></label>
-          <select
-            className="form-control"
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-          >
-            <option value="Active">Active</option>
-            <option value="Inactive">Inactive</option>
-          </select>
-        </div>
-        <div className="d-flex justify-content-end">
-          <button
-            className="btn btn-primary"
-            onClick={handleAdd}
-            disabled={loading}
-          >
-            {loading ? 'Adding...' : 'Add'}
-          </button>
-          <button
-            className="btn btn-outline-secondary ms-2"
-            onClick={onHide}
-            disabled={loading}
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// EditTableModal Component
-const EditTableModal: React.FC<EditTableModalProps> = ({
-  show,
-  onHide,
-  tableItem,
-  onSuccess,
-  onUpdateSelectedTable,
-}) => {
-  const [table_name, setTableName] = useState<string>('');
-  const [outletid, setOutletId] = useState<number | null>(null);
-  const [status, setStatus] = useState<string>('Active');
-  const [loading, setLoading] = useState<boolean>(false);
-  const [outlets, setOutlets] = useState<OutletData[]>([]);
-  const [selectedBrand, setSelectedBrand] = useState<number | null>(null);
-  const [brands, setBrands] = useState<Array<{ hotelid: number; hotel_name: string }>>([]);
-  const { user } = useAuthContext();
-
-  useEffect(() => {
-    if (tableItem) {
-      setTableName(tableItem.table_name);
-      setOutletId(tableItem.outletid ? Number(tableItem.outletid) : null);
-      setStatus(Number(tableItem.status) === 1 ? 'Active' : 'Inactive');
-      setSelectedBrand(tableItem.hotelid ? Number(tableItem.hotelid) : null);
-    }
-    fetchOutletsForDropdown(user, setOutlets, setLoading);
-    fetchBrands(user, setBrands);
-  }, [tableItem, user]);
-
-  const handleEdit = async () => {
-    if (!tableItem || !table_name || !selectedBrand || !outletid) {
-      toast.error('Please fill all required fields');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const statusValue = status === 'Active' ? 1 : 0;
-      const payload = {
-        table_name,
-        outletid: outletid.toString(),
-        hotelid: selectedBrand.toString(),
-        marketid: tableItem.marketid || '1',
-        status: statusValue,
-        updated_by_id: user?.id || '2',
-      };
-
-      const res = await fetch(
-        `http://localhost:3001/api/tablemanagement/${tableItem.tableid}`,
-        {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        }
-      );
-
-      const data = await res.json();
-      if (res.ok && data.success) {
-        toast.success(data.message || 'Table updated successfully');
-        const updatedTable: TableItem = {
-          ...tableItem,
-          table_name,
-          outletid: outletid.toString(),
-          hotelid: selectedBrand.toString(),
-          status: statusValue.toString(),
-          updated_by_id: user?.id || '2',
-          updated_date: new Date().toISOString(),
-        };
-        onUpdateSelectedTable(updatedTable);
-        onSuccess();
-        onHide();
-      } else {
-        toast.error(data.message || 'Failed to update table');
-      }
-    } catch (err) {
-      toast.error('Something went wrong');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (!show || !tableItem) return null;
-
-  return (
-    <div
-      className="modal"
-      style={{
-        display: 'block',
-        background: 'rgba(0,0,0,0.5)',
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        zIndex: 1050,
-      }}
-    >
-      <div
-        className="modal-content"
-        style={{
-          background: 'white',
-          padding: '20px',
-          maxWidth: '500px',
-          margin: '100px auto',
-          borderRadius: '8px',
-        }}
-      >
-        <h3>Edit Table</h3>
-        <div className="mb-3">
-          <label className="form-label">Table Name <span style={{ color: 'red' }}>*</span></label>
-          <input
-            type="text"
-            className="form-control"
-            value={table_name}
-            onChange={(e) => setTableName(e.target.value)}
-            placeholder="e.g., Conference, 106, R15"
-            disabled={loading}
-          />
-        </div>
-        <div className="mb-3">
-          <label className="form-label">Hotel Name <span style={{ color: 'red' }}>*</span></label>
-          <select
-            className="form-control"
-            value={selectedBrand || ''}
-            onChange={(e) => setSelectedBrand(e.target.value ? Number(e.target.value) : null)}
-            disabled={loading}
-          >
-            <option value="">Select Hotel</option>
-            {brands.map((brand) => (
-              <option key={brand.hotelid} value={brand.hotelid}>
-                {brand.hotel_name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="mb-3">
-          <label className="form-label">Outlet Name <span style={{ color: 'red' }}>*</span></label>
-          <select
-            className="form-control"
-            value={outletid || ''}
-            onChange={(e) => setOutletId(e.target.value ? Number(e.target.value) : null)}
-            disabled={loading}
-          >
-            <option value="">Select Outlet</option>
-            {outlets.map((outlet) => (
-              <option
-                key={outlet.outletid}
-                value={outlet.outletid}
-                selected={outletid === outlet.outletid}
-              >
-                {outlet.outlet_name} ({outlet.outlet_code})
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="mb-3">
-          <label className="form-label">Status <span style={{ color: 'red' }}>*</span></label>
-          <select
-            className="form-control"
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-          >
-            <option value="Active">Active</option>
-            <option value="Inactive">Inactive</option>
-          </select>
-        </div>
-        <div className="d-flex justify-content-end">
-          <button
-            className="btn btn-primary"
-            onClick={handleEdit}
-            disabled={loading}
-          >
-            {loading ? 'Saving...' : 'Save'}
-          </button>
-          <button
-            className="btn btn-outline-secondary ms-2"
-            onClick={onHide}
-            disabled={loading}
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
-    </div>
   );
 };
 

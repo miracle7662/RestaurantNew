@@ -6,7 +6,8 @@ exports.getDesignation = (req, res) => {
 };
 
 exports.addDesignation = (req, res) => {
-    const { Designation, status, created_by_id, created_date  } = req.body;
+    console.log('Adding designation with data:', req.body);
+    const { Designation, status, created_by_id, created_date } = req.body;
     const stmt = db.prepare('INSERT INTO mstdesignation (Designation, status, created_by_id, created_date) VALUES (?, ?, ?, ?)');
     const result = stmt.run(Designation, status, created_by_id, created_date);
     res.json({ id: result.lastInsertRowid, Designation, status,created_by_id, created_date});

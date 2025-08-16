@@ -1,22 +1,48 @@
-
-import React, { useState, useEffect } from 'react';
-import { Button, Modal, Form, Row, Col } from 'react-bootstrap';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { Button, Modal, Form, Row, Col, Card, Stack, Pagination, Table } from 'react-bootstrap';
 import { QRCodeCanvas } from 'qrcode.react';
 import { toast, ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css'; // Import toastify CSS
+import 'react-toastify/dist/ReactToastify.css';
 import { useNavigate } from 'react-router-dom';
-import AddOutlet from './AddOutlet'; // Adjust the path as needed
+import AddOutlet from './AddOutlet';
 import outletService, { OutletData } from '@/common/api/outlet';
 import masterDataService, { Country, Timezone, TimeOption } from '@/common/api/masterData';
 import { useAuthContext } from '@/common';
 import { fetchBrands, fetchCountries } from '@/utils/commonfunction';
+import {
+  useReactTable,
+  getCoreRowModel,
+  getPaginationRowModel,
+  getFilteredRowModel,
+  ColumnDef,
+  flexRender,
+} from '@tanstack/react-table';
+import { Preloader } from '@/components/Misc/Preloader';
+import Swal from 'sweetalert2';
+
+// Debounce utility function
+const debounce = (func: (...args: any[]) => void, wait: number) => {
+  let timeout: NodeJS.Timeout;
+  return (...args: any[]) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  };
+};
+
+const getStatusBadge = (status: number) => {
+  return status === 0 ? (
+    <span className="badge bg-success">Active</span>
+  ) : (
+    <span className="badge bg-danger">Inactive</span>
+  );
+};
 
 const OutletList: React.FC = () => {
   const { user } = useAuthContext();
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState('');
-  const [selectedOutlet, setSelectedOutlet] = useState<any>(null);
-  const [showAddOutlet, setShowAddOutlet] = useState(false); // State to toggle AddOutlet
+  const [selectedOutlet, setSelectedOutlet] = useState<OutletData | null>(null);
+  const [showAddOutlet, setShowAddOutlet] = useState(false);
   const navigate = useNavigate();
 
   const [outlets, setOutlets] = useState<OutletData[]>([]);
@@ -33,6 +59,7 @@ const OutletList: React.FC = () => {
   const [selectedCloseTime, setSelectedCloseTime] = useState<string>('');
   const [loadingTimezones, setLoadingTimezones] = useState<boolean>(false);
   const [countryId, setCountryId] = useState<number | null>(null);
+  const [searchTerm, setSearchTerm] = useState<string>('');
 
   // Additional form fields state
   const [contactPhone, setContactPhone] = useState<string>('');
@@ -53,7 +80,6 @@ const OutletList: React.FC = () => {
   const [nextResetKOTDays, setNextResetKOTDays] = useState<string>('daily');
   const [startTime, setStartTime] = useState<number>(0);
   const [endTime, setEndTime] = useState<number>(6);
-  
 
   // Fetch outlets from API
   useEffect(() => {
@@ -69,16 +95,13 @@ const OutletList: React.FC = () => {
   const fetchMasterData = async () => {
     try {
       console.log('Fetching master data...');
-
       fetchCountries(setCountries, setCountryId, countryId || undefined);
 
-      // Fetch start times
       const startTimesResponse = await masterDataService.getStartTimes();
       if (startTimesResponse && startTimesResponse.data) {
         setStartTimes(startTimesResponse.data);
       }
 
-      // Fetch close times
       const closeTimesResponse = await masterDataService.getCloseTimes();
       if (closeTimesResponse && closeTimesResponse.data) {
         setCloseTimes(closeTimesResponse.data);
@@ -107,7 +130,6 @@ const OutletList: React.FC = () => {
     }
   };
 
-  
   const fetchOutlets = async () => {
     try {
       setLoading(true);
@@ -115,7 +137,6 @@ const OutletList: React.FC = () => {
       const params: any = {
         role_level: user?.role_level,
         hotelid: user?.hotelid,
-        // brand_id: user?.brand_id,
       };
 
       if (user?.role_level === 'hotel_admin' && user?.userid != null) {
@@ -126,14 +147,12 @@ const OutletList: React.FC = () => {
       console.log('Current user details:', {
         userid: user?.userid,
         role_level: user?.role_level,
-        // brand_id: user?.brand_id,
-        hotelid: user?.hotelid
+        hotelid: user?.hotelid,
       });
 
       const response = await outletService.getOutlets(params);
       console.log('Outlet response:', response);
       if (response && response.data) {
-        // Sort outlets by registered_at in ascending order to show oldest first
         const sortedOutlets = response.data.sort((a: OutletData, b: OutletData) => {
           return new Date(a.registered_at || '').getTime() - new Date(b.registered_at || '').getTime();
         });
@@ -150,7 +169,7 @@ const OutletList: React.FC = () => {
     }
   };
 
-  const loadOutletDataIntoForm = (outlet: any) => {
+  const loadOutletDataIntoForm = (outlet: OutletData) => {
     setSelectedBrand(outlet.hotelid || null);
     setSelectedCountry(outlet.country ? Number(outlet.country) : null);
     setSelectedTimezone(null);
@@ -185,7 +204,7 @@ const OutletList: React.FC = () => {
     }
   };
 
-  const handleShowModal = (type: string, outlet?: any) => {
+  const handleShowModal = (type: string, outlet?: OutletData) => {
     setModalType(type);
     setSelectedOutlet(outlet || null);
 
@@ -231,18 +250,27 @@ const OutletList: React.FC = () => {
     resetFormFields();
   };
 
-  const handleModifyClick = (outlet: any) => {
+  const handleModifyClick = (outlet: OutletData) => {
     setSelectedOutlet(outlet);
-    setShowAddOutlet(true); // Show AddOutlet component
+    setShowAddOutlet(true);
   };
 
   const handleBackToOutletList = () => {
-    setShowAddOutlet(false); // Hide AddOutlet and return to outlet list
+    setShowAddOutlet(false);
     setSelectedOutlet(null);
   };
 
   const handleDeleteOutlet = async (outletId: number) => {
-    if (window.confirm('Are you sure you want to delete this outlet? This action cannot be undone.')) {
+    const res = await Swal.fire({
+      title: 'Are you sure?',
+      text: 'You will not be able to recover this Outlet!',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3E97FF',
+      confirmButtonText: 'Yes, delete it!',
+    });
+    if (res.isConfirmed) {
       try {
         await outletService.deleteOutlet(outletId);
         toast.success('Outlet deleted successfully!');
@@ -309,19 +337,17 @@ const OutletList: React.FC = () => {
       next_reset_bill_date: '',
       next_reset_kot_date: '',
       registered_at: new Date().toISOString(),
-      created_by_id: user?.userid || 1
+      created_by_id: user?.userid || 1,
     };
 
     try {
       if (modalType === 'Edit Item' && selectedOutlet) {
-        await outletService.updateOutlet(selectedOutlet.outletid, outletData);
-        toast.success('Outlet updated successfully!');
+        await outletService.updateOutlet(selectedOutlet.outletid as number, outletData); toast.success('Outlet updated successfully!');
       } else if (modalType === 'Add Outlet') {
         await outletService.addOutlet(outletData);
         toast.success('Outlet added successfully!');
       } else if (modalType === 'Modify Outlet Setting' && selectedOutlet) {
-        await outletService.updateOutlet(selectedOutlet.outletid, outletData);
-        toast.success('Outlet settings updated successfully!');
+        await outletService.updateOutlet(selectedOutlet.outletid as number, outletData); toast.success('Outlet settings updated successfully!');
       } else {
         toast.error('Invalid operation');
         return;
@@ -334,14 +360,205 @@ const OutletList: React.FC = () => {
     }
   };
 
+  // Define columns for react-table
+  const columns = useMemo<ColumnDef<OutletData>[]>(() => [
+    {
+      id: 'srNo',
+      header: 'Sr No',
+      size: 50,
+      cell: ({ row }) => <div style={{ textAlign: 'center' }}>{row.index + 1}</div>,
+    },
+    {
+      accessorKey: 'logo',
+      header: 'Logo',
+      size: 100,
+      cell: (info) => (
+        <div style={{ textAlign: 'center' }}>
+          <span className="badge bg-light text-dark">{info.getValue<string>() || 'N/A'}</span>
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'market_id',
+      header: 'Market Id',
+      size: 100,
+      cell: (info) => <div style={{ textAlign: 'center' }}>{info.getValue<string>() || 'N/A'}</div>,
+    },
+    {
+      accessorKey: 'outletid',
+      header: 'Outlet Id',
+      size: 100,
+      cell: (info) => <div style={{ textAlign: 'center' }}>{info.getValue<number>()}</div>,
+    },
+    {
+      accessorKey: 'outlet_name',
+      header: 'Outlet Name',
+      size: 150,
+      cell: (info) => <div style={{ textAlign: 'center' }}>{info.getValue<string>()}</div>,
+    },
+    {
+      accessorKey: 'phone',
+      header: 'Phone',
+      size: 120,
+      cell: (info) => <div style={{ textAlign: 'center' }}>{info.getValue<string>() || 'N/A'}</div>,
+    },
+    {
+      accessorKey: 'address',
+      header: 'Location',
+      size: 150,
+      cell: (info) => <div style={{ textAlign: 'center' }}>{info.getValue<string>() || 'N/A'}</div>,
+    },
+    {
+      accessorKey: 'brand_name',
+      header: 'Brand Name',
+      size: 150,
+      cell: (info) => <div style={{ textAlign: 'center' }}>{info.getValue<string>() || 'N/A'}</div>,
+    },
+    {
+      accessorKey: 'status',
+      header: 'status',
+      size: 100,
+      cell: (info) => (
+        <div style={{ textAlign: 'center' }}>
+          {getStatusBadge(Number(info.getValue<number>()))}
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'digital_order',
+      header: 'Digital Order',
+      size: 100,
+      cell: (info) => (
+        <div style={{ textAlign: 'center' }}>{info.getValue<number>() ? 'Yes' : 'No'}</div>
+      ),
+    },
+    {
+      accessorKey: 'next_reset_bill_date',
+      header: 'Next Reset Bill Date',
+      size: 150,
+      cell: (info) => <div style={{ textAlign: 'center' }}>{info.getValue<string>() || 'N/A'}</div>,
+    },
+    {
+      accessorKey: 'registered_at',
+      header: 'Registered At',
+      size: 150,
+      cell: (info) => <div style={{ textAlign: 'center' }}>{info.getValue<string>() || 'N/A'}</div>,
+    },
+    {
+      id: 'actions',
+      header: () => <div style={{ textAlign: 'center' }}>Action</div>,
+      size: 200,
+      cell: ({ row }) => (
+        <div className="btn-group" role="group" style={{ justifyContent: 'center', display: 'flex' }}>
+          <button
+            className="btn btn-sm btn-success"
+            title="Edit Item"
+            onClick={() => handleShowModal('Edit Item', row.original)}
+            style={{ marginRight: '5px' }}
+          >
+            <i className="fi fi-rr-edit"></i>
+          </button>
+          <button
+            className="btn btn-sm btn-info"
+            title="Modify Outlet Configuration"
+            onClick={() => handleModifyClick(row.original)}
+            style={{ marginRight: '5px' }}
+          >
+            <i className="fi fi-rr-document"></i>
+          </button>
+          <button
+            className="btn btn-sm btn-success"
+            title="Modify Outlet Setting"
+            onClick={() => handleShowModal('Modify Outlet Setting', row.original)}
+            style={{ marginRight: '5px' }}
+          >
+            <i className="fi fi-rr-settings"></i>
+          </button>
+          <button
+            className="btn btn-sm btn-secondary"
+            title="Download QR Code"
+            onClick={() => handleShowModal('Download QR Code', row.original)}
+            style={{ marginRight: '5px' }}
+          >
+            <i className="fi fi-rr-qrcode"></i>
+          </button>
+          <button
+            className="btn btn-sm btn-danger"
+            title="Delete Outlet"
+            onClick={() => handleDeleteOutlet(row.original.outletid!)}
+            style={{ marginRight: '5px' }}
+          >
+            <i className="fi fi-rr-trash"></i>
+          </button>
+        </div>
+      ),
+    },
+  ], []);
+
+  // Initialize react-table with pagination and filtering
+  const table = useReactTable({
+    data: outlets,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    initialState: {
+      pagination: {
+        pageSize: 10,
+      },
+    },
+    state: {
+      globalFilter: searchTerm,
+    },
+  });
+
+  const handleSearch = useCallback(
+    debounce((value: string) => {
+      table.setGlobalFilter(value);
+    }, 300),
+    [table]
+  );
+
+  const onSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+    handleSearch(value);
+  };
+
+  const getPaginationItems = () => {
+    const items = [];
+    const maxPagesToShow = 5;
+    const pageIndex = table.getState().pagination.pageIndex;
+    const totalPages = table.getPageCount();
+    let startPage = Math.max(0, pageIndex - Math.floor(maxPagesToShow / 2));
+    const endPage = Math.min(totalPages - 1, startPage + maxPagesToShow - 1);
+
+    if (endPage - startPage < maxPagesToShow - 1) {
+      startPage = Math.max(0, endPage - maxPagesToShow + 1);
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+      items.push(
+        <Pagination.Item
+          key={i}
+          active={i === pageIndex}
+          onClick={() => table.setPageIndex(i)}
+        >
+          {i + 1}
+        </Pagination.Item>
+      );
+    }
+    return items;
+  };
+
   return (
     <div className="m-1">
-      <ToastContainer /> {/* Add ToastContainer for notifications */}
+      <ToastContainer />
       {!showAddOutlet ? (
-        <>
-          <div className="d-flex justify-content-between align-items-center mb-3">
-            <h4>Outlet List</h4>
-            <div>
+        <Card className="m-1">
+          <div className="d-flex justify-content-between align-items-center p-3 border-bottom">
+            <h4 className="mb-0">Outlet List</h4>
+            <div style={{ display: 'flex', gap: '10px' }}>
               <div className="form-check form-check-inline">
                 <input className="form-check-input" type="checkbox" id="showDeactivated" style={{ borderColor: '#333' }} />
                 <label className="form-check-label" htmlFor="showDeactivated">
@@ -356,102 +573,84 @@ const OutletList: React.FC = () => {
               </button>
             </div>
           </div>
-          <div className="table-responsive">
-            <table className="table table-bordered table-hover">
-              <thead className="thead-light">
-                <tr>
-                  <th>Sr No</th>
-                  <th>Logo</th>
-                  <th>Market Id</th>
-                  <th>Outlet Id</th>
-                  <th>Outlet Name</th>
-                  <th>Phone</th>
-                  <th>Location</th>
-                  <th>Brand Name</th>
-                  <th>Active</th>
-                  <th>Digital Order</th>
-                  <th>Next Reset Bill Date</th>
-                  <th>Registered At</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {outlets.map((outlet, index) => (
-                  <tr key={outlet.outletid}>
-                    <td>{index + 1}</td>
-                    <td>
-                      <span className="badge bg-light text-dark">{outlet.logo || 'N/A'}</span>
-                    </td>
-                    <td>{outlet.market_id || 'N/A'}</td>
-                    <td>{outlet.outletid}</td>
-                    <td>{outlet.outlet_name}</td>
-                    <td>{outlet.phone || 'N/A'}</td>
-                    <td>{outlet.address || 'N/A'}</td>
-                    <td>{outlet.brand_name || 'N/A'}</td>
-                    <td>
-                      <span className={`badge ${outlet.status === 0 ? 'bg-success' : 'bg-danger'}`}>
-                        {outlet.status === 0 ? 'Yes' : 'No'}
+          <div className="p-3">
+            <div className="mb-3">
+              <input
+                type="text"
+                className="form-control rounded-pill"
+                placeholder="Search..."
+                value={searchTerm}
+                onChange={onSearchChange}
+                style={{ width: '350px', borderColor: '#ccc', borderWidth: '2px' }}
+              />
+            </div>
+            <div className="flex-grow-1" style={{ overflowY: 'auto' }}>
+              {loading ? (
+                <Stack className="align-items-center justify-content-center flex-grow-1 h-100">
+                  <Preloader />
+                </Stack>
+              ) : (
+                <>
+                  <Table responsive hover className="mb-4">
+                    <thead className="thead-light">
+                      {table.getHeaderGroups().map((headerGroup) => (
+                        <tr key={headerGroup.id}>
+                          {headerGroup.headers.map((header) => (
+                            <th key={header.id} style={{ width: header.column.columnDef.size, textAlign: header.id === 'actions' ? 'left' : 'center' }}>
+                              {flexRender(header.column.columnDef.header, header.getContext())}
+                            </th>
+                          ))}
+                        </tr>
+                      ))}
+                    </thead>
+                    <tbody>
+                      {table.getRowModel().rows.map((row) => (
+                        <tr key={row.id}>
+                          {row.getVisibleCells().map((cell) => (
+                            <td key={cell.id} style={{ textAlign: cell.column.id === 'actions' ? 'left' : 'center' }}>
+                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
+                  <Stack direction="horizontal" className="justify-content-between align-items-center">
+                    <div>
+                      <Form.Select
+                        value={table.getState().pagination.pageSize}
+                        onChange={(e) => table.setPageSize(Number(e.target.value))}
+                        style={{ width: '100px', display: 'inline-block', marginRight: '10px' }}
+                      >
+                        <option value="5">5</option>
+                        <option value="10">10</option>
+                        <option value="20">20</option>
+                        <option value="50">50</option>
+                      </Form.Select>
+                      <span className="text-muted">
+                        Showing {table.getRowModel().rows.length} of {outlets.length} entries
                       </span>
-                    </td>
-                    <td>{outlet.digital_order ? 'Yes' : 'No'}</td>
-                    <td>{outlet.next_reset_bill_date || 'N/A'}</td>
-                    <td>{outlet.registered_at || 'N/A'}</td>
-                    <td>
-                      <div className="btn-group" role="group">
-                        <button
-                          className="btn btn-sm btn-success"
-                          title="Edit Item"
-                          onClick={() => handleShowModal('Edit Item', outlet)}
-                          style={{ marginRight: '5px' }}
-                        >
-                          <i className="fi fi-rr-edit"></i>
-                        </button>
-                        <button
-                          className="btn btn-sm btn-info"
-                          title="Modify Outlet Configuration"
-                          onClick={() => handleModifyClick(outlet)}
-                          style={{ marginRight: '5px' }}
-                        >
-                          <i className="fi fi-rr-document"></i>
-                        </button>
-                        <button
-                          className="btn btn-sm btn-success"
-                          title="Modify Outlet Setting"
-                          onClick={() => handleShowModal('Modify Outlet Setting', outlet)}
-                          style={{ marginRight: '5px' }}
-                        >
-                          <i className="fi fi-rr-settings"></i>
-                        </button>
-                        <button
-                          className="btn btn-sm btn-secondary"
-                          title="Download QR Code"
-                          onClick={() => handleShowModal('Download QR Code', outlet)}
-                          style={{ marginRight: '5px' }}
-                        >
-                          <i className="fi fi-rr-qrcode"></i>
-                        </button>
-                        <button
-                          className="btn btn-sm btn-danger"
-                          title="Delete Outlet"
-                          onClick={() => handleDeleteOutlet(outlet.outletid!)}
-                          style={{ marginRight: '5px' }}
-                        >
-                          <i className="fi fi-rr-trash"></i>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </div>
+                    <Pagination>
+                      <Pagination.Prev
+                        onClick={() => table.previousPage()}
+                        disabled={!table.getCanPreviousPage()}
+                      />
+                      {getPaginationItems()}
+                      <Pagination.Next
+                        onClick={() => table.nextPage()}
+                        disabled={!table.getCanNextPage()}
+                      />
+                    </Pagination>
+                  </Stack>
+                </>
+              )}
+            </div>
           </div>
-          <div className="d-flex justify-content-center">
-          </div>
-        </>
+        </Card>
       ) : (
         <AddOutlet Outlet={selectedOutlet} onBack={handleBackToOutletList} />
       )}
-      
 
       <Modal
         show={showModal}
@@ -1281,11 +1480,12 @@ const OutletList: React.FC = () => {
               <Row className="mb-3">
                 <Col md={6}>
                   <Form.Group controlId="status">
-                    <Form.Label>Active</Form.Label>
+                    <Form.Label>Status</Form.Label>
                     <Form.Check
                       type="switch"
-                      checked={status}
-                      onChange={(e) => setStatus(e.target.checked)}
+                      label={status ? 'Active' : 'Inactive'} // Display "Active" when checked, "Inactive" when unchecked
+                      checked={status} // True for Active (status = 0), false for Inactive (status = 1)
+                      onChange={(e) => setStatus(e.target.checked)} // Sets status to true (Active) or false (Inactive)
                     />
                   </Form.Group>
                 </Col>

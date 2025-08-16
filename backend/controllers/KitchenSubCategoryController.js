@@ -6,18 +6,18 @@ exports.getKitchenSubCategory = (req, res) => {
 };
 
 exports.addKitchenSubCategory  = (req, res) => {
-    const { Kitchen_sub_category,kitchencategoryid, kitchenmaingroupid,  status, created_by_id, created_date, hotelid, marketid , updated_by_id, updated_date} = req.body;
-    const stmt = db.prepare('INSERT INTO mstkitchensubcategory (Kitchen_sub_category,kitchencategoryid, kitchenmaingroupid, status, created_by_id, created_date, hotelid, marketid, updated_by_id, updated_date) VALUES (?, ?, ?, ?, ?, ?, ? ,? ,?, ?)');
-    const result = stmt.run(Kitchen_sub_category, kitchencategoryid, kitchenmaingroupid, status, created_by_id, created_date, hotelid, marketid, updated_by_id, updated_date );
-    res.json({ id: result.lastInsertRowid, Kitchen_sub_category, kitchencategoryid, kitchenmaingroupid,  status, created_by_id, created_date, hotelid, marketid, updated_by_id, updated_date  });
+    const { Kitchen_sub_category,kitchencategoryid, kitchenmaingroupid,  status, created_by_id, created_date, hotelid, marketid } = req.body;
+    const stmt = db.prepare('INSERT INTO mstkitchensubcategory (Kitchen_sub_category,kitchencategoryid, kitchenmaingroupid, status, created_by_id, created_date, hotelid, marketid) VALUES (?, ?, ?, ?, ?, ?, ? ,?)');
+    const result = stmt.run(Kitchen_sub_category, kitchencategoryid, kitchenmaingroupid, status, created_by_id, created_date, hotelid, marketid);
+    res.json({ id: result.lastInsertRowid, Kitchen_sub_category, kitchencategoryid, kitchenmaingroupid,  status, created_by_id, created_date, hotelid, marketid });
 };
 
 exports.updateKitchenSubCategory = (req, res) => {
     const { id } = req.params;
-    const { Kitchen_sub_category,  kitchencategoryid, kitchenmaingroupid, status} = req.body;
-    const stmt = db.prepare('UPDATE mstkitchensubcategory  SET Kitchen_sub_category = ?, kitchencategoryid = ?, kitchenmaingroupid = ?, status = ? WHERE kitchensubcategoryid = ?');
-    stmt.run(Kitchen_sub_category,  kitchencategoryid, kitchenmaingroupid, status, id);
-    res.json({ id, Kitchen_sub_category,  kitchencategoryid, kitchenmaingroupid, status});
+    const { Kitchen_sub_category,  kitchencategoryid, kitchenmaingroupid, updated_by_id, updated_date, status} = req.body;
+    const stmt = db.prepare('UPDATE mstkitchensubcategory  SET Kitchen_sub_category = ?, kitchencategoryid = ?, kitchenmaingroupid = ?, updated_by_id = ?, updated_date = ?, status = ? WHERE kitchensubcategoryid = ?');
+    stmt.run(Kitchen_sub_category,  kitchencategoryid, kitchenmaingroupid, updated_by_id, updated_date, status, id);
+    res.json({ id, Kitchen_sub_category,  kitchencategoryid, kitchenmaingroupid, updated_by_id, updated_date, status});
 };
 
 

@@ -10,9 +10,9 @@ const Database = require('better-sqlite3');
 
   // const db = new Database(path.join('D:','Restrauntdb', 'miresto.db')); //sudarshan
 
-//const db = new Database(path.join('D:', 'Restaurant_Database', 'miresto.db'));//Sharmin
+const db = new Database(path.join('D:', 'Restaurant_Database', 'miresto.db'));//Sharmin
 
-db = new Database(path.join('E:', 'ReactHotelData', 'miresto.db'));
+//db = new Database(path.join('E:', 'ReactHotelData', 'miresto.db'));
 
 // ✅ Create tables (once)
 db.exec(`
@@ -61,7 +61,7 @@ db.exec(`
     created_date TEXT,
     updated_by_id INTEGER,
     updated_date TEXT,
-    hotel_id INTEGER,
+    hotelid INTEGER,
     client_code TEXT
 );
 CREATE TABLE IF NOT EXISTS mstkitchencategory(
@@ -168,8 +168,6 @@ Masteruserid INTEGER
 CREATE TABLE IF NOT EXISTS mst_Item_Main_Group (
 item_maingroupid INTEGER PRIMARY KEY AUTOINCREMENT,
 item_group_name text(200),
-description text(200),
-kitchencategoryid INTEGER ,
 status INTEGER ,
 created_by_id INTEGER,
 created_date DATETIME,

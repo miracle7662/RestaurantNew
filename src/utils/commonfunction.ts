@@ -114,6 +114,7 @@ export interface MenuItem {
  item_name: string
  print_name : string
  short_name : string
+ item_group_id: number | null;
  price: number
  status: number
 }
@@ -397,21 +398,31 @@ export const fetchUserType = async (
 export const fetchMenu = async (
   setMenuCategory: (data: MenuItem[]) => void,
   setmenuid: (id: number) => void,
-  currentmenucategoryid?: string,    
-  ) => {
-    try {       
-      const res = await fetch('http://localhost:3001/api/Menu')
-      const data: MenuItem[] = await res.json()
-      setMenuCategory(data)
-      if(data.length > 0 && !currentmenucategoryid){
-        setmenuid(data[0].menuid);
-      }
-    } catch (err) {
-      toast.error('Failed to fetch menu categories')
-      console.error('Fetch menu categories error:', err)
-      setMenuCategory([])
+  currentmenucategoryid?: string
+) => {
+  try {
+    const res = await fetch('http://localhost:3001/api/menu');
+    const rawData = await res.json();
+    const data: MenuItem[] = rawData.map((item: any) => ({
+      menuid: item.restitemid || item.menuid, // Handle both cases
+      item_no: String(item.item_no),
+      item_name: item.item_name,
+      print_name: item.print_name || item.item_name,
+      short_name: item.short_name || '',
+      item_group_id: item.item_group_id ?? null,
+      price: item.price || 0,
+      status: item.status,
+    }));
+    setMenuCategory(data);
+    if (data.length > 0 && !currentmenucategoryid) {
+      setmenuid(data[0].menuid);
     }
+  } catch (err) {
+    toast.error('Failed to fetch menu categories');
+    console.error('Fetch menu categories error:', err);
+    setMenuCategory([]);
   }
+};
 
 export const fetchTableManagement = async (
   setTableManagement: (data: TableItem[]) => void,    

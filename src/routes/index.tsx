@@ -33,7 +33,7 @@ const MessageMaster = React.lazy(() => import('../views/apps/Masters/CommanMaste
 const Market = React.lazy(() => import('../views/apps/Masters/CommanMasters/Market'))
 const Brand = React.lazy(() => import('../views/apps/Masters/CommanMasters/Brand'))
 const Outlet = React.lazy(() => import('../views/apps/Masters/CommanMasters/Outlet/Outlet'))
-const OutletDesignation = React.lazy(() => import('../views/apps/Masters/CommanMasters/MstDesignation'))
+const OutletDesignation = React.lazy(() => import('../views/apps/Masters/CommanMasters/OutletDesignation'))
 const OutletUser = React.lazy(() => import('../views/apps/Masters/CommanMasters/OutletUser/OutletUser'))
 const OutletPaymentMode = React.lazy(() => import('../views/apps/Masters/CommanMasters/OutletPaymentMode'))
 const OrderTypeConfiguration = React.lazy(() => import('../views/apps/Masters/RestaurantMasters/OrderTypeConfiguration'))
