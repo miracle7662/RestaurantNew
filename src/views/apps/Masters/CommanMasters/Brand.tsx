@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { Preloader } from '@/components/Misc/Preloader';
-import { Button, Card, Stack, Table } from 'react-bootstrap';
+import { Button, Card, Stack, Table, Form, Pagination } from 'react-bootstrap';
 import TitleHelmet from '@/components/Common/TitleHelmet';
 import {
   useReactTable,
@@ -61,6 +61,14 @@ interface RegisterUserModalProps {
   onSuccess: () => void;
 }
 
+// Debounce utility function
+const debounce = (func: (...args: any[]) => void, wait: number) => {
+  let timeout: NodeJS.Timeout;
+  return (...args: any[]) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  };
+};
 const RegisterUserModal: React.FC<RegisterUserModalProps> = ({ show, onHide, brand, onSuccess }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -546,7 +554,48 @@ const BrandList: React.FC = () => {
     }
   };
 
-  return (
+    const handleSearch = useCallback(
+      debounce((value: string) => {
+        table.setGlobalFilter(value);
+      }, 300),
+      [table]
+    );
+    const onSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+    handleSearch(value);
+  };
+
+
+   const getPaginationItems = () => {
+    const items = [];
+    const maxPagesToShow = 5;
+    const pageIndex = table.getState().pagination.pageIndex;
+    const totalPages = table.getPageCount();
+    let startPage = Math.max(0, pageIndex - Math.floor(maxPagesToShow / 2));
+    const endPage = Math.min(totalPages - 1, startPage + maxPagesToShow - 1);
+
+    if (endPage - startPage < maxPagesToShow - 1) {
+      startPage = Math.max(0, endPage - maxPagesToShow + 1);
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+      items.push(
+        <Pagination.Item
+          key={i}
+          active={i === pageIndex}
+          onClick={() => table.setPageIndex(i)}
+        >
+          {i + 1}
+        </Pagination.Item>
+      );
+    }
+    return items;
+  };
+
+
+  
+return (
     <>
       <TitleHelmet title="Brand List" />
       <Card className="m-1">
@@ -564,38 +613,78 @@ const BrandList: React.FC = () => {
           )}
         </div>
         <div className="p-3">
+          <div className="mb-3">
+            <input
+              type="text"
+              className="form-control rounded-pill"
+              placeholder="Search..."
+              value={searchTerm}
+              onChange={onSearchChange}
+              style={{ width: '350px', borderColor: '#ccc', borderWidth: '2px' }}
+            />
+          </div>
           {loading ? (
             <Stack className="align-items-center justify-content-center flex-grow-1 h-100">
               <Preloader />
             </Stack>
           ) : (
-            <Table responsive>
-              <thead>
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <tr key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => (
-                      <th
-                        key={header.id}
-                        style={{ width: header.column.columnDef.size, textAlign: header.id === 'actions' ? 'left' : 'center' }}
-                      >
-                        {flexRender(header.column.columnDef.header, header.getContext())}
-                      </th>
-                    ))}
-                  </tr>
-                ))}
-              </thead>
-              <tbody>
-                {table.getRowModel().rows.map((row) => (
-                  <tr key={row.id}>
-                    {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} style={{ textAlign: cell.column.id === 'actions' ? 'left' : 'center' }}>
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </Table>
+            <>
+              <Table responsive>
+                <thead>
+                  {table.getHeaderGroups().map((headerGroup) => (
+                    <tr key={headerGroup.id}>
+                      {headerGroup.headers.map((header) => (
+                        <th
+                          key={header.id}
+                          style={{ width: header.column.columnDef.size, textAlign: header.id === 'actions' ? 'left' : 'center' }}
+                        >
+                          {flexRender(header.column.columnDef.header, header.getContext())}
+                        </th>
+                      ))}
+                    </tr>
+                  ))}
+                </thead>
+                <tbody>
+                  {table.getRowModel().rows.map((row) => (
+                    <tr key={row.id}>
+                      {row.getVisibleCells().map((cell) => (
+                        <td key={cell.id} style={{ textAlign: cell.column.id === 'actions' ? 'left' : 'center' }}>
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+              <Stack direction="horizontal" className="justify-content-between align-items-center mt-3">
+                <div>
+                  <Form.Select
+                    value={table.getState().pagination.pageSize}
+                    onChange={(e) => table.setPageSize(Number(e.target.value))}
+                    style={{ width: '100px', display: 'inline-block', marginRight: '10px' }}
+                  >
+                    <option value="5">5</option>
+                    <option value="10">10</option>
+                    <option value="20">20</option>
+                    <option value="50">50</option>
+                  </Form.Select>
+                  <span className="text-muted">
+                    Showing {table.getRowModel().rows.length} of {filteredHotelMasters.length} entries
+                  </span>
+                </div>
+                <Pagination>
+                  <Pagination.Prev
+                    onClick={() => table.previousPage()}
+                    disabled={!table.getCanPreviousPage()}
+                  />
+                  {getPaginationItems()}
+                  <Pagination.Next
+                    onClick={() => table.nextPage()}
+                    disabled={!table.getCanNextPage()}
+                  />
+                </Pagination>
+              </Stack>
+            </>
           )}
         </div>
       </Card>
@@ -629,6 +718,7 @@ const BrandList: React.FC = () => {
     </>
   );
 };
+
 
 interface AddHotelMastersModalProps {
   show: boolean;

@@ -89,7 +89,7 @@ const Designation: React.FC = () => {
         cell: ({ row }) => <div style={{ textAlign: 'center' }}>{row.index + 1}</div>,
       },
       {
-        accessorKey: 'Designation',
+        accessorKey: 'designation',
         header: 'Designation',
         size: 200,
         cell: (info) => <div style={{ textAlign: 'center' }}>{info.getValue<string>()}</div>,

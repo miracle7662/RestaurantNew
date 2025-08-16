@@ -61,7 +61,7 @@ db.exec(`
     created_date TEXT,
     updated_by_id INTEGER,
     updated_date TEXT,
-    hotel_id INTEGER,
+    hotelid INTEGER,
     client_code TEXT
 );
 CREATE TABLE IF NOT EXISTS mstkitchencategory(
