@@ -15,9 +15,9 @@ import {
 } from '@tanstack/react-table';
 
 interface DesignationItem {
-  designationid: string;
   Designation: string;
-  status: string | number;
+  designationid: string;
+  status: string;
   created_by_id: string;
   created_date: string;
   updated_by_id: string;
@@ -29,8 +29,8 @@ interface DesignationItem {
 interface DesignationModalProps {
   show: boolean;
   onHide: () => void;
-  designation: DesignationItem | null;
   onSuccess: () => void;
+  designation: DesignationItem | null;
   onUpdateSelectedDesignation?: (designation: DesignationItem) => void;
 }
 
@@ -43,9 +43,8 @@ const debounce = (func: (...args: any[]) => void, wait: number) => {
   };
 };
 
-// Status badge for table
-const getStatusBadge = (status: number | string) => {
-  return Number(status) === 0 ? (
+const getStatusBadge = (status: number) => {
+  return status === 0 ? (
     <span className="badge bg-success">Active</span>
   ) : (
     <span className="badge bg-danger">Inactive</span>
@@ -54,29 +53,29 @@ const getStatusBadge = (status: number | string) => {
 
 // Main Designation Component
 const Designation: React.FC = () => {
-  const { user } = useAuthContext();
-  const [designationItems, setDesignationItems] = useState<DesignationItem[]>([]);
+  const [designationItem, setDesignationItem] = useState<DesignationItem[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [showModal, setShowModal] = useState(false);
   const [selectedDesignation, setSelectedDesignation] = useState<DesignationItem | null>(null);
+  const { user } = useAuthContext();
 
-  const fetchDesignations = async () => {
+  const fetchDesignation = async () => {
     try {
       setLoading(true);
-      const res = await fetch('http://localhost:3001/api/designation');
+      const res = await fetch('http://localhost:3001/api/Designation');
       const data = await res.json();
-      console.log('Fetched designations:', data);
-      setDesignationItems(data);
+      console.log('Fetched Designation:', data);
+      setDesignationItem(data);
     } catch (err) {
-      toast.error('Failed to fetch Designations');
+      toast.error('Failed to fetch Designation');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchDesignations();
+    fetchDesignation();
   }, []);
 
   // Define columns for react-table with explicit widths
@@ -100,7 +99,11 @@ const Designation: React.FC = () => {
         size: 150,
         cell: (info) => {
           const statusValue = info.getValue<string | number>();
-          return <div style={{ textAlign: 'center' }}>{getStatusBadge(statusValue)}</div>;
+          return (
+            <div style={{ textAlign: 'center' }}>
+              {getStatusBadge(Number(statusValue))}
+            </div>
+          );
         },
       },
       {
@@ -132,7 +135,7 @@ const Designation: React.FC = () => {
 
   // Initialize react-table with pagination and filtering
   const table = useReactTable({
-    data: designationItems,
+    data: designationItem,
     columns,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
@@ -177,9 +180,9 @@ const Designation: React.FC = () => {
     });
     if (res.isConfirmed) {
       try {
-        await fetch(`http://localhost:3001/api/designation/${designation.designationid}`, { method: 'DELETE' });
+        await fetch(`http://localhost:3001/api/Designation/${designation.designationid}`, { method: 'DELETE' });
         toast.success('Deleted successfully');
-        fetchDesignations();
+        fetchDesignation();
         setSelectedDesignation(null);
       } catch {
         toast.error('Failed to delete');
@@ -214,7 +217,7 @@ const Designation: React.FC = () => {
   };
 
   // Combined DesignationModal Component
-  const DesignationModal: React.FC<DesignationModalProps> = ({ show, onHide, designation, onSuccess, onUpdateSelectedDesignation }) => {
+  const DesignationModal: React.FC<DesignationModalProps> = ({ show, onHide, onSuccess, designation, onUpdateSelectedDesignation }) => {
     const [designationName, setDesignationName] = useState('');
     const [status, setStatus] = useState('Active');
     const [loading, setLoading] = useState(false);
@@ -231,7 +234,7 @@ const Designation: React.FC = () => {
         setDesignationName('');
         setStatus('Active');
       }
-    }, [designation, isEditMode]);
+    }, [designation]);
 
     const handleSubmit = async () => {
       if (!designationName || !status) {
@@ -243,30 +246,32 @@ const Designation: React.FC = () => {
       try {
         const statusValue = status === 'Active' ? 0 : 1;
         const currentDate = new Date().toISOString();
-        const userId = user?.id || '1';
-        const hotelId = user?.hotelid || '1';
-        const marketId = user?.marketid || '1';
+        const userId = user.id || '1';
+        const hotelId = user.hotelid || '1';
+        const marketId = user.marketid || '1';
         const payload = {
-          designation: designationName,
+          Designation: designationName,
           status: statusValue,
-          hotelid: isEditMode ? designation!.hotelid || hotelId : hotelId,
-          marketid: isEditMode ? designation!.marketid || marketId : marketId,
           ...(isEditMode
             ? {
                 designationid: designation!.designationid,
                 updated_by_id: userId,
                 updated_date: currentDate,
+                hotelid: designation!.hotelid || hotelId,
+                marketid: designation!.marketid || marketId,
               }
             : {
                 created_by_id: userId,
                 created_date: currentDate,
+                hotelid: hotelId,
+                marketid: marketId,
               }),
         };
         console.log('Sending to backend:', payload);
 
         const url = isEditMode
-          ? `http://localhost:3001/api/designation/${designation!.designationid}`
-          : 'http://localhost:3001/api/designation';
+          ? `http://localhost:3001/api/Designation/${designation!.designationid}`
+          : 'http://localhost:3001/api/Designation';
         const method = isEditMode ? 'PUT' : 'POST';
 
         const res = await fetch(url, {
@@ -280,16 +285,15 @@ const Designation: React.FC = () => {
           if (isEditMode && designation && onUpdateSelectedDesignation) {
             const updatedDesignation = {
               ...designation,
-              designation: designationName,
+              Designation: designationName,
               status: statusValue.toString(),
               updated_by_id: userId,
               updated_date: currentDate,
-              hotelid: designation.hotelid || hotelId,
-              marketid: designation.marketid || marketId,
+              designationid: designation.designationid,
             };
             onUpdateSelectedDesignation(updatedDesignation);
           }
-         
+          setDesignationName('');
           setStatus('Active');
           onSuccess();
           onHide();
@@ -356,19 +360,6 @@ const Designation: React.FC = () => {
   return (
     <>
       <TitleHelmet title="Designation List" />
-      <style>
-        {`
-          .apps-card,
-          .apps-sidebar-left,
-          .apps-container {
-            transition: all 0.3s ease-in-out;
-          }
-          .table-container {
-            max-height: calc(100vh - 200px); /* Adjusted for header and search bar */
-            overflow-y: auto;
-          }
-        `}
-      </style>
       <Card className="m-1">
         <div className="d-flex justify-content-between align-items-center p-3 border-bottom">
           <h4 className="mb-0">Designation List</h4>
@@ -389,7 +380,7 @@ const Designation: React.FC = () => {
               style={{ width: '350px', borderColor: '#ccc', borderWidth: '2px' }}
             />
           </div>
-          <div className="table-container" style={{ overflowY: 'auto' }}>
+          <div className="flex-grow-1" style={{ overflowY: 'auto' }}>
             {loading ? (
               <Stack className="align-items-center justify-content-center flex-grow-1 h-100">
                 <Preloader />
@@ -433,7 +424,7 @@ const Designation: React.FC = () => {
                       <option value="50">50</option>
                     </Form.Select>
                     <span className="text-muted">
-                      Showing {table.getRowModel().rows.length} of {designationItems.length} entries
+                      Showing {table.getRowModel().rows.length} of {designationItem.length} entries
                     </span>
                   </div>
                   <Pagination>
@@ -460,7 +451,7 @@ const Designation: React.FC = () => {
           setSelectedDesignation(null);
         }}
         designation={selectedDesignation}
-        onSuccess={fetchDesignations}
+        onSuccess={fetchDesignation}
         onUpdateSelectedDesignation={setSelectedDesignation}
       />
     </>
