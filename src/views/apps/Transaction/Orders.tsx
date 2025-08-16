@@ -101,38 +101,46 @@ const Order = () => {
   const [describe, setDescribe] = useState<string>('');
 
   // Fetch tables from the TableManagement API
-  const fetchTableManagement = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch('http://localhost:3001/api/tablemanagement', {
-        headers: { 'Content-Type': 'application/json' },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        console.log('Raw tableItems data:', JSON.stringify(data, null, 2));
-        if (!Array.isArray(data)) {
-          setErrorMessage('Invalid data format received from TableManagement API.');
-          setTableItems([]);
-          setFilteredTables([]);
-        } else if (data.length === 0) {
-          setErrorMessage('No tables found in TableManagement API.');
-          setTableItems([]);
-          setFilteredTables([]);
-        } else {
-          setTableItems(data);
-          setFilteredTables(data);
-        }
+const fetchTableManagement = async () => {
+  setLoading(true);
+  try {
+    const res = await fetch('http://localhost:3001/api/tablemanagement', {
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (res.ok) {
+      const response = await res.json();
+      console.log('Raw tableItems data:', JSON.stringify(response, null, 2));
+      if (response.success && Array.isArray(response.data)) {
+        const formattedData = response.data.map((item: any) => ({
+          ...item,
+          status: Number(item.status), // Convert status to number
+        }));
+        setTableItems(formattedData);
+        setFilteredTables(formattedData);
+        setErrorMessage('');
+      } else if (response.success && response.data.length === 0) {
+        setErrorMessage('No tables found in TableManagement API.');
+        setTableItems([]);
+        setFilteredTables([]);
       } else {
-        setErrorMessage(`Failed to fetch tables: ${res.status} ${res.statusText}`);
+        setErrorMessage(response.message || 'Invalid data format received from TableManagement API.');
+        setTableItems([]);
+        setFilteredTables([]);
       }
-    } catch (err) {
-      console.error('Table fetch error:', err);
-      setErrorMessage('Failed to fetch tables. Please check the API endpoint.');
-    } finally {
-      setLoading(false);
+    } else {
+      setErrorMessage(`Failed to fetch tables: ${res.status} ${res.statusText}`);
+      setTableItems([]);
+      setFilteredTables([]);
     }
-  };
-
+  } catch (err) {
+    console.error('Table fetch error:', err);
+    setErrorMessage('Failed to fetch tables. Please check the API endpoint.');
+    setTableItems([]);
+    setFilteredTables([]);
+  } finally {
+    setLoading(false);
+  }
+};
   useEffect(() => {
     setFilteredCustomers(customers);
   }, [customers]);
