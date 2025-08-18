@@ -2,7 +2,12 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 //import 'bootstrap/dist/css/bootstrap.min.css';
 
-const AddOutlet: React.FC = () => {
+interface AddOutletProps {
+  Outlet: OutletData | null;
+  onBack: () => void;
+}
+
+const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
   const [formData, setFormData] = useState({
     outletName: '',
     email: '',

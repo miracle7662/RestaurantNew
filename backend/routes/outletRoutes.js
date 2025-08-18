@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const outletController = require('../controllers/outletController');
 
-// Get brands/hotels for dropdown
 router.get('/brands', outletController.getBrands);
 
 // Get all outlets

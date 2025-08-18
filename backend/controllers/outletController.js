@@ -31,13 +31,13 @@ exports.getOutlets = (req, res) => { // Assuming this is the endpoint
     console.log('Received req.query:', req.query);
 
     let query = `
-     SELECT o.outletid, o.outlet_name, o.outlet_code, 
+          SELECT o.*,o.outletid, o.outlet_name, o.outlet_code, 
              b.hotel_name as brand_name
       FROM mst_outlets o
       INNER JOIN msthotelmasters b ON o.hotelid = b.hotelid
       left JOIN user_outlet_mapping uom ON o.outletid = uom.outletid
-      left JOIN mst_users u ON u.userid = uom.userid
-      WHERE o.status = 0 
+      left JOIN mst_users u ON u.userid = uom.userid  
+      where     
     `;
     
     const params = [];
@@ -46,15 +46,15 @@ exports.getOutlets = (req, res) => { // Assuming this is the endpoint
       case 'superadmin':
         break; // All active outlets
       case 'brand_admin':
-        query += ' AND o.brand_id = ?';
+        query += '  o.brand_id = ?';
         params.push(brandId);
         break;
       case 'hotel_admin':
-        query += ' AND o.hotelid = ?';
+        query += '  o.hotelid = ?';
         params.push(hotelid);
         break;
       case 'outlet_user':
-        query += ' AND o.hotelid = ? AND uom.userid = ?';
+        query += '  o.hotelid = ? AND uom.userid = ?';
         params.push(hotelid, userid || user.userid);
         if (!params[params.length - 1]) {
           return res.status(400).json({ message: 'User ID is required for outlet_user' });
