@@ -115,6 +115,7 @@ const fetchTableManagement = async () => {
           ...item,
           status: Number(item.status), // Convert status to number
         }));
+        
         setTableItems(formattedData);
         setFilteredTables(formattedData);
         setErrorMessage('');
