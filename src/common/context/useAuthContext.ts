@@ -1,22 +1,27 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
 // Define the context and provider
+interface User {
+  userid: number;
+  username: string;
+  role_level: string;
+}
+
 interface AuthContextType {
-  user: { userid: number; username: string; role_level: string } | null;
+  user: User | null;
+  isAuthenticated: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<{ userid: number; username: string; role_level: string } | null>(null);
+  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
-    // Fetch user data from local storage or API
     const fetchUser = async () => {
-      // Simulate fetching user data
-      const userData = await new Promise((resolve) => {
+      const userData = await new Promise<User>((resolve) => {
         setTimeout(() => {
-          resolve({ userid: 1, username: 'admin', role_level: 'superadmin' } as { userid: number; username: string; role_level: string });
+          resolve({ userid: 1, username: 'admin', role_level: 'superadmin' });
         }, 1000);
       });
       setUser(userData);
@@ -26,7 +31,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, []);
 
   return (
-      <AuthContext.Provider value={{ user }}>
+<AuthContext.Provider value={{ user, isAuthenticated: Boolean(user) }}>
       {children}
     </AuthContext.Provider>
   );
