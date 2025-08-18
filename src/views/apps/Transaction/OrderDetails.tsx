@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Dispatch, SetStateAction, useRef, useMemo } from 'react';
+import React, { useState, useEffect, Dispatch, SetStateAction, useRef, useMemo, useCallback } from 'react';
 import { Row, Col, Card } from 'react-bootstrap';
 import { fetchItemGroup, ItemGroupItem, fetchMenu, MenuItem } from '@/utils/commonfunction';
 
@@ -18,7 +18,7 @@ interface CardItem {
   shortName: string;
   price: number;
   cardStatus: string;
-  item_group_id: number | null; // Supports categorization
+  item_group_id: number | null;
 }
 
 // Interface for component props
@@ -32,7 +32,7 @@ interface OrderDetailsProps {
   setInvalidTable: Dispatch<SetStateAction<string>>;
 }
 
-// Define the category keys as a union type (aligned with Menu.tsx)
+// Define the category keys as a union type
 type Category =
   | 'All'
   | 'Appetizers'
@@ -91,11 +91,12 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
   const [itemGroup, setItemGroup] = useState<ItemGroupItem[]>([]);
   const [itemGroupId, setItemGroupId] = useState<number | null>(null);
   const [cardItems, setCardItems] = useState<CardItem[]>([]);
-  const [showCodeDropdown, setShowCodeDropdown] = useState<boolean>(false);
   const [showNameDropdown, setShowNameDropdown] = useState<boolean>(false);
+  const [selectedNameIndex, setSelectedNameIndex] = useState(-1);
 
   const codeInputRef = useRef<HTMLInputElement>(null);
   const quantityInputRef = useRef<HTMLInputElement>(null);
+  const nameInputRef = useRef<HTMLInputElement>(null);
 
   const validTables = [
     'F1', 'F2', 'F3', 'F4', 'F5', 'F5A', 'F6', 'R2', 'R3', 'R4',
@@ -103,7 +104,6 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
     'S3', '104', '105',
   ];
 
-  // Function to map item_group_id to Category (aligned with Menu.tsx)
   const getCategoryFromItemGroup = (itemGroupId: number | null): Category => {
     if (!itemGroupId) return 'All';
     const group = itemGroup.find(g => g.item_groupid === itemGroupId);
@@ -127,7 +127,6 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
     const handleResize = () => {
       setIsMobile(window.innerWidth < 768);
     };
-
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
@@ -155,30 +154,23 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch item groups first
         await fetchItemGroup(setItemGroup, setItemGroupId);
-        console.log('Fetched itemGroup:', itemGroup);
-
-        // Fetch menu after item groups
         await fetchMenu(
           (data: MenuItem[]) => {
             const mappedItems: CardItem[] = data
-              .filter(item => item.status === 1) // Align with Menu.tsx (status === 1 is active)
+              .filter(item => item.status === 1)
               .map(item => ({
-                userId: String(item.menuid), // Use menuid instead of restitemid
-                itemCode: String(item.item_no), // Ensure string type
+                userId: String(item.menuid),
+                itemCode: String(item.item_no),
                 ItemName: item.item_name,
                 shortName: item.short_name || '',
                 price: item.price || 0,
-                item_group_id: item.item_group_id, // Map item_group_id
+                item_group_id: item.item_group_id,
                 cardStatus: item.status === 1 ? '✅ Available' : '❌ Unavailable',
               }));
             setCardItems(mappedItems);
-            console.log('Set cardItems:', mappedItems);
           },
-          (id: number) => {
-            console.log('Fetched menu ID:', id);
-          }
+          (id: number) => {}
         );
       } catch (error) {
         console.error('Fetch error:', error);
@@ -188,7 +180,6 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
     fetchData();
   }, []);
 
-  // Categorize items based on item_group_id
   const itemCategories = useMemo(() => {
     const categories: { [key in Category]: CardItem[] } = {
       All: cardItems,
@@ -202,15 +193,12 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
       Breakfast: [],
       VeganOptions: [],
     };
-
     cardItems.forEach((item) => {
       const category = getCategoryFromItemGroup(item.item_group_id);
       if (category !== 'All') {
         categories[category].push(item);
       }
     });
-
-    console.log('Populated itemCategories:', categories);
     return categories;
   }, [cardItems, itemGroup]);
 
@@ -233,31 +221,23 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
     setCategoryClicked(true);
   };
 
-  const filterItems = () => {
+  const filterItems = useCallback(() => {
     const baseItems = categoryClicked && selectedCategory !== 'All' ? itemCategories[selectedCategory] || [] : allItems;
-
     const filtered = baseItems.filter((item) => {
       const matchesCode = searchCode
         ? item.itemCode.toLowerCase().includes(searchCode.toLowerCase())
         : true;
       const matchesName = searchName
         ? item.ItemName.toLowerCase().includes(searchName.toLowerCase()) ||
-        item.shortName.toLowerCase().includes(searchName.toLowerCase())
+          item.shortName.toLowerCase().includes(searchName.toLowerCase())
         : true;
       return matchesCode && matchesName;
     });
-
-    console.log('Filtered items:', filtered);
     return filtered;
-  };
+  }, [searchCode, searchName, selectedCategory, categoryClicked, allItems, itemCategories]);
 
-  useEffect(() => {
-    setFilteredItems(filterItems());
-  }, [searchCode, searchName, selectedCategory, categoryClicked, cardItems]);
-
-  const filterDropdownItems = (type: 'code' | 'name') => {
+  const filterDropdownItems = useCallback((type: 'code' | 'name') => {
     const baseItems = categoryClicked && selectedCategory !== 'All' ? itemCategories[selectedCategory] || [] : allItems;
-
     return baseItems.filter((item) => {
       if (type === 'code') {
         return searchCode
@@ -266,17 +246,19 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
       } else {
         return searchName
           ? item.ItemName.toLowerCase().includes(searchName.toLowerCase()) ||
-          item.shortName.toLowerCase().includes(searchName.toLowerCase())
+            item.shortName.toLowerCase().includes(searchName.toLowerCase())
           : false;
       }
-    }).slice(0, 5);
-  };
+    }).slice(0, 7);
+  }, [searchCode, searchName, categoryClicked, selectedCategory, allItems, itemCategories]);
+
+  useEffect(() => {
+    setFilteredItems(filterItems());
+  }, [filterItems]);
 
   const handleCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const code = e.target.value; // Remove .trim() to allow spaces
+    const code = e.target.value;
     setSearchCode(code);
-    setShowCodeDropdown(!!code);
-    setShowNameDropdown(false); // Close name dropdown when typing in code
     const matchedItem = cardItems.find(
       (item) => item.itemCode.toLowerCase() === code.toLowerCase()
     );
@@ -288,10 +270,10 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
   };
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value; // Remove .trim() to allow spaces
+    const value = e.target.value;
     setSearchName(value);
     setShowNameDropdown(!!value);
-    setShowCodeDropdown(false); // Close code dropdown when typing in name
+    setSelectedNameIndex(-1);
     if (value === '') {
       setSearchCode('');
     } else {
@@ -309,8 +291,8 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
   const handleCodeSelect = (item: CardItem) => {
     setSearchCode(item.itemCode);
     setSearchName(item.ItemName);
-    setShowCodeDropdown(false);
     setShowNameDropdown(false);
+    setSelectedNameIndex(-1);
     if (quantityInputRef.current) {
       quantityInputRef.current.focus();
       quantityInputRef.current.select();
@@ -321,10 +303,59 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
     setSearchName(item.ItemName);
     setSearchCode(item.itemCode);
     setShowNameDropdown(false);
-    setShowCodeDropdown(false);
+    setSelectedNameIndex(-1);
     if (quantityInputRef.current) {
       quantityInputRef.current.focus();
       quantityInputRef.current.select();
+    }
+  };
+
+  const handleCodeKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const matchedItem = cardItems.find(
+        (item) => item.itemCode.toLowerCase() === searchCode.toLowerCase()
+      );
+      if (matchedItem) {
+        handleCodeSelect(matchedItem);
+      }
+    }
+  };
+
+  const handleNameKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    const dropdownItems = filterDropdownItems('name');
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (showNameDropdown && dropdownItems.length > 0) {
+        setSelectedNameIndex((prev) =>
+          prev < dropdownItems.length - 1 ? prev + 1 : prev
+        );
+      }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (showNameDropdown && dropdownItems.length > 0) {
+        setSelectedNameIndex((prev) => (prev > 0 ? prev - 1 : -1));
+      }
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (selectedNameIndex >= 0 && showNameDropdown) {
+        const selectedItem = dropdownItems[selectedNameIndex];
+        if (selectedItem) {
+          handleNameSelect(selectedItem);
+        }
+      } else if (searchName) {
+        const matchedItem = cardItems.find(
+          (item) =>
+            item.ItemName.toLowerCase() === searchName.toLowerCase() ||
+            item.shortName.toLowerCase() === searchName.toLowerCase()
+        );
+        if (matchedItem) {
+          handleNameSelect(matchedItem);
+        }
+      }
+    } else if (e.key === 'Escape') {
+      setShowNameDropdown(false);
+      setSelectedNameIndex(-1);
     }
   };
 
@@ -335,14 +366,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
         (item) => item.itemCode.toLowerCase() === searchCode.toLowerCase()
       );
       if (matchedItem) {
-        setSearchCode(matchedItem.itemCode);
-        setSearchName(matchedItem.ItemName);
-        setShowCodeDropdown(false);
-        setShowNameDropdown(false);
-        if (quantityInputRef.current) {
-          quantityInputRef.current.focus();
-          quantityInputRef.current.select();
-        }
+        handleCodeSelect(matchedItem);
       }
     }
   };
@@ -356,14 +380,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
           item.shortName.toLowerCase() === searchName.toLowerCase()
       );
       if (matchedItem) {
-        setSearchCode(matchedItem.itemCode);
-        setSearchName(matchedItem.ItemName);
-        setShowNameDropdown(false);
-        setShowCodeDropdown(false);
-        if (quantityInputRef.current) {
-          quantityInputRef.current.focus();
-          quantityInputRef.current.select();
-        }
+        handleNameSelect(matchedItem);
       }
     }
   };
@@ -382,8 +399,8 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
         setSearchCode('');
         setSearchName('');
         setQuantity('1');
-        setShowCodeDropdown(false);
         setShowNameDropdown(false);
+        setSelectedNameIndex(-1);
         if (codeInputRef.current) {
           codeInputRef.current.focus();
         }
@@ -409,7 +426,6 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
   };
 
   const totalAmount = items.reduce((sum, item) => sum + item.price * item.qty, 0);
-  console.log('Total Amount:', totalAmount.toFixed(2));
 
   return (
     <div className="container-fluid vh-100 d-flex flex-column p-0">
@@ -511,7 +527,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
                     font-size: 0.875rem;
                     padding: 0.5rem 1rem;
                   }
-                  .dropdown-item:hover {
+                  .dropdown-item:hover, .dropdown-item.selected {
                     background-color: #e9ecef;
                   }
                   @media (max-width: 768px) {
@@ -558,57 +574,14 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
                   <input
                     type="text"
                     className="form-control"
-                    placeholder=" Code"
+                    placeholder="Code"
                     value={searchCode}
                     onChange={handleCodeChange}
+                    onKeyDown={handleCodeKeyDown}
                     onKeyPress={handleCodeKeyPress}
-                    onFocus={() => setShowCodeDropdown(true)}
-                    onBlur={(e) => {
-                      const relatedTarget = e.relatedTarget as HTMLElement;
-                      if (!relatedTarget?.closest('.dropdown-item')) {
-                        setTimeout(() => setShowCodeDropdown(false), 100);
-                      }
-                    }}
                     ref={codeInputRef}
                     style={{ maxWidth: '100px', minHeight: '48px' }}
                   />
-                  {showCodeDropdown && (
-                    <div
-                      style={{
-                        position: 'absolute',
-                        top: '100%',
-                        left: 0,
-                        zIndex: 1000,
-                        backgroundColor: '#fff',
-                        border: '1px solid #ced4da',
-                        borderRadius: '8px',
-                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
-                        maxHeight: '200px',
-                        overflowY: 'auto',
-                        width: '100%',
-                      }}
-                    >
-                      {filterDropdownItems('code')
-                        .filter((item) => item.itemCode !== searchCode)
-                        .slice(0, 7)
-                        .map((item) => (
-                          <div
-                            key={item.userId}
-                            onMouseDown={(e) => {
-                              e.preventDefault();
-                              handleCodeSelect(item);
-                            }}
-                            className="dropdown-item"
-                            style={{ cursor: 'pointer', fontSize: '1rem' }}
-                          >
-                            <strong>{item.itemCode}</strong> | {item.ItemName} | ₹{item.price.toFixed(2)}
-                          </div>
-                        ))}
-                      {filterDropdownItems('code').length === 0 && (
-                        <div className="dropdown-item text-muted">No matches found</div>
-                      )}
-                    </div>
-                  )}
                 </div>
                 <div style={{ position: 'relative', width: '100%', maxWidth: '500px' }}>
                   <input
@@ -617,15 +590,20 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
                     placeholder="Search Name"
                     value={searchName}
                     onChange={handleNameChange}
+                    onKeyDown={handleNameKeyDown}
                     onKeyPress={handleNameKeyPress}
                     autoComplete="off"
                     onFocus={() => setShowNameDropdown(true)}
                     onBlur={(e) => {
                       const relatedTarget = e.relatedTarget as HTMLElement;
                       if (!relatedTarget?.closest('.dropdown-item')) {
-                        setTimeout(() => setShowNameDropdown(false), 100);
+                        setTimeout(() => {
+                          setShowNameDropdown(false);
+                          setSelectedNameIndex(-1);
+                        }, 100);
                       }
                     }}
+                    ref={nameInputRef}
                     style={{
                       borderRadius: '20px',
                       height: '48px',
@@ -653,15 +631,16 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
                       {filterDropdownItems('name')
                         .filter((item) => item.ItemName !== searchName)
                         .slice(0, 7)
-                        .map((item) => (
+                        .map((item, index) => (
                           <div
                             key={item.userId}
                             onMouseDown={(e) => {
                               e.preventDefault();
                               handleNameSelect(item);
                             }}
-                            className="dropdown-item"
-                            style={{ cursor: 'pointer', fontSize: '1rem' }}
+                            className={`dropdown-item ${index === selectedNameIndex ? 'selected' : ''}`}
+                            style={{ cursor: 'pointer', fontSize: '1rem', backgroundColor: index === selectedNameIndex ? '#e9ecef' : 'transparent' }}
+                            onMouseEnter={() => setSelectedNameIndex(index)}
                           >
                             <strong>{item.ItemName}</strong> | {item.shortName} | {item.itemCode} | ₹{item.price.toFixed(2)}
                           </div>
@@ -753,7 +732,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
                     </button>
                   </li>
                   {itemGroup
-                    .filter(group => group.status === 0) // Align status with active groups
+                    .filter(group => group.status === 0)
                     .map((group) => {
                       const category = getCategoryFromItemGroup(group.item_groupid);
                       return (
