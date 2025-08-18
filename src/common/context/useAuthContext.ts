@@ -16,7 +16,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // Simulate fetching user data
       const userData = await new Promise((resolve) => {
         setTimeout(() => {
-          resolve({ userid: 1, username: 'admin', role_level: 'superadmin' });
+          resolve({ userid: 1, username: 'admin', role_level: 'superadmin' } as { userid: number; username: string; role_level: string });
         }, 1000);
       });
       setUser(userData);
