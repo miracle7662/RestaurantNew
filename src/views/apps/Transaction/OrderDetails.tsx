@@ -1,5 +1,5 @@
 import React, { useState, useEffect, Dispatch, SetStateAction, useRef, useMemo, useCallback } from 'react';
-import { Row, Col, Card } from 'react-bootstrap';
+import { Row, Col, Card, Modal, Form, Button, Table } from 'react-bootstrap';
 import { fetchItemGroup, ItemGroupItem, fetchMenu, MenuItem } from '@/utils/commonfunction';
 
 // Interface for menu items used in state
@@ -19,6 +19,27 @@ interface CardItem {
   price: number;
   cardStatus: string;
   item_group_id: number | null;
+}
+
+// Interface for customer data (for the modal)
+interface Customer {
+  srNo: number;
+  name: string;
+  countryCode: string;
+  mobile: string;
+  mail: string;
+  city: string;
+  address1: string;
+  address2: string;
+  birthday?: string;
+  state?: string;
+  pincode?: string;
+  gstNo?: string;
+  fssai?: string;
+  panNo?: string;
+  aadharNo?: string;
+  anniversary?: string;
+  createWallet?: boolean;
 }
 
 // Interface for component props
@@ -93,6 +114,29 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
   const [cardItems, setCardItems] = useState<CardItem[]>([]);
   const [showNameDropdown, setShowNameDropdown] = useState<boolean>(false);
   const [selectedNameIndex, setSelectedNameIndex] = useState(-1);
+  
+  // New state for the customer modal
+  const [showNewCustomerForm, setShowNewCustomerForm] = useState<boolean>(false);
+  const [newCustomer, setNewCustomer] = useState<Customer>({
+    srNo: 0,
+    name: '',
+    countryCode: '+91',
+    mobile: '',
+    mail: '',
+    city: '',
+    address1: '',
+    address2: '',
+    birthday: '',
+    state: '',
+    pincode: '',
+    gstNo: '',
+    fssai: '',
+    panNo: '',
+    aadharNo: '',
+    anniversary: '',
+    createWallet: false,
+  });
+  const [currentCustomers, setCurrentCustomers] = useState<Customer[]>([]);
 
   const codeInputRef = useRef<HTMLInputElement>(null);
   const quantityInputRef = useRef<HTMLInputElement>(null);
@@ -425,6 +469,61 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
     setItems([]);
   };
 
+  // New handler for adding a customer
+  const handleAddCustomerSubmit = () => {
+    if (newCustomer.name && newCustomer.mobile) {
+      setCurrentCustomers([
+        ...currentCustomers,
+        { ...newCustomer, srNo: currentCustomers.length + 1, address1: '', address2: '' },
+      ]);
+      setNewCustomer({
+        srNo: 0,
+        name: '',
+        countryCode: '+91',
+        mobile: '',
+        mail: '',
+        city: '',
+        address1: '',
+        address2: '',
+        birthday: '',
+        state: '',
+        pincode: '',
+        gstNo: '',
+        fssai: '',
+        panNo: '',
+        aadharNo: '',
+        anniversary: '',
+        createWallet: false,
+      });
+      setShowNewCustomerForm(false);
+    } else {
+      alert('Name and Mobile are required fields.');
+    }
+  };
+
+  // Clear form handler
+  const handleClearForm = () => {
+    setNewCustomer({
+      srNo: 0,
+      name: '',
+      countryCode: '+91',
+      mobile: '',
+      mail: '',
+      city: '',
+      address1: '',
+      address2: '',
+      birthday: '',
+      state: '',
+      pincode: '',
+      gstNo: '',
+      fssai: '',
+      panNo: '',
+      aadharNo: '',
+      anniversary: '',
+      createWallet: false,
+    });
+  };
+
   const totalAmount = items.reduce((sum, item) => sum + item.price * item.qty, 0);
 
   return (
@@ -464,7 +563,12 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
                         </button>
                       </li>
                       <li className="nav-item">
-                        <button className="btn btn-sm btn-outline-secondary">Add Customer</button>
+                        <button
+                          className="btn btn-sm btn-outline-secondary"
+                          onClick={() => setShowNewCustomerForm(true)}
+                        >
+                          Add Customer
+                        </button>
                       </li>
                       <li className="nav-item">
                         <button className="btn btn-sm btn-outline-secondary">Refresh</button>
@@ -813,6 +917,258 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Customer Modal with Updated Design */}
+      <Modal
+        show={showNewCustomerForm}
+        onHide={() => setShowNewCustomerForm(false)}
+        centered
+        size="lg"
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Add New Customer</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form>
+            <Row className="mb-3 form-row">
+              <Col md={3}>
+                <Form.Group controlId="code">
+                  <Form.Label>Code *</Form.Label>
+                  <Form.Control
+                    type="text"
+                    placeholder="Code"
+                    value={newCustomer.name} // Using name as a placeholder for code
+                    onChange={(e) => setNewCustomer({ ...newCustomer, name: e.target.value })}
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={3}>
+                <Form.Group controlId="countryCode">
+                  <Form.Label>Mobile *</Form.Label>
+                  <Form.Control
+                    as="select"
+                    value={newCustomer.countryCode}
+                    onChange={(e) => setNewCustomer({ ...newCustomer, countryCode: e.target.value })}
+                  >
+                    <option value="+91">+91</option>
+                    <option value="+1">+1</option>
+                    <option value="+44">+44</option>
+                  </Form.Control>
+                </Form.Group>
+              </Col>
+              <Col md={3}>
+                <Form.Group controlId="mobile">
+                  <Form.Label></Form.Label>
+                  <Form.Control
+                    type="text"
+                    placeholder="Mobile number"
+                    value={newCustomer.mobile}
+                    onChange={(e) => setNewCustomer({ ...newCustomer, mobile: e.target.value })}
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={3}>
+                <Form.Group controlId="email">
+                  <Form.Label>Email</Form.Label>
+                  <Form.Control
+                    type="email"
+                    placeholder="Email"
+                    value={newCustomer.mail}
+                    onChange={(e) => setNewCustomer({ ...newCustomer, mail: e.target.value })}
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
+            <Row className="mb-3 form-row">
+              <Col md={3}>
+                <Form.Group controlId="name">
+                  <Form.Label>Name *</Form.Label>
+                  <Form.Control
+                    type="text"
+                    placeholder="Name"
+                    value={newCustomer.name}
+                    onChange={(e) => setNewCustomer({ ...newCustomer, name: e.target.value })}
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={3}>
+                <Form.Group controlId="address1">
+                  <Form.Label>Address line 1</Form.Label>
+                  <Form.Control
+                    type="text"
+                    placeholder="Address line 1"
+                    value={newCustomer.address1}
+                    onChange={(e) => setNewCustomer({ ...newCustomer, address1: e.target.value })}
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={3}>
+                <Form.Group controlId="address2">
+                  <Form.Label>Address line 2</Form.Label>
+                  <Form.Control
+                    type="text"
+                    placeholder="Address line 2"
+                    value={newCustomer.address2}
+                    onChange={(e) => setNewCustomer({ ...newCustomer, address2: e.target.value })}
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={3}>
+                <Form.Group controlId="state">
+                  <Form.Label>State</Form.Label>
+                  <Form.Control
+                    type="text"
+                    placeholder="State"
+                    value={newCustomer.state}
+                    onChange={(e) => setNewCustomer({ ...newCustomer, state: e.target.value })}
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
+            <Row className="mb-3 form-row">
+              <Col md={3}>
+                <Form.Group controlId="city">
+                  <Form.Label>City</Form.Label>
+                  <Form.Control
+                    type="text"
+                    placeholder="City"
+                    value={newCustomer.city}
+                    onChange={(e) => setNewCustomer({ ...newCustomer, city: e.target.value })}
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={3}>
+                <Form.Group controlId="birthday">
+                  <Form.Label>Birthday</Form.Label>
+                  <Form.Control
+                    type="date"
+                    value={newCustomer.birthday}
+                    onChange={(e) => setNewCustomer({ ...newCustomer, birthday: e.target.value })}
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={3}>
+                <Form.Group controlId="anniversary">
+                  <Form.Label>Anniversary</Form.Label>
+                  <Form.Control
+                    type="date"
+                    value={newCustomer.anniversary}
+                    onChange={(e) => setNewCustomer({ ...newCustomer, anniversary: e.target.value })}
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={3}>
+                <Form.Group controlId="pincode">
+                  <Form.Label>Pincode</Form.Label>
+                  <Form.Control
+                    type="text"
+                    placeholder="Pincode"
+                    value={newCustomer.pincode}
+                    onChange={(e) => setNewCustomer({ ...newCustomer, pincode: e.target.value })}
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
+            <Row className="mb-3 form-row">
+              <Col md={3}>
+                <Form.Group controlId="gstNo">
+                  <Form.Label>GST No.</Form.Label>
+                  <Form.Control
+                    type="text"
+                    placeholder="GST No."
+                    value={newCustomer.gstNo}
+                    onChange={(e) => setNewCustomer({ ...newCustomer, gstNo: e.target.value })}
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={3}>
+                <Form.Group controlId="aadharNo">
+                  <Form.Label>Aadhar No.</Form.Label>
+                  <Form.Control
+                    type="text"
+                    placeholder="Aadhar No."
+                    value={newCustomer.aadharNo}
+                    onChange={(e) => setNewCustomer({ ...newCustomer, aadharNo: e.target.value })}
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={3}>
+                <Form.Group controlId="fssai">
+                  <Form.Label>FSSAI</Form.Label>
+                  <Form.Control
+                    type="text"
+                    placeholder="FSSAI"
+                    value={newCustomer.fssai}
+                    onChange={(e) => setNewCustomer({ ...newCustomer, fssai: e.target.value })}
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={3}>
+                <Form.Group controlId="panNo">
+                  <Form.Label>PAN No.</Form.Label>
+                  <Form.Control
+                    type="text"
+                    placeholder="PAN No."
+                    value={newCustomer.panNo}
+                    onChange={(e) => setNewCustomer({ ...newCustomer, panNo: e.target.value })}
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
+            <Row className="mb-3 form-row">
+              <Col md={3}>
+                <Form.Group controlId="createWallet">
+                  <Form.Check
+                    type="checkbox"
+                    label="Create Wallet"
+                    checked={newCustomer.createWallet}
+                    onChange={(e) => setNewCustomer({ ...newCustomer, createWallet: e.target.checked })}
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
+          </Form>
+
+          {/* Customer List Table */}
+          <div className="modal-table-container" style={{ maxHeight: '200px', overflowY: 'auto', marginTop: '20px' }}>
+            <Table bordered hover>
+              <thead>
+                <tr>
+                  <th>Sr No</th>
+                  <th>C NAME</th>
+                  <th>MOBILE</th>
+                  <th>MAIL</th>
+                  <th>CITY</th>
+                  <th>ADDRESS 1</th>
+                </tr>
+              </thead>
+              <tbody>
+                {currentCustomers.map((customer) => (
+                  <tr key={customer.srNo}>
+                    <td>{customer.srNo}</td>
+                    <td>{customer.name}</td>
+                    <td>{customer.countryCode + customer.mobile}</td>
+                    <td>{customer.mail}</td>
+                    <td>{customer.city}</td>
+                    <td>{customer.address1}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          </div>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowNewCustomerForm(false)}>
+            Close
+          </Button>
+          <Button variant="outline-secondary" onClick={handleClearForm}>
+            Clear Form
+          </Button>
+          <Button variant="primary" onClick={handleAddCustomerSubmit}>
+            Add
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </div>
   );
 };

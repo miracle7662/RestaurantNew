@@ -12,12 +12,23 @@ function createWindow() {
         width: 1200,
         height: 800,
         webPreferences: {
-            nodeIntegration: true,
+            nodeIntegration: false,
+            contextIsolation: true,
+            enableRemoteModule: false,
+            webSecurity: false, // Allow CORS for development
+            allowRunningInsecureContent: true,
         },
     });
 
+    // Load the app
     mainWindow.loadURL('http://localhost:5173');
     mainWindow.webContents.openDevTools();
+
+    // Handle CORS
+    mainWindow.webContents.session.webRequest.onBeforeSendHeaders((details, callback) => {
+        details.requestHeaders['Origin'] = 'http://localhost:5173';
+        callback({ requestHeaders: details.requestHeaders });
+    });
 
     mainWindow.on('closed', () => {
         mainWindow = null;
@@ -35,4 +46,10 @@ app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') {
         app.quit();
     }
+});
+
+// Handle certificate errors
+app.on('certificate-error', (event, webContents, url, error, certificate, callback) => {
+    event.preventDefault();
+    callback(true);
 });
