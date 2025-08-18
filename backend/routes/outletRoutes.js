@@ -4,9 +4,6 @@ const outletController = require('../controllers/outletController');
 
 router.get('/brands', outletController.getBrands);
 
-// New route for logging outlet statuses
-router.get('/log-statuses', outletController.logOutletStatuses);
-
 // Get all outlets
 router.get('/', outletController.getOutlets);
 
