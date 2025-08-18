@@ -50,10 +50,6 @@ const Order = () => {
   const [isTableInvalid, setIsTableInvalid] = useState<boolean>(false);
   const itemListRef = useRef<HTMLDivElement>(null);
   const [describe, setDescribe] = useState<string>('');
-
-  
-
-
   const [invalidTable, setInvalidTable] = useState<string>('');
   const [activeNavTab, setActiveNavTab] = useState<string>('ALL');
   const [tableItems, setTableItems] = useState<TableItem[]>([]);

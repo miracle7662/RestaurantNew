@@ -830,16 +830,16 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
         </div>
       </div>
 
-      {/* Modal for AddCustomerModal with stabilized layout */}
+      Modal for AddCustomerModal with stabilized layout
       <Modal
         show={showCustomerModal}
         onHide={handleCloseCustomerModal} 
        
       >
        
-        <Modal.Body>
+        
           <CustomerModal onClose={handleCloseCustomerModal} />
-        </Modal.Body>
+      
       </Modal>
     </div>
   );
