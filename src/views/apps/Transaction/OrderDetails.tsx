@@ -242,7 +242,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
         : true;
       const matchesName = searchName
         ? item.ItemName.toLowerCase().includes(searchName.toLowerCase()) ||
-          item.shortName.toLowerCase().includes(searchName.toLowerCase())
+        item.shortName.toLowerCase().includes(searchName.toLowerCase())
         : true;
       return matchesCode && matchesName;
     });
@@ -266,31 +266,32 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
       } else {
         return searchName
           ? item.ItemName.toLowerCase().includes(searchName.toLowerCase()) ||
-            item.shortName.toLowerCase().includes(searchName.toLowerCase())
+          item.shortName.toLowerCase().includes(searchName.toLowerCase())
           : false;
       }
     }).slice(0, 5);
   };
 
   const handleCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const code = e.target.value.trim();
+    const code = e.target.value; // Remove .trim() to allow spaces
     setSearchCode(code);
     setShowCodeDropdown(!!code);
+    setShowNameDropdown(false); // Close name dropdown when typing in code
     const matchedItem = cardItems.find(
       (item) => item.itemCode.toLowerCase() === code.toLowerCase()
     );
     if (matchedItem) {
       setSearchName(matchedItem.ItemName);
-      setShowNameDropdown(false);
     } else {
       setSearchName('');
     }
   };
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
+    const value = e.target.value; // Remove .trim() to allow spaces
     setSearchName(value);
     setShowNameDropdown(!!value);
+    setShowCodeDropdown(false); // Close code dropdown when typing in name
     if (value === '') {
       setSearchCode('');
     } else {
@@ -553,7 +554,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
                     </div>
                   )}
                 </div>
-                <div className="input-group rounded-search" style={{ maxWidth: '100px' }}>
+                <div className="input-group rounded-search" style={{ maxWidth: '100px', position: 'relative' }}>
                   <input
                     type="text"
                     className="form-control"
@@ -561,12 +562,18 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
                     value={searchCode}
                     onChange={handleCodeChange}
                     onKeyPress={handleCodeKeyPress}
+                    onFocus={() => setShowCodeDropdown(true)}
+                    onBlur={(e) => {
+                      const relatedTarget = e.relatedTarget as HTMLElement;
+                      if (!relatedTarget?.closest('.dropdown-item')) {
+                        setTimeout(() => setShowCodeDropdown(false), 100);
+                      }
+                    }}
                     ref={codeInputRef}
                     style={{ maxWidth: '100px', minHeight: '48px' }}
                   />
                   {showCodeDropdown && (
                     <div
-                      className="dropdown-menu"
                       style={{
                         position: 'absolute',
                         top: '100%',
@@ -583,22 +590,18 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
                     >
                       {filterDropdownItems('code')
                         .filter((item) => item.itemCode !== searchCode)
-                        .slice(0, 5)
+                        .slice(0, 7)
                         .map((item) => (
                           <div
                             key={item.userId}
-                            onMouseDown={() => handleCodeSelect(item)}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              handleCodeSelect(item);
+                            }}
                             className="dropdown-item"
                             style={{ cursor: 'pointer', fontSize: '1rem' }}
-                            tabIndex={0}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' || e.key === ' ') {
-                                e.preventDefault();
-                                handleCodeSelect(item);
-                              }
-                            }}
                           >
-                            <strong>{item.itemCode}</strong> | {item.ItemName} | {item.shortName} | ₹{item.price.toFixed(2)}
+                            <strong>{item.itemCode}</strong> | {item.ItemName} | ₹{item.price.toFixed(2)}
                           </div>
                         ))}
                       {filterDropdownItems('code').length === 0 && (
@@ -620,7 +623,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
                     onBlur={(e) => {
                       const relatedTarget = e.relatedTarget as HTMLElement;
                       if (!relatedTarget?.closest('.dropdown-item')) {
-                        setTimeout(() => setShowNameDropdown(false), 200);
+                        setTimeout(() => setShowNameDropdown(false), 100);
                       }
                     }}
                     style={{
@@ -633,7 +636,6 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
                   />
                   {showNameDropdown && (
                     <div
-                      className="dropdown-menu"
                       style={{
                         position: 'absolute',
                         top: '100%',
@@ -650,20 +652,16 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
                     >
                       {filterDropdownItems('name')
                         .filter((item) => item.ItemName !== searchName)
-                        .slice(0, 5)
+                        .slice(0, 7)
                         .map((item) => (
                           <div
                             key={item.userId}
-                            onMouseDown={() => handleNameSelect(item)}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              handleNameSelect(item);
+                            }}
                             className="dropdown-item"
                             style={{ cursor: 'pointer', fontSize: '1rem' }}
-                            tabIndex={0}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' || e.key === ' ') {
-                                e.preventDefault();
-                                handleNameSelect(item);
-                              }
-                            }}
                           >
                             <strong>{item.ItemName}</strong> | {item.shortName} | {item.itemCode} | ₹{item.price.toFixed(2)}
                           </div>
