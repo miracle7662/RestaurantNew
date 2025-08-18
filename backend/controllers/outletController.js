@@ -31,13 +31,12 @@ exports.getOutlets = (req, res) => { // Assuming this is the endpoint
     console.log('Received req.query:', req.query);
 
     let query = `
-     SELECT o.outletid, o.outlet_name, o.outlet_code, 
+          SELECT o.*,o.outletid, o.outlet_name, o.outlet_code, 
              b.hotel_name as brand_name
       FROM mst_outlets o
       INNER JOIN msthotelmasters b ON o.hotelid = b.hotelid
       left JOIN user_outlet_mapping uom ON o.outletid = uom.outletid
-      left JOIN mst_users u ON u.userid = uom.userid
-      WHERE o.status = 0 
+      left JOIN mst_users u ON u.userid = uom.userid      
     `;
     
     const params = [];

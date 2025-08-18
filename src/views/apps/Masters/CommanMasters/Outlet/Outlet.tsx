@@ -28,7 +28,6 @@ const debounce = (func: (...args: any[]) => void, wait: number) => {
     timeout = setTimeout(() => func(...args), wait);
   };
 };
-
 const getStatusBadge = (status: number) => {
   return status === 0 ? (
     <span className="badge bg-success">Active</span>
@@ -36,7 +35,6 @@ const getStatusBadge = (status: number) => {
     <span className="badge bg-danger">Inactive</span>
   );
 };
-
 const OutletList: React.FC = () => {
   const { user } = useAuthContext();
   const [showModal, setShowModal] = useState(false);
@@ -150,7 +148,8 @@ const OutletList: React.FC = () => {
         hotelid: user?.hotelid,
       });
 
-      const response = await outletService.getOutlets(params);
+      const response = await outletService.getOutlets(params); 
+      console.log("Outlet response data:", response.data); // Debugging log
       console.log('Outlet response:', response);
       if (response && response.data) {
         const sortedOutlets = response.data.sort((a: OutletData, b: OutletData) => {
@@ -183,7 +182,9 @@ const OutletList: React.FC = () => {
     setDescription(outlet.description || 'TMBILL - ONLINE ORDERING PLATFORM');
     setAddress(outlet.address || '');
     setGstNo(outlet.gst_no || '');
-    setStatus(outlet.status === 0);
+    console.log("Outlet status:", outlet.status); // Debugging log
+    setStatus(outlet.status === 0); // Active if status is 0
+    console.log("Converted status:", outlet.status === 0); // Debugging log
     setLogoutPOS(true);
     setPasswordProtection(false);
     setSendPaymentLink(false);
@@ -1479,15 +1480,16 @@ const OutletList: React.FC = () => {
               </Row>
               <Row className="mb-3">
                 <Col md={6}>
-                  <Form.Group controlId="status">
-                    <Form.Label>Status</Form.Label>
-                    <Form.Check
-                      type="switch"
-                      label={status ? 'Active' : 'Inactive'} // Display "Active" when checked, "Inactive" when unchecked
-                      checked={status} // True for Active (status = 0), false for Inactive (status = 1)
-                      onChange={(e) => setStatus(e.target.checked)} // Sets status to true (Active) or false (Inactive)
-                    />
-                  </Form.Group>
+<Form.Group controlId="status">
+  <Form.Label>Status</Form.Label>
+  <Form.Select
+    value={status ? 0 : 1} // 0 for Active, 1 for Inactive
+    onChange={(e) => setStatus(e.target.value === '0')} // Sets status to true (Active) or false (Inactive)
+  >
+    <option value="0">Active</option>
+    <option value="1">Inactive</option>
+  </Form.Select>
+</Form.Group>
                 </Col>
                 <Col md={6}>
                   <Form.Group controlId="addCustomQRCode">
