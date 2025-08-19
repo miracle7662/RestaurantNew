@@ -3,7 +3,7 @@ const cors = require('cors');
 const app = express();
 const port = 3001;
 
-//const db = require('./config/db.js');
+const db = require('./config/db.js');
 const marketsroutes = require('./routes/marketsroutes');
 const countryRoutes = require('./routes/countryRoutes');
 const stateRoutes = require('./routes/stateRoutes');
@@ -19,7 +19,6 @@ const KitchenSubCategoryRoutes = require('./routes/KitchenSubCategoryRoutes');
 const HotelMastersRoutes = require('./routes/HotelMastersRoutes');
 const ItemMainGroupRoutes = require('./routes/ItemMainGroupRoutes');
 const ItemGroupRoutes = require('./routes/ItemGroupRoutes');
-const itemGroupRoutes = require('./routes/itemGroupRoutes');
 const messagemasterRoutes = require('./routes/messagemasterRoutes');
 const menuRoutes = require("./routes/mstrestmenuRoutes");
 const outletRoutes = require('./routes/outletRoutes');
@@ -34,6 +33,14 @@ const CustomerRoutes = require('./routes/CustomerRoutes');
 
 const taxGroupRoutes = require('./routes/msttaxgroupRoutes');
 const restTaxMasterRoutes = require('./routes/restTaxMasterRoutes');
+
+const BillPreviewRoutes = require("./routes/billPreviewSettingsRoutes");
+const kotPrintSettingsRoutes = require("./routes/kotPrintSettingsRoutes");
+const billPrintSettingsRoutes = require('./routes/billPrintSettingsRoutes');
+const generalSettingsRoutes = require('./routes/generalSettingsRoutes');
+const onlineOrderSettingsRoutes = require('./routes/onlineOrderSettingsRoutes');
+
+
 
 // ✅ Correct order of middleware
 app.use(cors());
@@ -69,6 +76,11 @@ app.use('/api/customer', CustomerRoutes);
 app.use('/api/taxgroup', taxGroupRoutes);
 app.use('/api/resttaxmaster', restTaxMasterRoutes);
 
+app.use("/api/bill-preview-settings", BillPreviewRoutes);
+app.use('/api/kot-print-settings', kotPrintSettingsRoutes);
+app.use('/api/bill-print-settings', billPrintSettingsRoutes);
+app.use('/api/general-settings', generalSettingsRoutes);
+app.use('/api/online-order-settings', onlineOrderSettingsRoutes);
 
 // ✅ Add a health check endpoint
 app.get('/api/health', (req, res) => {

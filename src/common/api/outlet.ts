@@ -39,7 +39,11 @@ export interface OutletData {
   updated_by_id?: number
   updated_date?: string
   brand_name?: string
-  
+  billpreviewsetting_id?: number
+  kot_printsetting_id?: number
+  bill_printsetting_id?: number
+  general_setting_id?: number
+  online_ordersetting_id?: number
 }
 
 class OutletService {

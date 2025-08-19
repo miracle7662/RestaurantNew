@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { OutletData } from '@/common/api/outlet'; // Adjust the import path as necessary
 //import 'bootstrap/dist/css/bootstrap.min.css';
 
 interface AddOutletProps {

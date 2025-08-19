@@ -765,7 +765,7 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({onClose, show,  onHi
 
           {/* Buttons */}
           <div className="d-flex justify-content-end mt-3">
-            <button
+            {/* <button
               className="btn btn-outline-secondary btn-sm me-2"
               onClick={onHide}
               disabled={loading}
@@ -773,7 +773,7 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({onClose, show,  onHi
               tabIndex={17}
             >
               Close
-            </button>
+            </button> */}
             <button
               className="btn btn-outline-primary btn-sm me-2"
               onClick={resetForm}
