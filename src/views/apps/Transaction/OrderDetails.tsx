@@ -831,29 +831,31 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
 
       {/* Customer Modal */}
       <Modal
-        show={showCustomerModal}
-        onHide={handleCloseCustomerModal}
-        size="lg"
-        aria-labelledby="customer-modal-title"
-        centered
-        backdrop="static"
-        keyboard={false}
-      >
-        <Modal.Header closeButton>
-          <Modal.Title id="customer-modal-title">Customer Management</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <CustomerModal />
-        </Modal.Body>
-        <Modal.Footer>
-          <button
-            className="btn btn-outline-secondary btn-sm"
-            onClick={handleCloseCustomerModal}
-          >
-            Close
-          </button>
-        </Modal.Footer>
-      </Modal>
+  show={showCustomerModal}
+  onHide={handleCloseCustomerModal}
+  size="lg"
+  aria-labelledby="customer-modal-title"
+  centered
+  backdrop="static"
+  keyboard={false}
+  dialogClassName="compact-modal"
+>
+  <Modal.Header closeButton style={{ padding: '0.5rem', margin: 0 }}>
+   
+  </Modal.Header>
+  <Modal.Body style={{ padding: '0px', maxHeight: '780px', overflowY: 'auto' }}>
+    <CustomerModal />
+  </Modal.Body>
+  <Modal.Footer style={{ padding: '0.5rem', margin: 0 }}>
+    <button
+      className="btn btn-outline-secondary btn-sm"
+      onClick={handleCloseCustomerModal}
+      style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
+    >
+      Close
+    </button>
+  </Modal.Footer>
+</Modal>
     </div>
   );
 };
