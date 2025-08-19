@@ -194,19 +194,28 @@ const OutletUserList: React.FC = () => {
   };
 
   const handleShowModal = (type: string, user?: OutletUserData | HotelAdminData) => {
-    setModalType(type);
-    setSelectedUser(user as OutletUserData || null);
-    setSelectedHotelAdmin(user as HotelAdminData || null);
+    try {
+      setModalType(type);
+      setSelectedUser(user as OutletUserData || null);
+      setSelectedHotelAdmin(user as HotelAdminData || null);
 
-    if (user && type === 'Edit Outlet User') {
-      loadUserDataIntoForm(user as OutletUserData);
-    } else if (user && type === 'Edit Hotel Admin') {
-      loadHotelAdminDataIntoForm(user as HotelAdminData);
-    } else {
+      // Reset form fields first to prevent state conflicts
       resetFormFields();
-    }
 
-    setShowModal(true);
+      if (user && type === 'Edit Outlet User') {
+        loadUserDataIntoForm(user as OutletUserData);
+      } else if (user && type === 'Edit Hotel Admin') {
+        loadHotelAdminDataIntoForm(user as HotelAdminData);
+      }
+
+      // Use setTimeout to prevent blocking the main thread
+      setTimeout(() => {
+        setShowModal(true);
+      }, 50);
+    } catch (error) {
+      console.error('Error opening modal:', error);
+      toast.error('Failed to open modal. Please try again.');
+    }
   };
 
   const loadUserDataIntoForm = (user: OutletUserData) => {
@@ -433,15 +442,18 @@ const OutletUserList: React.FC = () => {
     },
     {
       accessorKey: 'status',
-      header: 'Active',
+      header: 'Status',
       size: 80,
-      cell: (info) => (
-        <div style={{ textAlign: 'center' }}>
-          <span className={`badge ${info.getValue<number | boolean>() ? 'bg-success' : 'bg-danger'}`}>
-            {info.getValue<number | boolean>() ? 'Yes' : 'No'}
-          </span>
-        </div>
-      ),
+      cell: (info) => {
+        const statusValue = info.getValue<number>();
+        return (
+          <div style={{ textAlign: 'center' }}>
+            <span className={`badge ${statusValue === 0 ? 'bg-success' : 'bg-danger'}`}>
+              {statusValue === 0 ? 'Active' : 'Inactive'}
+            </span>
+          </div>
+        );
+      },
     },
     {
       accessorKey: 'last_login',
@@ -544,15 +556,18 @@ const OutletUserList: React.FC = () => {
     },
     {
       accessorKey: 'status',
-      header: 'Active',
+      header: 'Status',
       size: 80,
-      cell: (info) => (
-        <div style={{ textAlign: 'center' }}>
-          <span className={`badge ${info.getValue<number | boolean>() ? 'bg-success' : 'bg-danger'}`}>
-            {info.getValue<number | boolean>() ? 'Yes' : 'No'}
-          </span>
-        </div>
-      ),
+      cell: (info) => {
+        const statusValue = info.getValue<number>();
+        return (
+          <div style={{ textAlign: 'center' }}>
+            <span className={`badge ${statusValue === 0 ? 'bg-success' : 'bg-danger'}`}>
+              {statusValue === 0 ? 'Active' : 'Inactive'}
+            </span>
+          </div>
+        );
+      },
     },
     {
       accessorKey: 'created_date',
@@ -641,19 +656,19 @@ const OutletUserList: React.FC = () => {
     },
   });
 
-  const handleSearch = useCallback(
-    debounce((value: string) => {
-      outletUserTable.setGlobalFilter(value);
-      hotelAdminTable.setGlobalFilter(value);
-    }, 300),
-    [outletUserTable, hotelAdminTable]
-  );
+  // const handleSearch = useCallback(
+  //   debounce((value: string) => {
+  //     outletUserTable.setGlobalFilter(value);
+  //     hotelAdminTable.setGlobalFilter(value);
+  //   }, 300),
+  //   [outletUserTable, hotelAdminTable]
+  // );
 
-  const onSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setSearchTerm(value);
-    handleSearch(value);
-  };
+  // const onSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  //   const value = e.target.value;
+  //   setSearchTerm(value);
+  //   handleSearch(value);
+  // };
 
   const getPaginationItems = (table: any) => {
     const items = [];
