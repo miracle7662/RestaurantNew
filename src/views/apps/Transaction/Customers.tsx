@@ -49,18 +49,8 @@ const debounce = (func: (...args: any[]) => void, wait: number) => {
   };
 };
 
-// AddCustomerModal Props
-interface AddCustomerModalProps {
-  show: boolean;
-  onHide: () => void;
-  onClose: () => void; // Add this line
-  onSuccess: () => void;
-  customers: Customer[];
-  setCustomers: (customers: Customer[]) => void;
-}
-
-// AddCustomerModal Component
-const AddCustomerModal: React.FC<AddCustomerModalProps> = ({onClose, show,  onHide,  onSuccess, customers, setCustomers }) => {
+// CustomersPage Component
+const CustomersPage: React.FC = () => {
   const [name, setName] = useState<string>('');
   const [countryCode, setCountryCode] = useState<string>('+91');
   const [mobile, setMobile] = useState<string>('');
@@ -91,6 +81,36 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({onClose, show,  onHi
   const [cityHighlightIndex, setCityHighlightIndex] = useState<number>(-1);
   const [stateid, setStateId] = useState<number | null>(null);
   const [cityid, setCityid] = useState<number | null>(null);
+  const [customers, setCustomers] = useState<Customer[]>([]); // Local state for customers
+  const [, setFilteredCustomers] = useState<Customer[]>([]);
+
+
+   // Fetch customer data (READ)
+  const fetchCustomers = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('http://localhost:3001/api/customer', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setCustomers(data);
+        setFilteredCustomers(data);
+      } else {
+        toast.error('Failed to fetch customer data');
+      }
+    } catch (err) {
+      toast.error('Error fetching customer data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCustomers();
+  }, [user]);
+
 
   useEffect(() => {
     fetchStates(setStates, setStateId).catch((err) => toast.error('Error fetching states'));
@@ -246,8 +266,6 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({onClose, show,  onHi
           : [...customers, { ...payload, customerid: Date.now() } as Customer];
         setCustomers(updatedCustomers);
         resetForm();
-        onSuccess();
-      
       } else {
         const errorData = await res.json().catch(() => ({}));
         toast.error(errorData.message || `Failed to ${selectedCustomerId ? 'update' : 'add'} customer`);
@@ -402,32 +420,11 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({onClose, show,  onHi
     }
   };
 
-  if (!show) return null;
-
   return (
-    <div
-      className="modal"
-      style={{
-        display: 'block',
-        background: 'rgba(0,0,0,0.5)',
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        zIndex: 1000,
-      }}
-    >
-      <div
-        className="modal-content"
-        style={{
-          padding: '20px',
-          width: '60%',
-          minWidth: '600px',
-          margin: '30px auto',
-          borderRadius: '8px',
-        }}
-      >
+    <div className="container-fluid p-4">
+      <TitleHelmet title="Customers" />
+      {loading && <Preloader />}
+      <Card className="p-4" style={{ borderRadius: '8px', minWidth: '600px' }}>
         <h3 className="mb-4" style={{ fontSize: '1.2rem' }}>
           {selectedCustomerId ? 'Edit Customer' : 'Add New Customer'}
         </h3>
@@ -746,7 +743,6 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({onClose, show,  onHi
               />
             </div>
           </div>
-
           {/* New Row - Create Wallet */}
           <div className="row g-2 mb-2">
             <div className="col-md-3">
@@ -765,15 +761,6 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({onClose, show,  onHi
 
           {/* Buttons */}
           <div className="d-flex justify-content-end mt-3">
-            {/* <button
-              className="btn btn-outline-secondary btn-sm me-2"
-              onClick={onHide}
-              disabled={loading}
-              style={{ padding: '0.25rem 0.75rem', fontSize: '0.85rem' }}
-              tabIndex={17}
-            >
-              Close
-            </button> */}
             <button
               className="btn btn-outline-primary btn-sm me-2"
               onClick={resetForm}
@@ -862,113 +849,9 @@ const AddCustomerModal: React.FC<AddCustomerModalProps> = ({onClose, show,  onHi
             </table>
           </div>
         </div>
-      </div>
+      </Card>
     </div>
   );
 };
 
-// Main CustomerPage Component
-const CustomerPage: React.FC = () => {
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [showAddCustomerModal, setShowAddCustomerModal] = useState(true);
-  const [searchTerm, setSearchTerm] = useState<string>('');
-  const [filteredCustomers, setFilteredCustomers] = useState<Customer[]>([]);
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
-  const { user } = useAuthContext();
-
-  // Fetch customer data (READ)
-  const fetchCustomers = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch('http://localhost:3001/api/customer', {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        console.log('API Response:', data); // Debug log
-        setCustomers(Array.isArray(data) ? data : []);
-        setFilteredCustomers(Array.isArray(data) ? data : []);
-      } else {
-        toast.error('Failed to fetch customer data');
-        setCustomers([]);
-        setFilteredCustomers([]);
-      }
-    } catch (err) {
-      toast.error('Error fetching customer data');
-      setCustomers([]);
-      setFilteredCustomers([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchCustomers();
-  }, [user]);
-
-  // Handle search
-  const handleSearch = useCallback(
-    debounce((value: string) => {
-      setSearchTerm(value);
-      const filtered = (customers || []).filter((item) =>
-        item.name.toLowerCase().includes(value.toLowerCase())
-      );
-      setFilteredCustomers(filtered);
-    }, 300),
-    [customers]
-  );
-
-
-
-  // Handle delete operation (DELETE)
-  const handleDeleteCustomer = async (customer: Customer) => {
-    const res = await Swal.fire({
-      title: 'Are you sure?',
-      text: 'You will not be able to recover this customer!',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#d33',
-      cancelButtonColor: '#3E97FF',
-      confirmButtonText: 'Yes, delete it!',
-    });
-    if (res.isConfirmed) {
-      try {
-        const response = await fetch(
-          `http://localhost:3001/api/customer/${customer.customerid}`,
-          {
-            method: 'DELETE',
-            headers: { 'Content-Type': 'application/json' },
-          }
-        );
-        if (response.ok) {
-          toast.success('Customer deleted successfully');
-          fetchCustomers();
-          setSelectedCustomer(null);
-        } else {
-          toast.error('Failed to delete customer');
-        }
-      } catch {
-        toast.error('Error deleting customer');
-      }
-    }
-  };
-
-  return (
-    <>
-      <TitleHelmet title="Customer Management" />
-      {loading && <Preloader />}
-      <AddCustomerModal
-        show={showAddCustomerModal}
-        onHide={() => setShowAddCustomerModal(false)}
-        onClose={() => setShowAddCustomerModal(false)}
-        onSuccess={fetchCustomers}
-        customers={customers}
-        setCustomers={setCustomers}
-      />
-    </>
-  );
-};
-
-export default CustomerPage;
+export default CustomersPage;
