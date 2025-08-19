@@ -5,7 +5,7 @@ import {  Route, RouteProps } from 'react-router-dom'
 import PrivateRoute from './PrivateRoute'
 //import ItemGroup from '@/components/Apps/ItemGroup/itemGroup'
 import Billing from '@/views/pages/account-settings/Billing'
-import Customers from '@/views/apps/Masters/RestaurantMasters/Customers'
+import Customers from '@/views/apps/Transaction/Customers'
 
 
 // Dashboards

@@ -1,10 +1,10 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { Button, Modal, Form, Table } from 'react-bootstrap';
 import OrderDetails from './OrderDetails';
 import { fetchOutletsForDropdown } from '@/utils/commonfunction';
 import { useAuthContext } from '@/common';
 import { OutletData } from '@/common/api/outlet';
+import AddCustomerModal from './Customers';
 
 interface MenuItem {
   id: number;
@@ -13,16 +13,7 @@ interface MenuItem {
   qty: number;
 }
 
-interface Customer {
-  srNo: number;
-  name: string;
-  countryCode: string;
-  mobile: string;
-  mail: string;
-  city: string;
-  address1: string;
-  address2: string;
-}
+
 
 interface KOT {
   table: string;
@@ -57,48 +48,18 @@ const Order = () => {
   const [showNewCustomerForm, setShowNewCustomerForm] = useState<boolean>(false);
   const [searchTable, setSearchTable] = useState<string>('');
   const [isTableInvalid, setIsTableInvalid] = useState<boolean>(false);
-
-  const [customers, setCustomers] = useState<Customer[]>([
-    { srNo: 1, name: 'xyz', countryCode: '91', mobile: '123', mail: '', city: '', address1: '', address2: '' },
-    { srNo: 2, name: 'abc', countryCode: '91', mobile: '12312', mail: '', city: '', address1: '', address2: '' },
-    { srNo: 3, name: 'efg', countryCode: '91', mobile: '1234', mail: '', city: '', address1: '', address2: '' },
-    { srNo: 4, name: 'jkl', countryCode: '91', mobile: '2.3', mail: '', city: '', address1: '', address2: '' },
-    { srNo: 5, name: '211', countryCode: '91', mobile: '213', mail: '', city: 'kop', address1: '', address2: '' },
-    { srNo: 6, name: 'ss', countryCode: '91', mobile: '252', mail: '', city: 'kop', address1: '', address2: '' },
-    { srNo: 7, name: 'DD', countryCode: '91', mobile: '3236', mail: '', city: '', address1: '', address2: '' },
-    { srNo: 8, name: 'zyx', countryCode: '91', mobile: '41', mail: '', city: '', address1: '', address2: '' },
-  ]);
-  const [filteredCustomers, setFilteredCustomers] = useState<Customer[]>(customers);
-  const [searchTerm, setSearchTerm] = useState<string>('');
-  const [newCustomer, setNewCustomer] = useState({
-    name: '',
-    countryCode: '+91',
-    mobile: '',
-    mail: '',
-    birthday: '',
-    city: '',
-    state: '',
-    pincode: '',
-    gstNo: '',
-    fssai: '',
-    panNo: '',
-    aadharNo: '',
-    anniversary: '',
-    createWallet: false,
-  });
-
+  const itemListRef = useRef<HTMLDivElement>(null);
+  const [describe, setDescribe] = useState<string>('');
   const [invalidTable, setInvalidTable] = useState<string>('');
   const [activeNavTab, setActiveNavTab] = useState<string>('ALL');
   const [tableItems, setTableItems] = useState<TableItem[]>([]);
   const [filteredTables, setFilteredTables] = useState<TableItem[]>([]);
   const [savedKOTs, setSavedKOTs] = useState<KOT[]>([]);
   const [showSavedKOTsModal, setShowSavedKOTsModal] = useState<boolean>(false);
-  const [outlets, setOutlets] = useState<OutletData[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
   const { user } = useAuthContext();
-  const itemListRef = useRef<HTMLDivElement>(null);
-  const [describe, setDescribe] = useState<string>('');
+  const [outlets, setOutlets] = useState<OutletData[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
 
   // Fetch tables from the TableManagement API
 const fetchTableManagement = async () => {
@@ -142,9 +103,7 @@ const fetchTableManagement = async () => {
     setLoading(false);
   }
 };
-  useEffect(() => {
-    setFilteredCustomers(customers);
-  }, [customers]);
+
 
   useEffect(() => {
     if (itemListRef.current) {
@@ -323,14 +282,7 @@ useEffect(() => {
     }
   };
 
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const term = e.target.value.toLowerCase();
-    setSearchTerm(term);
-    const filtered = customers.filter(customer =>
-      customer.name.toLowerCase().includes(term)
-    );
-    setFilteredCustomers(filtered);
-  };
+ 
 
   const handleCountryCodeClick = () => {
     setShowCountryOptions(!showCountryOptions);
@@ -345,37 +297,7 @@ useEffect(() => {
     setShowNewCustomerForm(true);
   };
 
-  const handleAddCustomerSubmit = () => {
-    const newCustomerEntry: Customer = {
-      srNo: customers.length + 1,
-      name: newCustomer.name,
-      countryCode: newCustomer.countryCode.replace('+', ''),
-      mobile: newCustomer.mobile,
-      mail: newCustomer.mail || '',
-      city: newCustomer.city || '',
-      address1: '',
-      address2: '',
-    };
-    setCustomers([...customers, newCustomerEntry]);
-    setNewCustomer({
-      name: '',
-      countryCode: '+91',
-      mobile: '',
-      mail: '',
-      birthday: '',
-      city: '',
-      state: '',
-      pincode: '',
-      gstNo: '',
-      fssai: '',
-      panNo: '',
-      aadharNo: '',
-      anniversary: '',
-      createWallet: false,
-    });
-    setSearchTerm('');
-    setShowNewCustomerForm(false);
-  };
+
 
   const handleIncreaseQty = (itemId: number) => {
     setItems(items.map(item =>
@@ -1036,192 +958,7 @@ useEffect(() => {
           </div>
 
           <Modal show={showNewCustomerForm} onHide={() => setShowNewCustomerForm(false)} centered size="lg">
-            <Modal.Header closeButton>
-              <Modal.Title>Add New Customer</Modal.Title>
-            </Modal.Header>
-            <Modal.Body style={{ maxHeight: '590px' }}>
-              <Form>
-                <div className="form-row grid gap-3">
-                  <Form.Group controlId="name">
-                    <Form.Label>Name *</Form.Label>
-                    <Form.Control
-                      type="text"
-                      placeholder="Enter name"
-                      value={newCustomer.name}
-                      onChange={(e) => setNewCustomer({ ...newCustomer, name: e.target.value })}
-                    />
-                  </Form.Group>
-                  <Form.Group controlId="countryCode">
-                    <Form.Label>Country Code</Form.Label>
-                    <Form.Select
-                      value={newCustomer.countryCode}
-                      onChange={(e) => setNewCustomer({ ...newCustomer, countryCode: e.target.value })}
-                    >
-                      <option value="+91">India +91</option>
-                      <option value="+1">USA +1</option>
-                      <option value="+44">UK +44</option>
-                    </Form.Select>
-                  </Form.Group>
-                  <Form.Group controlId="mobile">
-                    <Form.Label>Mobile *</Form.Label>
-                    <Form.Control
-                      type="text"
-                      placeholder="Enter mobile number"
-                      value={newCustomer.mobile}
-                      onChange={(e) => setNewCustomer({ ...newCustomer, mobile: e.target.value })}
-                    />
-                  </Form.Group>
-                  <Form.Group controlId="email">
-                    <Form.Label>Email</Form.Label>
-                    <Form.Control
-                      type="email"
-                      placeholder="Enter email"
-                      value={newCustomer.mail}
-                      onChange={(e) => setNewCustomer({ ...newCustomer, mail: e.target.value })}
-                    />
-                  </Form.Group>
-                  <Form.Group controlId="birthday">
-                    <Form.Label>Birthday</Form.Label>
-                    <Form.Control
-                      type="date"
-                      value={newCustomer.birthday}
-                      onChange={(e) => setNewCustomer({ ...newCustomer, birthday: e.target.value })}
-                    />
-                  </Form.Group>
-                  <Form.Group controlId="city">
-                    <Form.Label>City</Form.Label>
-                    <Form.Control
-                      type="text"
-                      placeholder="Enter city"
-                      value={newCustomer.city}
-                      onChange={(e) => setNewCustomer({ ...newCustomer, city: e.target.value })}
-                    />
-                  </Form.Group>
-                  <Form.Group controlId="state">
-                    <Form.Label>State</Form.Label>
-                    <Form.Control
-                      type="text"
-                      placeholder="Enter state"
-                      value={newCustomer.state}
-                      onChange={(e) => setNewCustomer({ ...newCustomer, state: e.target.value })}
-                    />
-                  </Form.Group>
-                  <Form.Group controlId="pincode">
-                    <Form.Label>Pincode</Form.Label>
-                    <Form.Control
-                      type="text"
-                      placeholder="Enter pincode"
-                      value={newCustomer.pincode}
-                      onChange={(e) => setNewCustomer({ ...newCustomer, pincode: e.target.value })}
-                    />
-                  </Form.Group>
-                  <Form.Group controlId="gstNo">
-                    <Form.Label>GST No.</Form.Label>
-                    <Form.Control
-                      type="text"
-                      placeholder="Enter GST number"
-                      value={newCustomer.gstNo}
-                      onChange={(e) => setNewCustomer({ ...newCustomer, gstNo: e.target.value })}
-                    />
-                  </Form.Group>
-                  <Form.Group controlId="fssai">
-                    <Form.Label>FSSAI</Form.Label>
-                    <Form.Control
-                      type="text"
-                      placeholder="Enter FSSAI"
-                      value={newCustomer.fssai}
-                      onChange={(e) => setNewCustomer({ ...newCustomer, fssai: e.target.value })}
-                    />
-                  </Form.Group>
-                  <Form.Group controlId="panNo">
-                    <Form.Label>PAN No.</Form.Label>
-                    <Form.Control
-                      type="text"
-                      placeholder="Enter PAN number"
-                      value={newCustomer.panNo}
-                      onChange={(e) => setNewCustomer({ ...newCustomer, panNo: e.target.value })}
-                    />
-                  </Form.Group>
-                  <Form.Group controlId="aadharNo">
-                    <Form.Label>Aadhar No.</Form.Label>
-                    <Form.Control
-                      type="text"
-                      placeholder="Enter Aadhar number"
-                      value={newCustomer.aadharNo}
-                      onChange={(e) => setNewCustomer({ ...newCustomer, aadharNo: e.target.value })}
-                    />
-                  </Form.Group>
-                  <Form.Group controlId="anniversary">
-                    <Form.Label>Anniversary</Form.Label>
-                    <Form.Control
-                      type="date"
-                      value={newCustomer.anniversary}
-                      onChange={(e) => setNewCustomer({ ...newCustomer, anniversary: e.target.value })}
-                    />
-                  </Form.Group>
-                  <Form.Group controlId="createWallet">
-                    <Form.Label>Create Wallet</Form.Label>
-                    <Form.Check
-                      type="checkbox"
-                      label="Create wallet"
-                      checked={newCustomer.createWallet}
-                      onChange={(e) => setNewCustomer({ ...newCustomer, createWallet: e.target.checked })}
-                    />
-                  </Form.Group>
-                </div>
-                <div className="d-flex justify-content-between align-items-center mt-3">
-                  <Button variant="success" onClick={handleAddCustomerSubmit}>
-                    Add
-                  </Button>
-                  <input
-                    type="text"
-                    placeholder="Search..."
-                    className="form-control"
-                    style={{ width: '200px' }}
-                    value={searchTerm}
-                    onChange={handleSearchChange}
-                  />
-                </div>
-              </Form>
-
-              <div className="modal-table-container" style={{ maxHeight: '200px', overflowY: 'auto', marginTop: '20px' }}>
-                <div className="table-responsive">
-                  <Table bordered hover>
-                    <thead>
-                      <tr>
-                        <th>Sr No</th>
-                        <th>C NAME</th>
-                        <th>COUNTRY CODE</th>
-                        <th>MOBILE</th>
-                        <th>MAIL</th>
-                        <th>CITY</th>
-                        <th>ADDRESS 1</th>
-                        <th>ADDRESS 2</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredCustomers.map((customer) => (
-                        <tr key={customer.srNo}>
-                          <td>{customer.srNo}</td>
-                          <td>{customer.name}</td>
-                          <td>{customer.countryCode}</td>
-                          <td>{customer.mobile}</td>
-                          <td>{customer.mail}</td>
-                          <td>{customer.city}</td>
-                          <td>{customer.address1}</td>
-                          <td>{customer.address2}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </Table>
-                </div>
-              </div>
-            </Modal.Body>
-            <Modal.Footer>
-              <Button variant="secondary" onClick={() => setShowNewCustomerForm(false)}>
-                Close
-              </Button>
-            </Modal.Footer>
+            <AddCustomerModal onClose={() => setShowNewCustomerForm(false)} />
           </Modal>
 
           <Modal show={showSavedKOTsModal} onHide={() => setShowSavedKOTsModal(false)} centered size="lg">
