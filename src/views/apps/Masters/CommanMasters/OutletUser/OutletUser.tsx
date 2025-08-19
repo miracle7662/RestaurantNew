@@ -31,12 +31,13 @@ interface CombinedUser {
   phone?: string;
   designation?: string;
   user_type?: string;
-  status: number; // Change to match OutletUserData
+  status: number;
   created_date?: string;
   is_admin_row?: boolean;
   hotel_name?: string;
   brand_name?: string;
   last_login?: string;
+  outletids?: number[];
 }
 
 // Debounce utility function
@@ -695,14 +696,7 @@ const OutletUserList: React.FC = () => {
           {user?.role_level === 'hotel_admin' ? 'Outlet Users' : 'Outlet Users & Hotel Admins'}
         </h4>
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-          <input
-            type="text"
-            className="form-control rounded-pill"
-            placeholder="Search..."
-            value={searchTerm}
-            onChange={onSearchChange}
-            style={{ width: '350px', borderColor: '#ccc', borderWidth: '2px' }}
-          />
+        
           <div className="form-check form-check-inline">
             <input className="form-check-input" type="checkbox" id="showDeactivated" style={{ borderColor: '#333' }} />
             <label className="form-check-label" htmlFor="showDeactivated">
