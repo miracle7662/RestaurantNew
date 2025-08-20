@@ -1,8 +1,8 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import Swal from 'sweetalert2';
+
 import { toast } from 'react-hot-toast';
 import { Preloader } from '@/components/Misc/Preloader';
-import { Button, Card, Stack, Table } from 'react-bootstrap';
+import { Card,  } from 'react-bootstrap';
 import TitleHelmet from '@/components/Common/TitleHelmet';
 import { useAuthContext } from '@/common';
 

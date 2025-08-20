@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { OutletData } from '@/common/api/outlet'; // Adjust the import path as necessary
-//import 'bootstrap/dist/css/bootstrap.min.css';
 
 interface AddOutletProps {
   Outlet: OutletData | null;
@@ -27,27 +26,123 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
     field3: '',
     field4: '',
     fssaiNo: '',
-    customizeUrlLinks: [],
+    customerOnKotDineIn: false,
+    customerOnKotPickup: false,
+    customerOnKotDelivery: false,
+    customerOnKotQuickBill: false,
+    customerKotDisplayOption: 'NAME_ONLY',
+    groupKotItemsByCategory: false,
+    hideTableNameQuickBill: false,
+    showNewOrderTag: true,
+    newOrderTagLabel: 'New',
+    showRunningOrderTag: true,
+    runningOrderTagLabel: 'Running',
+    dineInKotNo: 'DIN-',
+    pickupKotNo: 'PUP-',
+    deliveryKotNo: 'DEL-',
+    quickBillKotNo: 'QBL-',
+    modifierDefaultOption: false,
+    printKotBothLanguages: false,
+    showAlternativeItem: false,
+    showCaptainUsername: false,
+    showCoversAsGuest: false,
+    showItemPrice: true,
+    showKotNoQuickBill: false,
+    showKotNote: true,
+    showOnlineOrderOtp: false,
+    showOrderIdQuickBill: false,
+    showOrderIdOnlineOrder: false,
+    showOrderNoQuickBillSection: false,
+    showOrderTypeSymbol: true,
+    showStoreName: true,
+    showTerminalUsername: false,
+    showUsername: false,
+    showWaiter: true,
+    billTitleDineIn: true,
+    billTitlePickup: true,
+    billTitleDelivery: true,
+    billTitleQuickBill: true,
+    maskOrderId: false,
+    modifierDefaultOptionBill: false,
+    printBillBothLanguages: false,
+    showAltItemTitleBill: false,
+    showAltNameBill: false,
+    showBillAmountWords: true,
+    showBillNoBill: true,
+    showBillNumberPrefixBill: true,
+    showBillPrintCount: false,
+    showBrandNameBill: true,
+    showCaptainBill: false,
+    showCoversBill: false,
+    showCustomQrCodesBill: false,
+    showCustomerGstBill: false,
+    showCustomerBill: true,
+    showCustomerPaidAmount: true,
+    showDateBill: true,
+    showDefaultPayment: true,
+    showDiscountReasonBill: false,
+    showDueAmountBill: true,
+    showEbillInvoiceQrcode: false,
+    showItemHsnCodeBill: false,
+    showItemLevelChargesSeparately: false,
+    showItemNoteBill: true,
+    showItemsSequenceBill: true,
+    showKotNumberBill: false,
+    showLogoBill: true,
+    showOrderIdBill: false,
+    showOrderNoBill: true,
+    showOrderNoteBill: true,
+    orderTypeDineIn: true,
+    orderTypePickup: true,
+    orderTypeDelivery: true,
+    orderTypeQuickBill: true,
+    showOutletNameBill: true,
+    paymentModeDineIn: true,
+    paymentModePickup: true,
+    paymentModeDelivery: true,
+    paymentModeQuickBill: true,
+    tableNameDineIn: true,
+    tableNamePickup: false,
+    tableNameDelivery: false,
+    tableNameQuickBill: false,
+    showTaxChargeBill: true,
+    showUsernameBill: false,
+    showWaiterBill: true,
+    showZatcaInvoiceQr: false,
+    showCustomerAddressPickupBill: false,
+    showOrderPlacedTime: true,
+    hideItemQuantityColumn: false,
+    hideItemRateColumn: false,
+    hideItemTotalColumn: false,
+    hideTotalWithoutTax: false,
     allowChargesAfterBillPrint: false,
     allowDiscountAfterBillPrint: false,
-    allowDiscountBeforeSave: false,
-    allowPreOrderTAHD: false,
-    askCovers: { dineIn: false, pickup: false, delivery: false, quickBill: false },
+    allowDiscountBeforeSave: true,
+    allowPreOrderTahd: false,
+    askCoversDineIn: true,
+    askCoversPickup: false,
+    askCoversDelivery: false,
+    askCoversQuickBill: false,
     askCoversCaptain: false,
     askCustomOrderIdQuickBill: false,
     askCustomOrderTypeQuickBill: false,
-    askPaymentModeOnSaveBill: false,
-    askWaiter: { dineIn: false, pickup: false, delivery: false, quickBill: false },
+    askPaymentModeOnSaveBill: true,
+    askWaiterDineIn: true,
+    askWaiterPickup: false,
+    askWaiterDelivery: false,
+    askWaiterQuickBill: false,
     askOtpChangeOrderStatusOrderWindow: false,
     askOtpChangeOrderStatusReceiptSection: false,
-    autoAcceptRemoteKOT: false,
+    autoAcceptRemoteKot: false,
     autoOutOfStock: false,
-    autoSync: false,
-    categoryTimeForPOS: '',
+    autoSync: true,
+    categoryTimeForPos: '',
     countSalesAfterMidnight: false,
-    customerDisplay: { media: [] },
-    customerMandatory: { dineIn: false, pickup: false, delivery: false, quickBill: false },
-    defaultEBillCheck: false,
+    customerMandatoryDineIn: true,
+    customerMandatoryPickup: true,
+    customerMandatoryDelivery: true,
+    customerMandatoryQuickBill: false,
+    defaultEbillCheck: true,
     defaultSendDeliveryBoyCheck: false,
     editCustomizeOrderNumber: '',
     enableBackupNotificationService: false,
@@ -57,50 +152,125 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
     hideClearDataCheckLogout: false,
     hideItemPriceOptions: false,
     hideLoadMenuButton: false,
-    makeCancelDeleteReasonCompulsory: false,
-    makeDiscountReasonMandatory: false,
-    makeFreeCancelBillReasonMandatory: false,
+    makeCancelDeleteReasonCompulsory: true,
+    makeDiscountReasonMandatory: true,
+    makeFreeCancelBillReasonMandatory: true,
     makePaymentRefNumberMandatory: false,
     mandatoryDeliveryBoySelection: false,
     markOrderAsTransferOrder: false,
     onlinePaymentAutoSettle: false,
-    orderSyncSettings: { autoSyncInterval: '5', syncBatchPacketSize: '10' },
+    orderSyncSettingsAutoSyncInterval: '300',
+    orderSyncSettingsSyncBatchPacketSize: '100',
     separateBillingBySection: false,
     setEnteredAmountAsOpening: false,
     showAlternativeItemReportPrint: false,
     showClearSalesReportLogout: false,
-    showOrderNoLabelPos: false,
-    showPaymentHistoryButton: false,
-    showRemoteKOTOption: false,
+    showOrderNoLabelPos: true,
+    showPaymentHistoryButton: true,
+    showRemoteKotOption: false,
     showSendPaymentLink: false,
-    stockAvailabilityDisplay: false,
-    todaysReport: {
-      salesSummary: false,
-      orderTypeSummary: false,
-      paymentTypeSummary: false,
-      discountSummary: false,
-      expenseSummary: false,
-      billSummary: false,
-      deliveryBoySummary: false,
-      waiterSummary: false,
-      kitchenDepartmentSummary: false,
-      categorySummary: false,
-      soldItemsSummary: false,
-      cancelItemsSummary: false,
-      walletSummary: false,
-      duePaymentReceivedSummary: false,
-      duePaymentReceivableSummary: false,
-      paymentVarianceSummary: false,
-      currencyDenominationsSummary: false,
-    },
-    upiPaymentSoundNotification: false,
-    useSeparateBillNumbersOnline: false,
-    whenSendTodaysReport: '',
+    stockAvailabilityDisplay: true,
+    todaysReportSalesSummary: true,
+    todaysReportOrderTypeSummary: true,
+    todaysReportPaymentTypeSummary: true,
+    todaysReportDiscountSummary: true,
+    todaysReportExpenseSummary: true,
+    todaysReportBillSummary: true,
+    todaysReportDeliveryBoySummary: true,
+    todaysReportWaiterSummary: true,
+    todaysReportKitchenDepartmentSummary: true,
+    todaysReportCategorySummary: true,
+    todaysReportSoldItemsSummary: true,
+    todaysReportCancelItemsSummary: true,
+    todaysReportWalletSummary: true,
+    todaysReportDuePaymentReceivedSummary: true,
+    todaysReportDuePaymentReceivableSummary: true,
+    todaysReportPaymentVarianceSummary: true,
+    todaysReportCurrencyDenominationsSummary: true,
+    whenSendTodaysReport: 'END_OF_DAY',
     enableCurrencyConversion: false,
-    enableUserLoginValidation: false,
+    enableUserLoginValidation: true,
     allowClosingShiftDespiteBills: false,
-    showRealTimeKOTBillNotifications: false,
+    showRealTimeKotBillNotifications: true,
+    useSeparateBillNumbersOnline: false,
+    showInPreparationKds: true,
+    autoAcceptOnlineOrder: false,
+    customizeOrderPreparationTime: false,
+    onlineOrdersTimeDelay: '0',
+    pullOrderOnAccept: false,
+    showAddonsSeparately: false,
+    showCompleteOnlineOrderId: true,
+    showOnlineOrderPreparationTime: true,
+    updateFoodReadyStatusKds: true,
   });
+
+  const [activeTab, setActiveTab] = useState('bill-preview');
+  const [timeDelay, setTimeDelay] = useState(0);
+  const navigate = useNavigate();
+  const outletId = Outlet?.outletid || '1'; // Assuming outletId is available in Outlet prop
+  const baseUrl = 'http://localhost:3000'; // Adjust to your backend URL
+
+  // Fetch settings when component mounts
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        // Fetch Bill Preview Settings
+        const billPreviewResponse = await fetch(`${baseUrl}/api/bill-preview/${outletId}`);
+        const billPreviewData = await billPreviewResponse.json();
+        if (billPreviewData.data) {
+          setFormData((prev) => ({ ...prev, ...billPreviewData.data }));
+        }
+
+        // Fetch KOT Print Settings
+        const kotPrintResponse = await fetch(`${baseUrl}/api/kot-print/${outletId}`);
+        const kotPrintData = await kotPrintResponse.json();
+        if (kotPrintData.data) {
+          setFormData((prev) => ({ ...prev, ...kotPrintData.data }));
+        }
+
+        // Fetch Bill Print Settings
+        const billPrintResponse = await fetch(`${baseUrl}/api/bill-print/${outletId}`);
+        const billPrintData = await billPrintResponse.json();
+        if (billPrintData.data) {
+          setFormData((prev) => ({ ...prev, ...billPrintData.data }));
+        }
+
+        // Fetch General Settings
+        const generalResponse = await fetch(`${baseUrl}/api/general/${outletId}`);
+        const generalData = await generalResponse.json();
+        if (generalData.data) {
+          setFormData((prev) => ({ ...prev, ...generalData.data }));
+        }
+
+        // Fetch Online Order Settings
+        const onlineOrdersResponse = await fetch(`${baseUrl}/api/online-orders/${outletId}`);
+        const onlineOrdersData = await onlineOrdersResponse.json();
+        if (onlineOrdersData.data) {
+          setFormData((prev) => ({
+            ...prev,
+            ...onlineOrdersData.data,
+            onlineOrdersTimeDelay: onlineOrdersData.data.onlineOrdersTimeDelay || '0',
+          }));
+          setTimeDelay(parseInt(onlineOrdersData.data.onlineOrdersTimeDelay || '0'));
+        }
+      } catch (error) {
+        console.error('Error fetching settings:', error);
+        alert('Failed to fetch settings. Please try again.');
+      }
+    };
+
+    fetchSettings();
+  }, [outletId]);
+
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
+    const { id, value, type, checked } = e.target as HTMLInputElement;
+    setFormData((prev) => ({
+      ...prev,
+      [id]: type === 'checkbox' ? checked : value,
+    }));
+  };
 
   const handleNestedChange = (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -111,22 +281,9 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
     setFormData((prev) => ({
       ...prev,
       [category]: {
-       
+        ...prev[category],
         [key]: checked,
       },
-    }));
-  };
-
-  const [activeTab, setActiveTab] = useState('bill-preview');
-  const navigate = useNavigate();
-
-  const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
-    const { id, value, type, checked } = e.target as HTMLInputElement;
-    setFormData((prev) => ({
-      ...prev,
-      [id]: type === 'checkbox' ? checked : value,
     }));
   };
 
@@ -134,26 +291,259 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
     navigate('/dashboard');
   };
 
-  const handleUpdate = () => {
-    console.log('Form Data Updated:', formData);
-    alert('Form data updated successfully! Check console for details.');
+  const handleUpdate = async () => {
+    try {
+      // Update Bill Preview Settings
+      await fetch(`${baseUrl}/api/bill-preview/${outletId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          outletName: formData.outletName,
+          email: formData.email,
+          website: formData.website,
+          upiId: formData.upiId,
+          billPrefix: formData.billPrefix,
+          secondaryBillPrefix: formData.secondaryBillPrefix,
+          barBillPrefix: formData.barBillPrefix,
+          showUpiQr: formData.showUpiQr,
+          enabledBarSection: formData.enabledBarSection,
+          showPhoneOnBill: formData.showPhoneOnBill,
+          note: formData.note,
+          footerNote: formData.footerNote,
+          field1: formData.field1,
+          field2: formData.field2,
+          field3: formData.field3,
+          field4: formData.field4,
+          fssaiNo: formData.fssaiNo,
+        }),
+      });
+
+      // Update KOT Print Settings
+      await fetch(`${baseUrl}/api/kot-print/${outletId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerOnKotDineIn: formData.customerOnKotDineIn,
+          customerOnKotPickup: formData.customerOnKotPickup,
+          customerOnKotDelivery: formData.customerOnKotDelivery,
+          customerOnKotQuickBill: formData.customerOnKotQuickBill,
+          customerKotDisplayOption: formData.customerKotDisplayOption,
+          groupKotItemsByCategory: formData.groupKotItemsByCategory,
+          hideTableNameQuickBill: formData.hideTableNameQuickBill,
+          showNewOrderTag: formData.showNewOrderTag,
+          newOrderTagLabel: formData.newOrderTagLabel,
+          showRunningOrderTag: formData.showRunningOrderTag,
+          runningOrderTagLabel: formData.runningOrderTagLabel,
+          dineInKotNo: formData.dineInKotNo,
+          pickupKotNo: formData.pickupKotNo,
+          deliveryKotNo: formData.deliveryKotNo,
+          quickBillKotNo: formData.quickBillKotNo,
+          modifierDefaultOption: formData.modifierDefaultOption,
+          printKotBothLanguages: formData.printKotBothLanguages,
+          showAlternativeItem: formData.showAlternativeItem,
+          showCaptainUsername: formData.showCaptainUsername,
+          showCoversAsGuest: formData.showCoversAsGuest,
+          showItemPrice: formData.showItemPrice,
+          showKotNoQuickBill: formData.showKotNoQuickBill,
+          showKotNote: formData.showKotNote,
+          showOnlineOrderOtp: formData.showOnlineOrderOtp,
+          showOrderIdQuickBill: formData.showOrderIdQuickBill,
+          showOrderIdOnlineOrder: formData.showOrderIdOnlineOrder,
+          showOrderNoQuickBillSection: formData.showOrderNoQuickBillSection,
+          showOrderTypeSymbol: formData.showOrderTypeSymbol,
+          showStoreName: formData.showStoreName,
+          showTerminalUsername: formData.showTerminalUsername,
+          showUsername: formData.showUsername,
+          showWaiter: formData.showWaiter,
+        }),
+      });
+
+      // Update Bill Print Settings
+      await fetch(`${baseUrl}/api/bill-print/${outletId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          billTitleDineIn: formData.billTitleDineIn,
+          billTitlePickup: formData.billTitlePickup,
+          billTitleDelivery: formData.billTitleDelivery,
+          billTitleQuickBill: formData.billTitleQuickBill,
+          maskOrderId: formData.maskOrderId,
+          modifierDefaultOptionBill: formData.modifierDefaultOptionBill,
+          printBillBothLanguages: formData.printBillBothLanguages,
+          showAltItemTitleBill: formData.showAltItemTitleBill,
+          showAltNameBill: formData.showAltNameBill,
+          showBillAmountWords: formData.showBillAmountWords,
+          showBillNoBill: formData.showBillNoBill,
+          showBillNumberPrefixBill: formData.showBillNumberPrefixBill,
+          showBillPrintCount: formData.showBillPrintCount,
+          showBrandNameBill: formData.showBrandNameBill,
+          showCaptainBill: formData.showCaptainBill,
+          showCoversBill: formData.showCoversBill,
+          showCustomQrCodesBill: formData.showCustomQrCodesBill,
+          showCustomerGstBill: formData.showCustomerGstBill,
+          showCustomerBill: formData.showCustomerBill,
+          showCustomerPaidAmount: formData.showCustomerPaidAmount,
+          showDateBill: formData.showDateBill,
+          showDefaultPayment: formData.showDefaultPayment,
+          showDiscountReasonBill: formData.showDiscountReasonBill,
+          showDueAmountBill: formData.showDueAmountBill,
+          showEbillInvoiceQrcode: formData.showEbillInvoiceQrcode,
+          showItemHsnCodeBill: formData.showItemHsnCodeBill,
+          showItemLevelChargesSeparately: formData.showItemLevelChargesSeparately,
+          showItemNoteBill: formData.showItemNoteBill,
+          showItemsSequenceBill: formData.showItemsSequenceBill,
+          showKotNumberBill: formData.showKotNumberBill,
+          showLogoBill: formData.showLogoBill,
+          showOrderIdBill: formData.showOrderIdBill,
+          showOrderNoBill: formData.showOrderNoBill,
+          showOrderNoteBill: formData.showOrderNoteBill,
+          orderTypeDineIn: formData.orderTypeDineIn,
+          orderTypePickup: formData.orderTypePickup,
+          orderTypeDelivery: formData.orderTypeDelivery,
+          orderTypeQuickBill: formData.orderTypeQuickBill,
+          showOutletNameBill: formData.showOutletNameBill,
+          paymentModeDineIn: formData.paymentModeDineIn,
+          paymentModePickup: formData.paymentModePickup,
+          paymentModeDelivery: formData.paymentModeDelivery,
+          paymentModeQuickBill: formData.paymentModeQuickBill,
+          tableNameDineIn: formData.tableNameDineIn,
+          tableNamePickup: formData.tableNamePickup,
+          tableNameDelivery: formData.tableNameDelivery,
+          tableNameQuickBill: formData.tableNameQuickBill,
+          showTaxChargeBill: formData.showTaxChargeBill,
+          showUsernameBill: formData.showUsernameBill,
+          showWaiterBill: formData.showWaiterBill,
+          showZatcaInvoiceQr: formData.showZatcaInvoiceQr,
+          showCustomerAddressPickupBill: formData.showCustomerAddressPickupBill,
+          showOrderPlacedTime: formData.showOrderPlacedTime,
+          hideItemQuantityColumn: formData.hideItemQuantityColumn,
+          hideItemRateColumn: formData.hideItemRateColumn,
+          hideItemTotalColumn: formData.hideItemTotalColumn,
+          hideTotalWithoutTax: formData.hideTotalWithoutTax,
+        }),
+      });
+
+      // Update General Settings
+      await fetch(`${baseUrl}/api/general/${outletId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          allowChargesAfterBillPrint: formData.allowChargesAfterBillPrint,
+          allowDiscountAfterBillPrint: formData.allowDiscountAfterBillPrint,
+          allowDiscountBeforeSave: formData.allowDiscountBeforeSave,
+          allowPreOrderTahd: formData.allowPreOrderTahd,
+          askCoversDineIn: formData.askCoversDineIn,
+          askCoversPickup: formData.askCoversPickup,
+          askCoversDelivery: formData.askCoversDelivery,
+          askCoversQuickBill: formData.askCoversQuickBill,
+          askCoversCaptain: formData.askCoversCaptain,
+          askCustomOrderIdQuickBill: formData.askCustomOrderIdQuickBill,
+          askCustomOrderTypeQuickBill: formData.askCustomOrderTypeQuickBill,
+          askPaymentModeOnSaveBill: formData.askPaymentModeOnSaveBill,
+          askWaiterDineIn: formData.askWaiterDineIn,
+          askWaiterPickup: formData.askWaiterPickup,
+          askWaiterDelivery: formData.askWaiterDelivery,
+          askWaiterQuickBill: formData.askWaiterQuickBill,
+          askOtpChangeOrderStatusOrderWindow: formData.askOtpChangeOrderStatusOrderWindow,
+          askOtpChangeOrderStatusReceiptSection: formData.askOtpChangeOrderStatusReceiptSection,
+          autoAcceptRemoteKot: formData.autoAcceptRemoteKot,
+          autoOutOfStock: formData.autoOutOfStock,
+          autoSync: formData.autoSync,
+          categoryTimeForPos: formData.categoryTimeForPos,
+          countSalesAfterMidnight: formData.countSalesAfterMidnight,
+          customerMandatoryDineIn: formData.customerMandatoryDineIn,
+          customerMandatoryPickup: formData.customerMandatoryPickup,
+          customerMandatoryDelivery: formData.customerMandatoryDelivery,
+          customerMandatoryQuickBill: formData.customerMandatoryQuickBill,
+          defaultEbillCheck: formData.defaultEbillCheck,
+          defaultSendDeliveryBoyCheck: formData.defaultSendDeliveryBoyCheck,
+          editCustomizeOrderNumber: formData.editCustomizeOrderNumber,
+          enableBackupNotificationService: formData.enableBackupNotificationService,
+          enableCustomerDisplayAccess: formData.enableCustomerDisplayAccess,
+          filterItemsByOrderType: formData.filterItemsByOrderType,
+          generateReportsStartCloseDates: formData.generateReportsStartCloseDates,
+          hideClearDataCheckLogout: formData.hideClearDataCheckLogout,
+          hideItemPriceOptions: formData.hideItemPriceOptions,
+          hideLoadMenuButton: formData.hideLoadMenuButton,
+          makeCancelDeleteReasonCompulsory: formData.makeCancelDeleteReasonCompulsory,
+          makeDiscountReasonMandatory: formData.makeDiscountReasonMandatory,
+          makeFreeCancelBillReasonMandatory: formData.makeFreeCancelBillReasonMandatory,
+          makePaymentRefNumberMandatory: formData.makePaymentRefNumberMandatory,
+          mandatoryDeliveryBoySelection: formData.mandatoryDeliveryBoySelection,
+          markOrderAsTransferOrder: formData.markOrderAsTransferOrder,
+          onlinePaymentAutoSettle: formData.onlinePaymentAutoSettle,
+          orderSyncSettingsAutoSyncInterval: formData.orderSyncSettingsAutoSyncInterval,
+          orderSyncSettingsSyncBatchPacketSize: formData.orderSyncSettingsSyncBatchPacketSize,
+          separateBillingBySection: formData.separateBillingBySection,
+          setEnteredAmountAsOpening: formData.setEnteredAmountAsOpening,
+          showAlternativeItemReportPrint: formData.showAlternativeItemReportPrint,
+          showClearSalesReportLogout: formData.showClearSalesReportLogout,
+          showOrderNoLabelPos: formData.showOrderNoLabelPos,
+          showPaymentHistoryButton: formData.showPaymentHistoryButton,
+          showRemoteKotOption: formData.showRemoteKotOption,
+          showSendPaymentLink: formData.showSendPaymentLink,
+          stockAvailabilityDisplay: formData.stockAvailabilityDisplay,
+          todaysReportSalesSummary: formData.todaysReportSalesSummary,
+          todaysReportOrderTypeSummary: formData.todaysReportOrderTypeSummary,
+          todaysReportPaymentTypeSummary: formData.todaysReportPaymentTypeSummary,
+          todaysReportDiscountSummary: formData.todaysReportDiscountSummary,
+          todaysReportExpenseSummary: formData.todaysReportExpenseSummary,
+          todaysReportBillSummary: formData.todaysReportBillSummary,
+          todaysReportDeliveryBoySummary: formData.todaysReportDeliveryBoySummary,
+          todaysReportWaiterSummary: formData.todaysReportWaiterSummary,
+          todaysReportKitchenDepartmentSummary: formData.todaysReportKitchenDepartmentSummary,
+          todaysReportCategorySummary: formData.todaysReportCategorySummary,
+          todaysReportSoldItemsSummary: formData.todaysReportSoldItemsSummary,
+          todaysReportCancelItemsSummary: formData.todaysReportCancelItemsSummary,
+          todaysReportWalletSummary: formData.todaysReportWalletSummary,
+          todaysReportDuePaymentReceivedSummary: formData.todaysReportDuePaymentReceivedSummary,
+          todaysReportDuePaymentReceivableSummary: formData.todaysReportDuePaymentReceivableSummary,
+          todaysReportPaymentVarianceSummary: formData.todaysReportPaymentVarianceSummary,
+          todaysReportCurrencyDenominationsSummary: formData.todaysReportCurrencyDenominationsSummary,
+          whenSendTodaysReport: formData.whenSendTodaysReport,
+          enableCurrencyConversion: formData.enableCurrencyConversion,
+          enableUserLoginValidation: formData.enableUserLoginValidation,
+          allowClosingShiftDespiteBills: formData.allowClosingShiftDespiteBills,
+          showRealTimeKotBillNotifications: formData.showRealTimeKotBillNotifications,
+          useSeparateBillNumbersOnline: formData.useSeparateBillNumbersOnline,
+        }),
+      });
+
+      // Update Online Order Settings
+      await fetch(`${baseUrl}/api/online-orders/${outletId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          showInPreparationKds: formData.showInPreparationKds,
+          autoAcceptOnlineOrder: formData.autoAcceptOnlineOrder,
+          customizeOrderPreparationTime: formData.customizeOrderPreparationTime,
+          onlineOrdersTimeDelay: timeDelay.toString(),
+          pullOrderOnAccept: formData.pullOrderOnAccept,
+          showAddonsSeparately: formData.showAddonsSeparately,
+          showCompleteOnlineOrderId: formData.showCompleteOnlineOrderId,
+          showOnlineOrderPreparationTime: formData.showOnlineOrderPreparationTime,
+          updateFoodReadyStatusKds: formData.updateFoodReadyStatusKds,
+        }),
+      });
+
+      alert('Settings updated successfully!');
+      console.log('Form Data Updated:', formData);
+    } catch (error) {
+      console.error('Error updating settings:', error);
+      alert('Failed to update settings. Please try again.');
+    }
   };
 
-  // Handlers for time delay increment and decrement
-  const [timeDelay, setTimeDelay] = useState(5); // Default value for Online Orders Time Delay
   const handleIncrement = () => {
     setTimeDelay((prev) => prev + 1);
   };
 
   const handleDecrement = () => {
-    setTimeDelay((prev) => (prev > 0 ? prev - 1 : 0)); // Prevent negative values
+    setTimeDelay((prev) => (prev > 0 ? prev - 1 : 0));
   };
-
 
   return (
     <div className="m-0">
-
-
       <h1 className="display-6 fw-bold mb-4">Outlet Level Settings</h1>
 
       <ul className="nav nav-tabs mb-4" id="settingsTabs" role="tablist">
@@ -234,7 +624,7 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
               role="tabpanel"
               aria-labelledby="bill-preview-tab"
             >
-              <div className="card shadow-lg h-100 " style={{ minHeight: '800px', }}>
+              <div className="card shadow-lg h-100" style={{ minHeight: '800px' }}>
                 <div className="card-body">
                   <h2 className="card-title h5 fw-bold mb-4">Bill Preview Settings</h2>
                   <div className="row g-3">
@@ -367,10 +757,7 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
                               checked={formData.enabledBarSection}
                               onChange={handleInputChange}
                             />
-                            <label
-                              className="form-check-label"
-                              htmlFor="enabledBarSection"
-                            >
+                            <label className="form-check-label" htmlFor="enabledBarSection">
                               Enabled Bar Section Billing
                             </label>
                           </div>
@@ -433,7 +820,7 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
                         id="field1"
                         placeholder="Enter GST/VAT"
                         style={{ borderColor: '#ccc' }}
-                        value={formData.note}
+                        value={formData.field1}
                         onChange={handleInputChange}
                       />
                     </div>
@@ -494,10 +881,7 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
                       />
                     </div>
                   </div>
-                  <div
-                    className="d-flex justify-content-end gap-3 mt-4"
-                    style={{ padding: '10px' }}
-                  >
+                  <div className="d-flex justify-content-end gap-3 mt-4" style={{ padding: '10px' }}>
                     <button className="btn btn-danger" onClick={handleCancel}>
                       Cancel
                     </button>
@@ -523,11 +907,7 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
                     <div className="col-md-6">
                       <div className="d-flex align-items-center mb-3">
                         <span className="me-2">#</span>
-                        <input style={{ borderColor: '#ccc' }}
-                          type="text"
-                          className="form-control w-50"
-                          placeholder="Search"
-                        />
+                        <input style={{ borderColor: '#ccc' }} type="text" className="form-control w-50" placeholder="Search" />
                       </div>
                     </div>
                     <div className="col-md-6">
@@ -544,61 +924,69 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
                       <div className="ms-3">
                         <div className="mb-2">
                           <div className="form-check">
-                            <input style={{ borderColor: '#ccc' }}
+                            <input
                               className="form-check-input"
                               type="checkbox"
-                              id="dineIn"
+                              id="customerOnKotDineIn"
+                              checked={formData.customerOnKotDineIn}
+                              onChange={handleInputChange}
                             />
-                            <label className="form-check-label" htmlFor="dineIn">
+                            <label className="form-check-label" htmlFor="customerOnKotDineIn">
                               Dine In
                             </label>
                           </div>
                         </div>
                         <div className="mb-2">
                           <div className="form-check">
-                            <input style={{ borderColor: '#ccc' }}
+                            <input
                               className="form-check-input"
                               type="checkbox"
-                              id="pickup"
-                              defaultChecked
+                              id="customerOnKotPickup"
+                              checked={formData.customerOnKotPickup}
+                              onChange={handleInputChange}
                             />
-                            <label className="form-check-label" htmlFor="pickup">
+                            <label className="form-check-label" htmlFor="customerOnKotPickup">
                               Pickup
                             </label>
                           </div>
                         </div>
                         <div className="mb-2">
                           <div className="form-check">
-                            <input style={{ borderColor: '#ccc' }}
+                            <input
                               className="form-check-input"
                               type="checkbox"
-                              id="delivery"
-                              defaultChecked
+                              id="customerOnKotDelivery"
+                              checked={formData.customerOnKotDelivery}
+                              onChange={handleInputChange}
                             />
-                            <label className="form-check-label" htmlFor="delivery">
+                            <label className="form-check-label" htmlFor="customerOnKotDelivery">
                               Delivery
                             </label>
                           </div>
                         </div>
                         <div className="mb-3">
                           <div className="form-check">
-                            <input style={{ borderColor: '#ccc' }}
+                            <input
                               className="form-check-input"
                               type="checkbox"
-                              id="quickBill"
-                              defaultChecked
+                              id="customerOnKotQuickBill"
+                              checked={formData.customerOnKotQuickBill}
+                              onChange={handleInputChange}
                             />
-                            <label className="form-check-label" htmlFor="quickBill">
+                            <label className="form-check-label" htmlFor="customerOnKotQuickBill">
                               Quick Bill
                             </label>
                           </div>
                         </div>
-                        <select style={{ borderColor: '#ccc' }}
+                        <select
                           className="form-select"
-                          aria-label="Name and Mobile Number"
+                          id="customerKotDisplayOption"
+                          value={formData.customerKotDisplayOption}
+                          onChange={handleInputChange}
                         >
-                          <option value="enabled">Name And Mobile Number</option>
-                          <option value="disabled">Disabled</option>
+                          <option value="NAME_ONLY">Name Only</option>
+                          <option value="NAME_AND_MOBILE">Name and Mobile Number</option>
+                          <option value="DISABLED">Disabled</option>
                         </select>
                       </div>
                     </div>
@@ -606,9 +994,7 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
                   <hr className="my-2" style={{ borderColor: '#ccc' }} />
                   <div className="row mb-2">
                     <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">
-                        2. Group KOT Items by Category on KOT
-                      </h6>
+                      <h6 className="fw-bold mb-3">2. Group KOT Items by Category on KOT</h6>
                     </div>
                     <div className="col-md-6">
                       <div className="ms-3">
@@ -616,7 +1002,9 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
                           <input
                             className="form-check-input"
                             type="checkbox"
-                            id="groupKOTItems"
+                            id="groupKotItemsByCategory"
+                            checked={formData.groupKotItemsByCategory}
+                            onChange={handleInputChange}
                           />
                         </div>
                       </div>
@@ -625,9 +1013,7 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
                   <hr className="my-2" style={{ borderColor: '#ccc' }} />
                   <div className="row mb-2">
                     <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">
-                        3. Hide Table Name on KOT (Quick Bill)
-                      </h6>
+                      <h6 className="fw-bold mb-3">3. Hide Table Name on KOT (Quick Bill)</h6>
                     </div>
                     <div className="col-md-6">
                       <div className="ms-3">
@@ -635,7 +1021,9 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
                           <input
                             className="form-check-input"
                             type="checkbox"
-                            id="hideTableName"
+                            id="hideTableNameQuickBill"
+                            checked={formData.hideTableNameQuickBill}
+                            onChange={handleInputChange}
                           />
                         </div>
                       </div>
@@ -650,38 +1038,38 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
                       <div className="ms-3">
                         <div className="mb-3">
                           <div className="form-check form-switch">
-                            <input style={{ borderColor: '#ccc' }}
+                            <input
                               className="form-check-input"
                               type="checkbox"
                               id="showNewOrderTag"
+                              checked={formData.showNewOrderTag}
+                              onChange={handleInputChange}
                             />
-                            <label
-                              className="form-check-label"
-                              htmlFor="showNewOrderTag"
-                            >
+                            <label className="form-check-label" htmlFor="showNewOrderTag">
                               Show New Order Tag
                             </label>
                           </div>
                         </div>
                         <div className="mb-3">
-                          <input style={{ borderColor: '#ccc' }}
+                          <input
                             type="text"
                             className="form-control"
+                            id="newOrderTagLabel"
                             placeholder="New Order Tag Label"
-                            defaultValue="New Order"
+                            value={formData.newOrderTagLabel}
+                            onChange={handleInputChange}
                           />
                         </div>
                         <div className="mb-3">
                           <div className="form-check form-switch">
-                            <input style={{ borderColor: '#ccc' }}
+                            <input
                               className="form-check-input"
                               type="checkbox"
                               id="showRunningOrderTag"
+                              checked={formData.showRunningOrderTag}
+                              onChange={handleInputChange}
                             />
-                            <label
-                              className="form-check-label"
-                              htmlFor="showRunningOrderTag"
-                            >
+                            <label className="form-check-label" htmlFor="showRunningOrderTag">
                               Show Running Order Tag
                             </label>
                           </div>
@@ -690,8 +1078,10 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
                           <input
                             type="text"
                             className="form-control"
+                            id="runningOrderTagLabel"
                             placeholder="Running Order Tag Label"
-                            defaultValue="Running Order"
+                            value={formData.runningOrderTagLabel}
+                            onChange={handleInputChange}
                           />
                         </div>
                       </div>
@@ -705,31 +1095,43 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
                     <div className="col-md-6">
                       <div className="ms-3">
                         <div className="mb-3">
-                          <input style={{ borderColor: '#ccc' }}
+                          <input
                             type="text"
                             className="form-control"
+                            id="dineInKotNo"
                             placeholder="Dine In KOT No"
+                            value={formData.dineInKotNo}
+                            onChange={handleInputChange}
                           />
                         </div>
                         <div className="mb-3">
-                          <input style={{ borderColor: '#ccc' }}
+                          <input
                             type="text"
                             className="form-control"
+                            id="pickupKotNo"
                             placeholder="Pickup KOT No"
+                            value={formData.pickupKotNo}
+                            onChange={handleInputChange}
                           />
                         </div>
                         <div className="mb-3">
-                          <input style={{ borderColor: '#ccc' }}
+                          <input
                             type="text"
                             className="form-control"
+                            id="deliveryKotNo"
                             placeholder="Delivery KOT No"
+                            value={formData.deliveryKotNo}
+                            onChange={handleInputChange}
                           />
                         </div>
                         <div className="mb-3">
-                          <input style={{ borderColor: '#ccc' }}
+                          <input
                             type="text"
                             className="form-control"
-                            placeholder="Quick Bill"
+                            id="quickBillKotNo"
+                            placeholder="Quick Bill KOT No"
+                            value={formData.quickBillKotNo}
+                            onChange={handleInputChange}
                           />
                         </div>
                       </div>
@@ -738,17 +1140,17 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
                   <hr className="my-2" style={{ borderColor: '#ccc' }} />
                   <div className="row mb-2">
                     <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">
-                        6. Modifier default Option on KOT Print
-                      </h6>
+                      <h6 className="fw-bold mb-3">6. Modifier default Option on KOT Print</h6>
                     </div>
                     <div className="col-md-6">
                       <div className="ms-3">
                         <div className="form-check form-switch">
-                          <input style={{ borderColor: '#ccc' }}
+                          <input
                             className="form-check-input"
                             type="checkbox"
-                            id="modifierOption"
+                            id="modifierDefaultOption"
+                            checked={formData.modifierDefaultOption}
+                            onChange={handleInputChange}
                           />
                         </div>
                       </div>
@@ -762,10 +1164,12 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
                     <div className="col-md-6">
                       <div className="ms-3">
                         <div className="form-check form-switch">
-                          <input style={{ borderColor: '#ccc' }}
+                          <input
                             className="form-check-input"
                             type="checkbox"
-                            id="showKOTNumber"
+                            id="printKotBothLanguages"
+                            checked={formData.printKotBothLanguages}
+                            onChange={handleInputChange}
                           />
                         </div>
                       </div>
@@ -779,10 +1183,12 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
                     <div className="col-md-6">
                       <div className="ms-3">
                         <div className="form-check form-switch">
-                          <input style={{ borderColor: '#ccc' }}
+                          <input
                             className="form-check-input"
                             type="checkbox"
-                            id="showKOTTime"
+                            id="showAlternativeItem"
+                            checked={formData.showAlternativeItem}
+                            onChange={handleInputChange}
                           />
                         </div>
                       </div>
@@ -791,15 +1197,17 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
                   <hr className="my-2" style={{ borderColor: '#ccc' }} />
                   <div className="row mb-2">
                     <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">9. Show Captain Username on KOT</h6>
+                      <h6 className="fw-bold mb-3">9. Show Captain Username</h6>
                     </div>
                     <div className="col-md-6">
                       <div className="ms-3">
                         <div className="form-check form-switch">
-                          <input style={{ borderColor: '#ccc' }}
+                          <input
                             className="form-check-input"
                             type="checkbox"
-                            id="showWaiterName"
+                            id="showCaptainUsername"
+                            checked={formData.showCaptainUsername}
+                            onChange={handleInputChange}
                           />
                         </div>
                       </div>
@@ -808,15 +1216,17 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
                   <hr className="my-2" style={{ borderColor: '#ccc' }} />
                   <div className="row mb-2">
                     <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">10. Show Covers As Guest On KOT</h6>
+                      <h6 className="fw-bold mb-3">10. Show Covers as Guest</h6>
                     </div>
                     <div className="col-md-6">
                       <div className="ms-3">
                         <div className="form-check form-switch">
-                          <input style={{ borderColor: '#ccc' }}
+                          <input
                             className="form-check-input"
                             type="checkbox"
-                            id="showItemCode"
+                            id="showCoversAsGuest"
+                            checked={formData.showCoversAsGuest}
+                            onChange={handleInputChange}
                           />
                         </div>
                       </div>
@@ -825,15 +1235,17 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
                   <hr className="my-2" style={{ borderColor: '#ccc' }} />
                   <div className="row mb-2">
                     <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">11. Show Item Price on KOT</h6>
+                      <h6 className="fw-bold mb-3">11. Show Item Price</h6>
                     </div>
                     <div className="col-md-6">
                       <div className="ms-3">
                         <div className="form-check form-switch">
-                          <input style={{ borderColor: '#ccc' }}
+                          <input
                             className="form-check-input"
                             type="checkbox"
-                            id="showItemShortName"
+                            id="showItemPrice"
+                            checked={formData.showItemPrice}
+                            onChange={handleInputChange}
                           />
                         </div>
                       </div>
@@ -847,10 +1259,12 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
                     <div className="col-md-6">
                       <div className="ms-3">
                         <div className="form-check form-switch">
-                          <input style={{ borderColor: '#ccc' }}
+                          <input
                             className="form-check-input"
                             type="checkbox"
-                            id="showItemSerialNumber"
+                            id="showKotNoQuickBill"
+                            checked={formData.showKotNoQuickBill}
+                            onChange={handleInputChange}
                           />
                         </div>
                       </div>
@@ -864,10 +1278,12 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
                     <div className="col-md-6">
                       <div className="ms-3">
                         <div className="form-check form-switch">
-                          <input style={{ borderColor: '#ccc' }}
+                          <input
                             className="form-check-input"
                             type="checkbox"
-                            id="showKOTSerialNumber"
+                            id="showKotNote"
+                            checked={formData.showKotNote}
+                            onChange={handleInputChange}
                           />
                         </div>
                       </div>
@@ -876,67 +1292,7 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
                   <hr className="my-2" style={{ borderColor: '#ccc' }} />
                   <div className="row mb-2">
                     <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">
-                        14. Show Online Order OTP on KOT
-                      </h6>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <div className="form-check form-switch">
-                          <input style={{ borderColor: '#ccc' }}
-                            className="form-check-input"
-                            type="checkbox"
-                            id="showTableNameQuickBill"
-                            defaultChecked
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">
-                        15. Show Order ID On KOT
-                      </h6>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <div className="mb-2">
-                          <div className="form-check">
-                            <input style={{ borderColor: '#ccc' }}
-                              className="form-check-input"
-                              type="checkbox"
-                              id="pickup"
-                              defaultChecked
-                            />
-                            <label className="form-check-label" htmlFor="pickup">
-                              Quick Bill
-                            </label>
-                          </div>
-                        </div>
-                        <div className="mb-2">
-                          <div className="form-check">
-                            <input
-                              className="form-check-input"
-                              type="checkbox"
-                              id="delivery"
-                              defaultChecked
-                            />
-                            <label className="form-check-label" htmlFor="delivery">
-                              Online Order
-                            </label>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">
-                        16. Show Order No on Quick Bill Section KOT
-                      </h6>
+                      <h6 className="fw-bold mb-3">14. Show Online Order OTP</h6>
                     </div>
                     <div className="col-md-6">
                       <div className="ms-3">
@@ -944,7 +1300,9 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
                           <input
                             className="form-check-input"
                             type="checkbox"
-                            id="showCustomerMobileNumberQuickBill"
+                            id="showOnlineOrderOtp"
+                            checked={formData.showOnlineOrderOtp}
+                            onChange={handleInputChange}
                           />
                         </div>
                       </div>
@@ -953,7 +1311,7 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
                   <hr className="my-2" style={{ borderColor: '#ccc' }} />
                   <div className="row mb-2">
                     <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">17. Show Order Type Symbol on KOT</h6>
+                      <h6 className="fw-bold mb-3">15. Show Order ID on Quick Bill</h6>
                     </div>
                     <div className="col-md-6">
                       <div className="ms-3">
@@ -961,7 +1319,9 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
                           <input
                             className="form-check-input"
                             type="checkbox"
-                            id="showItemNote"
+                            id="showOrderIdQuickBill"
+                            checked={formData.showOrderIdQuickBill}
+                            onChange={handleInputChange}
                           />
                         </div>
                       </div>
@@ -970,41 +1330,7 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
                   <hr className="my-2" style={{ borderColor: '#ccc' }} />
                   <div className="row mb-2">
                     <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">18. Show Store Name On KOT</h6>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <div className="form-check form-switch">
-                          <input style={{ borderColor: '#ccc' }}
-                            className="form-check-input"
-                            type="checkbox"
-                            id="showKOTNote"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">19. Show Terminal Username on KOT</h6>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <div className="form-check form-switch">
-                          <input style={{ borderColor: '#ccc' }}
-                            className="form-check-input"
-                            type="checkbox"
-                            id="showItemRate"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">20. Show Username on KOT</h6>
+                      <h6 className="fw-bold mb-3">16. Show Order ID on Online Order</h6>
                     </div>
                     <div className="col-md-6">
                       <div className="ms-3">
@@ -1012,7 +1338,9 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
                           <input
                             className="form-check-input"
                             type="checkbox"
-                            id="showKOTTotal"
+                            id="showOrderIdOnlineOrder"
+                            checked={formData.showOrderIdOnlineOrder}
+                            onChange={handleInputChange}
                           />
                         </div>
                       </div>
@@ -1021,24 +1349,118 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
                   <hr className="my-2" style={{ borderColor: '#ccc' }} />
                   <div className="row mb-2">
                     <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">21.Show Waiter On KOT</h6>
+                      <h6 className="fw-bold mb-3">17. Show Order No Quick Bill Section</h6>
                     </div>
                     <div className="col-md-6">
                       <div className="ms-3">
                         <div className="form-check form-switch">
-                          <input style={{ borderColor: '#ccc' }}
+                          <input
                             className="form-check-input"
                             type="checkbox"
-                            id="showKOTDate"
+                            id="showOrderNoQuickBillSection"
+                            checked={formData.showOrderNoQuickBillSection}
+                            onChange={handleInputChange}
                           />
                         </div>
                       </div>
                     </div>
                   </div>
-                  <div
-                    className="d-flex justify-content-end gap-3 mt-4"
-                    style={{ padding: '10px' }}
-                  >
+                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
+                  <div className="row mb-2">
+                    <div className="col-md-6">
+                      <h6 className="fw-bold mb-3">18. Show Order Type Symbol</h6>
+                    </div>
+                    <div className="col-md-6">
+                      <div className="ms-3">
+                        <div className="form-check form-switch">
+                          <input
+                            className="form-check-input"
+                            type="checkbox"
+                            id="showOrderTypeSymbol"
+                            checked={formData.showOrderTypeSymbol}
+                            onChange={handleInputChange}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
+                  <div className="row mb-2">
+                    <div className="col-md-6">
+                      <h6 className="fw-bold mb-3">19. Show Store Name</h6>
+                    </div>
+                    <div className="col-md-6">
+                      <div className="ms-3">
+                        <div className="form-check form-switch">
+                          <input
+                            className="form-check-input"
+                            type="checkbox"
+                            id="showStoreName"
+                            checked={formData.showStoreName}
+                            onChange={handleInputChange}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
+                  <div className="row mb-2">
+                    <div className="col-md-6">
+                      <h6 className="fw-bold mb-3">20. Show Terminal Username</h6>
+                    </div>
+                    <div className="col-md-6">
+                      <div className="ms-3">
+                        <div className="form-check form-switch">
+                          <input
+                            className="form-check-input"
+                            type="checkbox"
+                            id="showTerminalUsername"
+                            checked={formData.showTerminalUsername}
+                            onChange={handleInputChange}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
+                  <div className="row mb-2">
+                    <div className="col-md-6">
+                      <h6 className="fw-bold mb-3">21. Show Username</h6>
+                    </div>
+                    <div className="col-md-6">
+                      <div className="ms-3">
+                        <div className="form-check form-switch">
+                          <input
+                            className="form-check-input"
+                            type="checkbox"
+                            id="showUsername"
+                            checked={formData.showUsername}
+                            onChange={handleInputChange}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
+                  <div className="row mb-2">
+                    <div className="col-md-6">
+                      <h6 className="fw-bold mb-3">22. Show Waiter</h6>
+                    </div>
+                    <div className="col-md-6">
+                      <div className="ms-3">
+                        <div className="form-check form-switch">
+                          <input
+                            className="form-check-input"
+                            type="checkbox"
+                            id="showWaiter"
+                            checked={formData.showWaiter}
+                            onChange={handleInputChange}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="d-flex justify-content-end gap-3 mt-4" style={{ padding: '10px' }}>
                     <button className="btn btn-danger" onClick={handleCancel}>
                       Cancel
                     </button>
@@ -1060,17 +1482,11 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
               <div className="card shadow-sm h-100">
                 <div className="card-body">
                   <h2 className="card-title h5 fw-bold mb-4">Bill Print Settings</h2>
-                  {/* Header: Search Bar and Status */}
                   <div className="row mb-2">
                     <div className="col-md-6">
                       <div className="d-flex align-items-center mb-3">
                         <span className="me-2">#</span>
-                        <input
-                          type="text"
-                          className="form-control w-50"
-                          placeholder="Search"
-                          style={{ borderColor: '#ccc' }}
-                        />
+                        <input style={{ borderColor: '#ccc' }} type="text" className="form-control w-50" placeholder="Search" />
                       </div>
                     </div>
                     <div className="col-md-6">
@@ -1079,8 +1495,6 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
                       </div>
                     </div>
                   </div>
-
-                  {/* Row 1: Bill Title */}
                   <div className="row mb-2">
                     <div className="col-md-6">
                       <h6 className="fw-bold mb-3">1. Bill Title</h6>
@@ -1093,62 +1507,60 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
                               className="form-check-input"
                               type="checkbox"
                               id="billTitleDineIn"
-                              style={{ borderColor: '#ccc' }}
+                              checked={formData.billTitleDineIn}
+                              onChange={handleInputChange}
                             />
                             <label className="form-check-label" htmlFor="billTitleDineIn">
                               Dine In
                             </label>
                           </div>
                         </div>
-
                         <div className="mb-2">
                           <div className="form-check">
                             <input
                               className="form-check-input"
                               type="checkbox"
                               id="billTitlePickup"
-                              style={{ borderColor: '#ccc' }}
+                              checked={formData.billTitlePickup}
+                              onChange={handleInputChange}
                             />
                             <label className="form-check-label" htmlFor="billTitlePickup">
                               Pickup
                             </label>
                           </div>
                         </div>
-
                         <div className="mb-2">
                           <div className="form-check">
                             <input
                               className="form-check-input"
                               type="checkbox"
                               id="billTitleDelivery"
-                              style={{ borderColor: '#ccc' }}
+                              checked={formData.billTitleDelivery}
+                              onChange={handleInputChange}
                             />
                             <label className="form-check-label" htmlFor="billTitleDelivery">
                               Delivery
                             </label>
                           </div>
                         </div>
-
                         <div className="mb-2">
                           <div className="form-check">
                             <input
                               className="form-check-input"
                               type="checkbox"
                               id="billTitleQuickBill"
-                              style={{ borderColor: '#ccc' }}
+                              checked={formData.billTitleQuickBill}
+                              onChange={handleInputChange}
                             />
                             <label className="form-check-label" htmlFor="billTitleQuickBill">
                               Quick Bill
                             </label>
                           </div>
                         </div>
-
                       </div>
                     </div>
                   </div>
                   <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 2: Mask Order ID */}
                   <div className="row mb-2">
                     <div className="col-md-6">
                       <h6 className="fw-bold mb-3">2. Mask Order ID</h6>
@@ -1160,18 +1572,17 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
                             className="form-check-input"
                             type="checkbox"
                             id="maskOrderId"
-                            style={{ borderColor: '#ccc' }}
+                            checked={formData.maskOrderId}
+                            onChange={handleInputChange}
                           />
                         </div>
                       </div>
                     </div>
                   </div>
                   <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 3: Modifier default option on Bill print */}
                   <div className="row mb-2">
                     <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">3. Modifier default option on Bill print</h6>
+                      <h6 className="fw-bold mb-3">3. Modifier Default Option on Bill Print</h6>
                     </div>
                     <div className="col-md-6">
                       <div className="ms-3">
@@ -1180,18 +1591,17 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
                             className="form-check-input"
                             type="checkbox"
                             id="modifierDefaultOptionBill"
-                            style={{ borderColor: '#ccc' }}
+                            checked={formData.modifierDefaultOptionBill}
+                            onChange={handleInputChange}
                           />
                         </div>
                       </div>
                     </div>
                   </div>
                   <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 4: Print Bill In Both Language (English, Arabic) */}
                   <div className="row mb-2">
                     <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">4. Print Bill In Both Language (English, Arabic)</h6>
+                      <h6 className="fw-bold mb-3">4. Print Bill In Both Languages (English and Arabic)</h6>
                     </div>
                     <div className="col-md-6">
                       <div className="ms-3">
@@ -1200,18 +1610,17 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
                             className="form-check-input"
                             type="checkbox"
                             id="printBillBothLanguages"
-                            style={{ borderColor: '#ccc' }}
+                            checked={formData.printBillBothLanguages}
+                            onChange={handleInputChange}
                           />
                         </div>
                       </div>
                     </div>
                   </div>
                   <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 5: Show Alternative Item Title On Bill Print */}
                   <div className="row mb-2">
                     <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">5. Show Alternative Item Title On Bill Print</h6>
+                      <h6 className="fw-bold mb-3">5. Show Alternative Item Title on Bill</h6>
                     </div>
                     <div className="col-md-6">
                       <div className="ms-3">
@@ -1220,18 +1629,17 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
                             className="form-check-input"
                             type="checkbox"
                             id="showAltItemTitleBill"
-                            style={{ borderColor: '#ccc' }}
+                            checked={formData.showAltItemTitleBill}
+                            onChange={handleInputChange}
                           />
                         </div>
                       </div>
                     </div>
                   </div>
                   <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 6: Show alternative name on Bill */}
                   <div className="row mb-2">
                     <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">6. Show alternative name on Bill</h6>
+                      <h6 className="fw-bold mb-3">6. Show Alternative Name on Bill</h6>
                     </div>
                     <div className="col-md-6">
                       <div className="ms-3">
@@ -1240,15 +1648,14 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
                             className="form-check-input"
                             type="checkbox"
                             id="showAltNameBill"
-                            style={{ borderColor: '#ccc' }}
+                            checked={formData.showAltNameBill}
+                            onChange={handleInputChange}
                           />
                         </div>
                       </div>
                     </div>
                   </div>
                   <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 7: Show Bill Amount in Words */}
                   <div className="row mb-2">
                     <div className="col-md-6">
                       <h6 className="fw-bold mb-3">7. Show Bill Amount in Words</h6>
@@ -1260,15 +1667,14 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
                             className="form-check-input"
                             type="checkbox"
                             id="showBillAmountWords"
-                            style={{ borderColor: '#ccc' }}
+                            checked={formData.showBillAmountWords}
+                            onChange={handleInputChange}
                           />
                         </div>
                       </div>
                     </div>
                   </div>
                   <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 8: Show Bill No on Bill */}
                   <div className="row mb-2">
                     <div className="col-md-6">
                       <h6 className="fw-bold mb-3">8. Show Bill No on Bill</h6>
@@ -1280,18 +1686,17 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
                             className="form-check-input"
                             type="checkbox"
                             id="showBillNoBill"
-                            style={{ borderColor: '#ccc' }}
+                            checked={formData.showBillNoBill}
+                            onChange={handleInputChange}
                           />
                         </div>
                       </div>
                     </div>
                   </div>
                   <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 9: Show Bill Number With Prefix On Bill */}
                   <div className="row mb-2">
                     <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">9. Show Bill Number With Prefix On Bill</h6>
+                      <h6 className="fw-bold mb-3">9. Show Bill Number Prefix on Bill</h6>
                     </div>
                     <div className="col-md-6">
                       <div className="ms-3">
@@ -1300,15 +1705,14 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
                             className="form-check-input"
                             type="checkbox"
                             id="showBillNumberPrefixBill"
-                            style={{ borderColor: '#ccc' }}
+                            checked={formData.showBillNumberPrefixBill}
+                            onChange={handleInputChange}
                           />
                         </div>
                       </div>
                     </div>
                   </div>
                   <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 10: Show Bill Print Count */}
                   <div className="row mb-2">
                     <div className="col-md-6">
                       <h6 className="fw-bold mb-3">10. Show Bill Print Count</h6>
@@ -1320,15 +1724,14 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
                             className="form-check-input"
                             type="checkbox"
                             id="showBillPrintCount"
-                            style={{ borderColor: '#ccc' }}
+                            checked={formData.showBillPrintCount}
+                            onChange={handleInputChange}
                           />
                         </div>
                       </div>
                     </div>
                   </div>
                   <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 11: Show Brand Name on Bill */}
                   <div className="row mb-2">
                     <div className="col-md-6">
                       <h6 className="fw-bold mb-3">11. Show Brand Name on Bill</h6>
@@ -1340,18 +1743,17 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
                             className="form-check-input"
                             type="checkbox"
                             id="showBrandNameBill"
-                            style={{ borderColor: '#ccc' }}
+                            checked={formData.showBrandNameBill}
+                            onChange={handleInputChange}
                           />
                         </div>
                       </div>
                     </div>
                   </div>
                   <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 12: Show Captain On Bill */}
                   <div className="row mb-2">
                     <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">12. Show Captain On Bill</h6>
+                      <h6 className="fw-bold mb-3">12. Show Captain on Bill</h6>
                     </div>
                     <div className="col-md-6">
                       <div className="ms-3">
@@ -1360,15 +1762,14 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
                             className="form-check-input"
                             type="checkbox"
                             id="showCaptainBill"
-                            style={{ borderColor: '#ccc' }}
+                            checked={formData.showCaptainBill}
+                            onChange={handleInputChange}
                           />
                         </div>
                       </div>
                     </div>
                   </div>
                   <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 13: Show Covers on Bill */}
                   <div className="row mb-2">
                     <div className="col-md-6">
                       <h6 className="fw-bold mb-3">13. Show Covers on Bill</h6>
@@ -1380,15 +1781,14 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
                             className="form-check-input"
                             type="checkbox"
                             id="showCoversBill"
-                            style={{ borderColor: '#ccc' }}
+                            checked={formData.showCoversBill}
+                            onChange={handleInputChange}
                           />
                         </div>
                       </div>
                     </div>
                   </div>
                   <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 14: Show Custom QR Codes on Bill */}
                   <div className="row mb-2">
                     <div className="col-md-6">
                       <h6 className="fw-bold mb-3">14. Show Custom QR Codes on Bill</h6>
@@ -1399,16 +1799,15 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
                           <input
                             className="form-check-input"
                             type="checkbox"
-                            id="showCustomQRCodesBill"
-                            style={{ borderColor: '#ccc' }}
+                            id="showCustomQrCodesBill"
+                            checked={formData.showCustomQrCodesBill}
+                            onChange={handleInputChange}
                           />
                         </div>
                       </div>
                     </div>
                   </div>
                   <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 15: Show Customer GST on Bill */}
                   <div className="row mb-2">
                     <div className="col-md-6">
                       <h6 className="fw-bold mb-3">15. Show Customer GST on Bill</h6>
@@ -1419,8 +1818,9 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
                           <input
                             className="form-check-input"
                             type="checkbox"
-                            id="showCustomerGSTBill"
-                            style={{ borderColor: '#ccc' }}
+                            id="showCustomerGstBill"
+                            checked={formData.showCustomerGstBill}
+                            onChange={handleInputChange}
                           />
                         </div>
                       </div>
@@ -2166,1626 +2566,1614 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
                 </div>
               </div>
             </div>
+{/* General Settings Tab */}
 
-            {/* General Settings Tab */}
-            <div
-              className={`tab-pane fade ${activeTab === 'general' ? 'show active' : ''}`}
-              id="general"
-              role="tabpanel"
-              aria-labelledby="general-tab"
-            >
-              <div className="card shadow-sm h-100">
-                <div className="card-body">
-                  <h2 className="card-title h5 fw-bold mb-4">General Settings</h2>
+<div
+  className={`tab-pane fade ${activeTab === 'general' ? 'show active' : ''}`}
+  id="general"
+  role="tabpanel"
+  aria-labelledby="general-tab"
+>
+  <div className="card shadow-sm h-100">
+    <div className="card-body">
+      <h2 className="card-title h5 fw-bold mb-4">General Settings</h2>
 
-                  {/* Header: Search Bar and Status */}
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <div className="d-flex align-items-center mb-3">
-                        <span className="me-2">#</span>
-                        <input
-                          type="text"
-                          className="form-control w-50"
-                          placeholder="Search"
-                        />
-                      </div>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <h6 className="fw-bold mb-3">Status</h6>
-                      </div>
-                    </div>
-                  </div>
+      {/* Header: Search Bar and Status */}
+      <div className="row mb-2">
+        <div className="col-md-6">
+          <div className="d-flex align-items-center mb-3">
+            <span className="me-2">#</span>
+            <input
+              type="text"
+              className="form-control w-50"
+              placeholder="Search settings"
+              id="searchSettings"
+              value={formData.searchSettings || ''}
+              onChange={handleInputChange}
+            />
+          </div>
+        </div>
+        <div className="col-md-6">
+          <div className="ms-3">
+            <h6 className="fw-bold mb-3">Status</h6>
+          </div>
+        </div>
+      </div>
 
-                  {/* Row 1: Add Customize URL Link For Atlantic POS */}
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">1. Add Customize URL Link For Atlantic POS</h6>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <table className="table table-bordered mb-3">
-                          <thead>
-                            <tr style={{ borderColor: '#ccc' }}>
-                              <th scope="col">Title</th>
-                              <th scope="col">URL</th>
-                              <th scope="col">Action</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            <tr style={{ borderColor: '#ccc' }}>
-                              <td colSpan={3} className="text-center">No Data Found</td>
-                            </tr>
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  </div>
-                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
+      {/* Row 1: Allow Charges Apply After Bill Print */}
+      <div className="row mb-2">
+        <div className="col-md-6">
+          <h6 className="fw-bold mb-3">1. Allow Charges Apply After Bill Print</h6>
+        </div>
+        <div className="col-md-6">
+          <div className="ms-3">
+            <div className="form-check form-switch">
+              <input
+                style={{ borderColor: '#ccc' }}
+                className="form-check-input"
+                type="checkbox"
+                id="allowChargesAfterBillPrint"
+                checked={formData.allowChargesAfterBillPrint}
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <hr className="my-2" style={{ borderColor: '#ccc' }} />
 
-                  {/* Row 2: Allow Charges Apply After Bill Print */}
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">2. Allow Charges Apply After Bill Print</h6>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <div className="form-check form-switch">
-                          <input style={{ borderColor: '#ccc' }}
-                            className="form-check-input"
-                            type="checkbox"
-                            id="allowChargesAfterBillPrint"
-                            checked={formData.allowChargesAfterBillPrint}
-                            onChange={handleInputChange}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
+      {/* Row 2: Allow Discount Apply After Bill Print */}
+      <div className="row mb-2">
+        <div className="col-md-6">
+          <h6 className="fw-bold mb-3">2. Allow Discount Apply After Bill Print</h6>
+        </div>
+        <div className="col-md-6">
+          <div className="ms-3">
+            <div className="form-check form-switch">
+              <input
+                style={{ borderColor: '#ccc' }}
+                className="form-check-input"
+                type="checkbox"
+                id="allowDiscountAfterBillPrint"
+                checked={formData.allowDiscountAfterBillPrint}
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <hr className="my-2" style={{ borderColor: '#ccc' }} />
 
-                  {/* Row 3: Allow Discount Apply After Bill Print */}
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">3. Allow Discount Apply After Bill Print</h6>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <div className="form-check form-switch">
-                          <input style={{ borderColor: '#ccc' }}
-                            className="form-check-input"
-                            type="checkbox"
-                            id="allowDiscountAfterBillPrint"
-                            checked={formData.allowDiscountAfterBillPrint}
-                            onChange={handleInputChange}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
+      {/* Row 3: Allow Discount Apply Before Save */}
+      <div className="row mb-2">
+        <div className="col-md-6">
+          <h6 className="fw-bold mb-3">3. Allow Discount Apply Before Save</h6>
+        </div>
+        <div className="col-md-6">
+          <div className="ms-3">
+            <div className="form-check form-switch">
+              <input
+                style={{ borderColor: '#ccc' }}
+                className="form-check-input"
+                type="checkbox"
+                id="allowDiscountBeforeSave"
+                checked={formData.allowDiscountBeforeSave}
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <hr className="my-2" style={{ borderColor: '#ccc' }} />
 
-                  {/* Row 4: Allow Discount Apply Before Save */}
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">4. Allow Discount Apply Before Save</h6>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <div className="form-check form-switch">
-                          <input style={{ borderColor: '#ccc' }}
-                            className="form-check-input"
-                            type="checkbox"
-                            id="allowDiscountBeforeSave"
-                            checked={formData.allowDiscountBeforeSave}
-                            onChange={handleInputChange}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
+      {/* Row 4: Allow Pre-Order in TA/HD */}
+      <div className="row mb-2">
+        <div className="col-md-6">
+          <h6 className="fw-bold mb-3">4. Allow Pre-Order in TA/HD</h6>
+        </div>
+        <div className="col-md-6">
+          <div className="ms-3">
+            <div className="form-check form-switch">
+              <input
+                style={{ borderColor: '#ccc' }}
+                className="form-check-input"
+                type="checkbox"
+                id="allowPreOrderTahd"
+                checked={formData.allowPreOrderTahd}
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <hr className="my-2" style={{ borderColor: '#ccc' }} />
 
-                  {/* Row 5: Allow Pre-Order in TA/HD */}
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">5. Allow Pre-Order in TA/HD</h6>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <div className="form-check form-switch">
-                          <input style={{ borderColor: '#ccc' }}
-                            className="form-check-input"
-                            type="checkbox"
-                            id="allowPreOrderTAHD"
-                            checked={formData.allowPreOrderTAHD}
-                            onChange={handleInputChange}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 6: Ask for Covers */}
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">6. Ask for Covers</h6>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <div className="mb-2">
-                          <div className="form-check">
-                            <input style={{ borderColor: '#ccc' }}
-                              className="form-check-input"
-                              type="checkbox"
-                              id="askCoversDineIn"
-                              checked={formData.askCovers.dineIn}
-                              onChange={(e) => handleNestedChange(e, 'askCovers', 'dineIn')}
-                            />
-                            <label className="form-check-label" htmlFor="askCoversDineIn">
-                              Dine In
-                            </label>
-                          </div>
-                        </div>
-                        <div className="mb-2">
-                          <div className="form-check">
-                            <input style={{ borderColor: '#ccc' }}
-                              className="form-check-input"
-                              type="checkbox"
-                              id="askCoversPickup"
-                              checked={formData.askCovers.pickup}
-                              onChange={(e) => handleNestedChange(e, 'askCovers', 'pickup')}
-                            />
-                            <label className="form-check-label" htmlFor="askCoversPickup">
-                              Pickup
-                            </label>
-                          </div>
-                        </div>
-                        <div className="mb-2">
-                          <div className="form-check">
-                            <input style={{ borderColor: '#ccc' }}
-                              className="form-check-input"
-                              type="checkbox"
-                              id="askCoversDelivery"
-                              checked={formData.askCovers.delivery}
-                              onChange={(e) => handleNestedChange(e, 'askCovers', 'delivery')}
-                            />
-                            <label className="form-check-label" htmlFor="askCoversDelivery">
-                              Delivery
-                            </label>
-                          </div>
-                        </div>
-                        <div className="mb-3">
-                          <div className="form-check">
-                            <input style={{ borderColor: '#ccc' }}
-                              className="form-check-input"
-                              type="checkbox"
-                              id="askCoversQuickBill"
-                              checked={formData.askCovers.quickBill}
-                              onChange={(e) => handleNestedChange(e, 'askCovers', 'quickBill')}
-                            />
-                            <label className="form-check-label" htmlFor="askCoversQuickBill">
-                              Quick Bill
-                            </label>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 7: Ask for Covers in Captain */}
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">7. Ask for Covers in Captain</h6>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <div className="form-check form-switch">
-                          <input style={{ borderColor: '#ccc' }}
-                            className="form-check-input"
-                            type="checkbox"
-                            id="askCoversCaptain"
-                            checked={formData.askCoversCaptain}
-                            onChange={handleInputChange}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 8: Ask for Custom Order ID (Quick Bill) */}
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">8. Ask for Custom Order ID (Quick Bill)</h6>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <div className="form-check form-switch">
-                          <input style={{ borderColor: '#ccc' }}
-                            className="form-check-input"
-                            type="checkbox"
-                            id="askCustomOrderIdQuickBill"
-                            checked={formData.askCustomOrderIdQuickBill}
-                            onChange={handleInputChange}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 9: Ask for Custom Order Type (Quick Bill) */}
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">9. Ask for Custom Order Type (Quick Bill)</h6>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <div className="form-check form-switch">
-                          <input style={{ borderColor: '#ccc' }}
-                            className="form-check-input"
-                            type="checkbox"
-                            id="askCustomOrderTypeQuickBill"
-                            checked={formData.askCustomOrderTypeQuickBill}
-                            onChange={handleInputChange}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 10: Ask for Payment Mode On Save Bill */}
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">10. Ask for Payment Mode On Save Bill</h6>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <div className="form-check form-switch">
-                          <input style={{ borderColor: '#ccc' }}
-                            className="form-check-input"
-                            type="checkbox"
-                            id="askPaymentModeOnSaveBill"
-                            checked={formData.askPaymentModeOnSaveBill}
-                            onChange={handleInputChange}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 11: Ask for Waiter */}
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">11. Ask for Waiter</h6>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <div className="mb-2">
-                          <div className="form-check">
-                            <input style={{ borderColor: '#ccc' }}
-                              className="form-check-input"
-                              type="checkbox"
-                              id="askWaiterDineIn"
-                              checked={formData.askWaiter.dineIn}
-                              onChange={(e) => handleNestedChange(e, 'askWaiter', 'dineIn')}
-                            />
-                            <label className="form-check-label" htmlFor="askWaiterDineIn">
-                              Dine In
-                            </label>
-                          </div>
-                        </div>
-                        <div className="mb-2">
-                          <div className="form-check">
-                            <input style={{ borderColor: '#ccc' }}
-                              className="form-check-input"
-                              type="checkbox"
-                              id="askWaiterPickup"
-                              checked={formData.askWaiter.pickup}
-                              onChange={(e) => handleNestedChange(e, 'askWaiter', 'pickup')}
-                            />
-                            <label className="form-check-label" htmlFor="askWaiterPickup">
-                              Pickup
-                            </label>
-                          </div>
-                        </div>
-                        <div className="mb-2">
-                          <div className="form-check">
-                            <input style={{ borderColor: '#ccc' }}
-                              className="form-check-input"
-                              type="checkbox"
-                              id="askWaiterDelivery"
-                              checked={formData.askWaiter.delivery}
-                              onChange={(e) => handleNestedChange(e, 'askWaiter', 'delivery')}
-                            />
-                            <label className="form-check-label" htmlFor="askWaiterDelivery">
-                              Delivery
-                            </label>
-                          </div>
-                        </div>
-                        <div className="mb-3">
-                          <div className="form-check">
-                            <input style={{ borderColor: '#ccc' }}
-                              className="form-check-input"
-                              type="checkbox"
-                              id="askWaiterQuickBill"
-                              checked={formData.askWaiter.quickBill}
-                              onChange={(e) => handleNestedChange(e, 'askWaiter', 'quickBill')}
-                            />
-                            <label className="form-check-label" htmlFor="askWaiterQuickBill">
-                              Quick Bill
-                            </label>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 12: Ask OTP to change order status from order window */}
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">12. Ask OTP to change order status from order window</h6>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <div className="form-check form-switch">
-                          <input style={{ borderColor: '#ccc' }}
-                            className="form-check-input"
-                            type="checkbox"
-                            id="askOtpChangeOrderStatusOrderWindow"
-                            checked={formData.askOtpChangeOrderStatusOrderWindow}
-                            onChange={handleInputChange}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 13: Ask OTP to change order status from receipt section */}
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">13. Ask OTP to change order status from receipt section</h6>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <div className="form-check form-switch">
-                          <input style={{ borderColor: '#ccc' }}
-                            className="form-check-input"
-                            type="checkbox"
-                            id="askOtpChangeOrderStatusReceiptSection"
-                            checked={formData.askOtpChangeOrderStatusReceiptSection}
-                            onChange={handleInputChange}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 14: Auto Accept Remote KOT */}
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">14. Auto Accept Remote KOT</h6>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <div className="form-check form-switch">
-                          <input style={{ borderColor: '#ccc' }}
-                            className="form-check-input"
-                            type="checkbox"
-                            id="autoAcceptRemoteKOT"
-                            checked={formData.autoAcceptRemoteKOT}
-                            onChange={handleInputChange}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 15: Auto Out-of-Stock */}
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">15. Auto Out-of-Stock</h6>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <div className="form-check form-switch">
-                          <input style={{ borderColor: '#ccc' }}
-                            className="form-check-input"
-                            type="checkbox"
-                            id="autoOutOfStock"
-                            checked={formData.autoOutOfStock}
-                            onChange={handleInputChange}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 16: Auto Sync */}
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">16. Auto Sync</h6>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <div className="form-check form-switch">
-                          <input style={{ borderColor: '#ccc' }}
-                            className="form-check-input"
-                            type="checkbox"
-                            id="autoSync"
-                            checked={formData.autoSync}
-                            onChange={handleInputChange}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 17: Category Time For POS */}
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">17. Category Time For POS</h6>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <input style={{ borderColor: '#ccc' }}
-                          type="text"
-                          className="form-control"
-                          id="categoryTimeForPOS"
-                          placeholder="Enter time"
-                          value={formData.categoryTimeForPOS}
-                          onChange={handleInputChange}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 18: Count Sales after Midnight in Previous Day */}
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">18. Count Sales after Midnight in Previous Day</h6>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <div className="form-check form-switch">
-                          <input style={{ borderColor: '#ccc' }}
-                            className="form-check-input"
-                            type="checkbox"
-                            id="countSalesAfterMidnight"
-                            checked={formData.countSalesAfterMidnight}
-                            onChange={handleInputChange}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 19: Customer Display */}
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">19. Customer Display</h6>
-                      <p>Customer Display</p>
-                      <p>Order Prompt</p>
-                      <p>Order prompt</p>
-                      <p>Media Fit With Bill View</p>
-                      <p>Media Fit Without Bill View</p>
-                      <p>File Upload Guidelines: Video (.mp4, max 50MB), Image (any format, max 5MB)</p>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <table className="table table-bordered mb-3">
-                          <thead>
-                            <tr style={{ borderColor: '#ccc' }}>
-                              <th scope="col">Image</th>
-                              <th scope="col">Rank</th>
-                              <th scope="col">Name</th>
-                              <th scope="col">Media</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            <tr style={{ borderColor: '#ccc' }}>
-                              <td colSpan={4} className="text-center">No Data</td>
-                            </tr>
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  </div>
-                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 20: Customer Mandatory */}
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">20. Customer Mandatory</h6>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <div className="mb-2">
-                          <div className="form-check">
-                            <input style={{ borderColor: '#ccc' }}
-                              className="form-check-input"
-                              type="checkbox"
-                              id="customerMandatoryDineIn"
-                              checked={formData.customerMandatory.dineIn}
-                              onChange={(e) => handleNestedChange(e, 'customerMandatory', 'dineIn')}
-                            />
-                            <label className="form-check-label" htmlFor="customerMandatoryDineIn">
-                              Dine In
-                            </label>
-                          </div>
-                        </div>
-                        <div className="mb-2">
-                          <div className="form-check">
-                            <input style={{ borderColor: '#ccc' }}
-                              className="form-check-input"
-                              type="checkbox"
-                              id="customerMandatoryPickup"
-                              checked={formData.customerMandatory.pickup}
-                              onChange={(e) => handleNestedChange(e, 'customerMandatory', 'pickup')}
-                            />
-                            <label className="form-check-label" htmlFor="customerMandatoryPickup">
-                              Pickup
-                            </label>
-                          </div>
-                        </div>
-                        <div className="mb-2">
-                          <div className="form-check">
-                            <input style={{ borderColor: '#ccc' }}
-                              className="form-check-input"
-                              type="checkbox"
-                              id="customerMandatoryDelivery"
-                              checked={formData.customerMandatory.delivery}
-                              onChange={(e) => handleNestedChange(e, 'customerMandatory', 'delivery')}
-                            />
-                            <label className="form-check-label" htmlFor="customerMandatoryDelivery">
-                              Delivery
-                            </label>
-                          </div>
-                        </div>
-                        <div className="mb-3">
-                          <div className="form-check">
-                            <input style={{ borderColor: '#ccc' }}
-                              className="form-check-input"
-                              type="checkbox"
-                              id="customerMandatoryQuickBill"
-                              checked={formData.customerMandatory.quickBill}
-                              onChange={(e) => handleNestedChange(e, 'customerMandatory', 'quickBill')}
-                            />
-                            <label className="form-check-label" htmlFor="customerMandatoryQuickBill">
-                              Quick Bill
-                            </label>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 21: Default E-Bill Check */}
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">21. Default E-Bill Check</h6>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <div className="form-check form-switch">
-                          <input style={{ borderColor: '#ccc' }}
-                            className="form-check-input"
-                            type="checkbox"
-                            id="defaultEBillCheck"
-                            checked={formData.defaultEBillCheck}
-                            onChange={handleInputChange}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 22: Default Send Delivery Boy to Customer Check */}
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">22. Default Send Delivery Boy to Customer Check</h6>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <div className="form-check form-switch">
-                          <input style={{ borderColor: '#ccc' }}
-                            className="form-check-input"
-                            type="checkbox"
-                            id="defaultSendDeliveryBoyCheck"
-                            checked={formData.defaultSendDeliveryBoyCheck}
-                            onChange={handleInputChange}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 23: Edit Customize Order Number */}
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">23. Edit Customize Order Number</h6>
-                      <p>Order No</p>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <input style={{ borderColor: '#ccc' }}
-                          type="text"
-                          className="form-control"
-                          id="editCustomizeOrderNumber"
-                          placeholder="Enter order number"
-                          value={formData.editCustomizeOrderNumber}
-                          onChange={handleInputChange}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 24: Enable Backup Notification Service */}
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">24. Enable Backup Notification Service</h6>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <div className="form-check form-switch">
-                          <input style={{ borderColor: '#ccc' }}
-                            className="form-check-input"
-                            type="checkbox"
-                            id="enableBackupNotificationService"
-                            checked={formData.enableBackupNotificationService}
-                            onChange={handleInputChange}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 25: Enable Customer Display Access */}
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">25. Enable Customer Display Access</h6>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <div className="form-check form-switch">
-                          <input style={{ borderColor: '#ccc' }}
-                            className="form-check-input"
-                            type="checkbox"
-                            id="enableCustomerDisplayAccess"
-                            checked={formData.enableCustomerDisplayAccess}
-                            onChange={handleInputChange}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 26: Filter items by order type */}
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">26. Filter items by order type</h6>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <div className="form-check form-switch">
-                          <input style={{ borderColor: '#ccc' }}
-                            className="form-check-input"
-                            type="checkbox"
-                            id="filterItemsByOrderType"
-                            checked={formData.filterItemsByOrderType}
-                            onChange={handleInputChange}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 27: Generate all reports based on the start and close dates */}
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">27. Generate all reports based on the start and close dates</h6>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <div className="form-check form-switch">
-                          <input style={{ borderColor: '#ccc' }}
-                            className="form-check-input"
-                            type="checkbox"
-                            id="generateReportsStartCloseDates"
-                            checked={formData.generateReportsStartCloseDates}
-                            onChange={handleInputChange}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 28: Hide Clear Data Check on Logout */}
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">28. Hide Clear Data Check on Logout</h6>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <div className="form-check form-switch">
-                          <input style={{ borderColor: '#ccc' }}
-                            className="form-check-input"
-                            type="checkbox"
-                            id="hideClearDataCheckLogout"
-                            checked={formData.hideClearDataCheckLogout}
-                            onChange={handleInputChange}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 29: Hide Item Price for Options */}
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">29. Hide Item Price for Options</h6>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <div className="form-check form-switch">
-                          <input style={{ borderColor: '#ccc' }}
-                            className="form-check-input"
-                            type="checkbox"
-                            id="hideItemPriceOptions"
-                            checked={formData.hideItemPriceOptions}
-                            onChange={handleInputChange}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 30: Hide Load Menu Button */}
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">30. Hide Load Menu Button</h6>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <div className="form-check form-switch">
-                          <input style={{ borderColor: '#ccc' }}
-                            className="form-check-input"
-                            type="checkbox"
-                            id="hideLoadMenuButton"
-                            checked={formData.hideLoadMenuButton}
-                            onChange={handleInputChange}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 31: Make Cancel & Delete Item Reason Compulsory */}
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">31. Make Cancel & Delete Item Reason Compulsory</h6>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <div className="form-check form-switch">
-                          <input style={{ borderColor: '#ccc' }}
-                            className="form-check-input"
-                            type="checkbox"
-                            id="makeCancelDeleteReasonCompulsory"
-                            checked={formData.makeCancelDeleteReasonCompulsory}
-                            onChange={handleInputChange}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 32: Make Discount Reason Mandatory */}
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">32. Make Discount Reason Mandatory</h6>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <div className="form-check form-switch">
-                          <input style={{ borderColor: '#ccc' }}
-                            className="form-check-input"
-                            type="checkbox"
-                            id="makeDiscountReasonMandatory"
-                            checked={formData.makeDiscountReasonMandatory}
-                            onChange={handleInputChange}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 33: Make Free Bill / Cancel Bill Reason Mandatory */}
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">33. Make Free Bill / Cancel Bill Reason Mandatory</h6>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <div className="form-check form-switch">
-                          <input style={{ borderColor: '#ccc' }}
-                            className="form-check-input"
-                            type="checkbox"
-                            id="makeFreeCancelBillReasonMandatory"
-                            checked={formData.makeFreeCancelBillReasonMandatory}
-                            onChange={handleInputChange}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 34: Make Payment Reference Number Mandatory */}
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">34. Make Payment Reference Number Mandatory</h6>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <div className="form-check form-switch">
-                          <input style={{ borderColor: '#ccc' }}
-                            className="form-check-input"
-                            type="checkbox"
-                            id="makePaymentRefNumberMandatory"
-                            checked={formData.makePaymentRefNumberMandatory}
-                            onChange={handleInputChange}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 35: Mandatory Delivery Boy Selection for Delivery Orders */}
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">35. Mandatory Delivery Boy Selection for Delivery Orders (Digital/Offline)</h6>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <div className="form-check form-switch">
-                          <input style={{ borderColor: '#ccc' }}
-                            className="form-check-input"
-                            type="checkbox"
-                            id="mandatoryDeliveryBoySelection"
-                            checked={formData.mandatoryDeliveryBoySelection}
-                            onChange={handleInputChange}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 36: Mark Order As Transfer Order */}
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">36. Mark Order As Transfer Order</h6>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <div className="form-check form-switch">
-                          <input style={{ borderColor: '#ccc' }}
-                            className="form-check-input"
-                            type="checkbox"
-                            id="markOrderAsTransferOrder"
-                            checked={formData.markOrderAsTransferOrder}
-                            onChange={handleInputChange}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 37: Online Payment Auto Settle */}
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">37. Online Payment Auto Settle</h6>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <div className="form-check form-switch">
-                          <input style={{ borderColor: '#ccc' }}
-                            className="form-check-input"
-                            type="checkbox"
-                            id="onlinePaymentAutoSettle"
-                            checked={formData.onlinePaymentAutoSettle}
-                            onChange={handleInputChange}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 38: Order Sync Settings */}
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">38. Order Sync Settings</h6>
-                      <p>Auto-Sync Settings for Real-Time Cloud Updates</p>
-                      <p>Available intervals for syncing order data to the cloud</p>
-                      <p>Sets the number of orders to be synced in a single batch</p>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <div className="mb-3">
-                          <label className="form-label">Sync Interval</label>
-                          <select style={{ borderColor: '#ccc' }}
-                            className="form-select"
-                            id="orderSyncSettingsAutoSyncInterval"
-                            value={formData.orderSyncSettings.autoSyncInterval}
-                            onChange={(e) =>
-                              setFormData((prev) => ({
-                                ...prev,
-                                orderSyncSettings: {
-                                  ...prev.orderSyncSettings,
-                                  autoSyncInterval: e.target.value,
-                                },
-                              }))
-                            }
-                          >
-                            <option value="5">5 Minutes (Default)</option>
-                            <option value="10">10 Minutes</option>
-                            <option value="15">15 Minutes</option>
-                          </select>
-                        </div>
-                        <div className="mb-3">
-                          <label className="form-label">Sync Batch Packet Size</label>
-                          <input style={{ borderColor: '#ccc' }}
-                            type="number"
-                            className="form-control"
-                            id="orderSyncSettingsSyncBatchPacketSize"
-                            value={formData.orderSyncSettings.syncBatchPacketSize}
-                            onChange={(e) =>
-                              setFormData((prev) => ({
-                                ...prev,
-                                orderSyncSettings: {
-                                  ...prev.orderSyncSettings,
-                                  syncBatchPacketSize: e.target.value,
-                                },
-                              }))
-                            }
-                            placeholder="10 (Default)"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 39: Separate Billing by Section */}
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">39. Separate Billing by Section</h6>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <div className="form-check form-switch">
-                          <input style={{ borderColor: '#ccc' }}
-                            className="form-check-input"
-                            type="checkbox"
-                            id="separateBillingBySection"
-                            checked={formData.separateBillingBySection}
-                            onChange={handleInputChange}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 40: Set entered amount while closing day as a opening amount of next day */}
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">40. Set entered amount while closing day as a opening amount of next day</h6>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <div className="form-check form-switch">
-                          <input style={{ borderColor: '#ccc' }}
-                            className="form-check-input"
-                            type="checkbox"
-                            id="setEnteredAmountAsOpening"
-                            checked={formData.setEnteredAmountAsOpening}
-                            onChange={handleInputChange}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 41: Show Alternative Item On Report Print */}
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">41. Show Alternative Item On Report Print</h6>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <div className="form-check form-switch">
-                          <input style={{ borderColor: '#ccc' }}
-                            className="form-check-input"
-                            type="checkbox"
-                            id="showAlternativeItemReportPrint"
-                            checked={formData.showAlternativeItemReportPrint}
-                            onChange={handleInputChange}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 42: Show Clear Sales Report on Logout */}
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">42. Show Clear Sales Report on Logout</h6>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <div className="form-check form-switch">
-                          <input style={{ borderColor: '#ccc' }}
-                            className="form-check-input"
-                            type="checkbox"
-                            id="showClearSalesReportLogout"
-                            checked={formData.showClearSalesReportLogout}
-                            onChange={handleInputChange}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 43: Show Order No (Label) on Pos */}
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">43. Show Order No (Label) on Pos</h6>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <div className="form-check form-switch">
-                          <input style={{ borderColor: '#ccc' }}
-                            className="form-check-input"
-                            type="checkbox"
-                            id="showOrderNoLabelPos"
-                            checked={formData.showOrderNoLabelPos}
-                            onChange={handleInputChange}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 44: Show Payment History Button */}
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">44. Show Payment History Button</h6>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <div className="form-check form-switch">
-                          <input style={{ borderColor: '#ccc' }}
-                            className="form-check-input"
-                            type="checkbox"
-                            id="showPaymentHistoryButton"
-                            checked={formData.showPaymentHistoryButton}
-                            onChange={handleInputChange}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 45: Show Remote KOT Option in KOT */}
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">45. Show Remote KOT Option in KOT</h6>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <div className="form-check form-switch">
-                          <input style={{ borderColor: '#ccc' }}
-                            className="form-check-input"
-                            type="checkbox"
-                            id="showRemoteKOTOption"
-                            checked={formData.showRemoteKOTOption}
-                            onChange={handleInputChange}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 46: Show Send Payment Link */}
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">46. Show Send Payment Link</h6>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <div className="form-check form-switch">
-                          <input style={{ borderColor: '#ccc' }}
-                            className="form-check-input"
-                            type="checkbox"
-                            id="showSendPaymentLink"
-                            checked={formData.showSendPaymentLink}
-                            onChange={handleInputChange}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 47: Stock Availability Display */}
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">47. Stock Availability Display</h6>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <div className="form-check form-switch">
-                          <input style={{ borderColor: '#ccc' }}
-                            className="form-check-input"
-                            type="checkbox"
-                            id="stockAvailabilityDisplay"
-                            checked={formData.stockAvailabilityDisplay}
-                            onChange={handleInputChange}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 48: Todays Report */}
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">48. Todays Report</h6>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <div className="mb-2">
-                          <div className="form-check">
-                            <input style={{ borderColor: '#ccc' }}
-                              className="form-check-input"
-                              type="checkbox"
-                              id="todaysReportSalesSummary"
-                              checked={formData.todaysReport.salesSummary}
-                              onChange={(e) => handleNestedChange(e, 'todaysReport', 'salesSummary')}
-                            />
-                            <label className="form-check-label" htmlFor="todaysReportSalesSummary">
-                              Sales Summary / Z Report Summary
-                            </label>
-                          </div>
-                        </div>
-                        <div className="mb-2">
-                          <div className="form-check">
-                            <input style={{ borderColor: '#ccc' }}
-                              className="form-check-input"
-                              type="checkbox"
-                              id="todaysReportOrderTypeSummary"
-                              checked={formData.todaysReport.orderTypeSummary}
-                              onChange={(e) => handleNestedChange(e, 'todaysReport', 'orderTypeSummary')}
-                            />
-                            <label className="form-check-label" htmlFor="todaysReportOrderTypeSummary">
-                              Order Type Summary
-                            </label>
-                          </div>
-                        </div>
-                        <div className="mb-2">
-                          <div className="form-check">
-                            <input
-                              className="form-check-input"
-                              type="checkbox"
-                              id="todaysReportPaymentTypeSummary"
-                              checked={formData.todaysReport.paymentTypeSummary}
-                              onChange={(e) => handleNestedChange(e, 'todaysReport', 'paymentTypeSummary')}
-                            />
-                            <label className="form-check-label" htmlFor="todaysReportPaymentTypeSummary">
-                              Payment Type Summary
-                            </label>
-                          </div>
-                        </div>
-                        <div className="mb-2">
-                          <div className="form-check">
-                            <input style={{ borderColor: '#ccc' }}
-                              className="form-check-input"
-                              type="checkbox"
-                              id="todaysReportDiscountSummary"
-                              checked={formData.todaysReport.discountSummary}
-                              onChange={(e) => handleNestedChange(e, 'todaysReport', 'discountSummary')}
-                            />
-                            <label className="form-check-label" htmlFor="todaysReportDiscountSummary">
-                              Discount Summary
-                            </label>
-                          </div>
-                        </div>
-                        <div className="mb-2">
-                          <div className="form-check">
-                            <input style={{ borderColor: '#ccc' }}
-                              className="form-check-input"
-                              type="checkbox"
-                              id="todaysReportExpenseSummary"
-                              checked={formData.todaysReport.expenseSummary}
-                              onChange={(e) => handleNestedChange(e, 'todaysReport', 'expenseSummary')}
-                            />
-                            <label className="form-check-label" htmlFor="todaysReportExpenseSummary">
-                              Expense Summary
-                            </label>
-                          </div>
-                        </div>
-                        <div className="mb-2">
-                          <div className="form-check">
-                            <input style={{ borderColor: '#ccc' }}
-                              className="form-check-input"
-                              type="checkbox"
-                              id="todaysReportBillSummary"
-                              checked={formData.todaysReport.billSummary}
-                              onChange={(e) => handleNestedChange(e, 'todaysReport', 'billSummary')}
-                            />
-                            <label className="form-check-label" htmlFor="todaysReportBillSummary">
-                              Bill Summary
-                            </label>
-                          </div>
-                        </div>
-                        <div className="mb-2">
-                          <div className="form-check">
-                            <input style={{ borderColor: '#ccc' }}
-                              className="form-check-input"
-                              type="checkbox"
-                              id="todaysReportDeliveryBoySummary"
-                              checked={formData.todaysReport.deliveryBoySummary}
-                              onChange={(e) => handleNestedChange(e, 'todaysReport', 'deliveryBoySummary')}
-                            />
-                            <label className="form-check-label" htmlFor="todaysReportDeliveryBoySummary">
-                              Delivery Boy Summary
-                            </label>
-                          </div>
-                        </div>
-                        <div className="mb-2">
-                          <div className="form-check">
-                            <input style={{ borderColor: '#ccc' }}
-                              className="form-check-input"
-                              type="checkbox"
-                              id="todaysReportWaiterSummary"
-                              checked={formData.todaysReport.waiterSummary}
-                              onChange={(e) => handleNestedChange(e, 'todaysReport', 'waiterSummary')}
-                            />
-                            <label className="form-check-label" htmlFor="todaysReportWaiterSummary">
-                              Waiter Summary
-                            </label>
-                          </div>
-                        </div>
-                        <div className="mb-2">
-                          <div className="form-check">
-                            <input style={{ borderColor: '#ccc' }}
-                              className="form-check-input"
-                              type="checkbox"
-                              id="todaysReportKitchenDepartmentSummary"
-                              checked={formData.todaysReport.kitchenDepartmentSummary}
-                              onChange={(e) => handleNestedChange(e, 'todaysReport', 'kitchenDepartmentSummary')}
-                            />
-                            <label className="form-check-label" htmlFor="todaysReportKitchenDepartmentSummary">
-                              Kitchen Department Summary
-                            </label>
-                          </div>
-                        </div>
-                        <div className="mb-2">
-                          <div className="form-check">
-                            <input style={{ borderColor: '#ccc' }}
-                              className="form-check-input"
-                              type="checkbox"
-                              id="todaysReportCategorySummary"
-                              checked={formData.todaysReport.categorySummary}
-                              onChange={(e) => handleNestedChange(e, 'todaysReport', 'categorySummary')}
-                            />
-                            <label className="form-check-label" htmlFor="todaysReportCategorySummary">
-                              Category Summary
-                            </label>
-                          </div>
-                        </div>
-                        <div className="mb-2">
-                          <div className="form-check">
-                            <input style={{ borderColor: '#ccc' }}
-                              className="form-check-input"
-                              type="checkbox"
-                              id="todaysReportSoldItemsSummary"
-                              checked={formData.todaysReport.soldItemsSummary}
-                              onChange={(e) => handleNestedChange(e, 'todaysReport', 'soldItemsSummary')}
-                            />
-                            <label className="form-check-label" htmlFor="todaysReportSoldItemsSummary">
-                              Sold Items Summary
-                            </label>
-                          </div>
-                        </div>
-                        <div className="mb-2">
-                          <div className="form-check">
-                            <input style={{ borderColor: '#ccc' }}
-                              className="form-check-input"
-                              type="checkbox"
-                              id="todaysReportCancelItemsSummary"
-                              checked={formData.todaysReport.cancelItemsSummary}
-                              onChange={(e) => handleNestedChange(e, 'todaysReport', 'cancelItemsSummary')}
-                            />
-                            <label className="form-check-label" htmlFor="todaysReportCancelItemsSummary">
-                              Cancel Items Summary
-                            </label>
-                          </div>
-                        </div>
-                        <div className="mb-2">
-                          <div className="form-check">
-                            <input style={{ borderColor: '#ccc' }}
-                              className="form-check-input"
-                              type="checkbox"
-                              id="todaysReportWalletSummary"
-                              checked={formData.todaysReport.walletSummary}
-                              onChange={(e) => handleNestedChange(e, 'todaysReport', 'walletSummary')}
-                            />
-                            <label className="form-check-label" htmlFor="todaysReportWalletSummary">
-                              Wallet Summary
-                            </label>
-                          </div>
-                        </div>
-                        <div className="mb-2">
-                          <div className="form-check">
-                            <input style={{ borderColor: '#ccc' }}
-                              className="form-check-input"
-                              type="checkbox"
-                              id="todaysReportDuePaymentReceivedSummary"
-                              checked={formData.todaysReport.duePaymentReceivedSummary}
-                              onChange={(e) => handleNestedChange(e, 'todaysReport', 'duePaymentReceivedSummary')}
-                            />
-                            <label className="form-check-label" htmlFor="todaysReportDuePaymentReceivedSummary">
-                              Due Payment Received Summary
-                            </label>
-                          </div>
-                        </div>
-                        <div className="mb-2">
-                          <div className="form-check">
-                            <input style={{ borderColor: '#ccc' }}
-                              className="form-check-input"
-                              type="checkbox"
-                              id="todaysReportDuePaymentReceivableSummary"
-                              checked={formData.todaysReport.duePaymentReceivableSummary}
-                              onChange={(e) => handleNestedChange(e, 'todaysReport', 'duePaymentReceivableSummary')}
-                            />
-                            <label className="form-check-label" htmlFor="todaysReportDuePaymentReceivableSummary">
-                              Due Payment Receivable Summary
-                            </label>
-                          </div>
-                        </div>
-                        <div className="mb-2">
-                          <div className="form-check">
-                            <input style={{ borderColor: '#ccc' }}
-                              className="form-check-input"
-                              type="checkbox"
-                              id="todaysReportPaymentVarianceSummary"
-                              checked={formData.todaysReport.paymentVarianceSummary}
-                              onChange={(e) => handleNestedChange(e, 'todaysReport', 'paymentVarianceSummary')}
-                            />
-                            <label className="form-check-label" htmlFor="todaysReportPaymentVarianceSummary">
-                              Payment Variance Summary
-                            </label>
-                          </div>
-                        </div>
-                        <div className="mb-3">
-                          <div className="form-check">
-                            <input style={{ borderColor: '#ccc' }}
-                              className="form-check-input"
-                              type="checkbox"
-                              id="todaysReportCurrencyDenominationsSummary"
-                              checked={formData.todaysReport.currencyDenominationsSummary}
-                              onChange={(e) => handleNestedChange(e, 'todaysReport', 'currencyDenominationsSummary')}
-                            />
-                            <label className="form-check-label" htmlFor="todaysReportCurrencyDenominationsSummary">
-                              Currency Denominations Summary
-                            </label>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 49: UPI Payment Sound Notification On Desktop POS */}
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">49. UPI Payment Sound Notification On Desktop POS</h6>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <div className="form-check form-switch">
-                          <input style={{ borderColor: '#ccc' }}
-                            className="form-check-input"
-                            type="checkbox"
-                            id="upiPaymentSoundNotification"
-                            checked={formData.upiPaymentSoundNotification}
-                            onChange={handleInputChange}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 50: Use Separate Bill Numbers for Online Orders */}
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">50. Use Separate Bill Numbers for Online Orders</h6>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <div className="form-check form-switch">
-                          <input style={{ borderColor: '#ccc' }}
-                            className="form-check-input"
-                            type="checkbox"
-                            id="useSeparateBillNumbersOnline"
-                            checked={formData.useSeparateBillNumbersOnline}
-                            onChange={handleInputChange}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 51: When do you want to send todays report */}
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">51. When do you want to send todays report</h6>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <select style={{ borderColor: '#ccc' }}
-                          className="form-select"
-                          id="whenSendTodaysReport"
-                          value={formData.whenSendTodaysReport}
-                      
-                        >
-                          <option value="">Select an option</option>
-                          <option value="receiptSection">Print Todays Report From Receipt Section</option>
-                          <option value="reportSection">Print Todays Report From Report Section</option>
-                          <option value="closeDay">Print Report When We Close The Day</option>
-                          <option value="closeDayReportSection">Print Close Day Report From Report Section</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 52: Enable Currency Conversion */}
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">52. Enable Currency Conversion</h6>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <div className="form-check form-switch">
-                          <input style={{ borderColor: '#ccc' }}
-                            className="form-check-input"
-                            type="checkbox"
-                            id="enableCurrencyConversion"
-                            checked={formData.enableCurrencyConversion}
-                            onChange={handleInputChange}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 53: Enable user login validation */}
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">53. Enable user login validation</h6>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <div className="form-check form-switch">
-                          <input
-                            className="form-check-input"
-                            type="checkbox"
-                            id="enableUserLoginValidation"
-                            checked={formData.enableUserLoginValidation}
-                            onChange={handleInputChange}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 54: Allow Closing Shift Despite Saved or Printed Bills */}
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">54. Allow Closing Shift Despite Saved or Printed Bills</h6>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <div className="form-check form-switch">
-                          <input
-                            className="form-check-input"
-                            type="checkbox"
-                            id="allowClosingShiftDespiteBills"
-                            checked={formData.allowClosingShiftDespiteBills}
-                            onChange={handleInputChange}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
-
-                  {/* Row 55: Show Real-Time KOT/Bill Notifications/Updates */}
-                  <div className="row mb-2">
-                    <div className="col-md-6">
-                      <h6 className="fw-bold mb-3">55. Show Real-Time KOT/Bill Notifications/Updates from CSK App & Terminal POS on Master POS</h6>
-                    </div>
-                    <div className="col-md-6">
-                      <div className="ms-3">
-                        <div className="form-check form-switch">
-                          <input style={{ borderColor: '#ccc' }}
-                            className="form-check-input"
-                            type="checkbox"
-                            id="showRealTimeKOTBillNotifications"
-                            checked={formData.showRealTimeKOTBillNotifications}
-                            onChange={handleInputChange}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>                  <div
-                    className="d-flex justify-content-end gap-3 mt-4"
-                    style={{ padding: '10px' }}
-                  >
-                    <button className="btn btn-danger" onClick={handleCancel}>
-                      Cancel
-                    </button>
-                    <button className="btn btn-success" onClick={handleUpdate}>
-                      Update
-                    </button>
-                  </div>
-                </div>
+      {/* Row 5: Ask for Covers */}
+      <div className="row mb-2">
+        <div className="col-md-6">
+          <h6 className="fw-bold mb-3">5. Ask for Covers</h6>
+        </div>
+        <div className="col-md-6">
+          <div className="ms-3">
+            <div className="mb-2">
+              <div className="form-check">
+                <input
+                  style={{ borderColor: '#ccc' }}
+                  className="form-check-input"
+                  type="checkbox"
+                  id="askCoversDineIn"
+                  checked={formData.askCoversDineIn}
+                  onChange={handleInputChange}
+                />
+                <label className="form-check-label" htmlFor="askCoversDineIn">
+                  Dine In
+                </label>
               </div>
             </div>
+            <div className="mb-2">
+              <div className="form-check">
+                <input
+                  style={{ borderColor: '#ccc' }}
+                  className="form-check-input"
+                  type="checkbox"
+                  id="askCoversPickup"
+                  checked={formData.askCoversPickup}
+                  onChange={handleInputChange}
+                />
+                <label className="form-check-label" htmlFor="askCoversPickup">
+                  Pickup
+                </label>
+              </div>
+            </div>
+            <div className="mb-2">
+              <div className="form-check">
+                <input
+                  style={{ borderColor: '#ccc' }}
+                  className="form-check-input"
+                  type="checkbox"
+                  id="askCoversDelivery"
+                  checked={formData.askCoversDelivery}
+                  onChange={handleInputChange}
+                />
+                <label className="form-check-label" htmlFor="askCoversDelivery">
+                  Delivery
+                </label>
+              </div>
+            </div>
+            <div className="mb-3">
+              <div className="form-check">
+                <input
+                  style={{ borderColor: '#ccc' }}
+                  className="form-check-input"
+                  type="checkbox"
+                  id="askCoversQuickBill"
+                  checked={formData.askCoversQuickBill}
+                  onChange={handleInputChange}
+                />
+                <label className="form-check-label" htmlFor="askCoversQuickBill">
+                  Quick Bill
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <hr className="my-2" style={{ borderColor: '#ccc' }} />
+
+      {/* Row 6: Ask for Covers in Captain */}
+      <div className="row mb-2">
+        <div className="col-md-6">
+          <h6 className="fw-bold mb-3">6. Ask for Covers in Captain</h6>
+        </div>
+        <div className="col-md-6">
+          <div className="ms-3">
+            <div className="form-check form-switch">
+              <input
+                style={{ borderColor: '#ccc' }}
+                className="form-check-input"
+                type="checkbox"
+                id="askCoversCaptain"
+                checked={formData.askCoversCaptain}
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <hr className="my-2" style={{ borderColor: '#ccc' }} />
+
+      {/* Row 7: Ask for Custom Order ID (Quick Bill) */}
+      <div className="row mb-2">
+        <div className="col-md-6">
+          <h6 className="fw-bold mb-3">7. Ask for Custom Order ID (Quick Bill)</h6>
+        </div>
+        <div className="col-md-6">
+          <div className="ms-3">
+            <div className="form-check form-switch">
+              <input
+                style={{ borderColor: '#ccc' }}
+                className="form-check-input"
+                type="checkbox"
+                id="askCustomOrderIdQuickBill"
+                checked={formData.askCustomOrderIdQuickBill}
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <hr className="my-2" style={{ borderColor: '#ccc' }} />
+
+      {/* Row 8: Ask for Custom Order Type (Quick Bill) */}
+      <div className="row mb-2">
+        <div className="col-md-6">
+          <h6 className="fw-bold mb-3">8. Ask for Custom Order Type (Quick Bill)</h6>
+        </div>
+        <div className="col-md-6">
+          <div className="ms-3">
+            <div className="form-check form-switch">
+              <input
+                style={{ borderColor: '#ccc' }}
+                className="form-check-input"
+                type="checkbox"
+                id="askCustomOrderTypeQuickBill"
+                checked={formData.askCustomOrderTypeQuickBill}
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <hr className="my-2" style={{ borderColor: '#ccc' }} />
+
+      {/* Row 9: Ask for Payment Mode On Save Bill */}
+      <div className="row mb-2">
+        <div className="col-md-6">
+          <h6 className="fw-bold mb-3">9. Ask for Payment Mode On Save Bill</h6>
+        </div>
+        <div className="col-md-6">
+          <div className="ms-3">
+            <div className="form-check form-switch">
+              <input
+                style={{ borderColor: '#ccc' }}
+                className="form-check-input"
+                type="checkbox"
+                id="askPaymentModeOnSaveBill"
+                checked={formData.askPaymentModeOnSaveBill}
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <hr className="my-2" style={{ borderColor: '#ccc' }} />
+
+      {/* Row 10: Ask for Waiter */}
+      <div className="row mb-2">
+        <div className="col-md-6">
+          <h6 className="fw-bold mb-3">10. Ask for Waiter</h6>
+        </div>
+        <div className="col-md-6">
+          <div className="ms-3">
+            <div className="mb-2">
+              <div className="form-check">
+                <input
+                  style={{ borderColor: '#ccc' }}
+                  className="form-check-input"
+                  type="checkbox"
+                  id="askWaiterDineIn"
+                  checked={formData.askWaiterDineIn}
+                  onChange={handleInputChange}
+                />
+                <label className="form-check-label" htmlFor="askWaiterDineIn">
+                  Dine In
+                </label>
+              </div>
+            </div>
+            <div className="mb-2">
+              <div className="form-check">
+                <input
+                  style={{ borderColor: '#ccc' }}
+                  className="form-check-input"
+                  type="checkbox"
+                  id="askWaiterPickup"
+                  checked={formData.askWaiterPickup}
+                  onChange={handleInputChange}
+                />
+                <label className="form-check-label" htmlFor="askWaiterPickup">
+                  Pickup
+                </label>
+              </div>
+            </div>
+            <div className="mb-2">
+              <div className="form-check">
+                <input
+                  style={{ borderColor: '#ccc' }}
+                  className="form-check-input"
+                  type="checkbox"
+                  id="askWaiterDelivery"
+                  checked={formData.askWaiterDelivery}
+                  onChange={handleInputChange}
+                />
+                <label className="form-check-label" htmlFor="askWaiterDelivery">
+                  Delivery
+                </label>
+              </div>
+            </div>
+            <div className="mb-3">
+              <div className="form-check">
+                <input
+                  style={{ borderColor: '#ccc' }}
+                  className="form-check-input"
+                  type="checkbox"
+                  id="askWaiterQuickBill"
+                  checked={formData.askWaiterQuickBill}
+                  onChange={handleInputChange}
+                />
+                <label className="form-check-label" htmlFor="askWaiterQuickBill">
+                  Quick Bill
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <hr className="my-2" style={{ borderColor: '#ccc' }} />
+
+      {/* Row 11: Ask OTP to change order status from order window */}
+      <div className="row mb-2">
+        <div className="col-md-6">
+          <h6 className="fw-bold mb-3">11. Ask OTP to change order status from order window</h6>
+        </div>
+        <div className="col-md-6">
+          <div className="ms-3">
+            <div className="form-check form-switch">
+              <input
+                style={{ borderColor: '#ccc' }}
+                className="form-check-input"
+                type="checkbox"
+                id="askOtpChangeOrderStatusOrderWindow"
+                checked={formData.askOtpChangeOrderStatusOrderWindow}
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <hr className="my-2" style={{ borderColor: '#ccc' }} />
+
+      {/* Row 12: Ask OTP to change order status from receipt section */}
+      <div className="row mb-2">
+        <div className="col-md-6">
+          <h6 className="fw-bold mb-3">12. Ask OTP to change order status from receipt section</h6>
+        </div>
+        <div className="col-md-6">
+          <div className="ms-3">
+            <div className="form-check form-switch">
+              <input
+                style={{ borderColor: '#ccc' }}
+                className="form-check-input"
+                type="checkbox"
+                id="askOtpChangeOrderStatusReceiptSection"
+                checked={formData.askOtpChangeOrderStatusReceiptSection}
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <hr className="my-2" style={{ borderColor: '#ccc' }} />
+
+      {/* Row 13: Auto Accept Remote KOT */}
+      <div className="row mb-2">
+        <div className="col-md-6">
+          <h6 className="fw-bold mb-3">13. Auto Accept Remote KOT</h6>
+        </div>
+        <div className="col-md-6">
+          <div className="ms-3">
+            <div className="form-check form-switch">
+              <input
+                style={{ borderColor: '#ccc' }}
+                className="form-check-input"
+                type="checkbox"
+                id="autoAcceptRemoteKot"
+                checked={formData.autoAcceptRemoteKot}
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <hr className="my-2" style={{ borderColor: '#ccc' }} />
+
+      {/* Row 14: Auto Out-of-Stock */}
+      <div className="row mb-2">
+        <div className="col-md-6">
+          <h6 className="fw-bold mb-3">14. Auto Out-of-Stock</h6>
+        </div>
+        <div className="col-md-6">
+          <div className="ms-3">
+            <div className="form-check form-switch">
+              <input
+                style={{ borderColor: '#ccc' }}
+                className="form-check-input"
+                type="checkbox"
+                id="autoOutOfStock"
+                checked={formData.autoOutOfStock}
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <hr className="my-2" style={{ borderColor: '#ccc' }} />
+
+      {/* Row 15: Auto Sync */}
+      <div className="row mb-2">
+        <div className="col-md-6">
+          <h6 className="fw-bold mb-3">15. Auto Sync</h6>
+        </div>
+        <div className="col-md-6">
+          <div className="ms-3">
+            <div className="form-check form-switch">
+              <input
+                style={{ borderColor: '#ccc' }}
+                className="form-check-input"
+                type="checkbox"
+                id="autoSync"
+                checked={formData.autoSync}
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <hr className="my-2" style={{ borderColor: '#ccc' }} />
+
+      {/* Row 16: Category Time For POS */}
+      <div className="row mb-2">
+        <div className="col-md-6">
+          <h6 className="fw-bold mb-3">16. Category Time For POS</h6>
+        </div>
+        <div className="col-md-6">
+          <div className="ms-3">
+            <input
+              style={{ borderColor: '#ccc' }}
+              type="text"
+              className="form-control"
+              id="categoryTimeForPos"
+              placeholder="Enter time"
+              value={formData.categoryTimeForPos}
+              onChange={handleInputChange}
+            />
+          </div>
+        </div>
+      </div>
+      <hr className="my-2" style={{ borderColor: '#ccc' }} />
+
+      {/* Row 17: Count Sales after Midnight in Previous Day */}
+      <div className="row mb-2">
+        <div className="col-md-6">
+          <h6 className="fw-bold mb-3">17. Count Sales after Midnight in Previous Day</h6>
+        </div>
+        <div className="col-md-6">
+          <div className="ms-3">
+            <div className="form-check form-switch">
+              <input
+                style={{ borderColor: '#ccc' }}
+                className="form-check-input"
+                type="checkbox"
+                id="countSalesAfterMidnight"
+                checked={formData.countSalesAfterMidnight}
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <hr className="my-2" style={{ borderColor: '#ccc' }} />
+
+      {/* Row 18: Customer Mandatory */}
+      <div className="row mb-2">
+        <div className="col-md-6">
+          <h6 className="fw-bold mb-3">18. Customer Mandatory</h6>
+        </div>
+        <div className="col-md-6">
+          <div className="ms-3">
+            <div className="mb-2">
+              <div className="form-check">
+                <input
+                  style={{ borderColor: '#ccc' }}
+                  className="form-check-input"
+                  type="checkbox"
+                  id="customerMandatoryDineIn"
+                  checked={formData.customerMandatoryDineIn}
+                  onChange={handleInputChange}
+                />
+                <label className="form-check-label" htmlFor="customerMandatoryDineIn">
+                  Dine In
+                </label>
+              </div>
+            </div>
+            <div className="mb-2">
+              <div className="form-check">
+                <input
+                  style={{ borderColor: '#ccc' }}
+                  className="form-check-input"
+                  type="checkbox"
+                  id="customerMandatoryPickup"
+                  checked={formData.customerMandatoryPickup}
+                  onChange={handleInputChange}
+                />
+                <label className="form-check-label" htmlFor="customerMandatoryPickup">
+                  Pickup
+                </label>
+              </div>
+            </div>
+            <div className="mb-2">
+              <div className="form-check">
+                <input
+                  style={{ borderColor: '#ccc' }}
+                  className="form-check-input"
+                  type="checkbox"
+                  id="customerMandatoryDelivery"
+                  checked={formData.customerMandatoryDelivery}
+                  onChange={handleInputChange}
+                />
+                <label className="form-check-label" htmlFor="customerMandatoryDelivery">
+                  Delivery
+                </label>
+              </div>
+            </div>
+            <div className="mb-3">
+              <div className="form-check">
+                <input
+                  style={{ borderColor: '#ccc' }}
+                  className="form-check-input"
+                  type="checkbox"
+                  id="customerMandatoryQuickBill"
+                  checked={formData.customerMandatoryQuickBill}
+                  onChange={handleInputChange}
+                />
+                <label className="form-check-label" htmlFor="customerMandatoryQuickBill">
+                  Quick Bill
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <hr className="my-2" style={{ borderColor: '#ccc' }} />
+
+      {/* Row 19: Default E-Bill Check */}
+      <div className="row mb-2">
+        <div className="col-md-6">
+          <h6 className="fw-bold mb-3">19. Default E-Bill Check</h6>
+        </div>
+        <div className="col-md-6">
+          <div className="ms-3">
+            <div className="form-check form-switch">
+              <input
+                style={{ borderColor: '#ccc' }}
+                className="form-check-input"
+                type="checkbox"
+                id="defaultEbillCheck"
+                checked={formData.defaultEbillCheck}
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <hr className="my-2" style={{ borderColor: '#ccc' }} />
+
+      {/* Row 20: Default Send Delivery Boy to Customer Check */}
+      <div className="row mb-2">
+        <div className="col-md-6">
+          <h6 className="fw-bold mb-3">20. Default Send Delivery Boy to Customer Check</h6>
+        </div>
+        <div className="col-md-6">
+          <div className="ms-3">
+            <div className="form-check form-switch">
+              <input
+                style={{ borderColor: '#ccc' }}
+                className="form-check-input"
+                type="checkbox"
+                id="defaultSendDeliveryBoyCheck"
+                checked={formData.defaultSendDeliveryBoyCheck}
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <hr className="my-2" style={{ borderColor: '#ccc' }} />
+
+      {/* Row 21: Edit Customize Order Number */}
+      <div className="row mb-2">
+        <div className="col-md-6">
+          <h6 className="fw-bold mb-3">21. Edit Customize Order Number</h6>
+          <p>Order No</p>
+        </div>
+        <div className="col-md-6">
+          <div className="ms-3">
+            <input
+              style={{ borderColor: '#ccc' }}
+              type="text"
+              className="form-control"
+              id="editCustomizeOrderNumber"
+              placeholder="Enter order number"
+              value={formData.editCustomizeOrderNumber}
+              onChange={handleInputChange}
+            />
+          </div>
+        </div>
+      </div>
+      <hr className="my-2" style={{ borderColor: '#ccc' }} />
+
+      {/* Row 22: Enable Backup Notification Service */}
+      <div className="row mb-2">
+        <div className="col-md-6">
+          <h6 className="fw-bold mb-3">22. Enable Backup Notification Service</h6>
+        </div>
+        <div className="col-md-6">
+          <div className="ms-3">
+            <div className="form-check form-switch">
+              <input
+                style={{ borderColor: '#ccc' }}
+                className="form-check-input"
+                type="checkbox"
+                id="enableBackupNotificationService"
+                checked={formData.enableBackupNotificationService}
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <hr className="my-2" style={{ borderColor: '#ccc' }} />
+
+      {/* Row 23: Enable Customer Display Access */}
+      <div className="row mb-2">
+        <div className="col-md-6">
+          <h6 className="fw-bold mb-3">23. Enable Customer Display Access</h6>
+        </div>
+        <div className="col-md-6">
+          <div className="ms-3">
+            <div className="form-check form-switch">
+              <input
+                style={{ borderColor: '#ccc' }}
+                className="form-check-input"
+                type="checkbox"
+                id="enableCustomerDisplayAccess"
+                checked={formData.enableCustomerDisplayAccess}
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <hr className="my-2" style={{ borderColor: '#ccc' }} />
+
+      {/* Row 24: Filter items by order type */}
+      <div className="row mb-2">
+        <div className="col-md-6">
+          <h6 className="fw-bold mb-3">24. Filter items by order type</h6>
+        </div>
+        <div className="col-md-6">
+          <div className="ms-3">
+            <div className="form-check form-switch">
+              <input
+                style={{ borderColor: '#ccc' }}
+                className="form-check-input"
+                type="checkbox"
+                id="filterItemsByOrderType"
+                checked={formData.filterItemsByOrderType}
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <hr className="my-2" style={{ borderColor: '#ccc' }} />
+
+      {/* Row 25: Generate all reports based on the start and close dates */}
+      <div className="row mb-2">
+        <div className="col-md-6">
+          <h6 className="fw-bold mb-3">25. Generate all reports based on the start and close dates</h6>
+        </div>
+        <div className="col-md-6">
+          <div className="ms-3">
+            <div className="form-check form-switch">
+              <input
+                style={{ borderColor: '#ccc' }}
+                className="form-check-input"
+                type="checkbox"
+                id="generateReportsStartCloseDates"
+                checked={formData.generateReportsStartCloseDates}
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <hr className="my-2" style={{ borderColor: '#ccc' }} />
+
+      {/* Row 26: Hide Clear Data Check on Logout */}
+      <div className="row mb-2">
+        <div className="col-md-6">
+          <h6 className="fw-bold mb-3">26. Hide Clear Data Check on Logout</h6>
+        </div>
+        <div className="col-md-6">
+          <div className="ms-3">
+            <div className="form-check form-switch">
+              <input
+                style={{ borderColor: '#ccc' }}
+                className="form-check-input"
+                type="checkbox"
+                id="hideClearDataCheckLogout"
+                checked={formData.hideClearDataCheckLogout}
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <hr className="my-2" style={{ borderColor: '#ccc' }} />
+
+      {/* Row 27: Hide Item Price for Options */}
+      <div className="row mb-2">
+        <div className="col-md-6">
+          <h6 className="fw-bold mb-3">27. Hide Item Price for Options</h6>
+        </div>
+        <div className="col-md-6">
+          <div className="ms-3">
+            <div className="form-check form-switch">
+              <input
+                style={{ borderColor: '#ccc' }}
+                className="form-check-input"
+                type="checkbox"
+                id="hideItemPriceOptions"
+                checked={formData.hideItemPriceOptions}
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <hr className="my-2" style={{ borderColor: '#ccc' }} />
+
+      {/* Row 28: Hide Load Menu Button */}
+      <div className="row mb-2">
+        <div className="col-md-6">
+          <h6 className="fw-bold mb-3">28. Hide Load Menu Button</h6>
+        </div>
+        <div className="col-md-6">
+          <div className="ms-3">
+            <div className="form-check form-switch">
+              <input
+                style={{ borderColor: '#ccc' }}
+                className="form-check-input"
+                type="checkbox"
+                id="hideLoadMenuButton"
+                checked={formData.hideLoadMenuButton}
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <hr className="my-2" style={{ borderColor: '#ccc' }} />
+
+      {/* Row 29: Make Cancel & Delete Item Reason Compulsory */}
+      <div className="row mb-2">
+        <div className="col-md-6">
+          <h6 className="fw-bold mb-3">29. Make Cancel & Delete Item Reason Compulsory</h6>
+        </div>
+        <div className="col-md-6">
+          <div className="ms-3">
+            <div className="form-check form-switch">
+              <input
+                style={{ borderColor: '#ccc' }}
+                className="form-check-input"
+                type="checkbox"
+                id="makeCancelDeleteReasonCompulsory"
+                checked={formData.makeCancelDeleteReasonCompulsory}
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <hr className="my-2" style={{ borderColor: '#ccc' }} />
+
+      {/* Row 30: Make Discount Reason Mandatory */}
+      <div className="row mb-2">
+        <div className="col-md-6">
+          <h6 className="fw-bold mb-3">30. Make Discount Reason Mandatory</h6>
+        </div>
+        <div className="col-md-6">
+          <div className="ms-3">
+            <div className="form-check form-switch">
+              <input
+                style={{ borderColor: '#ccc' }}
+                className="form-check-input"
+                type="checkbox"
+                id="makeDiscountReasonMandatory"
+                checked={formData.makeDiscountReasonMandatory}
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <hr className="my-2" style={{ borderColor: '#ccc' }} />
+
+      {/* Row 31: Make Free Bill / Cancel Bill Reason Mandatory */}
+      <div className="row mb-2">
+        <div className="col-md-6">
+          <h6 className="fw-bold mb-3">31. Make Free Bill / Cancel Bill Reason Mandatory</h6>
+        </div>
+        <div className="col-md-6">
+          <div className="ms-3">
+            <div className="form-check form-switch">
+              <input
+                style={{ borderColor: '#ccc' }}
+                className="form-check-input"
+                type="checkbox"
+                id="makeFreeCancelBillReasonMandatory"
+                checked={formData.makeFreeCancelBillReasonMandatory}
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <hr className="my-2" style={{ borderColor: '#ccc' }} />
+
+      {/* Row 32: Make Payment Reference Number Mandatory */}
+      <div className="row mb-2">
+        <div className="col-md-6">
+          <h6 className="fw-bold mb-3">32. Make Payment Reference Number Mandatory</h6>
+        </div>
+        <div className="col-md-6">
+          <div className="ms-3">
+            <div className="form-check form-switch">
+              <input
+                style={{ borderColor: '#ccc' }}
+                className="form-check-input"
+                type="checkbox"
+                id="makePaymentRefNumberMandatory"
+                checked={formData.makePaymentRefNumberMandatory}
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <hr className="my-2" style={{ borderColor: '#ccc' }} />
+
+      {/* Row 33: Mandatory Delivery Boy Selection for Delivery Orders */}
+      <div className="row mb-2">
+        <div className="col-md-6">
+          <h6 className="fw-bold mb-3">33. Mandatory Delivery Boy Selection for Delivery Orders (Digital/Offline)</h6>
+        </div>
+        <div className="col-md-6">
+          <div className="ms-3">
+            <div className="form-check form-switch">
+              <input
+                style={{ borderColor: '#ccc' }}
+                className="form-check-input"
+                type="checkbox"
+                id="mandatoryDeliveryBoySelection"
+                checked={formData.mandatoryDeliveryBoySelection}
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <hr className="my-2" style={{ borderColor: '#ccc' }} />
+
+      {/* Row 34: Mark Order As Transfer Order */}
+      <div className="row mb-2">
+        <div className="col-md-6">
+          <h6 className="fw-bold mb-3">34. Mark Order As Transfer Order</h6>
+        </div>
+        <div className="col-md-6">
+          <div className="ms-3">
+            <div className="form-check form-switch">
+              <input
+                style={{ borderColor: '#ccc' }}
+                className="form-check-input"
+                type="checkbox"
+                id="markOrderAsTransferOrder"
+                checked={formData.markOrderAsTransferOrder}
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <hr className="my-2" style={{ borderColor: '#ccc' }} />
+
+      {/* Row 35: Online Payment Auto Settle */}
+      <div className="row mb-2">
+        <div className="col-md-6">
+          <h6 className="fw-bold mb-3">35. Online Payment Auto Settle</h6>
+        </div>
+        <div className="col-md-6">
+          <div className="ms-3">
+            <div className="form-check form-switch">
+              <input
+                style={{ borderColor: '#ccc' }}
+                className="form-check-input"
+                type="checkbox"
+                id="onlinePaymentAutoSettle"
+                checked={formData.onlinePaymentAutoSettle}
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <hr className="my-2" style={{ borderColor: '#ccc' }} />
+
+      {/* Row 36: Order Sync Settings */}
+      <div className="row mb-2">
+        <div className="col-md-6">
+          <h6 className="fw-bold mb-3">36. Order Sync Settings</h6>
+          <p>Auto-Sync Settings for Real-Time Cloud Updates</p>
+          <p>Available intervals for syncing order data to the cloud</p>
+          <p>Sets the number of orders to be synced in a single batch</p>
+        </div>
+        <div className="col-md-6">
+          <div className="ms-3">
+            <div className="mb-3">
+              <label className="form-label">Sync Interval</label>
+              <select
+                style={{ borderColor: '#ccc' }}
+                className="form-select"
+                id="orderSyncSettingsAutoSyncInterval"
+                value={formData.orderSyncSettingsAutoSyncInterval}
+                onChange={handleInputChange}
+              >
+                <option value="300">5 Minutes (Default)</option>
+                <option value="600">10 Minutes</option>
+                <option value="900">15 Minutes</option>
+              </select>
+            </div>
+            <div className="mb-3">
+              <label className="form-label">Sync Batch Packet Size</label>
+              <input
+                style={{ borderColor: '#ccc' }}
+                type="number"
+                className="form-control"
+                id="orderSyncSettingsSyncBatchPacketSize"
+                value={formData.orderSyncSettingsSyncBatchPacketSize}
+                onChange={handleInputChange}
+                placeholder="100 (Default)"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <hr className="my-2" style={{ borderColor: '#ccc' }} />
+
+      {/* Row 37: Separate Billing by Section */}
+      <div className="row mb-2">
+        <div className="col-md-6">
+          <h6 className="fw-bold mb-3">37. Separate Billing by Section</h6>
+        </div>
+        <div className="col-md-6">
+          <div className="ms-3">
+            <div className="form-check form-switch">
+              <input
+                style={{ borderColor: '#ccc' }}
+                className="form-check-input"
+                type="checkbox"
+                id="separateBillingBySection"
+                checked={formData.separateBillingBySection}
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <hr className="my-2" style={{ borderColor: '#ccc' }} />
+
+      {/* Row 38: Set entered amount while closing day as a opening amount of next day */}
+      <div className="row mb-2">
+        <div className="col-md-6">
+          <h6 className="fw-bold mb-3">38. Set entered amount while closing day as a opening amount of next day</h6>
+        </div>
+        <div className="col-md-6">
+          <div className="ms-3">
+            <div className="form-check form-switch">
+              <input
+                style={{ borderColor: '#ccc' }}
+                className="form-check-input"
+                type="checkbox"
+                id="setEnteredAmountAsOpening"
+                checked={formData.setEnteredAmountAsOpening}
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <hr className="my-2" style={{ borderColor: '#ccc' }} />
+
+      {/* Row 39: Show Alternative Item On Report Print */}
+      <div className="row mb-2">
+        <div className="col-md-6">
+          <h6 className="fw-bold mb-3">39. Show Alternative Item On Report Print</h6>
+        </div>
+        <div className="col-md-6">
+          <div className="ms-3">
+            <div className="form-check form-switch">
+              <input
+                style={{ borderColor: '#ccc' }}
+                className="form-check-input"
+                type="checkbox"
+                id="showAlternativeItemReportPrint"
+                checked={formData.showAlternativeItemReportPrint}
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <hr className="my-2" style={{ borderColor: '#ccc' }} />
+
+      {/* Row 40: Show Clear Sales Report on Logout */}
+      <div className="row mb-2">
+        <div className="col-md-6">
+          <h6 className="fw-bold mb-3">40. Show Clear Sales Report on Logout</h6>
+        </div>
+        <div className="col-md-6">
+          <div className="ms-3">
+            <div className="form-check form-switch">
+              <input
+                style={{ borderColor: '#ccc' }}
+                className="form-check-input"
+                type="checkbox"
+                id="showClearSalesReportLogout"
+                checked={formData.showClearSalesReportLogout}
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <hr className="my-2" style={{ borderColor: '#ccc' }} />
+
+      {/* Row 41: Show Order No (Label) on Pos */}
+      <div className="row mb-2">
+        <div className="col-md-6">
+          <h6 className="fw-bold mb-3">41. Show Order No (Label) on Pos</h6>
+        </div>
+        <div className="col-md-6">
+          <div className="ms-3">
+            <div className="form-check form-switch">
+              <input
+                style={{ borderColor: '#ccc' }}
+                className="form-check-input"
+                type="checkbox"
+                id="showOrderNoLabelPos"
+                checked={formData.showOrderNoLabelPos}
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <hr className="my-2" style={{ borderColor: '#ccc' }} />
+
+      {/* Row 42: Show Payment History Button */}
+      <div className="row mb-2">
+        <div className="col-md-6">
+          <h6 className="fw-bold mb-3">42. Show Payment History Button</h6>
+        </div>
+        <div className="col-md-6">
+          <div className="ms-3">
+            <div className="form-check form-switch">
+              <input
+                style={{ borderColor: '#ccc' }}
+                className="form-check-input"
+                type="checkbox"
+                id="showPaymentHistoryButton"
+                checked={formData.showPaymentHistoryButton}
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <hr className="my-2" style={{ borderColor: '#ccc' }} />
+
+      {/* Row 43: Show Remote KOT Option in KOT */}
+      <div className="row mb-2">
+        <div className="col-md-6">
+          <h6 className="fw-bold mb-3">43. Show Remote KOT Option in KOT</h6>
+        </div>
+        <div className="col-md-6">
+          <div className="ms-3">
+            <div className="form-check form-switch">
+              <input
+                style={{ borderColor: '#ccc' }}
+                className="form-check-input"
+                type="checkbox"
+                id="showRemoteKotOption"
+                checked={formData.showRemoteKotOption}
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <hr className="my-2" style={{ borderColor: '#ccc' }} />
+
+      {/* Row 44: Show Send Payment Link */}
+      <div className="row mb-2">
+        <div className="col-md-6">
+          <h6 className="fw-bold mb-3">44. Show Send Payment Link</h6>
+        </div>
+        <div className="col-md-6">
+          <div className="ms-3">
+            <div className="form-check form-switch">
+              <input
+                style={{ borderColor: '#ccc' }}
+                className="form-check-input"
+                type="checkbox"
+                id="showSendPaymentLink"
+                checked={formData.showSendPaymentLink}
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <hr className="my-2" style={{ borderColor: '#ccc' }} />
+
+      {/* Row 45: Stock Availability Display */}
+      <div className="row mb-2">
+        <div className="col-md-6">
+          <h6 className="fw-bold mb-3">45. Stock Availability Display</h6>
+        </div>
+        <div className="col-md-6">
+          <div className="ms-3">
+            <div className="form-check form-switch">
+              <input
+                style={{ borderColor: '#ccc' }}
+                className="form-check-input"
+                type="checkbox"
+                id="stockAvailabilityDisplay"
+                checked={formData.stockAvailabilityDisplay}
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <hr className="my-2" style={{ borderColor: '#ccc' }} />
+
+      {/* Row 46: Todays Report */}
+      <div className="row mb-2">
+        <div className="col-md-6">
+          <h6 className="fw-bold mb-3">46. Todays Report</h6>
+        </div>
+        <div className="col-md-6">
+          <div className="ms-3">
+            <div className="mb-2">
+              <div className="form-check">
+                <input
+                  style={{ borderColor: '#ccc' }}
+                  className="form-check-input"
+                  type="checkbox"
+                  id="todaysReportSalesSummary"
+                  checked={formData.todaysReportSalesSummary}
+                  onChange={handleInputChange}
+                />
+                <label className="form-check-label" htmlFor="todaysReportSalesSummary">
+                  Sales Summary / Z Report Summary
+                </label>
+              </div>
+            </div>
+            <div className="mb-2">
+              <div className="form-check">
+                <input
+                  style={{ borderColor: '#ccc' }}
+                  className="form-check-input"
+                  type="checkbox"
+                  id="todaysReportOrderTypeSummary"
+                  checked={formData.todaysReportOrderTypeSummary}
+                  onChange={handleInputChange}
+                />
+                <label className="form-check-label" htmlFor="todaysReportOrderTypeSummary">
+                  Order Type Summary
+                </label>
+              </div>
+            </div>
+            <div className="mb-2">
+              <div className="form-check">
+                <input
+                  style={{ borderColor: '#ccc' }}
+                  className="form-check-input"
+                  type="checkbox"
+                  id="todaysReportPaymentTypeSummary"
+                  checked={formData.todaysReportPaymentTypeSummary}
+                  onChange={handleInputChange}
+                />
+                <label className="form-check-label" htmlFor="todaysReportPaymentTypeSummary">
+                  Payment Type Summary
+                </label>
+              </div>
+            </div>
+            <div className="mb-2">
+              <div className="form-check">
+                <input
+                  style={{ borderColor: '#ccc' }}
+                  className="form-check-input"
+                  type="checkbox"
+                  id="todaysReportDiscountSummary"
+                  checked={formData.todaysReportDiscountSummary}
+                  onChange={handleInputChange}
+                />
+                <label className="form-check-label" htmlFor="todaysReportDiscountSummary">
+                  Discount Summary
+                </label>
+              </div>
+            </div>
+            <div className="mb-2">
+              <div className="form-check">
+                <input
+                  style={{ borderColor: '#ccc' }}
+                  className="form-check-input"
+                  type="checkbox"
+                  id="todaysReportExpenseSummary"
+                  checked={formData.todaysReportExpenseSummary}
+                  onChange={handleInputChange}
+                />
+                <label className="form-check-label" htmlFor="todaysReportExpenseSummary">
+                  Expense Summary
+                </label>
+              </div>
+            </div>
+            <div className="mb-2">
+              <div className="form-check">
+                <input
+                  style={{ borderColor: '#ccc' }}
+                  className="form-check-input"
+                  type="checkbox"
+                  id="todaysReportBillSummary"
+                  checked={formData.todaysReportBillSummary}
+                  onChange={handleInputChange}
+                />
+                <label className="form-check-label" htmlFor="todaysReportBillSummary">
+                  Bill Summary
+                </label>
+              </div>
+            </div>
+            <div className="mb-2">
+              <div className="form-check">
+                <input
+                  style={{ borderColor: '#ccc' }}
+                  className="form-check-input"
+                  type="checkbox"
+                  id="todaysReportDeliveryBoySummary"
+                  checked={formData.todaysReportDeliveryBoySummary}
+                  onChange={handleInputChange}
+                />
+                <label className="form-check-label" htmlFor="todaysReportDeliveryBoySummary">
+                  Delivery Boy Summary
+                </label>
+              </div>
+            </div>
+            <div className="mb-2">
+              <div className="form-check">
+                <input
+                  style={{ borderColor: '#ccc' }}
+                  className="form-check-input"
+                  type="checkbox"
+                  id="todaysReportWaiterSummary"
+                  checked={formData.todaysReportWaiterSummary}
+                  onChange={handleInputChange}
+                />
+                <label className="form-check-label" htmlFor="todaysReportWaiterSummary">
+                  Waiter Summary
+                </label>
+              </div>
+            </div>
+            <div className="mb-2">
+              <div className="form-check">
+                <input
+                  style={{ borderColor: '#ccc' }}
+                  className="form-check-input"
+                  type="checkbox"
+                  id="todaysReportKitchenDepartmentSummary"
+                  checked={formData.todaysReportKitchenDepartmentSummary}
+                  onChange={handleInputChange}
+                />
+                <label className="form-check-label" htmlFor="todaysReportKitchenDepartmentSummary">
+                  Kitchen Department Summary
+                </label>
+              </div>
+            </div>
+            <div className="mb-2">
+              <div className="form-check">
+                <input
+                  style={{ borderColor: '#ccc' }}
+                  className="form-check-input"
+                  type="checkbox"
+                  id="todaysReportCategorySummary"
+                  checked={formData.todaysReportCategorySummary}
+                  onChange={handleInputChange}
+                />
+                <label className="form-check-label" htmlFor="todaysReportCategorySummary">
+                  Category Summary
+                </label>
+              </div>
+            </div>
+            <div className="mb-2">
+              <div className="form-check">
+                <input
+                  style={{ borderColor: '#ccc' }}
+                  className="form-check-input"
+                  type="checkbox"
+                  id="todaysReportSoldItemsSummary"
+                  checked={formData.todaysReportSoldItemsSummary}
+                  onChange={handleInputChange}
+                />
+                <label className="form-check-label" htmlFor="todaysReportSoldItemsSummary">
+                  Sold Items Summary
+                </label>
+              </div>
+            </div>
+            <div className="mb-2">
+              <div className="form-check">
+                <input
+                  style={{ borderColor: '#ccc' }}
+                  className="form-check-input"
+                  type="checkbox"
+                  id="todaysReportCancelItemsSummary"
+                  checked={formData.todaysReportCancelItemsSummary}
+                  onChange={handleInputChange}
+                />
+                <label className="form-check-label" htmlFor="todaysReportCancelItemsSummary">
+                  Cancel Items Summary
+                </label>
+              </div>
+            </div>
+            <div className="mb-2">
+              <div className="form-check">
+                <input
+                  style={{ borderColor: '#ccc' }}
+                  className="form-check-input"
+                  type="checkbox"
+                  id="todaysReportWalletSummary"
+                  checked={formData.todaysReportWalletSummary}
+                  onChange={handleInputChange}
+                />
+                <label className="form-check-label" htmlFor="todaysReportWalletSummary">
+                  Wallet Summary
+                </label>
+              </div>
+            </div>
+            <div className="mb-2">
+              <div className="form-check">
+                <input
+                  style={{ borderColor: '#ccc' }}
+                  className="form-check-input"
+                  type="checkbox"
+                  id="todaysReportDuePaymentReceivedSummary"
+                  checked={formData.todaysReportDuePaymentReceivedSummary}
+                  onChange={handleInputChange}
+                />
+                <label className="form-check-label" htmlFor="todaysReportDuePaymentReceivedSummary">
+                  Due Payment Received Summary
+                </label>
+              </div>
+            </div>
+            <div className="mb-2">
+              <div className="form-check">
+                <input
+                  style={{ borderColor: '#ccc' }}
+                  className="form-check-input"
+                  type="checkbox"
+                  id="todaysReportDuePaymentReceivableSummary"
+                  checked={formData.todaysReportDuePaymentReceivableSummary}
+                  onChange={handleInputChange}
+                />
+                <label className="form-check-label" htmlFor="todaysReportDuePaymentReceivableSummary">
+                  Due Payment Receivable Summary
+                </label>
+              </div>
+            </div>
+            <div className="mb-2">
+              <div className="form-check">
+                <input
+                  style={{ borderColor: '#ccc' }}
+                  className="form-check-input"
+                  type="checkbox"
+                  id="todaysReportPaymentVarianceSummary"
+                  checked={formData.todaysReportPaymentVarianceSummary}
+                  onChange={handleInputChange}
+                />
+                <label className="form-check-label" htmlFor="todaysReportPaymentVarianceSummary">
+                  Payment Variance Summary
+                </label>
+              </div>
+            </div>
+            <div className="mb-3">
+              <div className="form-check">
+                <input
+                  style={{ borderColor: '#ccc' }}
+                  className="form-check-input"
+                  type="checkbox"
+                  id="todaysReportCurrencyDenominationsSummary"
+                  checked={formData.todaysReportCurrencyDenominationsSummary}
+                  onChange={handleInputChange}
+                />
+                <label className="form-check-label" htmlFor="todaysReportCurrencyDenominationsSummary">
+                  Currency Denominations Summary
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <hr className="my-2" style={{ borderColor: '#ccc' }} />
+
+      {/* Row 47: When do you want to send todays report */}
+      <div className="row mb-2">
+        <div className="col-md-6">
+          <h6 className="fw-bold mb-3">47. When do you want to send todays report</h6>
+        </div>
+        <div className="col-md-6">
+          <div className="ms-3">
+            <select
+              style={{ borderColor: '#ccc' }}
+              className="form-select"
+              id="whenSendTodaysReport"
+              value={formData.whenSendTodaysReport}
+              onChange={handleInputChange}
+            >
+              <option value="">Select an option</option>
+              <option value="END_OF_DAY">End of Day (Default)</option>
+              <option value="receipt_section">Print Todays Report From Receipt Section</option>
+              <option value="report_section">Print Todays Report From Report Section</option>
+              <option value="close_day">Print Report When We Close The Day</option>
+              <option value="close_day_report_section">Print Close Day Report From Report Section</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <hr className="my-2" style={{ borderColor: '#ccc' }} />
+
+      {/* Row 48: Enable Currency Conversion */}
+      <div className="row mb-2">
+        <div className="col-md-6">
+          <h6 className="fw-bold mb-3">48. Enable Currency Conversion</h6>
+        </div>
+        <div className="col-md-6">
+          <div className="ms-3">
+            <div className="form-check form-switch">
+              <input
+                style={{ borderColor: '#ccc' }}
+                className="form-check-input"
+                type="checkbox"
+                id="enableCurrencyConversion"
+                checked={formData.enableCurrencyConversion}
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <hr className="my-2" style={{ borderColor: '#ccc' }} />
+
+      {/* Row 49: Enable user login validation */}
+      <div className="row mb-2">
+        <div className="col-md-6">
+          <h6 className="fw-bold mb-3">49. Enable user login validation</h6>
+        </div>
+        <div className="col-md-6">
+          <div className="ms-3">
+            <div className="form-check form-switch">
+              <input
+                style={{ borderColor: '#ccc' }}
+                className="form-check-input"
+                type="checkbox"
+                id="enableUserLoginValidation"
+                checked={formData.enableUserLoginValidation}
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <hr className="my-2" style={{ borderColor: '#ccc' }} />
+
+      {/* Row 50: Allow Closing Shift Despite Saved or Printed Bills */}
+      <div className="row mb-2">
+        <div className="col-md-6">
+          <h6 className="fw-bold mb-3">50. Allow Closing Shift Despite Saved or Printed Bills</h6>
+        </div>
+        <div className="col-md-6">
+          <div className="ms-3">
+            <div className="form-check form-switch">
+              <input
+                style={{ borderColor: '#ccc' }}
+                className="form-check-input"
+                type="checkbox"
+                id="allowClosingShiftDespiteBills"
+                checked={formData.allowClosingShiftDespiteBills}
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <hr className="my-2" style={{ borderColor: '#ccc' }} />
+
+      {/* Row 51: Show Real-Time KOT/Bill Notifications/Updates */}
+      <div className="row mb-2">
+        <div className="col-md-6">
+          <h6 className="fw-bold mb-3">51. Show Real-Time KOT/Bill Notifications/Updates from CSK App & Terminal POS on Master POS</h6>
+        </div>
+        <div className="col-md-6">
+          <div className="ms-3">
+            <div className="form-check form-switch">
+              <input
+                style={{ borderColor: '#ccc' }}
+                className="form-check-input"
+                type="checkbox"
+                id="showRealTimeKotBillNotifications"
+                checked={formData.showRealTimeKotBillNotifications}
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <hr className="my-2" style={{ borderColor: '#ccc' }} />
+
+      {/* Row 52: Use Separate Bill Numbers for Online Orders */}
+      <div className="row mb-2">
+        <div className="col-md-6">
+          <h6 className="fw-bold mb-3">52. Use Separate Bill Numbers for Online Orders</h6>
+        </div>
+        <div className="col-md-6">
+          <div className="ms-3">
+            <div className="form-check form-switch">
+              <input
+                style={{ borderColor: '#ccc' }}
+                className="form-check-input"
+                type="checkbox"
+                id="useSeparateBillNumbersOnline"
+                checked={formData.useSeparateBillNumbersOnline}
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <div
+        className="d-flex justify-content-end gap-3 mt-4"
+        style={{ padding: '10px' }}
+      >
+        <button className="btn btn-danger" onClick={handleCancel}>
+          Cancel
+        </button>
+        <button className="btn btn-success" onClick={handleUpdate}>
+          Update
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 
             {/* Online Orders Settings Tab */}
             <div

@@ -30,15 +30,10 @@ const authRoutes = require('./routes/authRoutes');
 const authController = require('./controllers/authController');
 const TableManagementRoutes = require('./routes/TableManagementRoutes');
 const CustomerRoutes = require('./routes/CustomerRoutes');
-
 const taxGroupRoutes = require('./routes/msttaxgroupRoutes');
 const restTaxMasterRoutes = require('./routes/restTaxMasterRoutes');
 
-const BillPreviewRoutes = require("./routes/billPreviewSettingsRoutes");
-const kotPrintSettingsRoutes = require("./routes/kotPrintSettingsRoutes");
-const billPrintSettingsRoutes = require('./routes/billPrintSettingsRoutes');
-const generalSettingsRoutes = require('./routes/generalSettingsRoutes');
-const onlineOrderSettingsRoutes = require('./routes/onlineOrderSettingsRoutes');
+const settingsRoutes = require('./routes/settingsRoutes'); // Adjust path as per your project structure
 
 
 
@@ -76,11 +71,7 @@ app.use('/api/customer', CustomerRoutes);
 app.use('/api/taxgroup', taxGroupRoutes);
 app.use('/api/resttaxmaster', restTaxMasterRoutes);
 
-app.use("/api/bill-preview-settings", BillPreviewRoutes);
-app.use('/api/kot-print-settings', kotPrintSettingsRoutes);
-app.use('/api/bill-print-settings', billPrintSettingsRoutes);
-app.use('/api/general-settings', generalSettingsRoutes);
-app.use('/api/online-order-settings', onlineOrderSettingsRoutes);
+app.use('/api/settings', settingsRoutes); // Register settings routes
 
 // ✅ Add a health check endpoint
 app.get('/api/health', (req, res) => {

@@ -431,7 +431,7 @@ CREATE TABLE IF NOT EXISTS mstbill_preview_settings (
     field3 VARCHAR(100),
     field4 VARCHAR(100),
     fssai_no VARCHAR(50),
-    FOREIGN KEY (outletid) REFERENCES outlets(outletid) ON DELETE CASCADE
+    FOREIGN KEY (outletid) REFERENCES mst_outlets(outletid) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS mstkot_print_settings (
@@ -469,7 +469,7 @@ CREATE TABLE IF NOT EXISTS mstkot_print_settings (
     show_terminal_username BOOLEAN,
     show_username BOOLEAN,
     show_waiter BOOLEAN,
-    FOREIGN KEY (outletid) REFERENCES outlets(outletid) ON DELETE CASCADE
+    FOREIGN KEY (outletid) REFERENCES mst_outlets(outletid) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS mstbill_print_settings (
@@ -532,7 +532,7 @@ CREATE TABLE IF NOT EXISTS mstbill_print_settings (
     hide_item_rate_column BOOLEAN,
     hide_item_total_column BOOLEAN,
     hide_total_without_tax BOOLEAN,
-    FOREIGN KEY (outletid) REFERENCES outlets(outletid) ON DELETE CASCADE
+    FOREIGN KEY (outletid) REFERENCES mst_outlets(outletid) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS mstgeneral_settings (
@@ -616,7 +616,7 @@ CREATE TABLE IF NOT EXISTS mstgeneral_settings (
     allow_closing_shift_despite_bills BOOLEAN,
     show_real_time_kot_bill_notifications BOOLEAN,
     use_separate_bill_numbers_online BOOLEAN,
-    FOREIGN KEY (outletid) REFERENCES outlets(outletid) ON DELETE CASCADE
+    FOREIGN KEY (outletid) REFERENCES mst_outlets(outletid) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS mstonline_orders_settings (
@@ -631,7 +631,74 @@ CREATE TABLE IF NOT EXISTS mstonline_orders_settings (
     show_complete_online_order_id BOOLEAN,
     show_online_order_preparation_time BOOLEAN,
     update_food_ready_status_kds BOOLEAN,
-    FOREIGN KEY (outletid) REFERENCES outlets(outletid) ON DELETE CASCADE
+    FOREIGN KEY (outletid) REFERENCES mst_outlets(outletid) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS mstoutlet_settings (
+    outletid INT PRIMARY KEY,
+    send_order_notification VARCHAR(50) DEFAULT 'ALL',
+    bill_number_length INT DEFAULT 2,
+    next_reset_order_number_date DATETIME,
+    next_reset_order_number_days VARCHAR(50) DEFAULT 'Reset Order Number Daily',
+    decimal_points INT DEFAULT 2,
+    bill_round_off BOOLEAN,
+    enable_loyalty BOOLEAN,
+    multiple_price_setting BOOLEAN,
+    verify_pos_system_login BOOLEAN,
+    table_reservation BOOLEAN,
+    auto_update_pos BOOLEAN,
+    send_report_email BOOLEAN,
+    send_report_whatsapp BOOLEAN,
+    allow_multiple_tax BOOLEAN,
+    enable_call_center BOOLEAN,
+    bharatpe_integration BOOLEAN,
+    phonepe_integration BOOLEAN,
+    reelo_integration BOOLEAN,
+    tally_integration BOOLEAN,
+    sunmi_integration BOOLEAN,
+    zomato_pay_integration BOOLEAN,
+    zomato_enabled BOOLEAN,
+    swiggy_enabled BOOLEAN,
+    rafeeq_enabled BOOLEAN,
+    noon_food_enabled BOOLEAN,
+    magicpin_enabled BOOLEAN,
+    dotpe_enabled BOOLEAN,
+    cultfit_enabled BOOLEAN,
+    ubereats_enabled BOOLEAN,
+    scooty_enabled BOOLEAN,
+    dunzo_enabled BOOLEAN,
+    foodpanda_enabled BOOLEAN,
+    amazon_enabled BOOLEAN,
+    talabat_enabled BOOLEAN,
+    deliveroo_enabled BOOLEAN,
+    careem_enabled BOOLEAN,
+    jahez_enabled BOOLEAN,
+    eazydiner_enabled BOOLEAN,
+    radyes_enabled BOOLEAN,
+    goshop_enabled BOOLEAN,
+    chatfood_enabled BOOLEAN,
+    cutfit_enabled BOOLEAN,
+    jubeat_enabled BOOLEAN,
+    thrive_enabled BOOLEAN,
+    fidoo_enabled BOOLEAN,
+    mrsool_enabled BOOLEAN,
+    swiggystore_enabled BOOLEAN,
+    zomatormarket_enabled BOOLEAN,
+    hungerstation_enabled BOOLEAN,
+    instashop_enabled BOOLEAN,
+    eteasy_enabled BOOLEAN,
+    smiles_enabled BOOLEAN,
+    toyou_enabled BOOLEAN,
+    dca_enabled BOOLEAN,
+    ordable_enabled BOOLEAN,
+    beanz_enabled BOOLEAN,
+    cari_enabled BOOLEAN,
+    the_chefz_enabled BOOLEAN,
+    keeta_enabled BOOLEAN,
+    notification_channel VARCHAR(50) DEFAULT 'SMS',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ,
+   FOREIGN KEY (outletid) REFERENCES mst_outlets(outletid)
 );
 
 `);
