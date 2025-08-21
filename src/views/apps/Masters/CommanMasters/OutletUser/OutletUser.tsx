@@ -101,8 +101,10 @@ const OutletUser: React.FC = () => {
 
   const fetchUsers = async () => {
     setLoading(true);
+    console.log('Fetching outlet users...');
     try {
       const response = await getOutletUsers();
+      console.log('Response from getOutletUsers:', response);
       setUsers(response.data || response);
     } catch (error) {
       toast.error('Failed to fetch users');
