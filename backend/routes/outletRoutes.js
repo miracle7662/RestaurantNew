@@ -19,6 +19,9 @@ router.put('/:id', outletController.updateOutlet);
 // Delete outlet
 router.delete('/:id', outletController.deleteOutlet);
 
+router.get('/outlet-settings/:outletid', outletController.getOutletSettings);
+
+
 // // Get outlets for dropdown outlet
 
 // router.get('/outlets/dropdown', outletController.getOutletsForDropdown);

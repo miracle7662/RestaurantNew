@@ -1,28 +1,21 @@
 const db = require('../config/db');
 
 // Get Bill Preview Settings
-exports.getBillPreviewSettings = (req, res) => {
-  try {
-    const { outletId } = req.params;
-    const settings = db.prepare('SELECT * FROM mstbill_preview_settings WHERE outletid = ?').get(outletId);
-    res.json({ data: settings || null });
-  } catch (error) {
-    console.error('Error fetching bill preview settings:', error);
-    res.status(500).json({ error: 'Failed to fetch bill preview settings' });
-  }
-};
+
 
 // Update Bill Preview Settings
 exports.updateBillPreviewSettings = (req, res) => {
   try {
-    const { outletId } = req.params;
+    const { outletid } = req.params;
     const {
       outlet_name, email, website, upi_id, bill_prefix, secondary_bill_prefix, bar_bill_prefix,
       show_upi_qr, enabled_bar_section, show_phone_on_bill, note, footer_note,
       field1, field2, field3, field4, fssai_no
     } = req.body;
 
-    const existingSettings = db.prepare('SELECT * FROM mstbill_preview_settings WHERE outletid = ?').get(outletId) || {};
+    const existingSettings = db.prepare('SELECT * FROM mstbill_preview_settings WHERE outletid = ?').get(outletid) || {};
+
+    console.log('Received data:', { outletid, ...req.body }); // Debug log
 
     const stmt = db.prepare(`
       INSERT OR REPLACE INTO mstbill_preview_settings (
@@ -31,50 +24,42 @@ exports.updateBillPreviewSettings = (req, res) => {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
-    stmt.run(
-      outletId,
-      outlet_name ?? existingSettings.outlet_name ?? '',
-      email ?? existingSettings.email ?? '',
-      website ?? existingSettings.website ?? '',
-      upi_id ?? existingSettings.upi_id ?? '',
-      bill_prefix ?? existingSettings.bill_prefix ?? 'BILL-',
-      secondary_bill_prefix ?? existingSettings.secondary_bill_prefix ?? 'SEC-',
-      bar_bill_prefix ?? existingSettings.bar_bill_prefix ?? 'BAR-',
-      show_upi_qr ?? existingSettings.show_upi_qr ?? 0,
-      enabled_bar_section ?? existingSettings.enabled_bar_section ?? 0,
-      show_phone_on_bill ?? existingSettings.show_phone_on_bill ?? '',
-      note ?? existingSettings.note ?? '',
-      footer_note ?? existingSettings.footer_note ?? '',
-      field1 ?? existingSettings.field1 ?? '',
-      field2 ?? existingSettings.field2 ?? '',
-      field3 ?? existingSettings.field3 ?? '',
-      field4 ?? existingSettings.field4 ?? '',
-      fssai_no ?? existingSettings.fssai_no ?? ''
-    );
+    const params = [
+      outletid,
+      (outlet_name ?? existingSettings.outlet_name ?? '').toString(), // Ensure string
+      (email ?? existingSettings.email ?? '').toString(),
+      (website ?? existingSettings.website ?? '').toString(),
+      (upi_id ?? existingSettings.upi_id ?? '').toString(),
+      (bill_prefix ?? existingSettings.bill_prefix ?? 'BILL-').toString(),
+      (secondary_bill_prefix ?? existingSettings.secondary_bill_prefix ?? 'SEC-').toString(),
+      (bar_bill_prefix ?? existingSettings.bar_bill_prefix ?? 'BAR-').toString(),
+      show_upi_qr !== undefined ? Number(show_upi_qr) : (existingSettings.show_upi_qr ?? 0), // Convert to number
+      enabled_bar_section !== undefined ? Number(enabled_bar_section) : (existingSettings.enabled_bar_section ?? 0),
+      (show_phone_on_bill ?? existingSettings.show_phone_on_bill ?? '').toString(),
+      (note ?? existingSettings.note ?? '').toString(),
+      (footer_note ?? existingSettings.footer_note ?? '').toString(),
+      (field1 ?? existingSettings.field1 ?? '').toString(),
+      (field2 ?? existingSettings.field2 ?? '').toString(),
+      (field3 ?? existingSettings.field3 ?? '').toString(),
+      (field4 ?? existingSettings.field4 ?? '').toString(),
+      (fssai_no ?? existingSettings.fssai_no ?? '').toString(),
+    ];
 
+    console.log('Bound parameters:', params); // Debug log
+
+    stmt.run(...params);
     res.json({ message: 'Bill preview settings updated successfully' });
   } catch (error) {
-    console.error('Error updating bill preview settings:', error);
+    console.error('Error updating bill preview settings:', error.message, error.stack);
     res.status(500).json({ error: 'Failed to update bill preview settings' });
   }
 };
 
-// Get KOT Print Settings
-exports.getKOTPrintSettings = (req, res) => {
-  try {
-    const { outletId } = req.params;
-    const settings = db.prepare('SELECT * FROM mstkot_print_settings WHERE outletid = ?').get(outletId);
-    res.json({ data: settings || null });
-  } catch (error) {
-    console.error('Error fetching KOT print settings:', error);
-    res.status(500).json({ error: 'Failed to fetch KOT print settings' });
-  }
-};
 
 // Update KOT Print Settings
 exports.updateKOTPrintSettings = (req, res) => {
   try {
-    const { outletId } = req.params;
+    const { outletid } = req.params;
     const {
       customer_on_kot_dine_in, customer_on_kot_pickup, customer_on_kot_delivery, customer_on_kot_quick_bill,
       customer_kot_display_option, group_kot_items_by_category, hide_table_name_quick_bill, show_new_order_tag,
@@ -85,7 +70,7 @@ exports.updateKOTPrintSettings = (req, res) => {
       show_order_type_symbol, show_store_name, show_terminal_username, show_username, show_waiter
     } = req.body;
 
-    const existingSettings = db.prepare('SELECT * FROM mstkot_print_settings WHERE outletid = ?').get(outletId) || {};
+    const existingSettings = db.prepare('SELECT * FROM mstkot_print_settings WHERE outletid = ?').get(outletid) || {};
 
     const stmt = db.prepare(`
       INSERT OR REPLACE INTO mstkot_print_settings (
@@ -100,7 +85,7 @@ exports.updateKOTPrintSettings = (req, res) => {
     `);
 
     stmt.run(
-      outletId,
+      outletid,
       customer_on_kot_dine_in ?? existingSettings.customer_on_kot_dine_in ?? 0,
       customer_on_kot_pickup ?? existingSettings.customer_on_kot_pickup ?? 0,
       customer_on_kot_delivery ?? existingSettings.customer_on_kot_delivery ?? 0,
@@ -142,145 +127,155 @@ exports.updateKOTPrintSettings = (req, res) => {
   }
 };
 
-// Get Bill Print Settings
-exports.getBillPrintSettings = (req, res) => {
-  try {
-    const { outletId } = req.params;
-    const settings = db.prepare('SELECT * FROM mstbill_print_settings WHERE outletid = ?').get(outletId);
-    res.json({ data: settings || null });
-  } catch (error) {
-    console.error('Error fetching bill print settings:', error);
-    res.status(500).json({ error: 'Failed to fetch bill print settings' });
-  }
-};
+
 
 // Update Bill Print Settings
 exports.updateBillPrintSettings = (req, res) => {
   try {
-    const { outletId } = req.params;
-    const {
-      bill_title_dine_in, bill_title_pickup, bill_title_delivery, bill_title_quick_bill, mask_order_id,
-      modifier_default_option_bill, print_bill_both_languages, show_alt_item_title_bill, show_alt_name_bill,
-      show_bill_amount_words, show_bill_no_bill, show_bill_number_prefix_bill, show_bill_print_count,
-      show_brand_name_bill, show_captain_bill, show_covers_bill, show_custom_qr_codes_bill,
-      show_customer_gst_bill, show_customer_bill, show_customer_paid_amount, show_date_bill,
-      show_default_payment, show_discount_reason_bill, show_due_amount_bill, show_ebill_invoice_qrcode,
-      show_item_hsn_code_bill, show_item_level_charges_separately, show_item_note_bill, show_items_sequence_bill,
-      show_kot_number_bill, show_logo_bill, show_order_id_bill, show_order_no_bill, show_order_note_bill,
-      order_type_dine_in, order_type_pickup, order_type_delivery, order_type_quick_bill, show_outlet_name_bill,
-      payment_mode_dine_in, payment_mode_pickup, payment_mode_delivery, payment_mode_quick_bill,
-      table_name_dine_in, table_name_pickup, table_name_delivery, table_name_quick_bill, show_tax_charge_bill,
-      show_username_bill, show_waiter_bill, show_zatca_invoice_qr, show_customer_address_pickup_bill,
-      show_order_placed_time, hide_item_quantity_column, hide_item_rate_column, hide_item_total_column,
-      hide_total_without_tax
-    } = req.body;
+    const { outletid } = req.params;
+    const settings = req.body;
 
-    const existingSettings = db.prepare('SELECT * FROM mstbill_print_settings WHERE outletid = ?').get(outletId) || {};
+    if (!outletid || !settings) {
+      return res.status(400).json({ error: 'Outlet ID and settings are required' });
+    }
 
-    const stmt = db.prepare(`
-      INSERT OR REPLACE INTO mstbill_print_settings (
-        outletid, bill_title_dine_in, bill_title_pickup, bill_title_delivery, bill_title_quick_bill,
-        mask_order_id, modifier_default_option_bill, print_bill_both_languages, show_alt_item_title_bill,
-        show_alt_name_bill, show_bill_amount_words, show_bill_no_bill, show_bill_number_prefix_bill,
-        show_bill_print_count, show_brand_name_bill, show_captain_bill, show_covers_bill,
-        show_custom_qr_codes_bill, show_customer_gst_bill, show_customer_bill, show_customer_paid_amount,
-        show_date_bill, show_default_payment, show_discount_reason_bill, show_due_amount_bill,
-        show_ebill_invoice_qrcode, show_item_hsn_code_bill, show_item_level_charges_separately,
-        show_item_note_bill, show_items_sequence_bill, show_kot_number_bill, show_logo_bill,
-        show_order_id_bill, show_order_no_bill, show_order_note_bill, order_type_dine_in,
-        order_type_pickup, order_type_delivery, order_type_quick_bill, show_outlet_name_bill,
-        payment_mode_dine_in, payment_mode_pickup, payment_mode_delivery, payment_mode_quick_bill,
-        table_name_dine_in, table_name_pickup, table_name_delivery, table_name_quick_bill,
-        show_tax_charge_bill, show_username_bill, show_waiter_bill, show_zatca_invoice_qr,
-        show_customer_address_pickup_bill, show_order_placed_time, hide_item_quantity_column,
-        hide_item_rate_column, hide_item_total_column, hide_total_without_tax
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
+    const query = `
+      INSERT INTO mstbills_print_settings (outletid, bill_title_dine_in, bill_title_pickup, bill_title_delivery, bill_title_quick_bill, mask_order_id, modifier_default_option_bill, print_bill_both_languages, show_alt_item_title_bill, show_alt_name_bill, show_bill_amount_words, show_bill_no_bill, show_bill_number_prefix_bill, show_bill_print_count, show_brand_name_bill, show_captain_bill, show_covers_bill, show_custom_qr_codes_bill, show_customer_gst_bill, show_customer_bill, show_customer_paid_amount, show_date_bill, show_default_payment, show_discount_reason_bill, show_due_amount_bill, show_ebill_invoice_qrcode, show_item_hsn_code_bill, show_item_level_charges_separately, show_item_note_bill, show_items_sequence_bill, show_kot_number_bill, show_logo_bill, show_order_id_bill, show_order_no_bill, show_order_note_bill, order_type_dine_in, order_type_pickup, order_type_delivery, order_type_quick_bill, show_outlet_name_bill, payment_mode_dine_in, payment_mode_pickup, payment_mode_delivery, payment_mode_quick_bill, table_name_dine_in, table_name_pickup, table_name_delivery, table_name_quick_bill, show_tax_charge_bill, show_username_bill, show_waiter_bill, show_zatca_invoice_qr, show_customer_address_pickup_bill, show_order_placed_time, hide_item_quantity_column, hide_item_rate_column, hide_item_total_column, hide_total_without_tax)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(outletid) DO UPDATE SET
+        bill_title_dine_in = excluded.bill_title_dine_in,
+        bill_title_pickup = excluded.bill_title_pickup,
+        bill_title_delivery = excluded.bill_title_delivery,
+        bill_title_quick_bill = excluded.bill_title_quick_bill,
+        mask_order_id = excluded.mask_order_id,
+        modifier_default_option_bill = excluded.modifier_default_option_bill,
+        print_bill_both_languages = excluded.print_bill_both_languages,
+        show_alt_item_title_bill = excluded.show_alt_item_title_bill,
+        show_alt_name_bill = excluded.show_alt_name_bill,
+        show_bill_amount_words = excluded.show_bill_amount_words,
+        show_bill_no_bill = excluded.show_bill_no_bill,
+        show_bill_number_prefix_bill = excluded.show_bill_number_prefix_bill,
+        show_bill_print_count = excluded.show_bill_print_count,
+        show_brand_name_bill = excluded.show_brand_name_bill,
+        show_captain_bill = excluded.show_captain_bill,
+        show_covers_bill = excluded.show_covers_bill,
+        show_custom_qr_codes_bill = excluded.show_custom_qr_codes_bill,
+        show_customer_gst_bill = excluded.show_customer_gst_bill,
+        show_customer_bill = excluded.show_customer_bill,
+        show_customer_paid_amount = excluded.show_customer_paid_amount,
+        show_date_bill = excluded.show_date_bill,
+        show_default_payment = excluded.show_default_payment,
+        show_discount_reason_bill = excluded.show_discount_reason_bill,
+        show_due_amount_bill = excluded.show_due_amount_bill,
+        show_ebill_invoice_qrcode = excluded.show_ebill_invoice_qrcode,
+        show_item_hsn_code_bill = excluded.show_item_hsn_code_bill,
+        show_item_level_charges_separately = excluded.show_item_level_charges_separately,
+        show_item_note_bill = excluded.show_item_note_bill,
+        show_items_sequence_bill = excluded.show_items_sequence_bill,
+        show_kot_number_bill = excluded.show_kot_number_bill,
+        show_logo_bill = excluded.show_logo_bill,
+        show_order_id_bill = excluded.show_order_id_bill,
+        show_order_no_bill = excluded.show_order_no_bill,
+        show_order_note_bill = excluded.show_order_note_bill,
+        order_type_dine_in = excluded.order_type_dine_in,
+        order_type_pickup = excluded.order_type_pickup,
+        order_type_delivery = excluded.order_type_delivery,
+        order_type_quick_bill = excluded.order_type_quick_bill,
+        show_outlet_name_bill = excluded.show_outlet_name_bill,
+        payment_mode_dine_in = excluded.payment_mode_dine_in,
+        payment_mode_pickup = excluded.payment_mode_pickup,
+        payment_mode_delivery = excluded.payment_mode_delivery,
+        payment_mode_quick_bill = excluded.payment_mode_quick_bill,
+        table_name_dine_in = excluded.table_name_dine_in,
+        table_name_pickup = excluded.table_name_pickup,
+        table_name_delivery = excluded.table_name_delivery,
+        table_name_quick_bill = excluded.table_name_quick_bill,
+        show_tax_charge_bill = excluded.show_tax_charge_bill,
+        show_username_bill = excluded.show_username_bill,
+        show_waiter_bill = excluded.show_waiter_bill,
+        show_zatca_invoice_qr = excluded.show_zatca_invoice_qr,
+        show_customer_address_pickup_bill = excluded.show_customer_address_pickup_bill,
+        show_order_placed_time = excluded.show_order_placed_time,
+        hide_item_quantity_column = excluded.hide_item_quantity_column,
+        hide_item_rate_column = excluded.hide_item_rate_column,
+        hide_item_total_column = excluded.hide_item_total_column,
+        hide_total_without_tax = excluded.hide_total_without_tax
+    `;
 
-    stmt.run(
-      outletId,
-      bill_title_dine_in ?? existingSettings.bill_title_dine_in ?? 1,
-      bill_title_pickup ?? existingSettings.bill_title_pickup ?? 1,
-      bill_title_delivery ?? existingSettings.bill_title_delivery ?? 1,
-      bill_title_quick_bill ?? existingSettings.bill_title_quick_bill ?? 1,
-      mask_order_id ?? existingSettings.mask_order_id ?? 0,
-      modifier_default_option_bill ?? existingSettings.modifier_default_option_bill ?? 0,
-      print_bill_both_languages ?? existingSettings.print_bill_both_languages ?? 0,
-      show_alt_item_title_bill ?? existingSettings.show_alt_item_title_bill ?? 0,
-      show_alt_name_bill ?? existingSettings.show_alt_name_bill ?? 0,
-      show_bill_amount_words ?? existingSettings.show_bill_amount_words ?? 1,
-      show_bill_no_bill ?? existingSettings.show_bill_no_bill ?? 1,
-      show_bill_number_prefix_bill ?? existingSettings.show_bill_number_prefix_bill ?? 1,
-      show_bill_print_count ?? existingSettings.show_bill_print_count ?? 0,
-      show_brand_name_bill ?? existingSettings.show_brand_name_bill ?? 1,
-      show_captain_bill ?? existingSettings.show_captain_bill ?? 0,
-      show_covers_bill ?? existingSettings.show_covers_bill ?? 0,
-      show_custom_qr_codes_bill ?? existingSettings.show_custom_qr_codes_bill ?? 0,
-      show_customer_gst_bill ?? existingSettings.show_customer_gst_bill ?? 0,
-      show_customer_bill ?? existingSettings.show_customer_bill ?? 1,
-      show_customer_paid_amount ?? existingSettings.show_customer_paid_amount ?? 1,
-      show_date_bill ?? existingSettings.show_date_bill ?? 1,
-      show_default_payment ?? existingSettings.show_default_payment ?? 1,
-      show_discount_reason_bill ?? existingSettings.show_discount_reason_bill ?? 0,
-      show_due_amount_bill ?? existingSettings.show_due_amount_bill ?? 1,
-      show_ebill_invoice_qrcode ?? existingSettings.show_ebill_invoice_qrcode ?? 0,
-      show_item_hsn_code_bill ?? existingSettings.show_item_hsn_code_bill ?? 0,
-      show_item_level_charges_separately ?? existingSettings.show_item_level_charges_separately ?? 0,
-      show_item_note_bill ?? existingSettings.show_item_note_bill ?? 1,
-      show_items_sequence_bill ?? existingSettings.show_items_sequence_bill ?? 1,
-      show_kot_number_bill ?? existingSettings.show_kot_number_bill ?? 0,
-      show_logo_bill ?? existingSettings.show_logo_bill ?? 1,
-      show_order_id_bill ?? existingSettings.show_order_id_bill ?? 0,
-      show_order_no_bill ?? existingSettings.show_order_no_bill ?? 1,
-      show_order_note_bill ?? existingSettings.show_order_note_bill ?? 1,
-      order_type_dine_in ?? existingSettings.order_type_dine_in ?? 1,
-      order_type_pickup ?? existingSettings.order_type_pickup ?? 1,
-      order_type_delivery ?? existingSettings.order_type_delivery ?? 1,
-      order_type_quick_bill ?? existingSettings.order_type_quick_bill ?? 1,
-      show_outlet_name_bill ?? existingSettings.show_outlet_name_bill ?? 1,
-      payment_mode_dine_in ?? existingSettings.payment_mode_dine_in ?? 1,
-      payment_mode_pickup ?? existingSettings.payment_mode_pickup ?? 1,
-      payment_mode_delivery ?? existingSettings.payment_mode_delivery ?? 1,
-      payment_mode_quick_bill ?? existingSettings.payment_mode_quick_bill ?? 1,
-      table_name_dine_in ?? existingSettings.table_name_dine_in ?? 1,
-      table_name_pickup ?? existingSettings.table_name_pickup ?? 0,
-      table_name_delivery ?? existingSettings.table_name_delivery ?? 0,
-      table_name_quick_bill ?? existingSettings.table_name_quick_bill ?? 0,
-      show_tax_charge_bill ?? existingSettings.show_tax_charge_bill ?? 1,
-      show_username_bill ?? existingSettings.show_username_bill ?? 0,
-      show_waiter_bill ?? existingSettings.show_waiter_bill ?? 1,
-      show_zatca_invoice_qr ?? existingSettings.show_zatca_invoice_qr ?? 0,
-      show_customer_address_pickup_bill ?? existingSettings.show_customer_address_pickup_bill ?? 0,
-      show_order_placed_time ?? existingSettings.show_order_placed_time ?? 1,
-      hide_item_quantity_column ?? existingSettings.hide_item_quantity_column ?? 0,
-      hide_item_rate_column ?? existingSettings.hide_item_rate_column ?? 0,
-      hide_item_total_column ?? existingSettings.hide_item_total_column ?? 0,
-      hide_total_without_tax ?? existingSettings.hide_total_without_tax ?? 0
-    );
+    const params = [
+      outletid,
+      settings.bill_title_dine_in ?? 1,
+      settings.bill_title_pickup ?? 1,
+      settings.bill_title_delivery ?? 1,
+      settings.bill_title_quick_bill ?? 1,
+      settings.mask_order_id ?? 0,
+      settings.modifier_default_option_bill ?? 0,
+      settings.print_bill_both_languages ?? 0,
+      settings.show_alt_item_title_bill ?? 0,
+      settings.show_alt_name_bill ?? 0,
+      settings.show_bill_amount_words ?? 0,
+      settings.show_bill_no_bill ?? 1,
+      settings.show_bill_number_prefix_bill ?? 1,
+      settings.show_bill_print_count ?? 0,
+      settings.show_brand_name_bill ?? 1,
+      settings.show_captain_bill ?? 0,
+      settings.show_covers_bill ?? 1,
+      settings.show_custom_qr_codes_bill ?? 0,
+      settings.show_customer_gst_bill ?? 0,
+      settings.show_customer_bill ?? 1,
+      settings.show_customer_paid_amount ?? 1,
+      settings.show_date_bill ?? 1,
+      settings.show_default_payment ?? 1,
+      settings.show_discount_reason_bill ?? 0,
+      settings.show_due_amount_bill ?? 1,
+      settings.show_ebill_invoice_qrcode ?? 0,
+      settings.show_item_hsn_code_bill ?? 0,
+      settings.show_item_level_charges_separately ?? 0,
+      settings.show_item_note_bill ?? 1,
+      settings.show_items_sequence_bill ?? 1,
+      settings.show_kot_number_bill ?? 0,
+      settings.show_logo_bill ?? 1,
+      settings.show_order_id_bill ?? 0,
+      settings.show_order_no_bill ?? 1,
+      settings.show_order_note_bill ?? 1,
+      settings.order_type_dine_in ?? 1,
+      settings.order_type_pickup ?? 1,
+      settings.order_type_delivery ?? 1,
+      settings.order_type_quick_bill ?? 1,
+      settings.show_outlet_name_bill ?? 1,
+      settings.payment_mode_dine_in ?? 1,
+      settings.payment_mode_pickup ?? 1,
+      settings.payment_mode_delivery ?? 1,
+      settings.payment_mode_quick_bill ?? 1,
+      settings.table_name_dine_in ?? 1,
+      settings.table_name_pickup ?? 0,
+      settings.table_name_delivery ?? 0,
+      settings.table_name_quick_bill ?? 0,
+      settings.show_tax_charge_bill ?? 1,
+      settings.show_username_bill ?? 0,
+      settings.show_waiter_bill ?? 1,
+      settings.show_zatca_invoice_qr ?? 0,
+      settings.show_customer_address_pickup_bill ?? 0,
+      settings.show_order_placed_time ?? 1,
+      settings.hide_item_quantity_column ?? 0,
+      settings.hide_item_rate_column ?? 0,
+      settings.hide_item_total_column ?? 0,
+      settings.hide_total_without_tax ?? 0,
+    ];
 
-    res.json({ message: 'Bill print settings updated successfully' });
+    db.prepare(query).run(...params);
+    res.status(200).json({ message: 'Bill print settings updated successfully' });
   } catch (error) {
-    console.error('Error updating bill print settings:', error);
-    res.status(500).json({ error: 'Failed to update bill print settings' });
+    console.error('Error updating bill print settings:', error.message, error.stack);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 };
 
-// Get General Settings
-exports.getGeneralSettings = (req, res) => {
-  try {
-    const { outletId } = req.params;
-    const settings = db.prepare('SELECT * FROM mstgeneral_settings WHERE outletid = ?').get(outletId);
-    res.json({ data: settings || null });
-  } catch (error) {
-    console.error('Error fetching general settings:', error);
-    res.status(500).json({ error: 'Failed to fetch general settings' });
-  }
-};
 
 // Update General Settings
 exports.updateGeneralSettings = (req, res) => {
   try {
-    const { outletId } = req.params;
+    const { outletid } = req.params;
     const {
       allow_charges_after_bill_print, allow_discount_after_bill_print, allow_discount_before_save,
       allow_pre_order_tahd, ask_covers_dine_in, ask_covers_pickup, ask_covers_delivery,
@@ -312,7 +307,7 @@ exports.updateGeneralSettings = (req, res) => {
       show_real_time_kot_bill_notifications, use_separate_bill_numbers_online
     } = req.body;
 
-    const existingSettings = db.prepare('SELECT * FROM mstgeneral_settings WHERE outletid = ?').get(outletId) || {};
+    const existingSettings = db.prepare('SELECT * FROM mstgeneral_settings WHERE outletid = ?').get(outletid) || {};
 
     const stmt = db.prepare(`
       INSERT OR REPLACE INTO mstgeneral_settings (
@@ -348,7 +343,7 @@ exports.updateGeneralSettings = (req, res) => {
     `);
 
     stmt.run(
-      outletId,
+      outletid,
       allow_charges_after_bill_print ?? existingSettings.allow_charges_after_bill_print ?? 0,
       allow_discount_after_bill_print ?? existingSettings.allow_discount_after_bill_print ?? 0,
       allow_discount_before_save ?? existingSettings.allow_discount_before_save ?? 1,
@@ -436,29 +431,19 @@ exports.updateGeneralSettings = (req, res) => {
   }
 };
 
-// Get Online Order Settings
-exports.getOnlineOrderSettings = (req, res) => {
-  try {
-    const { outletId } = req.params;
-    const settings = db.prepare('SELECT * FROM mstonline_orders_settings WHERE outletid = ?').get(outletId);
-    res.json({ data: settings || null });
-  } catch (error) {
-    console.error('Error fetching online order settings:', error);
-    res.status(500).json({ error: 'Failed to fetch online order settings' });
-  }
-};
 
-// Update Online Order Settings
 exports.updateOnlineOrderSettings = (req, res) => {
   try {
-    const { outletId } = req.params;
+    const { outletid } = req.params;
     const {
       show_in_preparation_kds, auto_accept_online_order, customize_order_preparation_time,
       online_orders_time_delay, pull_order_on_accept, show_addons_separately,
       show_complete_online_order_id, show_online_order_preparation_time, update_food_ready_status_kds
     } = req.body;
 
-    const existingSettings = db.prepare('SELECT * FROM mstonline_orders_settings WHERE outletid = ?').get(outletId) || {};
+    const existingSettings = db.prepare('SELECT * FROM mstonline_orders_settings WHERE outletid = ?').get(outletid) || {};
+
+    console.log('Received data:', { outletid, ...req.body }); // Debug log
 
     const stmt = db.prepare(`
       INSERT OR REPLACE INTO mstonline_orders_settings (
@@ -468,42 +453,35 @@ exports.updateOnlineOrderSettings = (req, res) => {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
-    stmt.run(
-      outletId,
-      show_in_preparation_kds ?? existingSettings.show_in_preparation_kds ?? 1,
-      auto_accept_online_order ?? existingSettings.auto_accept_online_order ?? 0,
-      customize_order_preparation_time ?? existingSettings.customize_order_preparation_time ?? 0,
-      online_orders_time_delay ?? existingSettings.online_orders_time_delay ?? 0,
-      pull_order_on_accept ?? existingSettings.pull_order_on_accept ?? 0,
-      show_addons_separately ?? existingSettings.show_addons_separately ?? 0,
-      show_complete_online_order_id ?? existingSettings.show_complete_online_order_id ?? 1,
-      show_online_order_preparation_time ?? existingSettings.show_online_order_preparation_time ?? 1,
-      update_food_ready_status_kds ?? existingSettings.update_food_ready_status_kds ?? 1
-    );
+    const params = [
+      outletid,
+      show_in_preparation_kds !== undefined ? Number(show_in_preparation_kds) : (existingSettings.show_in_preparation_kds ?? 1),
+      auto_accept_online_order !== undefined ? Number(auto_accept_online_order) : (existingSettings.auto_accept_online_order ?? 0),
+      customize_order_preparation_time !== undefined ? Number(customize_order_preparation_time) : (existingSettings.customize_order_preparation_time ?? 0),
+      online_orders_time_delay !== undefined ? Number(online_orders_time_delay) : (existingSettings.online_orders_time_delay ?? 0),
+      pull_order_on_accept !== undefined ? Number(pull_order_on_accept) : (existingSettings.pull_order_on_accept ?? 0),
+      show_addons_separately !== undefined ? Number(show_addons_separately) : (existingSettings.show_addons_separately ?? 0),
+      show_complete_online_order_id !== undefined ? Number(show_complete_online_order_id) : (existingSettings.show_complete_online_order_id ?? 1),
+      show_online_order_preparation_time !== undefined ? Number(show_online_order_preparation_time) : (existingSettings.show_online_order_preparation_time ?? 1),
+      update_food_ready_status_kds !== undefined ? Number(update_food_ready_status_kds) : (existingSettings.update_food_ready_status_kds ?? 1)
+    ];
 
+    console.log('Bound parameters:', params); // Debug log
+
+    stmt.run(...params);
     res.json({ message: 'Online order settings updated successfully' });
   } catch (error) {
-    console.error('Error updating online order settings:', error);
+    console.error('Error updating online order settings:', error.message, error.stack);
     res.status(500).json({ error: 'Failed to update online order settings' });
   }
 };
 
-// Get Outlet Settings
-exports.getOutletSettings = (req, res) => {
-  try {
-    const { outletId } = req.params;
-    const settings = db.prepare('SELECT * FROM mstoutlet_settings WHERE outletid = ?').get(outletId);
-    res.json({ data: settings || null });
-  } catch (error) {
-    console.error('Error fetching outlet settings:', error);
-    res.status(500).json({ error: 'Failed to fetch outlet settings' });
-  }
-};
+
 
 // Update Outlet Settings
 exports.updateOutletSettings = (req, res) => {
   try {
-    const { outletId } = req.params;
+    const { outletid } = req.params;
     const {
       auto_kot, enable_ebill, enable_kds, enable_payment, enable_covers, enable_waiter,
       enable_customer, enable_takeaway, enable_delivery, enable_dine_in, enable_quick_bill,
@@ -511,7 +489,7 @@ exports.updateOutletSettings = (req, res) => {
       enable_charges, enable_kot_note, enable_bill_note, enable_kot_print, enable_bill_print
     } = req.body;
 
-    const existingSettings = db.prepare('SELECT * FROM mstoutlet_settings WHERE outletid = ?').get(outletId) || {};
+    const existingSettings = db.prepare('SELECT * FROM mstoutlet_settings WHERE outletid = ?').get(outletid) || {};
 
     const stmt = db.prepare(`
       INSERT OR REPLACE INTO mstoutlet_settings (
@@ -523,7 +501,7 @@ exports.updateOutletSettings = (req, res) => {
     `);
 
     stmt.run(
-      outletId,
+      outletid,
       auto_kot ?? existingSettings.auto_kot ?? 0,
       enable_ebill ?? existingSettings.enable_ebill ?? 1,
       enable_kds ?? existingSettings.enable_kds ?? 0,
