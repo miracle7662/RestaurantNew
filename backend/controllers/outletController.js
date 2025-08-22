@@ -542,170 +542,146 @@ exports.addOutlet = (req, res) => {
 
     // Insert default settings into mstgeneral_settings
     const generalSettingsStmt = db.prepare(`
-      INSERT INTO mstgeneral_settings (
-        outletid,
-        allow_charges_after_bill_print,
-        allow_discount_after_bill_print,
-        allow_discount_before_save,
-        allow_pre_order_tahd,
-        ask_covers_dine_in,
-        ask_covers_pickup,
-        ask_covers_delivery,
-        ask_covers_quick_bill,
-        ask_covers_captain,
-        ask_custom_order_id_quick_bill,
-        ask_custom_order_type_quick_bill,
-        ask_payment_mode_on_save_bill,
-        ask_waiter_dine_in,
-        ask_waiter_pickup,
-        ask_waiter_delivery,
-        ask_waiter_quick_bill,
-        ask_otp_change_order_status_order_window,
-        ask_otp_change_order_status_receipt_section,
-        auto_accept_remote_kot,
-        auto_out_of_stock,
-        auto_sync,
-        category_time_for_pos,
-        count_sales_after_midnight,
-        customer_mandatory_dine_in,
-        customer_mandatory_pickup,
-        customer_mandatory_delivery,
-        customer_mandatory_quick_bill,
-        default_ebill_check,
-        default_send_delivery_boy_check,
-        edit_customize_order_number,
-        enable_backup_notification_service,
-        enable_customer_display_access,
-        filter_items_by_order_type,
-        generate_reports_start_close_dates,
-        hide_clear_data_check_logout,
-        hide_item_price_options,
-        hide_load_menu_button,
-        make_cancel_delete_reason_compulsory,
-        make_discount_reason_mandatory,
-        make_free_cancel_bill_reason_mandatory,
-        make_payment_ref_number_mandatory,
-        mandatory_delivery_boy_selection,
-        mark_order_as_transfer_order,
-        online_payment_auto_settle,
-        order_sync_settings_auto_sync_interval,
-        order_sync_settings_sync_batch_packet_size,
-        separate_billing_by_section,
-        set_entered_amount_as_opening,
-        show_alternative_item_report_print,
-        show_clear_sales_report_logout,
-        show_order_no_label_pos,
-        show_payment_history_button,
-        show_remote_kot_option,
-        show_send_payment_link,
-        stock_availability_display,
-        todays_report_sales_summary,
-        todays_report_order_type_summary,
-        todays_report_payment_type_summary,
-        todays_report_discount_summary,
-        todays_report_expense_summary,
-        todays_report_bill_summary,
-        todays_report_delivery_boy_summary,
-        todays_report_waiter_summary,
-        todays_report_kitchen_department_summary,
-        todays_report_category_summary,
-        todays_report_sold_items_summary,
-        todays_report_cancel_items_summary,
-        todays_report_wallet_summary,
-        todays_report_due_payment_received_summary,
-        todays_report_due_payment_receivable_summary,
-        todays_report_payment_variance_summary,
-        todays_report_currency_denominations_summary,
-        when_send_todays_report,
-        enable_currency_conversion,
-        enable_user_login_validation,
-        allow_closing_shift_despite_bills,
-        show_real_time_kot_bill_notifications,
-        use_separate_bill_numbers_online
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?, ?, ?, ?, ?, ?)
-    `);
+  INSERT INTO mstgeneral_settings (
+    outletid,
+    customize_url_links,
+    allow_charges_after_bill_print,
+    allow_discount_after_bill_print,
+    allow_discount_before_save,
+    allow_pre_order_tahd,
+    ask_covers,
+    ask_covers_captain,
+    ask_custom_order_id_quick_bill,
+    ask_custom_order_type_quick_bill,
+    ask_payment_mode_on_save_bill,
+    ask_waiter,
+    ask_otp_change_order_status_order_window,
+    ask_otp_change_order_status_receipt_section,
+    auto_accept_remote_kot,
+    auto_out_of_stock,
+    auto_sync,
+    category_time_for_pos,
+    count_sales_after_midnight,
+    customer_display,
+    customer_mandatory,
+    default_ebill_check,
+    default_send_delivery_boy_check,
+    edit_customize_order_number,
+    enable_backup_notification_service,
+    enable_customer_display_access,
+    filter_items_by_order_type,
+    generate_reports_start_close_dates,
+    hide_clear_data_check_logout,
+    hide_item_price_options,
+    hide_load_menu_button,
+    make_cancel_delete_reason_compulsory,
+    make_discount_reason_mandatory,
+    make_free_cancel_bill_reason_mandatory,
+    make_payment_ref_number_mandatory,
+    mandatory_delivery_boy_selection,
+    mark_order_as_transfer_order,
+    online_payment_auto_settle,
+    order_sync_settings,
+    separate_billing_by_section,
+    set_entered_amount_as_opening,
+    show_alternative_item_report_print,
+    show_clear_sales_report_logout,
+    show_order_no_label_pos,
+    show_payment_history_button,
+    show_remote_kot_option,
+    show_send_payment_link,
+    stock_availability_display,
+    todays_report,
+    upi_payment_sound_notification,
+    use_separate_bill_numbers_online,
+    when_send_todays_report,
+    enable_currency_conversion,
+    enable_user_login_validation,
+    allow_closing_shift_despite_bills,
+    show_real_time_kot_bill_notifications,
+    created_at,
+    updated_at
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+`);
 
-    generalSettingsStmt.run(
-      outletId,
-      0, // allow_charges_after_bill_print
-      0, // allow_discount_after_bill_print
-      1, // allow_discount_before_save
-      0, // allow_pre_order_tahd
-      1, // ask_covers_dine_in
-      0, // ask_covers_pickup
-      0, // ask_covers_delivery
-      0, // ask_covers_quick_bill
-      0, // ask_covers_captain
-      0, // ask_custom_order_id_quick_bill
-      0, // ask_custom_order_type_quick_bill
-      1, // ask_payment_mode_on_save_bill
-      1, // ask_waiter_dine_in
-      0, // ask_waiter_pickup
-      0, // ask_waiter_delivery
-      0, // ask_waiter_quick_bill
-      0, // ask_otp_change_order_status_order_window
-      0, // ask_otp_change_order_status_receipt_section
-      0, // auto_accept_remote_kot
-      0, // auto_out_of_stock
-      1, // auto_sync
-      '', // category_time_for_pos
-      0, // count_sales_after_midnight
-      1, // customer_mandatory_dine_in
-      1, // customer_mandatory_pickup
-      1, // customer_mandatory_delivery
-      0, // customer_mandatory_quick_bill
-      1, // default_ebill_check
-      0, // default_send_delivery_boy_check
-      '', // edit_customize_order_number
-      0, // enable_backup_notification_service
-      0, // enable_customer_display_access
-      0, // filter_items_by_order_type
-      0, // generate_reports_start_close_dates
-      0, // hide_clear_data_check_logout
-      0, // hide_item_price_options
-      0, // hide_load_menu_button
-      1, // make_cancel_delete_reason_compulsory
-      1, // make_discount_reason_mandatory
-      1, // make_free_cancel_bill_reason_mandatory
-      0, // make_payment_ref_number_mandatory
-      0, // mandatory_delivery_boy_selection
-      0, // mark_order_as_transfer_order
-      0, // online_payment_auto_settle
-      '300', // order_sync_settings_auto_sync_interval (in seconds)
-      100, // order_sync_settings_sync_batch_packet_size
-      0, // separate_billing_by_section
-      0, // set_entered_amount_as_opening
-      0, // show_alternative_item_report_print
-      0, // show_clear_sales_report_logout
-      1, // show_order_no_label_pos
-      1, // show_payment_history_button
-      0, // show_remote_kot_option
-      0, // show_send_payment_link
-      1, // stock_availability_display
-      1, // todays_report_sales_summary
-      1, // todays_report_order_type_summary
-      1, // todays_report_payment_type_summary
-      1, // todays_report_discount_summary
-      1, // todays_report_expense_summary
-      1, // todays_report_bill_summary
-      1, // todays_report_delivery_boy_summary
-      1, // todays_report_waiter_summary
-      1, // todays_report_kitchen_department_summary
-      1, // todays_report_category_summary
-      1, // todays_report_sold_items_summary
-      1, // todays_report_cancel_items_summary
-      1, // todays_report_wallet_summary
-      1, // todays_report_due_payment_received_summary
-      1, // todays_report_due_payment_receivable_summary
-      1, // todays_report_payment_variance_summary
-      1, // todays_report_currency_denominations_summary
-      'END_OF_DAY', // when_send_todays_report
-      0, // enable_currency_conversion
-      1, // enable_user_login_validation
-      0, // allow_closing_shift_despite_bills
-      1, // show_real_time_kot_bill_notifications
-      0 // use_separate_bill_numbers_online
-    );
+generalSettingsStmt.run(
+  outletId,
+  JSON.stringify([]), // customize_url_links
+  0, // allow_charges_after_bill_print
+  0, // allow_discount_after_bill_print
+  1, // allow_discount_before_save
+  0, // allow_pre_order_tahd
+  JSON.stringify({ dineIn: true, pickup: false, delivery: false, quickBill: false }), // ask_covers
+  0, // ask_covers_captain
+  0, // ask_custom_order_id_quick_bill
+  0, // ask_custom_order_type_quick_bill
+  1, // ask_payment_mode_on_save_bill
+  JSON.stringify({ dineIn: true, pickup: false, delivery: false, quickBill: false }), // ask_waiter
+  0, // ask_otp_change_order_status_order_window
+  0, // ask_otp_change_order_status_receipt_section
+  0, // auto_accept_remote_kot
+  0, // auto_out_of_stock
+  1, // auto_sync
+  '', // category_time_for_pos
+  0, // count_sales_after_midnight
+  JSON.stringify({ media: [] }), // customer_display
+  JSON.stringify({ dineIn: true, pickup: true, delivery: true, quickBill: false }), // customer_mandatory
+  1, // default_ebill_check
+  0, // default_send_delivery_boy_check
+  '', // edit_customize_order_number
+  0, // enable_backup_notification_service
+  0, // enable_customer_display_access
+  0, // filter_items_by_order_type
+  0, // generate_reports_start_close_dates
+  0, // hide_clear_data_check_logout
+  0, // hide_item_price_options
+  0, // hide_load_menu_button
+  1, // make_cancel_delete_reason_compulsory
+  1, // make_discount_reason_mandatory
+  1, // make_free_cancel_bill_reason_mandatory
+  0, // make_payment_ref_number_mandatory
+  0, // mandatory_delivery_boy_selection
+  0, // mark_order_as_transfer_order
+  0, // online_payment_auto_settle
+  JSON.stringify({ autoSyncInterval: '300', syncBatchPacketSize: '100' }), // order_sync_settings
+  0, // separate_billing_by_section
+  0, // set_entered_amount_as_opening
+  0, // show_alternative_item_report_print
+  0, // show_clear_sales_report_logout
+  1, // show_order_no_label_pos
+  1, // show_payment_history_button
+  0, // show_remote_kot_option
+  0, // show_send_payment_link
+  1, // stock_availability_display
+  JSON.stringify({
+    salesSummary: true,
+    orderTypeSummary: true,
+    paymentTypeSummary: true,
+    discountSummary: true,
+    expenseSummary: true,
+    billSummary: true,
+    deliveryBoySummary: true,
+    waiterSummary: true,
+    kitchenDepartmentSummary: true,
+    categorySummary: true,
+    soldItemsSummary: true,
+    cancelItemsSummary: true,
+    walletSummary: true,
+    duePaymentReceivedSummary: true,
+    duePaymentReceivableSummary: true,
+    paymentVarianceSummary: true,
+    currencyDenominationsSummary: true
+  }), // todays_report
+  0, // upi_payment_sound_notification
+  0, // use_separate_bill_numbers_online
+  'END_OF_DAY', // when_send_todays_report
+  0, // enable_currency_conversion
+  1, // enable_user_login_validation
+  0, // allow_closing_shift_despite_bills
+  1, // show_real_time_kot_bill_notifications
+  new Date().toISOString(), // created_at
+  new Date().toISOString() // updated_at
+);
 
     // Insert default settings into mstonline_orders_settings
     const onlineOrdersStmt = db.prepare(`

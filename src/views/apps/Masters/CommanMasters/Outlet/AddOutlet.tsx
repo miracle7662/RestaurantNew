@@ -13,12 +13,17 @@ const snakeToCamel = (str: string): string => {
 
 const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
   const [formData, setFormData] = useState<Record<string, any>>({});
+
   const [activeTab, setActiveTab] = useState('bill-preview');
   const [timeDelay, setTimeDelay] = useState(0);
   const navigate = useNavigate();
   const outletid = Outlet?.outletid;
   const hotelId = Outlet?.hotelid;
   const baseUrl = 'http://localhost:3001';
+
+
+
+  
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -59,7 +64,8 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
         setTimeDelay(parseInt(allFormData.onlineOrdersTimeDelay || '0', 10));
       } catch (error) {
         console.error('Error fetching settings:', error);
-        alert(`Failed to fetch settings for outlet ${outletid} and hotel ${hotelId}. Error: ${error.message}`);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        alert(`Failed to fetch settings for outlet ${outletid} and hotel ${hotelId}. Error: ${errorMessage}`);
       }
     };
     fetchSettings();
@@ -257,6 +263,108 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
         throw new Error(`Failed to update bill print settings: ${errorData.message || billPrintResponse.statusText}`);
       }
 
+      // Update General Settings
+        const generalSettingsResponse = await fetch(`${baseUrl}/api/settings/general-settings/${outletid}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          allowChargesAfterBillPrint: formData.allowChargesAfterBillPrint ?? false,
+          allowDiscountAfterBillPrint: formData.allowDiscountAfterBillPrint ?? false,
+          allowDiscountBeforeSave: formData.allowDiscountBeforeSave ?? false,
+          allowPreOrderTAHD: formData.allowPreOrderTAHD ?? false,
+          askCovers: {
+            dineIn: formData.askCovers?.dineIn ?? false,
+            pickup: formData.askCovers?.pickup ?? false,
+            delivery: formData.askCovers?.delivery ?? false,
+            quickBill: formData.askCovers?.quickBill ?? false,
+          },
+          askCoversCaptain: formData.askCoversCaptain ?? false,
+          askCustomOrderIdQuickBill: formData.askCustomOrderIdQuickBill ?? false,
+          askCustomOrderTypeQuickBill: formData.askCustomOrderTypeQuickBill ?? false,
+          askPaymentModeOnSaveBill: formData.askPaymentModeOnSaveBill ?? false,
+          askWaiter: {
+            dineIn: formData.askWaiter?.dineIn ?? false,
+            pickup: formData.askWaiter?.pickup ?? false,
+            delivery: formData.askWaiter?.delivery ?? false,
+            quickBill: formData.askWaiter?.quickBill ?? false,
+          },
+          askOtpChangeOrderStatusOrderWindow: formData.askOtpChangeOrderStatusOrderWindow ?? false,
+          askOtpChangeOrderStatusReceiptSection: formData.askOtpChangeOrderStatusReceiptSection ?? false,
+          autoAcceptRemoteKOT: formData.autoAcceptRemoteKOT ?? false,
+          autoOutOfStock: formData.autoOutOfStock ?? false,
+          autoSync: formData.autoSync ?? false,
+          categoryTimeForPOS: formData.categoryTimeForPOS || '',
+          countSalesAfterMidnight: formData.countSalesAfterMidnight ?? false,
+          customerMandatory: {
+            dineIn: formData.customerMandatory?.dineIn ?? false,
+            pickup: formData.customerMandatory?.pickup ?? false,
+            delivery: formData.customerMandatory?.delivery ?? false,
+            quickBill: formData.customerMandatory?.quickBill ?? false,
+          },
+          defaultEBillCheck: formData.defaultEBillCheck ?? false,
+          defaultSendDeliveryBoyCheck: formData.defaultSendDeliveryBoyCheck ?? false,
+          editCustomizeOrderNumber: formData.editCustomizeOrderNumber || '',
+          enableBackupNotificationService: formData.enableBackupNotificationService ?? false,
+          enableCustomerDisplayAccess: formData.enableCustomerDisplayAccess ?? false,
+          filterItemsByOrderType: formData.filterItemsByOrderType ?? false,
+          generateReportsStartCloseDates: formData.generateReportsStartCloseDates ?? false,
+          hideClearDataCheckLogout: formData.hideClearDataCheckLogout ?? false,
+          hideItemPriceOptions: formData.hideItemPriceOptions ?? false,
+          hideLoadMenuButton: formData.hideLoadMenuButton ?? false,
+          makeCancelDeleteReasonCompulsory: formData.makeCancelDeleteReasonCompulsory ?? false,
+          makeDiscountReasonMandatory: formData.makeDiscountReasonMandatory ?? false,
+          makeFreeCancelBillReasonMandatory: formData.makeFreeCancelBillReasonMandatory ?? false,
+          makePaymentRefNumberMandatory: formData.makePaymentRefNumberMandatory ?? false,
+          mandatoryDeliveryBoySelection: formData.mandatoryDeliveryBoySelection ?? false,
+          markOrderAsTransferOrder: formData.markOrderAsTransferOrder ?? false,
+          onlinePaymentAutoSettle: formData.onlinePaymentAutoSettle ?? false,
+          orderSyncSettings: {
+            autoSyncInterval: formData.orderSyncSettings?.autoSyncInterval || '5',
+            syncBatchPacketSize: formData.orderSyncSettings?.syncBatchPacketSize || '10',
+          },
+          separateBillingBySection: formData.separateBillingBySection ?? false,
+          setEnteredAmountAsOpening: formData.setEnteredAmountAsOpening ?? false,
+          showAlternativeItemReportPrint: formData.showAlternativeItemReportPrint ?? false,
+          showClearSalesReportLogout: formData.showClearSalesReportLogout ?? false,
+          showOrderNoLabelPos: formData.showOrderNoLabelPos ?? false,
+          showPaymentHistoryButton: formData.showPaymentHistoryButton ?? false,
+          showRemoteKOTOption: formData.showRemoteKOTOption ?? false,
+          showSendPaymentLink: formData.showSendPaymentLink ?? false,
+          stockAvailabilityDisplay: formData.stockAvailabilityDisplay ?? false,
+          todaysReport: {
+            salesSummary: formData.todaysReport?.salesSummary ?? false,
+            orderTypeSummary: formData.todaysReport?.orderTypeSummary ?? false,
+            paymentTypeSummary: formData.todaysReport?.paymentTypeSummary ?? false,
+            discountSummary: formData.todaysReport?.discountSummary ?? false,
+            expenseSummary: formData.todaysReport?.expenseSummary ?? false,
+            billSummary: formData.todaysReport?.billSummary ?? false,
+            deliveryBoySummary: formData.todaysReport?.deliveryBoySummary ?? false,
+            waiterSummary: formData.todaysReport?.waiterSummary ?? false,
+            kitchenDepartmentSummary: formData.todaysReport?.kitchenDepartmentSummary ?? false,
+            categorySummary: formData.todaysReport?.categorySummary ?? false,
+            soldItemsSummary: formData.todaysReport?.soldItemsSummary ?? false,
+            cancelItemsSummary: formData.todaysReport?.cancelItemsSummary ?? false,
+            walletSummary: formData.todaysReport?.walletSummary ?? false,
+            duePaymentReceivedSummary: formData.todaysReport?.duePaymentReceivedSummary ?? false,
+            duePaymentReceivableSummary: formData.todaysReport?.duePaymentReceivableSummary ?? false,
+            paymentVarianceSummary: formData.todaysReport?.paymentVarianceSummary ?? false,
+            currencyDenominationsSummary: formData.todaysReport?.currencyDenominationsSummary ?? false,
+          },
+          upiPaymentSoundNotification: formData.upiPaymentSoundNotification ?? false,
+          useSeparateBillNumbersOnline: formData.useSeparateBillNumbersOnline ?? false,
+          whenSendTodaysReport: formData.whenSendTodaysReport || '',
+          enableCurrencyConversion: formData.enableCurrencyConversion ?? false,
+          enableUserLoginValidation: formData.enableUserLoginValidation ?? false,
+          allowClosingShiftDespiteBills: formData.allowClosingShiftDespiteBills ?? false,
+          showRealTimeKOTBillNotifications: formData.showRealTimeKOTBillNotifications ?? false,
+        }),
+      });
+
+      if (!generalSettingsResponse.ok) {
+        const errorData = await generalSettingsResponse.json();
+        throw new Error(`Failed to update general settings: ${errorData.message || generalSettingsResponse.statusText}`);
+      }
+
       // Update Online Orders Settings
       const onlineOrdersResponse = await fetch(`${baseUrl}/api/settings/online-order-settings/${outletid}`, {
         method: 'PUT',
@@ -283,7 +391,8 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
       navigate('/dashboard');
     } catch (error) {
       console.error('Error updating settings:', error);
-      alert(`Failed to update settings. Error: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      alert(`Failed to update settings. Error: ${errorMessage}`);
     }
   };
 
@@ -2304,6 +2413,245 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
               </div>
             </div>
 
+            
+            
+            {/* General Settings Tab */}
+            <div
+              className={`tab-pane fade ${activeTab === 'general' ? 'show active' : ''}`}
+              id="general"
+              role="tabpanel"
+              aria-labelledby="general-tab"
+            >
+              <div className="card shadow-sm h-100">
+                <div className="card-body">
+                  <h2 className="card-title h5 fw-bold mb-4">General Settings</h2>
+
+                  {/* Header: Search Bar and Status */}
+                  <div className="row mb-2">
+                    <div className="col-md-6">
+                      <div className="d-flex align-items-center mb-3">
+                        <span className="me-2">#</span>
+                        <input
+                          type="text"
+                          className="form-control w-50"
+                          placeholder="Search"
+                        />
+                      </div>
+                    </div>
+                    <div className="col-md-6">
+                      <div className="ms-3">
+                        <h6 className="fw-bold mb-3">Status</h6>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Row 1: Add Customize URL Link For Atlantic POS */}
+                  <div className="row mb-2">
+                    <div className="col-md-6">
+                      <h6 className="fw-bold mb-3">1. Add Customize URL Link For Atlantic POS</h6>
+                    </div>
+                    <div className="col-md-6">
+                      <div className="ms-3">
+                        <table className="table table-bordered mb-3">
+                          <thead>
+                            <tr style={{ borderColor: '#ccc' }}>
+                              <th scope="col">Title</th>
+                              <th scope="col">URL</th>
+                              <th scope="col">Action</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr style={{ borderColor: '#ccc' }}>
+                              <td colSpan={3} className="text-center">No Data Found</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
+
+                  {/* Row 2: Allow Charges Apply After Bill Print */}
+                  <div className="row mb-2">
+                    <div className="col-md-6">
+                      <h6 className="fw-bold mb-3">2. Allow Charges Apply After Bill Print</h6>
+                    </div>
+                    <div className="col-md-6">
+                      <div className="ms-3">
+                        <div className="form-check form-switch">
+                          <input style={{ borderColor: '#ccc' }}
+                            className="form-check-input"
+                            type="checkbox"
+                            id="allowChargesAfterBillPrint"
+                            checked={formData.allowChargesAfterBillPrint}
+                            onChange={handleInputChange}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
+
+                  {/* Row 3: Allow Discount Apply After Bill Print */}
+                  <div className="row mb-2">
+                    <div className="col-md-6">
+                      <h6 className="fw-bold mb-3">3. Allow Discount Apply After Bill Print</h6>
+                    </div>
+                    <div className="col-md-6">
+                      <div className="ms-3">
+                        <div className="form-check form-switch">
+                          <input style={{ borderColor: '#ccc' }}
+                            className="form-check-input"
+                            type="checkbox"
+                            id="allowDiscountAfterBillPrint"
+                            checked={formData.allowDiscountAfterBillPrint}
+                            onChange={handleInputChange}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
+
+                  {/* Row 4: Allow Discount Apply Before Save */}
+                  <div className="row mb-2">
+                    <div className="col-md-6">
+                      <h6 className="fw-bold mb-3">4. Allow Discount Apply Before Save</h6>
+                    </div>
+                    <div className="col-md-6">
+                      <div className="ms-3">
+                        <div className="form-check form-switch">
+                          <input style={{ borderColor: '#ccc' }}
+                            className="form-check-input"
+                            type="checkbox"
+                            id="allowDiscountBeforeSave"
+                            checked={formData.allowDiscountBeforeSave}
+                            onChange={handleInputChange}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
+
+                  {/* Row 5: Allow Pre-Order in TA/HD */}
+                  <div className="row mb-2">
+                    <div className="col-md-6">
+                      <h6 className="fw-bold mb-3">5. Allow Pre-Order in TA/HD</h6>
+                    </div>
+                    <div className="col-md-6">
+                      <div className="ms-3">
+                        <div className="form-check form-switch">
+                          <input style={{ borderColor: '#ccc' }}
+                            className="form-check-input"
+                            type="checkbox"
+                            id="allowPreOrderTAHD"
+                            checked={formData.allowPreOrderTAHD}
+                            onChange={handleInputChange}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
+
+                  {/* Row 7: Ask for Covers in Captain */}
+                  <div className="row mb-2">
+                    <div className="col-md-6">
+                      <h6 className="fw-bold mb-3">7. Ask for Covers in Captain</h6>
+                    </div>
+                    <div className="col-md-6">
+                      <div className="ms-3">
+                        <div className="form-check form-switch">
+                          <input style={{ borderColor: '#ccc' }}
+                            className="form-check-input"
+                            type="checkbox"
+                            id="askCoversCaptain"
+                            checked={formData.askCoversCaptain}
+                            onChange={handleInputChange}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
+
+                  {/* Row 8: Ask for Custom Order ID (Quick Bill) */}
+                  <div className="row mb-2">
+                    <div className="col-md-6">
+                      <h6 className="fw-bold mb-3">8. Ask for Custom Order ID (Quick Bill)</h6>
+                    </div>
+                    <div className="col-md-6">
+                      <div className="ms-3">
+                        <div className="form-check form-switch">
+                          <input style={{ borderColor: '#ccc' }}
+                            className="form-check-input"
+                            type="checkbox"
+                            id="askCustomOrderIdQuickBill"
+                            checked={formData.askCustomOrderIdQuickBill}
+                            onChange={handleInputChange}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
+
+                  {/* Row 9: Ask for Custom Order Type (Quick Bill) */}
+                  <div className="row mb-2">
+                    <div className="col-md-6">
+                      <h6 className="fw-bold mb-3">9. Ask for Custom Order Type (Quick Bill)</h6>
+                    </div>
+                    <div className="col-md-6">
+                      <div className="ms-3">
+                        <div className="form-check form-switch">
+                          <input style={{ borderColor: '#ccc' }}
+                            className="form-check-input"
+                            type="checkbox"
+                            id="askCustomOrderTypeQuickBill"
+                            checked={formData.askCustomOrderTypeQuickBill}
+                            onChange={handleInputChange}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
+
+                  {/* Row 10: Ask for Payment Mode On Save Bill */}
+                  <div className="row mb-2">
+                    <div className="col-md-6">
+                      <h6 className="fw-bold mb-3">10. Ask for Payment Mode On Save Bill</h6>
+                    </div>
+                    <div className="col-md-6">
+                      <div className="ms-3">
+                        <div className="form-check form-switch">
+                          <input style={{ borderColor: '#ccc' }}
+                            className="form-check-input"
+                            type="checkbox"
+                            id="askPaymentModeOnSaveBill"
+                            checked={formData.askPaymentModeOnSaveBill}
+                            onChange={handleInputChange}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <hr className="my-2" style={{ borderColor: '#ccc' }} />
+
+                   <div className="d-flex justify-content-end gap-3 mt-4"
+                    style={{ padding: '10px' }}
+                  >
+                    <button className="btn btn-danger" onClick={handleCancel}>
+                      Cancel
+                    </button>
+                    <button className="btn btn-success" onClick={handleUpdate}>
+                      Update
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
 
             {/* Online Orders Settings Tab */}
             <div
