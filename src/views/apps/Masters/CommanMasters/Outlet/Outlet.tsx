@@ -3,7 +3,7 @@ import { Button, Modal, Form, Row, Col, Card, Stack, Pagination, Table } from 'r
 import { QRCodeCanvas } from 'qrcode.react';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import AddOutlet from './AddOutlet';
 import outletService, { OutletData } from '@/common/api/outlet';
 import masterDataService, { Country, Timezone, TimeOption } from '@/common/api/masterData';
@@ -78,6 +78,139 @@ const OutletList: React.FC = () => {
   const [nextResetKOTDays, setNextResetKOTDays] = useState<string>('daily');
   const [startTime, setStartTime] = useState<number>(0);
   const [endTime, setEndTime] = useState<number>(6);
+
+
+
+    const snakeToCamel = (str: string): string => {
+  return str.replace(/(_\w)/g, (match) => match[1].toUpperCase());
+};
+    const { outletid, hotelId } = useParams(); // Get outletid and hotelId from URL params
+    const [formData, setFormData] = useState<Record<string, any>>({});
+    const [timeDelay, setTimeDelay] = useState(0);
+    // const outletid = outlets[0]?.outletid;
+    // const hotelId = outlets[0]?.hotelid;
+    const baseUrl = 'http://localhost:3001';
+  
+
+   useEffect(() => {
+    const fetchSettings = async () => {
+      if (!outletid || !hotelId) {
+        console.error('Missing outletid or hotelId:', { outletid, hotelId });
+        return;
+      }
+
+      try {
+        const response = await fetch(`${baseUrl}/api/settings/outlet-settings/${outletid}?hotelid=${hotelId}`);
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(`Failed to fetch settings: ${errorData.message || response.statusText}`);
+        }
+        const data = await response.json();
+        console.log('Fetched settings:', data);
+
+        const allFormData: Record<string, any> = {};
+        if (data.outlet_settings) {
+          Object.entries(data.outlet_settings).forEach(([key, value]) => {
+            const camelKey = snakeToCamel(key);
+            allFormData[camelKey] = value;
+          });
+        }
+
+        setFormData(allFormData);
+        // Note: onlineOrdersTimeDelay might not exist in outlet_settings; using 0 as default
+        setTimeDelay(parseInt(allFormData.onlineOrdersTimeDelay || '0', 10));
+      } catch (error) {
+        console.error('Error fetching settings:', error);
+        alert(`Failed to fetch settings for outlet ${outletid} and hotel ${hotelId}. Error: ${error.message}`);
+      }
+    };
+
+     fetchSettings();
+}, [outletid, hotelId]);
+
+  const handleUpdate = async () => {
+  try {
+    // Update Outlet Settings
+    const outletSettingsResponse = await fetch(`${baseUrl}/api/settings/outlet-settings/${outletid}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        send_order_notification: formData.sendOrderNotification,
+        bill_number_length: formData.billNumberLength,
+        next_reset_order_number_date: formData.nextResetOrderNumberDate,
+        next_reset_order_number_days: formData.nextResetOrderNumberDays,
+        decimal_points: formData.decimalPoints,
+        bill_round_off: formData.billRoundOff ?? false,
+        enable_loyalty: formData.enableLoyalty ?? false,
+        multiple_price_setting: formData.multiplePriceSetting ?? false,
+        verify_pos_system_login: formData.verifyPosSystemLogin ?? false,
+        table_reservation: formData.tableReservation ?? false,
+        auto_update_pos: formData.autoUpdatePos ?? false,
+        send_report_email: formData.sendReportEmail ?? false,
+        send_report_whatsapp: formData.sendReportWhatsapp ?? false,
+        allow_multiple_tax: formData.allowMultipleTax ?? false,
+        enable_call_center: formData.enableCallCenter ?? false,
+        bharatpe_integration: formData.bharatpeIntegration ?? false,
+        phonepe_integration: formData.phonepeIntegration ?? false,
+        reelo_integration: formData.reeloIntegration ?? false,
+        tally_integration: formData.tallyIntegration ?? false,
+        sunmi_integration: formData.sunmiIntegration ?? false,
+        zomato_pay_integration: formData.zomatoPayIntegration ?? false,
+        zomato_enabled: formData.zomatoEnabled ?? false,
+        swiggy_enabled: formData.swiggyEnabled ?? false,
+        rafeeq_enabled: formData.rafeeqEnabled ?? false,
+        noon_food_enabled: formData.noonFoodEnabled ?? false,
+        magicpin_enabled: formData.magicpinEnabled ?? false,
+        dotpe_enabled: formData.dotpeEnabled ?? false,
+        cultfit_enabled: formData.cultfitEnabled ?? false,
+        ubereats_enabled: formData.ubereatsEnabled ?? false,
+        scooty_enabled: formData.scootyEnabled ?? false,
+        dunzo_enabled: formData.dunzoEnabled ?? false,
+        foodpanda_enabled: formData.foodpandaEnabled ?? false,
+        amazon_enabled: formData.amazonEnabled ?? false,
+        talabat_enabled: formData.talabatEnabled ?? false,
+        deliveroo_enabled: formData.deliverooEnabled ?? false,
+        careem_enabled: formData.careemEnabled ?? false,
+        jahez_enabled: formData.jahezEnabled ?? false,
+        eazydiner_enabled: formData.eazydinerEnabled ?? false,
+        radyes_enabled: formData.radyesEnabled ?? false,
+        goshop_enabled: formData.goshopEnabled ?? false,
+        chatfood_enabled: formData.chatfoodEnabled ?? false,
+        cutfit_enabled: formData.cutfitEnabled ?? false,
+        jubeat_enabled: formData.jubeatEnabled ?? false,
+        thrive_enabled: formData.thriveEnabled ?? false,
+        fidoo_enabled: formData.fidooEnabled ?? false,
+        mrsool_enabled: formData.mrsoolEnabled ?? false,
+        swiggystore_enabled: formData.swiggystoreEnabled ?? false,
+        zomatormarket_enabled: formData.zomatormarketEnabled ?? false,
+        hungerstation_enabled: formData.hungerstationEnabled ?? false,
+        instashop_enabled: formData.instashopEnabled ?? false,
+        eteasy_enabled: formData.eteasyEnabled ?? false,
+        smiles_enabled: formData.smilesEnabled ?? false,
+        toyou_enabled: formData.toyouEnabled ?? false,
+        dca_enabled: formData.dcaEnabled ?? false,
+        ordable_enabled: formData.ordableEnabled ?? false,
+        beanz_enabled: formData.beanzEnabled ?? false,
+        cari_enabled: formData.cariEnabled ?? false,
+        the_chefz_enabled: formData.theChefzEnabled ?? false,
+        keeta_enabled: formData.keetaEnabled ?? false,
+        notification_channel: formData.notificationChannel,
+        created_at: formData.createdAt,
+        updated_at: formData.updatedAt,
+      }),
+    });
+
+    if (!outletSettingsResponse.ok) {
+      const errorData = await outletSettingsResponse.json();
+      throw new Error(`Failed to update outlet settings: ${errorData.message || outletSettingsResponse.statusText}`);
+    }
+  } catch (error) {
+    console.error('Error updating outlet settings:', error);
+    alert(`Failed to update outlet settings: ${error.message}`);
+  }
+};
+
+
 
   // Fetch outlets from API
   useEffect(() => {
