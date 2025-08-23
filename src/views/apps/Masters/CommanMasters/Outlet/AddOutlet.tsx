@@ -463,8 +463,8 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
 
     try {
       setLoading(true);
-      const response = await axios.get(`${baseUrl}/api/outlets/settings/${outletid}? & hotelid=${hotelId}`);
-      const data = response.data;
+      const response = await axios.get(`${baseUrl}/api/settings/outlet-settings/${outletid}?hotelid=${hotelId}`);
+      const data = response.data.data;
 
       const allFormData: Record<string, any> = {};
       const sections = [
@@ -546,7 +546,7 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
 
   const handleUpdate = async () => {
     if (!outletid || !hotelId) {
-      setError('Outlet ID  required.');
+      setError('Outlet ID and Hotel ID are required.');
       return;
     }
 
@@ -559,7 +559,7 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
         updated_date: new Date().toISOString(),
       };
 
-      await axios.put(`${baseUrl}/api/outlets/settings/${outletid}`, payload);
+      await axios.put(`${baseUrl}/api/settings/outlet-settings/${outletid}`, payload);
       setSuccess('Settings updated successfully');
       navigate('/dashboard');
     } catch (err: any) {

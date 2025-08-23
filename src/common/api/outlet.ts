@@ -118,7 +118,6 @@ export interface OutletSettings {
   [key: string]: any;
 }
 
-
 class OutletService {
   // Get brands/hotels for dropdown
   getBrands = (params?: { role_level?: string; hotelid?: number }) => {
@@ -160,14 +159,18 @@ class OutletService {
   getOutletsForDropdown = (params?: { role_level?: string; hotelid?: number; brandId?: number }) => {
     return api.get('/api/outlets', params || {})
   }
-
-   getOutletSettings = (id: number) => {
+  
+     getOutletSettings = (id: number) => {
     return api.get(`/api/outlets/settings/${id}`, {});
   };
 
   updateOutletSettings = (id: number, data: Partial<OutletSettings>) => {
     return api.update(`/api/outlets/settings/${id}`, data);
   };
+
 }
+
+
+
 
 export default new OutletService() 
