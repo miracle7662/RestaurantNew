@@ -113,7 +113,7 @@ const ModifyOutletSettingsModal: React.FC<{
 
   useEffect(() => {
   if (show && selectedOutlet && selectedOutlet.outletid !== undefined) {
-    outletService.getOutletSettings(selectedOutlet.outletid)
+    outletService.getOutletSettings(selectedOutlet.outletid, selectedOutlet.hotelid) // Pass hotelid here
       .then((response) => {
         setFormData({ ...response.data, outletid: selectedOutlet.outletid, hotelid: selectedOutlet.hotelid });
         toast.success('Outlet settings fetched successfully!');
