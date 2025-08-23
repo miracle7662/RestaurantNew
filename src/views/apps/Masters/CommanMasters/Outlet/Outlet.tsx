@@ -3,9 +3,8 @@ import { Button, Modal, Form, Row, Col, Card, Stack, Pagination, Table } from 'r
 import { QRCodeCanvas } from 'qrcode.react';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { useParams } from 'react-router-dom';
 import AddOutlet from './AddOutlet';
-import outletService, { OutletData } from '@/common/api/outlet';
+import outletService, { OutletData, OutletSettings } from '@/common/api/outlet';
 import masterDataService, { Country, Timezone, TimeOption } from '@/common/api/masterData';
 import { useAuthContext } from '@/common';
 import { fetchBrands, fetchCountries } from '@/utils/commonfunction';
@@ -35,442 +34,819 @@ const getStatusBadge = (status: number) => {
     <span className="badge bg-danger">Inactive</span>
   );
 };
-// Separate ModifyOutletSettingsModal component
+
 const ModifyOutletSettingsModal: React.FC<{
   show: boolean;
   onHide: () => void;
   selectedOutlet: OutletData | null;
-  formData: Record<string, any>;
-  setFormData: React.Dispatch<React.SetStateAction<Record<string, any>>>;
   handleUpdate: (outletId: number, hotelId: number) => Promise<void>;
-}> = ({ show, onHide, selectedOutlet,   handleUpdate }) => {
-  const handleSubmit = async () => {
-    if (!selectedOutlet) return;
-    try {
-      await handleUpdate(selectedOutlet.outletid as number, selectedOutlet.hotelid as number);
-      toast.success('Outlet settings updated successfully!');
-      onHide();
-    } catch (error) {
-      toast.error('Failed to update outlet settings');
-    }
+}> = ({ show, onHide, selectedOutlet, handleUpdate }) => {
+  const [formData, setFormData] = useState<OutletSettings>({
+    outletid: 0,
+    outlet_name: '',
+    outlet_code: '',
+    hotelid: 0,
+    brand_name: '',
+    send_order_notification: 'ALL',
+    bill_number_length: 2,
+    next_reset_order_number_date: null,
+    next_reset_order_number_days: 'Reset Order Number Daily',
+    decimal_points: 2,
+    bill_round_off: false,
+    enable_loyalty: false,
+    multiple_price_setting: false,
+    verify_pos_system_login: false,
+    table_reservation: false,
+    auto_update_pos: false,
+    send_report_email: false,
+    send_report_whatsapp: false,
+    allow_multiple_tax: false,
+    enable_call_center: false,
+    bharatpe_integration: false,
+    phonepe_integration: false,
+    reelo_integration: false,
+    tally_integration: false,
+    sunmi_integration: false,
+    zomato_pay_integration: false,
+    zomato_enabled: false,
+    swiggy_enabled: false,
+    rafeeq_enabled: false,
+    noon_food_enabled: false,
+    magicpin_enabled: false,
+    dotpe_enabled: false,
+    cultfit_enabled: false,
+    ubereats_enabled: false,
+    scooty_enabled: false,
+    dunzo_enabled: false,
+    foodpanda_enabled: false,
+    amazon_enabled: false,
+    talabat_enabled: false,
+    deliveroo_enabled: false,
+    careem_enabled: false,
+    jahez_enabled: false,
+    eazydiner_enabled: false,
+    radyes_enabled: false,
+    goshop_enabled: false,
+    chatfood_enabled: false,
+    cutfit_enabled: false,
+    jubeat_enabled: false,
+    thrive_enabled: false,
+    fidoo_enabled: false,
+    mrsool_enabled: false,
+    swiggystore_enabled: false,
+    zomatormarket_enabled: false,
+    hungerstation_enabled: false,
+    instashop_enabled: false,
+    eteasy_enabled: false,
+    smiles_enabled: false,
+    toyou_enabled: false,
+    dca_enabled: false,
+    ordable_enabled: false,
+    beanz_enabled: false,
+    cari_enabled: false,
+    the_chefz_enabled: false,
+    keeta_enabled: false,
+    notification_channel: 'SMS',
+    created_at: '',
+    updated_at: '',
+  });
+
+  useEffect(() => {
+  if (show && selectedOutlet && selectedOutlet.outletid !== undefined) {
+    outletService.getOutletSettings(selectedOutlet.outletid)
+      .then((response) => {
+        setFormData({ ...response.data, outletid: selectedOutlet.outletid, hotelid: selectedOutlet.hotelid });
+        toast.success('Outlet settings fetched successfully!');
+      })
+      .catch((error) => {
+        console.error('Error fetching outlet settings:', error);
+        toast.error('Failed to fetch outlet settings');
+      });
+  }
+}, [show, selectedOutlet]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { id, value, type, checked } = e.target as HTMLInputElement;
+    setFormData((prev) => ({
+      ...prev,
+      [id]: type === 'checkbox' || type === 'switch' ? checked : value,
+    }));
   };
 
-
-
+ const handleSubmit = async () => {
+  if (!selectedOutlet || !selectedOutlet.outletid) return;
+  try {
+    await outletService.updateOutletSettings(selectedOutlet.outletid, formData);
+await handleUpdate(selectedOutlet.outletid, selectedOutlet.hotelid ?? 0);
+    toast.success('Outlet settings updated successfully!');
+    onHide();
+  } catch (error) {
+    console.error('Error updating outlet settings:', error);
+    toast.error('Failed to update outlet settings');
+  }
+};
   return (
-    <Modal show={show} onHide={onHide} centered size="xl">
+   <Modal show={show} onHide={onHide} centered size="xl">
       <Modal.Header closeButton>
         <Modal.Title>Modify Outlet Setting</Modal.Title>
       </Modal.Header>
       <Modal.Body style={{ maxHeight: '590px', overflowY: 'auto' }}>
         <h6 className="mb-3">GENERAL SETTINGS :</h6>
-         <Form>
-                <Row className="mb-3">
-                  <Col md={3}>
-                    <Form.Group controlId="sendOrderNotification">
-                      <Form.Label>Send Order Notification</Form.Label>
-                      <Form.Select style={{ borderColor: '#ccc' }}>
-                        <option>ALL</option>
-                      </Form.Select>
-                    </Form.Group>
-                  </Col>
-                  <Col md={3}>
-                    <Form.Group controlId="billNumberLength">
-                      <Form.Label>Bill Number Length</Form.Label>
-                      <div className="input-group">
-                        <Button variant="outline-secondary">-</Button>
-                        <Form.Control type="text" className="text-center" value="2" readOnly style={{ borderColor: '#ccc' }} />
-                        <Button variant="outline-secondary">+</Button>
-                      </div>
-                    </Form.Group>
-                  </Col>
-                  <Col md={3}>
-                    <Form.Group controlId="nextResetOrderNumberDate">
-                      <Form.Label>Next Reset Order Number Date</Form.Label>
-                      <Form.Control type="text" value="26 MAY 2025 5:10 PM" readOnly style={{ borderColor: '#ccc' }} />
-                    </Form.Group>
-                  </Col>
-                  <Col md={3}>
-                    <Form.Group controlId="nextResetOrderNumberDays">
-                      <Form.Label>Next Reset Order Number (In Days)</Form.Label>
-                      <Form.Select style={{ borderColor: '#ccc' }}>
-                        <option>Reset Order Number Daily</option>
-                      </Form.Select>
-                    </Form.Group>
-                  </Col>
-                </Row>
-                <Row className="mb-3">
-                  <Col md={3}>
-                    <Form.Group controlId="decimalPoints">
-                      <Form.Label>Select Decimal Points for Invoice Calculation and Menu Price Input</Form.Label>
-                      <div className="input-group">
-                        <Button variant="outline-secondary">-</Button>
-                        <Form.Control style={{ borderColor: '#ccc' }} type="text" className="text-center" value="2" readOnly />
-                        <Button variant="outline-secondary">+</Button>
-                      </div>
-                    </Form.Group>
-                  </Col>
-                  <Col md={3}>
-                    <Form.Group controlId="billRoundOff">
-                      <Form.Label>Bill Round Off</Form.Label>
-                      <Form.Check type="switch" defaultChecked />
-                    </Form.Group>
-                  </Col>
-                  <Col md={3}>
-                    <Form.Group controlId="enableLoyalty">
-                      <Form.Label>Enable Loyalty</Form.Label>
-                      <Form.Check type="switch" />
-                    </Form.Group>
-                  </Col>
-                  <Col md={3}>
-                    <Form.Group controlId="multiplePriceSetting">
-                      <Form.Label>Multiple Price Setting</Form.Label>
-                      <Form.Check type="switch" />
-                    </Form.Group>
-                  </Col>
-                </Row>
-                <Row className="mb-3">
-                  <Col md={3}>
-                    <Form.Group controlId="verifyPOS">
-                      <Form.Label>Verify POS System Login with Date</Form.Label>
-                      <Form.Check type="switch" />
-                    </Form.Group>
-                  </Col>
-                  <Col md={3}>
-                    <Form.Group controlId="tableReservation">
-                      <Form.Label>Table Reservation</Form.Label>
-                      <Form.Check type="switch" />
-                    </Form.Group>
-                  </Col>
-                  <Col md={3}>
-                    <Form.Group controlId="autoUpdatePOS">
-                      <Form.Label>Auto Update POS</Form.Label>
-                      <Form.Check type="switch" />
-                    </Form.Group>
-                  </Col>
-                  <Col md={3}>
-                    <Form.Group controlId="sendReportVia">
-                      <Form.Label>Do You Want To Send Report Via.</Form.Label>
-                      <Form.Check type="checkbox" label="Email" />
-                      <Form.Check type="checkbox" label="WhatsApp / Text" />
-                    </Form.Group>
-                  </Col>
-                </Row>
-                <Row className="mb-3">
-                  <Col md={3}>
-                    <Form.Group controlId="allowMultipleTax">
-                      <Form.Label>Allow Multiple Tax</Form.Label>
-                      <Form.Check type="switch" />
-                    </Form.Group>
-                  </Col>
-                  <Col md={3}>
-                    <Form.Group controlId="enableCallCenter">
-                      <Form.Label>Enable Call Center</Form.Label>
-                      <Form.Check type="switch" />
-                    </Form.Group>
-                  </Col>
-                </Row>
-                <h6 className="mt-4 mb-3">Third Party Integration</h6>
-                <Row className="mb-3">
-                  <Col md={3}>
-                    <Form.Group controlId="bharatpeIntegration">
-                      <Form.Label>Bharatpe Integration</Form.Label>
-                      <Form.Check type="switch" />
-                    </Form.Group>
-                  </Col>
-                  <Col md={3}>
-                    <Form.Group controlId="phonepeIntegration">
-                      <Form.Label>Phonepe Integration</Form.Label>
-                      <Form.Check type="switch" />
-                    </Form.Group>
-                  </Col>
-                  <Col md={3}>
-                    <Form.Group controlId="reelIntegration">
-                      <Form.Label>Reelo Integration</Form.Label>
-                      <Form.Check type="switch" />
-                    </Form.Group>
-                  </Col>
-                  <Col md={3}>
-                    <Form.Group controlId="tallyIntegration">
-                      <Form.Label>Tally Integration</Form.Label>
-                      <Form.Check type="switch" />
-                    </Form.Group>
-                  </Col>
-                  <Col md={3}>
-                    <Form.Group controlId="sunmiIntegration">
-                      <Form.Label>Sunmi Integration</Form.Label>
-                      <Form.Check type="switch" />
-                    </Form.Group>
-                  </Col>
-                  <Col md={3}>
-                    <Form.Group controlId="zomatoPayIntegration">
-                      <Form.Label>Zomato Pay Integration</Form.Label>
-                      <Form.Check type="switch" />
-                    </Form.Group>
-                  </Col>
-                </Row>
-                <h6 className="mt-4 mb-3">Platform Channel Enable</h6>
-                <Row className="mb-3">
-                  <Col md={3}>
-                    <Form.Group controlId="zomato">
-                      <Form.Label>Zomato</Form.Label>
-                      <Form.Check type="switch" />
-                    </Form.Group>
-                  </Col>
-                  <Col md={3}>
-                    <Form.Group controlId="swiggy">
-                      <Form.Label>Swiggy</Form.Label>
-                      <Form.Check type="switch" />
-                    </Form.Group>
-                  </Col>
-                  <Col md={3}>
-                    <Form.Group controlId="rafeeq">
-                      <Form.Label>Rafeeq</Form.Label>
-                      <Form.Check type="switch" />
-                    </Form.Group>
-                  </Col>
-                  <Col md={3}>
-                    <Form.Group controlId="noonFood">
-                      <Form.Label>Noon Food</Form.Label>
-                      <Form.Check type="switch" />
-                    </Form.Group>
-                  </Col>
-                </Row>
-                <Row className="mb-3">
-                  <Col md={3}>
-                    <Form.Group controlId="magicpin">
-                      <Form.Label>Magicpin</Form.Label>
-                      <Form.Check type="switch" />
-                    </Form.Group>
-                  </Col>
-                  <Col md={3}>
-                    <Form.Group controlId="dotpe">
-                      <Form.Label>DotPe</Form.Label>
-                      <Form.Check type="switch" />
-                    </Form.Group>
-                  </Col>
-                  <Col md={3}>
-                    <Form.Group controlId="cultfit">
-                      <Form.Label>cultfit</Form.Label>
-                      <Form.Check type="switch" />
-                    </Form.Group>
-                  </Col>
-                  <Col md={3}>
-                    <Form.Group controlId="ubereats">
-                      <Form.Label>ubereats</Form.Label>
-                      <Form.Check type="switch" />
-                    </Form.Group>
-                  </Col>
-                </Row>
-                <Row className="mb-3">
-                  <Col md={3}>
-                    <Form.Group controlId="scooty">
-                      <Form.Label>scooty</Form.Label>
-                      <Form.Check type="switch" />
-                    </Form.Group>
-                  </Col>
-                  <Col md={3}>
-                    <Form.Group controlId="dunzo">
-                      <Form.Label>Dunzo</Form.Label>
-                      <Form.Check type="switch" />
-                    </Form.Group>
-                  </Col>
-                  <Col md={3}>
-                    <Form.Group controlId="foodpanda">
-                      <Form.Label>foodpanda</Form.Label>
-                      <Form.Check type="switch" />
-                    </Form.Group>
-                  </Col>
-                  <Col md={3}>
-                    <Form.Group controlId="amazon">
-                      <Form.Label>amazon</Form.Label>
-                      <Form.Check type="switch" />
-                    </Form.Group>
-                  </Col>
-                </Row>
-                <Row className="mb-3">
-                  <Col md={3}>
-                    <Form.Group controlId="talabat">
-                      <Form.Label>Talabat</Form.Label>
-                      <Form.Check type="switch" />
-                    </Form.Group>
-                  </Col>
-                  <Col md={3}>
-                    <Form.Group controlId="deliveroo">
-                      <Form.Label>Deliveroo</Form.Label>
-                      <Form.Check type="switch" />
-                    </Form.Group>
-                  </Col>
-                  <Col md={3}>
-                    <Form.Group controlId="careem">
-                      <Form.Label>Careem</Form.Label>
-                      <Form.Check type="switch" />
-                    </Form.Group>
-                  </Col>
-                  <Col md={3}>
-                    <Form.Group controlId="jahez">
-                      <Form.Label>Jahez</Form.Label>
-                      <Form.Check type="switch" />
-                    </Form.Group>
-                  </Col>
-                </Row>
-                <Row className="mb-3">
-                  <Col md={3}>
-                    <Form.Group controlId="eazydiner">
-                      <Form.Label>Eazydiner</Form.Label>
-                      <Form.Check type="switch" />
-                    </Form.Group>
-                  </Col>
-                  <Col md={3}>
-                    <Form.Group controlId="radyes">
-                      <Form.Label>Radyes</Form.Label>
-                      <Form.Check type="switch" />
-                    </Form.Group>
-                  </Col>
-                  <Col md={3}>
-                    <Form.Group controlId="goshop">
-                      <Form.Label>Goshop</Form.Label>
-                      <Form.Check type="switch" />
-                    </Form.Group>
-                  </Col>
-                  <Col md={3}>
-                    <Form.Group controlId="chatfood">
-                      <Form.Label>chatfood</Form.Label>
-                      <Form.Check type="switch" />
-                    </Form.Group>
-                  </Col>
-                </Row>
-                <Row className="mb-3">
-                  <Col md={3}>
-                    <Form.Group controlId="cutfit">
-                      <Form.Label>cutfit</Form.Label>
-                      <Form.Check type="switch" />
-                    </Form.Group>
-                  </Col>
-                  <Col md={3}>
-                    <Form.Group controlId="jubeat">
-                      <Form.Label>jubeat</Form.Label>
-                      <Form.Check type="switch" />
-                    </Form.Group>
-                  </Col>
-                  <Col md={3}>
-                    <Form.Group controlId="thrive">
-                      <Form.Label>Thrive</Form.Label>
-                      <Form.Check type="switch" />
-                    </Form.Group>
-                  </Col>
-                  <Col md={3}>
-                    <Form.Group controlId="fidoo">
-                      <Form.Label>fidoo</Form.Label>
-                      <Form.Check type="switch" />
-                    </Form.Group>
-                  </Col>
-                </Row>
-                <Row className="mb-3">
-                  <Col md={3}>
-                    <Form.Group controlId="mrsool">
-                      <Form.Label>mrsool</Form.Label>
-                      <Form.Check type="switch" />
-                    </Form.Group>
-                  </Col>
-                  <Col md={3}>
-                    <Form.Group controlId="swiggystore">
-                      <Form.Label>swiggystore</Form.Label>
-                      <Form.Check type="switch" />
-                    </Form.Group>
-                  </Col>
-                  <Col md={3}>
-                    <Form.Group controlId="zomatormarket">
-                      <Form.Label>zomatormarket</Form.Label>
-                      <Form.Check type="switch" />
-                    </Form.Group>
-                  </Col>
-                  <Col md={3}>
-                    <Form.Group controlId="hungerstation">
-                      <Form.Label>Hungerstation</Form.Label>
-                      <Form.Check type="switch" />
-                    </Form.Group>
-                  </Col>
-                </Row>
-                <Row className="mb-3">
-                  <Col md={3}>
-                    <Form.Group controlId="instashop">
-                      <Form.Label>Instashop</Form.Label>
-                      <Form.Check type="switch" />
-                    </Form.Group>
-                  </Col>
-                  <Col md={3}>
-                    <Form.Group controlId="eteasy">
-                      <Form.Label>Eteasy</Form.Label>
-                      <Form.Check type="switch" />
-                    </Form.Group>
-                  </Col>
-                  <Col md={3}>
-                    <Form.Group controlId="smiles">
-                      <Form.Label>Smiles</Form.Label>
-                      <Form.Check type="switch" />
-                    </Form.Group>
-                  </Col>
-                  <Col md={3}>
-                    <Form.Group controlId="toyou">
-                      <Form.Label>Toyou</Form.Label>
-                      <Form.Check type="switch" />
-                    </Form.Group>
-                  </Col>
-                </Row>
-                <Row className="mb-3">
-                  <Col md={3}>
-                    <Form.Group controlId="dca">
-                      <Form.Label>DCA</Form.Label>
-                      <Form.Check type="switch" />
-                    </Form.Group>
-                  </Col>
-                  <Col md={3}>
-                    <Form.Group controlId="ordable">
-                      <Form.Label>Ordable</Form.Label>
-                      <Form.Check type="switch" />
-                    </Form.Group>
-                  </Col>
-                  <Col md={3}>
-                    <Form.Group controlId="beanz">
-                      <Form.Label>BeanZ</Form.Label>
-                      <Form.Check type="switch" />
-                    </Form.Group>
-                  </Col>
-                  <Col md={3}>
-                    <Form.Group controlId="cari">
-                      <Form.Label>Cari</Form.Label>
-                      <Form.Check type="switch" />
-                    </Form.Group>
-                  </Col>
-                </Row>
-                <Row className="mb-3">
-                  <Col md={3}>
-                    <Form.Group controlId="theChefz">
-                      <Form.Label>The Chefz</Form.Label>
-                      <Form.Check type="switch" />
-                    </Form.Group>
-                  </Col>
-                  <Col md={3}>
-                    <Form.Group controlId="keeta">
-                      <Form.Label>Keeta</Form.Label>
-                      <Form.Check type="switch" />
-                    </Form.Group>
-                  </Col>
-                </Row>
-                <h6 className="mt-4 mb-3">SMS/WhatsApp Setting :</h6>
-                <Row className="mb-3">
-                  <Col md={6}>
-                    <Form.Group controlId="notificationChannel">
-                      <Form.Label>Notification Channel</Form.Label>
-                      <Form.Select style={{ borderColor: '#ccc' }}>
-                        <option>SMS</option>
-                      </Form.Select>
-                    </Form.Group>
-                  </Col>
-                </Row>
-              </Form>
-
+        <Form>
+          <Row className="mb-3">
+            <Col md={3}>
+              <Form.Group controlId="send_order_notification">
+                <Form.Label>Send Order Notification</Form.Label>
+                <Form.Select
+                  style={{ borderColor: '#ccc' }}
+                  value={formData.send_order_notification}
+                  onChange={handleChange}
+                >
+                  <option>ALL</option>
+                </Form.Select>
+              </Form.Group>
+            </Col>
+            <Col md={3}>
+              <Form.Group controlId="bill_number_length">
+                <Form.Label>Bill Number Length</Form.Label>
+                <div className="input-group">
+                  <Button
+                    variant="outline-secondary"
+                    onClick={() =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        bill_number_length: Math.max((prev.bill_number_length || 2) - 1, 1),
+                      }))
+                    }
+                  >
+                    -
+                  </Button>
+                  <Form.Control
+                    type="text"
+                    className="text-center"
+                    value={formData.bill_number_length || 2}
+                    readOnly
+                    style={{ borderColor: '#ccc' }}
+                  />
+                  <Button
+                    variant="outline-secondary"
+                    onClick={() =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        bill_number_length: (prev.bill_number_length || 2) + 1,
+                      }))
+                    }
+                  >
+                    +
+                  </Button>
+                </div>
+              </Form.Group>
+            </Col>
+            <Col md={3}>
+              <Form.Group controlId="next_reset_order_number_date">
+                <Form.Label>Next Reset Order Number Date</Form.Label>
+                <Form.Control
+                  type="text"
+                  value={formData.next_reset_order_number_date || '26 MAY 2025 5:10 PM'}
+                  onChange={handleChange}
+                  style={{ borderColor: '#ccc' }}
+                />
+              </Form.Group>
+            </Col>
+            <Col md={3}>
+              <Form.Group controlId="next_reset_order_number_days">
+                <Form.Label>Next Reset Order Number (In Days)</Form.Label>
+                <Form.Select
+                  style={{ borderColor: '#ccc' }}
+                  value={formData.next_reset_order_number_days}
+                  onChange={handleChange}
+                >
+                  <option>Reset Order Number Daily</option>
+                </Form.Select>
+              </Form.Group>
+            </Col>
+          </Row>
+          <Row className="mb-3">
+            <Col md={3}>
+              <Form.Group controlId="decimal_points">
+                <Form.Label>Select Decimal Points for Invoice Calculation and Menu Price Input</Form.Label>
+                <div className="input-group">
+                  <Button
+                    variant="outline-secondary"
+                    onClick={() =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        decimal_points: Math.max((prev.decimal_points || 2) - 1, 0),
+                      }))
+                    }
+                  >
+                    -
+                  </Button>
+                  <Form.Control
+                    type="text"
+                    className="text-center"
+                    value={formData.decimal_points || 2}
+                    readOnly
+                    style={{ borderColor: '#ccc' }}
+                  />
+                  <Button
+                    variant="outline-secondary"
+                    onClick={() =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        decimal_points: (prev.decimal_points || 2) + 1,
+                      }))
+                    }
+                  >
+                    +
+                  </Button>
+                </div>
+              </Form.Group>
+            </Col>
+            <Col md={3}>
+              <Form.Group controlId="bill_round_off">
+                <Form.Label>Bill Round Off</Form.Label>
+                <Form.Check
+                  type="switch"
+                  checked={formData.bill_round_off}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+            <Col md={3}>
+              <Form.Group controlId="enable_loyalty">
+                <Form.Label>Enable Loyalty</Form.Label>
+                <Form.Check
+                  type="switch"
+                  checked={formData.enable_loyalty}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+            <Col md={3}>
+              <Form.Group controlId="multiple_price_setting">
+                <Form.Label>Multiple Price Setting</Form.Label>
+                <Form.Check
+                  type="switch"
+                  checked={formData.multiple_price_setting}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+          </Row>
+          <Row className="mb-3">
+            <Col md={3}>
+              <Form.Group controlId="verify_pos_system_login">
+                <Form.Label>Verify POS System Login with Date</Form.Label>
+                <Form.Check
+                  type="switch"
+                  checked={formData.verify_pos_system_login}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+            <Col md={3}>
+              <Form.Group controlId="table_reservation">
+                <Form.Label>Table Reservation</Form.Label>
+                <Form.Check
+                  type="switch"
+                  checked={formData.table_reservation}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+            <Col md={3}>
+              <Form.Group controlId="auto_update_pos">
+                <Form.Label>Auto Update POS</Form.Label>
+                <Form.Check
+                  type="switch"
+                  checked={formData.auto_update_pos}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+            <Col md={3}>
+              <Form.Group controlId="send_report_via">
+                <Form.Label>Do You Want To Send Report Via.</Form.Label>
+                <Form.Check
+                  type="checkbox"
+                  id="send_report_email"
+                  label="Email"
+                  checked={formData.send_report_email}
+                  onChange={handleChange}
+                />
+                <Form.Check
+                  type="checkbox"
+                  id="send_report_whatsapp"
+                  label="WhatsApp / Text"
+                  checked={formData.send_report_whatsapp}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+          </Row>
+          <Row className="mb-3">
+            <Col md={3}>
+              <Form.Group controlId="allow_multiple_tax">
+                <Form.Label>Allow Multiple Tax</Form.Label>
+                <Form.Check
+                  type="switch"
+                  checked={formData.allow_multiple_tax}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+            <Col md={3}>
+              <Form.Group controlId="enable_call_center">
+                <Form.Label>Enable Call Center</Form.Label>
+                <Form.Check
+                  type="switch"
+                  checked={formData.enable_call_center}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+          </Row>
+          <h6 className="mt-4 mb-3">Third Party Integration</h6>
+          <Row className="mb-3">
+            <Col md={3}>
+              <Form.Group controlId="bharatpe_integration">
+                <Form.Label>Bharatpe Integration</Form.Label>
+                <Form.Check
+                  type="switch"
+                  checked={formData.bharatpe_integration}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+            <Col md={3}>
+              <Form.Group controlId="phonepe_integration">
+                <Form.Label>Phonepe Integration</Form.Label>
+                <Form.Check
+                  type="switch"
+                  checked={formData.phonepe_integration}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+            <Col md={3}>
+              <Form.Group controlId="reelo_integration">
+                <Form.Label>Reelo Integration</Form.Label>
+                <Form.Check
+                  type="switch"
+                  checked={formData.reelo_integration}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+            <Col md={3}>
+              <Form.Group controlId="tally_integration">
+                <Form.Label>Tally Integration</Form.Label>
+                <Form.Check
+                  type="switch"
+                  checked={formData.tally_integration}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+            <Col md={3}>
+              <Form.Group controlId="sunmi_integration">
+                <Form.Label>Sunmi Integration</Form.Label>
+                <Form.Check
+                  type="switch"
+                  checked={formData.sunmi_integration}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+            <Col md={3}>
+              <Form.Group controlId="zomato_pay_integration">
+                <Form.Label>Zomato Pay Integration</Form.Label>
+                <Form.Check
+                  type="switch"
+                  checked={formData.zomato_pay_integration}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+          </Row>
+          <h6 className="mt-4 mb-3">Platform Channel Enable</h6>
+          <Row className="mb-3">
+            <Col md={3}>
+              <Form.Group controlId="zomato_enabled">
+                <Form.Label>Zomato</Form.Label>
+                <Form.Check
+                  type="switch"
+                  checked={formData.zomato_enabled}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+            <Col md={3}>
+              <Form.Group controlId="swiggy_enabled">
+                <Form.Label>Swiggy</Form.Label>
+                <Form.Check
+                  type="switch"
+                  checked={formData.swiggy_enabled}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+            <Col md={3}>
+              <Form.Group controlId="rafeeq_enabled">
+                <Form.Label>Rafeeq</Form.Label>
+                <Form.Check
+                  type="switch"
+                  checked={formData.rafeeq_enabled}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+            <Col md={3}>
+              <Form.Group controlId="noon_food_enabled">
+                <Form.Label>Noon Food</Form.Label>
+                <Form.Check
+                  type="switch"
+                  checked={formData.noon_food_enabled}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+          </Row>
+          <Row className="mb-3">
+            <Col md={3}>
+              <Form.Group controlId="magicpin_enabled">
+                <Form.Label>Magicpin</Form.Label>
+                <Form.Check
+                  type="switch"
+                  checked={formData.magicpin_enabled}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+            <Col md={3}>
+              <Form.Group controlId="dotpe_enabled">
+                <Form.Label>DotPe</Form.Label>
+                <Form.Check
+                  type="switch"
+                  checked={formData.dotpe_enabled}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+            <Col md={3}>
+              <Form.Group controlId="cultfit_enabled">
+                <Form.Label>cultfit</Form.Label>
+                <Form.Check
+                  type="switch"
+                  checked={formData.cultfit_enabled}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+            <Col md={3}>
+              <Form.Group controlId="ubereats_enabled">
+                <Form.Label>ubereats</Form.Label>
+                <Form.Check
+                  type="switch"
+                  checked={formData.ubereats_enabled}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+          </Row>
+          <Row className="mb-3">
+            <Col md={3}>
+              <Form.Group controlId="scooty_enabled">
+                <Form.Label>scooty</Form.Label>
+                <Form.Check
+                  type="switch"
+                  checked={formData.scooty_enabled}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+            <Col md={3}>
+              <Form.Group controlId="dunzo_enabled">
+                <Form.Label>Dunzo</Form.Label>
+                <Form.Check
+                  type="switch"
+                  checked={formData.dunzo_enabled}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+            <Col md={3}>
+              <Form.Group controlId="foodpanda_enabled">
+                <Form.Label>foodpanda</Form.Label>
+                <Form.Check
+                  type="switch"
+                  checked={formData.foodpanda_enabled}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+            <Col md={3}>
+              <Form.Group controlId="amazon_enabled">
+                <Form.Label>amazon</Form.Label>
+                <Form.Check
+                  type="switch"
+                  checked={formData.amazon_enabled}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+          </Row>
+          <Row className="mb-3">
+            <Col md={3}>
+              <Form.Group controlId="talabat_enabled">
+                <Form.Label>Talabat</Form.Label>
+                <Form.Check
+                  type="switch"
+                  checked={formData.talabat_enabled}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+            <Col md={3}>
+              <Form.Group controlId="deliveroo_enabled">
+                <Form.Label>Deliveroo</Form.Label>
+                <Form.Check
+                  type="switch"
+                  checked={formData.deliveroo_enabled}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+            <Col md={3}>
+              <Form.Group controlId="careem_enabled">
+                <Form.Label>Careem</Form.Label>
+                <Form.Check
+                  type="switch"
+                  checked={formData.careem_enabled}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+            <Col md={3}>
+              <Form.Group controlId="jahez_enabled">
+                <Form.Label>Jahez</Form.Label>
+                <Form.Check
+                  type="switch"
+                  checked={formData.jahez_enabled}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+          </Row>
+          <Row className="mb-3">
+            <Col md={3}>
+              <Form.Group controlId="eazydiner_enabled">
+                <Form.Label>Eazydiner</Form.Label>
+                <Form.Check
+                  type="switch"
+                  checked={formData.eazydiner_enabled}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+            <Col md={3}>
+              <Form.Group controlId="radyes_enabled">
+                <Form.Label>Radyes</Form.Label>
+                <Form.Check
+                  type="switch"
+                  checked={formData.radyes_enabled}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+            <Col md={3}>
+              <Form.Group controlId="goshop_enabled">
+                <Form.Label>Goshop</Form.Label>
+                <Form.Check
+                  type="switch"
+                  checked={formData.goshop_enabled}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+            <Col md={3}>
+              <Form.Group controlId="chatfood_enabled">
+                <Form.Label>chatfood</Form.Label>
+                <Form.Check
+                  type="switch"
+                  checked={formData.chatfood_enabled}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+          </Row>
+          <Row className="mb-3">
+            <Col md={3}>
+              <Form.Group controlId="cutfit_enabled">
+                <Form.Label>cutfit</Form.Label>
+                <Form.Check
+                  type="switch"
+                  checked={formData.cutfit_enabled}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+            <Col md={3}>
+              <Form.Group controlId="jubeat_enabled">
+                <Form.Label>jubeat</Form.Label>
+                <Form.Check
+                  type="switch"
+                  checked={formData.jubeat_enabled}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+            <Col md={3}>
+              <Form.Group controlId="thrive_enabled">
+                <Form.Label>Thrive</Form.Label>
+                <Form.Check
+                  type="switch"
+                  checked={formData.thrive_enabled}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+            <Col md={3}>
+              <Form.Group controlId="fidoo_enabled">
+                <Form.Label>fidoo</Form.Label>
+                <Form.Check
+                  type="switch"
+                  checked={formData.fidoo_enabled}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+          </Row>
+          <Row className="mb-3">
+            <Col md={3}>
+              <Form.Group controlId="mrsool_enabled">
+                <Form.Label>mrsool</Form.Label>
+                <Form.Check
+                  type="switch"
+                  checked={formData.mrsool_enabled}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+            <Col md={3}>
+              <Form.Group controlId="swiggystore_enabled">
+                <Form.Label>swiggystore</Form.Label>
+                <Form.Check
+                  type="switch"
+                  checked={formData.swiggystore_enabled}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+            <Col md={3}>
+              <Form.Group controlId="zomatormarket_enabled">
+                <Form.Label>zomatormarket</Form.Label>
+                <Form.Check
+                  type="switch"
+                  checked={formData.zomatormarket_enabled}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+            <Col md={3}>
+              <Form.Group controlId="hungerstation_enabled">
+                <Form.Label>Hungerstation</Form.Label>
+                <Form.Check
+                  type="switch"
+                  checked={formData.hungerstation_enabled}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+          </Row>
+          <Row className="mb-3">
+            <Col md={3}>
+              <Form.Group controlId="instashop_enabled">
+                <Form.Label>Instashop</Form.Label>
+                <Form.Check
+                  type="switch"
+                  checked={formData.instashop_enabled}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+            <Col md={3}>
+              <Form.Group controlId="eteasy_enabled">
+                <Form.Label>Eteasy</Form.Label>
+                <Form.Check
+                  type="switch"
+                  checked={formData.eteasy_enabled}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+            <Col md={3}>
+              <Form.Group controlId="smiles_enabled">
+                <Form.Label>Smiles</Form.Label>
+                <Form.Check
+                  type="switch"
+                  checked={formData.smiles_enabled}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+            <Col md={3}>
+              <Form.Group controlId="toyou_enabled">
+                <Form.Label>Toyou</Form.Label>
+                <Form.Check
+                  type="switch"
+                  checked={formData.toyou_enabled}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+          </Row>
+          <Row className="mb-3">
+            <Col md={3}>
+              <Form.Group controlId="dca_enabled">
+                <Form.Label>DCA</Form.Label>
+                <Form.Check
+                  type="switch"
+                  checked={formData.dca_enabled}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+            <Col md={3}>
+              <Form.Group controlId="ordable_enabled">
+                <Form.Label>Ordable</Form.Label>
+                <Form.Check
+                  type="switch"
+                  checked={formData.ordable_enabled}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+            <Col md={3}>
+              <Form.Group controlId="beanz_enabled">
+                <Form.Label>BeanZ</Form.Label>
+                <Form.Check
+                  type="switch"
+                  checked={formData.beanz_enabled}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+            <Col md={3}>
+              <Form.Group controlId="cari_enabled">
+                <Form.Label>Cari</Form.Label>
+                <Form.Check
+                  type="switch"
+                  checked={formData.cari_enabled}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+          </Row>
+          <Row className="mb-3">
+            <Col md={3}>
+              <Form.Group controlId="the_chefz_enabled">
+                <Form.Label>The Chefz</Form.Label>
+                <Form.Check
+                  type="switch"
+                  checked={formData.the_chefz_enabled}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+            <Col md={3}>
+              <Form.Group controlId="keeta_enabled">
+                <Form.Label>Keeta</Form.Label>
+                <Form.Check
+                  type="switch"
+                  checked={formData.keeta_enabled}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+          </Row>
+          <h6 className="mt-4 mb-3">SMS/WhatsApp Setting :</h6>
+          <Row className="mb-3">
+            <Col md={6}>
+              <Form.Group controlId="notification_channel">
+                <Form.Label>Notification Channel</Form.Label>
+                <Form.Select
+                  style={{ borderColor: '#ccc' }}
+                  value={formData.notification_channel}
+                  onChange={handleChange}
+                >
+                  <option>SMS</option>
+                </Form.Select>
+              </Form.Group>
+            </Col>
+          </Row>
+        </Form>
       </Modal.Body>
       <Modal.Footer>
         <Button variant="danger" onClick={onHide}>
@@ -528,75 +904,9 @@ const OutletList: React.FC = () => {
   const [startTime, setStartTime] = useState<number>(0);
   const [endTime, setEndTime] = useState<number>(6);
 
-  const snakeToCamel = (str: string): string => {
-    return str.replace(/(_\w)/g, (match) => match[1].toUpperCase());
-  };
 
-  const { outletid, hotelId } = useParams();
-  const [formData, setFormData] = useState<Record<string, any>>({});
-  const [, setTimeDelay] = useState(0);
-  const baseUrl = 'http://localhost:3001';
 
-  useEffect(() => {
-    const fetchSettings = async () => {
-      if (!outletid || !hotelId) {
-        console.error('Missing outletid or hotelId:', { outletid, hotelId });
-        return;
-      }
 
-      try {
-        const response = await fetch(`${baseUrl}/api/settings/outlet-settings/${outletid}?hotelid=${hotelId}`);
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(`Failed to fetch settings: ${errorData.message || response.statusText}`);
-        }
-        const data = await response.json();
-        console.log('Fetched settings:', data);
-
-        const allFormData: Record<string, any> = {};
-        if (data.outlet_settings) {
-          Object.entries(data.outlet_settings).forEach(([key, value]) => {
-            const camelKey = snakeToCamel(key);
-            allFormData[camelKey] = value;
-          });
-        }
-
-        setFormData(allFormData);
-        setTimeDelay(parseInt(allFormData.onlineOrdersTimeDelay || '0', 10));
-      } catch (error) {
-        console.error('Error fetching settings:', error);
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        alert(`Failed to fetch settings for outlet ${outletid} and hotel ${hotelId}. Error: ${errorMessage}`);
-      }
-    };
-
-    if (outletid && hotelId) {
-      fetchSettings();
-    }
-  }, [outletid, hotelId]);
-
-  useEffect(() => {
-    if (selectedOutlet && modalType === 'Modify Outlet Setting') {
-      if (selectedOutlet.outletid && selectedOutlet.hotelid) {
-        fetch(`${baseUrl}/api/settings/outlet-settings/${selectedOutlet.outletid}?hotelid=${selectedOutlet.hotelid}`)
-          .then((res) => res.json())
-          .then((data) => {
-            if (data.outlet_settings) {
-              const allFormData: Record<string, any> = {};
-              Object.entries(data.outlet_settings).forEach(([key, value]) => {
-                const camelKey = snakeToCamel(key);
-                allFormData[camelKey] = value;
-              });
-              setFormData(allFormData);
-            }
-          })
-          .catch((error) => {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            alert(`Failed to fetch settings for outlet ${selectedOutlet.outletid} and hotel ${selectedOutlet.hotelid}. Error: ${errorMessage}`);
-          });
-      }
-    }
-  }, [selectedOutlet, modalType]);
 
   useEffect(() => {
     console.log('Current user in OutletList:', user);
@@ -666,7 +976,7 @@ const OutletList: React.FC = () => {
         hotelid: user?.hotelid,
       });
 
-      const response = await outletService.getOutlets(params); 
+      const response = await outletService.getOutlets(params);
       console.log("Outlet response data:", response.data); // Debugging log
       console.log('Outlet response:', response);
       if (response && response.data) {
@@ -804,87 +1114,7 @@ const OutletList: React.FC = () => {
     }
   };
 
-  const handleUpdate = async (outletId: number) => {
-    try {
-      const outletSettingsResponse = await fetch(`${baseUrl}/api/settings/outlet-settings/${outletId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          send_order_notification: formData.sendOrderNotification,
-          bill_number_length: formData.billNumberLength,
-          next_reset_order_number_date: formData.nextResetOrderNumberDate,
-          next_reset_order_number_days: formData.nextResetOrderNumberDays,
-          decimal_points: formData.decimalPoints,
-          bill_round_off: formData.billRoundOff ?? false,
-          enable_loyalty: formData.enableLoyalty ?? false,
-          multiple_price_setting: formData.multiplePriceSetting ?? false,
-          verify_pos_system_login: formData.verifyPosSystemLogin ?? false,
-          table_reservation: formData.tableReservation ?? false,
-          auto_update_pos: formData.autoUpdatePos ?? false,
-          send_report_email: formData.sendReportEmail ?? false,
-          send_report_whatsapp: formData.sendReportWhatsapp ?? false,
-          allow_multiple_tax: formData.allowMultipleTax ?? false,
-          enable_call_center: formData.enableCallCenter ?? false,
-          bharatpe_integration: formData.bharatpeIntegration ?? false,
-          phonepe_integration: formData.phonepeIntegration ?? false,
-          reelo_integration: formData.reeloIntegration ?? false,
-          tally_integration: formData.tallyIntegration ?? false,
-          sunmi_integration: formData.sunmiIntegration ?? false,
-          zomato_pay_integration: formData.zomatoPayIntegration ?? false,
-          zomato_enabled: formData.zomatoEnabled ?? false,
-          swiggy_enabled: formData.swiggyEnabled ?? false,
-          rafeeq_enabled: formData.rafeeqEnabled ?? false,
-          noon_food_enabled: formData.noonFoodEnabled ?? false,
-          magicpin_enabled: formData.magicpinEnabled ?? false,
-          dotpe_enabled: formData.dotpeEnabled ?? false,
-          cultfit_enabled: formData.cultfitEnabled ?? false,
-          ubereats_enabled: formData.ubereatsEnabled ?? false,
-          scooty_enabled: formData.scootyEnabled ?? false,
-          dunzo_enabled: formData.dunzoEnabled ?? false,
-          foodpanda_enabled: formData.foodpandaEnabled ?? false,
-          amazon_enabled: formData.amazonEnabled ?? false,
-          talabat_enabled: formData.talabatEnabled ?? false,
-          deliveroo_enabled: formData.deliverooEnabled ?? false,
-          careem_enabled: formData.careemEnabled ?? false,
-          jahez_enabled: formData.jahezEnabled ?? false,
-          eazydiner_enabled: formData.eazydinerEnabled ?? false,
-          radyes_enabled: formData.radyesEnabled ?? false,
-          goshop_enabled: formData.goshopEnabled ?? false,
-          chatfood_enabled: formData.chatfoodEnabled ?? false,
-          cutfit_enabled: formData.cutfitEnabled ?? false,
-          jubeat_enabled: formData.jubeatEnabled ?? false,
-          thrive_enabled: formData.thriveEnabled ?? false,
-          fidoo_enabled: formData.fidooEnabled ?? false,
-          mrsool_enabled: formData.mrsoolEnabled ?? false,
-          swiggystore_enabled: formData.swiggystoreEnabled ?? false,
-          zomatormarket_enabled: formData.zomatormarketEnabled ?? false,
-          hungerstation_enabled: formData.hungerstationEnabled ?? false,
-          instashop_enabled: formData.instashopEnabled ?? false,
-          eteasy_enabled: formData.eteasyEnabled ?? false,
-          smiles_enabled: formData.smilesEnabled ?? false,
-          toyou_enabled: formData.toyouEnabled ?? false,
-          dca_enabled: formData.dcaEnabled ?? false,
-          ordable_enabled: formData.ordableEnabled ?? false,
-          beanz_enabled: formData.beanzEnabled ?? false,
-          cari_enabled: formData.cariEnabled ?? false,
-          the_chefz_enabled: formData.theChefzEnabled ?? false,
-          keeta_enabled: formData.keetaEnabled ?? false,
-          notification_channel: formData.notificationChannel,
-          created_at: formData.createdAt,
-          updated_at: new Date().toISOString(),
-        }),
-      });
 
-      if (!outletSettingsResponse.ok) {
-        const errorData = await outletSettingsResponse.json();
-        throw new Error(`Failed to update outlet settings: ${errorData.message || outletSettingsResponse.statusText}`);
-      }
-    } catch (error) {
-      console.error('Error updating outlet settings:', error);
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      alert(`Failed to update outlet settings: ${errorMessage}`);
-    }
-  };
 
   const handleModalSubmit = async () => {
     if (modalType === 'Modify Outlet Setting') {
@@ -1677,16 +1907,16 @@ const OutletList: React.FC = () => {
               </Row>
               <Row className="mb-3">
                 <Col md={6}>
-<Form.Group controlId="status">
-  <Form.Label>Status</Form.Label>
-  <Form.Select
-    value={status ? 0 : 1} // 0 for Active, 1 for Inactive
-    onChange={(e) => setStatus(e.target.value === '0')} // Sets status to true (Active) or false (Inactive)
-  >
-    <option value="0">Active</option>
-    <option value="1">Inactive</option>
-  </Form.Select>
-</Form.Group>
+                  <Form.Group controlId="status">
+                    <Form.Label>Status</Form.Label>
+                    <Form.Select
+                      value={status ? 0 : 1} // 0 for Active, 1 for Inactive
+                      onChange={(e) => setStatus(e.target.value === '0')} // Sets status to true (Active) or false (Inactive)
+                    >
+                      <option value="0">Active</option>
+                      <option value="1">Inactive</option>
+                    </Form.Select>
+                  </Form.Group>
                 </Col>
                 <Col md={6}>
                   <Form.Group controlId="addCustomQRCode">
@@ -1784,14 +2014,18 @@ const OutletList: React.FC = () => {
           </Button>
         </Modal.Footer>
       </Modal>
-      <ModifyOutletSettingsModal
-        show={showSettingsModal}
-        onHide={() => setShowSettingsModal(false)}
-        selectedOutlet={selectedOutlet}
-        formData={formData}
-        setFormData={setFormData}
-        handleUpdate={handleUpdate}
-      />
+
+      {/* Render ModifyOutletSettingsModal when showSettingsModal is true */}
+      {showSettingsModal && (
+        <ModifyOutletSettingsModal
+          show={showSettingsModal}
+          onHide={() => setShowSettingsModal(false)}
+          selectedOutlet={selectedOutlet}
+          formData={{}}
+          setFormData={() => { }}
+          handleUpdate={async () => { }}
+        />
+      )}
     </div>
   );
 };

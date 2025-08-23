@@ -9,8 +9,8 @@ router.put('/kot-print-settings/:outletid', settingsController.updateKOTPrintSet
 router.put('/bill-print-settings/:outletid', settingsController.updateBillPrintSettings);
 router.put('/general-settings/:outletid', settingsController.updateGeneralSettings);
 router.put('/online-order-settings/:outletid', settingsController.updateOnlineOrderSettings);
-router.put('/outlet-settings/:outletid', settingsController.updateOutletSettings);
+// router.put('/outlet-settings/:outletid', settingsController.updateOutletSettings);
 
 // Add route to get outlet settings
-router.get('/outlet-settings/:outletid', outletController.getOutletSettings);
+// router.get('/outlet-settings/:outletid', outletController.getOutletSettings);
 module.exports = router;
