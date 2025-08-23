@@ -10,7 +10,7 @@ const Database = require('better-sqlite3');
 
 //const db = new Database(path.join('D:', 'Restaurant_Database', 'miresto.db'));//Sharmin
 
-db = new Database(path.join('E:', 'ReactHotelData', 'miresto.db'));
+const db = new Database(path.join('E:', 'ReactHotelData', 'miresto.db'));
 
 // ✅ Create tables (once)
 db.exec(`
