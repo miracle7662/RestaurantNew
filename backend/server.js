@@ -3,7 +3,7 @@ const cors = require('cors');
 const app = express();
 const port = 3001;
 
-//const db = require('./config/db.js');
+const db = require('./config/db.js');
 const marketsroutes = require('./routes/marketsroutes');
 const countryRoutes = require('./routes/countryRoutes');
 const stateRoutes = require('./routes/stateRoutes');
@@ -19,7 +19,6 @@ const KitchenSubCategoryRoutes = require('./routes/KitchenSubCategoryRoutes');
 const HotelMastersRoutes = require('./routes/HotelMastersRoutes');
 const ItemMainGroupRoutes = require('./routes/ItemMainGroupRoutes');
 const ItemGroupRoutes = require('./routes/ItemGroupRoutes');
-const itemGroupRoutes = require('./routes/itemGroupRoutes');
 const messagemasterRoutes = require('./routes/messagemasterRoutes');
 const menuRoutes = require("./routes/mstrestmenuRoutes");
 const outletRoutes = require('./routes/outletRoutes');
@@ -31,9 +30,12 @@ const authRoutes = require('./routes/authRoutes');
 const authController = require('./controllers/authController');
 const TableManagementRoutes = require('./routes/TableManagementRoutes');
 const CustomerRoutes = require('./routes/CustomerRoutes');
-
 const taxGroupRoutes = require('./routes/msttaxgroupRoutes');
 const restTaxMasterRoutes = require('./routes/restTaxMasterRoutes');
+
+const settingsRoutes = require('./routes/settingsRoutes'); // Adjust path as per your project structure
+
+
 
 // ✅ Correct order of middleware
 app.use(cors());
@@ -69,6 +71,7 @@ app.use('/api/customer', CustomerRoutes);
 app.use('/api/taxgroup', taxGroupRoutes);
 app.use('/api/resttaxmaster', restTaxMasterRoutes);
 
+app.use('/api/settings', settingsRoutes); // Register settings routes
 
 // ✅ Add a health check endpoint
 app.get('/api/health', (req, res) => {

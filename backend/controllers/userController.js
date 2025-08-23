@@ -157,7 +157,7 @@ exports.createUser = async (req, res) => {
 
         console.log('About to insert user with values:', {
             username, email, full_name, phone, role_level,
-            parent_user_id, finalHotelId, finalHotelId, created_by_id
+            parent_user_id, finalHotelId, created_by_id
         });
         console.log('Final values - finalBrandId:', finalBrandId, 'finalHotelId:', finalHotelId);
 

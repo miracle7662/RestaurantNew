@@ -22,7 +22,6 @@ interface CardItem {
   item_group_id: number | null;
 }
 
-
 // Interface for component props
 interface OrderDetailsProps {
   tableId?: string | null;
@@ -830,17 +829,33 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
         </div>
       </div>
 
-      Modal for AddCustomerModal with stabilized layout
+      {/* Customer Modal */}
       <Modal
-        show={showCustomerModal}
-        onHide={handleCloseCustomerModal} 
-       
-      >
-       
-        
-          <CustomerModal onClose={handleCloseCustomerModal} />
-      
-      </Modal>
+  show={showCustomerModal}
+  onHide={handleCloseCustomerModal}
+  size="lg"
+  aria-labelledby="customer-modal-title"
+  centered
+  backdrop="static"
+  keyboard={false}
+  dialogClassName="compact-modal"
+>
+  <Modal.Header closeButton style={{ padding: '0.5rem', margin: 0 }}>
+   
+  </Modal.Header>
+  <Modal.Body style={{ padding: '0px', maxHeight: '780px', overflowY: 'auto' }}>
+    <CustomerModal />
+  </Modal.Body>
+  <Modal.Footer style={{ padding: '0.5rem', margin: 0 }}>
+    <button
+      className="btn btn-outline-secondary btn-sm"
+      onClick={handleCloseCustomerModal}
+      style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
+    >
+      Close
+    </button>
+  </Modal.Footer>
+</Modal>
     </div>
   );
 };
