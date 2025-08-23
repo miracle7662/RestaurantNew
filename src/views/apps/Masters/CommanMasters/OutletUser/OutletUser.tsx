@@ -23,6 +23,7 @@ import { useForm } from 'react-hook-form';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { FaEdit, FaTrash, FaPlus, FaEye, FaSearch } from 'react-icons/fa';
+import { useAuthContext } from '@/common';
 import { 
   getOutletUsers, 
   createOutletUser, 
@@ -30,9 +31,7 @@ import {
   deleteOutletUser, 
   getOutletsForDropdown,
   getHotelAdmins,
-  OutletUser as OutletUserType,
-  Outlet,
-  HotelAdmin
+  OutletUser as OutletUserType
 } from '../../../../../common/api/outletUser';
 
 interface OutletUser {
@@ -63,6 +62,8 @@ interface OutletUser {
   verify_mac_ip: boolean;
   parent_user_id: number;
   created_by_id: number;
+  hotelid: number;
+  password?: string;
 }
 
 interface Outlet {
@@ -91,19 +92,30 @@ const OutletUser: React.FC = () => {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<OutletUser | null>(null);
 
+  const { user } = useAuthContext();
   const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<OutletUser>();
 
   useEffect(() => {
-    fetchUsers();
-    fetchOutlets();
-    fetchHotelAdmins();
-  }, []);
+    if (user) {
+      fetchUsers();
+      fetchOutlets();
+      fetchHotelAdmins();
+    }
+  }, [user]);
 
   const fetchUsers = async () => {
     setLoading(true);
     console.log('Fetching outlet users...');
     try {
-      const response = await getOutletUsers();
+      // Prepare parameters for the API call
+      const params: any = {
+        currentUserId: user?.userid,
+        roleLevel: user?.role_level,
+        hotelid: user?.hotelid
+      };
+      
+      console.log('API parameters:', params);
+      const response = await getOutletUsers(params);
       console.log('Response from getOutletUsers:', response);
       setUsers(response.data || response);
     } catch (error) {
@@ -116,7 +128,12 @@ const OutletUser: React.FC = () => {
 
   const fetchOutlets = async () => {
     try {
-      const response = await getOutletsForDropdown();
+      const params: any = {
+        currentUserId: user?.userid,
+        roleLevel: user?.role_level,
+        hotelid: user?.hotelid
+      };
+      const response = await getOutletsForDropdown(params);
       setOutlets(response.data || response);
     } catch (error) {
       console.error('Error fetching outlets:', error);
@@ -125,7 +142,12 @@ const OutletUser: React.FC = () => {
 
   const fetchHotelAdmins = async () => {
     try {
-      const response = await getHotelAdmins();
+      const params: any = {
+        currentUserId: user?.userid,
+        roleLevel: user?.role_level,
+        hotelid: user?.hotelid
+      };
+      const response = await getHotelAdmins(params);
       setHotelAdmins(response.data || response);
     } catch (error) {
       console.error('Error fetching hotel admins:', error);
@@ -180,13 +202,15 @@ const OutletUser: React.FC = () => {
           ...data,
           outletids: data.outletids || [],
           role_level: 'outlet_user',
-          status: 1
+          status: 1,
+          hotelid: user?.hotelid
         });
         toast.success('User created successfully');
       } else if (modalMode === 'edit' && selectedUser) {
         await updateOutletUser(selectedUser.userid, {
           ...data,
-          outletids: data.outletids || []
+          outletids: data.outletids || [],
+          hotelid: user?.hotelid
         });
         toast.success('User updated successfully');
       }
