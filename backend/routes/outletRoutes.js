@@ -21,9 +21,12 @@ router.delete('/:id', outletController.deleteOutlet);
 
 router.get('/outlet-settings/:outletid', outletController.getOutletSettings);
 
+// Update outlet settings
+router.put('/outlet-settings/:outletid', outletController.updateOutletSettings);
+
 
 // // Get outlets for dropdown outlet
 
 // router.get('/outlets/dropdown', outletController.getOutletsForDropdown);
 
-module.exports = router; 
+module.exports = router;
