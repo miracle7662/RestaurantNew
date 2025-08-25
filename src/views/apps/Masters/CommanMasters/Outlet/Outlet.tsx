@@ -41,7 +41,7 @@ const ModifyOutletSettingsModal: React.FC<{
   selectedOutlet: OutletData | null;
   handleUpdate: (outletId: number, hotelId: number) => Promise<void>;
 }> = ({ show, onHide, selectedOutlet, handleUpdate }) => {
-  const [formData, setFormData] = useState<OutletSettings>({
+  const initialFormData: OutletSettings = {
     outletid: 0,
     outlet_name: '',
     outlet_code: '',
@@ -109,42 +109,96 @@ const ModifyOutletSettingsModal: React.FC<{
     notification_channel: 'SMS',
     created_at: '',
     updated_at: '',
-  });
+  };
+
+  const [formData, setFormData] = useState<OutletSettings>(initialFormData);
+  const [loading, setLoading] = useState(false);
+  const { user } = useAuthContext();
 
   useEffect(() => {
-  if (show && selectedOutlet && selectedOutlet.outletid !== undefined) {
-    outletService.getOutletSettings(selectedOutlet.outletid, selectedOutlet.hotelid) // Pass hotelid here
-      .then((response) => {
-        setFormData({ ...response.data, outletid: selectedOutlet.outletid, hotelid: selectedOutlet.hotelid });
-        toast.success('Outlet settings fetched successfully!');
-      })
-      .catch((error) => {
-        console.error('Error fetching outlet settings:', error);
-        toast.error('Failed to fetch outlet settings');
-      });
-  }
-}, [show, selectedOutlet]);
+    if (show && selectedOutlet && selectedOutlet.outletid !== undefined && selectedOutlet.hotelid !== undefined) {
+      const fetchOutletSettings = async () => {
+        setLoading(true);
+        try {
+          const res = await fetch(`http://localhost:3001/api/outlets/outlet-settings/${selectedOutlet.outletid}`, {
+            headers: { 'Content-Type': 'application/json' },
+          });
+          if (res.ok) {
+            const data: OutletSettings = await res.json();
+            setFormData({
+              ...data,
+              outletid: selectedOutlet.outletid ?? 0,
+              hotelid: selectedOutlet.hotelid ?? 0,
+              updated_by_id: user.id || '1',
+            });
+            toast.success('Outlet settings fetched successfully!');
+          } else {
+            const errorData = await res.json();
+            console.error('Error fetching outlet settings:', errorData);
+            toast.error('Failed to fetch outlet settings');
+          }
+        } catch (error) {
+          console.error('Error fetching outlet settings:', error);
+          toast.error('Something went wrong');
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchOutletSettings();
+    } else {
+      setFormData(initialFormData);
+    }
+  }, [show, selectedOutlet, user.id]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { id, value, type, checked } = e.target as HTMLInputElement;
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const target = e.target as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+    const { id, value, type } = target;
     setFormData((prev) => ({
       ...prev,
-      [id]: type === 'checkbox' || type === 'switch' ? checked : value,
+      [id]: (type === 'checkbox' || type === 'switch')
+        ? (target instanceof HTMLInputElement ? target.checked : false)
+        : value,
     }));
   };
 
- const handleSubmit = async () => {
-  if (!selectedOutlet || !selectedOutlet.outletid) return;
-  try {
-    await outletService.updateOutletSettings(selectedOutlet.outletid, formData);
-await handleUpdate(selectedOutlet.outletid, selectedOutlet.hotelid ?? 0);
-    toast.success('Outlet settings updated successfully!');
-    onHide();
-  } catch (error) {
-    console.error('Error updating outlet settings:', error);
-    toast.error('Failed to update outlet settings');
-  }
-};
+  const handleSubmit = async () => {
+    if (!selectedOutlet || selectedOutlet.outletid === undefined || selectedOutlet.hotelid === undefined) {
+      toast.error('Outlet ID and Hotel ID are required');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const payload: OutletSettings = {
+        ...formData,
+        outletid: selectedOutlet.outletid,
+        hotelid: selectedOutlet.hotelid,
+        updated_at: new Date().toISOString(),
+        updated_by_id: user.id || '1',
+      };
+      const res = await fetch(`http://localhost:3001/api/outlets/outlet-settings/${selectedOutlet.outletid}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        await handleUpdate(selectedOutlet.outletid, selectedOutlet.hotelid);
+        toast.success('Outlet settings updated successfully!');
+        onHide();
+      } else {
+        const errorData = await res.json();
+        console.error('Error updating outlet settings:', errorData);
+        toast.error('Failed to update outlet settings');
+      }
+    } catch (error) {
+      console.error('Error updating outlet settings:', error);
+      toast.error('Something went wrong');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
    <Modal show={show} onHide={onHide} centered size="xl">
       <Modal.Header closeButton>
@@ -2021,8 +2075,6 @@ const OutletList: React.FC = () => {
           show={showSettingsModal}
           onHide={() => setShowSettingsModal(false)}
           selectedOutlet={selectedOutlet}
-          formData={{}}
-          setFormData={() => { }}
           handleUpdate={async () => { }}
         />
       )}

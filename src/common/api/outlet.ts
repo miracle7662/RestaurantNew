@@ -160,13 +160,13 @@ class OutletService {
     return api.get('/api/outlets', params || {})
   }
   
-     getOutletSettings = (id: number) => {
-    return api.get(`/api/outlets/settings/${id}`, {});
-  };
+  //    getOutletSettings = (id: number) => {
+  //   return api.get(`/api/outlets/settings/${id}`, {});
+  // };
 
-  updateOutletSettings = (id: number, data: Partial<OutletSettings>) => {
-    return api.update(`/api/outlets/settings/${id}`, data);
-  };
+  // updateOutletSettings = (id: number, data: Partial<OutletSettings>) => {
+  //   return api.update(`/api/outlets/settings/${id}`, data);
+  // };
 
 }
 
