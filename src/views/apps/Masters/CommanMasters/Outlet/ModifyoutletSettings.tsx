@@ -197,14 +197,11 @@ const ModifyOutletSettingsModal: React.FC<{
     }
   }, [show, selectedOutlet]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const target = e.target as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
-    const { id, value, type } = target;
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { id, value, type, checked } = e.target as HTMLInputElement;
     setFormData((prev) => ({
       ...prev,
-      [id]: (type === 'checkbox' || type === 'switch')
-        ? (target instanceof HTMLInputElement ? target.checked : false)
-        : value,
+      [id]: type === 'checkbox' ? checked : value,
     }));
   };
 
