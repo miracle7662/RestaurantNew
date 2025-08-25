@@ -82,12 +82,16 @@ const OutletList: React.FC = () => {
   const [endTime, setEndTime] = useState<number>(6);
 
   useEffect(() => {
+    console.log('OutletList component mounted');
     console.log('Current user in OutletList:', user);
-    fetchOutlets();
-    fetchMasterData();
-
+    
     if (user) {
+      console.log('User authenticated, fetching data...');
+      fetchOutlets();
+      fetchMasterData();
       fetchBrands(user, setBrands);
+    } else {
+      console.log('User not authenticated, cannot fetch data');
     }
   }, [user]);
 

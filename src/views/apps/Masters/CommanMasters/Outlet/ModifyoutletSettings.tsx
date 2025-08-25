@@ -2,13 +2,7 @@ import { Button, Modal, Form, Row, Col } from 'react-bootstrap';
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { useAuthContext } from '@/common';
-
-// Define OutletData interface (assuming it's not defined elsewhere)
-interface OutletData {
-  outletid: number;
-  hotelid: number;
-  // Add other relevant fields
-}
+import { OutletData } from '@/common/api/outlet';
 
 // Update OutletSettings interface
 interface OutletSettings {
@@ -175,8 +169,8 @@ const ModifyOutletSettingsModal: React.FC<{
             const data: OutletSettings = await res.json();
             setFormData({
               ...data,
-              outletid: selectedOutlet.outletid,
-              hotelid: selectedOutlet.hotelid,
+              outletid: selectedOutlet.outletid!,
+              hotelid: selectedOutlet.hotelid!,
               updated_by_id: user?.id ?? '1',
             });
             toast.success('Outlet settings fetched successfully!');
@@ -197,9 +191,14 @@ const ModifyOutletSettingsModal: React.FC<{
     }
   }, [show, selectedOutlet]);
 
+<<<<<<< Updated upstream
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const target = e.target as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
     const { id, value, type } = target;
+=======
+  const handleChange = (e: React.ChangeEvent<any>) => {
+    const { id, value, type, checked } = e.target;
+>>>>>>> Stashed changes
     setFormData((prev) => ({
       ...prev,
       [id]: (type === 'checkbox' || type === 'switch')
