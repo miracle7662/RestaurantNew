@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from 'react-toastify'; // Import toast for notifications
 import { useNavigate } from 'react-router-dom';
 import { Alert, Button, Card, Col, Row, Form } from 'react-bootstrap';
+import { toast } from 'react-toastify';
+
 import axios from 'axios';
 import { useAuthContext } from '@/common/context/useAuthContext'; // Adjust path as needed
 import { OutletData } from '@/common/api/outlet'; // Adjust the import path as necessary
@@ -454,50 +457,305 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
   const baseUrl = 'http://localhost:3001';
 
   // Fetch outlet settings
-  const fetchData = async () => {
-    if (!outletid || !hotelId) {
-      setError('Outlet ID and Hotel ID are required.');
-      setLoading(false);
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const response = await axios.get(`${baseUrl}/api/settings/outlet-settings/${outletid}?hotelid=${hotelId}`);
-      const data = response.data.data;
-
-      const allFormData: Record<string, any> = {};
-      const sections = [
-        'bill_preview_settings',
-        'kot_print_settings',
-        'bill_print_settings',
-        'general_settings',
-        'online_orders_settings',
-      ];
-
-      sections.forEach((section) => {
-        if (data[section]) {
-          Object.entries(data[section]).forEach(([key, value]) => {
-            const camelKey = snakeToCamel(key);
-            allFormData[camelKey] = value;
-          });
-        }
-      });
-
-      setFormData((prev) => ({ ...prev, ...allFormData }));
-      setTimeDelay(parseInt(allFormData.onlineOrdersTimeDelay || '0', 10));
-      setSuccess('Settings fetched successfully');
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch settings');
-      console.error('Error fetching settings:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchData();
-  }, [outletid, hotelId]);
+    const fetchOutletBillingSettings = async () => {
+      if (!Outlet?.outletid || !Outlet?.hotelid) {
+        // Reset to initial state when no outlet is provided
+        setFormData({
+          outletid: 0,
+          hotelid: 0,
+          outlet_name: '',
+          email: '',
+          website: '',
+          upi_id: '',
+          bill_prefix: '',
+          secondary_bill_prefix: '',
+          bar_bill_prefix: '',
+          show_upi_qr: false,
+          enabled_bar_section: false,
+          show_phone_on_bill: '',
+          note: '',
+          footer_note: '',
+          field1: '',
+          field2: '',
+          field3: '',
+          field4: '',
+          fssai_no: '',
+          customer_on_kot_dine_in: false,
+          customer_on_kot_pickup: false,
+          customer_on_kot_delivery: false,
+          customer_on_kot_quick_bill: false,
+          customer_kot_display_option: 'NAME_ONLY',
+          group_kot_items_by_category: false,
+          hide_table_name_quick_bill: false,
+          show_new_order_tag: true,
+          new_order_tag_label: 'New',
+          show_running_order_tag: true,
+          running_order_tag_label: 'Running',
+          dine_in_kot_no: 'DIN-',
+          pickup_kot_no: 'PUP-',
+          delivery_kot_no: 'DEL-',
+          quick_bill_kot_no: 'QBL-',
+          modifier_default_option: false,
+          print_kot_both_languages: false,
+          show_alternative_item: false,
+          show_captain_username: false,
+          show_covers_as_guest: false,
+          show_item_price: true,
+          show_kot_no_quick_bill: false,
+          show_kot_note: true,
+          show_online_order_otp: false,
+          show_order_id_quick_bill: false,
+          show_order_id_online_order: false,
+          show_order_no_quick_bill_section: false,
+          show_order_type_symbol: true,
+          show_store_name: true,
+          show_terminal_username: false,
+          show_username: false,
+          show_waiter: true,
+          bill_title_dine_in: true,
+          bill_title_pickup: true,
+          bill_title_delivery: true,
+          bill_title_quick_bill: true,
+          mask_order_id: false,
+          modifier_default_option_bill: false,
+          print_bill_both_languages: false,
+          show_alt_item_title_bill: false,
+          show_alt_name_bill: false,
+          show_bill_amount_words: false,
+          show_bill_no_bill: true,
+          show_bill_number_prefix_bill: true,
+          show_bill_print_count: false,
+          show_brand_name_bill: true,
+          show_captain_bill: false,
+          show_covers_bill: true,
+          show_custom_qr_codes_bill: false,
+          show_customer_gst_bill: false,
+          show_customer_bill: true,
+          show_customer_paid_amount: true,
+          show_date_bill: true,
+          show_default_payment: true,
+          show_discount_reason_bill: false,
+          show_due_amount_bill: true,
+          show_ebill_invoice_qrcode: false,
+          show_item_hsn_code_bill: false,
+          show_item_level_charges_separately: false,
+          show_item_note_bill: true,
+          show_items_sequence_bill: true,
+          show_kot_number_bill: false,
+          show_logo_bill: true,
+          show_order_id_bill: false,
+          show_order_no_bill: true,
+          show_order_note_bill: true,
+          order_type_dine_in: true,
+          order_type_pickup: true,
+          order_type_delivery: true,
+          order_type_quick_bill: true,
+          show_outlet_name_bill: true,
+          payment_mode_dine_in: true,
+          payment_mode_pickup: true,
+          payment_mode_delivery: true,
+          payment_mode_quick_bill: true,
+          table_name_dine_in: true,
+          table_name_pickup: false,
+          table_name_delivery: false,
+          table_name_quick_bill: false,
+          show_tax_charge_bill: true,
+          show_username_bill: false,
+          show_waiter_bill: true,
+          show_zatca_invoice_qr: false,
+          show_customer_address_pickup_bill: false,
+          show_order_placed_time: true,
+          hide_item_quantity_column: false,
+          hide_item_rate_column: false,
+          hide_item_total_column: false,
+          hide_total_without_tax: false,
+          allow_charges_after_bill_print: false,
+          allow_discount_after_bill_print: false,
+          allow_discount_before_save: false,
+          allow_pre_order_tahd: false,
+          ask_covers: {
+            dine_in: false,
+            pickup: false,
+            delivery: false,
+            quick_bill: false,
+          },
+          ask_covers_captain: false,
+          ask_custom_order_id_quick_bill: false,
+          ask_custom_order_type_quick_bill: false,
+          ask_payment_mode_on_save_bill: false,
+          ask_waiter: {
+            dine_in: false,
+            pickup: false,
+            delivery: false,
+            quick_bill: false,
+          },
+          ask_otp_change_order_status_order_window: false,
+          ask_otp_change_order_status_receipt_section: false,
+          auto_accept_remote_kot: false,
+          auto_out_of_stock: false,
+          auto_sync: false,
+          category_time_for_pos: '',
+          count_sales_after_midnight: false,
+          customer_mandatory: {
+            dine_in: false,
+            pickup: false,
+            delivery: false,
+            quick_bill: false,
+          },
+          default_ebill_check: false,
+          default_send_delivery_boy_check: false,
+          edit_customize_order_number: '',
+          enable_backup_notification_service: false,
+          enable_customer_display_access: false,
+          filter_items_by_order_type: false,
+          generate_reports_start_close_dates: false,
+          hide_clear_data_check_logout: false,
+          hide_item_price_options: false,
+          hide_load_menu_button: false,
+          make_cancel_delete_reason_compulsory: false,
+          make_discount_reason_mandatory: false,
+          make_free_cancel_bill_reason_mandatory: false,
+          make_payment_ref_number_mandatory: false,
+          mandatory_delivery_boy_selection: false,
+          mark_order_as_transfer_order: false,
+          online_payment_auto_settle: false,
+          order_sync_settings: {
+            auto_sync_interval: '5',
+            sync_batch_packet_size: '10',
+          },
+          separate_billing_by_section: false,
+          set_entered_amount_as_opening: false,
+          show_alternative_item_report_print: false,
+          show_clear_sales_report_logout: false,
+          show_order_no_label_pos: false,
+          show_payment_history_button: false,
+          show_remote_kot_option: false,
+          show_send_payment_link: false,
+          stock_availability_display: false,
+          todays_report: {
+            sales_summary: false,
+            order_type_summary: false,
+            payment_type_summary: false,
+            discount_summary: false,
+            expense_summary: false,
+            bill_summary: false,
+            delivery_boy_summary: false,
+            waiter_summary: false,
+            kitchen_department_summary: false,
+            category_summary: false,
+            sold_items_summary: false,
+            cancel_items_summary: false,
+            wallet_summary: false,
+            due_payment_received_summary: false,
+            due_payment_receivable_summary: false,
+            payment_variance_summary: false,
+            currency_denominations_summary: false,
+          },
+          upi_payment_sound_notification: false,
+          use_separate_bill_numbers_online: false,
+          when_send_todays_report: '',
+          enable_currency_conversion: false,
+          enable_user_login_validation: false,
+          allow_closing_shift_despite_bills: false,
+          show_real_time_kot_bill_notifications: false,
+          show_in_preparation_kds: false,
+          auto_accept_online_order: false,
+          customize_order_preparation_time: false,
+          online_orders_time_delay: '0',
+          pull_order_on_accept: false,
+          show_addons_separately: false,
+          show_complete_online_order_id: true,
+          show_online_order_preparation_time: true,
+          update_food_ready_status_kds: true,
+          created_by_id: user?.id?.toString() || '1',
+          created_date: new Date().toISOString(),
+          updated_by_id: user?.id?.toString() || '1',
+          updated_date: new Date().toISOString(),
+        });
+        setError(null);
+        setSuccess(null);
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      setError(null);
+      setSuccess(null);
+
+      try {
+        const response = await axios.get(`${baseUrl}/api/outlets/settings/${Outlet.outletid}`);
+        const data = response.data;
+
+        if (!data) {
+          throw new Error('No data returned from the server.');
+        }
+
+        const allFormData: Record<string, any> = {
+          outletid: data.outletid || 0,
+          hotelid: data.hotelid || 0,
+          outlet_name: data.outlet_name || '',
+          email: data.email || '',
+          website: data.website || '',
+          upi_id: data.upi_id || '',
+          bill_prefix: data.bill_prefix || '',
+          secondary_bill_prefix: data.secondary_bill_prefix || '',
+          bar_bill_prefix: data.bar_bill_prefix || '',
+          show_phone_on_bill: data.show_phone_on_bill || '',
+          note: data.note || '',
+          footer_note: data.footer_note || '',
+          field1: data.field1 || '',
+          field2: data.field2 || '',
+          field3: data.field3 || '',
+          field4: data.field4 || '',
+          fssai_no: data.fssai_no || '',
+          created_by_id: data.created_by_id || user?.id?.toString() || '1',
+          created_date: data.created_date || new Date().toISOString(),
+          updated_by_id: data.updated_by_id || user?.id?.toString() || '1',
+          updated_date: data.updated_date || new Date().toISOString(),
+         
+        };
+
+        const sections = [
+          'bill_preview_settings',
+          'kot_print_settings',
+          'bill_print_settings',
+          'general_settings',
+          'online_orders_settings',
+        ];
+
+        sections.forEach((section) => {
+          if (data[section]) {
+            Object.entries(data[section]).forEach(([key, value]) => {
+              const camelKey = snakeToCamel(key);
+              allFormData[camelKey] = typeof value === 'number' && (value === 0 || value === 1) ? (value) : value;
+            });
+          }
+        });
+
+        setFormData((prev) => ({ ...prev, ...allFormData }));
+        setSuccess('Settings fetched successfully!');
+        toast.success('Settings fetched successfully!');
+      } catch (err: any) {
+        console.error('Error fetching settings:', err);
+        let errorMessage = 'Failed to fetch settings';
+        if (err.response) {
+          errorMessage = err.response.data?.message || `Server responded with status ${err.response.status}`;
+        } else if (err.request) {
+          errorMessage = 'No response received from the server.';
+        } else {
+          errorMessage = err.message || 'An unexpected error occurred';
+        }
+        setError(errorMessage);
+        toast.error(errorMessage);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOutletBillingSettings();
+  }, [Outlet, user]);
+
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -518,7 +776,7 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
     setFormData((prev) => ({
       ...prev,
       [category]: {
-        ...prev[category],
+        ...prev[category as keyof OutletSettings] as object,
         [key]: checked,
       },
     }));
@@ -550,21 +808,217 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
       return;
     }
 
+    setLoading(true);
+   
+
     try {
-      const payload = {
-        ...formData,
-        hotelid: parseInt(hotelId.toString()),
-        outletid: parseInt(outletid.toString()),
-        updated_by_id: user?.id?.toString() || '1',
-        updated_date: new Date().toISOString(),
+      // Bill Preview Settings Payload
+      const billPreviewPayload = {
+        outlet_name: formData.outlet_name,
+        email: formData.email,
+        website: formData.website,
+        upi_id: formData.upi_id,
+        bill_prefix: formData.bill_prefix,
+        secondary_bill_prefix: formData.secondary_bill_prefix,
+        bar_bill_prefix: formData.bar_bill_prefix,
+        show_upi_qr: formData.show_upi_qr ? 1 : 0,
+        enabled_bar_section: formData.enabled_bar_section ? 1 : 0,
+        show_phone_on_bill: formData.show_phone_on_bill,
+        note: formData.note,
+        footer_note: formData.footer_note,
+        field1: formData.field1,
+        field2: formData.field2,
+        field3: formData.field3,
+        field4: formData.field4,
+        fssai_no: formData.fssai_no,
+        
       };
 
-      await axios.put(`${baseUrl}/api/settings/outlet-settings/${outletid}`, payload);
+      // KOT Print Settings Payload
+      const kotPrintPayload = {
+        customer_on_kot_dine_in: formData.customer_on_kot_dine_in ? 1 : 0,
+        customer_on_kot_pickup: formData.customer_on_kot_pickup ? 1 : 0,
+        customer_on_kot_delivery: formData.customer_on_kot_delivery ? 1 : 0,
+        customer_on_kot_quick_bill: formData.customer_on_kot_quick_bill ? 1 : 0,
+        customer_kot_display_option: formData.customer_kot_display_option,
+        group_kot_items_by_category: formData.group_kot_items_by_category ? 1 : 0,
+        hide_table_name_quick_bill: formData.hide_table_name_quick_bill ? 1 : 0,
+        show_new_order_tag: formData.show_new_order_tag ? 1 : 0,
+        new_order_tag_label: formData.new_order_tag_label,
+        show_running_order_tag: formData.show_running_order_tag ? 1 : 0,
+        running_order_tag_label: formData.running_order_tag_label,
+        dine_in_kot_no: formData.dine_in_kot_no,
+        pickup_kot_no: formData.pickup_kot_no,
+        delivery_kot_no: formData.delivery_kot_no,
+        quick_bill_kot_no: formData.quick_bill_kot_no,
+        modifier_default_option: formData.modifier_default_option ? 1 : 0,
+        print_kot_both_languages: formData.print_kot_both_languages ? 1 : 0,
+        show_alternative_item: formData.show_alternative_item ? 1 : 0,
+        show_captain_username: formData.show_captain_username ? 1 : 0,
+        show_covers_as_guest: formData.show_covers_as_guest ? 1 : 0,
+        show_item_price: formData.show_item_price ? 1 : 0,
+        show_kot_no_quick_bill: formData.show_kot_no_quick_bill ? 1 : 0,
+        show_kot_note: formData.show_kot_note ? 1 : 0,
+        show_online_order_otp: formData.show_online_order_otp ? 1 : 0,
+        show_order_id_quick_bill: formData.show_order_id_quick_bill ? 1 : 0,
+        show_order_id_online_order: formData.show_order_id_online_order ? 1 : 0,
+        show_order_no_quick_bill_section: formData.show_order_no_quick_bill_section ? 1 : 0,
+        show_order_type_symbol: formData.show_order_type_symbol ? 1 : 0,
+        show_store_name: formData.show_store_name ? 1 : 0,
+        show_terminal_username: formData.show_terminal_username ? 1 : 0,
+        show_username: formData.show_username ? 1 : 0,
+        show_waiter: formData.show_waiter ? 1 : 0,
+      };
+
+      // Bill Print Settings Payload
+      const billPrintPayload = {
+        bill_title_dine_in: formData.bill_title_dine_in ? 1 : 0,
+        bill_title_pickup: formData.bill_title_pickup ? 1 : 0,
+        bill_title_delivery: formData.bill_title_delivery ? 1 : 0,
+        bill_title_quick_bill: formData.bill_title_quick_bill ? 1 : 0,
+        mask_order_id: formData.mask_order_id ? 1 : 0,
+        modifier_default_option_bill: formData.modifier_default_option_bill ? 1 : 0,
+        print_bill_both_languages: formData.print_bill_both_languages ? 1 : 0,
+        show_alt_item_title_bill: formData.show_alt_item_title_bill ? 1 : 0,
+        show_alt_name_bill: formData.show_alt_name_bill ? 1 : 0,
+        show_bill_amount_words: formData.show_bill_amount_words ? 1 : 0,
+        show_bill_no_bill: formData.show_bill_no_bill ? 1 : 0,
+        show_bill_number_prefix_bill: formData.show_bill_number_prefix_bill ? 1 : 0,
+        show_bill_print_count: formData.show_bill_print_count ? 1 : 0,
+        show_brand_name_bill: formData.show_brand_name_bill ? 1 : 0,
+        show_captain_bill: formData.show_captain_bill ? 1 : 0,
+        show_covers_bill: formData.show_covers_bill ? 1 : 0,
+        show_custom_qr_codes_bill: formData.show_custom_qr_codes_bill ? 1 : 0,
+        show_customer_gst_bill: formData.show_customer_gst_bill ? 1 : 0,
+        show_customer_bill: formData.show_customer_bill ? 1 : 0,
+        show_customer_paid_amount: formData.show_customer_paid_amount ? 1 : 0,
+        show_date_bill: formData.show_date_bill ? 1 : 0,
+        show_default_payment: formData.show_default_payment ? 1 : 0,
+        show_discount_reason_bill: formData.show_discount_reason_bill ? 1 : 0,
+        show_due_amount_bill: formData.show_due_amount_bill ? 1 : 0,
+        show_ebill_invoice_qrcode: formData.show_ebill_invoice_qrcode ? 1 : 0,
+        show_item_hsn_code_bill: formData.show_item_hsn_code_bill ? 1 : 0,
+        show_item_level_charges_separately: formData.show_item_level_charges_separately ? 1 : 0,
+        show_item_note_bill: formData.show_item_note_bill ? 1 : 0,
+        show_items_sequence_bill: formData.show_items_sequence_bill ? 1 : 0,
+        show_kot_number_bill: formData.show_kot_number_bill ? 1 : 0,
+        show_logo_bill: formData.show_logo_bill ? 1 : 0,
+        show_order_id_bill: formData.show_order_id_bill ? 1 : 0,
+        show_order_no_bill: formData.show_order_no_bill ? 1 : 0,
+        show_order_note_bill: formData.show_order_note_bill ? 1 : 0,
+        order_type_dine_in: formData.order_type_dine_in ? 1 : 0,
+        order_type_pickup: formData.order_type_pickup ? 1 : 0,
+        order_type_delivery: formData.order_type_delivery ? 1 : 0,
+        order_type_quick_bill: formData.order_type_quick_bill ? 1 : 0,
+        show_outlet_name_bill: formData.show_outlet_name_bill ? 1 : 0,
+        payment_mode_dine_in: formData.payment_mode_dine_in ? 1 : 0,
+        payment_mode_pickup: formData.payment_mode_pickup ? 1 : 0,
+        payment_mode_delivery: formData.payment_mode_delivery ? 1 : 0,
+        payment_mode_quick_bill: formData.payment_mode_quick_bill ? 1 : 0,
+        table_name_dine_in: formData.table_name_dine_in ? 1 : 0,
+        table_name_pickup: formData.table_name_pickup ? 1 : 0,
+        table_name_delivery: formData.table_name_delivery ? 1 : 0,
+        table_name_quick_bill: formData.table_name_quick_bill ? 1 : 0,
+        show_tax_charge_bill: formData.show_tax_charge_bill ? 1 : 0,
+        show_username_bill: formData.show_username_bill ? 1 : 0,
+        show_waiter_bill: formData.show_waiter_bill ? 1 : 0,
+        show_zatca_invoice_qr: formData.show_zatca_invoice_qr ? 1 : 0,
+        show_customer_address_pickup_bill: formData.show_customer_address_pickup_bill ? 1 : 0,
+        show_order_placed_time: formData.show_order_placed_time ? 1 : 0,
+        hide_item_quantity_column: formData.hide_item_quantity_column ? 1 : 0,
+        hide_item_rate_column: formData.hide_item_rate_column ? 1 : 0,
+        hide_item_total_column: formData.hide_item_total_column ? 1 : 0,
+        hide_total_without_tax: formData.hide_total_without_tax ? 1 : 0,
+        
+      };
+
+      // General Settings Payload
+      const generalPayload = {
+        allow_charges_after_bill_print: formData.allow_charges_after_bill_print ? 1 : 0,
+        allow_discount_after_bill_print: formData.allow_discount_after_bill_print ? 1 : 0,
+        allow_discount_before_save: formData.allow_discount_before_save ? 1 : 0,
+        allow_pre_order_tahd: formData.allow_pre_order_tahd ? 1 : 0,
+        ask_covers: formData.ask_covers,
+        ask_covers_captain: formData.ask_covers_captain ? 1 : 0,
+        ask_custom_order_id_quick_bill: formData.ask_custom_order_id_quick_bill ? 1 : 0,
+        ask_custom_order_type_quick_bill: formData.ask_custom_order_type_quick_bill ? 1 : 0,
+        ask_payment_mode_on_save_bill: formData.ask_payment_mode_on_save_bill ? 1 : 0,
+        ask_waiter: formData.ask_waiter,
+        ask_otp_change_order_status_order_window: formData.ask_otp_change_order_status_order_window ? 1 : 0,
+        ask_otp_change_order_status_receipt_section: formData.ask_otp_change_order_status_receipt_section ? 1 : 0,
+        auto_accept_remote_kot: formData.auto_accept_remote_kot ? 1 : 0,
+        auto_out_of_stock: formData.auto_out_of_stock ? 1 : 0,
+        auto_sync: formData.auto_sync ? 1 : 0,
+        category_time_for_pos: formData.category_time_for_pos,
+        count_sales_after_midnight: formData.count_sales_after_midnight ? 1 : 0,
+        customer_mandatory: formData.customer_mandatory,
+        default_ebill_check: formData.default_ebill_check ? 1 : 0,
+        default_send_delivery_boy_check: formData.default_send_delivery_boy_check ? 1 : 0,
+        edit_customize_order_number: formData.edit_customize_order_number,
+        enable_backup_notification_service: formData.enable_backup_notification_service ? 1 : 0,
+        enable_customer_display_access: formData.enable_customer_display_access ? 1 : 0,
+        filter_items_by_order_type: formData.filter_items_by_order_type ? 1 : 0,
+        generate_reports_start_close_dates: formData.generate_reports_start_close_dates ? 1 : 0,
+        hide_clear_data_check_logout: formData.hide_clear_data_check_logout ? 1 : 0,
+        hide_item_price_options: formData.hide_item_price_options ? 1 : 0,
+        hide_load_menu_button: formData.hide_load_menu_button ? 1 : 0,
+        make_cancel_delete_reason_compulsory: formData.make_cancel_delete_reason_compulsory ? 1 : 0,
+        make_discount_reason_mandatory: formData.make_discount_reason_mandatory ? 1 : 0,
+        make_free_cancel_bill_reason_mandatory: formData.make_free_cancel_bill_reason_mandatory ? 1 : 0,
+        make_payment_ref_number_mandatory: formData.make_payment_ref_number_mandatory ? 1 : 0,
+        mandatory_delivery_boy_selection: formData.mandatory_delivery_boy_selection ? 1 : 0,
+        mark_order_as_transfer_order: formData.mark_order_as_transfer_order ? 1 : 0,
+        online_payment_auto_settle: formData.online_payment_auto_settle ? 1 : 0,
+        order_sync_settings: formData.order_sync_settings,
+        separate_billing_by_section: formData.separate_billing_by_section ? 1 : 0,
+        set_entered_amount_as_opening: formData.set_entered_amount_as_opening ? 1 : 0,
+        show_alternative_item_report_print: formData.show_alternative_item_report_print ? 1 : 0,
+        show_clear_sales_report_logout: formData.show_clear_sales_report_logout ? 1 : 0,
+        show_order_no_label_pos: formData.show_order_no_label_pos ? 1 : 0,
+        show_payment_history_button: formData.show_payment_history_button ? 1 : 0,
+        show_remote_kot_option: formData.show_remote_kot_option ? 1 : 0,
+        show_send_payment_link: formData.show_send_payment_link ? 1 : 0,
+        stock_availability_display: formData.stock_availability_display ? 1 : 0,
+        todays_report: formData.todays_report,
+        upi_payment_sound_notification: formData.upi_payment_sound_notification ? 1 : 0,
+        use_separate_bill_numbers_online: formData.use_separate_bill_numbers_online ? 1 : 0,
+        when_send_todays_report: formData.when_send_todays_report,
+        enable_currency_conversion: formData.enable_currency_conversion ? 1 : 0,
+        enable_user_login_validation: formData.enable_user_login_validation ? 1 : 0,
+        allow_closing_shift_despite_bills: formData.allow_closing_shift_despite_bills ? 1 : 0,
+        show_real_time_kot_bill_notifications: formData.show_real_time_kot_bill_notifications ? 1 : 0,
+      
+      };
+
+  const onlineOrdersPayload = {
+  outletid: outletid,
+  hotelid: hotelId,
+  show_in_preparation_kds: formData.show_in_preparation_kds,
+  auto_accept_online_order: formData.auto_accept_online_order,
+  customize_order_preparation_time: formData.customize_order_preparation_time,
+  online_orders_time_delay: parseInt(formData.online_orders_time_delay, 10) || 0,
+  pull_order_on_accept: formData.pull_order_on_accept,
+  show_addons_separately: formData.show_addons_separately,
+  show_complete_online_order_id: formData.show_complete_online_order_id,
+  show_online_order_preparation_time: formData.show_online_order_preparation_time,
+  update_food_ready_status_kds: formData.update_food_ready_status_kds,
+  
+};
+
+      // Perform separate PUT requests for each section
+      await axios.put(`${baseUrl}/api/outlets/bill-preview-settings/${outletid}`, billPreviewPayload);
+      await axios.put(`${baseUrl}/api/outlets/kot-print-settings/${outletid}`, kotPrintPayload);
+      await axios.put(`${baseUrl}/api/outlets/bill-print-settings/${outletid}`, billPrintPayload);
+      await axios.put(`${baseUrl}/api/outlets/general-settings/${outletid}`, generalPayload);
+      await axios.put(`${baseUrl}/api/outlets/online-orders-settings/${outletid}`, onlineOrdersPayload);
+
       setSuccess('Settings updated successfully');
       navigate('/dashboard');
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to update settings');
       console.error('Error updating settings:', err);
+    } finally {
+      setLoading(false);
     }
   };
 

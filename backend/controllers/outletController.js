@@ -2285,6 +2285,7 @@ exports.getOutletBillingSettings = (req, res) => {
         email: settings.email,
         website: settings.website,
         upi_id: settings.upi_id,
+        
         bill_prefix: settings.bill_prefix,
         secondary_bill_prefix: settings.secondary_bill_prefix,
         bar_bill_prefix: settings.bar_bill_prefix,
