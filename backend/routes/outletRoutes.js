@@ -19,14 +19,37 @@ router.put('/:id', outletController.updateOutlet);
 // Delete outlet
 router.delete('/:id', outletController.deleteOutlet);
 
+
+
 router.get('/outlet-settings/:outletid', outletController.getOutletSettings);
 
 // Update outlet settings
 router.put('/outlet-settings/:outletid', outletController.updateOutletSettings);
 
+// GET all Outlet Bill Settings for an outlet
 
-// // Get outlets for dropdown outlet
+// GET all settings for an outlet
+router.get('/settings/:outletid',  outletController.getOutletBillingSettings);
 
-// router.get('/outlets/dropdown', outletController.getOutletsForDropdown);
+// PUT update bill preview settings
+router.put('/bill-preview-settings/:outletid', outletController.updateBillPreviewSettings);
+
+// PUT update KOT print settings
+router.put('/kot-print-settings/:outletid', outletController.updateKotPrintSettings);
+
+
+// PUT update bill print settings
+router.put('/bill-print-settings/:outletid', outletController.updateBillPrintSettings);
+
+// PUT update general settings
+router.put('/general-settings/:outletid', outletController.updateGeneralSettings);
+
+// PUT update online orders settings
+router.put('/online-orders-settings/:outletid', outletController.updateOnlineOrdersSettings);
+
+
+
+
+
 
 module.exports = router;

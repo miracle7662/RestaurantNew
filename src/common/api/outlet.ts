@@ -47,76 +47,7 @@ export interface OutletData {
 }
 
 // Interface for outlet settings
-export interface OutletSettings {
-  outletid: number;
-  outlet_name: string;
-  outlet_code: string;
-  hotelid: number;
-  brand_name: string;
-  send_order_notification: string;
-  bill_number_length: number;
-  next_reset_order_number_date: string | null;
-  next_reset_order_number_days: string;
-  decimal_points: number;
-  bill_round_off: boolean;
-  enable_loyalty: boolean;
-  multiple_price_setting: boolean;
-  verify_pos_system_login: boolean;
-  table_reservation: boolean;
-  auto_update_pos: boolean;
-  send_report_email: boolean;
-  send_report_whatsapp: boolean;
-  allow_multiple_tax: boolean;
-  enable_call_center: boolean;
-  bharatpe_integration: boolean;
-  phonepe_integration: boolean;
-  reelo_integration: boolean;
-  tally_integration: boolean;
-  sunmi_integration: boolean;
-  zomato_pay_integration: boolean;
-  zomato_enabled: boolean;
-  swiggy_enabled: boolean;
-  rafeeq_enabled: boolean;
-  noon_food_enabled: boolean;
-  magicpin_enabled: boolean;
-  dotpe_enabled: boolean;
-  cultfit_enabled: boolean;
-  ubereats_enabled: boolean;
-  scooty_enabled: boolean;
-  dunzo_enabled: boolean;
-  foodpanda_enabled: boolean;
-  amazon_enabled: boolean;
-  talabat_enabled: boolean;
-  deliveroo_enabled: boolean;
-  careem_enabled: boolean;
-  jahez_enabled: boolean;
-  eazydiner_enabled: boolean;
-  radyes_enabled: boolean;
-  goshop_enabled: boolean;
-  chatfood_enabled: boolean;
-  cutfit_enabled: boolean;
-  jubeat_enabled: boolean;
-  thrive_enabled: boolean;
-  fidoo_enabled: boolean;
-  mrsool_enabled: boolean;
-  swiggystore_enabled: boolean;
-  zomatormarket_enabled: boolean;
-  hungerstation_enabled: boolean;
-  instashop_enabled: boolean;
-  eteasy_enabled: boolean;
-  smiles_enabled: boolean;
-  toyou_enabled: boolean;
-  dca_enabled: boolean;
-  ordable_enabled: boolean;
-  beanz_enabled: boolean;
-  cari_enabled: boolean;
-  the_chefz_enabled: boolean;
-  keeta_enabled: boolean;
-  notification_channel: string;
-  created_at: string;
-  updated_at: string;
-  [key: string]: any;
-}
+
 
 class OutletService {
   // Get brands/hotels for dropdown
