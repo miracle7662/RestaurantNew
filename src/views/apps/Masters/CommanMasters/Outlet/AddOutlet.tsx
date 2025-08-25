@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { toast } from 'react-toastify'; // Import toast for notifications
+//import { toast } from 'react-toastify'; // Import toast for notifications
 import { useNavigate } from 'react-router-dom';
 import { Alert, Button, } from 'react-bootstrap';
 
@@ -137,7 +137,7 @@ interface OutletSettings {
   hide_item_total_column: boolean;
   hide_total_without_tax: boolean;
   // General settings
-  
+  customize_url_links: boolean;
   allow_charges_after_bill_print: boolean;
   allow_discount_after_bill_print: boolean;
   allow_discount_before_save: boolean;
@@ -163,6 +163,7 @@ interface OutletSettings {
   auto_accept_remote_kot: boolean;
   auto_out_of_stock: boolean;
   auto_sync: boolean;
+  customer_display: any;
   category_time_for_pos: string;
   count_sales_after_midnight: boolean;
   customer_mandatory: {
@@ -245,7 +246,7 @@ interface OutletSettings {
 
 
 
-const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
+const AddOutlet: React.FC<AddOutletProps> = ({ Outlet }) => {
   const { user } = useAuthContext();
   const [formData, setFormData] = useState<OutletSettings>({
     outletid: Outlet?.outletid || 0,
@@ -381,6 +382,7 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
     auto_accept_remote_kot: false,
     auto_out_of_stock: false,
     auto_sync: false,
+    customer_display: '',
     category_time_for_pos: '',
     count_sales_after_midnight: false,
     customer_mandatory: {
@@ -438,6 +440,7 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
       payment_variance_summary: false,
       currency_denominations_summary: false,
     },
+    customize_url_links: false,
     upi_payment_sound_notification: false,
     use_separate_bill_numbers_online: false,
     when_send_todays_report: '',
