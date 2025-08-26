@@ -681,6 +681,4 @@ CREATE TABLE IF NOT EXISTS mstoutlet_settings (
 );
 
 `);
-
-
 module.exports = db;
