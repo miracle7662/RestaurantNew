@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-//import { toast } from 'react-toastify'; // Import toast for notifications
+import { toast } from 'react-toastify'; // Import toast for notifications
 import { useNavigate } from 'react-router-dom';
 import { Alert, Button, } from 'react-bootstrap';
 
@@ -249,7 +249,7 @@ interface OutletSettings {
 //   return str.replace(/(_\w)/g, (match) => match[1].toUpperCase());
 // };
 
-const AddOutlet: React.FC<AddOutletProps> = ({ Outlet }) => {
+const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
   const { user } = useAuthContext();
   const [formData, setFormData] = useState<OutletSettings>({
     outletid: Outlet?.outletid || 0,
@@ -475,7 +475,7 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet }) => {
   const baseUrl = 'http://localhost:3001';
 
   // Fetch outlet settings
- useEffect(() => {
+  useEffect(() => {
     const fetchOutletBillingSettings = async () => {
       if (!Outlet?.outletid || !Outlet?.hotelid) {
         // Reset to initial state when no outlet is provided
@@ -513,7 +513,7 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet }) => {
           outletid: data.outletid || 0,
           hotelid: data.hotelid || 0,
           outlet_name: data.outlet_name || '',
-         
+
 
           // Bill Preview Settings
           email: data.bill_preview_settings?.email || '',
@@ -791,20 +791,29 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet }) => {
     }));
   };
 
+  // Handle Cancel
   const handleCancel = () => {
-    navigate('/dashboard');
+    // Navigate back to the Outlet.tsx page or call onBack
+    if (onBack) {
+      onBack();
+    } else {
+      navigate('/outlets'); // Adjust route as per your setup
+    }
   };
 
   const handleUpdate = async () => {
     if (!outletid || !hotelId) {
-      setError('Outlet ID and Hotel ID are required.');
+      toast.error('Outlet ID and Hotel ID are required');
       return;
     }
 
     setLoading(true);
-   
+    setError(null);
+    setSuccess(null);
 
     try {
+      console.log('Updating settings for outletid:', outletid, 'hotelId:', hotelId); // Debug log
+
       // Bill Preview Settings Payload
       const billPreviewPayload = {
         outlet_name: formData.outlet_name,
@@ -824,7 +833,6 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet }) => {
         field3: formData.field3,
         field4: formData.field4,
         fssai_no: formData.fssai_no,
-        
       };
 
       // KOT Print Settings Payload
@@ -922,7 +930,6 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet }) => {
         hide_item_rate_column: formData.hide_item_rate_column ? 1 : 0,
         hide_item_total_column: formData.hide_item_total_column ? 1 : 0,
         hide_total_without_tax: formData.hide_total_without_tax ? 1 : 0,
-        
       };
 
       // General Settings Payload
@@ -931,12 +938,22 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet }) => {
         allow_discount_after_bill_print: formData.allow_discount_after_bill_print ? 1 : 0,
         allow_discount_before_save: formData.allow_discount_before_save ? 1 : 0,
         allow_pre_order_tahd: formData.allow_pre_order_tahd ? 1 : 0,
-        ask_covers: formData.ask_covers,
+        ask_covers: {
+          dine_in: formData.ask_covers.dine_in ? 1 : 0,
+          pickup: formData.ask_covers.pickup ? 1 : 0,
+          delivery: formData.ask_covers.delivery ? 1 : 0,
+          quick_bill: formData.ask_covers.quick_bill ? 1 : 0,
+        },
         ask_covers_captain: formData.ask_covers_captain ? 1 : 0,
         ask_custom_order_id_quick_bill: formData.ask_custom_order_id_quick_bill ? 1 : 0,
         ask_custom_order_type_quick_bill: formData.ask_custom_order_type_quick_bill ? 1 : 0,
         ask_payment_mode_on_save_bill: formData.ask_payment_mode_on_save_bill ? 1 : 0,
-        ask_waiter: formData.ask_waiter,
+        ask_waiter: {
+          dine_in: formData.ask_waiter.dine_in ? 1 : 0,
+          pickup: formData.ask_waiter.pickup ? 1 : 0,
+          delivery: formData.ask_waiter.delivery ? 1 : 0,
+          quick_bill: formData.ask_waiter.quick_bill ? 1 : 0,
+        },
         ask_otp_change_order_status_order_window: formData.ask_otp_change_order_status_order_window ? 1 : 0,
         ask_otp_change_order_status_receipt_section: formData.ask_otp_change_order_status_receipt_section ? 1 : 0,
         auto_accept_remote_kot: formData.auto_accept_remote_kot ? 1 : 0,
@@ -944,7 +961,12 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet }) => {
         auto_sync: formData.auto_sync ? 1 : 0,
         category_time_for_pos: formData.category_time_for_pos,
         count_sales_after_midnight: formData.count_sales_after_midnight ? 1 : 0,
-        customer_mandatory: formData.customer_mandatory,
+        customer_mandatory: {
+          dine_in: formData.customer_mandatory.dine_in ? 1 : 0,
+          pickup: formData.customer_mandatory.pickup ? 1 : 0,
+          delivery: formData.customer_mandatory.delivery ? 1 : 0,
+          quick_bill: formData.customer_mandatory.quick_bill ? 1 : 0,
+        },
         default_ebill_check: formData.default_ebill_check ? 1 : 0,
         default_send_delivery_boy_check: formData.default_send_delivery_boy_check ? 1 : 0,
         edit_customize_order_number: formData.edit_customize_order_number,
@@ -962,7 +984,10 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet }) => {
         mandatory_delivery_boy_selection: formData.mandatory_delivery_boy_selection ? 1 : 0,
         mark_order_as_transfer_order: formData.mark_order_as_transfer_order ? 1 : 0,
         online_payment_auto_settle: formData.online_payment_auto_settle ? 1 : 0,
-        order_sync_settings: formData.order_sync_settings,
+        order_sync_settings: {
+          auto_sync_interval: formData.order_sync_settings.auto_sync_interval,
+          sync_batch_packet_size: formData.order_sync_settings.sync_batch_packet_size,
+        },
         separate_billing_by_section: formData.separate_billing_by_section ? 1 : 0,
         set_entered_amount_as_opening: formData.set_entered_amount_as_opening ? 1 : 0,
         show_alternative_item_report_print: formData.show_alternative_item_report_print ? 1 : 0,
@@ -972,7 +997,25 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet }) => {
         show_remote_kot_option: formData.show_remote_kot_option ? 1 : 0,
         show_send_payment_link: formData.show_send_payment_link ? 1 : 0,
         stock_availability_display: formData.stock_availability_display ? 1 : 0,
-        todays_report: formData.todays_report,
+        todays_report: {
+          sales_summary: formData.todays_report.sales_summary ? 1 : 0,
+          order_type_summary: formData.todays_report.order_type_summary ? 1 : 0,
+          payment_type_summary: formData.todays_report.payment_type_summary ? 1 : 0,
+          discount_summary: formData.todays_report.discount_summary ? 1 : 0,
+          expense_summary: formData.todays_report.expense_summary ? 1 : 0,
+          bill_summary: formData.todays_report.bill_summary ? 1 : 0,
+          delivery_boy_summary: formData.todays_report.delivery_boy_summary ? 1 : 0,
+          waiter_summary: formData.todays_report.waiter_summary ? 1 : 0,
+          kitchen_department_summary: formData.todays_report.kitchen_department_summary ? 1 : 0,
+          category_summary: formData.todays_report.category_summary ? 1 : 0,
+          sold_items_summary: formData.todays_report.sold_items_summary ? 1 : 0,
+          cancel_items_summary: formData.todays_report.cancel_items_summary ? 1 : 0,
+          wallet_summary: formData.todays_report.wallet_summary ? 1 : 0,
+          due_payment_received_summary: formData.todays_report.due_payment_received_summary ? 1 : 0,
+          due_payment_receivable_summary: formData.todays_report.due_payment_receivable_summary ? 1 : 0,
+          payment_variance_summary: formData.todays_report.payment_variance_summary ? 1 : 0,
+          currency_denominations_summary: formData.todays_report.currency_denominations_summary ? 1 : 0,
+        },
         upi_payment_sound_notification: formData.upi_payment_sound_notification ? 1 : 0,
         use_separate_bill_numbers_online: formData.use_separate_bill_numbers_online ? 1 : 0,
         when_send_todays_report: formData.when_send_todays_report,
@@ -980,41 +1023,65 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet }) => {
         enable_user_login_validation: formData.enable_user_login_validation ? 1 : 0,
         allow_closing_shift_despite_bills: formData.allow_closing_shift_despite_bills ? 1 : 0,
         show_real_time_kot_bill_notifications: formData.show_real_time_kot_bill_notifications ? 1 : 0,
-      
       };
 
-  const onlineOrdersPayload = {
-  outletid: outletid,
-  hotelid: hotelId,
-  show_in_preparation_kds: formData.show_in_preparation_kds,
-  auto_accept_online_order: formData.auto_accept_online_order,
-  customize_order_preparation_time: formData.customize_order_preparation_time,
-  online_orders_time_delay: parseInt(formData.online_orders_time_delay, 10) || 0,
-  pull_order_on_accept: formData.pull_order_on_accept,
-  show_addons_separately: formData.show_addons_separately,
-  show_complete_online_order_id: formData.show_complete_online_order_id,
-  show_online_order_preparation_time: formData.show_online_order_preparation_time,
-  update_food_ready_status_kds: formData.update_food_ready_status_kds,
-  
-};
+      // Online Orders Settings Payload
+      const onlineOrdersPayload = {
+        outletid,
+        hotelId,
+        show_in_preparation_kds: formData.show_in_preparation_kds ? 1 : 0,
+        auto_accept_online_order: formData.auto_accept_online_order ? 1 : 0,
+        customize_order_preparation_time: formData.customize_order_preparation_time ? 1 : 0,
+        online_orders_time_delay: parseInt(formData.online_orders_time_delay, 10) || 0,
+        pull_order_on_accept: formData.pull_order_on_accept ? 1 : 0,
+        show_addons_separately: formData.show_addons_separately ? 1 : 0,
+        show_complete_online_order_id: formData.show_complete_online_order_id ? 1 : 0,
+        show_online_order_preparation_time: formData.show_online_order_preparation_time ? 1 : 0,
+        update_food_ready_status_kds: formData.update_food_ready_status_kds ? 1 : 0,
+      };
 
-      // Perform separate PUT requests for each section
-      await axios.put(`${baseUrl}/api/outlets/bill-preview-settings/${outletid}`, billPreviewPayload);
-      await axios.put(`${baseUrl}/api/outlets/kot-print-settings/${outletid}`, kotPrintPayload);
-      await axios.put(`${baseUrl}/api/outlets/bill-print-settings/${outletid}`, billPrintPayload);
-      await axios.put(`${baseUrl}/api/outlets/general-settings/${outletid}`, generalPayload);
-      await axios.put(`${baseUrl}/api/outlets/online-orders-settings/${outletid}`, onlineOrdersPayload);
+      // Perform separate PUT requests for each section with error handling
+      const requests = [
+      axios.put(`${baseUrl}/api/outlets/bill-preview-settings/${outletid}`, billPreviewPayload, {
+        headers: { 'Content-Type': 'application/json' },
+      }),
+      axios.put(`${baseUrl}/api/outlets/kot-print-settings/${outletid}`, kotPrintPayload, {
+        headers: { 'Content-Type': 'application/json' },
+      }),
+      axios.put(`${baseUrl}/api/outlets/bill-print-settings/${outletid}`, billPrintPayload, {
+        headers: { 'Content-Type': 'application/json' },
+      }),
+      axios.put(`${baseUrl}/api/outlets/general-settings/${outletid}`, generalPayload, {
+        headers: { 'Content-Type': 'application/json' },
+      }),
+      axios.put(`${baseUrl}/api/outlets/online-orders-settings/${outletid}`, onlineOrdersPayload, {
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    ];
 
-      setSuccess('Settings updated successfully');
-      navigate('/dashboard');
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to update settings');
-      console.error('Error updating settings:', err);
-    } finally {
-      setLoading(false);
+    // Wait for all requests to complete
+    await Promise.all(requests);
+
+    setSuccess('Settings updated successfully');
+    navigate('/outlets');
+  } catch (err: any) {
+    const errorMessage = err.response?.data?.message || err.message || 'Failed to update settings';
+    setError(`Error updating settings: ${errorMessage}`);
+    console.error('Error updating settings:', err.response?.status, err.response?.data, err.message);
+    if (err.response?.status === 404) {
+      console.log('Endpoint not found. Check the following URLs:', {
+        billPreview: `${baseUrl}/api/outlets/bill-preview-settings/${outletid}`,
+        kotPrint: `${baseUrl}/api/outlets/kot-print-settings/${outletid}`,
+        billPrint: `${baseUrl}/api/outlets/bill-print-settings/${outletid}`,
+        general: `${baseUrl}/api/outlets/general-settings/${outletid}`,
+        onlineOrders: `${baseUrl}/api/outlets/online-orders-settings/${outletid}`,
+      });
     }
-  };
-
+    toast.error(errorMessage);
+  } finally {
+    setLoading(false);
+  }
+};
   return (
     <div className="m-0">
       {success && (
@@ -1036,7 +1103,23 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet }) => {
       )}
       {!loading && (
         <div>
-          <h1 className="display-6 fw-bold mb-4">Outlet Level Settings</h1>
+          <div className="d-flex justify-content-between align-items-center mb-4">
+            {/* Left side heading */}
+            <h1 className="display-6 fw-bold mb-0">Outlet Level Settings</h1>
+
+            {/* Right side buttons */}
+            <div
+              className="d-flex justify-content-end gap-3 mt-4"
+              style={{ padding: '10px' }}
+            >
+              <Button className="btn btn-danger" onClick={handleCancel}>
+                Cancel
+              </Button>
+              <Button className="btn btn-success" onClick={handleUpdate}>
+                Update
+              </Button>
+            </div>
+          </div>
           <ul className="nav nav-tabs mb-4" id="settingsTabs" role="tablist">
             <li className="nav-item" role="presentation">
               <button
@@ -5187,8 +5270,8 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet }) => {
           </div>
         </div>
       )}
-       </div>
-      );
-  }
-  
-  export default AddOutlet;
+    </div>
+  );
+}
+
+export default AddOutlet;
