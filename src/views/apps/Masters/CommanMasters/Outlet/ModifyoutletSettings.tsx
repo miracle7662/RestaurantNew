@@ -191,14 +191,9 @@ const ModifyOutletSettingsModal: React.FC<{
     }
   }, [show, selectedOutlet]);
 
-<<<<<<< Updated upstream
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const target = e.target as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
     const { id, value, type } = target;
-=======
-  const handleChange = (e: React.ChangeEvent<any>) => {
-    const { id, value, type, checked } = e.target;
->>>>>>> Stashed changes
     setFormData((prev) => ({
       ...prev,
       [id]: (type === 'checkbox' || type === 'switch')
