@@ -3,9 +3,9 @@ import { Button, Modal, Form, Row, Col, Card, Tabs, Tab, Pagination, Stack, Spin
 import { toast } from 'react-toastify';
 import { useAuthContext } from '@/common';
 import outletUserService, { OutletUserData, HotelAdminData } from '@/common/api/outletUser';
-import { fetchDesignation, fetchUserType, fetchOutlets } from '@/utils/commonfunction';
+import { fetchDesignation, fetchUserType, fetchOutletsForDropdown } from '@/utils/commonfunction';
 import { OutletData } from '@/common/api/outlet';
-import Select, { MultiValue } from 'react-select';
+import Select from 'react-select';
 import {
   useReactTable,
   getCoreRowModel,
@@ -14,11 +14,6 @@ import {
   ColumnDef,
   flexRender,
 } from '@tanstack/react-table';
-
-interface Option {
-  value: number;
-  label: string;
-}
 
 interface CombinedUser {
   userid?: number;
@@ -127,13 +122,13 @@ const OutletUserList: React.FC = () => {
     }
   }, [user]);
 
-  const fetchMasterData = useCallback(async () => {
-    await Promise.all([
-      fetchOutlets(user, setOutlets, () => {}),
-      fetchDesignation(setDesignations, () => {}),
-      fetchUserType(setUserTypes, () => {})
-    ]);
-  }, [user]);
+      const fetchMasterData = useCallback(async () => {
+        await Promise.all([
+          fetchOutletsForDropdown(user, setOutlets, () => {}),
+          fetchDesignation(setDesignations, () => {}),
+          fetchUserType(setUserTypes, () => {})
+        ]);
+      }, [user]);
 
   // Reset form
   const resetForm = useCallback(() => {

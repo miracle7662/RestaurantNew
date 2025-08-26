@@ -96,4 +96,5 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     </>
   )
 }
-export default useAuthContext
+
+export default AuthProvider

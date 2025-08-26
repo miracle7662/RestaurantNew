@@ -1,149 +1,141 @@
-import axios from 'axios';
-import config from '../../config';
+import { APICore } from './apiCore'
 
-const API_URL = `${config.API_URL}/api/outlet-users`;
+const api = new APICore()
 
-export interface OutletUser {
-  userid: number;
-  username: string;
-  email: string;
-  full_name: string;
-  phone: string;
-  role_level: string;
-  status: number;
-  hotel_name: string;
-  outlet_name: string;
-  outletids: number[];
-  designation: string;
-  user_type: string;
-  shift_time: string;
-  mac_address: string;
-  assign_warehouse: string;
-  language_preference: string;
-  address: string;
-  city: string;
-  sub_locality: string;
-  web_access: boolean;
-  self_order: boolean;
-  captain_app: boolean;
-  kds_app: boolean;
-  captain_old_kot_access: boolean;
-  verify_mac_ip: boolean;
-  parent_user_id: number;
-  created_by_id: number;
-  hotelid: number;
-  password?: string;
+// Interface for outlet user data
+export interface OutletUserData {
+  userid?: number
+  username: string
+  email: string
+  password?: string
+  full_name: string
+  phone?: string
+  role_level: string
+  outletids?: number[]; // Changed to outletids
+  designation?: string
+  user_type?: string
+  shift_time?: string
+  mac_address?: string
+  assign_warehouse?: string
+  language_preference?: string
+  address?: string
+  city?: string
+  sub_locality?: string
+  web_access?: boolean
+  self_order?: boolean
+  captain_app?: boolean
+  kds_app?: boolean
+  captain_old_kot_access?: string
+  verify_mac_ip?: boolean
+  brand_id?: number
+  hotelid?: number
+  parent_user_id?: number
+  status?: number
+  created_by_id?: number
+  created_date?: string
+  updated_by_id?: number
+  updated_date?: string
+  brand_name?: string
+  hotel_name?: string
+  outlet_name?: string
 }
 
-export interface Outlet {
-  outletid: number;
-  outlet_name: string;
-  outlet_code: string;
-  brand_name: string;
+// Interface for hotel admin data
+export interface HotelAdminData {
+  userid?: number
+  username?: string
+  email?: string
+  full_name: string
+  phone?: string
+  role_level?: string
+  brand_id?: number
+  hotel_id?: number
+  brand_name?: string
+  hotel_name?: string
+  status?: number
+  created_date?: string
+  last_login?: string
 }
 
-export interface HotelAdmin {
-  userid: number;
-  username: string;
-  full_name: string;
-  hotel_name: string;
+// Interface for dropdown options
+export interface DropdownOption {
+  id: number
+  name: string
 }
 
-// Get all outlet users
-export const getOutletUsers = async (params?: any) => {
-  try {
-    const response = await axios.get(`${API_URL}`, { params });
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching outlet users:', error);
-    throw error;
+class OutletUserService {
+  // Get outlet users (filtered by role)
+  getOutletUsers = (params?: { 
+    currentUserId?: number; 
+    roleLevel?: string; 
+    brandId?: number; 
+    hotelId?: number; 
+    outletid?: number;
+    created_by_id?: number;
+    
+  }) => {
+    return api.get('/api/outlet-users', params || {})
   }
-};
 
-// Create new outlet user
-export const createOutletUser = async (userData: Partial<OutletUser>) => {
-  try {
-    const response = await axios.post(`${API_URL}`, userData);
-    return response.data;
-  } catch (error) {
-    console.error('Error creating outlet user:', error);
-    throw error;
+  // Get hotel admins specifically
+  getHotelAdmins = (params?: { 
+    currentUserId?: number; 
+    roleLevel?: string; 
+    brandId?: number; 
+    hotelid?: number 
+    
+  }) => {
+    return api.get('/api/outlet-users/hotel-admins', params || {})
   }
-};
 
-// Update outlet user
-export const updateOutletUser = async (id: number, userData: Partial<OutletUser>) => {
-  try {
-    const response = await axios.put(`${API_URL}/${id}`, userData);
-    return response.data;
-  } catch (error) {
-    console.error('Error updating outlet user:', error);
-    throw error;
+  // Get outlets for dropdown (filtered by role)
+  getOutletsForDropdown = (params?: { 
+    roleLevel?: string; 
+    brandId?: number; 
+    hotelid?: number 
+  }) => {
+    return api.get('/api/outlet-users/outlets', params || {})
   }
-};
 
-// Delete outlet user
-export const deleteOutletUser = async (id: number) => {
-  try {
-    const response = await axios.delete(`${API_URL}/${id}`);
-    return response.data;
-  } catch (error) {
-    console.error('Error deleting outlet user:', error);
-    throw error;
+  // Get designations for dropdown
+  getDesignations = () => {
+    return api.get('/api/outlet-users/designations', {})
   }
-};
 
-// Get outlets for dropdown
-export const getOutletsForDropdown = async (params?: any) => {
-  try {
-    const response = await axios.get(`${API_URL}/outlets-dropdown`, { params });
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching outlets for dropdown:', error);
-    throw error;
+  // Get user types for dropdown
+  getUserTypes = () => {
+    return api.get('/api/outlet-users/user-types', {})
   }
-};
 
-// Get hotel admins
-export const getHotelAdmins = async (params?: any) => {
-  try {
-    const response = await axios.get(`${API_URL}/hotel-admins`, { params });
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching hotel admins:', error);
-    throw error;
+  // Get outlet user by ID
+  getOutletUserById = (id: number) => {
+    return api.get(`/api/outlet-users/${id}`, {})
   }
-};
 
-// Get outlet user by ID
-export const getOutletUserById = async (id: number) => {
-  try {
-    const response = await axios.get(`${API_URL}/${id}`);
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching outlet user by ID:', error);
-    throw error;
+  // Get hotel admin by ID
+  getHotelAdminById = (id: number) => {
+    return api.get(`/api/outlet-users/hotel-admin/${id}`, {})
   }
-};
 
-// Get designations
-export const getDesignations = async () => {
-  try {
-    const response = await axios.get(`${API_URL}/designations`);
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching designations:', error);
-    throw error;
+  // Create new outlet user
+  createOutletUser = (data: OutletUserData) => {
+    return api.create('/api/outlet-users', data)
   }
-};
 
-// Get user types
-export const getUserTypes = async () => {
-  try {
-    const response = await axios.get(`${API_URL}/user-types`);
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching user types:', error);
-    throw error;
+  // Update outlet user
+  updateOutletUser = (id: number, data: OutletUserData) => {
+    return api.update(`/api/outlet-users/${id}`, data)
   }
-};
+
+  // Update hotel admin
+  updateHotelAdmin = (id: number, data: HotelAdminData) => {
+    return api.update(`/api/outlet-users/hotel-admin/${id}`, data)
+  }
+
+  // Delete outlet user (soft delete)
+  deleteOutletUser = (id: number, data: { updated_by_id: number }) => {
+    return api.update(`/api/outlet-users/${id}`, { is_active: 0, ...data })
+  }
+}
+
+export default new OutletUserService() 

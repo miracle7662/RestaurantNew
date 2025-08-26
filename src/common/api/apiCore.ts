@@ -4,15 +4,7 @@ import config from '@/config'
 
 // content type
 axios.defaults.headers.post['Content-Type'] = 'application/json'
-
-// Handle Electron environment
-const isElectron = typeof window !== 'undefined' && 
-  window.process && 
-  window.process.versions && 
-  window.process.versions.electron;
-
-const baseURL = config.API_URL;
-axios.defaults.baseURL = baseURL;
+axios.defaults.baseURL = config.API_URL
 
 // intercepting to capture errors
 axios.interceptors.response.use(

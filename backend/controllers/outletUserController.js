@@ -9,7 +9,7 @@ exports.getOutletUsers = (req, res) => {
         let query = `
             SELECT u.*, 
                    h.hotel_name as hotel_name,
-                   o.outlet_name
+                   GROUP_CONCAT(o.outlet_name) as outlet_name
             FROM mst_users u
             LEFT JOIN msthotelmasters h ON u.hotelid = h.hotelid
             LEFT JOIN user_outlet_mapping uom ON u.userid = uom.userid
@@ -30,7 +30,7 @@ exports.getOutletUsers = (req, res) => {
                 return res.status(403).json({ message: 'Insufficient permissions' });
         }
         
-        query += ' ORDER BY CASE WHEN u.role_level = \'hotel_admin\' THEN 0 ELSE 1 END, u.created_date DESC';
+        query += ' GROUP BY u.userid ORDER BY CASE WHEN u.role_level = \'hotel_admin\' THEN 0 ELSE 1 END, u.created_date DESC';
         
         const users = db.prepare(query).all(...params);
         res.json(users);
@@ -40,64 +40,46 @@ exports.getOutletUsers = (req, res) => {
     }
 };
 
-
+// Get outlets for dropdown (filtered by user role)
 exports.getOutletsForDropdown = (req, res) => {
-  try {
-    const { role_level, brandId, hotelid, userid } = req.query;
-    const user = req.user || {};
-
-    console.log('Received req.query:', req.query);
-
-    let query = `
-      SELECT o.outletid, o.outlet_name, o.outlet_code, 
-             b.hotel_name as brand_name
-      FROM mst_outlets o
-      INNER JOIN msthotelmasters b ON o.hotelid = b.hotelid
-      INNER JOIN user_outlet_mapping uom ON o.outletid = uom.outletid
-      INNER JOIN mst_users u ON u.userid = uom.userid
-      WHERE o.status = 0
-    `;
-    
-    const params = [];
-    
-    switch (role_level) {
-      case 'superadmin':
-        break; // All active outlets
-      case 'brand_admin':
-        query += ' AND o.brand_id = ?';
-        params.push(brandId);
-        break;
-      case 'hotel_admin':
-        query += ' AND o.hotelid = ?';
-        params.push(hotelid);
-        break;
-      case 'outlet_user':
-        query += ' AND o.hotelid = ? AND uom.userid = ?';
-        params.push(hotelid, userid || user.userid);
-        if (!params[params.length - 1]) {
-          return res.status(400).json({ message: 'User ID is required for outlet_user' });
+    try {
+        const { roleLevel, brandId, hotelid } = req.query;
+        
+        let query = `
+            SELECT o.outletid, o.outlet_name, o.outlet_code, 
+                   b.hotel_name as brand_name
+            FROM mst_outlets o
+            LEFT JOIN msthotelmasters b ON o.hotelid = b.hotelid
+            WHERE o.status = 0
+        `;
+        
+        const params = [];
+        
+        switch(roleLevel) {
+            case 'superadmin':
+                break;
+            case 'brand_admin':
+                query += ' AND o.brand_id = ?';
+                params.push(brandId);
+                break;
+            case 'hotel_admin':
+                query += ' AND o.brand_id = ?';
+                params.push(brandId);
+                break;
+            default:
+                return res.status(403).json({ message: 'Insufficient permissions' });
         }
-        break;
-      default:
-        return res.status(403).json({ message: 'Insufficient permissions' });
+        
+        query += ' ORDER BY o.outlet_name';
+        
+        const outlets = db.prepare(query).all(...params);
+        res.json(outlets);
+    } catch (error) {
+        console.error('Error fetching outlets for dropdown:', error);
+        res.status(500).json({ message: 'Internal server error' });
     }
-    
-    query += ' ORDER BY o.outlet_name';
-    
-    console.log('Constructed query:', query, 'with params:', params);
-    const outlets = db.prepare(query).all(...params);
-    console.log('Found outlets:', outlets);
-    
-    if (outlets.length === 0) {
-      return res.status(404).json({ message: 'No outlets found for the user' });
-    }
-    
-    res.json(outlets);
-  } catch (error) {
-    console.error('Error fetching outlets for dropdown:', error);
-    res.status(500).json({ message: 'Internal server error', error: error.message });
-  }
 };
+
 // Create new outlet user
 exports.createOutletUser = async (req, res) => {
     try {
@@ -196,7 +178,7 @@ exports.createOutletUser = async (req, res) => {
             INSERT INTO user_outlet_mapping (userid, hotelid, outletid)
             VALUES (?, ?, ?)
         `);
-        for (const outletid of outletids) {
+        for (const outletid of outletIds) {
             insertMapping.run(userid, finalHotelId, outletid);
         }
 
@@ -569,45 +551,3 @@ exports.updateHotelAdmin = async (req, res) => {
         res.status(500).json({ message: 'Internal server error' });
     }
 };
-
-// exports.AllOutletsForHotelUser = (req, res) => {
-//     try {
-//         const { currentUserId, roleLevel, hotelid, outletid } = req.query;
-        
-//         let query = `
-//             SELECT u.*, 
-//                    h.hotel_name as hotel_name,
-//                    o.outlet_name
-//             FROM mst_users u
-//             LEFT JOIN msthotelmasters h ON u.hotelid = h.hotelid
-//             LEFT JOIN user_outlet_mapping uom ON u.userid = uom.userid
-//             LEFT JOIN mst_outlets o ON uom.outletid = o.outletid
-//             WHERE u.status = 0 AND (u.role_level = 'outlet_user' OR u.role_level = 'hotel_admin')
-//         `;
-        
-//         const params = [];
-        
-//         switch(roleLevel) {
-//             case 'superadmin':
-//                 break;          
-//             case 'hotel_admin':
-//                 query += ' AND u.hotelid = ?';
-//                 params.push(hotelid);
-//                 break;
-//                 case 'outlet_user':
-//                 query += ' AND u.hotelid = ?';
-//                 params.push(hotelid);
-//                 break;
-//             default:
-//                 return res.status(403).json({ message: 'Insufficient permissions' });
-//         }
-        
-//         query += ' ORDER BY CASE WHEN u.role_level = \'hotel_admin\' THEN 0 ELSE 1 END, u.created_date DESC';
-        
-//         const users = db.prepare(query).all(...params);
-//         res.json(users);
-//     } catch (error) {
-//         console.error('Error fetching outlet users:', error);
-//         res.status(500).json({ message: 'Internal server error' });
-//     }
-// };

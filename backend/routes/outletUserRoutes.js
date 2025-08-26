@@ -1,9 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const authMiddleware = require('../middleware/authMiddleware'); // Import the auth middleware
 const outletUserController = require('../controllers/outletUserController');
-
-router.use(authMiddleware); // Apply the auth middleware to all routes
 
 // Get outlet users (filtered by role)
 router.get('/', outletUserController.getOutletUsers);
@@ -13,6 +10,7 @@ router.get('/hotel-admins', outletUserController.getHotelAdmins);
 
 // Get outlets for dropdown (filtered by role)
 router.get('/outlets-dropdown', outletUserController.getOutletsForDropdown); // Changed from /outlets
+
 // Get designations for dropdown
 router.get('/designations', outletUserController.getDesignations);
 
