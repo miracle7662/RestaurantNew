@@ -1062,8 +1062,10 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
     // Wait for all requests to complete
     await Promise.all(requests);
 
-    setSuccess('Settings updated successfully');
-    navigate('/outlets');
+    
+    setSuccess('Settings updatede successfully');
+  
+   
   } catch (err: any) {
     const errorMessage = err.response?.data?.message || err.message || 'Failed to update settings';
     setError(`Error updating settings: ${errorMessage}`);
@@ -1077,9 +1079,16 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
         onlineOrders: `${baseUrl}/api/outlets/online-orders-settings/${outletid}`,
       });
     }
+    
+   
     toast.error(errorMessage);
   } finally {
     setLoading(false);
+      if (onBack) {
+      onBack();
+    } else {
+      navigate('/outlets'); // Adjust route as per your setup
+    }
   }
 };
   return (
