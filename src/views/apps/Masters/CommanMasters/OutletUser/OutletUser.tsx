@@ -334,27 +334,27 @@ const handleModalSubmit = async () => {
 
     console.log('Submitting userData to backend:', JSON.stringify(userData, null, 2));
 
-    try {
-      if (modalType === 'Edit Outlet User' && selectedUser) {
-        console.log(`Updating outlet user with userid: ${selectedUser.userid}`);
-        const response = await outletUserService.updateOutletUser(selectedUser.userid!, userData);
-        console.log('Update response:', response.data);
-        toast.success('Outlet user updated successfully!');
-      } else {
-        console.log('Creating new outlet user');
-        const response = await outletUserService.createOutletUser(userData);
-        console.log('Create response:', response.data);
-        toast.success('Outlet user added successfully!');
-      }
-      fetchOutletUsers();
-      handleCloseModal();
-    } catch (error: any) {
-      console.error('Error saving outlet user:', error);
-      const errorMessage = error.response?.data?.message || (modalType === 'Edit Outlet User' ? 'Failed to update outlet user' : 'Failed to add outlet user');
-      const invalidOutletIds = error.response?.data?.invalidOutletIds || [];
-      console.error('Error details:', { message: errorMessage, invalidOutletIds, sentOutletIds: selectedOutlet, response: error.response?.data });
-      toast.error(`${errorMessage}${invalidOutletIds.length > 0 ? ` (Invalid Outlet IDs: ${invalidOutletIds.join(', ')})` : ''}`);
+try {
+    if (modalType === 'Edit Outlet User' && selectedUser) {
+      const response = await outletUserService.updateOutletUser(selectedUser.userid!, userData);
+      console.log('Update response:', response.data);
+      toast.success('Outlet user updated successfully!');
+    } else {
+      const response = await outletUserService.createOutletUser(userData);
+      console.log('Create response:', response.data);
+      toast.success('Outlet user added successfully!');
     }
+    fetchOutletUsers();
+    handleCloseModal();
+  } catch (error: any) {
+    console.error('Full error object:', error);
+    const status = error.response?.status;
+    const errorData = error.response?.data || error.message;
+    const errorMessage = errorData?.message || (modalType === 'Edit Outlet User' ? 'Failed to update outlet user' : 'Failed to add outlet user');
+    const invalidOutletIds = errorData?.invalidOutletIds || [];
+    console.log('Error details:', { status, message: errorMessage, invalidOutletIds, sentOutletIds: selectedOutlet, response: errorData });
+    toast.error(`${errorMessage}${invalidOutletIds.length > 0 ? ` (Invalid Outlet IDs: ${invalidOutletIds.join(', ')})` : ''}`);
+  }
   }
 };
 
