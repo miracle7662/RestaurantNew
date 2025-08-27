@@ -201,7 +201,7 @@ exports.createOutletUser = async (req, res) => {
 // Update outlet user
 exports.updateOutletUser = async (req, res) => {
     try {
-        const { userid } = req.params;
+        const { id: userid } = req.params;
         const {
             full_name,
             phone,
@@ -243,66 +243,66 @@ exports.updateOutletUser = async (req, res) => {
             updateFields.push('phone = ?');
             params.push(phone);
         }
-        if (designation !== undefined) {
-            updateFields.push('designation = ?');
-            params.push(designation);
-        }
-        if (user_type !== undefined) {
-            updateFields.push('user_type = ?');
-            params.push(user_type);
-        }
-        if (shift_time !== undefined) {
-            updateFields.push('shift_time = ?');
-            params.push(shift_time);
-        }
-        if (mac_address !== undefined) {
-            updateFields.push('mac_address = ?');
-            params.push(mac_address);
-        }
-        if (assign_warehouse !== undefined) {
-            updateFields.push('assign_warehouse = ?');
-            params.push(assign_warehouse);
-        }
-        if (language_preference !== undefined) {
-            updateFields.push('language_preference = ?');
-            params.push(language_preference);
-        }
-        if (address !== undefined) {
-            updateFields.push('address = ?');
-            params.push(address);
-        }
-        if (city !== undefined) {
-            updateFields.push('city = ?');
-            params.push(city);
-        }
-        if (sub_locality !== undefined) {
-            updateFields.push('sub_locality = ?');
-            params.push(sub_locality);
-        }
-        if (web_access !== undefined) {
-            updateFields.push('web_access = ?');
-            params.push(web_access);
-        }
-        if (self_order !== undefined) {
-            updateFields.push('self_order = ?');
-            params.push(self_order);
-        }
-        if (captain_app !== undefined) {
-            updateFields.push('captain_app = ?');
-            params.push(captain_app);
-        }
-        if (kds_app !== undefined) {
-            updateFields.push('kds_app = ?');
-            params.push(kds_app);
-        }
-        if (captain_old_kot_access !== undefined) {
-            updateFields.push('captain_old_kot_access = ?');
-            params.push(captain_old_kot_access);
-        }
-        if (verify_mac_ip !== undefined) {
-            updateFields.push('verify_mac_ip = ?');
-            params.push(verify_mac_ip);
-        }
+        // if (designation !== undefined) {
+        //     updateFields.push('designation = ?');
+        //     params.push(designation);
+        // }
+        // if (user_type !== undefined) {
+        //     updateFields.push('user_type = ?');
+        //     params.push(user_type);
+        // }
+        // if (shift_time !== undefined) {
+        //     updateFields.push('shift_time = ?');
+        //     params.push(shift_time);
+        // }
+        // if (mac_address !== undefined) {
+        //     updateFields.push('mac_address = ?');
+        //     params.push(mac_address);
+        // }
+        // if (assign_warehouse !== undefined) {
+        //     updateFields.push('assign_warehouse = ?');
+        //     params.push(assign_warehouse);
+        // }
+        // if (language_preference !== undefined) {
+        //     updateFields.push('language_preference = ?');
+        //     params.push(language_preference);
+        // }
+        // if (address !== undefined) {
+        //     updateFields.push('address = ?');
+        //     params.push(address);
+        // }
+        // if (city !== undefined) {
+        //     updateFields.push('city = ?');
+        //     params.push(city);
+        // }
+        // if (sub_locality !== undefined) {
+        //     updateFields.push('sub_locality = ?');
+        //     params.push(sub_locality);
+        // }
+        // if (web_access !== undefined) {
+        //     updateFields.push('web_access = ?');
+        //     params.push(web_access);
+        // }
+        // if (self_order !== undefined) {
+        //     updateFields.push('self_order = ?');
+        //     params.push(self_order);
+        // }
+        // if (captain_app !== undefined) {
+        //     updateFields.push('captain_app = ?');
+        //     params.push(captain_app);
+        // }
+        // if (kds_app !== undefined) {
+        //     updateFields.push('kds_app = ?');
+        //     params.push(kds_app);
+        // }
+        // if (captain_old_kot_access !== undefined) {
+        //     updateFields.push('captain_old_kot_access = ?');
+        //     params.push(captain_old_kot_access);
+        // }
+        // if (verify_mac_ip !== undefined) {
+        //     updateFields.push('verify_mac_ip = ?');
+        //     params.push(verify_mac_ip);
+        // }
         if (status !== undefined) {
             updateFields.push('status = ?');
             params.push(status);
