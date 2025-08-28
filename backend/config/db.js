@@ -213,9 +213,11 @@ CREATE TABLE IF NOT EXISTS mst_users (
     parent_user_id INTEGER, -- References the user who created this user
     brand_id INTEGER, -- References HotelMasters.Hotelid
     hotelid INTEGER, -- References HotelMasters.Hotelid (for hotel_admin and outlet_user)
-   
-    designation TEXT, -- Designation for outlet user
+    
+    Designation TEXT, -- Designation for outlet user
+    designationid INTEGER, -- Designation ID for outlet user
     user_type TEXT, -- User type for outlet user
+    usertypeid INTEGER, -- User type ID for outlet user
     shift_time TEXT, -- Shift time for outlet user
     mac_address TEXT, -- MAC address for outlet user
     assign_warehouse TEXT, -- Assigned warehouse for outlet user

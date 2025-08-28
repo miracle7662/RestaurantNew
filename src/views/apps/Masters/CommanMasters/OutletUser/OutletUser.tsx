@@ -167,7 +167,10 @@ const OutletUserList: React.FC = () => {
     setEmail(user.email || '');
     setFullName(user.full_name || '');
     setPhone(user.phone || '');
-    setSelectedOutlet(user.outletids ? (Array.isArray(user.outletids) ? user.outletids : (user.outletids as string).split(',').map(Number)) : null); setShiftTime(user.shift_time || '');
+    setSelectedOutlet(user.outletids ? (Array.isArray(user.outletids) ? user.outletids : (user.outletids as string).split(',').map(Number)) : null);
+    setSelectedDesignation(user.designationid ? Number(user.designationid) : null);  // Convert to number if string
+    setSelectedUserType(user.usertypeid ? Number(user.usertypeid) : null);        // Convert to number if string
+    setShiftTime(user.shift_time || '');
     setMacAddress(user.mac_address || '');
     setAssignWarehouse(user.assign_warehouse || '');
     setLanguagePreference(user.language_preference || 'English');
@@ -311,8 +314,10 @@ const OutletUserList: React.FC = () => {
         phone,
         role_level: 'outlet_user',
         outletids: selectedOutlet, // Send as array
-        designation: selectedDesignation?.toString(),
+        Designation: selectedDesignation?.toString(),
+        designationid: selectedDesignation ? Number(selectedDesignation) : undefined,
         user_type: selectedUserType?.toString(),
+        usertypeid: selectedUserType ? Number(selectedUserType) : undefined,
         shift_time: shiftTime,
         mac_address: macAddress,
         assign_warehouse: assignWarehouse,
@@ -507,7 +512,7 @@ const OutletUserList: React.FC = () => {
                       <td>{outletUser.username}</td>
                       <td>{outletUser.email}</td>
                       <td>{outletUser.phone || 'N/A'}</td>
-                      <td>{outletUser.designation || 'N/A'}</td>
+                      <td>{outletUser.Designation || 'N/A'}</td>
                       <td>{outletUser.user_type || 'N/A'}</td>
                       <td>
                         <span className={`badge ${outletUser.status === 0 ? 'bg-success' : 'bg-danger'}`}>
