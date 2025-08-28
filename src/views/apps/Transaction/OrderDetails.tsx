@@ -1,7 +1,7 @@
 import React, { useState, useEffect, Dispatch, SetStateAction, useRef, useMemo, useCallback } from 'react';
-import { Row, Col, Card, Modal } from 'react-bootstrap'; // Using Modal from react-bootstrap
+import { Row, Col, Card, Modal } from 'react-bootstrap';
 import { fetchItemGroup, ItemGroupItem, fetchMenu, MenuItem } from '@/utils/commonfunction';
-import CustomerModal from './Customers'; // Adjust the import path as needed
+import CustomerModal from './Customers';
 
 // Interface for menu items used in state
 interface MenuItemState {
@@ -22,6 +22,23 @@ interface CardItem {
   item_group_id: number | null;
 }
 
+// Interface for table items (from Orders.tsx)
+interface TableItem {
+  tablemanagementid: string;
+  table_name: string;
+  hotel_name: string;
+  outlet_name: string;
+  status: string;
+  created_by_id: string;
+  created_date: string;
+  updated_by_id: string;
+  updated_date: string;
+  hotelid: string;
+  marketid: string;
+  isActive: boolean;
+  isCommonToAllDepartments: boolean;
+}
+
 // Interface for component props
 interface OrderDetailsProps {
   tableId?: string | null;
@@ -31,9 +48,10 @@ interface OrderDetailsProps {
   setSelectedTable: Dispatch<SetStateAction<string | null>>;
   invalidTable: string;
   setInvalidTable: Dispatch<SetStateAction<string>>;
+  filteredTables: TableItem[];
 }
 
-// Define the category keys as a union type
+// Define category keys
 type Category =
   | 'All'
   | 'Appetizers'
@@ -46,7 +64,7 @@ type Category =
   | 'Breakfast'
   | 'VeganOptions';
 
-// Interface for dropdownState
+// Interface for dropdown state
 interface DropdownState {
   Appetizers: boolean;
   MainCourse: boolean;
@@ -67,6 +85,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
   setSelectedTable,
   invalidTable,
   setInvalidTable,
+  filteredTables,
 }) => {
   const [dropdownState, setDropdownState] = useState<DropdownState>({
     Appetizers: false,
@@ -90,25 +109,28 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
   const [hasTyped, setHasTyped] = useState<boolean>(false);
   const [isTableInvalid, setIsTableInvalid] = useState<boolean>(false);
   const [itemGroup, setItemGroup] = useState<ItemGroupItem[]>([]);
-  const [itemGroupId, setItemGroupId] = useState<number | null>(null);
   const [cardItems, setCardItems] = useState<CardItem[]>([]);
   const [showNameDropdown, setShowNameDropdown] = useState<boolean>(false);
   const [selectedNameIndex, setSelectedNameIndex] = useState(-1);
-  const [showCustomerModal, setShowCustomerModal] = useState<boolean>(false); // State to control CustomerModal
+  const [showCustomerModal, setShowCustomerModal] = useState<boolean>(false);
 
   const codeInputRef = useRef<HTMLInputElement>(null);
   const quantityInputRef = useRef<HTMLInputElement>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
 
-  const validTables = [
-    'F1', 'F2', 'F3', 'F4', 'F5', 'F5A', 'F6', 'R2', 'R3', 'R4',
-    'R5', 'R6', 'R7', 'R8', 'R9', 'R12', 'R14', 'R15', 'S1', 'S2',
-    'S3', '104', '105',
-  ];
+  // Derive valid tables from filteredTables
+  const validTables = useMemo(
+    () =>
+      filteredTables
+        .filter((table) => table && table.table_name)
+        .map((table) => table.table_name),
+    [filteredTables]
+  );
 
+  // Get category from item group
   const getCategoryFromItemGroup = (itemGroupId: number | null): Category => {
     if (!itemGroupId) return 'All';
-    const group = itemGroup.find(g => g.item_groupid === itemGroupId);
+    const group = itemGroup.find((g) => g.item_groupid === itemGroupId);
     if (!group) return 'All';
     const cleanName = group.itemgroupname.replace(/\.\.\./, '').trim().toLowerCase();
     const categoryMap: { [key: string]: Category } = {
@@ -125,18 +147,18 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
     return categoryMap[cleanName] || 'All';
   };
 
+  // Handle window resize for mobile detection
   useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Validate table input
   useEffect(() => {
     if (searchTable) {
       setHasTyped(true);
-      if (validTables.includes(searchTable)) {
+      if (validTables.some((table) => table.toLowerCase() === searchTable.toLowerCase())) {
         setSelectedTable(searchTable);
         setItems([]);
         setInvalidTable('');
@@ -151,17 +173,18 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
       setIsTableInvalid(false);
       setHasTyped(false);
     }
-  }, [searchTable, setSelectedTable, setItems, setInvalidTable, hasTyped]);
+  }, [searchTable, setSelectedTable, setItems, setInvalidTable, hasTyped, validTables]);
 
+  // Fetch menu and item groups
   useEffect(() => {
     const fetchData = async () => {
       try {
-        await fetchItemGroup(setItemGroup, setItemGroupId);
+        await fetchItemGroup(setItemGroup, () => {});
         await fetchMenu(
           (data: MenuItem[]) => {
             const mappedItems: CardItem[] = data
-              .filter(item => item.status === 1)
-              .map(item => ({
+              .filter((item) => item.status === 1)
+              .map((item) => ({
                 userId: String(item.menuid),
                 itemCode: String(item.item_no),
                 ItemName: item.item_name,
@@ -172,7 +195,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
               }));
             setCardItems(mappedItems);
           },
-          (id: number) => {}
+          () => {}
         );
       } catch (error) {
         console.error('Fetch error:', error);
@@ -182,6 +205,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
     fetchData();
   }, []);
 
+  // Categorize items
   const itemCategories = useMemo(() => {
     const categories: { [key in Category]: CardItem[] } = {
       All: cardItems,
@@ -206,26 +230,27 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
 
   const allItems: CardItem[] = cardItems;
 
+  // Toggle category dropdown
   const toggleDropdown = (category: Category) => {
-    setDropdownState(prevState => ({
-      ...prevState,
-      Appetizers: category === 'Appetizers' ? !prevState.Appetizers : false,
-      MainCourse: category === 'MainCourse' ? !prevState.MainCourse : false,
-      Desserts: category === 'Desserts' ? !prevState.Desserts : false,
-      Beverages: category === 'Beverages' ? !prevState.Beverages : false,
-      Cocktails: category === 'Cocktails' ? !prevState.Cocktails : false,
-      Salads: category === 'Salads' ? !prevState.Salads : false,
-      Soups: category === 'Soups' ? !prevState.Soups : false,
-      Breakfast: category === 'Breakfast' ? !prevState.Breakfast : false,
-      VeganOptions: category === 'VeganOptions' ? !prevState.VeganOptions : false,
+    setDropdownState((prev) => ({
+      Appetizers: category === 'Appetizers' ? !prev.Appetizers : false,
+      MainCourse: category === 'MainCourse' ? !prev.MainCourse : false,
+      Desserts: category === 'Desserts' ? !prev.Desserts : false,
+      Beverages: category === 'Beverages' ? !prev.Beverages : false,
+      Cocktails: category === 'Cocktails' ? !prev.Cocktails : false,
+      Salads: category === 'Salads' ? !prev.Salads : false,
+      Soups: category === 'Soups' ? !prev.Soups : false,
+      Breakfast: category === 'Breakfast' ? !prev.Breakfast : false,
+      VeganOptions: category === 'VeganOptions' ? !prev.VeganOptions : false,
     }));
     setSelectedCategory(category);
     setCategoryClicked(true);
   };
 
+  // Filter items based on search and category
   const filterItems = useCallback(() => {
     const baseItems = categoryClicked && selectedCategory !== 'All' ? itemCategories[selectedCategory] || [] : allItems;
-    const filtered = baseItems.filter((item) => {
+    return baseItems.filter((item) => {
       const matchesCode = searchCode
         ? item.itemCode.toLowerCase().includes(searchCode.toLowerCase())
         : true;
@@ -235,35 +260,38 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
         : true;
       return matchesCode && matchesName;
     });
-    return filtered;
   }, [searchCode, searchName, selectedCategory, categoryClicked, allItems, itemCategories]);
 
-  const filterDropdownItems = useCallback((type: 'code' | 'name') => {
-    const baseItems = categoryClicked && selectedCategory !== 'All' ? itemCategories[selectedCategory] || [] : allItems;
-    return baseItems.filter((item) => {
-      if (type === 'code') {
-        return searchCode
-          ? item.itemCode.toLowerCase().includes(searchCode.toLowerCase())
-          : false;
-      } else {
-        return searchName
-          ? item.ItemName.toLowerCase().includes(searchName.toLowerCase()) ||
-            item.shortName.toLowerCase().includes(searchName.toLowerCase())
-          : false;
-      }
-    }).slice(0, 7);
-  }, [searchCode, searchName, categoryClicked, selectedCategory, allItems, itemCategories]);
+  // Filter dropdown items for code or name
+  const filterDropdownItems = useCallback(
+    (type: 'code' | 'name') => {
+      const baseItems = categoryClicked && selectedCategory !== 'All' ? itemCategories[selectedCategory] || [] : allItems;
+      return baseItems
+        .filter((item) => {
+          if (type === 'code') {
+            return searchCode
+              ? item.itemCode.toLowerCase().includes(searchCode.toLowerCase())
+              : false;
+          }
+          return searchName
+            ? item.ItemName.toLowerCase().includes(searchName.toLowerCase()) ||
+              item.shortName.toLowerCase().includes(searchName.toLowerCase())
+            : false;
+        })
+        .slice(0, 7);
+    },
+    [searchCode, searchName, categoryClicked, selectedCategory, allItems, itemCategories]
+  );
 
   useEffect(() => {
     setFilteredItems(filterItems());
   }, [filterItems]);
 
+  // Handle input changes
   const handleCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const code = e.target.value;
     setSearchCode(code);
-    const matchedItem = cardItems.find(
-      (item) => item.itemCode.toLowerCase() === code.toLowerCase()
-    );
+    const matchedItem = cardItems.find((item) => item.itemCode.toLowerCase() === code.toLowerCase());
     if (matchedItem) {
       setSearchName(matchedItem.ItemName);
     } else {
@@ -290,6 +318,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
     }
   };
 
+  // Handle item selection
   const handleCodeSelect = (item: CardItem) => {
     setSearchCode(item.itemCode);
     setSearchName(item.ItemName);
@@ -312,12 +341,11 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
     }
   };
 
+  // Handle keyboard events
   const handleCodeKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      const matchedItem = cardItems.find(
-        (item) => item.itemCode.toLowerCase() === searchCode.toLowerCase()
-      );
+      const matchedItem = cardItems.find((item) => item.itemCode.toLowerCase() === searchCode.toLowerCase());
       if (matchedItem) {
         handleCodeSelect(matchedItem);
       }
@@ -329,9 +357,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       if (showNameDropdown && dropdownItems.length > 0) {
-        setSelectedNameIndex((prev) =>
-          prev < dropdownItems.length - 1 ? prev + 1 : prev
-        );
+        setSelectedNameIndex((prev) => (prev < dropdownItems.length - 1 ? prev + 1 : prev));
       }
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
@@ -361,32 +387,6 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
     }
   };
 
-  const handleCodeKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && searchCode) {
-      e.preventDefault();
-      const matchedItem = cardItems.find(
-        (item) => item.itemCode.toLowerCase() === searchCode.toLowerCase()
-      );
-      if (matchedItem) {
-        handleCodeSelect(matchedItem);
-      }
-    }
-  };
-
-  const handleNameKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && searchName) {
-      e.preventDefault();
-      const matchedItem = cardItems.find(
-        (item) =>
-          item.ItemName.toLowerCase() === searchName.toLowerCase() ||
-          item.shortName.toLowerCase() === searchName.toLowerCase()
-      );
-      if (matchedItem) {
-        handleNameSelect(matchedItem);
-      }
-    }
-  };
-
   const handleQuantityKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && (searchName || searchCode)) {
       e.preventDefault();
@@ -410,32 +410,26 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
     }
   };
 
+  // Add item to order
   const handleAddItem = (newItem: Omit<MenuItemState, 'id' | 'qty'>, qty: number = 1) => {
     const existingItem = items.find((item) => item.name === newItem.name);
     if (existingItem) {
       setItems(
-        items.map((item) =>
-          item.name === newItem.name ? { ...item, qty: item.qty + qty } : item
-        )
+        items.map((item) => (item.name === newItem.name ? { ...item, qty: item.qty + qty } : item))
       );
     } else {
       setItems([...items, { ...newItem, id: items.length + 1, qty }]);
     }
   };
 
+  // Delete all items
   const handleDeleteAll = () => {
     setItems([]);
   };
 
-  const totalAmount = items.reduce((sum, item) => sum + item.price * item.qty, 0);
-
-  const handleShowCustomerModal = () => {
-    setShowCustomerModal(true);
-  };
-
-  const handleCloseCustomerModal = () => {
-    setShowCustomerModal(false);
-  };
+  // Handle customer modal
+  const handleShowCustomerModal = () => setShowCustomerModal(true);
+  const handleCloseCustomerModal = () => setShowCustomerModal(false);
 
   return (
     <div className="container-fluid vh-100 d-flex flex-column p-0">
@@ -466,18 +460,12 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
                     </ul>
                     <ul className="navbar-nav mx-auto mb-2 mb-lg-0 d-flex gap-2">
                       <li className="nav-item">
-                        <button
-                          className="btn btn-sm btn-outline-secondary"
-                          onClick={onChangeTable}
-                        >
+                        <button className="btn btn-sm btn-outline-secondary" onClick={onChangeTable}>
                           Change Table
                         </button>
                       </li>
                       <li className="nav-item">
-                        <button
-                          className="btn btn-sm btn-outline-secondary"
-                          onClick={handleShowCustomerModal}
-                        >
+                        <button className="btn btn-sm btn-outline-secondary" onClick={handleShowCustomerModal}>
                           Add Customer
                         </button>
                       </li>
@@ -523,7 +511,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
                     background-color: #f4f4f4;
                     border: 1px solid #ced4da;
                     padding: 0.5rem;
-                    font-size: 0.875rem;
+                    fontSize: 0.875rem;
                     width: 150px;
                     height: 32px;
                     box-sizing: border-box;
@@ -573,16 +561,20 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
                     <input
                       type="text"
                       className="form-control"
-                      placeholder=" Table"
+                      placeholder="Table"
                       value={searchTable}
                       onChange={(e) => setSearchTable(e.target.value)}
-                      style={{ maxWidth: '100px', minHeight: '68px', fontSize: '1.2rem' }}
+                      style={{
+                        maxWidth: '100px',
+                        minHeight: '60px',
+                        fontSize: '1.2rem',
+                        border: '2px solid #4A90E2',
+                        backgroundColor: '#E6F3FA',
+                      }}
                     />
                   </div>
                   {isTableInvalid && (
-                    <div className="text-danger small text-center mt-1">
-                      Invalid Table
-                    </div>
+                    <div className="text-danger small text-center mt-1">Invalid Table</div>
                   )}
                 </div>
                 <div className="input-group rounded-search" style={{ maxWidth: '100px', position: 'relative' }}>
@@ -593,7 +585,6 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
                     value={searchCode}
                     onChange={handleCodeChange}
                     onKeyDown={handleCodeKeyDown}
-                    onKeyPress={handleCodeKeyPress}
                     ref={codeInputRef}
                     style={{ maxWidth: '100px', minHeight: '48px' }}
                   />
@@ -606,7 +597,6 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
                     value={searchName}
                     onChange={handleNameChange}
                     onKeyDown={handleNameKeyDown}
-                    onKeyPress={handleNameKeyPress}
                     autoComplete="off"
                     onFocus={() => setShowNameDropdown(true)}
                     onBlur={(e) => {
@@ -654,7 +644,11 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
                               handleNameSelect(item);
                             }}
                             className={`dropdown-item ${index === selectedNameIndex ? 'selected' : ''}`}
-                            style={{ cursor: 'pointer', fontSize: '1rem', backgroundColor: index === selectedNameIndex ? '#e9ecef' : 'transparent' }}
+                            style={{
+                              cursor: 'pointer',
+                              fontSize: '1rem',
+                              backgroundColor: index === selectedNameIndex ? '#e9ecef' : 'transparent',
+                            }}
                             onMouseEnter={() => setSelectedNameIndex(index)}
                           >
                             <strong>{item.ItemName}</strong> | {item.shortName} | {item.itemCode} | ₹{item.price.toFixed(2)}
@@ -718,7 +712,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
                     All
                   </button>
                   {Object.keys(itemCategories)
-                    .filter(category => category !== 'All')
+                    .filter((category) => category !== 'All')
                     .map((category) => (
                       <button
                         key={category}
@@ -747,7 +741,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
                     </button>
                   </li>
                   {itemGroup
-                    .filter(group => group.status === 0)
+                    .filter((group) => group.status === 0)
                     .map((group) => {
                       const category = getCategoryFromItemGroup(group.item_groupid);
                       return (
@@ -768,13 +762,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
 
             <div className={`p-3 ${isMobile ? 'col-12' : 'col-10'}`} style={{ backgroundColor: 'transparent' }}>
               <div className="flex-grow-1 p-3">
-                <div
-                  style={{
-                    maxHeight: 'calc(100vh - 260px)',
-                    overflowY: 'auto',
-                    paddingRight: '10px',
-                  }}
-                >
+                <div style={{ maxHeight: 'calc(100vh - 260px)', overflowY: 'auto', paddingRight: '10px' }}>
                   <Row xs={1} sm={2} md={3} lg={4} className="g-3">
                     {filteredItems.length > 0 ? (
                       filteredItems.map((item, index) => (
@@ -829,33 +817,30 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
         </div>
       </div>
 
-      {/* Customer Modal */}
       <Modal
-  show={showCustomerModal}
-  onHide={handleCloseCustomerModal}
-  size="lg"
-  aria-labelledby="customer-modal-title"
-  centered
-  backdrop="static"
-  keyboard={false}
-  dialogClassName="compact-modal"
->
-  <Modal.Header closeButton style={{ padding: '0.5rem', margin: 0 }}>
-   
-  </Modal.Header>
-  <Modal.Body style={{ padding: '0px', maxHeight: '780px', overflowY: 'auto' }}>
-    <CustomerModal />
-  </Modal.Body>
-  <Modal.Footer style={{ padding: '0.5rem', margin: 0 }}>
-    <button
-      className="btn btn-outline-secondary btn-sm"
-      onClick={handleCloseCustomerModal}
-      style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
-    >
-      Close
-    </button>
-  </Modal.Footer>
-</Modal>
+        show={showCustomerModal}
+        onHide={handleCloseCustomerModal}
+        size="lg"
+        aria-labelledby="customer-modal-title"
+        centered
+        backdrop="static"
+        keyboard={false}
+        dialogClassName="compact-modal"
+      >
+        <Modal.Header closeButton style={{ padding: '0.5rem', margin: 0 }} />
+        <Modal.Body style={{ padding: '0px', maxHeight: '780px', overflowY: 'auto' }}>
+          <CustomerModal />
+        </Modal.Body>
+        <Modal.Footer style={{ padding: '0.5rem', margin: 0 }}>
+          <button
+            className="btn btn-outline-secondary btn-sm"
+            onClick={handleCloseCustomerModal}
+            style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
+          >
+            Close
+          </button>
+        </Modal.Footer>
+      </Modal>
     </div>
   );
 };

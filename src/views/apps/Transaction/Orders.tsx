@@ -359,7 +359,7 @@ const Order = () => {
   }, [showOrderDetails, selectedTable]);
 
   return (
-    <div className="container-fluid p-0 m-0" style={{ height: '100vh' }}>
+    <div className="container-fluid p-0 m-0" style={{ height: '100vh'  }}>
       {errorMessage && (
         <div className="alert alert-danger text-center" role="alert">
           {errorMessage}
@@ -375,7 +375,7 @@ const Order = () => {
             }
             .table-container {
               width: 100%;
-              overflow-x: auto;
+              overflow-y: auto;
             }
             .billing-panel {
               position: static !important;
@@ -531,7 +531,7 @@ const Order = () => {
         `}
       </style>
       <div className="main-container d-flex flex-column flex-md-row gap-3">
-        <div className="table-container flex-grow-1 me-md-3">
+        <div className="table-container flex-grow-1 me-md-3 overflow-auto">
           <>
             {activeTab === 'Dine-in' && !showOrderDetails && (
               <div>
@@ -713,6 +713,7 @@ const Order = () => {
                   setSelectedTable={setSelectedTable}
                   invalidTable={invalidTable}
                   setInvalidTable={setInvalidTable}
+                  filteredTables={filteredTables} // Add this prop
                 />
               </div>
             )}
