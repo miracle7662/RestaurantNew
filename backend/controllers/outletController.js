@@ -35,9 +35,8 @@ exports.getOutlets = (req, res) => { // Assuming this is the endpoint
              b.hotel_name as brand_name
       FROM mst_outlets o
       INNER JOIN msthotelmasters b ON o.hotelid = b.hotelid
-      left JOIN user_outlet_mapping uom ON o.outletid = uom.outletid
-      left JOIN mst_users u ON u.userid = uom.userid  
-      where     
+      left JOIN mst_users u ON u.userid = o.created_by_id  
+      where 
     `;
     
     const params = [];

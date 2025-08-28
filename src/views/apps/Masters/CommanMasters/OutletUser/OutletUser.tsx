@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Button, Modal, Form, Row, Col, Table, Tabs, Tab } from 'react-bootstrap';
-import { toast } from 'react-toastify';
+import { toast } from 'react-hot-toast';
 import { useAuthContext } from '@/common';
 import outletUserService, { OutletUserData, HotelAdminData } from '@/common/api/outletUser';
 import { fetchDesignation, fetchUserType, fetchOutlets } from '@/utils/commonfunction';
@@ -167,7 +167,7 @@ const OutletUserList: React.FC = () => {
     setEmail(user.email || '');
     setFullName(user.full_name || '');
     setPhone(user.phone || '');
-setSelectedOutlet(user.outletids ? (Array.isArray(user.outletids) ? user.outletids : (user.outletids as string).split(',').map(Number)) : null);    setShiftTime(user.shift_time || '');
+    setSelectedOutlet(user.outletids ? (Array.isArray(user.outletids) ? user.outletids : (user.outletids as string).split(',').map(Number)) : null); setShiftTime(user.shift_time || '');
     setMacAddress(user.mac_address || '');
     setAssignWarehouse(user.assign_warehouse || '');
     setLanguagePreference(user.language_preference || 'English');
@@ -217,146 +217,146 @@ setSelectedOutlet(user.outletids ? (Array.isArray(user.outletids) ? user.outleti
     label: `${outlet.outlet_name} (${outlet.outlet_code})`,
   }));
 
- const handleOutletChange = (selected: MultiValue<Option>) => {
-  setSelectedOutlet(selected.length > 0 ? selected.map((option) => option.value) : []);
-};
+  const handleOutletChange = (selected: MultiValue<Option>) => {
+    setSelectedOutlet(selected.length > 0 ? selected.map((option) => option.value) : []);
+  };
 
-const handleModalSubmit = async () => {
-  console.log('Starting handleModalSubmit...', { modalType, user });
-  console.log('Form data:', { username, email, password, fullName, selectedOutlet });
+  const handleModalSubmit = async () => {
+    console.log('Starting handleModalSubmit...', { modalType, user });
+    console.log('Form data:', { username, email, password, fullName, selectedOutlet });
 
-  if (modalType === 'Edit Hotel Admin') {
-    if (!fullName) {
-      toast.error('Please enter full name');
-      console.warn('Validation failed: Full name is missing');
-      return;
-    }
-
-    const hotelAdminData: HotelAdminData = {
-      full_name: fullName,
-      phone,
-      status: status ? 0 : 1,
-    };
-
-    try {
-      console.log('Updating hotel admin:', { userid: selectedHotelAdmin?.userid, data: hotelAdminData });
-      if (selectedHotelAdmin) {
-        const response = await outletUserService.updateHotelAdmin(selectedHotelAdmin.userid!, hotelAdminData);
-        console.log('Update hotel admin response:', response.data);
-        toast.success('Hotel admin updated successfully!');
+    if (modalType === 'Edit Hotel Admin') {
+      if (!fullName) {
+        toast.error('Please enter full name');
+        console.warn('Validation failed: Full name is missing');
+        return;
       }
-      fetchHotelAdmins();
-      handleCloseModal();
-    } catch (error: any) {
-      console.error('Error updating hotel admin:', error, error.response?.data);
-      toast.error(error.response?.data?.message || 'Failed to update hotel admin');
-    }
-  } else {
-    // Validate required fields
-    if (!username || username.length < 3) {
-      toast.error('Please enter a valid username (minimum 3 characters)');
-      console.warn('Validation failed: Invalid username', { username });
-      return;
-    }
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      toast.error('Please enter a valid email address');
-      console.warn('Validation failed: Invalid email', { email });
-      return;
-    }
-    if (!password && modalType === 'Add Outlet User') {
-      toast.error('Please enter a password');
-      console.warn('Validation failed: Password is missing');
-      return;
-    }
-    if (!fullName || fullName.length < 2) {
-      toast.error('Please enter a valid full name (minimum 2 characters)');
-      console.warn('Validation failed: Invalid full name', { fullName });
-      return;
-    }
-    if (!selectedOutlet || selectedOutlet.length === 0) {
-      toast.error('Please select at least one outlet');
-      console.warn('Validation failed: Outlet is not selected', { selectedOutlet });
-      return;
-    }
 
-    // Ensure selectedOutlet is an array
-    if (!Array.isArray(selectedOutlet)) {
-      console.error('selectedOutlet is not an array:', selectedOutlet);
-      toast.error('Internal error: Outlet selection is invalid');
-      return;
-    }
+      const hotelAdminData: HotelAdminData = {
+        full_name: fullName,
+        phone,
+        status: status ? 0 : 1,
+      };
 
-    // Validate outlets exist in fetched outlets
-    const selectedOutletData = outlets.filter((outlet) => selectedOutlet.includes(outlet.outletid ?? 0));
-    if (selectedOutletData.length !== selectedOutlet.length) {
-      toast.error('One or more selected outlets are invalid or not available. Please choose valid outlets.');
-      console.warn('Validation failed: Invalid outlets selected', { selectedOutlet, outlets });
-      return;
-    }
-
-    const parentUserId = user?.id || 1;
-    const createdById = user?.id || 1;
-    console.log('Using parent_user_id:', parentUserId, 'created_by_id:', createdById);
-    if (!parentUserId || !createdById) {
-      toast.error('Unable to determine user identity. Please ensure you are logged in.');
-      console.error('Validation failed: Invalid user identity', { user, parentUserId, createdById });
-      return;
-    }
-
-    const userData: OutletUserData = {
-      username,
-      email,
-      password: modalType === 'Add Outlet User' ? password : undefined,
-      full_name: fullName,
-      phone,
-      role_level: 'outlet_user',
-      outletids: selectedOutlet, // Send as array
-      designation: selectedDesignation?.toString(),
-      user_type: selectedUserType?.toString(),
-      shift_time: shiftTime,
-      mac_address: macAddress,
-      assign_warehouse: assignWarehouse,
-      language_preference: languagePreference,
-      address,
-      city,
-      sub_locality: subLocality,
-      web_access: webAccess,
-      self_order: selfOrder,
-      captain_app: captainApp,
-      kds_app: kdsApp,
-      captain_old_kot_access: captainOldKotAccess,
-      verify_mac_ip: verifyMacIp,
-      hotelid: user?.hotelid || selectedOutletData[0]?.hotelid,
-      parent_user_id: parentUserId,
-      status: status ? 0 : 1,
-      created_by_id: createdById,
-    };
-
-    console.log('Submitting userData to backend:', JSON.stringify(userData, null, 2));
-
-try {
-    if (modalType === 'Edit Outlet User' && selectedUser) {
-      const response = await outletUserService.updateOutletUser(selectedUser.userid!, userData);
-      console.log('Update response:', response.data);
-      toast.success('Outlet user updated successfully!');
+      try {
+        console.log('Updating hotel admin:', { userid: selectedHotelAdmin?.userid, data: hotelAdminData });
+        if (selectedHotelAdmin) {
+          const response = await outletUserService.updateHotelAdmin(selectedHotelAdmin.userid!, hotelAdminData);
+          console.log('Update hotel admin response:', response.data);
+          toast.success('Hotel admin updated successfully!');
+        }
+        fetchHotelAdmins();
+        handleCloseModal();
+      } catch (error: any) {
+        console.error('Error updating hotel admin:', error, error.response?.data);
+        toast.error(error.response?.data?.message || 'Failed to update hotel admin');
+      }
     } else {
-      const response = await outletUserService.createOutletUser(userData);
-      console.log('Create response:', response.data);
-      toast.success('Outlet user added successfully!');
+      // Validate required fields
+      if (!username || username.length < 3) {
+        toast.error('Please enter a valid username (minimum 3 characters)');
+        console.warn('Validation failed: Invalid username', { username });
+        return;
+      }
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        toast.error('Please enter a valid email address');
+        console.warn('Validation failed: Invalid email', { email });
+        return;
+      }
+      if (!password && modalType === 'Add Outlet User') {
+        toast.error('Please enter a password');
+        console.warn('Validation failed: Password is missing');
+        return;
+      }
+      if (!fullName || fullName.length < 2) {
+        toast.error('Please enter a valid full name (minimum 2 characters)');
+        console.warn('Validation failed: Invalid full name', { fullName });
+        return;
+      }
+      if (!selectedOutlet || selectedOutlet.length === 0) {
+        toast.error('Please select at least one outlet');
+        console.warn('Validation failed: Outlet is not selected', { selectedOutlet });
+        return;
+      }
+
+      // Ensure selectedOutlet is an array
+      if (!Array.isArray(selectedOutlet)) {
+        console.error('selectedOutlet is not an array:', selectedOutlet);
+        toast.error('Internal error: Outlet selection is invalid');
+        return;
+      }
+
+      // Validate outlets exist in fetched outlets
+      const selectedOutletData = outlets.filter((outlet) => selectedOutlet.includes(outlet.outletid ?? 0));
+      if (selectedOutletData.length !== selectedOutlet.length) {
+        toast.error('One or more selected outlets are invalid or not available. Please choose valid outlets.');
+        console.warn('Validation failed: Invalid outlets selected', { selectedOutlet, outlets });
+        return;
+      }
+
+      const parentUserId = user?.id || 1;
+      const createdById = user?.id || 1;
+      console.log('Using parent_user_id:', parentUserId, 'created_by_id:', createdById);
+      if (!parentUserId || !createdById) {
+        toast.error('Unable to determine user identity. Please ensure you are logged in.');
+        console.error('Validation failed: Invalid user identity', { user, parentUserId, createdById });
+        return;
+      }
+
+      const userData: OutletUserData = {
+        username,
+        email,
+        password: modalType === 'Add Outlet User' ? password : undefined,
+        full_name: fullName,
+        phone,
+        role_level: 'outlet_user',
+        outletids: selectedOutlet, // Send as array
+        designation: selectedDesignation?.toString(),
+        user_type: selectedUserType?.toString(),
+        shift_time: shiftTime,
+        mac_address: macAddress,
+        assign_warehouse: assignWarehouse,
+        language_preference: languagePreference,
+        address,
+        city,
+        sub_locality: subLocality,
+        web_access: webAccess,
+        self_order: selfOrder,
+        captain_app: captainApp,
+        kds_app: kdsApp,
+        captain_old_kot_access: captainOldKotAccess,
+        verify_mac_ip: verifyMacIp,
+        hotelid: user?.hotelid || selectedOutletData[0]?.hotelid,
+        parent_user_id: parentUserId,
+        status: status ? 0 : 1,
+        created_by_id: createdById,
+      };
+
+      console.log('Submitting userData to backend:', JSON.stringify(userData, null, 2));
+
+      try {
+        if (modalType === 'Edit Outlet User' && selectedUser) {
+          const response = await outletUserService.updateOutletUser(selectedUser.userid!, userData);
+          console.log('Update response:', response.data);
+          toast.success('Outlet user updated successfully!');
+        } else {
+          const response = await outletUserService.createOutletUser(userData);
+          console.log('Create response:', response.data);
+          toast.success('Outlet user added successfully!');
+        }
+        fetchOutletUsers();
+        handleCloseModal();
+      } catch (error: any) {
+        console.error('Full error object:', error);
+        const status = error.response?.status;
+        const errorData = error.response?.data || error.message;
+        const errorMessage = errorData?.message || (modalType === 'Edit Outlet User' ? 'Failed to update outlet user' : 'Failed to add outlet user');
+        const invalidOutletIds = errorData?.invalidOutletIds || [];
+        console.log('Error details:', { status, message: errorMessage, invalidOutletIds, sentOutletIds: selectedOutlet, response: errorData });
+        toast.error(`${errorMessage}${invalidOutletIds.length > 0 ? ` (Invalid Outlet IDs: ${invalidOutletIds.join(', ')})` : ''}`);
+      }
     }
-    fetchOutletUsers();
-    handleCloseModal();
-  } catch (error: any) {
-    console.error('Full error object:', error);
-    const status = error.response?.status;
-    const errorData = error.response?.data || error.message;
-    const errorMessage = errorData?.message || (modalType === 'Edit Outlet User' ? 'Failed to update outlet user' : 'Failed to add outlet user');
-    const invalidOutletIds = errorData?.invalidOutletIds || [];
-    console.log('Error details:', { status, message: errorMessage, invalidOutletIds, sentOutletIds: selectedOutlet, response: errorData });
-    toast.error(`${errorMessage}${invalidOutletIds.length > 0 ? ` (Invalid Outlet IDs: ${invalidOutletIds.join(', ')})` : ''}`);
-  }
-  }
-};
+  };
 
   if (loading) {
     return <div className="text-center p-4">Loading outlet users...</div>;
@@ -364,17 +364,18 @@ try {
 
   const combinedUserList = user?.role_level === 'hotel_admin'
     ? [
-        {
-          ...user,
-          full_name: user.full_name || user.username,
-          role_level: 'hotel_admin',
-          outlet_name: '-',
-          designation: '-',
-          user_type: '-',
-          is_admin_row: true,
-        },
-        ...outletUsers
-      ]
+      {
+        ...user,
+        full_name: user.full_name || user.username,
+        role_level: 'hotel_admin',
+        outlet_name: '-',
+        designation: '-',
+        user_type: '-',
+        status: user.status !== undefined ? user.status : 0,
+        is_admin_row: true,
+      },
+      ...outletUsers
+    ]
     : outletUsers;
 
   return (
@@ -420,7 +421,7 @@ try {
                     <th>Phone</th>
                     <th>Hotel Name</th>
                     <th>Brand Name</th>
-                    <th>Active</th>
+                    <th>Status</th>
                     <th>Last Login</th>
                     <th>Created Date</th>
                     <th>Action</th>
@@ -440,8 +441,8 @@ try {
                       <td>{hotelAdmin.hotel_name || 'N/A'}</td>
                       <td>{hotelAdmin.brand_name || 'N/A'}</td>
                       <td>
-                        <span className={`badge ${hotelAdmin.status ? 'bg-success' : 'bg-danger'}`}>
-                          {hotelAdmin.status ? 'Yes' : 'No'}
+                        <span className={`badge ${hotelAdmin.status === 0 ? 'bg-success' : 'bg-danger'}`}>
+                          {hotelAdmin.status === 0 ? 'Active' : 'Inactive'}
                         </span>
                       </td>
                       <td>{hotelAdmin.last_login || 'Never'}</td>
@@ -485,7 +486,7 @@ try {
                     <th>Phone</th>
                     <th>Designation</th>
                     <th>User Type</th>
-                    <th>Active</th>
+                    <th>Status</th>
                     <th>Created Date</th>
                     <th>Action</th>
                   </tr>
@@ -509,8 +510,8 @@ try {
                       <td>{outletUser.designation || 'N/A'}</td>
                       <td>{outletUser.user_type || 'N/A'}</td>
                       <td>
-                        <span className={`badge ${outletUser.status ? 'bg-success' : 'bg-danger'}`}>
-                          {outletUser.status ? 'Yes' : 'No'}
+                        <span className={`badge ${outletUser.status === 0 ? 'bg-success' : 'bg-danger'}`}>
+                          {outletUser.status === 0 ? 'Active' : 'Inactive'}
                         </span>
                       </td>
                       <td>{outletUser.created_date || 'N/A'}</td>
@@ -561,7 +562,7 @@ try {
                   <th>Phone</th>
                   <th>Designation</th>
                   <th>User Type</th>
-                  <th>Active</th>
+                  <th>Status</th>
                   <th>Created Date</th>
                   <th>Action</th>
                 </tr>
@@ -588,8 +589,8 @@ try {
                     <td>{row.designation || '-'}</td>
                     <td>{row.user_type || '-'}</td>
                     <td>
-                      <span className={`badge ${row.status ? 'bg-success' : 'bg-danger'}`}>
-                        {row.status ? 'Yes' : 'No'}
+                      <span className={`badge ${row.status === 0 ? 'bg-success' : 'bg-danger'}`}>
+                        {row.status === 0 ? 'Active' : 'Inactive'}
                       </span>
                     </td>
                     <td>{row.created_date || '-'}</td>
@@ -940,11 +941,13 @@ try {
               <Col md={6}>
                 <Form.Group controlId="status">
                   <Form.Label>Status</Form.Label>
-                  <Form.Check
-                    type="switch"
-                    checked={status}
-                    onChange={(e) => setStatus(e.target.checked)}
-                  />
+                  <Form.Select
+                    value={status ? 0 : 1} // 0 for Active, 1 for Inactive
+                    onChange={(e) => setStatus(e.target.value === '0')} // Sets status to true (Active) or false (Inactive)
+                  >
+                    <option value="0">Active</option>
+                    <option value="1">Inactive</option>
+                  </Form.Select>
                 </Form.Group>
               </Col>
             </Row>

@@ -14,7 +14,7 @@ exports.getOutletUsers = (req, res) => {
             LEFT JOIN msthotelmasters h ON u.hotelid = h.hotelid
             LEFT JOIN user_outlet_mapping uom ON u.userid = uom.userid
             LEFT JOIN mst_outlets o ON uom.outletid = o.outletid
-            WHERE u.status = 0 AND (u.role_level = 'outlet_user' OR u.role_level = 'hotel_admin')
+            WHERE (u.role_level = 'outlet_user' OR u.role_level = 'hotel_admin')
         `;
         
         const params = [];
@@ -23,6 +23,7 @@ exports.getOutletUsers = (req, res) => {
             case 'superadmin':
                 break;          
             case 'hotel_admin':
+            case 'outlet_user':
                 query += ' AND u.hotelid = ?';
                 params.push(hotelid);
                 break;

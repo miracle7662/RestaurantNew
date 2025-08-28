@@ -114,9 +114,10 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
   const [selectedNameIndex, setSelectedNameIndex] = useState(-1);
   const [showCustomerModal, setShowCustomerModal] = useState<boolean>(false);
 
+  const tableInputRef = useRef<HTMLInputElement>(null);
   const codeInputRef = useRef<HTMLInputElement>(null);
-  const quantityInputRef = useRef<HTMLInputElement>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
+  const quantityInputRef = useRef<HTMLInputElement>(null);
 
   // Derive valid tables from filteredTables
   const validTables = useMemo(
@@ -557,13 +558,25 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
               </style>
               <div className="d-flex flex-nowrap justify-content-start gap-1 no-hover search-row align-items-start">
                 <div style={{ maxWidth: '100px', minHeight: '38px' }}>
-                  <div className="input-group rounded-search">
+                  <div className="input-group rounded-search" onKeyDown={(e) => {
+                    if (e.key === 'F4' || e.key === 'f4') {
+                      e.preventDefault();
+                      tableInputRef.current?.focus();
+                    } else if (e.key === 'F5' || e.key === 'f5') {
+                      e.preventDefault();
+                      codeInputRef.current?.focus();
+                    } else if (e.key === 'F6' || e.key === 'f6') {
+                      e.preventDefault();
+                      nameInputRef.current?.focus();
+                    }
+                  }}>
                     <input
                       type="text"
                       className="form-control"
                       placeholder="Table"
                       value={searchTable}
                       onChange={(e) => setSearchTable(e.target.value)}
+                      ref={tableInputRef}
                       style={{
                         maxWidth: '100px',
                         minHeight: '60px',
