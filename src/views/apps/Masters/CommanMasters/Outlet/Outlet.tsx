@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Button, Modal, Form, Row, Col, Card, Stack, Pagination, Table } from 'react-bootstrap';
 import { QRCodeCanvas } from 'qrcode.react';
-import { toast, ToastContainer } from 'react-toastify';
+import { toast } from 'react-hot-toast';
+import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import AddOutlet from './AddOutlet';
 import ModifyOutletSettingsModal from './ModifyoutletSettings'; // Import the modal component
