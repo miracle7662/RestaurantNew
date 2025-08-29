@@ -4,44 +4,47 @@ const bcrypt = require('bcrypt')
 // Get outlet users based on current user's role and hierarchy
 exports.getOutletUsers = (req, res) => {
   try {
-    const { currentUserId, roleLevel, hotelid, outletid } = req.query
+    const { currentUserId, roleLevel, hotelid, outletid } = req.query;
 
     let query = `
-            SELECT u.*, 
-                   h.hotel_name as hotel_name,
-                   GROUP_CONCAT(o.outlet_name) as outlet_name
-                  
-            FROM mst_users u
-            LEFT JOIN msthotelmasters h ON u.hotelid = h.hotelid
-            LEFT JOIN user_outlet_mapping uom ON u.userid = uom.userid
-            LEFT JOIN mst_outlets o ON uom.outletid = o.outletid
-            WHERE (u.role_level = 'outlet_user' OR u.role_level = 'hotel_admin')
-        `
+      SELECT u.*, 
+             h.hotel_name as hotel_name,
+             GROUP_CONCAT(o.outlet_name) as outlet_name,
+             GROUP_CONCAT(uom.outletid) as outletids,
+             d.Designation as designation_name,
+             ut.User_type as user_type_name
+      FROM mst_users u
+      LEFT JOIN msthotelmasters h ON u.hotelid = h.hotelid
+      LEFT JOIN user_outlet_mapping uom ON u.userid = uom.userid
+      LEFT JOIN mst_outlets o ON uom.outletid = o.outletid
+      LEFT JOIN mstdesignation d ON u.designation = d.designationid
+      LEFT JOIN mstuserType ut ON u.user_type = ut.usertypeid
+      WHERE (u.role_level = 'outlet_user' OR u.role_level = 'hotel_admin')
+    `;
 
-    const params = []
+    const params = [];
 
     switch (roleLevel) {
       case 'superadmin':
-        break
+        break;
       case 'hotel_admin':
       case 'outlet_user':
-        query += ' AND u.hotelid = ?'
-        params.push(hotelid)
-        break
+        query += ' AND u.hotelid = ?';
+        params.push(hotelid);
+        break;
       default:
-        return res.status(403).json({ message: 'Insufficient permissions' })
+        return res.status(403).json({ message: 'Insufficient permissions' });
     }
 
-    query +=
-      " GROUP BY u.userid ORDER BY CASE WHEN u.role_level = 'hotel_admin' THEN 0 ELSE 1 END, u.created_date DESC"
+    query += " GROUP BY u.userid ORDER BY CASE WHEN u.role_level = 'hotel_admin' THEN 0 ELSE 1 END, u.created_date DESC";
 
-    const users = db.prepare(query).all(...params)
-    res.json(users)
+    const users = db.prepare(query).all(...params);
+    res.json(users);
   } catch (error) {
-    console.error('Error fetching outlet users:', error)
-    res.status(500).json({ message: 'Internal server error' })
+    console.error('Error fetching outlet users:', error);
+    res.status(500).json({ message: 'Internal server error' });
   }
-}
+};
 
 // Get outlets for dropdown (filtered by user role)
 exports.getOutletsForDropdown = (req, res) => {
@@ -380,8 +383,10 @@ exports.updateOutletUser = async (req, res) => {
     addField('parent_user_id', parent_user_id, 'INTEGER');
     addField('brand_id', brand_id, 'INTEGER');
     addField('hotelid', hotelid, 'INTEGER');
+    addField('Designation', Designation, 'TEXT');
     addField('designationid', designationid, 'INTEGER');
     addField('user_type', user_type, 'TEXT');
+    addField('usertypeid', usertypeid, 'INTEGER');
     addField('shift_time', shift_time, 'TEXT');
     addField('mac_address', mac_address, 'TEXT');
     addField('assign_warehouse', assign_warehouse, 'TEXT');
