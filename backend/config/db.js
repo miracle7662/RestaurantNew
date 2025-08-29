@@ -317,6 +317,7 @@ CREATE TABLE IF NOT EXISTS msttablemanagement (
     table_name TEXT NOT NULL,
     hotelid INTEGER,
     outletid INTEGER NOT NULL,
+    departmentid INTEGER,
     status INTEGER DEFAULT 1,
     created_by_id INTEGER,
     created_date DATETIME,

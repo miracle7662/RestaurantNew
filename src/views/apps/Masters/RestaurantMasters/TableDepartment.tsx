@@ -76,7 +76,7 @@ const TableDepartment: React.FC = () => {
   const { user } = useAuthContext();
 
   // Fetch table data
-  const fetchTableManagement = async (search: string = '') => {
+  const fetchTableDepartment = async (search: string = '') => {
     setLoading(true);
     try {
       const res = await fetch(`http://localhost:3001/api/table-department?search=${encodeURIComponent(search)}`, {
@@ -106,7 +106,7 @@ const TableDepartment: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchTableManagement(searchTerm);
+    fetchTableDepartment(searchTerm);
     fetchBrands(user, setBrands);
     fetchOutletsForDropdown(user, setOutlets, setLoading);
   }, [user, searchTerm]);
@@ -245,7 +245,7 @@ const TableDepartment: React.FC = () => {
         const data = await response.json();
         if (response.ok && data.success) {
           toast.success(data.message || 'Department deleted successfully');
-          fetchTableManagement(searchTerm);
+          fetchTableDepartment(searchTerm);
           setSelectedTable(null);
         } else {
           toast.error(data.message || 'Failed to delete department');
@@ -564,7 +564,7 @@ const TableDepartment: React.FC = () => {
           setSelectedTable(null);
         }}
         tableItem={selectedTable}
-        onSuccess={() => fetchTableManagement(searchTerm)}
+        onSuccess={() => fetchTableDepartment(searchTerm)}
         onUpdateSelectedTable={setSelectedTable}
       />
     </>

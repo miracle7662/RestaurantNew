@@ -1,4 +1,3 @@
-// backend/controllers/TableManagementController.js
 const db = require("../config/db"); // SQLite connection
 
 // Get all table records with search and pagination
@@ -56,18 +55,26 @@ exports.getAllTables = (req, res) => {
   }
 };
 
-// Create a new table record
+// Create a new table record (✅ departmentid added)
 exports.createTable = (req, res) => {
   try {
-    const { table_name,  outletid, hotelid, marketid, status, created_by_id } = req.body;
+    const { table_name, outletid, hotelid, marketid, departmentid, status, created_by_id } = req.body;
 
     const insertSql = 
       "INSERT INTO msttablemanagement (" +
-      "table_name,  hotelid, outletid,  marketid, status, created_by_id, created_date" +
-      ") VALUES (?, ?,  ?, ?, ?, ?, datetime('now'))";
+      "table_name, hotelid, outletid, marketid, departmentid, status, created_by_id, created_date" +
+      ") VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))";
 
     const stmt = db.prepare(insertSql);
-    const result = stmt.run(table_name, hotelid || null, outletid || null,  marketid || null, status ?? 1, created_by_id || null);
+    const result = stmt.run(
+      table_name,
+      hotelid || null,
+      outletid || null,
+      marketid || null,
+      departmentid || null,
+      status ?? 1,
+      created_by_id || null
+    );
 
     res.json({ success: true, message: "Table created successfully", id: result.lastInsertRowid });
   } catch (error) {
@@ -76,20 +83,29 @@ exports.createTable = (req, res) => {
   }
 };
 
-// Update table record
+// Update table record (✅ departmentid added)
 exports.updateTable = (req, res) => {
   try {
     const { tableid } = req.params;
-    const { table_name, hotelid, outletid,  marketid, status, updated_by_id } = req.body;
+    const { table_name, hotelid, outletid, marketid, departmentid, status, updated_by_id } = req.body;
 
     const updateSql = 
       "UPDATE msttablemanagement " +
-      "SET table_name = ?,  hotelid = ?,outletid = ?,  marketid = ?, status = ?, " +
+      "SET table_name = ?, hotelid = ?, outletid = ?, marketid = ?, departmentid = ?, status = ?, " +
       "updated_by_id = ?, updated_date = datetime('now') " +
       "WHERE tableid = ?";
 
     const stmt = db.prepare(updateSql);
-    const result = stmt.run(table_name,   hotelid || null,outletid || null, marketid || null, status ?? 1, updated_by_id || null, tableid);
+    const result = stmt.run(
+      table_name,
+      hotelid || null,
+      outletid || null,
+      marketid || null,
+      departmentid || null,
+      status ?? 1,
+      updated_by_id || null,
+      tableid
+    );
 
     if (result.changes === 0) {
       return res.status(404).json({ success: false, message: "Table not found" });

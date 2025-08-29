@@ -32,6 +32,7 @@ interface TableItem {
   hotel_details?: string;
   outlet_details?: string;
   market_details?: string;
+  departmentid?: number | string; // Added for department
 }
 
 // TableModal Props
@@ -41,6 +42,14 @@ interface TableModalProps {
   tableItem: TableItem | null;
   onSuccess: () => void;
   onUpdateSelectedTable: (tableItem: TableItem) => void;
+}
+
+// DepartmentItem interface
+interface DepartmentItem {
+  departmentid: number;
+  department_name: string;
+  outletid: number;
+  // Other fields as needed
 }
 
 // Status badge for table
@@ -308,26 +317,53 @@ const TableManagement: React.FC = () => {
     const [loading, setLoading] = useState<boolean>(false);
     const [outlets, setOutlets] = useState<OutletData[]>([]);
     const [brands, setBrands] = useState<Array<{ hotelid: number; hotel_name: string }>>([]);
+    const [departments, setDepartments] = useState<DepartmentItem[]>([]);
+    const [departmentid, setDepartmentId] = useState<number | null>(null);
     const { user } = useAuthContext();
 
+    const fetchDepartments = async () => {
+      try {
+        const res = await fetch(`http://localhost:3001/api/table-department`, {
+          headers: { 'Content-Type': 'application/json' },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success) {
+            setDepartments(data.data);
+          } else {
+            toast.error(data.message || 'Failed to fetch departments');
+          }
+        } else {
+          toast.error('Failed to fetch departments');
+        }
+      } catch (err) {
+        toast.error('Failed to fetch departments');
+      }
+    };
+
     useEffect(() => {
+      fetchDepartments();
       if (tableItem) {
         setTableName(tableItem.table_name);
         setOutletId(tableItem.outletid ? Number(tableItem.outletid) : null);
         setStatus(tableItem.status === 1 ? 'Active' : 'Inactive');
         setSelectedBrand(tableItem.hotelid ? Number(tableItem.hotelid) : null);
+        setDepartmentId(tableItem.departmentid ? Number(tableItem.departmentid) : null);
       } else {
         setTableName('');
         setOutletId(null);
         setStatus('Active');
         setSelectedBrand(null);
+        setDepartmentId(null);
       }
       fetchOutletsForDropdown(user, setOutlets, setLoading);
       fetchBrands(user, setBrands);
     }, [tableItem, user]);
 
+    const filteredDepartments = departments.filter(d => Number(d.outletid) === outletid);
+
     const handleSave = async () => {
-      if (!table_name || !selectedBrand || !outletid) {
+      if (!table_name || !selectedBrand || !outletid || !departmentid) {
         toast.error('Please fill all required fields');
         return;
       }
@@ -339,6 +375,7 @@ const TableManagement: React.FC = () => {
           table_name,
           outletid: outletid.toString(),
           hotelid: selectedBrand.toString(),
+          departmentid: departmentid.toString(),
           marketid: tableItem?.marketid || '1',
           status: statusValue,
           ...(tableItem
@@ -372,6 +409,7 @@ const TableManagement: React.FC = () => {
               table_name,
               outletid: outletid.toString(),
               hotelid: selectedBrand.toString(),
+              departmentid: departmentid.toString(),
               status: statusValue,
               updated_by_id: user?.id || '2',
               updated_date: new Date().toISOString(),
@@ -383,6 +421,7 @@ const TableManagement: React.FC = () => {
           setOutletId(null);
           setStatus('Active');
           setSelectedBrand(null);
+          setDepartmentId(null);
           onSuccess();
           onHide();
         } else {
@@ -464,6 +503,22 @@ const TableManagement: React.FC = () => {
               {outlets.map((outlet) => (
                 <option key={outlet.outletid} value={outlet.outletid}>
                   {outlet.outlet_name} ({outlet.outlet_code})
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="mb-3">
+            <label className="form-label">Department Name <span style={{ color: 'red' }}>*</span></label>
+            <select
+              className="form-control"
+              value={departmentid || ''}
+              onChange={(e) => setDepartmentId(e.target.value ? Number(e.target.value) : null)}
+              disabled={loading || !outletid}
+            >
+              <option value="">Select Department</option>
+              {filteredDepartments.map((department) => (
+                <option key={department.departmentid} value={department.departmentid}>
+                  {department.department_name}
                 </option>
               ))}
             </select>
