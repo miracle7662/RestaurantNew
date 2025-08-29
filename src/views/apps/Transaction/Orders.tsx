@@ -530,8 +530,8 @@ const Order = () => {
           }
         `}
       </style>
-      <div className="main-container d-flex flex-column flex-md-row gap-3">
-        <div className="table-container flex-grow-1 me-md-3 overflow-auto">
+      <div className="main-container d-flex flex-column flex-md-row ">
+        <div className="table-container flex-grow-1 me-md-3 overflow-y-auto">
           <>
             {activeTab === 'Dine-in' && !showOrderDetails && (
               <div>
