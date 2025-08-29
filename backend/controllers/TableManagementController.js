@@ -56,14 +56,15 @@ exports.getAllTables = (req, res) => {
 };
 
 // Create a new table record (✅ departmentid added)
+// Create a new table record
 exports.createTable = (req, res) => {
   try {
-    const { table_name, outletid, hotelid, marketid, departmentid, status, created_by_id } = req.body;
+    const { table_name, hotelid, outletid, marketid, departmentid, department_name, status, created_by_id } = req.body;
 
     const insertSql = 
       "INSERT INTO msttablemanagement (" +
-      "table_name, hotelid, outletid, marketid, departmentid, status, created_by_id, created_date" +
-      ") VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))";
+      "table_name, hotelid, outletid, marketid, departmentid, department_name, status, created_by_id, created_date" +
+      ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))";
 
     const stmt = db.prepare(insertSql);
     const result = stmt.run(
@@ -72,6 +73,7 @@ exports.createTable = (req, res) => {
       outletid || null,
       marketid || null,
       departmentid || null,
+      department_name || null,
       status ?? 1,
       created_by_id || null
     );
@@ -84,14 +86,16 @@ exports.createTable = (req, res) => {
 };
 
 // Update table record (✅ departmentid added)
+// Update table record
 exports.updateTable = (req, res) => {
   try {
     const { tableid } = req.params;
-    const { table_name, hotelid, outletid, marketid, departmentid, status, updated_by_id } = req.body;
+    const { table_name, hotelid, outletid, marketid, departmentid, department_name, status, updated_by_id } = req.body;
 
     const updateSql = 
       "UPDATE msttablemanagement " +
-      "SET table_name = ?, hotelid = ?, outletid = ?, marketid = ?, departmentid = ?, status = ?, " +
+      "SET table_name = ?, hotelid = ?, outletid = ?, marketid = ?, " +
+      "departmentid = ?, department_name = ?, status = ?, " +
       "updated_by_id = ?, updated_date = datetime('now') " +
       "WHERE tableid = ?";
 
@@ -102,6 +106,7 @@ exports.updateTable = (req, res) => {
       outletid || null,
       marketid || null,
       departmentid || null,
+      department_name || null,
       status ?? 1,
       updated_by_id || null,
       tableid

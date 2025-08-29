@@ -17,7 +17,7 @@ import { OutletData } from '@/common/api/outlet';
 import axios from 'axios';
 
 // Define TableItem interface
-interface TableItem {
+interface DepartmentItem {
   departmentid: number | string;
   department_name: string;
   hotel_name: string;
@@ -40,9 +40,9 @@ interface TableItem {
 interface TableModalProps {
   show: boolean;
   onHide: () => void;
-  tableItem: TableItem | null;
+  DepartmentItem: DepartmentItem | null;
   onSuccess: () => void;
-  onUpdateSelectedTable: (tableItem: TableItem) => void;
+  onUpdateSelectedTable: (DepartmentItem: DepartmentItem) => void;
 }
 
 // Status badge for table
@@ -65,12 +65,12 @@ const debounce = (func: (...args: any[]) => void, wait: number) => {
 
 // Main TableDepartment Component
 const TableDepartment: React.FC = () => {
-  const [tableItems, setTableItems] = useState<TableItem[]>([]);
-  const [filteredTableItems, setFilteredTableItems] = useState<TableItem[]>([]);
+  const [tableItems, setTableItems] = useState<DepartmentItem[]>([]);
+  const [filteredTableItems, setFilteredTableItems] = useState<DepartmentItem[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [showTableModal, setShowTableModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [selectedTable, setSelectedTable] = useState<TableItem | null>(null);
+  const [selectedTable, setSelectedTable] = useState<DepartmentItem | null>(null);
   const [outlets, setOutlets] = useState<OutletData[]>([]);
   const [brands, setBrands] = useState<Array<{ hotelid: number; hotel_name: string }>>([]);
   const { user } = useAuthContext();
@@ -112,7 +112,7 @@ const TableDepartment: React.FC = () => {
   }, [user, searchTerm]);
 
   // Define table columns with action column shifted to the right
-  const columns = useMemo<ColumnDef<TableItem>[]>(
+  const columns = useMemo<ColumnDef<DepartmentItem>[]>(
     () => [
       {
         id: 'checkbox',
@@ -217,13 +217,13 @@ const TableDepartment: React.FC = () => {
   );
 
   // Handle edit button click
-  const handleEditClick = (table: TableItem) => {
+  const handleEditClick = (table: DepartmentItem) => {
     setSelectedTable(table);
     setShowTableModal(true);
   };
 
   // Handle delete operation
-  const handleDeleteTable = async (table: TableItem) => {
+  const handleDeleteTable = async (table: DepartmentItem) => {
     const res = await Swal.fire({
       title: 'Are you sure?',
       text: 'This will delete the department permanently!',
@@ -260,7 +260,7 @@ const TableDepartment: React.FC = () => {
   const TableModal: React.FC<TableModalProps> = ({
     show,
     onHide,
-    tableItem,
+    DepartmentItem,
     onSuccess,
     onUpdateSelectedTable,
   }) => {
@@ -289,11 +289,11 @@ const TableDepartment: React.FC = () => {
 
     useEffect(() => {
       fetchTaxGroups();
-      if (tableItem) {
-        setDepartmentName(tableItem.department_name);
-        setOutletId(tableItem.outletid ? Number(tableItem.outletid) : null);
-        setStatus(tableItem.status === 1 ? 'Active' : 'Inactive');
-        setTaxGroupId(tableItem.taxgroupid ? Number(tableItem.taxgroupid) : null); // Initialize taxgroupid
+      if (DepartmentItem) {
+        setDepartmentName(DepartmentItem.department_name);
+        setOutletId(DepartmentItem.outletid ? Number(DepartmentItem.outletid) : null);
+        setStatus(DepartmentItem.status === 1 ? 'Active' : 'Inactive');
+        setTaxGroupId(DepartmentItem.taxgroupid ? Number(DepartmentItem.taxgroupid) : null); // Initialize taxgroupid
       } else {
         setDepartmentName('');
         setOutletId(null);
@@ -302,7 +302,7 @@ const TableDepartment: React.FC = () => {
       }
       fetchOutletsForDropdown(user, setOutlets, setLoading);
       fetchBrands(user, setBrands);
-    }, [tableItem, user]);
+    }, [DepartmentItem, user]);
 
     const handleSave = async () => {
       if (!department_name || !outletid || !taxgroupid) {
@@ -318,7 +318,7 @@ const TableDepartment: React.FC = () => {
           outletid: outletid.toString(),
           taxgroupid: taxgroupid.toString(), // Include taxgroupid in payload
           status: statusValue,
-          ...(tableItem
+          ...(DepartmentItem
             ? {
                 updated_by_id: user?.id || '2',
                 updated_date: new Date().toISOString(),
@@ -329,10 +329,10 @@ const TableDepartment: React.FC = () => {
               }),
         };
 
-        const url = tableItem
-          ? `http://localhost:3001/api/table-department/${tableItem.departmentid}`
+        const url = DepartmentItem
+          ? `http://localhost:3001/api/table-department/${DepartmentItem.departmentid}`
           : 'http://localhost:3001/api/table-department';
-        const method = tableItem ? 'PUT' : 'POST';
+        const method = DepartmentItem ? 'PUT' : 'POST';
 
         const res = await fetch(url, {
           method,
@@ -342,10 +342,10 @@ const TableDepartment: React.FC = () => {
 
         const data = await res.json();
         if (res.ok && data.success) {
-          toast.success(data.message || `Department ${tableItem ? 'updated' : 'added'} successfully`);
-          if (tableItem) {
-            const updatedTable: TableItem = {
-              ...tableItem,
+          toast.success(data.message || `Department ${DepartmentItem ? 'updated' : 'added'} successfully`);
+          if (DepartmentItem) {
+            const updatedTable: DepartmentItem = {
+              ...DepartmentItem,
               department_name: department_name,
               outletid: outletid.toString(),
               taxgroupid: taxgroupid.toString(), // Update taxgroupid
@@ -362,7 +362,7 @@ const TableDepartment: React.FC = () => {
           onSuccess();
           onHide();
         } else {
-          toast.error(data.message || `Failed to ${tableItem ? 'update' : 'add'} department`);
+          toast.error(data.message || `Failed to ${DepartmentItem ? 'update' : 'add'} department`);
         }
       } catch (err) {
         toast.error('Something went wrong');
@@ -398,7 +398,7 @@ const TableDepartment: React.FC = () => {
           }}
         >
           <div className="d-flex justify-content-between align-items-center mb-3">
-            <h3 className="mb-0">{tableItem ? 'Edit Department' : 'Add Outlet Department'}</h3>
+            <h3 className="mb-0">{DepartmentItem ? 'Edit Department' : 'Add Outlet Department'}</h3>
             <button className="btn btn-sm btn-close" onClick={onHide}></button>
           </div>
           <div className="mb-3">
@@ -468,7 +468,7 @@ const TableDepartment: React.FC = () => {
               onClick={handleSave}
               disabled={loading}
             >
-              {loading ? 'Saving...' : tableItem ? 'Save' : 'Create'}
+              {loading ? 'Saving...' : DepartmentItem ? 'Save' : 'Create'}
             </button>
           </div>
         </div>
@@ -563,7 +563,7 @@ const TableDepartment: React.FC = () => {
           setShowTableModal(false);
           setSelectedTable(null);
         }}
-        tableItem={selectedTable}
+        DepartmentItem={selectedTable}
         onSuccess={() => fetchTableDepartment(searchTerm)}
         onUpdateSelectedTable={setSelectedTable}
       />

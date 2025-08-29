@@ -33,6 +33,7 @@ interface TableItem {
   outlet_details?: string;
   market_details?: string;
   departmentid?: number | string; // Added for department
+  department_name?: string; // Added for department name
 }
 
 // TableModal Props
@@ -81,7 +82,29 @@ const TableManagement: React.FC = () => {
   const [outlets, setOutlets] = useState<OutletData[]>([]);
   const [brands, setBrands] = useState<Array<{ hotelid: number; hotel_name: string }>>([]);
   const [selectedOutletId, setSelectedOutletId] = useState<number | null>(null);
+  const [departments, setDepartments] = useState<DepartmentItem[]>([]);
   const { user } = useAuthContext();
+
+  // Fetch department data
+  const fetchDepartments = async () => {
+    try {
+      const res = await fetch(`http://localhost:3001/api/table-department`, {
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          setDepartments(data.data);
+        } else {
+          toast.error(data.message || 'Failed to fetch departments');
+        }
+      } else {
+        toast.error('Failed to fetch departments');
+      }
+    } catch (err) {
+      toast.error('Failed to fetch departments');
+    }
+  };
 
   // Fetch table data
   const fetchTableManagement = async (search: string = '') => {
@@ -95,7 +118,8 @@ const TableManagement: React.FC = () => {
         if (data.success) {
           const formattedData = data.data.map((item: any) => ({
             ...item,
-            status: Number(item.status), // Convert status to number
+            status: Number(item.status),
+            department_name: item.department_name || 'Unknown Department', // Ensure department_name is included
           }));
           setTableItems(formattedData);
           setFilteredTableItems(formattedData);
@@ -116,6 +140,7 @@ const TableManagement: React.FC = () => {
     fetchTableManagement(searchTerm);
     fetchBrands(user, setBrands);
     fetchOutletsForDropdown(user, setOutlets, setLoading);
+    fetchDepartments(); // Fetch departments on component mount
   }, [user, searchTerm]);
 
   // Define table columns
@@ -171,6 +196,16 @@ const TableManagement: React.FC = () => {
         },
       },
       {
+        accessorKey: 'department_name',
+        header: 'Department Name',
+        size: 200,
+        cell: (info) => {
+          const departmentId = Number(info.row.original.departmentid);
+          const department = departments.find((dept) => dept.departmentid === departmentId);
+          return <span>{department ? department.department_name : info.row.original.department_name || 'Unknown Department'}</span>;
+        },
+      },
+      {
         accessorKey: 'status',
         header: 'Status',
         size: 15,
@@ -203,7 +238,8 @@ const TableManagement: React.FC = () => {
         ),
       },
     ],
-    [outlets, brands]
+    [outlets, brands, departments]
+    
   );
 
   // Initialize react-table
