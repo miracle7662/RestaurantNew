@@ -682,5 +682,31 @@ CREATE TABLE IF NOT EXISTS mstoutlet_settings (
    FOREIGN KEY (outletid) REFERENCES mst_outlets(outletid)
 );
 
+    CREATE TABLE IF NOT EXISTS payment_modes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    outletid INTEGER 
+    mode_name TEXT NOT NULL,
+    is_active BOOLEAN NOT NULL DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (outletid) REFERENCES mst_outlets(outletid)
+    );
+
+    CREATE TABLE IF NOT EXISTS msttable_department (
+    departmentid INTEGER PRIMARY KEY AUTOINCREMENT,
+    department_name TEXT NOT NULL,
+    outletid INTEGER NOT NULL,
+    taxgroupid INTEGER NOT NULL,
+    status INTEGER DEFAULT 1,
+    created_by_id INTEGER NOT NULL,
+    created_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_by_id INTEGER,
+    updated_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (outletid) REFERENCES mst_outlets(outletid) 
+    
+);
+
+
+
 `);
 module.exports = db;

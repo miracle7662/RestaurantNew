@@ -201,6 +201,14 @@ const MENU_ITEMS: MenuItemTypes[] = [
       },
 
       {
+        key: 'TableDepartment',
+        label: 'TableDepartment',
+        url: '/apps/TableDepartment',
+        parentKey: 'apps',
+      },
+
+
+      {
         key: 'country ',
         label: 'Country',
         url: '/masterpages/country',

@@ -1,5 +1,5 @@
 import React from 'react'
-import {  Route, RouteProps } from 'react-router-dom'
+import { Route, RouteProps } from 'react-router-dom'
 
 // PrivateRoute
 import PrivateRoute from './PrivateRoute'
@@ -28,7 +28,7 @@ const Menu = React.lazy(() => import('../views/apps/Masters/RestaurantMasters/Me
 const Country = React.lazy(() => import('../views/apps/Masters/CommanMasters/Country')) // Updated to use <Country /> component
 const States = React.lazy(() => import('../views/apps/Masters/CommanMasters/States')) // Updated to use <States /> component
 const City = React.lazy(() => import('../views/apps/Masters/CommanMasters/City')) // Updated to use <City /> component
-const MessageMaster = React.lazy(() => import('../views/apps/Masters/CommanMasters/MessageMaster')) 
+const MessageMaster = React.lazy(() => import('../views/apps/Masters/CommanMasters/MessageMaster'))
 // OutletConfigration
 const Market = React.lazy(() => import('../views/apps/Masters/CommanMasters/Market'))
 const Brand = React.lazy(() => import('../views/apps/Masters/CommanMasters/Brand'))
@@ -36,12 +36,11 @@ const Outlet = React.lazy(() => import('../views/apps/Masters/CommanMasters/Outl
 const OutletDesignation = React.lazy(() => import('../views/apps/Masters/CommanMasters/OutletDesignation'))
 const OutletUser = React.lazy(() => import('../views/apps/Masters/CommanMasters/OutletUser/OutletUser'))
 const OutletPaymentMode = React.lazy(() => import('../views/apps/Masters/CommanMasters/OutletPaymentMode'))
-const OrderTypeConfiguration = React.lazy(() => import('../views/apps/Masters/RestaurantMasters/OrderTypeConfiguration'))
 const AddOutlet = React.lazy(() => import('../views/apps/Masters/CommanMasters/Outlet/AddOutlet'))
 const KOTPrintSettings = React.lazy(() => import('../views/apps/Masters/CommanMasters/Outlet/KOTPrintSettings'))
 const BillPrintSettings = React.lazy(() => import('../views/apps/Masters/CommanMasters/Outlet/BillPrintSettings'))
 const HotelTypeMasters = React.lazy(() => import('../views/apps/Masters/CommanMasters/HotelTypeMasters'))
-const UserType  = React.lazy(() => import('../views/apps/Masters/CommanMasters/UserType'))
+const UserType = React.lazy(() => import('../views/apps/Masters/CommanMasters/UserType'))
 
 
 // const ManagePosAccessLevel = React.lazy(() => import('../views/OutletConfigration/ManagePosAccessLevel'))
@@ -56,12 +55,14 @@ const KitchenGroup = React.lazy(() => import('../views/apps/Masters/RestaurantMa
 const KitchenSubCategories = React.lazy(() => import('../views/apps/Masters/RestaurantMasters/KitchenSubCategories')) // Updated to use <KitchenItem /> component
 //const OrderDetails = React.lazy(() => import('../views/apps/OrderDetails'))
 //const CustomersDetails = React.lazy(() => import('../views/apps/CustomersDetails'))
-const KitchenCategories =React.lazy(() => import ('../views/apps/Masters/RestaurantMasters/KitchenCategories'))
+const OrderTypeConfiguration = React.lazy(() => import('../views/apps/Masters/RestaurantMasters/OrderTypeConfiguration'))
+const KitchenCategories = React.lazy(() => import('../views/apps/Masters/RestaurantMasters/KitchenCategories'))
 const OutletMenu = React.lazy(() => import('../views/apps/Masters/RestaurantMasters/OutletMenu'))
 const TaxProuductGroup = React.lazy(() => import('../views/apps/Masters/RestaurantMasters/TaxProuductGroup'))
 const TableManagement = React.lazy(() => import('../views/apps/Masters/RestaurantMasters/TableManagement'))
 const UnitMaster = React.lazy(() => import('../views/apps/Masters/RestaurantMasters/UnitMaster'))
 const Resttaxmaster = React.lazy(() => import('../views/apps/Masters/RestaurantMasters/Resttaxmaster'))
+const TableDepartment = React.lazy(() => import('../views/apps/Masters/RestaurantMasters/TableDepartment'))
 
 
 
@@ -351,7 +352,7 @@ const appsRoutes: RoutesProps = {
       route: PrivateRoute,
     },
 
-     {
+    {
       path: '/apps/OutletMenu',
       name: 'OutletMenu',
       element: <OutletMenu />,
@@ -363,13 +364,13 @@ const appsRoutes: RoutesProps = {
       element: <TaxProuductGroup />,
       route: PrivateRoute,
     },
-     {
+    {
       path: '/apps/Resttaxmaster',
       name: 'Resttaxmaster',
       element: <Resttaxmaster />,
       route: PrivateRoute,
     },
-     {
+    {
       path: '/apps/ItemGroup',
       name: 'ItemGroup',
       element: <ItemGroup />,
@@ -381,54 +382,61 @@ const appsRoutes: RoutesProps = {
       element: <ItemMainGroup />,
       route: PrivateRoute,
     },
-    
-    {
-  path: '/apps/KitchenGroup',
-  name: 'KitchenGroup',
-  element: <KitchenGroup />,
-  route: PrivateRoute,
-},
 
-   {
-  path: '/apps/TableManagement',
-  name: 'TableManagement',
-  element: <TableManagement />,
+    {
+      path: '/apps/KitchenGroup',
+      name: 'KitchenGroup',
+      element: <KitchenGroup />,
+      route: PrivateRoute,
+    },
+
+    {
+      path: '/apps/TableManagement',
+      name: 'TableManagement',
+      element: <TableManagement />,
+      route: PrivateRoute,
+    },
+
+     {
+  path: '/apps/TableDepartment',
+  name: 'TableDepartment',
+  element: <TableDepartment />,
   route: PrivateRoute,
 },
-{
-  path: '/apps/UnitMaster',
-  name: 'UnitMaster',
-  element: <UnitMaster />,
-  route: PrivateRoute,
-},
-{
+    {
+      path: '/apps/UnitMaster',
+      name: 'UnitMaster',
+      element: <UnitMaster />,
+      route: PrivateRoute,
+    },
+    {
       path: '/apps/MessageMaster',
       name: 'MessageMaster',
       element: <MessageMaster />,
       route: PrivateRoute,
     },
 
-// {
-//   path: '/apps/OrderDetails',
-//   name: 'OrderDetails',
-//   element: <OrderDetails/>,
-//   route: PrivateRoute,
-// },
+    // {
+    //   path: '/apps/OrderDetails',
+    //   name: 'OrderDetails',
+    //   element: <OrderDetails/>,
+    //   route: PrivateRoute,
+    // },
 
 
-{
-  path: '/apps/KitchenCategories',
-  name: 'KitchenCategories',
-  element: <KitchenCategories/>,
-  route: PrivateRoute,
-},
+    {
+      path: '/apps/KitchenCategories',
+      name: 'KitchenCategories',
+      element: <KitchenCategories />,
+      route: PrivateRoute,
+    },
 
-{
-  path: '/apps/KitchenSubCategories',
-  name: 'KitchenSubCategories',
-  element: <KitchenSubCategories/>,
-  route: PrivateRoute,
-},
+    {
+      path: '/apps/KitchenSubCategories',
+      name: 'KitchenSubCategories',
+      element: <KitchenSubCategories />,
+      route: PrivateRoute,
+    },
 
     {
       path: '/masterpages',
@@ -454,14 +462,14 @@ const appsRoutes: RoutesProps = {
           element: <City />,
           route: PrivateRoute,
         },
-         {
+        {
           path: '/masterpages/HotelTypeMasters',
           name: 'HotelTypeMasters',
           element: <HotelTypeMasters />,
           route: PrivateRoute,
         },
-        
-         {
+
+        {
           path: '/masterpages/UserType',
           name: 'User Type',
           element: <UserType />,
@@ -472,7 +480,7 @@ const appsRoutes: RoutesProps = {
       ],
     },
 
-     {
+    {
       path: '/OutletConfigration',
       name: 'OutletConfigration',
       header: 'Navigation',
@@ -484,7 +492,7 @@ const appsRoutes: RoutesProps = {
           route: PrivateRoute,
         },
 
-       {
+        {
           path: '/OutletConfigration/Brand',
           name: 'Brand',
           element: <Brand />,
@@ -497,9 +505,9 @@ const appsRoutes: RoutesProps = {
           route: PrivateRoute,
         },
 
-      
-    
-    
+
+
+
         {
           path: '/OutletConfigration/OutletDesignation',
           name: 'OutletDesignation',
@@ -519,27 +527,27 @@ const appsRoutes: RoutesProps = {
           element: <OutletPaymentMode />,
           route: PrivateRoute,
         },
-         {
+        {
           path: '/OutletConfigration/OrderTypeConfiguration',
           name: 'OrderTypeConfiguration',
           element: <OrderTypeConfiguration />,
           route: PrivateRoute,
         },
 
-          {
+        {
           path: '/OutletConfigration/AddOutlet',
           name: 'AddOutlet',
-          element: <AddOutlet/>,
+          element: <AddOutlet />,
           route: PrivateRoute,
         },
-          {
+        {
           path: '/OutletConfigration/KOTPrintSettings',
           name: 'KOTPrintSettings',
           element: <KOTPrintSettings />,
           route: PrivateRoute,
         },
 
-         {
+        {
           path: '/OutletConfigration/BillPrintSettings',
           name: 'BillPrintSettings',
           element: <BillPrintSettings />,
