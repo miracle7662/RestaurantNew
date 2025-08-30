@@ -5,6 +5,7 @@ import { fetchOutletsForDropdown } from '@/utils/commonfunction';
 import { useAuthContext } from '@/common';
 import { OutletData } from '@/common/api/outlet';
 import AddCustomerModal from './Customers';
+import { toast } from 'react-hot-toast';
 
 interface MenuItem {
   id: number;
@@ -34,6 +35,13 @@ interface TableItem {
   marketid: string;
   isActive: boolean;
   isCommonToAllDepartments: boolean;
+  departmentid?: number;
+}
+
+interface DepartmentItem {
+  departmentid: number;
+  department_name: string;
+  outletid: number;
 }
 
 const Order = () => {
@@ -58,8 +66,8 @@ const Order = () => {
   const { user } = useAuthContext();
   const [outlets, setOutlets] = useState<OutletData[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
+  const [departments, setDepartments] = useState<DepartmentItem[]>([]);
 
-  // Fetch tables from the TableManagement API
   const fetchTableManagement = async () => {
     setLoading(true);
     try {
@@ -74,7 +82,6 @@ const Order = () => {
             ...item,
             status: Number(item.status),
           }));
-          
           setTableItems(formattedData);
           setFilteredTables(formattedData);
           setErrorMessage('');
@@ -118,64 +125,92 @@ const Order = () => {
       const updatedKOTs = JSON.parse(localStorage.getItem('kots') || '[]');
       setSavedKOTs(updatedKOTs);
     };
-
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
-  useEffect(() => {
-    const fetchOutletsData = async () => {
-      console.log('Full user object:', JSON.stringify(user, null, 2));
-      
-      if (!user || !user.id) {
-        setErrorMessage('User not logged in or user ID missing.');
-        setLoading(false);
-        console.log('User data issue:', user);
-        return;
-      }
-
-      if (user.role_level === 'outlet_user' && (!user.hotelid || !user.outletid)) {
-        setErrorMessage('Outlet user missing required hotelid or outletid.');
-        setLoading(false);
-        console.log('Outlet user data issue:', user);
-        return;
-      }
-
-      if (user.role_level !== 'outlet_user' && !user.hotelid) {
-        setErrorMessage('User missing required hotelid.');
-        setLoading(false);
-        console.log('User data issue:', user);
-        return;
-      }
-
-      try {
-        setLoading(true);
-        setErrorMessage('');
-        
-        if (user.role_level === 'outlet_user' && user.outletid) {
-          console.log('Outlet user detected, fetching outlets with outletid filter:', user.outletid);
-          await fetchOutletsForDropdown(user, setOutlets, setLoading);
+  const fetchDepartments = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('http://localhost:3001/api/table-department', {
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          let formattedDepartments = data.data.map((item: any) => ({
+            departmentid: item.departmentid,
+            department_name: item.department_name,
+            outletid: item.outletid,
+          }));
+          if (user && user.role_level === 'outlet_user' && user.outletid) {
+            formattedDepartments = formattedDepartments.filter((d: DepartmentItem) => d.outletid === Number(user.outletid));
+          }
+          setDepartments(formattedDepartments);
         } else {
-          console.log('Fetching all outlets for user:', { userid: user.id, hotelid: user.hotelid, outletid: user.outletid });
-          await fetchOutletsForDropdown(user, setOutlets, setLoading);
+          toast.error(data.message || 'Failed to fetch departments');
         }
-        
-        console.log('Outlets fetched:', outlets);
-      } catch (error: any) {
-        console.error('Error in fetchOutletsData:', error);
-        setErrorMessage(
-          error.response?.status === 404
-            ? 'Outlets API endpoint not found. Please check backend configuration.'
-            : 'Failed to fetch outlets. Please try again later.'
-        );
-        setOutlets([]);
-      } finally {
-        setLoading(false);
+      } else {
+        toast.error('Failed to fetch departments');
       }
+    } catch (err) {
+      toast.error('Failed to fetch departments');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchOutletsData = async () => {
+    console.log('Full user object:', JSON.stringify(user, null, 2));
+    if (!user || !user.id) {
+      setErrorMessage('User not logged in or user ID missing.');
+      setLoading(false);
+      console.log('User data issue:', user);
+      return;
+    }
+    if (user.role_level === 'outlet_user' && (!user.hotelid || !user.outletid)) {
+      setErrorMessage('Outlet user missing required hotelid or outletid.');
+      setLoading(false);
+      console.log('Outlet user data issue:', user);
+      return;
+    }
+    if (user.role_level !== 'outlet_user' && !user.hotelid) {
+      setErrorMessage('User missing required hotelid.');
+      setLoading(false);
+      console.log('User data issue:', user);
+      return;
+    }
+    try {
+      setLoading(true);
+      setErrorMessage('');
+      if (user.role_level === 'outlet_user' && user.outletid) {
+        console.log('Outlet user detected, fetching outlets with outletid filter:', user.outletid);
+        await fetchOutletsForDropdown(user, setOutlets, setLoading);
+      } else {
+        console.log('Fetching all outlets for user:', { userid: user.id, hotelid: user.hotelid, outletid: user.outletid });
+        await fetchOutletsForDropdown(user, setOutlets, setLoading);
+      }
+      console.log('Outlets fetched:', outlets);
+    } catch (error: any) {
+      console.error('Error in fetchOutletsData:', error);
+      setErrorMessage(
+        error.response?.status === 404
+          ? 'Outlets API endpoint not found. Please check backend configuration.'
+          : 'Failed to fetch outlets. Please try again later.'
+      );
+      setOutlets([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const fetchData = async () => {
+      await fetchOutletsData();
+      await fetchDepartments();
+      fetchTableManagement();
     };
-    
-    fetchOutletsData();
-    fetchTableManagement();
+    fetchData();
   }, [user?.id, user?.hotelid, user?.outletid, user?.role_level]);
 
   useEffect(() => {
@@ -186,62 +221,42 @@ const Order = () => {
 
   useEffect(() => {
     console.log('Outlets state changed:', outlets);
+    console.log('Departments state changed:', departments);
     console.log('TableItems state changed:', tableItems);
-  }, [outlets, tableItems]);
+  }, [outlets, departments, tableItems]);
 
   useEffect(() => {
-    console.log('ActiveNavTab:', activeNavTab, 'Outlets:', outlets, 'TableItems:', tableItems);
-    const selectedOutlet = outlets.find(outlet => outlet.outlet_name === activeNavTab);
+    console.log('ActiveNavTab:', activeNavTab, 'Outlets:', outlets, 'Departments:', departments, 'TableItems:', tableItems);
     let filtered: TableItem[] = [];
-
     if (!Array.isArray(tableItems)) {
       console.error('tableItems is not an array:', tableItems);
       setFilteredTables([]);
       return;
     }
-
-    if (selectedOutlet) {
-      filtered = tableItems.filter(table => 
-        table && table.outlet_name && 
-        (table.outlet_name === activeNavTab || table.isCommonToAllDepartments)
-      );
+    if (activeNavTab === 'ALL') {
+      filtered = tableItems; // All tables for "ALL" tab, filtered by department in UI
     } else {
-      switch (activeNavTab) {
-        case 'ALL':
-          filtered = tableItems;
-          break;
-        case 'FamilyDine in':
-          filtered = tableItems.filter(table => 
-            table && table.table_name && 
-            (table.table_name.startsWith('F') || table.isCommonToAllDepartments)
-          );
-          break;
-        case 'Restaurant':
-          filtered = tableItems.filter(table => 
-            table && table.table_name && 
-            (table.table_name.startsWith('R') || table.isCommonToAllDepartments)
-          );
-          break;
-        case 'Rooms':
-          filtered = tableItems.filter(table => 
-            table && table.table_name && 
-            (/^\d+$/.test(table.table_name) || table.isCommonToAllDepartments)
-          );
-          break;
-        case 'Pickup':
-        case 'Quick Bill':
-        case 'Delivery':
-          filtered = [];
-          break;
-        default:
-          filtered = tableItems;
-          break;
+      const selectedDepartment = departments.find(d => d.department_name === activeNavTab);
+      if (selectedDepartment) {
+        filtered = tableItems.filter(table => 
+          Number(table.departmentid) === selectedDepartment.departmentid || table.isCommonToAllDepartments
+        );
+      } else {
+        switch (activeNavTab) {
+          case 'Pickup':
+          case 'Quick Bill':
+          case 'Delivery':
+            filtered = [];
+            break;
+          default:
+            filtered = tableItems;
+            break;
+        }
       }
     }
-    
     setFilteredTables(filtered);
     console.log(`Filtered tables for ${activeNavTab}:`, JSON.stringify(filtered, null, 2));
-  }, [activeNavTab, outlets, tableItems]);
+  }, [activeNavTab, outlets, departments, tableItems]);
 
   useEffect(() => {
     if (searchTable) {
@@ -340,17 +355,14 @@ const Order = () => {
       table: selectedTable || 'N/A',
       items: items,
       total: parseFloat(totalAmount),
-      timestamp: new Date().toLocaleString(),
+      timestamp: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }), // 11:42 AM IST, August 30, 2025
     };
-
     const savedKOTs = JSON.parse(localStorage.getItem('kots') || '[]');
     savedKOTs.push(kotData);
     localStorage.setItem('kots', JSON.stringify(savedKOTs));
-
     console.log('Saved KOT:', kotData);
     window.print();
     setItems([]);
-
     setSavedKOTs(savedKOTs);
   };
 
@@ -359,7 +371,7 @@ const Order = () => {
   }, [showOrderDetails, selectedTable]);
 
   return (
-    <div className="container-fluid p-0 m-0" style={{ height: '100vh'  }}>
+    <div className="container-fluid p-0 m-0" style={{ height: '100vh' }}>
       {errorMessage && (
         <div className="alert alert-danger text-center" role="alert">
           {errorMessage}
@@ -552,33 +564,33 @@ const Order = () => {
                   </li>
                   {loading ? (
                     <li className="nav-item flex-fill">
-                      <span>Loading outlets...</span>
+                      <span>Loading departments...</span>
                     </li>
-                  ) : outlets.length === 0 ? (
+                  ) : departments.length === 0 ? (
                     <li className="nav-item flex-fill">
                       <span style={{ color: 'red' }}>
                         {user?.role_level === 'outlet_user'
-                          ? 'No assigned outlet found for outlet user.'
-                          : 'Failed to load outlets or no outlets available'}
+                          ? 'No assigned departments found for outlet user.'
+                          : 'Failed to load departments or no departments available'}
                       </span>
                     </li>
                   ) : (
-                    outlets.map((outlet, index) => (
+                    departments.map((department, index) => (
                       <li className="nav-item flex-fill" key={index}>
                         <button
-                          className={`nav-link ${activeNavTab === outlet.outlet_name ? 'active bg-primary text-white' : 'text-dark'}`}
-                          onClick={() => setActiveNavTab(outlet.outlet_name)}
+                          className={`nav-link ${activeNavTab === department.department_name ? 'active bg-primary text-white' : 'text-dark'}`}
+                          onClick={() => setActiveNavTab(department.department_name)}
                           role="tab"
                           style={{ border: 'none', borderRadius: '5px', padding: '8px 12px', fontSize: '14px', fontWeight: 500, textAlign: 'center' }}
                         >
-                          {outlet.outlet_name} ({outlet.outletid})
+                          {department.department_name}
                           {user?.role_level === 'outlet_user' && ' (Assigned)'}
                         </button>
                       </li>
                     ))
                   )}
                   {['Pickup', 'Quick Bill', 'Delivery'].map((tab, index) => (
-                    <li className="nav-item flex-fill" key={index + outlets.length}>
+                    <li className="nav-item flex-fill" key={index + departments.length}>
                       <button
                         className={`nav-link ${tab === activeNavTab ? 'active bg-primary text-white' : 'text-dark'}`}
                         onClick={() => setActiveNavTab(tab)}
@@ -597,53 +609,51 @@ const Order = () => {
                     <p className="text-center text-muted mb-0">Loading tables...</p>
                   ) : activeNavTab === 'ALL' ? (
                     <>
-                      {outlets.map((outlet, index) => (
-                        <div key={index}>
-                          <p style={{ color: 'green', fontWeight: 'bold', margin: '10px 0 5px' }}>
-                            Outlet {outlet.outlet_name}
-                          </p>
-                          <div className="d-flex flex-wrap gap-1">
-                            {Array.isArray(tableItems) ? tableItems
-                              .filter(table => 
-                                table && table.outlet_name && 
-                                table.outlet_name.toLowerCase() === outlet.outlet_name.toLowerCase()
-                              )
-                              .map((table, tableIndex) => (
-                                table.table_name ? (
-                                  <div key={tableIndex} className="p-1">
-                                    <button
-                                      className={`btn ${selectedTable === table.table_name ? 'btn-success' : 'btn-outline-success'}`}
-                                      style={{ width: '90px', height: '80px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
-                                      onClick={() => {
-                                        console.log('Button clicked for table:', table.table_name, 'isActive:', table.isActive);
-                                        handleTableClick(table.table_name);
-                                      }}
-                                    >
-                                      {table.table_name} {table.isActive ? '' : ''}
-                                    </button>
-                                  </div>
-                                ) : null
-                              )) : null}
-                            {Array.isArray(tableItems) && tableItems.filter(table => 
-                              table && table.outlet_name && 
-                              table.outlet_name.toLowerCase() === outlet.outlet_name.toLowerCase()
-                            ).length === 0 && (
-                              <p className="text-center text-muted mb-0">
-                                No tables available for {outlet.outlet_name}.
-                              </p>
-                            )}
+                      {departments.map((department, index) => {
+                        const assignedTables = tableItems.filter(table =>
+                          table && table.departmentid && Number(table.departmentid) === department.departmentid
+                        );
+                        return (
+                          <div key={index}>
+                            <p style={{ color: 'green', fontWeight: 'bold', margin: '10px 0 5px' }}>
+                              Department {department.department_name}
+                            </p>
+                            <div className="d-flex flex-wrap gap-1">
+                              {assignedTables.length > 0 ? (
+                                assignedTables.map((table, tableIndex) => (
+                                  table.table_name ? (
+                                    <div key={tableIndex} className="p-1">
+                                      <button
+                                        className={`btn ${selectedTable === table.table_name ? 'btn-success' : 'btn-outline-success'}`}
+                                        style={{ width: '90px', height: '80px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+                                        onClick={() => {
+                                          console.log('Button clicked for table:', table.table_name, 'isActive:', table.isActive);
+                                          handleTableClick(table.table_name);
+                                        }}
+                                      >
+                                        {table.table_name} {table.isActive ? '' : ''}
+                                      </button>
+                                    </div>
+                                  ) : null
+                                ))
+                              ) : (
+                                <p className="text-center text-muted mb-0">
+                                  No tables assigned to {department.department_name}.
+                                </p>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      ))}
-                      {outlets.length === 0 && (
+                        );
+                      })}
+                      {departments.length === 0 && (
                         <p className="text-center text-muted mb-0">
-                          No outlets available. Please check outlet data.
+                          No departments available. Please check department data.
                         </p>
                       )}
                     </>
                   ) : activeNavTab === 'abcd' || activeNavTab === 'qwert' ? (
                     <div>
-                      <p style={{ color: 'green', fontWeight: 'bold', margin: '10px 0 5px' }}>Outlet {activeNavTab}</p>
+                      <p style={{ color: 'green', fontWeight: 'bold', margin: '10px 0 5px' }}>Department {activeNavTab}</p>
                       <div className="d-flex flex-wrap gap-1">
                         {Array.isArray(filteredTables) ? filteredTables
                           .filter(table => 
@@ -713,7 +723,7 @@ const Order = () => {
                   setSelectedTable={setSelectedTable}
                   invalidTable={invalidTable}
                   setInvalidTable={setInvalidTable}
-                  filteredTables={filteredTables} // Add this prop
+                  filteredTables={filteredTables}
                 />
               </div>
             )}
@@ -954,7 +964,6 @@ const Order = () => {
             </div>
           </div>
 
-          {/* Saved KOTs Modal */}
           <Modal show={showSavedKOTsModal} onHide={() => setShowSavedKOTsModal(false)} centered size="lg">
             <Modal.Header closeButton>
               <Modal.Title>Saved KOTs</Modal.Title>
@@ -1000,7 +1009,6 @@ const Order = () => {
             </Modal.Footer>
           </Modal>
 
-          {/* Customer Modal */}
           <Modal
             show={showNewCustomerForm}
             onHide={handleCloseCustomerModal}
@@ -1010,7 +1018,6 @@ const Order = () => {
             keyboard={false}
           >
             <Modal.Header closeButton>
-              
             </Modal.Header>
             <Modal.Body>
               <AddCustomerModal />

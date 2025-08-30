@@ -690,7 +690,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
           setOutletsLoaded(true);
         };
         await Promise.all([
-          fetchKitchenCategory(setKitchenCategory, setKitchenCategoryId, mstmenu?.kitchen_category_id),
+          fetchKitchenCategory(setKitchenCategory, setKitchenCategoryId, mstmenu?.kitchen_category_id ?? undefined),
           fetchKitchenMainGroup(setKitchenMainGroup, setKitchenMainGroupId, mstmenu?.kitchen_main_group_id?.toString()),
           fetchKitchenSubCategory(setKitchenSubCategory, setKitchenSubCategoryId, mstmenu?.kitchen_sub_category_id?.toString()),
           fetchItemGroup(setItemGroup, setItemGroupId, mstmenu?.item_group_id?.toString()),
@@ -700,7 +700,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
           fetchunitmaster(setStockUnits, setStockUnit, mstmenu?.stock_unit?.toString()),
           fetchOutletsForDropdown(user, uniqueOutletsCallback, setLoading),
         ]);
-      } catch (err) {
+      } catch (err) {       
         console.error('Error loading data:', err);
         toast.error('Failed to load dropdown data');
       } finally {
