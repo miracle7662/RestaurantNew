@@ -9,14 +9,13 @@ exports.getOutletUsers = (req, res) => {
     let query = `
       SELECT u.*, 
              h.hotel_name as hotel_name,
-             GROUP_CONCAT(o.outlet_name) as outlet_name,
-             GROUP_CONCAT(uom.outletid) as outletids,
+             o.outlet_name as outlet_name,
+             o.outletid as outletids,
              d.Designation as designation_name,
              ut.User_type as user_type_name
       FROM mst_users u
       LEFT JOIN msthotelmasters h ON u.hotelid = h.hotelid
-      LEFT JOIN user_outlet_mapping uom ON u.userid = uom.userid
-      LEFT JOIN mst_outlets o ON uom.outletid = o.outletid
+      LEFT JOIN mst_outlets o ON u.outletids = o.outletid
       LEFT JOIN mstdesignation d ON u.designation = d.designationid
       LEFT JOIN mstuserType ut ON u.user_type = ut.usertypeid
       WHERE (u.role_level = 'outlet_user' OR u.role_level = 'hotel_admin')
@@ -36,7 +35,7 @@ exports.getOutletUsers = (req, res) => {
         return res.status(403).json({ message: 'Insufficient permissions' });
     }
 
-    query += " GROUP BY u.userid ORDER BY CASE WHEN u.role_level = 'hotel_admin' THEN 0 ELSE 1 END, u.created_date DESC";
+    query += " ORDER BY CASE WHEN u.role_level = 'hotel_admin' THEN 0 ELSE 1 END, u.created_date DESC";
 
     const users = db.prepare(query).all(...params);
     res.json(users);
@@ -56,10 +55,10 @@ exports.getOutletsForDropdown = (req, res) => {
                    b.hotel_name as brand_name
             FROM mst_outlets o
             LEFT JOIN msthotelmasters b ON o.hotelid = b.hotelid
-            WHERE o.status = 0
+            WHERE o.hotelid = ?
         `
 
-    const params = []
+    const params = [hotelid]
 
     switch (roleLevel) {
       case 'superadmin':
@@ -95,7 +94,7 @@ exports.createOutletUser = async (req, res) => {
       password,
       full_name,
       phone,
-      outletids, // array -> JSON.stringify before saving
+      outletid, // Changed from outletids to outletid (single outlet)
       Designation,
       designationid,
       user_type,
@@ -129,15 +128,13 @@ exports.createOutletUser = async (req, res) => {
       !email ||
       !password ||
       !full_name ||
-      !outletids ||
-      !Array.isArray(outletids) ||
-      outletids.length === 0
+      !outletid
     ) {
       return res
         .status(400)
         .json({
           message: 'Required fields missing',
-          missing: { username, email, password, full_name, outletids },
+          missing: { username, email, password, full_name, outletid },
         })
     }
 
@@ -160,47 +157,34 @@ exports.createOutletUser = async (req, res) => {
       return res.status(400).json({ message: 'Invalid parent user', parent_user_id })
     }
 
-    // Validate outlet IDs
-    const outletIds = outletids.map((id) => parseInt(id)).filter((id) => !isNaN(id))
-    if (outletIds.length === 0) {
-      return res.status(400).json({ message: 'No valid outlet IDs provided', outletids })
+    // Validate outlet ID
+    const outletId = parseInt(outletid)
+    if (isNaN(outletId)) {
+      return res.status(400).json({ message: 'Invalid outlet ID provided', outletid })
     }
 
-    // Validate outlets exist and are active
-    const outlets = db
+    // Validate outlet exists and is active
+    const outlet = db
       .prepare(
-        'SELECT outletid, hotelid FROM mst_outlets WHERE outletid IN (' +
-          outletIds.map(() => '?').join(',') +
-          ') AND status = 0',
+        'SELECT outletid, hotelid FROM mst_outlets WHERE outletid = ? AND status = 0',
       )
-      .all(...outletIds)
-    if (outlets.length !== outletIds.length) {
-      const foundOutletIds = outlets.map((outlet) => outlet.outletid)
-      const invalidOutletIds = outletIds.filter((id) => !foundOutletIds.includes(id))
-      console.error('Invalid or inactive outlet IDs:', invalidOutletIds)
+      .get(outletId)
+    if (!outlet) {
       return res
         .status(400)
-        .json({ message: 'One or more outlet IDs are invalid or inactive', invalidOutletIds })
-    }
-
-    // Ensure all outlets belong to the same hotel
-    const hotelIds = [...new Set(outlets.map((outlet) => outlet.hotelid))]
-    if (hotelIds.length > 1) {
-      return res
-        .status(400)
-        .json({ message: 'Selected outlets must belong to the same hotel', hotelIds })
+        .json({ message: 'Outlet ID is invalid or inactive', outletid })
     }
 
     const finalHotelId = hotelid || parentUser.hotelid
 
-    // Verify all outlets belong to the provided or parent hotel
-    if (!outlets.every((outlet) => outlet.hotelid === finalHotelId)) {
+    // Verify outlet belongs to the provided or parent hotel
+    if (outlet.hotelid !== finalHotelId) {
       return res
         .status(400)
         .json({
-          message: 'Selected outlets do not belong to the specified hotel',
+          message: 'Selected outlet does not belong to the specified hotel',
           finalHotelId,
-          outletHotelIds: outlets.map((o) => o.hotelid),
+          outletHotelId: outlet.hotelid,
         })
     }
 
@@ -216,6 +200,7 @@ exports.createOutletUser = async (req, res) => {
     parent_user_id,
     brand_id,
     hotelid,
+    outletid,
     Designation,
     designationid,
     user_type,
@@ -250,7 +235,8 @@ exports.createOutletUser = async (req, res) => {
       role_level,
       parent_user_id,
       brand_id,
-      hotelid,
+      finalHotelId,
+      outletId,
       Designation,
       designationid,
       user_type,
@@ -274,17 +260,7 @@ exports.createOutletUser = async (req, res) => {
       created_date || new Date().toISOString(),
     )
 
-
     const userid = result.lastInsertRowid
-
-    // Insert outlet mappings into user_outlet_mapping
-    const insertMapping = db.prepare(`
-            INSERT INTO user_outlet_mapping (userid, hotelid, outletid)
-            VALUES (?, ?, ?)
-        `)
-    for (const outletid of outletIds) {
-      insertMapping.run(userid, finalHotelId, outletid)
-    }
 
     res.json({
       userid,
@@ -292,7 +268,7 @@ exports.createOutletUser = async (req, res) => {
       email,
       full_name,
       role_level: 'outlet_user',
-      outletids,
+      outletid: outletId,
       hotelid: finalHotelId,
     })
   } catch (error) {
@@ -315,7 +291,7 @@ exports.updateOutletUser = async (req, res) => {
       parent_user_id,
       brand_id,
       hotelid,
-      outletids,
+      outletid,
       Designation,
       designationid,
       user_type,
@@ -383,6 +359,7 @@ exports.updateOutletUser = async (req, res) => {
     addField('parent_user_id', parent_user_id, 'INTEGER');
     addField('brand_id', brand_id, 'INTEGER');
     addField('hotelid', hotelid, 'INTEGER');
+    addField('outletid', outletid, 'INTEGER');
     addField('Designation', Designation, 'TEXT');
     addField('designationid', designationid, 'INTEGER');
     addField('user_type', user_type, 'TEXT');
@@ -423,57 +400,33 @@ exports.updateOutletUser = async (req, res) => {
       stmt.run(...params);
     }
 
-    // Update outlet mappings if outletids provided
-    if (outletids && Array.isArray(outletids)) {
-      const outletIds = outletids.map((id) => parseInt(id)).filter((id) => !isNaN(id));
-      if (outletIds.length === 0) {
-        return res.status(400).json({ message: 'No valid outlet IDs provided' });
+    // Validate outlet ID if provided
+    if (outletid) {
+      const outletId = parseInt(outletid);
+      if (isNaN(outletId)) {
+        return res.status(400).json({ message: 'Invalid outlet ID provided' });
       }
 
-      const outlets = db
+      const outlet = db
         .prepare(
-          'SELECT outletid, hotelid FROM mst_outlets WHERE outletid IN (' +
-            outletIds.map(() => '?').join(',') +
-            ') AND status = 0',
+          'SELECT outletid, hotelid FROM mst_outlets WHERE outletid = ? AND status = 0',
         )
-        .all(...outletIds);
-      if (outlets.length !== outletIds.length) {
-        const foundOutletIds = outlets.map((outlet) => outlet.outletid);
-        const invalidOutletIds = outletIds.filter((id) => !foundOutletIds.includes(id));
-        console.error('Invalid or inactive outlet IDs:', invalidOutletIds);
+        .get(outletId);
+      if (!outlet) {
         return res
           .status(400)
-          .json({ message: 'One or more outlet IDs are invalid or inactive', invalidOutletIds });
-      }
-
-      const hotelIds = [...new Set(outlets.map((outlet) => outlet.hotelid))];
-      if (hotelIds.length > 1) {
-        return res
-          .status(400)
-          .json({ message: 'Selected outlets must belong to the same hotel', hotelIds });
+          .json({ message: 'Outlet ID is invalid or inactive', outletid });
       }
 
       const finalHotelId = existingUser.hotelid;
-      if (!outlets.every((outlet) => outlet.hotelid === finalHotelId)) {
+      if (outlet.hotelid !== finalHotelId) {
         return res
           .status(400)
           .json({
-            message: "Selected outlets do not belong to the user's hotel",
+            message: "Selected outlet does not belong to the user's hotel",
             finalHotelId,
-            outletHotelIds: outlets.map((o) => o.hotelid),
+            outletHotelId: outlet.hotelid,
           });
-      }
-
-      // Delete existing mappings
-      db.prepare('DELETE FROM user_outlet_mapping WHERE userid = ?').run(userid);
-
-      // Insert new mappings
-      const insertMapping = db.prepare(`
-        INSERT INTO user_outlet_mapping (userid, hotelid, outletid)
-        VALUES (?, ?, ?)
-      `);
-      for (const outletid of outletIds) {
-        insertMapping.run(userid, finalHotelId, outletid);
       }
     }
 
@@ -483,6 +436,7 @@ exports.updateOutletUser = async (req, res) => {
     res.status(500).json({ message: 'Internal server error', error: error.message });
   }
 };
+
 // Delete outlet user (soft delete)
 exports.deleteOutletUser = (req, res) => {
   try {
@@ -511,15 +465,13 @@ exports.getOutletUserById = (req, res) => {
             SELECT u.*, 
                    b.hotel_name as brand_name,
                    h.hotel_name as hotel_name,
-                   GROUP_CONCAT(o.outlet_name) as outlet_name,
-                   GROUP_CONCAT(uom.outletid) as outletids
+                   o.outlet_name as outlet_name,
+                   u.outletid as outletids
             FROM mst_users u
             LEFT JOIN msthotelmasters b ON u.brand_id = b.hotelid
             LEFT JOIN msthotelmasters h ON u.hotelid = h.hotelid
-            LEFT JOIN user_outlet_mapping uom ON u.userid = uom.userid
-            LEFT JOIN mst_outlets o ON uom.outletid = o.outletid
+            LEFT JOIN mst_outlets o ON u.outletid = o.outletid
             WHERE u.userid = ? AND u.role_level = 'outlet_user'
-            GROUP BY u.userid
         `,
       )
       .get(id)
@@ -528,8 +480,8 @@ exports.getOutletUserById = (req, res) => {
       return res.status(404).json({ error: 'Outlet user not found' })
     }
 
-    // Convert outletids to array of numbers
-    user.outletids = user.outletids ? user.outletids.split(',').map(Number) : []
+    // Convert outletids to array for consistency
+    user.outletids = user.outletids ? [user.outletids] : []
     res.json(user)
   } catch (error) {
     console.error('Error fetching outlet user:', error)

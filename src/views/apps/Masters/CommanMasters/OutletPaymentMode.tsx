@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Button, Card, Form, ListGroup, Row, Col } from 'react-bootstrap';
 import axios from 'axios';
+import { fetchOutletsForDropdown } from '@/utils/commonfunction';
+import { OutletData } from '@/common/api/outlet';
+import { useAuthContext } from '@/common';
+import { toast } from 'react-hot-toast';
 
 interface PaymentMode {
   id?: number;
@@ -16,16 +20,20 @@ interface Outlet {
 
 const PaymentModes: React.FC = () => {
   const [paymentModes, setPaymentModes] = useState<PaymentMode[]>([]);
-  const [outlets, setOutlets] = useState<Outlet[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
   const [selectedOutlet, setSelectedOutlet] = useState<string>('');
   const [selectedModesLeft, setSelectedModesLeft] = useState<string[]>([]);
   const [selectedModesRight, setSelectedModesRight] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [searchTermRight, setSearchTermRight] = useState<string>('');
+  const { user } = useAuthContext();
+  const [outlets, setOutlets] = useState<OutletData[]>([]);
+  const [availablePaymentModes, setAvailablePaymentModes] = useState<string[]>([]);
 
   // Fetch outlets and payment modes on component mount or outlet change
   useEffect(() => {
-    fetchOutlets();
+    fetchOutletsForDropdown(user, setOutlets, setLoading);
+    fetchAvailablePaymentModes(); // Fetch available payment modes on mount
   }, []);
 
   useEffect(() => {
@@ -44,6 +52,18 @@ const PaymentModes: React.FC = () => {
     } catch (error) {
       console.error('Error fetching outlets:', error);
       alert('Failed to fetch outlets');
+    }
+  };
+
+  // Fetch available payment modes from the controller
+  const fetchAvailablePaymentModes = async () => {
+    try {
+      const response = await axios.get('/api/payment'); // Matches the controller endpoint
+      const modes = response.data.map((mode: any) => mode.method_name); // Extract method_name
+      setAvailablePaymentModes(modes);
+    } catch (error) {
+      console.error('Error fetching available payment modes:', error);
+      alert('Failed to fetch available payment modes');
     }
   };
 
@@ -108,7 +128,7 @@ const PaymentModes: React.FC = () => {
     setSelectedModesRight((prev) =>
       prev.includes(modeId)
         ? prev.filter((id) => id !== modeId)
-        : [...prev, modeId]
+        : [...prev, id]
     );
   };
 
@@ -134,9 +154,7 @@ const PaymentModes: React.FC = () => {
       alert('Please select an outlet');
       return;
     }
-    const availableModes = [
-      'Paytm', 'GooglePay', 'Freecharge', 'Card', 'Zomato', 'Swiggy', 'UberEats', 'BhimPay',
-    ].filter((mode) => !paymentModes.some((pm) => pm.mode_name === mode));
+    const availableModes = availablePaymentModes.filter((mode) => !paymentModes.some((pm) => pm.mode_name === mode));
     for (const mode of availableModes) {
       await handleAddPaymentMode(mode);
     }
@@ -164,10 +182,8 @@ const PaymentModes: React.FC = () => {
     alert('Changes saved successfully!');
   };
 
-  // Filter for available (left side) payment modes (simulated)
-  const filteredPaymentModesLeft = [
-    'Paytm', 'GooglePay', 'Freecharge', 'Card', 'Zomato', 'Swiggy', 'UberEats', 'BhimPay',
-  ]
+  // Filter for available (left side) payment modes
+  const filteredPaymentModesLeft = availablePaymentModes
     .filter((mode) => !paymentModes.some((pm) => pm.mode_name === mode))
     .filter((mode) => mode.toLowerCase().includes(searchTerm));
 
@@ -331,4 +347,4 @@ const PaymentModes: React.FC = () => {
   );
 };
 
-export default PaymentModes; 
+export default PaymentModes;

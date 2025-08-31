@@ -36,6 +36,8 @@ const restTaxMasterRoutes = require('./routes/restTaxMasterRoutes');
 const settingsRoutes = require('./routes/settingsRoutes'); // Adjust path as per your project structure
 const paymentModesRoutes = require('./routes/paymentModesRoutes');
 const msttableDepartmentRoutes = require('./routes/msttableDepartmentRoutes');
+const paymentmethodRoutes = require('./routes/paymentmethodRoutes');
+
 
 
 
@@ -76,6 +78,7 @@ app.use('/api/resttaxmaster', restTaxMasterRoutes);
 app.use('/api/settings', settingsRoutes); // Register settings routes
 app.use('/api/payment-modes', paymentModesRoutes); // Register payment modes routes
 app.use('/api/table-department', msttableDepartmentRoutes); // Register table department routes
+app.use('/api/payment', paymentmethodRoutes);
 
 // ✅ Add a health check endpoint
 app.get('/api/health', (req, res) => {
