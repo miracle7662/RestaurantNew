@@ -327,6 +327,20 @@ CREATE TABLE IF NOT EXISTS msttablemanagement (
     marketid INTEGER
   );
 
+    CREATE TABLE IF NOT EXISTS msttable_department (
+    departmentid INTEGER PRIMARY KEY AUTOINCREMENT,
+    department_name TEXT NOT NULL,
+    outletid INTEGER NOT NULL,
+    taxgroupid INTEGER NOT NULL,
+    status INTEGER DEFAULT 1,
+    created_by_id INTEGER NOT NULL,
+    created_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_by_id INTEGER,
+    updated_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (outletid) REFERENCES mst_outlets(outletid) 
+    
+);
+
  CREATE TABLE IF NOT EXISTS mstcustomer (
     customerid INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
@@ -694,19 +708,11 @@ CREATE TABLE IF NOT EXISTS mstoutlet_settings (
     FOREIGN KEY (outletid) REFERENCES mst_outlets(outletid)
     );
 
-    CREATE TABLE IF NOT EXISTS msttable_department (
-    departmentid INTEGER PRIMARY KEY AUTOINCREMENT,
-    department_name TEXT NOT NULL,
-    outletid INTEGER NOT NULL,
-    taxgroupid INTEGER NOT NULL,
-    status INTEGER DEFAULT 1,
-    created_by_id INTEGER NOT NULL,
-    created_date DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_by_id INTEGER,
-    updated_date DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (outletid) REFERENCES mst_outlets(outletid) 
     
-);
+
+  
+
+
 
 
 
