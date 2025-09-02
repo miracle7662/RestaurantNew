@@ -671,6 +671,8 @@ export const fetchOutletsForDropdown = async (
   }
 };
 
+
+
 // export const fetchhotelmasters = async (
 //   setHotels: (data: HotelMasterItem[]) => void,
 //   user?: User,

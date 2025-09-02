@@ -1,13 +1,12 @@
-import React, { useState, useEffect, ChangeEvent } from 'react';
+import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { useAuthContext } from '@/common';
-import { Button, Modal, Form, Row, Col, Card, ToggleButton, Table, Navbar, Offcanvas } from 'react-bootstrap';
+import { Button, Modal, Form, Row, Col, Card, Table, Navbar, Offcanvas } from 'react-bootstrap';
 import {
   fetchKitchenCategory,
   fetchKitchenMainGroup,
   fetchKitchenSubCategory,
   fetchItemGroup,
-  fetchItemGroupsWithMenuItems,
   fetchItemMainGroup,
   fetchData,
   fetchunitmaster,
@@ -34,6 +33,8 @@ interface MenuItem {
   kitchen_sub_category_id: number | null;
   kitchen_main_group_id: number | null;
   item_group_id: number | null;
+  itemgroupname: string | null;
+  groupname: string | null;
   item_main_group_id: number | null;
   stock_unit: string | null;
   price: number;
@@ -65,6 +66,7 @@ interface CardItem {
   visits: number;
   cardStatus: string;
 }
+
 interface DepartmentRate {
   departmentid: number;
   departmentName: string;
@@ -84,29 +86,12 @@ interface DepartmentItem {
   outletid: number;
 }
 
-interface NewItem {
-}
-
-type Category =
-  | 'All'
-  | 'Appetizers'
-  | 'MainCourse'
-  | 'Desserts'
-  | 'Beverages'
-  | 'Cocktails'
-  | 'Salads'
-  | 'Soups'
-  | 'Breakfast'
-  | 'VeganOptions';
-
 interface ModalProps {
   show: boolean;
   onHide: () => void;
   onSuccess: () => void;
   setData: React.Dispatch<React.SetStateAction<MenuItem[]>>;
   setCardItems: React.Dispatch<React.SetStateAction<CardItem[]>>;
-  itemCategories: { [key in Category]: CardItem[] };
-  setItemCategories: React.Dispatch<React.SetStateAction<{ [key in Category]: CardItem[] }>>;
   mstmenu?: MenuItem;
 }
 
@@ -119,105 +104,20 @@ interface OutletData {
   outlet_name: string;
 }
 
-const getItemCategory = (itemGroupId: number | null, itemGroup: ItemGroupItem[]): Category => {
-  if (!itemGroupId) return 'All';
-  const group = itemGroup.find(g => g.item_groupid === itemGroupId);
-  if (!group) return 'All';
-  const cleanName = group.itemgroupname.replace(/\.\.\./, '').trim().toLowerCase();
-  const categoryMap: Record<string, Category> = {
-    'appetizers': 'Appetizers',
-    'maincourse': 'MainCourse',
-    'desserts': 'Desserts',
-    'beverages': 'Beverages',
-    'cocktails': 'Cocktails',
-    'salads': 'Salads',
-    'soups': 'Soups',
-    'breakfast': 'Breakfast',
-    'veganoptions': 'VeganOptions',
-  };
-  return categoryMap[cleanName] || 'All';
-};
-
 const Menu: React.FC = () => {
   const [data, setData] = useState<MenuItem[]>([]);
   const [cardItems, setCardItems] = useState<CardItem[]>([]);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editItem, setEditItem] = useState<MenuItem | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [globalFilter, setGlobalFilter] = useState<string>('');
   const [showSidebar, setShowSidebar] = useState(false);
-  const [itemGroup, setItemGroup] = useState<ItemGroupItem[]>([]);
-  const [itemGroupStatus, setItemGroupStatus] = useState<{ [key: number]: number }>({}); // Store status of each item group
-  const [itemGroupId, setItemGroupId] = useState<number | null>(null);
-  
-  useEffect(() => {
-    const fetchGroups = async () => {
-      try {
-        const groups = await fetchItemGroup(setItemGroup, setItemGroupId);
-        if (Array.isArray(groups)) {
-          const statusMap: { [key: number]: number } = {};
-          groups.forEach((group) => {
-            statusMap[group.item_groupid] = group.status;
-          });
-          setItemGroupStatus(statusMap);
-        }
-      } catch {
-        toast.error('Failed to fetch item groups');
-      }
-    };
-    fetchGroups();
-  }, []);
-
-  // Function to update item group status in backend
-  const updateItemGroupStatus = async (groupId: number, newStatus: number) => {
-    try {
-      const group = itemGroup.find((g) => g.item_groupid === groupId);
-      if (!group) {
-        toast.error('Item group not found');
-        return;
-      }
-      const payload = {
-        itemgroupname: group.itemgroupname,
-        code: group.code || '',
-        kitchencategoryid: group.kitchencategoryid || null,
-        status: newStatus,
-        updated_by_id: user?.id || 2,
-        updated_date: new Date().toISOString(),
-      };
-      const res = await fetch(`http://localhost:3001/api/itemgroup/${groupId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) {
-        toast.error(`Failed to update item group status (${res.status})`);
-        return;
-      }
-      setItemGroupStatus((prev) => ({ ...prev, [groupId]: newStatus }));
-      toast.success('Item group status updated');
-    } catch (err: any) {
-      toast.error(`Error updating item group status: ${err.message}`);
-    }
-  };
-  const [selectedCategory, setSelectedCategory] = useState<Category>('All');
+  const [globalFilter, setGlobalFilter] = useState<string>('');
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [outlets, setOutlets] = useState<OutletData[]>([]);
   const [brands, setBrands] = useState<any[]>([]);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]); // State for sidebar menu items
+  const [error, setError] = useState<string | null>(null); // State for error handling
   const { user } = useAuthContext();
-  
-  const [itemCategories, setItemCategories] = useState<{ [key in Category]: CardItem[] }>({
-    All: [],
-    Appetizers: [],
-    MainCourse: [],
-    Desserts: [],
-    Beverages: [],
-    Cocktails: [],
-    Salads: [],
-    Soups: [],
-    Breakfast: [],
-    VeganOptions: [],
-  });
 
   const fetchMenu = async () => {
     try {
@@ -237,98 +137,94 @@ const Menu: React.FC = () => {
         cardStatus: item.status === 1 ? '✅ Available' : '❌ Unavailable',
       }));
 
-      const updatedCategories: { [key in Category]: CardItem[] } = {
-        All: updatedCardItems,
-        Appetizers: [],
-        MainCourse: [],
-        Desserts: [],
-        Beverages: [],
-        Cocktails: [],
-        Salads: [],
-        Soups: [],
-        Breakfast: [],
-        VeganOptions: [],
-      };
-      menuData.forEach((item) => {
-        const category = getItemCategory(item.item_group_id, itemGroup);
-        const cardItem = updatedCardItems.find((ci) => ci.userId === String(item.restitemid));
-        if (cardItem && category !== 'All') {
-          updatedCategories[category].push(cardItem);
-        }
-      });
-      setItemCategories(updatedCategories);
-      setCardItems(updatedCategories[selectedCategory] || updatedCardItems);
+      setCardItems(updatedCardItems);
     } catch (err) {
       console.error('Fetch Menu error:', err);
       toast.error('Failed to fetch menu');
-      setError('Failed to fetch menu');
     } finally {
       setLoading(false);
     }
   };
 
-  
-  useEffect(() => {
-    const fetchGroups = async () => {
-      try {
-        const groups = await fetchItemGroupsWithMenuItems(setItemGroup, setItemGroupId);
-        // After item groups are fetched, build status map from groups directly
-        const statusMap: { [key: number]: number } = {};
-        if (Array.isArray(groups)) {
-          groups.forEach((group) => {
-            statusMap[group.item_groupid] = group.status;
-          });
-        }
-        setItemGroupStatus(statusMap);
-        fetchMenu();
-      } catch {
-        toast.error('Failed to fetch item groups');
+  const fetchMenuItems = async (hotelid?: number, outletid?: number) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      let url = 'http://localhost:3001/api/menu';
+      const params: string[] = [];
+
+      if (hotelid) params.push(`hotelid=${hotelid}`);
+      if (outletid) params.push(`outletid=${outletid}`);
+
+      if (params.length > 0) {
+        url += `?${params.join('&')}`;
       }
-    };
-    fetchGroups();
-    console.log('User info before fetching outlets and brands:', user);
+
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('Failed to fetch menu items');
+      const data = await res.json();
+      console.log('Fetched menu items:', data);
+      setMenuItems(data);
+    } catch (err: any) {
+      setError(err.message || 'Failed to fetch menu items');
+      toast.error('Failed to fetch Menu Items');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchMenu();
     fetchOutletsForDropdown(user, setOutlets, setLoading);
     fetchBrands(user, setBrands);
+    fetchMenuItems(user?.hotelid, user?.outletid); // Fetch menu items for sidebar
   }, [user]);
-
-  const handleCategoryClick = (group: ItemGroupItem) => {
-    const category = getItemCategory(group.item_groupid, itemGroup);
-    setSelectedCategory(category);
-    setItemGroupId(group.item_groupid);
-    setCardItems(itemCategories[category] || []);
-    setShowSidebar(false);
-  };
 
   const handleEditItem = (item: MenuItem) => {
     setEditItem(item);
     setShowEditModal(true);
   };
 
-  const updateStatusInDatabase = async (restitemid: number, newStatus: number) => {
-    try {
-      const item = data.find((item) => item.restitemid === restitemid);
-      if (!item) {
-        toast.error('Item not found');
-        return;
-      }
-      const res = await fetch(`http://localhost:3001/api/menu/${restitemid}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...item, status: newStatus, updated_by_id: user?.id || 2 }),
-      });
-      if (!res.ok) {
-        toast.error(`Server error (${res.status})`);
-        return;
-      }
-      setData((prev) =>
-        prev.map((item) =>
-          item.restitemid === restitemid ? { ...item, status: newStatus, updated_by_id: user?.id || 2, updated_date: new Date().toISOString() } : item
+  const handleToggleStatus = (itemId: string) => {
+    const item = data.find((p) => p.restitemid === Number(itemId));
+    if (item) {
+      const newStatus = item.status === 1 ? 0 : 1;
+      const updatedItem = { ...item, status: newStatus };
+      setData((prev) => prev.map((i) => (i.restitemid === Number(itemId) ? updatedItem : i)));
+      setCardItems((prev) =>
+        prev.map((card) =>
+          card.userId === itemId
+            ? { ...card, cardStatus: newStatus === 1 ? '✅ Available' : '❌ Unavailable' }
+            : card
         )
       );
-      toast.success('Status updated successfully');
-    } catch (err: any) {
-      toast.error(`Failed to update status: ${err.message}`);
     }
+  };
+
+  const handleToggleGroupStatus = (groupId: number) => {
+    const updatedItems = menuItems.map((item) =>
+      item.item_group_id === groupId ? { ...item, status: item.status === 1 ? 0 : 1 } : item
+    );
+    setMenuItems(updatedItems);
+    const updatedData = data.map((item) =>
+      updatedItems.find((ui) => ui.restitemid === item.restitemid)
+        ? { ...item, status: updatedItems.find((ui) => ui.restitemid === item.restitemid)!.status }
+        : item
+    );
+    setData(updatedData);
+    setCardItems((prev) =>
+      prev.map((card) => {
+        const updatedItem = updatedData.find((item) => item.restitemid === Number(card.userId));
+        return updatedItem
+          ? {
+              ...card,
+              cardStatus: updatedItem.status === 1 ? '✅ Available' : '❌ Unavailable',
+            }
+          : card;
+      })
+    );
   };
 
   return (
@@ -345,16 +241,6 @@ const Menu: React.FC = () => {
             >
               ←
             </Button>
-            <Navbar.Brand className="d-lg-none">
-              <Button
-                variant="link"
-                onClick={() => setShowSidebar(true)}
-                className="p-0"
-                style={{ color: '#1a202c' }}
-              >
-                <i className="bi bi-list" style={{ fontSize: '24px' }}></i>
-              </Button>
-            </Navbar.Brand>
           </div>
           <h5 className="mb-0 flex-grow-1 text-center text-lg-start">Items Management</h5>
           <div className="d-flex flex-column flex-lg-row align-items-center gap-2 mt-2 mt-lg-0">
@@ -384,162 +270,106 @@ const Menu: React.FC = () => {
           </div>
         </div>
       </Navbar>
-
+      
       <div className="d-flex flex-column flex-lg-row">
-        <Offcanvas
-          show={showSidebar}
-          onHide={() => setShowSidebar(false)}
-          responsive="lg"
-          placement="start"
-          className="bg-white shadow-sm border-end"
-          style={{ width: '250px', minWidth: '250px', maxWidth: '250px', overflowX: 'hidden' }}
-        >
-          <Offcanvas.Header closeButton className="border-bottom">
-            <Offcanvas.Title as="h6" className="fw-bold mb-0">Item Groups</Offcanvas.Title>
-          </Offcanvas.Header>
-          <Offcanvas.Body className="p-3" style={{ overflowY: 'auto', overflowX: 'hidden' }}>
-            {loading ? (
-              <p className="text-muted">Loading item groups...</p>
-            ) : error ? (
-              <p className="text-muted">Error: {error}</p>
-            ) : (
-              <Table striped bordered hover size="sm" style={{ marginBottom: 0, tableLayout: 'fixed', width: '100%' }}>
-                <thead>
-                  <tr>
-                    <th style={{ width: '70%', padding: '8px', backgroundColor: '#f8f9fa', fontWeight: '600', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Item Group</th>
-                    <th style={{ width: '30%', padding: '8px', backgroundColor: '#f8f9fa', fontWeight: '600', textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr
-                    style={{ backgroundColor: selectedCategory === 'All' ? '#e9ecef' : 'transparent', color: '#2d3748' }}
-                    onClick={() => {
-                      setSelectedCategory('All');
-                      setItemGroupId(null);
-                      setCardItems(itemCategories['All']);
-                      setShowSidebar(false);
-                    }}
-                  >
-                    <td style={{ padding: '8px', verticalAlign: 'middle', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>All</td>
-                    <td style={{ padding: '8px', verticalAlign: 'middle', textAlign: 'center' }}>
-                      <ToggleButton
-                        id="sidebar-toggle-all"
-                        type="checkbox"
-                        variant="outline-success"
-                        checked={true}
-                        disabled={true}
-                        value="1"
-                        size="sm"
-                        style={{ borderRadius: '15px', width: '40px', height: '20px', padding: '0', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', backgroundColor: '#28a745' }}
-                      >
-                        <div style={{ width: '16px', height: '16px', backgroundColor: 'white', borderRadius: '50%', margin: '2px' }} />
-                      </ToggleButton>
-                    </td>
-                  </tr>
-                  {itemGroup.map((group) => {
-                    const category = getItemCategory(group.item_groupid, itemGroup);
-                    const isSelected = itemGroupId === group.item_groupid;
-                    const isAvailable = data.some((item) => item.item_group_id === group.item_groupid && item.status === 0);
+       <Offcanvas
+  show={showSidebar}
+  onHide={() => setShowSidebar(false)}
+  responsive="lg"
+  placement="start"
+  className="bg-white shadow-sm border-end"
+  style={{ width: '250px', minWidth: '250px', maxWidth: '250px', overflowX: 'hidden' }}
+>
+  <Offcanvas.Header closeButton className="border-bottom">
+    <Offcanvas.Title as="h6" className="fw-bold mb-0">Item Groups</Offcanvas.Title>
+  </Offcanvas.Header>
+  <Offcanvas.Body className="p-3" style={{ overflowY: 'auto', overflowX: 'hidden' }}>
+    {loading ? (
+      <p className="text-muted">Loading item groups...</p>
+    ) : error ? (
+      <p className="text-muted">Error: {error}</p>
+    ) : menuItems.length === 0 ? (
+      <p className="text-muted">No item groups available.</p>
+    ) : (
+      <Table striped bordered hover size="sm" style={{ marginBottom: 0, tableLayout: 'fixed', width: '100%' }}>
+        <thead>
+          <tr>
+            <th style={{ width: '70%', padding: '8px', backgroundColor: '#f8f9fa', fontWeight: '600', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Item Group</th>
+            <th style={{ width: '30%', padding: '8px', backgroundColor: '#f8f9fa', fontWeight: '600', textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            style={{ backgroundColor: !data.length ? '#e9ecef' : 'transparent', color: '#2d3748' }}
+            onClick={() => {
+              setShowSidebar(false);
+            }}
+          >
+            <td style={{ padding: '8px', verticalAlign: 'middle', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>All</td>
+            <td style={{ padding: '8px', verticalAlign: 'middle', textAlign: 'center' }}>
+              <Button
+                variant="outline-success"
+                size="sm"
+                disabled
+                style={{ borderRadius: '15px', width: '40px', height: '20px', padding: '0', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', backgroundColor: '#28a745' }}
+              >
+                <div style={{ width: '16px', height: '16px', backgroundColor: 'white', borderRadius: '50%', margin: '2px' }} />
+              </Button>
+            </td>
+          </tr>
+          {Array.from(new Set(menuItems
+            .filter((item) => item.item_group_id !== null)
+            .map(item => item.item_group_id as number)))
+            .map(groupId => {
+              const groupItems = menuItems.filter(item => item.item_group_id === groupId);
+              const groupName = groupItems[0].groupname || `Group ${groupId}`;
+              const groupStatus = groupItems[0].status; // Use the status of the first item, assuming all are the same after toggle
+              return (
+                <tr
+                  key={groupId}
+                  style={{ backgroundColor: groupStatus === 0 ? '#e9ecef' : 'transparent', color: '#2d3748' }}
+                  onClick={() => {
+                    setShowSidebar(false);
+                  }}
+                >
+                  <td style={{ padding: '8px', verticalAlign: 'middle', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {groupName}
+                  </td>
+                  <td style={{ padding: '8px', verticalAlign: 'middle', textAlign: 'center' }}>
+                    <Button
+                      variant="outline-success"
+                      size="sm"
+                      onClick={() => handleToggleGroupStatus(groupId)}
+                      style={{
+                        borderRadius: '15px',
+                        width: '40px',
+                        height: '20px',
+                        padding: '0',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: groupStatus === 0 ? 'flex-start' : 'flex-end',
+                        backgroundColor: groupStatus === 0 ? '#6c757d' : '#28a745',
+                        border: 'none',
+                      }}
+                    >
+                      <div style={{ width: '16px', height: '16px', backgroundColor: 'white', borderRadius: '50%', margin: '2px' }} />
+                    </Button>
+                  </td>
+                </tr>
+              );
+            })}
+        </tbody>
+      </Table>
+    )}
+  </Offcanvas.Body>
+</Offcanvas>
 
-                    return (
-                      <tr
-                        key={group.item_groupid}
-                        style={{ backgroundColor: isSelected ? '#e9ecef' : 'transparent', color: '#2d3748' }}
-                        onClick={() => handleCategoryClick(group)}
-                      >
-                        <td style={{ padding: '8px', verticalAlign: 'middle', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{group.itemgroupname}</td>
-                        <td style={{ padding: '8px', verticalAlign: 'middle', textAlign: 'center' }}>
-                          <ToggleButton
-                            id={`sidebar-toggle-${group.item_groupid}`}
-                            type="checkbox"
-                            variant="outline-success"
-                            checked={true}
-                            value="1"
-                            onChange={async () => {
-                              const newStatus = itemGroupStatus[group.item_groupid] === 0 ? 1 : 0;
-                              // Update backend item group status
-                              try {
-                                const res = await fetch(`http://localhost:3001/api/itemgroup/${group.item_groupid}`, {
-                                  method: 'PUT',
-                                  headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify({
-                                    itemgroupname: group.itemgroupname,
-                                    code: group.code,
-                                    kitchencategoryid: group.kitchencategoryid,
-                                    status: newStatus,
-                                    updated_by_id: user?.id || 2,
-                                    updated_date: new Date().toISOString(),
-                                  }),
-                                });
-                                if (!res.ok) {
-                                  toast.error(`Failed to update item group status (${res.status})`);
-                                  return;
-                                }
-                                // Update frontend state
-                                setItemGroupStatus((prev) => ({
-                                  ...prev,
-                                  [group.item_groupid]: newStatus,
-                                }));
-                                // Optionally update items status in this group in frontend state
-                                setData((prevData) =>
-                                  prevData.map((d) =>
-                                    d.item_group_id === group.item_groupid ? { ...d, status: newStatus } : d
-                                  )
-                                );
-                                // Update cardItems and itemCategories accordingly
-                                const updatedCardStatus = newStatus === 0 ? '✅ Available' : '❌ Unavailable';
-                                setCardItems((prevCardItems) =>
-                                  prevCardItems.map((item) =>
-                                    itemCategories[category].some((catItem) => catItem.userId === item.userId)
-                                      ? { ...item, cardStatus: updatedCardStatus }
-                                      : item
-                                  )
-                                );
-                                setItemCategories((prev) => ({
-                                  ...prev,
-                                  All: prev.All.map((item) =>
-                                    itemCategories[category].some((catItem) => catItem.userId === item.userId)
-                                      ? { ...item, cardStatus: updatedCardStatus }
-                                      : item
-                                  ),
-                                  [category]: prev[category].map((item) => ({
-                                    ...item,
-                                    cardStatus: updatedCardStatus,
-                                  })),
-                                }));
-                                toast.success('Item group status updated successfully');
-                              } catch (error) {
-                                toast.error('Error updating item group status');
-                              }
-                            }}
-                            size="sm"
-                            style={{
-                              borderRadius: '15px',
-                              width: '40px',
-                              height: '20px',
-                              padding: '0',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: itemGroupStatus[group.item_groupid] === 0 ? 'flex-end' : 'flex-start',
-                              backgroundColor: itemGroupStatus[group.item_groupid] === 0 ? '#28a745' : '#6c757d',
-                            }}
-                          >
-                            <div style={{ width: '16px', height: '16px', backgroundColor: 'white', borderRadius: '50%', margin: '2px' }} />
-                          </ToggleButton>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </Table>
-            )}
-          </Offcanvas.Body>
-        </Offcanvas>
         <div className="flex-grow-1 p-3">
           <div style={{ maxHeight: 'calc(100vh - 80px)', paddingRight: '10px' }}>
             <Row xs={1} sm={2} md={3} lg={4} className="g-3 mb-4">
               {cardItems.map((item, index) => {
                 const menuItem = data.find((p) => p.restitemid === Number(item.userId));
+                const isActive = item.cardStatus === '✅ Available';
                 return (
                   <Col key={index}>
                     <Card
@@ -579,42 +409,32 @@ const Menu: React.FC = () => {
                               <path fillRule="evenodd" d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 0-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5.5v-11a.5.5 0 0 1 .5-.5H9a.5.5 0 0 0 0-1H2.5A1.5 1.5 0 0 0 1 2.5z" />
                             </svg>
                           </Button>
-                          <ToggleButton
-                            id={`card-toggle-${item.userId}`}
-                            type="checkbox"
+                          <Button
                             variant="outline-success"
-                            checked={item.cardStatus === '✅ Available'}
-                            value="1"
-                            onChange={() => {
-                              const updatedStatus = item.cardStatus === '✅ Available' ? '❌ Unavailable' : '✅ Available';
-                              setCardItems((prev) =>
-                                prev.map((cardItem) =>
-                                  cardItem.userId === item.userId ? { ...cardItem, cardStatus: updatedStatus } : cardItem
-                                )
-                              );
-                              if (menuItem) {
-                                setData((prevData) =>
-                                  prevData.map((d) =>
-                                    d.restitemid === menuItem.restitemid ? { ...d, status: updatedStatus === '✅ Available' ? 0 : 1 } : d
-                                  )
-                                );
-                                updateStatusInDatabase(menuItem.restitemid, updatedStatus === '✅ Available' ? 0 : 1);
-                              }
-                            }}
                             size="sm"
+                            onClick={() => menuItem && handleToggleStatus(item.userId)}
                             style={{
                               borderRadius: '15px',
-                              width: '36px',
-                              height: '18px',
+                              width: '40px',
+                              height: '20px',
                               padding: '0',
                               display: 'flex',
                               alignItems: 'center',
-                              justifyContent: item.cardStatus === '✅ Available' ? 'flex-end' : 'flex-start',
-                              backgroundColor: item.cardStatus === '✅ Available' ? '#28a745' : '#6c757d',
+                              justifyContent: isActive ? 'flex-end' : 'flex-start',
+                              backgroundColor: isActive ? '#28a745' : '#6c757d',
+                              border: 'none',
                             }}
                           >
-                            <div style={{ width: '14px', height: '14px', backgroundColor: 'white', borderRadius: '50%', margin: '2px' }} />
-                          </ToggleButton>
+                            <div
+                              style={{
+                                width: '16px',
+                                height: '16px',
+                                backgroundColor: 'white',
+                                borderRadius: '50%',
+                                margin: '2px',
+                              }}
+                            />
+                          </Button>
                         </div>
                       </Card.Body>
                     </Card>
@@ -631,8 +451,6 @@ const Menu: React.FC = () => {
           onSuccess={fetchMenu}
           setData={setData}
           setCardItems={setCardItems}
-          itemCategories={itemCategories}
-          setItemCategories={setItemCategories}
           isEdit={false}
         />
         <ItemModal
@@ -641,8 +459,6 @@ const Menu: React.FC = () => {
           onSuccess={fetchMenu}
           setData={setData}
           setCardItems={setCardItems}
-          itemCategories={itemCategories}
-          setItemCategories={setItemCategories}
           mstmenu={editItem ?? undefined}
           isEdit={true}
         />
@@ -650,8 +466,7 @@ const Menu: React.FC = () => {
     </div>
   );
 };
-
-const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData, setCardItems, itemCategories, setItemCategories, mstmenu, isEdit }) => {
+const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData, setCardItems, mstmenu, isEdit }) => {
   const [selectedOutlet, setSelectedOutlet] = useState<number | null>(mstmenu?.outletid || null);
   const [selectedBrand, setSelectedBrand] = useState<number | null>(mstmenu?.hotelid || null);
   const [itemNo, setItemNo] = useState<string | null>(mstmenu?.item_no || null);
@@ -661,8 +476,8 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
   const [kitchenCategoryId, setKitchenCategoryId] = useState<number | null>(mstmenu?.kitchen_category_id || null);
   const [kitchenSubCategoryId, setKitchenSubCategoryId] = useState<number | null>(mstmenu?.kitchen_sub_category_id || null);
   const [kitchenMainGroupId, setKitchenMainGroupId] = useState<number | null>(mstmenu?.kitchen_main_group_id || null);
-  const [itemGroupId, setItemGroupId] = useState<number | null>(mstmenu?.item_group_id || null);
   const [itemMainGroupId, setItemMainGroupId] = useState<number | null>(mstmenu?.item_main_group_id || null);
+  const [itemGroupId, setItemGroupId] = useState<number | null>(mstmenu?.item_group_id || null);
   const [stockUnit, setStockUnit] = useState<number | null>(mstmenu?.stock_unit ? Number(mstmenu.stock_unit) : null);
   const [price, setPrice] = useState<string>(mstmenu?.price ? mstmenu.price.toString() : '');
   const [taxgroupid, setTaxgroupid] = useState<number | null>(mstmenu?.taxgroupid || null);
@@ -676,8 +491,8 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
   });
   const [kitchenCategory, setKitchenCategory] = useState<KitchenCategoryItem[]>([]);
   const [kitchenSubCategory, setKitchenSubCategory] = useState<KitchenSubCategoryItem[]>([]);
-  const [kitchenMainGroup, setKitchenMainGroup] = useState<KitchenMainGroupItem[]>([]);
   const [itemGroup, setItemGroup] = useState<ItemGroupItem[]>([]);
+  const [kitchenMainGroup, setKitchenMainGroup] = useState<KitchenMainGroupItem[]>([]);
   const [itemMainGroup, setItemMainGroup] = useState<ItemMainGroupItem[]>([]);
   const [brands, setBrands] = useState<Array<{ hotelid: number; hotel_name: string }>>([]);
   const [outlets, setOutlets] = useState<OutletData[]>([]);
@@ -687,6 +502,30 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
   const [departments, setDepartments] = useState<DepartmentItem[]>([]);
   const [loading, setLoading] = useState(false);
   const { user } = useAuthContext();
+
+  useEffect(() => {
+    if (mstmenu && isEdit) {
+      setSelectedOutlet(mstmenu.outletid || null);
+      setSelectedBrand(mstmenu.hotelid || null);
+      setItemNo(mstmenu.item_no || null);
+      setItemName(mstmenu.item_name || '');
+      setPrintName(mstmenu.print_name || null);
+      setShortName(mstmenu.short_name || null);
+      setKitchenCategoryId(mstmenu.kitchen_category_id || null);
+      setKitchenSubCategoryId(mstmenu.kitchen_sub_category_id || null);
+      setKitchenMainGroupId(mstmenu.kitchen_main_group_id || null);
+      setItemGroupId(mstmenu.item_group_id || null);
+      setItemMainGroupId(mstmenu.item_main_group_id || null);
+      setStockUnit(mstmenu.stock_unit ? Number(mstmenu.stock_unit) : null);
+      setPrice(mstmenu.price ? mstmenu.price.toString() : '');
+      setTaxgroupid(mstmenu.taxgroupid || null);
+      setRuntimeRates(!!mstmenu.is_runtime_rates);
+      setIsCommonToAllDepartments(!!mstmenu.is_common_to_all_departments);
+      setItemDescription(mstmenu.item_description || null);
+      setItemHsncode(mstmenu.item_hsncode || null);
+      setStatus(mstmenu.status ?? 1);
+    }
+  }, [mstmenu, isEdit]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -707,6 +546,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
           fetchKitchenMainGroup(setKitchenMainGroup, setKitchenMainGroupId, mstmenu?.kitchen_main_group_id?.toString()),
           fetchKitchenSubCategory(setKitchenSubCategory, setKitchenSubCategoryId, mstmenu?.kitchen_sub_category_id?.toString()),
           fetchItemGroup(setItemGroup, setItemGroupId, mstmenu?.item_group_id?.toString()),
+
           fetchItemMainGroup(setItemMainGroup, setItemMainGroupId, mstmenu?.item_main_group_id?.toString()),
           fetchBrands(user, setBrands),
           fetchData(setTaxGroups, setTaxgroupid, mstmenu?.taxgroupid?.toString()),
@@ -723,7 +563,6 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
     loadData();
   }, [user, mstmenu]);
 
-  // Fetch and filter departments when outlet changes
   useEffect(() => {
     const fetchDepartmentsForOutlet = async () => {
       if (selectedOutlet === null) {
@@ -749,12 +588,10 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
             }));
             setDepartments(formattedDepartments);
 
-            // Filter departments to match selected outlet
             const filteredDepartments = formattedDepartments.filter(
               (dept) => Number(dept.outletid) === selectedOutlet
             );
 
-            // In edit mode, load existing department rates for the item
             let initialDepartmentRates: DepartmentRate[] = [];
             if (isEdit && mstmenu?.restitemid) {
               try {
@@ -785,7 +622,6 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
               }
             }
 
-            // If no existing rates (add mode or no details), initialize with filtered departments
             if (initialDepartmentRates.length === 0) {
               initialDepartmentRates = filteredDepartments.map((dept: DepartmentItem) => ({
                 departmentid: dept.departmentid,
@@ -850,7 +686,6 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
       kitchen_category_id: kitchenCategoryId,
       kitchen_sub_category_id: kitchenSubCategoryId,
       kitchen_main_group_id: kitchenMainGroupId,
-      item_group_id: itemGroupId,
       item_main_group_id: itemMainGroupId,
       stock_unit: stockUnit,
       price: parseFloat(price),
@@ -897,16 +732,13 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
       const updatedItem: MenuItem = await res.json();
       toast.success(`Item ${isEdit ? 'updated' : 'added'} successfully`);
 
-      const oldCategory = getItemCategory(mstmenu?.item_group_id ?? null, itemGroup);
-      const newCategory = getItemCategory(updatedItem.item_group_id, itemGroup);
-
       const updatedCardItem = {
         userId: String(updatedItem.restitemid),
         itemId: updatedItem.item_no || '',
         ItemName: updatedItem.item_name,
         aliasName: updatedItem.short_name || '',
         price: updatedItem.price || 0,
-        visits: itemCategories.All.find((item) => item.userId === String(updatedItem.restitemid))?.visits || 0,
+        visits: 0,
         cardStatus: updatedItem.status === 1 ? '✅ Available' : '❌ Unavailable',
       };
 
@@ -921,26 +753,6 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
           ? prev.map((item) => (item.userId === String(updatedItem.restitemid) ? updatedCardItem : item))
           : [...prev, updatedCardItem]
       );
-
-      setItemCategories((prev) => {
-        const updatedCategories = { ...prev };
-        updatedCategories.All = isEdit
-          ? updatedCategories.All.map((item) => (item.userId === String(updatedItem.restitemid) ? updatedCardItem : item))
-          : [...updatedCategories.All, updatedCardItem];
-
-        if (isEdit && oldCategory !== newCategory && oldCategory !== 'All') {
-          updatedCategories[oldCategory] = updatedCategories[oldCategory].filter(
-            (item) => item.userId !== String(updatedItem.restitemid)
-          );
-        }
-        if (newCategory !== 'All') {
-          const categoryItems = updatedCategories[newCategory].filter(
-            (item) => item.userId !== String(updatedItem.restitemid)
-          );
-          updatedCategories[newCategory] = [...categoryItems, updatedCardItem];
-        }
-        return updatedCategories;
-      });
 
       onSuccess();
       onHide();
