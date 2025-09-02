@@ -116,6 +116,7 @@ const Menu: React.FC = () => {
   const [outlets, setOutlets] = useState<OutletData[]>([]);
   const [brands, setBrands] = useState<any[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]); // State for sidebar menu items
+  const [selectedItemGroup, setSelectedItemGroup] = useState<number | null>(null); // State for selected item group filter
   const [error, setError] = useState<string | null>(null); // State for error handling
   const { user } = useAuthContext();
 
@@ -126,6 +127,7 @@ const Menu: React.FC = () => {
       if (!res.ok) throw new Error('Failed to fetch menu');
       const menuData: MenuItem[] = await res.json();
       setData(menuData);
+      setMenuItems(menuData);
 
       const updatedCardItems = menuData.map((item) => ({
         userId: String(item.restitemid),
@@ -227,6 +229,11 @@ const Menu: React.FC = () => {
     );
   };
 
+  const handleSuccess = () => {
+    fetchMenu();
+    fetchMenuItems(user?.hotelid, user?.outletid);
+  };
+
   return (
     <div style={{ backgroundColor: '#f4f6f9', minHeight: '100vh' }}>
       <Navbar bg="white" expand="lg" className="shadow-sm border-bottom py-2" style={{ position: 'sticky', top: 0, zIndex: 10 }}>
@@ -302,6 +309,7 @@ const Menu: React.FC = () => {
           <tr
             style={{ backgroundColor: !data.length ? '#e9ecef' : 'transparent', color: '#2d3748' }}
             onClick={() => {
+              setSelectedItemGroup(null);
               setShowSidebar(false);
             }}
           >
@@ -329,6 +337,7 @@ const Menu: React.FC = () => {
                   key={groupId}
                   style={{ backgroundColor: groupStatus === 0 ? '#e9ecef' : 'transparent', color: '#2d3748' }}
                   onClick={() => {
+                    setSelectedItemGroup(groupId);
                     setShowSidebar(false);
                   }}
                 >
@@ -367,7 +376,7 @@ const Menu: React.FC = () => {
         <div className="flex-grow-1 p-3">
           <div style={{ maxHeight: 'calc(100vh - 80px)', paddingRight: '10px' }}>
             <Row xs={1} sm={2} md={3} lg={4} className="g-3 mb-4">
-              {cardItems.map((item, index) => {
+              {cardItems.filter(item => selectedItemGroup === null || data.find(d => d.restitemid === Number(item.userId))?.item_group_id === selectedItemGroup).map((item, index) => {
                 const menuItem = data.find((p) => p.restitemid === Number(item.userId));
                 const isActive = item.cardStatus === '✅ Available';
                 return (
@@ -448,7 +457,7 @@ const Menu: React.FC = () => {
         <ItemModal
           show={showAddModal}
           onHide={() => setShowAddModal(false)}
-          onSuccess={fetchMenu}
+          onSuccess={handleSuccess}
           setData={setData}
           setCardItems={setCardItems}
           isEdit={false}
@@ -456,7 +465,7 @@ const Menu: React.FC = () => {
         <ItemModal
           show={showEditModal}
           onHide={() => setShowEditModal(false)}
-          onSuccess={fetchMenu}
+          onSuccess={handleSuccess}
           setData={setData}
           setCardItems={setCardItems}
           mstmenu={editItem ?? undefined}
