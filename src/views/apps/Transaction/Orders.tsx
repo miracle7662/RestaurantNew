@@ -616,7 +616,7 @@ const Order = () => {
                         return (
                           <div key={index}>
                             <p style={{ color: 'green', fontWeight: 'bold', margin: '10px 0 5px' }}>
-                              Department {department.department_name}
+                               {department.department_name}
                             </p>
                             <div className="d-flex flex-wrap gap-1">
                               {assignedTables.length > 0 ? (
