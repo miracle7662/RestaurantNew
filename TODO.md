@@ -1,11 +1,17 @@
-# TODO: Implement Sidebar Item Groups Filtering
+# Menu Item Group Implementation
 
-## Steps to Complete
-- [ ] Add selectedItemGroup state in Menu component
-- [ ] Filter displayed cardItems based on selectedItemGroup
-- [ ] Update sidebar "All" row onClick to set selectedItemGroup to null and close sidebar
-- [ ] Update sidebar group rows onClick to set selectedItemGroup to groupId and close sidebar
-- [ ] Modify onSuccess callback to refetch both data and menuItems
-- [ ] Test group selection filtering
-- [ ] Test adding item with new group, verify sidebar updates
-- [ ] Test editing item group assignment
+## Frontend Changes (Menu.tsx)
+- [ ] Add state for newItemGroupName
+- [ ] Add "Add New Group" option to item group dropdown
+- [ ] Add conditional text input for new group name
+- [ ] Modify handleSubmit to create new group first if needed
+- [ ] Refresh item groups list after creation
+
+## Backend Changes
+- [ ] Update mstrestmenuController.js to handle new group creation
+- [ ] Test item group validation
+
+## Testing
+- [ ] Verify new groups appear in sidebar
+- [ ] Confirm filtering works for new groups
+- [ ] Ensure existing functionality intact
