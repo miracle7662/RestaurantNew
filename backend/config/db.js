@@ -393,14 +393,16 @@ CREATE TABLE IF NOT EXISTS msttablemanagement (
 CREATE TABLE IF NOT EXISTS mstrestmenu (
     restitemid                   INTEGER PRIMARY KEY AUTOINCREMENT,
     hotelid                      INTEGER REFERENCES msthotelmasters (hotelid),
+    outletid                     INTEGER REFERENCES mst_outlets (outletid),
     item_no                      INTEGER,
     item_name                    TEXT (200) NOT NULL,
     print_name                   TEXT (200),
     short_name                   TEXT (200),
-  kitchen_category_id            INTEGER,
+    kitchen_category_id            INTEGER,
     kitchen_sub_category_id      INTEGER,
     kitchen_main_group_id        INTEGER,
     item_group_id                INTEGER,
+    itemgroupname                TEXT (200),
     item_main_group_id           INTEGER,
     stock_unit                   INTEGER (11),
     price                        NUMERIC (19, 2) NOT NULL,
@@ -418,13 +420,13 @@ CREATE TABLE IF NOT EXISTS mstrestmenu (
 
 CREATE TABLE IF NOT EXISTS mstrestmenudetails (
     itemdetailsid INTEGER PRIMARY KEY AUTOINCREMENT,
-    restitemid    INTEGER NOT NULL REFERENCES mstrestmenu (restitemid),
-    outletid      INTEGER REFERENCES mst_outlets (outletid),
+    restitemid    INTEGER NOT NULL, 
+    departmentid  INTEGER, 
     item_rate     NUMERIC (19, 2) NOT NULL,
     unitid        INTEGER,
     servingunitid INTEGER,
     IsConversion  INTEGER DEFAULT 0,  -- 0 = No, 1 = Yes
-    hotelid       INTEGER REFERENCES msthotelmasters (hotelid)
+    hotelid       INTEGER 
 );
 
 -- Bill Preview Settings, KOT Print Settings, Bill Print Settings, General Settings, Online Orders Settings
