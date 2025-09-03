@@ -1,6 +1,5 @@
-
-const path = require('path');
-const Database = require('better-sqlite3');
+const path = require('path')
+const Database = require('better-sqlite3')
 
 // ✅ Connect to SQLite DB (creates file if not exist)
 // const db = new Database(path.join(__dirname, 'miresto.db'));
@@ -8,7 +7,7 @@ const Database = require('better-sqlite3');
 
 // const db = new Database(path.join('D:','Restrauntdb', 'miresto.db')); //sudarshan
 
-const db = new Database(path.join('D:', 'Restaurant_Database', 'miresto.db'));//Sharmin
+const db = new Database(path.join('D:', 'Restaurant_Database', 'miresto.db')) //Sharmin
 
 //const db = new Database(path.join('E:', 'ReactHotelData', 'miresto.db'));
 
@@ -700,15 +699,31 @@ CREATE TABLE IF NOT EXISTS mstoutlet_settings (
    FOREIGN KEY (outletid) REFERENCES mst_outlets(outletid)
 );
 
-    CREATE TABLE IF NOT EXISTS payment_modes (
+  -- Payment Types Master
+CREATE TABLE IF NOT EXISTS payment_types (
+    paymenttypeid INTEGER PRIMARY KEY AUTOINCREMENT,
+    mode_name TEXT NOT NULL DEFAULT 'Cash',
+    status INTEGER,
+    created_by_id INTEGER,
+    created_date DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Payment Modes (outlet + hotel specific)
+CREATE TABLE IF NOT EXISTS payment_modes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    outletid INTEGER 
-    mode_name TEXT NOT NULL,
+    hotelid INTEGER,
+    outletid INTEGER,
+    paymenttypeid INTEGER NOT NULL,
     is_active BOOLEAN NOT NULL DEFAULT 1,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (outletid) REFERENCES mst_outlets(outletid)
-    );
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+   
+);
+
+
+
+
+
 
     
 
@@ -718,5 +733,5 @@ CREATE TABLE IF NOT EXISTS mstoutlet_settings (
 
 
 
-`);
-module.exports = db;
+`)
+module.exports = db

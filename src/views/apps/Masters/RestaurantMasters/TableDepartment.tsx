@@ -33,7 +33,7 @@ interface DepartmentItem {
   hotel_details?: string;
   outlet_details?: string;
   market_details?: string;
-  taxgroupid?: number | string; // Added to support tax group
+  taxgroupid?: number | string;
 }
 
 // TableModal Props
@@ -66,7 +66,6 @@ const debounce = (func: (...args: any[]) => void, wait: number) => {
 // Main TableDepartment Component
 const TableDepartment: React.FC = () => {
   const [tableItems, setTableItems] = useState<DepartmentItem[]>([]);
-  const [filteredTableItems, setFilteredTableItems] = useState<DepartmentItem[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [showTableModal, setShowTableModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -76,10 +75,10 @@ const TableDepartment: React.FC = () => {
   const { user } = useAuthContext();
 
   // Fetch table data
-  const fetchTableDepartment = async (search: string = '') => {
+  const fetchTableDepartment = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`http://localhost:3001/api/table-department?search=${encodeURIComponent(search)}`, {
+      const res = await fetch('http://localhost:3001/api/table-department', {
         headers: { 'Content-Type': 'application/json' },
       });
       if (res.ok) {
@@ -88,10 +87,9 @@ const TableDepartment: React.FC = () => {
           const formattedData = data.data.map((item: any) => ({
             ...item,
             status: Number(item.status),
-            taxgroupid: item.taxgroupid || '', // Default to empty string if not present
+            taxgroupid: item.taxgroupid || '',
           }));
           setTableItems(formattedData);
-          setFilteredTableItems(formattedData);
         } else {
           toast.error(data.message || 'Failed to fetch department data');
         }
@@ -106,10 +104,10 @@ const TableDepartment: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchTableDepartment(searchTerm);
+    fetchTableDepartment();
     fetchBrands(user, setBrands);
     fetchOutletsForDropdown(user, setOutlets, setLoading);
-  }, [user, searchTerm]);
+  }, [user]);
 
   // Define table columns with action column shifted to the right
   const columns = useMemo<ColumnDef<DepartmentItem>[]>(
@@ -191,30 +189,30 @@ const TableDepartment: React.FC = () => {
 
   // Initialize react-table
   const table = useReactTable({
-    data: filteredTableItems,
+    data: tableItems,
     columns,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
+    state: {
+      globalFilter: searchTerm,
+    },
+    onGlobalFilterChange: setSearchTerm,
   });
 
   // Handle search
   const handleSearch = useCallback(
     debounce((value: string) => {
-      setSearchTerm(value);
-      let filtered = [...tableItems];
-
-      if (value) {
-        filtered = filtered.filter((item) =>
-          item.department_name.toLowerCase().includes(value.toLowerCase()) ||
-          item.hotel_name.toLowerCase().includes(value.toLowerCase()) ||
-          item.outlet_name.toLowerCase().includes(value.toLowerCase())
-        );
-      }
-
-      setFilteredTableItems(filtered);
+      table.setGlobalFilter(value);
     }, 300),
-    [tableItems]
+    [table]
   );
+
+  // Handle input change for search
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+    handleSearch(value);
+  };
 
   // Handle edit button click
   const handleEditClick = (table: DepartmentItem) => {
@@ -245,7 +243,7 @@ const TableDepartment: React.FC = () => {
         const data = await response.json();
         if (response.ok && data.success) {
           toast.success(data.message || 'Department deleted successfully');
-          fetchTableDepartment(searchTerm);
+          fetchTableDepartment();
           setSelectedTable(null);
         } else {
           toast.error(data.message || 'Failed to delete department');
@@ -267,7 +265,7 @@ const TableDepartment: React.FC = () => {
     const [department_name, setDepartmentName] = useState<string>('');
     const [outletid, setOutletId] = useState<number | null>(null);
     const [status, setStatus] = useState<string>('Active');
-    const [taxgroupid, setTaxGroupId] = useState<number | null>(null); // New state for tax group
+    const [taxgroupid, setTaxGroupId] = useState<number | null>(null);
     const [loading, setLoading] = useState<boolean>(false);
     const [outlets, setOutlets] = useState<OutletData[]>([]);
     const [brands, setBrands] = useState<Array<{ hotelid: number; hotel_name: string }>>([]);
@@ -293,12 +291,12 @@ const TableDepartment: React.FC = () => {
         setDepartmentName(DepartmentItem.department_name);
         setOutletId(DepartmentItem.outletid ? Number(DepartmentItem.outletid) : null);
         setStatus(DepartmentItem.status === 1 ? 'Active' : 'Inactive');
-        setTaxGroupId(DepartmentItem.taxgroupid ? Number(DepartmentItem.taxgroupid) : null); // Initialize taxgroupid
+        setTaxGroupId(DepartmentItem.taxgroupid ? Number(DepartmentItem.taxgroupid) : null);
       } else {
         setDepartmentName('');
         setOutletId(null);
         setStatus('Active');
-        setTaxGroupId(null); // Reset taxgroupid for new entry
+        setTaxGroupId(null);
       }
       fetchOutletsForDropdown(user, setOutlets, setLoading);
       fetchBrands(user, setBrands);
@@ -316,7 +314,7 @@ const TableDepartment: React.FC = () => {
         const payload = {
           department_name,
           outletid: outletid.toString(),
-          taxgroupid: taxgroupid.toString(), // Include taxgroupid in payload
+          taxgroupid: taxgroupid.toString(),
           status: statusValue,
           ...(DepartmentItem
             ? {
@@ -348,7 +346,7 @@ const TableDepartment: React.FC = () => {
               ...DepartmentItem,
               department_name: department_name,
               outletid: outletid.toString(),
-              taxgroupid: taxgroupid.toString(), // Update taxgroupid
+              taxgroupid: taxgroupid.toString(),
               status: statusValue,
               updated_by_id: user?.id || '2',
               updated_date: new Date().toISOString(),
@@ -358,7 +356,7 @@ const TableDepartment: React.FC = () => {
           setDepartmentName('');
           setOutletId(null);
           setStatus('Active');
-          setTaxGroupId(null); // Reset taxgroupid
+          setTaxGroupId(null);
           onSuccess();
           onHide();
         } else {
@@ -432,8 +430,8 @@ const TableDepartment: React.FC = () => {
             <label className="form-label">Tax Group <span style={{ color: 'red' }}>*</span></label>
             <select
               className="form-control"
-              value={taxgroupid || ''} // Bind to taxgroupid state
-              onChange={(e) => setTaxGroupId(e.target.value ? Number(e.target.value) : null)} // Update taxgroupid
+              value={taxgroupid || ''}
+              onChange={(e) => setTaxGroupId(e.target.value ? Number(e.target.value) : null)}
               disabled={loading}
             >
               <option value="">Select Tax Group</option>
@@ -498,7 +496,8 @@ const TableDepartment: React.FC = () => {
                 type="text"
                 className="form-control rounded-pill"
                 placeholder="Search..."
-                onChange={(e) => handleSearch(e.target.value)}
+                value={searchTerm}
+                onChange={handleInputChange}
                 style={{ width: '350px', borderColor: '#ccc', borderWidth: '2px' }}
               />
             </div>
@@ -564,7 +563,7 @@ const TableDepartment: React.FC = () => {
           setSelectedTable(null);
         }}
         DepartmentItem={selectedTable}
-        onSuccess={() => fetchTableDepartment(searchTerm)}
+        onSuccess={() => fetchTableDepartment()}
         onUpdateSelectedTable={setSelectedTable}
       />
     </>

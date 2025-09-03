@@ -18,6 +18,11 @@ interface Outlet {
   outlet_name: string;
 }
 
+interface PaymentType {
+  paymenttypeid: number;
+  mode_name: string;
+}
+
 const PaymentModes: React.FC = () => {
   const [paymentModes, setPaymentModes] = useState<PaymentMode[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
@@ -31,26 +36,47 @@ const PaymentModes: React.FC = () => {
   const { user } = useAuthContext();
   const [outlets, setOutlets] = useState<Outlet[]>([]);
   const [availablePaymentModes, setAvailablePaymentModes] = useState<string[]>([]);
+  const [paymentTypes, setPaymentTypes] = useState<PaymentType[]>([]);
+  const [adding, setAdding] = useState(false);
+  const [removing, setRemoving] = useState(false);
 
-  // Fetch outlets and payment modes on component mount
+  // Fetch outlets, payment types, and payment modes on component mount
   useEffect(() => {
     fetchOutletsForDropdown(user, setOutlets, setLoading);
     fetchAvailablePaymentModes();
+    fetchPaymentTypes();
     if (selectedOutlet) {
       fetchPaymentModes();
     }
-  }, []); // Runs once on mount
+  }, []);
 
   // Fetch payment modes when selectedOutlet changes
   useEffect(() => {
     if (selectedOutlet) {
       fetchPaymentModes();
-      localStorage.setItem('lastSelectedOutlet', selectedOutlet); // Save last selected outlet
+      localStorage.setItem('lastSelectedOutlet', selectedOutlet);
     } else {
       setPaymentModes([]);
       localStorage.removeItem('lastSelectedOutlet');
     }
   }, [selectedOutlet]);
+
+  // Fetch available payment types
+  const fetchPaymentTypes = async () => {
+  try {
+    const response = await axios.get('/api/payment-modes/types'); // Update yahan
+    if (response.data && Array.isArray(response.data)) {
+      setPaymentTypes(response.data);
+    } else {
+      setPaymentTypes([]);
+      console.warn('Unexpected response format for payment types:', response.data);
+      toast.warn('Unexpected data format for payment types');
+    }
+  } catch (error) {
+    console.error('Error fetching payment types:', error);
+    toast.error('Failed to fetch payment types. Check server endpoint.');
+  }
+};
 
   // Fetch available payment modes
   const fetchAvailablePaymentModes = async () => {
@@ -86,36 +112,55 @@ const PaymentModes: React.FC = () => {
       toast.error('Please select an outlet');
       return;
     }
+    setAdding(true);
     try {
+      // Map modeName to paymenttypeid
+      const paymentType = paymentTypes.find((pt) => pt.mode_name === modeName);
+      if (!paymentType) {
+        toast.error('No matching payment type found');
+        return;
+      }
+
       const response = await axios.post('/api/payment-modes', {
         outletid: parseInt(selectedOutlet),
+        hotelid: user.hotelid,
+        paymenttypeid: paymentType.paymenttypeid,
         mode_name: modeName,
         is_active: 1,
       });
       setPaymentModes((prev) => [...prev, response.data]);
       setSelectedModesLeft((prev) => prev.filter((name) => name !== modeName));
       await fetchPaymentModes();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error adding payment mode:', error);
-      toast.error('Failed to add payment mode');
+      const errorMessage = error.response?.data?.error || error.message || 'Failed to add payment mode';
+      toast.error(errorMessage);
+    } finally {
+      setAdding(false);
     }
   };
 
   // Remove a payment mode
   const handleRemovePaymentMode = async (modeId: number | string) => {
+    if (!window.confirm('Are you sure you want to remove this payment mode?')) return;
+
     const id = typeof modeId === 'string' ? parseInt(modeId) : modeId;
     if (!id || isNaN(id)) {
       toast.error('Invalid payment mode ID');
       return;
     }
+
+    setRemoving(true);
     try {
       await axios.delete(`/api/payment-modes/${id}`);
       setPaymentModes((prev) => prev.filter((mode) => mode.id !== id));
       setSelectedModesRight((prev) => prev.filter((mid) => mid !== modeId.toString()));
       await fetchPaymentModes();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting payment mode:', error);
-      toast.error('Failed to delete payment mode');
+      toast.error(error.response?.data?.error || 'Failed to delete payment mode');
+    } finally {
+      setRemoving(false);
     }
   };
 
@@ -187,11 +232,10 @@ const PaymentModes: React.FC = () => {
 
   // Save changes and reload data
   const handleSaveChanges = async () => {
-    // Add any additional save logic if needed (e.g., sending updated data to backend)
     toast.success('Changes saved successfully!');
     if (selectedOutlet) {
-      await fetchPaymentModes(); // Refresh current outlet data
-      localStorage.setItem('lastSelectedOutlet', selectedOutlet); // Ensure last outlet is saved
+      await fetchPaymentModes();
+      localStorage.setItem('lastSelectedOutlet', selectedOutlet);
     }
   };
 
@@ -275,7 +319,7 @@ const PaymentModes: React.FC = () => {
                   className="w-100 mb-1 d-flex justify-content-center align-items-center"
                   style={{ border: '1px solid #dee2e6', borderRadius: '4px', height: '38px' }}
                   onClick={handleSingleTransferToRight}
-                  disabled={selectedModesLeft.length === 0}
+                  disabled={selectedModesLeft.length === 0 || adding}
                 >
                   <span>{'\u003E'}</span>
                 </Button>
@@ -284,7 +328,7 @@ const PaymentModes: React.FC = () => {
                   className="w-100 mb-1 d-flex justify-content-center align-items-center"
                   style={{ border: '1px solid #dee2e6', borderRadius: '4px', height: '38px' }}
                   onClick={handleSingleTransferToLeft}
-                  disabled={selectedModesRight.length === 0}
+                  disabled={selectedModesRight.length === 0 || removing}
                 >
                   <span>{'\u003C'}</span>
                 </Button>

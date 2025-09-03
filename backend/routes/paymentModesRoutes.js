@@ -9,7 +9,9 @@ router.get("/:id", Controller.getPaymentModeById);
 router.put("/:id", Controller.updatePaymentMode);
 router.delete("/:id", Controller.deletePaymentMode);
 
-// Outlets for dropdown
-router.get("/dropdown/outlets", Controller.getOutlets);
+
+
+// Payment types list
+router.get("/types", Controller.getPaymentTypes);
 
 module.exports = router;
