@@ -1,5 +1,5 @@
 import React, { useState, useEffect, Dispatch, SetStateAction, useRef, useMemo, useCallback } from 'react';
-import { Row, Col, Card, Modal } from 'react-bootstrap';
+import { Row, Col, Card, Modal, Button, Offcanvas, Table } from 'react-bootstrap';
 import { fetchItemGroup, ItemGroupItem, fetchMenu, MenuItem } from '@/utils/commonfunction';
 import CustomerModal from './Customers';
 
@@ -113,6 +113,10 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
   const [showNameDropdown, setShowNameDropdown] = useState<boolean>(false);
   const [selectedNameIndex, setSelectedNameIndex] = useState(-1);
   const [showCustomerModal, setShowCustomerModal] = useState<boolean>(false);
+  const [showSidebar, setShowSidebar] = useState(false);
+  const [selectedItemGroup, setSelectedItemGroup] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const tableInputRef = useRef<HTMLInputElement>(null);
   const codeInputRef = useRef<HTMLInputElement>(null);
@@ -205,6 +209,8 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
   useEffect(() => {
     const fetchData = async () => {
       try {
+        setLoading(true);
+        setError(null);
         await fetchItemGroup(setItemGroup, () => {});
         await fetchMenu(
           (data: MenuItem[]) => {
@@ -226,6 +232,9 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
       } catch (error) {
         console.error('Fetch error:', error);
         setCardItems([]);
+        setError('Failed to fetch menu items');
+      } finally {
+        setLoading(false);
       }
     };
     fetchData();
@@ -271,11 +280,14 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
     }));
     setSelectedCategory(category);
     setCategoryClicked(true);
+    setSelectedItemGroup(null);
   };
 
   // Filter items based on search and category
   const filterItems = useCallback(() => {
-    const baseItems = categoryClicked && selectedCategory !== 'All' ? itemCategories[selectedCategory] || [] : allItems;
+    const baseItems = selectedItemGroup !== null 
+      ? cardItems.filter(item => item.item_group_id === selectedItemGroup)
+      : (categoryClicked && selectedCategory !== 'All' ? itemCategories[selectedCategory] || [] : allItems);
     return baseItems.filter((item) => {
       const matchesCode = searchCode
         ? item.itemCode.toLowerCase().includes(searchCode.toLowerCase())
@@ -286,12 +298,14 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
         : true;
       return matchesCode && matchesName;
     });
-  }, [searchCode, searchName, selectedCategory, categoryClicked, allItems, itemCategories]);
+  }, [searchCode, searchName, selectedCategory, categoryClicked, allItems, itemCategories, selectedItemGroup]);
 
   // Filter dropdown items for code or name
   const filterDropdownItems = useCallback(
     (type: 'code' | 'name') => {
-      const baseItems = categoryClicked && selectedCategory !== 'All' ? itemCategories[selectedCategory] || [] : allItems;
+      const baseItems = selectedItemGroup !== null 
+        ? cardItems.filter(item => item.item_group_id === selectedItemGroup)
+        : (categoryClicked && selectedCategory !== 'All' ? itemCategories[selectedCategory] || [] : allItems);
       return baseItems
         .filter((item) => {
           if (type === 'code') {
@@ -306,7 +320,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
         })
         .slice(0, 7);
     },
-    [searchCode, searchName, categoryClicked, selectedCategory, allItems, itemCategories]
+    [searchCode, searchName, categoryClicked, selectedCategory, allItems, itemCategories, selectedItemGroup]
   );
 
   useEffect(() => {
@@ -479,9 +493,15 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
                   <div className="collapse navbar-collapse" id="navbarNav">
                     <ul className="navbar-nav me-auto mb-2 mb-lg-0">
                       <li className="nav-item">
-                        <a className="nav-link" href="#" aria-label="Menu">
+                        <Button
+                          variant="outline-secondary"
+                          size="sm"
+                          onClick={() => setShowSidebar(true)}
+                          className="me-2"
+                          style={{ borderRadius: '8px', padding: '6px 12px', fontSize: '14px', fontWeight: '500' }}
+                        >
                           <i className="bi bi-list" style={{ fontSize: '1.5rem' }}></i>
-                        </a>
+                        </Button>
                       </li>
                     </ul>
                     <ul className="navbar-nav mx-auto mb-2 mb-lg-0 d-flex gap-2">
@@ -711,83 +731,75 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
             </div>
           </div>
 
-          {isMobile && (
-            <div className="row">
-              <div className="col-12 p-2 border-bottom" style={{ backgroundColor: '#f8f9fa' }}>
-                <style>
-                  {`
-                    .categories-container {
-                      display: flex;
-                      flex-wrap: wrap;
-                      gap: 4px;
-                      padding: 4px 0;
-                    }
-                    .category-btn {
-                      padding: 4px 8px;
-                      font-size: 12px;
-                      border-radius: 12px;
-                      white-space: nowrap;
-                      margin: 2px;
-                    }
-                  `}
-                </style>
-                <div className="categories-container">
-                  <button
-                    className="btn btn-sm btn-outline-secondary category-btn"
-                    onClick={() => toggleDropdown('All')}
-                  >
-                    All
-                  </button>
-                  {Object.keys(itemCategories)
-                    .filter((category) => category !== 'All')
-                    .map((category) => (
-                      <button
-                        key={category}
-                        className="btn btn-sm btn-outline-secondary category-btn"
-                        onClick={() => toggleDropdown(category as Category)}
+          <div className="d-flex flex-column flex-lg-row flex-grow-1">
+            <Offcanvas
+              show={showSidebar}
+              onHide={() => setShowSidebar(false)}
+              responsive="lg"
+              placement="start"
+              className="bg-white shadow-sm border-end"
+              style={{ width: '250px', minWidth: '250px', maxWidth: '250px', overflowX: 'hidden' }}
+            >
+              <Offcanvas.Header closeButton className="border-bottom">
+                <Offcanvas.Title as="h6" className="fw-bold mb-0">Item Groups</Offcanvas.Title>
+              </Offcanvas.Header>
+              <Offcanvas.Body className="p-3" style={{ overflowY: 'auto', overflowX: 'hidden' }}>
+                {loading ? (
+                  <p className="text-muted">Loading item groups...</p>
+                ) : error ? (
+                  <p className="text-muted">Error: {error}</p>
+                ) : cardItems.length === 0 ? (
+                  <p className="text-muted">No item groups available.</p>
+                ) : (
+                  <Table striped bordered hover size="sm" style={{ marginBottom: 0, tableLayout: 'fixed', width: '100%' }}>
+                    <thead>
+                      <tr>
+                        <th style={{ width: '100%', padding: '8px', backgroundColor: '#f8f9fa', fontWeight: '600', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Item Group</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr
+                        style={{ backgroundColor: !cardItems.length ? '#e9ecef' : 'transparent', color: '#2d3748' }}
+                        onClick={() => {
+                          setSelectedItemGroup(null);
+                          setShowSidebar(false);
+                          setSelectedCategory('All');
+                          setCategoryClicked(false);
+                        }}
                       >
-                        {category.replace(/([A-Z])/g, ' $1').trim()}
-                      </button>
-                    ))}
-                </div>
-              </div>
-            </div>
-          )}
+                        <td style={{ padding: '8px', verticalAlign: 'middle', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>All</td>
+                      </tr>
+                      {Array.from(new Set(cardItems
+                        .filter((item) => item.item_group_id !== null)
+                        .map(item => item.item_group_id as number)))
+                        .map(groupId => {
+                          const groupItems = cardItems.filter(item => item.item_group_id === groupId);
+                          const group = itemGroup.find(g => g.item_groupid === groupId);
+                          const groupName = group?.itemgroupname || `Group ${groupId}`;
+                          return (
+                            <tr
+                              key={groupId}
+                              style={{ backgroundColor: 'transparent', color: '#2d3748' }}
+                              onClick={() => {
+                                setSelectedItemGroup(groupId);
+                                setShowSidebar(false);
+                                setSelectedCategory(getCategoryFromItemGroup(groupId));
+                                setCategoryClicked(true);
+                              }}
+                            >
+                              <td style={{ padding: '8px', verticalAlign: 'middle', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {groupName}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                    </tbody>
+                  </Table>
+                )}
+              </Offcanvas.Body>
+            </Offcanvas>
 
-          <div className="row flex-grow-1">
-            {!isMobile && (
-              <div className="col-2 border-end p-3" style={{ backgroundColor: 'transparent' }}>
-                <ul className="list-unstyled">
-                  <li className="mb-2">
-                    <button
-                      className="btn btn-link text-dark text-decoration-none d-flex justify-content-between align-items-center w-100"
-                      onClick={() => toggleDropdown('All')}
-                      style={{ padding: '0' }}
-                    >
-                      All
-                    </button>
-                  </li>
-                  {itemGroup
-                    .filter((group) => group.status === 0)
-                    .map((group) => {
-                      const category = getCategoryFromItemGroup(group.item_groupid);
-                      return (
-                        <li className="mb-2" key={group.item_groupid}>
-                          <button
-                            className="btn btn-link text-dark text-decoration-none d-flex justify-content-between align-items-center w-100"
-                            onClick={() => toggleDropdown(category)}
-                            style={{ padding: '0' }}
-                          >
-                            {group.itemgroupname.replace(/([A-Z])/g, ' $1').trim()}
-                          </button>
-                        </li>
-                      );
-                    })}
-                </ul>
-              </div>
-            )}
-
-            <div className={`p-3 ${isMobile ? 'col-12' : 'col-10'}`} style={{ backgroundColor: 'transparent' }}>
+            <div className={`p-3 ${isMobile ? 'col-12' : 'col-12'}`} style={{ backgroundColor: 'transparent' }}>
               <div className="flex-grow-1 p-3">
                 <div style={{ maxHeight: 'calc(100vh - 260px)', overflowY: 'auto', paddingRight: '10px' }}>
                   <Row xs={1} sm={2} md={3} lg={4} className="g-3">
