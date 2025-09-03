@@ -1,37 +1,36 @@
 const db = require("../config/db");
 
 // Create a payment mode
+// Create a payment mode
 exports.createPaymentMode = (req, res) => {
   try {
-    const { outletid, hotelid, paymenttypeid, mode_name, is_active } = req.body;
+    const { outletid, hotelid, paymenttypeid, is_active } = req.body;
 
-    // Validate types and required fields
+    // Validate required fields
     if (
       typeof outletid !== 'number' ||
       typeof hotelid !== 'number' ||
       typeof paymenttypeid !== 'number' ||
-      typeof mode_name !== 'string' ||
       (is_active !== undefined && typeof is_active !== 'number')
     ) {
       return res.status(400).json({ error: "Invalid data types for required fields" });
     }
 
-    if (!outletid || !hotelid || !paymenttypeid || !mode_name.trim()) {
-      return res.status(400).json({ error: "Outlet ID, Hotel ID, Payment Type ID and Mode Name are required" });
+    if (!outletid || !hotelid || !paymenttypeid) {
+      return res.status(400).json({ error: "Outlet ID, Hotel ID and Payment Type ID are required" });
     }
 
     const stmt = db.prepare(
-      `INSERT INTO payment_modes (outletid, hotelid, paymenttypeid, mode_name, is_active) 
-       VALUES (?, ?, ?, ?, ?)`
+      `INSERT INTO payment_modes (outletid, hotelid, paymenttypeid, is_active) 
+       VALUES (?, ?, ?, ?)`
     );
-    const result = stmt.run(outletid, hotelid, paymenttypeid, mode_name.trim(), is_active ?? 1);
+    const result = stmt.run(outletid, hotelid, paymenttypeid, is_active ?? 1);
 
     res.json({
       id: result.lastInsertRowid,
       outletid,
       hotelid,
       paymenttypeid,
-      mode_name: mode_name.trim(),
       is_active: is_active ?? 1,
     });
   } catch (err) {
@@ -74,28 +73,7 @@ exports.getAllPaymentModes = (req, res) => {
   }
 };
 
-// Get single payment mode
-exports.getPaymentModeById = (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const row = db.prepare(`
-      SELECT pm.id, pm.hotelid, pm.outletid, pm.paymenttypeid, 
-             pm.is_active, pm.created_at, pm.updated_at,
-             pt.mode_name
-      FROM payment_modes pm
-      LEFT JOIN payment_types pt ON pm.paymenttypeid = pt.paymenttypeid
-      WHERE pm.id = ?
-    `).get(id);
-
-    if (!row) return res.status(404).json({ message: "Payment mode not found" });
-
-    res.json(row);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
+// // Get single payment mode
 
 // Update payment mode
 exports.updatePaymentMode = (req, res) => {
