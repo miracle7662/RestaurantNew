@@ -67,6 +67,7 @@ const Order = () => {
   const [outlets, setOutlets] = useState<OutletData[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [departments, setDepartments] = useState<DepartmentItem[]>([]);
+  const [tableSearchInput, setTableSearchInput] = useState<string>(''); // New state for navbar input
 
   const fetchTableManagement = async () => {
     setLoading(true);
@@ -366,6 +367,24 @@ const Order = () => {
     setSavedKOTs(savedKOTs);
   };
 
+  // New function to handle Enter key press in navbar input
+  const handleTableSearchInput = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      const inputTable = tableSearchInput.trim();
+      if (inputTable) {
+        const isValidTable = filteredTables.some(table => 
+          table && table.table_name && table.table_name.toLowerCase() === inputTable.toLowerCase()
+        );
+        if (isValidTable) {
+          handleTableClick(inputTable);
+          setTableSearchInput(''); // Clear input after successful selection
+        } else {
+          toast.error('Invalid table name. Please select a valid table.');
+        }
+      }
+    }
+  };
+
   useEffect(() => {
     console.log('State update - showOrderDetails:', showOrderDetails, 'selectedTable:', selectedTable);
   }, [showOrderDetails, selectedTable]);
@@ -402,7 +421,7 @@ const Order = () => {
               font-size: 0.75rem;
             }
             .billing-panel .btn {
-              font-size: 0.75rem !important;
+              font-size: 0.75子女: 0.75rem !important;
               padding: 0.25rem 0.5rem !important;
             }
             .billing-panel input {
@@ -550,8 +569,19 @@ const Order = () => {
                 <ul
                   className="nav nav-tabs rounded shadow-sm mb-3"
                   role="tablist"
-                  style={{ padding: '5px', display: 'flex', gap: '5px' }}
+                  style={{ padding: '5px', display: 'flex', gap: '5px', alignItems: 'center' }}
                 >
+                  <li className="nav-item">
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="Enter Table Name"
+                      value={tableSearchInput}
+                      onChange={(e) => setTableSearchInput(e.target.value)}
+                      onKeyPress={handleTableSearchInput}
+                      style={{ width: '150px', height: '30px', fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}
+                    />
+                  </li>
                   <li className="nav-item flex-fill">
                     <button
                       className={`nav-link ${activeNavTab === 'ALL' ? 'active bg-primary text-white' : 'text-dark'}`}
@@ -810,7 +840,7 @@ const Order = () => {
                           } else {
                             setItems(
                               items.map((i) =>
-                                i.id === item.id ? { ...i, qty: newQty } : i
+                                i.id === i.id ? { ...i, qty: newQty } : i
                               )
                             );
                           }

@@ -493,15 +493,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
                   <div className="collapse navbar-collapse" id="navbarNav">
                     <ul className="navbar-nav me-auto mb-2 mb-lg-0">
                       <li className="nav-item">
-                        <Button
-                          variant="outline-secondary"
-                          size="sm"
-                          onClick={() => setShowSidebar(true)}
-                          className="me-2"
-                          style={{ borderRadius: '8px', padding: '6px 12px', fontSize: '14px', fontWeight: '500' }}
-                        >
-                          <i className="bi bi-list" style={{ fontSize: '1.5rem' }}></i>
-                        </Button>
+                        
                       </li>
                     </ul>
                     <ul className="navbar-nav mx-auto mb-2 mb-lg-0 d-flex gap-2">
