@@ -189,10 +189,21 @@ const Menu: React.FC = () => {
     setShowEditModal(true);
   };
 
-  const handleToggleStatus = (itemId: string) => {
-    const item = data.find((p) => p.restitemid === Number(itemId));
-    if (item) {
-      const newStatus = item.status === 1 ? 0 : 1;
+  // Updated handleToggleStatus function in Menu.tsx
+const handleToggleStatus = async (itemId: string) => {
+  const item = data.find((p) => p.restitemid === Number(itemId));
+  if (item) {
+    const newStatus = item.status === 1 ? 0 : 1;
+    try {
+      const res = await fetch(`http://localhost:3001/api/menu/${itemId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus, updated_by_id: user?.id }),
+      });
+      if (!res.ok) {
+        throw new Error('Failed to update status');
+      }
+      // Update local state after successful API call
       const updatedItem = { ...item, status: newStatus };
       setData((prev) => prev.map((i) => (i.restitemid === Number(itemId) ? updatedItem : i)));
       setCardItems((prev) =>
@@ -202,32 +213,61 @@ const Menu: React.FC = () => {
             : card
         )
       );
+      toast.success('Status updated successfully');
+    } catch (err) {
+      console.error('Error updating status:', err);
+      toast.error('Failed to update status');
     }
-  };
+  }
+};
 
-  const handleToggleGroupStatus = (groupId: number) => {
-    const updatedItems = menuItems.map((item) =>
-      item.item_group_id === groupId ? { ...item, status: item.status === 1 ? 0 : 1 } : item
-    );
-    setMenuItems(updatedItems);
-    const updatedData = data.map((item) =>
-      updatedItems.find((ui) => ui.restitemid === item.restitemid)
-        ? { ...item, status: updatedItems.find((ui) => ui.restitemid === item.restitemid)!.status }
-        : item
-    );
-    setData(updatedData);
-    setCardItems((prev) =>
-      prev.map((card) => {
-        const updatedItem = updatedData.find((item) => item.restitemid === Number(card.userId));
-        return updatedItem
-          ? {
-              ...card,
-              cardStatus: updatedItem.status === 1 ? '✅ Available' : '❌ Unavailable',
-            }
-          : card;
-      })
-    );
-  };
+// Updated handleToggleGroupStatus function in Menu.tsx
+const handleToggleGroupStatus = async (groupId: number) => {
+  const groupItems = menuItems.filter(item => item.item_group_id === groupId);
+  if (groupItems.length > 0) {
+    const currentStatus = groupItems[0].status; // Assuming all have the same status
+    const newStatus = currentStatus === 1 ? 0 : 1;
+    try {
+      const promises = groupItems.map(item =>
+        fetch(`http://localhost:3001/api/menu/${item.restitemid}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: newStatus, updated_by_id: user?.id }),
+        })
+      );
+      const responses = await Promise.all(promises);
+      if (responses.some(res => !res.ok)) {
+        throw new Error('Failed to update some items');
+      }
+      // Update local state after successful API calls
+      const updatedItems = menuItems.map((item) =>
+        item.item_group_id === groupId ? { ...item, status: newStatus } : item
+      );
+      setMenuItems(updatedItems);
+      const updatedData = data.map((item) =>
+        updatedItems.find((ui) => ui.restitemid === item.restitemid)
+          ? { ...item, status: updatedItems.find((ui) => ui.restitemid === item.restitemid)!.status }
+          : item
+      );
+      setData(updatedData);
+      setCardItems((prev) =>
+        prev.map((card) => {
+          const updatedItem = updatedData.find((item) => item.restitemid === Number(card.userId));
+          return updatedItem
+            ? {
+                ...card,
+                cardStatus: updatedItem.status === 1 ? '✅ Available' : '❌ Unavailable',
+              }
+            : card;
+        })
+      );
+      toast.success('Group status updated successfully');
+    } catch (err) {
+      console.error('Error updating group status:', err);
+      toast.error('Failed to update group status');
+    }
+  }
+};
 
   const handleSuccess = () => {
     fetchMenu();

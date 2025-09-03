@@ -7,7 +7,7 @@ exports.getAllMenuItems = (req, res) => {
         
         let query = `
             SELECT m.*,
-                   md.itemdetailsid, md.item_rate, md.unitid, md.servingunitid, md.IsConversion,
+                  
                    o.outlet_name,
                    h.hotel_name,
                    ig.itemgroupname AS groupname,
@@ -18,7 +18,7 @@ exports.getAllMenuItems = (req, res) => {
             LEFT JOIN msthotelmasters h ON m.hotelid = h.hotelid
             LEFT JOIN mst_item_group ig ON m.item_group_id = ig.item_groupid
             LEFT JOIN msttable_department d ON md.departmentid = d.departmentid
-            WHERE m.status = 1
+            WHERE m.status IN (0,1)
         `;
         
         const params = [];
@@ -41,6 +41,7 @@ exports.getAllMenuItems = (req, res) => {
         res.status(500).json({ message: 'Internal server error', details: error.message });
     }
 };
+
 
 // Get menu item by ID with joins
 exports.getMenuItemById = (req, res) => {
