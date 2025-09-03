@@ -67,7 +67,7 @@ const Order = () => {
   const [outlets, setOutlets] = useState<OutletData[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [departments, setDepartments] = useState<DepartmentItem[]>([]);
-  const [tableSearchInput, setTableSearchInput] = useState<string>(''); // New state for navbar input
+  const [tableSearchInput, setTableSearchInput] = useState<string>('');
 
   const fetchTableManagement = async () => {
     setLoading(true);
@@ -235,7 +235,7 @@ const Order = () => {
       return;
     }
     if (activeNavTab === 'ALL') {
-      filtered = tableItems; // All tables for "ALL" tab, filtered by department in UI
+      filtered = tableItems;
     } else {
       const selectedDepartment = departments.find(d => d.department_name === activeNavTab);
       if (selectedDepartment) {
@@ -356,7 +356,7 @@ const Order = () => {
       table: selectedTable || 'N/A',
       items: items,
       total: parseFloat(totalAmount),
-      timestamp: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }), // 11:42 AM IST, August 30, 2025
+      timestamp: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
     };
     const savedKOTs = JSON.parse(localStorage.getItem('kots') || '[]');
     savedKOTs.push(kotData);
@@ -367,7 +367,6 @@ const Order = () => {
     setSavedKOTs(savedKOTs);
   };
 
-  // New function to handle Enter key press in navbar input
   const handleTableSearchInput = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       const inputTable = tableSearchInput.trim();
@@ -377,13 +376,32 @@ const Order = () => {
         );
         if (isValidTable) {
           handleTableClick(inputTable);
-          setTableSearchInput(''); // Clear input after successful selection
+          setTableSearchInput('');
         } else {
           toast.error('Invalid table name. Please select a valid table.');
         }
       }
     }
   };
+
+  // New useEffect for handling Ctrl + Number shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.key >= '0' && e.key <= '9') {
+        e.preventDefault();
+        const tabIndex = parseInt(e.key);
+        const allTabs = ['ALL', ...departments.map(d => d.department_name), 'Pickup', 'Quick Bill', 'Delivery'];
+        if (tabIndex < allTabs.length) {
+          const selectedTab = allTabs[tabIndex];
+          setActiveNavTab(selectedTab);
+          console.log(`Ctrl + ${tabIndex} pressed, activating tab: ${selectedTab}`);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [departments]);
 
   useEffect(() => {
     console.log('State update - showOrderDetails:', showOrderDetails, 'selectedTable:', selectedTable);
@@ -421,7 +439,7 @@ const Order = () => {
               font-size: 0.75rem;
             }
             .billing-panel .btn {
-              font-size: 0.75子女: 0.75rem !important;
+              font-size: 0.75rem !important;
               padding: 0.25rem 0.5rem !important;
             }
             .billing-panel input {
@@ -840,7 +858,7 @@ const Order = () => {
                           } else {
                             setItems(
                               items.map((i) =>
-                                i.id === i.id ? { ...i, qty: newQty } : i
+                                i.id === item.id ? { ...i, qty: newQty } : i
                               )
                             );
                           }
