@@ -21,49 +21,46 @@ interface Outlet {
 const PaymentModes: React.FC = () => {
   const [paymentModes, setPaymentModes] = useState<PaymentMode[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
-  const [selectedOutlet, setSelectedOutlet] = useState<string>('');
+  const [selectedOutlet, setSelectedOutlet] = useState<string>(
+    localStorage.getItem('lastSelectedOutlet') || ''
+  );
   const [selectedModesLeft, setSelectedModesLeft] = useState<string[]>([]);
   const [selectedModesRight, setSelectedModesRight] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [searchTermRight, setSearchTermRight] = useState<string>('');
   const { user } = useAuthContext();
-  const [outlets, setOutlets] = useState<OutletData[]>([]);
+  const [outlets, setOutlets] = useState<Outlet[]>([]);
   const [availablePaymentModes, setAvailablePaymentModes] = useState<string[]>([]);
 
-  // Fetch outlets and payment modes on component mount or outlet change
+  // Fetch outlets and payment modes on component mount
   useEffect(() => {
     fetchOutletsForDropdown(user, setOutlets, setLoading);
-    fetchAvailablePaymentModes(); // Fetch available payment modes on mount
-  }, []);
+    fetchAvailablePaymentModes();
+    if (selectedOutlet) {
+      fetchPaymentModes();
+    }
+  }, []); // Runs once on mount
 
+  // Fetch payment modes when selectedOutlet changes
   useEffect(() => {
     if (selectedOutlet) {
       fetchPaymentModes();
+      localStorage.setItem('lastSelectedOutlet', selectedOutlet); // Save last selected outlet
     } else {
-      setPaymentModes([]); // Clear payment modes if no outlet is selected
+      setPaymentModes([]);
+      localStorage.removeItem('lastSelectedOutlet');
     }
   }, [selectedOutlet]);
 
-  // Fetch all outlets for dropdown
-  const fetchOutlets = async () => {
-    try {
-      const response = await axios.get('/api/payment-modes/dropdown/outlets');
-      setOutlets(response.data);
-    } catch (error) {
-      console.error('Error fetching outlets:', error);
-      alert('Failed to fetch outlets');
-    }
-  };
-
-  // Fetch available payment modes from the controller
+  // Fetch available payment modes
   const fetchAvailablePaymentModes = async () => {
     try {
-      const response = await axios.get('/api/payment'); // Matches the controller endpoint
-      const modes = response.data.map((mode: any) => mode.method_name); // Extract method_name
+      const response = await axios.get('/api/payment');
+      const modes = response.data.map((mode: any) => mode.method_name);
       setAvailablePaymentModes(modes);
     } catch (error) {
       console.error('Error fetching available payment modes:', error);
-      alert('Failed to fetch available payment modes');
+      toast.error('Failed to fetch available payment modes');
     }
   };
 
@@ -79,14 +76,14 @@ const PaymentModes: React.FC = () => {
       })));
     } catch (error) {
       console.error('Error fetching payment modes:', error);
-      alert('Failed to fetch payment modes');
+      toast.error('Failed to fetch payment modes');
     }
   };
 
-  // Create a new payment mode
+  // Add a new payment mode
   const handleAddPaymentMode = async (modeName: string) => {
     if (!selectedOutlet) {
-      alert('Please select an outlet');
+      toast.error('Please select an outlet');
       return;
     }
     try {
@@ -96,65 +93,76 @@ const PaymentModes: React.FC = () => {
         is_active: 1,
       });
       setPaymentModes((prev) => [...prev, response.data]);
+      setSelectedModesLeft((prev) => prev.filter((name) => name !== modeName));
+      await fetchPaymentModes();
     } catch (error) {
       console.error('Error adding payment mode:', error);
-      alert('Failed to add payment mode');
+      toast.error('Failed to add payment mode');
     }
   };
 
-  // Delete a payment mode
-  const handleRemovePaymentMode = async (modeId: number) => {
+  // Remove a payment mode
+  const handleRemovePaymentMode = async (modeId: number | string) => {
+    const id = typeof modeId === 'string' ? parseInt(modeId) : modeId;
+    if (!id || isNaN(id)) {
+      toast.error('Invalid payment mode ID');
+      return;
+    }
     try {
-      await axios.delete(`/api/payment-modes/${modeId}`);
-      setPaymentModes((prev) => prev.filter((mode) => mode.id !== modeId));
-      setSelectedModesRight((prev) => prev.filter((id) => id !== modeId.toString()));
+      await axios.delete(`/api/payment-modes/${id}`);
+      setPaymentModes((prev) => prev.filter((mode) => mode.id !== id));
+      setSelectedModesRight((prev) => prev.filter((mid) => mid !== modeId.toString()));
+      await fetchPaymentModes();
     } catch (error) {
       console.error('Error deleting payment mode:', error);
-      alert('Failed to delete payment mode');
+      toast.error('Failed to delete payment mode');
     }
   };
 
-  // Handle selection on the left side (simulated available modes)
+  // Handle selection on the left side (available modes)
   const handleSelectPaymentModeLeft = (modeName: string) => {
     setSelectedModesLeft((prev) =>
-      prev.includes(modeName)
-        ? prev.filter((name) => name !== modeName)
-        : [...prev, modeName]
+      prev.includes(modeName) ? prev.filter((name) => name !== modeName) : [...prev, modeName]
     );
   };
 
-  // Handle selection on the right side (Added Payment Modes)
-  const handleSelectPaymentModeRight = (modeId: string) => {
+  // Handle selection on the right side (added modes)
+  const handleSelectPaymentModeRight = (modeId: string | number) => {
+    const idStr = modeId.toString();
     setSelectedModesRight((prev) =>
-      prev.includes(modeId)
-        ? prev.filter((id) => id !== modeId)
-        : [...prev, id]
+      prev.includes(idStr) ? prev.filter((id) => id !== idStr) : [...prev, idStr]
     );
   };
 
   // Move selected payment modes from left to right
-  const handleSingleTransferToRight = () => {
+  const handleSingleTransferToRight = async () => {
     if (!selectedOutlet) {
-      alert('Please select an outlet');
+      toast.error('Please select an outlet');
       return;
     }
-    selectedModesLeft.forEach((modeName) => handleAddPaymentMode(modeName));
+    for (const modeName of selectedModesLeft) {
+      await handleAddPaymentMode(modeName);
+    }
     setSelectedModesLeft([]);
   };
 
   // Move selected payment modes from right to left
-  const handleSingleTransferToLeft = () => {
-    selectedModesRight.forEach((modeId) => handleRemovePaymentMode(parseInt(modeId)));
+  const handleSingleTransferToLeft = async () => {
+    for (const modeId of selectedModesRight) {
+      await handleRemovePaymentMode(modeId);
+    }
     setSelectedModesRight([]);
   };
 
-  // Move all available payment modes to the right (simulated)
+  // Move all available payment modes to the right
   const handleMultiTransferToRight = async () => {
     if (!selectedOutlet) {
-      alert('Please select an outlet');
+      toast.error('Please select an outlet');
       return;
     }
-    const availableModes = availablePaymentModes.filter((mode) => !paymentModes.some((pm) => pm.mode_name === mode));
+    const availableModes = availablePaymentModes.filter((mode) =>
+      !paymentModes.some((pm) => pm.mode_name === mode)
+    );
     for (const mode of availableModes) {
       await handleAddPaymentMode(mode);
     }
@@ -177,9 +185,14 @@ const PaymentModes: React.FC = () => {
     setSearchTermRight(e.target.value.toLowerCase());
   };
 
-  // Save changes (placeholder)
-  const handleSaveChanges = () => {
-    alert('Changes saved successfully!');
+  // Save changes and reload data
+  const handleSaveChanges = async () => {
+    // Add any additional save logic if needed (e.g., sending updated data to backend)
+    toast.success('Changes saved successfully!');
+    if (selectedOutlet) {
+      await fetchPaymentModes(); // Refresh current outlet data
+      localStorage.setItem('lastSelectedOutlet', selectedOutlet); // Ensure last outlet is saved
+    }
   };
 
   // Filter for available (left side) payment modes
@@ -247,20 +260,12 @@ const PaymentModes: React.FC = () => {
               </Form.Select>
               <div
                 className="d-flex flex-column align-items-center w-100 mb-3"
-                style={{
-                  border: '1px solid #dee2e6',
-                  borderRadius: '4px',
-                  padding: '10px',
-                }}
+                style={{ border: '1px solid #dee2e6', borderRadius: '4px', padding: '10px' }}
               >
                 <Button
                   variant="light"
                   className="w-100 mb-1 d-flex justify-content-center align-items-center"
-                  style={{
-                    border: '1px solid #dee2e6',
-                    borderRadius: '4px',
-                    height: '38px',
-                  }}
+                  style={{ border: '1px solid #dee2e6', borderRadius: '4px', height: '38px' }}
                   onClick={handleMultiTransferToRight}
                 >
                   <span>{'\u003E\u003E'}</span>
@@ -268,11 +273,7 @@ const PaymentModes: React.FC = () => {
                 <Button
                   variant="light"
                   className="w-100 mb-1 d-flex justify-content-center align-items-center"
-                  style={{
-                    border: '1px solid #dee2e6',
-                    borderRadius: '4px',
-                    height: '38px',
-                  }}
+                  style={{ border: '1px solid #dee2e6', borderRadius: '4px', height: '38px' }}
                   onClick={handleSingleTransferToRight}
                   disabled={selectedModesLeft.length === 0}
                 >
@@ -281,11 +282,7 @@ const PaymentModes: React.FC = () => {
                 <Button
                   variant="light"
                   className="w-100 mb-1 d-flex justify-content-center align-items-center"
-                  style={{
-                    border: '1px solid #dee2e6',
-                    borderRadius: '4px',
-                    height: '38px',
-                  }}
+                  style={{ border: '1px solid #dee2e6', borderRadius: '4px', height: '38px' }}
                   onClick={handleSingleTransferToLeft}
                   disabled={selectedModesRight.length === 0}
                 >
@@ -294,11 +291,7 @@ const PaymentModes: React.FC = () => {
                 <Button
                   variant="light"
                   className="w-100 d-flex justify-content-center align-items-center"
-                  style={{
-                    border: '1px solid #dee2e6',
-                    borderRadius: '4px',
-                    height: '38px',
-                  }}
+                  style={{ border: '1px solid #dee2e6', borderRadius: '4px', height: '38px' }}
                   onClick={handleMultiTransferToLeft}
                 >
                   <span>{'\u003C\u003C'}</span>
@@ -321,13 +314,13 @@ const PaymentModes: React.FC = () => {
               <ListGroup variant="flush">
                 {filteredPaymentModesRight.map((mode) => (
                   <ListGroup.Item
-                    key={mode.id}
+                    key={mode.id || mode.mode_name}
                     className="d-flex justify-content-between align-items-center"
-                    onClick={() => handleSelectPaymentModeRight(mode.id!.toString())}
+                    onClick={() => handleSelectPaymentModeRight(mode.id || mode.mode_name)}
                     style={{
                       cursor: 'pointer',
-                      backgroundColor: selectedModesRight.includes(mode.id!.toString()) ? '#007bff' : 'transparent',
-                      color: selectedModesRight.includes(mode.id!.toString()) ? '#fff' : 'inherit',
+                      backgroundColor: selectedModesRight.includes((mode.id || mode.mode_name).toString()) ? '#007bff' : 'transparent',
+                      color: selectedModesRight.includes((mode.id || mode.mode_name).toString()) ? '#fff' : 'inherit',
                     }}
                   >
                     {mode.mode_name}

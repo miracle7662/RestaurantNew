@@ -68,6 +68,7 @@ const Order = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [departments, setDepartments] = useState<DepartmentItem[]>([]);
   const [tableSearchInput, setTableSearchInput] = useState<string>('');
+  const tableSearchInputRef = useRef<HTMLInputElement>(null);
 
   const fetchTableManagement = async () => {
     setLoading(true);
@@ -384,7 +385,6 @@ const Order = () => {
     }
   };
 
-  // New useEffect for handling Ctrl + Number shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.key >= '0' && e.key <= '9') {
@@ -402,6 +402,13 @@ const Order = () => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [departments]);
+
+  // New useEffect for setting focus on table search input
+  useEffect(() => {
+    if (activeTab === 'Dine-in' && !showOrderDetails && tableSearchInputRef.current) {
+      tableSearchInputRef.current.focus();
+    }
+  }, [activeTab, showOrderDetails]);
 
   useEffect(() => {
     console.log('State update - showOrderDetails:', showOrderDetails, 'selectedTable:', selectedTable);
@@ -579,503 +586,511 @@ const Order = () => {
           }
         `}
       </style>
-      <div className="main-container d-flex flex-column flex-md-row ">
-        <div className="table-container flex-grow-1 me-md-3 overflow-y-auto">
-          <>
-            {activeTab === 'Dine-in' && !showOrderDetails && (
-              <div>
-                <ul
-                  className="nav nav-tabs rounded shadow-sm mb-3"
-                  role="tablist"
-                  style={{ padding: '5px', display: 'flex', gap: '5px', alignItems: 'center' }}
-                >
-                  <li className="nav-item">
-                    <input
-                      type="text"
-                      className="form-control"
-                      placeholder="Enter Table Name"
-                      value={tableSearchInput}
-                      onChange={(e) => setTableSearchInput(e.target.value)}
-                      onKeyPress={handleTableSearchInput}
-                      style={{ width: '150px', height: '30px', fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}
-                    />
-                  </li>
-                  <li className="nav-item flex-fill">
-                    <button
-                      className={`nav-link ${activeNavTab === 'ALL' ? 'active bg-primary text-white' : 'text-dark'}`}
-                      onClick={() => setActiveNavTab('ALL')}
-                      role="tab"
-                      style={{ border: 'none', borderRadius: '5px', padding: '8px 12px', fontSize: '14px', fontWeight: 500, textAlign: 'center' }}
-                    >
-                      ALL
-                    </button>
-                  </li>
-                  {loading ? (
-                    <li className="nav-item flex-fill">
-                      <span>Loading departments...</span>
-                    </li>
-                  ) : departments.length === 0 ? (
-                    <li className="nav-item flex-fill">
-                      <span style={{ color: 'red' }}>
-                        {user?.role_level === 'outlet_user'
-                          ? 'No assigned departments found for outlet user.'
-                          : 'Failed to load departments or no departments available'}
-                      </span>
-                    </li>
-                  ) : (
-                    departments.map((department, index) => (
-                      <li className="nav-item flex-fill" key={index}>
-                        <button
-                          className={`nav-link ${activeNavTab === department.department_name ? 'active bg-primary text-white' : 'text-dark'}`}
-                          onClick={() => setActiveNavTab(department.department_name)}
-                          role="tab"
-                          style={{ border: 'none', borderRadius: '5px', padding: '8px 12px', fontSize: '14px', fontWeight: 500, textAlign: 'center' }}
-                        >
-                          {department.department_name}
-                          {user?.role_level === 'outlet_user' && ' (Assigned)'}
-                        </button>
-                      </li>
-                    ))
-                  )}
-                  {['Pickup', 'Quick Bill', 'Delivery'].map((tab, index) => (
-                    <li className="nav-item flex-fill" key={index + departments.length}>
-                      <button
-                        className={`nav-link ${tab === activeNavTab ? 'active bg-primary text-white' : 'text-dark'}`}
-                        onClick={() => setActiveNavTab(tab)}
-                        role="tab"
-                        style={{ border: 'none', borderRadius: '5px', padding: '8px 12px', fontSize: '14px', fontWeight: 500, textAlign: 'center' }}
-                      >
-                        {tab}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-                <div
-                  className="d-flex flex-column justify-content-start align-items-start rounded shadow-sm p-1 mt-3"
-                >
-                  {loading ? (
-                    <p className="text-center text-muted mb-0">Loading tables...</p>
-                  ) : activeNavTab === 'ALL' ? (
-                    <>
-                      {departments.map((department, index) => {
-                        const assignedTables = tableItems.filter(table =>
-                          table && table.departmentid && Number(table.departmentid) === department.departmentid
-                        );
-                        return (
-                          <div key={index}>
-                            <p style={{ color: 'green', fontWeight: 'bold', margin: '10px 0 5px' }}>
-                               {department.department_name}
-                            </p>
-                            <div className="d-flex flex-wrap gap-1">
-                              {assignedTables.length > 0 ? (
-                                assignedTables.map((table, tableIndex) => (
-                                  table.table_name ? (
-                                    <div key={tableIndex} className="p-1">
-                                      <button
-                                        className={`btn ${selectedTable === table.table_name ? 'btn-success' : 'btn-outline-success'}`}
-                                        style={{ width: '90px', height: '80px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
-                                        onClick={() => {
-                                          console.log('Button clicked for table:', table.table_name, 'isActive:', table.isActive);
-                                          handleTableClick(table.table_name);
-                                        }}
-                                      >
-                                        {table.table_name} {table.isActive ? '' : ''}
-                                      </button>
-                                    </div>
-                                  ) : null
-                                ))
-                              ) : (
-                                <p className="text-center text-muted mb-0">
-                                  No tables assigned to {department.department_name}.
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                      {departments.length === 0 && (
-                        <p className="text-center text-muted mb-0">
-                          No departments available. Please check department data.
-                        </p>
-                      )}
-                    </>
-                  ) : activeNavTab === 'abcd' || activeNavTab === 'qwert' ? (
-                    <div>
-                      <p style={{ color: 'green', fontWeight: 'bold', margin: '10px 0 5px' }}>Department {activeNavTab}</p>
-                      <div className="d-flex flex-wrap gap-1">
-                        {Array.isArray(filteredTables) ? filteredTables
-                          .filter(table => 
-                            table && table.outlet_name && 
-                            table.outlet_name.toLowerCase() === activeNavTab.toLowerCase()
-                          )
-                          .map((table, index) => (
-                            table.table_name ? (
-                              <div key={index} className="p-1">
-                                <button
-                                  className={`btn ${selectedTable === table.table_name ? 'btn-success' : 'btn-outline-success'}`}
-                                  style={{ width: '90px', height: '80px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
-                                  onClick={() => {
-                                    console.log('Button clicked for table:', table.table_name, 'isActive:', table.isActive);
-                                    handleTableClick(table.table_name);
-                                  }}
-                                >
-                                  {table.table_name} {table.isActive ? '' : ''}
-                                </button>
-                              </div>
-                            ) : null
-                          )) : null}
-                        {Array.isArray(filteredTables) && filteredTables.filter(table => 
-                          table && table.outlet_name && 
-                          table.outlet_name.toLowerCase() === activeNavTab.toLowerCase()
-                        ).length === 0 && (
-                          <p className="text-center text-muted mb-0">
-                            No tables available for {activeNavTab}. Please check TableManagement data.
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  ) : filteredTables.length > 0 ? (
-                    <div className="d-flex flex-wrap gap-1">
-                      {Array.isArray(filteredTables) ? filteredTables
-                        .filter(table => table && table.table_name)
-                        .map((table, index) => (
-                          <div key={index} className="p-1">
-                            <button
-                              className={`btn ${selectedTable === table.table_name ? 'btn-success' : 'btn-outline-success'}`}
-                              style={{ width: '90px', height: '80px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
-                              onClick={() => {
-                                console.log('Button clicked for table:', table.table_name, 'isActive:', table.isActive);
-                                handleTableClick(table.table_name);
-                              }}
-                            >
-                              {table.table_name} {table.isActive ? '' : ''}
-                            </button>
-                          </div>
-                        )) : null}
-                    </div>
-                  ) : (
-                    <p className="text-center text-muted mb-0">
-                      No tables available for {activeNavTab}. Please check TableManagement data.
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
-            {showOrderDetails && (
-              <div className="rounded shadow-sm p-1 mt-0">
-                <OrderDetails
-                  tableId={selectedTable}
-                  onChangeTable={handleBackToTables}
-                  items={items}
-                  setItems={setItems}
-                  setSelectedTable={setSelectedTable}
-                  invalidTable={invalidTable}
-                  setInvalidTable={setInvalidTable}
-                  filteredTables={filteredTables}
-                />
-              </div>
-            )}
-          </>
-        </div>
-        <div className="billing-panel border-start p-0">
-          <div className="rounded shadow-sm p-1 w-100 billing-panel-inner">
-            <div>
-              <div className="d-flex flex-wrap gap-1 border-bottom pb-0">
-                <div className="d-flex flex-wrap gap-1 flex-grow-1">
-                  {['Dine-in', 'Pickup', 'Delivery', 'Quick Bill', 'Order/KOT', 'Billing'].map((tab, index) => (
-                    <button
-                      key={index}
-                      className={`btn btn-sm flex-fill text-center ${tab === activeTab ? 'btn-primary' : 'btn-outline-secondary'}`}
-                      style={{ fontSize: 'x-small' }}
-                      onClick={() => handleTabClick(tab)}
-                    >
-                      {tab}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="text-center fw-bold bg-white border rounded p-2">{getKOTLabel()}</div>
-              <div
-                className="rounded border fw-bold text-black"
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '2fr 1fr 1fr',
-                  padding: '0.5rem',
-                }}
-              >
-                <span style={{ textAlign: 'left' }}>Item Name</span>
-                <span className="text-center">Qty</span>
-                <span className="text-center">Amount</span>
-              </div>
-            </div>
-            <div
-              className="border rounded item-list-container"
-              ref={itemListRef}
-            >
-              {items.length === 0 ? (
-                <p className="text-center text-muted mb-0">No items added</p>
-              ) : (
-                items.map((item, index) => (
-                  <div
-                    key={item.id}
-                    className="border-bottom"
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: '2fr 1fr 1fr',
-                      padding: '0.25rem',
-                      alignItems: 'center',
-                    }}
+      <div className="container-fluid p-0 m-0" style={{ height: '100vh' }}>
+        {errorMessage && (
+          <div className="alert alert-danger text-center" role="alert">
+            {errorMessage}
+          </div>
+        )}
+        <div className="main-container d-flex flex-column flex-md-row ">
+          <div className="table-container flex-grow-1 me-md-3 overflow-y-auto">
+            <>
+              {activeTab === 'Dine-in' && !showOrderDetails && (
+                <div>
+                  <ul
+                    className="nav nav-tabs rounded shadow-sm mb-3"
+                    role="tablist"
+                    style={{ padding: '5px', display: 'flex', gap: '5px', alignItems: 'center' }}
                   >
-                    <span style={{ textAlign: 'left' }}>{item.name}</span>
-                    <div className="text-center d-flex justify-content-center align-items-center gap-2">
-                      <button
-                        className="btn btn-danger btn-sm"
-                        style={{ padding: '0 5px', lineHeight: '1' }}
-                        onClick={() => handleDecreaseQty(item.id)}
-                      >
-                        −
-                      </button>
-                      <style>
-                        {`
-                          .no-spinner::-webkit-inner-spin-button,
-                          .no-spinner::-webkit-outer-spin-button {
-                            -webkit-appearance: none;
-                            margin: 0;
-                          }
-                          .no-spinner {
-                            -moz-appearance: textfield;
-                            appearance: none;
-                          }
-                        `}
-                      </style>
-                      <input
-                        type="number"
-                        value={item.qty}
-                        onChange={(e) => {
-                          const newQty = parseInt(e.target.value) || 0;
-                          if (newQty <= 0) {
-                            setItems(items.filter((i) => i.id !== item.id));
-                          } else {
-                            setItems(
-                              items.map((i) =>
-                                i.id === item.id ? { ...i, qty: newQty } : i
-                              )
-                            );
-                          }
-                        }}
-                        className="border rounded text-center no-spinner"
-                        style={{ width: '40px', height: '16px', fontSize: '0.75rem', padding: '0' }}
-                        min="0"
-                        max="999"
-                      />
-                      <button
-                        className="btn btn-success btn-sm"
-                        style={{ padding: '0 5px', lineHeight: '1' }}
-                        onClick={() => handleIncreaseQty(item.id)}
-                      >
-                        +
-                      </button>
-                    </div>
-                    <div className="text-center">
-                      <div>{(item.price * item.qty).toFixed(2)}</div>
-                      <div
-                        style={{ fontSize: '0.75rem', color: '#6c757d', width: '50px', height: '16px', margin: '0 auto' }}
-                      >
-                        ({item.price.toFixed(2)})
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-            <div className="billing-panel-bottom">
-              <div className="d-flex flex-column flex-md-row gap-2 mt-2">
-                <div className="d-flex gap-1 position-relative">
-                  <div
-                    className="border rounded d-flex align-items-center justify-content-center"
-                    style={{
-                      width: '50px',
-                      height: '30px',
-                      fontSize: '0.875rem',
-                      cursor: 'pointer',
-                    }}
-                    onClick={handleCountryCodeClick}
-                  >
-                    {selectedCountryCode}
-                    {showCountryOptions && (
-                      <div
-                        className="position-absolute border rounded shadow-sm"
-                        style={{
-                          top: '100%',
-                          left: 0,
-                          width: '50px',
-                          zIndex: 1004,
-                        }}
-                      >
-                        {['+91', '+1', '+44'].map((code) => (
-                          <div
-                            key={code}
-                            className="text-center p-1"
-                            style={{ cursor: 'pointer' }}
-                            onClick={() => handleCountryCodeSelect(code)}
-                            onMouseOver={(e) => (e.currentTarget.style.backgroundColor = '#f8f9fa')}
-                          >
-                            {code}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="Mobile No"
-                    className="form-control"
-                    style={{ width: '150px', height: '30px', fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}
-                  />
-                </div>
-                <div className="d-flex align-items-center">
-                  <input
-                    type="text"
-                    placeholder="Customer Name"
-                    className="form-control"
-                    style={{ width: '150px', height: '30px', fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}
-                  />
-                  <button
-                    className="btn btn-outline-primary ms-1"
-                    style={{ height: '30px', padding: '0 8px', fontSize: '0.875rem' }}
-                    onClick={handleAddCustomerClick}
-                    title="Add Customer"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-              <div className="d-flex flex-column flex-md-row gap-2 mt-2">
-                {(activeTab === 'Delivery' || activeTab === 'Billing') && (
-                  <input
-                    type="text"
-                    placeholder="Customer Address"
-                    className="form-control"
-                    style={{ width: '150px', height: '30px', fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}
-                  />
-                )}
-                <input
-                  type="text"
-                  placeholder="KOT Note"
-                  className="form-control"
-                  style={{ width: '150px', height: '30px', fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}
-                />
-                {activeTab === 'Dine-in' && (
-                  <div style={{ maxWidth: '100px', minHeight: '38px' }}>
-                    <div className="input-group rounded-search">
+                    <li className="nav-item">
                       <input
                         type="text"
                         className="form-control"
-                        placeholder="Table"
-                        value={searchTable}
-                        onChange={(e) => setSearchTable(e.target.value)}
-                        style={{ maxWidth: '100px', minHeight: '38px', fontSize: '1.2rem' }}
+                        placeholder="Enter Table "
+                        value={tableSearchInput}
+                        onChange={(e) => setTableSearchInput(e.target.value)}
+                        onKeyPress={handleTableSearchInput}
+                        ref={tableSearchInputRef}
+                        style={{ width: '100px', height: '50px', fontSize: '0.875rem', padding: '0.25rem 0.5rem',backgroundColor: '#ffffe0' }}
                       />
-                    </div>
-                    {isTableInvalid && (
-                      <div className="text-danger small text-center mt-1">
-                        Invalid Table
+                    </li>
+                    <li className="nav-item flex-fill">
+                      <button
+                        className={`nav-link ${activeNavTab === 'ALL' ? 'active bg-primary text-white' : 'text-dark'}`}
+                        onClick={() => setActiveNavTab('ALL')}
+                        role="tab"
+                        style={{ border: 'none', borderRadius: '5px', padding: '8px 12px', fontSize: '14px', fontWeight: 500, textAlign: 'center' }}
+                      >
+                        ALL
+                      </button>
+                    </li>
+                    {loading ? (
+                      <li className="nav-item flex-fill">
+                        <span>Loading departments...</span>
+                      </li>
+                    ) : departments.length === 0 ? (
+                      <li className="nav-item flex-fill">
+                        <span style={{ color: 'red' }}>
+                          {user?.role_level === 'outlet_user'
+                            ? 'No assigned departments found for outlet user.'
+                            : 'Failed to load departments or no departments available'}
+                        </span>
+                      </li>
+                    ) : (
+                      departments.map((department, index) => (
+                        <li className="nav-item flex-fill" key={index}>
+                          <button
+                            className={`nav-link ${activeNavTab === department.department_name ? 'active bg-primary text-white' : 'text-dark'}`}
+                            onClick={() => setActiveNavTab(department.department_name)}
+                            role="tab"
+                            style={{ border: 'none', borderRadius: '5px', padding: '8px 12px', fontSize: '14px', fontWeight: 500, textAlign: 'center' }}
+                          >
+                            {department.department_name}
+                            {user?.role_level === 'outlet_user' && ' (Assigned)'}
+                          </button>
+                        </li>
+                      ))
+                    )}
+                    {['Pickup', 'Quick Bill', 'Delivery'].map((tab, index) => (
+                      <li className="nav-item flex-fill" key={index + departments.length}>
+                        <button
+                          className={`nav-link ${tab === activeNavTab ? 'active bg-primary text-white' : 'text-dark'}`}
+                          onClick={() => setActiveNavTab(tab)}
+                          role="tab"
+                          style={{ border: 'none', borderRadius: '5px', padding: '8px 12px', fontSize: '14px', fontWeight: 500, textAlign: 'center' }}
+                        >
+                          {tab}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                  <div
+                    className="d-flex flex-column justify-content-start align-items-start rounded shadow-sm p-1 mt-3"
+                  >
+                    {loading ? (
+                      <p className="text-center text-muted mb-0">Loading tables...</p>
+                    ) : activeNavTab === 'ALL' ? (
+                      <>
+                        {departments.map((department, index) => {
+                          const assignedTables = tableItems.filter(table =>
+                            table && table.departmentid && Number(table.departmentid) === department.departmentid
+                          );
+                          return (
+                            <div key={index}>
+                              <p style={{ color: 'green', fontWeight: 'bold', margin: '10px 0 5px' }}>
+                                 {department.department_name}
+                              </p>
+                              <div className="d-flex flex-wrap gap-1">
+                                {assignedTables.length > 0 ? (
+                                  assignedTables.map((table, tableIndex) => (
+                                    table.table_name ? (
+                                      <div key={tableIndex} className="p-1">
+                                        <button
+                                          className={`btn ${selectedTable === table.table_name ? 'btn-success' : 'btn-outline-success'}`}
+                                          style={{ width: '90px', height: '80px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+                                          onClick={() => {
+                                            console.log('Button clicked for table:', table.table_name, 'isActive:', table.isActive);
+                                            handleTableClick(table.table_name);
+                                          }}
+                                        >
+                                          {table.table_name} {table.isActive ? '' : ''}
+                                        </button>
+                                      </div>
+                                    ) : null
+                                  ))
+                                ) : (
+                                  <p className="text-center text-muted mb-0">
+                                    No tables assigned to {department.department_name}.
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                        {departments.length === 0 && (
+                          <p className="text-center text-muted mb-0">
+                            No departments available. Please check department data.
+                          </p>
+                        )}
+                      </>
+                    ) : activeNavTab === 'abcd' || activeNavTab === 'qwert' ? (
+                      <div>
+                        <p style={{ color: 'green', fontWeight: 'bold', margin: '10px 0 5px' }}>Department {activeNavTab}</p>
+                        <div className="d-flex flex-wrap gap-1">
+                          {Array.isArray(filteredTables) ? filteredTables
+                            .filter(table => 
+                              table && table.outlet_name && 
+                              table.outlet_name.toLowerCase() === activeNavTab.toLowerCase()
+                            )
+                            .map((table, index) => (
+                              table.table_name ? (
+                                <div key={index} className="p-1">
+                                  <button
+                                    className={`btn ${selectedTable === table.table_name ? 'btn-success' : 'btn-outline-success'}`}
+                                    style={{ width: '90px', height: '80px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+                                    onClick={() => {
+                                      console.log('Button clicked for table:', table.table_name, 'isActive:', table.isActive);
+                                      handleTableClick(table.table_name);
+                                    }}
+                                  >
+                                    {table.table_name} {table.isActive ? '' : ''}
+                                  </button>
+                                </div>
+                              ) : null
+                            )) : null}
+                          {Array.isArray(filteredTables) && filteredTables.filter(table => 
+                            table && table.outlet_name && 
+                            table.outlet_name.toLowerCase() === activeNavTab.toLowerCase()
+                          ).length === 0 && (
+                            <p className="text-center text-muted mb-0">
+                              No tables available for {activeNavTab}. Please check TableManagement data.
+                            </p>
+                          )}
+                        </div>
                       </div>
+                    ) : filteredTables.length > 0 ? (
+                      <div className="d-flex flex-wrap gap-1">
+                        {Array.isArray(filteredTables) ? filteredTables
+                          .filter(table => table && table.table_name)
+                          .map((table, index) => (
+                            <div key={index} className="p-1">
+                              <button
+                                className={`btn ${selectedTable === table.table_name ? 'btn-success' : 'btn-outline-success'}`}
+                                style={{ width: '90px', height: '80px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+                                onClick={() => {
+                                  console.log('Button clicked for table:', table.table_name, 'isActive:', table.isActive);
+                                  handleTableClick(table.table_name);
+                                }}
+                              >
+                                {table.table_name} {table.isActive ? '' : ''}
+                              </button>
+                            </div>
+                          )) : null}
+                      </div>
+                    ) : (
+                      <p className="text-center text-muted mb-0">
+                        No tables available for {activeNavTab}. Please check TableManagement data.
+                      </p>
                     )}
                   </div>
+                </div>
+              )}
+              {showOrderDetails && (
+                <div className="rounded shadow-sm p-1 mt-0">
+                  <OrderDetails
+                    tableId={selectedTable}
+                    onChangeTable={handleBackToTables}
+                    items={items}
+                    setItems={setItems}
+                    setSelectedTable={setSelectedTable}
+                    invalidTable={invalidTable}
+                    setInvalidTable={setInvalidTable}
+                    filteredTables={filteredTables}
+                  />
+                </div>
+              )}
+            </>
+          </div>
+          <div className="billing-panel border-start p-0">
+            <div className="rounded shadow-sm p-1 w-100 billing-panel-inner">
+              <div>
+                <div className="d-flex flex-wrap gap-1 border-bottom pb-0">
+                  <div className="d-flex flex-wrap gap-1 flex-grow-1">
+                    {['Dine-in', 'Pickup', 'Delivery', 'Quick Bill', 'Order/KOT', 'Billing'].map((tab, index) => (
+                      <button
+                        key={index}
+                        className={`btn btn-sm flex-fill text-center ${tab === activeTab ? 'btn-primary' : 'btn-outline-secondary'}`}
+                        style={{ fontSize: 'x-small' }}
+                        onClick={() => handleTabClick(tab)}
+                      >
+                        {tab}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="text-center fw-bold bg-white border rounded p-2">{getKOTLabel()}</div>
+                <div
+                  className="rounded border fw-bold text-black"
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '2fr 1fr 1fr',
+                    padding: '0.5rem',
+                  }}
+                >
+                  <span style={{ textAlign: 'left' }}>Item Name</span>
+                  <span className="text-center">Qty</span>
+                  <span className="text-center">Amount</span>
+                </div>
+              </div>
+              <div
+                className="border rounded item-list-container"
+                ref={itemListRef}
+              >
+                {items.length === 0 ? (
+                  <p className="text-center text-muted mb-0">No items added</p>
+                ) : (
+                  items.map((item, index) => (
+                    <div
+                      key={item.id}
+                      className="border-bottom"
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: '2fr 1fr 1fr',
+                        padding: '0.25rem',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <span style={{ textAlign: 'left' }}>{item.name}</span>
+                      <div className="text-center d-flex justify-content-center align-items-center gap-2">
+                        <button
+                          className="btn btn-danger btn-sm"
+                          style={{ padding: '0 5px', lineHeight: '1' }}
+                          onClick={() => handleDecreaseQty(item.id)}
+                        >
+                          −
+                        </button>
+                        <style>
+                          {`
+                            .no-spinner::-webkit-inner-spin-button,
+                            .no-spinner::-webkit-outer-spin-button {
+                              -webkit-appearance: none;
+                              margin: 0;
+                            }
+                            .no-spinner {
+                              -moz-appearance: textfield;
+                              appearance: none;
+                            }
+                          `}
+                        </style>
+                        <input
+                          type="number"
+                          value={item.qty}
+                          onChange={(e) => {
+                            const newQty = parseInt(e.target.value) || 0;
+                            if (newQty <= 0) {
+                              setItems(items.filter((i) => i.id !== item.id));
+                            } else {
+                              setItems(
+                                items.map((i) =>
+                                  i.id === item.id ? { ...i, qty: newQty } : i
+                                )
+                              );
+                            }
+                          }}
+                          className="border rounded text-center no-spinner"
+                          style={{ width: '40px', height: '16px', fontSize: '0.75rem', padding: '0' }}
+                          min="0"
+                          max="999"
+                        />
+                        <button
+                          className="btn btn-success btn-sm"
+                          style={{ padding: '0 5px', lineHeight: '1' }}
+                          onClick={() => handleIncreaseQty(item.id)}
+                        >
+                          +
+                        </button>
+                      </div>
+                      <div className="text-center">
+                        <div>{(item.price * item.qty).toFixed(2)}</div>
+                        <div
+                          style={{ fontSize: '0.75rem', color: '#6c757d', width: '50px', height: '16px', margin: '0 auto' }}
+                        >
+                          ({item.price.toFixed(2)})
+                        </div>
+                      </div>
+                    </div>
+                  ))
                 )}
               </div>
-              <div className="mt-1">
-                <div
-                  className="d-flex justify-content-between align-items-center bg-success text-white rounded"
-                  style={{ padding: '0.25rem 0.75rem' }}
-                >
-                  <span className="fw-bold">TOTAL:</span>
-                  <span className="fw-bold">{totalAmount}</span>
+              <div className="billing-panel-bottom">
+                <div className="d-flex flex-column flex-md-row gap-2 mt-2">
+                  <div className="d-flex gap-1 position-relative">
+                    <div
+                      className="border rounded d-flex align-items-center justify-content-center"
+                      style={{
+                        width: '50px',
+                        height: '30px',
+                        fontSize: '0.875rem',
+                        cursor: 'pointer',
+                      }}
+                      onClick={handleCountryCodeClick}
+                    >
+                      {selectedCountryCode}
+                      {showCountryOptions && (
+                        <div
+                          className="position-absolute border rounded shadow-sm"
+                          style={{
+                            top: '100%',
+                            left: 0,
+                            width: '50px',
+                            zIndex: 1004,
+                          }}
+                        >
+                          {['+91', '+1', '+44'].map((code) => (
+                            <div
+                              key={code}
+                              className="text-center p-1"
+                              style={{ cursor: 'pointer' }}
+                              onClick={() => handleCountryCodeSelect(code)}
+                              onMouseOver={(e) => (e.currentTarget.style.backgroundColor = '#f8f9fa')}
+                            >
+                              {code}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="Mobile No"
+                      className="form-control"
+                      style={{ width: '150px', height: '30px', fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}
+                    />
+                  </div>
+                  <div className="d-flex align-items-center">
+                    <input
+                      type="text"
+                      placeholder="Customer Name"
+                      className="form-control"
+                      style={{ width: '150px', height: '30px', fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}
+                    />
+                    <button
+                      className="btn btn-outline-primary ms-1"
+                      style={{ height: '30px', padding: '0 8px', fontSize: '0.875rem' }}
+                      onClick={handleAddCustomerClick}
+                      title="Add Customer"
+                    >
+                      +
+                    </button>
+                  </div>
                 </div>
-                <div className="d-flex justify-content-center gap-2 mt-2">
-                  <button
-                    className="btn btn-dark rounded"
-                    onClick={handlePrintAndSaveKOT}
-                    disabled={items.length === 0 || !!invalidTable}
+                <div className="d-flex flex-column flex-md-row gap-2 mt-2">
+                  {(activeTab === 'Delivery' || activeTab === 'Billing') && (
+                    <input
+                      type="text"
+                      placeholder="Customer Address"
+                      className="form-control"
+                      style={{ width: '150px', height: '30px', fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}
+                    />
+                  )}
+                  <input
+                    type="text"
+                    placeholder="KOT Note"
+                    className="form-control"
+                    style={{ width: '150px', height: '30px', fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}
+                  />
+                  {activeTab === 'Dine-in' && (
+                    <div style={{ maxWidth: '100px', minHeight: '38px' }}>
+                      <div className="input-group rounded-search">
+                        <input
+                          type="text"
+                          className="form-control"
+                          placeholder="Table"
+                          value={searchTable}
+                          onChange={(e) => setSearchTable(e.target.value)}
+                          style={{ maxWidth: '100px', minHeight: '38px', fontSize: '1.2rem' }}
+                        />
+                      </div>
+                      {isTableInvalid && (
+                        <div className="text-danger small text-center mt-1">
+                          Invalid Table
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <div className="mt-1">
+                  <div
+                    className="d-flex justify-content-between align-items-center bg-success text-white rounded"
+                    style={{ padding: '0.25rem 0.75rem' }}
                   >
-                    Print & Save KOT
-                  </button>
-                  <button
-                    className="btn btn-info rounded"
-                    onClick={() => setShowSavedKOTsModal(true)}
-                  >
-                    View Saved KOTs
-                  </button>
+                    <span className="fw-bold">TOTAL:</span>
+                    <span className="fw-bold">{totalAmount}</span>
+                  </div>
+                  <div className="d-flex justify-content-center gap-2 mt-2">
+                    <button
+                      className="btn btn-dark rounded"
+                      onClick={handlePrintAndSaveKOT}
+                      disabled={items.length === 0 || !!invalidTable}
+                    >
+                      Print & Save KOT
+                    </button>
+                    <button
+                      className="btn btn-info rounded"
+                      onClick={() => setShowSavedKOTsModal(true)}
+                    >
+                      View Saved KOTs
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          <Modal show={showSavedKOTsModal} onHide={() => setShowSavedKOTsModal(false)} centered size="lg">
-            <Modal.Header closeButton>
-              <Modal.Title>Saved KOTs</Modal.Title>
-            </Modal.Header>
-            <Modal.Body style={{ maxHeight: '500px', overflowY: 'auto' }}>
-              {savedKOTs.length === 0 ? (
-                <p className="text-center text-muted">No KOTs saved yet.</p>
-              ) : (
-                <Table bordered hover>
-                  <thead>
-                    <tr>
-                      <th>#</th>
-                      <th>Table</th>
-                      <th>Items</th>
-                      <th>Total</th>
-                      <th>Timestamp</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {savedKOTs.map((kot, index) => (
-                      <tr key={index}>
-                        <td>{index + 1}</td>
-                        <td>{kot.table}</td>
-                        <td>
-                          {kot.items.map((item, idx) => (
-                            <div key={idx}>
-                              {item.name} (Qty: {item.qty}, Price: ${item.price.toFixed(2)})
-                            </div>
-                          ))}
-                        </td>
-                        <td>${kot.total.toFixed(2)}</td>
-                        <td>{kot.timestamp}</td>
+            <Modal show={showSavedKOTsModal} onHide={() => setShowSavedKOTsModal(false)} centered size="lg">
+              <Modal.Header closeButton>
+                <Modal.Title>Saved KOTs</Modal.Title>
+              </Modal.Header>
+              <Modal.Body style={{ maxHeight: '500px', overflowY: 'auto' }}>
+                {savedKOTs.length === 0 ? (
+                  <p className="text-center text-muted">No KOTs saved yet.</p>
+                ) : (
+                  <Table bordered hover>
+                    <thead>
+                      <tr>
+                        <th>#</th>
+                        <th>Table</th>
+                        <th>Items</th>
+                        <th>Total</th>
+                        <th>Timestamp</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </Table>
-              )}
-            </Modal.Body>
-            <Modal.Footer>
-              <Button variant="secondary" onClick={() => setShowSavedKOTsModal(false)}>
-                Close
-              </Button>
-            </Modal.Footer>
-          </Modal>
+                    </thead>
+                    <tbody>
+                      {savedKOTs.map((kot, index) => (
+                        <tr key={index}>
+                          <td>{index + 1}</td>
+                          <td>{kot.table}</td>
+                          <td>
+                            {kot.items.map((item, idx) => (
+                              <div key={idx}>
+                                {item.name} (Qty: {item.qty}, Price: ${item.price.toFixed(2)})
+                              </div>
+                            ))}
+                          </td>
+                          <td>${kot.total.toFixed(2)}</td>
+                          <td>{kot.timestamp}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
+                )}
+              </Modal.Body>
+              <Modal.Footer>
+                <Button variant="secondary" onClick={() => setShowSavedKOTsModal(false)}>
+                  Close
+                </Button>
+              </Modal.Footer>
+            </Modal>
 
-          <Modal
-            show={showNewCustomerForm}
-            onHide={handleCloseCustomerModal}
-            centered
-            size="lg"
-            backdrop="static"
-            keyboard={false}
-          >
-            <Modal.Header closeButton>
-            </Modal.Header>
-            <Modal.Body>
-              <AddCustomerModal />
-            </Modal.Body>
-            <Modal.Footer>
-              <Button variant="secondary" onClick={handleCloseCustomerModal}>
-                Close
-              </Button>
-            </Modal.Footer>
-          </Modal>
+            <Modal
+              show={showNewCustomerForm}
+              onHide={handleCloseCustomerModal}
+              centered
+              size="lg"
+              backdrop="static"
+              keyboard={false}
+            >
+              <Modal.Header closeButton>
+              </Modal.Header>
+              <Modal.Body>
+                <AddCustomerModal />
+              </Modal.Body>
+              <Modal.Footer>
+                <Button variant="secondary" onClick={handleCloseCustomerModal}>
+                  Close
+                </Button>
+              </Modal.Footer>
+            </Modal>
+          </div>
         </div>
       </div>
     </div>

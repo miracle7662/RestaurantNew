@@ -31,7 +31,7 @@ exports.getOutlets = (req, res) => {
     console.log('Received req.query:', req.query);
 
     let query = `
-      SELECT DISTINCT o.outletid, o.outlet_name, o.outlet_code, o.status,
+      SELECT DISTINCT o.*,
              b.hotel_name as brand_name
       FROM mst_outlets o
       INNER JOIN msthotelmasters b ON o.hotelid = b.hotelid
