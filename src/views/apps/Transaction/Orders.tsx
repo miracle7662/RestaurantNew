@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
-import { Button, Modal, Form, Table } from 'react-bootstrap';
+import { Button, Modal, Table } from 'react-bootstrap';
 import OrderDetails from './OrderDetails';
 import { fetchOutletsForDropdown } from '@/utils/commonfunction';
 import { useAuthContext } from '@/common';
 import { OutletData } from '@/common/api/outlet';
 import AddCustomerModal from './Customers';
 import { toast } from 'react-hot-toast';
+import { createBill, getSavedKOTs } from '@/common/api/orders';
 
 interface MenuItem {
   id: number;
@@ -14,12 +15,7 @@ interface MenuItem {
   qty: number;
 }
 
-interface KOT {
-  table: string;
-  items: MenuItem[];
-  total: number;
-  timestamp: string;
-}
+//
 
 interface TableItem {
   tablemanagementid: string;
@@ -60,7 +56,7 @@ const Order = () => {
   const [activeNavTab, setActiveNavTab] = useState<string>('ALL');
   const [tableItems, setTableItems] = useState<TableItem[]>([]);
   const [filteredTables, setFilteredTables] = useState<TableItem[]>([]);
-  const [savedKOTs, setSavedKOTs] = useState<KOT[]>([]);
+  const [savedKOTs, setSavedKOTs] = useState<any[]>([]);
   const [showSavedKOTsModal, setShowSavedKOTsModal] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
   const { user } = useAuthContext();
@@ -69,6 +65,11 @@ const Order = () => {
   const [departments, setDepartments] = useState<DepartmentItem[]>([]);
   const [tableSearchInput, setTableSearchInput] = useState<string>('');
   const tableSearchInputRef = useRef<HTMLInputElement>(null);
+  const [mobileNumber, setMobileNumber] = useState<string>('');
+  const [customerName, setCustomerName] = useState<string>('');
+  // const [billId, setBillId] = useState<number | null>(null);
+  // const [currentOrderNo, setCurrentOrderNo] = useState<string | null>(null);
+
 
   const fetchTableManagement = async () => {
     setLoading(true);
@@ -111,6 +112,63 @@ const Order = () => {
     }
   };
 
+
+  const fetchCustomerByMobile = async (mobile: string) => {
+
+    try {
+      const res = await fetch(`http://localhost:3001/api/customer/by-mobile?mobile=${mobile}`, {
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (res.ok) {
+        const response = await res.json();
+        console.log('Customer API response:', response); // Debug log
+
+        // Handle the response based on your API structure
+        if (response.customerid && response.name) {
+          // Direct response format (based on your backend code)
+          setCustomerName(response.name);
+        } else if (response.success && response.data && response.data.length > 0) {
+          // Wrapped response format
+          const customer = response.data[0];
+          setCustomerName(customer.name);
+        } else {
+          setCustomerName('');
+          console.log('Customer not found');
+        }
+      } else if (res.status === 404) {
+        setCustomerName('');
+        console.log('Customer not found (404)');
+      } else {
+        console.error('Failed to fetch customer:', res.status, res.statusText);
+        setCustomerName('');
+      }
+    } catch (err) {
+      console.error('Customer fetch error:', err);
+      setCustomerName('');
+    }
+  };
+
+  useEffect(() => {
+    if (mobileNumber.length >= 10) {
+      fetchCustomerByMobile(mobileNumber);
+    } else {
+      setCustomerName('');
+    }
+  }, [mobileNumber]);
+
+  // Add this handler function in your Order component
+  const handleMobileKeyPress = (e: React.KeyboardEvent) => {
+
+    if (e.key === 'Enter') {
+      e.preventDefault(); // Prevent form submission
+      if (mobileNumber.trim()) {
+        fetchCustomerByMobile(mobileNumber.trim());
+      }
+    }
+  };
+
+
   useEffect(() => {
     if (itemListRef.current) {
       itemListRef.current.scrollTop = itemListRef.current.scrollHeight;
@@ -118,8 +176,16 @@ const Order = () => {
   }, [items]);
 
   useEffect(() => {
-    const loadedKOTs = JSON.parse(localStorage.getItem('kots') || '[]');
-    setSavedKOTs(loadedKOTs);
+    // Initial load of saved KOTs from backend (isBilled = 0)
+    (async () => {
+      try {
+        const resp = await getSavedKOTs({ isBilled: 0 });
+        const list = resp?.data || resp;
+        if (Array.isArray(list)) setSavedKOTs(list);
+      } catch (err) {
+        console.warn('getSavedKOTs initial load failed');
+      }
+    })();
   }, []);
 
   useEffect(() => {
@@ -240,7 +306,7 @@ const Order = () => {
     } else {
       const selectedDepartment = departments.find(d => d.department_name === activeNavTab);
       if (selectedDepartment) {
-        filtered = tableItems.filter(table => 
+        filtered = tableItems.filter(table =>
           Number(table.departmentid) === selectedDepartment.departmentid || table.isCommonToAllDepartments
         );
       } else {
@@ -262,7 +328,7 @@ const Order = () => {
 
   useEffect(() => {
     if (searchTable) {
-      const isValidTable = filteredTables.some(table => 
+      const isValidTable = filteredTables.some(table =>
         table && table.table_name && table.table_name.toLowerCase() === searchTable.toLowerCase()
       );
       setIsTableInvalid(!isValidTable);
@@ -352,27 +418,62 @@ const Order = () => {
     setShowOrderDetails(false);
   };
 
-  const handlePrintAndSaveKOT = () => {
-    const kotData = {
-      table: selectedTable || 'N/A',
-      items: items,
-      total: parseFloat(totalAmount),
-      timestamp: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
-    };
-    const savedKOTs = JSON.parse(localStorage.getItem('kots') || '[]');
-    savedKOTs.push(kotData);
-    localStorage.setItem('kots', JSON.stringify(savedKOTs));
-    console.log('Saved KOT:', kotData);
-    window.print();
-    setItems([]);
-    setSavedKOTs(savedKOTs);
+  const handlePrintAndSaveKOT = async () => {
+    try {
+      if (items.length === 0) return;
+      setLoading(true);
+      const orderNo = `${selectedTable || 'TB'}-${Date.now()}`;
+      // setCurrentOrderNo(orderNo);
+      // Derive TableID from selected table record
+      const selectedTableRecord: any = (Array.isArray(filteredTables) ? filteredTables : tableItems)
+        .find((t: any) => t && t.table_name && t.table_name === selectedTable)
+        || (Array.isArray(tableItems) ? tableItems.find((t: any) => t && t.table_name === selectedTable) : undefined)
+      const resolvedTableId = selectedTableRecord ? Number((selectedTableRecord as any).tableid || (selectedTableRecord as any).tablemanagementid) : null
+      const resolvedDeptId = selectedTableRecord ? Number((selectedTableRecord as any).departmentid) || undefined : undefined
+
+      const details = items.map(i => ({
+        ItemID: i.id,
+        Qty: i.qty,
+        RuntimeRate: i.price,
+        TableID: resolvedTableId || undefined,
+        DeptID: resolvedDeptId
+      }));
+      const payload: any = {
+        TableID: resolvedTableId,
+        orderNo,
+        CustomerName: customerName || null,
+        MobileNo: mobileNumber || null,
+        details,
+        Amount: Number(totalAmount)
+      };
+      const resp = await createBill(payload);
+      if (resp?.success) {
+        // setBillId(resp.data?.TxnID || null);
+        toast.success('KOT saved');
+        window.print();
+        // refresh saved KOTs list
+        try {
+          const listResp = await getSavedKOTs({ isBilled: 0 });
+          const list = listResp?.data || listResp;
+          if (Array.isArray(list)) setSavedKOTs(list);
+        } catch (err) {
+          console.warn('refresh saved KOTs failed');
+        }
+      } else {
+        toast.error(resp?.message || 'Failed to save KOT');
+      }
+    } catch (e: any) {
+      toast.error(e?.message || 'Error saving KOT');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleTableSearchInput = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       const inputTable = tableSearchInput.trim();
       if (inputTable) {
-        const isValidTable = filteredTables.some(table => 
+        const isValidTable = filteredTables.some(table =>
           table && table.table_name && table.table_name.toLowerCase() === inputTable.toLowerCase()
         );
         if (isValidTable) {
@@ -611,7 +712,7 @@ const Order = () => {
                         onChange={(e) => setTableSearchInput(e.target.value)}
                         onKeyPress={handleTableSearchInput}
                         ref={tableSearchInputRef}
-                        style={{ width: '100px', height: '50px', fontSize: '0.875rem', padding: '0.25rem 0.5rem',backgroundColor: '#ffffe0' }}
+                        style={{ width: '100px', height: '50px', fontSize: '0.875rem', padding: '0.25rem 0.5rem', backgroundColor: '#ffffe0' }}
                       />
                     </li>
                     <li className="nav-item flex-fill">
@@ -678,7 +779,7 @@ const Order = () => {
                           return (
                             <div key={index}>
                               <p style={{ color: 'green', fontWeight: 'bold', margin: '10px 0 5px' }}>
-                                 {department.department_name}
+                                {department.department_name}
                               </p>
                               <div className="d-flex flex-wrap gap-1">
                                 {assignedTables.length > 0 ? (
@@ -718,8 +819,8 @@ const Order = () => {
                         <p style={{ color: 'green', fontWeight: 'bold', margin: '10px 0 5px' }}>Department {activeNavTab}</p>
                         <div className="d-flex flex-wrap gap-1">
                           {Array.isArray(filteredTables) ? filteredTables
-                            .filter(table => 
-                              table && table.outlet_name && 
+                            .filter(table =>
+                              table && table.outlet_name &&
                               table.outlet_name.toLowerCase() === activeNavTab.toLowerCase()
                             )
                             .map((table, index) => (
@@ -738,14 +839,14 @@ const Order = () => {
                                 </div>
                               ) : null
                             )) : null}
-                          {Array.isArray(filteredTables) && filteredTables.filter(table => 
-                            table && table.outlet_name && 
+                          {Array.isArray(filteredTables) && filteredTables.filter(table =>
+                            table && table.outlet_name &&
                             table.outlet_name.toLowerCase() === activeNavTab.toLowerCase()
                           ).length === 0 && (
-                            <p className="text-center text-muted mb-0">
-                              No tables available for {activeNavTab}. Please check TableManagement data.
-                            </p>
-                          )}
+                              <p className="text-center text-muted mb-0">
+                                No tables available for {activeNavTab}. Please check TableManagement data.
+                              </p>
+                            )}
                         </div>
                       </div>
                     ) : filteredTables.length > 0 ? (
@@ -943,16 +1044,32 @@ const Order = () => {
                     <input
                       type="text"
                       placeholder="Mobile No"
+                      value={mobileNumber}
+                      onChange={(e) => setMobileNumber(e.target.value)}
+                      onKeyPress={handleMobileKeyPress} // Add this line
+                      onBlur={(e) => fetchCustomerByMobile(mobileNumber)}
                       className="form-control"
-                      style={{ width: '150px', height: '30px', fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}
+                      style={{
+                        width: "150px",
+                        height: "30px",
+                        fontSize: "0.875rem",
+                        padding: "0.25rem 0.5rem",
+                      }}
                     />
                   </div>
                   <div className="d-flex align-items-center">
                     <input
                       type="text"
                       placeholder="Customer Name"
+                      value={customerName}
+                      readOnly // ✅ auto-fill, not editable
                       className="form-control"
-                      style={{ width: '150px', height: '30px', fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}
+                      style={{
+                        width: "150px",
+                        height: "30px",
+                        fontSize: "0.875rem",
+                        padding: "0.25rem 0.5rem",
+                      }}
                     />
                     <button
                       className="btn btn-outline-primary ms-1"
@@ -1026,38 +1143,42 @@ const Order = () => {
               </div>
             </div>
 
-            <Modal show={showSavedKOTsModal} onHide={() => setShowSavedKOTsModal(false)} centered size="lg">
+            <Modal show={showSavedKOTsModal} onHide={() => setShowSavedKOTsModal(false)} centered size="lg" onShow={async () => {
+              try {
+                const resp = await getSavedKOTs({ isBilled: 0 })
+                const list = resp?.data || resp
+                if (Array.isArray(list)) setSavedKOTs(list)
+              } catch (err) {
+                console.warn('getSavedKOTs modal load failed')
+              }
+            }}>
               <Modal.Header closeButton>
                 <Modal.Title>Saved KOTs</Modal.Title>
               </Modal.Header>
               <Modal.Body style={{ maxHeight: '500px', overflowY: 'auto' }}>
-                {savedKOTs.length === 0 ? (
+                {(!savedKOTs || savedKOTs.length === 0) ? (
                   <p className="text-center text-muted">No KOTs saved yet.</p>
                 ) : (
                   <Table bordered hover>
                     <thead>
                       <tr>
                         <th>#</th>
-                        <th>Table</th>
-                        <th>Items</th>
-                        <th>Total</th>
-                        <th>Timestamp</th>
+                        <th>TxnID</th>
+                        <th>TableID</th>
+                        <th>Amount</th>
+                        <th>OrderNo</th>
+                        <th>Date</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {savedKOTs.map((kot, index) => (
+                      {savedKOTs.map((kot: any, index: number) => (
                         <tr key={index}>
                           <td>{index + 1}</td>
-                          <td>{kot.table}</td>
-                          <td>
-                            {kot.items.map((item, idx) => (
-                              <div key={idx}>
-                                {item.name} (Qty: {item.qty}, Price: ${item.price.toFixed(2)})
-                              </div>
-                            ))}
-                          </td>
-                          <td>${kot.total.toFixed(2)}</td>
-                          <td>{kot.timestamp}</td>
+                          <td>{kot.TxnID}</td>
+                          <td>{kot.TableID ?? ''}</td>
+                          <td>{kot.Amount}</td>
+                          <td>{kot.orderNo || ''}</td>
+                          <td>{kot.TxnDatetime}</td>
                         </tr>
                       ))}
                     </tbody>

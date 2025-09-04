@@ -17,9 +17,7 @@ function toBool(value) {
   return value ? 1 : 0
 }
 
-/* -------------------------------------------------------------------------- */
-/* 1) getAllBills → fetch all bills with details (no settlement)              */
-/* -------------------------------------------------------------------------- */
+// 1) getAllBills → fetch all bills with their details (no settlement)
 exports.getAllBills = async (req, res) => {
   try {
     const rows = db.prepare(`
@@ -46,8 +44,7 @@ exports.getAllBills = async (req, res) => {
           )
         ) as _details
       FROM TAxnTrnbill b
-      LEFT JOIN TAxnTrnbilldetails d 
-        ON d.TxnID = b.TxnID AND d.isCancelled = 0
+      LEFT JOIN TAxnTrnbilldetails d ON d.TxnID = b.TxnID AND d.isCancelled = 0
       WHERE b.isCancelled = 0
       GROUP BY b.TxnID
       ORDER BY b.TxnDatetime DESC
@@ -63,9 +60,7 @@ exports.getAllBills = async (req, res) => {
   }
 }
 
-/* -------------------------------------------------------------------------- */
-/* 2) getBillById → header + details + settlements                            */
-/* -------------------------------------------------------------------------- */
+// 2) getBillById(TxnID) → header + details, include settlement if available
 exports.getBillById = async (req, res) => {
   try {
     const { id } = req.params
@@ -73,16 +68,13 @@ exports.getBillById = async (req, res) => {
     if (!bill) return res.status(404).json({ success: false, message: 'Bill not found', data: null })
 
     const details = db.prepare(`
-      SELECT * FROM TAxnTrnbilldetails 
-      WHERE TxnID = ? AND isCancelled = 0 
-      ORDER BY TXnDetailID ASC
+      SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? AND isCancelled = 0 ORDER BY TXnDetailID ASC
     `).all(Number(id))
 
+    // Settlement linked via OrderNo + HotelID (TrnSettlement has no TxnID)
     const settlements = db.prepare(`
-      SELECT * FROM TrnSettlement 
-      WHERE OrderNo = ? AND HotelID = ?
-      ORDER BY SettlementID
-    `).all(bill.orderNo || null, bill.HotelID || null)
+      SELECT * FROM TrnSettlement WHERE OrderNo = ? AND (HotelID = ? OR ? IS NULL)
+    `).all(bill.orderNo || null, bill.HotelID || null, bill.HotelID || null)
 
     const data = { ...bill, details, settlement: settlements }
     res.json(ok('Fetched bill', data))
@@ -91,18 +83,18 @@ exports.getBillById = async (req, res) => {
   }
 }
 
-/* -------------------------------------------------------------------------- */
-/* 3) createBill → insert new bill + details (no settlement)                  */
-/* -------------------------------------------------------------------------- */
+// 3) createBill → insert new bill + multiple details (no settlement)
 exports.createBill = async (req, res) => {
   try {
     const {
+      // Header
       TxnNo, TableID, Steward, PAX, AutoKOT, ManualKOT, TxnDatetime,
       GrossAmt, RevKOT, Discount, CGST, SGST, CESS, RoundOFF, Amount,
       isHomeDelivery, DriverID, CustomerName, MobileNo, Address, Landmark,
       orderNo, isPickup, HotelID, GuestID, DiscRefID, DiscPer, UserId,
       BatchNo, PrevTableID, PrevDeptId, isTrnsfered, isChangeTrfAmt,
       Extra1, Extra2, Extra3,
+      // Details array
       details = []
     } = req.body
 
@@ -115,7 +107,7 @@ exports.createBill = async (req, res) => {
           orderNo, isPickup, HotelID, GuestID, DiscRefID, DiscPer, UserId,
           BatchNo, PrevTableID, PrevDeptId, isTrnsfered, isChangeTrfAmt,
           Extra1, Extra2, Extra3
-        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, ?,?)
+        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
       `)
 
       const result = stmt.run(
@@ -202,19 +194,19 @@ exports.createBill = async (req, res) => {
   }
 }
 
-/* -------------------------------------------------------------------------- */
-/* 4) updateBill → update bill + replace details                              */
-/* -------------------------------------------------------------------------- */
+// 4) updateBill → update header + details (no settlement)
 exports.updateBill = async (req, res) => {
   try {
     const { id } = req.params
     const {
+      // Header fields (same as create where applicable)
       TxnNo, TableID, Steward, PAX, AutoKOT, ManualKOT, TxnDatetime,
       GrossAmt, RevKOT, Discount, CGST, SGST, CESS, RoundOFF, Amount,
       isHomeDelivery, DriverID, CustomerName, MobileNo, Address, Landmark,
       orderNo, isPickup, HotelID, GuestID, DiscRefID, DiscPer, UserId,
       BatchNo, PrevTableID, PrevDeptId, isTrnsfered, isChangeTrfAmt,
       Extra1, Extra2, Extra3,
+      // Details array to REPLACE existing
       details = []
     } = req.body
 
@@ -270,6 +262,7 @@ exports.updateBill = async (req, res) => {
         Number(id)
       )
 
+      // Replace details: delete then insert
       db.prepare('DELETE FROM TAxnTrnbilldetails WHERE TxnID = ?').run(Number(id))
 
       if (Array.isArray(details) && details.length > 0) {
@@ -312,9 +305,7 @@ exports.updateBill = async (req, res) => {
   }
 }
 
-/* -------------------------------------------------------------------------- */
-/* 5) deleteBill → delete bill + details                                      */
-/* -------------------------------------------------------------------------- */
+// 5) deleteBill → delete bill by TxnID (explicitly remove details to avoid FK pragma issues)
 exports.deleteBill = async (req, res) => {
   try {
     const { id } = req.params
@@ -330,13 +321,11 @@ exports.deleteBill = async (req, res) => {
   }
 }
 
-/* -------------------------------------------------------------------------- */
-/* 6) settleBill → insert settlement + mark settled                           */
-/* -------------------------------------------------------------------------- */
+// 6) settleBill → insert into TrnSettlement, update isSetteled = 1 (supports multiple payment modes)
 exports.settleBill = async (req, res) => {
   try {
     const { id } = req.params
-    const { settlements = [] } = req.body
+    const { settlements = [] } = req.body // [{ PaymentTypeID, PaymentType, Amount, Batch, Name, OrderNo, HotelID, Name2, Name3 }]
 
     if (!Array.isArray(settlements) || settlements.length === 0) {
       return res.status(400).json({ success: false, message: 'settlements array is required', data: null })
@@ -346,6 +335,7 @@ exports.settleBill = async (req, res) => {
     if (!bill) return res.status(404).json({ success: false, message: 'Bill not found', data: null })
 
     const tx = db.transaction(() => {
+      // Insert settlements
       const ins = db.prepare(`
         INSERT INTO TrnSettlement (
           PaymentTypeID, PaymentType, Amount, Batch, Name, OrderNo, HotelID, Name2, Name3
@@ -365,66 +355,23 @@ exports.settleBill = async (req, res) => {
         )
       }
 
-      db.prepare(`
-        UPDATE TAxnTrnbill 
-        SET isSetteled = 1, isBilled = 1, BilledDate = CURRENT_TIMESTAMP 
-        WHERE TxnID = ?
-      `).run(Number(id))
-
+      // Mark bill + details settled
+      db.prepare(`UPDATE TAxnTrnbill SET isSetteled = 1, isBilled = 1, BilledDate = CURRENT_TIMESTAMP WHERE TxnID = ?`).run(Number(id))
       db.prepare(`UPDATE TAxnTrnbilldetails SET isSetteled = 1 WHERE TxnID = ?`).run(Number(id))
     })
 
     tx()
 
+    // Return nested object including settlements
     const header = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id))
     const items = db.prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? ORDER BY TXnDetailID').all(Number(id))
-    const stl = db.prepare(`
-      SELECT * FROM TrnSettlement 
-      WHERE OrderNo = ? AND HotelID = ?
-      ORDER BY SettlementID
-    `).all(header.orderNo || null, header.HotelID || null)
-
+    const stl = db.prepare('SELECT * FROM TrnSettlement WHERE OrderNo = ? AND (HotelID = ? OR ? IS NULL) ORDER BY SettlementID').all(header.orderNo || null, header.HotelID || null, header.HotelID || null)
     res.json(ok('Bill settled', { ...header, details: items, settlement: stl }))
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to settle bill', data: null, error: error.message })
   }
 }
 
-exports.addItemToBill = async (req, res) => {
-  try {
-    const { id } = req.params
-    const { details = [] } = req.body
-
-    if (!Array.isArray(details) || details.length === 0) {
-      return res.status(400).json({ success: false, message: 'details array required', data: null })
-    }
-
-    const bill = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id))
-    if (!bill) return res.status(404).json({ success: false, message: 'Bill not found', data: null })
-
-    const tx = db.transaction(() => {
-      const din = db.prepare(`
-        INSERT INTO TAxnTrnbilldetails (
-          TxnID, ItemID, Qty, RuntimeRate, AutoKOT, ManualKOT, SpecialInst, DeptID, HotelID
-        ) VALUES (?,?,?,?,?,?,?,?,?)
-      `)
-      for (const it of details) {
-        din.run(
-          Number(id), it.ItemID ?? null, Number(it.Qty) || 0, Number(it.RuntimeRate) || 0,
-          it.AutoKOT ? 1 : 0, it.ManualKOT ? 1 : 0, it.SpecialInst || null, it.DeptID ?? null, it.HotelID ?? null
-        )
-      }
-    })
-
-    tx()
-    const header = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id))
-    const items = db.prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? ORDER BY TXnDetailID').all(Number(id))
-
-    res.json({ success: true, message: 'Items added', data: { ...header, details: items } })
-  } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to add items', data: null, error: error.message })
-  }
-}
-
-
 module.exports = exports
+
+

@@ -6,5 +6,6 @@ router.get('/', controller.getCustomer);
 router.post('/', controller.addCustomer);
 router.put('/:id', controller.updateCustomer);
 router.delete('/:id', controller.deleteCustomer); 
+router.get('/by-mobile', controller.getCustomerByMobile);
 
 module.exports = router;

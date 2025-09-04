@@ -133,3 +133,33 @@ exports.deleteCustomer = (req, res) => {
     stmt.run(id);
     res.json({ message: 'Deleted' });
 };
+
+// Get customer by mobile number
+// Get customer by mobile number
+exports.getCustomerByMobile = (req, res) => {
+  try {
+    const { mobile } = req.query;
+
+    if (!mobile) {
+      return res.status(400).json({ error: "Mobile number is required" });
+    }
+
+    const stmt = db.prepare(`
+      SELECT customerid, name, mobile 
+      FROM mstcustomer 
+      WHERE TRIM(mobile) = TRIM(?)
+      LIMIT 1
+    `);
+    const customer = stmt.get(mobile);
+
+    if (customer) {
+      res.json(customer);
+    } else {
+      res.status(404).json({ error: "Customer not found" });
+    }
+  } catch (err) {
+    console.error("Error fetching customer:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+

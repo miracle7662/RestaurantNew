@@ -1,7 +1,8 @@
 import React, { useState, useEffect, Dispatch, SetStateAction, useRef, useMemo, useCallback } from 'react';
-import { Row, Col, Card, Modal, Button, Offcanvas, Table } from 'react-bootstrap';
+import { Row, Col, Card, Modal, Offcanvas, Table } from 'react-bootstrap';
 import { fetchMenu, MenuItem } from '@/utils/commonfunction';
 import CustomerModal from './Customers';
+// import { settleBill } from '@/common/api/orders';
 
 // Interface for menu items used in state
 interface MenuItemState {
@@ -10,8 +11,6 @@ interface MenuItemState {
   price: number;
   qty: number;
 }
-
-
 
 // Interface for card items (aligned with Menu.tsx)
 interface CardItem {
@@ -213,7 +212,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
               }));
             setCardItems(mappedItems);
           },
-          () => {}
+          () => { }
         );
       } catch (error) {
         console.error('Fetch error:', error);
@@ -256,7 +255,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
 
   // Filter items based on search and selected item group
   const filterItems = useCallback(() => {
-    const baseItems = selectedItemGroup !== null 
+    const baseItems = selectedItemGroup !== null
       ? cardItems.filter(item => item.item_group_id === selectedItemGroup)
       : allItems;
     return baseItems.filter((item) => {
@@ -265,7 +264,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
         : true;
       const matchesName = searchName
         ? item.ItemName.toLowerCase().includes(searchName.toLowerCase()) ||
-          item.shortName.toLowerCase().includes(searchName.toLowerCase())
+        item.shortName.toLowerCase().includes(searchName.toLowerCase())
         : true;
       return matchesCode && matchesName;
     });
@@ -274,7 +273,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
   // Filter dropdown items for code or name
   const filterDropdownItems = useCallback(
     (type: 'code' | 'name') => {
-      const baseItems = selectedItemGroup !== null 
+      const baseItems = selectedItemGroup !== null
         ? cardItems.filter(item => item.item_group_id === selectedItemGroup)
         : allItems;
       return baseItems
@@ -286,7 +285,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
           }
           return searchName
             ? item.ItemName.toLowerCase().includes(searchName.toLowerCase()) ||
-              item.shortName.toLowerCase().includes(searchName.toLowerCase())
+            item.shortName.toLowerCase().includes(searchName.toLowerCase())
             : false;
         })
         .slice(0, 7);
@@ -441,6 +440,14 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
   // Handle customer modal
   const handleShowCustomerModal = () => setShowCustomerModal(true);
   const handleCloseCustomerModal = () => setShowCustomerModal(false);
+
+  // Optional: billing trigger here if this component hosts a Billing action later
+  // const handleBilling = async (billId?: number, total?: number) => {
+  //   if (!billId || !total) return;
+  //   try {
+  //     await settleBill(billId, [{ PaymentType: 'Cash', Amount: total }]);
+  //   } catch (err) {}
+  // };
 
   return (
     <div className="container-fluid vh-100 d-flex flex-column p-0">

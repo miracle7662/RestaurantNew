@@ -720,5 +720,96 @@ CREATE TABLE IF NOT EXISTS payment_modes (
    
 );
 
+CREATE TABLE IF NOT EXISTS TAxnTrnbill (
+    TxnID INTEGER PRIMARY KEY AUTOINCREMENT,
+    TxnNo TEXT,
+    TableID INTEGER,
+    Steward TEXT,
+    PAX INTEGER,
+    AutoKOT BOOLEAN DEFAULT 0,
+    ManualKOT BOOLEAN DEFAULT 0,
+    TxnDatetime DATETIME DEFAULT CURRENT_TIMESTAMP,
+    GrossAmt decimal DEFAULT 0,
+    RevKOT  DEFAULT 0,
+    Discount REAL DEFAULT 0,
+    CGST REAL DEFAULT 0,
+    SGST REAL DEFAULT 0,
+    CESS REAL DEFAULT 0,
+    RoundOFF REAL DEFAULT 0,
+    Amount REAL DEFAULT 0,
+    isHomeDelivery BOOLEAN DEFAULT 0,
+    DriverID INTEGER,
+    CustomerName TEXT,
+    MobileNo TEXT,
+    Address TEXT,
+    Landmark TEXT,
+    orderNo TEXT,
+    isSetteled BOOLEAN DEFAULT 0,
+    isBilled BOOLEAN DEFAULT 0,
+    BillCount INTEGER DEFAULT 0,
+    isNCKOT BOOLEAN DEFAULT 0,
+    isCancelled BOOLEAN DEFAULT 0,
+    isPickup BOOLEAN DEFAULT 0,
+    isDayEnd BOOLEAN DEFAULT 0,
+    NCName TEXT,
+    NCPurpose TEXT,
+    BilledDate DATETIME,
+    HandOverEmpID INTEGER,
+    DayEndEmpID INTEGER,
+    HotelID INTEGER,
+    GuestID INTEGER,
+    DiscRefID INTEGER,
+    DiscPer REAL DEFAULT 0,
+    UserId INTEGER,
+    BatchNo TEXT,
+    PrevTableID INTEGER,
+    PrevDeptId INTEGER,
+    isTrnsfered BOOLEAN DEFAULT 0,
+    isChangeTrfAmt BOOLEAN DEFAULT 0,
+    Extra1 TEXT,                         
+    Extra2 TEXT,                         
+    Extra3 TEXT 
+);
+
+CREATE TABLE IF NOT EXISTS TAxnTrnbilldetails (
+    TXnDetailID INTEGER PRIMARY KEY AUTOINCREMENT,
+    TxnID INTEGER NOT NULL,
+    ItemID INTEGER NOT NULL,
+    Qty REAL DEFAULT 0,
+    AutoKOT BOOLEAN DEFAULT 0,
+    ManualKOT BOOLEAN DEFAULT 0,
+    SpecialInst TEXT,
+    isKOTGenerate BOOLEAN DEFAULT 0,
+    isSetteled BOOLEAN DEFAULT 0,
+    TableID INTEGER,
+    isNCKOT BOOLEAN DEFAULT 0,
+    isCancelled BOOLEAN DEFAULT 0,
+    DeptID INTEGER,
+    HotelID INTEGER,
+    RuntimeRate REAL DEFAULT 0,
+    RevQty REAL DEFAULT 0,
+    KOTUsedDate DATETIME
+
+  
+);
+
+CREATE TABLE IF NOT EXISTS TrnSettlement (
+    SettlementID INTEGER PRIMARY KEY AUTOINCREMENT,
+    PaymentTypeID INTEGER NOT NULL,
+    PaymentType TEXT NOT NULL,
+    Amount REAL DEFAULT 0,
+    Batch TEXT,
+    Name TEXT,
+    OrderNo TEXT,
+    HotelID INTEGER,
+    InsertDate DATETIME DEFAULT CURRENT_TIMESTAMP,
+    Name2 TEXT,
+    Name3 TEXT
+
+   
+);
+
+
+
 `)
 module.exports = db
