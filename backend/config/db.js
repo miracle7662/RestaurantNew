@@ -720,18 +720,5 @@ CREATE TABLE IF NOT EXISTS payment_modes (
    
 );
 
-
-
-
-
-
-    
-
-  
-
-
-
-
-
 `)
 module.exports = db

@@ -115,6 +115,7 @@ export interface MenuItem {
  print_name : string
  short_name : string
  item_group_id: number | null;
+ groupname: string | null;
  price: number
  status: number
 }
