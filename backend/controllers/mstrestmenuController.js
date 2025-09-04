@@ -6,18 +6,15 @@ exports.getAllMenuItems = (req, res) => {
         const { hotelid, outletid } = req.query;
         
         let query = `
-            SELECT m.*,
-                  
-                   o.outlet_name,
-                   h.hotel_name,
-                   ig.itemgroupname AS groupname,
-                   d.department_name
+           SELECT DISTINCT m.*,
+                            o.outlet_name,
+                            h.hotel_name,
+                            ig.itemgroupname AS groupname
             FROM mstrestmenu m
             LEFT JOIN mstrestmenudetails md ON m.restitemid = md.restitemid
             LEFT JOIN mst_outlets o ON m.outletid = o.outletid
             LEFT JOIN msthotelmasters h ON m.hotelid = h.hotelid
             LEFT JOIN mst_item_group ig ON m.item_group_id = ig.item_groupid
-            LEFT JOIN msttable_department d ON md.departmentid = d.departmentid
             WHERE m.status IN (0,1)
         `;
         
@@ -141,30 +138,6 @@ exports.createMenuItemWithDetails = async (req, res) => {
                 return res.status(400).json({ message: 'One or more department IDs are invalid', invalidDepartmentIds });
             }
 
-            // Validate unitid and servingunitid
-            const unitIds = [...new Set(department_details.flatMap(detail => [detail.unitid, detail.servingunitid]).filter(id => id !== null && id !== undefined))];
-            if (unitIds.length > 0) {
-                const validUnits = db.prepare('SELECT unitid FROM mstunitmaster WHERE unitid IN (' + unitIds.map(() => '?').join(',') + ')').all(...unitIds);
-                const validUnitIds = validUnits.map(unit => unit.unitid);
-                const invalidUnitIds = unitIds.filter(id => !validUnitIds.includes(id));
-                if (invalidUnitIds.length > 0) {
-                    return res.status(400).json({ message: 'Invalid unit IDs', invalidUnitIds });
-                }
-            }
-
-            // Validate item_rate and unitid/servingunitid
-            for (const detail of department_details) {
-                if (detail.item_rate == null || isNaN(detail.item_rate)) {
-                    return res.status(400).json({ message: `Invalid or missing item_rate for departmentid: ${detail.departmentid}` });
-                }
-                // Assume unitid and servingunitid are required if provided
-                if (detail.unitid && !db.prepare('SELECT unitid FROM mstunitmaster WHERE unitid = ?').get(parseInt(detail.unitid))) {
-                    return res.status(400).json({ message: `Invalid unitid: ${detail.unitid}` });
-                }
-                if (detail.servingunitid && !db.prepare('SELECT unitid FROM mstunitmaster WHERE unitid = ?').get(parseInt(detail.servingunitid))) {
-                    return res.status(400).json({ message: `Invalid servingunitid: ${detail.servingunitid}` });
-                }
-            }
         }
 
         // Insert into mstrestmenu with transaction
