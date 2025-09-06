@@ -367,6 +367,20 @@ CREATE TABLE IF NOT EXISTS msttablemanagement (
 -- Insert default SuperAdmin user (password will be properly hashed by the checkSuperAdmin script)
 -- This is just a placeholder, the actual SuperAdmin will be created by the script
 
+CREATE TABLE IF NOT EXISTS msttaxgroup (
+    taxgroupid     INTEGER PRIMARY KEY AUTOINCREMENT,
+    taxgroup_name  TEXT NOT NULL,
+    hotelid        INTEGER NOT NULL,
+    status         INTEGER NOT NULL DEFAULT 1, -- 1 = active, 0 = inactive
+    created_by_id  INTEGER,
+    created_date   TEXT DEFAULT (datetime('now')),
+    updated_by_id  INTEGER,
+    updated_date   TEXT
+
+   
+);
+
+
 
   CREATE TABLE IF NOT EXISTS mst_resttaxmaster (
   resttaxid INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -378,6 +392,7 @@ CREATE TABLE IF NOT EXISTS msttablemanagement (
   restcgst TEXT,
   restsgst TEXT,
   restigst TEXT,
+  restcess TEXT,
   taxgroupid INTEGER,
   status INTEGER DEFAULT 1,
   created_by_id INTEGER,
@@ -642,6 +657,9 @@ CREATE TABLE IF NOT EXISTS mstoutlet_settings (
     bill_round_off BOOLEAN,
     enable_loyalty BOOLEAN,
     multiple_price_setting BOOLEAN,
+    include_tax_in_invoice BOOLEAN,
+    service_charges REAL DEFAULT 0,
+    invoice_message TEXT,
     verify_pos_system_login BOOLEAN,
     table_reservation BOOLEAN,
     auto_update_pos BOOLEAN,
@@ -722,6 +740,7 @@ CREATE TABLE IF NOT EXISTS payment_modes (
 
 CREATE TABLE IF NOT EXISTS TAxnTrnbill (
     TxnID INTEGER PRIMARY KEY AUTOINCREMENT,
+    outletid INTEGER,
     TxnNo TEXT,
     TableID INTEGER,
     Steward TEXT,
@@ -734,6 +753,7 @@ CREATE TABLE IF NOT EXISTS TAxnTrnbill (
     Discount REAL DEFAULT 0,
     CGST REAL DEFAULT 0,
     SGST REAL DEFAULT 0,
+    IGST REAL DEFAULT 0,
     CESS REAL DEFAULT 0,
     RoundOFF REAL DEFAULT 0,
     Amount REAL DEFAULT 0,
@@ -766,6 +786,8 @@ CREATE TABLE IF NOT EXISTS TAxnTrnbill (
     PrevDeptId INTEGER,
     isTrnsfered BOOLEAN DEFAULT 0,
     isChangeTrfAmt BOOLEAN DEFAULT 0,
+    ServiceCharge REAL DEFAULT 0,
+    ServiceCharge_Amount REAL DEFAULT 0,
     Extra1 TEXT,                         
     Extra2 TEXT,                         
     Extra3 TEXT 
@@ -774,14 +796,23 @@ CREATE TABLE IF NOT EXISTS TAxnTrnbill (
 CREATE TABLE IF NOT EXISTS TAxnTrnbilldetails (
     TXnDetailID INTEGER PRIMARY KEY AUTOINCREMENT,
     TxnID INTEGER NOT NULL,
+    outletid INTEGER,
     ItemID INTEGER NOT NULL,
+    TableID INTEGER,
+    CGST REAL DEFAULT 0,
+    CGST_AMOUNT REAL DEFAULT 0,
+    SGST REAL DEFAULT 0,
+    SGST_AMOUNT REAL DEFAULT 0,
+    IGST REAL DEFAULT 0,
+    IGST_AMOUNT REAL DEFAULT 0,
+    CESS REAL DEFAULT 0,
+    CESS_AMOUNT REAL DEFAULT 0,
     Qty REAL DEFAULT 0,
     AutoKOT BOOLEAN DEFAULT 0,
     ManualKOT BOOLEAN DEFAULT 0,
     SpecialInst TEXT,
     isKOTGenerate BOOLEAN DEFAULT 0,
     isSetteled BOOLEAN DEFAULT 0,
-    TableID INTEGER,
     isNCKOT BOOLEAN DEFAULT 0,
     isCancelled BOOLEAN DEFAULT 0,
     DeptID INTEGER,

@@ -6,7 +6,7 @@ import { useAuthContext } from '@/common';
 import { OutletData } from '@/common/api/outlet';
 import AddCustomerModal from './Customers';
 import { toast } from 'react-hot-toast';
-import { createBill, getSavedKOTs } from '@/common/api/orders';
+import { createBill, getSavedKOTs, getTaxesByOutletAndDepartment } from '@/common/api/orders';
 
 interface MenuItem {
   id: number;
@@ -67,6 +67,10 @@ const Order = () => {
   const tableSearchInputRef = useRef<HTMLInputElement>(null);
   const [mobileNumber, setMobileNumber] = useState<string>('');
   const [customerName, setCustomerName] = useState<string>('');
+  const [taxRates, setTaxRates] = useState<{ cgst: number; sgst: number; igst: number; cess: number }>({ cgst: 0, sgst: 0, igst: 0, cess: 0 });
+  const [taxCalc, setTaxCalc] = useState<{ subtotal: number; cgstAmt: number; sgstAmt: number; igstAmt: number; cessAmt: number; grandTotal: number }>({ subtotal: 0, cgstAmt: 0, sgstAmt: 0, igstAmt: 0, cessAmt: 0, grandTotal: 0 });
+  const [selectedDeptId, setSelectedDeptId] = useState<number | null>(null);
+  const [selectedOutletId, setSelectedOutletId] = useState<number | null>(null);
   // const [billId, setBillId] = useState<number | null>(null);
   // const [currentOrderNo, setCurrentOrderNo] = useState<string | null>(null);
 
@@ -345,6 +349,19 @@ const Order = () => {
     setItems([]);
     setShowOrderDetails(true);
     setInvalidTable('');
+    try {
+      const selectedTableRecord: any = (Array.isArray(filteredTables) ? filteredTables : tableItems)
+        .find((t: any) => t && t.table_name && t.table_name === seat)
+        || (Array.isArray(tableItems) ? tableItems.find((t: any) => t && t.table_name === seat) : undefined);
+      if (selectedTableRecord) {
+        const deptId = Number((selectedTableRecord as any).departmentid) || null;
+        const outletId = Number((selectedTableRecord as any).outletid) || null;
+        if (deptId) setSelectedDeptId(deptId);
+        if (outletId) setSelectedOutletId(outletId);
+      }
+    } catch (e) {
+      // no-op
+    }
     console.log('After handleTableClick - selectedTable:', seat, 'showOrderDetails:', true);
   };
 
@@ -395,6 +412,64 @@ const Order = () => {
     .reduce((sum, item) => sum + item.price * item.qty, 0)
     .toFixed(2);
 
+  // Track department selection from tab changes
+  useEffect(() => {
+    const selectedDepartment = departments.find(d => d.department_name === activeNavTab) || null;
+    if (selectedDepartment) {
+      setSelectedDeptId(Number(selectedDepartment.departmentid));
+      setSelectedOutletId(Number(selectedDepartment.outletid));
+    } else if (activeNavTab === 'ALL') {
+      // keep previous selection if a table later sets department
+    } else {
+      setSelectedDeptId(null);
+      setSelectedOutletId(null);
+    }
+  }, [activeNavTab, departments]);
+
+  // Fetch taxes whenever a concrete department selection is known (from tab or table)
+  useEffect(() => {
+    if (!selectedDeptId) {
+      setTaxRates({ cgst: 0, sgst: 0, igst: 0, cess: 0 });
+      return;
+    }
+    (async () => {
+      try {
+        console.log('Fetching taxes for:', { selectedDeptId, selectedOutletId });
+        const resp = await getTaxesByOutletAndDepartment({ outletid: selectedOutletId ?? undefined, departmentid: selectedDeptId });
+        console.log('Tax API response:', resp);
+        if (resp?.success && resp?.data?.taxes) {
+          const t = resp.data.taxes;
+          const newRates = {
+            cgst: Number(t.cgst) || 0,
+            sgst: Number(t.sgst) || 0,
+            igst: Number(t.igst) || 0,
+            cess: Number(t.cess) || 0,
+          };
+          console.log('Setting tax rates:', newRates);
+          setTaxRates(newRates);
+        } else {
+          console.log('No tax data found, setting zeros');
+          setTaxRates({ cgst: 0, sgst: 0, igst: 0, cess: 0 });
+        }
+      } catch (e) {
+        console.error('Tax fetch error:', e);
+        setTaxRates({ cgst: 0, sgst: 0, igst: 0, cess: 0 });
+      }
+    })();
+  }, [selectedDeptId, selectedOutletId]);
+
+  // Recalculate taxes whenever items or tax rates change
+  useEffect(() => {
+    const subtotal = items.reduce((sum, item) => sum + item.price * item.qty, 0);
+    // Calculate all taxes independently - no if/else logic
+    const cgstAmt = (subtotal * (Number(taxRates.cgst) || 0)) / 100;
+    const sgstAmt = (subtotal * (Number(taxRates.sgst) || 0)) / 100;
+    const igstAmt = (subtotal * (Number(taxRates.igst) || 0)) / 100;
+    const cessAmt = (subtotal * (Number(taxRates.cess) || 0)) / 100;
+    const grandTotal = subtotal + cgstAmt + sgstAmt + igstAmt + cessAmt;
+    setTaxCalc({ subtotal, cgstAmt, sgstAmt, igstAmt, cessAmt, grandTotal });
+  }, [items, taxRates]);
+
   const getKOTLabel = () => {
     switch (activeTab) {
       case 'Dine-in':
@@ -431,20 +506,45 @@ const Order = () => {
       const resolvedTableId = selectedTableRecord ? Number((selectedTableRecord as any).tableid || (selectedTableRecord as any).tablemanagementid) : null
       const resolvedDeptId = selectedTableRecord ? Number((selectedTableRecord as any).departmentid) || undefined : undefined
 
-      const details = items.map(i => ({
-        ItemID: i.id,
-        Qty: i.qty,
-        RuntimeRate: i.price,
-        TableID: resolvedTableId || undefined,
-        DeptID: resolvedDeptId
-      }));
+      const details = items.map(i => {
+        const lineSubtotal = Number(i.price) * Number(i.qty);
+        // Calculate all taxes independently - no if/else logic
+        const cgstPer = Number(taxRates.cgst) || 0;
+        const sgstPer = Number(taxRates.sgst) || 0;
+        const igstPer = Number(taxRates.igst) || 0;
+        const cessPer = Number(taxRates.cess) || 0;
+        const cgstAmt = (lineSubtotal * cgstPer) / 100;
+        const sgstAmt = (lineSubtotal * sgstPer) / 100;
+        const igstAmt = (lineSubtotal * igstPer) / 100;
+        const cessAmt = (lineSubtotal * cessPer) / 100;
+        return {
+          ItemID: i.id,
+          Qty: i.qty,
+          RuntimeRate: i.price,
+          TableID: resolvedTableId || undefined,
+          DeptID: resolvedDeptId ?? selectedDeptId ?? undefined,
+          CGST: cgstPer,
+          CGST_AMOUNT: Number(cgstAmt.toFixed(2)),
+          SGST: sgstPer,
+          SGST_AMOUNT: Number(sgstAmt.toFixed(2)),
+          IGST: igstPer,
+          IGST_AMOUNT: Number(igstAmt.toFixed(2)),
+          CESS: cessPer,
+          CESS_AMOUNT: Number(cessAmt.toFixed(2))
+        };
+      });
       const payload: any = {
         TableID: resolvedTableId,
         orderNo,
         CustomerName: customerName || null,
         MobileNo: mobileNumber || null,
         details,
-        Amount: Number(totalAmount)
+        GrossAmt: Number(taxCalc.subtotal.toFixed(2)),
+        CGST: Number(taxCalc.cgstAmt.toFixed(2)) || 0,
+        SGST: Number(taxCalc.sgstAmt.toFixed(2)) || 0,
+        IGST: Number(taxCalc.igstAmt.toFixed(2)) || 0,
+        CESS: Number(taxCalc.cessAmt.toFixed(2)) || 0,
+        Amount: Number(taxCalc.grandTotal.toFixed(2))
       };
       const resp = await createBill(payload);
       if (resp?.success) {
@@ -1117,12 +1217,25 @@ const Order = () => {
                   )}
                 </div>
                 <div className="mt-1">
-                  <div
-                    className="d-flex justify-content-between align-items-center bg-success text-white rounded"
-                    style={{ padding: '0.25rem 0.75rem' }}
-                  >
-                    <span className="fw-bold">TOTAL:</span>
-                    <span className="fw-bold">{totalAmount}</span>
+                  <div className="bg-white border rounded p-2">
+                    <div className="d-flex justify-content-between"><span>Subtotal</span><span>{taxCalc.subtotal.toFixed(2)}</span></div>
+                    {taxRates.cgst > 0 && (
+                      <div className="d-flex justify-content-between"><span>CGST ({taxRates.cgst}%)</span><span>{taxCalc.cgstAmt.toFixed(2)}</span></div>
+                    )}
+                    {taxRates.sgst > 0 && (
+                      <div className="d-flex justify-content-between"><span>SGST ({taxRates.sgst}%)</span><span>{taxCalc.sgstAmt.toFixed(2)}</span></div>
+                    )}
+                    {taxRates.igst > 0 && (
+                      <div className="d-flex justify-content-between"><span>IGST ({taxRates.igst}%)</span><span>{taxCalc.igstAmt.toFixed(2)}</span></div>
+                    )}
+                    {taxRates.cess > 0 && (
+                      <div className="d-flex justify-content-between"><span>CESS ({taxRates.cess}%)</span><span>{taxCalc.cessAmt.toFixed(2)}</span></div>
+                    )}
+                    <hr className="my-2" />
+                    <div className="d-flex justify-content-between align-items-center bg-success text-white rounded p-1">
+                      <span className="fw-bold">Grand Total</span>
+                      <span className="fw-bold">{taxCalc.grandTotal.toFixed(2)}</span>
+                    </div>
                   </div>
                   <div className="d-flex justify-content-center gap-2 mt-2">
                     <button

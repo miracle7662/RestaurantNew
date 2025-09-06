@@ -16,6 +16,7 @@ interface RestTaxMaster {
   restcgst: number;
   restsgst: number;
   restigst: number;
+  restcess: number;
   taxgroupid: number;
   taxgroup_name: string;
   status: number;
@@ -60,6 +61,7 @@ const RestTaxMaster: React.FC = () => {
     restcgst: '',
     restsgst: '',
     restigst: '',
+    restcess: '',
     taxgroupid: '',
     status: '1',
   });
@@ -124,6 +126,7 @@ const RestTaxMaster: React.FC = () => {
       restcgst: '',
       restsgst: '',
       restigst: '',
+      restcess: '',
       taxgroupid: '',
       status: '1',
     });
@@ -146,6 +149,7 @@ const RestTaxMaster: React.FC = () => {
     const cgstNum = parseFloat(formData.restcgst) || 0;
     const sgstNum = parseFloat(formData.restsgst) || 0;
     const igstNum = parseFloat(formData.restigst) || 0;
+    const cessNum = parseFloat(formData.restcess) || 0;
     const statusNum = parseInt(formData.status);
 
     if (isNaN(hotelIdNum) || isNaN(taxGroupIdNum)) {
@@ -155,6 +159,10 @@ const RestTaxMaster: React.FC = () => {
 
     if (isNaN(taxValueNum)) {
       setError('Please enter a valid tax value');
+      return;
+    }
+    if (isNaN(cgstNum) || isNaN(sgstNum) || isNaN(igstNum) || isNaN(cessNum)) {
+      setError('Please enter valid numeric values for CGST, SGST, IGST, and CESS');
       return;
     }
 
@@ -167,6 +175,7 @@ const RestTaxMaster: React.FC = () => {
       restcgst: cgstNum,
       restsgst: sgstNum,
       restigst: igstNum,
+      restcess: cessNum,
       taxgroupid: taxGroupIdNum,
       status: statusNum,
       [editingId ? 'updated_by_id' : 'created_by_id']: user?.id ?? 1,
@@ -203,6 +212,7 @@ const RestTaxMaster: React.FC = () => {
       restcgst: restTax.restcgst.toString(),
       restsgst: restTax.restsgst.toString(),
       restigst: restTax.restigst.toString(),
+      restcess: restTax.restcess?.toString() ?? "",
       taxgroupid: restTax.taxgroupid.toString(),
       status: restTax.status.toString(),
     });
@@ -275,7 +285,7 @@ const RestTaxMaster: React.FC = () => {
 
   return (
     <div className="container-fluid" style={{ overflowY: 'auto' }}>
-      
+
       {success && (
         <Alert variant="success" dismissible onClose={() => setSuccess(null)}>
           {success}
@@ -448,7 +458,14 @@ const RestTaxMaster: React.FC = () => {
                   <Form.Select
                     className="form-control"
                     value={selectedOutlet || ''}
-                    onChange={(e) => setSelectedOutlet(e.target.value ? Number(e.target.value) : null)}
+                    onChange={(e) => {
+                      const value = e.target.value ? Number(e.target.value) : null;
+                      setSelectedOutlet(value);
+                      setFormData((prev) => ({
+                        ...prev,
+                        outletid: value ? value.toString() : '',
+                      }));
+                    }}
                     disabled={loading}
                   >
                     <option value="">Select Outlet</option>
@@ -539,6 +556,21 @@ const RestTaxMaster: React.FC = () => {
                     value={formData.restigst}
                     onChange={handleInputChange}
                     placeholder="Enter IGST"
+                    step="0.01"
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
+             <Row>
+              <Col md={4}>
+                <Form.Group className="mb-3">
+                  <Form.Label> CESS (%)</Form.Label>
+                  <Form.Control
+                    type="number"
+                    name="restcess"
+                    value={formData.restcess}
+                    onChange={handleInputChange}
+                    placeholder="Enter CESS"
                     step="0.01"
                   />
                 </Form.Group>

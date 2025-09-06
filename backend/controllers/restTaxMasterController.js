@@ -41,7 +41,7 @@ exports.create = (req, res) => {
     const {
       hotelid, outletid, isapplicablealloutlet,
       resttax_name, resttax_value,
-      restcgst, restsgst, restigst,
+      restcgst, restsgst, restigst,restcess,
       taxgroupid, status, created_by_id
     } = req.body;
 
@@ -51,9 +51,9 @@ exports.create = (req, res) => {
       INSERT INTO mst_resttaxmaster (
         hotelid, outletid, isapplicablealloutlet,
         resttax_name, resttax_value,
-        restcgst, restsgst, restigst,
+        restcgst, restsgst, restigst,restcess,
         taxgroupid, status, created_by_id
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?)
     `);
     const result = stmt.run(
       Number(hotelid) || null,
@@ -64,6 +64,7 @@ exports.create = (req, res) => {
       Number(restcgst) || null,
       Number(restsgst) || null,
       Number(restigst) || null,
+      Number(restcess) || null,
       Number(taxgroupid) || null,
       Number(status) ?? 1,
       Number(created_by_id) || null
@@ -82,7 +83,7 @@ exports.update = (req, res) => {
     const {
       hotelid, outletid, isapplicablealloutlet,
       resttax_name, resttax_value,
-      restcgst, restsgst, restigst,
+      restcgst, restsgst, restigst, restcess,
       taxgroupid, status, updated_by_id
     } = req.body;
 
@@ -90,7 +91,7 @@ exports.update = (req, res) => {
       UPDATE mst_resttaxmaster SET
         hotelid = ?, outletid = ?, isapplicablealloutlet = ?,
         resttax_name = ?, resttax_value = ?,
-        restcgst = ?, restsgst = ?, restigst = ?,
+        restcgst = ?, restsgst = ?, restigst = ?, restcess = ?,
         taxgroupid = ?, status = ?,
         updated_by_id = ?, updated_date = CURRENT_TIMESTAMP
       WHERE resttaxid = ?
@@ -105,6 +106,7 @@ exports.update = (req, res) => {
       Number(restcgst) || null,
       Number(restsgst) || null,
       Number(restigst) || null,
+      Number(restcess) || null,
       Number(taxgroupid) || null,
       Number(status) ?? 1,
       Number(updated_by_id) || null,

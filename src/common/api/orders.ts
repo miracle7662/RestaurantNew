@@ -72,3 +72,18 @@ export async function getSavedKOTs(outletFilters?: { isBilled?: 0 | 1; tableId?:
   const { data } = await API.get(`/TAxnTrnbill`, { params: { isBilled: 0, ...outletFilters } })
   return data
 }
+
+export type TaxesResponse = {
+  success: boolean
+  data: {
+    outletid: number | null
+    departmentid: number
+    taxgroupid: number | null
+    taxes: { cgst: number; sgst: number; igst: number; cess: number }
+  }
+}
+
+export async function getTaxesByOutletAndDepartment(params: { outletid?: number | null; departmentid: number }) {
+  const { data } = await API.get<TaxesResponse>(`/orders/taxes`, { params })
+  return data
+}

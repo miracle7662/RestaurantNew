@@ -32,6 +32,7 @@ const TableManagementRoutes = require('./routes/TableManagementRoutes');
 const CustomerRoutes = require('./routes/CustomerRoutes');
 const taxGroupRoutes = require('./routes/msttaxgroupRoutes');
 const restTaxMasterRoutes = require('./routes/restTaxMasterRoutes');
+const ordersRoutes = require('./routes/ordersRoutes');
 
 
 const paymentModesRoutes = require('./routes/paymentModesRoutes');
@@ -75,6 +76,7 @@ app.use('/api/tablemanagement', TableManagementRoutes);
 app.use('/api/customer', CustomerRoutes);
 app.use('/api/taxgroup', taxGroupRoutes);
 app.use('/api/resttaxmaster', restTaxMasterRoutes);
+app.use('/api/orders', ordersRoutes);
 
 
 

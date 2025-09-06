@@ -5,14 +5,6 @@ function ok(message, data) {
   return { success: true, message, data }
 }
 
-// Utility: standard error response (thrown to be caught by catch)
-function fail(message, error) {
-  const err = new Error(message)
-  err.original = error
-  throw err
-}
-
-// Map nullable/boolean/number safely
 function toBool(value) {
   return value ? 1 : 0
 }
@@ -28,14 +20,23 @@ exports.getAllBills = async (req, res) => {
         GROUP_CONCAT(
           DISTINCT json_object(
             'TXnDetailID', d.TXnDetailID,
+            'outletid', d.outletid,
             'ItemID', d.ItemID,
+            'TableID', d.TableID,
             'Qty', d.Qty,
+            'CGST', d.CGST,
+            'CGST_AMOUNT', d.CGST_AMOUNT,
+            'SGST', d.SGST,
+            'SGST_AMOUNT', d.SGST_AMOUNT,
+            'IGST', d.IGST,
+            'IGST_AMOUNT', d.IGST_AMOUNT,
+            'CESS', d.CESS,
+            'CESS_AMOUNT', d.CESS_AMOUNT,
             'AutoKOT', d.AutoKOT,
             'ManualKOT', d.ManualKOT,
             'SpecialInst', d.SpecialInst,
             'isKOTGenerate', d.isKOTGenerate,
             'isSetteled', d.isSetteled,
-            'TableID', d.TableID,
             'isNCKOT', d.isNCKOT,
             'isCancelled', d.isCancelled,
             'DeptID', d.DeptID,
@@ -84,41 +85,83 @@ exports.getBillById = async (req, res) => {
       ORDER BY SettlementID
     `).all(bill.orderNo || null, bill.HotelID || null)
 
-    const data = { ...bill, details, settlement: settlements }
-    res.json(ok('Fetched bill', data))
+    res.json(ok('Fetched bill', { ...bill, details, settlement: settlements }))
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to fetch bill', data: null, error: error.message })
   }
 }
 
 /* -------------------------------------------------------------------------- */
-/* 3) createBill → insert new bill + details (no settlement)                  */
+/* 3) createBill → insert new bill + details                                  */
 /* -------------------------------------------------------------------------- */
 exports.createBill = async (req, res) => {
   try {
+    console.log('Received createBill body:', JSON.stringify(req.body));
     const {
-      TxnNo, TableID, Steward, PAX, AutoKOT, ManualKOT, TxnDatetime,
-      GrossAmt, RevKOT, Discount, CGST, SGST, CESS, RoundOFF, Amount,
+      outletid, TxnNo, TableID, Steward, PAX, AutoKOT, ManualKOT, TxnDatetime,
+      GrossAmt, RevKOT, Discount, CGST, SGST, IGST, CESS, RoundOFF, Amount,
       isHomeDelivery, DriverID, CustomerName, MobileNo, Address, Landmark,
       orderNo, isPickup, HotelID, GuestID, DiscRefID, DiscPer, UserId,
       BatchNo, PrevTableID, PrevDeptId, isTrnsfered, isChangeTrfAmt,
-      Extra1, Extra2, Extra3,
+      ServiceCharge, ServiceCharge_Amount, Extra1, Extra2, Extra3,
       details = []
     } = req.body
+
+    // Compute header totals from details if missing/zero
+    const isArray = Array.isArray(details) && details.length > 0
+    let computedGross = 0, computedCgstAmt = 0, computedSgstAmt = 0, computedIgstAmt = 0, computedCessAmt = 0
+    if (isArray) {
+      for (const d of details) {
+        const qty = Number(d.Qty) || 0
+        const rate = Number(d.RuntimeRate) || 0
+        const lineSubtotal = qty * rate
+        const cgstPer = Number(d.CGST) || 0
+        const sgstPer = Number(d.SGST) || 0
+        const igstPer = Number(d.IGST) || 0
+        const cessPer = Number(d.CESS) || 0
+        const cgstAmt = Number(d.CGST_AMOUNT) || (lineSubtotal * cgstPer) / 100
+        const sgstAmt = Number(d.SGST_AMOUNT) || (lineSubtotal * sgstPer) / 100
+        const igstAmt = Number(d.IGST_AMOUNT) || (lineSubtotal * igstPer) / 100
+        const cessAmt = Number(d.CESS_AMOUNT) || (lineSubtotal * cessPer) / 100
+        computedGross += lineSubtotal
+        computedCgstAmt += cgstAmt
+        computedSgstAmt += sgstAmt
+        computedIgstAmt += igstAmt
+        computedCessAmt += cessAmt
+      }
+    }
+
+    const headerGross = Number(GrossAmt) || 0
+    const headerCgst = Number(CGST) || 0
+    const headerSgst = Number(SGST) || 0
+    const headerIgst = Number(IGST) || 0
+    const headerCess = Number(CESS) || 0
+    const headerRound = Number(RoundOFF) || 0
+    const headerAmount = Number(Amount) || 0
+
+    const finalGross = (isArray && headerGross === 0) ? computedGross : headerGross
+    const finalCgst = (isArray && headerCgst === 0) ? computedCgstAmt : headerCgst
+    const finalSgst = (isArray && headerSgst === 0) ? computedSgstAmt : headerSgst
+    const finalIgst = (isArray && headerIgst === 0) ? computedIgstAmt : headerIgst
+    const finalCess = (isArray && headerCess === 0) ? computedCessAmt : headerCess
+    const finalAmount = (isArray && headerAmount === 0)
+      ? (finalGross + finalCgst + finalSgst + finalIgst + finalCess + headerRound)
+      : headerAmount
 
     const trx = db.transaction(() => {
       const stmt = db.prepare(`
         INSERT INTO TAxnTrnbill (
-          TxnNo, TableID, Steward, PAX, AutoKOT, ManualKOT, TxnDatetime,
-          GrossAmt, RevKOT, Discount, CGST, SGST, CESS, RoundOFF, Amount,
+          outletid, TxnNo, TableID, Steward, PAX, AutoKOT, ManualKOT, TxnDatetime,
+          GrossAmt, RevKOT, Discount, CGST, SGST, IGST, CESS, RoundOFF, Amount,
           isHomeDelivery, DriverID, CustomerName, MobileNo, Address, Landmark,
           orderNo, isPickup, HotelID, GuestID, DiscRefID, DiscPer, UserId,
           BatchNo, PrevTableID, PrevDeptId, isTrnsfered, isChangeTrfAmt,
-          Extra1, Extra2, Extra3
-        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, ?,?)
+          ServiceCharge, ServiceCharge_Amount, Extra1, Extra2, Extra3
+        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
       `)
 
       const result = stmt.run(
+        outletid ?? null,
         TxnNo || null,
         TableID ?? null,
         Steward || null,
@@ -126,14 +169,15 @@ exports.createBill = async (req, res) => {
         toBool(AutoKOT),
         toBool(ManualKOT),
         TxnDatetime || null,
-        Number(GrossAmt) || 0,
+        Number(finalGross) || 0,
         toBool(RevKOT),
         Number(Discount) || 0,
-        Number(CGST) || 0,
-        Number(SGST) || 0,
-        Number(CESS) || 0,
-        Number(RoundOFF) || 0,
-        Number(Amount) || 0,
+        Number(finalCgst) || 0,
+        Number(finalSgst) || 0,
+        Number(finalIgst) || 0,
+        Number(finalCess) || 0,
+        Number(headerRound) || 0,
+        Number(finalAmount) || 0,
         toBool(isHomeDelivery),
         DriverID ?? null,
         CustomerName || null,
@@ -152,6 +196,8 @@ exports.createBill = async (req, res) => {
         PrevDeptId ?? null,
         toBool(isTrnsfered),
         toBool(isChangeTrfAmt),
+        Number(ServiceCharge) || 0,
+        Number(ServiceCharge_Amount) || 0,
         Extra1 || null,
         Extra2 || null,
         Extra3 || null
@@ -159,31 +205,53 @@ exports.createBill = async (req, res) => {
 
       const txnId = result.lastInsertRowid
 
-      if (Array.isArray(details) && details.length > 0) {
+      if (isArray) {
         const dStmt = db.prepare(`
           INSERT INTO TAxnTrnbilldetails (
-            TxnID, ItemID, Qty, AutoKOT, ManualKOT, SpecialInst,
-            isKOTGenerate, isSetteled, TableID, isNCKOT, isCancelled,
+            TxnID, outletid, ItemID, TableID,
+            CGST, CGST_AMOUNT, SGST, SGST_AMOUNT, IGST, IGST_AMOUNT,
+            CESS, CESS_AMOUNT, Qty, AutoKOT, ManualKOT, SpecialInst,
+            isKOTGenerate, isSetteled, isNCKOT, isCancelled,
             DeptID, HotelID, RuntimeRate, RevQty, KOTUsedDate
-          ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+          ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, ?)
         `)
 
         for (const d of details) {
+          const qty = Number(d.Qty) || 0
+          const rate = Number(d.RuntimeRate) || 0
+          const lineSubtotal = qty * rate
+          const cgstPer = Number(d.CGST) || 0
+          const sgstPer = Number(d.SGST) || 0
+          const igstPer = Number(d.IGST) || 0
+          const cessPer = Number(d.CESS) || 0
+          const cgstAmt = Number(d.CGST_AMOUNT) || (lineSubtotal * cgstPer) / 100
+          const sgstAmt = Number(d.SGST_AMOUNT) || (lineSubtotal * sgstPer) / 100
+          const igstAmt = Number(d.IGST_AMOUNT) || (lineSubtotal * igstPer) / 100
+          const cessAmt = Number(d.CESS_AMOUNT) || (lineSubtotal * cessPer) / 100
           dStmt.run(
             txnId,
+            d.outletid ?? null,
             d.ItemID ?? null,
-            Number(d.Qty) || 0,
+            d.TableID ?? null,
+            cgstPer,
+            Number(cgstAmt) || 0,
+            sgstPer,
+            Number(sgstAmt) || 0,
+            igstPer,
+            Number(igstAmt) || 0,
+            cessPer,
+            Number(cessAmt) || 0,
+            qty,
             toBool(d.AutoKOT),
             toBool(d.ManualKOT),
             d.SpecialInst || null,
             toBool(d.isKOTGenerate),
             toBool(d.isSetteled),
-            d.TableID ?? null,
             toBool(d.isNCKOT),
             toBool(d.isCancelled),
             d.DeptID ?? null,
             d.HotelID ?? null,
-            Number(d.RuntimeRate) || 0,
+            rate,
             Number(d.RevQty) || 0,
             d.KOTUsedDate || null
           )
@@ -209,28 +277,29 @@ exports.updateBill = async (req, res) => {
   try {
     const { id } = req.params
     const {
-      TxnNo, TableID, Steward, PAX, AutoKOT, ManualKOT, TxnDatetime,
-      GrossAmt, RevKOT, Discount, CGST, SGST, CESS, RoundOFF, Amount,
+      outletid, TxnNo, TableID, Steward, PAX, AutoKOT, ManualKOT, TxnDatetime,
+      GrossAmt, RevKOT, Discount, CGST, SGST, IGST, CESS, RoundOFF, Amount,
       isHomeDelivery, DriverID, CustomerName, MobileNo, Address, Landmark,
       orderNo, isPickup, HotelID, GuestID, DiscRefID, DiscPer, UserId,
       BatchNo, PrevTableID, PrevDeptId, isTrnsfered, isChangeTrfAmt,
-      Extra1, Extra2, Extra3,
+      ServiceCharge, ServiceCharge_Amount, Extra1, Extra2, Extra3,
       details = []
     } = req.body
 
     const txn = db.transaction(() => {
       const u = db.prepare(`
         UPDATE TAxnTrnbill SET
-          TxnNo=?, TableID=?, Steward=?, PAX=?, AutoKOT=?, ManualKOT=?, TxnDatetime=?,
-          GrossAmt=?, RevKOT=?, Discount=?, CGST=?, SGST=?, CESS=?, RoundOFF=?, Amount=?,
+          outletid=?, TxnNo=?, TableID=?, Steward=?, PAX=?, AutoKOT=?, ManualKOT=?, TxnDatetime=?,
+          GrossAmt=?, RevKOT=?, Discount=?, CGST=?, SGST=?, IGST=?, CESS=?, RoundOFF=?, Amount=?,
           isHomeDelivery=?, DriverID=?, CustomerName=?, MobileNo=?, Address=?, Landmark=?,
           orderNo=?, isPickup=?, HotelID=?, GuestID=?, DiscRefID=?, DiscPer=?, UserId=?,
           BatchNo=?, PrevTableID=?, PrevDeptId=?, isTrnsfered=?, isChangeTrfAmt=?,
-          Extra1=?, Extra2=?, Extra3=?
+          ServiceCharge=?, ServiceCharge_Amount=?, Extra1=?, Extra2=?, Extra3=?
         WHERE TxnID=?
       `)
 
       u.run(
+        outletid ?? null,
         TxnNo || null,
         TableID ?? null,
         Steward || null,
@@ -243,6 +312,7 @@ exports.updateBill = async (req, res) => {
         Number(Discount) || 0,
         Number(CGST) || 0,
         Number(SGST) || 0,
+        Number(IGST) || 0,
         Number(CESS) || 0,
         Number(RoundOFF) || 0,
         Number(Amount) || 0,
@@ -264,6 +334,8 @@ exports.updateBill = async (req, res) => {
         PrevDeptId ?? null,
         toBool(isTrnsfered),
         toBool(isChangeTrfAmt),
+        Number(ServiceCharge) || 0,
+        Number(ServiceCharge_Amount) || 0,
         Extra1 || null,
         Extra2 || null,
         Extra3 || null,
@@ -275,22 +347,33 @@ exports.updateBill = async (req, res) => {
       if (Array.isArray(details) && details.length > 0) {
         const ins = db.prepare(`
           INSERT INTO TAxnTrnbilldetails (
-            TxnID, ItemID, Qty, AutoKOT, ManualKOT, SpecialInst,
-            isKOTGenerate, isSetteled, TableID, isNCKOT, isCancelled,
+            TxnID, outletid, ItemID, TableID,
+            CGST, CGST_AMOUNT, SGST, SGST_AMOUNT, IGST, IGST_AMOUNT,
+            CESS, CESS_AMOUNT, Qty, AutoKOT, ManualKOT, SpecialInst,
+            isKOTGenerate, isSetteled, isNCKOT, isCancelled,
             DeptID, HotelID, RuntimeRate, RevQty, KOTUsedDate
-          ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+          ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         `)
         for (const d of details) {
           ins.run(
             Number(id),
+            d.outletid ?? null,
             d.ItemID ?? null,
+            d.TableID ?? null,
+            Number(d.CGST) || 0,
+            Number(d.CGST_AMOUNT) || 0,
+            Number(d.SGST) || 0,
+            Number(d.SGST_AMOUNT) || 0,
+            Number(d.IGST) || 0,
+            Number(d.IGST_AMOUNT) || 0,
+            Number(d.CESS) || 0,
+            Number(d.CESS_AMOUNT) || 0,
             Number(d.Qty) || 0,
             toBool(d.AutoKOT),
             toBool(d.ManualKOT),
             d.SpecialInst || null,
             toBool(d.isKOTGenerate),
             toBool(d.isSetteled),
-            d.TableID ?? null,
             toBool(d.isNCKOT),
             toBool(d.isCancelled),
             d.DeptID ?? null,
@@ -311,7 +394,6 @@ exports.updateBill = async (req, res) => {
     res.status(500).json({ success: false, message: 'Failed to update bill', data: null, error: error.message })
   }
 }
-
 /* -------------------------------------------------------------------------- */
 /* 5) deleteBill → delete bill + details                                      */
 /* -------------------------------------------------------------------------- */
