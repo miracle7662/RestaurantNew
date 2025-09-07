@@ -3,6 +3,7 @@ import Swal from 'sweetalert2';
 import { toast } from 'react-hot-toast';
 import { Preloader } from '@/components/Misc/Preloader';
 import { Button, Card, Stack, Pagination, Table, Form } from 'react-bootstrap';
+import { useAuthContext } from '../../../../common/context/useAuthContext';
 import TitleHelmet from '@/components/Common/TitleHelmet';
 import {
   useReactTable,
@@ -21,14 +22,16 @@ interface UserTypeItem {
   created_date: string;
   Updated_by_id: number;
   updated_date: string;
-  hotelid: string;
+  hotelid: number;
   marketid: string;
 }
 
-interface AddUserTypeModalProps {
+interface UserTypeModalProps {
   show: boolean;
   onHide: () => void;
   onSuccess: () => void;
+  userType?: UserTypeItem | null;
+  onUpdateSelectedUserType?: (userType: UserTypeItem) => void;
 }
 
 // Debounce utility function
@@ -38,15 +41,14 @@ const debounce = (func: (...args: any[]) => void, wait: number) => {
     clearTimeout(timeout);
     timeout = setTimeout(() => func(...args), wait);
   };
-}
+};
 
 // Main UserType Component
 const UserType: React.FC = () => {
   const [UserTypeItem, setUserTypeItem] = useState<UserTypeItem[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
+  const [showModal, setShowModal] = useState(false);
   const [selectedUserType, setSelectedUserType] = useState<UserTypeItem | null>(null);
 
   const fetchUserType = async () => {
@@ -100,7 +102,10 @@ const UserType: React.FC = () => {
           <div className="d-flex gap-2 justify-content-center">
             <button
               className="btn btn-sm btn-success"
-              onClick={() => handleEditClick(row.original)}
+              onClick={() => {
+                setSelectedUserType(row.original);
+                setShowModal(true);
+              }}
               title="Edit User Type"
             >
               <i className="fi fi-rr-edit"></i>
@@ -147,11 +152,6 @@ const UserType: React.FC = () => {
     const value = e.target.value;
     setSearchTerm(value);
     handleSearch(value);
-  };
-
-  const handleEditClick = (usertype: UserTypeItem) => {
-    setSelectedUserType(usertype);
-    setShowEditModal(true);
   };
 
   const handleDeleteUserType = async (usertype: UserTypeItem) => {
@@ -202,206 +202,6 @@ const UserType: React.FC = () => {
     return items;
   };
 
-  // AddUserTypeModal Component
-  const AddUserTypeModal: React.FC<AddUserTypeModalProps> = ({ show, onHide, onSuccess }) => {
-    const [User_type, setName] = useState('');
-    const [status, setStatus] = useState('Active'); // Default to 'Active'
-    const [loading, setLoading] = useState(false);
-
-    const handleAdd = async () => {
-      if (!User_type || !status) {
-        toast.error('All fields are required');
-        return;
-      }
-
-      setLoading(true);
-      try {
-        const statusValue = status === 'Active' ? 0 : 1;
-        const currentDate = new Date().toISOString(); // Timestamp: e.g., 2025-07-01T04:00:00.000Z
-        const payload = {
-          User_type,
-          status: statusValue,
-          created_by_id: 1, // Default to null (or 0 if backend requires)
-          created_date: currentDate,
-        };
-        console.log('Sending to backend:', payload); // Debug log
-        const res = await fetch('http://localhost:3001/api/usertype', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-        if (res.ok) {
-          toast.success('UserType added successfully');
-          setName('');
-          setStatus('Active');
-          onSuccess();
-          onHide();
-        } else {
-          const errorData = await res.json();
-          console.log('Backend error:', errorData); // Debug log
-          toast.error('Failed to add usertype');
-        }
-      } catch (err) {
-        console.error('Add usertype error:', err); // Debug log
-        toast.error('Something went wrong');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (!show) return null;
-
-    return (
-      <div className="modal" style={{ display: show ? 'block' : 'none', background: 'rgba(0,0,0,0.5)', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
-        <div className="modal-content" style={{ background: 'white', padding: '20px', maxWidth: '600px', margin: '100px auto', borderRadius: '8px' }}>
-          <div className="d-flex justify-content-between align-items-center mb-3">
-            <h5 className="mb-0">Add User Type</h5>
-            <button className="btn-close" onClick={onHide}></button>
-          </div>
-          <div className="row mb-3">
-            <div className="col-md-12">
-              <label className="form-label">User Type <span style={{ color: 'red' }}>*</span></label>
-              <input type="text" className="form-control" value={User_type} onChange={(e) => setName(e.target.value)} placeholder="Enter User Type" />
-            </div>
-          </div>
-          <div className="row mb-3">
-            <div className="col-md-12">
-              <label className="form-label">Status <span style={{ color: 'red' }}>*</span></label>
-              <select
-                className="form-control"
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-              >
-                <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
-              </select>
-            </div>
-          </div>
-          <div className="d-flex justify-content-end mt-4">
-            <button className="btn btn-success me-2" onClick={handleAdd} disabled={loading}>
-              {loading ? 'Adding...' : 'Create'}
-            </button>
-            <button className="btn btn-danger" onClick={onHide} disabled={loading}>
-              Close
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // EditUserTypeModal Component
-  interface EditUserTypeModalProps {
-    show: boolean;
-    onHide: () => void;
-    mstuserType: UserTypeItem | null;
-    onSuccess: () => void;
-    onUpdateSelectedUserType: (mstuserType: UserTypeItem) => void;
-  }
-
-  const EditUserTypeModal: React.FC<EditUserTypeModalProps> = ({ show, onHide, mstuserType: mstuserType, onSuccess, onUpdateSelectedUserType }) => {
-    const [User_type, setName] = useState('');
-    const [status, setStatus] = useState('');
-    const [loading, setLoading] = useState(false);
-
-    useEffect(() => {
-      if (mstuserType) {
-        setName(mstuserType.User_type);
-        setStatus(String(mstuserType.status) === '0' ? 'Active' : 'Inactive');
-        console.log('Edit mstuserType status:', mstuserType.status, typeof mstuserType.status); // Debug log
-      }
-    }, [mstuserType]);
-
-    const handleEdit = async () => {
-      if (!User_type || !status || !mstuserType) {
-        toast.error('All fields are required');
-        return;
-      }
-
-      setLoading(true);
-      try {
-        const statusValue = status === 'Active' ? 0 : 1;
-        const currentDate = new Date().toISOString(); // Timestamp: e.g., 2025-07-01T04:51:00.000Z
-        const payload = {
-          User_type,
-          status: statusValue,
-          usertypeid: mstuserType.usertypeid,
-          updated_by_id: '2', // Default to "0" (string)
-          updated_date: currentDate,
-        };
-        console.log('Sending to backend:', payload); // Debug log
-        const res = await fetch(`http://localhost:3001/api/usertype/${mstuserType.usertypeid}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-        if (res.ok) {
-          toast.success('UserType updated successfully');
-          const updatedUserType = {
-            ...mstuserType,
-            User_type,
-            status: statusValue.toString(),
-            updated_by_id: '2',
-            updated_date: currentDate,
-            usertypeid: mstuserType.usertypeid,
-          };
-          onUpdateSelectedUserType(updatedUserType);
-          onSuccess();
-          onHide();
-        } else {
-          const errorData = await res.json();
-          console.log('Backend error:', errorData); // Debug log
-          toast.error('Failed to update usertype');
-        }
-      } catch (err) {
-        console.error('Edit usertype error:', err); // Debug log
-        toast.error('Something went wrong');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (!show || !mstuserType) return null;
-
-    return (
-      <div className="modal" style={{ display: show ? 'block' : 'none', background: 'rgba(0,0,0,0.5)', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
-        <div className="modal-content" style={{ background: 'white', padding: '20px', maxWidth: '600px', margin: '100px auto', borderRadius: '8px' }}>
-          <div className="d-flex justify-content-between align-items-center mb-3">
-            <h5 className="mb-0">Edit User Type</h5>
-            <button className="btn-close" onClick={onHide}></button>
-          </div>
-          <div className="row mb-3">
-            <div className="col-md-12">
-              <label className="form-label">User Type <span style={{ color: 'red' }}>*</span></label>
-              <input type="text" className="form-control" value={User_type} onChange={(e) => setName(e.target.value)} placeholder="Enter User Type" />
-            </div>
-          </div>
-          <div className="row mb-3">
-            <div className="col-md-12">
-              <label className="form-label">Status <span style={{ color: 'red' }}>*</span></label>
-              <select
-                className="form-control"
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-              >
-                <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
-              </select>
-            </div>
-          </div>
-          <div className="d-flex justify-content-end mt-4">
-            <button className="btn btn-success me-2" onClick={handleEdit} disabled={loading}>
-              {loading ? 'Updating...' : 'Save'}
-            </button>
-            <button className="sent btn btn-danger" onClick={onHide} disabled={loading}>
-              Close
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   return (
     <>
       <TitleHelmet title="User Type List" />
@@ -409,7 +209,13 @@ const UserType: React.FC = () => {
         <div className="d-flex justify-content-between align-items-center p-3 border-bottom">
           <h4 className="mb-0">User Type List</h4>
           <div style={{ display: 'flex', gap: '4px' }}>
-            <Button variant="success" onClick={() => setShowAddModal(true)}>
+            <Button
+              variant="success"
+              onClick={() => {
+                setSelectedUserType(null);
+                setShowModal(true);
+              }}
+            >
               <i className="bi bi-plus"></i> Add User Type
             </Button>
           </div>
@@ -489,16 +295,142 @@ const UserType: React.FC = () => {
           </div>
         </div>
       </Card>
-      <AddUserTypeModal show={showAddModal} onHide={() => setShowAddModal(false)} onSuccess={fetchUserType} />
-      <EditUserTypeModal
-        show={showEditModal}
-        onHide={() => setShowEditModal(false)}
-        mstuserType={selectedUserType}
+      <UserTypeModal
+        show={showModal}
+        onHide={() => setShowModal(false)}
         onSuccess={fetchUserType}
+        userType={selectedUserType}
         onUpdateSelectedUserType={setSelectedUserType}
       />
     </>
   );
 };
+
+// Combined UserTypeModal Component
+const UserTypeModal: React.FC<UserTypeModalProps> = ({ show, onHide, onSuccess, userType, onUpdateSelectedUserType }) => {
+  const [User_type, setName] = useState('');
+  const [status, setStatus] = useState('Active');
+  const [loading, setLoading] = useState(false);
+  const { user } = useAuthContext();
+  const isEditMode = !!userType;
+
+  useEffect(() => {
+    if (userType && isEditMode) {
+      setName(userType.User_type);
+      setStatus(String(userType.status) === '0' ? 'Active' : 'Inactive');
+      console.log('Edit userType status:', userType.status, typeof userType.status); // Debug log
+    } else {
+      setName('');
+      setStatus('Active');
+    }
+  }, [userType, isEditMode]);
+
+  const handleSubmit = async () => {
+    if (!User_type || !status) {
+      toast.error('All fields are required');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const statusValue = status === 'Active' ? 0 : 1;
+      const hotelId = user?.hotelid || '1';
+      const currentDate = new Date().toISOString();
+      const payload = {
+        User_type,
+        status: statusValue,
+        ...(isEditMode ? { usertypeid: userType!.usertypeid, updated_by_id: user.id, updated_date: currentDate, hotelid: hotelId } : { created_by_id: user.id, created_date: currentDate, hotelid: hotelId } ),
+      };
+      console.log('Sending to backend:', payload); // Debug log
+
+      const url = isEditMode
+        ? `http://localhost:3001/api/usertype/${userType!.usertypeid}`
+        : 'http://localhost:3001/api/usertype';
+      const method = isEditMode ? 'PUT' : 'POST';
+
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        toast.success(`UserType ${isEditMode ? 'updated' : 'added'} successfully`);
+        if (isEditMode && userType && onUpdateSelectedUserType) {
+          const updatedUserType = {
+            ...userType,
+            User_type,
+            status: statusValue.toString(),
+            updated_by_id: '2',
+            updated_date: currentDate,
+            usertypeid: userType.usertypeid,
+          };
+          onUpdateSelectedUserType(updatedUserType);
+        }
+        setName('');
+        setStatus('Active');
+        onSuccess();
+        onHide();
+      } else {
+        const errorData = await res.json();
+        console.log('Backend error:', errorData); // Debug log
+        toast.error(`Failed to ${isEditMode ? 'update' : 'add'} usertype`);
+      }
+    } catch (err) {
+      console.error(`${isEditMode ? 'Edit' : 'Add'} usertype error:`, err); // Debug log
+      toast.error('Something went wrong');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!show) return null;
+
+  return (
+    <div className="modal" style={{ display: show ? 'block' : 'none', background: 'rgba(0,0,0,0.5)', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
+      <div className="modal-content" style={{ background: 'white', padding: '20px', maxWidth: '600px', margin: '100px auto', borderRadius: '8px' }}>
+        <div className="d-flex justify-content-between align-items-center mb-3">
+          <h5 className="mb-0">{isEditMode ? 'Edit User Type' : 'Add User Type'}</h5>
+          <button className="btn-close" onClick={onHide}></button>
+        </div>
+        <div className="row mb-3">
+          <div className="col-md-12">
+            <label className="form-label">User Type <span style={{ color: 'red' }}>*</span></label>
+            <input
+              type="text"
+              className="form-control"
+              value={User_type}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Enter User Type"
+            />
+          </div>
+        </div>
+        <div className="row mb-3">
+          <div className="col-md-12">
+            <label className="form-label">Status <span style={{ color: 'red' }}>*</span></label>
+            <select
+              className="form-control"
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+            >
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+          </div>
+        </div>
+        <div className="d-flex justify-content-end mt-4">
+          <button className="btn btn-success me-2" onClick={handleSubmit} disabled={loading}>
+            {loading ? (isEditMode ? 'Updating...' : 'Adding...') : (isEditMode ? 'Save' : 'Create')}
+          </button>
+          <button className="btn btn-danger" onClick={onHide} disabled={loading}>
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
 
 export default UserType;

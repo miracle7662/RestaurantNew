@@ -35,14 +35,14 @@ exports.gethoteltype = (req, res) => {
 // Add new hotel type
 exports.addhoteltype = (req, res) => {
     try {
-        const { hotel_type, status, created_by_id, created_date } = req.body;
+        const { hotel_type, status, hotelid, created_by_id, created_date } = req.body;
         
         if (!hotel_type || status === undefined) {
             return res.status(400).json({ error: 'Hotel type and status are required' });
         }
 
-        const stmt = db.prepare('INSERT INTO msthoteltype (hotel_type, status, created_by_id, created_date) VALUES (?, ?, ?, ?)');
-        const result = stmt.run(hotel_type, status, created_by_id || 1, created_date || new Date().toISOString());
+        const stmt = db.prepare('INSERT INTO msthoteltype (hotel_type, status, created_by_id, created_date, hotelid) VALUES (?, ?, ?, ?, ?)');
+        const result = stmt.run(hotel_type, status,  created_by_id || 1, created_date || new Date().toISOString(),hotelid );
         
         const newHoteltype = {
             hoteltypeid: result.lastInsertRowid,
@@ -51,7 +51,8 @@ exports.addhoteltype = (req, res) => {
             created_by_id: created_by_id || 1,
             created_date: created_date || new Date().toISOString(),
             updated_by_id: null,
-            updated_date: null
+            updated_date: null,
+            hotelid: null // Default hotelid, adjust as necessary
         };
         
         res.status(201).json(newHoteltype);
@@ -65,15 +66,15 @@ exports.addhoteltype = (req, res) => {
 exports.updatehoteltype = (req, res) => {
     try {
         const { id } = req.params;
-        const { hotel_type, status, updated_by_id, updated_date } = req.body;
-        
+        const { hotel_type, status, updated_by_id, updated_date, hotelid } = req.body;
+
         if (!hotel_type || status === undefined) {
             return res.status(400).json({ error: 'Hotel type and status are required' });
         }
 
-        const stmt = db.prepare('UPDATE msthoteltype SET hotel_type = ?, status = ?, updated_by_id = ?, updated_date = ? WHERE hoteltypeid = ?');
-        const result = stmt.run(hotel_type, status, updated_by_id || 2, updated_date || new Date().toISOString(), id);
-        
+        const stmt = db.prepare('UPDATE msthoteltype SET hotel_type = ?, status = ?, updated_by_id = ?, updated_date = ?, hotelid = ? WHERE hoteltypeid = ?');
+        const result = stmt.run(hotel_type, status,  updated_by_id || 2, updated_date || new Date().toISOString(),  hotelid , id);
+
         if (result.changes === 0) {
             return res.status(404).json({ error: 'Hotel type not found' });
         }
@@ -83,7 +84,8 @@ exports.updatehoteltype = (req, res) => {
             hotel_type,
             status,
             updated_by_id: updated_by_id || 2,
-            updated_date: updated_date || new Date().toISOString()
+            updated_date: updated_date || new Date().toISOString(),
+            hotelid: null // Default hotelid, adjust as necessary
         };
         
         res.json(updatedHoteltype);

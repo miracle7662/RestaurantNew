@@ -18,6 +18,7 @@ import {
 // Interfaces
 interface HoteltypeItem {
   hoteltypeid: string;
+  hotelid: string;
   hotel_type: string;
   status: number;
   created_by_id: string;
@@ -230,6 +231,7 @@ const HoteltypeMasters: React.FC = () => {
       try {
         const statusValue = status === 'Active' ? 0 : 1;
         const currentDate = new Date().toISOString();
+        const hotelId = user?.hotelid || '1';
         const userId = user?.id || '1';
         const payload = {
           hotel_type,
@@ -239,10 +241,12 @@ const HoteltypeMasters: React.FC = () => {
                 hoteltypeid: hoteltype.hoteltypeid,
                 updated_by_id: userId,
                 updated_date: currentDate,
+                hotelid: hoteltype!.hotelid || hotelId,
               }
             : {
                 created_by_id: userId,
                 created_date: currentDate,
+                hotelid: hotelId,
               }),
         };
         console.log('Sending to backend:', payload); // Debug log

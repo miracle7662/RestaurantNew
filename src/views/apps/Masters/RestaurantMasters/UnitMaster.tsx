@@ -22,9 +22,8 @@ interface unitmasterItem {
   created_date: string;
   updated_by_id: string;
   updated_date: string;
-  hotel_id: string;
-  client_code: string;
   hotelid: string;
+  client_code: string;
   marketid: string;
 }
 
@@ -253,7 +252,7 @@ const Unitmaster: React.FC = () => {
       try {
         const statusValue = status === 'Active' ? 0 : 1;
         const currentDate = new Date().toISOString();
-        const userId = '1'; // Assuming a default user ID as per original code
+        
         const payload = {
           unit_name,
           status: statusValue,
