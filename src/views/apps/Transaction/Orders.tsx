@@ -632,7 +632,7 @@ const Order = () => {
             }
             .table-container {
               width: 100%;
-              overflow-y: auto;
+              ;
             }
             .billing-panel {
               position: static !important;
@@ -794,7 +794,7 @@ const Order = () => {
           </div>
         )}
         <div className="main-container d-flex flex-column flex-md-row ">
-          <div className="table-container flex-grow-1 me-md-3 overflow-y-auto">
+          <div className="table-container flex-grow-1 me-md-3 ">
             <>
               {activeTab === 'Dine-in' && !showOrderDetails && (
                 <div>
@@ -866,7 +866,7 @@ const Order = () => {
                     ))}
                   </ul>
                   <div
-                    className="d-flex flex-column justify-content-start align-items-start rounded shadow-sm p-1 mt-3"
+                    className="d-flex flex-column justify-content-start align-items-start rounded shadow-sm p-3 mt-3"
                   >
                     {loading ? (
                       <p className="text-center text-muted mb-0">Loading tables...</p>

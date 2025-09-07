@@ -11,7 +11,7 @@ export interface OutletUserData {
   full_name: string
   phone?: string
   role_level: string
-  outletids?: number[]; // Changed to outletids
+  outletid?: number; // Changed to outletid
   Designation?: string
   designationid?: number
   user_type?: string

@@ -713,7 +713,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
               responsive="lg"
               placement="start"
               className="bg-white shadow-sm border-end"
-              style={{ width: '250px', minWidth: '250px', maxWidth: '250px', overflowX: 'hidden' }}
+              style={{ width: '210px', minWidth: '210px', maxWidth: '210px', overflowY: 'auto' }}
             >
               <Offcanvas.Header closeButton className="border-bottom">
                 <Offcanvas.Title as="h6" className="fw-bold mb-0">Item Groups</Offcanvas.Title>
@@ -769,7 +769,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
               </Offcanvas.Body>
             </Offcanvas>
 
-            <div className={`p-3 ${isMobile ? 'col-12' : 'col-12'}`} style={{ backgroundColor: 'transparent' }}>
+            <div className={`p-3 ${isMobile ? 'col-12' : 'col-12 col-lg-9'}`} style={{ backgroundColor: 'transparent' }}>
               <div className="flex-grow-1 p-3">
                 <div style={{ maxHeight: 'calc(100vh - 260px)', overflowY: 'auto', paddingRight: '10px' }}>
                   <Row xs={1} sm={2} md={3} lg={4} className="g-3">

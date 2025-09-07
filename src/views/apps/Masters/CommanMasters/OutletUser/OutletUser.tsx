@@ -5,12 +5,7 @@ import { useAuthContext } from '@/common';
 import outletUserService, { OutletUserData, HotelAdminData } from '@/common/api/outletUser';
 import { fetchDesignation, fetchUserType, fetchOutlets } from '@/utils/commonfunction';
 import { OutletData } from '@/common/api/outlet';
-import Select, { MultiValue } from 'react-select';
 
-interface Option {
-  value: number;
-  label: string;
-}
 
 const OutletUserList: React.FC = () => {
   const { user } = useAuthContext();
@@ -32,7 +27,7 @@ const OutletUserList: React.FC = () => {
   const [password, setPassword] = useState<string>('');
   const [fullName, setFullName] = useState<string>('');
   const [phone, setPhone] = useState<string>('');
-  const [selectedOutlet, setSelectedOutlet] = useState<number[] | null>(null);
+  const [selectedOutlet, setSelectedOutlet] = useState<number | null>(null);
   const [selectedDesignation, setSelectedDesignation] = useState<number | null>(null);
   const [selectedUserType, setSelectedUserType] = useState<number | null>(null);
   const [shiftTime, setShiftTime] = useState<string>('');
@@ -167,7 +162,7 @@ const OutletUserList: React.FC = () => {
     setEmail(user.email || '');
     setFullName(user.full_name || '');
     setPhone(user.phone || '');
-    setSelectedOutlet(user.outletids ? (Array.isArray(user.outletids) ? user.outletids : (user.outletids as string).split(',').map(Number)) : null);
+    setSelectedOutlet(user.outletid ? Number(user.outletid) : null);
     setSelectedDesignation(user.designationid ? Number(user.designationid) : null);  // Convert to number if string
     setSelectedUserType(user.usertypeid ? Number(user.usertypeid) : null);        // Convert to number if string
     setShiftTime(user.shift_time || '');
@@ -215,13 +210,9 @@ const OutletUserList: React.FC = () => {
     }
   };
 
-  const outletOptions: Option[] = outlets.map((outlet) => ({
-    value: outlet.outletid as number,
-    label: `${outlet.outlet_name} (${outlet.outlet_code})`,
-  }));
 
-  const handleOutletChange = (selected: MultiValue<Option>) => {
-    setSelectedOutlet(selected.length > 0 ? selected.map((option) => option.value) : []);
+  const handleOutletChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setSelectedOutlet(e.target.value ? Number(e.target.value) : null);
   };
 
   const handleModalSubmit = async () => {
@@ -276,24 +267,9 @@ const OutletUserList: React.FC = () => {
         console.warn('Validation failed: Invalid full name', { fullName });
         return;
       }
-      if (!selectedOutlet || selectedOutlet.length === 0) {
-        toast.error('Please select at least one outlet');
+      if (!selectedOutlet) {
+        toast.error('Please select an outlet');
         console.warn('Validation failed: Outlet is not selected', { selectedOutlet });
-        return;
-      }
-
-      // Ensure selectedOutlet is an array
-      if (!Array.isArray(selectedOutlet)) {
-        console.error('selectedOutlet is not an array:', selectedOutlet);
-        toast.error('Internal error: Outlet selection is invalid');
-        return;
-      }
-
-      // Validate outlets exist in fetched outlets
-      const selectedOutletData = outlets.filter((outlet) => selectedOutlet.includes(outlet.outletid ?? 0));
-      if (selectedOutletData.length !== selectedOutlet.length) {
-        toast.error('One or more selected outlets are invalid or not available. Please choose valid outlets.');
-        console.warn('Validation failed: Invalid outlets selected', { selectedOutlet, outlets });
         return;
       }
 
@@ -313,7 +289,7 @@ const OutletUserList: React.FC = () => {
         full_name: fullName,
         phone,
         role_level: 'outlet_user',
-        outletids: selectedOutlet, // Send as array
+        outletid: selectedOutlet,
         Designation: selectedDesignation?.toString(),
         designationid: selectedDesignation ? Number(selectedDesignation) : undefined,
         user_type: selectedUserType?.toString(),
@@ -331,7 +307,7 @@ const OutletUserList: React.FC = () => {
         kds_app: kdsApp,
         captain_old_kot_access: captainOldKotAccess,
         verify_mac_ip: verifyMacIp,
-        hotelid: user?.hotelid || selectedOutletData[0]?.hotelid,
+        hotelid: user?.hotelid || outlets.find(outlet => outlet.outletid === selectedOutlet)?.hotelid,
         parent_user_id: parentUserId,
         status: status ? 0 : 1,
         created_by_id: createdById,
@@ -356,9 +332,9 @@ const OutletUserList: React.FC = () => {
         const status = error.response?.status;
         const errorData = error.response?.data || error.message;
         const errorMessage = errorData?.message || (modalType === 'Edit Outlet User' ? 'Failed to update outlet user' : 'Failed to add outlet user');
-        const invalidOutletIds = errorData?.invalidOutletIds || [];
-        console.log('Error details:', { status, message: errorMessage, invalidOutletIds, sentOutletIds: selectedOutlet, response: errorData });
-        toast.error(`${errorMessage}${invalidOutletIds.length > 0 ? ` (Invalid Outlet IDs: ${invalidOutletIds.join(', ')})` : ''}`);
+        const invalidOutletId = errorData?.invalidOutletId || [];
+        console.log('Error details:', { status, message: errorMessage, invalidOutletId, sentOutletId: selectedOutlet, response: errorData });
+        toast.error(`${errorMessage}${invalidOutletId.length > 0 ? ` (Invalid Outlet IDs: ${invalidOutletId.join(', ')})` : ''}`);
       }
     }
   };
@@ -737,15 +713,19 @@ const OutletUserList: React.FC = () => {
                       <Form.Label>
                         Select Outlet <span className="text-danger">*</span>
                       </Form.Label>
-                      <Select
-                        options={outletOptions}
-                        isMulti
-                        onChange={handleOutletChange}
-                        value={outletOptions.filter((option) => selectedOutlet?.includes(option.value))}
-                        className="basic-multi-select"
-                        classNamePrefix="select"
-                        placeholder="Select Outlets"
-                      />
+                       <Form.Select
+                         className="form-control"
+                         value={selectedOutlet || ''}
+                         onChange={handleOutletChange}
+                         disabled={loading}
+                       >
+                         <option value="">Select Outlet</option>
+                         {outlets.map((outlet) => (
+                           <option key={outlet.outletid} value={outlet.outletid}>
+                             {outlet.outlet_name} ({outlet.outlet_code})
+                           </option>
+                         ))}
+                       </Form.Select>
                     </Form.Group>
                   </Col>
                 </Row>

@@ -10,12 +10,12 @@ exports.getOutletUsers = (req, res) => {
       SELECT u.*, 
              h.hotel_name as hotel_name,
              o.outlet_name as outlet_name,
-             o.outletid as outletids,
+             o.outletid as outletid,
              d.Designation as designation_name,
              ut.User_type as user_type_name
       FROM mst_users u
       LEFT JOIN msthotelmasters h ON u.hotelid = h.hotelid
-      LEFT JOIN mst_outlets o ON u.outletids = o.outletid
+      LEFT JOIN mst_outlets o ON u.outletid = o.outletid
       LEFT JOIN mstdesignation d ON u.designation = d.designationid
       LEFT JOIN mstuserType ut ON u.user_type = ut.usertypeid
       WHERE (u.role_level = 'outlet_user' OR u.role_level = 'hotel_admin')
@@ -94,7 +94,7 @@ exports.createOutletUser = async (req, res) => {
       password,
       full_name,
       phone,
-      outletid, // Changed from outletids to outletid (single outlet)
+      outletid, // Changed from outletid to outletid (single outlet)
       Designation,
       designationid,
       user_type,
@@ -466,7 +466,7 @@ exports.getOutletUserById = (req, res) => {
                    b.hotel_name as brand_name,
                    h.hotel_name as hotel_name,
                    o.outlet_name as outlet_name,
-                   u.outletid as outletids
+                   u.outletid as outletid
             FROM mst_users u
             LEFT JOIN msthotelmasters b ON u.brand_id = b.hotelid
             LEFT JOIN msthotelmasters h ON u.hotelid = h.hotelid
@@ -480,8 +480,8 @@ exports.getOutletUserById = (req, res) => {
       return res.status(404).json({ error: 'Outlet user not found' })
     }
 
-    // Convert outletids to array for consistency
-    user.outletids = user.outletids ? [user.outletids] : []
+    // Convert outletid to array for consistency
+    user.outletid = user.outletid ? [user.outletid] : []
     res.json(user)
   } catch (error) {
     console.error('Error fetching outlet user:', error)

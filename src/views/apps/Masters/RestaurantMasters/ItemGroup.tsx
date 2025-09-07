@@ -20,6 +20,7 @@ import { fetchKitchenCategory, KitchenCategoryItem } from '../../../../utils/com
 // Interfaces
 interface ItemGroupItem {
   item_groupid: string;
+  
   itemgroupname: string;
   code: string;
   kitchencategoryid: string;

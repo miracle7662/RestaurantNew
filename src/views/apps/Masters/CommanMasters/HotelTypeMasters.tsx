@@ -4,6 +4,8 @@ import { toast } from 'react-hot-toast';
 import { Button, Card, Stack, Pagination, Table, Modal, Form, Row, Col } from 'react-bootstrap';
 import { Preloader } from '@/components/Misc/Preloader';
 import TitleHelmet from '@/components/Common/TitleHelmet';
+import { useAuthContext } from '../../../../common/context/useAuthContext';
+
 import {
   useReactTable,
   getCoreRowModel,
@@ -49,6 +51,7 @@ const HoteltypeMasters: React.FC = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedHoteltype, setSelectedHoteltype] = useState<HoteltypeItem | null>(null);
+  const { user } = useAuthContext();
 
   // Fetch hotel types from API
   const fetchHoteltypes = async () => {
@@ -227,17 +230,18 @@ const HoteltypeMasters: React.FC = () => {
       try {
         const statusValue = status === 'Active' ? 0 : 1;
         const currentDate = new Date().toISOString();
+        const userId = user?.id || '1';
         const payload = {
           hotel_type,
           status: statusValue,
           ...(hoteltype
             ? {
                 hoteltypeid: hoteltype.hoteltypeid,
-                updated_by_id: '2',
+                updated_by_id: userId,
                 updated_date: currentDate,
               }
             : {
-                created_by_id: '1',
+                created_by_id: userId,
                 created_date: currentDate,
               }),
         };
