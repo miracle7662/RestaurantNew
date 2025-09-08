@@ -987,6 +987,8 @@ const Order = () => {
                     invalidTable={invalidTable}
                     setInvalidTable={setInvalidTable}
                     filteredTables={filteredTables}
+                    setSelectedDeptId={setSelectedDeptId}
+                    setSelectedOutletId={setSelectedOutletId}
                   />
                 </div>
               )}

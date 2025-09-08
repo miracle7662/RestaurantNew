@@ -50,6 +50,8 @@ interface OrderDetailsProps {
   invalidTable: string;
   setInvalidTable: Dispatch<SetStateAction<string>>;
   filteredTables: TableItem[];
+  setSelectedDeptId: Dispatch<SetStateAction<number | null>>;
+  setSelectedOutletId: Dispatch<SetStateAction<number | null>>;
 }
 
 const OrderDetails: React.FC<OrderDetailsProps> = ({
@@ -61,6 +63,8 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
   invalidTable,
   setInvalidTable,
   filteredTables,
+  setSelectedDeptId,
+  setSelectedOutletId,
 }) => {
   const [searchTable, setSearchTable] = useState<string>(tableId || '');
   const [searchCode, setSearchCode] = useState<string>('');
@@ -130,11 +134,17 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
   useEffect(() => {
     if (searchTable) {
       setHasTyped(true);
-      if (validTables.some((table) => table.toLowerCase() === searchTable.toLowerCase())) {
+      const matchedTable = filteredTables.find(
+        (table) => table.table_name.toLowerCase() === searchTable.toLowerCase()
+      );
+      if (matchedTable) {
         setSelectedTable(searchTable);
         setItems([]);
         setInvalidTable('');
         setIsTableInvalid(false);
+        // Set selectedDeptId and selectedOutletId for tax calculation
+        setSelectedDeptId(Number(matchedTable.marketid));
+        setSelectedOutletId(Number(matchedTable.hotelid));
       } else {
         setInvalidTable(searchTable);
         setIsTableInvalid(true);
@@ -145,7 +155,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
       setIsTableInvalid(false);
       setHasTyped(false);
     }
-  }, [searchTable, setSelectedTable, setItems, setInvalidTable, hasTyped, validTables]);
+  }, [searchTable, setSelectedTable, setItems, setInvalidTable, hasTyped, validTables, filteredTables, setSelectedDeptId, setSelectedOutletId]);
 
   // Fetch menu items for sidebar and card items
   const fetchMenuItems = async (hotelid?: number, outletid?: number) => {
