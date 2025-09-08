@@ -101,7 +101,7 @@ exports.createBill = async (req, res) => {
       outletid, TxnNo, TableID, Steward, PAX, AutoKOT, ManualKOT, TxnDatetime,
       GrossAmt, RevKOT, Discount, CGST, SGST, IGST, CESS, RoundOFF, Amount,
       isHomeDelivery, DriverID, CustomerName, MobileNo, Address, Landmark,
-      orderNo, isPickup, HotelID, GuestID, DiscRefID, DiscPer, UserId,
+      orderNo, isPickup, HotelID, GuestID, DiscRefID, DiscPer, DiscountType, UserId,
       BatchNo, PrevTableID, PrevDeptId, isTrnsfered, isChangeTrfAmt,
       ServiceCharge, ServiceCharge_Amount, Extra1, Extra2, Extra3,
       details = []
@@ -154,10 +154,10 @@ exports.createBill = async (req, res) => {
           outletid, TxnNo, TableID, Steward, PAX, AutoKOT, ManualKOT, TxnDatetime,
           GrossAmt, RevKOT, Discount, CGST, SGST, IGST, CESS, RoundOFF, Amount,
           isHomeDelivery, DriverID, CustomerName, MobileNo, Address, Landmark,
-          orderNo, isPickup, HotelID, GuestID, DiscRefID, DiscPer, UserId,
+          orderNo, isPickup, HotelID, GuestID, DiscRefID, DiscPer, DiscountType, UserId,
           BatchNo, PrevTableID, PrevDeptId, isTrnsfered, isChangeTrfAmt,
           ServiceCharge, ServiceCharge_Amount, Extra1, Extra2, Extra3
-        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
       `)
 
       const result = stmt.run(
@@ -190,6 +190,7 @@ exports.createBill = async (req, res) => {
         GuestID ?? null,
         DiscRefID ?? null,
         Number(DiscPer) || 0,
+        Number(DiscountType) || 0,
         UserId ?? null,
         BatchNo || null,
         PrevTableID ?? null,
@@ -280,7 +281,7 @@ exports.updateBill = async (req, res) => {
       outletid, TxnNo, TableID, Steward, PAX, AutoKOT, ManualKOT, TxnDatetime,
       GrossAmt, RevKOT, Discount, CGST, SGST, IGST, CESS, RoundOFF, Amount,
       isHomeDelivery, DriverID, CustomerName, MobileNo, Address, Landmark,
-      orderNo, isPickup, HotelID, GuestID, DiscRefID, DiscPer, UserId,
+      orderNo, isPickup, HotelID, GuestID, DiscRefID, DiscPer,DiscountType, UserId,
       BatchNo, PrevTableID, PrevDeptId, isTrnsfered, isChangeTrfAmt,
       ServiceCharge, ServiceCharge_Amount, Extra1, Extra2, Extra3,
       details = []
@@ -292,7 +293,7 @@ exports.updateBill = async (req, res) => {
           outletid=?, TxnNo=?, TableID=?, Steward=?, PAX=?, AutoKOT=?, ManualKOT=?, TxnDatetime=?,
           GrossAmt=?, RevKOT=?, Discount=?, CGST=?, SGST=?, IGST=?, CESS=?, RoundOFF=?, Amount=?,
           isHomeDelivery=?, DriverID=?, CustomerName=?, MobileNo=?, Address=?, Landmark=?,
-          orderNo=?, isPickup=?, HotelID=?, GuestID=?, DiscRefID=?, DiscPer=?, UserId=?,
+          orderNo=?, isPickup=?, HotelID=?, GuestID=?, DiscRefID=?, DiscPer=?, DiscountType=?, UserId=?,
           BatchNo=?, PrevTableID=?, PrevDeptId=?, isTrnsfered=?, isChangeTrfAmt=?,
           ServiceCharge=?, ServiceCharge_Amount=?, Extra1=?, Extra2=?, Extra3=?
         WHERE TxnID=?
@@ -328,6 +329,7 @@ exports.updateBill = async (req, res) => {
         GuestID ?? null,
         DiscRefID ?? null,
         Number(DiscPer) || 0,
+        Number(DiscountType) || 0,
         UserId ?? null,
         BatchNo || null,
         PrevTableID ?? null,

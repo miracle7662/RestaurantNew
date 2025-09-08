@@ -15,8 +15,6 @@ interface MenuItem {
   qty: number;
 }
 
-//
-
 interface TableItem {
   tablemanagementid: string;
   table_name: string;
@@ -71,9 +69,11 @@ const Order = () => {
   const [taxCalc, setTaxCalc] = useState<{ subtotal: number; cgstAmt: number; sgstAmt: number; igstAmt: number; cessAmt: number; grandTotal: number }>({ subtotal: 0, cgstAmt: 0, sgstAmt: 0, igstAmt: 0, cessAmt: 0, grandTotal: 0 });
   const [selectedDeptId, setSelectedDeptId] = useState<number | null>(null);
   const [selectedOutletId, setSelectedOutletId] = useState<number | null>(null);
-  // const [billId, setBillId] = useState<number | null>(null);
-  // const [currentOrderNo, setCurrentOrderNo] = useState<string | null>(null);
-
+  const [showDiscountModal, setShowDiscountModal] = useState<boolean>(false);
+  const [DiscPer, setDiscPer] = useState<number>(0); // Ensure this state is updated
+  const [givenBy, setGivenBy] = useState<string>(user?.name || '');
+  const [reason, setReason] = useState<string>('');
+  const [DiscountType, setDiscountType] = useState<number>(0); // 0 for percentage, 1 for amount
 
   const fetchTableManagement = async () => {
     setLoading(true);
@@ -116,24 +116,17 @@ const Order = () => {
     }
   };
 
-
   const fetchCustomerByMobile = async (mobile: string) => {
-
     try {
       const res = await fetch(`http://localhost:3001/api/customer/by-mobile?mobile=${mobile}`, {
         headers: { 'Content-Type': 'application/json' },
       });
-
       if (res.ok) {
         const response = await res.json();
-        console.log('Customer API response:', response); // Debug log
-
-        // Handle the response based on your API structure
+        console.log('Customer API response:', response);
         if (response.customerid && response.name) {
-          // Direct response format (based on your backend code)
           setCustomerName(response.name);
         } else if (response.success && response.data && response.data.length > 0) {
-          // Wrapped response format
           const customer = response.data[0];
           setCustomerName(customer.name);
         } else {
@@ -161,17 +154,14 @@ const Order = () => {
     }
   }, [mobileNumber]);
 
-  // Add this handler function in your Order component
   const handleMobileKeyPress = (e: React.KeyboardEvent) => {
-
     if (e.key === 'Enter') {
-      e.preventDefault(); // Prevent form submission
+      e.preventDefault();
       if (mobileNumber.trim()) {
         fetchCustomerByMobile(mobileNumber.trim());
       }
     }
   };
-
 
   useEffect(() => {
     if (itemListRef.current) {
@@ -180,7 +170,6 @@ const Order = () => {
   }, [items]);
 
   useEffect(() => {
-    // Initial load of saved KOTs from backend (isBilled = 0)
     (async () => {
       try {
         const resp = await getSavedKOTs({ isBilled: 0 });
@@ -412,21 +401,18 @@ const Order = () => {
     .reduce((sum, item) => sum + item.price * item.qty, 0)
     .toFixed(2);
 
-  // Track department selection from tab changes
   useEffect(() => {
     const selectedDepartment = departments.find(d => d.department_name === activeNavTab) || null;
     if (selectedDepartment) {
       setSelectedDeptId(Number(selectedDepartment.departmentid));
       setSelectedOutletId(Number(selectedDepartment.outletid));
     } else if (activeNavTab === 'ALL') {
-      // keep previous selection if a table later sets department
-    } else {
+      setSelectedDeptId(null);} else {
       setSelectedDeptId(null);
       setSelectedOutletId(null);
     }
   }, [activeNavTab, departments]);
 
-  // Fetch taxes whenever a concrete department selection is known (from tab or table)
   useEffect(() => {
     if (!selectedDeptId) {
       setTaxRates({ cgst: 0, sgst: 0, igst: 0, cess: 0 });
@@ -458,10 +444,8 @@ const Order = () => {
     })();
   }, [selectedDeptId, selectedOutletId]);
 
-  // Recalculate taxes whenever items or tax rates change
   useEffect(() => {
     const subtotal = items.reduce((sum, item) => sum + item.price * item.qty, 0);
-    // Calculate all taxes independently - no if/else logic
     const cgstAmt = (subtotal * (Number(taxRates.cgst) || 0)) / 100;
     const sgstAmt = (subtotal * (Number(taxRates.sgst) || 0)) / 100;
     const igstAmt = (subtotal * (Number(taxRates.igst) || 0)) / 100;
@@ -494,81 +478,94 @@ const Order = () => {
   };
 
   const handlePrintAndSaveKOT = async () => {
-    try {
-      if (items.length === 0) return;
-      setLoading(true);
-      const orderNo = `${selectedTable || 'TB'}-${Date.now()}`;
-      // setCurrentOrderNo(orderNo);
-      // Derive TableID from selected table record
-      const selectedTableRecord: any = (Array.isArray(filteredTables) ? filteredTables : tableItems)
-        .find((t: any) => t && t.table_name && t.table_name === selectedTable)
-        || (Array.isArray(tableItems) ? tableItems.find((t: any) => t && t.table_name === selectedTable) : undefined)
-      const resolvedTableId = selectedTableRecord ? Number((selectedTableRecord as any).tableid || (selectedTableRecord as any).tablemanagementid) : null
-      const resolvedDeptId = selectedTableRecord ? Number((selectedTableRecord as any).departmentid) || undefined : undefined
+  try {
+    if (items.length === 0) return;
+    setLoading(true);
+    const orderNo = `${selectedTable || 'TB'}-${Date.now()}`;
+    const selectedTableRecord: any = (Array.isArray(filteredTables) ? filteredTables : tableItems)
+      .find((t: any) => t && t.table_name && t.table_name === selectedTable)
+      || (Array.isArray(tableItems) ? tableItems.find((t: any) => t && t.table_name === selectedTable) : undefined);
+    const resolvedTableId = selectedTableRecord ? Number((selectedTableRecord as any).tableid || (selectedTableRecord as any).tablemanagementid) : null;
+    const resolvedDeptId = selectedTableRecord ? Number((selectedTableRecord as any).departmentid) || undefined : undefined;
+    const resolvedOutletId = selectedTableRecord ? Number((selectedTableRecord as any).outletid) || (user?.outletid ? Number(user.outletid) : null) : null;
+    const userId = user?.id || null;
+    const hotelId = user?.hotelid || null;
 
-      const details = items.map(i => {
-        const lineSubtotal = Number(i.price) * Number(i.qty);
-        // Calculate all taxes independently - no if/else logic
-        const cgstPer = Number(taxRates.cgst) || 0;
-        const sgstPer = Number(taxRates.sgst) || 0;
-        const igstPer = Number(taxRates.igst) || 0;
-        const cessPer = Number(taxRates.cess) || 0;
-        const cgstAmt = (lineSubtotal * cgstPer) / 100;
-        const sgstAmt = (lineSubtotal * sgstPer) / 100;
-        const igstAmt = (lineSubtotal * igstPer) / 100;
-        const cessAmt = (lineSubtotal * cessPer) / 100;
-        return {
-          ItemID: i.id,
-          Qty: i.qty,
-          RuntimeRate: i.price,
-          TableID: resolvedTableId || undefined,
-          DeptID: resolvedDeptId ?? selectedDeptId ?? undefined,
-          CGST: cgstPer,
-          CGST_AMOUNT: Number(cgstAmt.toFixed(2)),
-          SGST: sgstPer,
-          SGST_AMOUNT: Number(sgstAmt.toFixed(2)),
-          IGST: igstPer,
-          IGST_AMOUNT: Number(igstAmt.toFixed(2)),
-          CESS: cessPer,
-          CESS_AMOUNT: Number(cessAmt.toFixed(2))
-        };
-      });
-      const payload: any = {
-        TableID: resolvedTableId,
-        orderNo,
-        CustomerName: customerName || null,
-        MobileNo: mobileNumber || null,
-        details,
-        GrossAmt: Number(taxCalc.subtotal.toFixed(2)),
-        CGST: Number(taxCalc.cgstAmt.toFixed(2)) || 0,
-        SGST: Number(taxCalc.sgstAmt.toFixed(2)) || 0,
-        IGST: Number(taxCalc.igstAmt.toFixed(2)) || 0,
-        CESS: Number(taxCalc.cessAmt.toFixed(2)) || 0,
-        Amount: Number(taxCalc.grandTotal.toFixed(2))
+    const details = items.map(i => {
+      const lineSubtotal = Number(i.price) * Number(i.qty);
+      const cgstPer = Number(taxRates.cgst) || 0;
+      const sgstPer = Number(taxRates.sgst) || 0;
+      const igstPer = Number(taxRates.igst) || 0;
+      const cessPer = Number(taxRates.cess) || 0;
+      const cgstAmt = (lineSubtotal * cgstPer) / 100;
+      const sgstAmt = (lineSubtotal * sgstPer) / 100;
+      const igstAmt = (lineSubtotal * igstPer) / 100;
+      const cessAmt = (lineSubtotal * cessPer) / 100;
+      return {
+        ItemID: i.id,
+        Qty: i.qty,
+        RuntimeRate: i.price,
+        TableID: resolvedTableId || undefined,
+        DeptID: resolvedDeptId ?? selectedDeptId ?? undefined,
+        outletid: resolvedOutletId,
+        CGST: cgstPer,
+        CGST_AMOUNT: Number(cgstAmt.toFixed(2)),
+        SGST: sgstPer,
+        SGST_AMOUNT: Number(sgstAmt.toFixed(2)),
+        IGST: igstPer,
+        IGST_AMOUNT: Number(igstAmt.toFixed(2)),
+        CESS: cessPer,
+        CESS_AMOUNT: Number(cessAmt.toFixed(2)),
+        HotelID: hotelId,
       };
-      const resp = await createBill(payload);
-      if (resp?.success) {
-        // setBillId(resp.data?.TxnID || null);
-        toast.success('KOT saved');
-        window.print();
-        // refresh saved KOTs list
-        try {
-          const listResp = await getSavedKOTs({ isBilled: 0 });
-          const list = listResp?.data || listResp;
-          if (Array.isArray(list)) setSavedKOTs(list);
-        } catch (err) {
-          console.warn('refresh saved KOTs failed');
-        }
-      } else {
-        toast.error(resp?.message || 'Failed to save KOT');
-      }
-    } catch (e: any) {
-      toast.error(e?.message || 'Error saving KOT');
-    } finally {
-      setLoading(false);
-    }
-  };
+    });
+    const discountAmount = DiscountType === 0 ? (taxCalc.grandTotal * (DiscPer > 0 ? DiscPer : 0)) / 100 : (DiscPer > 0 ? DiscPer : 0);
+    const netAmount = taxCalc.grandTotal - discountAmount;
 
+    const payload: any = {
+      TableID: resolvedTableId,
+      orderNo,
+      CustomerName: customerName || null,
+      MobileNo: mobileNumber || null,
+      details,
+      GrossAmt: Number(taxCalc.subtotal.toFixed(2)),
+      CGST: Number(taxCalc.cgstAmt.toFixed(2)) || 0,
+      SGST: Number(taxCalc.sgstAmt.toFixed(2)) || 0,
+      IGST: Number(taxCalc.igstAmt.toFixed(2)) || 0,
+      CESS: Number(taxCalc.cessAmt.toFixed(2)) || 0,
+      Amount: Number(netAmount.toFixed(2)),
+      DiscPer: DiscountType === 0 ? (DiscPer > 0 ? Number(DiscPer.toFixed(2)) : 0) : 0, // Percentage only if type is 0
+      Discount: DiscountType === 1 ? (DiscPer > 0 ? Number(DiscPer.toFixed(2)) : 0) : 0, // Amount only if type is 1
+      DiscountType: DiscountType, // 0 for percentage, 1 for amount
+      GivenBy: givenBy,
+      Reason: reason || null,
+      outletid: resolvedOutletId,
+      UserId: userId,
+      HotelID: hotelId,
+    };
+    console.log('DiscountType before API call:', DiscountType);
+    console.log('Discount value before API call:', DiscPer);
+    console.log('Sending payload to createBill:', JSON.stringify(payload, null, 2));
+    const resp = await createBill(payload);
+    if (resp?.success) {
+      toast.success('KOT saved');
+      window.print();
+      try {
+        const listResp = await getSavedKOTs({ isBilled: 0 });
+        const list = listResp?.data || listResp;
+        if (Array.isArray(list)) setSavedKOTs(list);
+      } catch (err) {
+        console.warn('refresh saved KOTs failed');
+      }
+    } else {
+      toast.error(resp?.message || 'Failed to save KOT');
+    }
+  } catch (e: any) {
+    toast.error(e?.message || 'Error saving KOT');
+  } finally {
+    setLoading(false);
+  }
+};
   const handleTableSearchInput = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       const inputTable = tableSearchInput.trim();
@@ -599,12 +596,10 @@ const Order = () => {
         }
       }
     };
-
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [departments]);
 
-  // New useEffect for setting focus on table search input
   useEffect(() => {
     if (activeTab === 'Dine-in' && !showOrderDetails && tableSearchInputRef.current) {
       tableSearchInputRef.current.focus();
@@ -614,6 +609,30 @@ const Order = () => {
   useEffect(() => {
     console.log('State update - showOrderDetails:', showOrderDetails, 'selectedTable:', selectedTable);
   }, [showOrderDetails, selectedTable]);
+
+  const handleApplyDiscount = () => {
+    if (DiscPer < 0.5 || DiscPer > 100 || isNaN(DiscPer)) {
+      toast.error('Discount percentage must be between 0.5% and 100%');
+      return;
+    }
+    const discountThreshold = 20; // Configurable threshold
+    if (DiscPer > discountThreshold && user?.role_level !== 'admin') {
+      toast.error('Discount > 20% requires manager approval');
+      return;
+    }
+    const discountAmount = (taxCalc.grandTotal * DiscPer) / 100;
+    const newGrandTotal = taxCalc.grandTotal - discountAmount;
+    setTaxCalc(prev => ({ ...prev, grandTotal: newGrandTotal }));
+    setShowDiscountModal(false);
+    toast.success(`Discount ${DiscPer}% applied by ${givenBy}`);
+    // Do not reset discountPercent here to persist it
+    setReason('');
+  };
+
+  const handleDiscountKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') setShowDiscountModal(false);
+    if (e.key === 'Enter') handleApplyDiscount();
+  };
 
   return (
     <div className="container-fluid p-0 m-0" style={{ height: '100vh' }}>
@@ -632,7 +651,6 @@ const Order = () => {
             }
             .table-container {
               width: 100%;
-              ;
             }
             .billing-panel {
               position: static !important;
@@ -1148,7 +1166,7 @@ const Order = () => {
                       placeholder="Mobile No"
                       value={mobileNumber}
                       onChange={(e) => setMobileNumber(e.target.value)}
-                      onKeyPress={handleMobileKeyPress} // Add this line
+                      onKeyPress={handleMobileKeyPress}
                       onBlur={(e) => fetchCustomerByMobile(mobileNumber)}
                       className="form-control"
                       style={{
@@ -1164,7 +1182,7 @@ const Order = () => {
                       type="text"
                       placeholder="Customer Name"
                       value={customerName}
-                      readOnly // ✅ auto-fill, not editable
+                      readOnly
                       className="form-control"
                       style={{
                         width: "150px",
@@ -1233,10 +1251,16 @@ const Order = () => {
                     {taxRates.cess > 0 && (
                       <div className="d-flex justify-content-between"><span>CESS ({taxRates.cess}%)</span><span>{taxCalc.cessAmt.toFixed(2)}</span></div>
                     )}
+                    {DiscPer > 0 && (
+                      <div className="d-flex justify-content-between"><span>Discount ({DiscPer}%)</span><span>{((taxCalc.grandTotal * DiscPer) / 100).toFixed(2)}</span></div>
+                    )}
                     <hr className="my-2" />
                     <div className="d-flex justify-content-between align-items-center bg-success text-white rounded p-1">
                       <span className="fw-bold">Grand Total</span>
-                      <span className="fw-bold">{taxCalc.grandTotal.toFixed(2)}</span>
+                      <div>
+                        <span className="fw-bold me-2">{(taxCalc.grandTotal - (taxCalc.grandTotal * (DiscPer || 0) / 100)).toFixed(2)}</span>
+                        <Button variant="outline-light" size="sm" onClick={() => setShowDiscountModal(true)}>Apply Discount</Button>
+                      </div>
                     </div>
                   </div>
                   <div className="d-flex justify-content-center gap-2 mt-2">
@@ -1307,6 +1331,44 @@ const Order = () => {
               </Modal.Footer>
             </Modal>
 
+           <Modal show={showDiscountModal} onHide={() => setShowDiscountModal(false)} centered onShow={() => { const discountInput = document.getElementById('discountInput') as HTMLInputElement; if (discountInput) discountInput.focus(); }}>
+  <Modal.Header closeButton><Modal.Title>Apply Discount</Modal.Title></Modal.Header>
+  <Modal.Body>
+    <div className="mb-3">
+      <label className="form-label">Discount Type</label>
+      <select className="form-control" value={DiscountType} onChange={(e) => setDiscountType(Number(e.target.value))}>
+        <option value={0}>Percentage (0.5% - 100%)</option>
+        <option value={1}>Amount</option>
+      </select>
+    </div>
+    <div className="mb-3">
+      <label htmlFor="discountInput" className="form-label">{DiscountType === 0 ? 'Discount Percentage (0.5% - 100%)' : 'Discount Amount'}</label>
+      <input
+        type="number"
+        id="discountInput"
+        className="form-control"
+        value={DiscPer}
+        onChange={(e) => setDiscPer(parseFloat(e.target.value) || 0)}
+        onKeyDown={handleDiscountKeyDown}
+        step={DiscountType === 0 ? "0.5" : "0.01"}
+        min={DiscountType === 0 ? "0.5" : "0"}
+        max={DiscountType === 0 ? "100" : ""}
+      />
+    </div>
+    <div className="mb-3">
+      <label htmlFor="givenBy" className="form-label">Given By</label>
+      <input type="text" id="givenBy" className="form-control" value={givenBy} readOnly={user?.role_level !== 'admin'} onChange={(e) => setGivenBy(e.target.value)} />
+    </div>
+    <div className="mb-3">
+      <label htmlFor="reason" className="form-label">Reason (Optional)</label>
+      <textarea id="reason" className="form-control" value={reason} onChange={(e) => setReason(e.target.value)} />
+    </div>
+  </Modal.Body>
+  <Modal.Footer>
+    <Button variant="secondary" onClick={() => setShowDiscountModal(false)}>Cancel</Button>
+    <Button variant="primary" onClick={handleApplyDiscount}>Apply</Button>
+  </Modal.Footer>
+</Modal>
             <Modal
               show={showNewCustomerForm}
               onHide={handleCloseCustomerModal}

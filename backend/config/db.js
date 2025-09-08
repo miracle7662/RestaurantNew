@@ -780,6 +780,7 @@ CREATE TABLE IF NOT EXISTS TAxnTrnbill (
     GuestID INTEGER,
     DiscRefID INTEGER,
     DiscPer REAL DEFAULT 0,
+    DiscountType integer, 
     UserId INTEGER,
     BatchNo TEXT,
     PrevTableID INTEGER,
