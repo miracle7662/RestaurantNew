@@ -1,1266 +1,450 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Button, Modal, Form, Row, Col, Table, Tabs, Tab, Pagination, Stack } from 'react-bootstrap';
-import { toast } from 'react-toastify';
+import { useState, useEffect, useRef } from 'react';
+import { Button, Modal, Table } from 'react-bootstrap';
+
+import { fetchOutletsForDropdown } from '@/utils/commonfunction';
 import { useAuthContext } from '@/common';
-import outletUserService, { OutletUserData, HotelAdminData } from '@/common/api/outletUser';
-import { fetchDesignation, fetchUserType, fetchOutlets } from '@/utils/commonfunction';
 import { OutletData } from '@/common/api/outlet';
-import Select, { MultiValue } from 'react-select';
-import {
-  useReactTable,
-  getCoreRowModel,
-  getPaginationRowModel,
-  getFilteredRowModel,
-  ColumnDef,
-  flexRender,
-} from '@tanstack/react-table';
-import { Preloader } from '@/components/Misc/Preloader';
+import AddCustomerModal from './Customers';
+import { toast } from 'react-hot-toast';
+import { createBill, getSavedKOTs, getTaxesByOutletAndDepartment } from '@/common/api/orders';
 
-interface Option {
-  value: number;
-  label: string;
+interface MenuItem {
+  id: number;
+  name: string;
+  price: number;
+  qty: number;
 }
 
-interface CombinedUser {
-  userid?: number;
-  username: string;
-  full_name: string;
-  role_level: string;
-  outlet_name?: string;
-  email: string;
-  phone?: string;
-  designation?: string;
-  user_type?: string;
-  status: number;
-  created_date?: string;
-  is_admin_row?: boolean;
-  hotel_name?: string;
-  brand_name?: string;
-  last_login?: string;
-  outletids?: number[];
+interface TableItem {
+  tablemanagementid: string;
+  table_name: string;
+  hotel_name: string;
+  outlet_name: string;
+  status: string;
+  created_by_id: string;
+  created_date: string;
+  updated_by_id: string;
+  updated_date: string;
+  hotelid: string;
+  marketid: string;
+  isActive: boolean;
+  isCommonToAllDepartments: boolean;
+  departmentid?: number;
 }
 
-// Debounce utility function
-const debounce = (func: (...args: any[]) => void, wait: number) => {
-  let timeout: NodeJS.Timeout;
-  return (...args: any[]) => {
-    clearTimeout(timeout);
-    timeout = setTimeout(() => func(...args), wait);
-  };
-};
+interface DepartmentItem {
+  departmentid: number;
+  department_name: string;
+  outletid: number;
+}
 
-const OutletUserList: React.FC = () => {
+const Order = () => {
   const { user } = useAuthContext();
-  const [showModal, setShowModal] = useState(false);
-  const [modalType, setModalType] = useState('');
-  const [selectedUser, setSelectedUser] = useState<OutletUserData | null>(null);
-  const [selectedHotelAdmin, setSelectedHotelAdmin] = useState<HotelAdminData | null>(null);
-  const [outletUsers, setOutletUsers] = useState<OutletUserData[]>([]);
-  const [hotelAdmins, setHotelAdmins] = useState<HotelAdminData[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [selectedTable, setSelectedTable] = useState<string | null>('');
+  const [items, setItems] = useState<MenuItem[]>([]);
+  const [activeTab, setActiveTab] = useState<string>('Dine-in');
+  const [showOrderDetails, setShowOrderDetails] = useState<boolean>(false);
+  const [searchTable, setSearchTable] = useState<string>('');
+  const [isTableInvalid, setIsTableInvalid] = useState<boolean>(false);
+  const itemListRef = useRef<HTMLDivElement>(null);
+  const [tableItems, setTableItems] = useState<TableItem[]>([]);
+  const [filteredTables, setFilteredTables] = useState<TableItem[]>([]);
+  const [savedKOTs, setSavedKOTs] = useState<any[]>([]);
+  const [showSavedKOTsModal, setShowSavedKOTsModal] = useState<boolean>(false);
   const [outlets, setOutlets] = useState<OutletData[]>([]);
-  const [designations, setDesignations] = useState<Array<{ designationid: number; Designation: string }>>([]);
-  const [userTypes, setUserTypes] = useState<Array<{ usertypeid: number; User_type: string }>>([]);
-  const [designationid, setDesignationId] = useState<number | null>(null);
-  const [usertypeid, setUserTypeId] = useState<number | null>(null);
-  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [departments, setDepartments] = useState<DepartmentItem[]>([]);
+  const [mobileNumber, setMobileNumber] = useState<string>('');
+  const [customerName, setCustomerName] = useState<string>('');
+  const [taxRates, setTaxRates] = useState({ cgst: 0, sgst: 0, igst: 0, cess: 0 });
+  const [taxCalc, setTaxCalc] = useState({ subtotal: 0, cgstAmt: 0, sgstAmt: 0, igstAmt: 0, cessAmt: 0, grandTotal: 0 });
+  const [selectedDeptId, setSelectedDeptId] = useState<number | null>(null);
+  const [selectedOutletId, setSelectedOutletId] = useState<number | null>(null);
+  const [DiscPer, setDiscPer] = useState<number>(0);
+  const [givenBy, setGivenBy] = useState<string>(user?.name || '');
+  const [DiscountType, setDiscountType] = useState<number>(0);
 
-  const [username, setUsername] = useState<string>('');
-  const [email, setEmail] = useState<string>('');
-  const [password, setPassword] = useState<string>('');
-  const [fullName, setFullName] = useState<string>('');
-  const [phone, setPhone] = useState<string>('');
-  const [selectedOutlet, setSelectedOutlet] = useState<number[] | null>(null);
-  const [selectedDesignation, setSelectedDesignation] = useState<number | null>(null);
-  const [selectedUserType, setSelectedUserType] = useState<number | null>(null);
-  const [shiftTime, setShiftTime] = useState<string>('');
-  const [macAddress, setMacAddress] = useState<string>('');
-  const [assignWarehouse, setAssignWarehouse] = useState<string>('');
-  const [languagePreference, setLanguagePreference] = useState<string>('English');
-  const [address, setAddress] = useState<string>('');
-  const [city, setCity] = useState<string>('');
-  const [subLocality, setSubLocality] = useState<string>('');
-  const [webAccess, setWebAccess] = useState<boolean>(false);
-  const [selfOrder, setSelfOrder] = useState<boolean>(true);
-  const [captainApp, setCaptainApp] = useState<boolean>(true);
-  const [kdsApp, setKdsApp] = useState<boolean>(true);
-  const [captainOldKotAccess, setCaptainOldKotAccess] = useState<string>('Enabled');
-  const [verifyMacIp, setVerifyMacIp] = useState<boolean>(false);
-  const [status, setStatus] = useState<boolean>(true);
+  // Floating Button Group State
+  const [showOptions, setShowOptions] = useState(false);
+  const [activePanel, setActivePanel] = useState<string | null>(null);
+  const [taxValues, setTaxValues] = useState({ cgst: 0, sgst: 0, igst: 0 });
+  const [discountValue, setDiscountValue] = useState<number>(0);
+  const [ncData, setNcData] = useState({ name: '', purpose: '' });
+
+  // Fetch Data Functions (Simplified for brevity)
+  const fetchTableManagement = async () => { /* ... */ };
+  const fetchCustomerByMobile = async (mobile: string) => { /* ... */ };
+  const fetchDepartments = async () => { /* ... */ };
+  const fetchOutletsData = async () => { /* ... */ };
 
   useEffect(() => {
-    console.log('Current user in OutletUserList:', user);
-    console.log('Environment:', {
-      isElectron: typeof window !== 'undefined' && window.process && window.process.versions && window.process.versions.electron,
-      userAgent: navigator.userAgent,
-      location: window.location.href
-    });
-    
-    fetchOutletUsers();
-    if (user?.role_level === 'superadmin' || user?.role_level === 'brand_admin') {
-      fetchHotelAdmins();
-    }
-    fetchMasterData();
-  }, [user]);
+    const fetchInitialData = async () => {
+      await fetchOutletsData();
+      await fetchDepartments();
+      fetchTableManagement();
+    };
+    fetchInitialData();
+  }, [user?.id, user?.hotelid, user?.outletid, user?.role_level]);
 
-  const fetchMasterData = async () => {
-    try {
-      console.log('Fetching master data...');
-      await fetchOutlets(user, setOutlets, setLoading);
-      console.log('Fetched outlets:', outlets);
-      fetchDesignation(setDesignations, setDesignationId);
-      fetchUserType(setUserTypes, setUserTypeId);
-    } catch (error) {
-      console.error('Error fetching master data:', error);
-      toast.error('Failed to fetch master data. Please check if the backend server is running.'); 
-      console.error('Error details:', error);
-    }
+  useEffect(() => {
+    if (mobileNumber.length >= 10) fetchCustomerByMobile(mobileNumber);
+    else setCustomerName('');
+  }, [mobileNumber]);
+
+  // Event Handlers
+  const handleTabClick = (tab: string) => {
+    setActiveTab(tab);
+    if (['Pickup', 'Delivery', 'Quick Bill', 'Order/KOT', 'Billing'].includes(tab)) {
+      setSelectedTable(null);
+      setItems([]);
+      setShowOrderDetails(true);
+    } else setShowOrderDetails(false);
   };
 
-  const fetchOutletUsers = async () => {
-    try {
-      setLoading(true);
-      console.log('Fetching outlet users...');
-      const params: any = {
-        currentUserId: user?.userid,
-        roleLevel: user?.role_level,
-        hotelid: user?.hotelid
-      };
-      if (user?.role_level === 'hotel_admin' && typeof user?.userid === 'number') {
-        params.created_by_id = user.userid;
-      }
-      const response = await outletUserService.getOutletUsers(params);
-      console.log('Outlet users response:', response);
-      if (response && response.data) {
-        const outletUsersOnly = response.data.filter((user: any) => user.role_level === 'outlet_user');
-        setOutletUsers(outletUsersOnly);
-      } else {
-        console.error('Invalid response format:', response);
-        toast.error('Invalid response from server');
-      }
-    } catch (error) {
-      console.error('Error fetching outlet users:', error);
-      toast.error('Failed to fetch outlet users. Please check if the backend server is running.'); 
-      console.error('Error details:', error);
-    } finally {
-      setLoading(false);
-    }
+  const handleIncreaseQty = (itemId: number) => setItems(items.map(item => item.id === itemId ? { ...item, qty: item.qty + 1 } : item));
+  const handleDecreaseQty = (itemId: number) => setItems(items.filter(item => item.id !== itemId || item.qty > 1).map(item => item.id === itemId ? { ...item, qty: item.qty - 1 } : item));
+
+  const totalAmount = items.reduce((sum, item) => sum + item.price * item.qty, 0).toFixed(2);
+
+  useEffect(() => {
+    const subtotal = items.reduce((sum, item) => sum + item.price * item.qty, 0);
+    const cgstAmt = (subtotal * taxRates.cgst) / 100;
+    const sgstAmt = (subtotal * taxRates.sgst) / 100;
+    const igstAmt = (subtotal * taxRates.igst) / 100;
+    const cessAmt = (subtotal * taxRates.cess) / 100;
+    setTaxCalc({ subtotal, cgstAmt, sgstAmt, igstAmt, cessAmt, grandTotal: subtotal + cgstAmt + sgstAmt + igstAmt + cessAmt });
+  }, [items, taxRates]);
+
+  const getKOTLabel = () => `KOT 1 ${activeTab === 'Dine-in' && selectedTable ? `- Table ${selectedTable}` : activeTab}`;
+
+  const handlePrintAndSaveKOT = async () => { /* ... */ };
+  const handleBackToTables = () => setShowOrderDetails(false);
+
+  // Floating Button Group Handlers
+  const toggleOptions = () => setShowOptions(!showOptions);
+  const showPanel = (panel: string) => setActivePanel(activePanel === panel ? null : panel);
+  const applyTax = () => {
+    setTaxRates(prev => ({ ...prev, ...taxValues }));
+    setActivePanel(null);
   };
-
-  const fetchHotelAdmins = async () => {
-    try {
-      console.log('Fetching hotel admins...');
-      const response = await outletUserService.getHotelAdmins({
-        currentUserId: user?.userid,
-        roleLevel: user?.role_level,
-        hotelid: user?.hotelid
-      });
-      console.log('Hotel admins response:', response);
-      if (response && response.data) {
-        setHotelAdmins(response.data);
-      } else {
-        console.error('Invalid hotel admins response format:', response);
-      }
-    } catch (error) {
-      console.error('Error fetching hotel admins:', error);
-      toast.error('Failed to fetch hotel admins. Please check if the backend server is running.'); 
-      console.error('Error details:', error);
-    }
+  const applyDiscount = () => {
+    setDiscPer(discountValue);
+    setActivePanel(null);
   };
-
-  const resetFormFields = () => {
-    setUsername('');
-    setEmail('');
-    setPassword('');
-    setFullName('');
-    setPhone('');
-    setSelectedOutlet(null);
-    setSelectedDesignation(null);
-    setSelectedUserType(null);
-    setShiftTime('');
-    setMacAddress('');
-    setAssignWarehouse('');
-    setLanguagePreference('English');
-    setAddress('');
-    setCity('');
-    setSubLocality('');
-    setWebAccess(false);
-    setSelfOrder(true);
-    setCaptainApp(true);
-    setKdsApp(true);
-    setCaptainOldKotAccess('Enabled');
-    setVerifyMacIp(false);
-    setStatus(true);
-  };
-
-  const handleShowModal = (type: string, user?: OutletUserData | HotelAdminData) => {
-    try {
-      setModalType(type);
-      setSelectedUser(user as OutletUserData || null);
-      setSelectedHotelAdmin(user as HotelAdminData || null);
-
-      // Reset form fields first to prevent state conflicts
-      resetFormFields();
-
-      if (user && type === 'Edit Outlet User') {
-        loadUserDataIntoForm(user as OutletUserData);
-      } else if (user && type === 'Edit Hotel Admin') {
-        loadHotelAdminDataIntoForm(user as HotelAdminData);
-      }
-
-      // Use setTimeout to prevent blocking the main thread
-      setTimeout(() => {
-        setShowModal(true);
-      }, 50);
-    } catch (error) {
-      console.error('Error opening modal:', error);
-      toast.error('Failed to open modal. Please try again.');
-    }
-  };
-
-  const loadUserDataIntoForm = (user: OutletUserData) => {
-    setUsername(user.username || '');
-    setEmail(user.email || '');
-    setFullName(user.full_name || '');
-    setPhone(user.phone || '');
-    setSelectedOutlet(user.outletids ? (Array.isArray(user.outletids) ? user.outletids : (user.outletids as string).split(',').map(Number)) : null);
-    setShiftTime(user.shift_time || '');
-    setMacAddress(user.mac_address || '');
-    setAssignWarehouse(user.assign_warehouse || '');
-    setLanguagePreference(user.language_preference || 'English');
-    setAddress(user.address || '');
-    setCity(user.city || '');
-    setSubLocality(user.sub_locality || '');
-    setWebAccess(user.web_access || false);
-    setSelfOrder(user.self_order || true);
-    setCaptainApp(user.captain_app || true);
-    setKdsApp(user.kds_app || true);
-    setCaptainOldKotAccess(user.captain_old_kot_access || 'Enabled');
-    setVerifyMacIp(user.verify_mac_ip || false);
-    setStatus(user.status === 0);
-  };
-
-  const loadHotelAdminDataIntoForm = (hotelAdmin: HotelAdminData) => {
-    setUsername(hotelAdmin.username || '');
-    setEmail(hotelAdmin.email || '');
-    setFullName(hotelAdmin.full_name || '');
-    setPhone(hotelAdmin.phone || '');
-    setStatus(hotelAdmin.status === 0);
-  };
-
-  const handleCloseModal = () => {
-    setShowModal(false);
-    setModalType('');
-    setSelectedUser(null);
-    setSelectedHotelAdmin(null);
-    resetFormFields();
-    setSearchTerm('');
-  };
-
-  const handleDeleteUser = async (userId: number) => {
-    if (window.confirm('Are you sure you want to delete this outlet user? This action cannot be undone.')) {
-      try {
-        await outletUserService.deleteOutletUser(userId, { updated_by_id: user?.userid || 0 });
-        toast.success('Outlet user deleted successfully!');
-        fetchOutletUsers();
-      } catch (error) {
-        console.error('Error deleting outlet user:', error);
-        toast.error('Failed to delete outlet user');
-      }
-    }
-  };
-
-  const outletOptions: Option[] = outlets.map((outlet) => ({
-    value: outlet.outletid as number,
-    label: `${outlet.outlet_name} (${outlet.outlet_code})`,
-  }));
-
-  const handleOutletChange = (selected: MultiValue<Option>) => {
-    setSelectedOutlet(selected.length > 0 ? selected.map((option) => option.value) : []);
-  };
-
-  const handleModalSubmit = async () => {
-    console.log('Starting handleModalSubmit...', { modalType, user });
-    console.log('Form data:', { username, email, password, fullName, selectedOutlet });
-
-    if (modalType === 'Edit Hotel Admin') {
-      if (!fullName) {
-        toast.error('Please enter full name');
-        console.warn('Validation failed: Full name is missing');
-        return;
-      }
-
-      const hotelAdminData: HotelAdminData = {
-        full_name: fullName,
-        phone,
-        status: status ? 0 : 1,
-      };
-
-      try {
-        console.log('Updating hotel admin:', { userid: selectedHotelAdmin?.userid, data: hotelAdminData });
-        if (selectedHotelAdmin) {
-          const response = await outletUserService.updateHotelAdmin(selectedHotelAdmin.userid!, hotelAdminData);
-          console.log('Update hotel admin response:', response.data);
-          toast.success('Hotel admin updated successfully!');
-        }
-        fetchHotelAdmins();
-        handleCloseModal();
-      } catch (error: any) {
-        console.error('Error updating hotel admin:', error, error.response?.data);
-        toast.error(error.response?.data?.message || 'Failed to update hotel admin');
-      }
-    } else {
-      if (!username || username.length < 3) {
-        toast.error('Please enter a valid username (minimum 3 characters)');
-        console.warn('Validation failed: Invalid username', { username });
-        return;
-      }
-      if (!Array.isArray(selectedOutlet)) {
-        console.error('selectedOutlet is not an array:', selectedOutlet);
-        toast.error('Internal error: Outlet selection is invalid');
-        return;
-      }
-      const selectedOutletData = outlets.filter((outlet) => selectedOutlet.includes(outlet.outletid ?? 0));
-      if (selectedOutletData.length !== selectedOutlet.length) {
-        toast.error('One or more selected outlets are invalid or not available. Please choose valid outlets.');
-        console.warn('Validation failed: Invalid outlets selected', { selectedOutlet, outlets });
-        return;
-      }
-
-      const parentUserId = user?.id || 1;
-      const createdById = user?.id || 1;
-      console.log('Using parent_user_id:', parentUserId, 'created_by_id:', createdById);
-      if (!parentUserId || !createdById) {
-        toast.error('Unable to determine user identity. Please ensure you are logged in.');
-        console.error('Validation failed: Invalid user identity', { user, parentUserId, createdById });
-        return;
-      }
-
-      const userData: OutletUserData = {
-        username,
-        email,
-        password: modalType === 'Add Outlet User' ? password : undefined,
-        full_name: fullName,
-        phone,
-        role_level: 'outlet_user',
-        outletids: selectedOutlet,
-        designation: selectedDesignation?.toString(),
-        user_type: selectedUserType?.toString(),
-        shift_time: shiftTime,
-        mac_address: macAddress,
-        assign_warehouse: assignWarehouse,
-        language_preference: languagePreference,
-        address,
-        city,
-        sub_locality: subLocality,
-        web_access: webAccess,
-        self_order: selfOrder,
-        captain_app: captainApp,
-        kds_app: kdsApp,
-        captain_old_kot_access: captainOldKotAccess,
-        verify_mac_ip: verifyMacIp,
-        hotelid: user?.hotelid || selectedOutletData[0]?.hotelid,
-        parent_user_id: parentUserId,
-        status: status ? 0 : 1,
-        created_by_id: createdById,
-      };
-
-      console.log('Submitting userData to backend:', JSON.stringify(userData, null, 2));
-
-      try {
-        if (modalType === 'Edit Outlet User' && selectedUser) {
-          console.log(`Updating outlet user with userid: ${selectedUser.userid}`);
-          const response = await outletUserService.updateOutletUser(selectedUser.userid!, userData);
-          console.log('Update response:', response.data);
-          toast.success('Outlet user updated successfully!');
-        } else {
-          console.log('Creating new outlet user');
-          const response = await outletUserService.createOutletUser(userData);
-          console.log('Create response:', response.data);
-          toast.success('Outlet user added successfully!');
-        }
-        fetchOutletUsers();
-        handleCloseModal();
-      } catch (error: any) {
-        console.error('Error saving outlet user:', error);
-        const errorMessage = error.response?.data?.message || (modalType === 'Edit Outlet User' ? 'Failed to update outlet user' : 'Failed to add outlet user');
-        const invalidOutletIds = error.response?.data?.invalidOutletIds || [];
-        console.error('Error details:', { message: errorMessage, invalidOutletIds, sentOutletIds: selectedOutlet, response: error.response?.data });
-        toast.error(`${errorMessage}${invalidOutletIds.length > 0 ? ` (Invalid Outlet IDs: ${invalidOutletIds.join(', ')})` : ''}`);
-      }
-    }
-  };
-
-  // Define columns for hotel admins table
-  const hotelAdminColumns = useMemo<ColumnDef<HotelAdminData>[]>(() => [
-    {
-      id: 'srNo',
-      header: 'Sr No',
-      size: 50,
-      cell: ({ row }) => <div style={{ textAlign: 'center' }}>{row.index + 1}</div>,
-    },
-    {
-      accessorKey: 'full_name',
-      header: 'Name',
-      size: 150,
-      cell: (info) => (
-        <div style={{ textAlign: 'center' }}>
-          <strong>{info.getValue<string>()}</strong>
-          <span className="badge bg-warning text-dark ms-2">Hotel Admin</span>
-        </div>
-      ),
-    },
-    {
-      accessorKey: 'username',
-      header: 'Username',
-      size: 100,
-      cell: (info) => <div style={{ textAlign: 'center' }}>{info.getValue<string>()}</div>,
-    },
-    {
-      accessorKey: 'email',
-      header: 'Email',
-      size: 150,
-      cell: (info) => <div style={{ textAlign: 'center' }}>{info.getValue<string>()}</div>,
-    },
-    {
-      accessorKey: 'phone',
-      header: 'Phone',
-      size: 100,
-      cell: (info) => <div style={{ textAlign: 'center' }}>{info.getValue<string>() || 'N/A'}</div>,
-    },
-    {
-      accessorKey: 'hotel_name',
-      header: 'Hotel Name',
-      size: 100,
-      cell: (info) => <div style={{ textAlign: 'center' }}>{info.getValue<string>() || 'N/A'}</div>,
-    },
-    {
-      accessorKey: 'brand_name',
-      header: 'Brand Name',
-      size: 100,
-      cell: (info) => <div style={{ textAlign: 'center' }}>{info.getValue<string>() || 'N/A'}</div>,
-    },
-    {
-      accessorKey: 'status',
-      header: 'Status',
-      size: 80,
-      cell: (info) => {
-        const statusValue = info.getValue<number>();
-        return (
-          <div style={{ textAlign: 'center' }}>
-            <span className={`badge ${statusValue === 0 ? 'bg-success' : 'bg-danger'}`}>
-              {statusValue === 0 ? 'Active' : 'Inactive'}
-            </span>
-          </div>
-        );
-      },
-    },
-    {
-      accessorKey: 'last_login',
-      header: 'Last Login',
-      size: 100,
-      cell: (info) => <div style={{ textAlign: 'center' }}>{info.getValue<string>() || 'Never'}</div>,
-    },
-    {
-      accessorKey: 'created_date',
-      header: 'Created Date',
-      size: 100,
-      cell: (info) => <div style={{ textAlign: 'center' }}>{info.getValue<string>() || 'N/A'}</div>,
-    },
-    {
-      id: 'actions',
-      header: () => <div style={{ textAlign: 'center' }}>Action</div>,
-      size: 100,
-      cell: ({ row }) => (
-        <div className="d-flex gap-2 justify-content-center">
-          <button
-            className="btn btn-sm btn-primary"
-            title="Edit Hotel Admin"
-            onClick={() => handleShowModal('Edit Hotel Admin', row.original)}
-          >
-            <i className="fi fi-rr-edit"></i>
-          </button>
-        </div>
-      ),
-    },
-  ], []);
-
-  // Define columns for outlet users table
-  const outletUserColumns = useMemo<ColumnDef<CombinedUser>[]>(() => [
-    {
-      id: 'srNo',
-      header: 'Sr No',
-      size: 50,
-      cell: ({ row }) => <div style={{ textAlign: 'center' }}>{row.index + 1}</div>,
-    },
-    {
-      accessorKey: 'full_name',
-      header: 'Name',
-      size: 150,
-      cell: (info) => (
-        <div style={{ textAlign: 'center' }}>
-          <strong>{info.getValue<string>()}</strong>
-          {info.row.original.is_admin_row && (
-            <span className="badge bg-warning text-dark ms-2">Hotel Admin (You)</span>
-          )}
-        </div>
-      ),
-    },
-    {
-      accessorKey: 'role_level',
-      header: 'Role',
-      size: 100,
-      cell: (info) => (
-        <div style={{ textAlign: 'center' }}>
-          <span className={`badge ${info.row.original.is_admin_row ? 'bg-warning text-dark' : 'bg-info'}`}>
-            {info.row.original.is_admin_row ? 'Hotel Admin' : 'Outlet User'}
-          </span>
-        </div>
-      ),
-    },
-    {
-      accessorKey: 'outlet_name',
-      header: 'Outlet Name',
-      size: 100,
-      cell: (info) => <div style={{ textAlign: 'center' }}>{info.getValue<string>() || '-'}</div>,
-    },
-    {
-      accessorKey: 'username',
-      header: 'Username',
-      size: 100,
-      cell: (info) => <div style={{ textAlign: 'center' }}>{info.getValue<string>()}</div>,
-    },
-    {
-      accessorKey: 'email',
-      header: 'Email',
-      size: 150,
-      cell: (info) => <div style={{ textAlign: 'center' }}>{info.getValue<string>()}</div>,
-    },
-    {
-      accessorKey: 'phone',
-      header: 'Phone',
-      size: 100,
-      cell: (info) => <div style={{ textAlign: 'center' }}>{info.getValue<string>() || '-'}</div>,
-    },
-    {
-      accessorKey: 'designation',
-      header: 'Designation',
-      size: 100,
-      cell: (info) => <div style={{ textAlign: 'center' }}>{info.getValue<string>() || '-'}</div>,
-    },
-    {
-      accessorKey: 'user_type',
-      header: 'User Type',
-      size: 100,
-      cell: (info) => <div style={{ textAlign: 'center' }}>{info.getValue<string>() || '-'}</div>,
-    },
-    {
-      accessorKey: 'status',
-      header: 'Status',
-      size: 80,
-      cell: (info) => {
-        const statusValue = info.getValue<number>();
-        return (
-          <div style={{ textAlign: 'center' }}>
-            <span className={`badge ${statusValue === 0 ? 'bg-success' : 'bg-danger'}`}>
-              {statusValue === 0 ? 'Active' : 'Inactive'}
-            </span>
-          </div>
-        );
-      },
-    },
-    {
-      accessorKey: 'created_date',
-      header: 'Created Date',
-      size: 100,
-      cell: (info) => <div style={{ textAlign: 'center' }}>{info.getValue<string>() || '-'}</div>,
-    },
-    {
-      id: 'actions',
-      header: () => <div style={{ textAlign: 'center' }}>Action</div>,
-      size: 100,
-      cell: ({ row }) => (
-        <div className="d-flex gap-2 justify-content-center">
-          {row.original.is_admin_row ? (
-            <span className="text-muted">-</span>
-          ) : (
-            <>
-              <button
-                className="btn btn-sm btn-primary"
-                title="Edit User"
-                onClick={() => handleShowModal('Edit Outlet User', row.original)}
-              >
-                <i className="fi fi-rr-edit"></i>
-              </button>
-              <button
-                className="btn btn-sm btn-danger"
-                title="Delete User"
-                onClick={() => handleDeleteUser(row.original.userid!)}
-              >
-                <i className="fi fi-rr-trash"></i>
-              </button>
-            </>
-          )}
-        </div>
-      ),
-    },
-  ], []);
-
-  // Combined user list for hotel_admin role
-  const combinedUserList = user?.role_level === 'hotel_admin'
-    ? [
-        {
-          ...user,
-          full_name: user.full_name || user.username,
-          role_level: 'hotel_admin',
-          outlet_name: '-',
-          designation: '-',
-          user_type: '-',
-          is_admin_row: true,
-        },
-        ...outletUsers
-      ]
-    : outletUsers;
-
-  // Initialize react-table for outlet users
-  const outletUserTable = useReactTable({
-    data: combinedUserList,
-    columns: outletUserColumns,
-    getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    initialState: {
-      pagination: {
-        pageSize: 10,
-      },
-    },
-    state: {
-      globalFilter: searchTerm,
-    },
-  });
-
-  // Initialize react-table for hotel admins
-  const hotelAdminTable = useReactTable({
-    data: hotelAdmins,
-    columns: hotelAdminColumns,
-    getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    initialState: {
-      pagination: {
-        pageSize: 10,
-      },
-    },
-    state: {
-      globalFilter: searchTerm,
-    },
-  });
-
-  // const handleSearch = useCallback(
-  //   debounce((value: string) => {
-  //     outletUserTable.setGlobalFilter(value);
-  //     hotelAdminTable.setGlobalFilter(value);
-  //   }, 300),
-  //   [outletUserTable, hotelAdminTable]
-  // );
-
-  // const onSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-  //   const value = e.target.value;
-  //   setSearchTerm(value);
-  //   handleSearch(value);
-  // };
-
-  const getPaginationItems = (table: any) => {
-    const items = [];
-    const maxPagesToShow = 5;
-    const pageIndex = table.getState().pagination.pageIndex;
-    const totalPages = table.getPageCount();
-    let startPage = Math.max(0, pageIndex - Math.floor(maxPagesToShow / 2));
-    const endPage = Math.min(totalPages - 1, startPage + maxPagesToShow - 1);
-
-    if (endPage - startPage < maxPagesToShow - 1) {
-      startPage = Math.max(0, endPage - maxPagesToShow + 1);
-    }
-
-    for (let i = startPage; i <= endPage; i++) {
-      items.push(
-        <Pagination.Item
-          key={i}
-          active={i === pageIndex}
-          onClick={() => table.setPageIndex(i)}
-        >
-          {i + 1}
-        </Pagination.Item>
-      );
-    }
-    return items;
-  };
-
-  if (loading) {
-    return (
-      <Stack className="align-items-center justify-content-center flex-grow-1 h-100">
-        <Preloader />
-      </Stack>
-    );
-  }
+  const saveNcKot = () => setActivePanel(null); // Add API call if needed
 
   return (
-    <div className="m-1">
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <h4>
-          {user?.role_level === 'hotel_admin' ? 'Outlet Users' : 'Outlet Users & Hotel Admins'}
-        </h4>
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-        
-          <div className="form-check form-check-inline">
-            <input className="form-check-input" type="checkbox" id="showDeactivated" style={{ borderColor: '#333' }} />
-            <label className="form-check-label" htmlFor="showDeactivated">
-              Show Deactivated
-            </label>
+    <div className="container-fluid vh-100 d-flex flex-column p-0">
+      <div className="flex-grow-1 d-flex">
+        {/* {showOrderDetails && (
+          // <div className="rounded shadow-sm p-1 mt-0 w-100">
+          //   <OrderDetails
+          //     tableId={selectedTable}
+          //     onChangeTable={handleBackToTables}
+          //     items={items}
+          //     setItems={setItems}
+          //     setSelectedTable={setSelectedTable}
+          //     invalidTable={searchTable}
+          //     setInvalidTable={setSearchTable}
+          //     filteredTables={filteredTables}
+          //     setSelectedDeptId={setSelectedDeptId}
+          //     setSelectedOutletId={setSelectedOutletId}
+          //   />
+          // </div>
+        )} */}
+      </div>
+      <div className="billing-panel border-start p-0">
+        <div className="rounded shadow-sm p-1 w-100 billing-panel-inner">
+          <div>
+            <div className="d-flex flex-wrap gap-1 border-bottom pb-0">
+              {['Dine-in', 'Pickup', 'Delivery', 'Quick Bill', 'Order/KOT', 'Billing'].map((tab, index) => (
+                <button
+                  key={index}
+                  className={`btn btn-sm flex-fill text-center ${activeTab === tab ? 'btn-primary' : 'btn-outline-secondary'}`}
+                  onClick={() => handleTabClick(tab)}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+            <div className="text-center fw-bold bg-white border rounded p-2">{getKOTLabel()}</div>
+            <div className="rounded border fw-bold text-black" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', padding: '0.5rem' }}>
+              <span style={{ textAlign: 'left' }}>Item Name</span>
+              <span className="text-center">Qty</span>
+              <span className="text-center">Amount</span>
+            </div>
           </div>
-          <button
-            className="btn btn-success"
-            onClick={() => handleShowModal('Add Outlet User')}
-          >
-            + Add Outlet User
-          </button>
+          <div ref={itemListRef} className="border rounded item-list-container">
+            {items.length === 0 ? (
+              <p className="text-center text-muted mb-0">No items added</p>
+            ) : (
+              items.map((item) => (
+                <div key={item.id} className="border-bottom" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', padding: '0.25rem', alignItems: 'center' }}>
+                  <span style={{ textAlign: 'left' }}>{item.name}</span>
+                  <div className="text-center d-flex justify-content-center align-items-center gap-2">
+                    <button className="btn btn-danger btn-sm" style={{ padding: '0 5px', lineHeight: '1' }} onClick={() => handleDecreaseQty(item.id)}>-</button>
+                    <input
+                      type="number"
+                      value={item.qty}
+                      onChange={(e) => {
+                        const newQty = parseInt(e.target.value) || 0;
+                        setItems(items.map(i => i.id === item.id ? { ...i, qty: newQty } : i).filter(i => i.qty > 0));
+                      }}
+                      className="border rounded text-center no-spinner"
+                      style={{ width: '40px', height: '16px', fontSize: '0.75rem', padding: '0' }}
+                      min="0"
+                      max="999"
+                    />
+                    <button className="btn btn-success btn-sm" style={{ padding: '0 5px', lineHeight: '1' }} onClick={() => handleIncreaseQty(item.id)}>+</button>
+                  </div>
+                  <div className="text-center">
+                    <div>{(item.price * item.qty).toFixed(2)}</div>
+                    <div style={{ fontSize: '0.75rem', color: '#6c757d', width: '50px', height: '16px', margin: '0 auto' }}>
+                      ({item.price.toFixed(2)})
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+          <div className="billing-panel-bottom">
+            <div className="d-flex flex-column flex-md-row gap-2 mt-2">
+              <div className="d-flex gap-1 position-relative">
+                <div className="border rounded d-flex align-items-center justify-content-center" style={{ width: '50px', height: '30px', fontSize: '0.875rem', cursor: 'pointer' }} onClick={() => {}}>
+                  +91
+                </div>
+                <input
+                  type="text"
+                  placeholder="Mobile No"
+                  value={mobileNumber}
+                  onChange={(e) => setMobileNumber(e.target.value)}
+                  className="form-control"
+                  style={{ width: '150px', height: '30px', fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}
+                />
+              </div>
+              <div className="d-flex align-items-center">
+                <input
+                  type="text"
+                  placeholder="Customer Name"
+                  value={customerName}
+                  readOnly
+                  className="form-control"
+                  style={{ width: '150px', height: '30px', fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}
+                />
+                <button className="btn btn-outline-primary ms-1" style={{ height: '30px', padding: '0 8px', fontSize: '0.875rem' }} onClick={() => {}}>
+                  +
+                </button>
+              </div>
+            </div>
+            <div className="d-flex flex-column flex-md-row gap-2 mt-2">
+              {(activeTab === 'Delivery' || activeTab === 'Billing') && (
+                <input
+                  type="text"
+                  placeholder="Customer Address"
+                  className="form-control"
+                  style={{ width: '150px', height: '30px', fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}
+                />
+              )}
+              <input
+                type="text"
+                placeholder="KOT Note"
+                className="form-control"
+                style={{ width: '150px', height: '30px', fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}
+              />
+              {activeTab === 'Dine-in' && (
+                <div style={{ position: 'relative', maxWidth: '120px', minHeight: '38px' }}>
+                  <div className="input-group rounded-search">
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="Table"
+                      value={searchTable}
+                      onChange={(e) => setSearchTable(e.target.value)}
+                      style={{ maxWidth: '120px', minHeight: '38px', fontSize: '1.2rem', padding: '0.375rem' }}
+                    />
+                    {isTableInvalid && <div className="text-danger small text-center mt-1">Invalid Table</div>}
+                  </div>
+                  {/* Floating Action Buttons */}
+                  <div className="action-buttons-container" style={{ position: 'absolute', top: '-50px', right: '-180px', zIndex: 1000 }}>
+                    <button
+                      type="button"
+                      className="btn btn-primary rounded-circle action-toggle"
+                      onClick={toggleOptions}
+                      aria-expanded={showOptions}
+                      aria-controls="action-menu"
+                      style={{ width: '42px', height: '42px', fontSize: '1.1rem', padding: 0 }}
+                    >
+                      ⋮
+                    </button>
+                    {showOptions && (
+                      <div id="action-menu" className="action-menu" role="toolbar" aria-label="Additional actions">
+                        <button
+                          type="button"
+                          className="btn btn-outline-primary action-btn"
+                          onClick={() => showPanel('tax')}
+                          aria-controls="tax-panel"
+                          aria-expanded={activePanel === 'tax'}
+                        >
+                          Tax
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-outline-primary action-btn"
+                          onClick={() => showPanel('discount')}
+                          aria-controls="discount-panel"
+                          aria-expanded={activePanel === 'discount'}
+                        >
+                          Discount
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-outline-primary action-btn"
+                          onClick={() => showPanel('ncKot')}
+                          aria-controls="ncKot-panel"
+                          aria-expanded={activePanel === 'ncKot'}
+                        >
+                          NCKOT
+                        </button>
+                      </div>
+                    )}
+                    {/* Action Panels */}
+                    {activePanel === 'tax' && (
+                      <div id="tax-panel" className="action-panel" role="region" aria-labelledby="tax-label">
+                        <h6 id="tax-label" className="panel-title">Tax Settings</h6>
+                        <div className="form-group">
+                          <label htmlFor="cgst">CGST (%)</label>
+                          <input
+                            id="cgst"
+                            type="number"
+                            className="form-control"
+                            value={taxValues.cgst}
+                            onChange={(e) => setTaxValues({ ...taxValues, cgst: Number(e.target.value) || 0 })}
+                            step="0.1"
+                            min="0"
+                            max="100"
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label htmlFor="sgst">SGST (%)</label>
+                          <input
+                            id="sgst"
+                            type="number"
+                            className="form-control"
+                            value={taxValues.sgst}
+                            onChange={(e) => setTaxValues({ ...taxValues, sgst: Number(e.target.value) || 0 })}
+                            step="0.1"
+                            min="0"
+                            max="100"
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label htmlFor="igst">IGST (%)</label>
+                          <input
+                            id="igst"
+                            type="number"
+                            className="form-control"
+                            value={taxValues.igst}
+                            onChange={(e) => setTaxValues({ ...taxValues, igst: Number(e.target.value) || 0 })}
+                            step="0.1"
+                            min="0"
+                            max="100"
+                          />
+                        </div>
+                        <button className="btn btn-primary btn-sm mt-2" onClick={applyTax}>Apply</button>
+                      </div>
+                    )}
+                    {activePanel === 'discount' && (
+                      <div id="discount-panel" className="action-panel" role="region" aria-labelledby="discount-label">
+                        <h6 id="discount-label" className="panel-title">Discount Settings</h6>
+                        <div className="form-group">
+                          <label htmlFor="discount-type">Type</label>
+                          <select
+                            id="discount-type"
+                            className="form-control"
+                            value={DiscountType}
+                            onChange={(e) => setDiscountType(Number(e.target.value))}
+                          >
+                            <option value={0}>Percentage</option>
+                            <option value={1}>Amount</option>
+                          </select>
+                        </div>
+                        <div className="form-group">
+                          <label htmlFor="discount-value">Value</label>
+                          <input
+                            id="discount-value"
+                            type="number"
+                            className="form-control"
+                            value={discountValue}
+                            onChange={(e) => setDiscountValue(Number(e.target.value) || 0)}
+                            step={DiscountType === 0 ? "0.5" : "1"}
+                            min={DiscountType === 0 ? "0.5" : "0"}
+                            max={DiscountType === 0 ? "100" : ""}
+                          />
+                        </div>
+                        <button className="btn btn-primary btn-sm mt-2" onClick={applyDiscount}>Apply</button>
+                      </div>
+                    )}
+                    {activePanel === 'ncKot' && (
+                      <div id="ncKot-panel" className="action-panel" role="region" aria-labelledby="ncKot-label">
+                        <h6 id="ncKot-label" className="panel-title">NCKOT Settings</h6>
+                        <div className="form-group">
+                          <label htmlFor="nc-name">Name</label>
+                          <input
+                            id="nc-name"
+                            type="text"
+                            className="form-control"
+                            value={ncData.name}
+                            onChange={(e) => setNcData({ ...ncData, name: e.target.value })}
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label htmlFor="nc-purpose">Purpose</label>
+                          <input
+                            id="nc-purpose"
+                            type="text"
+                            className="form-control"
+                            value={ncData.purpose}
+                            onChange={(e) => setNcData({ ...ncData, purpose: e.target.value })}
+                          />
+                        </div>
+                        <button className="btn btn-primary btn-sm mt-2" onClick={saveNcKot}>Save</button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="mt-1">
+              <div className="bg-white border rounded p-2">
+                <div className="d-flex justify-content-between"><span>Subtotal</span><span>{taxCalc.subtotal.toFixed(2)}</span></div>
+                {taxRates.cgst > 0 && <div className="d-flex justify-content-between"><span>CGST ({taxRates.cgst}%)</span><span>{taxCalc.cgstAmt.toFixed(2)}</span></div>}
+                {taxRates.sgst > 0 && <div className="d-flex justify-content-between"><span>SGST ({taxRates.sgst}%)</span><span>{taxCalc.sgstAmt.toFixed(2)}</span></div>}
+                {taxRates.igst > 0 && <div className="d-flex justify-content-between"><span>IGST ({taxRates.igst}%)</span><span>{taxCalc.igstAmt.toFixed(2)}</span></div>}
+                {taxRates.cess > 0 && <div className="d-flex justify-content-between"><span>CESS ({taxRates.cess}%)</span><span>{taxCalc.cessAmt.toFixed(2)}</span></div>}
+                {DiscPer > 0 && <div className="d-flex justify-content-between"><span>Discount ({DiscPer}%)</span><span>{((taxCalc.grandTotal * DiscPer) / 100).toFixed(2)}</span></div>}
+                <hr className="my-2" />
+                <div className="d-flex justify-content-between align-items-center bg-success text-white rounded p-1">
+                  <span className="fw-bold">Grand Total</span>
+                  <div>
+                    <span className="fw-bold me-2">{(taxCalc.grandTotal - (taxCalc.grandTotal * DiscPer / 100)).toFixed(2)}</span>
+                    <Button variant="outline-light" size="sm" onClick={() => {}}>Apply Discount</Button>
+                  </div>
+                </div>
+              </div>
+              <div className="d-flex justify-content-center gap-2 mt-2">
+                <button className="btn btn-dark rounded" onClick={handlePrintAndSaveKOT} disabled={items.length === 0 || isTableInvalid}>
+                  Print & Save KOT
+                </button>
+                <button className="btn btn-info rounded" onClick={() => setShowSavedKOTsModal(true)}>
+                  View Saved KOTs
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-
-      {(user?.role_level === 'superadmin' || user?.role_level === 'brand_admin') ? (
-        <Tabs defaultActiveKey="hotel-admins" className="mb-3">
-          <Tab eventKey="hotel-admins" title="Hotel Admins">
-            <div className="mb-3">
-              <small className="text-muted">
-                <i className="fi fi-rr-info me-1"></i>
-                Hotel Admins manage the overall hotel operations and have access to all outlets under their hotel.
-              </small>
-            </div>
-
-            <div className="flex-grow-1" style={{ overflowY: 'auto' }}>
-              <Table responsive hover className="table table-bordered table-hover mb-4">
-                <thead className="thead-light">
-                  {hotelAdminTable.getHeaderGroups().map((headerGroup) => (
-                    <tr key={headerGroup.id}>
-                      {headerGroup.headers.map((header) => (
-                        <th key={header.id} style={{ width: header.column.columnDef.size, textAlign: header.id === 'actions' ? 'left' : 'center' }}>
-                          {flexRender(header.column.columnDef.header, header.getContext())}
-                        </th>
-                      ))}
-                    </tr>
-                  ))}
-                </thead>
-                <tbody>
-                  {hotelAdminTable.getRowModel().rows.map((row) => (
-                    <tr key={row.id} className="table-primary">
-                      {row.getVisibleCells().map((cell) => (
-                        <td key={cell.id} style={{ textAlign: cell.column.id === 'actions' ? 'left' : 'center' }}>
-                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
-              <Stack direction="horizontal" className="justify-content-between align-items-center">
-                <div>
-                  <Form.Select
-                    value={hotelAdminTable.getState().pagination.pageSize}
-                    onChange={(e) => hotelAdminTable.setPageSize(Number(e.target.value))}
-                    style={{ width: '100px', display: 'inline-block', marginRight: '10px' }}
-                  >
-                    <option value="5">5</option>
-                    <option value="10">10</option>
-                    <option value="20">20</option>
-                    <option value="50">50</option>
-                  </Form.Select>
-                  <span className="text-muted">
-                    Showing {hotelAdminTable.getRowModel().rows.length} of {hotelAdmins.length} entries
-                  </span>
-                </div>
-                <Pagination>
-                  <Pagination.Prev
-                    onClick={() => hotelAdminTable.previousPage()}
-                    disabled={!hotelAdminTable.getCanPreviousPage()}
-                  />
-                  {getPaginationItems(hotelAdminTable)}
-                  <Pagination.Next
-                    onClick={() => hotelAdminTable.nextPage()}
-                    disabled={!hotelAdminTable.getCanNextPage()}
-                  />
-                </Pagination>
-              </Stack>
-            </div>
-          </Tab>
-
-          <Tab eventKey="outlet-users" title="Outlet Users">
-            <div className="mb-3">
-              <small className="text-muted">
-                <i className="fi fi-rr-info me-1"></i>
-                Outlet Users are staff members who work at specific outlets and have limited access based on their role.
-              </small>
-            </div>
-
-            <div className="flex-grow-1" style={{ overflowY: 'auto' }}>
-              <Table responsive hover className="table table-bordered table-hover mb-4">
-                <thead className="thead-light">
-                  {outletUserTable.getHeaderGroups().map((headerGroup) => (
-                    <tr key={headerGroup.id}>
-                      {headerGroup.headers.map((header) => (
-                        <th key={header.id} style={{ width: header.column.columnDef.size, textAlign: header.id === 'actions' ? 'left' : 'center' }}>
-                          {flexRender(header.column.columnDef.header, header.getContext())}
-                        </th>
-                      ))}
-                    </tr>
-                  ))}
-                </thead>
-                <tbody>
-                  {outletUserTable.getRowModel().rows.map((row) => (
-                    <tr key={row.id}>
-                      {row.getVisibleCells().map((cell) => (
-                        <td key={cell.id} style={{ textAlign: cell.column.id === 'actions' ? 'left' : 'center' }}>
-                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
-              <Stack direction="horizontal" className="justify-content-between align-items-center">
-                <div>
-                  <Form.Select
-                    value={outletUserTable.getState().pagination.pageSize}
-                    onChange={(e) => outletUserTable.setPageSize(Number(e.target.value))}
-                    style={{ width: '100px', display: 'inline-block', marginRight: '10px' }}
-                  >
-                    <option value="5">5</option>
-                    <option value="10">10</option>
-                    <option value="20">20</option>
-                    <option value="50">50</option>
-                  </Form.Select>
-                  <span className="text-muted">
-                    Showing {outletUserTable.getRowModel().rows.length} of {combinedUserList.length} entries
-                  </span>
-                </div>
-                <Pagination>
-                  <Pagination.Prev
-                    onClick={() => outletUserTable.previousPage()}
-                    disabled={!outletUserTable.getCanPreviousPage()}
-                  />
-                  {getPaginationItems(outletUserTable)}
-                  <Pagination.Next
-                    onClick={() => outletUserTable.nextPage()}
-                    disabled={!outletUserTable.getCanNextPage()}
-                  />
-                </Pagination>
-              </Stack>
-            </div>
-          </Tab>
-        </Tabs>
-      ) : (
-        <div>
-          <div className="mb-3">
-            <small className="text-muted">
-              <i className="fi fi-rr-info me-1"></i>
-              Outlet Users are staff members who work at specific outlets under your hotel. Your admin account is shown at the top.
-            </small>
-          </div>
-
-          <div className="flex-grow-1" style={{ overflowY: 'auto' }}>
-            <Table responsive hover className="table table-bordered table-hover mb-4">
-              <thead className="thead-light">
-                {outletUserTable.getHeaderGroups().map((headerGroup) => (
-                  <tr key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => (
-                      <th key={header.id} style={{ width: header.column.columnDef.size, textAlign: header.id === 'actions' ? 'left' : 'center' }}>
-                        {flexRender(header.column.columnDef.header, header.getContext())}
-                      </th>
-                    ))}
-                  </tr>
-                ))}
-              </thead>
-              <tbody>
-                {outletUserTable.getRowModel().rows.map((row) => (
-                  <tr key={row.id} className={row.original.is_admin_row ? 'table-primary' : ''}>
-                    {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} style={{ textAlign: cell.column.id === 'actions' ? 'left' : 'center' }}>
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </Table>
-            <Stack direction="horizontal" className="justify-content-between align-items-center">
-              <div>
-                <Form.Select
-                  value={outletUserTable.getState().pagination.pageSize}
-                  onChange={(e) => outletUserTable.setPageSize(Number(e.target.value))}
-                  style={{ width: '100px', display: 'inline-block', marginRight: '10px' }}
-                >
-                  <option value="5">5</option>
-                  <option value="10">10</option>
-                  <option value="20">20</option>
-                  <option value="50">50</option>
-                </Form.Select>
-                <span className="text-muted">
-                  Showing {outletUserTable.getRowModel().rows.length} of {combinedUserList.length} entries
-                </span>
-              </div>
-              <Pagination>
-                <Pagination.Prev
-                  onClick={() => outletUserTable.previousPage()}
-                  disabled={!outletUserTable.getCanPreviousPage()}
-                />
-                {getPaginationItems(outletUserTable)}
-                <Pagination.Next
-                  onClick={() => outletUserTable.nextPage()}
-                  disabled={!outletUserTable.getCanNextPage()}
-                />
-              </Pagination>
-            </Stack>
-          </div>
-        </div>
-      )}
-
-      <Modal show={showModal} onHide={handleCloseModal} size="lg">
-        <Modal.Header closeButton>
-          <Modal.Title>{modalType}</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <Form>
-            {modalType === 'Edit Hotel Admin' ? (
-              <Row className="mb-3">
-                <Col md={6}>
-                  <Form.Group controlId="fullName">
-                    <Form.Label>
-                      Full Name <span className="text-danger">*</span>
-                    </Form.Label>
-                    <Form.Control
-                      type="text"
-                      placeholder="Enter Full Name"
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                    />
-                  </Form.Group>
-                </Col>
-                <Col md={6}>
-                  <Form.Group controlId="phone">
-                    <Form.Label>Phone</Form.Label>
-                    <Form.Control
-                      type="text"
-                      placeholder="Enter Phone"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                    />
-                  </Form.Group>
-                </Col>
-              </Row>
-            ) : (
-              <>
-                <Row className="mb-3">
-                  <Col md={6}>
-                    <Form.Group controlId="username">
-                      <Form.Label>
-                        Username <span className="text-danger">*</span>
-                      </Form.Label>
-                      <Form.Control
-                        type="text"
-                        placeholder="Enter Username"
-                        value={username}
-                        onChange={(e) => setUsername(e.target.value)}
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col md={6}>
-                    <Form.Group controlId="email">
-                      <Form.Label>
-                        Email <span className="text-danger">*</span>
-                      </Form.Label>
-                      <Form.Control
-                        type="email"
-                        placeholder="Enter Email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                      />
-                    </Form.Group>
-                  </Col>
-                </Row>
-                <Row className="mb-3">
-                  <Col md={6}>
-                    <Form.Group controlId="password">
-                      <Form.Label>
-                        Password {modalType === 'Add Outlet User' && <span className="text-danger">*</span>}
-                      </Form.Label>
-                      <Form.Control
-                        type="password"
-                        placeholder={modalType === 'Add Outlet User' ? "Enter Password" : "Leave blank to keep current"}
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col md={6}>
-                    <Form.Group controlId="fullName">
-                      <Form.Label>
-                        Full Name <span className="text-danger">*</span>
-                      </Form.Label>
-                      <Form.Control
-                        type="text"
-                        placeholder="Enter Full Name"
-                        value={fullName}
-                        onChange={(e) => setFullName(e.target.value)}
-                      />
-                    </Form.Group>
-                  </Col>
-                </Row>
-                <Row className="mb-3">
-                  <Col md={6}>
-                    <Form.Group controlId="phone">
-                      <Form.Label>Phone</Form.Label>
-                      <Form.Control
-                        type="text"
-                        placeholder="Enter Phone"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col md={6}>
-                    <Form.Group controlId="outlet">
-                      <Form.Label>
-                        Select Outlet <span className="text-danger">*</span>
-                      </Form.Label>
-                      <Select
-                        options={outletOptions}
-                        isMulti
-                        onChange={handleOutletChange}
-                        value={outletOptions.filter((option) => selectedOutlet?.includes(option.value))}
-                        className="basic-multi-select"
-                        classNamePrefix="select"
-                        placeholder="Select Outlets"
-                      />
-                    </Form.Group>
-                  </Col>
-                </Row>
-                <Row className="mb-3">
-                  <Col md={6}>
-                    <Form.Group controlId="designation">
-                      <Form.Label>Designation</Form.Label>
-                      <Form.Select
-                        value={selectedDesignation || ''}
-                        onChange={(e) => setSelectedDesignation(e.target.value ? Number(e.target.value) : null)}
-                      >
-                        <option value="">Select Designation</option>
-                        {designations.map((designation) => (
-                          <option key={designation.designationid} value={designation.designationid}>
-                            {designation.Designation}
-                          </option>
-                        ))}
-                      </Form.Select>
-                    </Form.Group>
-                  </Col>
-                  <Col md={6}>
-                    <Form.Group controlId="userType">
-                      <Form.Label>User Type</Form.Label>
-                      <Form.Select
-                        value={selectedUserType || ''}
-                        onChange={(e) => setSelectedUserType(e.target.value ? Number(e.target.value) : null)}
-                      >
-                        <option value="">Select User Type</option>
-                        {userTypes.map((userType) => (
-                          <option key={userType.usertypeid} value={userType.usertypeid}>
-                            {userType.User_type}
-                          </option>
-                        ))}
-                      </Form.Select>
-                    </Form.Group>
-                  </Col>
-                </Row>
-                <Row className="mb-3">
-                  <Col md={6}>
-                    <Form.Group controlId="shiftTime">
-                      <Form.Label>Shift Time</Form.Label>
-                      <Form.Control
-                        type="text"
-                        placeholder="Enter Shift Time"
-                        value={shiftTime}
-                        onChange={(e) => setShiftTime(e.target.value)}
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col md={6}>
-                    <Form.Group controlId="macAddress">
-                      <Form.Label>MAC Address</Form.Label>
-                      <Form.Control
-                        type="text"
-                        placeholder="Enter MAC Address"
-                        value={macAddress}
-                        onChange={(e) => setMacAddress(e.target.value)}
-                      />
-                    </Form.Group>
-                  </Col>
-                </Row>
-                <Row className="mb-3">
-                  <Col md={6}>
-                    <Form.Group controlId="assignWarehouse">
-                      <Form.Label>Assign Warehouse</Form.Label>
-                      <Form.Control
-                        type="text"
-                        placeholder="Enter Warehouse"
-                        value={assignWarehouse}
-                        onChange={(e) => setAssignWarehouse(e.target.value)}
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col md={6}>
-                    <Form.Group controlId="languagePreference">
-                      <Form.Label>Language Preference</Form.Label>
-                      <Form.Select
-                        value={languagePreference}
-                        onChange={(e) => setLanguagePreference(e.target.value)}
-                      >
-                        <option value="English">English</option>
-                        <option value="Hindi">Hindi</option>
-                        <option value="Arabic">Arabic</option>
-                        <option value="French">French</option>
-                        <option value="Spanish">Spanish</option>
-                      </Form.Select>
-                    </Form.Group>
-                  </Col>
-                </Row>
-                <Row className="mb-3">
-                  <Col md={12}>
-                    <Form.Group controlId="address">
-                      <Form.Label>Address</Form.Label>
-                      <Form.Control
-                        as="textarea"
-                        placeholder="Enter Address"
-                        value={address}
-                        onChange={(e) => setAddress(e.target.value)}
-                      />
-                    </Form.Group>
-                  </Col>
-                </Row>
-                <Row className="mb-3">
-                  <Col md={6}>
-                    <Form.Group controlId="city">
-                      <Form.Label>City</Form.Label>
-                      <Form.Control
-                        type="text"
-                        placeholder="Enter City"
-                        value={city}
-                        onChange={(e) => setCity(e.target.value)}
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col md={6}>
-                    <Form.Group controlId="subLocality">
-                      <Form.Label>Sub Locality</Form.Label>
-                      <Form.Control
-                        type="text"
-                        placeholder="Enter Sub Locality"
-                        value={subLocality}
-                        onChange={(e) => setSubLocality(e.target.value)}
-                      />
-                    </Form.Group>
-                  </Col>
-                </Row>
-                <Row className="mb-3">
-                  <Col md={6}>
-                    <Form.Group controlId="webAccess">
-                      <Form.Label>Web Access</Form.Label>
-                      <Form.Check
-                        type="switch"
-                        checked={webAccess}
-                        onChange={(e) => setWebAccess(e.target.checked)}
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col md={6}>
-                    <Form.Group controlId="selfOrder">
-                      <Form.Label>Self Order</Form.Label>
-                      <Form.Check
-                        type="switch"
-                        checked={selfOrder}
-                        onChange={(e) => setSelfOrder(e.target.checked)}
-                      />
-                    </Form.Group>
-                  </Col>
-                </Row>
-                <Row className="mb-3">
-                  <Col md={6}>
-                    <Form.Group controlId="captainApp">
-                      <Form.Label>Captain App</Form.Label>
-                      <Form.Check
-                        type="switch"
-                        checked={captainApp}
-                        onChange={(e) => setCaptainApp(e.target.checked)}
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col md={6}>
-                    <Form.Group controlId="kdsApp">
-                      <Form.Label>KDS App</Form.Label>
-                      <Form.Check
-                        type="switch"
-                        checked={kdsApp}
-                        onChange={(e) => setKdsApp(e.target.checked)}
-                      />
-                    </Form.Group>
-                  </Col>
-                </Row>
-                <Row className="mb-3">
-                  <Col md={6}>
-                    <Form.Group controlId="captainOldKotAccess">
-                      <Form.Label>Captain Old KOT Access</Form.Label>
-                      <Form.Select
-                        value={captainOldKotAccess}
-                        onChange={(e) => setCaptainOldKotAccess(e.target.value)}
-                      >
-                        <option value="Enabled">Enabled</option>
-                        <option value="Disabled">Disabled</option>
-                      </Form.Select>
-                    </Form.Group>
-                  </Col>
-                  <Col md={6}>
-                    <Form.Group controlId="verifyMacIp">
-                      <Form.Label>Verify MAC/IP</Form.Label>
-                      <Form.Check
-                        type="switch"
-                        checked={verifyMacIp}
-                        onChange={(e) => setVerifyMacIp(e.target.checked)}
-                      />
-                    </Form.Group>
-                  </Col>
-                </Row>
-              </>
-            )}
-            <Row className="mb-3">
-              <Col md={6}>
-                <Form.Group controlId="status">
-                  <Form.Label>Status</Form.Label>
-                  <Form.Check
-                    type="switch"
-                    checked={status}
-                    onChange={(e) => setStatus(e.target.checked)}
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
-          </Form>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="danger" onClick={handleCloseModal}>
-            Close
-          </Button>
-          <Button variant="success" onClick={handleModalSubmit}>
-            {modalType === 'Edit Outlet User' || modalType === 'Edit Hotel Admin' ? 'Update' : 'Create'}
-          </Button>
-        </Modal.Footer>
-      </Modal>
     </div>
   );
 };
 
-export default OutletUserList;
+export default Order;
+

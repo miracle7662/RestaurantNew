@@ -75,6 +75,21 @@ const Order = () => {
   const [reason, setReason] = useState<string>('');
   const [DiscountType, setDiscountType] = useState<number>(0); // 0 for percentage, 1 for amount
 
+  // New state for floating button group and modals
+  const [showOptions, setShowOptions] = useState<boolean>(false);
+  const [showTaxModal, setShowTaxModal] = useState<boolean>(false);
+  const [showNCKOTModal, setShowNCKOTModal] = useState<boolean>(false);
+
+  // Tax modal form state
+  const [cgst, setCgst] = useState<string>('');
+  const [sgst, setSgst] = useState<string>('');
+  const [igst, setIgst] = useState<string>('');
+  const [cess, setCess] = useState<string>('');
+
+  // NCKOT modal form state
+  const [ncName, setNcName] = useState<string>('');
+  const [ncPurpose, setNcPurpose] = useState<string>('');
+
   const fetchTableManagement = async () => {
     setLoading(true);
     try {
@@ -632,6 +647,30 @@ const Order = () => {
   const handleDiscountKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') setShowDiscountModal(false);
     if (e.key === 'Enter') handleApplyDiscount();
+  };
+
+  const handleOpenTaxModal = () => {
+    setCgst(taxRates.cgst.toString());
+    setSgst(taxRates.sgst.toString());
+    setIgst(taxRates.igst.toString());
+    setCess(taxRates.cess.toString());
+    setShowTaxModal(true);
+  };
+
+  const handleSaveTax = () => {
+    setTaxRates({
+      cgst: parseFloat(cgst) || 0,
+      sgst: parseFloat(sgst) || 0,
+      igst: parseFloat(igst) || 0,
+      cess: parseFloat(cess) || 0,
+    });
+    setShowTaxModal(false);
+  };
+
+  const handleSaveNCKOT = () => {
+    // Handle save NCKOT, e.g., log or send to API
+    console.log('NCKOT:', { ncName, ncPurpose });
+    setShowNCKOTModal(false);
   };
 
   return (
@@ -1235,22 +1274,38 @@ const Order = () => {
                       )}
                     </div>
                   )}
+                  <div className="d-flex align-items-center ms-2">
+{showOptions ? (
+  <div className="d-flex flex-row gap-2" style={{ width: '100%', justifyContent: 'space-between' }}>
+    <Button variant="primary" style={{ flex: 1 }} onClick={() => { setShowOptions(false); handleOpenTaxModal(); }} title="Tax">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" className="bi bi-currency-dollar" viewBox="0 0 16 16">
+        <path d="M8.5 1a.5.5 0 0 0-1 0v1.07a3.001 3.001 0 0 0-2.995 2.824L4.5 5.9v.2a.5.5 0 0 0 1 0v-.2a2 2 0 1 1 2 1.995v2.11a3.001 3.001 0 0 0-2.995 2.824L5.5 12.9v.2a.5.5 0 0 0 1 0v-.2a2 2 0 1 1 2-1.995V2.07z"/>
+      </svg>
+    </Button>
+    <Button variant="secondary" style={{ flex: 1 }} onClick={() => { setShowOptions(false); setShowNCKOTModal(true); }} title="NCKOT">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" className="bi bi-file-earmark-text" viewBox="0 0 16 16">
+        <path d="M5 7.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5z"/>
+        <path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5L14 4.5zm-3-.5a.5.5 0 0 1-.5-.5V1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4h-3z"/>
+      </svg>
+    </Button>
+    <Button variant="success" style={{ flex: 1 }} onClick={() => { setShowOptions(false); setShowDiscountModal(true); }} title="Discount">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" className="bi bi-percent" viewBox="0 0 16 16">
+        <path d="M13.442 2.558a1.5 1.5 0 1 1-2.121 2.121l-6.35 6.35a1.5 1.5 0 1 1-2.122-2.12l6.35-6.35a1.5 1.5 0 0 1 2.121 0zM5.5 5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm5 6a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z"/>
+      </svg>
+    </Button>
+  </div>
+) : (
+  <Button variant="primary" className="rounded-circle d-flex justify-content-center align-items-center" style={{ width: '36px', height: '36px', padding: '0' }} onClick={() => setShowOptions(true)}>
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M3 12H21M3 6H21M3 18H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  </Button>
+)}
+                  </div>
                 </div>
                 <div className="mt-1">
                   <div className="bg-white border rounded p-2">
                     <div className="d-flex justify-content-between"><span>Subtotal</span><span>{taxCalc.subtotal.toFixed(2)}</span></div>
-                    {taxRates.cgst > 0 && (
-                      <div className="d-flex justify-content-between"><span>CGST ({taxRates.cgst}%)</span><span>{taxCalc.cgstAmt.toFixed(2)}</span></div>
-                    )}
-                    {taxRates.sgst > 0 && (
-                      <div className="d-flex justify-content-between"><span>SGST ({taxRates.sgst}%)</span><span>{taxCalc.sgstAmt.toFixed(2)}</span></div>
-                    )}
-                    {taxRates.igst > 0 && (
-                      <div className="d-flex justify-content-between"><span>IGST ({taxRates.igst}%)</span><span>{taxCalc.igstAmt.toFixed(2)}</span></div>
-                    )}
-                    {taxRates.cess > 0 && (
-                      <div className="d-flex justify-content-between"><span>CESS ({taxRates.cess}%)</span><span>{taxCalc.cessAmt.toFixed(2)}</span></div>
-                    )}
                     {DiscPer > 0 && (
                       <div className="d-flex justify-content-between"><span>Discount ({DiscPer}%)</span><span>{((taxCalc.grandTotal * DiscPer) / 100).toFixed(2)}</span></div>
                     )}
@@ -1388,11 +1443,77 @@ const Order = () => {
                 </Button>
               </Modal.Footer>
             </Modal>
-          </div>
+
+            <Modal show={showTaxModal} onHide={() => setShowTaxModal(false)} centered>
+              <Modal.Header closeButton>
+                <Modal.Title>Edit Tax Rates</Modal.Title>
+              </Modal.Header>
+              <Modal.Body>
+                <div className="mb-3">
+                  <label>CGST (%)</label>
+                  <input type="number" className="form-control" value={cgst} onChange={(e) => setCgst(e.target.value)} />
+                </div>
+                <div className="mb-3">
+                  <label>SGST (%)</label>
+                  <input type="number" className="form-control" value={sgst} onChange={(e) => setSgst(e.target.value)} />
+                </div>
+                <div className="mb-3">
+                  <label>IGST (%)</label>
+                  <input type="number" className="form-control" value={igst} onChange={(e) => setIgst(e.target.value)} />
+                </div>
+                <div className="mb-3">
+                  <label>CESS (%)</label>
+                  <input type="number" className="form-control" value={cess} onChange={(e) => setCess(e.target.value)} />
+                </div>
+                <hr />
+                <div>
+                  <h6>Tax Summary</h6>
+                  <div className="d-flex justify-content-between"><span>Subtotal</span><span>{taxCalc.subtotal.toFixed(2)}</span></div>
+                  {taxRates.cgst > 0 && (
+                    <div className="d-flex justify-content-between"><span>CGST ({taxRates.cgst}%)</span><span>{taxCalc.cgstAmt.toFixed(2)}</span></div>
+                  )}
+                  {taxRates.sgst > 0 && (
+                    <div className="d-flex justify-content-between"><span>SGST ({taxRates.sgst}%)</span><span>{taxCalc.sgstAmt.toFixed(2)}</span></div>
+                  )}
+                  {taxRates.igst > 0 && (
+                    <div className="d-flex justify-content-between"><span>IGST ({taxRates.igst}%)</span><span>{taxCalc.igstAmt.toFixed(2)}</span></div>
+                  )}
+                  {taxRates.cess > 0 && (
+                    <div className="d-flex justify-content-between"><span>CESS ({taxRates.cess}%)</span><span>{taxCalc.cessAmt.toFixed(2)}</span></div>
+                  )}
+                </div>
+              </Modal.Body>
+              <Modal.Footer>
+                <Button variant="secondary" onClick={() => setShowTaxModal(false)}>Cancel</Button>
+                <Button variant="primary" onClick={handleSaveTax}>Save</Button>
+              </Modal.Footer>
+            </Modal>
+
+            <Modal show={showNCKOTModal} onHide={() => setShowNCKOTModal(false)} centered>
+              <Modal.Header closeButton>
+                <Modal.Title>NCKOT</Modal.Title>
+              </Modal.Header>
+              <Modal.Body>
+                <div className="mb-3">
+                  <label>Name</label>
+                  <input type="text" className="form-control" value={ncName} onChange={(e) => setNcName(e.target.value)} />
+                </div>
+                <div className="mb-3">
+                  <label>Purpose</label>
+                  <input type="text" className="form-control" value={ncPurpose} onChange={(e) => setNcPurpose(e.target.value)} />
+                </div>
+              </Modal.Body>
+              <Modal.Footer>
+                <Button variant="secondary" onClick={() => setShowNCKOTModal(false)}>Cancel</Button>
+                <Button variant="primary" onClick={handleSaveNCKOT}>Save</Button>
+              </Modal.Footer>
+            </Modal>
         </div>
       </div>
+
     </div>
-  );
+  </div>
+);
 };
 
 export default Order;
