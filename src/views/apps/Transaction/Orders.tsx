@@ -1313,9 +1313,9 @@ const Order = () => {
               backdrop="static"
               keyboard={false}
             >
-              <Modal.Header closeButton>
+              <Modal.Header closeButton style={{ padding: '0.5rem', margin: 0 }} >
               </Modal.Header>
-              <Modal.Body>
+              <Modal.Body style={{ padding: '0px', maxHeight: '780px', overflowY: 'auto' }}>
                 <AddCustomerModal />
               </Modal.Body>
               <Modal.Footer>
