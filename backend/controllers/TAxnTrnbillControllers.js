@@ -43,7 +43,10 @@ exports.getAllBills = async (req, res) => {
             'HotelID', d.HotelID,
             'RuntimeRate', d.RuntimeRate,
             'RevQty', d.RevQty,
-            'KOTUsedDate', d.KOTUsedDate
+            'KOTUsedDate', d.KOTUsedDate,
+            'isBilled', d.isBilled,
+            'NCName', d.NCName,
+            'NCPurpose', d.NCPurpose
           )
         ) as _details
       FROM TAxnTrnbill b
@@ -213,8 +216,9 @@ exports.createBill = async (req, res) => {
             CGST, CGST_AMOUNT, SGST, SGST_AMOUNT, IGST, IGST_AMOUNT,
             CESS, CESS_AMOUNT, Qty, AutoKOT, ManualKOT, SpecialInst,
             isKOTGenerate, isSetteled, isNCKOT, isCancelled,
-            DeptID, HotelID, RuntimeRate, RevQty, KOTUsedDate
-          ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, ?)
+            DeptID, HotelID, RuntimeRate, RevQty, KOTUsedDate,
+            isBilled, NCName, NCPurpose
+          ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         `)
 
         for (const d of details) {
@@ -229,6 +233,7 @@ exports.createBill = async (req, res) => {
           const sgstAmt = Number(d.SGST_AMOUNT) || (lineSubtotal * sgstPer) / 100
           const igstAmt = Number(d.IGST_AMOUNT) || (lineSubtotal * igstPer) / 100
           const cessAmt = Number(d.CESS_AMOUNT) || (lineSubtotal * cessPer) / 100
+          const isNCKOT = toBool(d.isNCKOT)
           dStmt.run(
             txnId,
             d.outletid ?? null,
@@ -248,13 +253,16 @@ exports.createBill = async (req, res) => {
             d.SpecialInst || null,
             toBool(d.isKOTGenerate),
             toBool(d.isSetteled),
-            toBool(d.isNCKOT),
+            isNCKOT,
             toBool(d.isCancelled),
             d.DeptID ?? null,
             d.HotelID ?? null,
             rate,
             Number(d.RevQty) || 0,
-            d.KOTUsedDate || null
+            d.KOTUsedDate || null,
+            0, // isBilled default to 0
+            isNCKOT ? (d.NCName || null) : null,
+            isNCKOT ? (d.NCPurpose || null) : null
           )
         }
       }
@@ -353,10 +361,12 @@ exports.updateBill = async (req, res) => {
             CGST, CGST_AMOUNT, SGST, SGST_AMOUNT, IGST, IGST_AMOUNT,
             CESS, CESS_AMOUNT, Qty, AutoKOT, ManualKOT, SpecialInst,
             isKOTGenerate, isSetteled, isNCKOT, isCancelled,
-            DeptID, HotelID, RuntimeRate, RevQty, KOTUsedDate
-          ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            DeptID, HotelID, RuntimeRate, RevQty, KOTUsedDate,
+            isBilled, NCName, NCPurpose
+          ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         `)
         for (const d of details) {
+          const isNCKOT = toBool(d.isNCKOT)
           ins.run(
             Number(id),
             d.outletid ?? null,
@@ -376,13 +386,16 @@ exports.updateBill = async (req, res) => {
             d.SpecialInst || null,
             toBool(d.isKOTGenerate),
             toBool(d.isSetteled),
-            toBool(d.isNCKOT),
+            isNCKOT,
             toBool(d.isCancelled),
             d.DeptID ?? null,
             d.HotelID ?? null,
             Number(d.RuntimeRate) || 0,
             Number(d.RevQty) || 0,
-            d.KOTUsedDate || null
+            d.KOTUsedDate || null,
+            0, // isBilled default to 0
+            isNCKOT ? (d.NCName || null) : null,
+            isNCKOT ? (d.NCPurpose || null) : null
           )
         }
       }
@@ -489,13 +502,19 @@ exports.addItemToBill = async (req, res) => {
     const tx = db.transaction(() => {
       const din = db.prepare(`
         INSERT INTO TAxnTrnbilldetails (
-          TxnID, ItemID, Qty, RuntimeRate, AutoKOT, ManualKOT, SpecialInst, DeptID, HotelID
-        ) VALUES (?,?,?,?,?,?,?,?,?)
+          TxnID, ItemID, Qty, RuntimeRate, AutoKOT, ManualKOT, SpecialInst, DeptID, HotelID,
+          isBilled, isNCKOT, NCName, NCPurpose
+        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
       `)
       for (const it of details) {
+        const isNCKOT = toBool(it.isNCKOT)
         din.run(
           Number(id), it.ItemID ?? null, Number(it.Qty) || 0, Number(it.RuntimeRate) || 0,
-          it.AutoKOT ? 1 : 0, it.ManualKOT ? 1 : 0, it.SpecialInst || null, it.DeptID ?? null, it.HotelID ?? null
+          toBool(it.AutoKOT), toBool(it.ManualKOT), it.SpecialInst || null, it.DeptID ?? null, it.HotelID ?? null,
+          0, // isBilled default to 0
+          isNCKOT, // isNCKOT as provided or 0
+          isNCKOT ? (it.NCName || null) : null,
+          isNCKOT ? (it.NCPurpose || null) : null
         )
       }
     })
@@ -510,5 +529,26 @@ exports.addItemToBill = async (req, res) => {
   }
 }
 
+/* -------------------------------------------------------------------------- */
+/* 7) updateBillItemsIsBilled → update isBilled = 1 for all items in a bill   */
+/* -------------------------------------------------------------------------- */
+exports.updateBillItemsIsBilled = async (req, res) => {
+  try {
+    const { id } = req.params
+
+    const bill = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id))
+    if (!bill) return res.status(404).json({ success: false, message: 'Bill not found', data: null })
+
+    const updateStmt = db.prepare('UPDATE TAxnTrnbilldetails SET isBilled = 1 WHERE TxnID = ?')
+    updateStmt.run(Number(id))
+
+    const header = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id))
+    const items = db.prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? ORDER BY TXnDetailID').all(Number(id))
+
+    res.json(ok('Bill items marked as billed', { ...header, details: items }))
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to update bill items isBilled', data: null, error: error.message })
+  }
+}
 
 module.exports = exports

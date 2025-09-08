@@ -820,9 +820,10 @@ CREATE TABLE IF NOT EXISTS TAxnTrnbilldetails (
     HotelID INTEGER,
     RuntimeRate REAL DEFAULT 0,
     RevQty REAL DEFAULT 0,
-    KOTUsedDate DATETIME
-
-  
+    KOTUsedDate DATETIME,
+    isBilled BOOLEAN DEFAULT 0,
+    NCName TEXT,
+    NCPurpose TEXT
 );
 
 CREATE TABLE IF NOT EXISTS TrnSettlement (

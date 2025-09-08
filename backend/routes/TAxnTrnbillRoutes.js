@@ -15,7 +15,10 @@ router.get('/', controller.getAllBills)
 // Settle bill (multiple payment modes supported)
 router.post('/:id/settle', controller.settleBill)
 
+// Add items to bill with isBilled and isNCKOT logic
+router.post('/:id/items', controller.addItemToBill)
+
+// Update isBilled = 1 for all items in a bill
+router.put('/:id/items/billed', controller.updateBillItemsIsBilled)
+
 module.exports = router
-
-
-
