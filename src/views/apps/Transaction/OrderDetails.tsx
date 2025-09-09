@@ -10,6 +10,10 @@ interface MenuItemState {
   name: string;
   price: number;
   qty: number;
+  isBilled: number;
+  isNCKOT: number;
+  NCName: string;
+  NCPurpose: string;
 }
 
 // Interface for card items (aligned with Menu.tsx)
@@ -417,7 +421,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
       );
       if (matchedItem) {
         const qty = parseInt(quantity) || 1;
-        handleAddItem({ name: matchedItem.ItemName, price: matchedItem.price }, qty);
+        handleAddItem({ name: matchedItem.ItemName, price: matchedItem.price, isBilled: 0, isNCKOT: 0, NCName: '', NCPurpose: '' }, qty);
         setSearchCode('');
         setSearchName('');
         setQuantity('1');
@@ -793,7 +797,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
                               transition: 'transform 0.2s, box-shadow 0.2s',
                               minHeight: '120px',
                             }}
-                            onClick={() => handleAddItem({ name: item.ItemName, price: item.price }, parseInt(quantity) || 1)}
+                            onClick={() => handleAddItem({ name: item.ItemName, price: item.price, isBilled: 0, isNCKOT: 0, NCName: '', NCPurpose: '' }, parseInt(quantity) || 1)}
                             onMouseEnter={(e) => {
                               e.currentTarget.style.transform = 'translateY(-4px)';
                               e.currentTarget.style.boxShadow = '0 8px 16px rgba(0, 0, 0, 0.1)';
