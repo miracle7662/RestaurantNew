@@ -1,450 +1,925 @@
-import { useState, useEffect, useRef } from 'react';
-import { Button, Modal, Table } from 'react-bootstrap';
-
-import { fetchOutletsForDropdown } from '@/utils/commonfunction';
-import { useAuthContext } from '@/common';
-import { OutletData } from '@/common/api/outlet';
-import AddCustomerModal from './Customers';
-import { toast } from 'react-hot-toast';
-import { createBill, getSavedKOTs, getTaxesByOutletAndDepartment } from '@/common/api/orders';
-
-interface MenuItem {
-  id: number;
-  name: string;
-  price: number;
-  qty: number;
-}
-
-interface TableItem {
-  tablemanagementid: string;
-  table_name: string;
-  hotel_name: string;
-  outlet_name: string;
-  status: string;
-  created_by_id: string;
-  created_date: string;
-  updated_by_id: string;
-  updated_date: string;
-  hotelid: string;
-  marketid: string;
-  isActive: boolean;
-  isCommonToAllDepartments: boolean;
-  departmentid?: number;
-}
-
-interface DepartmentItem {
-  departmentid: number;
-  department_name: string;
-  outletid: number;
-}
-
-const Order = () => {
-  const { user } = useAuthContext();
-  const [selectedTable, setSelectedTable] = useState<string | null>('');
-  const [items, setItems] = useState<MenuItem[]>([]);
-  const [activeTab, setActiveTab] = useState<string>('Dine-in');
-  const [showOrderDetails, setShowOrderDetails] = useState<boolean>(false);
-  const [searchTable, setSearchTable] = useState<string>('');
-  const [isTableInvalid, setIsTableInvalid] = useState<boolean>(false);
-  const itemListRef = useRef<HTMLDivElement>(null);
-  const [tableItems, setTableItems] = useState<TableItem[]>([]);
-  const [filteredTables, setFilteredTables] = useState<TableItem[]>([]);
-  const [savedKOTs, setSavedKOTs] = useState<any[]>([]);
-  const [showSavedKOTsModal, setShowSavedKOTsModal] = useState<boolean>(false);
-  const [outlets, setOutlets] = useState<OutletData[]>([]);
-  const [departments, setDepartments] = useState<DepartmentItem[]>([]);
-  const [mobileNumber, setMobileNumber] = useState<string>('');
-  const [customerName, setCustomerName] = useState<string>('');
-  const [taxRates, setTaxRates] = useState({ cgst: 0, sgst: 0, igst: 0, cess: 0 });
-  const [taxCalc, setTaxCalc] = useState({ subtotal: 0, cgstAmt: 0, sgstAmt: 0, igstAmt: 0, cessAmt: 0, grandTotal: 0 });
-  const [selectedDeptId, setSelectedDeptId] = useState<number | null>(null);
-  const [selectedOutletId, setSelectedOutletId] = useState<number | null>(null);
-  const [DiscPer, setDiscPer] = useState<number>(0);
-  const [givenBy, setGivenBy] = useState<string>(user?.name || '');
-  const [DiscountType, setDiscountType] = useState<number>(0);
-
-  // Floating Button Group State
-  const [showOptions, setShowOptions] = useState(false);
-  const [activePanel, setActivePanel] = useState<string | null>(null);
-  const [taxValues, setTaxValues] = useState({ cgst: 0, sgst: 0, igst: 0 });
-  const [discountValue, setDiscountValue] = useState<number>(0);
-  const [ncData, setNcData] = useState({ name: '', purpose: '' });
-
-  // Fetch Data Functions (Simplified for brevity)
-  const fetchTableManagement = async () => { /* ... */ };
-  const fetchCustomerByMobile = async (mobile: string) => { /* ... */ };
-  const fetchDepartments = async () => { /* ... */ };
-  const fetchOutletsData = async () => { /* ... */ };
-
-  useEffect(() => {
-    const fetchInitialData = async () => {
-      await fetchOutletsData();
-      await fetchDepartments();
-      fetchTableManagement();
-    };
-    fetchInitialData();
-  }, [user?.id, user?.hotelid, user?.outletid, user?.role_level]);
-
-  useEffect(() => {
-    if (mobileNumber.length >= 10) fetchCustomerByMobile(mobileNumber);
-    else setCustomerName('');
-  }, [mobileNumber]);
-
-  // Event Handlers
-  const handleTabClick = (tab: string) => {
-    setActiveTab(tab);
-    if (['Pickup', 'Delivery', 'Quick Bill', 'Order/KOT', 'Billing'].includes(tab)) {
-      setSelectedTable(null);
-      setItems([]);
-      setShowOrderDetails(true);
-    } else setShowOrderDetails(false);
-  };
-
-  const handleIncreaseQty = (itemId: number) => setItems(items.map(item => item.id === itemId ? { ...item, qty: item.qty + 1 } : item));
-  const handleDecreaseQty = (itemId: number) => setItems(items.filter(item => item.id !== itemId || item.qty > 1).map(item => item.id === itemId ? { ...item, qty: item.qty - 1 } : item));
-
-  const totalAmount = items.reduce((sum, item) => sum + item.price * item.qty, 0).toFixed(2);
-
-  useEffect(() => {
-    const subtotal = items.reduce((sum, item) => sum + item.price * item.qty, 0);
-    const cgstAmt = (subtotal * taxRates.cgst) / 100;
-    const sgstAmt = (subtotal * taxRates.sgst) / 100;
-    const igstAmt = (subtotal * taxRates.igst) / 100;
-    const cessAmt = (subtotal * taxRates.cess) / 100;
-    setTaxCalc({ subtotal, cgstAmt, sgstAmt, igstAmt, cessAmt, grandTotal: subtotal + cgstAmt + sgstAmt + igstAmt + cessAmt });
-  }, [items, taxRates]);
-
-  const getKOTLabel = () => `KOT 1 ${activeTab === 'Dine-in' && selectedTable ? `- Table ${selectedTable}` : activeTab}`;
-
-  const handlePrintAndSaveKOT = async () => { /* ... */ };
-  const handleBackToTables = () => setShowOrderDetails(false);
-
-  // Floating Button Group Handlers
-  const toggleOptions = () => setShowOptions(!showOptions);
-  const showPanel = (panel: string) => setActivePanel(activePanel === panel ? null : panel);
-  const applyTax = () => {
-    setTaxRates(prev => ({ ...prev, ...taxValues }));
-    setActivePanel(null);
-  };
-  const applyDiscount = () => {
-    setDiscPer(discountValue);
-    setActivePanel(null);
-  };
-  const saveNcKot = () => setActivePanel(null); // Add API call if needed
-
-  return (
-    <div className="container-fluid vh-100 d-flex flex-column p-0">
-      <div className="flex-grow-1 d-flex">
-        {/* {showOrderDetails && (
-          // <div className="rounded shadow-sm p-1 mt-0 w-100">
-          //   <OrderDetails
-          //     tableId={selectedTable}
-          //     onChangeTable={handleBackToTables}
-          //     items={items}
-          //     setItems={setItems}
-          //     setSelectedTable={setSelectedTable}
-          //     invalidTable={searchTable}
-          //     setInvalidTable={setSearchTable}
-          //     filteredTables={filteredTables}
-          //     setSelectedDeptId={setSelectedDeptId}
-          //     setSelectedOutletId={setSelectedOutletId}
-          //   />
-          // </div>
-        )} */}
-      </div>
-      <div className="billing-panel border-start p-0">
-        <div className="rounded shadow-sm p-1 w-100 billing-panel-inner">
-          <div>
-            <div className="d-flex flex-wrap gap-1 border-bottom pb-0">
-              {['Dine-in', 'Pickup', 'Delivery', 'Quick Bill', 'Order/KOT', 'Billing'].map((tab, index) => (
-                <button
-                  key={index}
-                  className={`btn btn-sm flex-fill text-center ${activeTab === tab ? 'btn-primary' : 'btn-outline-secondary'}`}
-                  onClick={() => handleTabClick(tab)}
-                >
-                  {tab}
-                </button>
-              ))}
-            </div>
-            <div className="text-center fw-bold bg-white border rounded p-2">{getKOTLabel()}</div>
-            <div className="rounded border fw-bold text-black" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', padding: '0.5rem' }}>
-              <span style={{ textAlign: 'left' }}>Item Name</span>
-              <span className="text-center">Qty</span>
-              <span className="text-center">Amount</span>
-            </div>
-          </div>
-          <div ref={itemListRef} className="border rounded item-list-container">
-            {items.length === 0 ? (
-              <p className="text-center text-muted mb-0">No items added</p>
-            ) : (
-              items.map((item) => (
-                <div key={item.id} className="border-bottom" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', padding: '0.25rem', alignItems: 'center' }}>
-                  <span style={{ textAlign: 'left' }}>{item.name}</span>
-                  <div className="text-center d-flex justify-content-center align-items-center gap-2">
-                    <button className="btn btn-danger btn-sm" style={{ padding: '0 5px', lineHeight: '1' }} onClick={() => handleDecreaseQty(item.id)}>-</button>
-                    <input
-                      type="number"
-                      value={item.qty}
-                      onChange={(e) => {
-                        const newQty = parseInt(e.target.value) || 0;
-                        setItems(items.map(i => i.id === item.id ? { ...i, qty: newQty } : i).filter(i => i.qty > 0));
-                      }}
-                      className="border rounded text-center no-spinner"
-                      style={{ width: '40px', height: '16px', fontSize: '0.75rem', padding: '0' }}
-                      min="0"
-                      max="999"
-                    />
-                    <button className="btn btn-success btn-sm" style={{ padding: '0 5px', lineHeight: '1' }} onClick={() => handleIncreaseQty(item.id)}>+</button>
+    <div
+      className={`tab-pane fade ${activeTab === 'kot-print' ? 'show active' : ''}`}
+      id="kot-print"
+      role="tabpanel"
+      aria-labelledby="kot-print-tab"
+    >
+      <div className="container-fluid">
+        <div className="row">
+          {/* Left Column - KOT Settings Form (Scrollable) */}
+          <div className="col-lg-8">
+            <div className="card shadow-sm h-100">
+              <div className="card-body" style={{ maxHeight: '80vh', overflowY: 'auto' }}>
+                <h2 className="card-title h5 fw-bold mb-4">KOT Print Settings</h2>
+                <div className="row mb-2">
+                  <div className="col-md-6">
+                    <div className="d-flex align-items-center mb-3">
+                      <span className="me-2">#</span>
+                      <input
+                        style={{ borderColor: '#ccc' }}
+                        type="text"
+                        className="form-control w-50"
+                        placeholder="Search"
+                      />
+                    </div>
                   </div>
-                  <div className="text-center">
-                    <div>{(item.price * item.qty).toFixed(2)}</div>
-                    <div style={{ fontSize: '0.75rem', color: '#6c757d', width: '50px', height: '16px', margin: '0 auto' }}>
-                      ({item.price.toFixed(2)})
+                  <div className="col-md-6">
+                    <div className="ms-3">
+                      <h6 className="fw-bold mb-3">Status</h6>
                     </div>
                   </div>
                 </div>
-              ))
-            )}
-          </div>
-          <div className="billing-panel-bottom">
-            <div className="d-flex flex-column flex-md-row gap-2 mt-2">
-              <div className="d-flex gap-1 position-relative">
-                <div className="border rounded d-flex align-items-center justify-content-center" style={{ width: '50px', height: '30px', fontSize: '0.875rem', cursor: 'pointer' }} onClick={() => {}}>
-                  +91
-                </div>
-                <input
-                  type="text"
-                  placeholder="Mobile No"
-                  value={mobileNumber}
-                  onChange={(e) => setMobileNumber(e.target.value)}
-                  className="form-control"
-                  style={{ width: '150px', height: '30px', fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}
-                />
-              </div>
-              <div className="d-flex align-items-center">
-                <input
-                  type="text"
-                  placeholder="Customer Name"
-                  value={customerName}
-                  readOnly
-                  className="form-control"
-                  style={{ width: '150px', height: '30px', fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}
-                />
-                <button className="btn btn-outline-primary ms-1" style={{ height: '30px', padding: '0 8px', fontSize: '0.875rem' }} onClick={() => {}}>
-                  +
-                </button>
-              </div>
-            </div>
-            <div className="d-flex flex-column flex-md-row gap-2 mt-2">
-              {(activeTab === 'Delivery' || activeTab === 'Billing') && (
-                <input
-                  type="text"
-                  placeholder="Customer Address"
-                  className="form-control"
-                  style={{ width: '150px', height: '30px', fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}
-                />
-              )}
-              <input
-                type="text"
-                placeholder="KOT Note"
-                className="form-control"
-                style={{ width: '150px', height: '30px', fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}
-              />
-              {activeTab === 'Dine-in' && (
-                <div style={{ position: 'relative', maxWidth: '120px', minHeight: '38px' }}>
-                  <div className="input-group rounded-search">
-                    <input
-                      type="text"
-                      className="form-control"
-                      placeholder="Table"
-                      value={searchTable}
-                      onChange={(e) => setSearchTable(e.target.value)}
-                      style={{ maxWidth: '120px', minHeight: '38px', fontSize: '1.2rem', padding: '0.375rem' }}
-                    />
-                    {isTableInvalid && <div className="text-danger small text-center mt-1">Invalid Table</div>}
+                <div className="row mb-2">
+                  <div className="col-md-6">
+                    <h6 className="fw-bold mb-3">1. Customer on KOT</h6>
                   </div>
-                  {/* Floating Action Buttons */}
-                  <div className="action-buttons-container" style={{ position: 'absolute', top: '-50px', right: '-180px', zIndex: 1000 }}>
-                    <button
-                      type="button"
-                      className="btn btn-primary rounded-circle action-toggle"
-                      onClick={toggleOptions}
-                      aria-expanded={showOptions}
-                      aria-controls="action-menu"
-                      style={{ width: '42px', height: '42px', fontSize: '1.1rem', padding: 0 }}
-                    >
-                      ⋮
-                    </button>
-                    {showOptions && (
-                      <div id="action-menu" className="action-menu" role="toolbar" aria-label="Additional actions">
-                        <button
-                          type="button"
-                          className="btn btn-outline-primary action-btn"
-                          onClick={() => showPanel('tax')}
-                          aria-controls="tax-panel"
-                          aria-expanded={activePanel === 'tax'}
-                        >
-                          Tax
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-outline-primary action-btn"
-                          onClick={() => showPanel('discount')}
-                          aria-controls="discount-panel"
-                          aria-expanded={activePanel === 'discount'}
-                        >
-                          Discount
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-outline-primary action-btn"
-                          onClick={() => showPanel('ncKot')}
-                          aria-controls="ncKot-panel"
-                          aria-expanded={activePanel === 'ncKot'}
-                        >
-                          NCKOT
-                        </button>
-                      </div>
-                    )}
-                    {/* Action Panels */}
-                    {activePanel === 'tax' && (
-                      <div id="tax-panel" className="action-panel" role="region" aria-labelledby="tax-label">
-                        <h6 id="tax-label" className="panel-title">Tax Settings</h6>
-                        <div className="form-group">
-                          <label htmlFor="cgst">CGST (%)</label>
+                  <div className="col-md-6">
+                    <div className="ms-3">
+                      <div className="mb-2">
+                        <div className="form-check">
                           <input
-                            id="cgst"
-                            type="number"
-                            className="form-control"
-                            value={taxValues.cgst}
-                            onChange={(e) => setTaxValues({ ...taxValues, cgst: Number(e.target.value) || 0 })}
-                            step="0.1"
-                            min="0"
-                            max="100"
+                            style={{ borderColor: '#ccc' }}
+                            className="form-check-input"
+                            type="checkbox"
+                            id="customer_on_kot_dine_in"
+                            checked={formData.customer_on_kot_dine_in}
+                            onChange={handleInputChange}
                           />
-                        </div>
-                        <div className="form-group">
-                          <label htmlFor="sgst">SGST (%)</label>
-                          <input
-                            id="sgst"
-                            type="number"
-                            className="form-control"
-                            value={taxValues.sgst}
-                            onChange={(e) => setTaxValues({ ...taxValues, sgst: Number(e.target.value) || 0 })}
-                            step="0.1"
-                            min="0"
-                            max="100"
-                          />
-                        </div>
-                        <div className="form-group">
-                          <label htmlFor="igst">IGST (%)</label>
-                          <input
-                            id="igst"
-                            type="number"
-                            className="form-control"
-                            value={taxValues.igst}
-                            onChange={(e) => setTaxValues({ ...taxValues, igst: Number(e.target.value) || 0 })}
-                            step="0.1"
-                            min="0"
-                            max="100"
-                          />
-                        </div>
-                        <button className="btn btn-primary btn-sm mt-2" onClick={applyTax}>Apply</button>
-                      </div>
-                    )}
-                    {activePanel === 'discount' && (
-                      <div id="discount-panel" className="action-panel" role="region" aria-labelledby="discount-label">
-                        <h6 id="discount-label" className="panel-title">Discount Settings</h6>
-                        <div className="form-group">
-                          <label htmlFor="discount-type">Type</label>
-                          <select
-                            id="discount-type"
-                            className="form-control"
-                            value={DiscountType}
-                            onChange={(e) => setDiscountType(Number(e.target.value))}
+                          <label
+                            className="form-check-label"
+                            htmlFor="customer_on_kot_dine_in"
                           >
-                            <option value={0}>Percentage</option>
-                            <option value={1}>Amount</option>
-                          </select>
+                            Dine In
+                          </label>
                         </div>
-                        <div className="form-group">
-                          <label htmlFor="discount-value">Value</label>
-                          <input
-                            id="discount-value"
-                            type="number"
-                            className="form-control"
-                            value={discountValue}
-                            onChange={(e) => setDiscountValue(Number(e.target.value) || 0)}
-                            step={DiscountType === 0 ? "0.5" : "1"}
-                            min={DiscountType === 0 ? "0.5" : "0"}
-                            max={DiscountType === 0 ? "100" : ""}
-                          />
-                        </div>
-                        <button className="btn btn-primary btn-sm mt-2" onClick={applyDiscount}>Apply</button>
                       </div>
-                    )}
-                    {activePanel === 'ncKot' && (
-                      <div id="ncKot-panel" className="action-panel" role="region" aria-labelledby="ncKot-label">
-                        <h6 id="ncKot-label" className="panel-title">NCKOT Settings</h6>
-                        <div className="form-group">
-                          <label htmlFor="nc-name">Name</label>
+                      <div className="mb-2">
+                        <div className="form-check">
                           <input
-                            id="nc-name"
-                            type="text"
-                            className="form-control"
-                            value={ncData.name}
-                            onChange={(e) => setNcData({ ...ncData, name: e.target.value })}
+                            style={{ borderColor: '#ccc' }}
+                            className="form-check-input"
+                            type="checkbox"
+                            id="customer_on_kot_pickup"
+                            checked={formData.customer_on_kot_pickup}
+                            onChange={handleInputChange}
                           />
+                          <label
+                            className="form-check-label"
+                            htmlFor="customer_on_kot_pickup"
+                          >
+                            Pickup
+                          </label>
                         </div>
-                        <div className="form-group">
-                          <label htmlFor="nc-purpose">Purpose</label>
-                          <input
-                            id="nc-purpose"
-                            type="text"
-                            className="form-control"
-                            value={ncData.purpose}
-                            onChange={(e) => setNcData({ ...ncData, purpose: e.target.value })}
-                          />
-                        </div>
-                        <button className="btn btn-primary btn-sm mt-2" onClick={saveNcKot}>Save</button>
                       </div>
-                    )}
+                      <div className="mb-2">
+                        <div className="form-check">
+                          <input
+                            style={{ borderColor: '#ccc' }}
+                            className="form-check-input"
+                            type="checkbox"
+                            id="customer_on_kot_delivery"
+                            checked={formData.customer_on_kot_delivery}
+                            onChange={handleInputChange}
+                          />
+                          <label
+                            className="form-check-label"
+                            htmlFor="customer_on_kot_delivery"
+                          >
+                            Delivery
+                          </label>
+                        </div>
+                      </div>
+                      <div className="mb-3">
+                        <div className="form-check">
+                          <input
+                            style={{ borderColor: '#ccc' }}
+                            className="form-check-input"
+                            type="checkbox"
+                            id="customer_on_kot_quick_bill"
+                            checked={formData.customer_on_kot_quick_bill}
+                            onChange={handleInputChange}
+                          />
+                          <label
+                            className="form-check-label"
+                            htmlFor="customer_on_kot_quick_bill"
+                          >
+                            Quick Bill
+                          </label>
+                        </div>
+                      </div>
+                      <select
+                        style={{ borderColor: '#ccc' }}
+                        className="form-select"
+                        id="customer_kot_display_option"
+                        value={formData.customer_kot_display_option}
+                        onChange={handleInputChange}
+                      >
+                        <option value="NAME_ONLY">Name Only</option>
+                        <option value="NAME_AND_MOBILE">Name and Mobile Number</option>
+                        <option value="DISABLED">Disabled</option>
+                      </select>
+                    </div>
                   </div>
                 </div>
-              )}
-            </div>
-            <div className="mt-1">
-              <div className="bg-white border rounded p-2">
-                <div className="d-flex justify-content-between"><span>Subtotal</span><span>{taxCalc.subtotal.toFixed(2)}</span></div>
-                {taxRates.cgst > 0 && <div className="d-flex justify-content-between"><span>CGST ({taxRates.cgst}%)</span><span>{taxCalc.cgstAmt.toFixed(2)}</span></div>}
-                {taxRates.sgst > 0 && <div className="d-flex justify-content-between"><span>SGST ({taxRates.sgst}%)</span><span>{taxCalc.sgstAmt.toFixed(2)}</span></div>}
-                {taxRates.igst > 0 && <div className="d-flex justify-content-between"><span>IGST ({taxRates.igst}%)</span><span>{taxCalc.igstAmt.toFixed(2)}</span></div>}
-                {taxRates.cess > 0 && <div className="d-flex justify-content-between"><span>CESS ({taxRates.cess}%)</span><span>{taxCalc.cessAmt.toFixed(2)}</span></div>}
-                {DiscPer > 0 && <div className="d-flex justify-content-between"><span>Discount ({DiscPer}%)</span><span>{((taxCalc.grandTotal * DiscPer) / 100).toFixed(2)}</span></div>}
-                <hr className="my-2" />
-                <div className="d-flex justify-content-between align-items-center bg-success text-white rounded p-1">
-                  <span className="fw-bold">Grand Total</span>
-                  <div>
-                    <span className="fw-bold me-2">{(taxCalc.grandTotal - (taxCalc.grandTotal * DiscPer / 100)).toFixed(2)}</span>
-                    <Button variant="outline-light" size="sm" onClick={() => {}}>Apply Discount</Button>
+                <hr className="my-2" style={{ borderColor: '#ccc' }} />
+                <div className="row mb-2">
+                  <div className="col-md-6">
+                    <h6 className="fw-bold mb-3">2. Group KOT Items by Category on KOT</h6>
                   </div>
+                  <div className="col-md-6">
+                    <div className="ms-3">
+                      <div className="form-check form-switch">
+                        <input
+                          className="form-check-input"
+                          type="checkbox"
+                          id="group_kot_items_by_category"
+                          checked={formData.group_kot_items_by_category}
+                          onChange={handleInputChange}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <hr className="my-2" style={{ borderColor: '#ccc' }} />
+                <div className="row mb-2">
+                  <div className="col-md-6">
+                    <h6 className="fw-bold mb-3">3. Hide Table Name on KOT (Quick Bill)</h6>
+                  </div>
+                  <div className="col-md-6">
+                    <div className="ms-3">
+                      <div className="form-check form-switch">
+                        <input
+                          className="form-check-input"
+                          type="checkbox"
+                          id="hide_table_name_quick_bill"
+                          checked={formData.hide_table_name_quick_bill}
+                          onChange={handleInputChange}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <hr className="my-2" style={{ borderColor: '#ccc' }} />
+                <div className="row mb-2">
+                  <div className="col-md-6">
+                    <h6 className="fw-bold mb-3">4. KOT Tag</h6>
+                  </div>
+                  <div className="col-md-6">
+                    <div className="ms-3">
+                      <div className="mb-3">
+                        <div className="form-check form-switch">
+                          <input
+                            style={{ borderColor: '#ccc' }}
+                            className="form-check-input"
+                            type="checkbox"
+                            id="show_new_order_tag"
+                            checked={formData.show_new_order_tag}
+                            onChange={handleInputChange}
+                          />
+                          <label
+                            className="form-check-label"
+                            htmlFor="show_new_order_tag"
+                          >
+                            Show New Order Tag
+                          </label>
+                        </div>
+                      </div>
+                      <div className="mb-3">
+                        <input
+                          style={{ borderColor: '#ccc' }}
+                          type="text"
+                          className="form-control"
+                          id="new_order_tag_label"
+                          placeholder="New Order Tag Label"
+                          value={formData.new_order_tag_label}
+                          onChange={handleInputChange}
+                        />
+                      </div>
+                      <div className="mb-3">
+                        <div className="form-check form-switch">
+                          <input
+                            style={{ borderColor: '#ccc' }}
+                            className="form-check-input"
+                            type="checkbox"
+                            id="show_running_order_tag"
+                            checked={formData.show_running_order_tag}
+                            onChange={handleInputChange}
+                          />
+                          <label
+                            className="form-check-label"
+                            htmlFor="show_running_order_tag"
+                          >
+                            Show Running Order Tag
+                          </label>
+                        </div>
+                      </div>
+                      <div className="mb-3">
+                        <input
+                          style={{ borderColor: '#ccc' }}
+                          type="text"
+                          className="form-control"
+                          id="running_order_tag_label"
+                          placeholder="Running Order Tag Label"
+                          value={formData.running_order_tag_label}
+                          onChange={handleInputChange}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <hr className="my-2" style={{ borderColor: '#ccc' }} />
+                <div className="row mb-2">
+                  <div className="col-md-6">
+                    <h6 className="fw-bold mb-3">5. KOT Title</h6>
+                  </div>
+                  <div className="col-md-6">
+                    <div className="ms-3">
+                      <div className="mb-3">
+                        <input
+                          style={{ borderColor: '#ccc' }}
+                          type="text"
+                          className="form-control"
+                          id="dine_in_kot_no"
+                          placeholder="Dine In KOT No"
+                          value={formData.dine_in_kot_no}
+                          onChange={handleInputChange}
+                        />
+                      </div>
+                      <div className="mb-3">
+                        <input
+                          style={{ borderColor: '#ccc' }}
+                          type="text"
+                          className="form-control"
+                          id="pickup_kot_no"
+                          placeholder="Pickup KOT No"
+                          value={formData.pickup_kot_no}
+                          onChange={handleInputChange}
+                        />
+                      </div>
+                      <div className="mb-3">
+                        <input
+                          style={{ borderColor: '#ccc' }}
+                          type="text"
+                          className="form-control"
+                          id="delivery_kot_no"
+                          placeholder="Delivery KOT No"
+                          value={formData.delivery_kot_no}
+                          onChange={handleInputChange}
+                        />
+                      </div>
+                      <div className="mb-3">
+                        <input
+                          style={{ borderColor: '#ccc' }}
+                          type="text"
+                          className="form-control"
+                          id="quick_bill_kot_no"
+                          placeholder="Quick Bill"
+                          value={formData.quick_bill_kot_no}
+                          onChange={handleInputChange}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <hr className="my-2" style={{ borderColor: '#ccc' }} />
+                <div className="row mb-2">
+                  <div className="col-md-6">
+                    <h6 className="fw-bold mb-3">6. Modifier default Option on KOT Print</h6>
+                  </div>
+                  <div className="col-md-6">
+                    <div className="ms-3">
+                      <div className="form-check form-switch">
+                        <input
+                          style={{ borderColor: '#ccc' }}
+                          className="form-check-input"
+                          type="checkbox"
+                          id="modifier_default_option"
+                          checked={formData.modifier_default_option}
+                          onChange={handleInputChange}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <hr className="my-2" style={{ borderColor: '#ccc' }} />
+                <div className="row mb-2">
+                  <div className="col-md-6">
+                    <h6 className="fw-bold mb-3">
+                      7. Print KOT In Both Languages (English and Hindi)
+                    </h6>
+                  </div>
+                  <div className="col-md-6">
+                    <div className="ms-3">
+                      <div className="form-check form-switch">
+                        <input
+                          style={{ borderColor: '#ccc' }}
+                          className="form-check-input"
+                          type="checkbox"
+                          id="print_kot_both_languages"
+                          checked={formData.print_kot_both_languages}
+                          onChange={handleInputChange}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <hr className="my-2" style={{ borderColor: '#ccc' }} />
+                <div className="row mb-2">
+                  <div className="col-md-6">
+                    <h6 className="fw-bold mb-3">8. Show Alternative Item On KOT Print</h6>
+                  </div>
+                  <div className="col-md-6">
+                    <div className="ms-3">
+                      <div className="form-check form-switch">
+                        <input
+                          style={{ borderColor: '#ccc' }}
+                          className="form-check-input"
+                          type="checkbox"
+                          id="show_alternative_item"
+                          checked={formData.show_alternative_item}
+                          onChange={handleInputChange}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <hr className="my-2" style={{ borderColor: '#ccc' }} />
+                <div className="row mb-2">
+                  <div className="col-md-6">
+                    <h6 className="fw-bold mb-3">9. Show Captain Username on KOT</h6>
+                  </div>
+                  <div className="col-md-6">
+                    <div className="ms-3">
+                      <div className="form-check form-switch">
+                        <input
+                          style={{ borderColor: '#ccc' }}
+                          className="form-check-input"
+                          type="checkbox"
+                          id="show_captain_username"
+                          checked={formData.show_captain_username}
+                          onChange={handleInputChange}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <hr className="my-2" style={{ borderColor: '#ccc' }} />
+                <div className="row mb-2">
+                  <div className="col-md-6">
+                    <h6 className="fw-bold mb-3">10. Show Covers As Guest On KOT</h6>
+                  </div>
+                  <div className="col-md-6">
+                    <div className="ms-3">
+                      <div className="form-check form-switch">
+                        <input
+                          style={{ borderColor: '#ccc' }}
+                          className="form-check-input"
+                          type="checkbox"
+                          id="show_covers_as_guest"
+                          checked={formData.show_covers_as_guest}
+                          onChange={handleInputChange}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <hr className="my-2" style={{ borderColor: '#ccc' }} />
+                <div className="row mb-2">
+                  <div className="col-md-6">
+                    <h6 className="fw-bold mb-3">11. Show Item Price on KOT</h6>
+                  </div>
+                  <div className="col-md-6">
+                    <div className="ms-3">
+                      <div className="form-check form-switch">
+                        <input
+                          style={{ borderColor: '#ccc' }}
+                          className="form-check-input"
+                          type="checkbox"
+                          id="show_item_price"
+                          checked={formData.show_item_price}
+                          onChange={handleInputChange}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <hr className="my-2" style={{ borderColor: '#ccc' }} />
+                <div className="row mb-2">
+                  <div className="col-md-6">
+                    <h6 className="fw-bold mb-3">12. Show KOT No on Quick Bill</h6>
+                  </div>
+                  <div className="col-md-6">
+                    <div className="ms-3">
+                      <div className="form-check form-switch">
+                        <input
+                          style={{ borderColor: '#ccc' }}
+                          className="form-check-input"
+                          type="checkbox"
+                          id="show_kot_no_quick_bill"
+                          checked={formData.show_kot_no_quick_bill}
+                          onChange={handleInputChange}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <hr className="my-2" style={{ borderColor: '#ccc' }} />
+                <div className="row mb-2">
+                  <div className="col-md-6">
+                    <h6 className="fw-bold mb-3">13. Show KOT Note</h6>
+                  </div>
+                  <div className="col-md-6">
+                    <div className="ms-3">
+                      <div className="form-check form-switch">
+                        <input
+                          style={{ borderColor: '#ccc' }}
+                          className="form-check-input"
+                          type="checkbox"
+                          id="show_kot_note"
+                          checked={formData.show_kot_note}
+                          onChange={handleInputChange}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <hr className="my-2" style={{ borderColor: '#ccc' }} />
+                <div className="row mb-2">
+                  <div className="col-md-6">
+                    <h6 className="fw-bold mb-3">14. Show Online Order OTP on KOT</h6>
+                  </div>
+                  <div className="col-md-6">
+                    <div className="ms-3">
+                      <div className="form-check form-switch">
+                        <input
+                          style={{ borderColor: '#ccc' }}
+                          className="form-check-input"
+                          type="checkbox"
+                          id="show_online_order_otp"
+                          checked={formData.show_online_order_otp}
+                          onChange={handleInputChange}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <hr className="my-2" style={{ borderColor: '#ccc' }} />
+                <div className="row mb-2">
+                  <div className="col-md-6">
+                    <h6 className="fw-bold mb-3">15. Show Order ID On KOT</h6>
+                  </div>
+                  <div className="col-md-6">
+                    <div className="ms-3">
+                      <div className="mb-2">
+                        <div className="form-check">
+                          <input
+                            style={{ borderColor: '#ccc' }}
+                            className="form-check-input"
+                            type="checkbox"
+                            id="show_order_id_quick_bill"
+                            checked={formData.show_order_id_quick_bill}
+                            onChange={handleInputChange}
+                          />
+                          <label
+                            className="form-check-label"
+                            htmlFor="show_order_id_quick_bill"
+                          >
+                            Quick Bill
+                          </label>
+                        </div>
+                      </div>
+                      <div className="mb-2">
+                        <div className="form-check">
+                          <input
+                            style={{ borderColor: '#ccc' }}
+                            className="form-check-input"
+                            type="checkbox"
+                            id="show_order_id_online_order"
+                            checked={formData.show_order_id_online_order}
+                            onChange={handleInputChange}
+                          />
+                          <label
+                            className="form-check-label"
+                            htmlFor="show_order_id_online_order"
+                          >
+                            Online Order
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <hr className="my-2" style={{ borderColor: '#ccc' }} />
+                <div className="row mb-2">
+                  <div className="col-md-6">
+                    <h6 className="fw-bold mb-3">16. Show Order No on Quick Bill Section KOT</h6>
+                  </div>
+                  <div className="col-md-6">
+                    <div className="ms-3">
+                      <div className="form-check form-switch">
+                        <input
+                          style={{ borderColor: '#ccc' }}
+                          className="form-check-input"
+                          type="checkbox"
+                          id="show_order_no_quick_bill_section"
+                          checked={formData.show_order_no_quick_bill_section}
+                          onChange={handleInputChange}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <hr className="my-2" style={{ borderColor: '#ccc' }} />
+                <div className="row mb-2">
+                  <div className="col-md-6">
+                    <h6 className="fw-bold mb-3">17. Show Order Type Symbol on KOT</h6>
+                  </div>
+                  <div className="col-md-6">
+                    <div className="ms-3">
+                      <div className="form-check form-switch">
+                        <input
+                          style={{ borderColor: '#ccc' }}
+                          className="form-check-input"
+                          type="checkbox"
+                          id="show_order_type_symbol"
+                          checked={formData.show_order_type_symbol}
+                          onChange={handleInputChange}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <hr className="my-2" style={{ borderColor: '#ccc' }} />
+                <div className="row mb-2">
+                  <div className="col-md-6">
+                    <h6 className="fw-bold mb-3">18. Show Store Name On KOT</h6>
+                  </div>
+                  <div className="col-md-6">
+                    <div className="ms-3">
+                      <div className="form-check form-switch">
+                        <input
+                          style={{ borderColor: '#ccc' }}
+                          className="form-check-input"
+                          type="checkbox"
+                          id="show_store_name"
+                          checked={formData.show_store_name}
+                          onChange={handleInputChange}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <hr className="my-2" style={{ borderColor: '#ccc' }} />
+                <div className="row mb-2">
+                  <div className="col-md-6">
+                    <h6 className="fw-bold mb-3">19. Show Terminal Username on KOT</h6>
+                  </div>
+                  <div className="col-md-6">
+                    <div className="ms-3">
+                      <div className="form-check form-switch">
+                        <input
+                          style={{ borderColor: '#ccc' }}
+                          className="form-check-input"
+                          type="checkbox"
+                          id="show_terminal_username"
+                          checked={formData.show_terminal_username}
+                          onChange={handleInputChange}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <hr className="my-2" style={{ borderColor: '#ccc' }} />
+                <div className="row mb-2">
+                  <div className="col-md-6">
+                    <h6 className="fw-bold mb-3">20. Show Username on KOT</h6>
+                  </div>
+                  <div className="col-md-6">
+                    <div className="ms-3">
+                      <div className="form-check form-switch">
+                        <input
+                          style={{ borderColor: '#ccc' }}
+                          className="form-check-input"
+                          type="checkbox"
+                          id="show_username"
+                          checked={formData.show_username}
+                          onChange={handleInputChange}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <hr className="my-2" style={{ borderColor: '#ccc' }} />
+                <div className="row mb-2">
+                  <div className="col-md-6">
+                    <h6 className="fw-bold mb-3">21. Show Waiter On KOT</h6>
+                  </div>
+                  <div className="col-md-6">
+                    <div className="ms-3">
+                      <div className="form-check form-switch">
+                        <input
+                          style={{ borderColor: '#ccc' }}
+                          className="form-check-input"
+                          type="checkbox"
+                          id="show_waiter"
+                          checked={formData.show_waiter}
+                          onChange={handleInputChange}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div
+                  className="d-flex justify-content-end gap-3 mt-4"
+                  style={{ padding: '10px' }}
+                >
+                  <Button className="btn btn-danger" onClick={handleCancel}>
+                    Cancel
+                  </Button>
+                  <Button className="btn btn-success" onClick={handleUpdate}>
+                    Update
+                  </Button>
                 </div>
               </div>
-              <div className="d-flex justify-content-center gap-2 mt-2">
-                <button className="btn btn-dark rounded" onClick={handlePrintAndSaveKOT} disabled={items.length === 0 || isTableInvalid}>
-                  Print & Save KOT
-                </button>
-                <button className="btn btn-info rounded" onClick={() => setShowSavedKOTsModal(true)}>
-                  View Saved KOTs
-                </button>
+            </div>
+          </div>
+          {/* Right Column - KOT Preview (Non-Scrollable) */}
+          <div className="col-lg-4">
+            <div className="card shadow-sm h-100">
+              <div className="card-header bg-light">
+                <h5 className="card-title mb-0 text-center fw-bold">KOT Preview</h5>
+              </div>
+              <div className="card-body" style={{ fontSize: '0.85rem', overflow: 'hidden' }}>
+                {/* Store Name and Details */}
+                {formData.show_store_name && (
+                  <div className="text-center mb-3">
+                    <h6 className="fw-bold mb-1">Restaurant Name</h6>
+                    <div className="small text-muted">Kolhapur Road Kolhapur 416416</div>
+                    <div className="small text-muted">sangli@gmail.com</div>
+                  </div>
+                )}
+                {formData.show_store_name && (
+                  <div style={{ borderBottom: '1px dashed #ccc', margin: '10px 0' }}></div>
+                )}
+
+                {/* KOT Header */}
+                <div className="text-center mb-3">
+                  <h6 className="fw-bold">
+                    {formData.dine_in_kot_no || 'KITCHEN ORDER TICKET'}
+                    {formData.show_new_order_tag && formData.new_order_tag_label && (
+                      <span className="ms-2 badge bg-primary">{formData.new_order_tag_label}</span>
+                    )}
+                    {formData.show_running_order_tag && formData.running_order_tag_label && (
+                      <span className="ms-2 badge bg-secondary">{formData.running_order_tag_label}</span>
+                    )}
+                  </h6>
+                </div>
+
+                {/* KOT Details */}
+                <div className="row mb-2">
+                  <div className="col-6">
+                    {(formData.show_kot_no_quick_bill || !formData.hide_table_name_quick_bill) && (
+                      <small>
+                        <strong>KOT No:</strong> KOT001
+                      </small>
+                    )}
+                    {formData.show_order_id_quick_bill && (
+                      <small className="d-block">
+                        <strong>Order ID:</strong> ORD123
+                      </small>
+                    )}
+                    {formData.show_online_order_otp && (
+                      <small className="d-block">
+                        <strong>OTP:</strong> 9876
+                      </small>
+                    )}
+                  </div>
+                  <div className="col-6 text-end">
+                    {!formData.hide_table_name_quick_bill && (
+                      <small>
+                        <strong>Table:</strong> T-05
+                      </small>
+                    )}
+                    {formData.show_covers_as_guest && (
+                      <small className="d-block">
+                        <strong>Guests:</strong> 4
+                      </small>
+                    )}
+                  </div>
+                </div>
+
+                <div className="row mb-2">
+                  <div className="col-6">
+                    <small>
+                      <strong>Date:</strong> 26/05/2025
+                    </small>
+                  </div>
+                  <div className="col-6 text-end">
+                    <small>
+                      <strong>Time:</strong> 9:10 PM
+                    </small>
+                  </div>
+                </div>
+
+                <div className="row mb-2">
+                  <div className="col-6">
+                    <small>
+                      <strong>Order Type:</strong> Dine In{' '}
+                      {formData.show_order_type_symbol && <span>(🍽️)</span>}
+                    </small>
+                  </div>
+                  <div className="col-6 text-end">
+                    {formData.show_waiter && (
+                      <small>
+                        <strong>Waiter:</strong> John
+                      </small>
+                    )}
+                    {formData.show_captain_username && (
+                      <small className="d-block">
+                        <strong>Captain:</strong> CaptainJane
+                      </small>
+                    )}
+                    {formData.show_username && (
+                      <small className="d-block">
+                        <strong>Username:</strong> User123
+                      </small>
+                    )}
+                    {formData.show_terminal_username && (
+                      <small className="d-block">
+                        <strong>Terminal:</strong> Term01
+                      </small>
+                    )}
+                  </div>
+                </div>
+
+                {(formData.customer_on_kot_dine_in || formData.customer_on_kot_quick_bill) &&
+                  formData.customer_kot_display_option !== 'DISABLED' && (
+                    <>
+                      <div style={{ borderBottom: '1px dashed #ccc', margin: '10px 0' }}></div>
+                      <div className="mb-2">
+                        <small>
+                          <strong>Customer:</strong> John Doe
+                        </small>
+                        {formData.customer_kot_display_option === 'NAME_AND_MOBILE' && (
+                          <small className="d-block">
+                            <strong>Mobile:</strong> +91 9876543210
+                          </small>
+                        )}
+                      </div>
+                    </>
+                  )}
+
+                <div style={{ borderBottom: '1px dashed #ccc', margin: '10px 0' }}></div>
+
+                {/* Items Header */}
+                <div
+                  className="row fw-bold small pb-1 mb-2"
+                  style={{ borderBottom: '1px solid #dee2e6' }}
+                >
+                  <div className="col-1">#</div>
+                  <div className="col-5">Item Name</div>
+                  <div className="col-2 text-center">Qty</div>
+                  <div className="col-2 text-end">Rate</div>
+                  {formData.show_item_price && (
+                    <div className="col-2 text-end">Amount</div>
+                  )}
+                </div>
+
+                {/* Items List */}
+                {formData.group_kot_items_by_category ? (
+                  <>
+                    <div className="fw-bold small mb-2">Main Course</div>
+                    <div className="row small mb-1">
+                      <div className="col-1">1</div>
+                      <div className="col-5">
+                        Biryani
+                        {formData.modifier_default_option && (
+                          <small className="d-block text-muted">Spicy</small>
+                        )}
+                        {formData.show_alternative_item && (
+                          <small className="d-block text-muted">Alt: Veg Biryani</small>
+                        )}
+                      </div>
+                      <div className="col-2 text-center">1</div>
+                      <div className="col-2 text-end">100.00</div>
+                      {formData.show_item_price && (
+                        <div className="col-2 text-end">100.00</div>
+                      )}
+                    </div>
+                    <div className="row small mb-1">
+                      <div className="col-1">2</div>
+                      <div className="col-5">Chicken Curry</div>
+                      <div className="col-2 text-center">2</div>
+                      <div className="col-2 text-end">150.00</div>
+                      {formData.show_item_price && (
+                        <div className="col-2 text-end">300.00</div>
+                      )}
+                    </div>
+                    <div className="fw-bold small mb-2 mt-2">Breads</div>
+                    <div className="row small mb-1">
+                      <div className="col-1">3</div>
+                      <div className="col-5">Naan</div>
+                      <div className="col-2 text-center">3</div>
+                      <div className="col-2 text-end">25.00</div>
+                      {formData.show_item_price && (
+                        <div className="col-2 text-end">75.00</div>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="row small mb-1">
+                      <div className="col-1">1</div>
+                      <div className="col-5">
+                        Biryani
+                        {formData.modifier_default_option && (
+                          <small className="d-block text-muted">Spicy</small>
+                        )}
+                        {formData.show_alternative_item && (
+                          <small className="d-block text-muted">Alt: Veg Biryani</small>
+                        )}
+                      </div>
+                      <div className="col-2 text-center">1</div>
+                      <div className="col-2 text-end">100.00</div>
+                      {formData.show_item_price && (
+                        <div className="col-2 text-end">100.00</div>
+                      )}
+                    </div>
+                    <div className="row small mb-1">
+                      <div className="col-1">2</div>
+                      <div className="col-5">Chicken Curry</div>
+                      <div className="col-2 text-center">2</div>
+                      <div className="col-2 text-end">150.00</div>
+                      {formData.show_item_price && (
+                        <div className="col-2 text-end">300.00</div>
+                      )}
+                    </div>
+                    <div className="row small mb-1">
+                      <div className="col-1">3</div>
+                      <div className="col-5">Naan</div>
+                      <div className="col-2 text-center">3</div>
+                      <div className="col-2 text-end">25.00</div>
+                      {formData.show_item_price && (
+                        <div className="col-2 text-end">75.00</div>
+                      )}
+                    </div>
+                  </>
+                )}
+
+                <div style={{ borderBottom: '1px dashed #ccc', margin: '10px 0' }}></div>
+
+                {/* Total Section */}
+                <div className="row fw-bold mb-2">
+                  <div className="col-8 text-end">
+                    <small>Total Items: 6</small>
+                  </div>
+                  {formData.show_item_price && (
+                    <div className="col-4 text-end">
+                      <small>₹ 475.00</small>
+                    </div>
+                  )}
+                </div>
+
+                {formData.show_kot_note && (
+                  <>
+                    <div style={{ borderBottom: '1px dashed #ccc', margin: '10px 0' }}></div>
+                    <div className="mb-2">
+                      <small>
+                        <strong>KOT Note:</strong>
+                      </small>
+                      <br />
+                      <small className="text-muted fst-italic">Extra spicy, no onions</small>
+                    </div>
+                  </>
+                )}
+
+                <div style={{ borderBottom: '1px dashed #ccc', margin: '10px 0' }}></div>
+
+                {/* Footer */}
+                <div className="text-center mt-3">
+                  <small className="text-muted">Thank You!</small>
+                  <br />
+                  <small className="text-muted">Please prepare the order</small>
+                </div>
+
+                {/* Bilingual Support (English and Hindi) */}
+                {formData.print_kot_both_languages && (
+                  <>
+                    <div style={{ borderBottom: '1px dashed #ccc', margin: '10px 0' }}></div>
+                    <div className="text-center">
+                      <small className="fw-bold">रसोई आदेश टिकट</small>
+                      <br />
+                      <small>बिरयानी: १</small>
+                      <br />
+                      <small>चिकन करी: २</small>
+                      <br />
+                      <small>नान: ३</small>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </div>
         </div>
       </div>
     </div>
-  );
-};
-
-export default Order;
-

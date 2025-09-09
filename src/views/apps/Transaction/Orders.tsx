@@ -1281,132 +1281,133 @@ const Order = () => {
                     )}
                   </div>
                 )}
-                <div className="d-flex align-items-center ms-2" style={{ position: 'relative', overflow: 'visible' }}>
-                  {/* Hamburger Button (Always Visible) */}
-                  <Button
-                    variant="primary"
-                    className="rounded-circle d-flex justify-content-center align-items-center"
-                    style={{ width: '36px', height: '36px', padding: '0', zIndex: 1001 }}
-                    onClick={() => setShowOptions(true)}
-                  >
-                    <svg
-                      width="20"
-                      height="20"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path
-                        d="M3 12H21M3 6H21M3 18H21"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </Button>
+<div className="d-flex align-items-center ms-2" style={{ position: 'relative', overflow: 'visible' }}>
+  {/* Hamburger Button */}
+  <Button
+    variant="primary"
+    className="rounded-circle d-flex justify-content-center align-items-center"
+    style={{ width: '36px', height: '36px', padding: '0', zIndex: 1001 }}
+    onClick={() => setShowOptions(true)}
+  >
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M3 12H21M3 6H21M3 18H21"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  </Button>
 
-                  {/* Bar Container (Only renders when showOptions is true) */}
-                  {showOptions && (
-                    <>
-                      <div
-                        className="d-flex flex-row gap-2"
-                        style={{
-                          position: 'absolute',
-                          top: '-60px', // Slide down from above button
-                          left: '50%',
-                          transform: 'translateX(-50%)', // Center horizontally
-                          width: '200px', // Narrow width
-                          height: '60px',
-                          backgroundColor: '#fff',
-                          borderRadius: '30px',
-                          boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          padding: '0 10px',
-                          zIndex: 1000,
-                        }}
-                      >
-                        <Button
-                          variant="primary"
-                          style={{ flex: 1, padding: '0' }}
-                          onClick={() => {
-                            setShowOptions(false);
-                            handleOpenTaxModal();
-                          }}
-                          title="Tax"
-                        >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="20"
-                            height="20"
-                            fill="currentColor"
-                            className="bi bi-currency-dollar"
-                            viewBox="0 0 16 16"
-                          >
-                            <path d="M8.5 1a.5.5 0 0 0-1 0v1.07a3.001 3.001 0 0 0-2.995 2.824L4.5 5.9v.2a.5.5 0 0 0 1 0v-.2a2 2 0 1 1 2 1.995v2.11a3.001 3.001 0 0 0-2.995 2.824L5.5 12.9v.2a.5.5 0 0 0 1 0v-.2a2 2 0 1 1 2-1.995V2.07z" />
-                          </svg>
-                        </Button>
-                        <Button
-                          variant="secondary"
-                          style={{ flex: 1, padding: '0' }}
-                          onClick={() => {
-                            setShowOptions(false);
-                            setShowNCKOTModal(true);
-                          }}
-                          title="NCKOT"
-                        >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="20"
-                            height="20"
-                            fill="currentColor"
-                            className="bi bi-file-earmark-text"
-                            viewBox="0 0 16 16"
-                          >
-                            <path d="M5 7.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5z" />
-                            <path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5L14 4.5zm-3-.5a.5.5 0 0 1-.5-.5V1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4h-3z" />
-                          </svg>
-                        </Button>
-                        <Button
-                          variant="success"
-                          style={{ flex: 1, padding: '0' }}
-                          onClick={() => {
-                            setShowOptions(false);
-                            setShowDiscountModal(true);
-                          }}
-                          title="Discount"
-                        >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="20"
-                            height="20"
-                            fill="currentColor"
-                            className="bi bi-percent"
-                            viewBox="0 0 16 16"
-                          >
-                            <path d="M13.442 2.558a1.5 1.5 0 1 1-2.121 2.121l-6.35 6.35a1.5 1.5 0 1 1-2.122-2.12l6.35-6.35a1.5 1.5 0 0 1 2.121 0zM5.5 5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm5 6a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z" />
-                          </svg>
-                        </Button>
-                      </div>
+  {showOptions && (
+    <>
+      <div
+        className="d-flex flex-row gap-3"
+        style={{
+          position: 'absolute',
+          top: '-60px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          backgroundColor: '#eef3ff',
+          borderRadius: '30px',
+          boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
+          padding: '10px 15px',
+          minWidth: '220px', // Increased minimum width
+          zIndex: 1000,
+        }}
+      >
+        {/* Tax Button */}
+        <Button
+          variant="primary"
+          className="rounded-circle p-0 d-flex justify-content-center align-items-center"
+          style={{ width: '32px', height: '32px' }}
+          onClick={() => {
+            setShowOptions(false);
+            handleOpenTaxModal();
+          }}
+          title="Tax"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="20"
+            height="20"
+            fill="currentColor"
+            viewBox="0 0 16 16"
+          >
+            <path d="M8.5 1a.5.5 0 0 0-1 0v1.07a3.001 3.001 0 0 0-2.995 2.824L4.5 5.9v.2a.5.5 0 0 0 1 0v-.2a2 2 0 1 1 2 1.995v2.11a3.001 3.001 0 0 0-2.995 2.824L5.5 12.9v.2a.5.5 0 0 0 1 0v-.2a2 2 0 1 1 2-1.995V2.07z" />
+          </svg>
+        </Button>
 
-                      {/* Overlay to close bar when clicking outside */}
-                      <div
-                        style={{
-                          position: 'fixed',
-                          top: 0,
-                          left: 0,
-                          width: '100vw',
-                          height: '100vh',
-                          backgroundColor: 'rgba(0,0,0,0)', // Transparent overlay
-                          zIndex: 999,
-                        }}
-                        onClick={() => setShowOptions(false)}
-                      />
-                    </>
-                  )}
-                </div>
+        {/* NCKOT Button */}
+        <Button
+          variant="secondary"
+          className="rounded-circle p-0 d-flex justify-content-center align-items-center"
+          style={{ width: '32px', height: '32px' }}
+          onClick={() => {
+            setShowOptions(false);
+            setShowNCKOTModal(true);
+          }}
+          title="NCKOT"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="20"
+            height="20"
+            fill="currentColor"
+            viewBox="0 0 16 16"
+          >
+            <path d="M5 7.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5z" />
+            <path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5L14 4.5zm-3-.5a.5.5 0 0 1-.5-.5V1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4h-3z" />
+          </svg>
+        </Button>
+
+        {/* Discount Button */}
+        <Button
+          variant="success"
+          className="rounded-circle p-0 d-flex justify-content-center align-items-center"
+          style={{ width: '32px', height: '32px' }}
+          onClick={() => {
+            setShowOptions(false);
+            setShowDiscountModal(true);
+          }}
+          title="Discount"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="20"
+            height="20"
+            fill="currentColor"
+            viewBox="0 0 16 16"
+          >
+            <path d="M13.442 2.558a1.5 1.5 0 1 1-2.121 2.121l-6.35 6.35a1.5 1.5 0 1 1-2.122-2.12l6.35-6.35a1.5 1.5 0 0 1 2.121 0zM5.5 5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm5 6a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z" />
+          </svg>
+        </Button>
+      </div>
+
+      {/* Overlay to close when clicking outside */}
+      <div
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          backgroundColor: 'rgba(0,0,0,0)',
+          zIndex: 999,
+        }}
+        onClick={() => setShowOptions(false)}
+      />
+    </>
+  )}
+</div>
+
               </div>
               <div className="mt-1">
                 <div className="bg-white border rounded p-2">
@@ -1419,7 +1420,7 @@ const Order = () => {
                     <span className="fw-bold">Grand Total</span>
                     <div>
                       <span className="fw-bold me-2">{(taxCalc.grandTotal - (taxCalc.grandTotal * (DiscPer || 0) / 100)).toFixed(2)}</span>
-                      <Button variant="outline-light" size="sm" onClick={() => setShowDiscountModal(true)}>Apply Discount</Button>
+                      
                     </div>
                   </div>
                 </div>
