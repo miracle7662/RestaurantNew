@@ -1559,7 +1559,7 @@ const Order = () => {
             keyboard={false}
           >
             <Modal.Header closeButton>
-              <Modal.Title>Edit Tax Rates</Modal.Title>
+              <Modal.Title>View Tax Rates</Modal.Title>
             </Modal.Header>
 
             <Modal.Body>
