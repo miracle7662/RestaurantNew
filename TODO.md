@@ -1,18 +1,8 @@
-# TODO: Add Preview Modes for Order/KOT and Billing
+# TODO: Separate Bill Preview and KOT Print Settings APIs
 
-## AddOutlet.tsx Modifications
-- [ ] Restructure Bill Print Settings tab to two columns (left: settings, right: preview)
-- [ ] Add Bill Preview component in right column
-- [ ] Ensure preview updates dynamically with settings changes
-
-## Orders.tsx Modifications
-- [ ] Add "Preview Mode" toggle button in billing panel header
-- [ ] Implement preview mode logic for Order/KOT tab
-- [ ] Implement preview mode logic for Billing tab
-- [ ] Use consistent styling matching AddOutlet.tsx previews
-- [ ] Show actual order data in preview format
-
-## Testing
-- [ ] Test preview functionality with different settings combinations
-- [ ] Verify preview consistency between both pages
-- [ ] Ensure previews reflect real-time data changes
+## Steps to Complete
+- [x] Add `getBillPreviewSettings` function to `backend/controllers/outletController.js`
+- [x] Add `getKotPrintSettings` function to `backend/controllers/outletController.js`
+- [x] Update routes file to add new endpoints for the separate APIs
+- [ ] Test the new APIs to ensure they work correctly
+- [x] Update frontend `AddOutlet.tsx` if needed to call separate APIs

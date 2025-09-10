@@ -31,8 +31,14 @@ router.put('/outlet-settings/:outletid', outletController.updateOutletSettings);
 // GET all settings for an outlet
 router.get('/settings/:outletid',  outletController.getOutletBillingSettings);
 
+// GET bill preview settings
+router.get('/bill-preview-settings/:outletid', outletController.getBillPreviewSettings);
+
 // PUT update bill preview settings
 router.put('/bill-preview-settings/:outletid', outletController.updateBillPreviewSettings);
+
+// GET KOT print settings
+router.get('/kot-print-settings/:outletid', outletController.getKotPrintSettings);
 
 // PUT update KOT print settings
 router.put('/kot-print-settings/:outletid', outletController.updateKotPrintSettings);

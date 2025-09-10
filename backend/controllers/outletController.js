@@ -2356,3 +2356,114 @@ exports.getOutletBillingSettings = (req, res) => {
     res.status(500).json({ error: 'Failed to fetch outlet billing settings' });
   }
 };
+
+// Get Bill Preview Settings by outletid
+exports.getBillPreviewSettings = (req, res) => {
+  try {
+    const { outletid } = req.params;
+
+    // Validate outletid
+    if (!outletid || isNaN(outletid)) {
+      return res.status(400).json({ error: 'Valid outlet ID is required' });
+    }
+
+    const settings = db
+      .prepare('SELECT * FROM mstbill_preview_settings WHERE outletid = ?')
+      .get(outletid);
+
+    if (!settings) {
+      return res.status(404).json({ error: 'Bill preview settings not found' });
+    }
+
+    // Convert integers to booleans
+    const response = {
+      billpreviewsetting_id: settings.billpreviewsetting_id,
+      outletid: settings.outletid,
+      outlet_name: settings.outlet_name,
+      email: settings.email,
+      website: settings.website,
+      upi_id: settings.upi_id,
+      bill_prefix: settings.bill_prefix,
+      secondary_bill_prefix: settings.secondary_bill_prefix,
+      bar_bill_prefix: settings.bar_bill_prefix,
+      show_upi_qr: !!settings.show_upi_qr,
+      enabled_bar_section: !!settings.enabled_bar_section,
+      show_phone_on_bill: settings.show_phone_on_bill,
+      note: settings.note,
+      footer_note: settings.footer_note,
+      field1: settings.field1,
+      field2: settings.field2,
+      field3: settings.field3,
+      field4: settings.field4,
+      fssai_no: settings.fssai_no,
+    };
+
+    res.json(response);
+  } catch (error) {
+    console.error('Error fetching bill preview settings:', error);
+    res.status(500).json({ error: 'Failed to fetch bill preview settings' });
+  }
+};
+
+// Get KOT Print Settings by outletid
+exports.getKotPrintSettings = (req, res) => {
+  try {
+    const { outletid } = req.params;
+
+    // Validate outletid
+    if (!outletid || isNaN(outletid)) {
+      return res.status(400).json({ error: 'Valid outlet ID is required' });
+    }
+
+    const settings = db
+      .prepare('SELECT * FROM mstkot_print_settings WHERE outletid = ?')
+      .get(outletid);
+
+    if (!settings) {
+      return res.status(404).json({ error: 'KOT print settings not found' });
+    }
+
+    // Convert integers to booleans
+    const response = {
+      kot_printsetting_id: settings.kot_printsetting_id,
+      outletid: settings.outletid,
+      customer_on_kot_dine_in: !!settings.customer_on_kot_dine_in,
+      customer_on_kot_pickup: !!settings.customer_on_kot_pickup,
+      customer_on_kot_delivery: !!settings.customer_on_kot_delivery,
+      customer_on_kot_quick_bill: !!settings.customer_on_kot_quick_bill,
+      customer_kot_display_option: settings.customer_kot_display_option,
+      group_kot_items_by_category: !!settings.group_kot_items_by_category,
+      hide_table_name_quick_bill: !!settings.hide_table_name_quick_bill,
+      show_new_order_tag: !!settings.show_new_order_tag,
+      new_order_tag_label: settings.new_order_tag_label,
+      show_running_order_tag: !!settings.show_running_order_tag,
+      running_order_tag_label: settings.running_order_tag_label,
+      dine_in_kot_no: settings.dine_in_kot_no,
+      pickup_kot_no: settings.pickup_kot_no,
+      delivery_kot_no: settings.delivery_kot_no,
+      quick_bill_kot_no: settings.quick_bill_kot_no,
+      modifier_default_option: !!settings.modifier_default_option,
+      print_kot_both_languages: !!settings.print_kot_both_languages,
+      show_alternative_item: !!settings.show_alternative_item,
+      show_captain_username: !!settings.show_captain_username,
+      show_covers_as_guest: !!settings.show_covers_as_guest,
+      show_item_price: !!settings.show_item_price,
+      show_kot_no_quick_bill: !!settings.show_kot_no_quick_bill,
+      show_kot_note: !!settings.show_kot_note,
+      show_online_order_otp: !!settings.show_online_order_otp,
+      show_order_id_quick_bill: !!settings.show_order_id_quick_bill,
+      show_order_id_online_order: !!settings.show_order_id_online_order,
+      show_order_no_quick_bill_section: !!settings.show_order_no_quick_bill_section,
+      show_order_type_symbol: !!settings.show_order_type_symbol,
+      show_store_name: !!settings.show_store_name,
+      show_terminal_username: !!settings.show_terminal_username,
+      show_username: !!settings.show_username,
+      show_waiter: !!settings.show_waiter,
+    };
+
+    res.json(response);
+  } catch (error) {
+    console.error('Error fetching KOT print settings:', error);
+    res.status(500).json({ error: 'Failed to fetch KOT print settings' });
+  }
+};
