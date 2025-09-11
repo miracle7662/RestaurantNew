@@ -17,6 +17,8 @@ interface MenuItem {
   isNCKOT: number;
   NCName: string;
   NCPurpose: string;
+  alternativeItem?: string;
+  modifier?: string[];
 }
 
 interface TableItem {
@@ -99,31 +101,95 @@ const Order = () => {
 
   // KOT Preview formData state
   const [formData, setFormData] = useState({
-    show_store_name: true,
-    dine_in_kot_no: 'KOT001',
-    show_new_order_tag: false,
-    new_order_tag_label: 'NEW',
-    show_running_order_tag: false,
-    running_order_tag_label: 'RUNNING',
-    show_kot_no_quick_bill: true,
+    customer_on_kot_dine_in: false,
+    customer_on_kot_pickup: false,
+    customer_on_kot_delivery: false,
+    customer_on_kot_quick_bill: false,
+    customer_kot_display_option: 'NAME_ONLY',
+    group_kot_items_by_category: false,
     hide_table_name_quick_bill: false,
-    show_order_id_quick_bill: true,
-    show_online_order_otp: false,
-    show_covers_as_guest: true,
-    show_order_type_symbol: true,
-    show_waiter: true,
-    show_captain_username: false,
-    show_username: false,
-    show_terminal_username: false,
-    customer_on_kot_dine_in: true,
-    customer_on_kot_quick_bill: true,
-    customer_kot_display_option: 'NAME_AND_MOBILE',
-    show_item_price: true,
+    show_new_order_tag: true,
+    new_order_tag_label: 'New',
+    show_running_order_tag: true,
+    running_order_tag_label: 'Running',
+    dine_in_kot_no: 'DIN-',
+    pickup_kot_no: 'PUP-',
+    delivery_kot_no: 'DEL-',
+    quick_bill_kot_no: 'QBL-',
     modifier_default_option: false,
-    show_alternative_item: false,
-    show_kot_note: false,
     print_kot_both_languages: false,
-    show_item_quantity: true,
+    show_alternative_item: false,
+    show_captain_username: false,
+    show_covers_as_guest: false,
+    show_item_price: true,
+    show_kot_no_quick_bill: false,
+    show_kot_note: true,
+    show_online_order_otp: false,
+    show_order_id_quick_bill: false,
+    show_order_id_online_order: false,
+    show_order_no_quick_bill_section: false,
+    show_order_type_symbol: true,
+    show_store_name: true,
+    show_terminal_username: false,
+    show_username: false,
+    show_waiter: true,
+    bill_title_dine_in: true,
+    bill_title_pickup: true,
+    bill_title_delivery: true,
+    bill_title_quick_bill: true,
+    mask_order_id: false,
+    modifier_default_option_bill: false,
+    print_bill_both_languages: false,
+    show_alt_item_title_bill: false,
+    show_alt_name_bill: false,
+    show_bill_amount_words: false,
+    show_bill_no_bill: true,
+    show_bill_number_prefix_bill: true,
+    show_bill_print_count: false,
+    show_brand_name_bill: true,
+    show_captain_bill: false,
+    show_covers_bill: true,
+    show_custom_qr_codes_bill: false,
+    show_customer_gst_bill: false,
+    show_customer_bill: true,
+    show_customer_paid_amount: true,
+    show_date_bill: true,
+    show_default_payment: true,
+    show_discount_reason_bill: false,
+    show_due_amount_bill: true,
+    show_ebill_invoice_qrcode: false,
+    show_item_hsn_code_bill: false,
+    show_item_level_charges_separately: false,
+    show_item_note_bill: true,
+    show_items_sequence_bill: true,
+    show_kot_number_bill: false,
+    show_logo_bill: true,
+    show_order_id_bill: false,
+    show_order_no_bill: true,
+    show_order_note_bill: true,
+    order_type_dine_in: true,
+    order_type_pickup: true,
+    order_type_delivery: true,
+    order_type_quick_bill: true,
+    show_outlet_name_bill: true,
+    payment_mode_dine_in: true,
+    payment_mode_pickup: true,
+    payment_mode_delivery: true,
+    payment_mode_quick_bill: true,
+    table_name_dine_in: true,
+    table_name_pickup: false,
+    table_name_delivery: false,
+    table_name_quick_bill: false,
+    show_tax_charge_bill: true,
+    show_username_bill: false,
+    show_waiter_bill: true,
+    show_zatca_invoice_qr: false,
+    show_customer_address_pickup_bill: false,
+    show_order_placed_time: true,
+    hide_item_quantity_column: false,
+    hide_item_rate_column: false,
+    hide_item_total_column: false,
+    hide_total_without_tax: false,
 
   });
 
@@ -313,7 +379,16 @@ const Order = () => {
             show_alternative_item: data.show_alternative_item ?? prevFormData.show_alternative_item,
             show_kot_note: data.show_kot_note ?? prevFormData.show_kot_note,
             print_kot_both_languages: data.print_kot_both_languages ?? prevFormData.print_kot_both_languages,
-            show_item_quantity: data.show_item_quantity ?? prevFormData.show_item_quantity,
+            group_kot_items_by_category: data.group_kot_items_by_category ?? prevFormData.group_kot_items_by_category,
+            pickup_kot_no: data.pickup_kot_no ?? prevFormData.pickup_kot_no,
+            delivery_kot_no: data.delivery_kot_no ?? prevFormData.delivery_kot_no,
+            quick_bill_kot_no: data.quick_bill_kot_no ?? prevFormData.quick_bill_kot_no,
+            customer_on_kot_pickup: data.customer_on_kot_pickup ?? prevFormData.customer_on_kot_pickup,
+            customer_on_kot_delivery: data.customer_on_kot_delivery ?? prevFormData.customer_on_kot_delivery,
+            show_order_placed_time: data.show_order_placed_time ?? prevFormData.show_order_placed_time,
+            hide_item_quantity_column: data.hide_item_quantity_column ?? prevFormData.hide_item_quantity_column,
+            hide_item_rate_column: data.hide_item_rate_column ?? prevFormData.hide_item_rate_column,
+            hide_item_total_column: data.hide_item_total_column ?? prevFormData.hide_item_total_column,
           }));
 
           console.log('KOT print settings loaded successfully');
@@ -899,24 +974,44 @@ const Order = () => {
               <h5 className="card-title mb-0 text-center fw-bold">KOT Preview</h5>
             </div>
             <div className="card-body" style={{ fontSize: '0.85rem', overflow: 'hidden' }}>
-              {/* Store Name and Details */}
-              <div className="text-center mb-3">
-                <h6 className="fw-bold mb-1">{formData.show_store_name || 'Restaurant Name'}</h6>
 
-              </div>
-              <div style={{ borderBottom: '1px dashed #ccc', margin: '10px 0' }}></div>
+              {/* Store Name */}
+              {formData.show_store_name && (
+                <div className="text-center mb-3">
+                  <h6 className="fw-bold mb-1">{user?.outlet_name || 'Restaurant Name'}</h6>
+                  <div className="small text-muted">{user?.outlet_address || 'Kolhapur Road Kolhapur 416416'}</div>
+                  <div className="small text-muted">{user?.outlet_email || 'sangli@gmail.com'}</div>
+                </div>
+              )}
+              {formData.show_store_name && (
+                <div style={{ borderBottom: '1px dashed #ccc', margin: '10px 0' }}></div>
+              )}
 
               {/* KOT Header */}
               <div className="text-center mb-3">
                 <h6 className="fw-bold">
-                  {getKOTLabel()}
+                  {getKOTLabel() ||
+                    formData.dine_in_kot_no ||
+                    formData.pickup_kot_no ||
+                    formData.delivery_kot_no ||
+                    formData.quick_bill_kot_no ||
+                    'KITCHEN ORDER TICKET'}
+                  {formData.show_new_order_tag && formData.new_order_tag_label && (
+                    <span className="ms-2 badge bg-primary">{formData.new_order_tag_label}</span>
+                  )}
+                  {formData.show_running_order_tag && formData.running_order_tag_label && (
+                    <span className="ms-2 badge bg-secondary">{formData.running_order_tag_label}</span>
+                  )}
                 </h6>
               </div>
 
               {/* KOT Details */}
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                 <div>
-                  <strong>KOT No:</strong> KOT001
+                  {(formData.show_kot_no_quick_bill || !formData.hide_table_name_quick_bill) && (
+                    <strong>KOT No:</strong>
+                  )}{' '}
+                  KOT001
                 </div>
                 <div>
                   {selectedTable && (
@@ -928,56 +1023,88 @@ const Order = () => {
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                <div>
-                  <strong>Date:</strong> {new Date().toLocaleDateString()}
-                </div>
-                <div>
-                  <strong>Time:</strong> {new Date().toLocaleTimeString()}
-                </div>
+                <div><strong>Date:</strong> {new Date().toLocaleDateString()}</div>
+                <div><strong>Time:</strong> {new Date().toLocaleTimeString()}</div>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                 <div>
-                  <strong>Order Type:</strong> {activeTab} {formData.show_order_type_symbol ? '🍽️' : ''}
+                  <strong>Order Type:</strong> {activeTab}{' '}
+                  {formData.show_order_type_symbol ? '🍽️' : ''}
                 </div>
                 <div>
-                  <strong>Waiter:</strong> {user?.name || 'N/A'}
+                  {formData.show_waiter && (
+                    <><strong>Waiter:</strong> {user?.name || 'N/A'}</>
+                  )}
+                  {formData.show_captain_username && (
+                    <div><strong>Captain:</strong> Captain</div>
+                  )}
+                  {formData.show_username && (
+                    <div><strong>Username:</strong> User123</div>
+                  )}
+                  {formData.show_terminal_username && (
+                    <div><strong>Terminal:</strong> Term01</div>
+                  )}
                 </div>
               </div>
 
-              {customerName && (
-                <>
-                  <div style={{ borderBottom: '1px dashed #ccc', margin: '10px 0' }}></div>
-                  <div style={{ marginBottom: '8px' }}>
-                    <strong>Customer:</strong> {customerName}
-                    {mobileNumber && (
-                      <div>
-                        <small><strong>Mobile:</strong> {mobileNumber}</small>
-                      </div>
-                    )}
-                  </div>
-                </>
-              )}
+              {(formData.customer_on_kot_dine_in ||
+                formData.customer_on_kot_quick_bill ||
+                formData.customer_on_kot_pickup ||
+                formData.customer_on_kot_delivery) &&
+                formData.customer_kot_display_option !== 'DISABLED' && (
+                  <>
+                    <div style={{ borderBottom: '1px dashed #ccc', margin: '10px 0' }}></div>
+                    <div style={{ marginBottom: '8px' }}>
+                      <strong>Customer:</strong> {customerName || 'John Doe'}
+                      {formData.customer_kot_display_option === 'NAME_AND_MOBILE' && mobileNumber && (
+                        <div><small><strong>Mobile:</strong> {mobileNumber}</small></div>
+                      )}
+                    </div>
+                  </>
+                )}
 
               <div style={{ borderBottom: '1px dashed #ccc', margin: '10px 0' }}></div>
 
               {/* Items Header */}
-              <div style={{ display: 'grid', gridTemplateColumns: '30px 1fr 50px 70px 80px', fontWeight: 'bold', borderBottom: '1px solid #dee2e6', paddingBottom: '4px', marginBottom: '8px' }}>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: '30px 1fr 50px 70px 80px',
+                fontWeight: 'bold',
+                borderBottom: '1px solid #dee2e6',
+                paddingBottom: '4px',
+                marginBottom: '8px'
+              }}>
                 <div>#</div>
                 <div>Item Name</div>
                 <div style={{ textAlign: 'center' }}>Qty</div>
                 <div style={{ textAlign: 'right' }}>Rate</div>
-                <div style={{ textAlign: 'right' }}>Amount</div>
+                {formData.show_item_price && <div style={{ textAlign: 'right' }}>Amount</div>}
               </div>
 
               {/* Items */}
               {items.map((item, index) => (
-                <div key={item.id} style={{ display: 'grid', gridTemplateColumns: '30px 1fr 50px 70px 80px', paddingBottom: '4px', marginBottom: '4px' }}>
+                <div key={item.id} style={{
+                  display: 'grid',
+                  gridTemplateColumns: '30px 1fr 50px 70px 80px',
+                  paddingBottom: '4px',
+                  marginBottom: '4px'
+                }}>
                   <div>{index + 1}</div>
-                  <div>{item.name}</div>
+                  <div>
+                    {item.name}
+                    {formData.modifier_default_option && item.modifier && (
+                      <div><small className="text-muted">{item.modifier}</small></div>
+                    )}
+                    {formData.show_alternative_item && item.alternativeItem && (
+                      <div><small className="text-muted">Alt: {item.alternativeItem}</small></div>
+                    )}
+                  </div>
                   <div style={{ textAlign: 'center' }}>{item.qty}</div>
                   <div style={{ textAlign: 'right' }}>{item.price.toFixed(2)}</div>
-                  <div style={{ textAlign: 'right' }}>{(item.price * item.qty).toFixed(2)}</div>
+                  {formData.show_item_price && (
+                    <div style={{ textAlign: 'right' }}>{(item.price * item.qty).toFixed(2)}</div>
+                  )}
                 </div>
               ))}
 
@@ -986,7 +1113,9 @@ const Order = () => {
               {/* Total Section */}
               <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', marginBottom: '8px' }}>
                 <div>Total Items: {items.reduce((sum, item) => sum + item.qty, 0)}</div>
-                <div>₹ {taxCalc.subtotal.toFixed(2)}</div>
+                {formData.show_item_price && (
+                  <div>₹ {taxCalc.subtotal.toFixed(2)}</div>
+                )}
               </div>
 
               <div style={{ borderBottom: '1px dashed #ccc', margin: '10px 0' }}></div>
@@ -1003,10 +1132,23 @@ const Order = () => {
                 <div>Thank You!</div>
                 <div>Please prepare the order</div>
               </div>
+
+              {/* Bilingual Support */}
+              {formData.print_kot_both_languages && (
+               <>
+                  <div style={{ borderBottom: '1px dashed #ccc', margin: '10px 0' }}></div>
+                  <div className="text-center">
+                    <small className="fw-bold">रसोई आदेश टिकट</small>
+                    <br />
+                    {items.map((item, index) => <small key={index} className="d-block">{item.name}: {item.qty}</small>)}
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
       </div>
+
       {errorMessage && (
         <div className="alert alert-danger text-center" role="alert">
           {errorMessage}
