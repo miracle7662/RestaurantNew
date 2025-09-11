@@ -38,13 +38,12 @@ interface TableItem {
   created_date: string;
   updated_by_id: string;
   updated_date: string;
+  outletid: string;
   hotelid: string;
   marketid: string;
   isActive: boolean;
   isCommonToAllDepartments: boolean;
   departmentid?: number;
-
-  
 }
 
 // Interface for component props
@@ -150,9 +149,8 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
         setInvalidTable('');
         setIsTableInvalid(false);
         // Set selectedDeptId and selectedOutletId for tax calculation
-        // setSelectedDeptId(Number(matchedTable.marketid));
         setSelectedDeptId(Number(matchedTable.departmentid));
-        setSelectedOutletId(Number(matchedTable.hotelid));
+        setSelectedOutletId(Number(matchedTable.outletid));
       } else {
         setInvalidTable(searchTable);
         setIsTableInvalid(true);

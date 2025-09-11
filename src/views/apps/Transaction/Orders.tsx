@@ -456,7 +456,7 @@ const Order = () => {
         || (Array.isArray(tableItems) ? tableItems.find((t: any) => t && t.table_name === seat) : undefined);
       if (selectedTableRecord) {
         const deptId = Number((selectedTableRecord as any).departmentid) || null;
-        const outletId = Number((selectedTableRecord as any).outletid) || null;
+        const outletId = Number((selectedTableRecord as any).outletid) || null; // This is correct
         if (deptId) setSelectedDeptId(deptId);
         if (outletId) setSelectedOutletId(outletId);
       }
@@ -909,13 +909,7 @@ const Order = () => {
               {/* KOT Header */}
               <div className="text-center mb-3">
                 <h6 className="fw-bold">
-                  {formData.dine_in_kot_no || 'KITCHEN ORDER TICKET'}
-                  {formData.show_new_order_tag && formData.new_order_tag_label && (
-                    <span className="ms-2 badge bg-primary">{formData.new_order_tag_label}</span>
-                  )}
-                  {formData.show_running_order_tag && formData.running_order_tag_label && (
-                    <span className="ms-2 badge bg-secondary">{formData.running_order_tag_label}</span>
-                  )}
+                  {getKOTLabel()}
                 </h6>
               </div>
 
