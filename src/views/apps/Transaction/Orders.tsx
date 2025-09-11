@@ -29,6 +29,7 @@ interface TableItem {
   created_date: string;
   updated_by_id: string;
   updated_date: string;
+  outletid: string;
   hotelid: string;
   marketid: string;
   isActive: boolean;
@@ -53,7 +54,6 @@ const Order = () => {
   const [searchTable, setSearchTable] = useState<string>('');
   const [isTableInvalid, setIsTableInvalid] = useState<boolean>(false);
   const itemListRef = useRef<HTMLDivElement>(null);
-  const [describe, setDescribe] = useState<string>('');
   const [invalidTable, setInvalidTable] = useState<string>('');
   const [activeNavTab, setActiveNavTab] = useState<string>('ALL');
   const [tableItems, setTableItems] = useState<TableItem[]>([]);
@@ -84,6 +84,9 @@ const Order = () => {
   const [showTaxModal, setShowTaxModal] = useState<boolean>(false);
   const [showNCKOTModal, setShowNCKOTModal] = useState<boolean>(false);
 
+  // KOT Print Settings state
+
+
   // Tax modal form state
   const [cgst, setCgst] = useState<string>('');
   const [sgst, setSgst] = useState<string>('');
@@ -93,6 +96,36 @@ const Order = () => {
   // NCKOT modal form state
   const [ncName, setNcName] = useState<string>('');
   const [ncPurpose, setNcPurpose] = useState<string>('');
+
+  // KOT Preview formData state
+  const [formData, setFormData] = useState({
+    show_store_name: true,
+    dine_in_kot_no: 'KOT001',
+    show_new_order_tag: false,
+    new_order_tag_label: 'NEW',
+    show_running_order_tag: false,
+    running_order_tag_label: 'RUNNING',
+    show_kot_no_quick_bill: true,
+    hide_table_name_quick_bill: false,
+    show_order_id_quick_bill: true,
+    show_online_order_otp: false,
+    show_covers_as_guest: true,
+    show_order_type_symbol: true,
+    show_waiter: true,
+    show_captain_username: false,
+    show_username: false,
+    show_terminal_username: false,
+    customer_on_kot_dine_in: true,
+    customer_on_kot_quick_bill: true,
+    customer_kot_display_option: 'NAME_AND_MOBILE',
+    show_item_price: true,
+    modifier_default_option: false,
+    show_alternative_item: false,
+    show_kot_note: false,
+    print_kot_both_languages: false,
+    show_item_quantity: true,
+
+  });
 
   const fetchTableManagement = async () => {
     setLoading(true);
@@ -240,6 +273,66 @@ const Order = () => {
     }
   };
 
+  const fetchKotPrintSettings = async (outletId: number) => {
+    try {
+      console.log('Fetching KOT print settings for outlet:', outletId);
+
+      const res = await fetch(`http://localhost:3001/api/outlets/kot-print-settings/${outletId}`, {
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        console.log('KOT print settings response:', data);
+
+        if (data) {
+          // Update the formData state with the fetched settings
+          setFormData(prevFormData => ({
+            ...prevFormData,
+            show_store_name: data.show_store_name ?? prevFormData.show_store_name,
+            dine_in_kot_no: data.dine_in_kot_no ?? prevFormData.dine_in_kot_no,
+            show_new_order_tag: data.show_new_order_tag ?? prevFormData.show_new_order_tag,
+            new_order_tag_label: data.new_order_tag_label ?? prevFormData.new_order_tag_label,
+            show_running_order_tag: data.show_running_order_tag ?? prevFormData.show_running_order_tag,
+            running_order_tag_label: data.running_order_tag_label ?? prevFormData.running_order_tag_label,
+            show_kot_no_quick_bill: data.show_kot_no_quick_bill ?? prevFormData.show_kot_no_quick_bill,
+            hide_table_name_quick_bill: data.hide_table_name_quick_bill ?? prevFormData.hide_table_name_quick_bill,
+            show_order_id_quick_bill: data.show_order_id_quick_bill ?? prevFormData.show_order_id_quick_bill,
+            show_online_order_otp: data.show_online_order_otp ?? prevFormData.show_online_order_otp,
+            show_covers_as_guest: data.show_covers_as_guest ?? prevFormData.show_covers_as_guest,
+            show_order_type_symbol: data.show_order_type_symbol ?? prevFormData.show_order_type_symbol,
+            show_waiter: data.show_waiter ?? prevFormData.show_waiter,
+            show_captain_username: data.show_captain_username ?? prevFormData.show_captain_username,
+            show_username: data.show_username ?? prevFormData.show_username,
+            show_terminal_username: data.show_terminal_username ?? prevFormData.show_terminal_username,
+            customer_on_kot_dine_in: data.customer_on_kot_dine_in ?? prevFormData.customer_on_kot_dine_in,
+            customer_on_kot_quick_bill: data.customer_on_kot_quick_bill ?? prevFormData.customer_on_kot_quick_bill,
+            customer_kot_display_option: data.customer_kot_display_option ?? prevFormData.customer_kot_display_option,
+            show_item_price: data.show_item_price ?? prevFormData.show_item_price,
+            modifier_default_option: data.modifier_default_option ?? prevFormData.modifier_default_option,
+            show_alternative_item: data.show_alternative_item ?? prevFormData.show_alternative_item,
+            show_kot_note: data.show_kot_note ?? prevFormData.show_kot_note,
+            print_kot_both_languages: data.print_kot_both_languages ?? prevFormData.print_kot_both_languages,
+            show_item_quantity: data.show_item_quantity ?? prevFormData.show_item_quantity,
+          }));
+
+          console.log('KOT print settings loaded successfully');
+        } else {
+          console.warn('No KOT print settings found, using defaults');
+        }
+      } else if (res.status === 404) {
+        console.warn('KOT print settings not found for outlet');
+        // Handle 404 gracefully - use existing default settings
+      } else {
+        console.error('Failed to fetch KOT print settings:', res.status, res.statusText);
+      }
+    } catch (err) {
+      console.error('Error fetching KOT print settings:', err);
+      // Handle network errors gracefully - continue with existing defaults
+    }
+  };
+
+
   const fetchOutletsData = async () => {
     console.log('Full user object:', JSON.stringify(user, null, 2));
     if (!user || !user.id) {
@@ -375,7 +468,6 @@ const Order = () => {
 
   const handleTabClick = (tab: string) => {
     console.log('Tab clicked:', tab);
-    setDescribe(`Tab clicked: ${tab}`);
     setActiveTab(tab);
     if (['Pickup', 'Delivery', 'Quick Bill', 'Order/KOT', 'Billing'].includes(tab)) {
       setSelectedTable(null);
@@ -473,6 +565,12 @@ const Order = () => {
     const grandTotal = subtotal + cgstAmt + sgstAmt + igstAmt + cessAmt;
     setTaxCalc({ subtotal, cgstAmt, sgstAmt, igstAmt, cessAmt, grandTotal });
   }, [items, taxRates]);
+
+  useEffect(() => {
+    if (selectedOutletId) {
+      fetchKotPrintSettings(selectedOutletId);
+    }
+  }, [selectedOutletId]);
 
   const getKOTLabel = () => {
     switch (activeTab) {
@@ -573,7 +671,49 @@ const Order = () => {
       const resp = await createBill(payload);
       if (resp?.success) {
         toast.success('KOT saved');
-        window.print();
+        // Open print preview with KOT content
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+          const contentToPrint = document.getElementById('kot-preview');
+          if (contentToPrint) {
+            printWindow.document.write(`
+              <!DOCTYPE html>
+              <html>
+                <head>
+                  <title>KOT Print</title>
+                  <style>
+                    body { font-family: Arial, sans-serif; margin: 20px; }
+                    .text-center { text-align: center; }
+                    .fw-bold { font-weight: bold; }
+                    .mb-3 { margin-bottom: 1rem; }
+                    .small { font-size: 0.875rem; }
+                    .text-muted { color: #6c757d; }
+                    .d-block { display: block; }
+                    .row { display: flex; flex-wrap: wrap; margin: 0 -15px; }
+                    .col-6 { flex: 0 0 50%; max-width: 50%; padding: 0 15px; }
+                    .col-1 { flex: 0 0 8.333333%; max-width: 8.333333%; padding: 0 15px; }
+                    .col-4 { flex: 0 0 33.333333%; max-width: 33.333333%; padding: 0 15px; }
+                    .col-2 { flex: 0 0 16.666667%; max-width: 16.666667%; padding: 0 15px; }
+                    .col-3 { flex: 0 0 25%; max-width: 25%; padding: 0 15px; }
+                    .text-end { text-align: right; }
+                    .pb-1 { padding-bottom: 0.25rem; }
+                    .mb-2 { margin-bottom: 0.5rem; }
+                    .mb-1 { margin-bottom: 0.25rem; }
+                    .border-bottom { border-bottom: 1px solid #dee2e6; }
+                    .text-black { color: #000; }
+                    @media print { body { margin: 0; } }
+                  </style>
+                </head>
+                <body>
+                  ${contentToPrint.innerHTML}
+                </body>
+              </html>
+            `);
+            printWindow.document.close();
+            printWindow.focus();
+            printWindow.print();
+          }
+        }
         try {
           const listResp = await getSavedKOTs({ isBilled: 0 });
           const list = listResp?.data || listResp;
@@ -686,8 +826,193 @@ const Order = () => {
     setShowNCKOTModal(false);
   };
 
+  const handlePrintKOT = () => {
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      const contentToPrint = document.getElementById('kot-preview');
+      if (contentToPrint) {
+        printWindow.document.write(`
+          <!DOCTYPE html>
+<html>
+  <head>
+    <title>KOT Print</title>
+    <style>
+      @page {
+        size: 79mm auto;
+        margin: 0;
+      }
+
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 10px;
+        width: 79mm;
+        box-sizing: border-box;
+      }
+
+      .text-center { text-align: center; }
+      .fw-bold { font-weight: bold; }
+      .mb-3 { margin-bottom: 1rem; }
+      .small { font-size: 0.875rem; }
+      .text-muted { color: #6c757d; }
+      .d-block { display: block; }
+      .row { display: flex; flex-wrap: wrap; margin: 0 -15px; }
+      .col-6 { flex: 0 0 50%; max-width: 50%; padding: 0 15px; }
+      .col-1 { flex: 0 0 8.333333%; max-width: 8.333333%; padding: 0 15px; }
+      .col-4 { flex: 0 0 33.333333%; max-width: 33.333333%; padding: 0 15px; }
+      .col-2 { flex: 0 0 16.666667%; max-width: 16.666667%; padding: 0 15px; }
+      .col-3 { flex: 0 0 25%; max-width: 25%; padding: 0 15px; }
+      .text-end { text-align: right; }
+      .pb-1 { padding-bottom: 0.25rem; }
+      .mb-2 { margin-bottom: 0.5rem; }
+      .mb-1 { margin-bottom: 0.25rem; }
+      .border-bottom { border-bottom: 1px solid #dee2e6; }
+      .text-black { color: #000; }
+
+      @media print {
+        body {
+          width: 79mm;
+          margin: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    ${contentToPrint.innerHTML}
+  </body>
+</html>
+
+        `);
+        printWindow.document.close();
+        printWindow.print();
+      }
+    }
+  };
+
   return (
     <div className="container-fluid p-0 m-0" style={{ height: '100vh' }}>
+      {/* Hidden KOT Preview for Printing */}
+      <div id="kot-preview" style={{ display: 'none' }}>
+        <div className="col-lg-4">
+          <div className="card shadow-sm h-100">
+            <div className="card-header bg-light">
+              <h5 className="card-title mb-0 text-center fw-bold">KOT Preview</h5>
+            </div>
+            <div className="card-body" style={{ fontSize: '0.85rem', overflow: 'hidden' }}>
+              {/* Store Name and Details */}
+              <div className="text-center mb-3">
+                <h6 className="fw-bold mb-1">{formData.show_store_name || 'Restaurant Name'}</h6>
+
+              </div>
+              <div style={{ borderBottom: '1px dashed #ccc', margin: '10px 0' }}></div>
+
+              {/* KOT Header */}
+              <div className="text-center mb-3">
+                <h6 className="fw-bold">
+                  {formData.dine_in_kot_no || 'KITCHEN ORDER TICKET'}
+                  {formData.show_new_order_tag && formData.new_order_tag_label && (
+                    <span className="ms-2 badge bg-primary">{formData.new_order_tag_label}</span>
+                  )}
+                  {formData.show_running_order_tag && formData.running_order_tag_label && (
+                    <span className="ms-2 badge bg-secondary">{formData.running_order_tag_label}</span>
+                  )}
+                </h6>
+              </div>
+
+              {/* KOT Details */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <div>
+                  <strong>KOT No:</strong> KOT001
+                </div>
+                <div>
+                  {selectedTable && (
+                    <>
+                      <strong>Table:</strong> {selectedTable}
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <div>
+                  <strong>Date:</strong> {new Date().toLocaleDateString()}
+                </div>
+                <div>
+                  <strong>Time:</strong> {new Date().toLocaleTimeString()}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <div>
+                  <strong>Order Type:</strong> {activeTab} {formData.show_order_type_symbol ? '🍽️' : ''}
+                </div>
+                <div>
+                  <strong>Waiter:</strong> {user?.name || 'N/A'}
+                </div>
+              </div>
+
+              {customerName && (
+                <>
+                  <div style={{ borderBottom: '1px dashed #ccc', margin: '10px 0' }}></div>
+                  <div style={{ marginBottom: '8px' }}>
+                    <strong>Customer:</strong> {customerName}
+                    {mobileNumber && (
+                      <div>
+                        <small><strong>Mobile:</strong> {mobileNumber}</small>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+
+              <div style={{ borderBottom: '1px dashed #ccc', margin: '10px 0' }}></div>
+
+              {/* Items Header */}
+              <div style={{ display: 'grid', gridTemplateColumns: '30px 1fr 50px 70px 80px', fontWeight: 'bold', borderBottom: '1px solid #dee2e6', paddingBottom: '4px', marginBottom: '8px' }}>
+                <div>#</div>
+                <div>Item Name</div>
+                <div style={{ textAlign: 'center' }}>Qty</div>
+                <div style={{ textAlign: 'right' }}>Rate</div>
+                <div style={{ textAlign: 'right' }}>Amount</div>
+              </div>
+
+              {/* Items */}
+              {items.map((item, index) => (
+                <div key={item.id} style={{ display: 'grid', gridTemplateColumns: '30px 1fr 50px 70px 80px', paddingBottom: '4px', marginBottom: '4px' }}>
+                  <div>{index + 1}</div>
+                  <div>{item.name}</div>
+                  <div style={{ textAlign: 'center' }}>{item.qty}</div>
+                  <div style={{ textAlign: 'right' }}>{item.price.toFixed(2)}</div>
+                  <div style={{ textAlign: 'right' }}>{(item.price * item.qty).toFixed(2)}</div>
+                </div>
+              ))}
+
+              <div style={{ borderBottom: '1px dashed #ccc', margin: '10px 0' }}></div>
+
+              {/* Total Section */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', marginBottom: '8px' }}>
+                <div>Total Items: {items.reduce((sum, item) => sum + item.qty, 0)}</div>
+                <div>₹ {taxCalc.subtotal.toFixed(2)}</div>
+              </div>
+
+              <div style={{ borderBottom: '1px dashed #ccc', margin: '10px 0' }}></div>
+
+              {/* KOT Note */}
+              {formData.show_kot_note && (
+                <div style={{ fontStyle: 'italic', marginBottom: '8px' }}>
+                  <strong>KOT Note:</strong> <em>{formData.show_kot_note}</em>
+                </div>
+              )}
+
+              {/* Footer */}
+              <div style={{ textAlign: 'center', marginTop: '20px', fontSize: '0.85rem', color: '#6c757d' }}>
+                <div>Thank You!</div>
+                <div>Please prepare the order</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
       {errorMessage && (
         <div className="alert alert-danger text-center" role="alert">
           {errorMessage}
@@ -814,6 +1139,11 @@ const Order = () => {
             body * {
               visibility: hidden;
             }
+            body {
+              width: 79mm;
+              margin: 0;
+              padding: 0;
+            }
             .billing-panel,
             .billing-panel * {
               visibility: visible;
@@ -822,8 +1152,8 @@ const Order = () => {
               position: absolute;
               top: 0;
               left: 0;
-              width: 100% !important;
-              max-width: 100% !important;
+              width: 79mm !important;
+              max-width: 79mm !important;
               height: auto !important;
               margin: 0 !important;
               padding: 0.5rem;
@@ -1431,12 +1761,6 @@ const Order = () => {
                     disabled={items.length === 0 || !!invalidTable}
                   >
                     Print & Save KOT
-                  </button>
-                  <button
-                    className="btn btn-info rounded"
-                    onClick={() => setShowSavedKOTsModal(true)}
-                  >
-                    View Saved KOTs
                   </button>
                 </div>
               </div>

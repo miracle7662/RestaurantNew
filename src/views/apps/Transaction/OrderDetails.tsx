@@ -42,6 +42,9 @@ interface TableItem {
   marketid: string;
   isActive: boolean;
   isCommonToAllDepartments: boolean;
+  departmentid?: number;
+
+  
 }
 
 // Interface for component props
@@ -147,7 +150,8 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
         setInvalidTable('');
         setIsTableInvalid(false);
         // Set selectedDeptId and selectedOutletId for tax calculation
-        setSelectedDeptId(Number(matchedTable.marketid));
+        // setSelectedDeptId(Number(matchedTable.marketid));
+        setSelectedDeptId(Number(matchedTable.departmentid));
         setSelectedOutletId(Number(matchedTable.hotelid));
       } else {
         setInvalidTable(searchTable);

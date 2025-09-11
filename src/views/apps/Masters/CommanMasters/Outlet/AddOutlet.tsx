@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Alert, Button, } from 'react-bootstrap';
 
 
+
 import axios from 'axios';
 import { useAuthContext } from '@/common/context/useAuthContext'; // Adjust path as needed
 import { OutletData } from '@/common/api/outlet'; // Adjust the import path as necessary
@@ -545,10 +546,10 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
           new_order_tag_label: data.kot_print_settings?.new_order_tag_label || 'New',
           show_running_order_tag: convertToBoolean(data.kot_print_settings?.show_running_order_tag ?? true),
           running_order_tag_label: data.kot_print_settings?.running_order_tag_label || 'Running',
-          dine_in_kot_no: data.kot_print_settings?.dine_in_kot_no || 'DIN-',
-          pickup_kot_no: data.kot_print_settings?.pickup_kot_no || 'PUP-',
-          delivery_kot_no: data.kot_print_settings?.delivery_kot_no || 'DEL-',
-          quick_bill_kot_no: data.kot_print_settings?.quick_bill_kot_no || 'QBL-',
+          dine_in_kot_no: data.kot_print_settings?.dine_in_kot_no || '',
+          pickup_kot_no: data.kot_print_settings?.pickup_kot_no || '',
+          delivery_kot_no: data.kot_print_settings?.delivery_kot_no || '',
+          quick_bill_kot_no: data.kot_print_settings?.quick_bill_kot_no || '',
           modifier_default_option: convertToBoolean(data.kot_print_settings?.modifier_default_option ?? false),
           print_kot_both_languages: convertToBoolean(data.kot_print_settings?.print_kot_both_languages ?? false),
           show_alternative_item: convertToBoolean(data.kot_print_settings?.show_alternative_item ?? false),
