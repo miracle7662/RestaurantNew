@@ -26,7 +26,7 @@ interface TableItem {
   table_name: string;
   hotel_name: string;
   outlet_name: string;
-  status: string;
+  status: number;
   created_by_id: string;
   created_date: string;
   updated_by_id: string;
