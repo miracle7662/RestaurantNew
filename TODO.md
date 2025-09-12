@@ -1,0 +1,4 @@
+- [x] Add updateTableStatus function in TableManagementController.js
+- [ ] Modify getTableButtonClass in Orders.tsx to use solid background colors for table status
+- [ ] Update handlePrintAndSaveKOT to set table status to 1 after success and refetch tables
+- [ ] Update handlePrintBill to set table status to 2 after printing and refetch tables

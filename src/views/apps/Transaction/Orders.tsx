@@ -45,6 +45,15 @@ interface DepartmentItem {
   outletid: number;
 }
 
+const getTableButtonClass = (table: TableItem, isSelected: boolean) => {
+  if (isSelected) return 'btn-primary';
+  switch (table.status) {
+    case 1: return 'btn-success'; // Occupied
+    case 2: return 'btn-danger';  // Billed
+    default: return 'btn-secondary'; // Changed from outline to solid for better visibility
+  }
+};
+
 const Order = () => {
   const [selectedTable, setSelectedTable] = useState<string | null>('');
   const [items, setItems] = useState<MenuItem[]>([]);
@@ -261,6 +270,23 @@ const Order = () => {
     } catch (err) {
       console.error('Customer fetch error:', err);
       setCustomerName('');
+    }
+  };
+
+  const updateTableStatus = async (tableId: number, status: number) => {
+    try {
+      const res = await fetch(`http://localhost:3001/api/tablemanagement/${tableId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+      if (res.ok) {
+        console.log('Table status updated successfully');
+      } else {
+        console.error('Failed to update table status');
+      }
+    } catch (err) {
+      console.error('Error updating table status:', err);
     }
   };
 
@@ -701,7 +727,7 @@ const Order = () => {
     setShowOrderDetails(false);
   };
 
-  const handlePrintBill = () => {
+  const handlePrintBill = async () => {
     const printWindow = window.open('', '_blank');
     if (printWindow) {
       const contentToPrint = document.getElementById('bill-preview');
@@ -741,6 +767,21 @@ const Order = () => {
         printWindow.document.close();
         printWindow.focus();
         printWindow.print();
+      }
+    }
+    // After printing bill, update table status to 2 (billed) and refetch tables
+    if (selectedTable) {
+      try {
+        const selectedTableRecord: any = (Array.isArray(filteredTables) ? filteredTables : tableItems)
+          .find((t: any) => t && t.table_name && t.table_name === selectedTable)
+          || (Array.isArray(tableItems) ? tableItems.find((t: any) => t && t.table_name === selectedTable) : undefined);
+        const resolvedTableId = selectedTableRecord ? Number((selectedTableRecord as any).tableid || (selectedTableRecord as any).tablemanagementid) : null;
+        if (resolvedTableId) {
+          await updateTableStatus(resolvedTableId, 2);
+          await fetchTableManagement();
+        }
+      } catch (error) {
+        console.error('Error updating table status after print bill:', error);
       }
     }
   };
@@ -870,6 +911,11 @@ const Order = () => {
           if (Array.isArray(list)) setSavedKOTs(list);
         } catch (err) {
           console.warn('refresh saved KOTs failed');
+        }
+        // After successful KOT save, update table status to 1 (occupied) and refetch tables
+        if (resolvedTableId) {
+          await updateTableStatus(resolvedTableId, 1);
+          await fetchTableManagement();
         }
       } else {
         toast.error(resp?.message || 'Failed to save KOT');

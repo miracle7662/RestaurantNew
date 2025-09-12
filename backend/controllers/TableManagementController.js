@@ -142,3 +142,24 @@ exports.deleteTable = (req, res) => {
     res.status(500).json({ success: false, message: "Failed to delete table", error: error.message });
   }
 };
+
+// Update table status
+exports.updateTableStatus = (req, res) => {
+  try {
+    const { tableid } = req.params;
+    const { status } = req.body;
+
+    const updateSql = "UPDATE msttablemanagement SET status = ? WHERE tableid = ?";
+    const stmt = db.prepare(updateSql);
+    const result = stmt.run(status, tableid);
+
+    if (result.changes === 0) {
+      return res.status(404).json({ success: false, message: "Table not found" });
+    }
+
+    res.json({ success: true, message: "Table status updated successfully" });
+  } catch (error) {
+    console.error("Error updating table status:", error);
+    res.status(500).json({ success: false, message: "Failed to update table status", error: error.message });
+  }
+};
