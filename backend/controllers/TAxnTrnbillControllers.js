@@ -563,4 +563,62 @@ exports.updateBillItemsIsBilled = async (req, res) => {
   }
 }
 
+/* -------------------------------------------------------------------------- */
+/* getUnbilledItemsByTable → fetch aggregated unbilled items by TableID       */
+/* -------------------------------------------------------------------------- */
+exports.getUnbilledItemsByTable = async (req, res) => {
+  try {
+    const { tableId } = req.params;
+    if (!tableId) {
+      return res.status(400).json({ success: false, message: 'Table ID is required' });
+    }
+    const rows = db.prepare(`
+      SELECT
+        d.ItemID,
+        m.item_name AS ItemName,
+        SUM(d.Qty) as Qty,
+        d.RuntimeRate as price,
+        b.isBilled,
+        d.isNCKOT,
+        b.NCName,
+        b.NCPurpose
+      FROM TAxnTrnbilldetails d
+      JOIN TAxnTrnbill b ON d.TxnID = b.TxnID
+      LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
+      WHERE b.TableID = ? AND b.isBilled = 0 AND d.isCancelled = 0
+      GROUP BY d.ItemID, m.item_name, d.RuntimeRate, b.isBilled, d.isNCKOT, b.NCName, b.NCPurpose
+    `).all(Number(tableId));
+
+    res.json({ success: true, message: 'Fetched unbilled items', data: rows });
+  } catch (error) {
+    console.error('Error fetching unbilled items by table:', error.message);
+    res.status(500).json({ success: false, message: 'Failed to fetch unbilled items', data: null, error: error.message });
+  }
+};
+
+/* -------------------------------------------------------------------------- */
+/* updateItemsBilledByTable → mark isBilled = 1 for unbilled items by TableID */
+/* -------------------------------------------------------------------------- */
+exports.updateItemsBilledByTable = async (req, res) => {
+  try {
+    const { tableId } = req.params;
+    if (!tableId) {
+      return res.status(400).json({ success: false, message: 'Table ID is required' });
+    }
+
+    // This marks all unbilled KOT headers for the specified table as billed.
+    const updateStmt = db.prepare(`
+      UPDATE TAxnTrnbill
+      SET isBilled = 1
+      WHERE TableID = ? AND isBilled = 0
+    `);
+    const result = updateStmt.run(Number(tableId));
+
+    res.json({ success: true, message: `Marked ${result.changes} KOTs as billed.`, changes: result.changes });
+  } catch (error) {
+    console.error('Error updating items billed status by table:', error.message);
+    res.status(500).json({ success: false, message: 'Failed to update items billed status', data: null, error: error.message });
+  }
+};
+
 module.exports = exports

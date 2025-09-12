@@ -575,6 +575,38 @@ const Order = () => {
     }
   }, [searchTable, filteredTables]);
 
+  const fetchUnbilledItems = async (tableId: number) => {
+    try {
+      const res = await fetch(`http://localhost:3001/api/TAxnTrnbill/unbilled/${tableId}`, {
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (res.ok) {
+        const response = await res.json();
+        if (response.success && Array.isArray(response.data)) {
+          const formattedItems = response.data.map((item: any) => ({
+            id: item.ItemID,
+            name: item.ItemName || `Item ${item.ItemID}`,
+            price: Number(item.price) || 0,
+            qty: Number(item.Qty) || 0,
+            isBilled: Number(item.isBilled) || 0,
+            isNCKOT: Number(item.isNCKOT) || 0,
+            NCName: item.NCName || '',
+            NCPurpose: item.NCPurpose || '',
+          }));
+          setItems(formattedItems);
+        } else {
+          setItems([]);
+        }
+      } else {
+        console.error('Failed to fetch unbilled items');
+        setItems([]);
+      }
+    } catch (err) {
+      console.error('Error fetching unbilled items:', err);
+      setItems([]);
+    }
+  };
+
   const handleTableClick = (seat: string) => {
     console.log('Button clicked for table:', seat);
     setSelectedTable(seat);
@@ -587,9 +619,13 @@ const Order = () => {
         || (Array.isArray(tableItems) ? tableItems.find((t: any) => t && t.table_name === seat) : undefined);
       if (selectedTableRecord) {
         const deptId = Number((selectedTableRecord as any).departmentid) || null;
-        const outletId = Number((selectedTableRecord as any).outletid) || null; // This is correct
+        const outletId = Number((selectedTableRecord as any).outletid) || null;
+        const tableId = Number((selectedTableRecord as any).tableid || (selectedTableRecord as any).tablemanagementid) || null;
         if (deptId) setSelectedDeptId(deptId);
         if (outletId) setSelectedOutletId(outletId);
+        if (tableId) {
+          fetchUnbilledItems(tableId);
+        }
       }
     } catch (e) {
       // no-op
@@ -777,11 +813,26 @@ const Order = () => {
           || (Array.isArray(tableItems) ? tableItems.find((t: any) => t && t.table_name === selectedTable) : undefined);
         const resolvedTableId = selectedTableRecord ? Number((selectedTableRecord as any).tableid || (selectedTableRecord as any).tablemanagementid) : null;
         if (resolvedTableId) {
+          // Mark all KOTs for this table as billed in the database
+          const billResponse = await fetch(`http://localhost:3001/api/TAxnTrnbill/billed/${resolvedTableId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+          });
+          if (!billResponse.ok) {
+            throw new Error('Failed to mark items as billed.');
+          }
+
           await updateTableStatus(resolvedTableId, 2);
           await fetchTableManagement();
+
+          // Update UI for a smooth workflow
+          setItems([]);
+          toast.success(`Table ${selectedTable} has been billed successfully.`);
+          handleBackToTables();
         }
       } catch (error) {
-        console.error('Error updating table status after print bill:', error);
+        console.error('Error during bill finalization:', error);
+        toast.error('Failed to finalize bill.');
       }
     }
   };

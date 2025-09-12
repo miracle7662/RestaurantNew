@@ -21,4 +21,8 @@ router.post('/:id/items', controller.addItemToBill)
 // Update isBilled = 1 for all items in a bill
 router.put('/:id/items/billed', controller.updateBillItemsIsBilled)
 
+// New routes for table-wise unbilled items and update billed status
+router.get('/unbilled/:tableId', controller.getUnbilledItemsByTable)
+router.put('/billed/:tableId', controller.updateItemsBilledByTable)
+
 module.exports = router
