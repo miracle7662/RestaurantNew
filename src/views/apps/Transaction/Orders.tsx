@@ -407,6 +407,36 @@ const Order = () => {
     }
   };
 
+  const fetchBillPreviewSettings = async (outletId: number) => {
+    try {
+      const res = await fetch(`http://localhost:3001/api/outlets/bill-preview-settings/${outletId}`, {
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data) {
+          setFormData(prevFormData => ({
+            ...prevFormData,
+            outlet_name: data.outlet_name ?? (prevFormData as any).outlet_name,
+            email: data.email ?? (prevFormData as any).email,
+            website: data.website ?? (prevFormData as any).website,
+            show_phone_on_bill: data.show_phone_on_bill ?? (prevFormData as any).show_phone_on_bill,
+            note: data.note ?? (prevFormData as any).note,
+            footer_note: data.footer_note ?? (prevFormData as any).footer_note,
+            field1: data.field1 ?? (prevFormData as any).field1,
+            field2: data.field2 ?? (prevFormData as any).field2,
+            field3: data.field3 ?? (prevFormData as any).field3,
+            field4: data.field4 ?? (prevFormData as any).field4,
+            fssai_no: data.fssai_no ?? (prevFormData as any).fssai_no,
+          }));
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching bill preview settings:', err);
+    }
+  };
+
 
   const fetchOutletsData = async () => {
     console.log('Full user object:', JSON.stringify(user, null, 2));
@@ -644,6 +674,7 @@ const Order = () => {
   useEffect(() => {
     if (selectedOutletId) {
       fetchKotPrintSettings(selectedOutletId);
+      fetchBillPreviewSettings(selectedOutletId);
     }
   }, [selectedOutletId]);
 
@@ -668,6 +699,50 @@ const Order = () => {
 
   const handleBackToTables = () => {
     setShowOrderDetails(false);
+  };
+
+  const handlePrintBill = () => {
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      const contentToPrint = document.getElementById('bill-preview');
+      if (contentToPrint) {
+        printWindow.document.write(`
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <title>Bill Print</title>
+              <style>
+                body { font-family: Arial, sans-serif; margin: 20px; width: 300px; }
+                .w-50 { width: 100% !important; }
+                .mx-auto { margin-left: auto; margin-right: auto; }
+                .card { border: 1px solid #ccc; }
+                .shadow-sm { box-shadow: 0 .125rem .25rem rgba(0,0,0,.075)!important; }
+                .h-100 { height: 100% !important; }
+                .card-body { padding: 1rem; }
+                .card-title { margin-bottom: .5rem; }
+                .h5 { font-size: 1.25rem; }
+                .fw-bold { font-weight: 700 !important; }
+                .mb-4 { margin-bottom: 1.5rem !important; }
+                .text-center { text-align: center !important; }
+                .mb-3 { margin-bottom: 1rem !important; }
+                .mb-0 { margin-bottom: 0 !important; }
+                .d-flex { display: flex !important; }
+                .justify-content-between { justify-content: space-between !important; }
+                .table { width: 100%; margin-bottom: 1rem; color: #212529; vertical-align: top; border-color: #dee2e6; }
+                .table-bordered { border: 1px solid #dee2e6; }
+                th, td { padding: .5rem; }
+                .text-end { text-align: right !important; }
+                .mt-2 { margin-top: .5rem !important; }
+              </style>
+            </head>
+            <body>${contentToPrint.innerHTML}</body>
+          </html>
+        `);
+        printWindow.document.close();
+        printWindow.focus();
+        printWindow.print();
+      }
+    }
   };
 
   const handlePrintAndSaveKOT = async () => {
@@ -1144,6 +1219,87 @@ const Order = () => {
                   </div>
                 </>
               )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Bill Preview Section (for printing) */}
+      <div id="bill-preview" style={{ display: 'none' }}>
+        <div className="w-50 mx-auto">
+          <div className="card shadow-sm h-100">
+            <div className="card-body">
+              <h2 className="card-title h5 fw-bold mb-4 text-center">
+                Bill Preview
+              </h2>
+              <div className="text-center mb-3">
+                <p className="fw-bold">{(formData as any).outlet_name || user?.outlet_name || '!!!Hotel Miracle!!!'}</p>
+                <p>{user?.outlet_address || 'Kolhapur Road Kolhapur 416416'}</p>
+                {(formData as any).show_phone_on_bill && <p>Ph: {(formData as any).show_phone_on_bill}</p>}
+                {(formData as any).email && <p>Email: {(formData as any).email}</p>}
+                {(formData as any).website && <p>Website: {(formData as any).website}</p>}
+              </div>
+              <div className="text-center mb-3" style={{ fontSize: '0.9rem' }}>
+                <p className="mb-0">Note: {(formData as any).note || document.querySelector<HTMLInputElement>('input[placeholder="KOT Note"]')?.value || ''}</p>
+                <p className="mb-0">{new Date().toLocaleString()}</p>
+              </div>
+              <div className="d-flex justify-content-between mb-3">
+                <p>Pay Mode: Cash</p>
+                <p>User: {user?.name || 'TMPOS'}</p>
+              </div>
+              <table className="table table-bordered mb-3">
+                <thead>
+                  <tr>
+                    <th scope="col">Item Name</th>
+                    <th scope="col" className="text-end">
+                      Quantity
+                    </th>
+                    <th scope="col" className="text-end">
+                      Price
+                    </th>
+                    <th scope="col" className="text-end">
+                      Total
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((item, index) => (
+                    <tr key={item.id}>
+                      <td>{index + 1}. {item.name}</td>
+                      <td className="text-end">{item.qty}</td>
+                      <td className="text-end">{item.price.toFixed(2)}</td>
+                      <td className="text-end">{(item.price * item.qty).toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="text-end">
+                <p>Total Value: Rs. {taxCalc.subtotal.toFixed(2)}</p>
+                {(taxCalc.cgstAmt > 0 || taxCalc.sgstAmt > 0 || taxCalc.igstAmt > 0 || taxCalc.cessAmt > 0) && (
+                  <p className="mt-2">GST:</p>
+                )}
+                {taxCalc.cgstAmt > 0 && <p>CGST ({taxRates.cgst}%): Rs. {taxCalc.cgstAmt.toFixed(2)}</p>}
+                {taxCalc.sgstAmt > 0 && <p>SGST ({taxRates.sgst}%): Rs. {taxCalc.sgstAmt.toFixed(2)}</p>}
+                {taxCalc.igstAmt > 0 && <p>IGST ({taxRates.igst}%): Rs. {taxCalc.igstAmt.toFixed(2)}</p>}
+                {taxCalc.cessAmt > 0 && <p>CESS ({taxRates.cess}%): Rs. {taxCalc.cessAmt.toFixed(2)}</p>}
+                <p className="mt-2">Total Tax (excl.): Rs. {(taxCalc.cgstAmt + taxCalc.sgstAmt + taxCalc.igstAmt + taxCalc.cessAmt).toFixed(2)}</p>
+                {/* Custom fields */}
+                {(formData as any).field1 && <p className="mt-2">{(formData as any).field1}</p>}
+                {(formData as any).field2 && <p>{(formData as any).field2}</p>}
+                {(formData as any).field3 && <p>{(formData as any).field3}</p>}
+                {(formData as any).field4 && <p>{(formData as any).field4}</p>}
+                {DiscPer > 0 && (
+                  <p className="mt-2">Discount ({DiscountType === 0 ? `${DiscPer}%` : `Amt`}): Rs. {
+                    (DiscountType === 0 ? (taxCalc.subtotal * DiscPer / 100) : DiscPer).toFixed(2)
+                  }</p>
+                )}
+                <p className="mt-2 fw-bold">Grand Total: Rs. {(taxCalc.grandTotal - (DiscountType === 0 ? (taxCalc.grandTotal * (DiscPer || 0)) / 100 : (DiscPer || 0))).toFixed(2)}</p>
+              </div>
+              {/* Footer notes */}
+              <div className="text-center mt-3">
+                {(formData as any).footer_note && <p>{(formData as any).footer_note}</p>}
+                {(formData as any).fssai_no && <p>FSSAI No: {(formData as any).fssai_no}</p>}
+              </div>
             </div>
           </div>
         </div>
@@ -1897,6 +2053,13 @@ const Order = () => {
                     disabled={items.length === 0 || !!invalidTable}
                   >
                     Print & Save KOT
+                  </button>
+                  <button
+                    className="btn btn-info rounded"
+                    onClick={handlePrintBill}
+                    disabled={items.length === 0}
+                  >
+                    Print Bill
                   </button>
                 </div>
               </div>
