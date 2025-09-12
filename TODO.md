@@ -1,16 +1,13 @@
-# TODO: Extend Table Status Logic
+# TODO: Implement KOT Persistence and Table Status Reset
 
 ## Tasks
-- [ ] Update Orders.tsx to display table background color based on status (0: default, 1: green, 2: red)
-- [ ] Add updateTableStatus function in Orders.tsx to call TableManagement API
-- [ ] Update handlePrintAndSaveKOT to set table status to 1 after KOT save
-- [ ] Update handlePrintBill to set table status to 2 after bill print
-- [ ] Refresh table list after status updates
+- [ ] Modify getAllBills in TAxnTrnbillControllers.js to filter by isBilled and TableID query params
+- [ ] Join with menu table in getAllBills to include item names in details
+- [ ] In settleBill, after settling, update msttablemanagement set status=0 for the table
+- [ ] In Orders.tsx, modify handleTableClick to fetch saved KOTs for tableId and populate items state
+- [ ] Test: Add KOT to table, switch tables, verify items persist; settle bill, verify table status resets and items cleared
 
-## Dependent Files
-- src/views/apps/Transaction/Orders.tsx
-
-## Followup Steps
-- Test KOT save updates status to 1 (green)
-- Test bill print updates status to 2 (red)
-- Verify UI colors update dynamically
+## Status
+- [x] Plan approved by user
+- [ ] Implementation in progress
+- [ ] Testing completed

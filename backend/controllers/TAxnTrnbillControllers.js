@@ -105,10 +105,15 @@ exports.createBill = async (req, res) => {
       GrossAmt, RevKOT, Discount, CGST, SGST, IGST, CESS, RoundOFF, Amount,
       isHomeDelivery, DriverID, CustomerName, MobileNo, Address, Landmark,
       orderNo, isPickup, HotelID, GuestID, DiscRefID, DiscPer, DiscountType, UserId,
-      BatchNo, PrevTableID, PrevDeptId, isTrnsfered, isChangeTrfAmt,
+      BatchNo, PrevTableID, PrevDeptId, isTrnsfered, isChangeTrfAmt, 
       ServiceCharge, ServiceCharge_Amount, Extra1, Extra2, Extra3,
       details = []
     } = req.body
+
+    // Get NCName and NCPurpose from the first NCKOT item
+    const nckotInfo = details.find(d => d.isNCKOT) || {};
+    const billNCName = nckotInfo.NCName || null;
+    const billNCPurpose = nckotInfo.NCPurpose || null;
 
     // Compute header totals from details if missing/zero
     const isArray = Array.isArray(details) && details.length > 0
@@ -157,10 +162,10 @@ exports.createBill = async (req, res) => {
           outletid, TxnNo, TableID, Steward, PAX, AutoKOT, ManualKOT, TxnDatetime,
           GrossAmt, RevKOT, Discount, CGST, SGST, IGST, CESS, RoundOFF, Amount,
           isHomeDelivery, DriverID, CustomerName, MobileNo, Address, Landmark,
-          orderNo, isPickup, HotelID, GuestID, DiscRefID, DiscPer, DiscountType, UserId,
+          orderNo, isPickup, NCName, NCPurpose, HotelID, GuestID, DiscRefID, DiscPer, DiscountType, UserId,
           BatchNo, PrevTableID, PrevDeptId, isTrnsfered, isChangeTrfAmt,
-          ServiceCharge, ServiceCharge_Amount, Extra1, Extra2, Extra3
-        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+          ServiceCharge, ServiceCharge_Amount, Extra1, Extra2, Extra3 
+        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
       `)
 
       const result = stmt.run(
@@ -189,6 +194,8 @@ exports.createBill = async (req, res) => {
         Landmark || null,
         orderNo || null,
         toBool(isPickup),
+        billNCName,
+        billNCPurpose,
         HotelID ?? null,
         GuestID ?? null,
         DiscRefID ?? null,
@@ -217,8 +224,8 @@ exports.createBill = async (req, res) => {
             CESS, CESS_AMOUNT, Qty, AutoKOT, ManualKOT, SpecialInst,
             isKOTGenerate, isSetteled, isNCKOT, isCancelled,
             DeptID, HotelID, RuntimeRate, RevQty, KOTUsedDate,
-            isBilled, NCName, NCPurpose
-          ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            isBilled
+          ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         `)
 
         for (const d of details) {
@@ -260,9 +267,8 @@ exports.createBill = async (req, res) => {
             rate,
             Number(d.RevQty) || 0,
             d.KOTUsedDate || null,
-            0, // isBilled default to 0
-            isNCKOT ? (d.NCName || null) : null,
-            isNCKOT ? (d.NCPurpose || null) : null
+            0 // isBilled default to 0
+            
           )
         }
       }
@@ -289,11 +295,16 @@ exports.updateBill = async (req, res) => {
       outletid, TxnNo, TableID, Steward, PAX, AutoKOT, ManualKOT, TxnDatetime,
       GrossAmt, RevKOT, Discount, CGST, SGST, IGST, CESS, RoundOFF, Amount,
       isHomeDelivery, DriverID, CustomerName, MobileNo, Address, Landmark,
-      orderNo, isPickup, HotelID, GuestID, DiscRefID, DiscPer,DiscountType, UserId,
-      BatchNo, PrevTableID, PrevDeptId, isTrnsfered, isChangeTrfAmt,
+      orderNo, isPickup,  HotelID, GuestID, DiscRefID, DiscPer,DiscountType, UserId,
+      BatchNo, PrevTableID, PrevDeptId, isTrnsfered, isChangeTrfAmt, 
       ServiceCharge, ServiceCharge_Amount, Extra1, Extra2, Extra3,
       details = []
     } = req.body
+
+    // Get NCName and NCPurpose from the first NCKOT item
+    const nckotInfo = details.find(d => d.isNCKOT) || {};
+    const billNCName = nckotInfo.NCName || null;
+    const billNCPurpose = nckotInfo.NCPurpose || null;
 
     const txn = db.transaction(() => {
       const u = db.prepare(`
@@ -301,7 +312,7 @@ exports.updateBill = async (req, res) => {
           outletid=?, TxnNo=?, TableID=?, Steward=?, PAX=?, AutoKOT=?, ManualKOT=?, TxnDatetime=?,
           GrossAmt=?, RevKOT=?, Discount=?, CGST=?, SGST=?, IGST=?, CESS=?, RoundOFF=?, Amount=?,
           isHomeDelivery=?, DriverID=?, CustomerName=?, MobileNo=?, Address=?, Landmark=?,
-          orderNo=?, isPickup=?, HotelID=?, GuestID=?, DiscRefID=?, DiscPer=?, DiscountType=?, UserId=?,
+          orderNo=?, isPickup=?, NCName=?, NCPurpose=?, HotelID=?, GuestID=?, DiscRefID=?, DiscPer=?, DiscountType=?, UserId=?,
           BatchNo=?, PrevTableID=?, PrevDeptId=?, isTrnsfered=?, isChangeTrfAmt=?,
           ServiceCharge=?, ServiceCharge_Amount=?, Extra1=?, Extra2=?, Extra3=?
         WHERE TxnID=?
@@ -333,6 +344,8 @@ exports.updateBill = async (req, res) => {
         Landmark || null,
         orderNo || null,
         toBool(isPickup),
+        billNCName,
+        billNCPurpose,
         HotelID ?? null,
         GuestID ?? null,
         DiscRefID ?? null,
@@ -362,7 +375,7 @@ exports.updateBill = async (req, res) => {
             CESS, CESS_AMOUNT, Qty, AutoKOT, ManualKOT, SpecialInst,
             isKOTGenerate, isSetteled, isNCKOT, isCancelled,
             DeptID, HotelID, RuntimeRate, RevQty, KOTUsedDate,
-            isBilled, NCName, NCPurpose
+            isBilled
           ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         `)
         for (const d of details) {
@@ -393,9 +406,8 @@ exports.updateBill = async (req, res) => {
             Number(d.RuntimeRate) || 0,
             Number(d.RevQty) || 0,
             d.KOTUsedDate || null,
-            0, // isBilled default to 0
-            isNCKOT ? (d.NCName || null) : null,
-            isNCKOT ? (d.NCPurpose || null) : null
+            0 // isBilled default to 0
+           
           )
         }
       }
