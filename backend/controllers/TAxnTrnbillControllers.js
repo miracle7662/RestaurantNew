@@ -575,7 +575,7 @@ exports.getUnbilledItemsByTable = async (req, res) => {
     const rows = db.prepare(`
       SELECT
         d.ItemID,
-        m.item_name AS ItemName,
+        COALESCE(m.item_name, 'Unknown Item') AS ItemName,
         SUM(d.Qty) as Qty,
         d.RuntimeRate as price,
         b.isBilled,
@@ -586,7 +586,7 @@ exports.getUnbilledItemsByTable = async (req, res) => {
       JOIN TAxnTrnbill b ON d.TxnID = b.TxnID
       LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
       WHERE b.TableID = ? AND b.isBilled = 0 AND d.isCancelled = 0
-      GROUP BY d.ItemID, m.item_name, d.RuntimeRate, b.isBilled, d.isNCKOT, b.NCName, b.NCPurpose
+      GROUP BY d.ItemID, COALESCE(m.item_name, 'Unknown Item'), d.RuntimeRate, b.isBilled, d.isNCKOT, b.NCName, b.NCPurpose
     `).all(Number(tableId));
 
     res.json({ success: true, message: 'Fetched unbilled items', data: rows });
