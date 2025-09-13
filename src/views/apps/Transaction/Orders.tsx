@@ -46,7 +46,7 @@ interface DepartmentItem {
 }
 
 const getTableButtonClass = (table: TableItem, isSelected: boolean) => {
-  if (isSelected) return 'btn-primary';
+  if (isSelected) return 'btn-success';
   // Use separate status field for coloring: 0=default,1=green,2=red
   switch (table.status) {
     case 1: return 'btn-success'; // KOT saved/occupied (green)
