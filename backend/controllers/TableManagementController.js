@@ -74,7 +74,7 @@ exports.createTable = (req, res) => {
       marketid || null,
       departmentid || null,
       department_name || null,
-      status ?? 1,
+      status ?? 0,
       created_by_id || null
     );
 
@@ -107,7 +107,7 @@ exports.updateTable = (req, res) => {
       marketid || null,
       departmentid || null,
       department_name || null,
-      status ?? 1,
+      status ?? 0,
       updated_by_id || null,
       tableid
     );

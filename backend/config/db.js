@@ -318,7 +318,7 @@ CREATE TABLE IF NOT EXISTS msttablemanagement (
     outletid INTEGER NOT NULL,
     departmentid INTEGER,
     department_name TEXT,
-    status INTEGER DEFAULT 1,
+    status INTEGER DEFAULT 0,
     created_by_id INTEGER,
     created_date DATETIME,
     updated_by_id INTEGER,
@@ -789,6 +789,7 @@ CREATE TABLE IF NOT EXISTS TAxnTrnbill (
     isChangeTrfAmt BOOLEAN DEFAULT 0,
     ServiceCharge REAL DEFAULT 0,
     ServiceCharge_Amount REAL DEFAULT 0,
+    status INTEGER DEFAULT 1,
     Extra1 TEXT,                         
     Extra2 TEXT,                         
     Extra3 TEXT 
