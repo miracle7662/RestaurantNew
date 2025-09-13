@@ -216,6 +216,11 @@ exports.createBill = async (req, res) => {
 
       const txnId = result.lastInsertRowid
 
+      // If a table is associated, update its status to Occupied (1)
+      if (TableID) {
+        db.prepare('UPDATE msttablemanagement SET status = 1 WHERE tableid = ?').run(TableID)
+      }
+
       if (isArray) {
         const dStmt = db.prepare(`
           INSERT INTO TAxnTrnbilldetails (
@@ -606,15 +611,28 @@ exports.updateItemsBilledByTable = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Table ID is required' });
     }
 
-    // This marks all unbilled KOT headers for the specified table as billed.
-    const updateStmt = db.prepare(`
-      UPDATE TAxnTrnbill
-      SET isBilled = 1
-      WHERE TableID = ? AND isBilled = 0
-    `);
-    const result = updateStmt.run(Number(tableId));
+    const tx = db.transaction(() => {
+      // Mark all unbilled KOT headers for the specified table as billed.
+      const updateKOTs = db.prepare(`
+        UPDATE TAxnTrnbill
+        SET isBilled = 1
+        WHERE TableID = ? AND isBilled = 0
+      `);
+      const result = updateKOTs.run(Number(tableId));
 
-    res.json({ success: true, message: `Marked ${result.changes} KOTs as billed.`, changes: result.changes });
+      // Update the table status to 'Billed' (2)
+      db.prepare(`
+        UPDATE msttablemanagement
+        SET status = 2
+        WHERE tableid = ?
+      `).run(Number(tableId));
+
+      return result;
+    });
+
+    const result = tx();
+
+    res.json({ success: true, message: `Marked ${result.changes} KOTs as billed and table status updated to Billed.`, changes: result.changes });
   } catch (error) {
     console.error('Error updating items billed status by table:', error.message);
     res.status(500).json({ success: false, message: 'Failed to update items billed status', data: null, error: error.message });

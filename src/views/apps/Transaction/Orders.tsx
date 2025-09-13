@@ -47,10 +47,12 @@ interface DepartmentItem {
 
 const getTableButtonClass = (table: TableItem, isSelected: boolean) => {
   if (isSelected) return 'btn-primary';
+  // Use separate status field for coloring: 0=default,1=green,2=red
   switch (table.status) {
-    case 1: return 'btn-success'; // Occupied
-    case 2: return 'btn-danger';  // Billed
-    default: return 'btn-secondary'; // Changed from outline to solid for better visibility
+    case 1: return 'btn-success'; // KOT saved/occupied (green)
+    case 2: return 'btn-danger';  // Bill printed (red)
+    case 0: return 'btn-outline-success'; // Default background (white/grey)
+    default: return 'btn-secondary'; // fallback default
   }
 };
 
@@ -203,6 +205,7 @@ const Order = () => {
   });
 
   const fetchTableManagement = async () => {
+    console.log('[DEBUG] fetchTableManagement: Starting table fetch...');
     setLoading(true);
     try {
       const res = await fetch('http://localhost:3001/api/tablemanagement', {
@@ -210,16 +213,19 @@ const Order = () => {
       });
       if (res.ok) {
         const response = await res.json();
-        console.log('Raw tableItems data:', JSON.stringify(response, null, 2));
         if (response.success && Array.isArray(response.data)) {
-          const formattedData = response.data.map((item: any) => ({
-            ...item,
-            status: Number(item.status),
-          }));
+          const formattedData = response.data.map((item: any) => {
+            const numericStatus = Number(item.status);
+            return {
+              ...item,
+              status: numericStatus,
+            };
+          });
           setTableItems(formattedData);
           setFilteredTables(formattedData);
           setErrorMessage('');
         } else if (response.success && response.data.length === 0) {
+          console.log('[DEBUG] fetchTableManagement: No tables found in API response');
           setErrorMessage('No tables found in TableManagement API.');
           setTableItems([]);
           setFilteredTables([]);
@@ -234,7 +240,6 @@ const Order = () => {
         setFilteredTables([]);
       }
     } catch (err) {
-      console.error('Table fetch error:', err);
       setErrorMessage('Failed to fetch tables. Please check the API endpoint.');
       setTableItems([]);
       setFilteredTables([]);
@@ -273,22 +278,7 @@ const Order = () => {
     }
   };
 
-  const updateTableStatus = async (tableId: number, status: number) => {
-    try {
-      const res = await fetch(`http://localhost:3001/api/tablemanagement/${tableId}/status`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
-      });
-      if (res.ok) {
-        console.log('Table status updated successfully');
-      } else {
-        console.error('Failed to update table status');
-      }
-    } catch (err) {
-      console.error('Error updating table status:', err);
-    }
-  };
+  
 
   useEffect(() => {
     if (mobileNumber.length >= 10) {
@@ -822,7 +812,6 @@ const Order = () => {
             throw new Error('Failed to mark items as billed.');
           }
 
-          await updateTableStatus(resolvedTableId, 2);
           await fetchTableManagement();
 
           // Update UI for a smooth workflow
@@ -965,7 +954,6 @@ const Order = () => {
         }
         // After successful KOT save, update table status to 1 (occupied) and refetch tables
         if (resolvedTableId) {
-          await updateTableStatus(resolvedTableId, 1);
           await fetchTableManagement();
         }
       } else {
@@ -1670,14 +1658,10 @@ const Order = () => {
                                   table.table_name ? (
                                     <div key={tableIndex} className="p-1">
                                       <button
-                                        className={`btn ${selectedTable === table.table_name ? 'btn-success' : 'btn-outline-success'}`}
+                                        className={`btn ${getTableButtonClass(table, selectedTable === table.table_name)}`}
                                         style={{ width: '90px', height: '80px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
-                                        onClick={() => {
-                                          console.log('Button clicked for table:', table.table_name, 'isActive:', table.isActive);
-                                          handleTableClick(table.table_name);
-                                        }}
-                                      >
-                                        {table.table_name} {table.isActive ? '' : ''}
+                                        onClick={() => handleTableClick(table.table_name)}>
+                                        {table.table_name}
                                       </button>
                                     </div>
                                   ) : null
@@ -1710,14 +1694,10 @@ const Order = () => {
                             table.table_name ? (
                               <div key={index} className="p-1">
                                 <button
-                                  className={`btn ${selectedTable === table.table_name ? 'btn-success' : 'btn-outline-success'}`}
+                                  className={`btn ${getTableButtonClass(table, selectedTable === table.table_name)}`}
                                   style={{ width: '90px', height: '80px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
-                                  onClick={() => {
-                                    console.log('Button clicked for table:', table.table_name, 'isActive:', table.isActive);
-                                    handleTableClick(table.table_name);
-                                  }}
-                                >
-                                  {table.table_name} {table.isActive ? '' : ''}
+                                  onClick={() => handleTableClick(table.table_name)}>
+                                  {table.table_name}
                                 </button>
                               </div>
                             ) : null
@@ -1739,14 +1719,10 @@ const Order = () => {
                         .map((table, index) => (
                           <div key={index} className="p-1">
                             <button
-                              className={`btn ${selectedTable === table.table_name ? 'btn-success' : 'btn-outline-success'}`}
+                              className={`btn ${getTableButtonClass(table, selectedTable === table.table_name)}`}
                               style={{ width: '90px', height: '80px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
-                              onClick={() => {
-                                console.log('Button clicked for table:', table.table_name, 'isActive:', table.isActive);
-                                handleTableClick(table.table_name);
-                              }}
-                            >
-                              {table.table_name} {table.isActive ? '' : ''}
+                              onClick={() => handleTableClick(table.table_name)}>
+                              {table.table_name}
                             </button>
                           </div>
                         )) : null}
