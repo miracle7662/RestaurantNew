@@ -620,13 +620,7 @@ exports.updateItemsBilledByTable = async (req, res) => {
       `);
       const result = updateKOTs.run(Number(tableId));
 
-      // Update the table status to 'Billed' (2)
-      db.prepare(`
-        UPDATE msttablemanagement
-        SET status = 2
-        WHERE tableid = ?
-      `).run(Number(tableId));
-
+     
       return result;
     });
 
