@@ -87,3 +87,40 @@ export async function getTaxesByOutletAndDepartment(params: { outletid?: number 
   const { data } = await API.get<TaxesResponse>(`/orders/taxes`, { params })
   return data
 }
+
+// KOT Management API functions
+export async function createKOT(payload: {
+  txnId: number
+  tableId: number
+  items: Array<{
+    ItemID: number
+    Qty: number
+    RuntimeRate: number
+    outletid?: number
+    ManualKOT?: boolean
+    SpecialInst?: string
+    isSetteled?: boolean
+    isNCKOT?: boolean
+    isCancelled?: boolean
+    DeptID?: number
+    HotelID?: number
+  }>
+}) {
+  const { data } = await API.post('/TAxnTrnbill/kot/create', payload)
+  return data
+}
+
+export async function reverseKOT(payload: {
+  txnId: number
+  tableId: number
+  itemId: number
+  qtyToReverse?: number
+}) {
+  const { data } = await API.post('/TAxnTrnbill/kot/reverse', payload)
+  return data
+}
+
+export async function getKOTList(tableId: number) {
+  const { data } = await API.get('/TAxnTrnbill/kot/list', { params: { tableId } })
+  return data
+}

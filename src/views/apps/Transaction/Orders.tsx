@@ -6,7 +6,7 @@ import { useAuthContext } from '@/common';
 import { OutletData } from '@/common/api/outlet';
 import AddCustomerModal from './Customers';
 import { toast } from 'react-hot-toast';
-import { createBill, getSavedKOTs, getTaxesByOutletAndDepartment } from '@/common/api/orders';
+import { createBill, getSavedKOTs, getTaxesByOutletAndDepartment, reverseKOT, getKOTList } from '@/common/api/orders';
 
 interface MenuItem {
   id: number;
@@ -23,6 +23,7 @@ interface MenuItem {
 
 interface TableItem {
   tablemanagementid: string;
+  tableid?: string;
   table_name: string;
   hotel_name: string;
   outlet_name: string;
@@ -308,9 +309,11 @@ const Order = () => {
       try {
         const resp = await getSavedKOTs({ isBilled: 0 });
         const list = resp?.data || resp;
-        if (Array.isArray(list)) setSavedKOTs(list);
+        if (Array.isArray(list)) {
+          setSavedKOTs(list);
+        }
       } catch (err) {
-        console.warn('getSavedKOTs initial load failed');
+        console.warn('getSavedKOTs initial load failed', err);
       }
     })();
   }, []);
@@ -597,6 +600,38 @@ const Order = () => {
     }
   };
 
+  const fetchUnbilledItemsByKOTNo = async (kotNo: number) => {
+    try {
+      const res = await fetch(`http://localhost:3001/api/TAxnTrnbill/unbilled-kot/${kotNo}`, {
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (res.ok) {
+        const response = await res.json();
+        if (response.success && Array.isArray(response.data)) {
+          const formattedItems = response.data.map((item: any) => ({
+            id: item.ItemID,
+            name: item.ItemName || `Item ${item.ItemID}`,
+            price: Number(item.price) || 0,
+            qty: Number(item.Qty) || 0,
+            isBilled: Number(item.isBilled) || 0,
+            isNCKOT: Number(item.isNCKOT) || 0,
+            NCName: item.NCName || '',
+            NCPurpose: item.NCPurpose || '',
+          }));
+          setItems(formattedItems);
+        } else {
+          setItems([]);
+        }
+      } else {
+        console.error('Failed to fetch unbilled items by KOT');
+        setItems([]);
+      }
+    } catch (err) {
+      console.error('Error fetching unbilled items by KOT:', err);
+      setItems([]);
+    }
+  };
+
   const handleTableClick = (seat: string) => {
     console.log('Button clicked for table:', seat);
     setSelectedTable(seat);
@@ -730,10 +765,72 @@ const Order = () => {
     }
   }, [selectedOutletId]);
 
+  // Refresh KOTs when selected table changes
+  useEffect(() => {
+    if (selectedTable) {
+      (async () => {
+        try {
+          const resp = await getSavedKOTs({ isBilled: 0 });
+          const list = resp?.data || resp;
+          if (Array.isArray(list)) setSavedKOTs(list);
+        } catch (err) {
+          console.warn('Failed to refresh KOTs for table:', err);
+        }
+      })();
+    }
+  }, [selectedTable]);
+
+  // New function to get all KOT numbers for the selected table
+  const getAllKOTNumbersForTable = () => {
+    if (!selectedTable || !savedKOTs || savedKOTs.length === 0) {
+      return '';
+    }
+    
+    // Find the table object for selectedTable
+    const tableObj = tableItems.find(t => t.table_name === selectedTable);
+    if (!tableObj) {
+      return '';
+    }
+    
+    const tableId = Number(tableObj.tableid || tableObj.tablemanagementid);
+    
+    // Filter savedKOTs for the selected table by matching TableID exactly
+    const kotsForTable = savedKOTs.filter(kot => {
+      if (kot.TableID) {
+        return Number(kot.TableID) === tableId;
+      }
+      // fallback: check if orderNo contains selectedTable string
+      if (kot.orderNo && selectedTable) {
+        return kot.orderNo.includes(selectedTable);
+      }
+      return false;
+    });
+    
+    if (kotsForTable.length === 0) return '';
+    
+    // Extract KOT numbers (KOTNo or orderNo)
+    const kotNumbers = kotsForTable.map(kot => {
+      if (kot.KOTNo) return `KOT ${kot.KOTNo}`;
+      if (kot.orderNo) return kot.orderNo;
+      return '';
+    }).filter(Boolean);
+    
+    return kotNumbers.join(', ');
+  };
+
   const getKOTLabel = () => {
     switch (activeTab) {
-      case 'Dine-in':
-        return `KOT 1 ${selectedTable ? ` - Table ${selectedTable}` : ''}`;
+      case 'Dine-in': {
+        const kotNumbersLabel = getAllKOTNumbersForTable();
+        if (kotNumbersLabel) {
+          return `${kotNumbersLabel} - Table ${selectedTable || ''}`;
+        } else if (items.length > 0) {
+          // If there are items in the current order but no saved KOTs, show "New Order"
+          return `New Order - Table ${selectedTable || ''}`;
+        } else {
+          return `- Table ${selectedTable || ''}`;
+        }
+      }
       case 'Pickup':
         return 'Pickup Order';
       case 'Delivery':
@@ -745,7 +842,7 @@ const Order = () => {
       case 'Billing':
         return 'Billing';
       default:
-        return 'KOT 1';
+        return '';
     }
   };
 
@@ -1171,7 +1268,7 @@ const Order = () => {
                   {(formData.show_kot_no_quick_bill || !formData.hide_table_name_quick_bill) && (
                     <strong>KOT No:</strong>
                   )}{' '}
-                  KOT001
+                  {getAllKOTNumbersForTable() || 'New Order'}
                 </div>
                 <div>
                   {selectedTable && (
