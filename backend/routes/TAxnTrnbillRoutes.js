@@ -36,6 +36,5 @@ router.get('/next-kot', controller.getNextKOTNo)
 // KOT Management Routes
 router.post('/kot/create', controller.createKOT)
 router.post('/kot/reverse', controller.reverseKOT)
-router.get('/kot/list', controller.getKOTList)
 
 module.exports = router

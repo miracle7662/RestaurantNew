@@ -14,89 +14,31 @@ function toBool(value) {
 /* -------------------------------------------------------------------------- */
 exports.getAllBills = async (req, res) => {
   try {
-    const { isBilled, tableId } = req.query;
-    console.log('getAllBills called with query params:', { isBilled, tableId });
-    
-    // Build WHERE clause based on query parameters
-    let whereClause = 'WHERE b.isCancelled = 0';
-    const params = [];
-    
+    const { isBilled } = req.query
+    let whereClause = 'isCancelled = 0'
+
     if (isBilled !== undefined) {
-      whereClause += ' AND b.isBilled = ?';
-      params.push(Number(isBilled));
-    }
-    
-    if (tableId !== undefined) {
-      whereClause += ' AND b.TableID = ?';
-      params.push(Number(tableId));
-    }
-    
-    const query = `
-      SELECT 
-        b.*,
-        GROUP_CONCAT(
-          DISTINCT json_object(
-            'TXnDetailID', d.TXnDetailID,
-            'outletid', d.outletid,
-            'ItemID', d.ItemID,
-            'TableID', d.TableID,
-            'Qty', d.Qty,
-            'CGST', d.CGST,
-            'CGST_AMOUNT', d.CGST_AMOUNT,
-            'SGST', d.SGST,
-            'SGST_AMOUNT', d.SGST_AMOUNT,
-            'IGST', d.IGST,
-            'IGST_AMOUNT', d.IGST_AMOUNT,
-            'CESS', d.CESS,
-            'CESS_AMOUNT', d.CESS_AMOUNT,
-            'AutoKOT', d.AutoKOT,
-            'ManualKOT', d.ManualKOT,
-            'SpecialInst', d.SpecialInst,
-            'isKOTGenerate', d.isKOTGenerate,
-            'isSetteled', d.isSetteled,
-            'isNCKOT', d.isNCKOT,
-            'isCancelled', d.isCancelled,
-            'DeptID', d.DeptID,
-            'HotelID', d.HotelID,
-            'RuntimeRate', d.RuntimeRate,
-            'RevQty', d.RevQty,
-            'KOTUsedDate', d.KOTUsedDate,
-            'isBilled', d.isBilled
-          )
-        ) as _details,
-        b.NCName,
-        b.NCPurpose
-      FROM TAxnTrnbill b
-      LEFT JOIN TAxnTrnbilldetails d 
-        ON d.TxnID = b.TxnID AND d.isCancelled = 0
-      ${whereClause}
-      GROUP BY b.TxnID
-      ORDER BY b.TxnDatetime DESC
-    `;
-    
-    console.log('Executing query:', query);
-    console.log('With params:', params);
-
-    let rows;
-    try {
-      rows = db.prepare(query).all(...params);
-      console.log('Query returned', rows.length, 'rows');
-    } catch (sqlError) {
-      console.error('SQL Error in getAllBills:', sqlError.message);
-      console.error('Query:', query);
-      console.error('Params:', params);
-      throw sqlError; // Re-throw to be caught by outer catch
+      whereClause += ` AND isBilled = ${Number(isBilled)}`
     }
 
-    const data = rows.map(r => ({
-      ...r,
-      details: r._details ? JSON.parse(`[${r._details}]`) : [],
-    }))
-    
-    console.log('Returning data:', data.length, 'bills');
+    const bills = db.prepare(`
+      SELECT * FROM TAxnTrnbill
+      WHERE ${whereClause}
+      ORDER BY TxnDatetime DESC
+    `).all()
+
+    const data = bills.map(bill => {
+      const details = db.prepare(`
+        SELECT * FROM TAxnTrnbilldetails
+        WHERE TxnID = ? AND isCancelled = 0
+        ORDER BY TXnDetailID ASC
+      `).all(bill.TxnID)
+
+      return { ...bill, details }
+    })
+
     res.json(ok('Fetched all bills', data))
   } catch (error) {
-    console.error('Error in getAllBills:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch bills', data: null, error: error.message })
   }
 }
@@ -608,76 +550,7 @@ exports.updateBillItemsIsBilled = async (req, res) => {
   }
 }
 
-/* -------------------------------------------------------------------------- */
-/* getUnbilledItemsByTable → fetch aggregated unbilled items by TableID       */
-/* -------------------------------------------------------------------------- */
-exports.getUnbilledItemsByTable = async (req, res) => {
-  try {
-    const { tableId } = req.params;
-    if (!tableId) {
-      return res.status(400).json({ success: false, message: 'Table ID is required' });
-    }
-    const rows = db.prepare(`
-      SELECT
-        d.ItemID,
-        COALESCE(m.item_name, 'Unknown Item') AS ItemName,
-        SUM(d.Qty) as Qty,
-        d.RuntimeRate as price,
-        b.isBilled,
-        d.isNCKOT,
-        b.NCName,
-        b.NCPurpose,
-        b.TableID,
-        MIN(d.TxnID) as TxnID
-      FROM TAxnTrnbilldetails d
-      JOIN TAxnTrnbill b ON d.TxnID = b.TxnID
-      LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
-      WHERE b.TableID = ? AND b.isBilled = 0 AND d.isCancelled = 0
-      GROUP BY d.ItemID, COALESCE(m.item_name, 'Unknown Item'), d.RuntimeRate, b.isBilled, d.isNCKOT, b.NCName, b.NCPurpose, b.TableID
-      HAVING SUM(d.Qty) > 0
-    `).all(Number(tableId));
 
-    res.json({ success: true, message: 'Fetched unbilled items', data: rows });
-  } catch (error) {
-    console.error('Error fetching unbilled items by table:', error.message);
-    res.status(500).json({ success: false, message: 'Failed to fetch unbilled items', data: null, error: error.message });
-  }
-};
-
-/* -------------------------------------------------------------------------- */
-/* getUnbilledItemsByKOTNo → fetch aggregated unbilled items by KOTNo         */
-/* -------------------------------------------------------------------------- */
-exports.getUnbilledItemsByKOTNo = async (req, res) => {
-  try {
-    const { kotNo } = req.params;
-    if (!kotNo) {
-      return res.status(400).json({ success: false, message: 'KOT No is required' });
-    }
-
-    const rows = db.prepare(`
-      SELECT
-        d.ItemID,
-        COALESCE(m.item_name, 'Unknown Item') AS ItemName,
-        SUM(d.Qty) as Qty,
-        d.RuntimeRate as price,
-        b.isBilled,
-        d.isNCKOT,
-        b.NCName,
-        b.NCPurpose
-      FROM TAxnTrnbilldetails d
-      JOIN TAxnTrnbill b ON d.TxnID = b.TxnID
-      LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
-      WHERE b.KOTNo = ? AND b.isBilled = 0 AND d.isCancelled = 0
-      GROUP BY d.ItemID, COALESCE(m.item_name, 'Unknown Item'), d.RuntimeRate, b.isBilled, d.isNCKOT, b.NCName, b.NCPurpose
-      HAVING SUM(d.Qty) > 0
-    `).all(Number(kotNo));
-
-    res.json({ success: true, message: 'Fetched unbilled items by KOT', data: rows });
-  } catch (error) {
-    console.error('Error fetching unbilled items by KOT:', error.message);
-    res.status(500).json({ success: false, message: 'Failed to fetch unbilled items by KOT', data: null, error: error.message });
-  }
-};
 
 /* -------------------------------------------------------------------------- */
 /* updateItemsBilledByTable → mark isBilled = 1 for unbilled items by TableID */
@@ -721,258 +594,164 @@ exports.getNextKOTNo = async (req, res) => {
   }
 };
 
-
-
 /* -------------------------------------------------------------------------- */
-/* KOT Management Functions                                                  */
+/* createKOT → add quantity to existing KOT or create new KOT details         */
 /* -------------------------------------------------------------------------- */
-
-// Create normal KOT
 exports.createKOT = async (req, res) => {
   try {
     const { txnId, tableId, items = [] } = req.body;
-    
     if (!txnId || !tableId || !Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'txnId, tableId, and items array are required', 
-        data: null 
-      });
+      return res.status(400).json({ success: false, message: 'txnId, tableId and items are required' });
     }
 
-    const trx = db.transaction(() => {
-      // Get next KOT number
-      const maxKOT = db.prepare('SELECT MAX(KOTNo) as maxKOT FROM TAxnTrnbill').get();
-      const kotNo = maxKOT && maxKOT.maxKOT ? maxKOT.maxKOT + 1 : 1;
+    const bill = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(txnId));
+    if (!bill) return res.status(404).json({ success: false, message: 'Bill not found', data: null });
 
-      // Update the bill header with new KOT number
-      db.prepare('UPDATE TAxnTrnbill SET KOTNo = ? WHERE TxnID = ?').run(kotNo, txnId);
+    const insertOrUpdate = db.prepare(`
+      INSERT INTO TAxnTrnbilldetails (
+        TxnID, ItemID, Qty, RuntimeRate, AutoKOT, ManualKOT, SpecialInst, DeptID, HotelID,
+        isBilled, isNCKOT, NCName, NCPurpose
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(TxnID, ItemID) DO UPDATE SET Qty = Qty + excluded.Qty
+    `);
 
-      // Insert new KOT items
-      const insertStmt = db.prepare(`
-        INSERT INTO TAxnTrnbilldetails (
-          TxnID, outletid, ItemID, TableID, Qty, RevQty, KOTNo, isKOTGenerate,
-          AutoKOT, ManualKOT, SpecialInst, isSetteled, isNCKOT, isCancelled,
-          DeptID, HotelID, RuntimeRate, KOTUsedDate, isBilled
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `);
-
+    const tx = db.transaction(() => {
       for (const item of items) {
-        const qty = Number(item.Qty) || 0;
-        const rate = Number(item.RuntimeRate) || 0;
-        
-        insertStmt.run(
-          txnId,
-          item.outletid || null,
-          item.ItemID,
-          tableId,
-          qty,
-          0, // RevQty = 0 for normal KOT
-          kotNo,
-          1, // isKOTGenerate = 1
+        insertOrUpdate.run(
+          Number(txnId),
+          item.ItemID ?? null,
+          Number(item.Qty) || 0,
+          Number(item.RuntimeRate) || 0,
           1, // AutoKOT = 1
           toBool(item.ManualKOT),
           item.SpecialInst || null,
-          toBool(item.isSetteled),
+          item.DeptID ?? null,
+          item.HotelID ?? null,
+          0, // isBilled default to 0
           toBool(item.isNCKOT),
-          toBool(item.isCancelled),
-          item.DeptID || null,
-          item.HotelID || null,
-          rate,
-          new Date().toISOString(),
-          0 // isBilled = 0
+          item.NCName || null,
+          item.NCPurpose || null
         );
       }
-
-      return { kotNo, txnId };
     });
 
-    const { kotNo, txnId: resultTxnId } = trx();
-    
-    res.json(ok('KOT created successfully', { 
-      kotNo, 
-      txnId: resultTxnId, 
-      tableId,
-      itemsCount: items.length 
-    }));
+    tx();
+
+    const updatedBill = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(txnId));
+    const updatedDetails = db.prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? ORDER BY TXnDetailID').all(Number(txnId));
+
+    res.json({ success: true, message: 'KOT updated', data: { ...updatedBill, details: updatedDetails } });
   } catch (error) {
-    console.error('Error creating KOT:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Failed to create KOT', 
-      data: null, 
-      error: error.message 
-    });
+    res.status(500).json({ success: false, message: 'Failed to update KOT', data: null, error: error.message });
   }
 };
 
-// Create reverse KOT (Re-KOT)
+/* -------------------------------------------------------------------------- */
+/* reverseKOT → reduce quantity in KOT details                                */
+/* -------------------------------------------------------------------------- */
 exports.reverseKOT = async (req, res) => {
   try {
     const { txnId, tableId, itemId, qtyToReverse = 1 } = req.body;
-    
     if (!txnId || !tableId || !itemId) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'txnId, tableId, and itemId are required', 
-        data: null 
-      });
+      return res.status(400).json({ success: false, message: 'txnId, tableId and itemId are required' });
     }
 
-    const trx = db.transaction(() => {
-      // Get next KOT number
-      const maxKOT = db.prepare('SELECT MAX(KOTNo) as maxKOT FROM TAxnTrnbill').get();
-      const kotNo = maxKOT && maxKOT.maxKOT ? maxKOT.maxKOT + 1 : 1;
+    const bill = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(txnId));
+    if (!bill) return res.status(404).json({ success: false, message: 'Bill not found', data: null });
 
-      // Get the original item details
-      const originalItem = db.prepare(`
-        SELECT * FROM TAxnTrnbilldetails 
-        WHERE TxnID = ? AND ItemID = ? AND TableID = ? AND isCancelled = 0
-        ORDER BY TXnDetailID DESC LIMIT 1
-      `).get(txnId, itemId, tableId);
+    const detail = db.prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? AND ItemID = ?').get(Number(txnId), Number(itemId));
+    if (!detail) return res.status(404).json({ success: false, message: 'Item not found in bill details', data: null });
 
-      if (!originalItem) {
-        throw new Error('Original item not found');
+    const newQty = detail.Qty - qtyToReverse;
+    if (newQty < 0) {
+      return res.status(400).json({ success: false, message: 'Quantity to reverse exceeds current quantity', data: null });
+    }
+
+    const tx = db.transaction(() => {
+      if (newQty === 0) {
+        db.prepare('DELETE FROM TAxnTrnbilldetails WHERE TXnDetailID = ?').run(detail.TXnDetailID);
+      } else {
+        db.prepare('UPDATE TAxnTrnbilldetails SET Qty = ? WHERE TXnDetailID = ?').run(newQty, detail.TXnDetailID);
       }
-
-      // Insert reverse KOT entry with negative quantities
-      const insertStmt = db.prepare(`
-        INSERT INTO TAxnTrnbilldetails (
-          TxnID, outletid, ItemID, TableID, Qty, RevQty, KOTNo, isKOTGenerate,
-          AutoKOT, ManualKOT, SpecialInst, isSetteled, isNCKOT, isCancelled,
-          DeptID, HotelID, RuntimeRate, KOTUsedDate, isBilled
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `);
-
-      const reverseQty = -Math.abs(Number(qtyToReverse));
-      
-      insertStmt.run(
-        txnId,
-        originalItem.outletid,
-        itemId,
-        tableId,
-        reverseQty, // Qty = negative value
-        reverseQty, // RevQty = negative value
-        kotNo,
-        1, // isKOTGenerate = 1 (marked as Re-KOT generated)
-        1, // AutoKOT = 1
-        toBool(originalItem.ManualKOT),
-        originalItem.SpecialInst,
-        toBool(originalItem.isSetteled),
-        toBool(originalItem.isNCKOT),
-        toBool(originalItem.isCancelled),
-        originalItem.DeptID,
-        originalItem.HotelID,
-        originalItem.RuntimeRate,
-        new Date().toISOString(),
-        0 // isBilled = 0
-      );
-
-      return { kotNo, txnId, itemId, reverseQty };
     });
 
-    const { kotNo, txnId: resultTxnId, itemId: resultItemId, reverseQty } = trx();
-    
-    res.json(ok('Re-KOT created successfully', { 
-      kotNo, 
-      txnId: resultTxnId, 
-      tableId,
-      itemId: resultItemId,
-      reverseQty,
-      message: `Reversed ${Math.abs(reverseQty)} quantity for item ${resultItemId}`
-    }));
+    tx();
+
+    const updatedBill = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(txnId));
+    const updatedDetails = db.prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? ORDER BY TXnDetailID').all(Number(txnId));
+
+    res.json({ success: true, message: 'KOT quantity reversed', data: { ...updatedBill, details: updatedDetails } });
   } catch (error) {
-    console.error('Error creating Re-KOT:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Failed to create Re-KOT', 
-      data: null, 
-      error: error.message 
-    });
+    res.status(500).json({ success: false, message: 'Failed to reverse KOT quantity', data: null, error: error.message });
   }
 };
 
-// Get KOT list for a table (including normal and reverse KOTs)
-exports.getKOTList = async (req, res) => {
+/* -------------------------------------------------------------------------- */
+/* Updated getUnbilledItemsByTable query to fix quantity multiplication issue */
+/* -------------------------------------------------------------------------- */
+exports.getUnbilledItemsByTable = async (req, res) => {
   try {
-    const { tableId } = req.query;
-    
+    const { tableId } = req.params;
     if (!tableId) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'tableId query parameter is required', 
-        data: null 
-      });
+      return res.status(400).json({ success: false, message: 'Table ID is required' });
     }
-
-    const query = `
-      SELECT 
-        d.KOTNo,
-        d.TXnDetailID,
+    const rows = db.prepare(`
+      SELECT
         d.ItemID,
         COALESCE(m.item_name, 'Unknown Item') AS ItemName,
-        d.Qty,
-        d.RevQty,
-        d.RuntimeRate,
-        d.isKOTGenerate,
-        d.KOTUsedDate,
-        d.SpecialInst,
-        CASE 
-          WHEN d.Qty < 0 THEN 'Re-KOT'
-          ELSE 'Normal KOT'
-        END as KOTType,
-        b.TxnDatetime,
-        b.Steward
+        SUM(d.Qty) as Qty,
+        AVG(d.RuntimeRate) as price,
+        b.isBilled,
+        d.isNCKOT,
+        b.NCName,
+        b.NCPurpose,
+        SUM(d.RevQty) as RevQty
       FROM TAxnTrnbilldetails d
       JOIN TAxnTrnbill b ON d.TxnID = b.TxnID
       LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
-      WHERE b.TableID = ? AND d.isCancelled = 0 AND d.KOTNo IS NOT NULL
-      ORDER BY d.KOTNo DESC, d.TXnDetailID DESC
-    `;
+      WHERE b.TableID = ? AND b.isBilled = 0 AND d.isCancelled = 0
+      GROUP BY d.ItemID, COALESCE(m.item_name, 'Unknown Item'), b.isBilled, d.isNCKOT, b.NCName, b.NCPurpose, b.TableID
+    `).all(Number(tableId));
 
-    const kotList = db.prepare(query).all(Number(tableId));
-
-    // Group by KOT number for better organization
-    const groupedKOTs = kotList.reduce((acc, item) => {
-      const kotNo = item.KOTNo;
-      if (!acc[kotNo]) {
-        acc[kotNo] = {
-          kotNo,
-          kotType: item.KOTType,
-          items: [],
-          kotDate: item.TxnDatetime,
-          steward: item.Steward
-        };
-      }
-      acc[kotNo].items.push({
-        TXnDetailID: item.TXnDetailID,
-        ItemID: item.ItemID,
-        ItemName: item.ItemName,
-        Qty: item.Qty,
-        RevQty: item.RevQty,
-        RuntimeRate: item.RuntimeRate,
-        isKOTGenerate: item.isKOTGenerate,
-        KOTUsedDate: item.KOTUsedDate,
-        SpecialInst: item.SpecialInst
-      });
-      return acc;
-    }, {});
-
-    const result = Object.values(groupedKOTs).sort((a, b) => b.kotNo - a.kotNo);
-
-    res.json(ok('KOT list retrieved successfully', { 
-      tableId: Number(tableId),
-      kotList: result,
-      totalKOTs: result.length
-    }));
+    res.json({ success: true, message: 'Fetched unbilled items', data: rows });
   } catch (error) {
-    console.error('Error retrieving KOT list:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Failed to retrieve KOT list', 
-      data: null, 
-      error: error.message 
-    });
+    console.error('Error fetching unbilled items by table:', error.message);
+    res.status(500).json({ success: false, message: 'Failed to fetch unbilled items', data: null, error: error.message });
+  }
+};
+
+/* -------------------------------------------------------------------------- */
+/* Updated getUnbilledItemsByKOTNo query to fix quantity multiplication issue  */
+/* -------------------------------------------------------------------------- */
+exports.getUnbilledItemsByKOTNo = async (req, res) => {
+  try {
+    const { kotNo } = req.params;
+    if (!kotNo) {
+      return res.status(400).json({ success: false, message: 'KOT No is required' });
+    }
+
+    const rows = db.prepare(`
+      SELECT
+        d.ItemID,
+        COALESCE(m.item_name, 'Unknown Item') AS ItemName,
+        SUM(d.Qty) as Qty,
+        AVG(d.RuntimeRate) as price,
+        b.isBilled,
+        d.isNCKOT,
+        b.NCName,
+        b.NCPurpose,
+        SUM(d.RevQty) as RevQty
+      FROM TAxnTrnbilldetails d
+      JOIN TAxnTrnbill b ON d.TxnID = b.TxnID
+      LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
+      WHERE b.KOTNo = ? AND b.isBilled = 0 AND d.isCancelled = 0
+      GROUP BY d.ItemID, COALESCE(m.item_name, 'Unknown Item'), b.isBilled, d.isNCKOT, b.NCName, b.NCPurpose
+    `).all(Number(kotNo));
+
+    res.json({ success: true, message: 'Fetched unbilled items by KOT', data: rows });
+  } catch (error) {
+    console.error('Error fetching unbilled items by KOT:', error.message);
+    res.status(500).json({ success: false, message: 'Failed to fetch unbilled items by KOT', data: null, error: error.message });
   }
 };
 

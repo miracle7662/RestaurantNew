@@ -6,13 +6,14 @@ import { useAuthContext } from '@/common';
 import { OutletData } from '@/common/api/outlet';
 import AddCustomerModal from './Customers';
 import { toast } from 'react-hot-toast';
-import { createBill, getSavedKOTs, getTaxesByOutletAndDepartment, reverseKOT, getKOTList } from '@/common/api/orders';
+import { createBill, getSavedKOTs, getTaxesByOutletAndDepartment, reverseKOT, getKOTList, createKOT } from '@/common/api/orders';
 
 interface MenuItem {
   id: number;
   name: string;
   price: number;
   qty: number;
+  revQty: number;
   isBilled: number;
   isNCKOT: number;
   NCName: string;
@@ -687,13 +688,119 @@ const Order = () => {
     setShowNewCustomerForm(false);
   };
 
-  const handleIncreaseQty = (itemId: number) => {
+  const handleIncreaseQty = async (itemId: number) => {
+    const item = items.find(i => i.id === itemId);
+    if (!item) return;
+
+    // If this is a saved KOT item, call createKOT API to add more quantity
+    if (item.isBilled === 0 && selectedTable) {
+      try {
+        // Find the table record to get tableid
+        const selectedTableRecord: any = (Array.isArray(filteredTables) ? filteredTables : tableItems)
+          .find((t: any) => t && t.table_name && t.table_name === selectedTable)
+          || (Array.isArray(tableItems) ? tableItems.find((t: any) => t && t.table_name === selectedTable) : undefined);
+        
+        if (selectedTableRecord) {
+          const tableId = Number((selectedTableRecord as any).tableid || (selectedTableRecord as any).tablemanagementid) || null;
+          
+          if (tableId) {
+            // Find the transaction ID for this table
+            const savedKOT = savedKOTs.find(kot => 
+              kot.TableID === tableId && 
+              kot.details.some((detail: any) => detail.ItemID === itemId)
+            );
+            
+            if (savedKOT) {
+              await createKOT({
+                txnId: savedKOT.TxnID,
+                tableId: tableId,
+                items: [{
+                  ItemID: itemId,
+                  Qty: 1, // Add 1 quantity
+                  RuntimeRate: item.price,
+                  outletid: savedKOT.outletid,
+                  DeptID: savedKOT.details.find((detail: any) => detail.ItemID === itemId)?.DeptID,
+                  HotelID: savedKOT.HotelID
+                }]
+              });
+              
+              // Refresh the saved KOTs to get updated data
+              const response = await getSavedKOTs({ 
+                isBilled: 0, 
+                tableId: tableId 
+              });
+              setSavedKOTs(response.data || []);
+              
+              toast.success('Quantity updated successfully');
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error updating quantity:', error);
+        toast.error('Failed to update quantity');
+      }
+    }
+
+    // Update local state
     setItems(items.map(item =>
       item.id === itemId ? { ...item, qty: item.qty + 1 } : item
     ));
   };
 
-  const handleDecreaseQty = (itemId: number) => {
+  const handleDecreaseQty = async (itemId: number) => {
+    const item = items.find(i => i.id === itemId);
+    if (!item) return;
+
+    // If quantity becomes 0 or negative, remove the item
+    if (item.qty <= 1) {
+      setItems(items.filter(i => i.id !== itemId));
+      return;
+    }
+
+    // If this is a saved KOT item, call reverseKOT API to update backend
+    if (item.isBilled === 0 && selectedTable) {
+      try {
+        // Find the table record to get tableid
+        const selectedTableRecord: any = (Array.isArray(filteredTables) ? filteredTables : tableItems)
+          .find((t: any) => t && t.table_name && t.table_name === selectedTable)
+          || (Array.isArray(tableItems) ? tableItems.find((t: any) => t && t.table_name === selectedTable) : undefined);
+        
+        if (selectedTableRecord) {
+          const tableId = Number((selectedTableRecord as any).tableid || (selectedTableRecord as any).tablemanagementid) || null;
+          
+          if (tableId) {
+            // Find the transaction ID for this table
+            const savedKOT = savedKOTs.find(kot => 
+              kot.TableID === tableId && 
+              kot.details.some((detail: any) => detail.ItemID === itemId)
+            );
+            
+            if (savedKOT) {
+              await reverseKOT({
+                txnId: savedKOT.TxnID,
+                tableId: tableId,
+                itemId: itemId,
+                qtyToReverse: 1 // Subtract 1 quantity
+              });
+              
+              // Refresh the saved KOTs to get updated data
+              const response = await getSavedKOTs({ 
+                isBilled: 0, 
+                tableId: tableId 
+              });
+              setSavedKOTs(response.data || []);
+              
+              toast.success('Quantity updated successfully');
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error updating quantity:', error);
+        toast.error('Failed to update quantity');
+      }
+    }
+
+    // Update local state
     const updatedItems = items.map(item =>
       item.id === itemId ? { ...item, qty: item.qty - 1 } : item
     );
@@ -999,6 +1106,7 @@ const Order = () => {
       const resp = await createBill(payload);
       if (resp?.success) {
         toast.success('KOT saved');
+        setItems([]); // Clear items after successful KOT save
         // Open print preview with KOT content
         const printWindow = window.open('', '_blank');
         if (printWindow) {
