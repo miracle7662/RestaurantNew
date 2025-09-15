@@ -499,21 +499,36 @@ exports.addItemToBill = async (req, res) => {
     if (!bill) return res.status(404).json({ success: false, message: 'Bill not found', data: null })
 
     const tx = db.transaction(() => {
+      // If any of the new items is an NCKOT, update the main bill header.
+      const nckotItem = details.find(item => item.isNCKOT);
+      if (nckotItem) {
+        db.prepare(`
+          UPDATE TAxnTrnbill 
+          SET NCName = ?, NCPurpose = ? 
+          WHERE TxnID = ?
+        `).run(nckotItem.NCName || null, nckotItem.NCPurpose || null, Number(id));
+      }
+
       const din = db.prepare(`
         INSERT INTO TAxnTrnbilldetails (
           TxnID, ItemID, Qty, RuntimeRate, AutoKOT, ManualKOT, SpecialInst, DeptID, HotelID,
-          isBilled, isNCKOT, NCName, NCPurpose
-        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+          isBilled, isNCKOT
+        ) VALUES (?,?,?,?,?,?,?,?,?,?,?)
       `)
       for (const it of details) {
         const isNCKOT = toBool(it.isNCKOT)
         din.run(
-          Number(id), it.ItemID ?? null, Number(it.Qty) || 0, Number(it.RuntimeRate) || 0,
-          toBool(it.AutoKOT), toBool(it.ManualKOT), it.SpecialInst || null, it.DeptID ?? null, it.HotelID ?? null,
+          Number(id),
+          it.ItemID ?? null,
+          Number(it.Qty) || 0,
+          Number(it.RuntimeRate) || 0,
+          toBool(it.AutoKOT),
+          toBool(it.ManualKOT),
+          it.SpecialInst || null,
+          it.DeptID ?? null,
+          it.HotelID ?? null,
           0, // isBilled default to 0
-          isNCKOT, // isNCKOT as provided or 0
-          isNCKOT ? (it.NCName || null) : null,
-          isNCKOT ? (it.NCPurpose || null) : null
+          isNCKOT // isNCKOT as provided or 0
         )
       }
     })
@@ -607,17 +622,26 @@ exports.createKOT = async (req, res) => {
     const bill = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(txnId));
     if (!bill) return res.status(404).json({ success: false, message: 'Bill not found', data: null });
 
-    const insertOrUpdate = db.prepare(`
-      INSERT INTO TAxnTrnbilldetails (
-        TxnID, ItemID, Qty, RuntimeRate, AutoKOT, ManualKOT, SpecialInst, DeptID, HotelID,
-        isBilled, isNCKOT, NCName, NCPurpose
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT(TxnID, ItemID) DO UPDATE SET Qty = Qty + excluded.Qty
-    `);
-
     const tx = db.transaction(() => {
+      // If any of the new items is an NCKOT, update the main bill header.
+      const nckotItem = items.find(item => item.isNCKOT);
+      if (nckotItem) {
+        db.prepare(`
+          UPDATE TAxnTrnbill 
+          SET NCName = ?, NCPurpose = ? 
+          WHERE TxnID = ?
+        `).run(nckotItem.NCName || null, nckotItem.NCPurpose || null, Number(txnId));
+      }
+
+      const insertDetail = db.prepare(`
+        INSERT INTO TAxnTrnbilldetails (
+          TxnID, ItemID, Qty, RuntimeRate, AutoKOT, ManualKOT, SpecialInst, DeptID, HotelID,
+          isBilled, isNCKOT
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+
       for (const item of items) {
-        insertOrUpdate.run(
+        insertDetail.run(
           Number(txnId),
           item.ItemID ?? null,
           Number(item.Qty) || 0,
@@ -628,9 +652,7 @@ exports.createKOT = async (req, res) => {
           item.DeptID ?? null,
           item.HotelID ?? null,
           0, // isBilled default to 0
-          toBool(item.isNCKOT),
-          item.NCName || null,
-          item.NCPurpose || null
+          toBool(item.isNCKOT)
         );
       }
     });
