@@ -6,7 +6,7 @@ import { useAuthContext } from '@/common';
 import { OutletData } from '@/common/api/outlet';
 import AddCustomerModal from './Customers';
 import { toast } from 'react-hot-toast';
-import { createBill, getSavedKOTs, getTaxesByOutletAndDepartment, getKOTList, createKOT,  } from '@/common/api/orders';
+import { createBill, getSavedKOTs, getTaxesByOutletAndDepartment, reverseKOT, getKOTList, createKOT } from '@/common/api/orders';
 
 interface MenuItem {
   id: number;
@@ -581,8 +581,7 @@ const Order = () => {
             id: item.ItemID,
             name: item.ItemName || `Item ${item.ItemID}`,
             price: Number(item.price) || 0,
-            qty: Number(item.NetQty) || 0,
-            revQty: Number(item.RevQty) || 0,
+            qty: Number(item.Qty) || 0,
             isBilled: Number(item.isBilled) || 0,
             isNCKOT: Number(item.isNCKOT) || 0,
             NCName: item.NCName || '',
@@ -603,7 +602,6 @@ const Order = () => {
   };
 
  
-
   const handleTableClick = (seat: string) => {
     console.log('Button clicked for table:', seat);
     setSelectedTable(seat);
@@ -675,7 +673,7 @@ const Order = () => {
     const item = items.find(i => i.id === itemId);
     if (!item) return;
 
-   
+    
 
     // Update local state
     const updatedItems = items.map(item =>
@@ -1143,7 +1141,7 @@ const Order = () => {
     setShowNCKOTModal(false);
   };
 
-
+  
   return (
     <div className="container-fluid p-0 m-0" style={{ height: '100vh' }}>
       {/* Hidden KOT Preview for Printing */}

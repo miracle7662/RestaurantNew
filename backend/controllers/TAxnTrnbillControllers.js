@@ -133,8 +133,8 @@ exports.createBill = async (req, res) => {
       : headerAmount
 
     const trx = db.transaction(() => {
-      // Mark previous unbilled KOTs for the table as billed to prevent qty accumulation
-      if (TableID) {
+
+       if (TableID) {
         db.prepare('UPDATE TAxnTrnbill SET isBilled = 1 WHERE TableID = ? AND isBilled = 0').run(TableID);
       }
 
