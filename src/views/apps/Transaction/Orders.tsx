@@ -6,7 +6,7 @@ import { useAuthContext } from '@/common';
 import { OutletData } from '@/common/api/outlet';
 import AddCustomerModal from './Customers';
 import { toast } from 'react-hot-toast';
-import { createBill, getSavedKOTs, getTaxesByOutletAndDepartment, reverseKOT, getKOTList, createKOT } from '@/common/api/orders';
+import { createBill, getSavedKOTs, getTaxesByOutletAndDepartment, getKOTList, createKOT,  } from '@/common/api/orders';
 
 interface MenuItem {
   id: number;
@@ -581,7 +581,8 @@ const Order = () => {
             id: item.ItemID,
             name: item.ItemName || `Item ${item.ItemID}`,
             price: Number(item.price) || 0,
-            qty: Number(item.Qty) || 0,
+            qty: Number(item.NetQty) || 0,
+            revQty: Number(item.RevQty) || 0,
             isBilled: Number(item.isBilled) || 0,
             isNCKOT: Number(item.isNCKOT) || 0,
             NCName: item.NCName || '',
@@ -601,37 +602,7 @@ const Order = () => {
     }
   };
 
-  const fetchUnbilledItemsByKOTNo = async (kotNo: number) => {
-    try {
-      const res = await fetch(`http://localhost:3001/api/TAxnTrnbill/unbilled-kot/${kotNo}`, {
-        headers: { 'Content-Type': 'application/json' },
-      });
-      if (res.ok) {
-        const response = await res.json();
-        if (response.success && Array.isArray(response.data)) {
-          const formattedItems = response.data.map((item: any) => ({
-            id: item.ItemID,
-            name: item.ItemName || `Item ${item.ItemID}`,
-            price: Number(item.price) || 0,
-            qty: Number(item.Qty) || 0,
-            isBilled: Number(item.isBilled) || 0,
-            isNCKOT: Number(item.isNCKOT) || 0,
-            NCName: item.NCName || '',
-            NCPurpose: item.NCPurpose || '',
-          }));
-          setItems(formattedItems);
-        } else {
-          setItems([]);
-        }
-      } else {
-        console.error('Failed to fetch unbilled items by KOT');
-        setItems([]);
-      }
-    } catch (err) {
-      console.error('Error fetching unbilled items by KOT:', err);
-      setItems([]);
-    }
-  };
+ 
 
   const handleTableClick = (seat: string) => {
     console.log('Button clicked for table:', seat);
@@ -692,54 +663,7 @@ const Order = () => {
     const item = items.find(i => i.id === itemId);
     if (!item) return;
 
-    // If this is a saved KOT item, call createKOT API to add more quantity
-    if (item.isBilled === 0 && selectedTable) {
-      try {
-        // Find the table record to get tableid
-        const selectedTableRecord: any = (Array.isArray(filteredTables) ? filteredTables : tableItems)
-          .find((t: any) => t && t.table_name && t.table_name === selectedTable)
-          || (Array.isArray(tableItems) ? tableItems.find((t: any) => t && t.table_name === selectedTable) : undefined);
-        
-        if (selectedTableRecord) {
-          const tableId = Number((selectedTableRecord as any).tableid || (selectedTableRecord as any).tablemanagementid) || null;
-          
-          if (tableId) {
-            // Find the transaction ID for this table
-            const savedKOT = savedKOTs.find(kot => 
-              kot.TableID === tableId && 
-              kot.details.some((detail: any) => detail.ItemID === itemId)
-            );
-            
-            if (savedKOT) {
-              await createKOT({
-                txnId: savedKOT.TxnID,
-                tableId: tableId,
-                items: [{
-                  ItemID: itemId,
-                  Qty: 1, // Add 1 quantity
-                  RuntimeRate: item.price,
-                  outletid: savedKOT.outletid,
-                  DeptID: savedKOT.details.find((detail: any) => detail.ItemID === itemId)?.DeptID,
-                  HotelID: savedKOT.HotelID
-                }]
-              });
-              
-              // Refresh the saved KOTs to get updated data
-              const response = await getSavedKOTs({ 
-                isBilled: 0, 
-                tableId: tableId 
-              });
-              setSavedKOTs(response.data || []);
-              
-              toast.success('Quantity updated successfully');
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Error updating quantity:', error);
-        toast.error('Failed to update quantity');
-      }
-    }
+    
 
     // Update local state
     setItems(items.map(item =>
@@ -751,54 +675,7 @@ const Order = () => {
     const item = items.find(i => i.id === itemId);
     if (!item) return;
 
-    // If quantity becomes 0 or negative, remove the item
-    if (item.qty <= 1) {
-      setItems(items.filter(i => i.id !== itemId));
-      return;
-    }
-
-    // If this is a saved KOT item, call reverseKOT API to update backend
-    if (item.isBilled === 0 && selectedTable) {
-      try {
-        // Find the table record to get tableid
-        const selectedTableRecord: any = (Array.isArray(filteredTables) ? filteredTables : tableItems)
-          .find((t: any) => t && t.table_name && t.table_name === selectedTable)
-          || (Array.isArray(tableItems) ? tableItems.find((t: any) => t && t.table_name === selectedTable) : undefined);
-        
-        if (selectedTableRecord) {
-          const tableId = Number((selectedTableRecord as any).tableid || (selectedTableRecord as any).tablemanagementid) || null;
-          
-          if (tableId) {
-            // Find the transaction ID for this table
-            const savedKOT = savedKOTs.find(kot => 
-              kot.TableID === tableId && 
-              kot.details.some((detail: any) => detail.ItemID === itemId)
-            );
-            
-            if (savedKOT) {
-              await reverseKOT({
-                txnId: savedKOT.TxnID,
-                tableId: tableId,
-                itemId: itemId,
-                qtyToReverse: 1 // Subtract 1 quantity
-              });
-              
-              // Refresh the saved KOTs to get updated data
-              const response = await getSavedKOTs({ 
-                isBilled: 0, 
-                tableId: tableId 
-              });
-              setSavedKOTs(response.data || []);
-              
-              toast.success('Quantity updated successfully');
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Error updating quantity:', error);
-        toast.error('Failed to update quantity');
-      }
-    }
+   
 
     // Update local state
     const updatedItems = items.map(item =>
@@ -1266,68 +1143,6 @@ const Order = () => {
     setShowNCKOTModal(false);
   };
 
-  const handlePrintKOT = () => {
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      const contentToPrint = document.getElementById('kot-preview');
-      if (contentToPrint) {
-        printWindow.document.write(`
-          <!DOCTYPE html>
-<html>
-  <head>
-    <title>KOT Print</title>
-    <style>
-      @page {
-        size: 79mm auto;
-        margin: 0;
-      }
-
-      body {
-        font-family: Arial, sans-serif;
-        margin: 0;
-        padding: 10px;
-        width: 79mm;
-        box-sizing: border-box;
-      }
-
-      .text-center { text-align: center; }
-      .fw-bold { font-weight: bold; }
-      .mb-3 { margin-bottom: 1rem; }
-      .small { font-size: 0.875rem; }
-      .text-muted { color: #6c757d; }
-      .d-block { display: block; }
-      .row { display: flex; flex-wrap: wrap; margin: 0 -15px; }
-      .col-6 { flex: 0 0 50%; max-width: 50%; padding: 0 15px; }
-      .col-1 { flex: 0 0 8.333333%; max-width: 8.333333%; padding: 0 15px; }
-      .col-4 { flex: 0 0 33.333333%; max-width: 33.333333%; padding: 0 15px; }
-      .col-2 { flex: 0 0 16.666667%; max-width: 16.666667%; padding: 0 15px; }
-      .col-3 { flex: 0 0 25%; max-width: 25%; padding: 0 15px; }
-      .text-end { text-align: right; }
-      .pb-1 { padding-bottom: 0.25rem; }
-      .mb-2 { margin-bottom: 0.5rem; }
-      .mb-1 { margin-bottom: 0.25rem; }
-      .border-bottom { border-bottom: 1px solid #dee2e6; }
-      .text-black { color: #000; }
-
-      @media print {
-        body {
-          width: 79mm;
-          margin: 0;
-        }
-      }
-    </style>
-  </head>
-  <body>
-    ${contentToPrint.innerHTML}
-  </body>
-</html>
-
-        `);
-        printWindow.document.close();
-        printWindow.print();
-      }
-    }
-  };
 
   return (
     <div className="container-fluid p-0 m-0" style={{ height: '100vh' }}>

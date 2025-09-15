@@ -25,8 +25,7 @@ router.put('/:id/items/billed', controller.updateBillItemsIsBilled)
 router.get('/unbilled/:tableId', controller.getUnbilledItemsByTable)
 router.put('/billed/:tableId', controller.updateItemsBilledByTable)
 
-// Route for unbilled items by KOTNo
-router.get('/unbilled-kot/:kotNo', controller.getUnbilledItemsByKOTNo)
+
 
 // Route for next KOT number
 router.get('/next-kot', controller.getNextKOTNo)
@@ -35,6 +34,5 @@ router.get('/next-kot', controller.getNextKOTNo)
 
 // KOT Management Routes
 router.post('/kot/create', controller.createKOT)
-router.post('/kot/reverse', controller.reverseKOT)
 
 module.exports = router
