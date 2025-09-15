@@ -917,7 +917,7 @@ const Order = () => {
     
     // Extract KOT numbers (KOTNo or orderNo)
     const kotNumbers = kotsForTable.map(kot => {
-      if (kot.KOTNo) return `KOT ${kot.KOTNo}`;
+      if (kot.KOTNo) return `${kot.KOTNo}`;
       if (kot.orderNo) return kot.orderNo;
       return '';
     }).filter(Boolean);
@@ -930,7 +930,7 @@ const Order = () => {
       case 'Dine-in': {
         const kotNumbersLabel = getAllKOTNumbersForTable();
         if (kotNumbersLabel) {
-          return `${kotNumbersLabel} - Table ${selectedTable || ''}`;
+          return `KOT ${kotNumbersLabel} - Table ${selectedTable || ''}`;
         } else if (items.length > 0) {
           // If there are items in the current order but no saved KOTs, show "New Order"
           return `New Order - Table ${selectedTable || ''}`;
