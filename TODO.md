@@ -1,11 +1,24 @@
-# TODO: Fix KOT Quantity Issues and Add Load KOT Functionality
+# TODO: Fix KOT Update to Only Add New Items
 
-## Pending Tasks
-- [x] Fix quantity fetching in Orders.tsx: Change fetchUnbilledItems to use NetQty instead of Qty
-- [x] Modify handlePrintAndSaveKOT in Orders.tsx: Always create new KOT instead of updating existing to prevent qty accumulation (fixed by marking previous KOTs as billed in backend)
-- [ ] Add load KOT functionality in Orders.tsx: Implement function to load a specific saved KOT and update saved KOTs modal with "Load" button
-- [ ] Modify handleTableClick in Orders.tsx: Do not fetch unbilled items automatically, set items to [] instead
-- [ ] Add load KOT functionality in OrderDetails.tsx: Allow loading a specific saved KOT's items into the order details
-- [ ] Test changes: Verify quantities are correct, PUT errors resolved, and load KOT works properly
-- [ ] If PUT errors persist, investigate backend updateBill function for data validation issues
-- [x] Remove all frontend code that manages, calculates, or sends revqty to the backend
+## Information Gathered
+- Backend has `createBill` for new KOT, `createKOT` and `addItemToBill` for adding to existing KOT.
+- Frontend uses `createBill` for all saves, creating new bills instead of updating.
+- When adding items to existing KOT, only new items should be sent to backend.
+- Need to track saved vs new items in frontend.
+
+## Plan
+1. Modify `MenuItem` interface in Orders.tsx to include `isSaved` flag.
+2. When selecting table, fetch existing KOT details to get `TxnID`.
+3. When loading unbilled items, mark them as `isSaved: true`.
+4. When adding new items via OrderDetails, mark as `isSaved: false`.
+5. Modify `handlePrintAndSaveKOT` to:
+   - If no existing `TxnID`, use `createBill` with all items.
+   - If existing `TxnID`, use `createKOT` with only new items (`isSaved: false`).
+6. After successful save, mark new items as `isSaved: true` and update `TxnID` if new KOT.
+7. Test the functionality.
+
+## Dependent Files
+- src/views/apps/Transaction/Orders.tsx
+- src/views/apps/Transaction/OrderDetails.tsx (for adding items with isSaved flag)
+
+## Followup Steps

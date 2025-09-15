@@ -134,9 +134,7 @@ exports.createBill = async (req, res) => {
 
     const trx = db.transaction(() => {
 
-       if (TableID) {
-        db.prepare('UPDATE TAxnTrnbill SET isBilled = 1 WHERE TableID = ? AND isBilled = 0').run(TableID);
-      }
+      
 
       // Generate KOTNo
       const maxKOT = db.prepare('SELECT MAX(KOTNo) as maxKOT FROM TAxnTrnbill').get();
@@ -689,7 +687,7 @@ exports.getUnbilledItemsByTable = async (req, res) => {
         d.ItemID,
         COALESCE(m.item_name, 'Unknown Item') AS ItemName,
         SUM(d.Qty) as Qty,
-        SUM(d.Qty - d.RevQty) as NetQty,
+       
         AVG(d.RuntimeRate) as price,
         b.isBilled,
         d.isNCKOT,
