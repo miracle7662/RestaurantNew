@@ -22,17 +22,16 @@ router.post('/:id/items', controller.addItemToBill)
 router.put('/:id/items/billed', controller.updateBillItemsIsBilled)
 
 // New routes for table-wise unbilled items and update billed status
-router.get('/unbilled/:tableId', controller.getUnbilledItemsByTable)
-router.put('/billed/:tableId', controller.updateItemsBilledByTable)
+
+
 
 
 
 // Route for next KOT number
-router.get('/next-kot', controller.getNextKOTNo)
+
 
 
 
 // KOT Management Routes
-router.post('/kot/create', controller.createKOT)
 
 module.exports = router

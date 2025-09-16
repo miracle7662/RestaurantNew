@@ -6,14 +6,13 @@ import { useAuthContext } from '@/common';
 import { OutletData } from '@/common/api/outlet';
 import AddCustomerModal from './Customers';
 import { toast } from 'react-hot-toast';
-import { createBill, getSavedKOTs, getTaxesByOutletAndDepartment, reverseKOT, getKOTList, createKOT } from '@/common/api/orders';
+import { createBill, getSavedKOTs, getTaxesByOutletAndDepartment } from '@/common/api/orders';
 
 interface MenuItem {
   id: number;
   name: string;
   price: number;
   qty: number;
-  revQty: number;
   isBilled: number;
   isNCKOT: number;
   NCName: string;
@@ -24,7 +23,6 @@ interface MenuItem {
 
 interface TableItem {
   tablemanagementid: string;
-  tableid?: string;
   table_name: string;
   hotel_name: string;
   outlet_name: string;
@@ -40,23 +38,11 @@ interface TableItem {
   isCommonToAllDepartments: boolean;
   departmentid?: number;
 }
-
 interface DepartmentItem {
   departmentid: number;
   department_name: string;
   outletid: number;
 }
-
-const getTableButtonClass = (table: TableItem, isSelected: boolean) => {
-  if (isSelected) return 'btn-success';
-  // Use separate status field for coloring: 0=default,1=green,2=red
-  switch (table.status) {
-    case 1: return 'btn-success'; // KOT saved/occupied (green)
-    case 2: return 'btn-danger';  // Bill printed (red)
-    case 0: return 'btn-outline-success'; // Default background (white/grey)
-    default: return 'btn-secondary'; // fallback default
-  }
-};
 
 const Order = () => {
   const [selectedTable, setSelectedTable] = useState<string | null>('');
@@ -98,51 +84,6 @@ const Order = () => {
   const [showOptions, setShowOptions] = useState<boolean>(false);
   const [showTaxModal, setShowTaxModal] = useState<boolean>(false);
   const [showNCKOTModal, setShowNCKOTModal] = useState<boolean>(false);
-  const [isSavingKOT, setIsSavingKOT] = useState<boolean>(false);
-  const [oldItems, setOldItems] = useState<MenuItem[]>([]);
-  const [extraItems, setExtraItems] = useState<MenuItem[]>([]);
-  const [showExtraItemsModal, setShowExtraItemsModal] = useState<boolean>(false);
-  const [extraItemName, setExtraItemName] = useState<string>('');
-  const [extraItemPrice, setExtraItemPrice] = useState<number>(0);
-
-  // Handler to open extra items modal
-  const handleOpenExtraItemsModal = () => {
-    setExtraItemName('');
-    setExtraItemPrice(0);
-    setShowExtraItemsModal(true);
-  };
-
-  // Handler to close extra items modal
-  const handleCloseExtraItemsModal = () => {
-    setShowExtraItemsModal(false);
-  };
-
-  // Handler to add extra item to items list
-  const handleAddExtraItem = () => {
-    if (!extraItemName.trim()) {
-      toast.error('Please enter a valid item name');
-      return;
-    }
-    if (extraItemPrice <= 0) {
-      toast.error('Please enter a valid item price');
-      return;
-    }
-    // Create a new item with a unique id (negative to avoid conflicts)
-    const newItem = {
-      id: Date.now() * -1,
-      name: extraItemName.trim(),
-      price: extraItemPrice,
-      qty: 1,
-      revQty: 0,
-      isBilled: 0,
-      isNCKOT: 0,
-      NCName: '',
-      NCPurpose: '',
-    };
-    setItems(prevItems => [...prevItems, newItem]);
-    setShowExtraItemsModal(false);
-    toast.success('Extra item added');
-  };
 
   // KOT Print Settings state
 
@@ -157,102 +98,133 @@ const Order = () => {
   const [ncName, setNcName] = useState<string>('');
   const [ncPurpose, setNcPurpose] = useState<string>('');
 
-  // KOT Preview formData state
-  const [formData, setFormData] = useState({
-    customer_on_kot_dine_in: false,
-    customer_on_kot_pickup: false,
-    customer_on_kot_delivery: false,
-    customer_on_kot_quick_bill: false,
-    customer_kot_display_option: 'NAME_ONLY',
-    group_kot_items_by_category: false,
-    hide_table_name_quick_bill: false,
-    show_new_order_tag: true,
-    new_order_tag_label: 'New',
-    show_running_order_tag: true,
-    running_order_tag_label: 'Running',
-    dine_in_kot_no: 'DIN-',
-    pickup_kot_no: 'PUP-',
-    delivery_kot_no: 'DEL-',
-    quick_bill_kot_no: 'QBL-',
-    modifier_default_option: false,
-    print_kot_both_languages: false,
-    show_alternative_item: false,
-    show_captain_username: false,
-    show_covers_as_guest: false,
-    show_item_price: true,
-    show_kot_no_quick_bill: false,
-    show_kot_note: true,
-    show_online_order_otp: false,
-    show_order_id_quick_bill: false,
-    show_order_id_online_order: false,
-    show_order_no_quick_bill_section: false,
-    show_order_type_symbol: true,
-    show_store_name: true,
-    show_terminal_username: false,
-    show_username: false,
-    show_waiter: true,
-    bill_title_dine_in: true,
-    bill_title_pickup: true,
-    bill_title_delivery: true,
-    bill_title_quick_bill: true,
-    mask_order_id: false,
-    modifier_default_option_bill: false,
-    print_bill_both_languages: false,
-    show_alt_item_title_bill: false,
-    show_alt_name_bill: false,
-    show_bill_amount_words: false,
-    show_bill_no_bill: true,
-    show_bill_number_prefix_bill: true,
-    show_bill_print_count: false,
-    show_brand_name_bill: true,
-    show_captain_bill: false,
-    show_covers_bill: true,
-    show_custom_qr_codes_bill: false,
-    show_customer_gst_bill: false,
-    show_customer_bill: true,
-    show_customer_paid_amount: true,
-    show_date_bill: true,
-    show_default_payment: true,
-    show_discount_reason_bill: false,
-    show_due_amount_bill: true,
-    show_ebill_invoice_qrcode: false,
-    show_item_hsn_code_bill: false,
-    show_item_level_charges_separately: false,
-    show_item_note_bill: true,
-    show_items_sequence_bill: true,
-    show_kot_number_bill: false,
-    show_logo_bill: true,
-    show_order_id_bill: false,
-    show_order_no_bill: true,
-    show_order_note_bill: true,
-    order_type_dine_in: true,
-    order_type_pickup: true,
-    order_type_delivery: true,
-    order_type_quick_bill: true,
-    show_outlet_name_bill: true,
-    payment_mode_dine_in: true,
-    payment_mode_pickup: true,
-    payment_mode_delivery: true,
-    payment_mode_quick_bill: true,
-    table_name_dine_in: true,
-    table_name_pickup: false,
-    table_name_delivery: false,
-    table_name_quick_bill: false,
-    show_tax_charge_bill: true,
-    show_username_bill: false,
-    show_waiter_bill: true,
-    show_zatca_invoice_qr: false,
-    show_customer_address_pickup_bill: false,
-    show_order_placed_time: true,
-    hide_item_quantity_column: false,
-    hide_item_rate_column: false,
-    hide_item_total_column: false,
-    hide_total_without_tax: false,
+// KOT Preview formData state
+const [formData, setFormData] = useState({
+  customer_on_kot_dine_in: false,
+  customer_on_kot_pickup: false,
+  customer_on_kot_delivery: false,
+  customer_on_kot_quick_bill: false,
+  customer_kot_display_option: 'NAME_ONLY',
+  group_kot_items_by_category: false,
+  hide_table_name_quick_bill: false,
+  show_new_order_tag: true,
+  new_order_tag_label: 'New',
+  show_running_order_tag: true,
+  running_order_tag_label: 'Running',
+  dine_in_kot_no: 'DIN-',
+  pickup_kot_no: 'PUP-',
+  delivery_kot_no: 'DEL-',
+  quick_bill_kot_no: 'QBL-',
+  modifier_default_option: false,
+  print_kot_both_languages: false,
+  show_alternative_item: false,
+  show_captain_username: false,
+  show_covers_as_guest: false,
+  show_item_price: true,
+  show_kot_no_quick_bill: false,
+  show_kot_note: true,
+  show_online_order_otp: false,
+  show_order_id_quick_bill: false,
+  show_order_id_online_order: false,
+  show_order_no_quick_bill_section: false,
+  show_order_type_symbol: true,
+  show_store_name: true,
+  show_terminal_username: false,
+  show_username: false,
+  show_waiter: true,
+  bill_title_dine_in: true,
+  bill_title_pickup: true,
+  bill_title_delivery: true,
+  bill_title_quick_bill: true,
+  mask_order_id: false,
+  modifier_default_option_bill: false,
+  print_bill_both_languages: false,
+  show_alt_item_title_bill: false,
+  show_alt_name_bill: false,
+  show_bill_amount_words: false,
+  show_bill_no_bill: true,
+  show_bill_number_prefix_bill: true,
+  show_bill_print_count: false,
+  show_brand_name_bill: true,
+  show_captain_bill: false,
+  show_covers_bill: true,
+  show_custom_qr_codes_bill: false,
+  show_customer_gst_bill: false,
+  show_customer_bill: true,
+  show_customer_paid_amount: true,
+  show_date_bill: true,
+  show_default_payment: true,
+  show_discount_reason_bill: false,
+  show_due_amount_bill: true,
+  show_ebill_invoice_qrcode: false,
+  show_item_hsn_code_bill: false,
+  show_item_level_charges_separately: false,
+  show_item_note_bill: true,
+  show_items_sequence_bill: true,
+  show_kot_number_bill: false,
+  show_logo_bill: true,
+  show_order_id_bill: false,
+  show_order_no_bill: true,
+  show_order_note_bill: true,
+  order_type_dine_in: true,
+  order_type_pickup: true,
+  order_type_delivery: true,
+  order_type_quick_bill: true,
+  show_outlet_name_bill: true,
+  payment_mode_dine_in: true,
+  payment_mode_pickup: true,
+  payment_mode_delivery: true,
+  payment_mode_quick_bill: true,
+  table_name_dine_in: true,
+  table_name_pickup: false,
+  table_name_delivery: false,
+  table_name_quick_bill: false,
+  show_tax_charge_bill: true,
+  show_username_bill: false,
+  show_waiter_bill: true,
+  show_zatca_invoice_qr: false,
+  show_customer_address_pickup_bill: false,
+  show_order_placed_time: true,
+  hide_item_quantity_column: false,
+  hide_item_rate_column: false,
+  hide_item_total_column: false,
+  hide_total_without_tax: false,
 
-  });
+});
 
-  const fetchTableManagement = async () => {
-    console.log('[DEBUG] fetchTableManagement: Starting table fetch...');
+const getTableButtonStyle = (table: TableItem, isSelected: boolean) => {
+  let backgroundColor = '';
+  let border = '1px solid #ccc';
+  switch (table.status) {
+    case 0:
+      backgroundColor = '#f8f9fa'; // light grey for vacant
+      break;
+    case 1:
+      backgroundColor = '#28a745'; // green for occupied
+      break;
+    case 2:
+      backgroundColor = '#dc3545'; // red for billed
+      break;
+    default:
+      backgroundColor = '#f8f9fa';
+  }
+  if (isSelected) {
+    border = '3px solid #007bff'; // blue border for selected
+  }
+  return {
+    width: '90px',
+    height: '80px',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor,
+    color: table.status === 0 ? 'black' : 'white', // black text for vacant, white for others
+    border,
+    borderRadius: '5px'
+  };
+};
+
+const fetchTableManagement = async () => {
     setLoading(true);
     try {
       const res = await fetch('http://localhost:3001/api/tablemanagement', {
@@ -260,19 +232,16 @@ const Order = () => {
       });
       if (res.ok) {
         const response = await res.json();
+        console.log('Raw tableItems data:', JSON.stringify(response, null, 2));
         if (response.success && Array.isArray(response.data)) {
-          const formattedData = response.data.map((item: any) => {
-            const numericStatus = Number(item.status);
-            return {
-              ...item,
-              status: numericStatus,
-            };
-          });
+          const formattedData = response.data.map((item: any) => ({
+            ...item,
+            status: Number(item.status),
+          }));
           setTableItems(formattedData);
           setFilteredTables(formattedData);
           setErrorMessage('');
         } else if (response.success && response.data.length === 0) {
-          console.log('[DEBUG] fetchTableManagement: No tables found in API response');
           setErrorMessage('No tables found in TableManagement API.');
           setTableItems([]);
           setFilteredTables([]);
@@ -287,6 +256,7 @@ const Order = () => {
         setFilteredTables([]);
       }
     } catch (err) {
+      console.error('Table fetch error:', err);
       setErrorMessage('Failed to fetch tables. Please check the API endpoint.');
       setTableItems([]);
       setFilteredTables([]);
@@ -325,8 +295,6 @@ const Order = () => {
     }
   };
 
-  
-
   useEffect(() => {
     if (mobileNumber.length >= 10) {
       fetchCustomerByMobile(mobileNumber);
@@ -355,11 +323,9 @@ const Order = () => {
       try {
         const resp = await getSavedKOTs({ isBilled: 0 });
         const list = resp?.data || resp;
-        if (Array.isArray(list)) {
-          setSavedKOTs(list);
-        }
+        if (Array.isArray(list)) setSavedKOTs(list);
       } catch (err) {
-        console.warn('getSavedKOTs initial load failed', err);
+        console.warn('getSavedKOTs initial load failed');
       }
     })();
   }, []);
@@ -614,39 +580,6 @@ const Order = () => {
     }
   }, [searchTable, filteredTables]);
 
-  const fetchUnbilledItems = async (tableId: number) => {
-    try {
-      const res = await fetch(`http://localhost:3001/api/TAxnTrnbill/unbilled/${tableId}`, {
-        headers: { 'Content-Type': 'application/json' },
-      });
-      if (res.ok) {
-        const response = await res.json();
-        if (response.success && Array.isArray(response.data)) {
-          const formattedItems = response.data.map((item: any) => ({
-            id: item.ItemID,
-            name: item.ItemName || `Item ${item.ItemID}`,
-            price: Number(item.price) || 0,
-            qty: Number(item.Qty) || 0,
-            isBilled: Number(item.isBilled) || 0,
-            isNCKOT: Number(item.isNCKOT) || 0,
-            NCName: item.NCName || '',
-            NCPurpose: item.NCPurpose || '',
-          }));
-          setItems(formattedItems);
-        } else {
-          setItems([]);
-        }
-      } else {
-        console.error('Failed to fetch unbilled items');
-        setItems([]);
-      }
-    } catch (err) {
-      console.error('Error fetching unbilled items:', err);
-      setItems([]);
-    }
-  };
-
- 
   const handleTableClick = (seat: string) => {
     console.log('Button clicked for table:', seat);
     setSelectedTable(seat);
@@ -659,13 +592,9 @@ const Order = () => {
         || (Array.isArray(tableItems) ? tableItems.find((t: any) => t && t.table_name === seat) : undefined);
       if (selectedTableRecord) {
         const deptId = Number((selectedTableRecord as any).departmentid) || null;
-        const outletId = Number((selectedTableRecord as any).outletid) || null;
-        const tableId = Number((selectedTableRecord as any).tableid || (selectedTableRecord as any).tablemanagementid) || null;
+        const outletId = Number((selectedTableRecord as any).outletid) || null; // This is correct
         if (deptId) setSelectedDeptId(deptId);
         if (outletId) setSelectedOutletId(outletId);
-        if (tableId) {
-          fetchUnbilledItems(tableId);
-        }
       }
     } catch (e) {
       // no-op
@@ -702,25 +631,13 @@ const Order = () => {
     setShowNewCustomerForm(false);
   };
 
-  const handleIncreaseQty = async (itemId: number) => {
-    const item = items.find(i => i.id === itemId);
-    if (!item) return;
-
-    
-
-    // Update local state
+  const handleIncreaseQty = (itemId: number) => {
     setItems(items.map(item =>
       item.id === itemId ? { ...item, qty: item.qty + 1 } : item
     ));
   };
 
-  const handleDecreaseQty = async (itemId: number) => {
-    const item = items.find(i => i.id === itemId);
-    if (!item) return;
-
-    
-
-    // Update local state
+  const handleDecreaseQty = (itemId: number) => {
     const updatedItems = items.map(item =>
       item.id === itemId ? { ...item, qty: item.qty - 1 } : item
     );
@@ -792,72 +709,10 @@ const Order = () => {
     }
   }, [selectedOutletId]);
 
-  // Refresh KOTs when selected table changes
-  useEffect(() => {
-    if (selectedTable) {
-      (async () => {
-        try {
-          const resp = await getSavedKOTs({ isBilled: 0 });
-          const list = resp?.data || resp;
-          if (Array.isArray(list)) setSavedKOTs(list);
-        } catch (err) {
-          console.warn('Failed to refresh KOTs for table:', err);
-        }
-      })();
-    }
-  }, [selectedTable]);
-
-  // New function to get all KOT numbers for the selected table
-  const getAllKOTNumbersForTable = () => {
-    if (!selectedTable || !savedKOTs || savedKOTs.length === 0) {
-      return '';
-    }
-    
-    // Find the table object for selectedTable
-    const tableObj = tableItems.find(t => t.table_name === selectedTable);
-    if (!tableObj) {
-      return '';
-    }
-    
-    const tableId = Number(tableObj.tableid || tableObj.tablemanagementid);
-    
-    // Filter savedKOTs for the selected table by matching TableID exactly
-    const kotsForTable = savedKOTs.filter(kot => {
-      if (kot.TableID) {
-        return Number(kot.TableID) === tableId;
-      }
-      // fallback: check if orderNo contains selectedTable string
-      if (kot.orderNo && selectedTable) {
-        return kot.orderNo.includes(selectedTable);
-      }
-      return false;
-    });
-    
-    if (kotsForTable.length === 0) return '';
-    
-    // Extract KOT numbers (KOTNo or orderNo)
-    const kotNumbers = kotsForTable.map(kot => {
-      if (kot.KOTNo) return `${kot.KOTNo}`;
-      if (kot.orderNo) return kot.orderNo;
-      return '';
-    }).filter(Boolean);
-    
-    return kotNumbers.join(', ');
-  };
-
   const getKOTLabel = () => {
     switch (activeTab) {
-      case 'Dine-in': {
-        const kotNumbersLabel = getAllKOTNumbersForTable();
-        if (kotNumbersLabel) {
-          return `KOT ${kotNumbersLabel} - Table ${selectedTable || ''}`;
-        } else if (items.length > 0) {
-          // If there are items in the current order but no saved KOTs, show "New Order"
-          return `New Order - Table ${selectedTable || ''}`;
-        } else {
-          return `- Table ${selectedTable || ''}`;
-        }
-      }
+      case 'Dine-in':
+        return `KOT 1 ${selectedTable ? ` - Table ${selectedTable}` : ''}`;
       case 'Pickup':
         return 'Pickup Order';
       case 'Delivery':
@@ -869,7 +724,7 @@ const Order = () => {
       case 'Billing':
         return 'Billing';
       default:
-        return '';
+        return 'KOT 1';
     }
   };
 
@@ -877,7 +732,7 @@ const Order = () => {
     setShowOrderDetails(false);
   };
 
-  const handlePrintBill = async () => {
+  const handlePrintBill = () => {
     const printWindow = window.open('', '_blank');
     if (printWindow) {
       const contentToPrint = document.getElementById('bill-preview');
@@ -919,38 +774,8 @@ const Order = () => {
         printWindow.print();
       }
     }
-    // After printing bill, update table status to 2 (billed) and refetch tables
-    if (selectedTable) {
-      try {
-        const selectedTableRecord: any = (Array.isArray(filteredTables) ? filteredTables : tableItems)
-          .find((t: any) => t && t.table_name && t.table_name === selectedTable)
-          || (Array.isArray(tableItems) ? tableItems.find((t: any) => t && t.table_name === selectedTable) : undefined);
-        const resolvedTableId = selectedTableRecord ? Number((selectedTableRecord as any).tableid || (selectedTableRecord as any).tablemanagementid) : null;
-        if (resolvedTableId) {
-          // Mark all KOTs for this table as billed in the database
-          const billResponse = await fetch(`http://localhost:3001/api/TAxnTrnbill/billed/${resolvedTableId}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-          });
-          if (!billResponse.ok) {
-            throw new Error('Failed to mark items as billed.');
-          }
-
-          await fetchTableManagement();
-
-          // Update UI for a smooth workflow
-          setItems([]);
-          toast.success(`Table ${selectedTable} has been billed successfully.`);
-          handleBackToTables();
-        }
-      } catch (error) {
-        console.error('Error during bill finalization:', error);
-        toast.error('Failed to finalize bill.');
-      }
-    }
   };
 
-/*************  ✨ Windsurf Command 🌟  *************/
   const handlePrintAndSaveKOT = async () => {
     try {
       if (items.length === 0) return;
@@ -960,7 +785,6 @@ const Order = () => {
         .find((t: any) => t && t.table_name && t.table_name === selectedTable)
         || (Array.isArray(tableItems) ? tableItems.find((t: any) => t && t.table_name === selectedTable) : undefined);
       const resolvedTableId = selectedTableRecord ? Number((selectedTableRecord as any).tableid || (selectedTableRecord as any).tablemanagementid) : null;
-      const resolvedDeptId = selectedTableRecord ? Number((selectedTableRecord as any).departmentid) || undefined : null;
       const resolvedDeptId = selectedTableRecord ? Number((selectedTableRecord as any).departmentid) || undefined : undefined;
       const resolvedOutletId = selectedTableRecord ? Number((selectedTableRecord as any).outletid) || (user?.outletid ? Number(user.outletid) : null) : null;
       const userId = user?.id || null;
@@ -1028,7 +852,6 @@ const Order = () => {
       const resp = await createBill(payload);
       if (resp?.success) {
         toast.success('KOT saved');
-        setItems([]); // Clear items after successful KOT save
         // Open print preview with KOT content
         const printWindow = window.open('', '_blank');
         if (printWindow) {
@@ -1079,10 +902,6 @@ const Order = () => {
         } catch (err) {
           console.warn('refresh saved KOTs failed');
         }
-        // After successful KOT save, update table status to 1 (occupied) and refetch tables
-        if (resolvedTableId) {
-          await fetchTableManagement();
-        }
       } else {
         toast.error(resp?.message || 'Failed to save KOT');
       }
@@ -1092,7 +911,6 @@ const Order = () => {
       setLoading(false);
     }
   };
-/*******  90611374-6af6-415f-8125-d70823ff4b6d  *******/
   const handleTableSearchInput = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       const inputTable = tableSearchInput.trim();
@@ -1189,7 +1007,69 @@ const Order = () => {
     setShowNCKOTModal(false);
   };
 
-  
+  const handlePrintKOT = () => {
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      const contentToPrint = document.getElementById('kot-preview');
+      if (contentToPrint) {
+        printWindow.document.write(`
+          <!DOCTYPE html>
+<html>
+  <head>
+    <title>KOT Print</title>
+    <style>
+      @page {
+        size: 79mm auto;
+        margin: 0;
+      }
+
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 10px;
+        width: 79mm;
+        box-sizing: border-box;
+      }
+
+      .text-center { text-align: center; }
+      .fw-bold { font-weight: bold; }
+      .mb-3 { margin-bottom: 1rem; }
+      .small { font-size: 0.875rem; }
+      .text-muted { color: #6c757d; }
+      .d-block { display: block; }
+      .row { display: flex; flex-wrap: wrap; margin: 0 -15px; }
+      .col-6 { flex: 0 0 50%; max-width: 50%; padding: 0 15px; }
+      .col-1 { flex: 0 0 8.333333%; max-width: 8.333333%; padding: 0 15px; }
+      .col-4 { flex: 0 0 33.333333%; max-width: 33.333333%; padding: 0 15px; }
+      .col-2 { flex: 0 0 16.666667%; max-width: 16.666667%; padding: 0 15px; }
+      .col-3 { flex: 0 0 25%; max-width: 25%; padding: 0 15px; }
+      .text-end { text-align: right; }
+      .pb-1 { padding-bottom: 0.25rem; }
+      .mb-2 { margin-bottom: 0.5rem; }
+      .mb-1 { margin-bottom: 0.25rem; }
+      .border-bottom { border-bottom: 1px solid #dee2e6; }
+      .text-black { color: #000; }
+
+      @media print {
+        body {
+          width: 79mm;
+          margin: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    ${contentToPrint.innerHTML}
+  </body>
+</html>
+
+        `);
+        printWindow.document.close();
+        printWindow.print();
+      }
+    }
+  };
+
   return (
     <div className="container-fluid p-0 m-0" style={{ height: '100vh' }}>
       {/* Hidden KOT Preview for Printing */}
@@ -1237,7 +1117,7 @@ const Order = () => {
                   {(formData.show_kot_no_quick_bill || !formData.hide_table_name_quick_bill) && (
                     <strong>KOT No:</strong>
                   )}{' '}
-                  {getAllKOTNumbersForTable() || 'New Order'}
+                  KOT001
                 </div>
                 <div>
                   {selectedTable && (
@@ -1724,10 +1604,14 @@ const Order = () => {
                                   table.table_name ? (
                                     <div key={tableIndex} className="p-1">
                                       <button
-                                        className={`btn ${getTableButtonClass(table, selectedTable === table.table_name)}`}
+                                        className={`btn ${selectedTable === table.table_name ? 'btn-success' : 'btn-outline-success'}`}
                                         style={{ width: '90px', height: '80px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
-                                        onClick={() => handleTableClick(table.table_name)}>
-                                        {table.table_name}
+                                        onClick={() => {
+                                          console.log('Button clicked for table:', table.table_name, 'isActive:', table.isActive);
+                                          handleTableClick(table.table_name);
+                                        }}
+                                      >
+                                        {table.table_name} {table.isActive ? '' : ''}
                                       </button>
                                     </div>
                                   ) : null
@@ -1760,10 +1644,14 @@ const Order = () => {
                             table.table_name ? (
                               <div key={index} className="p-1">
                                 <button
-                                  className={`btn ${getTableButtonClass(table, selectedTable === table.table_name)}`}
+                                  className={`btn ${selectedTable === table.table_name ? 'btn-success' : 'btn-outline-success'}`}
                                   style={{ width: '90px', height: '80px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
-                                  onClick={() => handleTableClick(table.table_name)}>
-                                  {table.table_name}
+                                  onClick={() => {
+                                    console.log('Button clicked for table:', table.table_name, 'isActive:', table.isActive);
+                                    handleTableClick(table.table_name);
+                                  }}
+                                >
+                                  {table.table_name} {table.isActive ? '' : ''}
                                 </button>
                               </div>
                             ) : null
@@ -1785,10 +1673,14 @@ const Order = () => {
                         .map((table, index) => (
                           <div key={index} className="p-1">
                             <button
-                              className={`btn ${getTableButtonClass(table, selectedTable === table.table_name)}`}
+                              className={`btn ${selectedTable === table.table_name ? 'btn-success' : 'btn-outline-success'}`}
                               style={{ width: '90px', height: '80px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
-                              onClick={() => handleTableClick(table.table_name)}>
-                              {table.table_name}
+                              onClick={() => {
+                                console.log('Button clicked for table:', table.table_name, 'isActive:', table.isActive);
+                                handleTableClick(table.table_name);
+                              }}
+                            >
+                              {table.table_name} {table.isActive ? '' : ''}
                             </button>
                           </div>
                         )) : null}
@@ -2042,154 +1934,132 @@ const Order = () => {
                     )}
                   </div>
                 )}
-          <div className="d-flex align-items-center ms-2" style={{ position: 'relative', overflow: 'visible' }}>
-            {/* Hamburger Button */}
-            <Button
-              variant="primary"
-              className="rounded-circle d-flex justify-content-center align-items-center"
-              style={{ width: '36px', height: '36px', padding: '0', zIndex: 1001 }}
-              onClick={() => setShowOptions(true)}
-            >
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  d="M3 12H21M3 6H21M3 18H21"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </Button>
-
-            {showOptions && (
-              <>
-                <div
-                  className="d-flex flex-row gap-3"
-                  style={{
-                    position: 'absolute',
-                    top: '-60px',
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    backgroundColor: '#eef3ff',
-                    borderRadius: '30px',
-                    boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
-                    padding: '10px 15px',
-                    minWidth: '220px', // Increased minimum width
-                    zIndex: 1000,
-                  }}
-                >
-                  {/* Tax Button */}
+                <div className="d-flex align-items-center ms-2" style={{ position: 'relative', overflow: 'visible' }}>
+                  {/* Hamburger Button */}
                   <Button
                     variant="primary"
-                    className="rounded-circle p-0 d-flex justify-content-center align-items-center"
-                    style={{ width: '32px', height: '32px' }}
-                    onClick={() => {
-                      setShowOptions(false);
-                      handleOpenTaxModal();
-                    }}
-                    title="Tax"
+                    className="rounded-circle d-flex justify-content-center align-items-center"
+                    style={{ width: '36px', height: '36px', padding: '0', zIndex: 1001 }}
+                    onClick={() => setShowOptions(true)}
                   >
                     <svg
-                      xmlns="http://www.w3.org/2000/svg"
                       width="20"
                       height="20"
-                      fill="currentColor"
-                      viewBox="0 0 16 16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
                     >
-                      <path d="M8.5 1a.5.5 0 0 0-1 0v1.07a3.001 3.001 0 0 0-2.995 2.824L4.5 5.9v.2a.5.5 0 0 0 1 0v-.2a2 2 0 1 1 2 1.995v2.11a3.001 3.001 0 0 0-2.995 2.824L5.5 12.9v.2a.5.5 0 0 0 1 0v-.2a2 2 0 1 1 2-1.995V2.07z" />
+                      <path
+                        d="M3 12H21M3 6H21M3 18H21"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
                     </svg>
                   </Button>
 
-                  {/* NCKOT Button */}
-                  <Button
-                    variant="secondary"
-                    className="rounded-circle p-0 d-flex justify-content-center align-items-center"
-                    style={{ width: '32px', height: '32px' }}
-                    onClick={() => {
-                      setShowOptions(false);
-                      setShowNCKOTModal(true);
-                    }}
-                    title="NCKOT"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="20"
-                      height="20"
-                      fill="currentColor"
-                      viewBox="0 0 16 16"
-                    >
-                      <path d="M5 7.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5z" />
-                      <path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5L14 4.5zm-3-.5a.5.5 0 0 1-.5-.5V1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4h-3z" />
-                    </svg>
-                  </Button>
+                  {showOptions && (
+                    <>
+                      <div
+                        className="d-flex flex-row gap-3"
+                        style={{
+                          position: 'absolute',
+                          top: '-60px',
+                          left: '50%',
+                          transform: 'translateX(-50%)',
+                          backgroundColor: '#eef3ff',
+                          borderRadius: '30px',
+                          boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
+                          padding: '10px 15px',
+                          minWidth: '220px', // Increased minimum width
+                          zIndex: 1000,
+                        }}
+                      >
+                        {/* Tax Button */}
+                        <Button
+                          variant="primary"
+                          className="rounded-circle p-0 d-flex justify-content-center align-items-center"
+                          style={{ width: '32px', height: '32px' }}
+                          onClick={() => {
+                            setShowOptions(false);
+                            handleOpenTaxModal();
+                          }}
+                          title="Tax"
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="20"
+                            height="20"
+                            fill="currentColor"
+                            viewBox="0 0 16 16"
+                          >
+                            <path d="M8.5 1a.5.5 0 0 0-1 0v1.07a3.001 3.001 0 0 0-2.995 2.824L4.5 5.9v.2a.5.5 0 0 0 1 0v-.2a2 2 0 1 1 2 1.995v2.11a3.001 3.001 0 0 0-2.995 2.824L5.5 12.9v.2a.5.5 0 0 0 1 0v-.2a2 2 0 1 1 2-1.995V2.07z" />
+                          </svg>
+                        </Button>
 
-                  {/* Discount Button */}
-                  <Button
-                    variant="success"
-                    className="rounded-circle p-0 d-flex justify-content-center align-items-center"
-                    style={{ width: '32px', height: '32px' }}
-                    onClick={() => {
-                      setShowOptions(false);
-                      setShowDiscountModal(true);
-                    }}
-                    title="Discount"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="20"
-                      height="20"
-                      fill="currentColor"
-                      viewBox="0 0 16 16"
-                    >
-                      <path d="M13.442 2.558a1.5 1.5 0 1 1-2.121 2.121l-6.35 6.35a1.5 1.5 0 1 1-2.122-2.12l6.35-6.35a1.5 1.5 0 0 1 2.121 0zM5.5 5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm5 6a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z" />
-                    </svg>
-                  </Button>
+                        {/* NCKOT Button */}
+                        <Button
+                          variant="secondary"
+                          className="rounded-circle p-0 d-flex justify-content-center align-items-center"
+                          style={{ width: '32px', height: '32px' }}
+                          onClick={() => {
+                            setShowOptions(false);
+                            setShowNCKOTModal(true);
+                          }}
+                          title="NCKOT"
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="20"
+                            height="20"
+                            fill="currentColor"
+                            viewBox="0 0 16 16"
+                          >
+                            <path d="M5 7.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5z" />
+                            <path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5L14 4.5zm-3-.5a.5.5 0 0 1-.5-.5V1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4h-3z" />
+                          </svg>
+                        </Button>
 
-                  {/* Extra Item Button */}
-                  <Button
-                    variant="warning"
-                    className="rounded-circle p-0 d-flex justify-content-center align-items-center"
-                    style={{ width: '32px', height: '32px' }}
-                    onClick={() => {
-                      setShowOptions(false);
-                      handleOpenExtraItemsModal();
-                    }}
-                    title="Add Extra Item"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="20"
-                      height="20"
-                      fill="currentColor"
-                      viewBox="0 0 16 16"
-                    >
-                      <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z" />
-                    </svg>
-                  </Button>
+                        {/* Discount Button */}
+                        <Button
+                          variant="success"
+                          className="rounded-circle p-0 d-flex justify-content-center align-items-center"
+                          style={{ width: '32px', height: '32px' }}
+                          onClick={() => {
+                            setShowOptions(false);
+                            setShowDiscountModal(true);
+                          }}
+                          title="Discount"
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="20"
+                            height="20"
+                            fill="currentColor"
+                            viewBox="0 0 16 16"
+                          >
+                            <path d="M13.442 2.558a1.5 1.5 0 1 1-2.121 2.121l-6.35 6.35a1.5 1.5 0 1 1-2.122-2.12l6.35-6.35a1.5 1.5 0 0 1 2.121 0zM5.5 5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm5 6a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z" />
+                          </svg>
+                        </Button>
+                      </div>
+
+                      {/* Overlay to close when clicking outside */}
+                      <div
+                        style={{
+                          position: 'fixed',
+                          top: 0,
+                          left: 0,
+                          width: '100vw',
+                          height: '100vh',
+                          backgroundColor: 'rgba(0,0,0,0)',
+                          zIndex: 999,
+                        }}
+                        onClick={() => setShowOptions(false)}
+                      />
+                    </>
+                  )}
                 </div>
-
-                {/* Overlay to close when clicking outside */}
-                <div
-                  style={{
-                    position: 'fixed',
-                    top: 0,
-                    left: 0,
-                    width: '100vw',
-                    height: '100vh',
-                    backgroundColor: 'rgba(0,0,0,0)',
-                    zIndex: 999,
-                  }}
-                  onClick={() => setShowOptions(false)}
-                />
-              </>
-            )}
-          </div>
 
               </div>
               <div className="mt-1">
@@ -2273,43 +2143,6 @@ const Order = () => {
               <Button variant="secondary" onClick={() => setShowSavedKOTsModal(false)}>
                 Close
               </Button>
-            </Modal.Footer>
-          </Modal>
-
-          {/* Extra Items Modal */}
-          <Modal show={showExtraItemsModal} onHide={handleCloseExtraItemsModal} centered>
-            <Modal.Header closeButton>
-              <Modal.Title>Add Extra Item</Modal.Title>
-            </Modal.Header>
-            <Modal.Body>
-              <div className="mb-3">
-                <label htmlFor="extraItemName" className="form-label">Item Name</label>
-                <input
-                  type="text"
-                  id="extraItemName"
-                  className="form-control"
-                  value={extraItemName}
-                  onChange={(e) => setExtraItemName(e.target.value)}
-                  placeholder="Enter item name"
-                />
-              </div>
-              <div className="mb-3">
-                <label htmlFor="extraItemPrice" className="form-label">Item Price</label>
-                <input
-                  type="number"
-                  id="extraItemPrice"
-                  className="form-control"
-                  value={extraItemPrice}
-                  onChange={(e) => setExtraItemPrice(parseFloat(e.target.value) || 0)}
-                  placeholder="Enter item price"
-                  min="0"
-                  step="0.01"
-                />
-              </div>
-            </Modal.Body>
-            <Modal.Footer>
-              <Button variant="secondary" onClick={handleCloseExtraItemsModal}>Cancel</Button>
-              <Button variant="primary" onClick={handleAddExtraItem}>Add Item</Button>
             </Modal.Footer>
           </Modal>
 
