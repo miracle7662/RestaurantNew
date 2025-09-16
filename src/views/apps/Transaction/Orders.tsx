@@ -98,6 +98,51 @@ const Order = () => {
   const [showOptions, setShowOptions] = useState<boolean>(false);
   const [showTaxModal, setShowTaxModal] = useState<boolean>(false);
   const [showNCKOTModal, setShowNCKOTModal] = useState<boolean>(false);
+  const [isSavingKOT, setIsSavingKOT] = useState<boolean>(false);
+  const [oldItems, setOldItems] = useState<MenuItem[]>([]);
+  const [extraItems, setExtraItems] = useState<MenuItem[]>([]);
+  const [showExtraItemsModal, setShowExtraItemsModal] = useState<boolean>(false);
+  const [extraItemName, setExtraItemName] = useState<string>('');
+  const [extraItemPrice, setExtraItemPrice] = useState<number>(0);
+
+  // Handler to open extra items modal
+  const handleOpenExtraItemsModal = () => {
+    setExtraItemName('');
+    setExtraItemPrice(0);
+    setShowExtraItemsModal(true);
+  };
+
+  // Handler to close extra items modal
+  const handleCloseExtraItemsModal = () => {
+    setShowExtraItemsModal(false);
+  };
+
+  // Handler to add extra item to items list
+  const handleAddExtraItem = () => {
+    if (!extraItemName.trim()) {
+      toast.error('Please enter a valid item name');
+      return;
+    }
+    if (extraItemPrice <= 0) {
+      toast.error('Please enter a valid item price');
+      return;
+    }
+    // Create a new item with a unique id (negative to avoid conflicts)
+    const newItem = {
+      id: Date.now() * -1,
+      name: extraItemName.trim(),
+      price: extraItemPrice,
+      qty: 1,
+      revQty: 0,
+      isBilled: 0,
+      isNCKOT: 0,
+      NCName: '',
+      NCPurpose: '',
+    };
+    setItems(prevItems => [...prevItems, newItem]);
+    setShowExtraItemsModal(false);
+    toast.success('Extra item added');
+  };
 
   // KOT Print Settings state
 
@@ -905,6 +950,7 @@ const Order = () => {
     }
   };
 
+/*************  ✨ Windsurf Command 🌟  *************/
   const handlePrintAndSaveKOT = async () => {
     try {
       if (items.length === 0) return;
@@ -914,6 +960,7 @@ const Order = () => {
         .find((t: any) => t && t.table_name && t.table_name === selectedTable)
         || (Array.isArray(tableItems) ? tableItems.find((t: any) => t && t.table_name === selectedTable) : undefined);
       const resolvedTableId = selectedTableRecord ? Number((selectedTableRecord as any).tableid || (selectedTableRecord as any).tablemanagementid) : null;
+      const resolvedDeptId = selectedTableRecord ? Number((selectedTableRecord as any).departmentid) || undefined : null;
       const resolvedDeptId = selectedTableRecord ? Number((selectedTableRecord as any).departmentid) || undefined : undefined;
       const resolvedOutletId = selectedTableRecord ? Number((selectedTableRecord as any).outletid) || (user?.outletid ? Number(user.outletid) : null) : null;
       const userId = user?.id || null;
@@ -1045,6 +1092,7 @@ const Order = () => {
       setLoading(false);
     }
   };
+/*******  90611374-6af6-415f-8125-d70823ff4b6d  *******/
   const handleTableSearchInput = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       const inputTable = tableSearchInput.trim();
@@ -1994,132 +2042,154 @@ const Order = () => {
                     )}
                   </div>
                 )}
-                <div className="d-flex align-items-center ms-2" style={{ position: 'relative', overflow: 'visible' }}>
-                  {/* Hamburger Button */}
+          <div className="d-flex align-items-center ms-2" style={{ position: 'relative', overflow: 'visible' }}>
+            {/* Hamburger Button */}
+            <Button
+              variant="primary"
+              className="rounded-circle d-flex justify-content-center align-items-center"
+              style={{ width: '36px', height: '36px', padding: '0', zIndex: 1001 }}
+              onClick={() => setShowOptions(true)}
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M3 12H21M3 6H21M3 18H21"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </Button>
+
+            {showOptions && (
+              <>
+                <div
+                  className="d-flex flex-row gap-3"
+                  style={{
+                    position: 'absolute',
+                    top: '-60px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    backgroundColor: '#eef3ff',
+                    borderRadius: '30px',
+                    boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
+                    padding: '10px 15px',
+                    minWidth: '220px', // Increased minimum width
+                    zIndex: 1000,
+                  }}
+                >
+                  {/* Tax Button */}
                   <Button
                     variant="primary"
-                    className="rounded-circle d-flex justify-content-center align-items-center"
-                    style={{ width: '36px', height: '36px', padding: '0', zIndex: 1001 }}
-                    onClick={() => setShowOptions(true)}
+                    className="rounded-circle p-0 d-flex justify-content-center align-items-center"
+                    style={{ width: '32px', height: '32px' }}
+                    onClick={() => {
+                      setShowOptions(false);
+                      handleOpenTaxModal();
+                    }}
+                    title="Tax"
                   >
                     <svg
+                      xmlns="http://www.w3.org/2000/svg"
                       width="20"
                       height="20"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      xmlns="http://www.w3.org/2000/svg"
+                      fill="currentColor"
+                      viewBox="0 0 16 16"
                     >
-                      <path
-                        d="M3 12H21M3 6H21M3 18H21"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
+                      <path d="M8.5 1a.5.5 0 0 0-1 0v1.07a3.001 3.001 0 0 0-2.995 2.824L4.5 5.9v.2a.5.5 0 0 0 1 0v-.2a2 2 0 1 1 2 1.995v2.11a3.001 3.001 0 0 0-2.995 2.824L5.5 12.9v.2a.5.5 0 0 0 1 0v-.2a2 2 0 1 1 2-1.995V2.07z" />
                     </svg>
                   </Button>
 
-                  {showOptions && (
-                    <>
-                      <div
-                        className="d-flex flex-row gap-3"
-                        style={{
-                          position: 'absolute',
-                          top: '-60px',
-                          left: '50%',
-                          transform: 'translateX(-50%)',
-                          backgroundColor: '#eef3ff',
-                          borderRadius: '30px',
-                          boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
-                          padding: '10px 15px',
-                          minWidth: '220px', // Increased minimum width
-                          zIndex: 1000,
-                        }}
-                      >
-                        {/* Tax Button */}
-                        <Button
-                          variant="primary"
-                          className="rounded-circle p-0 d-flex justify-content-center align-items-center"
-                          style={{ width: '32px', height: '32px' }}
-                          onClick={() => {
-                            setShowOptions(false);
-                            handleOpenTaxModal();
-                          }}
-                          title="Tax"
-                        >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="20"
-                            height="20"
-                            fill="currentColor"
-                            viewBox="0 0 16 16"
-                          >
-                            <path d="M8.5 1a.5.5 0 0 0-1 0v1.07a3.001 3.001 0 0 0-2.995 2.824L4.5 5.9v.2a.5.5 0 0 0 1 0v-.2a2 2 0 1 1 2 1.995v2.11a3.001 3.001 0 0 0-2.995 2.824L5.5 12.9v.2a.5.5 0 0 0 1 0v-.2a2 2 0 1 1 2-1.995V2.07z" />
-                          </svg>
-                        </Button>
+                  {/* NCKOT Button */}
+                  <Button
+                    variant="secondary"
+                    className="rounded-circle p-0 d-flex justify-content-center align-items-center"
+                    style={{ width: '32px', height: '32px' }}
+                    onClick={() => {
+                      setShowOptions(false);
+                      setShowNCKOTModal(true);
+                    }}
+                    title="NCKOT"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="20"
+                      height="20"
+                      fill="currentColor"
+                      viewBox="0 0 16 16"
+                    >
+                      <path d="M5 7.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5z" />
+                      <path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5L14 4.5zm-3-.5a.5.5 0 0 1-.5-.5V1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4h-3z" />
+                    </svg>
+                  </Button>
 
-                        {/* NCKOT Button */}
-                        <Button
-                          variant="secondary"
-                          className="rounded-circle p-0 d-flex justify-content-center align-items-center"
-                          style={{ width: '32px', height: '32px' }}
-                          onClick={() => {
-                            setShowOptions(false);
-                            setShowNCKOTModal(true);
-                          }}
-                          title="NCKOT"
-                        >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="20"
-                            height="20"
-                            fill="currentColor"
-                            viewBox="0 0 16 16"
-                          >
-                            <path d="M5 7.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5z" />
-                            <path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5L14 4.5zm-3-.5a.5.5 0 0 1-.5-.5V1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4h-3z" />
-                          </svg>
-                        </Button>
+                  {/* Discount Button */}
+                  <Button
+                    variant="success"
+                    className="rounded-circle p-0 d-flex justify-content-center align-items-center"
+                    style={{ width: '32px', height: '32px' }}
+                    onClick={() => {
+                      setShowOptions(false);
+                      setShowDiscountModal(true);
+                    }}
+                    title="Discount"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="20"
+                      height="20"
+                      fill="currentColor"
+                      viewBox="0 0 16 16"
+                    >
+                      <path d="M13.442 2.558a1.5 1.5 0 1 1-2.121 2.121l-6.35 6.35a1.5 1.5 0 1 1-2.122-2.12l6.35-6.35a1.5 1.5 0 0 1 2.121 0zM5.5 5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm5 6a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z" />
+                    </svg>
+                  </Button>
 
-                        {/* Discount Button */}
-                        <Button
-                          variant="success"
-                          className="rounded-circle p-0 d-flex justify-content-center align-items-center"
-                          style={{ width: '32px', height: '32px' }}
-                          onClick={() => {
-                            setShowOptions(false);
-                            setShowDiscountModal(true);
-                          }}
-                          title="Discount"
-                        >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="20"
-                            height="20"
-                            fill="currentColor"
-                            viewBox="0 0 16 16"
-                          >
-                            <path d="M13.442 2.558a1.5 1.5 0 1 1-2.121 2.121l-6.35 6.35a1.5 1.5 0 1 1-2.122-2.12l6.35-6.35a1.5 1.5 0 0 1 2.121 0zM5.5 5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm5 6a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z" />
-                          </svg>
-                        </Button>
-                      </div>
-
-                      {/* Overlay to close when clicking outside */}
-                      <div
-                        style={{
-                          position: 'fixed',
-                          top: 0,
-                          left: 0,
-                          width: '100vw',
-                          height: '100vh',
-                          backgroundColor: 'rgba(0,0,0,0)',
-                          zIndex: 999,
-                        }}
-                        onClick={() => setShowOptions(false)}
-                      />
-                    </>
-                  )}
+                  {/* Extra Item Button */}
+                  <Button
+                    variant="warning"
+                    className="rounded-circle p-0 d-flex justify-content-center align-items-center"
+                    style={{ width: '32px', height: '32px' }}
+                    onClick={() => {
+                      setShowOptions(false);
+                      handleOpenExtraItemsModal();
+                    }}
+                    title="Add Extra Item"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="20"
+                      height="20"
+                      fill="currentColor"
+                      viewBox="0 0 16 16"
+                    >
+                      <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z" />
+                    </svg>
+                  </Button>
                 </div>
+
+                {/* Overlay to close when clicking outside */}
+                <div
+                  style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    width: '100vw',
+                    height: '100vh',
+                    backgroundColor: 'rgba(0,0,0,0)',
+                    zIndex: 999,
+                  }}
+                  onClick={() => setShowOptions(false)}
+                />
+              </>
+            )}
+          </div>
 
               </div>
               <div className="mt-1">
@@ -2203,6 +2273,43 @@ const Order = () => {
               <Button variant="secondary" onClick={() => setShowSavedKOTsModal(false)}>
                 Close
               </Button>
+            </Modal.Footer>
+          </Modal>
+
+          {/* Extra Items Modal */}
+          <Modal show={showExtraItemsModal} onHide={handleCloseExtraItemsModal} centered>
+            <Modal.Header closeButton>
+              <Modal.Title>Add Extra Item</Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+              <div className="mb-3">
+                <label htmlFor="extraItemName" className="form-label">Item Name</label>
+                <input
+                  type="text"
+                  id="extraItemName"
+                  className="form-control"
+                  value={extraItemName}
+                  onChange={(e) => setExtraItemName(e.target.value)}
+                  placeholder="Enter item name"
+                />
+              </div>
+              <div className="mb-3">
+                <label htmlFor="extraItemPrice" className="form-label">Item Price</label>
+                <input
+                  type="number"
+                  id="extraItemPrice"
+                  className="form-control"
+                  value={extraItemPrice}
+                  onChange={(e) => setExtraItemPrice(parseFloat(e.target.value) || 0)}
+                  placeholder="Enter item price"
+                  min="0"
+                  step="0.01"
+                />
+              </div>
+            </Modal.Body>
+            <Modal.Footer>
+              <Button variant="secondary" onClick={handleCloseExtraItemsModal}>Cancel</Button>
+              <Button variant="primary" onClick={handleAddExtraItem}>Add Item</Button>
             </Modal.Footer>
           </Modal>
 
