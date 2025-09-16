@@ -6,7 +6,7 @@ import { useAuthContext } from '@/common';
 import { OutletData } from '@/common/api/outlet';
 import AddCustomerModal from './Customers';
 import { toast } from 'react-hot-toast';
-import { createBill, getSavedKOTs, getTaxesByOutletAndDepartment } from '@/common/api/orders';
+import { createBill, createKOT, getSavedKOTs, getTaxesByOutletAndDepartment } from '@/common/api/orders';
 
 interface MenuItem {
   id: number;
@@ -68,6 +68,7 @@ const Order = () => {
   const [departments, setDepartments] = useState<DepartmentItem[]>([]);
   const [tableSearchInput, setTableSearchInput] = useState<string>('');
   const tableSearchInputRef = useRef<HTMLInputElement>(null);
+  const [selectedTableId, setSelectedTableId] = useState<number | null>(null);
   const [mobileNumber, setMobileNumber] = useState<string>('');
   const [customerName, setCustomerName] = useState<string>('');
   const [taxRates, setTaxRates] = useState<{ cgst: number; sgst: number; igst: number; cess: number }>({ cgst: 0, sgst: 0, igst: 0, cess: 0 });
@@ -911,6 +912,65 @@ const fetchTableManagement = async () => {
       setLoading(false);
     }
   };
+
+  // Auto KOT generation on items change
+  useEffect(() => {
+    const autoGenerateKOT = async () => {
+      if (items.length === 0 || !selectedTable) return;
+      setLoading(true);
+      try {
+        const orderNo = `${selectedTable || 'TB'}-${Date.now()}`;
+        const selectedTableRecord: any = (Array.isArray(filteredTables) ? filteredTables : tableItems)
+          .find((t: any) => t && t.table_name && t.table_name === selectedTable)
+          || (Array.isArray(tableItems) ? tableItems.find((t: any) => t && t.table_name === selectedTable) : undefined);
+        const resolvedTableId = selectedTableRecord ? Number((selectedTableRecord as any).tableid || (selectedTableRecord as any).tablemanagementid) : null;
+        const resolvedDeptId = selectedTableRecord ? Number((selectedTableRecord as any).departmentid) || undefined : undefined;
+        const resolvedOutletId = selectedTableRecord ? Number((selectedTableRecord as any).outletid) || (user?.outletid ? Number(user.outletid) : null) : null;
+        const userId = user?.id || null;
+        const hotelId = user?.hotelid || null;
+
+        const kotItems = items.map(i => ({
+          ItemID: i.id,
+          Qty: i.qty,
+          RuntimeRate: i.price,
+          outletid: resolvedOutletId ?? undefined,
+          ManualKOT: false,
+          SpecialInst: '',
+          isSetteled: false,
+          isNCKOT: false,
+          isCancelled: false,
+          DeptID: resolvedDeptId ?? selectedDeptId ?? undefined,
+          HotelID: hotelId,
+        }));
+
+        const payload = {
+          txnId: 0, // Assuming new transaction, adjust if needed
+          tableId: resolvedTableId || 0,
+          items: kotItems,
+        };
+
+        const resp = await createKOT(payload);
+        if (resp?.success) {
+          toast.success('Auto KOT generated');
+          try {
+            const listResp = await getSavedKOTs({ isBilled: 0 });
+            const list = listResp?.data || listResp;
+            if (Array.isArray(list)) setSavedKOTs(list);
+          } catch (err) {
+            console.warn('refresh saved KOTs failed');
+          }
+        } else {
+          toast.error(resp?.message || 'Failed to generate Auto KOT');
+        }
+      } catch (e: any) {
+        toast.error(e?.message || 'Error generating Auto KOT');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    autoGenerateKOT();
+  }, [items, selectedTable]);
   const handleTableSearchInput = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       const inputTable = tableSearchInput.trim();

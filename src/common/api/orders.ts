@@ -68,8 +68,8 @@ export async function getCustomerByMobile(mobile: string) {
 }
 
 export async function getSavedKOTs(outletFilters?: { isBilled?: 0 | 1; tableId?: number }) {
-  // If you have a custom endpoint use it; otherwise relies on your existing list endpoint supporting isBilled filter
-  const { data } = await API.get(`/TAxnTrnbill`, { params: { isBilled: 0, ...outletFilters } })
+  // Corrected endpoint to call the backend route for saved KOTs
+  const { data } = await API.get(`/TAxnTrnbill/kots/saved`, { params: { isBilled: 0, ...outletFilters } })
   return data
 }
 
@@ -106,7 +106,7 @@ export async function createKOT(payload: {
     HotelID?: number
   }>
 }) {
-  const { data } = await API.post('/TAxnTrnbill/kot/create', payload)
+  const { data } = await API.post('/TAxnTrnbill/kot', payload)
   return data
 }
 
@@ -122,5 +122,15 @@ export async function reverseKOT(payload: {
 
 export async function getKOTList(tableId: number) {
   const { data } = await API.get('/TAxnTrnbill/kot/list', { params: { tableId } })
+  return data
+}
+
+export async function getLatestKOTForTable(params: { tableId: string }) {
+  const { data } = await API.get('/TAxnTrnbill/latest-kot', { params })
+  return data
+}
+
+export async function getUnbilledItemsByTable(tableId: number) {
+  const { data } = await API.get(`/TAxnTrnbill/unbilled-items/${tableId}`)
   return data
 }

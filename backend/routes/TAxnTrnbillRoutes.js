@@ -33,5 +33,11 @@ router.put('/:id/items/billed', controller.updateBillItemsIsBilled)
 
 
 // KOT Management Routes
+router.post('/kot', controller.createKOT);
+router.get('/kots/saved', controller.getSavedKOTs);
+router.get('/latest-kot', controller.getLatestKOTForTable);
+
+// Get unbilled items by table
+router.get('/unbilled-items/:tableId', controller.getUnbilledItemsByTable);
 
 module.exports = router
