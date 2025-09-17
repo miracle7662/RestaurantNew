@@ -600,83 +600,89 @@ const fetchTableManagement = async () => {
 
 const handleTableClick = (seat: string) => {
     console.log('Button clicked for table:', seat);
-    setSelectedTable(seat);
+    // Force reset selectedTable to null first to allow re-selection of the same table
+    setSelectedTable(null);
     setItems([]); // Reset items for the new table
     setCurrentKOTNo(null); // Reset KOT number for the new table
     setCurrentKOTNos([]); // Reset multiple KOT numbers for the new table
     setShowOrderDetails(true);
     setInvalidTable('');
 
-    // Find the full table object to get its ID
-    const selectedTableObj = (Array.isArray(filteredTables) ? filteredTables : tableItems)
-      .find((t: any) => t && t.table_name && t.table_name === seat);
+    // Delay setting selectedTable to seat to trigger re-render and re-fetch
+    setTimeout(() => {
+      setSelectedTable(seat);
 
-    if (selectedTableObj) {
-      // Use tableid if available, else fallback to tablemanagementid
-      const tableIdNum = Number(selectedTableObj.tableid ?? selectedTableObj.tablemanagementid);
-      const deptId = Number(selectedTableObj.departmentid) || null;
-      const outletId = Number(selectedTableObj.outletid) || (user?.outletid ? Number(user.outletid) : null);
+      // Find the full table object to get its ID
+      const selectedTableObj = (Array.isArray(filteredTables) ? filteredTables : tableItems)
+        .find((t: any) => t && t.table_name && t.table_name === seat);
 
-      setSelectedDeptId(deptId);
-      setSelectedOutletId(outletId);
+      if (selectedTableObj) {
+        // Use tableid if available, else fallback to tablemanagementid
+        const tableIdNum = Number(selectedTableObj.tableid ?? selectedTableObj.tablemanagementid);
+        const deptId = Number(selectedTableObj.departmentid) || null;
+        const outletId = Number(selectedTableObj.outletid) || (user?.outletid ? Number(user.outletid) : null);
 
-      // Fetch unbilled items for this table
-      getUnbilledItemsByTable(tableIdNum)
-        .then(response => {
-          if (response.success && response.data && Array.isArray(response.data.items)) {
-            const fetchedItems: MenuItem[] = response.data.items.map((item: any) => ({
-              id: item.itemId,
-              name: item.itemName,
-              price: item.price,
-              qty: item.netQty,
-              isBilled: 0, // Assuming unbilled items are not yet billed
-              isNCKOT: 0, // Assuming this info is not in getUnbilledItemsByTable, default to 0
-              NCName: '',
-              NCPurpose: '',
-              isNew: item.isNew,
-              originalQty: item.netQty, // Track original quantity from DB
-            }));
-            setCurrentKOTNo(response.data.kotNo); // Set KOT number from response
-            setItems(fetchedItems); // Directly set the fetched items
-          } else {
-            console.warn('Failed to fetch unbilled items or no items found:', response.message);
+        setSelectedDeptId(deptId);
+        setSelectedOutletId(outletId);
+
+        // Fetch unbilled items for this table
+        getUnbilledItemsByTable(tableIdNum)
+          .then(response => {
+            if (response.success && response.data && Array.isArray(response.data.items)) {
+              const fetchedItems: MenuItem[] = response.data.items.map((item: any) => ({
+                id: item.itemId,
+                name: item.itemName,
+                price: item.price,
+                qty: item.netQty,
+                isBilled: 0, // Assuming unbilled items are not yet billed
+                isNCKOT: 0, // Assuming this info is not in getUnbilledItemsByTable, default to 0
+                NCName: '',
+                NCPurpose: '',
+                isNew: item.isNew,
+                originalQty: item.netQty, // Track original quantity from DB
+              }));
+              setCurrentKOTNo(response.data.kotNo); // Set KOT number from response
+              setItems(fetchedItems); // Directly set the fetched items
+            } else {
+              console.warn('Failed to fetch unbilled items or no items found:', response.message);
+              setItems([]);
+              setCurrentKOTNo(null);
+            }
+          })
+          .catch(error => {
+            console.error('Error fetching unbilled items:', error);
             setItems([]);
             setCurrentKOTNo(null);
-          }
-        })
-        .catch(error => {
-          console.error('Error fetching unbilled items:', error);
-          setItems([]);
-          setCurrentKOTNo(null);
-        });
+          });
 
-      // Filter savedKOTs for the selected table and set multiple KOT numbers
-      const kotNumbersForTable = savedKOTs
-        .filter(kot => kot.TableID === tableIdNum)
-        .map(kot => kot.KOTNo)
-        .filter(Boolean);
-      setCurrentKOTNos(kotNumbersForTable);
-    } else {
-      console.warn('Selected table object not found for seat:', seat);
-      setItems([]); // Clear items if table not found
-      setCurrentKOTNo(null);
-      setCurrentKOTNos([]);
-    }
-
-    try {
-      const selectedTableRecord: any = (Array.isArray(filteredTables) ? filteredTables : tableItems)
-        .find((t: any) => t && t.table_name && t.table_name === seat)
-        || (Array.isArray(tableItems) ? tableItems.find((t: any) => t && t.table_name === seat) : undefined);
-      if (selectedTableRecord) {
-        const deptId = Number((selectedTableRecord as any).departmentid) || null;
-        const outletId = Number((selectedTableRecord as any).outletid) || null; // This is correct
-        if (deptId) setSelectedDeptId(deptId);
-        if (outletId) setSelectedOutletId(outletId);
+        // Filter savedKOTs for the selected table and set multiple KOT numbers
+        const kotNumbersForTable = savedKOTs
+          .filter(kot => kot.TableID === tableIdNum)
+          .map(kot => kot.KOTNo)
+          .filter(Boolean);
+        setCurrentKOTNos(kotNumbersForTable);
+      } else {
+        console.warn('Selected table object not found for seat:', seat);
+        setItems([]); // Clear items if table not found
+        setCurrentKOTNo(null);
+        setCurrentKOTNos([]);
       }
-    } catch (e) {
-      // no-op
-    }
-    console.log('After handleTableClick - selectedTable:', seat, 'showOrderDetails:', true);
+
+      try {
+        const selectedTableRecord: any = (Array.isArray(filteredTables) ? filteredTables : tableItems)
+          .find((t: any) => t && t.table_name && t.table_name === seat)
+          || (Array.isArray(tableItems) ? tableItems.find((t: any) => t && t.table_name === seat) : undefined);
+        if (selectedTableRecord) {
+          const deptId = Number((selectedTableRecord as any).departmentid) || null;
+          const outletId = Number((selectedTableRecord as any).outletid) || null; // This is correct
+          if (deptId) setSelectedDeptId(deptId);
+          if (outletId) setSelectedOutletId(outletId);
+        }
+      } catch (e) {
+        // no-op
+      }
+      console.log('After handleTableClick - selectedTable:', seat, 'showOrderDetails:', true);
+    }, 0);
   };
 
   const handleTabClick = (tab: string) => {
