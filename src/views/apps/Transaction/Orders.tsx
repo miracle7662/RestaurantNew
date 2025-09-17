@@ -1286,30 +1286,36 @@ const handleTableClick = (seat: string) => {
               </div>
 
               {/* Items */}
-              {items.filter(item => item.isNew).map((item, index) => (
-                <div key={item.id} style={{
-                  display: 'grid',
-                  gridTemplateColumns: '30px 1fr 50px 70px 80px',
-                  paddingBottom: '4px',
-                  marginBottom: '4px'
-                }}>
-                  <div>{index + 1}</div>
-                  <div>
-                    {item.name}
-                    {formData.modifier_default_option && item.modifier && (
-                      <div><small className="text-muted">{item.modifier}</small></div>
-                    )}
-                    {formData.show_alternative_item && item.alternativeItem && (
-                      <div><small className="text-muted">Alt: {item.alternativeItem}</small></div>
+              {(() => {
+                const kotItems = items.filter(item => item.isNew).map(item => {
+                  const kotQty = item.originalQty !== undefined ? Math.max(0, item.qty - item.originalQty) : item.qty;
+                  return { ...item, kotQty };
+                }).filter(item => item.kotQty > 0);
+                return kotItems.map((item, index) => (
+                  <div key={item.id} style={{
+                    display: 'grid',
+                    gridTemplateColumns: '30px 1fr 50px 70px 80px',
+                    paddingBottom: '4px',
+                    marginBottom: '4px'
+                  }}>
+                    <div>{index + 1}</div>
+                    <div>
+                      {item.name}
+                      {formData.modifier_default_option && item.modifier && (
+                        <div><small className="text-muted">{item.modifier}</small></div>
+                      )}
+                      {formData.show_alternative_item && item.alternativeItem && (
+                        <div><small className="text-muted">Alt: {item.alternativeItem}</small></div>
+                      )}
+                    </div>
+                    <div style={{ textAlign: 'center' }}>{item.kotQty}</div>
+                    <div style={{ textAlign: 'right' }}>{item.price.toFixed(2)}</div>
+                    {formData.show_item_price && (
+                      <div style={{ textAlign: 'right' }}>{(item.price * item.kotQty).toFixed(2)}</div>
                     )}
                   </div>
-                  <div style={{ textAlign: 'center' }}>{item.qty}</div>
-                  <div style={{ textAlign: 'right' }}>{item.price.toFixed(2)}</div>
-                  {formData.show_item_price && (
-                    <div style={{ textAlign: 'right' }}>{(item.price * item.qty).toFixed(2)}</div>
-                  )}
-                </div>
-              ))}
+                ));
+              })()}
 
               <div style={{ borderBottom: '1px dashed #ccc', margin: '10px 0' }}></div>
 
@@ -2381,3 +2387,4 @@ const handleTableClick = (seat: string) => {
   );
 };
 export default Order;
+
