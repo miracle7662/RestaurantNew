@@ -626,7 +626,7 @@ const Order = () => {
             id: item.ItemID,
             name: item.ItemName || `Item ${item.ItemID}`,
             price: Number(item.price) || 0,
-            qty: Number(item.Qty) || 0,
+            qty: Number(item.NetQty) || 0,
             isBilled: Number(item.isBilled) || 0,
             isNCKOT: Number(item.isNCKOT) || 0,
             NCName: item.NCName || '',

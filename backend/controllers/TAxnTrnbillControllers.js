@@ -590,34 +590,22 @@ exports.createKOT = async (req, res) => {
     }
 
     const trx = db.transaction(() => {
-      let existingKOT = db.prepare('SELECT TxnID, KOTNo FROM TAxnTrnbill WHERE TableID = ? AND isBilled = 0 AND isCancelled = 0 LIMIT 1').get(TableID);
-      let txnId;
-      let kotNo;
+      console.log('Creating a new KOT.');
+      const maxKOTResult = db.prepare('SELECT MAX(KOTNo) as maxKOT FROM TAxnTrnbill').get();
+      const kotNo = (maxKOTResult?.maxKOT || 0) + 1;
 
-      if (existingKOT) {
-        txnId = existingKOT.TxnID;
-        kotNo = existingKOT.KOTNo;
-        console.log(`Found existing KOT. TxnID: ${txnId}, KOTNo: ${kotNo}`);
-      } else {
-        console.log('No existing KOT found. Creating a new one.');
-        const maxKOTResult = db.prepare('SELECT MAX(KOTNo) as maxKOT FROM TAxnTrnbill').get();
-        kotNo = (maxKOTResult?.maxKOT || 0) + 1;
+      const insertHeaderStmt = db.prepare(`
+        INSERT INTO TAxnTrnbill (
+          outletid, TableID, UserId, HotelID, KOTNo, TxnDatetime,
+          isBilled, isCancelled, isSetteled, status, AutoKOT
+        ) VALUES (?, ?, ?, ?, ?, datetime('now'), 0, 0, 0, 1, 1)
+      `);
+      const result = insertHeaderStmt.run(outletid, TableID, UserId, HotelID, kotNo);
+      const txnId = result.lastInsertRowid;
 
-        const insertHeaderStmt = db.prepare(`
-          INSERT INTO TAxnTrnbill (
-            outletid, TableID, UserId, HotelID, KOTNo, TxnDatetime,
-            isBilled, isCancelled, isSetteled, status, AutoKOT
-          ) VALUES (?, ?, ?, ?, ?, datetime('now'), 0, 0, 0, 1, 1)
-        `);
-        const result = insertHeaderStmt.run(outletid, TableID, UserId, HotelID, kotNo);
-        txnId = result.lastInsertRowid;
+      db.prepare('UPDATE msttablemanagement SET status = 1 WHERE tableid = ?').run(TableID);
+      console.log(`Created new KOT. TxnID: ${txnId}, KOTNo: ${kotNo}. Updated table ${TableID} status.`);
 
-        db.prepare('UPDATE msttablemanagement SET status = 1 WHERE tableid = ?').run(TableID);
-        console.log(`Created new KOT. TxnID: ${txnId}, KOTNo: ${kotNo}. Updated table ${TableID} status.`);
-      }
-
-      const selectDetailStmt = db.prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? AND ItemID = ? AND isCancelled = 0');
-      const updateDetailStmt = db.prepare('UPDATE TAxnTrnbilldetails SET Qty = ?, CGST_AMOUNT = ?, SGST_AMOUNT = ?, IGST_AMOUNT = ?, CESS_AMOUNT = ? WHERE TXnDetailID = ?');
       const insertDetailStmt = db.prepare(`
         INSERT INTO TAxnTrnbilldetails (
           TxnID, outletid, ItemID, TableID, Qty, RuntimeRate, DeptID, HotelID,
@@ -627,55 +615,38 @@ exports.createKOT = async (req, res) => {
       `);
 
       for (const item of details) {
-        const existingDetail = selectDetailStmt.get(txnId, item.ItemID);
-        if (existingDetail) {
-          // Frontend now sends the quantity *delta*. We add it to the existing quantity.
-          const qtyDelta = Number(item.Qty) || 0;
-          const newTotalQty = existingDetail.Qty + qtyDelta;
-          const rate = existingDetail.RuntimeRate;
-          const newLineSubtotal = newTotalQty * rate;
+        const qty = Number(item.Qty) || 0;
+        const rate = Number(item.RuntimeRate) || 0;
+        const lineSubtotal = qty * rate;
+        const cgstPer = Number(item.CGST) || 0;
+        const sgstPer = Number(item.SGST) || 0;
+        const igstPer = Number(item.IGST) || 0;
+        const cessPer = Number(item.CESS) || 0;
+        const cgstAmt = Number(item.CGST_AMOUNT) || (lineSubtotal * cgstPer) / 100;
+        const sgstAmt = Number(item.SGST_AMOUNT) || (lineSubtotal * sgstPer) / 100;
+        const igstAmt = Number(item.IGST_AMOUNT) || (lineSubtotal * igstPer) / 100;
+        const cessAmt = Number(item.CESS_AMOUNT) || (lineSubtotal * cessPer) / 100;
 
-          // Recalculate tax amounts based on the new total quantity
-          const newCgstAmt = (newLineSubtotal * existingDetail.CGST) / 100;
-          const newSgstAmt = (newLineSubtotal * existingDetail.SGST) / 100;
-          const newIgstAmt = (newLineSubtotal * existingDetail.IGST) / 100;
-          const newCessAmt = (newLineSubtotal * existingDetail.CESS) / 100;
-
-          updateDetailStmt.run(newTotalQty, newCgstAmt, newSgstAmt, newIgstAmt, newCessAmt, existingDetail.TXnDetailID);
-        } else {
-          const qty = Number(item.Qty) || 0;
-          const rate = Number(item.RuntimeRate) || 0;
-          const lineSubtotal = qty * rate;
-          const cgstPer = Number(item.CGST) || 0;
-          const sgstPer = Number(item.SGST) || 0;
-          const igstPer = Number(item.IGST) || 0;
-          const cessPer = Number(item.CESS) || 0;
-          const cgstAmt = Number(item.CGST_AMOUNT) || (lineSubtotal * cgstPer) / 100;
-          const sgstAmt = Number(item.SGST_AMOUNT) || (lineSubtotal * sgstPer) / 100;
-          const igstAmt = Number(item.IGST_AMOUNT) || (lineSubtotal * igstPer) / 100;
-          const cessAmt = Number(item.CESS_AMOUNT) || (lineSubtotal * cessPer) / 100;
-
-          insertDetailStmt.run(
-            txnId,
-            outletid,
-            item.ItemID,
-            TableID,
-            qty,
-            item.RuntimeRate,
-            item.DeptID,
-            HotelID,
-            kotNo,
-            toBool(item.isNCKOT),
-            cgstPer,
-            cgstAmt,
-            sgstPer,
-            sgstAmt,
-            igstPer,
-            igstAmt,
-            cessPer,
-            cessAmt
-          );
-        }
+        insertDetailStmt.run(
+          txnId,
+          outletid,
+          item.ItemID,
+          TableID,
+          qty,
+          item.RuntimeRate,
+          item.DeptID,
+          HotelID,
+          kotNo,
+          toBool(item.isNCKOT),
+          cgstPer,
+          cgstAmt,
+          sgstPer,
+          sgstAmt,
+          igstPer,
+          igstAmt,
+          cessPer,
+          cessAmt
+        );
       }
 
       const totals = db.prepare(`
@@ -787,37 +758,35 @@ exports.getUnbilledItemsByTable = async (req, res) => {
   try {
     const { tableId } = req.params;
 
-    // Step 1: Find the single unbilled transaction and its KOT number for this table.
-    const unbilledTxn = db.prepare(`
-      SELECT TxnID, KOTNo 
-      FROM TAxnTrnbill 
-      WHERE TableID = ? AND isBilled = 0 AND isCancelled = 0 
-      ORDER BY TxnID DESC 
+    // Get the latest KOTNo for the table
+    const latestKOT = db.prepare(`
+      SELECT KOTNo
+      FROM TAxnTrnbill
+      WHERE TableID = ? AND isBilled = 0 AND isCancelled = 0
+      ORDER BY TxnID DESC
       LIMIT 1
     `).get(Number(tableId));
 
-    // If no unbilled transaction, return an empty array.
-    if (!unbilledTxn) {
-      return res.json({ success: true, message: 'No unbilled items found for this table.', data: { items: [], kotNo: null } });
-    }
+    const kotNo = latestKOT ? latestKOT.KOTNo : null;
 
-    const txnId = unbilledTxn.TxnID;
-    const kotNo = unbilledTxn.KOTNo;
-
-    // Step 2: Get all items for that specific transaction.
-    // The SUM() and GROUP BY are no longer needed because the createKOT logic
-    // now correctly updates quantities on a single item row.
+    // Aggregate items from all unbilled KOTs for the table
     const rows = db.prepare(`
       SELECT
         d.ItemID,
         COALESCE(m.item_name, 'Unknown Item') AS ItemName,
-        d.Qty,
+        SUM(d.Qty) as Qty,
         COALESCE(SUM(d.RevQty), 0) as RevQty,
-        d.RuntimeRate as price
+        (SUM(d.Qty) - COALESCE(SUM(d.RevQty), 0)) as NetQty,
+        AVG(d.RuntimeRate) as price
       FROM TAxnTrnbilldetails d
+      JOIN TAxnTrnbill b ON d.TxnID = b.TxnID
       LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
-      WHERE d.TxnID = ? AND d.isCancelled = 0 AND d.Qty > 0
-    `).all(txnId);
+      WHERE b.TableID = ? AND b.isBilled = 0 AND d.isCancelled = 0
+      GROUP BY d.ItemID
+      HAVING (SUM(d.Qty) - COALESCE(SUM(d.RevQty), 0)) > 0
+    `).all(Number(tableId));
+
+    console.log('Unbilled items rows for tableId', tableId, ':', rows);
 
     res.json({ success: true, message: 'Fetched unbilled items', data: { items: rows, kotNo: kotNo } });
   } catch (error) {
@@ -826,3 +795,4 @@ exports.getUnbilledItemsByTable = async (req, res) => {
 };
 
 module.exports = exports
+
