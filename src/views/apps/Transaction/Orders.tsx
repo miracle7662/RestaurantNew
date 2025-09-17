@@ -1,13 +1,13 @@
-import { useState, useEffect, useRef } from 'react';
-import { Button, Modal, Table } from 'react-bootstrap';
-import OrderDetails from './OrderDetails';
-import { fetchOutletsForDropdown } from '@/utils/commonfunction';
-import { useAuthContext } from '@/common';
-import { getUnbilledItemsByTable } from '@/common/api/orders';
-import { OutletData } from '@/common/api/outlet';
-import AddCustomerModal from './Customers';
-import { toast } from 'react-hot-toast';
-import { createBill, createKOT, getSavedKOTs, getTaxesByOutletAndDepartment } from '@/common/api/orders';
+import { useState, useEffect, useRef } from "react";
+import { Button, Modal, Table } from "react-bootstrap";
+import OrderDetails from "./OrderDetails";
+import { fetchOutletsForDropdown } from "@/utils/commonfunction";
+import { useAuthContext } from "@/common";
+import { getUnbilledItemsByTable } from "@/common/api/orders";
+import { OutletData } from "@/common/api/outlet";
+import AddCustomerModal from "./Customers";
+import { toast } from "react-hot-toast";
+import { createBill, createKOT, getSavedKOTs, getTaxesByOutletAndDepartment } from "@/common/api/orders";
 
 interface MenuItem {
   id: number;
@@ -1826,6 +1826,7 @@ const handleTableClick = (seat: string) => {
                       gridTemplateColumns: '2fr 1fr 1fr',
                       padding: '0.25rem',
                       alignItems: 'center',
+                      backgroundColor: item.isNew ? '#d4edda' : 'transparent', // Light green for new items
                     }}
                   >
                     <span style={{ textAlign: 'left' }}>{item.name}</span>
