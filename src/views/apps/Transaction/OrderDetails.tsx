@@ -424,7 +424,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
       );
       if (matchedItem) {
         const qty = parseInt(quantity) || 1;
-        handleAddItem({ name: matchedItem.ItemName, price: matchedItem.price, isBilled: 0, isNCKOT: 0, NCName: '', NCPurpose: '' }, qty);
+        handleAddItem({ id: Number(matchedItem.userId), name: matchedItem.ItemName, price: matchedItem.price, isBilled: 0, isNCKOT: 0, NCName: '', NCPurpose: '' }, qty);
         setSearchCode('');
         setSearchName('');
         setQuantity('1');
@@ -438,14 +438,14 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
   };
 
   // Add item to order
-  const handleAddItem = (newItem: Omit<MenuItemState, 'id' | 'qty'>, qty: number = 1) => {
+  const handleAddItem = (newItem: Omit<MenuItemState, 'qty'>, qty: number = 1) => {
     const existingItem = items.find((item) => item.name === newItem.name);
     if (existingItem) {
       setItems(
         items.map((item) => (item.name === newItem.name ? { ...item, qty: item.qty + qty, isNew: true } : item))
       );
     } else {
-      setItems([...items, { ...newItem, id: items.length + 1, qty, isNew: true }]);
+      setItems([...items, { ...newItem, qty, isNew: true }]);
     }
   };
 
@@ -800,7 +800,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
                               transition: 'transform 0.2s, box-shadow 0.2s',
                               minHeight: '120px',
                             }}
-                            onClick={() => handleAddItem({ name: item.ItemName, price: item.price, isBilled: 0, isNCKOT: 0, NCName: '', NCPurpose: '' }, parseInt(quantity) || 1)}
+                            onClick={() => handleAddItem({ id: Number(item.userId), name: item.ItemName, price: item.price, isBilled: 0, isNCKOT: 0, NCName: '', NCPurpose: '' }, parseInt(quantity) || 1)}
                             onMouseEnter={(e) => {
                               e.currentTarget.style.transform = 'translateY(-4px)';
                               e.currentTarget.style.boxShadow = '0 8px 16px rgba(0, 0, 0, 0.1)';

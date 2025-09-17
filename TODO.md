@@ -1,33 +1,21 @@
-# KOT Features Implementation TODO
+# TODO: Fix KOT Save Issue for New Items
 
-## Completed Steps
-- [x] Step 1: Update MenuItem Interface - Added `isNew: boolean` to MenuItem interface in Orders.tsx
-- [x] Step 4: Update Item Addition in OrderDetails - OrderDetails.tsx sets isNew=true for new items
-- [x] Step 6: Add Highlighting for New Items - Conditional styling (yellow background) for isNew=true
-- [x] Step 2: Fetch Menu Data for Mapping - fetchMenu and fetchMenuItems are implemented in OrderDetails.tsx
-- [x] Step 3: Modify handleTableClick - Clears items, fetches saved KOTs, maps to MenuItem format, sets isNew=false
+## Problem
+When adding new items to the same table after the first "Print & Save KOT", the new items are not inserted into the backend. This is because the `id` field in the frontend `MenuItemState` is incorrectly set to `items.length + 1` instead of the actual database `ItemID`.
 
-## Remaining Steps
-## Step 5: Modify handlePrintAndSaveKOT
-- [ ] Filter newItems = items.filter(i => i.isNew)
-- [ ] Send only newItems to createKOT API
-- [ ] Update sent items to isNew=false
-- [ ] Update KOT preview to show only newItems
+## Root Cause
+- In `OrderDetails.tsx`, when adding new items, the `id` is assigned as `items.length + 1`, which doesn't match the database `ItemID`.
+- The backend uses `ItemID` to check for existing items in the KOT, so incorrect `id` prevents proper insertion/update.
 
-## Step 7: Ensure Table Switching Reloads KOTs
-- [ ] Verify handleTableClick clears and reloads properly on table switch
+## Solution Steps
+1. Update `handleAddItem` function interface to accept `id` in `newItem`.
+2. Modify calls to `handleAddItem` to pass the correct `id` from `matchedItem.userId` or `item.userId`.
+3. Remove incorrect `id` assignment in `handleAddItem` since it's now provided.
 
-## New Steps from Plan
-## Step 9: Add Table Color Logic
-- [ ] Mark table color green if status=1 and isBilled=0
+## Files to Edit
+- `src/views/apps/Transaction/OrderDetails.tsx`
 
-## Step 10: Display KOTNo in UI
-- [ ] Display KOTNo in the UI (e.g., in KOT preview or table info)
-
-## Step 11: Test and Verify
-- [ ] Test KOT creation with new items only
-- [ ] Test loading saved KOTs on table click
-- [ ] Test highlighting of new items
-- [ ] Test print preview shows only new items
-- [ ] Test table color changes
-- [ ] Test KOTNo display
+## Followup Steps
+- Test the fix by adding items to a table, saving KOT, adding more items, and saving KOT again.
+- Verify that new items are inserted correctly in the backend.
+- Check that increasing quantity of existing items also works.
