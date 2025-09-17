@@ -752,7 +752,7 @@ exports.getLatestKOTForTable = async (req, res) => {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Updated getUnbilledItemsByTable query to fix quantity multiplication issue */
+/* Updated getUnbilledItemsByTable to fetch all unbilled items with isNew flag */
 /* -------------------------------------------------------------------------- */
 exports.getUnbilledItemsByTable = async (req, res) => {
   try {
@@ -769,26 +769,36 @@ exports.getUnbilledItemsByTable = async (req, res) => {
 
     const kotNo = latestKOT ? latestKOT.KOTNo : null;
 
-    // Aggregate items from all unbilled KOTs for the table
+    // Fetch all unbilled items for the table (not aggregated)
     const rows = db.prepare(`
       SELECT
         d.ItemID,
         COALESCE(m.item_name, 'Unknown Item') AS ItemName,
-        SUM(d.Qty) as Qty,
-        COALESCE(SUM(d.RevQty), 0) as RevQty,
-        (SUM(d.Qty) - COALESCE(SUM(d.RevQty), 0)) as NetQty,
-        AVG(d.RuntimeRate) as price
+        d.Qty,
+        COALESCE(d.RevQty, 0) as RevQty,
+        (d.Qty - COALESCE(d.RevQty, 0)) as NetQty,
+        d.RuntimeRate as price,
+        d.KOTNo
       FROM TAxnTrnbilldetails d
       JOIN TAxnTrnbill b ON d.TxnID = b.TxnID
       LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
-      WHERE b.TableID = ? AND b.isBilled = 0 AND d.isCancelled = 0
-      GROUP BY d.ItemID
-      HAVING (SUM(d.Qty) - COALESCE(SUM(d.RevQty), 0)) > 0
+      WHERE b.TableID = ? AND b.isBilled = 0 AND d.isCancelled = 0 AND (d.Qty - COALESCE(d.RevQty, 0)) > 0
     `).all(Number(tableId));
 
-    console.log('Unbilled items rows for tableId', tableId, ':', rows);
+    // Map to add isNew flag
+    const items = rows.map(r => ({
+      itemId: r.ItemID,
+      itemName: r.ItemName,
+      qty: r.Qty,
+      revQty: r.RevQty,
+      netQty: r.NetQty,
+      price: r.price,
+      isNew: r.KOTNo === kotNo
+    }));
 
-    res.json({ success: true, message: 'Fetched unbilled items', data: { items: rows, kotNo: kotNo } });
+    console.log('Unbilled items for tableId', tableId, ':', items);
+
+    res.json({ success: true, message: 'Fetched unbilled items', data: { kotNo: kotNo, items: items } });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to fetch unbilled items', data: null, error: error.message });
   }

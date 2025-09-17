@@ -40,6 +40,7 @@ interface TableItem {
   isActive: boolean;
   isCommonToAllDepartments: boolean;
   departmentid?: number;
+  tableid?: string;
 }
 interface DepartmentItem {
   departmentid: number;
@@ -598,7 +599,8 @@ const handleTableClick = (seat: string) => {
       .find((t: any) => t && t.table_name && t.table_name === seat);
 
     if (selectedTableObj) {
-      const tableIdNum = Number(selectedTableObj.tablemanagementid);
+      // Use tableid if available, else fallback to tablemanagementid
+      const tableIdNum = Number(selectedTableObj.tableid ?? selectedTableObj.tablemanagementid);
       const deptId = Number(selectedTableObj.departmentid) || null;
       const outletId = Number(selectedTableObj.outletid) || (user?.outletid ? Number(user.outletid) : null);
 
@@ -610,16 +612,16 @@ const handleTableClick = (seat: string) => {
         .then(response => {
           if (response.success && response.data && Array.isArray(response.data.items)) {
             const fetchedItems: MenuItem[] = response.data.items.map((item: any) => ({
-              id: item.ItemID,
-              name: item.ItemName,
+              id: item.itemId,
+              name: item.itemName,
               price: item.price,
-              qty: item.Qty,
+              qty: item.netQty,
               isBilled: 0, // Assuming unbilled items are not yet billed
               isNCKOT: 0, // Assuming this info is not in getUnbilledItemsByTable, default to 0
               NCName: '',
               NCPurpose: '',
-              isNew: false, // These are existing items, so not new
-              originalQty: item.Qty, // Track original quantity from DB
+              isNew: item.isNew,
+              originalQty: item.netQty, // Track original quantity from DB
             }));
             setCurrentKOTNo(response.data.kotNo); // Set KOT number from response
             setItems(fetchedItems); // Directly set the fetched items
