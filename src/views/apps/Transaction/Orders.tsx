@@ -198,6 +198,17 @@ const [formData, setFormData] = useState({
 
 });
 
+const getTableButtonClass = (table: TableItem, isSelected: boolean) => {
+  if (isSelected) return 'btn-success';
+  // Use separate status field for coloring: 0=default,1=green,2=red
+  switch (table.status) {
+    case 1: return 'btn-success'; // KOT saved/occupied (green)
+    case 0: return 'btn-outline-success'; // Default background (white/grey)
+    case 2: return 'btn-danger'; // red for billed
+    default: return 'btn-outline-success';
+  }
+};
+
 const getTableButtonStyle = (table: TableItem, isSelected: boolean) => {
   let backgroundColor = '';
   let border = '1px solid #ccc';
@@ -1671,16 +1682,16 @@ const handleTableClick = (seat: string) => {
                                 assignedTables.map((table, tableIndex) => (
                                   table.table_name ? (
                                     <div key={tableIndex} className="p-1">
-                                      <button
-                                        className={`btn ${selectedTable === table.table_name ? 'btn-success' : 'btn-outline-success'}`}
-                                        style={{ width: '90px', height: '80px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
-                                        onClick={() => {
-                                          console.log('Button clicked for table:', table.table_name, 'isActive:', table.isActive);
-                                          handleTableClick(table.table_name);
-                                        }}
-                                      >
-                                        {table.table_name} {table.isActive ? '' : ''}
-                                      </button>
+                                <button
+                                  className={`btn ${getTableButtonClass(table, selectedTable === table.table_name)}`}
+                                  style={{ width: '90px', height: '80px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+                                  onClick={() => {
+                                    console.log('Button clicked for table:', table.table_name, 'isActive:', table.isActive);
+                                    handleTableClick(table.table_name);
+                                  }}
+                                >
+                                  {table.table_name} {table.isActive ? '' : ''}
+                                </button>
                                     </div>
                                   ) : null
                                 ))
