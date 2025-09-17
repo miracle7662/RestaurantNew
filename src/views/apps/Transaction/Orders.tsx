@@ -85,6 +85,7 @@ const Order = () => {
   const [reason, setReason] = useState<string>('');
   const [DiscountType, setDiscountType] = useState<number>(0); // 0 for percentage, 1 for amount
   const [currentKOTNo, setCurrentKOTNo] = useState<number | null>(null);
+  const [currentKOTNos, setCurrentKOTNos] = useState<number[]>([]);
 
   // New state for floating button group and modals
   const [showOptions, setShowOptions] = useState<boolean>(false);
@@ -602,6 +603,7 @@ const handleTableClick = (seat: string) => {
     setSelectedTable(seat);
     setItems([]); // Reset items for the new table
     setCurrentKOTNo(null); // Reset KOT number for the new table
+    setCurrentKOTNos([]); // Reset multiple KOT numbers for the new table
     setShowOrderDetails(true);
     setInvalidTable('');
 
@@ -647,10 +649,18 @@ const handleTableClick = (seat: string) => {
           setItems([]);
           setCurrentKOTNo(null);
         });
+
+      // Filter savedKOTs for the selected table and set multiple KOT numbers
+      const kotNumbersForTable = savedKOTs
+        .filter(kot => kot.TableID === tableIdNum)
+        .map(kot => kot.KOTNo)
+        .filter(Boolean);
+      setCurrentKOTNos(kotNumbersForTable);
     } else {
       console.warn('Selected table object not found for seat:', seat);
       setItems([]); // Clear items if table not found
       setCurrentKOTNo(null);
+      setCurrentKOTNos([]);
     }
 
     try {
@@ -778,8 +788,10 @@ const handleTableClick = (seat: string) => {
 
   const getKOTLabel = () => {
     switch (activeTab) {
-      case 'Dine-in':
-        return `KOT ${currentKOTNo || ''} ${selectedTable ? ` - Table ${selectedTable}` : ''}`;
+      case 'Dine-in': {
+        const kotNumbers = currentKOTNos.length > 0 ? currentKOTNos.join(', ') : currentKOTNo ? currentKOTNo.toString() : '';
+        return `KOT ${kotNumbers} ${selectedTable ? ` - Table ${selectedTable}` : ''}`;
+      }
       case 'Pickup':
         return 'Pickup Order';
       case 'Delivery':
