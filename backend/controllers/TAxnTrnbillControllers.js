@@ -579,171 +579,141 @@ exports.updateBillItemsIsBilled = async (req, res) => {
 /* -------------------------------------------------------------------------- */
 exports.createKOT = async (req, res) => {
   try {
-    console.log('Received createKOT body:', JSON.stringify(req.body));
-    const {
-      outletid, TableID, UserId, HotelID, details = []
-    } = req.body
+    console.log('Received createKOT body:', JSON.stringify(req.body, null, 2));
+    const { outletid, TableID, UserId, HotelID, details = [] } = req.body;
 
-    if (!Array.isArray(details) || details.length === 0) {
-      return res.status(400).json({ success: false, message: 'details array is required', data: null })
+    if (!TableID) {
+      return res.status(400).json({ success: false, message: 'TableID is required' });
     }
-
-    // Generate KOTNo: Query max KOTNo from TAxnTrnbill, if none set to 1, else max + 1
-    const maxKOTNoResult = db.prepare('SELECT MAX(CAST(TxnNo AS INTEGER)) as maxKOT FROM TAxnTrnbill WHERE TxnNo IS NOT NULL AND TxnNo REGEXP "^[0-9]+$"').get()
-    const maxKOTNo = maxKOTNoResult?.maxKOT || 0
-    const KOTNo = (maxKOTNo + 1).toString()
-
-    // Fetch existing unbilled ItemIDs for the table to avoid duplicates
-    const existingItems = db.prepare(`
-      SELECT DISTINCT d.ItemID
-      FROM TAxnTrnbilldetails d
-      JOIN TAxnTrnbill b ON d.TxnID = b.TxnID
-      WHERE b.TableID = ? AND b.isBilled = 0 AND d.isCancelled = 0
-    `).all(TableID ?? null).map(row => row.ItemID)
-
-    // Filter details to only include new/extra items not already saved
-    const newDetails = details.filter(d => !existingItems.includes(d.ItemID))
-
-    if (newDetails.length === 0) {
-      return res.status(400).json({ success: false, message: 'No new items to add; all items are already saved for this table', data: null })
+    if (!Array.isArray(details) || details.length === 0) {
+      return res.status(400).json({ success: false, message: 'details array is required' });
     }
 
     const trx = db.transaction(() => {
-      const stmt = db.prepare(`
-        INSERT INTO TAxnTrnbill (
-          outletid, TxnNo, TableID, Steward, PAX, AutoKOT, ManualKOT, TxnDatetime,
-          GrossAmt, RevKOT, Discount, CGST, SGST, IGST, CESS, RoundOFF, Amount,
-          isHomeDelivery, DriverID, CustomerName, MobileNo, Address, Landmark,
-          orderNo, isPickup, HotelID, GuestID, DiscRefID, DiscPer, DiscountType, UserId,
-          BatchNo, PrevTableID, PrevDeptId, isTrnsfered, isChangeTrfAmt,
-          ServiceCharge, ServiceCharge_Amount, Extra1, Extra2, Extra3, status, isBilled
-        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-      `)
+      let existingKOT = db.prepare('SELECT TxnID, KOTNo FROM TAxnTrnbill WHERE TableID = ? AND isBilled = 0 AND isCancelled = 0 LIMIT 1').get(TableID);
+      let txnId;
+      let kotNo;
 
-      const result = stmt.run(
-        outletid ?? null,
-        KOTNo,
-        TableID ?? null,
-        null, // Steward
-        null, // PAX
-        1, // AutoKOT
-        0, // ManualKOT
-        new Date().toISOString(),
-        0, // GrossAmt - will compute
-        0, // RevKOT
-        0, // Discount
-        0, // CGST
-        0, // SGST
-        0, // IGST
-        0, // CESS
-        0, // RoundOFF
-        0, // Amount
-        0, // isHomeDelivery
-        null, // DriverID
-        null, // CustomerName
-        null, // MobileNo
-        null, // Address
-        null, // Landmark
-        null, // orderNo
-        0, // isPickup
-        HotelID ?? null,
-        null, // GuestID
-        null, // DiscRefID
-        0, // DiscPer
-        0, // DiscountType
-        UserId ?? null,
-        null, // BatchNo
-        null, // PrevTableID
-        null, // PrevDeptId
-        0, // isTrnsfered
-        0, // isChangeTrfAmt
-        0, // ServiceCharge
-        0, // ServiceCharge_Amount
-        null, // Extra1
-        null, // Extra2
-        null, // Extra3
-        1, // status (Occupied)
-        0 // isBilled
-      )
+      if (existingKOT) {
+        txnId = existingKOT.TxnID;
+        kotNo = existingKOT.KOTNo;
+        console.log(`Found existing KOT. TxnID: ${txnId}, KOTNo: ${kotNo}`);
+      } else {
+        console.log('No existing KOT found. Creating a new one.');
+        const maxKOTResult = db.prepare('SELECT MAX(KOTNo) as maxKOT FROM TAxnTrnbill').get();
+        kotNo = (maxKOTResult?.maxKOT || 0) + 1;
 
-      const txnId = result.lastInsertRowid
+        const insertHeaderStmt = db.prepare(`
+          INSERT INTO TAxnTrnbill (
+            outletid, TableID, UserId, HotelID, KOTNo, TxnDatetime,
+            isBilled, isCancelled, isSetteled, status, AutoKOT
+          ) VALUES (?, ?, ?, ?, ?, datetime('now'), 0, 0, 0, 1, 1)
+        `);
+        const result = insertHeaderStmt.run(outletid, TableID, UserId, HotelID, kotNo);
+        txnId = result.lastInsertRowid;
 
-      // Compute gross from newDetails
-      let totalGross = 0
-      for (const d of newDetails) {
-        const qty = Number(d.Qty) || 0
-        const rate = Number(d.RuntimeRate) || 0
-        totalGross += qty * rate
+        db.prepare('UPDATE msttablemanagement SET status = 1 WHERE tableid = ?').run(TableID);
+        console.log(`Created new KOT. TxnID: ${txnId}, KOTNo: ${kotNo}. Updated table ${TableID} status.`);
       }
 
-      // Update header with gross
-      db.prepare('UPDATE TAxnTrnbill SET GrossAmt = ?, Amount = ? WHERE TxnID = ?').run(totalGross, totalGross, txnId)
-
-      const dStmt = db.prepare(`
+      const selectDetailStmt = db.prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? AND ItemID = ? AND isCancelled = 0');
+      const updateDetailStmt = db.prepare('UPDATE TAxnTrnbilldetails SET Qty = ?, CGST_AMOUNT = ?, SGST_AMOUNT = ?, IGST_AMOUNT = ?, CESS_AMOUNT = ? WHERE TXnDetailID = ?');
+      const insertDetailStmt = db.prepare(`
         INSERT INTO TAxnTrnbilldetails (
-          TxnID, outletid, ItemID, TableID,
-          CGST, CGST_AMOUNT, SGST, SGST_AMOUNT, IGST, IGST_AMOUNT,
-          CESS, CESS_AMOUNT, Qty, AutoKOT, ManualKOT, SpecialInst,
-          isKOTGenerate, isSetteled, isNCKOT, isCancelled,
-          DeptID, HotelID, RuntimeRate, RevQty, KOTUsedDate,
-          isBilled, NCName, NCPurpose, KOTNo
-        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-      `)
+          TxnID, outletid, ItemID, TableID, Qty, RuntimeRate, DeptID, HotelID,
+          KOTNo, isKOTGenerate, AutoKOT, KOTUsedDate, isBilled, isCancelled, isSetteled, isNCKOT,
+          CGST, CGST_AMOUNT, SGST, SGST_AMOUNT, IGST, IGST_AMOUNT, CESS, CESS_AMOUNT
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, datetime('now'), 0, 0, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
 
-      for (const d of newDetails) {
-        const qty = Number(d.Qty) || 0
-        const rate = Number(d.RuntimeRate) || 0
-        const cgstPer = Number(d.CGST) || 0
-        const sgstPer = Number(d.SGST) || 0
-        const igstPer = Number(d.IGST) || 0
-        const cessPer = Number(d.CESS) || 0
-        const cgstAmt = (qty * rate * cgstPer) / 100
-        const sgstAmt = (qty * rate * sgstPer) / 100
-        const igstAmt = (qty * rate * igstPer) / 100
-        const cessAmt = (qty * rate * cessPer) / 100
-        const isNCKOT = toBool(d.isNCKOT)
-        dStmt.run(
-          txnId,
-          d.outletid ?? null,
-          d.ItemID ?? null,
-          d.TableID ?? null,
-          cgstPer,
-          Number(cgstAmt.toFixed(2)),
-          sgstPer,
-          Number(sgstAmt.toFixed(2)),
-          igstPer,
-          Number(igstAmt.toFixed(2)),
-          cessPer,
-          Number(cessAmt.toFixed(2)),
-          qty,
-          1, // AutoKOT
-          toBool(d.ManualKOT),
-          d.SpecialInst || null,
-          1, // isKOTGenerate
-          0, // isSetteled
-          isNCKOT,
-          0, // isCancelled
-          d.DeptID ?? null,
-          d.HotelID ?? null,
-          rate,
-          Number(d.RevQty) || 0,
-          new Date().toISOString(),
-          0, // isBilled
-          isNCKOT ? (d.NCName || null) : null,
-          isNCKOT ? (d.NCPurpose || null) : null,
-          KOTNo // KOTNo in details
-        )
+      for (const item of details) {
+        const existingDetail = selectDetailStmt.get(txnId, item.ItemID);
+        if (existingDetail) {
+          // Frontend now sends the quantity *delta*. We add it to the existing quantity.
+          const qtyDelta = Number(item.Qty) || 0;
+          const newTotalQty = existingDetail.Qty + qtyDelta;
+          const rate = existingDetail.RuntimeRate;
+          const newLineSubtotal = newTotalQty * rate;
+
+          // Recalculate tax amounts based on the new total quantity
+          const newCgstAmt = (newLineSubtotal * existingDetail.CGST) / 100;
+          const newSgstAmt = (newLineSubtotal * existingDetail.SGST) / 100;
+          const newIgstAmt = (newLineSubtotal * existingDetail.IGST) / 100;
+          const newCessAmt = (newLineSubtotal * existingDetail.CESS) / 100;
+
+          updateDetailStmt.run(newTotalQty, newCgstAmt, newSgstAmt, newIgstAmt, newCessAmt, existingDetail.TXnDetailID);
+        } else {
+          const qty = Number(item.Qty) || 0;
+          const rate = Number(item.RuntimeRate) || 0;
+          const lineSubtotal = qty * rate;
+          const cgstPer = Number(item.CGST) || 0;
+          const sgstPer = Number(item.SGST) || 0;
+          const igstPer = Number(item.IGST) || 0;
+          const cessPer = Number(item.CESS) || 0;
+          const cgstAmt = Number(item.CGST_AMOUNT) || (lineSubtotal * cgstPer) / 100;
+          const sgstAmt = Number(item.SGST_AMOUNT) || (lineSubtotal * sgstPer) / 100;
+          const igstAmt = Number(item.IGST_AMOUNT) || (lineSubtotal * igstPer) / 100;
+          const cessAmt = Number(item.CESS_AMOUNT) || (lineSubtotal * cessPer) / 100;
+
+          insertDetailStmt.run(
+            txnId,
+            outletid,
+            item.ItemID,
+            TableID,
+            qty,
+            item.RuntimeRate,
+            item.DeptID,
+            HotelID,
+            kotNo,
+            toBool(item.isNCKOT),
+            cgstPer,
+            cgstAmt,
+            sgstPer,
+            sgstAmt,
+            igstPer,
+            igstAmt,
+            cessPer,
+            cessAmt
+          );
+        }
       }
 
-      return txnId
-    })
+      const totals = db.prepare(`
+        SELECT 
+          SUM(Qty * RuntimeRate) as totalGross,
+          SUM(CGST_AMOUNT) as totalCgst,
+          SUM(SGST_AMOUNT) as totalSgst,
+          SUM(IGST_AMOUNT) as totalIgst,
+          SUM(CESS_AMOUNT) as totalCess
+        FROM TAxnTrnbilldetails 
+        WHERE TxnID = ? AND isCancelled = 0
+      `).get(txnId);
 
-    const txnId = trx()
-    const header = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(txnId)
-    const items = db.prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? ORDER BY TXnDetailID').all(txnId)
-    res.json(ok('KOT created', { KOTNo, TxnID: header.TxnID, details: items }))
+      const grossAmount = totals?.totalGross || 0;
+      const totalCgst = totals?.totalCgst || 0;
+      const totalSgst = totals?.totalSgst || 0;
+      const totalIgst = totals?.totalIgst || 0;
+      const totalCess = totals?.totalCess || 0;
+      const totalAmount = grossAmount + totalCgst + totalSgst + totalIgst + totalCess;
+
+      db.prepare(`
+        UPDATE TAxnTrnbill 
+        SET GrossAmt = ?, Amount = ?, CGST = ?, SGST = ?, IGST = ?, CESS = ? 
+        WHERE TxnID = ?
+      `).run(grossAmount, totalAmount, totalCgst, totalSgst, totalIgst, totalCess, txnId);
+
+      return { txnId, kotNo };
+    })(); // Immediately invoke the transaction
+
+    const { txnId, kotNo } = trx;
+    const header = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(txnId);
+    const items = db.prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? AND isCancelled = 0 ORDER BY TXnDetailID').all(txnId);
+
+    res.json(ok('KOT processed successfully', { ...header, details: items, KOTNo: kotNo }));
+
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to create KOT', data: null, error: error.message })
+    console.error('Error in createKOT:', error);
+    res.status(500).json({ success: false, message: 'Failed to create/update KOT', data: null, error: error.message });
   }
 }
 
@@ -752,28 +722,41 @@ exports.createKOT = async (req, res) => {
 /* -------------------------------------------------------------------------- */
 exports.getSavedKOTs = async (req, res) => {
   try {
-    const { tableId, isBilled } = req.query;
-    if (!tableId) {
-      return res.status(400).json({ success: false, message: 'tableId is required', data: null })
+    const { tableId, isBilled } = req.query; // get filters from query
+
+    let whereClauses = ['b.isCancelled = 0'];
+    const params = [];
+
+    if (isBilled !== undefined) {
+      whereClauses.push('b.isBilled = ?');
+      params.push(Number(isBilled));
     }
 
-    const items = db.prepare(`
-      SELECT
-        d.ItemID,
-        m.item_name as ItemName,
-        SUM(d.Qty) as Qty,
-        d.RuntimeRate
-      FROM TAxnTrnbilldetails d
-      JOIN TAxnTrnbill b ON d.TxnID = b.TxnID
-      LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
-      WHERE b.TableID = ? AND b.isBilled = ? AND b.isCancelled = 0 AND d.isCancelled = 0
-      GROUP BY d.ItemID, m.item_name, d.RuntimeRate
-      HAVING SUM(d.Qty) > 0
-    `).all(Number(tableId), isBilled !== undefined ? Number(isBilled) : 0);
+    // This makes tableId optional. If provided, it filters.
+    if (tableId !== undefined) {
+      whereClauses.push('b.TableID = ?');
+      params.push(Number(tableId));
+    }
 
-    res.json(ok('Fetched merged KOTs', items));
+    // Select only the fields needed for the "Saved KOTs" modal
+    const sql = `
+      SELECT
+        b.TxnID,
+        b.TableID,
+        b.Amount,
+        b.orderNo,
+        b.TxnDatetime,
+        b.KOTNo
+      FROM TAxnTrnbill b
+      WHERE ${whereClauses.join(' AND ')}
+      ORDER BY b.TxnDatetime DESC
+    `;
+
+    const rows = db.prepare(sql).all(...params);
+
+    res.json(ok('Fetched saved KOTs', rows));
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to fetch KOTs', data: null, error: error.message })
+    res.status(500).json({ success: false, message: 'Failed to fetch saved KOTs', data: null, error: error.message })
   }
 }
 
@@ -803,22 +786,40 @@ exports.getLatestKOTForTable = async (req, res) => {
 exports.getUnbilledItemsByTable = async (req, res) => {
   try {
     const { tableId } = req.params;
+
+    // Step 1: Find the single unbilled transaction and its KOT number for this table.
+    const unbilledTxn = db.prepare(`
+      SELECT TxnID, KOTNo 
+      FROM TAxnTrnbill 
+      WHERE TableID = ? AND isBilled = 0 AND isCancelled = 0 
+      ORDER BY TxnID DESC 
+      LIMIT 1
+    `).get(Number(tableId));
+
+    // If no unbilled transaction, return an empty array.
+    if (!unbilledTxn) {
+      return res.json({ success: true, message: 'No unbilled items found for this table.', data: { items: [], kotNo: null } });
+    }
+
+    const txnId = unbilledTxn.TxnID;
+    const kotNo = unbilledTxn.KOTNo;
+
+    // Step 2: Get all items for that specific transaction.
+    // The SUM() and GROUP BY are no longer needed because the createKOT logic
+    // now correctly updates quantities on a single item row.
     const rows = db.prepare(`
       SELECT
         d.ItemID,
         COALESCE(m.item_name, 'Unknown Item') AS ItemName,
-        SUM(d.Qty) as Qty,
+        d.Qty,
         COALESCE(SUM(d.RevQty), 0) as RevQty,
-        AVG(d.RuntimeRate) as price
+        d.RuntimeRate as price
       FROM TAxnTrnbilldetails d
-      JOIN TAxnTrnbill b ON d.TxnID = b.TxnID
       LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
-      WHERE b.TableID = ? AND b.isBilled = 0 AND d.isCancelled = 0
-      GROUP BY d.ItemID
-      HAVING SUM(d.Qty) > 0
-    `).all(Number(tableId));
+      WHERE d.TxnID = ? AND d.isCancelled = 0 AND d.Qty > 0
+    `).all(txnId);
 
-    res.json({ success: true, message: 'Fetched unbilled items', data: rows });
+    res.json({ success: true, message: 'Fetched unbilled items', data: { items: rows, kotNo: kotNo } });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to fetch unbilled items', data: null, error: error.message });
   }

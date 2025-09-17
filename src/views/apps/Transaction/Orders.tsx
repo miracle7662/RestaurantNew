@@ -3,6 +3,7 @@ import { Button, Modal, Table } from 'react-bootstrap';
 import OrderDetails from './OrderDetails';
 import { fetchOutletsForDropdown } from '@/utils/commonfunction';
 import { useAuthContext } from '@/common';
+import { getUnbilledItemsByTable } from '@/common/api/orders';
 import { OutletData } from '@/common/api/outlet';
 import AddCustomerModal from './Customers';
 import { toast } from 'react-hot-toast';
@@ -17,8 +18,10 @@ interface MenuItem {
   isNCKOT: number;
   NCName: string;
   NCPurpose: string;
+  isNew?: boolean; // Added to track new items not yet sent to KOT
   alternativeItem?: string;
   modifier?: string[];
+  originalQty?: number; // To track the original quantity from database
 }
 
 interface TableItem {
@@ -80,6 +83,7 @@ const Order = () => {
   const [givenBy, setGivenBy] = useState<string>(user?.name || '');
   const [reason, setReason] = useState<string>('');
   const [DiscountType, setDiscountType] = useState<number>(0); // 0 for percentage, 1 for amount
+  const [currentKOTNo, setCurrentKOTNo] = useState<number | null>(null);
 
   // New state for floating button group and modals
   const [showOptions, setShowOptions] = useState<boolean>(false);
@@ -581,12 +585,61 @@ const fetchTableManagement = async () => {
     }
   }, [searchTable, filteredTables]);
 
-  const handleTableClick = (seat: string) => {
+const handleTableClick = (seat: string) => {
     console.log('Button clicked for table:', seat);
     setSelectedTable(seat);
-    setItems([]);
+    setItems([]); // Reset items for the new table
+    setCurrentKOTNo(null); // Reset KOT number for the new table
     setShowOrderDetails(true);
     setInvalidTable('');
+
+    // Find the full table object to get its ID
+    const selectedTableObj = (Array.isArray(filteredTables) ? filteredTables : tableItems)
+      .find((t: any) => t && t.table_name && t.table_name === seat);
+
+    if (selectedTableObj) {
+      const tableIdNum = Number(selectedTableObj.tablemanagementid);
+      const deptId = Number(selectedTableObj.departmentid) || null;
+      const outletId = Number(selectedTableObj.outletid) || (user?.outletid ? Number(user.outletid) : null);
+
+      setSelectedDeptId(deptId);
+      setSelectedOutletId(outletId);
+
+      // Fetch unbilled items for this table
+      getUnbilledItemsByTable(tableIdNum)
+        .then(response => {
+          if (response.success && response.data && Array.isArray(response.data.items)) {
+            const fetchedItems: MenuItem[] = response.data.items.map((item: any) => ({
+              id: item.ItemID,
+              name: item.ItemName,
+              price: item.price,
+              qty: item.Qty,
+              isBilled: 0, // Assuming unbilled items are not yet billed
+              isNCKOT: 0, // Assuming this info is not in getUnbilledItemsByTable, default to 0
+              NCName: '',
+              NCPurpose: '',
+              isNew: false, // These are existing items, so not new
+              originalQty: item.Qty, // Track original quantity from DB
+            }));
+            setCurrentKOTNo(response.data.kotNo); // Set KOT number from response
+            setItems(fetchedItems); // Directly set the fetched items
+          } else {
+            console.warn('Failed to fetch unbilled items or no items found:', response.message);
+            setItems([]);
+            setCurrentKOTNo(null);
+          }
+        })
+        .catch(error => {
+          console.error('Error fetching unbilled items:', error);
+          setItems([]);
+          setCurrentKOTNo(null);
+        });
+    } else {
+      console.warn('Selected table object not found for seat:', seat);
+      setItems([]); // Clear items if table not found
+      setCurrentKOTNo(null);
+    }
+
     try {
       const selectedTableRecord: any = (Array.isArray(filteredTables) ? filteredTables : tableItems)
         .find((t: any) => t && t.table_name && t.table_name === seat)
@@ -634,13 +687,13 @@ const fetchTableManagement = async () => {
 
   const handleIncreaseQty = (itemId: number) => {
     setItems(items.map(item =>
-      item.id === itemId ? { ...item, qty: item.qty + 1 } : item
+      item.id === itemId ? { ...item, qty: item.qty + 1, isNew: true } : item
     ));
   };
 
   const handleDecreaseQty = (itemId: number) => {
     const updatedItems = items.map(item =>
-      item.id === itemId ? { ...item, qty: item.qty - 1 } : item
+      item.id === itemId ? { ...item, qty: item.qty - 1, isNew: true } : item
     );
     setItems(updatedItems.filter(item => item.qty > 0));
   };
@@ -713,7 +766,7 @@ const fetchTableManagement = async () => {
   const getKOTLabel = () => {
     switch (activeTab) {
       case 'Dine-in':
-        return `KOT 1 ${selectedTable ? ` - Table ${selectedTable}` : ''}`;
+        return `KOT ${currentKOTNo || ''} ${selectedTable ? ` - Table ${selectedTable}` : ''}`;
       case 'Pickup':
         return 'Pickup Order';
       case 'Delivery':
@@ -779,9 +832,13 @@ const fetchTableManagement = async () => {
 
   const handlePrintAndSaveKOT = async () => {
     try {
-      if (items.length === 0) return;
+      const newItemsToKOT = items.filter(item => item.isNew);
+      if (newItemsToKOT.length === 0) {
+        toast ('No new items to save as KOT.');
+        setLoading(false);
+        return;
+      }
       setLoading(true);
-      const orderNo = `${selectedTable || 'TB'}-${Date.now()}`;
       const selectedTableRecord: any = (Array.isArray(filteredTables) ? filteredTables : tableItems)
         .find((t: any) => t && t.table_name && t.table_name === selectedTable)
         || (Array.isArray(tableItems) ? tableItems.find((t: any) => t && t.table_name === selectedTable) : undefined);
@@ -791,7 +848,16 @@ const fetchTableManagement = async () => {
       const userId = user?.id || null;
       const hotelId = user?.hotelid || null;
 
-      const details = items.map(i => {
+      const kotItemsPayload = newItemsToKOT.map(i => {
+        // Calculate the change in quantity. If it's a new item, originalQty will be undefined.
+        const qtyDelta = i.originalQty !== undefined ? i.qty - i.originalQty : i.qty;
+
+        // Only include items where quantity has increased.
+        // Decreases are handled by Re-KOT.
+        if (qtyDelta <= 0) {
+          return null;
+        }
+
         const lineSubtotal = Number(i.price) * Number(i.qty);
         const cgstPer = Number(taxRates.cgst) || 0;
         const sgstPer = Number(taxRates.sgst) || 0;
@@ -800,10 +866,10 @@ const fetchTableManagement = async () => {
         const cgstAmt = (lineSubtotal * cgstPer) / 100;
         const sgstAmt = (lineSubtotal * sgstPer) / 100;
         const igstAmt = (lineSubtotal * igstPer) / 100;
-        const cessAmt = (lineSubtotal * cessPer) / 100;
+        const cessAmt = (lineSubtotal * cessPer) / 100; // This tax calculation is for bill, not KOT. KOT only needs item and quantity.
         return {
           ItemID: i.id,
-          Qty: i.qty,
+          Qty: qtyDelta,
           RuntimeRate: i.price,
           TableID: resolvedTableId || undefined,
           DeptID: resolvedDeptId ?? selectedDeptId ?? undefined,
@@ -819,40 +885,39 @@ const fetchTableManagement = async () => {
           HotelID: hotelId,
           isBilled: i.isBilled || 0,
           isNCKOT: i.isNCKOT || 0,
-          NCName: i.NCName || '',
-          NCPurpose: i.NCPurpose || '',
         };
-      });
-      const discountAmount = DiscountType === 0 ? (taxCalc.grandTotal * (DiscPer > 0 ? DiscPer : 0)) / 100 : (DiscPer > 0 ? DiscPer : 0);
-      const netAmount = taxCalc.grandTotal - discountAmount;
+      }).filter(Boolean) as any[];
 
-      const payload: any = {
-        TableID: resolvedTableId,
-        orderNo,
-        CustomerName: customerName || null,
-        MobileNo: mobileNumber || null,
-        details,
-        GrossAmt: Number(taxCalc.subtotal.toFixed(2)),
-        CGST: Number(taxCalc.cgstAmt.toFixed(2)) || 0,
-        SGST: Number(taxCalc.sgstAmt.toFixed(2)) || 0,
-        IGST: Number(taxCalc.igstAmt.toFixed(2)) || 0,
-        CESS: Number(taxCalc.cessAmt.toFixed(2)) || 0,
-        Amount: Number(netAmount.toFixed(2)),
-        DiscPer: DiscountType === 0 ? (DiscPer > 0 ? Number(DiscPer.toFixed(2)) : 0) : 0, // Percentage only if type is 0
-        Discount: DiscountType === 1 ? (DiscPer > 0 ? Number(DiscPer.toFixed(2)) : 0) : 0, // Amount only if type is 1
-        DiscountType: DiscountType, // 0 for percentage, 1 for amount
-        GivenBy: givenBy,
-        Reason: reason || null,
+      if (kotItemsPayload.length === 0) {
+        toast.error('No new item quantities to save.');
+        setLoading(false);
+        return;
+      }
+
+      const kotPayload = {
+        txnId: 0,
+        tableId: resolvedTableId,
+        items: kotItemsPayload,
         outletid: resolvedOutletId,
-        UserId: userId,
-        HotelID: hotelId,
+        userId: userId,
+        hotelId: hotelId,
       };
-      console.log('DiscountType before API call:', DiscountType);
-      console.log('Discount value before API call:', DiscPer);
-      console.log('Sending payload to createBill:', JSON.stringify(payload, null, 2));
-      const resp = await createBill(payload);
+
+      console.log('Sending payload to createKOT:', JSON.stringify(kotPayload, null, 2));
+      const resp = await createKOT(kotPayload);
       if (resp?.success) {
-        toast.success('KOT saved');
+        toast.success('KOT saved successfully!');
+        setCurrentKOTNo(resp.data.KOTNo);
+
+        // Update items state: mark newItems as not new and update originalQty
+        setItems(prevItems =>
+          prevItems.map(item =>
+            newItemsToKOT.some(newItem => newItem.id === item.id)
+              ? { ...item, isNew: false, originalQty: item.qty }
+              : item
+          )
+        );
+
         // Open print preview with KOT content
         const printWindow = window.open('', '_blank');
         if (printWindow) {
@@ -912,65 +977,6 @@ const fetchTableManagement = async () => {
       setLoading(false);
     }
   };
-
-  // Auto KOT generation on items change
-  useEffect(() => {
-    const autoGenerateKOT = async () => {
-      if (items.length === 0 || !selectedTable) return;
-      setLoading(true);
-      try {
-        const orderNo = `${selectedTable || 'TB'}-${Date.now()}`;
-        const selectedTableRecord: any = (Array.isArray(filteredTables) ? filteredTables : tableItems)
-          .find((t: any) => t && t.table_name && t.table_name === selectedTable)
-          || (Array.isArray(tableItems) ? tableItems.find((t: any) => t && t.table_name === selectedTable) : undefined);
-        const resolvedTableId = selectedTableRecord ? Number((selectedTableRecord as any).tableid || (selectedTableRecord as any).tablemanagementid) : null;
-        const resolvedDeptId = selectedTableRecord ? Number((selectedTableRecord as any).departmentid) || undefined : undefined;
-        const resolvedOutletId = selectedTableRecord ? Number((selectedTableRecord as any).outletid) || (user?.outletid ? Number(user.outletid) : null) : null;
-        const userId = user?.id || null;
-        const hotelId = user?.hotelid || null;
-
-        const kotItems = items.map(i => ({
-          ItemID: i.id,
-          Qty: i.qty,
-          RuntimeRate: i.price,
-          outletid: resolvedOutletId ?? undefined,
-          ManualKOT: false,
-          SpecialInst: '',
-          isSetteled: false,
-          isNCKOT: false,
-          isCancelled: false,
-          DeptID: resolvedDeptId ?? selectedDeptId ?? undefined,
-          HotelID: hotelId,
-        }));
-
-        const payload = {
-          txnId: 0, // Assuming new transaction, adjust if needed
-          tableId: resolvedTableId || 0,
-          items: kotItems,
-        };
-
-        const resp = await createKOT(payload);
-        if (resp?.success) {
-          toast.success('Auto KOT generated');
-          try {
-            const listResp = await getSavedKOTs({ isBilled: 0 });
-            const list = listResp?.data || listResp;
-            if (Array.isArray(list)) setSavedKOTs(list);
-          } catch (err) {
-            console.warn('refresh saved KOTs failed');
-          }
-        } else {
-          toast.error(resp?.message || 'Failed to generate Auto KOT');
-        }
-      } catch (e: any) {
-        toast.error(e?.message || 'Error generating Auto KOT');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    autoGenerateKOT();
-  }, [items, selectedTable]);
   const handleTableSearchInput = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       const inputTable = tableSearchInput.trim();
@@ -1177,7 +1183,7 @@ const fetchTableManagement = async () => {
                   {(formData.show_kot_no_quick_bill || !formData.hide_table_name_quick_bill) && (
                     <strong>KOT No:</strong>
                   )}{' '}
-                  KOT001
+                  {currentKOTNo}
                 </div>
                 <div>
                   {selectedTable && (
@@ -1249,7 +1255,7 @@ const fetchTableManagement = async () => {
               </div>
 
               {/* Items */}
-              {items.map((item, index) => (
+              {items.filter(item => item.isNew).map((item, index) => (
                 <div key={item.id} style={{
                   display: 'grid',
                   gridTemplateColumns: '30px 1fr 50px 70px 80px',
@@ -1852,7 +1858,7 @@ const fetchTableManagement = async () => {
                           } else {
                             setItems(
                               items.map((i) =>
-                                i.id === item.id ? { ...i, qty: newQty } : i
+                                i.id === item.id ? { ...i, qty: newQty, isNew: true } : i
                               )
                             );
                           }
@@ -2178,6 +2184,7 @@ const fetchTableManagement = async () => {
                     <tr>
                       <th>#</th>
                       <th>TxnID</th>
+                      <th>KOT No</th>
                       <th>TableID</th>
                       <th>Amount</th>
                       <th>OrderNo</th>
@@ -2189,6 +2196,7 @@ const fetchTableManagement = async () => {
                       <tr key={index}>
                         <td>{index + 1}</td>
                         <td>{kot.TxnID}</td>
+                        <td>{kot.KOTNo}</td>
                         <td>{kot.TableID ?? ''}</td>
                         <td>{kot.Amount}</td>
                         <td>{kot.orderNo || ''}</td>
@@ -2340,5 +2348,4 @@ const fetchTableManagement = async () => {
 
   );
 };
-
 export default Order;

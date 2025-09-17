@@ -90,24 +90,43 @@ export async function getTaxesByOutletAndDepartment(params: { outletid?: number 
 
 // KOT Management API functions
 export async function createKOT(payload: {
-  txnId: number
-  tableId: number
+  txnId: number;
+  tableId: number | null;
   items: Array<{
-    ItemID: number
-    Qty: number
-    RuntimeRate: number
-    outletid?: number
-    ManualKOT?: boolean
-    SpecialInst?: string
-    isSetteled?: boolean
-    isNCKOT?: boolean
-    isCancelled?: boolean
-    DeptID?: number
-    HotelID?: number
-  }>
+    ItemID: number;
+    Qty: number;
+    RuntimeRate: number;
+    outletid?: number | null;
+    ManualKOT?: boolean;
+    SpecialInst?: string;
+    isSetteled?: boolean;
+    isNCKOT?: number;
+    isCancelled?: boolean;
+    DeptID?: number;
+    HotelID?: number | null;
+    isBilled?: number;
+    CGST?: number;
+    CGST_AMOUNT?: number;
+    SGST?: number;
+    SGST_AMOUNT?: number;
+    IGST?: number;
+    IGST_AMOUNT?: number;
+    CESS?: number;
+    CESS_AMOUNT?: number;
+  }>;
+  outletid: number | null;
+  userId: number | null;
+  hotelId: number | null;
 }) {
-  const { data } = await API.post('/TAxnTrnbill/kot', payload)
-  return data
+  const backendPayload = {
+    TableID: payload.tableId,
+    details: payload.items,
+    outletid: payload.outletid,
+    UserId: payload.userId,
+    HotelID: payload.hotelId,
+  };
+  const { data } = await API.post('/TAxnTrnbill/kot', backendPayload);
+  return data;
 }
 
 export async function reverseKOT(payload: {

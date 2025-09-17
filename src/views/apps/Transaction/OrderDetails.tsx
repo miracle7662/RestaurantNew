@@ -14,6 +14,7 @@ interface MenuItemState {
   isNCKOT: number;
   NCName: string;
   NCPurpose: string;
+  isNew?: boolean; // Added to track new items not yet sent to KOT
 }
 
 // Interface for card items (aligned with Menu.tsx)
@@ -441,10 +442,10 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
     const existingItem = items.find((item) => item.name === newItem.name);
     if (existingItem) {
       setItems(
-        items.map((item) => (item.name === newItem.name ? { ...item, qty: item.qty + qty } : item))
+        items.map((item) => (item.name === newItem.name ? { ...item, qty: item.qty + qty, isNew: true } : item))
       );
     } else {
-      setItems([...items, { ...newItem, id: items.length + 1, qty }]);
+      setItems([...items, { ...newItem, id: items.length + 1, qty, isNew: true }]);
     }
   };
 
@@ -869,5 +870,6 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
     </div>
   );
 };
+
 
 export default OrderDetails;
