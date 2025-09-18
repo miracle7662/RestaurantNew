@@ -61,8 +61,6 @@ exports.getAllBills = async (req, res) => {
             'RevQty', d.RevQty,
             'KOTUsedDate', d.KOTUsedDate,
             'isBilled', d.isBilled,
-            'NCName', d.NCName,
-            'NCPurpose', d.NCPurpose
           )
         ) as _details
       FROM TAxnTrnbill b
@@ -125,6 +123,7 @@ exports.createBill = async (req, res) => {
       orderNo, isPickup, HotelID, GuestID, DiscRefID, DiscPer, DiscountType, UserId,
       BatchNo, PrevTableID, PrevDeptId, isTrnsfered, isChangeTrfAmt,
       ServiceCharge, ServiceCharge_Amount, Extra1, Extra2, Extra3,
+      NCName, NCPurpose,
       details = []
     } = req.body
 
@@ -132,6 +131,9 @@ exports.createBill = async (req, res) => {
     if (details.length > 0) {
       console.log('First detail item:', JSON.stringify(details[0], null, 2));
     }
+
+    console.log('NCName:', NCName);
+    console.log('NCPurpose:', NCPurpose);
 
     // Compute header totals from details if missing/zero
     const isArray = Array.isArray(details) && details.length > 0
@@ -181,54 +183,56 @@ exports.createBill = async (req, res) => {
           GrossAmt, RevKOT, Discount, CGST, SGST, IGST, CESS, RoundOFF, Amount,
           isHomeDelivery, DriverID, CustomerName, MobileNo, Address, Landmark,
           orderNo, isPickup, HotelID, GuestID, DiscRefID, DiscPer, DiscountType, UserId,
-          BatchNo, PrevTableID, PrevDeptId, isTrnsfered, isChangeTrfAmt,
-          ServiceCharge, ServiceCharge_Amount, Extra1, Extra2, Extra3
-        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-      `)
+      BatchNo, PrevTableID, PrevDeptId, isTrnsfered, isChangeTrfAmt,
+      ServiceCharge, ServiceCharge_Amount, Extra1, Extra2, Extra3, NCName, NCPurpose
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+  `)
 
-      const result = stmt.run(
-        outletid ?? null,
-        TxnNo || null,
-        TableID ?? null,
-        Steward || null,
-        PAX ?? null,
-        toBool(AutoKOT),
-        toBool(ManualKOT),
-        TxnDatetime || null,
-        Number(finalGross) || 0,
-        toBool(RevKOT),
-        Number(Discount) || 0,
-        Number(finalCgst) || 0,
-        Number(finalSgst) || 0,
-        Number(finalIgst) || 0,
-        Number(finalCess) || 0,
-        Number(headerRound) || 0,
-        Number(finalAmount) || 0,
-        toBool(isHomeDelivery),
-        DriverID ?? null,
-        CustomerName || null,
-        MobileNo || null,
-        Address || null,
-        Landmark || null,
-        orderNo || null,
-        toBool(isPickup),
-        HotelID ?? null,
-        GuestID ?? null,
-        DiscRefID ?? null,
-        Number(DiscPer) || 0,
-        Number(DiscountType) || 0,
-        UserId ?? null,
-        BatchNo || null,
-        PrevTableID ?? null,
-        PrevDeptId ?? null,
-        toBool(isTrnsfered),
-        toBool(isChangeTrfAmt),
-        Number(ServiceCharge) || 0,
-        Number(ServiceCharge_Amount) || 0,
-        Extra1 || null,
-        Extra2 || null,
-        Extra3 || null
-      )
+    const result = stmt.run(
+      outletid ?? null,
+      TxnNo || null,
+      TableID ?? null,
+      Steward || null,
+      PAX ?? null,
+      toBool(AutoKOT),
+      toBool(ManualKOT),
+      TxnDatetime || null,
+      Number(finalGross) || 0,
+      toBool(RevKOT),
+      Number(Discount) || 0,
+      Number(finalCgst) || 0,
+      Number(finalSgst) || 0,
+      Number(finalIgst) || 0,
+      Number(finalCess) || 0,
+      Number(headerRound) || 0,
+      Number(finalAmount) || 0,
+      toBool(isHomeDelivery),
+      DriverID ?? null,
+      CustomerName || null,
+      MobileNo || null,
+      Address || null,
+      Landmark || null,
+      orderNo || null,
+      toBool(isPickup),
+      HotelID ?? null,
+      GuestID ?? null,
+      DiscRefID ?? null,
+      Number(DiscPer) || 0,
+      Number(DiscountType) || 0,
+      UserId ?? null,
+      BatchNo ?? null,
+      PrevTableID ?? null,
+      PrevDeptId ?? null,
+      toBool(isTrnsfered),
+      toBool(isChangeTrfAmt),
+      Number(ServiceCharge) || 0,
+      Number(ServiceCharge_Amount) || 0,
+      Extra1 || null,
+      Extra2 || null,
+      Extra3 || null,
+      NCName || null,
+      NCPurpose || null
+    )
 
       const txnId = result.lastInsertRowid
 
@@ -283,7 +287,7 @@ exports.createBill = async (req, res) => {
             rate,
             Number(d.RevQty) || 0,
             d.KOTUsedDate || null,
-            0, // isBilled default to 0
+            0 // isBilled default to 0
             
           )
         }
@@ -385,8 +389,8 @@ exports.updateBill = async (req, res) => {
             CESS, CESS_AMOUNT, Qty, AutoKOT, ManualKOT, SpecialInst,
             isKOTGenerate, isSetteled, isNCKOT, isCancelled,
             DeptID, HotelID, RuntimeRate, RevQty, KOTUsedDate,
-            isBilled, NCName, NCPurpose
-          ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            isBilled
+          ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         `)
         for (const d of details) {
           const isNCKOT = toBool(d.isNCKOT)
@@ -416,9 +420,8 @@ exports.updateBill = async (req, res) => {
             Number(d.RuntimeRate) || 0,
             Number(d.RevQty) || 0,
             d.KOTUsedDate || null,
-            0, // isBilled default to 0
-            isNCKOT ? (d.NCName || null) : null,
-            isNCKOT ? (d.NCPurpose || null) : null
+            0 // isBilled default to 0
+           
           )
         }
       }
@@ -580,7 +583,7 @@ exports.updateBillItemsIsBilled = async (req, res) => {
 exports.createKOT = async (req, res) => {
   try {
     console.log('Received createKOT body:', JSON.stringify(req.body, null, 2));
-    const { outletid, TableID, UserId, HotelID, details = [] } = req.body;
+    const { outletid, TableID, UserId, HotelID, NCName, NCPurpose, details = [] } = req.body;
 
     if (!TableID) {
       return res.status(400).json({ success: false, message: 'TableID is required' });
@@ -597,10 +600,11 @@ exports.createKOT = async (req, res) => {
       const insertHeaderStmt = db.prepare(`
         INSERT INTO TAxnTrnbill (
           outletid, TableID, UserId, HotelID, KOTNo, TxnDatetime,
-          isBilled, isCancelled, isSetteled, status, AutoKOT
-        ) VALUES (?, ?, ?, ?, ?, datetime('now'), 0, 0, 0, 1, 1)
+          isBilled, isCancelled, isSetteled, status, AutoKOT,
+          NCName, NCPurpose
+        ) VALUES (?, ?, ?, ?, ?, datetime('now'), 0, 0, 0, 1, 1, ?, ?)
       `);
-      const result = insertHeaderStmt.run(outletid, TableID, UserId, HotelID, kotNo);
+      const result = insertHeaderStmt.run(outletid, TableID, UserId, HotelID, kotNo, NCName || null, NCPurpose || null);
       const txnId = result.lastInsertRowid;
 
       db.prepare('UPDATE msttablemanagement SET status = 1 WHERE tableid = ?').run(TableID);
@@ -626,6 +630,7 @@ exports.createKOT = async (req, res) => {
         const sgstAmt = Number(item.SGST_AMOUNT) || (lineSubtotal * sgstPer) / 100;
         const igstAmt = Number(item.IGST_AMOUNT) || (lineSubtotal * igstPer) / 100;
         const cessAmt = Number(item.CESS_AMOUNT) || (lineSubtotal * cessPer) / 100;
+        const isNCKOT = toBool(item.isNCKOT);
 
         insertDetailStmt.run(
           txnId,
@@ -633,11 +638,11 @@ exports.createKOT = async (req, res) => {
           item.ItemID,
           TableID,
           qty,
-          item.RuntimeRate,
+          rate,
           item.DeptID,
           HotelID,
           kotNo,
-          toBool(item.isNCKOT),
+          isNCKOT,
           cgstPer,
           cgstAmt,
           sgstPer,

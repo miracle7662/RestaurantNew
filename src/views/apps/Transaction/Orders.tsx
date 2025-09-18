@@ -942,6 +942,8 @@ const handleTableClick = (seat: string) => {
           HotelID: hotelId,
           isBilled: i.isBilled || 0,
           isNCKOT: i.isNCKOT || 0,
+          NCName: i.isNCKOT ? i.NCName : null,
+          NCPurpose: i.isNCKOT ? i.NCPurpose : null,
         };
       }).filter(Boolean) as any[];
 
@@ -951,6 +953,9 @@ const handleTableClick = (seat: string) => {
         return;
       }
 
+      // Find the first NCKOT item to get the overall NCName and NCPurpose for the bill header
+      const firstNCItem = kotItemsPayload.find(item => item.isNCKOT);
+
       const kotPayload = {
         txnId: 0,
         tableId: resolvedTableId,
@@ -958,6 +963,9 @@ const handleTableClick = (seat: string) => {
         outletid: resolvedOutletId,
         userId: userId,
         hotelId: hotelId,
+        // Add NCName and NCPurpose to the main payload for the TAxnTrnbill header
+        NCName: firstNCItem ? firstNCItem.NCName : null,
+        NCPurpose: firstNCItem ? firstNCItem.NCPurpose : null,
       };
 
       console.log('Sending payload to createKOT:', JSON.stringify(kotPayload, null, 2));
@@ -2523,9 +2531,7 @@ const handleTableClick = (seat: string) => {
           </Modal>
         </div>
       </div>
-
     </div>
-
   );
 };
 export default Order;

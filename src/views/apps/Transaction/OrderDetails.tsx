@@ -470,8 +470,24 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
 
   // Add item to order
   const handleAddItem = (newItem: Omit<MenuItemState, 'qty'>, qty: number = 1) => {
-    // Always add a new row for each item insertion, removing the merging logic.
-    setItems((prevItems) => [...prevItems, { ...newItem, qty, isNew: true }]);
+    // Always find and update quantity for existing new items, regardless of view mode.
+    setItems((prevItems) => {
+      const existingNewItemIndex = prevItems.findIndex(
+        (item) => item.id === newItem.id && item.isNew
+      );
+
+      if (existingNewItemIndex > -1) {
+        const updatedItems = [...prevItems];
+        const existingItem = updatedItems[existingNewItemIndex];
+        updatedItems[existingNewItemIndex] = {
+          ...existingItem,
+          qty: existingItem.qty + qty,
+        };
+        return updatedItems;
+      } else {
+        return [...prevItems, { ...newItem, qty, isNew: true }];
+      }
+    });
   };
 
   // Delete all items

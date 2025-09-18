@@ -1,11 +1,11 @@
-# TODO: Modify Item Insertion to Always Add New Rows
+# TODO: Verify and Log ncname and purpose in Print & Save KOT
 
-## Completed Tasks
-- [x] Modify handleAddItem in src/views/apps/Transaction/OrderDetails.tsx to always add new rows for each item insertion, removing the merging logic.
+## Steps to Complete
 
-## Pending Tasks
-- [ ] Verify that the grouping logic in src/views/apps/Transaction/Orders.tsx display works correctly with multiple rows of the same item.
-- [ ] Confirm that the Print & Save KOT logic in Orders.tsx sends the correct quantities based on the new rows (it should sum quantities for new items).
-- [ ] Test the insertion behavior: ensure adding the same item multiple times creates separate rows.
-- [ ] Test the grouped view: toggle to grouped mode and verify identical items are grouped with summed quantities.
-- [ ] Test the individual view: ensure each row is displayed separately.
+- [ ] Update frontend Orders.tsx to include NCName and NCPurpose in kotItemsPayload when isNCKOT is true
+- [ ] Update backend TAxnTrnbillControllers.js createKOT function to insert NCName and NCPurpose into TAxnTrnbilldetails table
+- [ ] Add specific logging for ncname and purpose in the createKOT controller
+- [ ] Test the changes to verify ncname and purpose are sent and logged correctly
+
+## Progress
+- Started: [Current Date/Time]
