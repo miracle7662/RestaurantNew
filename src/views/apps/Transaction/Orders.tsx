@@ -1940,8 +1940,8 @@ const handleTableClick = (seat: string) => {
 
                   const itemsToDisplay = isGroupedView
                     ? Object.values(
-                      sortedItems.reduce((acc, item) => {
-                        const key = `${item.id}-${item.price}`;
+                     sortedItems.reduce((acc, item, index) => { // <-- 'index' is added here
+  const key = item.isNew ? `new-${item.id}-${index}` : `${item.id}-${item.price}`;
                         if (!acc[key]) {
                           acc[key] = { ...item, displayQty: 0, canEdit: false, kotNo: item.kotNo };
                         }
@@ -1988,7 +1988,7 @@ const handleTableClick = (seat: string) => {
 
                     return (
                       <div
-                        key={isGroupedItem ? `${item.id}-${item.price}` : (item.txnDetailId ?? `new-${item.id}-${index}`)}
+                        key={isGroupedItem ? `${item.id}-${item.price}-${index}` : (item.txnDetailId ?? `new-${item.id}-${index}`)}
                         className="border-bottom"
                         style={{
                           display: 'grid',

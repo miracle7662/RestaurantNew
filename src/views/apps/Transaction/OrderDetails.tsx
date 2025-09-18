@@ -470,24 +470,8 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
 
   // Add item to order
   const handleAddItem = (newItem: Omit<MenuItemState, 'qty'>, qty: number = 1) => {
-    // Find an item that is already in the current unsaved session
-    const existingUnsavedItem = items.find(
-      (item) => item.id === newItem.id && item.isNew
-    );
-
-    if (existingUnsavedItem) {
-      // If the item is already in the current unsaved KOT session, increase its quantity
-      setItems(
-        items.map((item) =>
-          item.id === newItem.id && item.isNew
-            ? { ...item, qty: item.qty + qty, isNew: true }
-            : item
-        )
-      );
-    } else {
-      // If it's a completely new item OR it already exists in a saved KOT, add it as a new row
-      setItems([...items, { ...newItem, qty, isNew: true }]);
-    }
+    // Always add a new row for each item insertion, removing the merging logic.
+    setItems((prevItems) => [...prevItems, { ...newItem, qty, isNew: true }]);
   };
 
   // Delete all items
