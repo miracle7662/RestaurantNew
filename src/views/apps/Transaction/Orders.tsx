@@ -1943,14 +1943,14 @@ const handleTableClick = (seat: string) => {
                       sortedItems.reduce((acc, item) => {
                         const key = `${item.id}-${item.price}`;
                         if (!acc[key]) {
-                          acc[key] = { ...item, displayQty: 0, canEdit: false };
+                          acc[key] = { ...item, displayQty: 0, canEdit: false, kotNo: item.kotNo };
                         }
                         acc[key].displayQty += item.qty;
                         if (item.isNew) {
                           acc[key].canEdit = true;
                         }
                         return acc;
-                      }, {} as Record<string, MenuItem & { displayQty: number; canEdit: boolean }>)
+                      }, {} as Record<string, MenuItem & { displayQty: number; canEdit: boolean; kotNo?: number }>)
                     )
                     : sortedItems;
 
@@ -1976,6 +1976,13 @@ const handleTableClick = (seat: string) => {
                         ? '#d4edda' // Light green for new items
                         : originalItem.kotNo
                           ? kotColorMap.get(originalItem.kotNo) ?? 'transparent' // Use a default value if the value is undefined
+                          : 'transparent';
+                    } else {
+                      const groupedItem = item as any;
+                      backgroundColor = groupedItem.canEdit
+                        ? '#d4edda' // Light green for new items
+                        : groupedItem.kotNo
+                          ? kotColorMap.get(groupedItem.kotNo) ?? 'transparent'
                           : 'transparent';
                     }
 
