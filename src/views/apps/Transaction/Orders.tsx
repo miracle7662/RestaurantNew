@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Button, Modal, Table } from "react-bootstrap";
 import OrderDetails from "./OrderDetails";
 import { fetchOutletsForDropdown } from "@/utils/commonfunction";
@@ -22,6 +22,8 @@ interface MenuItem {
   alternativeItem?: string;
   modifier?: string[];
   originalQty?: number; // To track the original quantity from database
+  kotNo?: number;
+  txnDetailId?: number;
 }
 
 interface TableItem {
@@ -87,6 +89,10 @@ const Order = () => {
   const [currentKOTNo, setCurrentKOTNo] = useState<number | null>(null);
   const [currentKOTNos, setCurrentKOTNos] = useState<number[]>([]);
 
+  // New state for Focus Mode
+  const [focusMode, setFocusMode] = useState<boolean>(false); // Default OFF
+  const [triggerFocusInDetails, setTriggerFocusInDetails] = useState<number>(0);
+
   // New state for floating button group and modals
   const [showOptions, setShowOptions] = useState<boolean>(false);
   const [showTaxModal, setShowTaxModal] = useState<boolean>(false);
@@ -105,6 +111,46 @@ const Order = () => {
   const [ncName, setNcName] = useState<string>('');
   const [ncPurpose, setNcPurpose] = useState<string>('');
 
+  const refreshItemsForTable = useCallback((tableIdNum: number) => {
+    return getUnbilledItemsByTable(tableIdNum)
+      .then(response => {
+        if (response.success && response.data && Array.isArray(response.data.items)) {
+          const fetchedItems: MenuItem[] = response.data.items.map((item: any) => ({
+            id: item.itemId,
+            txnDetailId: item.txnDetailId,
+            name: item.itemName,
+            price: item.price,
+            qty: item.netQty,
+            isBilled: 0,
+            isNCKOT: 0,
+            NCName: '',
+            NCPurpose: '',
+            isNew: false,
+            originalQty: item.netQty,
+            kotNo: item.kotNo,
+          }));
+          setCurrentKOTNo(response.data.kotNo);
+          setItems(fetchedItems);
+
+          const kotNumbersForTable = fetchedItems
+            .map(item => item.kotNo)
+            .filter((v, i, a): v is number => v !== undefined && a.indexOf(v) === i)
+            .sort((a, b) => a - b);
+          setCurrentKOTNos(kotNumbersForTable);
+        } else {
+          console.warn('Failed to fetch/refetch unbilled items:', response.message);
+          setItems([]);
+          setCurrentKOTNo(null);
+          setCurrentKOTNos([]);
+        }
+      })
+      .catch(error => {
+        console.error('Error fetching/refetching unbilled items:', error);
+        setItems([]);
+        setCurrentKOTNo(null);
+        setCurrentKOTNos([]);
+      });
+  }, [setItems, setCurrentKOTNo, setCurrentKOTNos]);
 // KOT Preview formData state
 const [formData, setFormData] = useState({
   customer_on_kot_dine_in: false,
@@ -612,9 +658,11 @@ const handleTableClick = (seat: string) => {
     setTimeout(() => {
       setSelectedTable(seat);
 
-      // Find the full table object to get its ID
-      const selectedTableObj = (Array.isArray(filteredTables) ? filteredTables : tableItems)
-        .find((t: any) => t && t.table_name && t.table_name === seat);
+      // Find the full table object to get its ID, case-insensitively
+      const tableList = Array.isArray(filteredTables) && filteredTables.length > 0 ? filteredTables : tableItems;
+      const selectedTableObj = tableList.find(
+        (t: TableItem) => t && t.table_name && t.table_name.toLowerCase() === seat.toLowerCase()
+      );
 
       if (selectedTableObj) {
         // Use tableid if available, else fallback to tablemanagementid
@@ -625,61 +673,13 @@ const handleTableClick = (seat: string) => {
         setSelectedDeptId(deptId);
         setSelectedOutletId(outletId);
 
-        // Fetch unbilled items for this table
-        getUnbilledItemsByTable(tableIdNum)
-          .then(response => {
-            if (response.success && response.data && Array.isArray(response.data.items)) {
-              const fetchedItems: MenuItem[] = response.data.items.map((item: any) => ({
-                id: item.itemId,
-                name: item.itemName,
-                price: item.price,
-                qty: item.netQty,
-                isBilled: 0, // Assuming unbilled items are not yet billed
-                isNCKOT: 0, // Assuming this info is not in getUnbilledItemsByTable, default to 0
-                NCName: '',
-                NCPurpose: '',
-                isNew: false, // All fetched items are existing, so not editable.
-                originalQty: item.netQty, // Track original quantity from DB
-              }));
-              setCurrentKOTNo(response.data.kotNo); // Set KOT number from response
-              setItems(fetchedItems); // Directly set the fetched items
-            } else {
-              console.warn('Failed to fetch unbilled items or no items found:', response.message);
-              setItems([]);
-              setCurrentKOTNo(null);
-            }
-          })
-          .catch(error => {
-            console.error('Error fetching unbilled items:', error);
-            setItems([]);
-            setCurrentKOTNo(null);
-          });
-
-        // Filter savedKOTs for the selected table and set multiple KOT numbers
-        const kotNumbersForTable = savedKOTs
-          .filter(kot => kot.TableID === tableIdNum)
-          .map(kot => kot.KOTNo)
-          .filter(Boolean);
-        setCurrentKOTNos(kotNumbersForTable);
+        // Refetch items for the selected table
+        refreshItemsForTable(tableIdNum);
       } else {
         console.warn('Selected table object not found for seat:', seat);
         setItems([]); // Clear items if table not found
         setCurrentKOTNo(null);
         setCurrentKOTNos([]);
-      }
-
-      try {
-        const selectedTableRecord: any = (Array.isArray(filteredTables) ? filteredTables : tableItems)
-          .find((t: any) => t && t.table_name && t.table_name === seat)
-          || (Array.isArray(tableItems) ? tableItems.find((t: any) => t && t.table_name === seat) : undefined);
-        if (selectedTableRecord) {
-          const deptId = Number((selectedTableRecord as any).departmentid) || null;
-          const outletId = Number((selectedTableRecord as any).outletid) || null; // This is correct
-          if (deptId) setSelectedDeptId(deptId);
-          if (outletId) setSelectedOutletId(outletId);
-        }
-      } catch (e) {
-        // no-op
       }
       console.log('After handleTableClick - selectedTable:', seat, 'showOrderDetails:', true);
     }, 0);
@@ -795,7 +795,9 @@ const handleTableClick = (seat: string) => {
   const getKOTLabel = () => {
     switch (activeTab) {
       case 'Dine-in': {
-        const kotNumbers = currentKOTNos.length > 0 ? currentKOTNos.join(', ') : currentKOTNo ? currentKOTNo.toString() : '';
+        const kotNumbers = currentKOTNos.length > 0 
+          ? [...currentKOTNos].sort((a, b) => a - b).join(', ') 
+          : currentKOTNo ? currentKOTNo.toString() : '';
         return `KOT ${kotNumbers} ${selectedTable ? ` - Table ${selectedTable}` : ''}`;
       }
       case 'Pickup':
@@ -938,16 +940,17 @@ const handleTableClick = (seat: string) => {
       const resp = await createKOT(kotPayload);
       if (resp?.success) {
         toast.success('KOT saved successfully!');
-        setCurrentKOTNo(resp.data.KOTNo);
 
-        // Update items state: mark newItems as not new and update originalQty
-        setItems(prevItems =>
-          prevItems.map(item =>
-            newItemsToKOT.some(newItem => newItem.id === item.id)
-              ? { ...item, isNew: false, originalQty: item.qty }
-              : item
-          )
-        );
+        // Optimistically update the table status to green (1)
+        if (selectedTable) {
+          setTableItems(prevTables =>
+            prevTables.map(table =>
+              table.table_name === selectedTable
+                ? { ...table, status: 1 } // 1 for occupied/green
+                : table
+            )
+          );
+        }
 
         // Open print preview with KOT content
         const printWindow = window.open('', '_blank');
@@ -992,13 +995,33 @@ const handleTableClick = (seat: string) => {
             printWindow.print();
           }
         }
-        try {
-          const listResp = await getSavedKOTs({ isBilled: 0 });
-          const list = listResp?.data || listResp;
-          if (Array.isArray(list)) setSavedKOTs(list);
-        } catch (err) {
-          console.warn('refresh saved KOTs failed');
+
+        // After printing, decide what to do based on focusMode
+        if (focusMode) {
+          // Option 1: Focus Mode ON - Clear table, stay on view, focus table input
+          setItems([]);
+          setSelectedTable(null);
+          setCurrentKOTNo(null);
+          setCurrentKOTNos([]);
+          setTriggerFocusInDetails(c => c + 1); // Trigger focus in OrderDetails
+        } else {
+          // Option 2: Focus Mode OFF - Clear items and return to table grid view
+          setItems([]);
+          setSelectedTable(null);
+          setShowOrderDetails(false);
+          setCurrentKOTNo(null);
+          setCurrentKOTNos([]);
         }
+
+        // Refresh saved KOTs list in the background without blocking UI
+        getSavedKOTs({ isBilled: 0 })
+          .then(listResp => {
+            const list = listResp?.data || listResp;
+            if (Array.isArray(list)) setSavedKOTs(list);
+          })
+          .catch(err => {
+            console.warn('refresh saved KOTs failed', err);
+          });
       } else {
         toast.error(resp?.message || 'Failed to save KOT');
       }
@@ -1818,7 +1841,12 @@ const handleTableClick = (seat: string) => {
                   filteredTables={filteredTables}
                   setSelectedDeptId={setSelectedDeptId}
                   setSelectedOutletId={setSelectedOutletId}
+                  focusMode={focusMode}
+                  setFocusMode={setFocusMode}
+                  triggerFocus={triggerFocusInDetails}
+                   refreshItemsForTable={refreshItemsForTable}
                 />
+               
               </div>
             )}
           </>
@@ -1861,81 +1889,111 @@ const handleTableClick = (seat: string) => {
               {items.length === 0 ? (
                 <p className="text-center text-muted mb-0">No items added</p>
               ) : (
-                items.map((item, index) => (
-                  <div
-                    key={item.id}
-                    className="border-bottom"
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: '2fr 1fr 1fr',
-                      padding: '0.25rem',
-                      alignItems: 'center',
-                      backgroundColor: item.isNew ? '#d4edda' : 'transparent', // Light green for new items
-                    }}
-                  >
-                    <span style={{ textAlign: 'left' }}>{item.name}</span>
-                    <div className="text-center d-flex justify-content-center align-items-center gap-2">
-                      <button
-                        className="btn btn-danger btn-sm"
-                        style={{ padding: '0 5px', lineHeight: '1' }}
-                        onClick={() => handleDecreaseQty(item.id)}
-                        disabled={!item.isNew}
-                      >
-                        −
-                      </button>
-                      <style>
-                        {`
-                            .no-spinner::-webkit-inner-spin-button,
-                            .no-spinner::-webkit-outer-spin-button {
-                              -webkit-appearance: none;
-                              margin: 0;
-                            }
-                            .no-spinner {
-                              -moz-appearance: textfield;
-                              appearance: none;
-                            }
-                          `}
-                      </style>
-                      <input
-                        type="number"
-                        value={item.qty}
-                        readOnly={!item.isNew}
-                        onChange={(e) => {
-                          const newQty = parseInt(e.target.value) || 0;
-                          if (newQty <= 0) {
-                            setItems(items.filter((i) => i.id !== item.id));
-                          } else {
-                            setItems(
-                              items.map((i) =>
-                                i.id === item.id ? { ...i, qty: newQty, isNew: true } : i
-                              )
-                            );
-                          }
-                        }}
-                        className="border rounded text-center no-spinner"
-                        style={{ width: '40px', height: '16px', fontSize: '0.75rem', padding: '0' }}
-                        min="0"
-                        max="999"
-                      />
-                      <button
-                        className="btn btn-success btn-sm"
-                        style={{ padding: '0 5px', lineHeight: '1' }}
-                        onClick={() => handleIncreaseQty(item.id)}
-                        disabled={!item.isNew}
-                      >
-                        +
-                      </button>
-                    </div>
-                    <div className="text-center">
-                      <div>{(item.price * item.qty).toFixed(2)}</div>
+                (() => {
+                  const kotColors = ['#f0f8ff', '#fafad2', '#e6e6fa', '#f0fff0', '#fff5ee', '#f5f5dc'];
+                  const sortedItems = [...items].sort((a, b) => {
+                    const kotA = a.kotNo ?? Infinity;
+                    const kotB = b.kotNo ?? Infinity;
+                    if (kotA === kotB) {
+                      return (a.txnDetailId ?? Infinity) - (b.txnDetailId ?? Infinity);
+                    }
+                    return kotA - kotB;
+                  });
+
+                  const kotColorMap = new Map<number, string>();
+                  let colorIndex = 0;
+
+                  sortedItems.forEach(item => {
+                    if (item.kotNo && !kotColorMap.has(item.kotNo)) {
+                      kotColorMap.set(item.kotNo, kotColors[colorIndex % kotColors.length]);
+                      colorIndex++;
+                    }
+                  });
+
+                  return sortedItems.map((item, index) => {
+                    const backgroundColor = item.isNew
+                      ? '#d4edda' // Light green for new items
+                      : item.kotNo
+                        ? kotColorMap.get(item.kotNo)
+                        : 'transparent';
+
+                    return (
                       <div
-                        style={{ fontSize: '0.75rem', color: '#6c757d', width: '50px', height: '16px', margin: '0 auto' }}
+                        key={item.txnDetailId ?? `new-${item.id}-${index}`}
+                        className="border-bottom"
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: '2fr 1fr 1fr',
+                          padding: '0.25rem',
+                          alignItems: 'center',
+                          backgroundColor: backgroundColor,
+                        }}
                       >
-                        ({item.price.toFixed(2)})
+                        <span style={{ textAlign: 'left' }}>{item.name}</span>
+                        <div className="text-center d-flex justify-content-center align-items-center gap-2">
+                          <button
+                            className="btn btn-danger btn-sm"
+                            style={{ padding: '0 5px', lineHeight: '1' }}
+                            onClick={() => handleDecreaseQty(item.id)}
+                            disabled={!item.isNew}
+                          >
+                            −
+                          </button>
+                          <style>
+                            {`
+                                .no-spinner::-webkit-inner-spin-button,
+                                .no-spinner::-webkit-outer-spin-button {
+                                  -webkit-appearance: none;
+                                  margin: 0;
+                                }
+                                .no-spinner {
+                                  -moz-appearance: textfield;
+                                  appearance: none;
+                                }
+                              `}
+                          </style>
+                          <input
+                            type="number"
+                            value={item.qty}
+                            readOnly={!item.isNew}
+                            onChange={(e) => {
+                              const newQty = parseInt(e.target.value) || 0;
+                              if (newQty <= 0) {
+                                setItems(items.filter((i) => i.id !== item.id));
+                              } else {
+                                setItems(
+                                  items.map((i) =>
+                                    i.id === item.id ? { ...i, qty: newQty, isNew: true } : i
+                                  )
+                                );
+                              }
+                            }}
+                            className="border rounded text-center no-spinner"
+                            style={{ width: '40px', height: '16px', fontSize: '0.75rem', padding: '0' }}
+                            min="0"
+                            max="999"
+                          />
+                          <button
+                            className="btn btn-success btn-sm"
+                            style={{ padding: '0 5px', lineHeight: '1' }}
+                            onClick={() => handleIncreaseQty(item.id)}
+                            disabled={!item.isNew}
+                          >
+                            +
+                          </button>
+                        </div>
+                        <div className="text-center">
+                          <div>{(item.price * item.qty).toFixed(2)}</div>
+                          <div
+                            style={{ fontSize: '0.75rem', color: '#6c757d', width: '50px', height: '16px', margin: '0 auto' }}
+                          >
+                            ({item.price.toFixed(2)})
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                ))
+                    );
+                  });
+                })()
               )}
             </div>
             <div className="billing-panel-bottom">

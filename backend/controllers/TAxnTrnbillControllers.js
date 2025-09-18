@@ -772,6 +772,7 @@ exports.getUnbilledItemsByTable = async (req, res) => {
     // Fetch all unbilled items for the table (not aggregated)
     const rows = db.prepare(`
       SELECT
+        d.TXnDetailID,
         d.ItemID,
         COALESCE(m.item_name, 'Unknown Item') AS ItemName,
         d.Qty,
@@ -787,13 +788,15 @@ exports.getUnbilledItemsByTable = async (req, res) => {
 
     // Map to add isNew flag
     const items = rows.map(r => ({
+      txnDetailId: r.TXnDetailID,
       itemId: r.ItemID,
       itemName: r.ItemName,
       qty: r.Qty,
       revQty: r.RevQty,
       netQty: r.NetQty,
       price: r.price,
-      isNew: r.KOTNo === kotNo
+      isNew: r.KOTNo === kotNo,
+      kotNo: r.KOTNo,
     }));
 
     console.log('Unbilled items for tableId', tableId, ':', items);
@@ -805,4 +808,3 @@ exports.getUnbilledItemsByTable = async (req, res) => {
 };
 
 module.exports = exports
-

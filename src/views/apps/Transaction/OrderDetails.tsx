@@ -45,6 +45,7 @@ interface TableItem {
   isActive: boolean;
   isCommonToAllDepartments: boolean;
   departmentid?: number;
+  tableid?: string;
 }
 
 // Interface for component props
@@ -59,7 +60,12 @@ interface OrderDetailsProps {
   filteredTables: TableItem[];
   setSelectedDeptId: Dispatch<SetStateAction<number | null>>;
   setSelectedOutletId: Dispatch<SetStateAction<number | null>>;
+  focusMode: boolean;
+  setFocusMode: Dispatch<SetStateAction<boolean>>;
+  triggerFocus: number;
+  refreshItemsForTable: (tableIdNum: number) => Promise<void>;
 }
+  
 
 const OrderDetails: React.FC<OrderDetailsProps> = ({
   tableId,
@@ -72,6 +78,10 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
   filteredTables,
   setSelectedDeptId,
   setSelectedOutletId,
+  focusMode,
+  setFocusMode,
+  triggerFocus,
+  refreshItemsForTable,
 }) => {
   const [searchTable, setSearchTable] = useState<string>(tableId || '');
   const [searchCode, setSearchCode] = useState<string>('');
@@ -95,6 +105,15 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
   const codeInputRef = useRef<HTMLInputElement>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const quantityInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (triggerFocus > 0 && tableInputRef.current) {
+      // When KOT is saved with Focus Mode ON, clear the table search and focus it.
+      setSearchTable('');
+      tableInputRef.current.focus();
+      tableInputRef.current.select();
+    }
+  }, [triggerFocus]);
 
   // Global key event listener for F4, F5, F6
   useEffect(() => {
@@ -121,6 +140,11 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
     };
   }, []);
 
+  // Sync searchTable state with tableId prop
+  useEffect(() => {
+    setSearchTable(tableId || '');
+  }, [tableId]);
+
   // Derive valid tables from filteredTables
   const validTables = useMemo(
     () =>
@@ -146,23 +170,30 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
       );
       if (matchedTable) {
         setSelectedTable(searchTable);
-        setItems([]);
+        // setItems([]); // This was clearing items fetched by the parent component.
         setInvalidTable('');
         setIsTableInvalid(false);
         // Set selectedDeptId and selectedOutletId for tax calculation
         setSelectedDeptId(Number(matchedTable.departmentid));
         setSelectedOutletId(Number(matchedTable.outletid));
+
+        const tableIdNum = Number(matchedTable.tableid ?? matchedTable.tablemanagementid);
+        if (tableIdNum) {
+          refreshItemsForTable(tableIdNum);
+        }
       } else {
         setInvalidTable(searchTable);
         setIsTableInvalid(true);
+        setItems([]);
       }
     } else if (hasTyped) {
       setSelectedTable(null);
       setInvalidTable('');
       setIsTableInvalid(false);
       setHasTyped(false);
+      setItems([]);
     }
-  }, [searchTable, setSelectedTable, setItems, setInvalidTable, hasTyped, validTables, filteredTables, setSelectedDeptId, setSelectedOutletId]);
+  }, [searchTable, setSelectedTable, setInvalidTable, hasTyped, validTables, filteredTables, setSelectedDeptId, setSelectedOutletId, refreshItemsForTable, setItems]);
 
   // Fetch menu items for sidebar and card items
   const fetchMenuItems = async (hotelid?: number, outletid?: number) => {
@@ -519,6 +550,21 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
                       </li>
                       <li className="nav-item">
                         <button className="btn btn-sm btn-outline-secondary">Refresh</button>
+                      </li>
+                      <li className="nav-item d-flex align-items-center ms-2">
+                        <div className="form-check form-switch">
+                          <input
+                            className="form-check-input"
+                            type="checkbox"
+                            role="switch"
+                            id="focusModeSwitch"
+                            checked={focusMode}
+                            onChange={(e) => setFocusMode(e.target.checked)}
+                          />
+                          <label className="form-check-label small" htmlFor="focusModeSwitch">
+                            Focus Mode
+                          </label>
+                        </div>
                       </li>
                     </ul>
                     <ul className="navbar-nav ms-auto mb-2 mb-lg-0">
