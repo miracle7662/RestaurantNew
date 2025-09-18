@@ -638,7 +638,7 @@ const handleTableClick = (seat: string) => {
                 isNCKOT: 0, // Assuming this info is not in getUnbilledItemsByTable, default to 0
                 NCName: '',
                 NCPurpose: '',
-                isNew: item.isNew,
+                isNew: false, // All fetched items are existing, so not editable.
                 originalQty: item.netQty, // Track original quantity from DB
               }));
               setCurrentKOTNo(response.data.kotNo); // Set KOT number from response
@@ -889,7 +889,7 @@ const handleTableClick = (seat: string) => {
           return null;
         }
 
-        const lineSubtotal = Number(i.price) * Number(i.qty);
+        const lineSubtotal = Number(i.price) * qtyDelta;
         const cgstPer = Number(taxRates.cgst) || 0;
         const sgstPer = Number(taxRates.sgst) || 0;
         const igstPer = Number(taxRates.igst) || 0;
@@ -1320,13 +1320,22 @@ const handleTableClick = (seat: string) => {
               <div style={{ borderBottom: '1px dashed #ccc', margin: '10px 0' }}></div>
 
               {/* Total Section */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', marginBottom: '8px' }}>
-                <div>Total Items: {items.reduce((sum, item) => sum + item.qty, 0)}</div>
-                {formData.show_item_price && (
-                  <div>₹ {taxCalc.subtotal.toFixed(2)}</div>
-                )}
-              </div>
+              {(() => {
+                const kotItemsWithDelta = items.filter(item => item.isNew).map(item => {
+                  const kotQty = item.originalQty !== undefined ? Math.max(0, item.qty - item.originalQty) : item.qty;
+                  return { ...item, kotQty };
+                }).filter(item => item.kotQty > 0);
 
+                const totalKotQty = kotItemsWithDelta.reduce((sum, item) => sum + item.kotQty, 0);
+                const totalKotSubtotal = kotItemsWithDelta.reduce((sum, item) => sum + (item.price * item.kotQty), 0);
+
+                return (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', marginBottom: '8px' }}>
+                    <div>Total Items: {totalKotQty}</div>
+                    {formData.show_item_price && <div>₹ {totalKotSubtotal.toFixed(2)}</div>}
+                  </div>
+                );
+              })()}
               <div style={{ borderBottom: '1px dashed #ccc', margin: '10px 0' }}></div>
 
               {/* KOT Note */}
@@ -1870,6 +1879,7 @@ const handleTableClick = (seat: string) => {
                         className="btn btn-danger btn-sm"
                         style={{ padding: '0 5px', lineHeight: '1' }}
                         onClick={() => handleDecreaseQty(item.id)}
+                        disabled={!item.isNew}
                       >
                         −
                       </button>
@@ -1889,6 +1899,7 @@ const handleTableClick = (seat: string) => {
                       <input
                         type="number"
                         value={item.qty}
+                        readOnly={!item.isNew}
                         onChange={(e) => {
                           const newQty = parseInt(e.target.value) || 0;
                           if (newQty <= 0) {
@@ -1910,6 +1921,7 @@ const handleTableClick = (seat: string) => {
                         className="btn btn-success btn-sm"
                         style={{ padding: '0 5px', lineHeight: '1' }}
                         onClick={() => handleIncreaseQty(item.id)}
+                        disabled={!item.isNew}
                       >
                         +
                       </button>
@@ -2387,4 +2399,3 @@ const handleTableClick = (seat: string) => {
   );
 };
 export default Order;
-
