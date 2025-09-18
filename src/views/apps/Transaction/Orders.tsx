@@ -95,6 +95,7 @@ const Order = () => {
 
   // New state for floating button group and modals
   const [showOptions, setShowOptions] = useState<boolean>(false);
+  const [isGroupedView, setIsGroupedView] = useState<boolean>(true); // State for grouped/expanded view
   const [showTaxModal, setShowTaxModal] = useState<boolean>(false);
   const [showNCKOTModal, setShowNCKOTModal] = useState<boolean>(false);
 
@@ -715,16 +716,39 @@ const handleTableClick = (seat: string) => {
   };
 
   const handleIncreaseQty = (itemId: number) => {
-    setItems(items.map(item =>
-      item.id === itemId ? { ...item, qty: item.qty + 1, isNew: true } : item
-    ));
+    setItems(currentItems => {
+      const newItems = [...currentItems];
+      // Find the specific 'isNew' item instance to increment.
+      const existingNewItemIndex = newItems.findIndex(i => i.id === itemId && i.isNew);
+
+      if (existingNewItemIndex > -1) {
+        const item = newItems[existingNewItemIndex];
+        newItems[existingNewItemIndex] = { ...item, qty: item.qty + 1 };
+        return newItems;
+      }
+      // If no 'isNew' item is found, do nothing. This can happen if the button is clicked on a grouped item
+      // that contains only old items, but the button should be disabled in that case.
+      return currentItems;
+    });
   };
 
   const handleDecreaseQty = (itemId: number) => {
-    const updatedItems = items.map(item =>
-      item.id === itemId ? { ...item, qty: item.qty - 1, isNew: true } : item
-    );
-    setItems(updatedItems.filter(item => item.qty > 0));
+    setItems(currentItems => {
+      const newItems = [...currentItems];
+      const existingNewItemIndex = newItems.findIndex(i => i.id === itemId && i.isNew);
+
+      if (existingNewItemIndex > -1) {
+        const item = newItems[existingNewItemIndex];
+        if (item.qty > 1) {
+          newItems[existingNewItemIndex] = { ...item, qty: item.qty - 1 };
+          return newItems;
+        } else {
+          // Remove the item if its quantity is 1
+          return newItems.filter((_, index) => index !== existingNewItemIndex);
+        }
+      }
+      return currentItems;
+    });
   };
 
   const totalAmount = items
@@ -1868,7 +1892,21 @@ const handleTableClick = (seat: string) => {
                   ))}
                 </div>
               </div>
-              <div className="text-center fw-bold bg-white border rounded p-2">{getKOTLabel()}</div>
+              <div className="d-flex justify-content-between align-items-center bg-white border rounded p-2">
+                <span className="fw-bold flex-grow-1 text-center">{getKOTLabel()}</span>
+                <button
+                  className="btn btn-sm btn-outline-secondary p-1"
+                  style={{ lineHeight: 1 }}
+                  onClick={() => setIsGroupedView(prev => !prev)}
+                  title={isGroupedView ? "Show Individual Items (Expanded)" : "Group Same Items"}
+                >
+                  {isGroupedView ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path fillRule="evenodd" d="M5 11.5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5M2 4.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 0 1h-1a.5.5 0 0 1-.5-.5M2 8.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 0 1h-1a.5.5 0 0 1-.5-.5m0 4a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 0 1h-1a.5.5 0 0 1-.5-.5" /></svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M1.5 1.5A.5.5 0 0 1 2 .5h12a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.5.5H2a.5.5 0 0 1-.5-.5v-2zM1 6.5A.5.5 0 0 1 1.5 6h13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.5.5H1.5a.5.5 0 0 1-.5-.5v-2zm0 5A.5.5 0 0 1 1.5 11h13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.5.5H1.5a.5.5 0 0 1-.5-.5v-2z" /></svg>
+                  )}
+                </button>
+              </div>
               <div
                 className="rounded border fw-bold text-black"
                 style={{
@@ -1891,7 +1929,7 @@ const handleTableClick = (seat: string) => {
               ) : (
                 (() => {
                   const kotColors = ['#f0f8ff', '#fafad2', '#e6e6fa', '#f0fff0', '#fff5ee', '#f5f5dc'];
-                  const sortedItems = [...items].sort((a, b) => {
+                  const sortedItems: MenuItem[] = [...items].sort((a, b) => {
                     const kotA = a.kotNo ?? Infinity;
                     const kotB = b.kotNo ?? Infinity;
                     if (kotA === kotB) {
@@ -1899,6 +1937,22 @@ const handleTableClick = (seat: string) => {
                     }
                     return kotA - kotB;
                   });
+
+                  const itemsToDisplay = isGroupedView
+                    ? Object.values(
+                      sortedItems.reduce((acc, item) => {
+                        const key = `${item.id}-${item.price}`;
+                        if (!acc[key]) {
+                          acc[key] = { ...item, displayQty: 0, canEdit: false };
+                        }
+                        acc[key].displayQty += item.qty;
+                        if (item.isNew) {
+                          acc[key].canEdit = true;
+                        }
+                        return acc;
+                      }, {} as Record<string, MenuItem & { displayQty: number; canEdit: boolean }>)
+                    )
+                    : sortedItems;
 
                   const kotColorMap = new Map<number, string>();
                   let colorIndex = 0;
@@ -1910,16 +1964,24 @@ const handleTableClick = (seat: string) => {
                     }
                   });
 
-                  return sortedItems.map((item, index) => {
-                    const backgroundColor = item.isNew
-                      ? '#d4edda' // Light green for new items
-                      : item.kotNo
-                        ? kotColorMap.get(item.kotNo)
-                        : 'transparent';
+                  return itemsToDisplay.map((item, index) => {
+                    const isGroupedItem = 'displayQty' in item;
+                    const displayQty = isGroupedItem ? (item as any).displayQty : item.qty;
+                    const isEditable = isGroupedItem ? (item as any).canEdit : !!item.isNew;
+
+                    let backgroundColor = 'transparent';
+                    if (!isGroupedItem) {
+                      const originalItem = item as MenuItem;
+                      backgroundColor = originalItem.isNew
+                        ? '#d4edda' // Light green for new items
+                        : originalItem.kotNo
+                          ? kotColorMap.get(originalItem.kotNo) ?? 'transparent' // Use a default value if the value is undefined
+                          : 'transparent';
+                    }
 
                     return (
                       <div
-                        key={item.txnDetailId ?? `new-${item.id}-${index}`}
+                        key={isGroupedItem ? `${item.id}-${item.price}` : (item.txnDetailId ?? `new-${item.id}-${index}`)}
                         className="border-bottom"
                         style={{
                           display: 'grid',
@@ -1935,7 +1997,7 @@ const handleTableClick = (seat: string) => {
                             className="btn btn-danger btn-sm"
                             style={{ padding: '0 5px', lineHeight: '1' }}
                             onClick={() => handleDecreaseQty(item.id)}
-                            disabled={!item.isNew}
+                            disabled={!isEditable}
                           >
                             −
                           </button>
@@ -1954,16 +2016,19 @@ const handleTableClick = (seat: string) => {
                           </style>
                           <input
                             type="number"
-                            value={item.qty}
-                            readOnly={!item.isNew}
+                            value={displayQty}
+                            readOnly={isGroupedItem || !isEditable}
                             onChange={(e) => {
+                              if (isGroupedItem || !isEditable) return;
                               const newQty = parseInt(e.target.value) || 0;
+                              const originalItem = item as MenuItem;
                               if (newQty <= 0) {
-                                setItems(items.filter((i) => i.id !== item.id));
+                                // remove this specific item
+                                setItems(items.filter(i => i !== originalItem));
                               } else {
                                 setItems(
                                   items.map((i) =>
-                                    i.id === item.id ? { ...i, qty: newQty, isNew: true } : i
+                                    i === originalItem ? { ...i, qty: newQty } : i
                                   )
                                 );
                               }
@@ -1977,13 +2042,13 @@ const handleTableClick = (seat: string) => {
                             className="btn btn-success btn-sm"
                             style={{ padding: '0 5px', lineHeight: '1' }}
                             onClick={() => handleIncreaseQty(item.id)}
-                            disabled={!item.isNew}
+                            disabled={!isEditable}
                           >
                             +
                           </button>
                         </div>
                         <div className="text-center">
-                          <div>{(item.price * item.qty).toFixed(2)}</div>
+                          <div>{(item.price * displayQty).toFixed(2)}</div>
                           <div
                             style={{ fontSize: '0.75rem', color: '#6c757d', width: '50px', height: '16px', margin: '0 auto' }}
                           >
