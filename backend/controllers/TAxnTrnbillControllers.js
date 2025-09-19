@@ -115,7 +115,8 @@ exports.getBillById = async (req, res) => {
 /* -------------------------------------------------------------------------- */
 exports.createBill = async (req, res) => {
   try {
-    console.log('Received createBill body:', JSON.stringify(req.body, null, 2));
+  console.log('Received createBill body:', JSON.stringify(req.body, null, 2));
+  console.log('Discount fields - DiscPer:', req.body.DiscPer, 'Discount:', req.body.Discount, 'DiscountType:', req.body.DiscountType);
     const {
       outletid, TxnNo, TableID, Steward, PAX, AutoKOT, ManualKOT, TxnDatetime,
       GrossAmt, RevKOT, Discount, CGST, SGST, IGST, CESS, RoundOFF, Amount,
@@ -583,7 +584,10 @@ exports.updateBillItemsIsBilled = async (req, res) => {
 exports.createKOT = async (req, res) => {
   try {
     console.log('Received createKOT body:', JSON.stringify(req.body, null, 2));
-    const { outletid, TableID, UserId, HotelID, NCName, NCPurpose, details = [] } = req.body;
+    // Fix: Use correct casing for fields from req.body (frontend sends camelCase)
+    const { outletid, tableId: TableID, userId: UserId, hotelId: HotelID, NCName, NCPurpose, DiscPer, Discount, DiscountType, details = [] } = req.body;
+
+    console.log("Received Discount Data for KOT:", { DiscPer, Discount, DiscountType });
 
     if (!TableID) {
       return res.status(400).json({ success: false, message: 'TableID is required' });
@@ -601,10 +605,10 @@ exports.createKOT = async (req, res) => {
         INSERT INTO TAxnTrnbill (
           outletid, TableID, UserId, HotelID, KOTNo, TxnDatetime,
           isBilled, isCancelled, isSetteled, status, AutoKOT,
-          NCName, NCPurpose
-        ) VALUES (?, ?, ?, ?, ?, datetime('now'), 0, 0, 0, 1, 1, ?, ?)
+          NCName, NCPurpose, DiscPer, Discount, DiscountType
+        ) VALUES (?, ?, ?, ?, ?, datetime('now'), 0, 0, 0, 1, 1, ?, ?, ?, ?, ?)
       `);
-      const result = insertHeaderStmt.run(outletid, TableID, UserId, HotelID, kotNo, NCName || null, NCPurpose || null);
+      const result = insertHeaderStmt.run(outletid, TableID, UserId, HotelID, kotNo, NCName || null, NCPurpose || null, Number(DiscPer) || 0, Number(Discount) || 0, Number(DiscountType) || 0);
       const txnId = result.lastInsertRowid;
 
       db.prepare('UPDATE msttablemanagement SET status = 1 WHERE tableid = ?').run(TableID);
@@ -655,13 +659,13 @@ exports.createKOT = async (req, res) => {
       }
 
       const totals = db.prepare(`
-        SELECT 
+        SELECT
           SUM(Qty * RuntimeRate) as totalGross,
           SUM(CGST_AMOUNT) as totalCgst,
           SUM(SGST_AMOUNT) as totalSgst,
           SUM(IGST_AMOUNT) as totalIgst,
           SUM(CESS_AMOUNT) as totalCess
-        FROM TAxnTrnbilldetails 
+        FROM TAxnTrnbilldetails
         WHERE TxnID = ? AND isCancelled = 0
       `).get(txnId);
 
@@ -672,11 +676,20 @@ exports.createKOT = async (req, res) => {
       const totalCess = totals?.totalCess || 0;
       const totalAmount = grossAmount + totalCgst + totalSgst + totalIgst + totalCess;
 
+      // Calculate discount amount
+      let discountAmount = 0;
+      if (Number(DiscountType) === 1) {
+        discountAmount = (grossAmount * (Number(DiscPer) || 0)) / 100;
+      } else {
+        discountAmount = Number(Discount) || 0;
+      }
+      const finalAmount = totalAmount - discountAmount;
+
       db.prepare(`
-        UPDATE TAxnTrnbill 
-        SET GrossAmt = ?, Amount = ?, CGST = ?, SGST = ?, IGST = ?, CESS = ? 
+        UPDATE TAxnTrnbill
+        SET GrossAmt = ?, Amount = ?, CGST = ?, SGST = ?, IGST = ?, CESS = ?, Discount = ?
         WHERE TxnID = ?
-      `).run(grossAmount, totalAmount, totalCgst, totalSgst, totalIgst, totalCess, txnId);
+      `).run(grossAmount, finalAmount, totalCgst, totalSgst, totalIgst, totalCess, discountAmount, txnId);
 
       return { txnId, kotNo };
     })(); // Immediately invoke the transaction
@@ -791,6 +804,15 @@ exports.getUnbilledItemsByTable = async (req, res) => {
       WHERE b.TableID = ? AND b.isBilled = 0 AND d.isCancelled = 0 AND (d.Qty - COALESCE(d.RevQty, 0)) > 0
     `).all(Number(tableId));
 
+    // Fetch discount from the latest unbilled bill for the table
+    const latestBill = db.prepare(`
+      SELECT Discount, DiscPer, DiscountType
+      FROM TAxnTrnbill
+      WHERE TableID = ? AND isBilled = 0 AND isCancelled = 0
+      ORDER BY TxnID DESC
+      LIMIT 1
+    `).get(Number(tableId));
+
     // Map to add isNew flag
     const items = rows.map(r => ({
       txnDetailId: r.TXnDetailID,
@@ -806,7 +828,7 @@ exports.getUnbilledItemsByTable = async (req, res) => {
 
     console.log('Unbilled items for tableId', tableId, ':', items);
 
-    res.json({ success: true, message: 'Fetched unbilled items', data: { kotNo: kotNo, items: items } });
+    res.json({ success: true, message: 'Fetched unbilled items', data: { kotNo: kotNo, items: items, discount: latestBill || { Discount: 0, DiscPer: 0, DiscountType: 0 } } });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to fetch unbilled items', data: null, error: error.message });
   }

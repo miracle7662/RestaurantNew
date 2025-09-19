@@ -1,11 +1,26 @@
-# TODO: Verify and Log ncname and purpose in Print & Save KOT
+# Discount Fields Debug & Fix TODO
 
-## Steps to Complete
+## Frontend Fixes (src/views/apps/Transaction/Orders.tsx)
+- [x] Add `Discount` state variable for amount discount (already present)
+- [ ] Fix DiscountType values to match backend: 1 = Percentage, 0 = Amount
+- [ ] Add discountInputValue state for modal input
+- [ ] Fix modal to use discountInputValue and set on open
+- [ ] Fix `handleApplyDiscount` to handle both percentage and amount calculations
+- [ ] Update bill preview to show correct discount based on DiscountType
+- [ ] Ensure discount fields (DiscPer, Discount, DiscountType) are sent in createBill API call
+- [ ] Ensure discount fields are sent in createKOT API call
+- [ ] Ensure discount fields are sent in updateBill API call
 
-- [ ] Update frontend Orders.tsx to include NCName and NCPurpose in kotItemsPayload when isNCKOT is true
-- [ ] Update backend TAxnTrnbillControllers.js createKOT function to insert NCName and NCPurpose into TAxnTrnbilldetails table
-- [ ] Add specific logging for ncname and purpose in the createKOT controller
-- [ ] Test the changes to verify ncname and purpose are sent and logged correctly
+## Backend Verification (backend/controllers/TAxnTrnbillControllers.js)
+- [ ] Confirm console logs for discount fields in createBill
+- [ ] Confirm console logs for discount fields in createKOT
+- [ ] Confirm proper insertion of DiscPer, Discount, DiscountType in DB
 
-## Progress
-- Started: [Current Date/Time]
+## Testing
+- [ ] Test percentage discount (10%) - verify DB shows DiscPer=10, DiscountType=1, Discount=calculated amount
+- [ ] Test amount discount (₹100) - verify DB shows DiscPer=0, DiscountType=0, Discount=100
+- [ ] Check DB schema for DiscPer (REAL), DiscountType (INTEGER), Discount (REAL)
+
+## Followup
+- [ ] Run tests and verify DB entries
+- [ ] If issues, check DB schema or API parsing

@@ -119,6 +119,9 @@ export async function createKOT(payload: {
   hotelId: number | null;
   NCName?: string | null;
   NCPurpose?: string | null;
+  DiscPer?: number;
+  Discount?: number;
+  DiscountType?: number;
 }) {
   const backendPayload = {
     TableID: payload.tableId,
@@ -129,6 +132,9 @@ export async function createKOT(payload: {
     // Pass NCName and NCPurpose to the backend
     NCName: payload.NCName,
     NCPurpose: payload.NCPurpose,
+    DiscPer: payload.DiscPer,
+    Discount: payload.Discount,
+    DiscountType: payload.DiscountType,
   };
   const { data } = await API.post('/TAxnTrnbill/kot', backendPayload);
   return data;

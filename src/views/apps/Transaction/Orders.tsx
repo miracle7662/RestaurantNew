@@ -82,10 +82,12 @@ const Order = () => {
   const [selectedDeptId, setSelectedDeptId] = useState<number | null>(null);
   const [selectedOutletId, setSelectedOutletId] = useState<number | null>(null);
   const [showDiscountModal, setShowDiscountModal] = useState<boolean>(false);
-  const [DiscPer, setDiscPer] = useState<number>(0); // Ensure this state is updated
+  const [discount, setDiscount] = useState<number>(0);
+  const [DiscPer, setDiscPer] = useState<number>(0);
   const [givenBy, setGivenBy] = useState<string>(user?.name || '');
   const [reason, setReason] = useState<string>('');
-  const [DiscountType, setDiscountType] = useState<number>(0); // 0 for percentage, 1 for amount
+  const [DiscountType, setDiscountType] = useState<number>(1); // 1 for percentage, 0 for amount
+  const [discountInputValue, setDiscountInputValue] = useState<number>(0);
   const [currentKOTNo, setCurrentKOTNo] = useState<number | null>(null);
   const [currentKOTNos, setCurrentKOTNos] = useState<number[]>([]);
 
@@ -966,6 +968,9 @@ const handleTableClick = (seat: string) => {
         // Add NCName and NCPurpose to the main payload for the TAxnTrnbill header
         NCName: firstNCItem ? firstNCItem.NCName : null,
         NCPurpose: firstNCItem ? firstNCItem.NCPurpose : null,
+        DiscPer: DiscPer,
+        Discount: discount,
+        DiscountType: DiscountType,
       };
 
       console.log('Sending payload to createKOT:', JSON.stringify(kotPayload, null, 2));
@@ -1108,21 +1113,31 @@ const handleTableClick = (seat: string) => {
   }, [showOrderDetails, selectedTable]);
 
   const handleApplyDiscount = () => {
-    if (DiscPer < 0.5 || DiscPer > 100 || isNaN(DiscPer)) {
-      toast.error('Discount percentage must be between 0.5% and 100%');
-      return;
+    if (DiscountType === 1) { // Percentage
+      if (discountInputValue < 0.5 || discountInputValue > 100 || isNaN(discountInputValue)) {
+        toast.error('Discount percentage must be between 0.5% and 100%');
+        return;
+      }
+      const discountThreshold = 20; // Configurable threshold
+      if (discountInputValue > discountThreshold && user?.role_level !== 'admin') {
+        toast.error('Discount > 20% requires manager approval');
+        return;
+      }
+      const calculatedDiscount = (taxCalc.subtotal * discountInputValue) / 100;
+      setDiscPer(discountInputValue);
+      setDiscount(calculatedDiscount);
+      toast.success(`Discount ${discountInputValue}% applied by ${givenBy}`);
+    } else { // Amount
+      if (discountInputValue <= 0 || discountInputValue > taxCalc.subtotal || isNaN(discountInputValue)) {
+        toast.error(`Discount amount must be > 0 and <= subtotal (${taxCalc.subtotal.toFixed(2)})`);
+        return;
+      }
+      setDiscPer(0);
+      setDiscount(discountInputValue);
+      toast.success(`Discount of ${discountInputValue.toFixed(2)} applied by ${givenBy}`);
     }
-    const discountThreshold = 20; // Configurable threshold
-    if (DiscPer > discountThreshold && user?.role_level !== 'admin') {
-      toast.error('Discount > 20% requires manager approval');
-      return;
-    }
-    const discountAmount = (taxCalc.grandTotal * DiscPer) / 100;
-    const newGrandTotal = taxCalc.grandTotal - discountAmount;
-    setTaxCalc(prev => ({ ...prev, grandTotal: newGrandTotal }));
+
     setShowDiscountModal(false);
-    toast.success(`Discount ${DiscPer}% applied by ${givenBy}`);
-    // Do not reset discountPercent here to persist it
     setReason('');
   };
 
@@ -1486,12 +1501,10 @@ const handleTableClick = (seat: string) => {
                 {(formData as any).field2 && <p>{(formData as any).field2}</p>}
                 {(formData as any).field3 && <p>{(formData as any).field3}</p>}
                 {(formData as any).field4 && <p>{(formData as any).field4}</p>}
-                {DiscPer > 0 && (
-                  <p className="mt-2">Discount ({DiscountType === 0 ? `${DiscPer}%` : `Amt`}): Rs. {
-                    (DiscountType === 0 ? (taxCalc.subtotal * DiscPer / 100) : DiscPer).toFixed(2)
-                  }</p>
+                {discount > 0 && (
+                  <p className="mt-2">Discount ({DiscountType === 1 ? `${DiscPer}%` : `Amt`}): Rs. {discount.toFixed(2)}</p>
                 )}
-                <p className="mt-2 fw-bold">Grand Total: Rs. {(taxCalc.grandTotal - (DiscountType === 0 ? (taxCalc.grandTotal * (DiscPer || 0)) / 100 : (DiscPer || 0))).toFixed(2)}</p>
+                <p className="mt-2 fw-bold">Grand Total: Rs. {(taxCalc.grandTotal - discount).toFixed(2)}</p>
               </div>
               {/* Footer notes */}
               <div className="text-center mt-3">
@@ -2319,15 +2332,14 @@ const handleTableClick = (seat: string) => {
               <div className="mt-1">
                 <div className="bg-white border rounded p-2">
                   <div className="d-flex justify-content-between"><span>Subtotal</span><span>{taxCalc.subtotal.toFixed(2)}</span></div>
-                  {DiscPer > 0 && (
-                    <div className="d-flex justify-content-between"><span>Discount ({DiscPer}%)</span><span>{((taxCalc.grandTotal * DiscPer) / 100).toFixed(2)}</span></div>
+                  {discount > 0 && (
+                    <div className="d-flex justify-content-between"><span>Discount ({DiscountType === 1 ? `${DiscPer}%` : 'Amt'})</span><span>- {discount.toFixed(2)}</span></div>
                   )}
                   <hr className="my-2" />
                   <div className="d-flex justify-content-between align-items-center bg-success text-white rounded p-1">
                     <span className="fw-bold">Grand Total</span>
                     <div>
-                      <span className="fw-bold me-2">{(taxCalc.grandTotal - (taxCalc.grandTotal * (DiscPer || 0) / 100)).toFixed(2)}</span>
-
+                      <span className="fw-bold me-2">{(taxCalc.grandTotal - discount).toFixed(2)}</span>
                     </div>
                   </div>
                 </div>
@@ -2402,28 +2414,35 @@ const handleTableClick = (seat: string) => {
             </Modal.Footer>
           </Modal>
 
-          <Modal show={showDiscountModal} onHide={() => setShowDiscountModal(false)} centered onShow={() => { const discountInput = document.getElementById('discountInput') as HTMLInputElement; if (discountInput) discountInput.focus(); }}>
+          <Modal show={showDiscountModal} onHide={() => setShowDiscountModal(false)} centered onShow={() => {
+            if (DiscountType === 1) {
+              setDiscountInputValue(DiscPer);
+            } else {
+              setDiscountInputValue(discount);
+            }
+            const discountInput = document.getElementById('discountInput') as HTMLInputElement; if (discountInput) discountInput.focus();
+          }}>
             <Modal.Header closeButton><Modal.Title>Apply Discount</Modal.Title></Modal.Header>
             <Modal.Body>
               <div className="mb-3">
                 <label className="form-label">Discount Type</label>
                 <select className="form-control" value={DiscountType} onChange={(e) => setDiscountType(Number(e.target.value))}>
-                  <option value={0}>Percentage (0.5% - 100%)</option>
-                  <option value={1}>Amount</option>
+                  <option value={1}>Percentage</option>
+                  <option value={0}>Amount</option>
                 </select>
               </div>
               <div className="mb-3">
-                <label htmlFor="discountInput" className="form-label">{DiscountType === 0 ? 'Discount Percentage (0.5% - 100%)' : 'Discount Amount'}</label>
+                <label htmlFor="discountInput" className="form-label">{DiscountType === 1 ? 'Discount Percentage (0.5% - 100%)' : 'Discount Amount'}</label>
                 <input
                   type="number"
                   id="discountInput"
                   className="form-control"
-                  value={DiscPer}
-                  onChange={(e) => setDiscPer(parseFloat(e.target.value) || 0)}
+                  value={discountInputValue}
+                  onChange={(e) => setDiscountInputValue(parseFloat(e.target.value) || 0)}
                   onKeyDown={handleDiscountKeyDown}
-                  step={DiscountType === 0 ? "0.5" : "0.01"}
-                  min={DiscountType === 0 ? "0.5" : "0"}
-                  max={DiscountType === 0 ? "100" : ""}
+                  step={DiscountType === 1 ? "0.5" : "0.01"}
+                  min={DiscountType === 1 ? "0.5" : "0"}
+                  max={DiscountType === 1 ? "100" : ""}
                 />
               </div>
               <div className="mb-3">
