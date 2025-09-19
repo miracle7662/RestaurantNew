@@ -48,6 +48,7 @@ exports.getAllBills = async (req, res) => {
             'IGST_AMOUNT', d.IGST_AMOUNT,
             'CESS', d.CESS,
             'CESS_AMOUNT', d.CESS_AMOUNT,
+            'Discount_Amount', d.Discount_Amount,
             'AutoKOT', d.AutoKOT,
             'ManualKOT', d.ManualKOT,
             'SpecialInst', d.SpecialInst,
@@ -242,12 +243,16 @@ exports.createBill = async (req, res) => {
           INSERT INTO TAxnTrnbilldetails (
             TxnID, outletid, ItemID, TableID,
             CGST, CGST_AMOUNT, SGST, SGST_AMOUNT, IGST, IGST_AMOUNT,
-            CESS, CESS_AMOUNT, Qty, AutoKOT, ManualKOT, SpecialInst,
+            CESS, CESS_AMOUNT, Discount_Amount, Qty, AutoKOT, ManualKOT, SpecialInst,
             isKOTGenerate, isSetteled, isNCKOT, isCancelled,
             DeptID, HotelID, RuntimeRate, RevQty, KOTUsedDate,
             isBilled
-          ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+          ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         `)
+
+        const billDiscountType = Number(DiscountType) || 0
+        const billDiscPer = Number(DiscPer) || 0
+        const billDiscount = Number(Discount) || 0
 
         for (const d of details) {
           const qty = Number(d.Qty) || 0
@@ -261,7 +266,16 @@ exports.createBill = async (req, res) => {
           const sgstAmt = Number(d.SGST_AMOUNT) || (lineSubtotal * sgstPer) / 100
           const igstAmt = Number(d.IGST_AMOUNT) || (lineSubtotal * igstPer) / 100
           const cessAmt = Number(d.CESS_AMOUNT) || (lineSubtotal * cessPer) / 100
+
+          let itemDiscountAmount = 0
+          if (billDiscountType === 1) { // Percentage
+            itemDiscountAmount = (lineSubtotal * billDiscPer) / 100
+          } else { // Fixed amount
+            // As per requirement, the full fixed discount is applied to each item.
+            itemDiscountAmount = billDiscount
+          }
           const isNCKOT = toBool(d.isNCKOT)
+
           dStmt.run(
             txnId,
             d.outletid ?? null,
@@ -275,6 +289,7 @@ exports.createBill = async (req, res) => {
             Number(igstAmt) || 0,
             cessPer,
             Number(cessAmt) || 0,
+            itemDiscountAmount,
             qty,
             toBool(d.AutoKOT),
             toBool(d.ManualKOT),
@@ -387,13 +402,29 @@ exports.updateBill = async (req, res) => {
           INSERT INTO TAxnTrnbilldetails (
             TxnID, outletid, ItemID, TableID,
             CGST, CGST_AMOUNT, SGST, SGST_AMOUNT, IGST, IGST_AMOUNT,
-            CESS, CESS_AMOUNT, Qty, AutoKOT, ManualKOT, SpecialInst,
+            CESS, CESS_AMOUNT, Discount_Amount, Qty, AutoKOT, ManualKOT, SpecialInst,
             isKOTGenerate, isSetteled, isNCKOT, isCancelled,
             DeptID, HotelID, RuntimeRate, RevQty, KOTUsedDate,
             isBilled
-          ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+          ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         `)
+        const billDiscountType = Number(DiscountType) || 0
+        const billDiscPer = Number(DiscPer) || 0
+        const billDiscount = Number(Discount) || 0
+
         for (const d of details) {
+          const qty = Number(d.Qty) || 0
+          const rate = Number(d.RuntimeRate) || 0
+          const lineSubtotal = qty * rate
+
+          let itemDiscountAmount = 0
+          if (billDiscountType === 1) { // Percentage
+            itemDiscountAmount = (lineSubtotal * billDiscPer) / 100
+          } else { // Fixed amount
+            // As per requirement, the full fixed discount is applied to each item.
+            itemDiscountAmount = billDiscount
+          }
+
           const isNCKOT = toBool(d.isNCKOT)
           ins.run(
             Number(id),
@@ -408,7 +439,8 @@ exports.updateBill = async (req, res) => {
             Number(d.IGST_AMOUNT) || 0,
             Number(d.CESS) || 0,
             Number(d.CESS_AMOUNT) || 0,
-            Number(d.Qty) || 0,
+            itemDiscountAmount,
+            qty,
             toBool(d.AutoKOT),
             toBool(d.ManualKOT),
             d.SpecialInst || null,
@@ -418,7 +450,7 @@ exports.updateBill = async (req, res) => {
             toBool(d.isCancelled),
             d.DeptID ?? null,
             d.HotelID ?? null,
-            Number(d.RuntimeRate) || 0,
+            rate,
             Number(d.RevQty) || 0,
             d.KOTUsedDate || null,
             0 // isBilled default to 0
@@ -618,9 +650,13 @@ exports.createKOT = async (req, res) => {
         INSERT INTO TAxnTrnbilldetails (
           TxnID, outletid, ItemID, TableID, Qty, RuntimeRate, DeptID, HotelID,
           KOTNo, isKOTGenerate, AutoKOT, KOTUsedDate, isBilled, isCancelled, isSetteled, isNCKOT,
-          CGST, CGST_AMOUNT, SGST, SGST_AMOUNT, IGST, IGST_AMOUNT, CESS, CESS_AMOUNT
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, datetime('now'), 0, 0, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          CGST, CGST_AMOUNT, SGST, SGST_AMOUNT, IGST, IGST_AMOUNT, CESS, CESS_AMOUNT, Discount_Amount
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, datetime('now'), 0, 0, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `);
+
+      const billDiscountType = Number(DiscountType) || 0;
+      const billDiscPer = Number(DiscPer) || 0;
+      const billDiscount = Number(Discount) || 0;
 
       for (const item of details) {
         const qty = Number(item.Qty) || 0;
@@ -635,6 +671,14 @@ exports.createKOT = async (req, res) => {
         const igstAmt = Number(item.IGST_AMOUNT) || (lineSubtotal * igstPer) / 100;
         const cessAmt = Number(item.CESS_AMOUNT) || (lineSubtotal * cessPer) / 100;
         const isNCKOT = toBool(item.isNCKOT);
+
+        let itemDiscountAmount = 0;
+        if (billDiscountType === 1) { // Percentage
+          itemDiscountAmount = (lineSubtotal * billDiscPer) / 100;
+        } else { // Fixed amount
+          // As per requirement, the full fixed discount is applied to each item.
+          itemDiscountAmount = billDiscount;
+        }
 
         insertDetailStmt.run(
           txnId,
@@ -654,7 +698,8 @@ exports.createKOT = async (req, res) => {
           igstPer,
           igstAmt,
           cessPer,
-          cessAmt
+          cessAmt,
+          itemDiscountAmount
         );
       }
 
