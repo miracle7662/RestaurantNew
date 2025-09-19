@@ -53,6 +53,7 @@ interface DepartmentItem {
 const Order = () => {
   const [selectedTable, setSelectedTable] = useState<string | null>('');
   const [items, setItems] = useState<MenuItem[]>([]);
+  const [reverseQtyMode, setReverseQtyMode] = useState<boolean>(false); // New state for Reverse Qty Mode
   const [activeTab, setActiveTab] = useState<string>('Dine-in');
   const [showOrderDetails, setShowOrderDetails] = useState<boolean>(false);
   const [selectedCountryCode, setSelectedCountryCode] = useState<string>('+91');
@@ -90,6 +91,13 @@ const Order = () => {
   const [discountInputValue, setDiscountInputValue] = useState<number>(0);
   const [currentKOTNo, setCurrentKOTNo] = useState<number | null>(null);
   const [currentKOTNos, setCurrentKOTNos] = useState<number[]>([]);
+
+  // New state for Reverse Qty Mode authentication
+  const [reverseQtyConfig, setReverseQtyConfig] = useState<'NoPassword' | 'PasswordRequired'>('PasswordRequired'); // Config for Reverse Qty Mode
+  const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
+  const [authUsername, setAuthUsername] = useState<string>('');
+  const [authPassword, setAuthPassword] = useState<string>('');
+  const [authError, setAuthError] = useState<string>('');
 
   // New state for Focus Mode
   const [focusMode, setFocusMode] = useState<boolean>(false); // Default OFF
@@ -893,7 +901,7 @@ const handleTableClick = (seat: string) => {
     try {
       const newItemsToKOT = items.filter(item => item.isNew);
       if (newItemsToKOT.length === 0) {
-        toast ('No new items to save as KOT.');
+        toast.error('No new items to save as KOT.');
         setLoading(false);
         return;
       }
@@ -1164,15 +1172,31 @@ const handleTableClick = (seat: string) => {
     setShowTaxModal(false);
   };
 
-  const handleSaveNCKOT = () => {
-    // Apply NCKOT to all items in the order
-    setItems(prevItems =>
-      prevItems.map(item => ({ ...item, isNCKOT: 1, NCName: ncName, NCPurpose: ncPurpose }))
-    );
-    setNcName('');
-    setNcPurpose('');
-    setShowNCKOTModal(false);
-  };
+const handleSaveNCKOT = () => {
+  // Apply NCKOT to all items in the order
+  setItems(prevItems =>
+    prevItems.map(item => ({ ...item, isNCKOT: 1, NCName: ncName, NCPurpose: ncPurpose }))
+  );
+  setNcName('');
+  setNcPurpose('');
+  setShowNCKOTModal(false);
+};
+
+const handleCloseAuthModal = () => {
+  setShowAuthModal(false);
+  setAuthUsername('');
+  setAuthPassword('');
+  setAuthError('');
+};
+
+const handleAuth = () => {
+  if (authUsername === 'admin' && authPassword === 'password') {
+    setReverseQtyMode(prev => !prev);
+    handleCloseAuthModal();
+  } else {
+    setAuthError('Invalid credentials');
+  }
+};
 
   const handlePrintKOT = () => {
     const printWindow = window.open('', '_blank');
@@ -1889,7 +1913,8 @@ const handleTableClick = (seat: string) => {
                   focusMode={focusMode}
                   setFocusMode={setFocusMode}
                   triggerFocus={triggerFocusInDetails}
-                   refreshItemsForTable={refreshItemsForTable}
+                  refreshItemsForTable={refreshItemsForTable}
+                  reverseQtyMode={reverseQtyMode}
                 />
                
               </div>
@@ -2309,6 +2334,32 @@ const handleTableClick = (seat: string) => {
                             <path d="M13.442 2.558a1.5 1.5 0 1 1-2.121 2.121l-6.35 6.35a1.5 1.5 0 1 1-2.122-2.12l6.35-6.35a1.5 1.5 0 0 1 2.121 0zM5.5 5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm5 6a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z" />
                           </svg>
                         </Button>
+                        {/* Reverse Qty Mode Button */}
+                        <Button
+                          variant={reverseQtyMode ? "danger" : "warning"}
+                          className="rounded-circle p-0 d-flex justify-content-center align-items-center"
+                          style={{ width: '32px', height: '32px' }}
+                          onClick={() => {
+                            if (reverseQtyConfig === 'PasswordRequired') {
+                              setShowAuthModal(true);
+                            } else {
+                              setReverseQtyMode(prev => !prev);
+                            }
+                            setShowOptions(false);
+                          }}
+                          title="Reverse Qty Mode"
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="20"
+                            height="20"
+                            fill="currentColor"
+                            viewBox="0 0 16 16"
+                          >
+                            <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/>
+                            <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/>
+                          </svg>
+                        </Button>
                       </div>
 
                       {/* Overlay to close when clicking outside */}
@@ -2529,25 +2580,46 @@ const handleTableClick = (seat: string) => {
           </Modal>
 
 
-          <Modal show={showNCKOTModal} onHide={() => setShowNCKOTModal(false)} centered>
-            <Modal.Header closeButton>
-              <Modal.Title>NCKOT</Modal.Title>
-            </Modal.Header>
-            <Modal.Body>
-              <div className="mb-3">
-                <label>Name</label>
-                <input type="text" className="form-control" value={ncName} onChange={(e) => setNcName(e.target.value)} />
-              </div>
-              <div className="mb-3">
-                <label>Purpose</label>
-                <input type="text" className="form-control" value={ncPurpose} onChange={(e) => setNcPurpose(e.target.value)} />
-              </div>
-            </Modal.Body>
-            <Modal.Footer>
-              <Button variant="secondary" onClick={() => setShowNCKOTModal(false)}>Cancel</Button>
-              <Button variant="primary" onClick={handleSaveNCKOT}>Save</Button>
-            </Modal.Footer>
-          </Modal>
+<Modal show={showNCKOTModal} onHide={() => setShowNCKOTModal(false)} centered>
+  <Modal.Header closeButton>
+    <Modal.Title>NCKOT</Modal.Title>
+  </Modal.Header>
+  <Modal.Body>
+    <div className="mb-3">
+      <label>Name</label>
+      <input type="text" className="form-control" value={ncName} onChange={(e) => setNcName(e.target.value)} />
+    </div>
+    <div className="mb-3">
+      <label>Purpose</label>
+      <input type="text" className="form-control" value={ncPurpose} onChange={(e) => setNcPurpose(e.target.value)} />
+    </div>
+  </Modal.Body>
+  <Modal.Footer>
+    <Button variant="secondary" onClick={() => setShowNCKOTModal(false)}>Cancel</Button>
+    <Button variant="primary" onClick={handleSaveNCKOT}>Save</Button>
+  </Modal.Footer>
+</Modal>
+
+<Modal show={showAuthModal} onHide={() => setShowAuthModal(false)} centered>
+  <Modal.Header closeButton>
+    <Modal.Title>Authenticate Reverse Qty Mode</Modal.Title>
+  </Modal.Header>
+  <Modal.Body>
+    <div className="mb-3">
+      <label>Username</label>
+      <input type="text" className="form-control" value={authUsername} onChange={(e) => setAuthUsername(e.target.value)} />
+    </div>
+    <div className="mb-3">
+      <label>Password</label>
+      <input type="password" className="form-control" value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} />
+    </div>
+    {authError && <div className="text-danger">{authError}</div>}
+  </Modal.Body>
+  <Modal.Footer>
+    <Button variant="secondary" onClick={() => setShowAuthModal(false)}>Cancel</Button>
+    <Button variant="primary" onClick={handleAuth}>Authenticate</Button>
+  </Modal.Footer>
+</Modal>
         </div>
       </div>
     </div>

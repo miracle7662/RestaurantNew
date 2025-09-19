@@ -28,6 +28,7 @@ interface CardItem {
   item_group_id: number | null;
 }
 
+
 // Interface for table items (from Orders.tsx)
 interface TableItem {
   tablemanagementid: string;
@@ -64,6 +65,7 @@ interface OrderDetailsProps {
   setFocusMode: Dispatch<SetStateAction<boolean>>;
   triggerFocus: number;
   refreshItemsForTable: (tableIdNum: number) => Promise<void>;
+  reverseQtyMode: boolean;
 }
   
 
@@ -82,6 +84,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
   setFocusMode,
   triggerFocus,
   refreshItemsForTable,
+  reverseQtyMode,
 }) => {
   const [searchTable, setSearchTable] = useState<string>(tableId || '');
   const [searchCode, setSearchCode] = useState<string>('');
