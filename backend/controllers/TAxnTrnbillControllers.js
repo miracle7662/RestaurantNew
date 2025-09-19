@@ -584,8 +584,8 @@ exports.updateBillItemsIsBilled = async (req, res) => {
 exports.createKOT = async (req, res) => {
   try {
     console.log('Received createKOT body:', JSON.stringify(req.body, null, 2));
-    // Fix: Use correct casing for fields from req.body (frontend sends camelCase)
-    const { outletid, tableId: TableID, userId: UserId, hotelId: HotelID, NCName, NCPurpose, DiscPer, Discount, DiscountType, details = [] } = req.body;
+    // The frontend sends some keys in PascalCase (e.g., TableID), so we destructure them directly.
+    const { outletid, TableID, UserId, HotelID, NCName, NCPurpose, DiscPer, Discount, DiscountType, details = [] } = req.body;
 
     console.log("Received Discount Data for KOT:", { DiscPer, Discount, DiscountType });
 
