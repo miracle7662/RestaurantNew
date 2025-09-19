@@ -780,7 +780,7 @@ CREATE TABLE IF NOT EXISTS TAxnTrnbill (
     HotelID INTEGER,
     GuestID INTEGER,
     DiscRefID INTEGER,
-    DiscPer REAL DEFAULT 0,
+    DiscPer REAL DEFAULT 0, -- Discount percentage if type is percentage, otherwise 0.
     DiscountType integer, 
     UserId INTEGER,
     BatchNo TEXT,
@@ -811,7 +811,7 @@ CREATE TABLE IF NOT EXISTS TAxnTrnbilldetails (
     CESS REAL DEFAULT 0,
     CESS_AMOUNT REAL DEFAULT 0,
     Discount_Amount INTEGER,
-    Qty REAL DEFAULT 0,
+    Qty REAL DEFAULT 0,    
     KOTNo INTEGER,
     AutoKOT BOOLEAN DEFAULT 0,
     ManualKOT BOOLEAN DEFAULT 0,
