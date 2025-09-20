@@ -627,6 +627,7 @@ CREATE TABLE IF NOT EXISTS mstgeneral_settings (
     enable_user_login_validation BOOLEAN DEFAULT 0,
     allow_closing_shift_despite_bills BOOLEAN DEFAULT 0,
     show_real_time_kot_bill_notifications BOOLEAN DEFAULT 0,
+    ReverseQtyMode BOOLEAN DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (outletid) REFERENCES mst_outlets(outletid)
@@ -712,6 +713,7 @@ CREATE TABLE IF NOT EXISTS mstoutlet_settings (
     the_chefz_enabled BOOLEAN,
     keeta_enabled BOOLEAN,
     notification_channel VARCHAR(50) DEFAULT 'SMS',
+    ReverseQtyMode INTEGER DEFAULT 0, -- 0: No Password Required, 1: Password Required
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ,
    FOREIGN KEY (outletid) REFERENCES mst_outlets(outletid)

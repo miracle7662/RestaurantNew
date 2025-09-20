@@ -225,8 +225,9 @@ exports.addOutlet = (req, res) => {
         cari_enabled,
         the_chefz_enabled,
         keeta_enabled,
-        notification_channel
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?, ?, ?)
+        notification_channel,
+        ReverseQtyMode
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?, ?)
     `);
 
     settingsStmt.run(
@@ -290,7 +291,8 @@ exports.addOutlet = (req, res) => {
       0, // cari_enabled
       0, // the_chefz_enabled
       0, // keeta_enabled
-      'SMS' // notification_channel
+      'SMS', // notification_channel
+      0 // ReverseQtyMode
     );
 
     // Insert default settings into mstbill_preview_settings
@@ -1004,7 +1006,8 @@ exports.updateOutletSettings = (req, res) => {
       cari_enabled,
       the_chefz_enabled,
       keeta_enabled,
-      notification_channel
+      notification_channel,
+      ReverseQtyMode
     } = req.body
 
     // Validate outletid
@@ -1096,6 +1099,7 @@ exports.updateOutletSettings = (req, res) => {
           the_chefz_enabled = ?,
           keeta_enabled = ?,
           notification_channel = ?,
+          ReverseQtyMode = ?,
           updated_at = CURRENT_TIMESTAMP
         WHERE outletid = ?
       `)
@@ -1164,6 +1168,7 @@ exports.updateOutletSettings = (req, res) => {
         the_chefz_enabled,
         keeta_enabled,
         notification_channel,
+        ReverseQtyMode,
         outletid
       )
     } else {
@@ -1233,8 +1238,9 @@ const insertStmt = db.prepare(`
           cari_enabled,
           the_chefz_enabled,
           keeta_enabled,
-          notification_channel
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          notification_channel,
+          ReverseQtyMode
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `);
 
 
@@ -1248,9 +1254,9 @@ const insertStmt = db.prepare(`
         bill_round_off,
         enable_loyalty,
         multiple_price_setting,
+        include_tax_in_invoice,
         service_charges,
         invoice_message,
-        include_tax_in_invoice,
         verify_pos_system_login,
         table_reservation,
         auto_update_pos,
@@ -1302,7 +1308,8 @@ const insertStmt = db.prepare(`
         cari_enabled,
         the_chefz_enabled,
         keeta_enabled,
-        notification_channel
+        notification_channel,
+        ReverseQtyMode
       )
     }
 

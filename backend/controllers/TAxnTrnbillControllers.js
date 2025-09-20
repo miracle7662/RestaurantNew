@@ -879,5 +879,139 @@ exports.getUnbilledItemsByTable = async (req, res) => {
   }
 };
 
+/* -------------------------------------------------------------------------- */
+/* F8 Key Press Handler - Reverse Quantity Mode                              */
+/* -------------------------------------------------------------------------- */
+exports.handleF8KeyPress = async (req, res) => {
+  try {
+    const { tableId, userId } = req.body;
+
+    if (!tableId) {
+      return res.status(400).json({ success: false, message: 'tableId is required', data: null });
+    }
+
+    // First, check if ReverseQtyMode is enabled using outletSettingsRoutes
+    const outletSettings = require('../routes/outletSettingsRoutes');
+    const reverseQtyMode = await outletSettings.getReverseQtyMode();
+
+    if (!reverseQtyMode) {
+      return res.status(403).json({
+        success: false,
+        message: 'Reverse Quantity Mode is disabled. Please enable it in outlet settings.',
+        data: null
+      });
+    }
+
+    // Get the latest unbilled KOT for the table
+    const latestKOT = db.prepare(`
+      SELECT TxnID, KOTNo
+      FROM TAxnTrnbill
+      WHERE TableID = ? AND isBilled = 0 AND isCancelled = 0
+      ORDER BY TxnID DESC
+      LIMIT 1
+    `).get(Number(tableId));
+
+    if (!latestKOT) {
+      return res.status(404).json({
+        success: false,
+        message: 'No active KOT found for this table',
+        data: null
+      });
+    }
+
+    // Get all unbilled items for the table
+    const unbilledItems = db.prepare(`
+      SELECT
+        d.TXnDetailID,
+        d.ItemID,
+        d.Qty,
+        d.RevQty,
+        d.RuntimeRate,
+        COALESCE(m.item_name, 'Unknown Item') AS ItemName
+      FROM TAxnTrnbilldetails d
+      JOIN TAxnTrnbill b ON d.TxnID = b.TxnID
+      LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
+      WHERE b.TableID = ? AND b.isBilled = 0 AND d.isCancelled = 0
+    `).all(Number(tableId));
+
+    if (!unbilledItems || unbilledItems.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'No unbilled items found for this table',
+        data: null
+      });
+    }
+
+    // Process reverse quantity for items that have quantity > RevQty
+    const updatedItems = [];
+    const transaction = db.transaction(() => {
+      for (const item of unbilledItems) {
+        const currentQty = Number(item.Qty) || 0;
+        const currentRevQty = Number(item.RevQty) || 0;
+        const availableQty = currentQty - currentRevQty;
+
+        if (availableQty > 0) {
+          const newRevQty = currentRevQty + 1;
+
+          // Update RevQty in database
+          db.prepare(`
+            UPDATE TAxnTrnbilldetails
+            SET RevQty = ?
+            WHERE TXnDetailID = ?
+          `).run(newRevQty, item.TXnDetailID);
+
+          updatedItems.push({
+            txnDetailId: item.TXnDetailID,
+            itemId: item.ItemID,
+            itemName: item.ItemName,
+            originalQty: currentQty,
+            newRevQty: newRevQty,
+            availableQty: availableQty - 1
+          });
+        }
+      }
+    });
+
+    transaction();
+
+    // Get updated items after transaction
+    const finalItems = db.prepare(`
+      SELECT
+        d.TXnDetailID,
+        d.ItemID,
+        d.Qty,
+        d.RevQty,
+        (d.Qty - d.RevQty) as NetQty,
+        d.RuntimeRate,
+        COALESCE(m.item_name, 'Unknown Item') AS ItemName
+      FROM TAxnTrnbilldetails d
+      JOIN TAxnTrnbill b ON d.TxnID = b.TxnID
+      LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
+      WHERE b.TableID = ? AND b.isBilled = 0 AND d.isCancelled = 0
+    `).all(Number(tableId));
+
+    res.json({
+      success: true,
+      message: 'F8 key press processed successfully',
+      data: {
+        tableId: tableId,
+        kotNo: latestKOT.KOTNo,
+        updatedItems: updatedItems,
+        allItems: finalItems,
+        reverseQtyMode: true
+      }
+    });
+
+  } catch (error) {
+    console.error('Error in handleF8KeyPress:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to process F8 key press',
+      data: null,
+      error: error.message
+    });
+  }
+}
+
 module.exports = exports
 

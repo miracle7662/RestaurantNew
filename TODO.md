@@ -1,10 +1,29 @@
-# TODO: Implement Reverse Qty Mode Feature
+# F8 Key Press Implementation
 
-## Tasks
-- [ ] Add status label in billing panel header showing "Reverse Qty Mode: Active/Off"
-- [ ] Modify handleDecreaseQty to handle unbilled items (isBilled === 0) when reverseQtyMode is true
-- [ ] Update - button disabled condition to enable for unbilled items in reverse mode
-- [ ] Add visual indicator (color change) for - button when applicable
-- [ ] Test F8 key press and auth flow
-- [ ] Test qty decrease for unbilled items
-- [ ] Ensure only unbilled items are affected
+## Plan Implementation Steps:
+
+### Backend Implementation
+- [ ] Add F8 endpoint in TAxnTrnbillControllers.js
+  - [ ] Create handleF8KeyPress function
+  - [ ] Integrate with outletSettingsRoutes to get ReverseQtyMode
+  - [ ] Implement reverse quantity logic
+  - [ ] Update RevQty field in database
+
+### Frontend Implementation
+- [ ] Add F8 key handler in OrderDetails.tsx
+  - [ ] Add global F8 keydown event listener
+  - [ ] Show authentication modal
+  - [ ] Call F8 backend endpoint
+  - [ ] Update items display
+
+### Integration
+- [ ] Update Orders.tsx for F8 state handling
+  - [ ] Add F8 state management
+  - [ ] Handle F8 operation results
+  - [ ] Update UI after F8 operations
+
+### Testing
+- [ ] Test F8 functionality with ReverseQtyMode enabled
+- [ ] Test F8 functionality with ReverseQtyMode disabled
+- [ ] Test authentication modal integration
+- [ ] Test error handling scenarios
