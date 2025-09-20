@@ -1,12 +1,10 @@
-# TODO: Implement Reverse Qty Mode with F8 Key Handling
+# TODO: Implement Reverse Qty Mode Feature
 
-## Steps
-- [ ] Add reverseQtyConfig state in Orders.tsx ('NoPassword' or 'PasswordRequired')
-- [ ] Add F8 key event listener in Orders.tsx to handle mode toggle based on config
-- [ ] Update auth modal logic to toggle reverseQtyMode on valid auth
-- [ ] Add status label in OrderDetails.tsx for "Reverse Qty Mode: Active/Off"
-- [ ] Make item rows clickable in reverse mode to decrease qty by 1
-- [ ] Modify handleDecreaseQty in Orders.tsx to work for all items
-- [ ] Test F8 key press
-- [ ] Test password authentication
-- [ ] Test qty decrease functionality
+## Tasks
+- [ ] Add status label in billing panel header showing "Reverse Qty Mode: Active/Off"
+- [ ] Modify handleDecreaseQty to handle unbilled items (isBilled === 0) when reverseQtyMode is true
+- [ ] Update - button disabled condition to enable for unbilled items in reverse mode
+- [ ] Add visual indicator (color change) for - button when applicable
+- [ ] Test F8 key press and auth flow
+- [ ] Test qty decrease for unbilled items
+- [ ] Ensure only unbilled items are affected

@@ -267,37 +267,6 @@ const getTableButtonClass = (table: TableItem, isSelected: boolean) => {
   }
 };
 
-const getTableButtonStyle = (table: TableItem, isSelected: boolean) => {
-  let backgroundColor = '';
-  let border = '1px solid #ccc';
-  switch (table.status) {
-    case 0:
-      backgroundColor = '#f8f9fa'; // light grey for vacant
-      break;
-    case 1:
-      backgroundColor = '#28a745'; // green for occupied
-      break;
-    case 2:
-      backgroundColor = '#dc3545'; // red for billed
-      break;
-    default:
-      backgroundColor = '#f8f9fa';
-  }
-  if (isSelected) {
-    border = '3px solid #007bff'; // blue border for selected
-  }
-  return {
-    width: '90px',
-    height: '80px',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor,
-    color: table.status === 0 ? 'black' : 'white', // black text for vacant, white for others
-    border,
-    borderRadius: '5px'
-  };
-};
 
 const fetchTableManagement = async () => {
     setLoading(true);
