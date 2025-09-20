@@ -973,6 +973,7 @@ const handleTableClick = (seat: string) => {
       const newItemsToKOT = items.filter(item => item.isNew);
       const reverseItemsToKOT = reverseQtyMode ? reverseQtyItems : [];
 
+
       // Check if we have any items to process (new items or reverse items)
       if (newItemsToKOT.length === 0 && reverseItemsToKOT.length === 0) {
         toast.error('No new items or reverse quantity items to save as KOT.');
@@ -989,15 +990,13 @@ const handleTableClick = (seat: string) => {
       const userId = user?.id || null;
       const hotelId = user?.hotelid || null;
 
-      const kotItemsPayload = newItemsToKOT.map(i => {
+      const newKotItemsPayload = newItemsToKOT.map(i => {
         // Calculate the change in quantity. If it's a new item, originalQty will be undefined.
         const qtyDelta = i.originalQty !== undefined ? i.qty - i.originalQty : i.qty;
 
         // Only include items where quantity has increased.
         // Decreases are handled by Re-KOT.
-        if (qtyDelta <= 0) {
-          return null;
-        }
+        if (qtyDelta <= 0) return null;
 
         const lineSubtotal = Number(i.price) * qtyDelta;
         const cgstPer = Number(taxRates.cgst) || 0;
@@ -1031,22 +1030,47 @@ const handleTableClick = (seat: string) => {
         };
       }).filter(Boolean) as any[];
 
-      if (kotItemsPayload.length === 0) {
-        toast.error('No new item quantities to save.');
+      const reverseKotItemsPayload = reverseItemsToKOT.map(i => ({
+        ItemID: i.id,
+        Qty: -i.qty, // Negative quantity for reversal
+        RuntimeRate: i.price,
+        TableID: resolvedTableId || undefined,
+        DeptID: resolvedDeptId ?? selectedDeptId ?? undefined,
+        outletid: resolvedOutletId,
+        CGST: 0,
+        CGST_AMOUNT: 0,
+        SGST: 0,
+        SGST_AMOUNT: 0,
+        IGST: 0,
+        IGST_AMOUNT: 0,
+        CESS: 0,
+        CESS_AMOUNT: 0,
+        HotelID: hotelId,
+        isBilled: 0,
+        isNCKOT: 0,
+        NCName: null,
+        NCPurpose: null,
+      }));
+
+      const combinedPayload = [...newKotItemsPayload, ...reverseKotItemsPayload];
+
+      if (combinedPayload.length === 0) {
+        toast.error('No new or reversed item quantities to save.');
         setLoading(false);
         return;
       }
 
       // Find the first NCKOT item to get the overall NCName and NCPurpose for the bill header
-      const firstNCItem = kotItemsPayload.find(item => item.isNCKOT);
+      const firstNCItem = newKotItemsPayload.find(item => item.isNCKOT);
 
       const kotPayload = {
         txnId: 0,
         tableId: resolvedTableId,
-        items: kotItemsPayload,
+        items: combinedPayload,
         outletid: resolvedOutletId,
         userId: userId,
         hotelId: hotelId,
+
         // Add NCName and NCPurpose to the main payload for the TAxnTrnbill header
         NCName: firstNCItem ? firstNCItem.NCName : null,
         NCPurpose: firstNCItem ? firstNCItem.NCPurpose : null,
@@ -1059,6 +1083,11 @@ const handleTableClick = (seat: string) => {
       const resp = await createKOT(kotPayload);
       if (resp?.success) {
         toast.success('KOT saved successfully!');
+
+        // Clear reverse items after successful save
+        if (reverseItemsToKOT.length > 0) {
+          setReverseQtyItems([]);
+        }
 
         // Optimistically update the table status to green (1)
         if (selectedTable) {
