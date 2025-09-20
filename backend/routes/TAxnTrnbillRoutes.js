@@ -40,4 +40,10 @@ router.get('/latest-kot', controller.getLatestKOTForTable);
 // Get unbilled items by table
 router.get('/unbilled-items/:tableId', controller.getUnbilledItemsByTable);
 
+// F8 Key Press - Reverse Quantity Mode (also handles individual item reverse)
+router.post('/reverse-qty', controller.handleF8KeyPress);
+
+// Simple reverse quantity for individual items
+router.post('/reverse-quantity', controller.reverseQuantity);
+
 module.exports = router

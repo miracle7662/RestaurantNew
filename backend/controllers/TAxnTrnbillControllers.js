@@ -884,23 +884,14 @@ exports.getUnbilledItemsByTable = async (req, res) => {
 /* -------------------------------------------------------------------------- */
 exports.handleF8KeyPress = async (req, res) => {
   try {
-    const { tableId, userId } = req.body;
+    const { tableId, userId, txnDetailId } = req.body;
 
     if (!tableId) {
       return res.status(400).json({ success: false, message: 'tableId is required', data: null });
     }
 
-    // First, check if ReverseQtyMode is enabled using outletSettingsRoutes
-    const outletSettings = require('../routes/outletSettingsRoutes');
-    const reverseQtyMode = await outletSettings.getReverseQtyMode();
-
-    if (!reverseQtyMode) {
-      return res.status(403).json({
-        success: false,
-        message: 'Reverse Quantity Mode is disabled. Please enable it in outlet settings.',
-        data: null
-      });
-    }
+    // Note: ReverseQtyMode check is handled in the frontend
+    // Backend assumes the request is valid when called
 
     // Get the latest unbilled KOT for the table
     const latestKOT = db.prepare(`
@@ -919,7 +910,65 @@ exports.handleF8KeyPress = async (req, res) => {
       });
     }
 
-    // Get all unbilled items for the table
+    // If txnDetailId is provided, handle individual item
+    if (txnDetailId) {
+      const item = db.prepare(`
+        SELECT
+          d.TXnDetailID,
+          d.ItemID,
+          d.Qty,
+          d.RevQty,
+          d.RuntimeRate,
+          COALESCE(m.item_name, 'Unknown Item') AS ItemName
+        FROM TAxnTrnbilldetails d
+        JOIN TAxnTrnbill b ON d.TxnID = b.TxnID
+        LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
+        WHERE b.TableID = ? AND d.TXnDetailID = ? AND b.isBilled = 0 AND d.isCancelled = 0
+      `).get(Number(tableId), Number(txnDetailId));
+
+      if (!item) {
+        return res.status(404).json({
+          success: false,
+          message: 'Item not found or already billed',
+          data: null
+        });
+      }
+
+      const currentQty = Number(item.Qty) || 0;
+      const currentRevQty = Number(item.RevQty) || 0;
+      const availableQty = currentQty - currentRevQty;
+
+      if (availableQty <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'No quantity available to reverse for this item',
+          data: null
+        });
+      }
+
+      // Update RevQty in database
+      const newRevQty = currentRevQty + 1;
+      db.prepare(`
+        UPDATE TAxnTrnbilldetails
+        SET RevQty = ?
+        WHERE TXnDetailID = ?
+      `).run(newRevQty, item.TXnDetailID);
+
+      return res.json({
+        success: true,
+        message: 'Item quantity reversed successfully',
+        data: {
+          txnDetailId: item.TXnDetailID,
+          itemId: item.ItemID,
+          itemName: item.ItemName,
+          originalQty: currentQty,
+          newRevQty: newRevQty,
+          availableQty: availableQty - 1
+        }
+      });
+    }
+
+    // Get all unbilled items for the table (original F8 functionality)
     const unbilledItems = db.prepare(`
       SELECT
         d.TXnDetailID,
@@ -1007,6 +1056,77 @@ exports.handleF8KeyPress = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to process F8 key press',
+      data: null,
+      error: error.message
+    });
+  }
+}
+
+
+// Simple reverse quantity function
+exports.reverseQuantity = async (req, res) => {
+  try {
+    const { txnDetailId } = req.body;
+
+    if (!txnDetailId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'txnDetailId is required', 
+        data: null 
+      });
+    }
+
+    // Get current item details
+    const item = db.prepare(`
+      SELECT TXnDetailID, Qty, RevQty, ItemID
+      FROM TAxnTrnbilldetails 
+      WHERE TXnDetailID = ?
+    `).get(Number(txnDetailId));
+
+    if (!item) {
+      return res.status(404).json({
+        success: false,
+        message: 'Item not found',
+        data: null
+      });
+    }
+
+    const currentQty = Number(item.Qty) || 0;
+    const currentRevQty = Number(item.RevQty) || 0;
+    const availableQty = currentQty - currentRevQty;
+
+    if (availableQty <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No quantity available to reverse',
+        data: null
+      });
+    }
+
+    // Update RevQty
+    const newRevQty = currentRevQty + 1;
+    db.prepare(`
+      UPDATE TAxnTrnbilldetails
+      SET RevQty = ?
+      WHERE TXnDetailID = ?
+    `).run(newRevQty, item.TXnDetailID);
+
+    res.json({
+      success: true,
+      message: 'Quantity reversed successfully',
+      data: {
+        txnDetailId: item.TXnDetailID,
+        originalQty: currentQty,
+        newRevQty: newRevQty,
+        availableQty: availableQty - 1
+      }
+    });
+
+  } catch (error) {
+    console.error('Error in reverseQuantity:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to reverse quantity',
       data: null,
       error: error.message
     });

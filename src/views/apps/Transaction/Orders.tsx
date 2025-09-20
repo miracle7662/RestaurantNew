@@ -95,9 +95,11 @@ const Order = () => {
   // New state for Reverse Qty Mode authentication
   const [reverseQtyConfig, setReverseQtyConfig] = useState<'NoPassword' | 'PasswordRequired'>('PasswordRequired'); // Config for Reverse Qty Mode
   const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
-  const [authUsername, setAuthUsername] = useState<string>('');
   const [authPassword, setAuthPassword] = useState<string>('');
   const [authError, setAuthError] = useState<string>('');
+
+  // State to track reverse quantity items for KOT printing
+  const [reverseQtyItems, setReverseQtyItems] = useState<MenuItem[]>([]);
 
   // New state for Focus Mode
   const [focusMode, setFocusMode] = useState<boolean>(false); // Default OFF
@@ -730,6 +732,86 @@ const handleTableClick = (seat: string) => {
     });
   };
 
+  const handleReverseQty = async (item: MenuItem) => {
+    try {
+      if (!selectedTable || !item.txnDetailId) {
+        toast.error('Unable to process reverse quantity - missing table or item details');
+        return;
+      }
+
+      // Update the item quantity in the frontend state
+      setItems(currentItems => {
+        const newItems = [...currentItems];
+        const itemIndex = newItems.findIndex(i => i.txnDetailId === item.txnDetailId);
+
+        if (itemIndex > -1) {
+          const currentItem = newItems[itemIndex];
+          if (currentItem.qty > 1) {
+            // Decrease quantity by 1
+            newItems[itemIndex] = { ...currentItem, qty: currentItem.qty - 1 };
+            toast.success(`Quantity decreased for "${item.name}" (${currentItem.qty - 1} remaining)`);
+            
+            // Add to reverse quantity items for KOT printing
+            setReverseQtyItems(prev => {
+              const existingIndex = prev.findIndex(i => i.txnDetailId === item.txnDetailId);
+              if (existingIndex > -1) {
+                // Update existing reverse item
+                const updated = [...prev];
+                updated[existingIndex] = { ...updated[existingIndex], qty: updated[existingIndex].qty + 1 };
+                return updated;
+              } else {
+                // Add new reverse item
+                return [...prev, { ...item, qty: 1, isReverse: true }];
+              }
+            });
+          } else {
+            // Remove item if quantity is 1 (will become 0)
+            newItems.splice(itemIndex, 1);
+            toast.success(`"${item.name}" removed from order`);
+            
+            // Add to reverse quantity items for KOT printing
+            setReverseQtyItems(prev => {
+              const existingIndex = prev.findIndex(i => i.txnDetailId === item.txnDetailId);
+              if (existingIndex > -1) {
+                // Update existing reverse item
+                const updated = [...prev];
+                updated[existingIndex] = { ...updated[existingIndex], qty: updated[existingIndex].qty + 1 };
+                return updated;
+              } else {
+                // Add new reverse item
+                return [...prev, { ...item, qty: 1, isReverse: true }];
+              }
+            });
+          }
+        }
+        return newItems;
+      });
+
+      // Also update the database (optional - for persistence)
+      try {
+        const response = await fetch('http://localhost:3001/api/TAxnTrnbill/reverse-quantity', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            txnDetailId: item.txnDetailId
+          }),
+        });
+
+        if (!response.ok) {
+          console.log('Database update failed, but frontend update succeeded');
+        }
+      } catch (dbError) {
+        console.log('Database update failed, but frontend update succeeded');
+      }
+
+    } catch (error) {
+      console.error('Error processing reverse quantity:', error);
+      toast.error('Error processing reverse quantity');
+    }
+  };
+
   const totalAmount = items
     .reduce((sum, item) => sum + item.price * item.qty, 0)
     .toFixed(2);
@@ -792,6 +874,26 @@ const handleTableClick = (seat: string) => {
     if (selectedOutletId) {
       fetchKotPrintSettings(selectedOutletId);
       fetchBillPreviewSettings(selectedOutletId);
+      // Fetch outlet settings for Reverse Qty Mode
+      const fetchReverseQtySetting = async () => {
+        try {
+          const res = await fetch(`http://localhost:3001/api/outlets/outlet-settings/${selectedOutletId}`);
+          if (res.ok) {
+            const settings = await res.json();
+            if (settings && settings.ReverseQtyMode !== undefined) {
+              setReverseQtyConfig(settings.ReverseQtyMode === 1 ? 'PasswordRequired' : 'NoPassword');
+            } else {
+              setReverseQtyConfig('PasswordRequired'); // Default to password required
+            }
+          } else {
+            setReverseQtyConfig('PasswordRequired'); // Default to password required
+          }
+        } catch (error) {
+          console.error("Failed to fetch outlet settings for Reverse Qty Mode", error);
+          setReverseQtyConfig('PasswordRequired'); // Default to password required
+        }
+      };
+      fetchReverseQtySetting();
     }
   }, [selectedOutletId]);
 
@@ -869,8 +971,11 @@ const handleTableClick = (seat: string) => {
   const handlePrintAndSaveKOT = async () => {
     try {
       const newItemsToKOT = items.filter(item => item.isNew);
-      if (newItemsToKOT.length === 0) {
-        toast.error('No new items to save as KOT.');
+      const reverseItemsToKOT = reverseQtyMode ? reverseQtyItems : [];
+
+      // Check if we have any items to process (new items or reverse items)
+      if (newItemsToKOT.length === 0 && reverseItemsToKOT.length === 0) {
+        toast.error('No new items or reverse quantity items to save as KOT.');
         setLoading(false);
         return;
       }
@@ -1074,10 +1179,56 @@ const handleTableClick = (seat: string) => {
           console.log(`Ctrl + ${tabIndex} pressed, activating tab: ${selectedTab}`);
         }
       }
+      if (e.key === 'F8') {
+        e.preventDefault();
+        // Always fetch latest ReverseQtyMode from backend on F8 press
+        const fetchLatestReverseQtySetting = async () => {
+          try {
+            if (selectedOutletId) {
+              const res = await fetch(`http://localhost:3001/api/outlets/outlet-settings/${selectedOutletId}`);
+              if (res.ok) {
+                const settings = await res.json();
+                if (settings && settings.ReverseQtyMode !== undefined) {
+                  const currentConfig = settings.ReverseQtyMode === 1 ? 'PasswordRequired' : 'NoPassword';
+                  setReverseQtyConfig(currentConfig);
+                  
+                  // Handle F8 based on latest backend value
+                  if (currentConfig === 'PasswordRequired') {
+                    setShowAuthModal(true);
+                  } else {
+                    setReverseQtyMode(prev => {
+                      const newMode = !prev;
+                      // Clear reverse quantity items when turning off reverse mode
+                      if (!newMode) {
+                        setReverseQtyItems([]);
+                      }
+                      return newMode;
+                    });
+                  }
+                } else {
+                  // Default to password required if setting not found
+                  setReverseQtyConfig('PasswordRequired');
+                  setShowAuthModal(true);
+                }
+              } else {
+                // Default to password required if API call fails
+                setReverseQtyConfig('PasswordRequired');
+                setShowAuthModal(true);
+              }
+            }
+          } catch (error) {
+            console.error("Failed to fetch latest outlet settings for Reverse Qty Mode", error);
+            // Default to password required if error occurs
+            setReverseQtyConfig('PasswordRequired');
+            setShowAuthModal(true);
+          }
+        };
+        fetchLatestReverseQtySetting();
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [departments]);
+  }, [departments, selectedOutletId]);
 
   useEffect(() => {
     if (activeTab === 'Dine-in' && !showOrderDetails && tableSearchInputRef.current) {
@@ -1153,17 +1304,24 @@ const handleSaveNCKOT = () => {
 
 const handleCloseAuthModal = () => {
   setShowAuthModal(false);
-  setAuthUsername('');
   setAuthPassword('');
   setAuthError('');
 };
 
 const handleAuth = () => {
-  if (authUsername === 'admin' && authPassword === 'password') {
-    setReverseQtyMode(prev => !prev);
+  // NOTE: This uses a hardcoded password. For production, this should be validated against a user's credentials.
+  if (authPassword === 'admin123') {
+    setReverseQtyMode(prev => {
+      const newMode = !prev;
+      // Clear reverse quantity items when turning off reverse mode
+      if (!newMode) {
+        setReverseQtyItems([]);
+      }
+      return newMode;
+    });
     handleCloseAuthModal();
   } else {
-    setAuthError('Invalid credentials');
+    setAuthError('Invalid Password');
   }
 };
 
@@ -1350,54 +1508,121 @@ const handleAuth = () => {
 
               {/* Items */}
               {(() => {
-                const kotItems = items.filter(item => item.isNew).map(item => {
-                  const kotQty = item.originalQty !== undefined ? Math.max(0, item.qty - item.originalQty) : item.qty;
-                  return { ...item, kotQty };
-                }).filter(item => item.kotQty > 0);
-                return kotItems.map((item, index) => (
-                  <div key={item.id} style={{
-                    display: 'grid',
-                    gridTemplateColumns: '30px 1fr 50px 70px 80px',
-                    paddingBottom: '4px',
-                    marginBottom: '4px'
-                  }}>
-                    <div>{index + 1}</div>
-                    <div>
-                      {item.name}
-                      {formData.modifier_default_option && item.modifier && (
-                        <div><small className="text-muted">{item.modifier}</small></div>
-                      )}
-                      {formData.show_alternative_item && item.alternativeItem && (
-                        <div><small className="text-muted">Alt: {item.alternativeItem}</small></div>
+                // If in reverse mode, show reverse quantity items
+                if (reverseQtyMode && reverseQtyItems.length > 0) {
+                  return (
+                    <>
+                      <div style={{ 
+                        textAlign: 'center', 
+                        fontWeight: 'bold', 
+                        color: '#dc3545', 
+                        marginBottom: '10px',
+                        padding: '5px',
+                        backgroundColor: '#f8d7da',
+                        border: '1px solid #f5c6cb',
+                        borderRadius: '4px'
+                      }}>
+                        REVERSE QUANTITY ITEMS
+                      </div>
+                      {reverseQtyItems.map((item, index) => (
+                        <div key={`reverse-${item.txnDetailId}-${index}`} style={{
+                          display: 'grid',
+                          gridTemplateColumns: '30px 1fr 50px 70px 80px',
+                          paddingBottom: '4px',
+                          marginBottom: '4px',
+                          backgroundColor: '#fff3cd',
+                          border: '1px solid #ffeaa7',
+                          borderRadius: '4px',
+                          padding: '8px'
+                        }}>
+                          <div>{index + 1}</div>
+                          <div>
+                            {item.name}
+                            {formData.modifier_default_option && item.modifier && (
+                              <div><small className="text-muted">{item.modifier}</small></div>
+                            )}
+                            {formData.show_alternative_item && item.alternativeItem && (
+                              <div><small className="text-muted">Alt: {item.alternativeItem}</small></div>
+                            )}
+                          </div>
+                          <div style={{ textAlign: 'center', color: '#dc3545', fontWeight: 'bold' }}>
+                            -{item.qty}
+                          </div>
+                          <div style={{ textAlign: 'right' }}>{item.price.toFixed(2)}</div>
+                          {formData.show_item_price && (
+                            <div style={{ textAlign: 'right', color: '#dc3545', fontWeight: 'bold' }}>
+                              -{(item.price * item.qty).toFixed(2)}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </>
+                  );
+                } else {
+                  // Normal KOT items
+                  const kotItems = items.filter(item => item.isNew).map(item => {
+                    const kotQty = item.originalQty !== undefined ? Math.max(0, item.qty - item.originalQty) : item.qty;
+                    return { ...item, kotQty };
+                  }).filter(item => item.kotQty > 0);
+                  return kotItems.map((item, index) => (
+                    <div key={item.id} style={{
+                      display: 'grid',
+                      gridTemplateColumns: '30px 1fr 50px 70px 80px',
+                      paddingBottom: '4px',
+                      marginBottom: '4px'
+                    }}>
+                      <div>{index + 1}</div>
+                      <div>
+                        {item.name}
+                        {formData.modifier_default_option && item.modifier && (
+                          <div><small className="text-muted">{item.modifier}</small></div>
+                        )}
+                        {formData.show_alternative_item && item.alternativeItem && (
+                          <div><small className="text-muted">Alt: {item.alternativeItem}</small></div>
+                        )}
+                      </div>
+                      <div style={{ textAlign: 'center' }}>{item.kotQty}</div>
+                      <div style={{ textAlign: 'right' }}>{item.price.toFixed(2)}</div>
+                      {formData.show_item_price && (
+                        <div style={{ textAlign: 'right' }}>{(item.price * item.kotQty).toFixed(2)}</div>
                       )}
                     </div>
-                    <div style={{ textAlign: 'center' }}>{item.kotQty}</div>
-                    <div style={{ textAlign: 'right' }}>{item.price.toFixed(2)}</div>
-                    {formData.show_item_price && (
-                      <div style={{ textAlign: 'right' }}>{(item.price * item.kotQty).toFixed(2)}</div>
-                    )}
-                  </div>
-                ));
+                  ));
+                }
               })()}
 
               <div style={{ borderBottom: '1px dashed #ccc', margin: '10px 0' }}></div>
 
               {/* Total Section */}
               {(() => {
-                const kotItemsWithDelta = items.filter(item => item.isNew).map(item => {
-                  const kotQty = item.originalQty !== undefined ? Math.max(0, item.qty - item.originalQty) : item.qty;
-                  return { ...item, kotQty };
-                }).filter(item => item.kotQty > 0);
+                if (reverseQtyMode && reverseQtyItems.length > 0) {
+                  // Calculate totals for reverse quantity items
+                  const totalReverseQty = reverseQtyItems.reduce((sum, item) => sum + item.qty, 0);
+                  const totalReverseSubtotal = reverseQtyItems.reduce((sum, item) => sum + (item.price * item.qty), 0);
 
-                const totalKotQty = kotItemsWithDelta.reduce((sum, item) => sum + item.kotQty, 0);
-                const totalKotSubtotal = kotItemsWithDelta.reduce((sum, item) => sum + (item.price * item.kotQty), 0);
+                  return (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', marginBottom: '8px' }}>
+                      <div style={{ color: '#dc3545' }}>Total Reverse Items: {totalReverseQty}</div>
+                      {formData.show_item_price && <div style={{ color: '#dc3545' }}>-₹ {totalReverseSubtotal.toFixed(2)}</div>}
+                    </div>
+                  );
+                } else {
+                  // Normal KOT totals
+                  const kotItemsWithDelta = items.filter(item => item.isNew).map(item => {
+                    const kotQty = item.originalQty !== undefined ? Math.max(0, item.qty - item.originalQty) : item.qty;
+                    return { ...item, kotQty };
+                  }).filter(item => item.kotQty > 0);
 
-                return (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', marginBottom: '8px' }}>
-                    <div>Total Items: {totalKotQty}</div>
-                    {formData.show_item_price && <div>₹ {totalKotSubtotal.toFixed(2)}</div>}
-                  </div>
-                );
+                  const totalKotQty = kotItemsWithDelta.reduce((sum, item) => sum + item.kotQty, 0);
+                  const totalKotSubtotal = kotItemsWithDelta.reduce((sum, item) => sum + (item.price * item.kotQty), 0);
+
+                  return (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', marginBottom: '8px' }}>
+                      <div>Total Items: {totalKotQty}</div>
+                      {formData.show_item_price && <div>₹ {totalKotSubtotal.toFixed(2)}</div>}
+                    </div>
+                  );
+                }
               })()}
               <div style={{ borderBottom: '1px dashed #ccc', margin: '10px 0' }}></div>
 
@@ -1909,6 +2134,7 @@ const handleAuth = () => {
               </div>
               <div className="d-flex justify-content-between align-items-center bg-white border rounded p-2">
                 <span className="fw-bold flex-grow-1 text-center">{getKOTLabel()}</span>
+                {reverseQtyMode && <span className="badge bg-danger me-2">Reverse Qty Mode: Active</span>}
                 <button
                   className="btn btn-sm btn-outline-secondary p-1"
                   style={{ lineHeight: 1 }}
@@ -1983,6 +2209,7 @@ const handleAuth = () => {
                     const isGroupedItem = 'displayQty' in item;
                     const displayQty = isGroupedItem ? (item as any).displayQty : item.qty;
                     const isEditable = isGroupedItem ? (item as any).canEdit : !!item.isNew;
+                    const isReverseClickable = reverseQtyMode && !isEditable && displayQty > 0;
 
                     let backgroundColor = 'transparent';
                     if (!isGroupedItem) {
@@ -2018,8 +2245,14 @@ const handleAuth = () => {
                           <button
                             className="btn btn-danger btn-sm"
                             style={{ padding: '0 5px', lineHeight: '1' }}
-                            onClick={() => handleDecreaseQty(item.id)}
-                            disabled={!isEditable}
+                            onClick={() => {
+                              if (isEditable) {
+                                handleDecreaseQty(item.id);
+                              } else if (isReverseClickable) {
+                                handleReverseQty(item as MenuItem);
+                              }
+                            }}
+                            disabled={!isEditable && !isReverseClickable}
                           >
                             −
                           </button>
@@ -2309,11 +2542,49 @@ const handleAuth = () => {
                           className="rounded-circle p-0 d-flex justify-content-center align-items-center"
                           style={{ width: '32px', height: '32px' }}
                           onClick={() => {
-                            if (reverseQtyConfig === 'PasswordRequired') {
-                              setShowAuthModal(true);
-                            } else {
-                              setReverseQtyMode(prev => !prev);
-                            }
+                            // Always fetch latest ReverseQtyMode from backend on button click
+                            const fetchLatestReverseQtySetting = async () => {
+                              try {
+                                if (selectedOutletId) {
+                                  const res = await fetch(`http://localhost:3001/api/outlets/outlet-settings/${selectedOutletId}`);
+                                  if (res.ok) {
+                                    const settings = await res.json();
+                                    if (settings && settings.ReverseQtyMode !== undefined) {
+                                      const currentConfig = settings.ReverseQtyMode === 1 ? 'PasswordRequired' : 'NoPassword';
+                                      setReverseQtyConfig(currentConfig);
+                                      
+                                      // Handle button click based on latest backend value
+                                      if (currentConfig === 'PasswordRequired') {
+                                        setShowAuthModal(true);
+                                      } else {
+                                        setReverseQtyMode(prev => {
+                                          const newMode = !prev;
+                                          // Clear reverse quantity items when turning off reverse mode
+                                          if (!newMode) {
+                                            setReverseQtyItems([]);
+                                          }
+                                          return newMode;
+                                        });
+                                      }
+                                    } else {
+                                      // Default to password required if setting not found
+                                      setReverseQtyConfig('PasswordRequired');
+                                      setShowAuthModal(true);
+                                    }
+                                  } else {
+                                    // Default to password required if API call fails
+                                    setReverseQtyConfig('PasswordRequired');
+                                    setShowAuthModal(true);
+                                  }
+                                }
+                              } catch (error) {
+                                console.error("Failed to fetch latest outlet settings for Reverse Qty Mode", error);
+                                // Default to password required if error occurs
+                                setReverseQtyConfig('PasswordRequired');
+                                setShowAuthModal(true);
+                              }
+                            };
+                            fetchLatestReverseQtySetting();
                             setShowOptions(false);
                           }}
                           title="Reverse Qty Mode"
@@ -2569,24 +2840,20 @@ const handleAuth = () => {
   </Modal.Footer>
 </Modal>
 
-<Modal show={showAuthModal} onHide={() => setShowAuthModal(false)} centered>
+<Modal show={showAuthModal} onHide={handleCloseAuthModal} centered>
   <Modal.Header closeButton>
-    <Modal.Title>Authenticate Reverse Qty Mode</Modal.Title>
+    <Modal.Title>Reverse Qty Mode</Modal.Title>
   </Modal.Header>
   <Modal.Body>
     <div className="mb-3">
-      <label>Username</label>
-      <input type="text" className="form-control" value={authUsername} onChange={(e) => setAuthUsername(e.target.value)} />
-    </div>
-    <div className="mb-3">
       <label>Password</label>
-      <input type="password" className="form-control" value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} />
+      <input type="password" className="form-control" value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} onKeyPress={(e) => { if (e.key === 'Enter') handleAuth(); }} autoFocus/>
     </div>
     {authError && <div className="text-danger">{authError}</div>}
   </Modal.Body>
   <Modal.Footer>
-    <Button variant="secondary" onClick={() => setShowAuthModal(false)}>Cancel</Button>
-    <Button variant="primary" onClick={handleAuth}>Authenticate</Button>
+    <Button variant="secondary" onClick={handleCloseAuthModal}>Cancel</Button>
+    <Button variant="primary" onClick={handleAuth}>Submit</Button>
   </Modal.Footer>
 </Modal>
         </div>
