@@ -1296,22 +1296,31 @@ const Order = () => {
       setLoading(false);
     }
   };
-  const handleF8PasswordSubmit = async (password: string) => {
+  const handleF8PasswordSubmit = async (password: string, txnId?: string) => {
     if (!user?.token) {
       toast.error("Authentication token not found. Please log in again.");
+      return;
+    }
+
+    const finalTxnId = txnId || currentTxnId;
+    if (!finalTxnId) {
+      setF8PasswordError("Transaction ID is missing. Cannot verify password.");
       return;
     }
 
     setF8PasswordLoading(true);
     setF8PasswordError('');
     try {
-      const response = await fetch('http://localhost:3001/api/auth/verify-f8-password', {
+      const response = await fetch('http://localhost:3001/api/auth/verify-bill-creator-password', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${user.token}`
         },
-        body: JSON.stringify({ password })
+        body: JSON.stringify({
+          password,
+          txnId: finalTxnId
+        })
       });
 
       const data = await response.json();
@@ -3052,6 +3061,7 @@ const Order = () => {
             onSubmit={handleF8PasswordSubmit}
             error={f8PasswordError}
             loading={f8PasswordLoading}
+            txnId={currentTxnId?.toString()}
           />
 
           <Modal show={showAuthModal} onHide={handleCloseAuthModal} centered>

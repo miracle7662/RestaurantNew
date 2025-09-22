@@ -4,9 +4,10 @@ import { Modal, Button, Form } from 'react-bootstrap';
 interface F8PasswordModalProps {
   show: boolean;
   onHide: () => void;
-  onSubmit: (password: string) => void;
+  onSubmit: (password: string, txnId?: string) => void;
   error?: string;
   loading?: boolean;
+  txnId?: string;
 }
 
 const F8PasswordModal: React.FC<F8PasswordModalProps> = ({
@@ -14,14 +15,15 @@ const F8PasswordModal: React.FC<F8PasswordModalProps> = ({
   onHide,
   onSubmit,
   error,
-  loading = false
+  loading = false,
+  txnId
 }) => {
   const [password, setPassword] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (password.trim()) {
-      onSubmit(password);
+      onSubmit(password, txnId);
     }
   };
 

@@ -181,7 +181,7 @@ exports.getCurrentUser = async (req, res) => {
     }
 };
 
-// Verify password for F8 action on billed tables
+// Verify password for F8 action on billed tables (current implementation)
 exports.verifyF8Password = async (req, res) => {
     try {
         const { password } = req.body;
@@ -227,6 +227,106 @@ exports.verifyF8Password = async (req, res) => {
 
     } catch (error) {
         console.error('F8 password verification error:', error);
+        if (error.name === 'JsonWebTokenError') {
+            return res.status(401).json({ success: false, message: 'Invalid token' });
+        }
+        res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+};
+
+// Verify password of the user who created the bill for F8 action on billed tables
+exports.verifyBillCreatorPassword = async (req, res) => {
+    try {
+        const { password, txnId } = req.body;
+        const token = req.headers.authorization?.replace('Bearer ', '');
+
+        if (!token) {
+            return res.status(401).json({ success: false, message: 'No token provided' });
+        }
+
+        if (!password) {
+            return res.status(400).json({ success: false, message: 'Password is required' });
+        }
+
+        if (!txnId) {
+            return res.status(400).json({ success: false, message: 'Transaction ID is required' });
+        }
+
+        // Verify JWT token to get current user
+        const decoded = jwt.verify(token, JWT_SECRET);
+
+        // Get current user details (for logging purposes)
+        const currentUser = db.prepare(`
+            SELECT u.*, b.hotel_name as brand_name, h.hotel_name as hotel_name
+            FROM mst_users u
+            LEFT JOIN msthotelmasters b ON u.brand_id = b.hotelid
+            LEFT JOIN user_outlet_mapping uom ON u.userid = uom.userid
+            LEFT JOIN msthotelmasters h ON uom.outletid = h.hotelid
+            WHERE u.userid = ? AND u.status = 0
+        `).get(decoded.userid);
+
+        if (!currentUser) {
+            return res.status(401).json({ success: false, message: 'Current user not found' });
+        }
+
+        // Find the transaction and get the UserId (which is the creator)
+        const transaction = db.prepare(`
+            SELECT TxnID, UserId
+            FROM TAxnTrnbill
+            WHERE TxnID = ?
+        `).get(txnId);
+
+        if (!transaction) {
+            return res.status(404).json({ success: false, message: 'Transaction not found' });
+        }
+
+        if (!transaction.UserId) {
+            return res.status(400).json({ success: false, message: 'Bill creator information not available for this transaction.' });
+        }
+
+        // Get the bill creator's details
+        const billCreator = db.prepare(`
+            SELECT u.*, b.hotel_name as brand_name, h.hotel_name as hotel_name
+            FROM mst_users u
+            LEFT JOIN msthotelmasters b ON u.brand_id = b.hotelid
+            LEFT JOIN user_outlet_mapping uom ON u.userid = uom.userid
+            LEFT JOIN msthotelmasters h ON uom.outletid = h.hotelid
+            WHERE u.userid = ? AND u.status = 0
+        `).get(transaction.UserId);
+
+        if (!billCreator) {
+            return res.status(404).json({ success: false, message: 'Bill creator not found' });
+        }
+
+        // Verify password against the bill creator
+        const isValidPassword = await bcrypt.compare(password, billCreator.password);
+        if (!isValidPassword) {
+            return res.status(401).json({ success: false, message: 'Invalid password' });
+        }
+
+        // Log the verification attempt
+        console.log('🔐 Bill Creator Password Verification:');
+        console.log('   Current User ID:', currentUser.userid);
+        console.log('   Current Username:', currentUser.username);
+        console.log('   Bill Creator ID:', billCreator.userid);
+        console.log('   Bill Creator Username:', billCreator.username);
+        console.log('   Transaction ID:', txnId);
+        console.log('   Verification Time:', new Date().toISOString());
+        console.log('   ---');
+
+        res.json({
+            success: true,
+            message: 'Bill creator password verified successfully',
+            billCreator: {
+                id: billCreator.userid,
+                username: billCreator.username,
+                name: billCreator.full_name,
+                role_level: billCreator.role_level
+            }
+        });
+
+    } catch (error) {
+        console.error('Bill creator password verification error:', error);
         if (error.name === 'JsonWebTokenError') {
             return res.status(401).json({ success: false, message: 'Invalid token' });
         }
