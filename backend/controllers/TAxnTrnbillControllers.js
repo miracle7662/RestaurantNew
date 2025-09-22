@@ -1133,5 +1133,35 @@ exports.reverseQuantity = async (req, res) => {
   }
 }
 
+/* -------------------------------------------------------------------------- */
+/* 10) printBill → update isBilled = 1 for all items in a bill when printed  */
+/* -------------------------------------------------------------------------- */
+exports.printBill = async (req, res) => {
+  try {
+    const { id } = req.params
+
+    const bill = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id))
+    if (!bill) return res.status(404).json({ success: false, message: 'Bill not found', data: null })
+
+    // Update isBilled = 1 for all items in the bill
+    const updateStmt = db.prepare('UPDATE TAxnTrnbilldetails SET isBilled = 1 WHERE TxnID = ?')
+    updateStmt.run(Number(id))
+
+    // Also update the bill header to mark it as billed
+    db.prepare(`
+      UPDATE TAxnTrnbill
+      SET isBilled = 1, BilledDate = CURRENT_TIMESTAMP
+      WHERE TxnID = ?
+    `).run(Number(id))
+
+    const header = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id))
+    const items = db.prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? ORDER BY TXnDetailID').all(Number(id))
+
+    res.json(ok('Bill marked as printed and billed', { ...header, details: items }))
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to mark bill as printed', data: null, error: error.message })
+  }
+}
+
 module.exports = exports
 

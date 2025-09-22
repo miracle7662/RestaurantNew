@@ -1,29 +1,26 @@
-# F8 Key Press Implementation
+# Print Bill Backend Integration
 
-## Plan Implementation Steps:
+## Overview
+Integrate the frontend handlePrintBill function with the existing backend printBill API to mark items as billed when printing.
 
-### Backend Implementation
-- [ ] Add F8 endpoint in TAxnTrnbillControllers.js
-  - [ ] Create handleF8KeyPress function
-  - [ ] Integrate with outletSettingsRoutes to get ReverseQtyMode
-  - [ ] Implement reverse quantity logic
-  - [ ] Update RevQty field in database
+## Steps to Complete
 
-### Frontend Implementation
-- [ ] Add F8 key handler in OrderDetails.tsx
-  - [ ] Add global F8 keydown event listener
-  - [ ] Show authentication modal
-  - [ ] Call F8 backend endpoint
-  - [ ] Update items display
+### 1. Create Bill in Backend Before Printing
+- [ ] Modify handlePrintBill function to call backend API first
+- [ ] Send current order data (items, taxes, customer info) to create bill
+- [ ] Handle API response and show success/error messages
 
-### Integration
-- [ ] Update Orders.tsx for F8 state handling
-  - [ ] Add F8 state management
-  - [ ] Handle F8 operation results
-  - [ ] Update UI after F8 operations
+### 2. Update Print Flow
+- [ ] After successful bill creation, proceed with printing
+- [ ] Handle error cases where bill creation fails
+- [ ] Maintain existing print preview functionality
 
-### Testing
-- [ ] Test F8 functionality with ReverseQtyMode enabled
-- [ ] Test F8 functionality with ReverseQtyMode disabled
-- [ ] Test authentication modal integration
-- [ ] Test error handling scenarios
+### 3. Data Mapping
+- [ ] Map frontend order data to backend bill format
+- [ ] Include customer information, items, taxes, and discounts
+- [ ] Generate proper bill structure for backend
+
+### 4. Testing
+- [ ] Test successful bill creation and printing
+- [ ] Test error handling when API fails
+- [ ] Verify items are marked as billed in database
