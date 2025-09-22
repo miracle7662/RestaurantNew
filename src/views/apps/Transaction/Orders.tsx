@@ -7,7 +7,8 @@ import { getUnbilledItemsByTable } from "@/common/api/orders";
 import { OutletData } from "@/common/api/outlet";
 import AddCustomerModal from "./Customers";
 import { toast } from "react-hot-toast";
-import { createBill, createKOT, getSavedKOTs, getTaxesByOutletAndDepartment } from "@/common/api/orders";
+import { createKOT, getSavedKOTs, getTaxesByOutletAndDepartment } from "@/common/api/orders";
+import F8PasswordModal from "@/components/F8PasswordModal";
 
 interface MenuItem {
   id: number;
@@ -92,6 +93,11 @@ const Order = () => {
   const [currentKOTNo, setCurrentKOTNo] = useState<number | null>(null);
   const [currentKOTNos, setCurrentKOTNos] = useState<number[]>([]);
   const [currentTxnId, setCurrentTxnId] = useState<number | null>(null);
+
+  // New state for F8 password modal on billed tables
+  const [showF8PasswordModal, setShowF8PasswordModal] = useState<boolean>(false);
+  const [f8PasswordError, setF8PasswordError] = useState<string>('');
+  const [f8PasswordLoading, setF8PasswordLoading] = useState<boolean>(false);
 
   // New state for Reverse Qty Mode authentication
   const [reverseQtyConfig, setReverseQtyConfig] = useState<'NoPassword' | 'PasswordRequired'>('PasswordRequired'); // Config for Reverse Qty Mode
@@ -1290,6 +1296,47 @@ const Order = () => {
       setLoading(false);
     }
   };
+  const handleF8PasswordSubmit = async (password: string) => {
+    if (!user?.token) {
+      toast.error("Authentication token not found. Please log in again.");
+      return;
+    }
+
+    setF8PasswordLoading(true);
+    setF8PasswordError('');
+    try {
+      const response = await fetch('http://localhost:3001/api/auth/verify-f8-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${user.token}`
+        },
+        body: JSON.stringify({ password })
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        setShowF8PasswordModal(false);
+        // Proceed with F8 action: toggle reverseQtyMode
+        setReverseQtyMode(prev => {
+          const newMode = !prev;
+          if (!newMode) {
+            setReverseQtyItems([]);
+          }
+          toast.success(`Reverse Qty Mode ${newMode ? 'activated' : 'deactivated'}.`);
+          return newMode;
+        });
+      } else {
+        setF8PasswordError(data.message || 'Invalid password');
+      }
+    } catch (error) {
+      console.error('F8 password verification error:', error);
+      setF8PasswordError('An error occurred. Please try again.');
+    } finally {
+      setF8PasswordLoading(false);
+    }
+  };
   const handleTableSearchInput = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       const inputTable = tableSearchInput.trim();
@@ -1321,8 +1368,23 @@ const Order = () => {
       }
       if (e.key === 'F8') {
         e.preventDefault();
-        // Always fetch latest ReverseQtyMode from backend on F8 press
-        const fetchLatestReverseQtySetting = async () => {
+
+        if (!selectedTable) {
+          toast.error("Please select a table first.");
+          return;
+        }
+
+        const isBilled = items.some(item => item.isBilled === 1);
+
+        if (isBilled) {
+          // Billed table: show password modal for admin verification
+          setShowF8PasswordModal(true);
+          return; // Stop further execution
+        }
+
+        // UNBILLED TABLE: Proceed with normal F8 functionality (outlet setting based)
+        // Always fetch latest ReverseQtyMode from backend on F8 press for unbilled tables
+        const fetchLatestReverseQtySettingForUnbilled = async () => {
           try {
             if (selectedOutletId) {
               const res = await fetch(`http://localhost:3001/api/outlets/outlet-settings/${selectedOutletId}`);
@@ -1342,6 +1404,7 @@ const Order = () => {
                       if (!newMode) {
                         setReverseQtyItems([]);
                       }
+                      toast.success(`Reverse Qty Mode ${newMode ? 'activated' : 'deactivated'}.`);
                       return newMode;
                     });
                   }
@@ -1363,12 +1426,12 @@ const Order = () => {
             setShowAuthModal(true);
           }
         };
-        fetchLatestReverseQtySetting();
+        fetchLatestReverseQtySettingForUnbilled();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [departments, selectedOutletId]);
+  }, [departments, selectedOutletId, items, selectedTable]);
 
   useEffect(() => {
     if (activeTab === 'Dine-in' && !showOrderDetails && tableSearchInputRef.current) {
@@ -2979,6 +3042,17 @@ const Order = () => {
               <Button variant="primary" onClick={handleSaveNCKOT}>Save</Button>
             </Modal.Footer>
           </Modal>
+
+          <F8PasswordModal
+            show={showF8PasswordModal}
+            onHide={() => {
+              setShowF8PasswordModal(false);
+              setF8PasswordError(''); // Clear error on close
+            }}
+            onSubmit={handleF8PasswordSubmit}
+            error={f8PasswordError}
+            loading={f8PasswordLoading}
+          />
 
           <Modal show={showAuthModal} onHide={handleCloseAuthModal} centered>
             <Modal.Header closeButton>

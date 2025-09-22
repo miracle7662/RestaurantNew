@@ -8,4 +8,7 @@ router.post('/login', authController.login);
 // Get current user info
 router.get('/me', authController.getCurrentUser);
 
-module.exports = router; 
+// Verify password for F8 action on billed tables
+router.post('/verify-f8-password', authController.verifyF8Password);
+
+module.exports = router;
