@@ -129,6 +129,8 @@ exports.createBill = async (req, res) => {
       details = []
     } = req.body
 
+    const isHeaderNCKOT = details.some(item => toBool(item.isNCKOT));
+
     console.log('Details array length:', details.length);
     if (details.length > 0) {
       console.log('First detail item:', JSON.stringify(details[0], null, 2));
@@ -185,9 +187,9 @@ exports.createBill = async (req, res) => {
           GrossAmt, RevKOT, Discount, CGST, SGST, IGST, CESS, RoundOFF, Amount,
           isHomeDelivery, DriverID, CustomerName, MobileNo, Address, Landmark,
           orderNo, isPickup, HotelID, GuestID, DiscRefID, DiscPer, DiscountType, UserId,
-      BatchNo, PrevTableID, PrevDeptId, isTrnsfered, isChangeTrfAmt,
-      ServiceCharge, ServiceCharge_Amount, Extra1, Extra2, Extra3, NCName, NCPurpose
-    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+          BatchNo, PrevTableID, PrevDeptId, isTrnsfered, isChangeTrfAmt,
+          ServiceCharge, ServiceCharge_Amount, Extra1, Extra2, Extra3, NCName, NCPurpose, isNCKOT
+        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
   `)
 
     const result = stmt.run(
@@ -233,7 +235,8 @@ exports.createBill = async (req, res) => {
       Extra2 || null,
       Extra3 || null,
       NCName || null,
-      NCPurpose || null
+      NCPurpose || null,
+      toBool(isHeaderNCKOT)
     )
 
       const txnId = result.lastInsertRowid
@@ -640,14 +643,16 @@ exports.createKOT = async (req, res) => {
       const maxKOTResult = db.prepare('SELECT MAX(KOTNo) as maxKOT FROM TAxnTrnbill').get();
       const kotNo = (maxKOTResult?.maxKOT || 0) + 1;
 
+      const isHeaderNCKOT = details.some(item => toBool(item.isNCKOT));
+
       const insertHeaderStmt = db.prepare(`
         INSERT INTO TAxnTrnbill (
           outletid, TableID, UserId, HotelID, KOTNo, TxnDatetime,
           isBilled, isCancelled, isSetteled, status, AutoKOT,
-          NCName, NCPurpose, DiscPer, Discount, DiscountType
-        ) VALUES (?, ?, ?, ?, ?, datetime('now'), 0, 0, 0, 1, 1, ?, ?, ?, ?, ?)
+          NCName, NCPurpose, DiscPer, Discount, DiscountType, isNCKOT
+        ) VALUES (?, ?, ?, ?, ?, datetime('now'), 0, 0, 0, 1, 1, ?, ?, ?, ?, ?, ?)
       `);
-      const result = insertHeaderStmt.run(outletid, TableID, UserId, HotelID, kotNo, NCName || null, NCPurpose || null, Number(DiscPer) || 0, Number(Discount) || 0, Number(DiscountType) || 0);
+      const result = insertHeaderStmt.run(outletid, TableID, UserId, HotelID, kotNo, NCName || null, NCPurpose || null, Number(DiscPer) || 0, Number(Discount) || 0, Number(DiscountType) || 0, toBool(isHeaderNCKOT));
       const txnId = result.lastInsertRowid;
 
       db.prepare('UPDATE msttablemanagement SET status = 1 WHERE tableid = ?').run(TableID);
@@ -687,26 +692,26 @@ exports.createKOT = async (req, res) => {
           itemDiscountAmount = billDiscount;
         }
 
-        insertDetailStmt.run(
-          txnId,
-          outletid,
-          item.ItemID,
-          TableID,
-          qty,
-          rate,
-          item.DeptID,
-          HotelID,
-          kotNo,
-          isNCKOT,
-          cgstPer,
-          cgstAmt,
-          sgstPer,
-          sgstAmt,
-          igstPer,
-          igstAmt,
-          cessPer,
-          cessAmt,
-          itemDiscountAmount
+        insertDetailStmt.run( // Corrected parameter order
+          txnId, // TxnID
+          outletid, // outletid
+          item.ItemID, // ItemID
+          TableID, // TableID
+          qty, // Qty
+          rate, // RuntimeRate
+          item.DeptID, // DeptID
+          HotelID, // HotelID
+          kotNo, // KOTNo
+          isNCKOT, // isNCKOT
+          cgstPer, // CGST
+          cgstAmt, // CGST_AMOUNT
+          sgstPer, // SGST
+          sgstAmt, // SGST_AMOUNT
+          igstPer, // IGST
+          igstAmt, // IGST_AMOUNT
+          cessPer, // CESS
+          cessAmt, // CESS_AMOUNT
+          itemDiscountAmount // Discount_Amount
         );
       }
 
@@ -1209,5 +1214,6 @@ exports.printBill = async (req, res) => {
     res.status(500).json({ success: false, message: 'Failed to mark bill as printed', data: null, error: error.message })
   }
 }
+
 
 module.exports = exports
