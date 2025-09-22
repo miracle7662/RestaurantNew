@@ -1142,6 +1142,44 @@ exports.reverseQuantity = async (req, res) => {
   }
 }
 
+exports.getLatestBilledBillForTable = async (req, res) => {
+  try {
+    const { tableId } = req.params;
+    if (!tableId) {
+      return res.status(400).json({ success: false, message: 'tableId is required', data: null });
+    }
+
+    // Step 1: Fetch the latest billed but not settled transaction for the table
+    const bill = db.prepare(`
+      SELECT * 
+      FROM TAxnTrnbill 
+      WHERE TableID = ? AND isBilled = 1 AND isSetteled = 0
+      ORDER BY TxnID DESC 
+      LIMIT 1
+    `).get(Number(tableId));
+
+    // Step 2: If no record is found, it's not an error, just means no billed orders to show.
+    if (!bill) {
+      return res.status(404).json({ success: false, message: 'No billed but unsettled transaction found for this table.', data: null });
+    }
+
+    // Step 2 (cont.): Load all items from TAxnTrnbilldetails
+    const details = db.prepare(`
+      SELECT d.*, m.item_name as ItemName
+      FROM TAxnTrnbilldetails d
+      LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
+      WHERE d.TxnID = ? AND d.isCancelled = 0
+      ORDER BY d.TXnDetailID ASC
+    `).all(bill.TxnID);
+
+    // Respond with the bill and its details
+    res.json(ok('Latest billed bill fetched', { ...bill, details }));
+
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to fetch latest billed bill', data: null, error: error.message });
+  }
+};
+
 /* -------------------------------------------------------------------------- */
 /* 10) printBill → update isBilled = 1 for all items in a bill when printed  */
 /* -------------------------------------------------------------------------- */

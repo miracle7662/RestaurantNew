@@ -46,6 +46,9 @@ router.post('/reverse-qty', controller.handleF8KeyPress);
 // Simple reverse quantity for individual items
 router.post('/reverse-quantity', controller.reverseQuantity);
 
+// Get latest billed bill for a table
+router.get('/billed-bill/by-table/:tableId', controller.getLatestBilledBillForTable);
+
 
 // Print bill and mark as billed
 router.put('/:id/print', controller.printBill);

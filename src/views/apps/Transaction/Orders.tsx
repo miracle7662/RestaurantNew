@@ -125,54 +125,88 @@ const Order = () => {
   const [ncName, setNcName] = useState<string>('');
   const [ncPurpose, setNcPurpose] = useState<string>('');
 
-  const refreshItemsForTable = useCallback((tableIdNum: number) => {
-    return getUnbilledItemsByTable(tableIdNum)
-      .then(response => {
-        if (response.success && response.data && Array.isArray(response.data.items)) {
-          const fetchedItems: MenuItem[] = response.data.items.map((item: any) => ({
-            id: item.itemId,
-            txnDetailId: item.txnDetailId,
-            name: item.itemName,
-            price: item.price,
-            qty: item.netQty,
-            isBilled: 0,
-            isNCKOT: 0,
+  const refreshItemsForTable = useCallback(async (tableIdNum: number) => {
+    try {
+      // Step 1: Try to fetch the latest billed (but not settled) bill
+      const billedBillRes = await fetch(`http://localhost:3001/api/TAxnTrnbill/billed-bill/by-table/${tableIdNum}`);
+
+      if (billedBillRes.ok) {
+        const billedBillData = await billedBillRes.json();
+        if (billedBillData.success && billedBillData.data) {
+          const { details, ...header } = billedBillData.data;
+          const fetchedItems: MenuItem[] = details.map((item: any) => ({
+            id: item.ItemID,
+            txnDetailId: item.TXnDetailID,
+            name: item.ItemName || 'Unknown Item',
+            price: item.RuntimeRate,
+            qty: item.Qty,
+            isBilled: 1, // It's a billed item
+            isNCKOT: item.isNCKOT,
             NCName: '',
             NCPurpose: '',
-            isNew: false,
-            originalQty: item.netQty,
-            kotNo: item.kotNo,
+            isNew: false, // Not a new item
+            originalQty: item.Qty,
+            kotNo: item.KOTNo,
           }));
-          setCurrentKOTNo(response.data.kotNo);
+
           setItems(fetchedItems);
+          setCurrentTxnId(header.TxnID);
+          setCurrentKOTNo(header.KOTNo); // A billed order might have a KOT no.
+          setCurrentKOTNos(
+            fetchedItems
+              .map(item => item.kotNo)
+              .filter((v, i, a): v is number => v !== undefined && a.indexOf(v) === i)
+              .sort((a, b) => a - b)
+          );
+          return; // Exit after successfully loading billed items
+        }
+      }
 
-          // Set the current transaction ID from the first item, if it exists
-          if (response.data.items.length > 0 && response.data.items[0].txnId) {
-            setCurrentTxnId(response.data.items[0].txnId);
-          } else {
-            setCurrentTxnId(null);
-          }
+      // Step 2: If no billed bill found (e.g., 404), fetch unbilled items (existing logic)
+      const unbilledItemsRes = await getUnbilledItemsByTable(tableIdNum);
+      if (unbilledItemsRes.success && unbilledItemsRes.data && Array.isArray(unbilledItemsRes.data.items)) {
+        const fetchedItems: MenuItem[] = unbilledItemsRes.data.items.map((item: any) => ({
+          id: item.itemId,
+          txnDetailId: item.txnDetailId,
+          name: item.itemName,
+          price: item.price,
+          qty: item.netQty,
+          isBilled: 0,
+          isNCKOT: 0,
+          NCName: '',
+          NCPurpose: '',
+          isNew: false,
+          originalQty: item.netQty,
+          kotNo: item.kotNo,
+        }));
+        setCurrentKOTNo(unbilledItemsRes.data.kotNo);
+        setItems(fetchedItems);
 
-          const kotNumbersForTable = fetchedItems
-            .map(item => item.kotNo)
-            .filter((v, i, a): v is number => v !== undefined && a.indexOf(v) === i)
-            .sort((a, b) => a - b);
-          setCurrentKOTNos(kotNumbersForTable);
+        if (unbilledItemsRes.data.items.length > 0 && unbilledItemsRes.data.items[0].txnId) {
+          setCurrentTxnId(unbilledItemsRes.data.items[0].txnId);
         } else {
-          console.warn('Failed to fetch/refetch unbilled items:', response.message);
-          setItems([]);
-          setCurrentKOTNo(null);
-          setCurrentKOTNos([]);
           setCurrentTxnId(null);
         }
-      })
-      .catch(error => {
-        console.error('Error fetching/refetching unbilled items:', error);
+
+        const kotNumbersForTable = fetchedItems
+          .map(item => item.kotNo)
+          .filter((v, i, a): v is number => v !== undefined && a.indexOf(v) === i)
+          .sort((a, b) => a - b);
+        setCurrentKOTNos(kotNumbersForTable);
+      } else {
+        // No billed or unbilled items found
         setItems([]);
         setCurrentKOTNo(null);
         setCurrentKOTNos([]);
         setCurrentTxnId(null);
-      });
+      }
+    } catch (error) {
+      console.error('Error fetching/refetching items for table:', error);
+      setItems([]);
+      setCurrentKOTNo(null);
+      setCurrentKOTNos([]);
+      setCurrentTxnId(null);
+    }
   }, [setItems, setCurrentKOTNo, setCurrentKOTNos, setCurrentTxnId]);
   // KOT Preview formData state
   const [formData, setFormData] = useState({
@@ -935,9 +969,85 @@ const Order = () => {
   };
 
   const handlePrintBill = async () => {
-    if (!currentTxnId) {
-      toast.error('No active transaction found to print a bill. Please save a KOT first.');
-      // Fallback to old print behavior for previewing without saving.
+    if (items.length === 0) {
+      toast.error('No items to print a bill for.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // 1. Assemble payload
+      const selectedTableRecord: any = (Array.isArray(filteredTables) ? filteredTables : tableItems)
+        .find((t: any) => t && t.table_name && t.table_name === selectedTable)
+        || (Array.isArray(tableItems) ? tableItems.find((t: any) => t && t.table_name === selectedTable) : undefined);
+
+      const resolvedTableId = selectedTableRecord ? Number((selectedTableRecord as any).tableid || (selectedTableRecord as any).tablemanagementid) : null;
+      const resolvedOutletId = selectedTableRecord ? Number((selectedTableRecord as any).outletid) || (user?.outletid ? Number(user.outletid) : null) : null;
+      const userId = user?.id || null;
+      const hotelId = user?.hotelid || null;
+
+      const billPayload = {
+        TableID: resolvedTableId,
+        outletid: resolvedOutletId,
+        HotelID: hotelId,
+        UserId: userId,
+        GrossAmt: taxCalc.subtotal,
+        Discount: discount,
+        DiscPer: DiscPer,
+        DiscountType: DiscountType,
+        CGST: taxCalc.cgstAmt,
+        SGST: taxCalc.sgstAmt,
+        IGST: taxCalc.igstAmt,
+        CESS: taxCalc.cessAmt,
+        Amount: taxCalc.grandTotal - discount,
+        CustomerName: customerName,
+        MobileNo: mobileNumber,
+        details: items.map(i => ({
+          ItemID: i.id,
+          Qty: i.qty,
+          RuntimeRate: i.price,
+          isNCKOT: i.isNCKOT,
+          NCName: i.NCName,
+          NCPurpose: i.NCPurpose,
+          CGST: taxRates.cgst,
+          SGST: taxRates.sgst,
+          IGST: taxRates.igst,
+          CESS: taxRates.cess,
+        }))
+      };
+
+      // 2. Create or Update Bill
+      const apiEndpoint = currentTxnId ? `http://localhost:3001/api/TAxnTrnbill/${currentTxnId}` : 'http://localhost:3001/api/TAxnTrnbill';
+      const apiMethod = currentTxnId ? 'PUT' : 'POST';
+
+      const billSaveRes = await fetch(apiEndpoint, {
+        method: apiMethod,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(billPayload),
+      });
+      const billResponse = await billSaveRes.json();
+
+      if (!billResponse?.success) {
+        throw new Error(billResponse?.message || 'Failed to save bill.');
+      }
+
+      const savedTxnId = billResponse.data.TxnID;
+      setCurrentTxnId(savedTxnId); // Update currentTxnId
+
+      // 3. Call the print endpoint to mark as billed
+      const printResponse = await fetch(`http://localhost:3001/api/TAxnTrnbill/${savedTxnId}/print`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const printResult = await printResponse.json();
+
+      if (!printResult.success) {
+        throw new Error(printResult.message || 'Failed to mark bill as printed.');
+      }
+
+      toast.success('Bill saved and marked as printed!');
+
+      // 4. Print the bill preview
       const printWindow = window.open('', '_blank');
       if (printWindow) {
         const contentToPrint = document.getElementById('bill-preview');
@@ -948,55 +1058,22 @@ const Order = () => {
           printWindow.print();
         }
       }
-      return;
-    }
 
-    try {
-      setLoading(true);
-      const response = await fetch(`http://localhost:3001/api/TAxnTrnbill/${currentTxnId}/print`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        toast.success('Bill marked as printed successfully!');
-
-        // Proceed with printing the bill preview
-        const printWindow = window.open('', '_blank');
-        if (printWindow) {
-          const contentToPrint = document.getElementById('bill-preview');
-          if (contentToPrint) {
-            printWindow.document.write(contentToPrint.innerHTML);
-            printWindow.document.close();
-            printWindow.focus();
-            printWindow.print();
-          }
-        }
-
-        // Update table status to 'billed' (red, status=2)
-        if (selectedTable) {
-          setTableItems(prevTables =>
-            prevTables.map(table =>
-              table.table_name === selectedTable ? { ...table, status: 2 } : table
-            )
-          );
-        }
-
-        // Clear the order details and return to the table view
-        setItems([]);
-        setSelectedTable(null);
-        setShowOrderDetails(false);
-        setCurrentKOTNo(null);
-        setCurrentKOTNos([]);
-        setCurrentTxnId(null);
-      } else {
-        toast.error(`Failed to mark bill as printed: ${result.message}`);
+      // 5. Update table status to 'billed' (red, status=2)
+      if (selectedTable) {
+        setTableItems(prevTables =>
+          prevTables.map(table =>
+            table.table_name === selectedTable ? { ...table, status: 2 } : table
+          )
+        );
       }
-    } catch (error) {
+
+      // 6. Per request, DO NOT clear UI. Instead, update items to reflect their 'billed' state.
+      setItems(prevItems => prevItems.map(item => ({ ...item, isNew: false, isBilled: 1 })));
+
+    } catch (error: any) {
       console.error('Error printing bill:', error);
-      toast.error('An error occurred while printing the bill.');
+      toast.error(error.message || 'An error occurred while printing the bill.');
     } finally {
       setLoading(false);
     }
