@@ -91,6 +91,7 @@ const Order = () => {
   const [discountInputValue, setDiscountInputValue] = useState<number>(0);
   const [currentKOTNo, setCurrentKOTNo] = useState<number | null>(null);
   const [currentKOTNos, setCurrentKOTNos] = useState<number[]>([]);
+  const [currentTxnId, setCurrentTxnId] = useState<number | null>(null);
 
   // New state for Reverse Qty Mode authentication
   const [reverseQtyConfig, setReverseQtyConfig] = useState<'NoPassword' | 'PasswordRequired'>('PasswordRequired'); // Config for Reverse Qty Mode
@@ -145,6 +146,13 @@ const Order = () => {
           setCurrentKOTNo(response.data.kotNo);
           setItems(fetchedItems);
 
+          // Set the current transaction ID from the first item, if it exists
+          if (response.data.items.length > 0 && response.data.items[0].txnId) {
+            setCurrentTxnId(response.data.items[0].txnId);
+          } else {
+            setCurrentTxnId(null);
+          }
+
           const kotNumbersForTable = fetchedItems
             .map(item => item.kotNo)
             .filter((v, i, a): v is number => v !== undefined && a.indexOf(v) === i)
@@ -155,6 +163,7 @@ const Order = () => {
           setItems([]);
           setCurrentKOTNo(null);
           setCurrentKOTNos([]);
+          setCurrentTxnId(null);
         }
       })
       .catch(error => {
@@ -162,115 +171,116 @@ const Order = () => {
         setItems([]);
         setCurrentKOTNo(null);
         setCurrentKOTNos([]);
+        setCurrentTxnId(null);
       });
-  }, [setItems, setCurrentKOTNo, setCurrentKOTNos]);
-// KOT Preview formData state
-const [formData, setFormData] = useState({
-  customer_on_kot_dine_in: false,
-  customer_on_kot_pickup: false,
-  customer_on_kot_delivery: false,
-  customer_on_kot_quick_bill: false,
-  customer_kot_display_option: 'NAME_ONLY',
-  group_kot_items_by_category: false,
-  hide_table_name_quick_bill: false,
-  show_new_order_tag: true,
-  new_order_tag_label: 'New',
-  show_running_order_tag: true,
-  running_order_tag_label: 'Running',
-  dine_in_kot_no: 'DIN-',
-  pickup_kot_no: 'PUP-',
-  delivery_kot_no: 'DEL-',
-  quick_bill_kot_no: 'QBL-',
-  modifier_default_option: false,
-  print_kot_both_languages: false,
-  show_alternative_item: false,
-  show_captain_username: false,
-  show_covers_as_guest: false,
-  show_item_price: true,
-  show_kot_no_quick_bill: false,
-  show_kot_note: true,
-  show_online_order_otp: false,
-  show_order_id_quick_bill: false,
-  show_order_id_online_order: false,
-  show_order_no_quick_bill_section: false,
-  show_order_type_symbol: true,
-  show_store_name: true,
-  show_terminal_username: false,
-  show_username: false,
-  show_waiter: true,
-  bill_title_dine_in: true,
-  bill_title_pickup: true,
-  bill_title_delivery: true,
-  bill_title_quick_bill: true,
-  mask_order_id: false,
-  modifier_default_option_bill: false,
-  print_bill_both_languages: false,
-  show_alt_item_title_bill: false,
-  show_alt_name_bill: false,
-  show_bill_amount_words: false,
-  show_bill_no_bill: true,
-  show_bill_number_prefix_bill: true,
-  show_bill_print_count: false,
-  show_brand_name_bill: true,
-  show_captain_bill: false,
-  show_covers_bill: true,
-  show_custom_qr_codes_bill: false,
-  show_customer_gst_bill: false,
-  show_customer_bill: true,
-  show_customer_paid_amount: true,
-  show_date_bill: true,
-  show_default_payment: true,
-  show_discount_reason_bill: false,
-  show_due_amount_bill: true,
-  show_ebill_invoice_qrcode: false,
-  show_item_hsn_code_bill: false,
-  show_item_level_charges_separately: false,
-  show_item_note_bill: true,
-  show_items_sequence_bill: true,
-  show_kot_number_bill: false,
-  show_logo_bill: true,
-  show_order_id_bill: false,
-  show_order_no_bill: true,
-  show_order_note_bill: true,
-  order_type_dine_in: true,
-  order_type_pickup: true,
-  order_type_delivery: true,
-  order_type_quick_bill: true,
-  show_outlet_name_bill: true,
-  payment_mode_dine_in: true,
-  payment_mode_pickup: true,
-  payment_mode_delivery: true,
-  payment_mode_quick_bill: true,
-  table_name_dine_in: true,
-  table_name_pickup: false,
-  table_name_delivery: false,
-  table_name_quick_bill: false,
-  show_tax_charge_bill: true,
-  show_username_bill: false,
-  show_waiter_bill: true,
-  show_zatca_invoice_qr: false,
-  show_customer_address_pickup_bill: false,
-  show_order_placed_time: true,
-  hide_item_quantity_column: false,
-  hide_item_rate_column: false,
-  hide_item_total_column: false,
-  hide_total_without_tax: false,
+  }, [setItems, setCurrentKOTNo, setCurrentKOTNos, setCurrentTxnId]);
+  // KOT Preview formData state
+  const [formData, setFormData] = useState({
+    customer_on_kot_dine_in: false,
+    customer_on_kot_pickup: false,
+    customer_on_kot_delivery: false,
+    customer_on_kot_quick_bill: false,
+    customer_kot_display_option: 'NAME_ONLY',
+    group_kot_items_by_category: false,
+    hide_table_name_quick_bill: false,
+    show_new_order_tag: true,
+    new_order_tag_label: 'New',
+    show_running_order_tag: true,
+    running_order_tag_label: 'Running',
+    dine_in_kot_no: 'DIN-',
+    pickup_kot_no: 'PUP-',
+    delivery_kot_no: 'DEL-',
+    quick_bill_kot_no: 'QBL-',
+    modifier_default_option: false,
+    print_kot_both_languages: false,
+    show_alternative_item: false,
+    show_captain_username: false,
+    show_covers_as_guest: false,
+    show_item_price: true,
+    show_kot_no_quick_bill: false,
+    show_kot_note: true,
+    show_online_order_otp: false,
+    show_order_id_quick_bill: false,
+    show_order_id_online_order: false,
+    show_order_no_quick_bill_section: false,
+    show_order_type_symbol: true,
+    show_store_name: true,
+    show_terminal_username: false,
+    show_username: false,
+    show_waiter: true,
+    bill_title_dine_in: true,
+    bill_title_pickup: true,
+    bill_title_delivery: true,
+    bill_title_quick_bill: true,
+    mask_order_id: false,
+    modifier_default_option_bill: false,
+    print_bill_both_languages: false,
+    show_alt_item_title_bill: false,
+    show_alt_name_bill: false,
+    show_bill_amount_words: false,
+    show_bill_no_bill: true,
+    show_bill_number_prefix_bill: true,
+    show_bill_print_count: false,
+    show_brand_name_bill: true,
+    show_captain_bill: false,
+    show_covers_bill: true,
+    show_custom_qr_codes_bill: false,
+    show_customer_gst_bill: false,
+    show_customer_bill: true,
+    show_customer_paid_amount: true,
+    show_date_bill: true,
+    show_default_payment: true,
+    show_discount_reason_bill: false,
+    show_due_amount_bill: true,
+    show_ebill_invoice_qrcode: false,
+    show_item_hsn_code_bill: false,
+    show_item_level_charges_separately: false,
+    show_item_note_bill: true,
+    show_items_sequence_bill: true,
+    show_kot_number_bill: false,
+    show_logo_bill: true,
+    show_order_id_bill: false,
+    show_order_no_bill: true,
+    show_order_note_bill: true,
+    order_type_dine_in: true,
+    order_type_pickup: true,
+    order_type_delivery: true,
+    order_type_quick_bill: true,
+    show_outlet_name_bill: true,
+    payment_mode_dine_in: true,
+    payment_mode_pickup: true,
+    payment_mode_delivery: true,
+    payment_mode_quick_bill: true,
+    table_name_dine_in: true,
+    table_name_pickup: false,
+    table_name_delivery: false,
+    table_name_quick_bill: false,
+    show_tax_charge_bill: true,
+    show_username_bill: false,
+    show_waiter_bill: true,
+    show_zatca_invoice_qr: false,
+    show_customer_address_pickup_bill: false,
+    show_order_placed_time: true,
+    hide_item_quantity_column: false,
+    hide_item_rate_column: false,
+    hide_item_total_column: false,
+    hide_total_without_tax: false,
 
-});
+  });
 
-const getTableButtonClass = (table: TableItem, isSelected: boolean) => {
-  if (isSelected) return 'btn-success';
-  // Use separate status field for coloring: 0=default,1=green,2=red
-  switch (table.status) {
-    case 1: return 'btn-success'; // KOT saved/occupied (green)
-    case 0: return 'btn-outline-success'; // Default background (white/grey)
-    case 2: return 'btn-danger'; // red for billed
-    default: return 'btn-outline-success';
-  }
-};
+  const getTableButtonClass = (table: TableItem, isSelected: boolean) => {
+    if (isSelected) return 'btn-success';
+    // Use separate status field for coloring: 0=default,1=green,2=red
+    switch (table.status) {
+      case 1: return 'btn-success'; // KOT saved/occupied (green)
+      case 0: return 'btn-outline-success'; // Default background (white/grey)
+      case 2: return 'btn-danger'; // red for billed
+      default: return 'btn-outline-success';
+    }
+  };
 
 
-const fetchTableManagement = async () => {
+  const fetchTableManagement = async () => {
     setLoading(true);
     try {
       const res = await fetch('http://localhost:3001/api/tablemanagement', {
@@ -626,7 +636,7 @@ const fetchTableManagement = async () => {
     }
   }, [searchTable, filteredTables]);
 
-const handleTableClick = (seat: string) => {
+  const handleTableClick = (seat: string) => {
     console.log('Button clicked for table:', seat);
     // Force reset selectedTable to null first to allow re-selection of the same table
     setSelectedTable(null);
@@ -750,7 +760,7 @@ const handleTableClick = (seat: string) => {
             // Decrease quantity by 1
             newItems[itemIndex] = { ...currentItem, qty: currentItem.qty - 1 };
             toast.success(`Quantity decreased for "${item.name}" (${currentItem.qty - 1} remaining)`);
-            
+
             // Add to reverse quantity items for KOT printing
             setReverseQtyItems(prev => {
               const existingIndex = prev.findIndex(i => i.txnDetailId === item.txnDetailId);
@@ -768,7 +778,7 @@ const handleTableClick = (seat: string) => {
             // Remove item if quantity is 1 (will become 0)
             newItems.splice(itemIndex, 1);
             toast.success(`"${item.name}" removed from order`);
-            
+
             // Add to reverse quantity items for KOT printing
             setReverseQtyItems(prev => {
               const existingIndex = prev.findIndex(i => i.txnDetailId === item.txnDetailId);
@@ -900,8 +910,8 @@ const handleTableClick = (seat: string) => {
   const getKOTLabel = () => {
     switch (activeTab) {
       case 'Dine-in': {
-        const kotNumbers = currentKOTNos.length > 0 
-          ? [...currentKOTNos].sort((a, b) => a - b).join(', ') 
+        const kotNumbers = currentKOTNos.length > 0
+          ? [...currentKOTNos].sort((a, b) => a - b).join(', ')
           : currentKOTNo ? currentKOTNo.toString() : '';
         return `KOT ${kotNumbers} ${selectedTable ? ` - Table ${selectedTable}` : ''}`;
       }
@@ -924,47 +934,71 @@ const handleTableClick = (seat: string) => {
     setShowOrderDetails(false);
   };
 
-  const handlePrintBill = () => {
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      const contentToPrint = document.getElementById('bill-preview');
-      if (contentToPrint) {
-        printWindow.document.write(`
-          <!DOCTYPE html>
-          <html>
-            <head>
-              <title>Bill Print</title>
-              <style>
-                body { font-family: Arial, sans-serif; margin: 20px; width: 300px; }
-                .w-50 { width: 100% !important; }
-                .mx-auto { margin-left: auto; margin-right: auto; }
-                .card { border: 1px solid #ccc; }
-                .shadow-sm { box-shadow: 0 .125rem .25rem rgba(0,0,0,.075)!important; }
-                .h-100 { height: 100% !important; }
-                .card-body { padding: 1rem; }
-                .card-title { margin-bottom: .5rem; }
-                .h5 { font-size: 1.25rem; }
-                .fw-bold { font-weight: 700 !important; }
-                .mb-4 { margin-bottom: 1.5rem !important; }
-                .text-center { text-align: center !important; }
-                .mb-3 { margin-bottom: 1rem !important; }
-                .mb-0 { margin-bottom: 0 !important; }
-                .d-flex { display: flex !important; }
-                .justify-content-between { justify-content: space-between !important; }
-                .table { width: 100%; margin-bottom: 1rem; color: #212529; vertical-align: top; border-color: #dee2e6; }
-                .table-bordered { border: 1px solid #dee2e6; }
-                th, td { padding: .5rem; }
-                .text-end { text-align: right !important; }
-                .mt-2 { margin-top: .5rem !important; }
-              </style>
-            </head>
-            <body>${contentToPrint.innerHTML}</body>
-          </html>
-        `);
-        printWindow.document.close();
-        printWindow.focus();
-        printWindow.print();
+  const handlePrintBill = async () => {
+    if (!currentTxnId) {
+      toast.error('No active transaction found to print a bill. Please save a KOT first.');
+      // Fallback to old print behavior for previewing without saving.
+      const printWindow = window.open('', '_blank');
+      if (printWindow) {
+        const contentToPrint = document.getElementById('bill-preview');
+        if (contentToPrint) {
+          printWindow.document.write(contentToPrint.innerHTML);
+          printWindow.document.close();
+          printWindow.focus();
+          printWindow.print();
+        }
       }
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const response = await fetch(`http://localhost:3001/api/TAxnTrnbill/${currentTxnId}/print`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast.success('Bill marked as printed successfully!');
+
+        // Proceed with printing the bill preview
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+          const contentToPrint = document.getElementById('bill-preview');
+          if (contentToPrint) {
+            printWindow.document.write(contentToPrint.innerHTML);
+            printWindow.document.close();
+            printWindow.focus();
+            printWindow.print();
+          }
+        }
+
+        // Update table status to 'billed' (red, status=2)
+        if (selectedTable) {
+          setTableItems(prevTables =>
+            prevTables.map(table =>
+              table.table_name === selectedTable ? { ...table, status: 2 } : table
+            )
+          );
+        }
+
+        // Clear the order details and return to the table view
+        setItems([]);
+        setSelectedTable(null);
+        setShowOrderDetails(false);
+        setCurrentKOTNo(null);
+        setCurrentKOTNos([]);
+        setCurrentTxnId(null);
+      } else {
+        toast.error(`Failed to mark bill as printed: ${result.message}`);
+      }
+    } catch (error) {
+      console.error('Error printing bill:', error);
+      toast.error('An error occurred while printing the bill.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -1220,7 +1254,7 @@ const handleTableClick = (seat: string) => {
                 if (settings && settings.ReverseQtyMode !== undefined) {
                   const currentConfig = settings.ReverseQtyMode === 1 ? 'PasswordRequired' : 'NoPassword';
                   setReverseQtyConfig(currentConfig);
-                  
+
                   // Handle F8 based on latest backend value
                   if (currentConfig === 'PasswordRequired') {
                     setShowAuthModal(true);
@@ -1321,38 +1355,38 @@ const handleTableClick = (seat: string) => {
     setShowTaxModal(false);
   };
 
-const handleSaveNCKOT = () => {
-  // Apply NCKOT to all items in the order
-  setItems(prevItems =>
-    prevItems.map(item => ({ ...item, isNCKOT: 1, NCName: ncName, NCPurpose: ncPurpose }))
-  );
-  setNcName('');
-  setNcPurpose('');
-  setShowNCKOTModal(false);
-};
+  const handleSaveNCKOT = () => {
+    // Apply NCKOT to all items in the order
+    setItems(prevItems =>
+      prevItems.map(item => ({ ...item, isNCKOT: 1, NCName: ncName, NCPurpose: ncPurpose }))
+    );
+    setNcName('');
+    setNcPurpose('');
+    setShowNCKOTModal(false);
+  };
 
-const handleCloseAuthModal = () => {
-  setShowAuthModal(false);
-  setAuthPassword('');
-  setAuthError('');
-};
+  const handleCloseAuthModal = () => {
+    setShowAuthModal(false);
+    setAuthPassword('');
+    setAuthError('');
+  };
 
-const handleAuth = () => {
-  // NOTE: This uses a hardcoded password. For production, this should be validated against a user's credentials.
-  if (authPassword === 'admin123') {
-    setReverseQtyMode(prev => {
-      const newMode = !prev;
-      // Clear reverse quantity items when turning off reverse mode
-      if (!newMode) {
-        setReverseQtyItems([]);
-      }
-      return newMode;
-    });
-    handleCloseAuthModal();
-  } else {
-    setAuthError('Invalid Password');
-  }
-};
+  const handleAuth = () => {
+    // NOTE: This uses a hardcoded password. For production, this should be validated against a user's credentials.
+    if (authPassword === 'admin123') {
+      setReverseQtyMode(prev => {
+        const newMode = !prev;
+        // Clear reverse quantity items when turning off reverse mode
+        if (!newMode) {
+          setReverseQtyItems([]);
+        }
+        return newMode;
+      });
+      handleCloseAuthModal();
+    } else {
+      setAuthError('Invalid Password');
+    }
+  };
 
   const handlePrintKOT = () => {
     const printWindow = window.open('', '_blank');
@@ -1541,10 +1575,10 @@ const handleAuth = () => {
                 if (reverseQtyMode && reverseQtyItems.length > 0) {
                   return (
                     <>
-                      <div style={{ 
-                        textAlign: 'center', 
-                        fontWeight: 'bold', 
-                        color: '#dc3545', 
+                      <div style={{
+                        textAlign: 'center',
+                        fontWeight: 'bold',
+                        color: '#dc3545',
                         marginBottom: '10px',
                         padding: '5px',
                         backgroundColor: '#f8d7da',
@@ -1670,7 +1704,7 @@ const handleAuth = () => {
 
               {/* Bilingual Support */}
               {formData.print_kot_both_languages && (
-               <>
+                <>
                   <div style={{ borderBottom: '1px dashed #ccc', margin: '10px 0' }}></div>
                   <div className="text-center">
                     <small className="fw-bold">रसोई आदेश टिकट</small>
@@ -2030,16 +2064,16 @@ const handleAuth = () => {
                                 assignedTables.map((table, tableIndex) => (
                                   table.table_name ? (
                                     <div key={tableIndex} className="p-1">
-                                <button
-                                  className={`btn ${getTableButtonClass(table, selectedTable === table.table_name)}`}
-                                  style={{ width: '90px', height: '80px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
-                                  onClick={() => {
-                                    console.log('Button clicked for table:', table.table_name, 'isActive:', table.isActive);
-                                    handleTableClick(table.table_name);
-                                  }}
-                                >
-                                  {table.table_name} {table.isActive ? '' : ''}
-                                </button>
+                                      <button
+                                        className={`btn ${getTableButtonClass(table, selectedTable === table.table_name)}`}
+                                        style={{ width: '90px', height: '80px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+                                        onClick={() => {
+                                          console.log('Button clicked for table:', table.table_name, 'isActive:', table.isActive);
+                                          handleTableClick(table.table_name);
+                                        }}
+                                      >
+                                        {table.table_name} {table.isActive ? '' : ''}
+                                      </button>
                                     </div>
                                   ) : null
                                 ))
@@ -2139,7 +2173,7 @@ const handleAuth = () => {
                   refreshItemsForTable={refreshItemsForTable}
                   reverseQtyMode={reverseQtyMode}
                 />
-               
+
               </div>
             )}
           </>
@@ -2210,8 +2244,8 @@ const handleAuth = () => {
 
                   const itemsToDisplay = isGroupedView
                     ? Object.values(
-                     sortedItems.reduce((acc, item, index) => { // <-- 'index' is added here
-  const key = item.isNew ? `new-${item.id}-${index}` : `${item.id}-${item.price}`;
+                      sortedItems.reduce((acc, item, index) => { // <-- 'index' is added here
+                        const key = item.isNew ? `new-${item.id}-${index}` : `${item.id}-${item.price}`;
                         if (!acc[key]) {
                           acc[key] = { ...item, displayQty: 0, canEdit: false, kotNo: item.kotNo };
                         }
@@ -2581,7 +2615,7 @@ const handleAuth = () => {
                                     if (settings && settings.ReverseQtyMode !== undefined) {
                                       const currentConfig = settings.ReverseQtyMode === 1 ? 'PasswordRequired' : 'NoPassword';
                                       setReverseQtyConfig(currentConfig);
-                                      
+
                                       // Handle button click based on latest backend value
                                       if (currentConfig === 'PasswordRequired') {
                                         setShowAuthModal(true);
@@ -2625,8 +2659,8 @@ const handleAuth = () => {
                             fill="currentColor"
                             viewBox="0 0 16 16"
                           >
-                            <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/>
-                            <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/>
+                            <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z" />
+                            <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z" />
                           </svg>
                         </Button>
                       </div>
@@ -2849,42 +2883,42 @@ const handleAuth = () => {
           </Modal>
 
 
-<Modal show={showNCKOTModal} onHide={() => setShowNCKOTModal(false)} centered>
-  <Modal.Header closeButton>
-    <Modal.Title>NCKOT</Modal.Title>
-  </Modal.Header>
-  <Modal.Body>
-    <div className="mb-3">
-      <label>Name</label>
-      <input type="text" className="form-control" value={ncName} onChange={(e) => setNcName(e.target.value)} />
-    </div>
-    <div className="mb-3">
-      <label>Purpose</label>
-      <input type="text" className="form-control" value={ncPurpose} onChange={(e) => setNcPurpose(e.target.value)} />
-    </div>
-  </Modal.Body>
-  <Modal.Footer>
-    <Button variant="secondary" onClick={() => setShowNCKOTModal(false)}>Cancel</Button>
-    <Button variant="primary" onClick={handleSaveNCKOT}>Save</Button>
-  </Modal.Footer>
-</Modal>
+          <Modal show={showNCKOTModal} onHide={() => setShowNCKOTModal(false)} centered>
+            <Modal.Header closeButton>
+              <Modal.Title>NCKOT</Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+              <div className="mb-3">
+                <label>Name</label>
+                <input type="text" className="form-control" value={ncName} onChange={(e) => setNcName(e.target.value)} />
+              </div>
+              <div className="mb-3">
+                <label>Purpose</label>
+                <input type="text" className="form-control" value={ncPurpose} onChange={(e) => setNcPurpose(e.target.value)} />
+              </div>
+            </Modal.Body>
+            <Modal.Footer>
+              <Button variant="secondary" onClick={() => setShowNCKOTModal(false)}>Cancel</Button>
+              <Button variant="primary" onClick={handleSaveNCKOT}>Save</Button>
+            </Modal.Footer>
+          </Modal>
 
-<Modal show={showAuthModal} onHide={handleCloseAuthModal} centered>
-  <Modal.Header closeButton>
-    <Modal.Title>Reverse Qty Mode</Modal.Title>
-  </Modal.Header>
-  <Modal.Body>
-    <div className="mb-3">
-      <label>Password</label>
-      <input type="password" className="form-control" value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} onKeyPress={(e) => { if (e.key === 'Enter') handleAuth(); }} autoFocus/>
-    </div>
-    {authError && <div className="text-danger">{authError}</div>}
-  </Modal.Body>
-  <Modal.Footer>
-    <Button variant="secondary" onClick={handleCloseAuthModal}>Cancel</Button>
-    <Button variant="primary" onClick={handleAuth}>Submit</Button>
-  </Modal.Footer>
-</Modal>
+          <Modal show={showAuthModal} onHide={handleCloseAuthModal} centered>
+            <Modal.Header closeButton>
+              <Modal.Title>Reverse Qty Mode</Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+              <div className="mb-3">
+                <label>Password</label>
+                <input type="password" className="form-control" value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} onKeyPress={(e) => { if (e.key === 'Enter') handleAuth(); }} autoFocus />
+              </div>
+              {authError && <div className="text-danger">{authError}</div>}
+            </Modal.Body>
+            <Modal.Footer>
+              <Button variant="secondary" onClick={handleCloseAuthModal}>Cancel</Button>
+              <Button variant="primary" onClick={handleAuth}>Submit</Button>
+            </Modal.Footer>
+          </Modal>
         </div>
       </div>
     </div>

@@ -25,7 +25,10 @@ router.put('/:id/items/billed', controller.updateBillItemsIsBilled)
 
 
 
+
+
 // Route for next KOT number
+
 
 
 
@@ -42,6 +45,7 @@ router.post('/reverse-qty', controller.handleF8KeyPress);
 
 // Simple reverse quantity for individual items
 router.post('/reverse-quantity', controller.reverseQuantity);
+
 
 // Print bill and mark as billed
 router.put('/:id/print', controller.printBill);

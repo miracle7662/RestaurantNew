@@ -601,6 +601,13 @@ exports.updateBillItemsIsBilled = async (req, res) => {
     const updateStmt = db.prepare('UPDATE TAxnTrnbilldetails SET isBilled = 1 WHERE TxnID = ?')
     updateStmt.run(Number(id))
 
+    // Also update the bill header to mark it as billed
+    db.prepare(`
+      UPDATE TAxnTrnbill
+      SET isBilled = 1, BilledDate = CURRENT_TIMESTAMP
+      WHERE TxnID = ?
+    `).run(Number(id))
+
     const header = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id))
     const items = db.prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? ORDER BY TXnDetailID').all(Number(id))
 
@@ -835,6 +842,7 @@ exports.getUnbilledItemsByTable = async (req, res) => {
     // Fetch all unbilled items for the table (not aggregated)
     const rows = db.prepare(`
       SELECT
+        b.TxnID,
         d.TXnDetailID,
         d.ItemID,
         COALESCE(m.item_name, 'Unknown Item') AS ItemName,
@@ -860,6 +868,7 @@ exports.getUnbilledItemsByTable = async (req, res) => {
 
     // Map to add isNew flag
     const items = rows.map(r => ({
+      txnId: r.TxnID,
       txnDetailId: r.TXnDetailID,
       itemId: r.ItemID,
       itemName: r.ItemName,
@@ -1164,4 +1173,3 @@ exports.printBill = async (req, res) => {
 }
 
 module.exports = exports
-
