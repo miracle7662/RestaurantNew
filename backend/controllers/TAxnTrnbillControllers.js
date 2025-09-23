@@ -139,46 +139,41 @@ exports.createBill = async (req, res) => {
     console.log('NCName:', NCName);
     console.log('NCPurpose:', NCPurpose);
 
-    // Compute header totals from details if missing/zero
-    const isArray = Array.isArray(details) && details.length > 0
-    let computedGross = 0, computedCgstAmt = 0, computedSgstAmt = 0, computedIgstAmt = 0, computedCessAmt = 0
+    // Always compute totals from details if provided, to ensure accuracy
+    const isArray = Array.isArray(details) && details.length > 0;
+    let computedGross = 0, computedCgstAmt = 0, computedSgstAmt = 0, computedIgstAmt = 0, computedCessAmt = 0;
     if (isArray) {
       for (const d of details) {
-        const qty = Number(d.Qty) || 0
-        const rate = Number(d.RuntimeRate) || 0
-        const lineSubtotal = qty * rate
-        const cgstPer = Number(d.CGST) || 0
-        const sgstPer = Number(d.SGST) || 0
-        const igstPer = Number(d.IGST) || 0
-        const cessPer = Number(d.CESS) || 0
-        const cgstAmt = Number(d.CGST_AMOUNT) || (lineSubtotal * cgstPer) / 100
-        const sgstAmt = Number(d.SGST_AMOUNT) || (lineSubtotal * sgstPer) / 100
-        const igstAmt = Number(d.IGST_AMOUNT) || (lineSubtotal * igstPer) / 100
-        const cessAmt = Number(d.CESS_AMOUNT) || (lineSubtotal * cessPer) / 100
-        computedGross += lineSubtotal
-        computedCgstAmt += cgstAmt
-        computedSgstAmt += sgstAmt
-        computedIgstAmt += igstAmt
-        computedCessAmt += cessAmt
+        const qty = Number(d.Qty) || 0;
+        const rate = Number(d.RuntimeRate) || 0;
+        const lineSubtotal = qty * rate;
+        const cgstPer = Number(d.CGST) || 0;
+        const sgstPer = Number(d.SGST) || 0;
+        const igstPer = Number(d.IGST) || 0;
+        const cessPer = Number(d.CESS) || 0;
+        const cgstAmt = Number(d.CGST_AMOUNT) || (lineSubtotal * cgstPer) / 100;
+        const sgstAmt = Number(d.SGST_AMOUNT) || (lineSubtotal * sgstPer) / 100;
+        const igstAmt = Number(d.IGST_AMOUNT) || (lineSubtotal * igstPer) / 100;
+        const cessAmt = Number(d.CESS_AMOUNT) || (lineSubtotal * cessPer) / 100;
+        computedGross += lineSubtotal;
+        computedCgstAmt += cgstAmt;
+        computedSgstAmt += sgstAmt;
+        computedIgstAmt += igstAmt;
+        computedCessAmt += cessAmt;
       }
     }
 
-    const headerGross = Number(GrossAmt) || 0
-    const headerCgst = Number(CGST) || 0
-    const headerSgst = Number(SGST) || 0
-    const headerIgst = Number(IGST) || 0
-    const headerCess = Number(CESS) || 0
-    const headerRound = Number(RoundOFF) || 0
-    const headerAmount = Number(Amount) || 0
+    // Prioritize backend calculation if details are provided
+    const finalGross = isArray ? computedGross : (Number(GrossAmt) || 0);
+    const finalCgst = isArray ? computedCgstAmt : (Number(CGST) || 0);
+    const finalSgst = isArray ? computedSgstAmt : (Number(SGST) || 0);
+    const finalIgst = isArray ? computedIgstAmt : (Number(IGST) || 0);
+    const finalCess = isArray ? computedCessAmt : (Number(CESS) || 0);
+    const finalDiscount = Number(Discount) || 0;
+    const finalRoundOff = Number(RoundOFF) || 0;
 
-    const finalGross = (isArray && headerGross === 0) ? computedGross : headerGross
-    const finalCgst = (isArray && headerCgst === 0) ? computedCgstAmt : headerCgst
-    const finalSgst = (isArray && headerSgst === 0) ? computedSgstAmt : headerSgst
-    const finalIgst = (isArray && headerIgst === 0) ? computedIgstAmt : headerIgst
-    const finalCess = (isArray && headerCess === 0) ? computedCessAmt : headerCess
-    const finalAmount = (isArray && headerAmount === 0)
-      ? (finalGross + finalCgst + finalSgst + finalIgst + finalCess + headerRound)
-      : headerAmount
+    // Calculate final amount based on computed/provided values
+    const finalAmount = finalGross - finalDiscount + finalCgst + finalSgst + finalIgst + finalCess + finalRoundOff;
 
     const trx = db.transaction(() => {
       const stmt = db.prepare(`
@@ -201,15 +196,15 @@ exports.createBill = async (req, res) => {
       toBool(AutoKOT),
       toBool(ManualKOT),
       TxnDatetime || null,
-      Number(finalGross) || 0,
+      finalGross,
       toBool(RevKOT),
-      Number(Discount) || 0,
-      Number(finalCgst) || 0,
-      Number(finalSgst) || 0,
-      Number(finalIgst) || 0,
-      Number(finalCess) || 0,
-      Number(headerRound) || 0,
-      Number(finalAmount) || 0,
+      finalDiscount,
+      finalCgst,
+      finalSgst,
+      finalIgst,
+      finalCess,
+      finalRoundOff,
+      finalAmount,
       toBool(isHomeDelivery),
       DriverID ?? null,
       CustomerName || null,
@@ -341,46 +336,41 @@ exports.updateBill = async (req, res) => {
       details = []
     } = req.body
 
-    // Compute header totals from details if missing/zero
-    const isArray = Array.isArray(details) && details.length > 0
-    let computedGross = 0, computedCgstAmt = 0, computedSgstAmt = 0, computedIgstAmt = 0, computedCessAmt = 0
+    // Always compute totals from details if provided, to ensure accuracy
+    const isArray = Array.isArray(details) && details.length > 0;
+    let computedGross = 0, computedCgstAmt = 0, computedSgstAmt = 0, computedIgstAmt = 0, computedCessAmt = 0;
     if (isArray) {
       for (const d of details) {
-        const qty = Number(d.Qty) || 0
-        const rate = Number(d.RuntimeRate) || 0
-        const lineSubtotal = qty * rate
-        const cgstPer = Number(d.CGST) || 0
-        const sgstPer = Number(d.SGST) || 0
-        const igstPer = Number(d.IGST) || 0
-        const cessPer = Number(d.CESS) || 0
-        const cgstAmt = Number(d.CGST_AMOUNT) || (lineSubtotal * cgstPer) / 100
-        const sgstAmt = Number(d.SGST_AMOUNT) || (lineSubtotal * sgstPer) / 100
-        const igstAmt = Number(d.IGST_AMOUNT) || (lineSubtotal * igstPer) / 100
-        const cessAmt = Number(d.CESS_AMOUNT) || (lineSubtotal * cessPer) / 100
-        computedGross += lineSubtotal
-        computedCgstAmt += cgstAmt
-        computedSgstAmt += sgstAmt
-        computedIgstAmt += igstAmt
-        computedCessAmt += cessAmt
+        const qty = Number(d.Qty) || 0;
+        const rate = Number(d.RuntimeRate) || 0;
+        const lineSubtotal = qty * rate;
+        const cgstPer = Number(d.CGST) || 0;
+        const sgstPer = Number(d.SGST) || 0;
+        const igstPer = Number(d.IGST) || 0;
+        const cessPer = Number(d.CESS) || 0;
+        const cgstAmt = Number(d.CGST_AMOUNT) || (lineSubtotal * cgstPer) / 100;
+        const sgstAmt = Number(d.SGST_AMOUNT) || (lineSubtotal * sgstPer) / 100;
+        const igstAmt = Number(d.IGST_AMOUNT) || (lineSubtotal * igstPer) / 100;
+        const cessAmt = Number(d.CESS_AMOUNT) || (lineSubtotal * cessPer) / 100;
+        computedGross += lineSubtotal;
+        computedCgstAmt += cgstAmt;
+        computedSgstAmt += sgstAmt;
+        computedIgstAmt += igstAmt;
+        computedCessAmt += cessAmt;
       }
     }
 
-    const headerGross = Number(GrossAmt) || 0
-    const headerCgst = Number(CGST) || 0
-    const headerSgst = Number(SGST) || 0
-    const headerIgst = Number(IGST) || 0
-    const headerCess = Number(CESS) || 0
-    const headerRound = Number(RoundOFF) || 0
-    const headerAmount = Number(Amount) || 0
+    // Prioritize backend calculation if details are provided
+    const finalGross = isArray ? computedGross : (Number(GrossAmt) || 0);
+    const finalCgst = isArray ? computedCgstAmt : (Number(CGST) || 0);
+    const finalSgst = isArray ? computedSgstAmt : (Number(SGST) || 0);
+    const finalIgst = isArray ? computedIgstAmt : (Number(IGST) || 0);
+    const finalCess = isArray ? computedCessAmt : (Number(CESS) || 0);
+    const finalDiscount = Number(Discount) || 0;
+    const finalRoundOff = Number(RoundOFF) || 0;
 
-    const finalGross = (isArray && headerGross === 0) ? computedGross : headerGross
-    const finalCgst = (isArray && headerCgst === 0) ? computedCgstAmt : headerCgst
-    const finalSgst = (isArray && headerSgst === 0) ? computedSgstAmt : headerSgst
-    const finalIgst = (isArray && headerIgst === 0) ? computedIgstAmt : headerIgst
-    const finalCess = (isArray && headerCess === 0) ? computedCessAmt : headerCess
-    const finalAmount = (isArray && headerAmount === 0)
-      ? (finalGross + finalCgst + finalSgst + finalIgst + finalCess + headerRound)
-      : headerAmount
+    // Calculate final amount based on computed/provided values
+    const finalAmount = finalGross - finalDiscount + finalCgst + finalSgst + finalIgst + finalCess + finalRoundOff;
 
     const txn = db.transaction(() => {
       const u = db.prepare(`
@@ -403,15 +393,15 @@ exports.updateBill = async (req, res) => {
         toBool(AutoKOT),
         toBool(ManualKOT),
         TxnDatetime || null,
-        Number(finalGross) || 0,
+        finalGross,
         toBool(RevKOT),
-        Number(Discount) || 0,
-        Number(finalCgst) || 0,
-        Number(finalSgst) || 0,
-        Number(finalIgst) || 0,
-        Number(finalCess) || 0,
-        Number(headerRound) || 0,
-        Number(finalAmount) || 0,
+        finalDiscount,
+        finalCgst,
+        finalSgst,
+        finalIgst,
+        finalCess,
+        finalRoundOff,
+        finalAmount,
         toBool(isHomeDelivery),
         DriverID ?? null,
         CustomerName || null,
@@ -681,43 +671,71 @@ exports.createKOT = async (req, res) => {
     console.log("Received Discount Data for KOT:", { DiscPer, Discount, DiscountType });
 
     if (!TableID) {
-      return res.status(400).json({ success: false, message: 'TableID is required' });
+      return res.status(400).json({ success: false, message: "TableID is required" });
     }
     if (!Array.isArray(details) || details.length === 0) {
-      return res.status(400).json({ success: false, message: 'details array is required' });
+      return res.status(400).json({ success: false, message: "details array is required" });
     }
 
     const trx = db.transaction(() => {
-      console.log('Creating a new KOT.');
-      const maxKOTResult = db.prepare('SELECT MAX(KOTNo) as maxKOT FROM TAxnTrnbill').get();
+      let txnId;
+      // 1. Find or create the bill header for the table
+      const existingBill = db.prepare(`
+        SELECT TxnID, DiscPer, Discount, DiscountType FROM TAxnTrnbill 
+        WHERE TableID = ? AND isBilled = 0 AND isCancelled = 0
+      `).get(TableID);
+
+      let finalDiscPer = Number(DiscPer) || 0;
+      let finalDiscount = Number(Discount) || 0;
+      let finalDiscountType = Number(DiscountType) || 0;
+
+      if (existingBill) {
+        txnId = existingBill.TxnID;
+        console.log(`Using existing unbilled transaction. TxnID: ${txnId} for TableID: ${TableID}`);
+        
+        // If new discount is provided with KOT, update the main bill. Otherwise, use existing discount.
+        if (Number(DiscPer) > 0 || Number(Discount) > 0) {
+            db.prepare(`
+                UPDATE TAxnTrnbill 
+                SET DiscPer = ?, Discount = ?, DiscountType = ?
+                WHERE TxnID = ?
+            `).run(finalDiscPer, finalDiscount, finalDiscountType, txnId);
+        } else {
+            finalDiscPer = existingBill.DiscPer;
+            finalDiscount = existingBill.Discount;
+            finalDiscountType = existingBill.DiscountType;
+        }
+      } else {
+        console.log(`No existing bill for table ${TableID}. Creating a new one.`);
+        const isHeaderNCKOT = details.some(item => toBool(item.isNCKOT));
+        const insertHeaderStmt = db.prepare(`
+          INSERT INTO TAxnTrnbill (
+            outletid, TableID, UserId, HotelID, TxnDatetime,
+            isBilled, isCancelled, isSetteled, status, AutoKOT,
+            NCName, NCPurpose, DiscPer, Discount, DiscountType, isNCKOT
+          ) VALUES (?, ?, ?, ?, datetime('now'), 0, 0, 0, 1, 1, ?, ?, ?, ?, ?, ?)
+        `);
+        const result = insertHeaderStmt.run(outletid, TableID, UserId, HotelID, NCName || null, NCPurpose || null, finalDiscPer, finalDiscount, finalDiscountType, toBool(isHeaderNCKOT));
+        txnId = result.lastInsertRowid;
+        db.prepare('UPDATE msttablemanagement SET status = 1 WHERE tableid = ?').run(TableID);
+        console.log(`Created new bill. TxnID: ${txnId}. Updated table ${TableID} status.`);
+      }
+
+      // 2. Generate a new KOT number for this batch of items from the details table
+      const maxKOTResult = db.prepare('SELECT MAX(KOTNo) as maxKOT FROM TAxnTrnbilldetails').get();
       const kotNo = (maxKOTResult?.maxKOT || 0) + 1;
-
-      const isHeaderNCKOT = details.some(item => toBool(item.isNCKOT));
-
-      const insertHeaderStmt = db.prepare(`
-        INSERT INTO TAxnTrnbill (
-          outletid, TableID, UserId, HotelID, KOTNo, TxnDatetime,
-          isBilled, isCancelled, isSetteled, status, AutoKOT,
-          NCName, NCPurpose, DiscPer, Discount, DiscountType, isNCKOT
-        ) VALUES (?, ?, ?, ?, ?, datetime('now'), 0, 0, 0, 1, 1, ?, ?, ?, ?, ?, ?)
-      `);
-      const result = insertHeaderStmt.run(outletid, TableID, UserId, HotelID, kotNo, NCName || null, NCPurpose || null, Number(DiscPer) || 0, Number(Discount) || 0, Number(DiscountType) || 0, toBool(isHeaderNCKOT));
-      const txnId = result.lastInsertRowid;
-
-      db.prepare('UPDATE msttablemanagement SET status = 1 WHERE tableid = ?').run(TableID);
-      console.log(`Created new KOT. TxnID: ${txnId}, KOTNo: ${kotNo}. Updated table ${TableID} status.`);
 
       const insertDetailStmt = db.prepare(`
         INSERT INTO TAxnTrnbilldetails (
           TxnID, outletid, ItemID, TableID, Qty, RuntimeRate, DeptID, HotelID,
-          KOTNo, isKOTGenerate, AutoKOT, KOTUsedDate, isBilled, isCancelled, isSetteled, isNCKOT,
-          CGST, CGST_AMOUNT, SGST, SGST_AMOUNT, IGST, IGST_AMOUNT, CESS, CESS_AMOUNT, Discount_Amount
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, datetime('now'), 0, 0, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          isKOTGenerate, AutoKOT, KOTUsedDate, isBilled, isCancelled, isSetteled, isNCKOT,
+          CGST, CGST_AMOUNT, SGST, SGST_AMOUNT, IGST, IGST_AMOUNT, CESS, CESS_AMOUNT, Discount_Amount, KOTNo
+        ) VALUES (
+          @TxnID, @outletid, @ItemID, @TableID, @Qty, @RuntimeRate, @DeptID, @HotelID,
+          1, 1, datetime('now'), 0, 0, 0, @isNCKOT,
+          @CGST, @CGST_AMOUNT, @SGST, @SGST_AMOUNT, @IGST, @IGST_AMOUNT, @CESS, @CESS_AMOUNT, @Discount_Amount, @KOTNo
+        )
       `);
-
-      const billDiscountType = Number(DiscountType) || 0;
-      const billDiscPer = Number(DiscPer) || 0;
-      const billDiscount = Number(Discount) || 0;
 
       for (const item of details) {
         const qty = Number(item.Qty) || 0;
@@ -734,69 +752,61 @@ exports.createKOT = async (req, res) => {
         const isNCKOT = toBool(item.isNCKOT);
 
         let itemDiscountAmount = 0;
-        if (billDiscountType === 1) { // Percentage
-          itemDiscountAmount = (lineSubtotal * billDiscPer) / 100;
+        if (finalDiscountType === 1) { // Percentage
+          itemDiscountAmount = (lineSubtotal * finalDiscPer) / 100;
         } else { // Fixed amount
-          // As per requirement, the full fixed discount is applied to each item.
-          itemDiscountAmount = billDiscount;
+          itemDiscountAmount = finalDiscount;
         }
 
-        insertDetailStmt.run(
-          txnId,
-          outletid,
-          item.ItemID,
-          TableID,
-          qty,
-          rate,
-          item.DeptID,
-          HotelID,
-          kotNo,
-          isNCKOT,
-          cgstPer,
-          cgstAmt,
-          sgstPer,
-          sgstAmt,
-          igstPer,
-          igstAmt,
-          cessPer,
-          cessAmt,
-          itemDiscountAmount
-        );
+        insertDetailStmt.run({
+            TxnID: txnId,
+            outletid: outletid,
+            ItemID: item.ItemID,
+            TableID: TableID,
+            Qty: qty,
+            RuntimeRate: rate,
+            DeptID: item.DeptID,
+            HotelID: HotelID,
+            isNCKOT: isNCKOT,
+            CGST: cgstPer,
+            CGST_AMOUNT: cgstAmt,
+            SGST: sgstPer,
+            SGST_AMOUNT: sgstAmt,
+            IGST: igstPer,
+            IGST_AMOUNT: igstAmt,
+            CESS: cessPer,
+            CESS_AMOUNT: cessAmt,
+            Discount_Amount: itemDiscountAmount,
+            KOTNo: kotNo
+        });
       }
 
-      const totals = db.prepare(`
-        SELECT
-          SUM(Qty * RuntimeRate) as totalGross,
-          SUM(CGST_AMOUNT) as totalCgst,
-          SUM(SGST_AMOUNT) as totalSgst,
-          SUM(IGST_AMOUNT) as totalIgst,
-          SUM(CESS_AMOUNT) as totalCess
-        FROM TAxnTrnbilldetails
-        WHERE TxnID = ? AND isCancelled = 0
-      `).get(txnId);
-
-      const grossAmount = totals?.totalGross || 0;
-      const totalCgst = totals?.totalCgst || 0;
-      const totalSgst = totals?.totalSgst || 0;
-      const totalIgst = totals?.totalIgst || 0;
-      const totalCess = totals?.totalCess || 0;
-      const totalAmount = grossAmount + totalCgst + totalSgst + totalIgst + totalCess;
-
-      // Calculate discount amount
-      let discountAmount = 0;
-      if (Number(DiscountType) === 1) {
-        discountAmount = (grossAmount * (Number(DiscPer) || 0)) / 100;
-      } else {
-        discountAmount = Number(Discount) || 0;
+      // Manually recalculate and update bill totals to ensure accuracy,
+      // as relying on triggers can be inconsistent.
+      const allDetails = db.prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? AND isCancelled = 0').all(txnId);
+      
+      let totalGross = 0, totalCgst = 0, totalSgst = 0, totalIgst = 0, totalCess = 0, totalDiscount = 0;
+      for (const d of allDetails) {
+          const qty = Number(d.Qty) || 0;
+          const rate = Number(d.RuntimeRate) || 0;
+          totalGross += qty * rate;
+          totalCgst += Number(d.CGST_AMOUNT) || 0;
+          totalSgst += Number(d.SGST_AMOUNT) || 0;
+          totalIgst += Number(d.IGST_AMOUNT) || 0;
+          totalCess += Number(d.CESS_AMOUNT) || 0;
+          totalDiscount += Number(d.Discount_Amount) || 0;
       }
-      const finalAmount = totalAmount - discountAmount;
+
+      const billHeader = db.prepare('SELECT RoundOFF FROM TAxnTrnbill WHERE TxnID = ?').get(txnId);
+      const roundOff = Number(billHeader?.RoundOFF) || 0;
+
+      const totalAmount = totalGross - totalDiscount + totalCgst + totalSgst + totalIgst + totalCess + roundOff;
 
       db.prepare(`
-        UPDATE TAxnTrnbill
-        SET GrossAmt = ?, Amount = ?, CGST = ?, SGST = ?, IGST = ?, CESS = ?, Discount = ?
-        WHERE TxnID = ?
-      `).run(grossAmount, finalAmount, totalCgst, totalSgst, totalIgst, totalCess, discountAmount, txnId);
-
+          UPDATE TAxnTrnbill
+          SET GrossAmt = ?, Discount = ?, CGST = ?, SGST = ?, IGST = ?, CESS = ?, Amount = ?
+          WHERE TxnID = ?
+      `).run(totalGross, totalDiscount, totalCgst, totalSgst, totalIgst, totalCess, totalAmount, txnId);
       return { txnId, kotNo };
     })(); // Immediately invoke the transaction
 
@@ -840,8 +850,7 @@ exports.getSavedKOTs = async (req, res) => {
         b.TableID,
         b.Amount,
         b.orderNo,
-        b.TxnDatetime,
-        b.KOTNo
+        b.TxnDatetime
       FROM TAxnTrnbill b
       WHERE ${whereClauses.join(' AND ')}
       ORDER BY b.TxnDatetime DESC
@@ -881,17 +890,24 @@ exports.getLatestKOTForTable = async (req, res) => {
 exports.getUnbilledItemsByTable = async (req, res) => {
   try {
     const { tableId } = req.params;
-
-    // Get the latest KOTNo for the table
-    const latestKOT = db.prepare(`
-      SELECT KOTNo
-      FROM TAxnTrnbill
+    
+    // Find the single unbilled bill for the table
+    const bill = db.prepare(`
+      SELECT TxnID 
+      FROM TAxnTrnbill 
       WHERE TableID = ? AND isBilled = 0 AND isCancelled = 0
-      ORDER BY TxnID DESC
-      LIMIT 1
     `).get(Number(tableId));
 
-    const kotNo = latestKOT ? latestKOT.KOTNo : null;
+    let kotNo = null;
+    if (bill) {
+        // Get the latest KOTNo for that bill from the details table
+        const latestKOTDetail = db.prepare(`
+            SELECT MAX(KOTNo) as maxKotNo
+            FROM TAxnTrnbilldetails
+            WHERE TxnID = ?
+        `).get(bill.TxnID);
+        kotNo = latestKOTDetail ? latestKOTDetail.maxKotNo : null;
+    }
 
     // Fetch all unbilled items for the table (not aggregated)
     const rows = db.prepare(`
@@ -1263,6 +1279,7 @@ exports.printBill = async (req, res) => {
     res.status(500).json({ success: false, message: 'Failed to mark bill as printed', data: null, error: error.message })
   }
 }
+
 
 
 module.exports = exports
