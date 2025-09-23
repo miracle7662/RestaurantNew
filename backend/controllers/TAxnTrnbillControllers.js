@@ -341,6 +341,47 @@ exports.updateBill = async (req, res) => {
       details = []
     } = req.body
 
+    // Compute header totals from details if missing/zero
+    const isArray = Array.isArray(details) && details.length > 0
+    let computedGross = 0, computedCgstAmt = 0, computedSgstAmt = 0, computedIgstAmt = 0, computedCessAmt = 0
+    if (isArray) {
+      for (const d of details) {
+        const qty = Number(d.Qty) || 0
+        const rate = Number(d.RuntimeRate) || 0
+        const lineSubtotal = qty * rate
+        const cgstPer = Number(d.CGST) || 0
+        const sgstPer = Number(d.SGST) || 0
+        const igstPer = Number(d.IGST) || 0
+        const cessPer = Number(d.CESS) || 0
+        const cgstAmt = Number(d.CGST_AMOUNT) || (lineSubtotal * cgstPer) / 100
+        const sgstAmt = Number(d.SGST_AMOUNT) || (lineSubtotal * sgstPer) / 100
+        const igstAmt = Number(d.IGST_AMOUNT) || (lineSubtotal * igstPer) / 100
+        const cessAmt = Number(d.CESS_AMOUNT) || (lineSubtotal * cessPer) / 100
+        computedGross += lineSubtotal
+        computedCgstAmt += cgstAmt
+        computedSgstAmt += sgstAmt
+        computedIgstAmt += igstAmt
+        computedCessAmt += cessAmt
+      }
+    }
+
+    const headerGross = Number(GrossAmt) || 0
+    const headerCgst = Number(CGST) || 0
+    const headerSgst = Number(SGST) || 0
+    const headerIgst = Number(IGST) || 0
+    const headerCess = Number(CESS) || 0
+    const headerRound = Number(RoundOFF) || 0
+    const headerAmount = Number(Amount) || 0
+
+    const finalGross = (isArray && headerGross === 0) ? computedGross : headerGross
+    const finalCgst = (isArray && headerCgst === 0) ? computedCgstAmt : headerCgst
+    const finalSgst = (isArray && headerSgst === 0) ? computedSgstAmt : headerSgst
+    const finalIgst = (isArray && headerIgst === 0) ? computedIgstAmt : headerIgst
+    const finalCess = (isArray && headerCess === 0) ? computedCessAmt : headerCess
+    const finalAmount = (isArray && headerAmount === 0)
+      ? (finalGross + finalCgst + finalSgst + finalIgst + finalCess + headerRound)
+      : headerAmount
+
     const txn = db.transaction(() => {
       const u = db.prepare(`
         UPDATE TAxnTrnbill SET
@@ -362,15 +403,15 @@ exports.updateBill = async (req, res) => {
         toBool(AutoKOT),
         toBool(ManualKOT),
         TxnDatetime || null,
-        Number(GrossAmt) || 0,
+        Number(finalGross) || 0,
         toBool(RevKOT),
         Number(Discount) || 0,
-        Number(CGST) || 0,
-        Number(SGST) || 0,
-        Number(IGST) || 0,
-        Number(CESS) || 0,
-        Number(RoundOFF) || 0,
-        Number(Amount) || 0,
+        Number(finalCgst) || 0,
+        Number(finalSgst) || 0,
+        Number(finalIgst) || 0,
+        Number(finalCess) || 0,
+        Number(headerRound) || 0,
+        Number(finalAmount) || 0,
         toBool(isHomeDelivery),
         DriverID ?? null,
         CustomerName || null,
@@ -419,6 +460,14 @@ exports.updateBill = async (req, res) => {
           const qty = Number(d.Qty) || 0
           const rate = Number(d.RuntimeRate) || 0
           const lineSubtotal = qty * rate
+          const cgstPer = Number(d.CGST) || 0
+          const sgstPer = Number(d.SGST) || 0
+          const igstPer = Number(d.IGST) || 0
+          const cessPer = Number(d.CESS) || 0
+          const cgstAmt = Number(d.CGST_AMOUNT) || (lineSubtotal * cgstPer) / 100
+          const sgstAmt = Number(d.SGST_AMOUNT) || (lineSubtotal * sgstPer) / 100
+          const igstAmt = Number(d.IGST_AMOUNT) || (lineSubtotal * igstPer) / 100
+          const cessAmt = Number(d.CESS_AMOUNT) || (lineSubtotal * cessPer) / 100
 
           let itemDiscountAmount = 0
           if (billDiscountType === 1) { // Percentage
@@ -434,14 +483,14 @@ exports.updateBill = async (req, res) => {
             d.outletid ?? null,
             d.ItemID ?? null,
             d.TableID ?? null,
-            Number(d.CGST) || 0,
-            Number(d.CGST_AMOUNT) || 0,
-            Number(d.SGST) || 0,
-            Number(d.SGST_AMOUNT) || 0,
-            Number(d.IGST) || 0,
-            Number(d.IGST_AMOUNT) || 0,
-            Number(d.CESS) || 0,
-            Number(d.CESS_AMOUNT) || 0,
+            cgstPer,
+            cgstAmt,
+            sgstPer,
+            sgstAmt,
+            igstPer,
+            igstAmt,
+            cessPer,
+            cessAmt,
             itemDiscountAmount,
             qty,
             toBool(d.AutoKOT),
@@ -692,26 +741,26 @@ exports.createKOT = async (req, res) => {
           itemDiscountAmount = billDiscount;
         }
 
-        insertDetailStmt.run( // Corrected parameter order
-          txnId, // TxnID
-          outletid, // outletid
-          item.ItemID, // ItemID
-          TableID, // TableID
-          qty, // Qty
-          rate, // RuntimeRate
-          item.DeptID, // DeptID
-          HotelID, // HotelID
-          kotNo, // KOTNo
-          isNCKOT, // isNCKOT
-          cgstPer, // CGST
-          cgstAmt, // CGST_AMOUNT
-          sgstPer, // SGST
-          sgstAmt, // SGST_AMOUNT
-          igstPer, // IGST
-          igstAmt, // IGST_AMOUNT
-          cessPer, // CESS
-          cessAmt, // CESS_AMOUNT
-          itemDiscountAmount // Discount_Amount
+        insertDetailStmt.run(
+          txnId,
+          outletid,
+          item.ItemID,
+          TableID,
+          qty,
+          rate,
+          item.DeptID,
+          HotelID,
+          kotNo,
+          isNCKOT,
+          cgstPer,
+          cgstAmt,
+          sgstPer,
+          sgstAmt,
+          igstPer,
+          igstAmt,
+          cessPer,
+          cessAmt,
+          itemDiscountAmount
         );
       }
 
