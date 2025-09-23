@@ -131,6 +131,8 @@ const Order = () => {
   const [ncName, setNcName] = useState<string>('');
   const [ncPurpose, setNcPurpose] = useState<string>('');
 
+  const revKotTotal = reverseQtyItems.reduce((sum, item) => sum + item.price * item.qty, 0);
+
   const refreshItemsForTable = useCallback(async (tableIdNum: number) => {
     try {
       // Step 1: Try to fetch the latest billed (but not settled) bill
@@ -2838,11 +2840,14 @@ const Order = () => {
                   {discount > 0 && (
                     <div className="d-flex justify-content-between"><span>Discount ({DiscountType === 1 ? `${DiscPer}%` : 'Amt'})</span><span>- {discount.toFixed(2)}</span></div>
                   )}
+                  {revKotTotal > 0 && (
+                    <div className="d-flex justify-content-between text-danger"><span>RevKOT</span><span>- {revKotTotal.toFixed(2)}</span></div>
+                  )}
                   <hr className="my-2" />
                   <div className="d-flex justify-content-between align-items-center bg-success text-white rounded p-1">
                     <span className="fw-bold">Grand Total</span>
                     <div>
-                      <span className="fw-bold me-2">{(taxCalc.grandTotal - discount).toFixed(2)}</span>
+                      <span className="fw-bold me-2">{(taxCalc.grandTotal - discount - revKotTotal).toFixed(2)}</span>
                     </div>
                   </div>
                 </div>
@@ -3085,4 +3090,5 @@ const Order = () => {
     </div>
   );
 };
+
 export default Order;

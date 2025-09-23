@@ -141,11 +141,12 @@ exports.createBill = async (req, res) => {
 
     // Always compute totals from details if provided, to ensure accuracy
     const isArray = Array.isArray(details) && details.length > 0;
-    let computedGross = 0, computedCgstAmt = 0, computedSgstAmt = 0, computedIgstAmt = 0, computedCessAmt = 0;
+    let computedGross = 0, computedCgstAmt = 0, computedSgstAmt = 0, computedIgstAmt = 0, computedCessAmt = 0, computedRevKOT = 0;
     if (isArray) {
       for (const d of details) {
         const qty = Number(d.Qty) || 0;
         const rate = Number(d.RuntimeRate) || 0;
+        const revQty = Number(d.RevQty) || 0;
         const lineSubtotal = qty * rate;
         const cgstPer = Number(d.CGST) || 0;
         const sgstPer = Number(d.SGST) || 0;
@@ -160,11 +161,13 @@ exports.createBill = async (req, res) => {
         computedSgstAmt += sgstAmt;
         computedIgstAmt += igstAmt;
         computedCessAmt += cessAmt;
+        computedRevKOT += revQty * rate;
       }
     }
 
     // Prioritize backend calculation if details are provided
     const finalGross = isArray ? computedGross : (Number(GrossAmt) || 0);
+    const finalRevKOT = isArray ? computedRevKOT : (Number(RevKOT) || 0);
     const finalCgst = isArray ? computedCgstAmt : (Number(CGST) || 0);
     const finalSgst = isArray ? computedSgstAmt : (Number(SGST) || 0);
     const finalIgst = isArray ? computedIgstAmt : (Number(IGST) || 0);
@@ -197,7 +200,7 @@ exports.createBill = async (req, res) => {
       toBool(ManualKOT),
       TxnDatetime || null,
       finalGross,
-      toBool(RevKOT),
+      finalRevKOT,
       finalDiscount,
       finalCgst,
       finalSgst,
@@ -338,11 +341,12 @@ exports.updateBill = async (req, res) => {
 
     // Always compute totals from details if provided, to ensure accuracy
     const isArray = Array.isArray(details) && details.length > 0;
-    let computedGross = 0, computedCgstAmt = 0, computedSgstAmt = 0, computedIgstAmt = 0, computedCessAmt = 0;
+    let computedGross = 0, computedCgstAmt = 0, computedSgstAmt = 0, computedIgstAmt = 0, computedCessAmt = 0, computedRevKOT = 0;
     if (isArray) {
       for (const d of details) {
         const qty = Number(d.Qty) || 0;
         const rate = Number(d.RuntimeRate) || 0;
+        const revQty = Number(d.RevQty) || 0;
         const lineSubtotal = qty * rate;
         const cgstPer = Number(d.CGST) || 0;
         const sgstPer = Number(d.SGST) || 0;
@@ -357,11 +361,13 @@ exports.updateBill = async (req, res) => {
         computedSgstAmt += sgstAmt;
         computedIgstAmt += igstAmt;
         computedCessAmt += cessAmt;
+        computedRevKOT += revQty * rate;
       }
     }
 
     // Prioritize backend calculation if details are provided
     const finalGross = isArray ? computedGross : (Number(GrossAmt) || 0);
+    const finalRevKOT = isArray ? computedRevKOT : (Number(RevKOT) || 0);
     const finalCgst = isArray ? computedCgstAmt : (Number(CGST) || 0);
     const finalSgst = isArray ? computedSgstAmt : (Number(SGST) || 0);
     const finalIgst = isArray ? computedIgstAmt : (Number(IGST) || 0);
@@ -394,7 +400,7 @@ exports.updateBill = async (req, res) => {
         toBool(ManualKOT),
         TxnDatetime || null,
         finalGross,
-        toBool(RevKOT),
+        finalRevKOT,
         finalDiscount,
         finalCgst,
         finalSgst,
@@ -1004,6 +1010,7 @@ exports.handleF8KeyPress = async (req, res) => {
           d.ItemID,
           d.Qty,
           d.RevQty,
+          d.TxnID,
           d.RuntimeRate,
           COALESCE(m.item_name, 'Unknown Item') AS ItemName
         FROM TAxnTrnbilldetails d
@@ -1034,11 +1041,21 @@ exports.handleF8KeyPress = async (req, res) => {
 
       // Update RevQty in database
       const newRevQty = currentRevQty + 1;
-      db.prepare(`
-        UPDATE TAxnTrnbilldetails
-        SET RevQty = ?
-        WHERE TXnDetailID = ?
-      `).run(newRevQty, item.TXnDetailID);
+      const reverseAmount = Number(item.RuntimeRate) || 0;
+
+      db.transaction(() => {
+        db.prepare(`
+          UPDATE TAxnTrnbilldetails
+          SET RevQty = ?
+          WHERE TXnDetailID = ?
+        `).run(newRevQty, item.TXnDetailID);
+
+        db.prepare(`
+          UPDATE TAxnTrnbill
+          SET RevKOT = COALESCE(RevKOT, 0) + ?
+          WHERE TxnID = ?
+        `).run(reverseAmount, item.TxnID);
+      })();
 
       return res.json({
         success: true,
@@ -1058,6 +1075,7 @@ exports.handleF8KeyPress = async (req, res) => {
     const unbilledItems = db.prepare(`
       SELECT
         d.TXnDetailID,
+        d.TxnID,
         d.ItemID,
         d.Qty,
         d.RevQty,
@@ -1080,6 +1098,9 @@ exports.handleF8KeyPress = async (req, res) => {
     // Process reverse quantity for items that have quantity > RevQty
     const updatedItems = [];
     const transaction = db.transaction(() => {
+      let totalReverseAmount = 0;
+      let billTxnId = null;
+
       for (const item of unbilledItems) {
         const currentQty = Number(item.Qty) || 0;
         const currentRevQty = Number(item.RevQty) || 0;
@@ -1087,13 +1108,16 @@ exports.handleF8KeyPress = async (req, res) => {
 
         if (availableQty > 0) {
           const newRevQty = currentRevQty + 1;
-
-          // Update RevQty in database
           db.prepare(`
             UPDATE TAxnTrnbilldetails
             SET RevQty = ?
             WHERE TXnDetailID = ?
           `).run(newRevQty, item.TXnDetailID);
+
+          totalReverseAmount += Number(item.RuntimeRate) || 0;
+          if (!billTxnId) {
+            billTxnId = item.TxnID;
+          }
 
           updatedItems.push({
             txnDetailId: item.TXnDetailID,
@@ -1104,6 +1128,14 @@ exports.handleF8KeyPress = async (req, res) => {
             availableQty: availableQty - 1
           });
         }
+      }
+
+      if (billTxnId && totalReverseAmount > 0) {
+        db.prepare(`
+          UPDATE TAxnTrnbill
+          SET RevKOT = COALESCE(RevKOT, 0) + ?
+          WHERE TxnID = ?
+        `).run(totalReverseAmount, billTxnId);
       }
     });
 
@@ -1164,7 +1196,7 @@ exports.reverseQuantity = async (req, res) => {
 
     // Get current item details
     const item = db.prepare(`
-      SELECT TXnDetailID, Qty, RevQty, ItemID
+      SELECT TXnDetailID, Qty, RevQty, ItemID, TxnID, RuntimeRate
       FROM TAxnTrnbilldetails 
       WHERE TXnDetailID = ?
     `).get(Number(txnDetailId));
@@ -1191,11 +1223,21 @@ exports.reverseQuantity = async (req, res) => {
 
     // Update RevQty
     const newRevQty = currentRevQty + 1;
-    db.prepare(`
-      UPDATE TAxnTrnbilldetails
-      SET RevQty = ?
-      WHERE TXnDetailID = ?
-    `).run(newRevQty, item.TXnDetailID);
+    const reverseAmount = Number(item.RuntimeRate) || 0;
+
+    db.transaction(() => {
+      db.prepare(`
+        UPDATE TAxnTrnbilldetails
+        SET RevQty = ?
+        WHERE TXnDetailID = ?
+      `).run(newRevQty, item.TXnDetailID);
+
+      db.prepare(`
+        UPDATE TAxnTrnbill
+        SET RevKOT = COALESCE(RevKOT, 0) + ?
+        WHERE TxnID = ?
+      `).run(reverseAmount, item.TxnID);
+    })();
 
     res.json({
       success: true,
@@ -1204,7 +1246,7 @@ exports.reverseQuantity = async (req, res) => {
         txnDetailId: item.TXnDetailID,
         originalQty: currentQty,
         newRevQty: newRevQty,
-        availableQty: availableQty  
+        availableQty: availableQty
       }
     });
 
