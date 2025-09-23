@@ -739,6 +739,13 @@ exports.createKOT = async (req, res) => {
 
       for (const item of details) {
         const qty = Number(item.Qty) || 0;
+
+        // If quantity is negative, it's a reversal for Re-KOT printing.
+        // The actual DB update was already handled by the /reverse-quantity endpoint.
+        // We skip it here to prevent inserting a new row with a negative quantity.
+        if (qty < 0) {
+          continue;
+        }
         const rate = Number(item.RuntimeRate) || 0;
         const lineSubtotal = qty * rate;
         const cgstPer = Number(item.CGST) || 0;
@@ -1197,7 +1204,7 @@ exports.reverseQuantity = async (req, res) => {
         txnDetailId: item.TXnDetailID,
         originalQty: currentQty,
         newRevQty: newRevQty,
-        availableQty: availableQty - 1
+        availableQty: availableQty  
       }
     });
 
