@@ -847,7 +847,8 @@ const Order = () => {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            txnDetailId: item.txnDetailId
+            txnDetailId: item.txnDetailId,
+            userId: user?.id, // Add the user ID here
           }),
         });
 

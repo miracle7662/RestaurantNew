@@ -841,10 +841,29 @@ CREATE TABLE IF NOT EXISTS TrnSettlement (
     HotelID INTEGER,
     InsertDate DATETIME DEFAULT CURRENT_TIMESTAMP,
     Name2 TEXT,
-    Name3 TEXT
-
-   
+    Name3 TEXT 
 );
+
+CREATE TABLE IF NOT EXISTS TAxnTrnReversalLog (
+    ReversalID       INTEGER PRIMARY KEY AUTOINCREMENT,
+    TxnDetailID      INTEGER ,
+    TxnID            INTEGER ,
+    TableID          INTEGER,
+    KOTNo            INTEGER,
+    RevKOTNo         INTEGER,
+    ItemID           INTEGER ,
+    ActualQty        REAL ,
+    ReversedQty      REAL ,
+    RemainingQty     REAL ,
+    ReverseType      TEXT CHECK(ReverseType IN ('BeforeBill', 'AfterBill')),
+    ReversedByUserID INTEGER ,
+    ApprovedByAdmin  INTEGER ,
+    HotelID          INTEGER,
+    ReversalReason   TEXT,
+    ReversalDate     DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+
 
 
 

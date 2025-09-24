@@ -976,7 +976,7 @@ exports.getUnbilledItemsByTable = async (req, res) => {
 /* -------------------------------------------------------------------------- */
 exports.handleF8KeyPress = async (req, res) => {
   try {
-    const { tableId, userId, txnDetailId } = req.body;
+    const { tableId, userId, txnDetailId, approvedByAdminId, reversalReason } = req.body;
 
     if (!tableId) {
       return res.status(400).json({ success: false, message: 'tableId is required', data: null });
@@ -1011,6 +1011,7 @@ exports.handleF8KeyPress = async (req, res) => {
           d.Qty,
           d.RevQty,
           d.TxnID,
+          d.KOTNo,
           d.RuntimeRate,
           COALESCE(m.item_name, 'Unknown Item') AS ItemName
         FROM TAxnTrnbilldetails d
@@ -1055,6 +1056,26 @@ exports.handleF8KeyPress = async (req, res) => {
           SET RevKOT = COALESCE(RevKOT, 0) + ?
           WHERE TxnID = ?
         `).run(reverseAmount, item.TxnID);
+
+        // Log the reversal
+        db.prepare(`
+          INSERT INTO TAxnTrnReversalLog (
+            TxnDetailID, TxnID, TableID, KOTNo, RevKOTNo, ItemID,
+            ActualQty, ReversedQty, RemainingQty, ReverseType,
+            ReversedByUserID, ApprovedByAdmin, HotelID, ReversalReason
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+          item.TXnDetailID, item.TxnID, tableId, item.KOTNo, null, // RevKOTNo can be added later if generated
+          item.ItemID, currentQty, 1, // ReversedQty is 1 for each F8 press
+          availableQty - 1, 'BeforeBill', // Assuming F8 on unbilled items is 'BeforeBill'
+          userId, approvedByAdminId || 0, item.HotelID, reversalReason || null
+        );
+
+        // Update table status to occupied if it's not already
+        db.prepare(`
+          UPDATE msttablemanagement SET status = 1 WHERE tableid = ? AND status = 0
+        `).run(tableId);
+
       })();
 
       return res.json({
@@ -1079,6 +1100,7 @@ exports.handleF8KeyPress = async (req, res) => {
         d.ItemID,
         d.Qty,
         d.RevQty,
+        d.KOTNo,
         d.RuntimeRate,
         COALESCE(m.item_name, 'Unknown Item') AS ItemName
       FROM TAxnTrnbilldetails d
@@ -1118,6 +1140,24 @@ exports.handleF8KeyPress = async (req, res) => {
           if (!billTxnId) {
             billTxnId = item.TxnID;
           }
+
+          // Log the reversal
+          db.prepare(`
+            INSERT INTO TAxnTrnReversalLog (
+              TxnDetailID, TxnID, TableID, KOTNo, RevKOTNo, ItemID, 
+              ActualQty, ReversedQty, RemainingQty, ReverseType, 
+              ReversedByUserID, ApprovedByAdmin, HotelID, ReversalReason
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `).run(
+            item.TXnDetailID, item.TxnID, tableId, item.KOTNo, null,
+            item.ItemID, currentQty, 1,
+            availableQty - 1, 'BeforeBill',
+            userId, approvedByAdminId || null, item.HotelID, reversalReason || null
+          );
+
+          db.prepare(`
+            UPDATE msttablemanagement SET status = 1 WHERE tableid = ? AND status = 0
+          `).run(tableId);
 
           updatedItems.push({
             txnDetailId: item.TXnDetailID,
@@ -1184,20 +1224,28 @@ exports.handleF8KeyPress = async (req, res) => {
 // Simple reverse quantity function
 exports.reverseQuantity = async (req, res) => {
   try {
-    const { txnDetailId } = req.body;
+    const { txnDetailId, userId, approvedByAdminId, reversalReason } = req.body;
 
     if (!txnDetailId) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'txnDetailId is required', 
-        data: null 
+      return res.status(400).json({
+        success: false,
+        message: 'txnDetailId is required',
+        data: null
+      });
+    }
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'userId is required',
+        data: null
       });
     }
 
     // Get current item details
     const item = db.prepare(`
-      SELECT TXnDetailID, Qty, RevQty, ItemID, TxnID, RuntimeRate
-      FROM TAxnTrnbilldetails 
+      SELECT TXnDetailID, Qty, RevQty, ItemID, TxnID, RuntimeRate, TableID, KOTNo, HotelID
+      FROM TAxnTrnbilldetails
       WHERE TXnDetailID = ?
     `).get(Number(txnDetailId));
 
@@ -1237,6 +1285,24 @@ exports.reverseQuantity = async (req, res) => {
         SET RevKOT = COALESCE(RevKOT, 0) + ?
         WHERE TxnID = ?
       `).run(reverseAmount, item.TxnID);
+
+      // Log the reversal
+      const bill = db.prepare('SELECT isBilled FROM TAxnTrnbill WHERE TxnID = ?').get(item.TxnID);
+      const reverseType = bill && bill.isBilled ? 'AfterBill' : 'BeforeBill';
+
+      db.prepare(`
+        INSERT INTO TAxnTrnReversalLog (
+          TxnDetailID, TxnID, TableID, KOTNo, RevKOTNo, ItemID, 
+          ActualQty, ReversedQty, RemainingQty, ReverseType, 
+          ReversedByUserID, ApprovedByAdmin, HotelID, ReversalReason
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        item.TXnDetailID, item.TxnID, item.TableID, item.KOTNo, null, // RevKOTNo can be added later if generated
+        item.ItemID, currentQty, 1, // ReversedQty is 1 for each reversal
+        availableQty - 1, reverseType,
+        userId, approvedByAdminId || null, item.HotelID, reversalReason || null
+      );
+
     })();
 
     res.json({
