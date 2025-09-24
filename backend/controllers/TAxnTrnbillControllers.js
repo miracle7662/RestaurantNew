@@ -61,6 +61,7 @@ exports.getAllBills = async (req, res) => {
             'RuntimeRate', d.RuntimeRate,
             'RevQty', d.RevQty,
             'KOTUsedDate', d.KOTUsedDate,
+            'RevKOTNo', d.RevKOTNo,
             'isBilled', d.isBilled,
           )
         ) as _details
@@ -247,8 +248,10 @@ exports.createBill = async (req, res) => {
             CESS, CESS_AMOUNT, Discount_Amount, Qty, KOTNo, AutoKOT, ManualKOT, SpecialInst,
             isKOTGenerate, isSetteled, isNCKOT, isCancelled,
             DeptID, HotelID, RuntimeRate, RevQty, KOTUsedDate,
+            DeptID, HotelID, RuntimeRate, RevQty, KOTUsedDate, RevKOTNo,
             isBilled
           ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+          ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         `)
 
         const billDiscountType = Number(DiscountType) || 0
@@ -305,6 +308,7 @@ exports.createBill = async (req, res) => {
             rate,
             Number(d.RevQty) || 0,
             d.KOTUsedDate || new Date().toISOString(), // KOTUsedDate
+            d.RevKOTNo ?? null, // RevKOTNo
             0 // isBilled default to 0
             
           )
@@ -446,8 +450,10 @@ exports.updateBill = async (req, res) => {
             Discount_Amount, Qty, KOTNo, AutoKOT, ManualKOT, SpecialInst,
             isKOTGenerate, isSetteled, isNCKOT, isCancelled,
             DeptID, HotelID, RuntimeRate, RevQty, KOTUsedDate,
+            DeptID, HotelID, RuntimeRate, RevQty, KOTUsedDate, RevKOTNo,
             isBilled
           ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+          ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         `)
         const billDiscountType = Number(DiscountType) || 0
         const billDiscPer = Number(DiscPer) || 0
@@ -503,6 +509,7 @@ exports.updateBill = async (req, res) => {
             rate,
             Number(d.RevQty) || 0,
             d.KOTUsedDate || new Date().toISOString(), // KOTUsedDate
+            d.RevKOTNo ?? null, // RevKOTNo
             0 // isBilled default to 0
            
           )
@@ -614,6 +621,8 @@ exports.addItemToBill = async (req, res) => {
           TxnID, ItemID, Qty, RuntimeRate, AutoKOT, ManualKOT, SpecialInst, DeptID, HotelID,
           isBilled, isNCKOT, NCName, NCPurpose
         ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+          isBilled, isNCKOT, NCName, NCPurpose, RevKOTNo
+        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
       `)
       for (const it of details) {
         const isNCKOT = toBool(it.isNCKOT)
@@ -624,6 +633,8 @@ exports.addItemToBill = async (req, res) => {
           isNCKOT, // isNCKOT as provided or 0
           isNCKOT ? (it.NCName || null) : null,
           isNCKOT ? (it.NCPurpose || null) : null
+          isNCKOT ? (it.NCPurpose || null) : null,
+          it.RevKOTNo ?? null // RevKOTNo
         )
       }
     })
@@ -736,10 +747,12 @@ exports.createKOT = async (req, res) => {
       const insertDetailStmt = db.prepare(`
         INSERT INTO TAxnTrnbilldetails (
           TxnID, outletid, ItemID, TableID, Qty, RuntimeRate, DeptID, HotelID,
+          TxnID, outletid, ItemID, TableID, Qty, RuntimeRate, DeptID, HotelID, RevKOTNo,
           isKOTGenerate, AutoKOT, KOTUsedDate, isBilled, isCancelled, isSetteled, isNCKOT,
           CGST, CGST_AMOUNT, SGST, SGST_AMOUNT, IGST, IGST_AMOUNT, CESS, CESS_AMOUNT, Discount_Amount, KOTNo
         ) VALUES (
           @TxnID, @outletid, @ItemID, @TableID, @Qty, @RuntimeRate, @DeptID, @HotelID,
+          @TxnID, @outletid, @ItemID, @TableID, @Qty, @RuntimeRate, @DeptID, @HotelID, @RevKOTNo,
           1, 1, datetime('now'), 0, 0, 0, @isNCKOT,
           @CGST, @CGST_AMOUNT, @SGST, @SGST_AMOUNT, @IGST, @IGST_AMOUNT, @CESS, @CESS_AMOUNT, @Discount_Amount, @KOTNo
         )
@@ -782,6 +795,7 @@ exports.createKOT = async (req, res) => {
             RuntimeRate: rate,
             DeptID: item.DeptID,
             HotelID: HotelID,
+            RevKOTNo: item.RevKOTNo ?? null,
             isNCKOT: isNCKOT,
             CGST: cgstPer,
             CGST_AMOUNT: cgstAmt,
@@ -963,6 +977,7 @@ exports.getUnbilledItemsByTable = async (req, res) => {
       price: r.price,
       isNew: r.KOTNo === kotNo,
       kotNo: r.KOTNo,
+      isNCKOT: r.isNCKOT,
     }));
 
     console.log('Unbilled items for tableId', tableId, ':', items);
@@ -1291,6 +1306,7 @@ exports.reverseQuantity = async (req, res) => {
       db.prepare(`
         INSERT INTO TAxnTrnReversalLog (
           TxnDetailID, TxnID, TableID, KOTNo, RevKOTNo, ItemID, 
+          TxnDetailID, TxnID, TableID, KOTNo, RevKOTNo, ItemID,
           ActualQty, ReversedQty, RemainingQty, ReverseType, 
           ReversedByUserID, ApprovedByAdmin, HotelID, ReversalReason
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -1299,6 +1315,7 @@ exports.reverseQuantity = async (req, res) => {
         item.ItemID, currentQty, 1, // ReversedQty is 1 for each reversal
         availableQty - 1, reverseType,
         userId, approvedByAdminId || null, item.HotelID, reversalReason || null
+        userId, approvedByAdminId || null, item.HotelID, reversalReason || null,
       );
 
     })();
