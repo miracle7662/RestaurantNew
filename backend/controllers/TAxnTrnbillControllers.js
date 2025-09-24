@@ -1042,16 +1042,20 @@ exports.handleF8KeyPress = async (req, res) => {
         });
       }
 
-      // Update RevQty in database
+      // Generate new KOT number for reversal
+      const maxKOTResult = db.prepare('SELECT MAX(KOTNo) as maxKOT FROM TAxnTrnbilldetails').get();
+      const newKOTNo = (maxKOTResult?.maxKOT || 0) + 1;
+
+      // Update RevQty and KOTNo in database
       const newRevQty = currentRevQty + 1;
       const reverseAmount = Number(item.RuntimeRate) || 0;
 
       db.transaction(() => {
         db.prepare(`
           UPDATE TAxnTrnbilldetails
-          SET RevQty = ?
+          SET RevQty = ?, KOTNo = ?
           WHERE TXnDetailID = ?
-        `).run(newRevQty, item.TXnDetailID);
+        `).run(newRevQty, newKOTNo, item.TXnDetailID);
 
         db.prepare(`
           UPDATE TAxnTrnbill
@@ -1060,18 +1064,6 @@ exports.handleF8KeyPress = async (req, res) => {
         `).run(reverseAmount, item.TxnID);
 
         // Log the reversal
-        db.prepare(`
-          INSERT INTO TAxnTrnReversalLog (
-            TxnDetailID, TxnID, TableID, KOTNo, RevKOTNo, ItemID,
-            ActualQty, ReversedQty, RemainingQty, ReverseType,
-            ReversedByUserID, ApprovedByAdmin, HotelID, ReversalReason
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(
-          item.TXnDetailID, item.TxnID, tableId, item.KOTNo, null, // RevKOTNo can be added later if generated
-          item.ItemID, currentQty, 1, // ReversedQty is 1 for each F8 press
-          availableQty - 1, 'BeforeBill', // Assuming F8 on unbilled items is 'BeforeBill'
-          userId, approvedByAdminId || 0, item.HotelID, reversalReason || null
-        );
 
         // Update table status to occupied if it's not already
         db.prepare(`
@@ -1271,16 +1263,20 @@ exports.reverseQuantity = async (req, res) => {
       });
     }
 
-    // Update RevQty
+    // Generate new KOT number for reversal
+    const maxKOTResult = db.prepare('SELECT MAX(KOTNo) as maxKOT FROM TAxnTrnbilldetails').get();
+    const newKOTNo = (maxKOTResult?.maxKOT || 0) + 1;
+
+    // Update RevQty and KOTNo
     const newRevQty = currentRevQty + 1;
     const reverseAmount = Number(item.RuntimeRate) || 0;
 
     db.transaction(() => {
       db.prepare(`
         UPDATE TAxnTrnbilldetails
-        SET RevQty = ?
+        SET RevQty = ?, KOTNo = ?
         WHERE TXnDetailID = ?
-      `).run(newRevQty, item.TXnDetailID);
+      `).run(newRevQty, newKOTNo, item.TXnDetailID);
 
       db.prepare(`
         UPDATE TAxnTrnbill
