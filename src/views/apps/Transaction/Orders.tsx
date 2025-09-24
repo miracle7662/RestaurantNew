@@ -154,7 +154,7 @@ const Order = () => {
             NCPurpose: '',
             isNew: false, // Not a new item
             originalQty: item.Qty,
-            kotNo: header.KOTNo,
+            kotNo: item.KOTNo, // Use KOTNo from the item detail
           }));
 
           setItems(fetchedItems);
