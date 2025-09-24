@@ -1016,6 +1016,7 @@ const Order = () => {
           Qty: i.qty,
           RuntimeRate: i.price,
           isNCKOT: i.isNCKOT,
+          KOTNo: i.kotNo,
           NCName: i.NCName,
           NCPurpose: i.NCPurpose,
           CGST: taxRates.cgst,

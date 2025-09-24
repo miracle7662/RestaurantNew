@@ -244,11 +244,11 @@ exports.createBill = async (req, res) => {
           INSERT INTO TAxnTrnbilldetails (
             TxnID, outletid, ItemID, TableID,
             CGST, CGST_AMOUNT, SGST, SGST_AMOUNT, IGST, IGST_AMOUNT,
-            CESS, CESS_AMOUNT, Discount_Amount, Qty, AutoKOT, ManualKOT, SpecialInst,
+            CESS, CESS_AMOUNT, Discount_Amount, Qty, KOTNo, AutoKOT, ManualKOT, SpecialInst,
             isKOTGenerate, isSetteled, isNCKOT, isCancelled,
             DeptID, HotelID, RuntimeRate, RevQty, KOTUsedDate,
             isBilled
-          ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+          ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         `)
 
         const billDiscountType = Number(DiscountType) || 0
@@ -292,6 +292,7 @@ exports.createBill = async (req, res) => {
             Number(cessAmt) || 0,
             itemDiscountAmount,
             qty,
+            d.KOTNo ?? null,
             toBool(d.AutoKOT),
             toBool(d.ManualKOT),
             d.SpecialInst || null,
@@ -441,12 +442,12 @@ exports.updateBill = async (req, res) => {
         const ins = db.prepare(`
           INSERT INTO TAxnTrnbilldetails (
             TxnID, outletid, ItemID, TableID,
-            CGST, CGST_AMOUNT, SGST, SGST_AMOUNT, IGST, IGST_AMOUNT,
-            CESS, CESS_AMOUNT, Discount_Amount, Qty, AutoKOT, ManualKOT, SpecialInst,
+            CGST, CGST_AMOUNT, SGST, SGST_AMOUNT, IGST, IGST_AMOUNT, CESS, CESS_AMOUNT,
+            Discount_Amount, Qty, KOTNo, AutoKOT, ManualKOT, SpecialInst,
             isKOTGenerate, isSetteled, isNCKOT, isCancelled,
             DeptID, HotelID, RuntimeRate, RevQty, KOTUsedDate,
             isBilled
-          ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+          ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         `)
         const billDiscountType = Number(DiscountType) || 0
         const billDiscPer = Number(DiscPer) || 0
@@ -489,6 +490,7 @@ exports.updateBill = async (req, res) => {
             cessAmt,
             itemDiscountAmount,
             qty,
+            d.KOTNo ?? null,
             toBool(d.AutoKOT),
             toBool(d.ManualKOT),
             d.SpecialInst || null,
