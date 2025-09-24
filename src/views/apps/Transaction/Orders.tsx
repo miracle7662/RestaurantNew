@@ -142,13 +142,14 @@ const Order = () => {
         const billedBillData = await billedBillRes.json();
         if (billedBillData.success && billedBillData.data) {
           const { details, ...header } = billedBillData.data;
-          const fetchedItems: MenuItem[] = details.map((item: any) => ({
+          const fetchedItems: MenuItem[] = details.map((item: any) => ({ // <-- FIX STARTS HERE
             id: item.ItemID,
             txnDetailId: item.TXnDetailID,
             name: item.ItemName || 'Unknown Item',
             price: item.RuntimeRate,
-            qty: item.Qty,
+            qty: (Number(item.Qty) || 0) - (Number(item.RevQty) || 0), // Calculate net quantity
             isBilled: 1, // It's a billed item
+            revQty: Number(item.RevQty) || 0, // Store revQty
             isNCKOT: item.isNCKOT,
             NCName: '',
             NCPurpose: '',
@@ -156,7 +157,7 @@ const Order = () => {
             originalQty: item.Qty,
             kotNo: item.KOTNo, // Use KOTNo from the item detail
           }));
-
+ 
           setItems(fetchedItems);
           setCurrentTxnId(header.TxnID);
           setCurrentKOTNo(header.KOTNo); // A billed order might have a KOT no.
