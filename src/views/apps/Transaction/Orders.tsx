@@ -993,6 +993,8 @@ const Order = () => {
       const resolvedTableId = selectedTableRecord ? Number((selectedTableRecord as any).tableid || (selectedTableRecord as any).tablemanagementid) : null;
       const resolvedOutletId = selectedTableRecord ? Number((selectedTableRecord as any).outletid) || (user?.outletid ? Number(user.outletid) : null) : null;
       const userId = user?.id || null;
+      const resolvedDeptId = selectedTableRecord ? Number((selectedTableRecord as any).departmentid) || selectedDeptId : selectedDeptId;
+
       const hotelId = user?.hotelid || null;
 
       const billPayload = {
@@ -1012,6 +1014,9 @@ const Order = () => {
         CustomerName: customerName,
         MobileNo: mobileNumber,
         details: items.map(i => ({
+          outletid: resolvedOutletId,
+          TableID: resolvedTableId,
+          DeptID: resolvedDeptId,
           ItemID: i.id,
           Qty: i.qty,
           RuntimeRate: i.price,

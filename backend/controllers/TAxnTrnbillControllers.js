@@ -278,7 +278,7 @@ exports.createBill = async (req, res) => {
           const isNCKOT = toBool(d.isNCKOT)
 
           dStmt.run(
-            txnId,
+            txnId, // TxnID
             d.outletid ?? null,
             d.ItemID ?? null,
             d.TableID ?? null,
@@ -304,7 +304,7 @@ exports.createBill = async (req, res) => {
             d.HotelID ?? null,
             rate,
             Number(d.RevQty) || 0,
-            d.KOTUsedDate || null,
+            d.KOTUsedDate || new Date().toISOString(), // KOTUsedDate
             0 // isBilled default to 0
             
           )
@@ -502,7 +502,7 @@ exports.updateBill = async (req, res) => {
             d.HotelID ?? null,
             rate,
             Number(d.RevQty) || 0,
-            d.KOTUsedDate || null,
+            d.KOTUsedDate || new Date().toISOString(), // KOTUsedDate
             0 // isBilled default to 0
            
           )
