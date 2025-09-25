@@ -1215,6 +1215,7 @@ const Order = () => {
         if (reverseItemsToKOT.length > 0) {
           setReverseQtyItems([]);
           setReverseQtyMode(false);
+          setIsGroupedView(true); // Reset to grouped view after deactivating reverse mode
         }
 
         // Optimistically update the table status to green (1)
