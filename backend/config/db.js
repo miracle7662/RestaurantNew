@@ -827,7 +827,7 @@ CREATE TABLE IF NOT EXISTS TAxnTrnbilldetails (
     RevQty REAL DEFAULT 0,
     KOTUsedDate DATETIME,
     isBilled BOOLEAN DEFAULT 0,
-    RevKOTNo  INTEGER
+    RevKOTNo INTEGER 
 
 );
 
