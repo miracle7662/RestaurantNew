@@ -1337,15 +1337,10 @@ const Order = () => {
 
       if (response.ok && data.success) {
         setShowF8PasswordModal(false);
-        // Proceed with F8 action: toggle reverseQtyMode
-        setReverseQtyMode(prev => {
-          const newMode = !prev;
-          if (!newMode) {
-            setReverseQtyItems([]);
-          }
-          toast.success(`Reverse Qty Mode ${newMode ? 'activated' : 'deactivated'}.`);
-          return newMode;
-        });
+        // Proceed with F8 action: activate reverse mode and set expanded view
+        setReverseQtyMode(true);
+        setIsGroupedView(false);
+        toast.success('Reverse Qty Mode activated and expanded view shown.');
       } else {
         setF8PasswordError(data.message || 'Invalid password');
       }
@@ -1413,20 +1408,23 @@ const Order = () => {
                   const currentConfig = settings.ReverseQtyMode === 1 ? 'PasswordRequired' : 'NoPassword';
                   setReverseQtyConfig(currentConfig);
 
-                  // Handle F8 based on latest backend value
-                  if (currentConfig === 'PasswordRequired') {
-                    setShowAuthModal(true);
-                  } else {
-                    setReverseQtyMode(prev => {
-                      const newMode = !prev;
-                      // Clear reverse quantity items when turning off reverse mode
-                      if (!newMode) {
-                        setReverseQtyItems([]);
-                      }
-                      toast.success(`Reverse Qty Mode ${newMode ? 'activated' : 'deactivated'}.`);
-                      return newMode;
-                    });
-                  }
+                                      // Handle F8 based on latest backend value
+                                      if (currentConfig === 'PasswordRequired') {
+                                        setShowAuthModal(true);
+                                      } else {
+                                        setReverseQtyMode(prev => {
+                                          const newMode = !prev;
+                                          // Clear reverse quantity items when turning off reverse mode
+                                          if (!newMode) {
+                                            setReverseQtyItems([]);
+                                          } else {
+                                            // When activating reverse mode, also set to expanded view
+                                            setIsGroupedView(false);
+                                          }
+                                          toast.success(`Reverse Qty Mode ${newMode ? 'activated' : 'deactivated'}.`);
+                                          return newMode;
+                                        });
+                                      }
                 } else {
                   // Default to password required if setting not found
                   setReverseQtyConfig('PasswordRequired');
@@ -1538,6 +1536,9 @@ const Order = () => {
         // Clear reverse quantity items when turning off reverse mode
         if (!newMode) {
           setReverseQtyItems([]);
+        } else {
+          // When activating reverse mode, also set to expanded view
+          setIsGroupedView(false);
         }
         return newMode;
       });
