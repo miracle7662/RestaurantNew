@@ -1332,22 +1332,21 @@ exports.getLatestBilledBillForTable = async (req, res) => {
       return res.status(400).json({ success: false, message: 'tableId is required', data: null });
     }
 
-    // Step 1: Fetch the latest billed but not settled transaction for the table
+    // Step 1: Fetch the latest billed (and possibly unsettled) transaction for the table
     const bill = db.prepare(`
       SELECT * 
       FROM TAxnTrnbill 
-      WHERE TableID = ? AND isBilled = 1 AND isSetteled = 0
+      WHERE TableID = ? AND isBilled = 1
       ORDER BY TxnID DESC 
       LIMIT 1
     `).get(Number(tableId));
 
-    // Step 2: If no record is found, it's not an error, just means no billed orders to show.
     if (!bill) {
-      return res.status(404).json({ success: false, message: 'No billed but unsettled transaction found for this table.', data: null });
+      return res.status(404).json({ success: false, message: 'No billed transaction found for this table.', data: null });
     }
 
-    // Step 2 (cont.): Load all items from TAxnTrnbilldetails
-    const details = db.prepare(`
+    // Step 2: Load all items (billed and unbilled) associated with that transaction
+    const allDetailsForBill = db.prepare(`
       SELECT d.*, m.item_name as ItemName
       FROM TAxnTrnbilldetails d
       LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
@@ -1355,8 +1354,22 @@ exports.getLatestBilledBillForTable = async (req, res) => {
       ORDER BY d.TXnDetailID ASC
     `).all(bill.TxnID);
 
-    // Respond with the bill and its details
-    res.json(ok('Latest billed bill fetched', { ...bill, details }));
+    // Step 3: Check for any *other* unbilled transactions for the same table that might have been created after the bill was printed.
+    // This is a fallback and might not be the primary logic path if new items are added to the *same* bill.
+    const otherUnbilledItems = db.prepare(`
+      SELECT d.*, m.item_name as ItemName
+      FROM TAxnTrnbilldetails d
+      JOIN TAxnTrnbill b ON d.TxnID = b.TxnID
+      LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
+      WHERE b.TableID = ? AND b.isBilled = 0 AND b.isCancelled = 0 AND d.isCancelled = 0
+    `).all(Number(tableId));
+
+    // Combine the details. The primary details are from the billed transaction.
+    // The frontend will handle displaying them correctly.
+    const combinedDetails = [...allDetailsForBill, ...otherUnbilledItems];
+
+    // Respond with the main billed transaction header and all associated items (billed and new)
+    res.json(ok('Fetched billed and unbilled items for the table', { ...bill, details: combinedDetails }));
 
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to fetch latest billed bill', data: null, error: error.message });
