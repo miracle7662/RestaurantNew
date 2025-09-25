@@ -1043,8 +1043,8 @@ exports.handleF8KeyPress = async (req, res) => {
       }
 
       // Generate new KOT number for reversal
-      const maxKOTResult = db.prepare('SELECT MAX(KOTNo) as maxKOT FROM TAxnTrnbilldetails').get();
-      const newKOTNo = (maxKOTResult?.maxKOT || 0) + 1;
+      const maxRevKOTResult = db.prepare('SELECT MAX(RevKOTNo) as maxRevKOT FROM TAxnTrnbilldetails').get();
+      const newRevKOTNo = (maxRevKOTResult?.maxRevKOT || 0) + 1;
 
       // Update RevQty and KOTNo in database
       const newRevQty = currentRevQty + 1;
@@ -1053,9 +1053,9 @@ exports.handleF8KeyPress = async (req, res) => {
       db.transaction(() => {
         db.prepare(`
           UPDATE TAxnTrnbilldetails
-          SET RevQty = ?, KOTNo = ?
+          SET RevQty = ?, RevKOTNo = ?
           WHERE TXnDetailID = ?
-        `).run(newRevQty, newKOTNo, item.TXnDetailID);
+        `).run(newRevQty, newRevKOTNo, item.TXnDetailID);
 
         db.prepare(`
           UPDATE TAxnTrnbill
@@ -1264,8 +1264,8 @@ exports.reverseQuantity = async (req, res) => {
     }
 
     // Generate new KOT number for reversal
-    const maxKOTResult = db.prepare('SELECT MAX(KOTNo) as maxKOT FROM TAxnTrnbilldetails').get();
-    const newKOTNo = (maxKOTResult?.maxKOT || 0) + 1;
+    const maxRevKOTResult = db.prepare('SELECT MAX(RevKOTNo) as maxRevKOT FROM TAxnTrnbilldetails').get();
+    const newRevKOTNo = (maxRevKOTResult?.maxRevKOT || 0) + 1;
 
     // Update RevQty and KOTNo
     const newRevQty = currentRevQty + 1;
@@ -1274,9 +1274,9 @@ exports.reverseQuantity = async (req, res) => {
     db.transaction(() => {
       db.prepare(`
         UPDATE TAxnTrnbilldetails
-        SET RevQty = ?, KOTNo = ?
+        SET RevQty = ?, RevKOTNo = ?
         WHERE TXnDetailID = ?
-      `).run(newRevQty, newKOTNo, item.TXnDetailID);
+      `).run(newRevQty, newRevKOTNo, item.TXnDetailID);
 
       db.prepare(`
         UPDATE TAxnTrnbill
@@ -1295,7 +1295,7 @@ exports.reverseQuantity = async (req, res) => {
           ReversedByUserID, ApprovedByAdmin, HotelID, ReversalReason
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
-        item.TXnDetailID, item.TxnID, item.TableID, item.KOTNo, null, // RevKOTNo can be added later if generated
+        item.TXnDetailID, item.TxnID, item.TableID, item.KOTNo, newRevKOTNo,
         item.ItemID, currentQty, 1, // ReversedQty is 1 for each reversal
         availableQty - 1, reverseType,
         userId, approvedByAdminId || null, item.HotelID, reversalReason || null
