@@ -1211,9 +1211,10 @@ const Order = () => {
       if (resp?.success) {
         toast.success('KOT saved successfully!');
 
-        // Clear reverse items after successful save
+        // Clear reverse items after successful save and deactivate Reverse Mode
         if (reverseItemsToKOT.length > 0) {
           setReverseQtyItems([]);
+          setReverseQtyMode(false);
         }
 
         // Optimistically update the table status to green (1)

@@ -846,23 +846,24 @@ CREATE TABLE IF NOT EXISTS TrnSettlement (
 );
 
 CREATE TABLE IF NOT EXISTS TAxnTrnReversalLog (
-    ReversalID       INTEGER PRIMARY KEY AUTOINCREMENT,
-    TxnDetailID      INTEGER ,
-    TxnID            INTEGER ,
-    TableID          INTEGER,
-    KOTNo            INTEGER,
-    RevKOTNo         INTEGER,
-    ItemID           INTEGER ,
-    ActualQty        REAL ,
-    ReversedQty      REAL ,
-    RemainingQty     REAL ,
-    ReverseType      TEXT CHECK(ReverseType IN ('BeforeBill', 'AfterBill')),
-    ReversedByUserID INTEGER ,
-    ApprovedByAdmin  INTEGER ,
-    HotelID          INTEGER,
-    ReversalReason   TEXT,
-    ReversalDate     DATETIME DEFAULT CURRENT_TIMESTAMP
+    ReversalID        INTEGER PRIMARY KEY AUTOINCREMENT,
+    TxnDetailID       INTEGER,
+    TxnID             INTEGER,
+    KOTNo             INTEGER,
+    RevKOTNo          INTEGER,
+    ItemID            INTEGER,
+    ActualQty         REAL,
+    ReversedQty       REAL,
+    RemainingQty      REAL,
+    IsBeforeBill      BOOLEAN DEFAULT 0,
+    IsAfterBill       BOOLEAN DEFAULT 0,
+    ReversedByUserID  INTEGER,
+    ApprovedByAdmin   INTEGER,
+    HotelID           INTEGER,
+    ReversalReason    TEXT,    
+    ReversalDate      DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
 
 
 

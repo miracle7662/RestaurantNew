@@ -1137,16 +1137,16 @@ exports.handleF8KeyPress = async (req, res) => {
 
           // Log the reversal
           db.prepare(`
-            INSERT INTO TAxnTrnReversalLog (
-              TxnDetailID, TxnID, TableID, KOTNo, RevKOTNo, ItemID, 
-              ActualQty, ReversedQty, RemainingQty, ReverseType, 
-              ReversedByUserID, ApprovedByAdmin, HotelID, ReversalReason
+            INSERT INTO TAxnTrnReversalLog ( 
+              TxnDetailID, TxnID, KOTNo, RevKOTNo, ItemID,
+              ActualQty, ReversedQty, RemainingQty, IsBeforeBill, IsAfterBill,
+              ReversedByUserID, ApprovedByAdmin, HotelID, ReversalReason 
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `).run(
-            item.TXnDetailID, item.TxnID, tableId, item.KOTNo, null,
+            item.TXnDetailID, item.TxnID, item.KOTNo, null,
             item.ItemID, currentQty, 1,
-            availableQty - 1, 'BeforeBill',
-            userId, approvedByAdminId || null, item.HotelID, reversalReason || null
+            availableQty - 1, 1, 0,
+            userId, approvedByAdminId || null, item.HotelID, reversalReason || null 
           );
 
           db.prepare(`
@@ -1288,17 +1288,17 @@ exports.reverseQuantity = async (req, res) => {
       const bill = db.prepare('SELECT isBilled FROM TAxnTrnbill WHERE TxnID = ?').get(item.TxnID);
       const reverseType = bill && bill.isBilled ? 'AfterBill' : 'BeforeBill';
 
+      const isBeforeBill = reverseType === 'BeforeBill' ? 1 : 0;
+      const isAfterBill = reverseType === 'AfterBill' ? 1 : 0;
+
       db.prepare(`
-        INSERT INTO TAxnTrnReversalLog (
-          TxnDetailID, TxnID, TableID, KOTNo, RevKOTNo, ItemID, 
-          ActualQty, ReversedQty, RemainingQty, ReverseType, 
-          ReversedByUserID, ApprovedByAdmin, HotelID, ReversalReason
+        INSERT INTO TAxnTrnReversalLog ( 
+          TxnDetailID, TxnID, KOTNo, RevKOTNo, ItemID, ActualQty, ReversedQty, RemainingQty, 
+          IsBeforeBill, IsAfterBill, ReversedByUserID, ApprovedByAdmin, HotelID, ReversalReason 
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
-        item.TXnDetailID, item.TxnID, item.TableID, item.KOTNo, newRevKOTNo,
-        item.ItemID, currentQty, 1, // ReversedQty is 1 for each reversal
-        availableQty - 1, reverseType,
-        userId, approvedByAdminId || null, item.HotelID, reversalReason || null
+        item.TXnDetailID, item.TxnID, item.KOTNo, newRevKOTNo, item.ItemID, currentQty, 1, 
+        availableQty - 1, isBeforeBill, isAfterBill, userId, approvedByAdminId || null, item.HotelID, reversalReason || null
       );
 
     })();
