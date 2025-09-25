@@ -153,7 +153,7 @@ const Order = () => {
             isNCKOT: item.isNCKOT,
             NCName: '',
             NCPurpose: '',
-            isNew: item.isBilled === 0, // Mark as 'new' if it's not billed yet
+            isNew: false, // All items are existing
             originalQty: item.Qty,
             kotNo: item.KOTNo, // Use KOTNo from the item detail
           }));
