@@ -1,2 +1,0 @@
-- [ ] Modify refreshItemsForTable in Orders.tsx to set isNew: false for all fetched items (billed and unbilled)
-- [ ] Test the change to ensure all items are shown as existing after the sequence
