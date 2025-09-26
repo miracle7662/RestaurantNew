@@ -730,8 +730,62 @@ exports.createKOT = async (req, res) => {
         console.log(`Created new bill. TxnID: ${txnId}. Updated table ${TableID} status.`);
       }
 
-      // 2. Generate a new KOT number for this batch of items from the details table
-      const maxKOTResult = db.prepare('SELECT MAX(KOTNo) as maxKOT FROM TAxnTrnbilldetails').get();
+      // 2. Generate a new KOT number with reset logic
+      const outletSettings = db.prepare('SELECT next_reset_kot_days, next_reset_kot_date FROM mstoutlet_settings WHERE outletid = ?').get(outletid);
+      const resetRule = outletSettings?.next_reset_kot_days || 'Never'; // e.g., 'DAILY', 'WEEKLY', 'MONTHLY'
+      const lastResetDate = outletSettings?.next_reset_kot_date ? new Date(outletSettings.next_reset_kot_date) : null;
+      const now = new Date();
+
+      let needsReset = false;
+      if (!lastResetDate) {
+        needsReset = true;
+      } else {
+        switch (resetRule.toUpperCase()) {
+          case 'DAILY': {
+            // Reset if the current day is different from the last reset day
+            if (now.toDateString() !== lastResetDate.toDateString()) {
+              needsReset = true;
+            }
+            break;
+          }
+          case 'WEEKLY': {
+            // Reset if the current week is different from the last reset week
+            const startOfWeek = new Date(now);
+            startOfWeek.setDate(now.getDate() - now.getDay()); // Assuming Sunday is the start of the week
+            startOfWeek.setHours(0, 0, 0, 0);
+            if (lastResetDate < startOfWeek) {
+              needsReset = true;
+            }
+            break;
+          }
+          case 'MONTHLY': {
+            // Reset if the current month/year is different from the last reset month/year
+            if (now.getFullYear() > lastResetDate.getFullYear() || now.getMonth() > lastResetDate.getMonth()) {
+              needsReset = true;
+            }
+            break;
+          }
+          default: { // 'Never' or other values
+            needsReset = false;
+            break;
+          }
+        }
+      }
+
+      let maxKOTResult;
+      if (needsReset) {
+        console.log(`KOT number reset triggered for outlet ${outletid} based on rule: ${resetRule}`);
+        db.prepare("UPDATE mstoutlet_settings SET next_reset_kot_date = datetime('now') WHERE outletid = ?").run(outletid);
+        maxKOTResult = { maxKOT: 0 }; // Force KOT to start from 1
+      } else {
+        // Find the max KOT number since the last reset for this outlet
+        const lastResetISO = lastResetDate ? lastResetDate.toISOString() : '1970-01-01T00:00:00.000Z';
+        maxKOTResult = db.prepare(`
+          SELECT MAX(KOTNo) as maxKOT FROM TAxnTrnbilldetails 
+          WHERE outletid = ? AND KOTUsedDate >= ?
+        `).get(outletid, lastResetISO);
+      }
+
       const kotNo = (maxKOTResult?.maxKOT || 0) + 1;
 
       const insertDetailStmt = db.prepare(`
