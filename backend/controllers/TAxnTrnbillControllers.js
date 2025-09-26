@@ -731,9 +731,9 @@ exports.createKOT = async (req, res) => {
       }
 
       // 2. Generate a new KOT number with reset logic
-      const outletSettings = db.prepare('SELECT next_reset_kot_days, next_reset_kot_date FROM mstoutlet_settings WHERE outletid = ?').get(outletid);
+      const outletSettings = db.prepare('SELECT  next_reset_order_number_days,  next_reset_order_number_date FROM mstoutlet_settings WHERE outletid = ?').get(outletid);
       const resetRule = outletSettings?.next_reset_kot_days || 'Never'; // e.g., 'DAILY', 'WEEKLY', 'MONTHLY'
-      const lastResetDate = outletSettings?.next_reset_kot_date ? new Date(outletSettings.next_reset_kot_date) : null;
+      const lastResetDate = outletSettings?.next_reset_order_number_date ? new Date(outletSettings.next_reset_order_number_date) : null;
       const now = new Date();
 
       let needsReset = false;
@@ -775,7 +775,7 @@ exports.createKOT = async (req, res) => {
       let maxKOTResult;
       if (needsReset) {
         console.log(`KOT number reset triggered for outlet ${outletid} based on rule: ${resetRule}`);
-        db.prepare("UPDATE mstoutlet_settings SET next_reset_kot_date = datetime('now') WHERE outletid = ?").run(outletid);
+        db.prepare("UPDATE mstoutlet_settings SET next_reset_order_number_date = datetime('now') WHERE outletid = ?").run(outletid);
         maxKOTResult = { maxKOT: 0 }; // Force KOT to start from 1
       } else {
         // Find the max KOT number since the last reset for this outlet

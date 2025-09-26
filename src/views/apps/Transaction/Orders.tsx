@@ -1946,6 +1946,10 @@ const Order = () => {
               <h2 className="card-title h5 fw-bold mb-4 text-center">
                 Bill Preview
               </h2>
+              {/* Bill No Section */}
+              <div className="text-center mb-3" style={{ fontSize: '0.9rem' }}>
+                <p className="mb-0 fw-bold">Bill No: {currentTxnId || 'N/A'}</p>
+              </div>
               <div className="text-center mb-3">
                 <p className="fw-bold">{(formData as any).outlet_name || user?.outlet_name || '!!!Hotel Miracle!!!'}</p>
                 <p>{user?.outlet_address || 'Kolhapur Road Kolhapur 416416'}</p>
@@ -1954,8 +1958,8 @@ const Order = () => {
                 {(formData as any).website && <p>Website: {(formData as any).website}</p>}
               </div>
               <div className="text-center mb-3" style={{ fontSize: '0.9rem' }}>
-                <p className="mb-0">Note: {(formData as any).note || document.querySelector<HTMLInputElement>('input[placeholder="KOT Note"]')?.value || ''}</p>
-                <p className="mb-0">{new Date().toLocaleString()}</p>
+                <p className="mb-0">Note: {(formData as any).note || `Order ID: ${currentTxnId || 'N/A'}`}</p>
+                <p className="mb-0">{new Date().toLocaleDateString('en-GB')} @ {new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).toUpperCase()}</p>
               </div>
               <div className="d-flex justify-content-between mb-3">
                 <p>Pay Mode: Cash</p>
