@@ -693,21 +693,10 @@ exports.createKOT = async (req, res) => {
       let finalDiscount = Number(Discount) || 0;
       let finalDiscountType = Number(DiscountType) || 0;
 
-      // If we are only processing reversals, we should find the latest bill, even if it's billed.
-      const isReversalOnly = details.every(item => Number(item.Qty) < 0);
-      let existingBill;
-
-      if (isReversalOnly) {
-        existingBill = db.prepare(`
-          SELECT TxnID, DiscPer, Discount, DiscountType FROM TAxnTrnbill 
-          WHERE TableID = ? AND isCancelled = 0 ORDER BY TxnID DESC LIMIT 1
-        `).get(TableID);
-      } else {
-        existingBill = db.prepare(`
-          SELECT TxnID, DiscPer, Discount, DiscountType FROM TAxnTrnbill 
-          WHERE TableID = ? AND isBilled = 0 AND isCancelled = 0
-        `).get(TableID);
-      }
+      let existingBill = db.prepare(`
+        SELECT TxnID, DiscPer, Discount, DiscountType FROM TAxnTrnbill 
+        WHERE TableID = ? AND isCancelled = 0 ORDER BY TxnID DESC LIMIT 1
+      `).get(TableID);
 
       if (existingBill) {
         txnId = existingBill.TxnID;
