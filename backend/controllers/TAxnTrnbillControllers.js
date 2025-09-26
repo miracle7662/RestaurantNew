@@ -987,11 +987,11 @@ exports.handleF8KeyPress = async (req, res) => {
     // Note: ReverseQtyMode check is handled in the frontend
     // Backend assumes the request is valid when called
 
-    // Get the latest unbilled KOT for the table
+    // Get the latest KOT for the table (billed or unbilled)
     const latestKOT = db.prepare(`
       SELECT TxnID, KOTNo
       FROM TAxnTrnbill
-      WHERE TableID = ? AND isBilled = 0 AND isCancelled = 0
+      WHERE TableID = ? AND isCancelled = 0
       ORDER BY TxnID DESC
       LIMIT 1
     `).get(Number(tableId));
@@ -1019,13 +1019,13 @@ exports.handleF8KeyPress = async (req, res) => {
         FROM TAxnTrnbilldetails d
         JOIN TAxnTrnbill b ON d.TxnID = b.TxnID
         LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
-        WHERE b.TableID = ? AND d.TXnDetailID = ? AND b.isBilled = 0 AND d.isCancelled = 0
+        WHERE b.TableID = ? AND d.TXnDetailID = ? AND d.isCancelled = 0
       `).get(Number(tableId), Number(txnDetailId));
 
       if (!item) {
         return res.status(404).json({
           success: false,
-          message: 'Item not found or already billed',
+          message: 'Item not found',
           data: null
         });
       }
@@ -1406,6 +1406,36 @@ exports.printBill = async (req, res) => {
   }
 }
 
+/* -------------------------------------------------------------------------- */
+/* 11) markBillAsBilled → update isBilled = 1 for a bill and its items        */
+/* -------------------------------------------------------------------------- */
+exports.markBillAsBilled = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const bill = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id));
+    if (!bill) {
+      return res.status(404).json({ success: false, message: 'Bill not found', data: null });
+    }
+
+    // Update isBilled = 1 for all items in the bill
+    db.prepare('UPDATE TAxnTrnbilldetails SET isBilled = 1 WHERE TxnID = ?').run(Number(id));
+
+    // Update the bill header to mark it as billed and set the date
+    db.prepare(`
+      UPDATE TAxnTrnbill
+      SET isBilled = 1, BilledDate = CURRENT_TIMESTAMP
+      WHERE TxnID = ?
+    `).run(Number(id));
+
+    const header = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id));
+    const items = db.prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? ORDER BY TXnDetailID').all(Number(id));
+
+    res.json(ok('Bill marked as billed', { ...header, details: items }));
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to mark bill as billed', data: null, error: error.message });
+  }
+};
 
 
 module.exports = exports

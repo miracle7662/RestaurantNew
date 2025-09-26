@@ -978,92 +978,151 @@ const Order = () => {
     setShowOrderDetails(false);
   };
 
+  // const handlePrintBill = async () => {
+  //   if (items.length === 0) {
+  //     toast.error('No items to print a bill for.');
+  //     return;
+  //   }
+
+  //   setLoading(true);
+  //   try {
+  //     // 1. Assemble payload
+  //     const selectedTableRecord: any = (Array.isArray(filteredTables) ? filteredTables : tableItems)
+  //       .find((t: any) => t && t.table_name && t.table_name === selectedTable)
+  //       || (Array.isArray(tableItems) ? tableItems.find((t: any) => t && t.table_name === selectedTable) : undefined);
+
+  //     const resolvedTableId = selectedTableRecord ? Number((selectedTableRecord as any).tableid || (selectedTableRecord as any).tablemanagementid) : null;
+  //     const resolvedOutletId = selectedTableRecord ? Number((selectedTableRecord as any).outletid) || (user?.outletid ? Number(user.outletid) : null) : null;
+  //     const userId = user?.id || null;
+  //     const resolvedDeptId = selectedTableRecord ? Number((selectedTableRecord as any).departmentid) || selectedDeptId : selectedDeptId;
+
+  //     const hotelId = user?.hotelid || null;
+
+  //     const billPayload = {
+  //       TableID: resolvedTableId,
+  //       outletid: resolvedOutletId,
+  //       HotelID: hotelId,
+  //       UserId: userId,
+  //       GrossAmt: taxCalc.subtotal,
+  //       Discount: discount,
+  //       DiscPer: DiscPer,
+  //       DiscountType: DiscountType,
+  //       CGST: taxCalc.cgstAmt,
+  //       SGST: taxCalc.sgstAmt,
+  //       IGST: taxCalc.igstAmt,
+  //       CESS: taxCalc.cessAmt,
+  //       Amount: taxCalc.grandTotal - discount,
+  //       CustomerName: customerName,
+  //       MobileNo: mobileNumber,
+  //       details: items.map(i => ({
+  //         outletid: resolvedOutletId,
+  //         TableID: resolvedTableId,
+  //         DeptID: resolvedDeptId,
+  //         ItemID: i.id,
+  //         Qty: i.qty,
+  //         RuntimeRate: i.price,
+  //         isNCKOT: i.isNCKOT,
+  //         KOTNo: i.kotNo,
+  //         NCName: i.NCName,
+  //         NCPurpose: i.NCPurpose,
+  //         CGST: taxRates.cgst,
+  //         SGST: taxRates.sgst,
+  //         IGST: taxRates.igst,
+  //         CESS: taxRates.cess,
+  //       }))
+  //     };
+
+  //     // 2. Create or Update Bill
+  //     const apiEndpoint = currentTxnId ? `http://localhost:3001/api/TAxnTrnbill/${currentTxnId}` : 'http://localhost:3001/api/TAxnTrnbill';
+  //     const apiMethod = currentTxnId ? 'PUT' : 'POST';
+
+  //     const billSaveRes = await fetch(apiEndpoint, {
+  //       method: apiMethod,
+  //       headers: { 'Content-Type': 'application/json' },
+  //       body: JSON.stringify(billPayload),
+  //     });
+  //     const billResponse = await billSaveRes.json();
+
+  //     if (!billResponse?.success) {
+  //       throw new Error(billResponse?.message || 'Failed to save bill.');
+  //     }
+
+  //     const savedTxnId = billResponse.data.TxnID;
+  //     setCurrentTxnId(savedTxnId); // Update currentTxnId
+
+  //     // 3. Call the print endpoint to mark as billed
+  //     const printResponse = await fetch(`http://localhost:3001/api/TAxnTrnbill/${savedTxnId}/print`, {
+  //       method: 'PUT',
+  //       headers: { 'Content-Type': 'application/json' },
+  //     });
+  //     const printResult = await printResponse.json();
+
+  //     if (!printResult.success) {
+  //       throw new Error(printResult.message || 'Failed to mark bill as printed.');
+  //     }
+
+  //     toast.success('Bill saved and marked as printed!');
+
+  //     // 4. Print the bill preview
+  //     const printWindow = window.open('', '_blank');
+  //     if (printWindow) {
+  //       const contentToPrint = document.getElementById('bill-preview');
+  //       if (contentToPrint) {
+  //         printWindow.document.write(contentToPrint.innerHTML);
+  //         printWindow.document.close();
+  //         printWindow.focus();
+  //         printWindow.print();
+  //       }
+  //     }
+
+  //     // 5. Update table status to 'billed' (red, status=2)
+  //     if (selectedTable) {
+  //       setTableItems(prevTables =>
+  //         prevTables.map(table =>
+  //           table.table_name === selectedTable ? { ...table, status: 2 } : table
+  //         )
+  //       );
+  //     }
+
+  //     // 6. Per request, DO NOT clear UI. Instead, update items to reflect their 'billed' state.
+  //     setItems(prevItems => prevItems.map(item => ({ ...item, isNew: false, isBilled: 1 })));
+
+  //   } catch (error: any) {
+  //     console.error('Error printing bill:', error);
+  //     toast.error(error.message || 'An error occurred while printing the bill.');
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
+
   const handlePrintBill = async () => {
     if (items.length === 0) {
       toast.error('No items to print a bill for.');
       return;
     }
 
+    if (!currentTxnId) {
+      toast.error('Cannot print bill. No transaction ID found. Please save the KOT first.');
+      return;
+    }
+
     setLoading(true);
     try {
-      // 1. Assemble payload
-      const selectedTableRecord: any = (Array.isArray(filteredTables) ? filteredTables : tableItems)
-        .find((t: any) => t && t.table_name && t.table_name === selectedTable)
-        || (Array.isArray(tableItems) ? tableItems.find((t: any) => t && t.table_name === selectedTable) : undefined);
-
-      const resolvedTableId = selectedTableRecord ? Number((selectedTableRecord as any).tableid || (selectedTableRecord as any).tablemanagementid) : null;
-      const resolvedOutletId = selectedTableRecord ? Number((selectedTableRecord as any).outletid) || (user?.outletid ? Number(user.outletid) : null) : null;
-      const userId = user?.id || null;
-      const resolvedDeptId = selectedTableRecord ? Number((selectedTableRecord as any).departmentid) || selectedDeptId : selectedDeptId;
-
-      const hotelId = user?.hotelid || null;
-
-      const billPayload = {
-        TableID: resolvedTableId,
-        outletid: resolvedOutletId,
-        HotelID: hotelId,
-        UserId: userId,
-        GrossAmt: taxCalc.subtotal,
-        Discount: discount,
-        DiscPer: DiscPer,
-        DiscountType: DiscountType,
-        CGST: taxCalc.cgstAmt,
-        SGST: taxCalc.sgstAmt,
-        IGST: taxCalc.igstAmt,
-        CESS: taxCalc.cessAmt,
-        Amount: taxCalc.grandTotal - discount,
-        CustomerName: customerName,
-        MobileNo: mobileNumber,
-        details: items.map(i => ({
-          outletid: resolvedOutletId,
-          TableID: resolvedTableId,
-          DeptID: resolvedDeptId,
-          ItemID: i.id,
-          Qty: i.qty,
-          RuntimeRate: i.price,
-          isNCKOT: i.isNCKOT,
-          KOTNo: i.kotNo,
-          NCName: i.NCName,
-          NCPurpose: i.NCPurpose,
-          CGST: taxRates.cgst,
-          SGST: taxRates.sgst,
-          IGST: taxRates.igst,
-          CESS: taxRates.cess,
-        }))
-      };
-
-      // 2. Create or Update Bill
-      const apiEndpoint = currentTxnId ? `http://localhost:3001/api/TAxnTrnbill/${currentTxnId}` : 'http://localhost:3001/api/TAxnTrnbill';
-      const apiMethod = currentTxnId ? 'PUT' : 'POST';
-
-      const billSaveRes = await fetch(apiEndpoint, {
-        method: apiMethod,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(billPayload),
-      });
-      const billResponse = await billSaveRes.json();
-
-      if (!billResponse?.success) {
-        throw new Error(billResponse?.message || 'Failed to save bill.');
-      }
-
-      const savedTxnId = billResponse.data.TxnID;
-      setCurrentTxnId(savedTxnId); // Update currentTxnId
-
-      // 3. Call the print endpoint to mark as billed
-      const printResponse = await fetch(`http://localhost:3001/api/TAxnTrnbill/${savedTxnId}/print`, {
+      // 1. Call the new endpoint to mark the bill as billed
+      const printResponse = await fetch(`http://localhost:3001/api/TAxnTrnbill/${currentTxnId}/mark-billed`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
       });
+
       const printResult = await printResponse.json();
 
       if (!printResult.success) {
         throw new Error(printResult.message || 'Failed to mark bill as printed.');
       }
 
-      toast.success('Bill saved and marked as printed!');
+      toast.success('Bill marked as printed!');
 
-      // 4. Print the bill preview
+      // 2. Print the bill preview from the existing data
       const printWindow = window.open('', '_blank');
       if (printWindow) {
         const contentToPrint = document.getElementById('bill-preview');
@@ -1075,7 +1134,7 @@ const Order = () => {
         }
       }
 
-      // 5. Update table status to 'billed' (red, status=2)
+      // 3. Update table status to 'billed' (red, status=2)
       if (selectedTable) {
         setTableItems(prevTables =>
           prevTables.map(table =>
@@ -1084,9 +1143,8 @@ const Order = () => {
         );
       }
 
-      // 6. Per request, DO NOT clear UI. Instead, update items to reflect their 'billed' state.
+      // 4. Update items in the UI to reflect their 'billed' state.
       setItems(prevItems => prevItems.map(item => ({ ...item, isNew: false, isBilled: 1 })));
-
     } catch (error: any) {
       console.error('Error printing bill:', error);
       toast.error(error.message || 'An error occurred while printing the bill.');
@@ -1191,7 +1249,7 @@ const Order = () => {
       const firstNCItem = newKotItemsPayload.find(item => item.isNCKOT);
 
       const kotPayload = {
-        txnId: 0,
+        txnId: currentTxnId || 0,
         tableId: resolvedTableId,
         items: combinedPayload,
         outletid: resolvedOutletId,
