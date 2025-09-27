@@ -731,20 +731,24 @@ exports.createKOT = async (req, res) => {
       }
 
       // 2. Generate a new KOT number with reset logic
-      const outletSettings = db.prepare('SELECT  next_reset_order_number_days,  next_reset_order_number_date FROM mstoutlet_settings WHERE outletid = ?').get(outletid);
-      const resetRule = outletSettings?.next_reset_kot_days || 'Never'; // e.g., 'DAILY', 'WEEKLY', 'MONTHLY'
-      const lastResetDate = outletSettings?.next_reset_order_number_date ? new Date(outletSettings.next_reset_order_number_date) : null;
+      const outletSettings = db.prepare('SELECT next_reset_kot_days, next_reset_kot_date FROM mstoutlet_settings WHERE outletid = ?').get(outletid);
+      const resetRule = outletSettings?.next_reset_kot_days || 'DAILY'; // Default to 'DAILY' if null
+      const lastResetDate = outletSettings?.next_reset_kot_date ? new Date(outletSettings.next_reset_kot_date) : null;
       const now = new Date();
+
+      console.log(`KOT generation for outlet ${outletid}: resetRule=${resetRule}, lastResetDate=${lastResetDate}`);
 
       let needsReset = false;
       if (!lastResetDate) {
         needsReset = true;
+        console.log('No last reset date found, triggering reset.');
       } else {
         switch (resetRule.toUpperCase()) {
           case 'DAILY': {
             // Reset if the current day is different from the last reset day
             if (now.toDateString() !== lastResetDate.toDateString()) {
               needsReset = true;
+              console.log('Daily reset triggered.');
             }
             break;
           }
@@ -755,6 +759,7 @@ exports.createKOT = async (req, res) => {
             startOfWeek.setHours(0, 0, 0, 0);
             if (lastResetDate < startOfWeek) {
               needsReset = true;
+              console.log('Weekly reset triggered.');
             }
             break;
           }
@@ -762,11 +767,13 @@ exports.createKOT = async (req, res) => {
             // Reset if the current month/year is different from the last reset month/year
             if (now.getFullYear() > lastResetDate.getFullYear() || now.getMonth() > lastResetDate.getMonth()) {
               needsReset = true;
+              console.log('Monthly reset triggered.');
             }
             break;
           }
           default: { // 'Never' or other values
             needsReset = false;
+            console.log('No reset needed (rule: Never or unknown).');
             break;
           }
         }
@@ -775,18 +782,19 @@ exports.createKOT = async (req, res) => {
       let maxKOTResult;
       if (needsReset) {
         console.log(`KOT number reset triggered for outlet ${outletid} based on rule: ${resetRule}`);
-        db.prepare("UPDATE mstoutlet_settings SET next_reset_order_number_date = datetime('now') WHERE outletid = ?").run(outletid);
+        db.prepare("UPDATE mstoutlet_settings SET next_reset_kot_date = datetime('now') WHERE outletid = ?").run(outletid);
         maxKOTResult = { maxKOT: 0 }; // Force KOT to start from 1
       } else {
         // Find the max KOT number since the last reset for this outlet
         const lastResetISO = lastResetDate ? lastResetDate.toISOString() : '1970-01-01T00:00:00.000Z';
         maxKOTResult = db.prepare(`
-          SELECT MAX(KOTNo) as maxKOT FROM TAxnTrnbilldetails 
+          SELECT MAX(KOTNo) as maxKOT FROM TAxnTrnbilldetails
           WHERE outletid = ? AND KOTUsedDate >= ?
         `).get(outletid, lastResetISO);
       }
 
       const kotNo = (maxKOTResult?.maxKOT || 0) + 1;
+      console.log(`Generated KOT number: ${kotNo} (maxKOT was ${maxKOTResult?.maxKOT || 0})`);
 
       const insertDetailStmt = db.prepare(`
         INSERT INTO TAxnTrnbilldetails (
