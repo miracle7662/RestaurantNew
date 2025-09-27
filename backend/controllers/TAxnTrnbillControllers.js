@@ -9,6 +9,23 @@ function toBool(value) {
   return value ? 1 : 0
 }
 
+function generateTxnNo(outletid) {
+  const today = new Date().toISOString().slice(0, 10).replace(/-/g, ''); // YYYYMMDD
+  const prefix = `TXN-${String(outletid).padStart(3, '0')}-${today}-`;
+  const prefixLen = prefix.length + 1; // SUBSTR starts from 1-based index after prefix
+  const likePattern = prefix + '%';
+
+  const maxStmt = db.prepare(`
+    SELECT MAX(CAST(SUBSTR(TxnNo, ?) AS INTEGER)) as maxSeq
+    FROM TAxnTrnbill 
+    WHERE outletid = ? AND TxnNo LIKE ?
+  `);
+
+  const result = maxStmt.get(prefixLen, outletid, likePattern);
+  const seq = (result.maxSeq || 0) + 1;
+  return prefix + String(seq).padStart(4, '0');
+}
+
 
 /* -------------------------------------------------------------------------- */
 /* 1) getAllBills → fetch all bills with details (no settlement)              */
@@ -179,6 +196,11 @@ exports.createBill = async (req, res) => {
     const finalAmount = finalGross - finalDiscount + finalCgst + finalSgst + finalIgst + finalCess + finalRoundOff;
 
     const trx = db.transaction(() => {
+      let txnNo = TxnNo;
+      if (!txnNo && outletid) {
+        txnNo = generateTxnNo(outletid);
+      }
+
       const stmt = db.prepare(`
         INSERT INTO TAxnTrnbill (
           outletid, TxnNo, TableID, Steward, PAX, AutoKOT, ManualKOT, TxnDatetime,
@@ -192,7 +214,7 @@ exports.createBill = async (req, res) => {
 
     const result = stmt.run(
       outletid ?? null,
-      TxnNo || null,
+      txnNo || null,
       TableID ?? null,
       Steward || null,
       PAX ?? null,
@@ -717,82 +739,30 @@ exports.createKOT = async (req, res) => {
       } else {
         console.log(`No existing bill for table ${TableID}. Creating a new one.`);
         const isHeaderNCKOT = details.some(item => toBool(item.isNCKOT));
+        let txnNo = null;
+        if (outletid) {
+          txnNo = generateTxnNo(outletid);
+        }
         const insertHeaderStmt = db.prepare(`
           INSERT INTO TAxnTrnbill (
-            outletid, TableID, UserId, HotelID, TxnDatetime,
+            outletid, TxnNo, TableID, UserId, HotelID, TxnDatetime,
             isBilled, isCancelled, isSetteled, status, AutoKOT,
             NCName, NCPurpose, DiscPer, Discount, DiscountType, isNCKOT
-          ) VALUES (?, ?, ?, ?, datetime('now'), 0, 0, 0, 1, 1, ?, ?, ?, ?, ?, ?)
+          ) VALUES (?, ?, ?, ?, ?, datetime('now'), 0, 0, 0, 1, 1, ?, ?, ?, ?, ?, ?)
         `);
-        const result = insertHeaderStmt.run(outletid, TableID, UserId, HotelID, NCName || null, NCPurpose || null, finalDiscPer, finalDiscount, finalDiscountType, toBool(isHeaderNCKOT));
+        const result = insertHeaderStmt.run(outletid, txnNo, TableID, UserId, HotelID, NCName || null, NCPurpose || null, finalDiscPer, finalDiscount, finalDiscountType, toBool(isHeaderNCKOT));
         txnId = result.lastInsertRowid;
         db.prepare('UPDATE msttablemanagement SET status = 1 WHERE tableid = ?').run(TableID);
         console.log(`Created new bill. TxnID: ${txnId}. Updated table ${TableID} status.`);
       }
 
-      // 2. Generate a new KOT number with reset logic
-      const outletSettings = db.prepare('SELECT next_reset_kot_days, next_reset_kot_date FROM mstoutlet_settings WHERE outletid = ?').get(outletid);
-      const resetRule = outletSettings?.next_reset_kot_days || 'DAILY'; // Default to 'DAILY' if null
-      const lastResetDate = outletSettings?.next_reset_kot_date ? new Date(outletSettings.next_reset_kot_date) : null;
-      const now = new Date();
-
-      console.log(`KOT generation for outlet ${outletid}: resetRule=${resetRule}, lastResetDate=${lastResetDate}`);
-
-      let needsReset = false;
-      if (!lastResetDate) {
-        needsReset = true;
-        console.log('No last reset date found, triggering reset.');
-      } else {
-        switch (resetRule.toUpperCase()) {
-          case 'DAILY': {
-            // Reset if the current day is different from the last reset day
-            if (now.toDateString() !== lastResetDate.toDateString()) {
-              needsReset = true;
-              console.log('Daily reset triggered.');
-            }
-            break;
-          }
-          case 'WEEKLY': {
-            // Reset if the current week is different from the last reset week
-            const startOfWeek = new Date(now);
-            startOfWeek.setDate(now.getDate() - now.getDay()); // Assuming Sunday is the start of the week
-            startOfWeek.setHours(0, 0, 0, 0);
-            if (lastResetDate < startOfWeek) {
-              needsReset = true;
-              console.log('Weekly reset triggered.');
-            }
-            break;
-          }
-          case 'MONTHLY': {
-            // Reset if the current month/year is different from the last reset month/year
-            if (now.getFullYear() > lastResetDate.getFullYear() || now.getMonth() > lastResetDate.getMonth()) {
-              needsReset = true;
-              console.log('Monthly reset triggered.');
-            }
-            break;
-          }
-          default: { // 'Never' or other values
-            needsReset = false;
-            console.log('No reset needed (rule: Never or unknown).');
-            break;
-          }
-        }
-      }
-
-      let maxKOTResult;
-      if (needsReset) {
-        console.log(`KOT number reset triggered for outlet ${outletid} based on rule: ${resetRule}`);
-        db.prepare("UPDATE mstoutlet_settings SET next_reset_kot_date = datetime('now') WHERE outletid = ?").run(outletid);
-        maxKOTResult = { maxKOT: 0 }; // Force KOT to start from 1
-      } else {
-        // Find the max KOT number since the last reset for this outlet
-        const lastResetISO = lastResetDate ? lastResetDate.toISOString() : '1970-01-01T00:00:00.000Z';
-        maxKOTResult = db.prepare(`
-          SELECT MAX(KOTNo) as maxKOT FROM TAxnTrnbilldetails
-          WHERE outletid = ? AND KOTUsedDate >= ?
-        `).get(outletid, lastResetISO);
-      }
-
+      // 2. Generate a new KOT number by finding the max KOT for the current day for that outlet.
+      const maxKOTResult = db.prepare(`
+        SELECT MAX(KOTNo) as maxKOT 
+        FROM TAxnTrnbilldetails
+        WHERE outletid = ? AND date(KOTUsedDate) = date('now')
+      `).get(outletid);
+      
       const kotNo = (maxKOTResult?.maxKOT || 0) + 1;
       console.log(`Generated KOT number: ${kotNo} (maxKOT was ${maxKOTResult?.maxKOT || 0})`);
 

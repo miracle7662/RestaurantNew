@@ -93,6 +93,7 @@ const Order = () => {
   const [currentKOTNo, setCurrentKOTNo] = useState<number | null>(null);
   const [currentKOTNos, setCurrentKOTNos] = useState<number[]>([]);
   const [currentTxnId, setCurrentTxnId] = useState<number | null>(null);
+  const [TxnNo, setTxnNo] = useState<string | null>(null); // New state for displaying Bill No  
 
   // New state for F8 password modal on billed tables
   const [showF8PasswordModal, setShowF8PasswordModal] = useState<boolean>(false);
@@ -1878,86 +1879,107 @@ const Order = () => {
 
       {/* Bill Preview Section (for printing) */}
       <div id="bill-preview" style={{ display: 'none' }}>
-        <div className="w-50 mx-auto">
-          <div className="card shadow-sm h-100">
-            <div className="card-body">
-              <h2 className="card-title h5 fw-bold mb-4 text-center">
-                Bill Preview
-              </h2>
-              {/* Bill No Section */}
-              <div className="text-center mb-3" style={{ fontSize: '0.9rem' }}>
-                <p className="mb-0 fw-bold">Bill No: {currentTxnId || 'N/A'}</p>
-              </div>
-              <div className="text-center mb-3">
-                <p className="fw-bold">{(formData as any).outlet_name || user?.outlet_name || '!!!Hotel Miracle!!!'}</p>
-                <p>{user?.outlet_address || 'Kolhapur Road Kolhapur 416416'}</p>
-                {(formData as any).show_phone_on_bill && <p>Ph: {(formData as any).show_phone_on_bill}</p>}
-                {(formData as any).email && <p>Email: {(formData as any).email}</p>}
-                {(formData as any).website && <p>Website: {(formData as any).website}</p>}
-              </div>
-              <div className="text-center mb-3" style={{ fontSize: '0.9rem' }}>
-                <p className="mb-0">Note: {(formData as any).note || `Order ID: ${currentTxnId || 'N/A'}`}</p>
-                <p className="mb-0">{new Date().toLocaleDateString('en-GB')} @ {new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).toUpperCase()}</p>
-              </div>
-              <div className="d-flex justify-content-between mb-3">
-                <p>Pay Mode: Cash</p>
-                <p>User: {user?.name || 'TMPOS'}</p>
-              </div>
-              <table className="table table-bordered mb-3">
-                <thead>
-                  <tr>
-                    <th scope="col">Item Name</th>
-                    <th scope="col" className="text-end">
-                      Quantity
-                    </th>
-                    <th scope="col" className="text-end">
-                      Price
-                    </th>
-                    <th scope="col" className="text-end">
-                      Total
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((item, index) => (
-                    <tr key={item.id}>
-                      <td>{index + 1}. {item.name}</td>
-                      <td className="text-end">{item.qty}</td>
-                      <td className="text-end">{item.price.toFixed(2)}</td>
-                      <td className="text-end">{(item.price * item.qty).toFixed(2)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <div className="text-end">
-                <p>Total Value: Rs. {taxCalc.subtotal.toFixed(2)}</p>
-                {(taxCalc.cgstAmt > 0 || taxCalc.sgstAmt > 0 || taxCalc.igstAmt > 0 || taxCalc.cessAmt > 0) && (
-                  <p className="mt-2">GST:</p>
-                )}
-                {taxCalc.cgstAmt > 0 && <p>CGST ({taxRates.cgst}%): Rs. {taxCalc.cgstAmt.toFixed(2)}</p>}
-                {taxCalc.sgstAmt > 0 && <p>SGST ({taxRates.sgst}%): Rs. {taxCalc.sgstAmt.toFixed(2)}</p>}
-                {taxCalc.igstAmt > 0 && <p>IGST ({taxRates.igst}%): Rs. {taxCalc.igstAmt.toFixed(2)}</p>}
-                {taxCalc.cessAmt > 0 && <p>CESS ({taxRates.cess}%): Rs. {taxCalc.cessAmt.toFixed(2)}</p>}
-                <p className="mt-2">Total Tax (excl.): Rs. {(taxCalc.cgstAmt + taxCalc.sgstAmt + taxCalc.igstAmt + taxCalc.cessAmt).toFixed(2)}</p>
-                {/* Custom fields */}
-                {(formData as any).field1 && <p className="mt-2">{(formData as any).field1}</p>}
-                {(formData as any).field2 && <p>{(formData as any).field2}</p>}
-                {(formData as any).field3 && <p>{(formData as any).field3}</p>}
-                {(formData as any).field4 && <p>{(formData as any).field4}</p>}
-                {discount > 0 && (
-                  <p className="mt-2">Discount ({DiscountType === 1 ? `${DiscPer}%` : `Amt`}): Rs. {discount.toFixed(2)}</p>
-                )}
-                <p className="mt-2 fw-bold">Grand Total: Rs. {(taxCalc.grandTotal - discount).toFixed(2)}</p>
-              </div>
-              {/* Footer notes */}
-              <div className="text-center mt-3">
-                {(formData as any).footer_note && <p>{(formData as any).footer_note}</p>}
-                {(formData as any).fssai_no && <p>FSSAI No: {(formData as any).fssai_no}</p>}
-              </div>
-            </div>
-          </div>
+  <div className="w-50 mx-auto">
+    <div className="card shadow-sm h-100">
+      <div className="card-body">
+        <h2 className="card-title h5 fw-bold mb-4 text-center">
+          Bill Preview
+        </h2>
+        {/* Bill No Section */}
+        <div className="text-center mb-3" style={{ fontSize: '0.9rem' }}>
+          <p className="mb-0 fw-bold">
+  Bill No: {`${(formData as any).bill_prefix || ''}${TxnNo || 'N/A'}`}
+</p>
+
+        </div>
+        <div className="text-center mb-3">
+          <p className="fw-bold">{(formData as any).outlet_name || user?.outlet_name || '!!!Hotel Miracle!!!'}</p>
+          <p>{user?.outlet_address || 'Kolhapur Road Kolhapur 416416'}</p>
+          {(formData as any).show_phone_on_bill && <p>Ph: {(formData as any).show_phone_on_bill}</p>}
+          {(formData as any).email && <p>Email: {(formData as any).email}</p>}
+          {(formData as any).website && <p>Website: {(formData as any).website}</p>}
+          {(formData as any).upi_id && <p>UPI ID: {(formData as any).upi_id}</p>}
+          {(formData as any).bill_prefix && <p>Bill Prefix: {(formData as any).bill_prefix}</p>}
+          {(formData as any).secondary_bill_prefix && <p>Secondary Bill Prefix: {(formData as any).secondary_bill_prefix}</p>}
+          {(formData as any).bar_bill_prefix && <p>Bar Bill Prefix: {(formData as any).bar_bill_prefix}</p>}
+          {(formData as any).show_upi_qr !== undefined && (
+            <p>Show UPI QR: {(formData as any).show_upi_qr ? 'Yes' : 'No'}</p>
+          )}
+          {(formData as any).enabled_bar_section !== undefined && (
+            <p>Bar Section Enabled: {(formData as any).enabled_bar_section ? 'Yes' : 'No'}</p>
+          )}
+          {(formData as any).fssai_no && <p>FSSAI No: {(formData as any).fssai_no}</p>}
+        </div>
+        <div className="text-center mb-3" style={{ fontSize: '0.9rem' }}>
+          <p className="mb-0">Note: {(formData as any).note || `Order ID: ${currentTxnId || 'N/A'}`}</p>
+          <p className="mb-0">{new Date().toLocaleDateString('en-GB')} @ {new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).toUpperCase()}</p>
+        </div>
+        <div className="d-flex justify-content-between mb-3">
+          <p>Pay Mode: Cash</p>
+          <p>User: {user?.name || 'TMPOS'}</p>
+        </div>
+        <table className="table table-bordered mb-3">
+          <thead>
+            <tr>
+              <th scope="col">Item Name</th>
+              <th scope="col" className="text-end">
+                Quantity
+              </th>
+              <th scope="col" className="text-end">
+                Price
+              </th>
+              <th scope="col" className="text-end">
+                Total
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {Object.values(
+              items.reduce((acc: Record<string, MenuItem>, item) => {
+                if (!acc[item.name]) {
+                  acc[item.name] = { ...item, qty: 0 };
+                }
+                acc[item.name].qty += item.qty;
+                return acc;
+              }, {} as Record<string, MenuItem>)
+            ).map((item: any, index) => (
+              <tr key={item.id}>
+                <td>{index + 1}. {item.name}</td>
+                <td className="text-end">{item.qty}</td>
+                <td className="text-end">{item.price.toFixed(2)}</td>
+                <td className="text-end">{(item.price * item.qty).toFixed(2)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div className="text-end">
+          <p>Total Value: Rs. {taxCalc.subtotal.toFixed(2)}</p>
+          {(taxCalc.cgstAmt > 0 || taxCalc.sgstAmt > 0 || taxCalc.igstAmt > 0 || taxCalc.cessAmt > 0) && (
+            <p className="mt-2">GST:</p>
+          )}
+          {taxCalc.cgstAmt > 0 && <p>CGST ({taxRates.cgst}%): Rs. {taxCalc.cgstAmt.toFixed(2)}</p>}
+          {taxCalc.sgstAmt > 0 && <p>SGST ({taxRates.sgst}%): Rs. {taxCalc.sgstAmt.toFixed(2)}</p>}
+          {taxCalc.igstAmt > 0 && <p>IGST ({taxRates.igst}%): Rs. {taxCalc.igstAmt.toFixed(2)}</p>}
+          {taxCalc.cessAmt > 0 && <p>CESS ({taxRates.cess}%): Rs. {taxCalc.cessAmt.toFixed(2)}</p>}
+          <p className="mt-2">Total Tax (excl.): Rs. {(taxCalc.cgstAmt + taxCalc.sgstAmt + taxCalc.igstAmt + taxCalc.cessAmt).toFixed(2)}</p>
+          {/* Custom fields */}
+          {(formData as any).field1 && <p className="mt-2">{(formData as any).field1}</p>}
+          {(formData as any).field2 && <p>{(formData as any).field2}</p>}
+          {(formData as any).field3 && <p>{(formData as any).field3}</p>}
+          {(formData as any).field4 && <p>{(formData as any).field4}</p>}
+          {discount > 0 && (
+            <p className="mt-2">Discount ({DiscountType === 1 ? `${DiscPer}%` : `Amt`}): Rs. {discount.toFixed(2)}</p>
+          )}
+          <p className="mt-2 fw-bold">Grand Total: Rs. {(taxCalc.grandTotal - discount).toFixed(2)}</p>
+        </div>
+        {/* Footer notes */}
+        <div className="text-center mt-3">
+          {(formData as any).footer_note && <p>{(formData as any).footer_note}</p>}
         </div>
       </div>
+    </div>
+  </div>
+</div>
 
       {errorMessage && (
         <div className="alert alert-danger text-center" role="alert">

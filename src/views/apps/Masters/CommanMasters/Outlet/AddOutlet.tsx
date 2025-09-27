@@ -5417,70 +5417,80 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
 
             {/* Bill Preview Section (Right Side) */}
             {activeTab === 'bill-preview' && (
-              <div className="w-50 mx-auto">
-                <div className="card shadow-sm h-100"  >
-                  <div className="card-body">
-                    <h2 className="card-title h5 fw-bold mb-4 text-center">
-                      Bill Preview
-                    </h2>
-                    <div className="text-center mb-3">
-                      <p className="fw-bold">{formData.outlet_name || '!!!Hotel Miracle!!!'}</p>
-                      <p>Kolhapur Road Kolhapur 416416</p>
-                      {formData.show_phone_on_bill && <p>{formData.show_phone_on_bill}</p>}
-                      {formData.email && <p>{formData.email}</p>}
-                      {formData.website && <p>{formData.website}</p>}
-                    </div>
-                    <div className="text-center mb-3" style={{ fontSize: '0.9rem' }}>
-                      <p className="mb-0">Note: {formData.note || 'Order ID: 1234567890'}</p>
-                      <p className="mb-0">26/05/2025 @ 9:10 PM</p>
-                    </div>
-                    <div className="d-flex justify-content-between mb-3">
-                      <p>Pay Mode: Cash</p>
-                      <p>User: TMPOS</p>
-                    </div>
-                    <table className="table table-bordered mb-3">
-                      <thead>
-                        <tr>
-                          <th scope="col">Item Name</th>
-                          <th scope="col" className="text-end">
-                            Quantity
-                          </th>
-                          <th scope="col" className="text-end">
-                            Price
-                          </th>
-                          <th scope="col" className="text-end">
-                            Total
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr>
-                          <td>1. Biryani</td>
-                          <td className="text-end">1</td>
-                          <td className="text-end">100.00</td>
-                          <td className="text-end">100.00</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                    <div className="text-end">
-                      <p>Total Value: Rs. 100.00</p>
-                      <p className="mt-2">GST:</p>
-                      {formData.field1 && <p>{formData.field1}</p>}
-                      {formData.field2 && <p>{formData.field2}</p>}
-                      {formData.field3 && <p>{formData.field3}</p>}
-                      {formData.field4 && <p>{formData.field4}</p>}
-                      <p className="mt-2">Total Tax (excl.): Rs. 5.00</p>
-                      <p className="mt-2 fw-bold">Grand Total: Rs. 105.00</p>
-                      {formData.footer_note && (
-                        <p className="mt-2 text-center">{formData.footer_note}</p>
-                      )}
-                      {formData.fssai_no && (
-                        <p className="mt-2 text-center">FSSAI No: {formData.fssai_no}</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
+<div className="w-50 mx-auto">
+  <div className="card shadow-sm h-100">
+    <div className="card-body">
+      <h2 className="card-title h5 fw-bold mb-4 text-center">
+        Bill Preview
+      </h2>
+      <div className="text-center mb-3">
+        <p className="fw-bold">{formData.outlet_name || '!!!Hotel Miracle!!!'}</p>
+        <p>Kolhapur Road Kolhapur 416416</p>
+        {formData.show_phone_on_bill && <p>Phone: {formData.show_phone_on_bill}</p>}
+        {formData.email && <p>Email: {formData.email}</p>}
+        {formData.website && <p>Website: {formData.website}</p>}
+        {formData.upi_id && <p>UPI ID: {formData.upi_id}</p>}
+        {formData.bill_prefix && <p>Bill Prefix: {formData.bill_prefix}</p>}
+        {formData.secondary_bill_prefix && <p>Secondary Bill Prefix: {formData.secondary_bill_prefix}</p>}
+        {formData.bar_bill_prefix && <p>Bar Bill Prefix: {formData.bar_bill_prefix}</p>}
+        {formData.show_upi_qr !== undefined && (
+          <p>Show UPI QR: {formData.show_upi_qr ? 'Yes' : 'No'}</p>
+        )}
+        {formData.enabled_bar_section !== undefined && (
+          <p>Bar Section Enabled: {formData.enabled_bar_section ? 'Yes' : 'No'}</p>
+        )}
+        {formData.fssai_no && (
+          <p>FSSAI No: {formData.fssai_no}</p>
+        )}
+      </div>
+      <div className="text-center mb-3" style={{ fontSize: '0.9rem' }}>
+        <p className="mb-0">Note: {formData.note || 'Order ID: 1234567890'}</p>
+        <p className="mb-0">26/05/2025 @ 9:10 PM</p>
+      </div>
+      <div className="d-flex justify-content-between mb-3">
+        <p>Pay Mode: Cash</p>
+        <p>User: TMPOS</p>
+      </div>
+      <table className="table table-bordered mb-3">
+        <thead>
+          <tr>
+            <th scope="col">Item Name</th>
+            <th scope="col" className="text-end">
+              Quantity
+            </th>
+            <th scope="col" className="text-end">
+              Price
+            </th>
+            <th scope="col" className="text-end">
+              Total
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1. Biryani</td>
+            <td className="text-end">1</td>
+            <td className="text-end">100.00</td>
+            <td className="text-end">100.00</td>
+          </tr>
+        </tbody>
+      </table>
+      <div className="text-end">
+        <p>Total Value: Rs. 100.00</p>
+        <p className="mt-2">GST:</p>
+        {formData.field1 && <p>{formData.field1}</p>}
+        {formData.field2 && <p>{formData.field2}</p>}
+        {formData.field3 && <p>{formData.field3}</p>}
+        {formData.field4 && <p>{formData.field4}</p>}
+        <p className="mt-2">Total Tax (excl.): Rs. 5.00</p>
+        <p className="mt-2 fw-bold">Grand Total: Rs. 105.00</p>
+        {formData.footer_note && (
+          <p className="mt-2 text-center">{formData.footer_note}</p>
+        )}
+      </div>
+    </div>
+  </div>
+</div>
             )}
           </div>
         </div>
