@@ -1608,68 +1608,6 @@ const Order = () => {
     }
   };
 
-  const handlePrintKOT = () => {
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      const contentToPrint = document.getElementById('kot-preview');
-      if (contentToPrint) {
-        printWindow.document.write(`
-          <!DOCTYPE html>
-<html>
-  <head>
-    <title>KOT Print</title>
-    <style>
-      @page {
-        size: 79mm auto;
-        margin: 0;
-      }
-
-      body {
-        font-family: Arial, sans-serif;
-        margin: 0;
-        padding: 10px;
-        width: 79mm;
-        box-sizing: border-box;
-      }
-
-      .text-center { text-align: center; }
-      .fw-bold { font-weight: bold; }
-      .mb-3 { margin-bottom: 1rem; }
-      .small { font-size: 0.875rem; }
-      .text-muted { color: #6c757d; }
-      .d-block { display: block; }
-      .row { display: flex; flex-wrap: wrap; margin: 0 -15px; }
-      .col-6 { flex: 0 0 50%; max-width: 50%; padding: 0 15px; }
-      .col-1 { flex: 0 0 8.333333%; max-width: 8.333333%; padding: 0 15px; }
-      .col-4 { flex: 0 0 33.333333%; max-width: 33.333333%; padding: 0 15px; }
-      .col-2 { flex: 0 0 16.666667%; max-width: 16.666667%; padding: 0 15px; }
-      .col-3 { flex: 0 0 25%; max-width: 25%; padding: 0 15px; }
-      .text-end { text-align: right; }
-      .pb-1 { padding-bottom: 0.25rem; }
-      .mb-2 { margin-bottom: 0.5rem; }
-      .mb-1 { margin-bottom: 0.25rem; }
-      .border-bottom { border-bottom: 1px solid #dee2e6; }
-      .text-black { color: #000; }
-
-      @media print {
-        body {
-          width: 79mm;
-          margin: 0;
-        }
-      }
-    </style>
-  </head>
-  <body>
-    ${contentToPrint.innerHTML}
-  </body>
-</html>
-
-        `);
-        printWindow.document.close();
-        printWindow.print();
-      }
-    }
-  };
 
   return (
     <div className="container-fluid p-0 m-0" style={{ height: '100vh' }}>

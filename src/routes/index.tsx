@@ -534,12 +534,12 @@ const appsRoutes: RoutesProps = {
           route: PrivateRoute,
         },
 
-        {
-          path: '/OutletConfigration/AddOutlet',
-          name: 'AddOutlet',
-          element: <AddOutlet />,
-          route: PrivateRoute,
-        },
+        // {
+        //   path: '/OutletConfigration/AddOutlet',
+        //   name: 'AddOutlet',
+        //   element: <AddOutlet />,
+        //   route: PrivateRoute,
+        // },
         {
           path: '/OutletConfigration/KOTPrintSettings',
           name: 'KOTPrintSettings',
