@@ -161,7 +161,6 @@ const Order = () => {
  
           setItems(fetchedItems);
           setCurrentTxnId(header.TxnID);
-          setTxnNo(header.TxnNo);
           setCurrentKOTNo(header.KOTNo); // A billed order might have a KOT no.
           setCurrentKOTNos(
             fetchedItems
@@ -193,12 +192,10 @@ const Order = () => {
         setCurrentKOTNo(unbilledItemsRes.data.kotNo);
         setItems(fetchedItems);
 
-        if (unbilledItemsRes.data.header) {
-          setCurrentTxnId(unbilledItemsRes.data.header.TxnID);
-          setTxnNo(unbilledItemsRes.data.header.TxnNo);
+        if (unbilledItemsRes.data.items.length > 0 && unbilledItemsRes.data.items[0].txnId) {
+          setCurrentTxnId(unbilledItemsRes.data.items[0].txnId);
         } else {
           setCurrentTxnId(null);
-          setTxnNo(null);
         }
 
         const kotNumbersForTable = fetchedItems
@@ -212,7 +209,6 @@ const Order = () => {
         setCurrentKOTNo(null);
         setCurrentKOTNos([]);
         setCurrentTxnId(null);
-        setTxnNo(null);
       }
     } catch (error) {
       console.error('Error fetching/refetching items for table:', error);
@@ -220,7 +216,6 @@ const Order = () => {
       setCurrentKOTNo(null);
       setCurrentKOTNos([]);
       setCurrentTxnId(null);
-      setTxnNo(null);
     }
   }, [setItems, setCurrentKOTNo, setCurrentKOTNos, setCurrentTxnId]);
   // KOT Preview formData state
@@ -1274,7 +1269,6 @@ const Order = () => {
       const resp = await createKOT(kotPayload);
       if (resp?.success) {
         toast.success('KOT saved successfully!');
-        setTxnNo(resp.data.TxnNo); // Set the new TxnNo from the backend response
 
         // Clear reverse items after successful save and deactivate Reverse Mode
         if (reverseItemsToKOT.length > 0) {
