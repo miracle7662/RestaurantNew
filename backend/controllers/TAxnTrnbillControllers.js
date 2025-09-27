@@ -9,19 +9,19 @@ function toBool(value) {
   return value ? 1 : 0
 }
 
-function generateTxnNo(outletid) {
+function generateTxnNo(outletid, tableId) {
   const today = new Date().toISOString().slice(0, 10).replace(/-/g, ''); // YYYYMMDD
   const prefix = `TXN-${String(outletid).padStart(3, '0')}-${today}-`;
   const prefixLen = prefix.length + 1; // SUBSTR starts from 1-based index after prefix
   const likePattern = prefix + '%';
 
   const maxStmt = db.prepare(`
-    SELECT MAX(CAST(SUBSTR(TxnNo, ?) AS INTEGER)) as maxSeq
+    SELECT MAX(CAST(SUBSTR(TxnNo, ?) AS INTEGER)) as maxSeq 
     FROM TAxnTrnbill 
-    WHERE outletid = ? AND TxnNo LIKE ?
+    WHERE outletid = ? AND TableID = ? AND TxnNo LIKE ?
   `);
 
-  const result = maxStmt.get(prefixLen, outletid, likePattern);
+  const result = maxStmt.get(prefixLen, outletid, tableId, likePattern);
   const seq = (result.maxSeq || 0) + 1;
   return prefix + String(seq).padStart(4, '0');
 }
@@ -197,8 +197,8 @@ exports.createBill = async (req, res) => {
 
     const trx = db.transaction(() => {
       let txnNo = TxnNo;
-      if (!txnNo && outletid) {
-        txnNo = generateTxnNo(outletid);
+      if (!txnNo && outletid && TableID) {
+        txnNo = generateTxnNo(outletid, TableID);
       }
 
       const stmt = db.prepare(`
@@ -740,8 +740,8 @@ exports.createKOT = async (req, res) => {
         console.log(`No existing bill for table ${TableID}. Creating a new one.`);
         const isHeaderNCKOT = details.some(item => toBool(item.isNCKOT));
         let txnNo = null;
-        if (outletid) {
-          txnNo = generateTxnNo(outletid);
+        if (outletid && TableID) {
+          txnNo = generateTxnNo(outletid, TableID);
         }
         const insertHeaderStmt = db.prepare(`
           INSERT INTO TAxnTrnbill (
