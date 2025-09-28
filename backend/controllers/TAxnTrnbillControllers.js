@@ -9,21 +9,29 @@ function toBool(value) {
   return value ? 1 : 0
 }
 
-function generateTxnNo(outletid, tableId) {
+function generateTxnNo(outletid) {
+  // 1. Fetch bill_prefix from settings
+  const settings = db.prepare('SELECT bill_prefix FROM mstbill_preview_settings WHERE outletid = ?').get(outletid);
+  const billPrefix = settings ? settings.bill_prefix : 'BILL-';
+
+  // 2. Construct a date-based prefix for searching to ensure daily unique sequence
   const today = new Date().toISOString().slice(0, 10).replace(/-/g, ''); // YYYYMMDD
-  const prefix = `TXN-${String(outletid).padStart(3, '0')}-${today}-`;
-  const prefixLen = prefix.length + 1; // SUBSTR starts from 1-based index after prefix
+  const prefix = `${billPrefix}${today}-`;
+  const prefixLen = prefix.length + 1;
   const likePattern = prefix + '%';
 
+  // 3. Find the maximum sequence number for the current day for the entire outlet
   const maxStmt = db.prepare(`
-    SELECT MAX(CAST(SUBSTR(TxnNo, ?) AS INTEGER)) as maxSeq 
-    FROM TAxnTrnbill 
-    WHERE outletid = ? AND TableID = ? AND TxnNo LIKE ?
+    SELECT MAX(CAST(SUBSTR(TxnNo, ?) AS INTEGER)) as maxSeq
+    FROM TAxnTrnbill
+    WHERE outletid = ? AND TxnNo LIKE ?
   `);
 
-  const result = maxStmt.get(prefixLen, outletid, tableId, likePattern);
-  const seq = (result.maxSeq || 0) + 1;
-  return prefix + String(seq).padStart(4, '0');
+  const result = maxStmt.get(prefixLen, outletid, likePattern);
+  const newSeq = (result.maxSeq || 0) + 1;
+  
+  // 4. Construct the final TxnNo, e.g., "BILL-20240521-0001"
+  return `${prefix}${String(newSeq).padStart(4, '0')}`;
 }
 
 
@@ -197,8 +205,8 @@ exports.createBill = async (req, res) => {
 
     const trx = db.transaction(() => {
       let txnNo = TxnNo;
-      if (!txnNo && outletid && TableID) {
-        txnNo = generateTxnNo(outletid, TableID);
+      if (!txnNo && outletid) {
+        txnNo = generateTxnNo(outletid);
       }
 
       const stmt = db.prepare(`
@@ -718,7 +726,7 @@ exports.createKOT = async (req, res) => {
       let existingBill = db.prepare(`
         SELECT TxnID, DiscPer, Discount, DiscountType FROM TAxnTrnbill 
         WHERE TableID = ? AND isCancelled = 0 ORDER BY TxnID DESC LIMIT 1
-      `).get(TableID);
+      `).get(Number(TableID));
 
       if (existingBill) {
         txnId = existingBill.TxnID;
@@ -740,8 +748,8 @@ exports.createKOT = async (req, res) => {
         console.log(`No existing bill for table ${TableID}. Creating a new one.`);
         const isHeaderNCKOT = details.some(item => toBool(item.isNCKOT));
         let txnNo = null;
-        if (outletid && TableID) {
-          txnNo = generateTxnNo(outletid, TableID);
+        if (outletid) {
+          txnNo = generateTxnNo(outletid);
         }
         const insertHeaderStmt = db.prepare(`
           INSERT INTO TAxnTrnbill (
@@ -750,9 +758,9 @@ exports.createKOT = async (req, res) => {
             NCName, NCPurpose, DiscPer, Discount, DiscountType, isNCKOT
           ) VALUES (?, ?, ?, ?, ?, datetime('now'), 0, 0, 0, 1, 1, ?, ?, ?, ?, ?, ?)
         `);
-        const result = insertHeaderStmt.run(outletid, txnNo, TableID, UserId, HotelID, NCName || null, NCPurpose || null, finalDiscPer, finalDiscount, finalDiscountType, toBool(isHeaderNCKOT));
+        const result = insertHeaderStmt.run(outletid, txnNo, Number(TableID), UserId, HotelID, NCName || null, NCPurpose || null, finalDiscPer, finalDiscount, finalDiscountType, toBool(isHeaderNCKOT));
         txnId = result.lastInsertRowid;
-        db.prepare('UPDATE msttablemanagement SET status = 1 WHERE tableid = ?').run(TableID);
+        db.prepare('UPDATE msttablemanagement SET status = 1 WHERE tableid = ?').run(Number(TableID));
         console.log(`Created new bill. TxnID: ${txnId}. Updated table ${TableID} status.`);
       }
 
@@ -1467,6 +1475,41 @@ exports.markBillAsBilled = async (req, res) => {
     res.json(ok('Bill marked as billed', { ...header, details: items }));
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to mark bill as billed', data: null, error: error.message });
+  }
+};
+
+/* -------------------------------------------------------------------------- */
+/* generateTxnNo → generate transaction number and create bill record       */
+/* -------------------------------------------------------------------------- */
+exports.generateTxnNo = async (req, res) => {
+  try {
+    const { outletid, tableId, userId } = req.body;
+
+    if (!outletid || !tableId) {
+      return res.status(400).json({ success: false, message: 'outletid and tableId are required', data: null })
+    }
+
+    const trx = db.transaction(() => {
+      const txnNo = generateTxnNo(outletid);
+
+      const insertStmt = db.prepare(`
+        INSERT INTO TAxnTrnbill (
+          outletid, TxnNo, TableID, UserId, TxnDatetime, isBilled, isCancelled, isSetteled
+        ) VALUES (?, ?, ?, ?, datetime('now'), 0, 0, 0)
+      `);
+
+      const insertResult = insertStmt.run(outletid, txnNo, tableId, userId);
+      const txnId = insertResult.lastInsertRowid;
+
+      return { txnNo, txnId };
+    });
+
+    const { txnNo, txnId } = trx();
+
+    res.json(ok('TxnNo generated and bill created', { txnNo, txnId }));
+  } catch (error) {
+    console.error('Error generating TxnNo:', error);
+    res.status(500).json({ success: false, message: 'Failed to generate TxnNo: ' + error.message, data: null });
   }
 };
 

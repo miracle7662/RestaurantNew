@@ -5,6 +5,9 @@ const controller = require('../controllers/TAxnTrnbillControllers')
 // Create new bill
 router.post('/', controller.createBill)
 
+// Generate TxnNo and create bill record
+router.post('/generateTxnNo', controller.generateTxnNo)
+
 // Get all bills
 router.get('/', controller.getAllBills)
 
