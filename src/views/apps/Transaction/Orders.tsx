@@ -134,6 +134,8 @@ const Order = () => {
 
   const revKotTotal = reverseQtyItems.reduce((sum, item) => sum + item.price * item.qty, 0);
 
+  const hasModifications = items.some(item => item.isNew) || reverseQtyItems.length > 0;
+
   const refreshItemsForTable = useCallback(async (tableIdNum: number) => {
     try {
       // Step 1: Try to fetch the latest billed (but not settled) bill
@@ -808,6 +810,11 @@ const Order = () => {
 
   const handleReverseQty = async (item: MenuItem) => {
     try {
+      if (item.isBilled === 1 && !reverseQtyMode) {
+        toast.error('Reverse quantity mode must be activated for billed items.');
+        return;
+      }
+
       if (!selectedTable || !item.txnDetailId) {
         toast.error('Unable to process reverse quantity - missing table or item details');
         return;
@@ -823,7 +830,11 @@ const Order = () => {
           if (currentItem.qty > 1) {
             // Decrease quantity by 1
             newItems[itemIndex] = { ...currentItem, qty: currentItem.qty - 1 };
-            toast.success(`Quantity decreased for "${item.name}" (${currentItem.qty - 1} remaining)`);
+            if (item.isBilled === 1) {
+              toast.success(`Reversed 1 qty of "${item.name}"`);
+            } else {
+              toast.success(`Quantity decreased for "${item.name}" (${currentItem.qty - 1} remaining)`);
+            }
 
             // Add to reverse quantity items for KOT printing
             setReverseQtyItems(prev => {
@@ -841,7 +852,11 @@ const Order = () => {
           } else {
             // Remove item if quantity is 1 (will become 0)
             newItems.splice(itemIndex, 1);
-            toast.success(`"${item.name}" removed from order`);
+            if (item.isBilled === 1) {
+              toast.success(`Reversed 1 qty of "${item.name}"`);
+            } else {
+              toast.success(`"${item.name}" removed from order`);
+            }
 
             // Add to reverse quantity items for KOT printing
             setReverseQtyItems(prev => {
@@ -860,6 +875,11 @@ const Order = () => {
         }
         return newItems;
       });
+
+      // Refresh items for billed orders to reflect changes
+      if (item.isBilled === 1 && selectedTableId) {
+        refreshItemsForTable(selectedTableId);
+      }
 
       // Also update the database (optional - for persistence)
       try {
@@ -1413,6 +1433,12 @@ const Order = () => {
       return;
     }
 
+    // Ensure only for billed orders
+    if (!items.some(item => item.isBilled === 1)) {
+      setF8PasswordError("Reverse quantity only available for billed orders.");
+      return;
+    }
+
     setF8PasswordLoading(true);
     setF8PasswordError('');
     try {
@@ -1432,9 +1458,20 @@ const Order = () => {
 
       if (response.ok && data.success) {
         setShowF8PasswordModal(false);
-        // Proceed with F8 action: activate reverse mode and set expanded view
+        // Proceed with F8 action: activate reverse mode, set expanded view, refresh items, initialize reverseQtyItems
         setReverseQtyMode(true);
         setIsGroupedView(false);
+        setReverseQtyItems([]); // Initialize empty for reversals
+        // Refresh items to get latest net qty from backend
+        if (selectedTableId) {
+          try {
+            await refreshItemsForTable(selectedTableId);
+          } catch (refreshError) {
+            console.error('Error refreshing items after F8 auth:', refreshError);
+            toast.error('Failed to refresh items. Please try again.');
+            return;
+          }
+        }
         toast.success('Reverse Qty Mode activated and expanded view shown.');
       } else {
         setF8PasswordError(data.message || 'Invalid password');
@@ -2419,6 +2456,7 @@ const Order = () => {
                   triggerFocus={triggerFocusInDetails}
                   refreshItemsForTable={refreshItemsForTable}
                   reverseQtyMode={reverseQtyMode}
+                  isBilled={items.some(item => item.isBilled === 1)}
                 />
 
               </div>
@@ -2910,6 +2948,28 @@ const Order = () => {
                             <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z" />
                           </svg>
                         </Button>
+
+                        {/* Focus Mode Button */}
+                        <Button
+                          variant={focusMode ? "success" : "secondary"}
+                          className="rounded-circle p-0 d-flex justify-content-center align-items-center"
+                          style={{ width: '32px', height: '32px' }}
+                          onClick={() => {
+                            setFocusMode(prev => !prev);
+                            setShowOptions(false);
+                          }}
+                          title="Focus Mode"
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="20"
+                            height="20"
+                            fill="currentColor"
+                            viewBox="0 0 16 16"
+                          >
+                            <path d="M8 3.5a.5.5 0 0 0-1 0V5H5.5a.5.5 0 0 0 0 1h1.5v1.5a.5.5 0 0 0 1 0V6H9.5a.5.5 0 0 0 0-1H8V3.5zM8 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4z" />
+                          </svg>
+                        </Button>
                       </div>
 
                       {/* Overlay to close when clicking outside */}
@@ -2949,18 +3009,11 @@ const Order = () => {
                 </div>
                 <div className="d-flex justify-content-center gap-2 mt-2">
                   <button
-                    className="btn btn-dark rounded"
-                    onClick={handlePrintAndSaveKOT}
-                    disabled={items.length === 0 || !!invalidTable}
+                    className={`btn ${hasModifications ? 'btn-dark' : 'btn-info'} rounded`}
+                    onClick={hasModifications ? handlePrintAndSaveKOT : handlePrintBill}
+                    disabled={items.length === 0 || (hasModifications && !!invalidTable)}
                   >
-                    Print & Save KOT
-                  </button>
-                  <button
-                    className="btn btn-info rounded"
-                    onClick={handlePrintBill}
-                    disabled={items.length === 0}
-                  >
-                    Print Bill
+                    {hasModifications ? 'Print & Save KOT' : 'Print Bill'}
                   </button>
                 </div>
               </div>

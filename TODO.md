@@ -1,61 +1,81 @@
-# TODO List for Bill Preview Update in Orders.tsx
+# Implementation Plan for Secure Reverse Quantity on Billed Orders
 
-## Task: Update bill preview to match the provided image format
+## Overview
+Fully implement reverse quantity functionality for billed orders in Orders.tsx and related components. This includes F8 password authentication, updating net quantities, tracking reversals, and printing Re-KOT. Ensure unbilled flow remains unchanged. Test integration with backend APIs.
 
-### Steps:
+## Steps
 
-1. **Update the #bill-preview div structure in Orders.tsx**  
-   - Replace the current card-based layout with a simple receipt-style div layout.  
-   - Remove w-50 mx-auto and card classes; use inline styles for width: 80mm, font-family: 'Courier New', monospace or Arial, small font-size (0.8rem).  
-   - Ensure all content is centered where appropriate, with dashed borders for sections.
+### 1. Update handleF8PasswordSubmit in Orders.tsx
+- After successful F8 auth on billed tables:
+  - Call refreshItemsForTable(tableIdNum) to fetch latest net qty from backend.
+  - Set reverseQtyMode = true.
+  - Set isGroupedView = false (expanded view).
+  - Initialize reverseQtyItems from current items (copy for potential reversals).
+  - Show success toast.
+- Ensure auth only for billed (items.some(item => item.isBilled === 1)).
+- Add error handling for refresh.
 
-2. **Add header section**  
-   - Centered bold restaurant name: Use `user?.outlet_name || 'RESTAURANT'`.  
-   - Below: Address lines, e.g., `user?.outlet_address || '221-524-07-5215007, Kolhapur Road, Kolhapur 416416'`.  
-   - GSTIN: `formData.gstin || '27AAFCF8595Q1Z5'` (add to formData if needed via fetchBillPreviewSettings).  
-   - FSSAI: `formData.fssai_no || 'GSTIN:27AAFCF8595Q1Z5'`.  
-   - Use divs with text-center, fw-bold classes.
+Status: [ ] Not started
 
-3. **Add bill details row**  
-   - Flex row (d-flex justify-content-between or grid) for:  
-     - Date: `new Date().toLocaleDateString('en-GB')` (e.g., 25/07/2024).  
-     - Bill No.: `TAN ${TxnNo || '1445'}`.  
-     - Table No.: `${selectedTable || '4'}`.  
-     - Time: `new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })` (e.g., 23:25).  
-   - Style as small text, perhaps in a single line or two.
+### 2. Modify handleReverseQty in Orders.tsx
+- Add check: If item.isBilled === 1 (billed), ensure reverseQtyMode is true.
+- For billed:
+  - Decrease qty in items[] (net qty).
+  - Persist via API: POST to /api/TAxnTrnbill/reverse-quantity with txnDetailId, userId.
+  - Add to reverseQtyItems with qty: 1 (positive for tracking, but negative in KOT payload).
+  - Update revQty in item if needed.
+  - Toast: "Reversed 1 qty of [item.name]".
+- For unbilled: Keep existing logic (decrease/add to reverseQtyItems).
+- Disable if !reverseQtyMode or qty <=0.
+- After update, optionally refreshItemsForTable to sync.
 
-4. **Update items section**  
-   - Use a table or div grid with columns: Serial #, Description (item.name, grouped), Qty (displayQty), Rate (price.toFixed(2)), Amount ((price * qty).toFixed(2)).  
-   - Group items by name as in current code (reduce to unique names with summed qty).  
-   - Add serial numbers (index + 1).  
-   - Align right for Qty/Rate/Amount.
+Status: [ ] Not started
 
-5. **Update totals section**  
-   - If discount > 0: Show "Discount: Rs. {discount.toFixed(2)}".  
-   - Taxable Value: Rs. {(taxCalc.subtotal - discount).toFixed(2)}.  
-   - CGST @ {taxRates.cgst}%: Rs. {taxCalc.cgstAmt.toFixed(2)} (if cgstAmt > 0).  
-   - SGST @ {taxRates.sgst}%: Rs. {taxCalc.sgstAmt.toFixed(2)} (if sgstAmt > 0).  
-   - Conditional for IGST/CESS if amounts > 0.  
-   - Grand Total: Rs. {(taxCalc.grandTotal - discount).toFixed(2)}, bold.  
-   - Right-aligned.
+### 3. Enhance handlePrintAndSaveKOT in Orders.tsx
+- If reverseQtyMode && currentTxnId (billed):
+  - Include reverseQtyItems in kotPayload.items as negative qty objects (Qty: -item.qty, isReverse: true).
+  - Set KOT type to 'Re-KOT' in payload/header.
+  - After API success: refreshItemsForTable, clear reverseQtyItems, set reverseQtyMode=false, setIsGroupedView=true.
+  - Print Re-KOT preview with reversal highlight.
+- For unbilled: Existing logic.
+- Ensure combinedPayload handles both new and reverse items.
+- Toast: "Re-KOT printed and saved".
 
-6. **Add footer**  
-   - Centered: `formData.footer_note || 'STAY SAFE, STAY HEALTHY'`.  
-   - Small text.
+Status: [ ] Not started
 
-7. **Enhance print styles**  
-   - In the <style> tag, add @media print rules: body { margin: 0; width: 80mm; font-size: 10pt; } .bill-preview { width: 80mm; }.  
-   - Hide unnecessary elements, ensure black text.
+### 4. Update refreshItemsForTable in Orders.tsx
+- In billed bill fetch: Ensure net qty = (Qty - RevQty), and include revQty in item state.
+- After reverse API, refetch to update local items[] with latest net qty.
+- Handle if no billed/unbilled: Clear reverseQtyItems if mode active.
 
-### Status
-- [x] Step 1: Update structure
-- [x] Step 2: Header
-- [x] Step 3: Bill details
-- [x] Step 4: Items
-- [x] Step 5: Totals
-- [x] Step 6: Footer
-- [x] Step 7: Print styles
-- [ ] Test: Run app, add items, print bill to verify match.
+Status: [ ] Not started
 
-## Previous Tasks
-(Existing content from TODO.md if any - append new task above)
+### 5. UI Updates in Orders.tsx
+- In item list render: For billed items (isBilled=1) && reverseQtyMode, enable decrease button with reversal icon/color (e.g., red '-').
+- In KOT preview: If reverseQtyMode && billed, show "RE-KOT" header, list reverse items with negative qty, highlight in red.
+- Add indicator: Badge "Reverse Mode Active" on billed tables.
+- Disable Print Bill if reverseQtyMode active (force Re-KOT first).
+
+Status: [ ] Not started
+
+### 6. Update OrderDetails.tsx
+- Use reverseQtyMode prop: If reverseQtyMode && parent billed (pass isBilled prop?), disable item cards/search inputs, show message: "Reverse mode active - cannot add new items to billed order".
+- In handleAddItem: Early return if reverseQtyMode && billed.
+- Add prop: isBilled: boolean (from parent).
+
+Status: [ ] Not started
+
+### 7. Backend Review (if needed)
+- Check TAxnTrnbillRoutes.js / Controllers.js: Ensure /reverse-quantity supports billed txnDetailId, updates RevQty in TAxnTrnbillDetails, returns success.
+- createKOT: Handle negative Qty for Re-KOT, update KOTNo, print flag.
+- If issues, propose edits.
+
+Status: [ ] Not started
+
+### 8. Testing and Followup
+- Use execute_command: npm run dev (if not running).
+- browser_action: Launch localhost:3000, select table, add items, print bill (billed status), F8 auth, reverse qty, print Re-KOT, verify UI/backend sync.
+- Check no regressions in unbilled flow.
+- attempt_completion once verified.
+
+Status: [ ] Not started

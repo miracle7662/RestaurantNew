@@ -66,6 +66,7 @@ interface OrderDetailsProps {
   triggerFocus: number;
   refreshItemsForTable: (tableIdNum: number) => Promise<void>;
   reverseQtyMode: boolean;
+  isBilled: boolean;
 }
   
 
@@ -85,6 +86,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
   triggerFocus,
   refreshItemsForTable,
   reverseQtyMode,
+  isBilled,
 }) => {
   const [searchTable, setSearchTable] = useState<string>(tableId || '');
   const [searchCode, setSearchCode] = useState<string>('');
@@ -473,6 +475,9 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
 
   // Add item to order
   const handleAddItem = (newItem: Omit<MenuItemState, 'qty'>, qty: number = 1) => {
+    if (reverseQtyMode && isBilled) {
+      return; // Prevent adding new items in reverse qty mode for billed tables
+    }
     // Always find and update quantity for existing new items, regardless of view mode.
     setItems((prevItems) => {
       const existingNewItemIndex = prevItems.findIndex(
@@ -662,6 +667,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
                       value={searchTable}
                       onChange={(e) => setSearchTable(e.target.value)}
                       ref={tableInputRef}
+                      disabled={reverseQtyMode && isBilled}
                       style={{
                         maxWidth: '100px',
                         minHeight: '60px',
@@ -684,6 +690,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
                     onChange={handleCodeChange}
                     onKeyDown={handleCodeKeyDown}
                     ref={codeInputRef}
+                    disabled={reverseQtyMode && isBilled}
                     style={{ maxWidth: '100px', minHeight: '48px' }}
                   />
                 </div>
@@ -707,6 +714,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
                       }
                     }}
                     ref={nameInputRef}
+                    disabled={reverseQtyMode && isBilled}
                     style={{
                       borderRadius: '20px',
                       height: '48px',
@@ -768,6 +776,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
                     onKeyPress={handleQuantityKeyPress}
                     min="1"
                     ref={quantityInputRef}
+                    disabled={reverseQtyMode && isBilled}
                     style={{ maxWidth: '100px', minHeight: '48px' }}
                   />
                 </div>
