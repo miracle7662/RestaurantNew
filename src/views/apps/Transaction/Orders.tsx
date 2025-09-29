@@ -330,7 +330,6 @@ const Order = () => {
     field3: '',
     field4: '',
     fssai_no: '',
-    gstin: '',
 
   });
 
@@ -1949,137 +1948,178 @@ const Order = () => {
       </div>
 
       {/* Bill Preview Section (for printing) */}
-      <div id="bill-preview" style={{ display: 'none' }}>
-        <div style={{ 
-          width: '80mm', 
-          margin: '0 auto', 
-          fontFamily: 'Courier New, monospace', 
-          fontSize: '10pt', 
-          lineHeight: '1.2',
-          padding: '10px',
-          color: '#000'
-        }}>
-          {/* Header */}
-          <div style={{ textAlign: 'center', marginBottom: '10px' }}>
-            <div style={{ fontWeight: 'bold', fontSize: '12pt', marginBottom: '5px' }}>
-              {user?.outlet_name || (formData as any).outlet_name || 'RESTAURANT'}
-            </div>
-            <div style={{ fontSize: '8pt', marginBottom: '2px' }}>
-              {user?.outlet_address || (formData as any).address || '221-524-07-5215007, Kolhapur Road, Kolhapur 416416'}
-            </div>
-            <div style={{ fontSize: '8pt', marginBottom: '5px' }}>
-              GSTIN: {formData.gstin || '27AAFCF8595Q1Z5'}
-            </div>
-            <div style={{ fontSize: '8pt' }}>
-              FSSAI: {formData.fssai_no || ''}
-            </div>
-          </div>
-
-          <hr style={{ border: 'none', borderTop: '1px dashed #000', margin: '5px 0' }} />
-
-          {/* Bill Details Row */}
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: '1fr 1fr 1fr 1fr', 
-            gap: '10px', 
-            marginBottom: '10px', 
-            fontSize: '9pt',
-            textAlign: 'center'
-          }}>
-            <div><strong>Date</strong><br/>{new Date().toLocaleDateString('en-GB')}</div>
-            <div><strong>Bill No.</strong><br/> {TxnNo || ''}</div>
-            <div><strong>Table No.</strong><br/>{selectedTable || '4'}</div>
-            <div><strong>Time</strong><br/>{new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</div>
-          </div>
-
-          <hr style={{ border: 'none', borderTop: '1px dashed #000', margin: '5px 0' }} />
-
-          {/* Items Table */}
-          <div style={{ marginBottom: '10px' }}>
-            <div style={{ 
-              display: 'grid', 
-              gridTemplateColumns: '20px 2fr 30px 40px 50px', 
-              gap: '5px', 
-              fontWeight: 'bold', 
-              borderBottom: '1px solid #000',
-              paddingBottom: '2px',
-              marginBottom: '5px',
-              fontSize: '9pt'
-            }}>
-              <div>#</div>
-              <div>Description</div>
-              <div style={{ textAlign: 'right' }}>Qty</div>
-              <div style={{ textAlign: 'right' }}>Rate</div>
-              <div style={{ textAlign: 'right' }}>Amount</div>
-            </div>
-            {Object.values(
-              items.reduce((acc: Record<string, MenuItem>, item) => {
-                if (!acc[item.name]) {
-                  acc[item.name] = { ...item, qty: 0 };
-                }
-                acc[item.name].qty += item.qty;
-                return acc;
-              }, {} as Record<string, MenuItem>)
-            ).map((item: any, index) => (
-              <div key={item.id} style={{ 
-                display: 'grid', 
-                gridTemplateColumns: '20px 2fr 30px 40px 50px', 
-                gap: '5px', 
-                padding: '2px 0',
-                fontSize: '9pt'
-              }}>
-                <div>{index + 1}</div>
-                <div>{item.name}</div>
-                <div style={{ textAlign: 'right' }}>{item.qty}</div>
-                <div style={{ textAlign: 'right' }}>{item.price.toFixed(2)}</div>
-                <div style={{ textAlign: 'right' }}>{(item.price * item.qty).toFixed(2)}</div>
-              </div>
-            ))}
-          </div>
-
-          <hr style={{ border: 'none', borderTop: '1px dashed #000', margin: '5px 0' }} />
-
-          {/* Totals */}
-          <div style={{ textAlign: 'right', fontSize: '9pt', marginBottom: '5px' }}>
-            {discount > 0 && (
-              <div style={{ marginBottom: '2px' }}>
-                Discount: Rs. {discount.toFixed(2)}
-              </div>
-            )}
-            <div style={{ marginBottom: '2px' }}>
-              <strong>Taxable Value:</strong> Rs. {(taxCalc.subtotal - discount).toFixed(2)}
-            </div>
-            {taxCalc.cgstAmt > 0 && (
-              <div style={{ marginBottom: '2px' }}>
-                CGST @{taxRates.cgst}%: Rs. {taxCalc.cgstAmt.toFixed(2)}
-              </div>
-            )}
-            {taxCalc.sgstAmt > 0 && (
-              <div style={{ marginBottom: '2px' }}>
-                SGST @{taxRates.sgst}%: Rs. {taxCalc.sgstAmt.toFixed(2)}
-              </div>
-            )}
-            {taxCalc.igstAmt > 0 && (
-              <div style={{ marginBottom: '2px' }}>
-                IGST @{taxRates.igst}%: Rs. {taxCalc.igstAmt.toFixed(2)}
-              </div>
-            )}
-            {taxCalc.cessAmt > 0 && (
-              <div style={{ marginBottom: '2px' }}>
-                CESS @{taxRates.cess}%: Rs. {taxCalc.cessAmt.toFixed(2)}
-              </div>
-            )}
-            <div style={{ fontWeight: 'bold', fontSize: '10pt', borderTop: '1px solid #000', paddingTop: '5px' }}>
-              &amp; GRAND TOTAL Rs. {(taxCalc.grandTotal - discount).toFixed(2)}
-            </div>
-          </div>
-
-          {/* Footer */}
-          <div style={{ textAlign: 'center', fontSize: '8pt', marginTop: '10px' }}>
-            {formData.footer_note || 'STAY SAFE, STAY HEALTHY'}
-          </div>
-        </div>
+<div id="bill-preview" style={{ display: 'none' }}>
+  <div style={{ 
+    width: '80mm', 
+    margin: '0 auto', 
+    fontFamily: 'Courier New, monospace', 
+    fontSize: '10pt', 
+    lineHeight: '1.2',
+    padding: '10px',
+    color: '#000'
+  }}>
+    {/* Header */}
+    <div style={{ textAlign: 'center', marginBottom: '10px' }}>
+      <div style={{ fontWeight: 'bold', fontSize: '12pt', marginBottom: '5px' }}>
+        {user?.outlet_name || (formData as any).outlet_name || 'RESTAURANT'}
       </div>
+      <div style={{ fontSize: '8pt', marginBottom: '2px' }}>
+        {user?.outlet_address || (formData as any).address || '221-524-07-5215007, Kolhapur Road, Kolhapur 416416'}
+      </div>
+      <div style={{ fontSize: '8pt', marginBottom: '2px' }}>
+        Email: {(formData as any).email || ''}
+      </div>
+      <div style={{ fontSize: '8pt', marginBottom: '2px' }}>
+        Website: {(formData as any).website || ''}
+      </div>
+      {(formData as any).show_phone_on_bill && (
+        <div style={{ fontSize: '8pt', marginBottom: '2px' }}>
+          Phone: {(formData as any).show_phone_on_bill || ''}
+        </div>
+      )}
+      
+      <div style={{ fontSize: '8pt', marginBottom: '2px' }}>
+        FSSAI: {(formData as any).fssai_no || ''}
+      </div>
+      {(formData as any).show_upi_qr && (formData as any).upi_id && (
+        <div style={{ fontSize: '8pt', marginBottom: '2px' }}>
+          UPI ID: {(formData as any).upi_id || ''}
+        </div>
+      )}
+      {(formData as any).field1 && (
+        <div style={{ fontSize: '8pt', marginBottom: '2px' }}>
+          {(formData as any).field1}
+        </div>
+      )}
+      {(formData as any).field2 && (
+        <div style={{ fontSize: '8pt', marginBottom: '2px' }}>
+          {(formData as any).field2}
+        </div>
+      )}
+      {(formData as any).field3 && (
+        <div style={{ fontSize: '8pt', marginBottom: '2px' }}>
+          {(formData as any).field3}
+        </div>
+      )}
+      {(formData as any).field4 && (
+        <div style={{ fontSize: '8pt', marginBottom: '2px' }}>
+          {(formData as any).field4}
+        </div>
+      )}
+    </div>
+
+    <hr style={{ border: 'none', borderTop: '1px dashed #000', margin: '5px 0' }} />
+
+    {/* Bill Details Row */}
+    <div style={{ 
+      display: 'grid', 
+      gridTemplateColumns: '1fr 1fr 1fr 1fr', 
+      gap: '10px', 
+      marginBottom: '10px', 
+      fontSize: '9pt',
+      textAlign: 'center'
+    }}>
+      <div><strong>Date</strong><br/>{new Date().toLocaleDateString('en-GB')}</div>
+      <div><strong>Bill No.</strong><br/>{(formData as any).bill_prefix || ''}{TxnNo || ''}</div>
+      <div><strong>Table No.</strong><br/>{selectedTable || '4'}</div>
+      <div><strong>Time</strong><br/>{new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</div>
+    </div>
+
+    <hr style={{ border: 'none', borderTop: '1px dashed #000', margin: '5px 0' }} />
+
+    {/* Items Table */}
+    <div style={{ marginBottom: '10px' }}>
+      <div style={{ 
+        display: 'grid', 
+        gridTemplateColumns: '20px 2fr 30px 40px 50px', 
+        gap: '5px', 
+        fontWeight: 'bold', 
+        borderBottom: '1px solid #000',
+        paddingBottom: '2px',
+        marginBottom: '5px',
+        fontSize: '9pt'
+      }}>
+        <div>#</div>
+        <div>Description</div>
+        <div style={{ textAlign: 'right' }}>Qty</div>
+        <div style={{ textAlign: 'right' }}>Rate</div>
+        <div style={{ textAlign: 'right' }}>Amount</div>
+      </div>
+      {Object.values(
+        items.reduce((acc: Record<string, MenuItem>, item) => {
+          if (!acc[item.name]) {
+            acc[item.name] = { ...item, qty: 0 };
+          }
+          acc[item.name].qty += item.qty;
+          return acc;
+        }, {} as Record<string, MenuItem>)
+      ).map((item: any, index) => (
+        <div key={item.id} style={{ 
+          display: 'grid', 
+          gridTemplateColumns: '20px 2fr 30px 40px 50px', 
+          gap: '5px', 
+          padding: '2px 0',
+          fontSize: '9pt'
+        }}>
+          <div>{index + 1}</div>
+          <div>{item.name}</div>
+          <div style={{ textAlign: 'right' }}>{item.qty}</div>
+          <div style={{ textAlign: 'right' }}>{item.price.toFixed(2)}</div>
+          <div style={{ textAlign: 'right' }}>{(item.price * item.qty).toFixed(2)}</div>
+        </div>
+      ))}
+    </div>
+
+    <hr style={{ border: 'none', borderTop: '1px dashed #000', margin: '5px 0' }} />
+
+    {/* Totals */}
+    <div style={{ textAlign: 'right', fontSize: '9pt', marginBottom: '5px' }}>
+      {discount > 0 && (
+        <div style={{ marginBottom: '2px' }}>
+          Discount: Rs. {discount.toFixed(2)}
+        </div>
+      )}
+      <div style={{ marginBottom: '2px' }}>
+        <strong>Taxable Value:</strong> Rs. {(taxCalc.subtotal - discount).toFixed(2)}
+      </div>
+      {taxCalc.cgstAmt > 0 && (
+        <div style={{ marginBottom: '2px' }}>
+          CGST @{taxRates.cgst}%: Rs. {taxCalc.cgstAmt.toFixed(2)}
+        </div>
+      )}
+      {taxCalc.sgstAmt > 0 && (
+        <div style={{ marginBottom: '2px' }}>
+          SGST @{taxRates.sgst}%: Rs. {taxCalc.sgstAmt.toFixed(2)}
+        </div>
+      )}
+      {taxCalc.igstAmt > 0 && (
+        <div style={{ marginBottom: '2px' }}>
+          IGST @{taxRates.igst}%: Rs. {taxCalc.igstAmt.toFixed(2)}
+        </div>
+      )}
+      {taxCalc.cessAmt > 0 && (
+        <div style={{ marginBottom: '2px' }}>
+          CESS @{taxRates.cess}%: Rs. {taxCalc.cessAmt.toFixed(2)}
+        </div>
+      )}
+      <div style={{ fontWeight: 'bold', fontSize: '10pt', borderTop: '1px solid #000', paddingTop: '5px' }}>
+        &amp; GRAND TOTAL Rs. {(taxCalc.grandTotal - discount).toFixed(2)}
+      </div>
+    </div>
+
+    {/* Note */}
+    {(formData as any).note && (
+      <div style={{ textAlign: 'center', fontSize: '8pt', marginTop: '5px' }}>
+        {(formData as any).note}
+      </div>
+    )}
+
+    {/* Footer */}
+    <div style={{ textAlign: 'center', fontSize: '8pt', marginTop: '10px' }}>
+      {(formData as any).footer_note || 'STAY SAFE, STAY HEALTHY'}
+    </div>
+  </div> 
+</div>
 
       {errorMessage && (
         <div className="alert alert-danger text-center" role="alert">
