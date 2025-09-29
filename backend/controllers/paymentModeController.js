@@ -82,7 +82,7 @@ exports.getPaymentModesByOutlet = (req, res) => {
     }
 
     const sql = `
-      SELECT pm.id, pm.paymenttypeid, pt.mode_name
+      SELECT pm.id, pm.paymenttypeid, pt.mode_name, pm.outletid
       FROM payment_modes pm
       JOIN payment_types pt ON pm.paymenttypeid = pt.paymenttypeid
       WHERE pm.outletid = ? AND pm.is_active = 1

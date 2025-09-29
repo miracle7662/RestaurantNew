@@ -151,9 +151,9 @@ const Order = () => {
 
   const revKotTotal = reverseQtyItems.reduce((sum, item) => sum + item.price * item.qty, 0);
 
-const totalPaid = Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0);
-const grandTotal = taxCalc.grandTotal - discount - revKotTotal;
-const settlementBalance = grandTotal - totalPaid;
+  const totalPaid = Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0);
+  const grandTotal = taxCalc.grandTotal - discount - revKotTotal;
+  const settlementBalance = grandTotal - totalPaid;
 
   const hasModifications = items.some(item => item.isNew) || reverseQtyItems.length > 0;
 
@@ -181,7 +181,7 @@ const settlementBalance = grandTotal - totalPaid;
             originalQty: item.Qty,
             kotNo: item.KOTNo, // Use KOTNo from the item detail
           }));
- 
+
           setItems(fetchedItems);
           setTxnNo(header.TxnNo); // Set TxnNo from the fetched bill header
           setCurrentTxnId(header.TxnID);
@@ -1224,7 +1224,7 @@ const settlementBalance = grandTotal - totalPaid;
           }, 100);
         }
       }
-      
+
 
       // 3. Update table status to 'billed' (red, status=2)
       if (selectedTable) {
@@ -1583,23 +1583,23 @@ const settlementBalance = grandTotal - totalPaid;
                   const currentConfig = settings.ReverseQtyMode === 1 ? 'PasswordRequired' : 'NoPassword';
                   setReverseQtyConfig(currentConfig);
 
-                                      // Handle F8 based on latest backend value
-                                      if (currentConfig === 'PasswordRequired') {
-                                        setShowAuthModal(true);
-                                      } else {
-                                        setReverseQtyMode(prev => {
-                                          const newMode = !prev;
-                                          // Clear reverse quantity items when turning off reverse mode
-                                          if (!newMode) {
-                                            setReverseQtyItems([]);
-                                          } else {
-                                            // When activating reverse mode, also set to expanded view
-                                            setIsGroupedView(false);
-                                          }
-                                          toast.success(`Reverse Qty Mode ${newMode ? 'activated' : 'deactivated'}.`);
-                                          return newMode;
-                                        });
-                                      }
+                  // Handle F8 based on latest backend value
+                  if (currentConfig === 'PasswordRequired') {
+                    setShowAuthModal(true);
+                  } else {
+                    setReverseQtyMode(prev => {
+                      const newMode = !prev;
+                      // Clear reverse quantity items when turning off reverse mode
+                      if (!newMode) {
+                        setReverseQtyItems([]);
+                      } else {
+                        // When activating reverse mode, also set to expanded view
+                        setIsGroupedView(false);
+                      }
+                      toast.success(`Reverse Qty Mode ${newMode ? 'activated' : 'deactivated'}.`);
+                      return newMode;
+                    });
+                  }
                 } else {
                   // Default to password required if setting not found
                   setReverseQtyConfig('PasswordRequired');
@@ -1696,22 +1696,63 @@ const settlementBalance = grandTotal - totalPaid;
     }
   };
 
-  const handleSettleAndPrint = () => {
-    // Logic to save settlement and print bill will go here
-    toast.success("Settlement successful and bill printed!");
-    // Reset states
-    setPaymentAmounts({});
-    setSelectedPaymentModes([]);
-    setIsMixedPayment(false);
-    setShowSettlementModal(false);
-    setBillActionState('initial'); // Reset to initial button state
-    // Reset payment fields for next use
-    setPaymentAmounts({
-      cash: '',
-      card: '',
-      upi: '',
-      wallet: '',
-    });
+  const handleSettleAndPrint = async () => {
+    if (!currentTxnId) {
+      toast.error('Cannot settle bill. No transaction ID found.');
+      return;
+    }
+    if (settlementBalance !== 0 || totalPaid === 0) {
+      toast.error('Payment amount does not match the total due.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // 1. Construct the settlements payload
+      const settlementsPayload = selectedPaymentModes.map(modeName => {
+        const paymentModeDetails = outletPaymentModes.find(pm => pm.mode_name === modeName);
+        return {
+          PaymentTypeID: paymentModeDetails?.paymenttypeid,
+          PaymentType: modeName,
+          Amount: parseFloat(paymentAmounts[modeName]) || 0,
+          OrderNo: TxnNo,
+          HotelID: user?.hotelid,
+          Name: user?.name, // Cashier/User name
+        };
+      });
+
+      // 2. Call the settlement endpoint
+      const response = await fetch(`http://localhost:3001/api/TAxnTrnbill/${currentTxnId}/settle`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ settlements: settlementsPayload }),
+      });
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.message || 'Failed to settle bill.');
+      }
+
+      toast.success('Settlement successful and bill printed!');
+
+      // 3. Reset UI states for the next order
+      setItems([]);
+      setSelectedTable(null);
+      setShowOrderDetails(false);
+      setPaymentAmounts({});
+      setSelectedPaymentModes([]);
+      setIsMixedPayment(false);
+      setShowSettlementModal(false);
+      setBillActionState('initial');
+      fetchTableManagement(); // Refresh table statuses
+
+    } catch (error: any) {
+      console.error('Error settling bill:', error);
+      toast.error(error.message || 'An error occurred during settlement.');
+    } finally {
+      setLoading(false);
+    }
   };
   const handleOpenTaxModal = () => {
     setCgst(taxRates.cgst.toString());
@@ -2036,178 +2077,178 @@ const settlementBalance = grandTotal - totalPaid;
       </div>
 
       {/* Bill Preview Section (for printing) */}
-<div id="bill-preview" style={{ display: 'none' }}>
-  <div style={{ 
-    width: '80mm', 
-    margin: '0 auto', 
-    fontFamily: 'Courier New, monospace', 
-    fontSize: '10pt', 
-    lineHeight: '1.2',
-    padding: '10px',
-    color: '#000'
-  }}>
-    {/* Header */}
-    <div style={{ textAlign: 'center', marginBottom: '10px' }}>
-      <div style={{ fontWeight: 'bold', fontSize: '12pt', marginBottom: '5px' }}>
-        {user?.outlet_name || (formData as any).outlet_name || 'RESTAURANT'}
-      </div>
-      <div style={{ fontSize: '8pt', marginBottom: '2px' }}>
-        {user?.outlet_address || (formData as any).address || '221-524-07-5215007, Kolhapur Road, Kolhapur 416416'}
-      </div>
-      <div style={{ fontSize: '8pt', marginBottom: '2px' }}>
-        Email: {(formData as any).email || ''}
-      </div>
-      <div style={{ fontSize: '8pt', marginBottom: '2px' }}>
-        Website: {(formData as any).website || ''}
-      </div>
-      {(formData as any).show_phone_on_bill && (
-        <div style={{ fontSize: '8pt', marginBottom: '2px' }}>
-          Phone: {(formData as any).show_phone_on_bill || ''}
-        </div>
-      )}
-      
-      <div style={{ fontSize: '8pt', marginBottom: '2px' }}>
-        FSSAI: {(formData as any).fssai_no || ''}
-      </div>
-      {(formData as any).show_upi_qr && (formData as any).upi_id && (
-        <div style={{ fontSize: '8pt', marginBottom: '2px' }}>
-          UPI ID: {(formData as any).upi_id || ''}
-        </div>
-      )}
-      {(formData as any).field1 && (
-        <div style={{ fontSize: '8pt', marginBottom: '2px' }}>
-          {(formData as any).field1}
-        </div>
-      )}
-      {(formData as any).field2 && (
-        <div style={{ fontSize: '8pt', marginBottom: '2px' }}>
-          {(formData as any).field2}
-        </div>
-      )}
-      {(formData as any).field3 && (
-        <div style={{ fontSize: '8pt', marginBottom: '2px' }}>
-          {(formData as any).field3}
-        </div>
-      )}
-      {(formData as any).field4 && (
-        <div style={{ fontSize: '8pt', marginBottom: '2px' }}>
-          {(formData as any).field4}
-        </div>
-      )}
-    </div>
-
-    <hr style={{ border: 'none', borderTop: '1px dashed #000', margin: '5px 0' }} />
-
-    {/* Bill Details Row */}
-    <div style={{ 
-      display: 'grid', 
-      gridTemplateColumns: '1fr 1fr 1fr 1fr', 
-      gap: '10px', 
-      marginBottom: '10px', 
-      fontSize: '9pt',
-      textAlign: 'center'
-    }}>
-      <div><strong>Date</strong><br/>{new Date().toLocaleDateString('en-GB')}</div>
-      <div><strong>Bill No.</strong><br/>{(formData as any).bill_prefix || ''}{TxnNo || ''}</div>
-      <div><strong>Table No.</strong><br/>{selectedTable || '4'}</div>
-      <div><strong>Time</strong><br/>{new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</div>
-    </div>
-
-    <hr style={{ border: 'none', borderTop: '1px dashed #000', margin: '5px 0' }} />
-
-    {/* Items Table */}
-    <div style={{ marginBottom: '10px' }}>
-      <div style={{ 
-        display: 'grid', 
-        gridTemplateColumns: '20px 2fr 30px 40px 50px', 
-        gap: '5px', 
-        fontWeight: 'bold', 
-        borderBottom: '1px solid #000',
-        paddingBottom: '2px',
-        marginBottom: '5px',
-        fontSize: '9pt'
-      }}>
-        <div>#</div>
-        <div>Description</div>
-        <div style={{ textAlign: 'right' }}>Qty</div>
-        <div style={{ textAlign: 'right' }}>Rate</div>
-        <div style={{ textAlign: 'right' }}>Amount</div>
-      </div>
-      {Object.values(
-        items.reduce((acc: Record<string, MenuItem>, item) => {
-          if (!acc[item.name]) {
-            acc[item.name] = { ...item, qty: 0 };
-          }
-          acc[item.name].qty += item.qty;
-          return acc;
-        }, {} as Record<string, MenuItem>)
-      ).map((item: any, index) => (
-        <div key={item.id} style={{ 
-          display: 'grid', 
-          gridTemplateColumns: '20px 2fr 30px 40px 50px', 
-          gap: '5px', 
-          padding: '2px 0',
-          fontSize: '9pt'
+      <div id="bill-preview" style={{ display: 'none' }}>
+        <div style={{
+          width: '80mm',
+          margin: '0 auto',
+          fontFamily: 'Courier New, monospace',
+          fontSize: '10pt',
+          lineHeight: '1.2',
+          padding: '10px',
+          color: '#000'
         }}>
-          <div>{index + 1}</div>
-          <div>{item.name}</div>
-          <div style={{ textAlign: 'right' }}>{item.qty}</div>
-          <div style={{ textAlign: 'right' }}>{item.price.toFixed(2)}</div>
-          <div style={{ textAlign: 'right' }}>{(item.price * item.qty).toFixed(2)}</div>
-        </div>
-      ))}
-    </div>
+          {/* Header */}
+          <div style={{ textAlign: 'center', marginBottom: '10px' }}>
+            <div style={{ fontWeight: 'bold', fontSize: '12pt', marginBottom: '5px' }}>
+              {user?.outlet_name || (formData as any).outlet_name || 'RESTAURANT'}
+            </div>
+            <div style={{ fontSize: '8pt', marginBottom: '2px' }}>
+              {user?.outlet_address || (formData as any).address || '221-524-07-5215007, Kolhapur Road, Kolhapur 416416'}
+            </div>
+            <div style={{ fontSize: '8pt', marginBottom: '2px' }}>
+              Email: {(formData as any).email || ''}
+            </div>
+            <div style={{ fontSize: '8pt', marginBottom: '2px' }}>
+              Website: {(formData as any).website || ''}
+            </div>
+            {(formData as any).show_phone_on_bill && (
+              <div style={{ fontSize: '8pt', marginBottom: '2px' }}>
+                Phone: {(formData as any).show_phone_on_bill || ''}
+              </div>
+            )}
 
-    <hr style={{ border: 'none', borderTop: '1px dashed #000', margin: '5px 0' }} />
+            <div style={{ fontSize: '8pt', marginBottom: '2px' }}>
+              FSSAI: {(formData as any).fssai_no || ''}
+            </div>
+            {(formData as any).show_upi_qr && (formData as any).upi_id && (
+              <div style={{ fontSize: '8pt', marginBottom: '2px' }}>
+                UPI ID: {(formData as any).upi_id || ''}
+              </div>
+            )}
+            {(formData as any).field1 && (
+              <div style={{ fontSize: '8pt', marginBottom: '2px' }}>
+                {(formData as any).field1}
+              </div>
+            )}
+            {(formData as any).field2 && (
+              <div style={{ fontSize: '8pt', marginBottom: '2px' }}>
+                {(formData as any).field2}
+              </div>
+            )}
+            {(formData as any).field3 && (
+              <div style={{ fontSize: '8pt', marginBottom: '2px' }}>
+                {(formData as any).field3}
+              </div>
+            )}
+            {(formData as any).field4 && (
+              <div style={{ fontSize: '8pt', marginBottom: '2px' }}>
+                {(formData as any).field4}
+              </div>
+            )}
+          </div>
 
-    {/* Totals */}
-    <div style={{ textAlign: 'right', fontSize: '9pt', marginBottom: '5px' }}>
-      {discount > 0 && (
-        <div style={{ marginBottom: '2px' }}>
-          Discount: Rs. {discount.toFixed(2)}
+          <hr style={{ border: 'none', borderTop: '1px dashed #000', margin: '5px 0' }} />
+
+          {/* Bill Details Row */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr 1fr 1fr',
+            gap: '10px',
+            marginBottom: '10px',
+            fontSize: '9pt',
+            textAlign: 'center'
+          }}>
+            <div><strong>Date</strong><br />{new Date().toLocaleDateString('en-GB')}</div>
+            <div><strong>Bill No.</strong><br />{(formData as any).bill_prefix || ''}{TxnNo || ''}</div>
+            <div><strong>Table No.</strong><br />{selectedTable || '4'}</div>
+            <div><strong>Time</strong><br />{new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</div>
+          </div>
+
+          <hr style={{ border: 'none', borderTop: '1px dashed #000', margin: '5px 0' }} />
+
+          {/* Items Table */}
+          <div style={{ marginBottom: '10px' }}>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '20px 2fr 30px 40px 50px',
+              gap: '5px',
+              fontWeight: 'bold',
+              borderBottom: '1px solid #000',
+              paddingBottom: '2px',
+              marginBottom: '5px',
+              fontSize: '9pt'
+            }}>
+              <div>#</div>
+              <div>Description</div>
+              <div style={{ textAlign: 'right' }}>Qty</div>
+              <div style={{ textAlign: 'right' }}>Rate</div>
+              <div style={{ textAlign: 'right' }}>Amount</div>
+            </div>
+            {Object.values(
+              items.reduce((acc: Record<string, MenuItem>, item) => {
+                if (!acc[item.name]) {
+                  acc[item.name] = { ...item, qty: 0 };
+                }
+                acc[item.name].qty += item.qty;
+                return acc;
+              }, {} as Record<string, MenuItem>)
+            ).map((item: any, index) => (
+              <div key={item.id} style={{
+                display: 'grid',
+                gridTemplateColumns: '20px 2fr 30px 40px 50px',
+                gap: '5px',
+                padding: '2px 0',
+                fontSize: '9pt'
+              }}>
+                <div>{index + 1}</div>
+                <div>{item.name}</div>
+                <div style={{ textAlign: 'right' }}>{item.qty}</div>
+                <div style={{ textAlign: 'right' }}>{item.price.toFixed(2)}</div>
+                <div style={{ textAlign: 'right' }}>{(item.price * item.qty).toFixed(2)}</div>
+              </div>
+            ))}
+          </div>
+
+          <hr style={{ border: 'none', borderTop: '1px dashed #000', margin: '5px 0' }} />
+
+          {/* Totals */}
+          <div style={{ textAlign: 'right', fontSize: '9pt', marginBottom: '5px' }}>
+            {discount > 0 && (
+              <div style={{ marginBottom: '2px' }}>
+                Discount: Rs. {discount.toFixed(2)}
+              </div>
+            )}
+            <div style={{ marginBottom: '2px' }}>
+              <strong>Taxable Value:</strong> Rs. {(taxCalc.subtotal - discount).toFixed(2)}
+            </div>
+            {taxCalc.cgstAmt > 0 && (
+              <div style={{ marginBottom: '2px' }}>
+                CGST @{taxRates.cgst}%: Rs. {taxCalc.cgstAmt.toFixed(2)}
+              </div>
+            )}
+            {taxCalc.sgstAmt > 0 && (
+              <div style={{ marginBottom: '2px' }}>
+                SGST @{taxRates.sgst}%: Rs. {taxCalc.sgstAmt.toFixed(2)}
+              </div>
+            )}
+            {taxCalc.igstAmt > 0 && (
+              <div style={{ marginBottom: '2px' }}>
+                IGST @{taxRates.igst}%: Rs. {taxCalc.igstAmt.toFixed(2)}
+              </div>
+            )}
+            {taxCalc.cessAmt > 0 && (
+              <div style={{ marginBottom: '2px' }}>
+                CESS @{taxRates.cess}%: Rs. {taxCalc.cessAmt.toFixed(2)}
+              </div>
+            )}
+            <div style={{ fontWeight: 'bold', fontSize: '10pt', borderTop: '1px solid #000', paddingTop: '5px' }}>
+              &amp; GRAND TOTAL Rs. {(taxCalc.grandTotal - discount).toFixed(2)}
+            </div>
+          </div>
+
+          {/* Note */}
+          {(formData as any).note && (
+            <div style={{ textAlign: 'center', fontSize: '8pt', marginTop: '5px' }}>
+              {(formData as any).note}
+            </div>
+          )}
+
+          {/* Footer */}
+          <div style={{ textAlign: 'center', fontSize: '8pt', marginTop: '10px' }}>
+            {(formData as any).footer_note || 'STAY SAFE, STAY HEALTHY'}
+          </div>
         </div>
-      )}
-      <div style={{ marginBottom: '2px' }}>
-        <strong>Taxable Value:</strong> Rs. {(taxCalc.subtotal - discount).toFixed(2)}
       </div>
-      {taxCalc.cgstAmt > 0 && (
-        <div style={{ marginBottom: '2px' }}>
-          CGST @{taxRates.cgst}%: Rs. {taxCalc.cgstAmt.toFixed(2)}
-        </div>
-      )}
-      {taxCalc.sgstAmt > 0 && (
-        <div style={{ marginBottom: '2px' }}>
-          SGST @{taxRates.sgst}%: Rs. {taxCalc.sgstAmt.toFixed(2)}
-        </div>
-      )}
-      {taxCalc.igstAmt > 0 && (
-        <div style={{ marginBottom: '2px' }}>
-          IGST @{taxRates.igst}%: Rs. {taxCalc.igstAmt.toFixed(2)}
-        </div>
-      )}
-      {taxCalc.cessAmt > 0 && (
-        <div style={{ marginBottom: '2px' }}>
-          CESS @{taxRates.cess}%: Rs. {taxCalc.cessAmt.toFixed(2)}
-        </div>
-      )}
-      <div style={{ fontWeight: 'bold', fontSize: '10pt', borderTop: '1px solid #000', paddingTop: '5px' }}>
-        &amp; GRAND TOTAL Rs. {(taxCalc.grandTotal - discount).toFixed(2)}
-      </div>
-    </div>
-
-    {/* Note */}
-    {(formData as any).note && (
-      <div style={{ textAlign: 'center', fontSize: '8pt', marginTop: '5px' }}>
-        {(formData as any).note}
-      </div>
-    )}
-
-    {/* Footer */}
-    <div style={{ textAlign: 'center', fontSize: '8pt', marginTop: '10px' }}>
-      {(formData as any).footer_note || 'STAY SAFE, STAY HEALTHY'}
-    </div>
-  </div> 
-</div>
 
       {errorMessage && (
         <div className="alert alert-danger text-center" role="alert">
@@ -3077,7 +3118,7 @@ const settlementBalance = grandTotal - totalPaid;
                           </svg>
                         </Button>
 
-                       
+
                       </div>
 
                       {/* Overlay to close when clicking outside */}
