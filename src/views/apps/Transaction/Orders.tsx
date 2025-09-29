@@ -1224,6 +1224,7 @@ const settlementBalance = grandTotal - totalPaid;
           }, 100);
         }
       }
+      
 
       // 3. Update table status to 'billed' (red, status=2)
       if (selectedTable) {
