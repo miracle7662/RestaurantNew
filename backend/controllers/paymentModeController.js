@@ -73,7 +73,26 @@ exports.getAllPaymentModes = (req, res) => {
   }
 };
 
-// // Get single payment mode
+// Get payment modes by outlet ID
+exports.getPaymentModesByOutlet = (req, res) => {
+  try {
+    const { outletid } = req.params;
+    if (!outletid) {
+      return res.status(400).json({ error: "Outlet ID is required" });
+    }
+
+    const sql = `
+      SELECT pm.id, pm.paymenttypeid, pt.mode_name
+      FROM payment_modes pm
+      JOIN payment_types pt ON pm.paymenttypeid = pt.paymenttypeid
+      WHERE pm.outletid = ? AND pm.is_active = 1
+    `;
+    const rows = db.prepare(sql).all(outletid);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
 
 // Update payment mode
 exports.updatePaymentMode = (req, res) => {
