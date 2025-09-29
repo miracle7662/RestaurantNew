@@ -1061,122 +1061,7 @@ const Order = () => {
     setShowOrderDetails(false);
   };
 
-  // const handlePrintBill = async () => {
-  //   if (items.length === 0) {
-  //     toast.error('No items to print a bill for.');
-  //     return;
-  //   }
 
-  //   setLoading(true);
-  //   try {
-  //     // 1. Assemble payload
-  //     const selectedTableRecord: any = (Array.isArray(filteredTables) ? filteredTables : tableItems)
-  //       .find((t: any) => t && t.table_name && t.table_name === selectedTable)
-  //       || (Array.isArray(tableItems) ? tableItems.find((t: any) => t && t.table_name === selectedTable) : undefined);
-
-  //     const resolvedTableId = selectedTableRecord ? Number((selectedTableRecord as any).tableid || (selectedTableRecord as any).tablemanagementid) : null;
-  //     const resolvedOutletId = selectedTableRecord ? Number((selectedTableRecord as any).outletid) || (user?.outletid ? Number(user.outletid) : null) : null;
-  //     const userId = user?.id || null;
-  //     const resolvedDeptId = selectedTableRecord ? Number((selectedTableRecord as any).departmentid) || selectedDeptId : selectedDeptId;
-
-  //     const hotelId = user?.hotelid || null;
-
-  //     const billPayload = {
-  //       TableID: resolvedTableId,
-  //       outletid: resolvedOutletId,
-  //       HotelID: hotelId,
-  //       UserId: userId,
-  //       GrossAmt: taxCalc.subtotal,
-  //       Discount: discount,
-  //       DiscPer: DiscPer,
-  //       DiscountType: DiscountType,
-  //       CGST: taxCalc.cgstAmt,
-  //       SGST: taxCalc.sgstAmt,
-  //       IGST: taxCalc.igstAmt,
-  //       CESS: taxCalc.cessAmt,
-  //       Amount: taxCalc.grandTotal - discount,
-  //       CustomerName: customerName,
-  //       MobileNo: mobileNumber,
-  //       details: items.map(i => ({
-  //         outletid: resolvedOutletId,
-  //         TableID: resolvedTableId,
-  //         DeptID: resolvedDeptId,
-  //         ItemID: i.id,
-  //         Qty: i.qty,
-  //         RuntimeRate: i.price,
-  //         isNCKOT: i.isNCKOT,
-  //         KOTNo: i.kotNo,
-  //         NCName: i.NCName,
-  //         NCPurpose: i.NCPurpose,
-  //         CGST: taxRates.cgst,
-  //         SGST: taxRates.sgst,
-  //         IGST: taxRates.igst,
-  //         CESS: taxRates.cess,
-  //       }))
-  //     };
-
-  //     // 2. Create or Update Bill
-  //     const apiEndpoint = currentTxnId ? `http://localhost:3001/api/TAxnTrnbill/${currentTxnId}` : 'http://localhost:3001/api/TAxnTrnbill';
-  //     const apiMethod = currentTxnId ? 'PUT' : 'POST';
-
-  //     const billSaveRes = await fetch(apiEndpoint, {
-  //       method: apiMethod,
-  //       headers: { 'Content-Type': 'application/json' },
-  //       body: JSON.stringify(billPayload),
-  //     });
-  //     const billResponse = await billSaveRes.json();
-
-  //     if (!billResponse?.success) {
-  //       throw new Error(billResponse?.message || 'Failed to save bill.');
-  //     }
-
-  //     const savedTxnId = billResponse.data.TxnID;
-  //     setCurrentTxnId(savedTxnId); // Update currentTxnId
-
-  //     // 3. Call the print endpoint to mark as billed
-  //     const printResponse = await fetch(`http://localhost:3001/api/TAxnTrnbill/${savedTxnId}/print`, {
-  //       method: 'PUT',
-  //       headers: { 'Content-Type': 'application/json' },
-  //     });
-  //     const printResult = await printResponse.json();
-
-  //     if (!printResult.success) {
-  //       throw new Error(printResult.message || 'Failed to mark bill as printed.');
-  //     }
-
-  //     toast.success('Bill saved and marked as printed!');
-
-  //     // 4. Print the bill preview
-  //     const printWindow = window.open('', '_blank');
-  //     if (printWindow) {
-  //       const contentToPrint = document.getElementById('bill-preview');
-  //       if (contentToPrint) {
-  //         printWindow.document.write(contentToPrint.innerHTML);
-  //         printWindow.document.close();
-  //         printWindow.focus();
-  //         printWindow.print();
-  //       }
-  //     }
-
-  //     // 5. Update table status to 'billed' (red, status=2)
-  //     if (selectedTable) {
-  //       setTableItems(prevTables =>
-  //         prevTables.map(table =>
-  //           table.table_name === selectedTable ? { ...table, status: 2 } : table
-  //         )
-  //       );
-  //     }
-
-  //     // 6. Per request, DO NOT clear UI. Instead, update items to reflect their 'billed' state.
-  //     setItems(prevItems => prevItems.map(item => ({ ...item, isNew: false, isBilled: 1 })));
-
-  //   } catch (error: any) {
-  //     console.error('Error printing bill:', error);
-  //     toast.error(error.message || 'An error occurred while printing the bill.');
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
 
   const handlePrintBill = async () => {
     if (items.length === 0) {
@@ -3371,96 +3256,145 @@ const Order = () => {
           </Modal>
 
           {/* Settlement Modal */}
-          <Modal show={showSettlementModal} onHide={() => setShowSettlementModal(false)} centered size="lg">
-            <Modal.Header closeButton style={{ borderBottom: 'none' }}>
-              <Modal.Title>Payment Mode</Modal.Title>
+
+          <Modal
+            show={showSettlementModal}
+            onHide={() => setShowSettlementModal(false)}
+            centered
+            size="lg"
+          >
+            {/* Header */}
+            <Modal.Header closeButton className="border-0">
+              <Modal.Title className="fw-bold text-dark">Payment Mode</Modal.Title>
             </Modal.Header>
-            <Modal.Body style={{ backgroundColor: '#f8f9fa' }}>
+
+            {/* Body */}
+            <Modal.Body className="bg-light">
               {/* Bill Summary */}
-              <div className="border p-3 rounded mb-4 text-center bg-white">
-                <h5 className="text-muted mb-2">Total Amount Due</h5>
-                <div className="fw-bold" style={{ fontSize: '2.5rem', color: '#2c3e50' }}>
+              <div className="p-4 mb-4 bg-white rounded shadow-sm text-center">
+                <h6 className="text-secondary mb-2">Total Amount Due</h6>
+                <div className="fw-bold display-5 text-dark">
                   ₹{grandTotal.toFixed(2)}
                 </div>
               </div>
 
-              {/* Payment Section */}
-              <div>
-                <div className="d-flex justify-content-end mb-3">
-                  <Form.Check
-                    type="switch"
-                    id="mixed-payment-switch"
-                    label="Mixed Payment"
-                    checked={isMixedPayment}
-                    onChange={(e) => {
-                      setIsMixedPayment(e.target.checked);
-                      // Reset selections when toggling
-                      setSelectedPaymentModes([]);
-                      setPaymentAmounts({});
-                    }}
-                  />
-                </div>
+              {/* Mixed Payment Toggle */}
+              <div className="d-flex justify-content-end mb-3">
+                <Form.Check
+                  type="switch"
+                  id="mixed-payment-switch"
+                  label="Mixed Payment"
+                  checked={isMixedPayment}
+                  onChange={(e) => {
+                    setIsMixedPayment(e.target.checked);
+                    setSelectedPaymentModes([]);
+                    setPaymentAmounts({});
+                  }}
+                />
+              </div>
 
-                <Row xs={1} md={2} className="g-3">
-                  {outletPaymentModes.map((mode) => (
-                    <Col key={mode.id}>
-                      <Card
-                        className={`text-center h-100 ${selectedPaymentModes.includes(mode.mode_name) ? 'border-primary' : ''}`}
-                        onClick={() => handlePaymentModeClick(mode)}
-                        style={{ cursor: 'pointer', transition: 'all 0.2s' }}
-                      >
-                        <Card.Body>
-                          <Card.Title>{mode.mode_name}</Card.Title>
-                          {selectedPaymentModes.includes(mode.mode_name) && (
-                            <Form.Control
-                              type="number"
-                              placeholder="0.00"
-                              value={paymentAmounts[mode.mode_name] || ''}
-                              onChange={(e) => handlePaymentAmountChange(mode.mode_name, e.target.value)}
-                              onClick={(e) => e.stopPropagation()} // Prevent card click when interacting with input
-                              autoFocus={isMixedPayment}
-                              readOnly={!isMixedPayment}
-                              className="mt-2 text-center"
-                            />
-                          )}
-                        </Card.Body>
-                      </Card>
-                    </Col>
-                  ))}
-                </Row>
+              {/* Payment Modes */}
+              <Row xs={1} md={2} className="g-3">
+                {outletPaymentModes.map((mode) => (
+                  <Col key={mode.id}>
+                    <Card
+                      onClick={() => handlePaymentModeClick(mode)}
+                      className={`text-center h-100 shadow-sm border-0 ${selectedPaymentModes.includes(mode.mode_name)
+                          ? "border border-primary"
+                          : ""
+                        }`}
+                      style={{
+                        cursor: "pointer",
+                        transition: "transform 0.2s ease, box-shadow 0.2s ease",
+                      }}
+                      onMouseEnter={(e) =>
+                        (e.currentTarget.style.transform = "translateY(-4px)")
+                      }
+                      onMouseLeave={(e) =>
+                        (e.currentTarget.style.transform = "translateY(0)")
+                      }
+                    >
+                      <Card.Body>
+                        <Card.Title className="fw-semibold">
+                          {mode.mode_name}
+                        </Card.Title>
 
-                <div className="mt-4 p-3 bg-light rounded">
-                  <div className="d-flex justify-content-around fw-bold fs-5">
-                    <div>
-                      <span>Total Paid: </span>
-                      <span>{totalPaid.toFixed(2)}</span>
-                    </div>
-                    <div>
-                      <span>Balance Due: </span>
-                      <span className={settlementBalance === 0 ? 'text-success' : 'text-danger'}>
-                        {settlementBalance.toFixed(2)}
-                      </span>
-                    </div>
+                        {/* Amount Input */}
+                        {selectedPaymentModes.includes(mode.mode_name) && (
+                          <Form.Control
+                            type="number"
+                            placeholder="0.00"
+                            value={paymentAmounts[mode.mode_name] || ""}
+                            onChange={(e) =>
+                              handlePaymentAmountChange(mode.mode_name, e.target.value)
+                            }
+                            onClick={(e) => e.stopPropagation()}
+                            autoFocus={isMixedPayment}
+                            readOnly={!isMixedPayment}
+                            className="mt-2 text-center"
+                          />
+                        )}
+                      </Card.Body>
+                    </Card>
+                  </Col>
+                ))}
+              </Row>
+
+              {/* Payment Summary */}
+              <div className="mt-4 p-3 bg-white rounded shadow-sm">
+                <div className="d-flex justify-content-around fw-bold fs-5">
+                  <div>
+                    <span>Total Paid: </span>
+                    <span className="text-primary">{totalPaid.toFixed(2)}</span>
                   </div>
-                  {settlementBalance !== 0 && (
-                    <div className="text-danger mt-2">Total paid amount must match the grand total.</div>
-                  )}
-                  {settlementBalance === 0 && totalPaid > 0 && (
-                    <div className="text-success mt-2">Payment amount matches. Ready to settle.</div>
-                  )}
+                  <div>
+                    <span>Balance Due: </span>
+                    <span
+                      className={
+                        settlementBalance === 0 ? "text-success" : "text-danger"
+                      }
+                    >
+                      {settlementBalance.toFixed(2)}
+                    </span>
+                  </div>
                 </div>
+
+                {/* Validation Messages */}
+                {settlementBalance !== 0 && (
+                  <div className="text-danger mt-2 text-center small">
+                    Total paid amount must match the grand total.
+                  </div>
+                )}
+                {settlementBalance === 0 && totalPaid > 0 && (
+                  <div className="text-success mt-2 text-center small">
+                    ✅ Payment amount matches. Ready to settle.
+                  </div>
+                )}
               </div>
             </Modal.Body>
-            <Modal.Footer className="justify-content-between" style={{ borderTop: 'none' }}>
-              <Button variant="outline-secondary" onClick={() => setShowSettlementModal(false)}>
+
+            {/* Footer */}
+            <Modal.Footer className="border-0 justify-content-between">
+              <Button
+                variant="outline-secondary"
+                onClick={() => setShowSettlementModal(false)}
+                className="px-4"
+              >
                 Back
               </Button>
-              <Button variant="success" onClick={handleSettleAndPrint} disabled={settlementBalance !== 0 || totalPaid === 0}>
+              <Button
+                variant="success"
+                onClick={handleSettleAndPrint}
+                disabled={settlementBalance !== 0 || totalPaid === 0}
+                className="px-4"
+              >
                 Settle & Print
               </Button>
             </Modal.Footer>
           </Modal>
 
+
+          {/* F8PasswordModal */}
 
           <F8PasswordModal
             show={showF8PasswordModal}
