@@ -2125,211 +2125,211 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
                         </div>
                       </div>
                       {/* Right Column - KOT Preview (Non-Scrollable) */}
-                     <div className="col-lg-4">
-  <div className="card shadow-sm h-100">
-    <div className="card-header bg-light">
-      <h5 className="card-title mb-0 text-center fw-bold">KOT Preview</h5>
-    </div>
-    <div className="card-body" style={{ fontSize: '0.85rem', overflow: 'hidden' }}>
-      
-      {/* Store Name and Details */}
-      {formData.show_store_name && (
-        <div className="text-center mb-3">
-          <h6 className="fw-bold mb-1">Restaurant Name</h6>
-          <div className="small text-muted">Kolhapur Road Kolhapur 416416</div>
-          <div className="small text-muted">sangli@gmail.com</div>
-        </div>
-      )}
-      {formData.show_store_name && (
-        <div style={{ borderBottom: '1px dashed #ccc', margin: '10px 0' }}></div>
-      )}
+                      <div className="col-lg-4">
+                        <div className="card shadow-sm h-100">
+                          <div className="card-header bg-light">
+                            <h5 className="card-title mb-0 text-center fw-bold">KOT Preview</h5>
+                          </div>
+                          <div className="card-body" style={{ fontSize: '0.85rem', overflow: 'hidden' }}>
 
-      {/* KOT Header */}
-      <div className="text-center mb-3">
-        <h6 className="fw-bold">
-          {formData.dine_in_kot_no || formData.pickup_kot_no || formData.delivery_kot_no || formData.quick_bill_kot_no || 'KITCHEN ORDER TICKET'}
-          {formData.show_new_order_tag && formData.new_order_tag_label && (
-            <span className="ms-2 badge bg-primary">{formData.new_order_tag_label}</span>
-          )}
-          {formData.show_running_order_tag && formData.running_order_tag_label && (
-            <span className="ms-2 badge bg-secondary">{formData.running_order_tag_label}</span>
-          )}
-        </h6>
-      </div>
+                            {/* Store Name and Details */}
+                            {formData.show_store_name && (
+                              <div className="text-center mb-3">
+                                <h6 className="fw-bold mb-1">Restaurant Name</h6>
+                                <div className="small text-muted">Kolhapur Road Kolhapur 416416</div>
+                                <div className="small text-muted">sangli@gmail.com</div>
+                              </div>
+                            )}
+                            {formData.show_store_name && (
+                              <div style={{ borderBottom: '1px dashed #ccc', margin: '10px 0' }}></div>
+                            )}
 
-      {/* KOT Details */}
-      <div className="row mb-2">
-        <div className="col-6">
-          {(formData.show_kot_no_quick_bill || !formData.hide_table_name_quick_bill) && (
-            <small><strong>KOT No:</strong> KOT001</small>
-          )}
-          {formData.show_order_id_quick_bill && (
-            <small className="d-block"><strong>Order ID:</strong> ORD123</small>
-          )}
-          {formData.show_online_order_otp && (
-            <small className="d-block"><strong>OTP:</strong> 9876</small>
-          )}
-        </div>
-        <div className="col-6 text-end">
-          {!formData.hide_table_name_quick_bill && (
-            <small><strong>Table:</strong> T-05</small>
-          )}
-          {formData.show_covers_as_guest && (
-            <small className="d-block"><strong>Guests:</strong> 4</small>
-          )}
-        </div>
-      </div>
+                            {/* KOT Header */}
+                            <div className="text-center mb-3">
+                              <h6 className="fw-bold">
+                                {formData.dine_in_kot_no || formData.pickup_kot_no || formData.delivery_kot_no || formData.quick_bill_kot_no || 'KITCHEN ORDER TICKET'}
+                                {formData.show_new_order_tag && formData.new_order_tag_label && (
+                                  <span className="ms-2 badge bg-primary">{formData.new_order_tag_label}</span>
+                                )}
+                                {formData.show_running_order_tag && formData.running_order_tag_label && (
+                                  <span className="ms-2 badge bg-secondary">{formData.running_order_tag_label}</span>
+                                )}
+                              </h6>
+                            </div>
 
-      <div className="row mb-2">
-        <div className="col-6">
-          <small><strong>Date:</strong> 26/05/2025</small>
-        </div>
-        <div className="col-6 text-end">
-          <small><strong>Time:</strong> 9:10 PM</small>
-        </div>
-      </div>
+                            {/* KOT Details */}
+                            <div className="row mb-2">
+                              <div className="col-6">
+                                {(formData.show_kot_no_quick_bill || !formData.hide_table_name_quick_bill) && (
+                                  <small><strong>KOT No:</strong> KOT001</small>
+                                )}
+                                {formData.show_order_id_quick_bill && (
+                                  <small className="d-block"><strong>Order ID:</strong> ORD123</small>
+                                )}
+                                {formData.show_online_order_otp && (
+                                  <small className="d-block"><strong>OTP:</strong> 9876</small>
+                                )}
+                              </div>
+                              <div className="col-6 text-end">
+                                {!formData.hide_table_name_quick_bill && (
+                                  <small><strong>Table:</strong> T-05</small>
+                                )}
+                                {formData.show_covers_as_guest && (
+                                  <small className="d-block"><strong>Guests:</strong> 4</small>
+                                )}
+                              </div>
+                            </div>
 
-      <div className="row mb-2">
-        <div className="col-6">
-          <small>
-            <strong>Order Type:</strong> Dine In{' '}
-            {formData.show_order_type_symbol && <span>(🍽️)</span>}
-          </small>
-        </div>
-        <div className="col-6 text-end">
-          {formData.show_waiter && (
-            <small><strong>Waiter:</strong> John</small>
-          )}
-          {formData.show_captain_username && (
-            <small className="d-block"><strong>Captain:</strong> CaptainJane</small>
-          )}
-          {formData.show_username && (
-            <small className="d-block"><strong>Username:</strong> User123</small>
-          )}
-          {formData.show_terminal_username && (
-            <small className="d-block"><strong>Terminal:</strong> Term01</small>
-          )}
-        </div>
-      </div>
+                            <div className="row mb-2">
+                              <div className="col-6">
+                                <small><strong>Date:</strong> 26/05/2025</small>
+                              </div>
+                              <div className="col-6 text-end">
+                                <small><strong>Time:</strong> 9:10 PM</small>
+                              </div>
+                            </div>
 
-      {(formData.customer_on_kot_dine_in || formData.customer_on_kot_quick_bill || formData.customer_on_kot_pickup || formData.customer_on_kot_delivery) &&
-        formData.customer_kot_display_option !== 'DISABLED' && (
-          <>
-            <div style={{ borderBottom: '1px dashed #ccc', margin: '10px 0' }}></div>
-            <div className="mb-2">
-              <small><strong>Customer:</strong> John Doe</small>
-              {formData.customer_kot_display_option === 'NAME_AND_MOBILE' && (
-                <small className="d-block"><strong>Mobile:</strong> +91 9876543210</small>
-              )}
-            </div>
-          </>
-        )}
+                            <div className="row mb-2">
+                              <div className="col-6">
+                                <small>
+                                  <strong>Order Type:</strong> Dine In{' '}
+                                  {formData.show_order_type_symbol && <span>(🍽️)</span>}
+                                </small>
+                              </div>
+                              <div className="col-6 text-end">
+                                {formData.show_waiter && (
+                                  <small><strong>Waiter:</strong> John</small>
+                                )}
+                                {formData.show_captain_username && (
+                                  <small className="d-block"><strong>Captain:</strong> CaptainJane</small>
+                                )}
+                                {formData.show_username && (
+                                  <small className="d-block"><strong>Username:</strong> User123</small>
+                                )}
+                                {formData.show_terminal_username && (
+                                  <small className="d-block"><strong>Terminal:</strong> Term01</small>
+                                )}
+                              </div>
+                            </div>
 
-      <div style={{ borderBottom: '1px dashed #ccc', margin: '10px 0' }}></div>
+                            {(formData.customer_on_kot_dine_in || formData.customer_on_kot_quick_bill || formData.customer_on_kot_pickup || formData.customer_on_kot_delivery) &&
+                              formData.customer_kot_display_option !== 'DISABLED' && (
+                                <>
+                                  <div style={{ borderBottom: '1px dashed #ccc', margin: '10px 0' }}></div>
+                                  <div className="mb-2">
+                                    <small><strong>Customer:</strong> John Doe</small>
+                                    {formData.customer_kot_display_option === 'NAME_AND_MOBILE' && (
+                                      <small className="d-block"><strong>Mobile:</strong> +91 9876543210</small>
+                                    )}
+                                  </div>
+                                </>
+                              )}
 
-      {/* Items Header */}
-      <div className="row fw-bold small pb-1 mb-2" style={{ borderBottom: '1px solid #dee2e6' }}>
-        <div className="col-1">#</div>
-        <div className="col-4">Item Name</div>
-        <div className="col-2 text-center">Qty</div>
-        <div className="col-2 text-end">Rate</div>
-        {formData.show_item_price && <div className="col-3 text-end">Amount</div>}
-      </div>
+                            <div style={{ borderBottom: '1px dashed #ccc', margin: '10px 0' }}></div>
 
-      {/* Items */}
-      {[{
-        name: 'Biryani',
-        qty: 1,
-        rate: 100.00,
-        modifier: 'Spicy',
-        alternativeItem: 'Veg Biryani'
-      }, {
-        name: 'Chicken Curry',
-        qty: 2,
-        rate: 150.00
-      }, {
-        name: 'Naan',
-        qty: 3,
-        rate: 25.00
-      }].map((item, index) => (
-        <div className="row small mb-1" key={index}>
-          <div className="col-1">{index + 1}</div>
-          <div className="col-4">
-            {item.name}
-            {formData.modifier_default_option && item.modifier && (
-              <small className="d-block text-muted">{item.modifier}</small>
-            )}
-            {formData.show_alternative_item && item.alternativeItem && (
-              <small className="d-block text-muted">Alt: {item.alternativeItem}</small>
-            )}
-          </div>
-          <div className="col-2 text-center">{item.qty}</div>
-          <div className="col-2 text-end">{item.rate.toFixed(2)}</div>
-          {formData.show_item_price && (
-            <div className="col-3 text-end">{(item.qty * item.rate).toFixed(2)}</div>
-          )}
-        </div>
-      ))}
+                            {/* Items Header */}
+                            <div className="row fw-bold small pb-1 mb-2" style={{ borderBottom: '1px solid #dee2e6' }}>
+                              <div className="col-1">#</div>
+                              <div className="col-4">Item Name</div>
+                              <div className="col-2 text-center">Qty</div>
+                              <div className="col-2 text-end">Rate</div>
+                              {formData.show_item_price && <div className="col-3 text-end">Amount</div>}
+                            </div>
 
-      <div style={{ borderBottom: '1px dashed #ccc', margin: '10px 0' }}></div>
+                            {/* Items */}
+                            {[{
+                              name: 'Biryani',
+                              qty: 1,
+                              rate: 100.00,
+                              modifier: 'Spicy',
+                              alternativeItem: 'Veg Biryani'
+                            }, {
+                              name: 'Chicken Curry',
+                              qty: 2,
+                              rate: 150.00
+                            }, {
+                              name: 'Naan',
+                              qty: 3,
+                              rate: 25.00
+                            }].map((item, index) => (
+                              <div className="row small mb-1" key={index}>
+                                <div className="col-1">{index + 1}</div>
+                                <div className="col-4">
+                                  {item.name}
+                                  {formData.modifier_default_option && item.modifier && (
+                                    <small className="d-block text-muted">{item.modifier}</small>
+                                  )}
+                                  {formData.show_alternative_item && item.alternativeItem && (
+                                    <small className="d-block text-muted">Alt: {item.alternativeItem}</small>
+                                  )}
+                                </div>
+                                <div className="col-2 text-center">{item.qty}</div>
+                                <div className="col-2 text-end">{item.rate.toFixed(2)}</div>
+                                {formData.show_item_price && (
+                                  <div className="col-3 text-end">{(item.qty * item.rate).toFixed(2)}</div>
+                                )}
+                              </div>
+                            ))}
 
-      {/* Total Section */}
-      <div className="row fw-bold mb-2">
-        <div className="col-8 text-end">
-          <small>Total Items: 6</small>
-        </div>
-        {formData.show_item_price && (
-          <div className="col-4 text-end">
-            <small>₹ 475.00</small>
-          </div>
-        )}
-      </div>
+                            <div style={{ borderBottom: '1px dashed #ccc', margin: '10px 0' }}></div>
 
-      {formData.show_kot_note && (
-        <>
-          <div style={{ borderBottom: '1px dashed #ccc', margin: '10px 0' }}></div>
-          <div className="mb-2">
-            <small><strong>KOT Note:</strong></small>
-            <br />
-            <small className="text-muted fst-italic">Extra spicy, no onions</small>
-          </div>
-        </>
-      )}
+                            {/* Total Section */}
+                            <div className="row fw-bold mb-2">
+                              <div className="col-8 text-end">
+                                <small>Total Items: 6</small>
+                              </div>
+                              {formData.show_item_price && (
+                                <div className="col-4 text-end">
+                                  <small>₹ 475.00</small>
+                                </div>
+                              )}
+                            </div>
 
-      <div style={{ borderBottom: '1px dashed #ccc', margin: '10px 0' }}></div>
+                            {formData.show_kot_note && (
+                              <>
+                                <div style={{ borderBottom: '1px dashed #ccc', margin: '10px 0' }}></div>
+                                <div className="mb-2">
+                                  <small><strong>KOT Note:</strong></small>
+                                  <br />
+                                  <small className="text-muted fst-italic">Extra spicy, no onions</small>
+                                </div>
+                              </>
+                            )}
 
-      {/* Footer */}
-      <div className="text-center mt-3">
-        <small className="text-muted">Thank You!</small>
-        <br />
-        <small className="text-muted">Please prepare the order</small>
-      </div>
+                            <div style={{ borderBottom: '1px dashed #ccc', margin: '10px 0' }}></div>
 
-      {/* Bilingual Support */}
-      {formData.print_kot_both_languages && (
-        <>
-          <div style={{ borderBottom: '1px dashed #ccc', margin: '10px 0' }}></div>
-          <div className="text-center">
-            <small className="fw-bold">रसोई आदेश टिकट</small>
-            <br />
-            <small>बिरयानी: १</small>
-            <br />
-            <small>चिकन करी: २</small>
-            <br />
-            <small>नान: ३</small>
-          </div>
-        </>
-      )}
-      
-    </div>
-  </div>
-</div>
+                            {/* Footer */}
+                            <div className="text-center mt-3">
+                              <small className="text-muted">Thank You!</small>
+                              <br />
+                              <small className="text-muted">Please prepare the order</small>
+                            </div>
+
+                            {/* Bilingual Support */}
+                            {formData.print_kot_both_languages && (
+                              <>
+                                <div style={{ borderBottom: '1px dashed #ccc', margin: '10px 0' }}></div>
+                                <div className="text-center">
+                                  <small className="fw-bold">रसोई आदेश टिकट</small>
+                                  <br />
+                                  <small>बिरयानी: १</small>
+                                  <br />
+                                  <small>चिकन करी: २</small>
+                                  <br />
+                                  <small>नान: ३</small>
+                                </div>
+                              </>
+                            )}
+
+                          </div>
+                        </div>
+                      </div>
 
                     </div>
                   </div>
                 </div>
 
-                
+
                 {/* Bill Print Settings Tab */}
                 <div
                   className={`tab-pane fade ${activeTab === 'bill-print' ? 'show active' : ''}`}
@@ -5417,80 +5417,80 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
 
             {/* Bill Preview Section (Right Side) */}
             {activeTab === 'bill-preview' && (
-<div className="w-50 mx-auto">
-  <div className="card shadow-sm h-100">
-    <div className="card-body">
-      <h2 className="card-title h5 fw-bold mb-4 text-center">
-        Bill Preview
-      </h2>
-      <div className="text-center mb-3">
-        <p className="fw-bold">{formData.outlet_name || '!!!Hotel Miracle!!!'}</p>
-        <p>Kolhapur Road Kolhapur 416416</p>
-        {formData.show_phone_on_bill && <p>Phone: {formData.show_phone_on_bill}</p>}
-        {formData.email && <p>Email: {formData.email}</p>}
-        {formData.website && <p>Website: {formData.website}</p>}
-        {formData.upi_id && <p>UPI ID: {formData.upi_id}</p>}
-        {formData.bill_prefix && <p>Bill Prefix: {formData.bill_prefix}</p>}
-        {formData.secondary_bill_prefix && <p>Secondary Bill Prefix: {formData.secondary_bill_prefix}</p>}
-        {formData.bar_bill_prefix && <p>Bar Bill Prefix: {formData.bar_bill_prefix}</p>}
-        {formData.show_upi_qr !== undefined && (
-          <p>Show UPI QR: {formData.show_upi_qr ? 'Yes' : 'No'}</p>
-        )}
-        {formData.enabled_bar_section !== undefined && (
-          <p>Bar Section Enabled: {formData.enabled_bar_section ? 'Yes' : 'No'}</p>
-        )}
-        {formData.fssai_no && (
-          <p>FSSAI No: {formData.fssai_no}</p>
-        )}
-      </div>
-      <div className="text-center mb-3" style={{ fontSize: '0.9rem' }}>
-        <p className="mb-0">Note: {formData.note || 'Order ID: 1234567890'}</p>
-        <p className="mb-0">26/05/2025 @ 9:10 PM</p>
-      </div>
-      <div className="d-flex justify-content-between mb-3">
-        <p>Pay Mode: Cash</p>
-        <p>User: TMPOS</p>
-      </div>
-      <table className="table table-bordered mb-3">
-        <thead>
-          <tr>
-            <th scope="col">Item Name</th>
-            <th scope="col" className="text-end">
-              Quantity
-            </th>
-            <th scope="col" className="text-end">
-              Price
-            </th>
-            <th scope="col" className="text-end">
-              Total
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>1. Biryani</td>
-            <td className="text-end">1</td>
-            <td className="text-end">100.00</td>
-            <td className="text-end">100.00</td>
-          </tr>
-        </tbody>
-      </table>
-      <div className="text-end">
-        <p>Total Value: Rs. 100.00</p>
-        <p className="mt-2">GST:</p>
-        {formData.field1 && <p>{formData.field1}</p>}
-        {formData.field2 && <p>{formData.field2}</p>}
-        {formData.field3 && <p>{formData.field3}</p>}
-        {formData.field4 && <p>{formData.field4}</p>}
-        <p className="mt-2">Total Tax (excl.): Rs. 5.00</p>
-        <p className="mt-2 fw-bold">Grand Total: Rs. 105.00</p>
-        {formData.footer_note && (
-          <p className="mt-2 text-center">{formData.footer_note}</p>
-        )}
-      </div>
-    </div>
-  </div>
-</div>
+              <div className="w-50 mx-auto">
+                <div className="card shadow-sm h-100">
+                  <div className="card-body">
+                    <h2 className="card-title h5 fw-bold mb-4 text-center">
+                      Bill Preview
+                    </h2>
+                    <div className="text-center mb-3">
+                      <p className="fw-bold">{formData.outlet_name || '!!!Hotel Miracle!!!'}</p>
+                      <p>Kolhapur Road Kolhapur 416416</p>
+                      {formData.show_phone_on_bill && <p>Phone: {formData.show_phone_on_bill}</p>}
+                      {formData.email && <p>Email: {formData.email}</p>}
+                      {formData.website && <p>Website: {formData.website}</p>}
+                      {formData.upi_id && <p>UPI ID: {formData.upi_id}</p>}
+                      {formData.bill_prefix && <p>Bill Prefix: {formData.bill_prefix}</p>}
+                      {formData.secondary_bill_prefix && <p>Secondary Bill Prefix: {formData.secondary_bill_prefix}</p>}
+                      {formData.bar_bill_prefix && <p>Bar Bill Prefix: {formData.bar_bill_prefix}</p>}
+                      {formData.show_upi_qr !== undefined && (
+                        <p>Show UPI QR: {formData.show_upi_qr ? 'Yes' : 'No'}</p>
+                      )}
+                      {formData.enabled_bar_section !== undefined && (
+                        <p>Bar Section Enabled: {formData.enabled_bar_section ? 'Yes' : 'No'}</p>
+                      )}
+                      {formData.fssai_no && (
+                        <p>FSSAI No: {formData.fssai_no}</p>
+                      )}
+                    </div>
+                    <div className="text-center mb-3" style={{ fontSize: '0.9rem' }}>
+                      <p className="mb-0">Note: {formData.note || 'Order ID: 1234567890'}</p>
+                      <p className="mb-0">26/05/2025 @ 9:10 PM</p>
+                    </div>
+                    <div className="d-flex justify-content-between mb-3">
+                      <p>Pay Mode: Cash</p>
+                      <p>User: TMPOS</p>
+                    </div>
+                    <table className="table table-bordered mb-3">
+                      <thead>
+                        <tr>
+                          <th scope="col">Item Name</th>
+                          <th scope="col" className="text-end">
+                            Quantity
+                          </th>
+                          <th scope="col" className="text-end">
+                            Price
+                          </th>
+                          <th scope="col" className="text-end">
+                            Total
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td>1. Biryani</td>
+                          <td className="text-end">1</td>
+                          <td className="text-end">100.00</td>
+                          <td className="text-end">100.00</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                    <div className="text-end">
+                      <p>Total Value: Rs. 100.00</p>
+                      <p className="mt-2">GST:</p>
+                      {formData.field1 && <p>{formData.field1}</p>}
+                      {formData.field2 && <p>{formData.field2}</p>}
+                      {formData.field3 && <p>{formData.field3}</p>}
+                      {formData.field4 && <p>{formData.field4}</p>}
+                      <p className="mt-2">Total Tax (excl.): Rs. 5.00</p>
+                      <p className="mt-2 fw-bold">Grand Total: Rs. 105.00</p>
+                      {formData.footer_note && (
+                        <p className="mt-2 text-center">{formData.footer_note}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
         </div>
