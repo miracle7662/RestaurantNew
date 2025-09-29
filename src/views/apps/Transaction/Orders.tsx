@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Button, Modal, Table } from "react-bootstrap";
+import { Button, Form, Modal, Table } from "react-bootstrap";
 import OrderDetails from "./OrderDetails";
 import { fetchOutletsForDropdown } from "@/utils/commonfunction";
 import { useAuthContext } from "@/common";
@@ -132,7 +132,22 @@ const Order = () => {
   const [ncName, setNcName] = useState<string>('');
   const [ncPurpose, setNcPurpose] = useState<string>('');
 
+  // New states for settlement flow
+  const [billActionState, setBillActionState] = useState<'initial' | 'printOrSettle'>('initial');
+  const [showSettlementModal, setShowSettlementModal] = useState<boolean>(false);
+  const [paymentType, setPaymentType] = useState<'single' | 'mixed'>('single');
+  const [paymentAmounts, setPaymentAmounts] = useState({
+    cash: '',
+    card: '',
+    upi: '',
+    wallet: '',
+  });
+
   const revKotTotal = reverseQtyItems.reduce((sum, item) => sum + item.price * item.qty, 0);
+
+const totalPaid = Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0);
+const grandTotal = taxCalc.grandTotal - discount - revKotTotal;
+const settlementBalance = grandTotal - totalPaid;
 
   const hasModifications = items.some(item => item.isNew) || reverseQtyItems.length > 0;
 
@@ -1625,6 +1640,23 @@ const Order = () => {
     if (e.key === 'Enter') handleApplyDiscount();
   };
 
+  const handlePaymentAmountChange = (mode: 'cash' | 'card' | 'upi' | 'wallet', value: string) => {
+    setPaymentAmounts(prev => ({ ...prev, [mode]: value }));
+  };
+
+  const handleSettleAndPrint = () => {
+    // Logic to save settlement and print bill will go here
+    toast.success("Settlement successful and bill printed!");
+    setShowSettlementModal(false);
+    setBillActionState('initial'); // Reset to initial button state
+    // Reset payment fields for next use
+    setPaymentAmounts({
+      cash: '',
+      card: '',
+      upi: '',
+      wallet: '',
+    });
+  };
   const handleOpenTaxModal = () => {
     setCgst(taxRates.cgst.toString());
     setSgst(taxRates.sgst.toString());
@@ -3028,13 +3060,28 @@ const Order = () => {
                   </div>
                 </div>
                 <div className="d-flex justify-content-center gap-2 mt-2">
-                  <button
-                    className={`btn ${hasModifications ? 'btn-dark' : 'btn-info'} rounded`}
-                    onClick={hasModifications ? handlePrintAndSaveKOT : handlePrintBill}
-                    disabled={items.length === 0 || (hasModifications && !!invalidTable)}
-                  >
-                    {hasModifications ? 'Print & Save KOT' : 'Print Bill'}
-                  </button>
+                  {hasModifications ? (
+                    <button
+                      className="btn btn-dark rounded"
+                      onClick={handlePrintAndSaveKOT}
+                      disabled={items.length === 0 || !!invalidTable}
+                    >
+                      Print & Save KOT
+                    </button>
+                  ) : billActionState === 'initial' ? (
+                    <Button variant="primary" onClick={() => setBillActionState('printOrSettle')} disabled={items.length === 0}>
+                      🖨️ Print Bill
+                    </Button>
+                  ) : (
+                    <>
+                      <Button variant="primary" onClick={handlePrintBill} disabled={items.length === 0}>
+                        🖨️ Print Bill
+                      </Button>
+                      <Button variant="success" onClick={() => setShowSettlementModal(true)} disabled={items.length === 0}>
+                        💳 Settle & Print
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -3225,6 +3272,110 @@ const Order = () => {
               <Button variant="primary" onClick={handleSaveNCKOT}>Save</Button>
             </Modal.Footer>
           </Modal>
+
+          {/* Settlement Modal */}
+          <Modal show={showSettlementModal} onHide={() => setShowSettlementModal(false)} centered size="lg">
+            <Modal.Header closeButton>
+              <Modal.Title>Settle Bill</Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+              {/* Bill Summary */}
+              <div className="border p-3 rounded mb-3">
+                <h5 className="text-center">Bill Summary</h5>
+                <Table striped bordered size="sm">
+                  <thead>
+                    <tr>
+                      <th>Item</th>
+                      <th className="text-center">Qty</th>
+                      <th className="text-end">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {items.map((item, index) => (
+                      <tr key={index}>
+                        <td>{item.name}</td>
+                        <td className="text-center">{item.qty}</td>
+                        <td className="text-end">{(item.price * item.qty).toFixed(2)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </Table>
+                <div className="text-end">
+                  <div>Subtotal: {taxCalc.subtotal.toFixed(2)}</div>
+                  {discount > 0 && <div>Discount: -{discount.toFixed(2)}</div>}
+                  {taxCalc.cgstAmt > 0 && <div>CGST: {taxCalc.cgstAmt.toFixed(2)}</div>}
+                  {taxCalc.sgstAmt > 0 && <div>SGST: {taxCalc.sgstAmt.toFixed(2)}</div>}
+                  <div className="fw-bold fs-5 mt-2">Grand Total: {grandTotal.toFixed(2)}</div>
+                </div>
+              </div>
+
+              {/* Payment Section */}
+              <div>
+                <h5 className="text-center">Payment</h5>
+                <Form.Group className="text-center mb-3">
+                  <Form.Check inline label="Single Payment" name="paymentType" type="radio" id="single-payment" checked={paymentType === 'single'} onChange={() => setPaymentType('single')} />
+                  <Form.Check inline label="Mixed Payment" name="paymentType" type="radio" id="mixed-payment" checked={paymentType === 'mixed'} onChange={() => setPaymentType('mixed')} />
+                </Form.Group>
+
+                <div className="row g-3">
+                  <div className="col-md-6">
+                    <Form.Group>
+                      <Form.Label>Cash</Form.Label>
+                      <Form.Control type="number" placeholder="0.00" value={paymentAmounts.cash} onChange={(e) => handlePaymentAmountChange('cash', e.target.value)} />
+                    </Form.Group>
+                  </div>
+                  <div className="col-md-6">
+                    <Form.Group>
+                      <Form.Label>Card</Form.Label>
+                      <Form.Control type="number" placeholder="0.00" value={paymentAmounts.card} onChange={(e) => handlePaymentAmountChange('card', e.target.value)} />
+                    </Form.Group>
+                  </div>
+                  <div className="col-md-6">
+                    <Form.Group>
+                      <Form.Label>UPI</Form.Label>
+                      <Form.Control type="number" placeholder="0.00" value={paymentAmounts.upi} onChange={(e) => handlePaymentAmountChange('upi', e.target.value)} />
+                    </Form.Group>
+                  </div>
+                  <div className="col-md-6">
+                    <Form.Group>
+                      <Form.Label>Wallet</Form.Label>
+                      <Form.Control type="number" placeholder="0.00" value={paymentAmounts.wallet} onChange={(e) => handlePaymentAmountChange('wallet', e.target.value)} />
+                    </Form.Group>
+                  </div>
+                </div>
+
+                <div className="mt-3 text-center">
+                  <div className="d-flex justify-content-around fw-bold fs-5">
+                    <div>
+                      <span>Total Paid: </span>
+                      <span>{totalPaid.toFixed(2)}</span>
+                    </div>
+                    <div>
+                      <span>Balance: </span>
+                      <span className={settlementBalance === 0 ? 'text-success' : 'text-danger'}>
+                        {settlementBalance.toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                  {settlementBalance !== 0 && (
+                    <div className="text-danger mt-2">Total paid amount must match the grand total.</div>
+                  )}
+                  {settlementBalance === 0 && totalPaid > 0 && (
+                    <div className="text-success mt-2">Payment amount matches. Ready to settle.</div>
+                  )}
+                </div>
+              </div>
+            </Modal.Body>
+            <Modal.Footer className="justify-content-between">
+              <Button variant="outline-secondary" onClick={() => setShowSettlementModal(false)}>
+                Back
+              </Button>
+              <Button variant="success" onClick={handleSettleAndPrint} disabled={settlementBalance !== 0 || totalPaid === 0}>
+                Settle & Print
+              </Button>
+            </Modal.Footer>
+          </Modal>
+
 
           <F8PasswordModal
             show={showF8PasswordModal}
