@@ -2989,27 +2989,7 @@ const Order = () => {
                           </svg>
                         </Button>
 
-                        {/* Focus Mode Button */}
-                        <Button
-                          variant={focusMode ? "success" : "secondary"}
-                          className="rounded-circle p-0 d-flex justify-content-center align-items-center"
-                          style={{ width: '32px', height: '32px' }}
-                          onClick={() => {
-                            setFocusMode(prev => !prev);
-                            setShowOptions(false);
-                          }}
-                          title="Focus Mode"
-                        >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="20"
-                            height="20"
-                            fill="currentColor"
-                            viewBox="0 0 16 16"
-                          >
-                            <path d="M8 3.5a.5.5 0 0 0-1 0V5H5.5a.5.5 0 0 0 0 1h1.5v1.5a.5.5 0 0 0 1 0V6H9.5a.5.5 0 0 0 0-1H8V3.5zM8 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4z" />
-                          </svg>
-                        </Button>
+                       
                       </div>
 
                       {/* Overlay to close when clicking outside */}
