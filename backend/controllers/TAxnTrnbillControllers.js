@@ -15,8 +15,8 @@ function generateTxnNo(outletid) {
   const billPrefix = settings ? settings.bill_prefix : 'BILL-';
 
   // 2. Construct a date-based prefix for searching to ensure daily unique sequence
-  const today = new Date().toISOString().slice(0, 10).replace(/-/g, ''); // YYYYMMDD
-  const prefix = `${billPrefix}${today}-`;
+ 
+  const prefix = `${billPrefix}`;
   const prefixLen = prefix.length + 1;
   const likePattern = prefix + '%';
 

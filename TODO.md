@@ -1,23 +1,10 @@
-# TODO: Auto-generate TxnNo with prefix for bills
+# TODO: Fix Discount Prorating in TAxnTrnbillControllers.js
 
-## Backend Changes (TAxnTrnbillControllers.js)
-- [x] Add generateTxnNo helper function to generate unique TxnNo with prefix (e.g., "TXN-001-20241001-0001")
-- [x] Update createBill to auto-generate TxnNo if not provided in req.body
-- [x] Update createKOT to auto-generate TxnNo when creating new bill header
-
-## Frontend Changes (Invoice.tsx)
-- [x] Convert BillPreview to accept dynamic props (bill data including TxnNo)
-- [x] Replace hardcoded billNo with dynamic bill.TxnNo
-- [x] Make other fields dynamic for full bill preview (items, totals, etc.)
-
-## Integration Changes (Orders.tsx)
-- [ ] Import BillPreview component from Invoice.tsx
-- [ ] Construct billData object in handlePrintBill with dynamic data (TxnNo, items, totals, taxes)
-- [ ] Replace hardcoded #bill-preview div content with <BillPreview bill={billData} />
-- [ ] Ensure TxnNo is set from backend response in createKOT/handlePrintBill
-- [ ] Update print logic to render BillPreview component for printing
-
-## Testing
-- [ ] Test backend API calls (createBill, createKOT) to verify TxnNo generation
-- [ ] Test frontend BillPreview rendering with sample bill data
-- [ ] Test bill printing with dynamic TxnNo and fields
+## Tasks
+- [ ] Edit createBill function: Add prorating logic for fixed discounts after computing totalGross, update detail Discount_Amount, and ensure header Discount sums correctly.
+- [ ] Edit updateBill function: Apply same prorating logic as createBill after re-inserting details.
+- [ ] Edit createKOT function: Prorate discounts when inserting details using bill's DiscPer/Discount/DiscountType, and recalculate header totals.
+- [ ] Remove all console.log statements for production cleanliness.
+- [ ] Add input validation for discount fields (non-negative, valid types).
+- [ ] Test changes: Verify fixed discount prorating sums correctly, percentage discounts unchanged.
+- [ ] Restart backend server if needed and commit changes to Git.

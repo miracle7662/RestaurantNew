@@ -160,6 +160,7 @@ const Order = () => {
           }));
  
           setItems(fetchedItems);
+          setTxnNo(header.TxnNo); // Set TxnNo from the fetched bill header
           setCurrentTxnId(header.TxnID);
           setCurrentKOTNo(header.KOTNo); // A billed order might have a KOT no.
           setCurrentKOTNos(
@@ -192,6 +193,11 @@ const Order = () => {
         setCurrentKOTNo(unbilledItemsRes.data.kotNo);
         setItems(fetchedItems);
 
+        // Also set TxnNo if it exists on the unbilled transaction
+        if (unbilledItemsRes.data.items.length > 0 && unbilledItemsRes.data.items[0].txnId) {
+          setTxnNo(unbilledItemsRes.data.items[0].TxnNo || null);
+        }
+
         if (unbilledItemsRes.data.items.length > 0 && unbilledItemsRes.data.items[0].txnId) {
           setCurrentTxnId(unbilledItemsRes.data.items[0].txnId);
         } else {
@@ -208,11 +214,13 @@ const Order = () => {
         setItems([]);
         setCurrentKOTNo(null);
         setCurrentKOTNos([]);
+        setTxnNo(null);
         setCurrentTxnId(null);
       }
     } catch (error) {
       console.error('Error fetching/refetching items for table:', error);
       setItems([]);
+      setTxnNo(null);
       setCurrentKOTNo(null);
       setCurrentKOTNos([]);
       setCurrentTxnId(null);
@@ -1123,6 +1131,11 @@ const Order = () => {
 
       toast.success('Bill marked as printed!');
 
+      // Set the TxnNo from the API response to update the UI for printing
+      if (printResult.data && printResult.data.TxnNo) {
+        setTxnNo(printResult.data.TxnNo);
+      }
+
       // 2. Print the bill preview from the existing data
       const printWindow = window.open('', '_blank');
       if (printWindow) {
@@ -1131,7 +1144,10 @@ const Order = () => {
           printWindow.document.write(contentToPrint.innerHTML);
           printWindow.document.close();
           printWindow.focus();
-          printWindow.print();
+          // Use a small timeout to ensure the TxnNo is rendered before printing
+          setTimeout(() => {
+            printWindow.print();
+          }, 100);
         }
       }
 
@@ -1269,6 +1285,12 @@ const Order = () => {
       const resp = await createKOT(kotPayload);
       if (resp?.success) {
         toast.success('KOT saved successfully!');
+
+        // Update TxnNo and TxnID from the response
+        if (resp.data) {
+          setTxnNo(resp.data.TxnNo);
+          setCurrentTxnId(resp.data.TxnID);
+        }
 
         // Clear reverse items after successful save and deactivate Reverse Mode
         if (reverseItemsToKOT.length > 0) {
