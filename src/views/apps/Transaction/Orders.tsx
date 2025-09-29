@@ -1950,7 +1950,7 @@ const Order = () => {
             textAlign: 'center'
           }}>
             <div><strong>Date</strong><br/>{new Date().toLocaleDateString('en-GB')}</div>
-            <div><strong>Bill No.</strong><br/> {TxnNo || '1445'}</div>
+            <div><strong>Bill No.</strong><br/> {TxnNo || ''}</div>
             <div><strong>Table No.</strong><br/>{selectedTable || '4'}</div>
             <div><strong>Time</strong><br/>{new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</div>
           </div>
