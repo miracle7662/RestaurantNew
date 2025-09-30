@@ -152,7 +152,7 @@ const Order = () => {
   const revKotTotal = reverseQtyItems.reduce((sum, item) => sum + item.price * item.qty, 0);
 
   const totalPaid = Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0);
-  const grandTotal = taxCalc.grandTotal - discount - revKotTotal;
+  const grandTotal = Math.round((taxCalc.grandTotal - discount - revKotTotal) * 100) / 100;
   const settlementBalance = grandTotal - totalPaid;
 
   const hasModifications = items.some(item => item.isNew) || reverseQtyItems.length > 0;
