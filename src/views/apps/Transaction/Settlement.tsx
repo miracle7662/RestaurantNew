@@ -4,20 +4,29 @@ import axios from "axios";
 
 const EditSettlementPage = ({ role, currentUser }: any) => {
   const [settlements, setSettlements] = useState<any[]>([]);
-  const [filters, setFilters] = useState({ orderNo: "", hotelId: "", from: "", to: "", paymentType: "", status: "" });
+  const [filters, setFilters] = useState({ orderNo: "", hotelId: "", outletId: "", from: "", to: "", paymentType: "", status: "" });
   const [editing, setEditing] = useState<any>(null);
   const [form, setForm] = useState({ PaymentType: "", Amount: "" });
-  const [paymentModes, setPaymentModes] = useState<any[]>([]);
+  const [outletPaymentModes, setOutletPaymentModes] = useState<any[]>([]);
   const [notification, setNotification] = useState({ show: false, message: '', type: 'success' });
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [selectedOutletId, setSelectedOutletId] = useState<number | null>(currentUser?.outletid ? Number(currentUser.outletid) : null);
 
   // Fetch settlements
   const fetchData = async (page = currentPage) => {
-    const params = { ...filters, page, limit: 10 };
-    const res = await axios.get("http://localhost:3001/settlements", { params });
-    setSettlements(res.data.settlements || res.data);
-    setTotalPages(Math.ceil((res.data.total || 0) / 10));
+    try {
+      const params = { ...filters, outletId: selectedOutletId, page, limit: 10 };
+      const res = await axios.get("http://localhost:3001/api/settlements", { params });
+      const settlementsData = res.data?.data?.settlements || res.data?.settlements || (Array.isArray(res.data) ? res.data : []);
+      const total = res.data?.data?.total || res.data?.total || 0;
+      setSettlements(settlementsData);
+      setTotalPages(Math.ceil(total / 10));
+    } catch (error) {
+      setNotification({ show: true, message: 'Failed to fetch settlements', type: 'danger' });
+      setSettlements([]);
+      setTotalPages(1);
+    }
   };
 
   useEffect(() => {
@@ -25,16 +34,27 @@ const EditSettlementPage = ({ role, currentUser }: any) => {
   }, [filters, currentPage]);
 
   useEffect(() => {
-    const fetchPaymentModes = async () => {
-      try {
-        const res = await axios.get("http://localhost:3001/payment-modes");
-        setPaymentModes(res.data);
-      } catch (error) {
-        console.error("Failed to fetch payment modes", error);
-      }
-    };
-    fetchPaymentModes();
-  }, []);
+    setSelectedOutletId(filters.outletId ? Number(filters.outletId) : null);
+  }, [filters.outletId]);
+
+  useEffect(() => {
+    if (selectedOutletId) {
+      const fetchPaymentModes = async () => {
+        try {
+          const res = await axios.get(`http://localhost:3001/api/payment-modes/by-outlet/${selectedOutletId}`);
+          // The actual array is in res.data.data
+          const data = Array.isArray(res.data?.data) ? res.data.data : [];
+          setOutletPaymentModes(data);
+        } catch (error) {
+          console.error("Failed to fetch payment modes", error);
+          setOutletPaymentModes([]);
+        }
+      };
+      fetchPaymentModes();
+    } else {
+      setOutletPaymentModes([]);
+    }
+  }, [selectedOutletId]);
 
   // Edit handler
   const handleEdit = (settlement: any) => {
@@ -49,7 +69,7 @@ const EditSettlementPage = ({ role, currentUser }: any) => {
         setNotification({ show: true, message: 'Updated amount must match the original bill total', type: 'danger' });
         return;
       }
-      await axios.put(`http://localhost:3001/settlement/${editing.SettlementID}`, {
+      await axios.put(`http://localhost:3001/api/settlements/${editing.SettlementID}`, {
         ...form,
         EditedBy: currentUser,
       });
@@ -63,7 +83,7 @@ const EditSettlementPage = ({ role, currentUser }: any) => {
 
   const deleteSettlement = async (id: any) => {
     try {
-      await axios.delete(`http://localhost:3001/settlement/${id}`, { data: { EditedBy: currentUser } });
+      await axios.delete(`http://localhost:3001/api/settlements/${id}`, { data: { EditedBy: currentUser } });
       setNotification({ show: true, message: 'Settlement reversed successfully', type: 'success' });
       fetchData();
     } catch (error: any) {
@@ -83,6 +103,8 @@ const EditSettlementPage = ({ role, currentUser }: any) => {
       <div className="p-3 bg-light rounded mb-4">
         <Row>
           <Col><Form.Control placeholder="Order No" value={filters.orderNo} onChange={(e) => setFilters({ ...filters, orderNo: e.target.value })} /></Col>
+          <Col><Form.Control placeholder="Hotel ID" value={filters.hotelId} onChange={(e) => setFilters({ ...filters, hotelId: e.target.value })} /></Col>
+          <Col><Form.Control placeholder="Outlet ID" value={filters.outletId} onChange={(e) => setFilters({ ...filters, outletId: e.target.value })} /></Col>
           <Col><Form.Control type="date" value={filters.from} onChange={(e) => setFilters({ ...filters, from: e.target.value })} /></Col>
           <Col><Form.Control type="date" value={filters.to} onChange={(e) => setFilters({ ...filters, to: e.target.value })} /></Col>
           <Col>
@@ -94,7 +116,7 @@ const EditSettlementPage = ({ role, currentUser }: any) => {
               <option>Wallet</option>
             </Form.Select>
           </Col>
-          
+
           <Col><Button onClick={() => { fetchData(); }}>Search</Button></Col>
         </Row>
       </div>
@@ -103,7 +125,7 @@ const EditSettlementPage = ({ role, currentUser }: any) => {
       <Table striped bordered hover>
         <thead>
           <tr>
-            <th>ID</th><th>Order No</th><th>Payment Mode</th><th>Amount</th><th>Date</th><th>Status</th><th>Actions</th>
+          <th>ID</th><th>Order No</th><th>Payment Type</th><th>Amount</th><th>Date</th><th>Status</th><th>Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -111,11 +133,10 @@ const EditSettlementPage = ({ role, currentUser }: any) => {
             <tr key={s.SettlementID} className={s.isSettled === 0 ? "table-danger" : ""}>
               <td>{s.SettlementID}</td>
               <td>{s.OrderNo}</td>
-              <td>{s.HotelID}</td>
               <td>{s.PaymentType}</td>
+              <td>{s.HotelID}</td>
               <td>₹{s.Amount.toFixed(2)}</td>
               <td>{new Date(s.InsertDate).toLocaleString()}</td>
-              <td>{s.Name}</td>
               <td>{s.isSettled ? "Yes" : "No"}</td>
               <td>
                 {role === "Admin" && (
@@ -139,7 +160,7 @@ const EditSettlementPage = ({ role, currentUser }: any) => {
             <Form.Group className="mb-3">
               <Form.Label>Payment Mode</Form.Label>
               <Form.Select value={form.PaymentType} onChange={(e) => setForm({ ...form, PaymentType: e.target.value })}>
-                {paymentModes.map(mode => <option key={mode.id} value={mode.mode_name}>{mode.mode_name}</option>)}
+                {outletPaymentModes.map((mode: any) => <option key={mode.id} value={mode.mode_name}>{mode.mode_name}</option>)}
               </Form.Select>
             </Form.Group>
             <Form.Group className="mb-3">
