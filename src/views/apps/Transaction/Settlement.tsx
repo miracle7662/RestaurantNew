@@ -4,7 +4,7 @@ import axios from "axios";
 
 const EditSettlementPage = ({ role, currentUser }: any) => {
   const [settlements, setSettlements] = useState<any[]>([]);
-  const [filters, setFilters] = useState({ orderNo: "", hotelId: "", outletId: "", from: "", to: "", paymentType: "", status: "" });
+  const [filters, setFilters] = useState({ orderNo: "", hotelId: "", outletId: "", from: "", to: "", paymentType: "" });
   const [editing, setEditing] = useState<any>(null);
   const [form, setForm] = useState({ PaymentType: "", Amount: "" });
   const [outletPaymentModes, setOutletPaymentModes] = useState<any[]>([]);
@@ -119,7 +119,7 @@ const EditSettlementPage = ({ role, currentUser }: any) => {
       <Table striped bordered hover>
         <thead>
           <tr>
-          <th>ID</th><th>Order No</th><th>Payment Type</th><th>Hotel ID</th><th>Amount</th><th>Date</th><th>Status</th><th>Actions</th>
+          <th>ID</th><th>Order No</th><th>Payment Type</th><th>Hotel ID</th><th>Amount</th><th>Date</th><th>Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -131,7 +131,7 @@ const EditSettlementPage = ({ role, currentUser }: any) => {
               <td>{s.HotelID}</td>
               <td>₹{s.Amount.toFixed(2)}</td>
               <td>{new Date(s.InsertDate).toLocaleString()}</td>
-              <td>{s.isSettled ? "Yes" : "No"}</td>
+             
               <td>
                 <Button size="sm" variant="primary" onClick={() => handleEdit(s)}>Edit</Button>{" "}
                 {role === "Admin" && <Button size="sm" variant="danger" onClick={() => deleteSettlement(s.SettlementID)}>Delete</Button>}
