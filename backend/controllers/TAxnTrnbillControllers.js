@@ -608,6 +608,9 @@ exports.settleBill = async (req, res) => {
       `).run(Number(id))
 
       db.prepare(`UPDATE TAxnTrnbilldetails SET isSetteled = 1 WHERE TxnID = ?`).run(Number(id))
+
+      // Set table status to vacant (0) after settlement
+      db.prepare(`UPDATE msttablemanagement SET status = 0 WHERE tableid = ?`).run(bill.TableID)
     })
 
     tx()
@@ -1373,17 +1376,17 @@ exports.getLatestBilledBillForTable = async (req, res) => {
       return res.status(400).json({ success: false, message: 'tableId is required', data: null });
     }
 
-    // Step 1: Fetch the latest billed (and possibly unsettled) transaction for the table
+    // Step 1: Fetch the latest billed and unsettled transaction for the table
     const bill = db.prepare(`
       SELECT * 
       FROM TAxnTrnbill 
-      WHERE TableID = ? AND isBilled = 1
+      WHERE TableID = ? AND isBilled = 1 AND isSetteled = 0
       ORDER BY TxnID DESC 
       LIMIT 1
     `).get(Number(tableId));
 
     if (!bill) {
-      return res.status(404).json({ success: false, message: 'No billed transaction found for this table.', data: null });
+      return res.status(404).json({ success: false, message: 'No billed and unsettled transaction found for this table.', data: null });
     }
 
     // Step 2: Load all items (billed and unbilled) associated with that transaction
