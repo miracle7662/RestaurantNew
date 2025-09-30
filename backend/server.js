@@ -39,6 +39,7 @@ const paymentModesRoutes = require('./routes/paymentModesRoutes');
 const msttableDepartmentRoutes = require('./routes/msttableDepartmentRoutes');
 const paymentmethodRoutes = require('./routes/paymentmethodRoutes');
 const TAxnTrnbillRoutes = require('./routes/TAxnTrnbillRoutes');
+const settlementRoutes = require('./routes/settlementRoutes');
 
 
 
@@ -84,6 +85,7 @@ app.use('/api/payment-modes', paymentModesRoutes); // Register payment modes rou
 app.use('/api/table-department', msttableDepartmentRoutes); // Register table department routes
 app.use('/api/payment', paymentmethodRoutes);
 app.use('/api/TAxnTrnbill', TAxnTrnbillRoutes);
+app.use('/api/settlements', settlementRoutes); // Register settlement routes
 
 // ✅ Add a health check endpoint
 app.get('/api/health', (req, res) => {

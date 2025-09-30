@@ -32,6 +32,14 @@ const MENU_ITEMS: MenuItemTypes[] = [
     parentKey: 'apps',
   },
 
+  {
+    key: 'Settlement',
+    label: 'Settlement',
+    url: '/apps/Settlement',
+    icon: 'fi fi-rr-shopping-cart',
+    parentKey: 'apps',
+  },
+
   
   {
     key: 'Costumers',

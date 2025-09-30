@@ -6,6 +6,7 @@ import PrivateRoute from './PrivateRoute'
 //import ItemGroup from '@/components/Apps/ItemGroup/itemGroup'
 import Billing from '@/views/pages/account-settings/Billing'
 import Customers from '@/views/apps/Transaction/Customers'
+import Settlement from '@/views/apps/Transaction/Settlement'
 
 
 // Dashboards
@@ -329,6 +330,12 @@ const appsRoutes: RoutesProps = {
       path: '/apps/Orders',
       name: 'Orders',
       element: <Orders />,
+      route: PrivateRoute,
+    },
+    {
+      path: '/apps/Settlement',
+      name: 'Settlement',
+      element: <Settlement />,
       route: PrivateRoute,
     },
     {

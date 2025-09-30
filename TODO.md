@@ -1,9 +1,21 @@
-# TODO: Clear Table After Bill Settlement
+# Edit Settlement Page Implementation TODO
 
-## Tasks
-- [x] Modify settleBill function to set table status to 0 (vacant) after settlement
-- [x] Modify getLatestBilledBillForTable to only fetch unsettled billed bills (add isSetteled = 0)
+## Frontend Updates
+- [x] Update edit modal to fetch payment modes dynamically from /api/payment-modes
+- [ ] Add client-side validation for amount matching bill total
+- [ ] Add success/error notifications on save/delete operations
+- [ ] Highlight rows for edited/reversed settlements (e.g., different colors)
+- [ ] Ensure pagination controls are properly implemented
 
-## Details
-- In settleBill, add db.prepare('UPDATE msttablemanagement SET status = 0 WHERE tableid = ?').run(bill.TableID); in the transaction after the bill updates.
-- In getLatestBilledBillForTable, change the WHERE clause to WHERE TableID = ? AND isBilled = 1 AND isSetteled = 0
+## Backend Verification
+- [ ] Verify updateSettlement endpoint correctly validates amount against bill total
+- [ ] Verify deleteSettlement endpoint properly logs and soft deletes
+- [ ] Check if TrnSettlementLog table is created (run SQL if needed)
+- [ ] Test API endpoints for correctness
+
+## Testing
+- [ ] Test search and filter functionality
+- [ ] Test edit settlement flow with validation
+- [ ] Test delete/reverse settlement flow
+- [ ] Verify audit logs are created correctly
+- [ ] End-to-end testing of the full page
