@@ -38,23 +38,18 @@ const EditSettlementPage = ({ role, currentUser }: any) => {
   }, [filters.outletId]);
 
   useEffect(() => {
-    if (selectedOutletId) {
-      const fetchPaymentModes = async () => {
-        try {
-          const res = await axios.get(`http://localhost:3001/api/payment-modes/by-outlet/${selectedOutletId}`);
-          // The actual array is in res.data.data
-          const data = Array.isArray(res.data?.data) ? res.data.data : [];
-          setOutletPaymentModes(data);
-        } catch (error) {
-          console.error("Failed to fetch payment modes", error);
-          setOutletPaymentModes([]);
-        }
-      };
-      fetchPaymentModes();
-    } else {
-      setOutletPaymentModes([]);
-    }
-  }, [selectedOutletId]);
+    const fetchPaymentModes = async () => {
+      try {
+        const res = await axios.get(`http://localhost:3001/api/payment-modes`);
+        const data = Array.isArray(res.data) ? res.data : [];
+        setOutletPaymentModes(data);
+      } catch (error) {
+        console.error("Failed to fetch payment modes", error);
+        setOutletPaymentModes([]);
+      }
+    };
+    fetchPaymentModes();
+  }, []);
 
   // Edit handler
   const handleEdit = (settlement: any) => {
@@ -124,7 +119,7 @@ const EditSettlementPage = ({ role, currentUser }: any) => {
       <Table striped bordered hover>
         <thead>
           <tr>
-          <th>ID</th><th>Order No</th><th>Payment Type</th><th>Amount</th><th>Date</th><th>Status</th><th>Actions</th>
+          <th>ID</th><th>Order No</th><th>Payment Type</th><th>Hotel ID</th><th>Amount</th><th>Date</th><th>Status</th><th>Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -138,12 +133,8 @@ const EditSettlementPage = ({ role, currentUser }: any) => {
               <td>{new Date(s.InsertDate).toLocaleString()}</td>
               <td>{s.isSettled ? "Yes" : "No"}</td>
               <td>
-                {role === "Admin" && (
-                  <>
-                    <Button size="sm" variant="primary" onClick={() => handleEdit(s)}>Edit</Button>{" "}
-                    <Button size="sm" variant="danger" onClick={() => deleteSettlement(s.SettlementID)}>Delete</Button>
-                  </>
-                )}
+                <Button size="sm" variant="primary" onClick={() => handleEdit(s)}>Edit</Button>{" "}
+                {role === "Admin" && <Button size="sm" variant="danger" onClick={() => deleteSettlement(s.SettlementID)}>Delete</Button>}
               </td>
             </tr>
           ))}
@@ -159,7 +150,7 @@ const EditSettlementPage = ({ role, currentUser }: any) => {
             <Form.Group className="mb-3">
               <Form.Label>Payment Mode</Form.Label>
               <Form.Select value={form.PaymentType} onChange={(e) => setForm({ ...form, PaymentType: e.target.value })}>
-                {outletPaymentModes.map((mode: any) => <option key={mode.id} value={mode.mode_name}>{mode.mode_name}</option>)}
+                {outletPaymentModes.filter((mode: any) => mode.mode_name).map((mode: any) => <option key={mode.id} value={mode.mode_name}>{mode.mode_name}</option>)}
               </Form.Select>
             </Form.Group>
             <Form.Group className="mb-3">
