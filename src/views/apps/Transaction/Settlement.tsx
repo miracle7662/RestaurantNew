@@ -16,7 +16,7 @@ const EditSettlementPage = ({ role, currentUser }: any) => {
   // Fetch settlements
   const fetchData = async (page = currentPage) => {
     try {
-      const params = { ...filters, isSettled: filters.status, outletId: selectedOutletId, page, limit: 10 };
+      const params = { ...filters, outletId: selectedOutletId, page, limit: 10 };
       const res = await axios.get("http://localhost:3001/api/settlements", { params });
       const settlementsData = res.data?.data?.settlements || res.data?.settlements || (Array.isArray(res.data) ? res.data : []);
       const total = res.data?.data?.total || res.data?.total || 0;
@@ -31,14 +31,6 @@ const EditSettlementPage = ({ role, currentUser }: any) => {
 
   useEffect(() => {
     fetchData();
-  }, [filters, currentPage]);
-
-  // Live update: poll every 10 seconds
-  useEffect(() => {
-    const interval = setInterval(() => {
-      fetchData(currentPage);
-    }, 10000); // 10 seconds
-    return () => clearInterval(interval);
   }, [filters, currentPage]);
 
   useEffect(() => {
@@ -111,8 +103,7 @@ const EditSettlementPage = ({ role, currentUser }: any) => {
       <div className="p-3 bg-light rounded mb-4">
         <Row>
           <Col><Form.Control placeholder="Order No" value={filters.orderNo} onChange={(e) => setFilters({ ...filters, orderNo: e.target.value })} /></Col>
-          <Col><Form.Control placeholder="Hotel ID" value={filters.hotelId} onChange={(e) => setFilters({ ...filters, hotelId: e.target.value })} /></Col>
-          <Col><Form.Control placeholder="Outlet ID" value={filters.outletId} onChange={(e) => setFilters({ ...filters, outletId: e.target.value })} /></Col>
+          
           <Col><Form.Control type="date" value={filters.from} onChange={(e) => setFilters({ ...filters, from: e.target.value })} /></Col>
           <Col><Form.Control type="date" value={filters.to} onChange={(e) => setFilters({ ...filters, to: e.target.value })} /></Col>
           <Col>
@@ -122,13 +113,6 @@ const EditSettlementPage = ({ role, currentUser }: any) => {
               <option>Card</option>
               <option>UPI</option>
               <option>Wallet</option>
-            </Form.Select>
-          </Col>
-          <Col>
-            <Form.Select value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })}>
-              <option value="">All Statuses</option>
-              <option value="1">Settled</option>
-              <option value="0">Reversed</option>
             </Form.Select>
           </Col>
 
@@ -149,9 +133,10 @@ const EditSettlementPage = ({ role, currentUser }: any) => {
               <td>{s.SettlementID}</td>
               <td>{s.OrderNo}</td>
               <td>{s.PaymentType}</td>
+              <td>{s.HotelID}</td>
               <td>₹{s.Amount.toFixed(2)}</td>
               <td>{new Date(s.InsertDate).toLocaleString()}</td>
-              <td>{s.isSettled ? "Settled" : "Reversed"}</td>
+              <td>{s.isSettled ? "Yes" : "No"}</td>
               <td>
                 {role === "Admin" && (
                   <>
