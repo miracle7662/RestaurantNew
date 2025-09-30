@@ -842,7 +842,9 @@ CREATE TABLE IF NOT EXISTS TrnSettlement (
     HotelID INTEGER,
     InsertDate DATETIME DEFAULT CURRENT_TIMESTAMP,
     Name2 TEXT,
-    Name3 TEXT 
+    Name3 TEXT,
+    isSettled INTEGER DEFAULT 1
+    
 );
 
 CREATE TABLE IF NOT EXISTS TAxnTrnReversalLog (

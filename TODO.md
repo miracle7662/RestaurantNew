@@ -1,9 +1,17 @@
-# TODO List for Settlement Page Outlet-Based Payment Modes
+# TODO List for Settlement Integration
 
-- [x] Add selectedOutletId state to Settlement.tsx
-- [x] Add outletId and hotelId to filters
-- [x] Add outletId and hotelId filter inputs to the UI
-- [x] Update fetchData to include outletId in params
-- [x] Add useEffect to sync selectedOutletId with filters.outletId
-- [x] Replace global payment modes fetch with outlet-specific fetch using the provided useEffect
-- [x] Update edit modal to use outletPaymentModes instead of paymentModes
+## Backend
+- [x] Verify settle endpoint in TAxnTrnbillControllers.js (already exists)
+- [x] Verify settlement insertion into TrnSettlement table (already implemented)
+
+## Frontend - Settlement.tsx
+- [ ] Fix table columns to match headers: remove extra HotelID td
+- [ ] Add live update mechanism (polling every 10 seconds)
+
+## Frontend - Orders.tsx
+- [ ] Verify settlement modal sends correct data to backend (already implemented)
+- [ ] Ensure settlement details include all required fields
+
+## Testing
+- [ ] Test end-to-end settlement flow
+- [ ] Verify Settlement.tsx updates after settlement

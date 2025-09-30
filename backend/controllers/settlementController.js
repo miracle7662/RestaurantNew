@@ -8,7 +8,7 @@ function ok(message, data) {
 // Get settlements with filters
 exports.getSettlements = async (req, res) => {
   try {
-    const { orderNo, billNo, hotelId, from, to, paymentType, status, page = 1, limit = 10 } = req.query;
+    const { orderNo, billNo, hotelId, from, to, paymentType, page = 1, limit = 10, isSettled } = req.query;
 
     let whereClauses = [];
     const params = [];
@@ -16,12 +16,6 @@ exports.getSettlements = async (req, res) => {
     if (orderNo) {
       whereClauses.push('OrderNo LIKE ?');
       params.push(`%${orderNo}%`);
-    }
-
-    if (billNo) {
-      // Assuming billNo is same as OrderNo or TxnNo, adjust if needed
-      whereClauses.push('OrderNo LIKE ?');
-      params.push(`%${billNo}%`);
     }
 
     if (hotelId) {
@@ -44,22 +38,22 @@ exports.getSettlements = async (req, res) => {
       params.push(paymentType);
     }
 
-    if (status !== undefined && status !== "") {
+    if (isSettled !== undefined && isSettled !== "") {
       whereClauses.push('isSettled = ?');
-      params.push(status === 'Settled' ? 1 : 0);
+      params.push(Number(isSettled));
     }
 
     const whereSql = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
     const countSql = `SELECT COUNT(*) as total FROM TrnSettlement ${whereSql}`;
-    const total = db.prepare(countSql).get(...params).total;
+    const countResult = db.prepare(countSql).get(...params);
+    const total = countResult ? countResult.total : 0;
 
     const offset = (Number(page) - 1) * Number(limit);
     const sql = `
-      SELECT s.*, b.TxnNo as BillNo, b.Amount as BillTotal, u.name as CashierName
+      SELECT s.*, b.TxnNo as BillNo, b.Amount as BillTotal
       FROM TrnSettlement s
       LEFT JOIN TAxnTrnbill b ON s.OrderNo = b.orderNo AND s.HotelID = b.HotelID
-      LEFT JOIN mst_users u ON b.UserId = u.id
       ${whereSql}
       ORDER BY s.InsertDate DESC
       LIMIT ? OFFSET ?
@@ -70,7 +64,8 @@ exports.getSettlements = async (req, res) => {
 
     res.json(ok('Settlements fetched', { settlements, total, page: Number(page), limit: Number(limit) }));
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to fetch settlements', error: error.message });
+    console.error("Error in getSettlements:", error);
+    res.status(500).json({ success: false, message: 'Failed to fetch settlements', error: error.message, stack: error.stack });
   }
 };
 
