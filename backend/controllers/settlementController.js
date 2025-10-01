@@ -14,38 +14,40 @@ exports.getSettlements = async (req, res) => {
     const params = [];
 
      if (orderNo) {
-      whereClauses.push('OrderNo LIKE ?');
+      whereClauses.push('s.OrderNo LIKE ?');
       params.push(`%${orderNo}%`);
     }
 
     if (hotelId) {
-      whereClauses.push('HotelID = ?');
+      whereClauses.push('s.HotelID = ?');
       params.push(Number(hotelId));
     }
 
     if (from) {
-      whereClauses.push('InsertDate >= ?');
+      whereClauses.push('s.InsertDate >= ?');
       params.push(from);
     }
 
     if (to) {
-      whereClauses.push('InsertDate <= ?');
+      whereClauses.push('s.InsertDate <= ?');
       params.push(to + ' 23:59:59');
     }
 
     if (paymentType) {
-      whereClauses.push('PaymentType = ?');
+      whereClauses.push('s.PaymentType = ?');
       params.push(paymentType);
     }
 
     if (isSettled !== undefined && isSettled !== "") {
-      whereClauses.push('isSettled = ?');
+      whereClauses.push('s.isSettled = ?');
       params.push(Number(isSettled));
     }
 
-    const whereSql = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
+    const whereSettlement = whereClauses.map(clause => clause.replace(/^s\./, ''));
+    const whereSqlSettlement = whereSettlement.length ? `WHERE ${whereSettlement.join(' AND ')}` : '';
+    const countSql = `SELECT COUNT(*) as total FROM TrnSettlement ${whereSqlSettlement}`;
 
-    const countSql = `SELECT COUNT(*) as total FROM TrnSettlement ${whereSql}`;
+    const whereSql = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
     const countResult = db.prepare(countSql).get(...params);
     const total = countResult ? countResult.total : 0;
 
@@ -80,11 +82,10 @@ exports.updateSettlement = async (req, res) => {
 
     // Get bill total
     const bill = db.prepare('SELECT Amount FROM TAxnTrnbill WHERE orderNo = ? AND HotelID = ?').get(settlement.OrderNo, settlement.HotelID);
-    if (!bill) return res.status(404).json({ success: false, message: 'Bill not found' });
 
     // Check if updated amount matches bill total (simple check, assuming single settlement per bill)
     // In reality, might need to sum all settlements for the bill
-    if (Number(Amount) !== Number(bill.Amount)) {
+    if (bill && Number(Amount) !== Number(bill.Amount)) {
       return res.status(400).json({ success: false, message: 'Updated amount must match bill grand total' });
     }
 

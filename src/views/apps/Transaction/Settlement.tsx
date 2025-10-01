@@ -54,16 +54,11 @@ const EditSettlementPage = ({ role, currentUser }: any) => {
   // Edit handler
   const handleEdit = (settlement: any) => {
     setEditing(settlement);
-    setForm({ PaymentType: settlement.PaymentType, Amount: settlement.Amount });
+    setForm({ PaymentType: settlement.PaymentType, Amount: settlement.BillTotal || settlement.Amount });
   };
 
   const saveEdit = async () => {
     try {
-      // Validate amount matches bill total (assuming bill total is same as original amount here)
-      if (Number(form.Amount) !== Number(editing.Amount)) {
-        setNotification({ show: true, message: 'Updated amount must match the original bill total', type: 'danger' });
-        return;
-      }
       await axios.put(`http://localhost:3001/api/settlements/${editing.SettlementID}`, {
         ...form,
         EditedBy: currentUser,
@@ -147,6 +142,10 @@ const EditSettlementPage = ({ role, currentUser }: any) => {
         <Modal.Body>
           <Form>
             <Form.Group className="mb-3">
+              <Form.Label>Bill Total</Form.Label>
+              <Form.Control type="number" value={editing?.BillTotal || ''} readOnly />
+            </Form.Group>
+            <Form.Group className="mb-3">
               <Form.Label>Payment Mode</Form.Label>
               <Form.Select value={form.PaymentType} onChange={(e) => setForm({ ...form, PaymentType: e.target.value })}>
                 {outletPaymentModes.filter((mode: any) => mode.mode_name).map((mode: any) => <option key={mode.id} value={mode.mode_name}>{mode.mode_name}</option>)}
@@ -154,7 +153,7 @@ const EditSettlementPage = ({ role, currentUser }: any) => {
             </Form.Group>
             <Form.Group className="mb-3">
               <Form.Label>Amount</Form.Label>
-              <Form.Control type="number" value={form.Amount} onChange={(e) => setForm({ ...form, Amount: e.target.value })} />
+              <Form.Control type="number" value={form.Amount} readOnly />
             </Form.Group>
           </Form>
         </Modal.Body>
