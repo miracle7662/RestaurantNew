@@ -1,7 +1,8 @@
-- Add an outlet selection dropdown in Settlement.tsx to set filters.outletId
-- Update filters.outletId on outlet selection change
-- Ensure selectedOutletId updates accordingly to trigger payment modes fetch
-- Test that payment modes are fetched and displayed dynamically in the payment type filter dropdown
-- [x] Fix table headers in Settlement.tsx to match data columns: ID, Order No, Payment Type, Hotel ID, Amount, Date, Status, Actions
-- [x] Make edit button visible for all users in Settlement.tsx actions column
-- [x] Keep delete button only for Admin role
+# TODO List for Order Number Implementation
+
+## Current Task: Implement Order Number Generation in Backend
+- [ ] Add generateOrderNo function in TAxnTrnbillControllers.js
+- [ ] Update createBill function to generate orderNo if not provided
+- [ ] Update createKOT function to generate orderNo if not provided
+- [ ] Ensure orderNo is returned in API responses
+- [ ] Test the API endpoints to verify orderNo generation

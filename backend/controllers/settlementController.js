@@ -13,7 +13,7 @@ exports.getSettlements = async (req, res) => {
     let whereClauses = [];
     const params = [];
 
-    if (orderNo) {
+     if (orderNo) {
       whereClauses.push('OrderNo LIKE ?');
       params.push(`%${orderNo}%`);
     }
@@ -53,7 +53,7 @@ exports.getSettlements = async (req, res) => {
     const sql = `
       SELECT s.*, b.TxnNo as BillNo, b.Amount as BillTotal
       FROM TrnSettlement s
-      LEFT JOIN TAxnTrnbill b ON s.OrderNo = b.orderNo AND s.HotelID = b.HotelID
+      LEFT JOIN TAxnTrnbill b ON s.OrderNo = b.orderNo  AND s.HotelID = b.HotelID
       ${whereSql}
       ORDER BY s.InsertDate DESC
       LIMIT ? OFFSET ?
