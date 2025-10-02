@@ -1693,7 +1693,6 @@ const Order = () => {
     }
   };
 
-
   return (
     <div className="container-fluid p-0 m-0" style={{ height: '100vh' }}>
       {/* Hidden KOT Preview for Printing */}
@@ -3257,6 +3256,7 @@ const Order = () => {
 
           {/* Settlement Modal */}
 
+          {/* Main Settlement Modal */}
           <Modal
             show={showSettlementModal}
             onHide={() => setShowSettlementModal(false)}
@@ -3300,8 +3300,8 @@ const Order = () => {
                     <Card
                       onClick={() => handlePaymentModeClick(mode)}
                       className={`text-center h-100 shadow-sm border-0 ${selectedPaymentModes.includes(mode.mode_name)
-                          ? "border border-primary"
-                          : ""
+                        ? "border border-primary"
+                        : ""
                         }`}
                       style={{
                         cursor: "pointer",
