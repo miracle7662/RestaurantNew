@@ -727,8 +727,8 @@ exports.createKOT = async (req, res) => {
       let finalDiscountType = Number(DiscountType) || 0;
 
       let existingBill = db.prepare(`
-        SELECT TxnID, DiscPer, Discount, DiscountType FROM TAxnTrnbill 
-        WHERE TableID = ? AND isCancelled = 0 ORDER BY TxnID DESC LIMIT 1
+        SELECT TxnID, DiscPer, Discount, DiscountType FROM TAxnTrnbill
+        WHERE TableID = ? AND isCancelled = 0 AND isSetteled = 0 ORDER BY TxnID DESC LIMIT 1
       `).get(Number(TableID));
 
       if (existingBill) {
@@ -870,8 +870,13 @@ exports.createKOT = async (req, res) => {
     })(); // Immediately invoke the transaction
 
     const { txnId, kotNo } = trx;
-    const header = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(txnId);
-    const items = db.prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? AND isCancelled = 0 ORDER BY TXnDetailID').all(txnId);
+    const header = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(txnId); // Fetch header
+    const items = db.prepare(`
+      SELECT d.*, m.item_name as ItemName
+      FROM TAxnTrnbilldetails d
+      LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
+      WHERE d.TxnID = ? AND d.isCancelled = 0 ORDER BY d.TXnDetailID
+    `).all(txnId); // Fetch details with item_name
 
     res.json(ok('KOT processed successfully', { ...header, details: items, KOTNo: kotNo }));
 
@@ -952,9 +957,9 @@ exports.getUnbilledItemsByTable = async (req, res) => {
     
     // Find the single unbilled bill for the table
     const bill = db.prepare(`
-      SELECT TxnID 
-      FROM TAxnTrnbill 
-      WHERE TableID = ? AND isBilled = 0 AND isCancelled = 0
+      SELECT TxnID
+      FROM TAxnTrnbill
+      WHERE TableID = ? AND isBilled = 0 AND isCancelled = 0 AND isSetteled = 0
     `).get(Number(tableId));
 
     let kotNo = null;

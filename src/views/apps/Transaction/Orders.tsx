@@ -1252,6 +1252,9 @@ const Order = () => {
           setCurrentTxnId(resp.data.TxnID);
         }
 
+        // Clear items after KOT save to reset the panel
+        setItems([]);
+
         // Clear reverse items after successful save and deactivate Reverse Mode
         if (reverseItemsToKOT.length > 0) {
           setReverseQtyItems([]);
@@ -1316,15 +1319,13 @@ const Order = () => {
 
         // After printing, decide what to do based on focusMode
         if (focusMode) {
-          // Option 1: Focus Mode ON - Clear table, stay on view, focus table input
-          setItems([]);
+          // Clear table, stay on view, focus table input
           setSelectedTable(null);
           setCurrentKOTNo(null);
           setCurrentKOTNos([]);
           setTriggerFocusInDetails(c => c + 1); // Trigger focus in OrderDetails
         } else {
           // Option 2: Focus Mode OFF - Clear items and return to table grid view
-          setItems([]);
           setSelectedTable(null);
           setShowOrderDetails(false);
           setCurrentKOTNo(null);
