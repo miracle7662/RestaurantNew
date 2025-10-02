@@ -1273,6 +1273,10 @@ const Order = () => {
           );
         }
 
+        // Clear KOT number for settlement print
+        setCurrentKOTNo(null);
+        setCurrentKOTNos([]);
+
         // Open print preview with KOT content
         const printWindow = window.open('', '_blank');
         if (printWindow) {
@@ -1632,6 +1636,9 @@ const Order = () => {
       setShowSettlementModal(false);
       setBillActionState('initial');
       fetchTableManagement(); // Refresh table statuses
+      setCurrentKOTNo(null);
+      setCurrentKOTNos([]);
+      setTxnNo(null);
 
     } catch (error: any) {
       console.error('Error settling bill:', error);
