@@ -111,7 +111,7 @@ const EditSettlementPage = ({ role, currentUser }: any) => {
 
       {/* Settlement Table */}
       <Table striped bordered hover>
-        <thead>
+        <thead className="table-light"  >
           <tr>
           <th>ID</th><th>Order No</th><th>Payment Type</th><th>Hotel ID</th><th>Amount</th><th>Date</th><th>Actions</th>
           </tr>

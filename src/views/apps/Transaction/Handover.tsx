@@ -1,0 +1,564 @@
+import React, { useState } from "react";
+import { 
+  Container, 
+  Row, 
+  Col, 
+  Card, 
+  Table, 
+  Form, 
+  Button, 
+  Badge,
+  Modal,
+  InputGroup,
+  Tab,
+  Tabs
+} from "react-bootstrap";
+import { 
+  Search, 
+  Filter, 
+  Download, 
+  Printer, 
+  Eye, 
+  CheckCircle, 
+  XCircle,
+  AlertTriangle,
+  BarChart3,
+  Users,
+  CreditCard,
+  Smartphone,
+  DollarSign
+} from "lucide-react";
+
+interface Order {
+  orderNo: string;
+  table: string;
+  waiter: string;
+  amount: number;
+  type: string;
+  status: string;
+  time: string;
+  items: number;
+  kotNo: string;
+}
+
+const HandoverPage = () => {
+  const [remarks, setRemarks] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [activeTab, setActiveTab] = useState("summary");
+  const [handoverTo, setHandoverTo] = useState("");
+
+  // Dummy data for orders
+  const orders = [
+    { 
+      orderNo: "ORD001", 
+      table: "T1", 
+      amount: 500, 
+      type: "Cash", 
+      status: "Settled",
+      waiter: "John Doe",
+      time: "14:30",
+      items: 4,
+      kotNo: "KOT001"
+    },
+    { 
+      orderNo: "ORD002", 
+      table: "T3", 
+      amount: 750, 
+      type: "UPI", 
+      status: "Settled",
+      waiter: "Jane Smith",
+      time: "15:15",
+      items: 3,
+      kotNo: "KOT002"
+    },
+    { 
+      orderNo: "ORD003", 
+      table: "T2", 
+      amount: 1200, 
+      type: "Card", 
+      status: "Pending",
+      waiter: "Mike Johnson",
+      time: "16:45",
+      items: 5,
+      kotNo: "KOT003"
+    },
+    { 
+      orderNo: "ORD004", 
+      table: "T5", 
+      amount: 850, 
+      type: "Cash", 
+      status: "Settled",
+      waiter: "Sarah Wilson",
+      time: "17:20",
+      items: 2,
+      kotNo: "KOT004"
+    },
+  ];
+
+  // Computed summary from orders
+  const totalOrders = orders.length;
+  const totalKOTs = orders.length;
+  const totalSales = orders.reduce((sum, order) => sum + order.amount, 0);
+  const cash = orders.filter(order => order.type === "Cash").reduce((sum, order) => sum + order.amount, 0);
+  const card = orders.filter(order => order.type === "Card").reduce((sum, order) => sum + order.amount, 0);
+  const upi = orders.filter(order => order.type === "UPI").reduce((sum, order) => sum + order.amount, 0);
+  const pending = orders.filter(order => order.status === "Pending").length;
+  const completed = orders.filter(order => order.status === "Settled").length;
+  const cancelled = orders.filter(order => order.status === "Cancelled").length;
+  const averageOrderValue = totalOrders > 0 ? Math.round(totalSales / totalOrders) : 0;
+
+  const summary = {
+    totalOrders,
+    totalKOTs,
+    totalSales,
+    cash,
+    card,
+    upi,
+    pending,
+    completed,
+    cancelled,
+    averageOrderValue,
+  };
+
+  const paymentMethods = [
+    { type: "Cash", amount: summary.cash, percentage: totalSales > 0 ? ((summary.cash / totalSales) * 100).toFixed(1) : "0" },
+    { type: "Card", amount: summary.card, percentage: totalSales > 0 ? ((summary.card / totalSales) * 100).toFixed(1) : "0" },
+    { type: "UPI", amount: summary.upi, percentage: totalSales > 0 ? ((summary.upi / totalSales) * 100).toFixed(1) : "0" },
+  ];
+
+  const filteredOrders = orders.filter(order => {
+    const matchesSearch = order.orderNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         order.table.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         order.waiter.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === "all" || order.status.toLowerCase() === statusFilter.toLowerCase();
+    return matchesSearch && matchesStatus;
+  });
+
+  const handleViewDetails = (order: Order) => {
+    setSelectedOrder(order);
+    setShowDetailsModal(true);
+  };
+
+  const handlePrintReport = () => {
+    window.print();
+  };
+
+  const handleSaveHandover = () => {
+    if (!handoverTo) {
+      alert("Please select who you are handing over to.");
+      return;
+    }
+    alert(`Handover saved successfully! Handed over to ${handoverTo}`);
+  };
+
+  const handleClose = () => {
+    if (window.confirm("Are you sure you want to close without saving?")) {
+      window.history.back();
+    }
+  };
+
+  const StatusBadge = ({ status }: { status: string }) => {
+    const variants = {
+      "Settled": "success",
+      "Pending": "warning",
+      "Cancelled": "danger"
+    };
+    return <Badge bg={variants[status as keyof typeof variants] || "secondary"}>{status}</Badge>;
+  };
+
+  const PaymentIcon = ({ type }: { type: string }) => {
+    const icons = {
+      "Cash": <DollarSign size={16} />,
+      "Card": <CreditCard size={16} />,
+      "UPI": <Smartphone size={16} />
+    };
+    return icons[type as keyof typeof icons] || <DollarSign size={16} />;
+  };
+
+  return (
+    <Container fluid className="p-3 bg-light" style={{ height: '100vh' }}>
+      {/* Header Section */}
+      
+
+      {/* Tabs Navigation */}
+      <Card className="mb-3 shadow-sm border-0">
+        <Card.Header className="bg-white border-0 p-3">
+          <Row>
+            <Col>
+              <h4 className="fw-bold text-primary mb-0">Shift Handover</h4>
+            </Col>
+          </Row>
+        </Card.Header>
+        <Card.Body className="py-3">
+          <Tabs
+            activeKey={activeTab}
+            onSelect={(k) => k && setActiveTab(k)}
+            className="mb-0"
+          >
+            <Tab 
+              eventKey="summary" 
+              title={
+                <span className="d-flex align-items-center">
+                  <BarChart3 size={16} className="me-2" />
+                  Summary
+                </span>
+              }
+            >
+              {/* Summary Tab Content */}
+              <Row className="mt-3">
+                {/* Key Metrics */}
+                {[
+                  { 
+                    title: "Total Orders", 
+                    value: summary.totalOrders, 
+                    icon: <CheckCircle className="text-primary" />,
+                    subtitle: `${summary.completed} completed`
+                  },
+                  { 
+                    title: "Total KOTs", 
+                    value: summary.totalKOTs, 
+                    icon: <Printer className="text-success" />,
+                    subtitle: "Kitchen orders"
+                  },
+                  { 
+                    title: "Total Sales", 
+                    value: `₹${summary.totalSales.toLocaleString()}`, 
+                    icon: <DollarSign className="text-warning" />,
+                    subtitle: `Avg: ₹${summary.averageOrderValue}`
+                  },
+                  { 
+                    title: "Pending", 
+                    value: summary.pending, 
+                    icon: <AlertTriangle className="text-danger" />,
+                    subtitle: "Need attention"
+                  },
+                ].map((item, idx) => (
+                  <Col xl={3} lg={6} md={6} className="mb-3" key={idx}>
+                    <Card className="h-100 border-0 shadow-sm">
+                      <Card.Body className="d-flex align-items-center">
+                        <div className="flex-shrink-0 me-3">
+                          <div className="p-3 rounded-circle bg-light">
+                            {item.icon}
+                          </div>
+                        </div>
+                        <div className="flex-grow-1">
+                          <h6 className="card-title text-muted mb-1">{item.title}</h6>
+                          <h4 className="fw-bold text-dark mb-1">{item.value}</h4>
+                          <small className="text-muted">{item.subtitle}</small>
+                        </div>
+                      </Card.Body>
+                    </Card>
+                  </Col>
+                ))}
+              </Row>
+
+              {/* Payment Breakdown */}
+              <Row className="mt-2">
+                <Col md={8}>
+                  <Card className="h-100 border-0 shadow-sm">
+                    <Card.Header className="bg-white border-0">
+                      <h6 className="mb-0 fw-bold">Payment Details</h6>
+                    </Card.Header>
+                    <Card.Body className="p-0">
+                      <div className="table-responsive">
+                        <Table className="mb-0">
+                          <thead className="table-light">
+                            <tr>
+                              <th>Order No</th>
+                              <th>UPI</th>
+                              <th>Cash</th>
+                              <th>Card</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {orders.map((order) => (
+                              <tr key={order.orderNo}>
+                                <td className="fw-semibold">{order.orderNo}</td>
+                                <td>{order.type === "UPI" ? `₹${order.amount.toLocaleString()}` : '-'}</td>
+                                <td>{order.type === "Cash" ? `₹${order.amount.toLocaleString()}` : '-'}</td>
+                                <td>{order.type === "Card" ? `₹${order.amount.toLocaleString()}` : '-'}</td>
+                              </tr>
+                            ))}
+                            <tr className="table-success fw-bold">
+                              <td>Total</td>
+                              <td>₹{summary.upi.toLocaleString()}</td>
+                              <td>₹{summary.cash.toLocaleString()}</td>
+                              <td>₹{summary.card.toLocaleString()}</td>
+                            </tr>
+                          </tbody>
+                        </Table>
+                      </div>
+                    </Card.Body>
+                  </Card>
+                </Col>
+                <Col md={4}>
+                  <Card className="h-100 border-0 shadow-sm">
+                    <Card.Header className="bg-white border-0">
+                      <h6 className="mb-0 fw-bold">Quick Stats</h6>
+                    </Card.Header>
+                    <Card.Body>
+                      <div className="d-flex justify-content-between align-items-center mb-2">
+                        <span>Settled Orders</span>
+                        <Badge bg="success">{summary.completed}</Badge>
+                      </div>
+                      <div className="d-flex justify-content-between align-items-center mb-2">
+                        <span>Pending Orders</span>
+                        <Badge bg="warning">{summary.pending}</Badge>
+                      </div>
+                      <div className="d-flex justify-content-between align-items-center mb-2">
+                        <span>Cancelled Orders</span>
+                        <Badge bg="danger">{summary.cancelled}</Badge>
+                      </div>
+                      <hr />
+                      <div className="d-flex justify-content-between align-items-center">
+                        <strong>Total Tables</strong>
+                        <strong>{new Set(orders.map(o => o.table)).size}</strong>
+                      </div>
+                    </Card.Body>
+                  </Card>
+                </Col>
+              </Row>
+            </Tab>
+
+            <Tab 
+              eventKey="orders" 
+              title={
+                <span className="d-flex align-items-center">
+                  <Eye size={16} className="me-2" />
+                  Orders Detail
+                </span>
+              }
+            >
+              {/* Orders Tab Content */}
+              <div className="mt-4">
+                {/* Filters */}
+                <Card className="mb-3 border-0 shadow-sm bg-light ">
+                  <Card.Body>
+                    <Row className="g-3">
+                      <Col md={6}>
+                        <InputGroup>
+                          <InputGroup.Text>
+                            <Search size={16} />
+                          </InputGroup.Text>
+                          <Form.Control
+                            placeholder="Search orders, tables, waiters..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                          />
+                        </InputGroup>
+                      </Col>
+                      <Col md={3}>
+                        <Form.Select 
+                          value={statusFilter}
+                          onChange={(e) => setStatusFilter(e.target.value)}
+                        >
+                          <option value="all">All Status</option>
+                          <option value="settled">Settled</option>
+                          <option value="pending">Pending</option>
+                        </Form.Select>
+                      </Col>
+                      <Col md={3}>
+                        <div className="d-flex gap-2">
+                          <Button variant="outline-primary" size="sm">
+                            <Filter size={16} className="me-1" />
+                            Filter
+                          </Button>
+                          <Button variant="outline-secondary" size="sm">
+                            <Download size={16} className="me-1" />
+                            Export
+                          </Button>
+                        </div>
+                      </Col>
+                    </Row>
+                  </Card.Body>
+                </Card>
+
+                {/* Orders Table */}
+                <Card className="border-0 shadow-sm">
+                  <Card.Body className="p-0">
+                    <div className="table-responsive" style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                      <Table hover className="mb-0">
+                        <thead className="table-light">
+                          <tr>
+                            <th>Order No</th>
+                            <th>Table</th>
+                            <th>Waiter</th>
+                            <th>KOT No</th>
+                            <th>Items</th>
+                            <th>Time</th>
+                            <th>Amount</th>
+                            <th>UPI</th>
+                            <th>Cash</th>
+                            <th>Card</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredOrders.map((order, idx) => (
+                            <tr key={idx}>
+                              <td className="fw-semibold">{order.orderNo}</td>
+                              <td>
+                                <Badge bg="light" text="dark">
+                                  {order.table}
+                                </Badge>
+                              </td>
+                              <td>{order.waiter}</td>
+                              <td>
+                                <small className="text-muted">{order.kotNo}</small>
+                              </td>
+                              <td>
+                                <Badge bg="outline-primary" text="primary">
+                                  {order.items}
+                                </Badge>
+                              </td>
+                              <td>
+                                <small className="text-muted">{order.time}</small>
+                              </td>
+                              <td className="fw-semibold">₹{order.amount.toLocaleString()}</td>
+                              <td>{order.type === "UPI" ? `₹${order.amount.toLocaleString()}` : '-'}</td>
+                              <td>{order.type === "Cash" ? `₹${order.amount.toLocaleString()}` : '-'}</td>
+                              <td>{order.type === "Card" ? `₹${order.amount.toLocaleString()}` : '-'}</td>
+                              <td>
+                                <StatusBadge status={order.status} />
+                              </td>
+                              <td>
+                                <Button
+                                  variant="outline-primary"
+                                  size="sm"
+                                  onClick={() => handleViewDetails(order)}
+                                >
+                                  <Eye size={14} />
+                                </Button>
+                              </td>
+                            </tr>
+                          ))}
+                          <tr className="table-success fw-bold">
+                            <td>Total</td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td>₹{totalSales.toLocaleString()}</td>
+                            <td>₹{upi.toLocaleString()}</td>
+                            <td>₹{cash.toLocaleString()}</td>
+                            <td>₹{card.toLocaleString()}</td>
+                            <td></td>
+                            <td></td>
+                          </tr>
+                        </tbody>
+                      </Table>
+                    </div>
+                  </Card.Body>
+                </Card>
+              </div>
+            </Tab>
+          </Tabs>
+        </Card.Body>
+      </Card>
+
+      
+      {/* Action Buttons */}
+      <Card className="border-0 shadow-sm">
+        <Card.Body className="py-2">
+          <div className="d-flex justify-content-between align-items-center">
+            <div>
+              <Row className="g-2">
+                <Col md={5}>
+                  <Form.Group>
+                    <Form.Label className="fw-semibold">Handover By</Form.Label>
+                    <InputGroup>
+                      <InputGroup.Text className="bg-light">
+                        <Users size={16} />
+                      </InputGroup.Text>
+                      <Form.Control type="text" value="Cashier A" disabled />
+                    </InputGroup>
+                  </Form.Group>
+                </Col>
+                <Col md={5}>
+                  <Form.Group>
+                    <Form.Label className="fw-semibold">Handover To</Form.Label>
+                    <Form.Select 
+                      value={handoverTo}
+                      onChange={(e) => setHandoverTo(e.target.value)}
+                      className="fw-semibold"
+                    >
+                      <option value="">Select User</option>
+                      <option value="Cashier B">Cashier B</option>
+                      <option value="Cashier C">Cashier C</option>
+                      <option value="Manager">Manager</option>
+                    </Form.Select>
+                  </Form.Group>
+                </Col>
+              </Row>
+            </div>
+            <div>
+              <Button 
+                variant="primary" 
+                onClick={handleSaveHandover} 
+                className="px-4"
+                disabled={!handoverTo}
+              >
+                <CheckCircle size={16} className="me-1" />
+                Complete Handover
+              </Button>
+            </div>
+          </div>
+        </Card.Body>
+      </Card>
+
+      {/* Order Details Modal */}
+      <Modal show={showDetailsModal} onHide={() => setShowDetailsModal(false)} size="lg">
+        <Modal.Header closeButton>
+          <Modal.Title>Order Details - {selectedOrder?.orderNo}</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {selectedOrder && (
+            <Row className="g-3">
+              <Col md={6}>
+                <strong>Table:</strong> {selectedOrder.table}
+              </Col>
+              <Col md={6}>
+                <strong>Waiter:</strong> {selectedOrder.waiter}
+              </Col>
+              <Col md={6}>
+                <strong>KOT No:</strong> {selectedOrder.kotNo}
+              </Col>
+              <Col md={6}>
+                <strong>Time:</strong> {selectedOrder.time}
+              </Col>
+              <Col md={6}>
+                <strong>Payment:</strong> {selectedOrder.type}
+              </Col>
+              <Col md={6}>
+                <strong>Status:</strong> <StatusBadge status={selectedOrder.status} />
+              </Col>
+              <Col md={12}>
+                <hr />
+                <strong>Order Summary:</strong>
+                <div className="mt-2 p-3 bg-light rounded">
+                  <div className="d-flex justify-content-between">
+                    <span>Total Amount:</span>
+                    <strong>₹{selectedOrder.amount}</strong>
+                  </div>
+                  <div className="d-flex justify-content-between">
+                    <span>Number of Items:</span>
+                    <span>{selectedOrder.items}</span>
+                  </div>
+                </div>
+              </Col>
+            </Row>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+        </Modal.Footer>
+      </Modal>
+    </Container>
+  );
+};
+
+export default HandoverPage;

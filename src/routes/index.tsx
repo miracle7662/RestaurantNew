@@ -7,6 +7,9 @@ import PrivateRoute from './PrivateRoute'
 import Billing from '@/views/pages/account-settings/Billing'
 import Customers from '@/views/apps/Transaction/Customers'
 import Settlement from '@/views/apps/Transaction/Settlement'
+import Handover from '@/views/apps/Transaction/Handover'
+// import DayEnd from '@/views/apps/Transaction/DayEnd'
+import DayEnd from '../views/apps/Transaction/DayEnd'
 
 
 // Dashboards
@@ -336,6 +339,19 @@ const appsRoutes: RoutesProps = {
       path: '/apps/Settlement',
       name: 'Settlement',
       element: <Settlement />,
+      route: PrivateRoute,
+    },
+
+     {
+      path: '/apps/Handover',
+      name: ' Handover',
+      element: <  Handover />,
+      route: PrivateRoute,
+    },
+     {
+      path: '/apps/DayEnd',
+      name: ' DayEnd',
+      element: <  DayEnd />,
       route: PrivateRoute,
     },
     {

@@ -40,6 +40,23 @@ const MENU_ITEMS: MenuItemTypes[] = [
     parentKey: 'apps',
   },
 
+  {
+    key: 'Handover',
+    label: 'Handover',
+    url: '/apps/Handover',
+    icon: 'fi fi-rr-shopping-cart',
+    parentKey: 'apps',
+  },
+
+  {
+    key: 'DayEnd',
+    label: 'DayEnd',
+    url: '/apps/DayEnd',
+    icon: 'fi fi-rr-shopping-cart',
+    parentKey: 'apps',
+  },
+
+
   
   {
     key: 'Costumers',
