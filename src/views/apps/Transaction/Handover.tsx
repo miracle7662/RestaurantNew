@@ -504,6 +504,7 @@ const HandoverPage = () => {
                             <td>-₹{totalDiscount.toLocaleString()}</td>
                             <td>N/A</td>
                             <td>N/A</td>
+                            <td>N/A</td>
                             <td>₹{totalCGST.toLocaleString()}</td>
                             <td>₹{totalSGST.toLocaleString()}</td>
                             <td>₹{upi.toLocaleString()}</td>
