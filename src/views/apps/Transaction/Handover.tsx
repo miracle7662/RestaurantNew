@@ -1,25 +1,25 @@
 import React, { useState } from "react";
-import { 
-  Container, 
-  Row, 
-  Col, 
-  Card, 
-  Table, 
-  Form, 
-  Button, 
+import {
+  Container,
+  Row,
+  Col,
+  Card,
+  Table,
+  Form,
+  Button,
   Badge,
   Modal,
   InputGroup,
   Tab,
   Tabs
 } from "react-bootstrap";
-import { 
-  Search, 
-  Filter, 
-  Download, 
-  Printer, 
-  Eye, 
-  CheckCircle, 
+import {
+  Search,
+  Filter,
+  Download,
+  Printer,
+  Eye,
+  CheckCircle,
   XCircle,
   AlertTriangle,
   BarChart3,
@@ -65,11 +65,11 @@ const HandoverPage = () => {
 
   // Dummy data for orders
   const orders = [
-    { 
-      orderNo: "ORD001", 
-      table: "T1", 
-      amount: 500, 
-      type: "Cash", 
+    {
+      orderNo: "ORD001",
+      table: "T1",
+      amount: 500,
+      type: "Cash",
       status: "Settled",
       waiter: "John Doe",
       time: "14:30",
@@ -80,11 +80,11 @@ const HandoverPage = () => {
       cgst: 18,
       sgst: 18
     },
-    { 
-      orderNo: "ORD002", 
-      table: "T3", 
-      amount: 750, 
-      type: "UPI", 
+    {
+      orderNo: "ORD002",
+      table: "T3",
+      amount: 750,
+      type: "UPI",
       status: "Settled",
       waiter: "Jane Smith",
       time: "15:15",
@@ -95,11 +95,11 @@ const HandoverPage = () => {
       cgst: 27,
       sgst: 27
     },
-    { 
-      orderNo: "ORD003", 
-      table: "T2", 
-      amount: 1200, 
-      type: "Card", 
+    {
+      orderNo: "ORD003",
+      table: "T2",
+      amount: 1200,
+      type: "Card",
       status: "Pending",
       waiter: "Mike Johnson",
       time: "16:45",
@@ -110,11 +110,11 @@ const HandoverPage = () => {
       cgst: 36,
       sgst: 36
     },
-    { 
-      orderNo: "ORD004", 
-      table: "T5", 
-      amount: 850, 
-      type: "Cash", 
+    {
+      orderNo: "ORD004",
+      table: "T5",
+      amount: 850,
+      type: "Cash",
       status: "Settled",
       waiter: "Sarah Wilson",
       time: "17:20",
@@ -192,8 +192,8 @@ const HandoverPage = () => {
 
   const filteredOrders = orders.filter(order => {
     const matchesSearch = order.orderNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         order.table.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         order.waiter.toLowerCase().includes(searchTerm.toLowerCase());
+      order.table.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.waiter.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "all" || order.status.toLowerCase() === statusFilter.toLowerCase();
     return matchesSearch && matchesStatus;
   });
@@ -242,7 +242,7 @@ const HandoverPage = () => {
   return (
     <Container fluid className="p-3 bg-light" style={{ height: '100vh' }}>
       {/* Header Section */}
-      
+
 
       {/* Tabs Navigation */}
       <Card className="mb-3 shadow-sm border-0">
@@ -259,8 +259,8 @@ const HandoverPage = () => {
             onSelect={(k) => k && setActiveTab(k)}
             className="mb-0"
           >
-            <Tab 
-              eventKey="summary" 
+            <Tab
+              eventKey="summary"
               title={
                 <span className="d-flex align-items-center">
                   <BarChart3 size={16} className="me-2" />
@@ -272,27 +272,27 @@ const HandoverPage = () => {
               <Row className="mt-3">
                 {/* Key Metrics */}
                 {[
-                  { 
-                    title: "Total Orders", 
-                    value: summary.totalOrders, 
+                  {
+                    title: "Total Orders",
+                    value: summary.totalOrders,
                     icon: <CheckCircle className="text-primary" />,
                     subtitle: `${summary.completed} completed`
                   },
-                  { 
-                    title: "Total KOTs", 
-                    value: summary.totalKOTs, 
+                  {
+                    title: "Total KOTs",
+                    value: summary.totalKOTs,
                     icon: <Printer className="text-success" />,
                     subtitle: "Kitchen orders"
                   },
-                  { 
-                    title: "Total Sales", 
-                    value: `₹${summary.totalSales.toLocaleString()}`, 
+                  {
+                    title: "Total Sales",
+                    value: `₹${summary.totalSales.toLocaleString()}`,
                     icon: <DollarSign className="text-warning" />,
                     subtitle: `Avg: ₹${summary.averageOrderValue}`
                   },
-                  { 
-                    title: "Pending", 
-                    value: summary.pending, 
+                  {
+                    title: "Pending",
+                    value: summary.pending,
                     icon: <AlertTriangle className="text-danger" />,
                     subtitle: "Need attention"
                   },
@@ -323,7 +323,7 @@ const HandoverPage = () => {
                     <Card.Header className="bg-white border-0">
                       <h6 className="mb-0 fw-bold">Payment Details</h6>
                     </Card.Header>
-<Card.Body className="p-3" style={{ height: '220px' }}>
+                    <Card.Body className="p-3" style={{ height: '220px' }}>
                       <div style={{ position: 'relative', height: '100%', width: '100%' }}>
                         <Pie data={paymentData} options={paymentOptions} />
                       </div>
@@ -359,8 +359,8 @@ const HandoverPage = () => {
               </Row>
             </Tab>
 
-            <Tab 
-              eventKey="orders" 
+            <Tab
+              eventKey="orders"
               title={
                 <span className="d-flex align-items-center">
                   <Eye size={16} className="me-2" />
@@ -387,7 +387,7 @@ const HandoverPage = () => {
                         </InputGroup>
                       </Col>
                       <Col md={3}>
-                        <Form.Select 
+                        <Form.Select
                           value={statusFilter}
                           onChange={(e) => setStatusFilter(e.target.value)}
                         >
@@ -509,7 +509,7 @@ const HandoverPage = () => {
         </Card.Body>
       </Card>
 
-      
+
       {/* Action Buttons */}
       <Card className="border-0 shadow-sm">
         <Card.Body className="py-2">
@@ -530,7 +530,7 @@ const HandoverPage = () => {
                 <Col md={5}>
                   <Form.Group>
                     <Form.Label className="fw-semibold">Handover To</Form.Label>
-                    <Form.Select 
+                    <Form.Select
                       value={handoverTo}
                       onChange={(e) => setHandoverTo(e.target.value)}
                       className="fw-semibold"
@@ -545,9 +545,9 @@ const HandoverPage = () => {
               </Row>
             </div>
             <div>
-              <Button 
-                variant="primary" 
-                onClick={handleSaveHandover} 
+              <Button
+                variant="primary"
+                onClick={handleSaveHandover}
                 className="px-4"
                 disabled={!handoverTo}
               >
