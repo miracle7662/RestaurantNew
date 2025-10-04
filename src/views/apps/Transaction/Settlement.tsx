@@ -124,7 +124,8 @@ const EditSettlementPage = ({ role, currentUser }: any) => {
               <td>{s.PaymentType}</td>
               <td>{s.HotelID}</td>
               <td>₹{s.Amount.toFixed(2)}</td>
-              <td>{new Date(s.InsertDate).toLocaleString()}</td>
+              <td>{new Date(s.InsertDate.replace(' ', 'T') + 'Z').toLocaleString()}</td>
+ 
              
               <td>
                 <Button size="sm" variant="primary" onClick={() => handleEdit(s)}>Edit</Button>{" "}

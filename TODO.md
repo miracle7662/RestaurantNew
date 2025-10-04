@@ -1,9 +1,6 @@
-# Redesign Orders.tsx Plan
+# TODO: Fix Time Display in Settlement.tsx and Handover.tsx
 
 ## Tasks
-- [ ] Create sub-components: TableGrid, OrderDetails, BillingPanel, Modals
-- [ ] Add framer-motion animations (opacity 0.07 to 1)
-- [ ] Implement dark theme styling
-- [ ] Restructure main Orders.tsx to use sub-components
-- [ ] Add formal styling and attractive effects
-- [ ] Test functionality after changes
+- [x] Modify date display in Settlement.tsx to treat InsertDate as UTC and show in local time
+- [x] Modify time display in Handover.tsx to treat time as UTC and show in local time
+- [x] Test the changes to ensure correct time display

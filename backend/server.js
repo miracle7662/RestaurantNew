@@ -93,7 +93,11 @@ app.get('/api/health', (req, res) => {
 });
 
 
+const handoverRoutes = require('./routes/handoverRoutes.js');
+
 // ✅ Start server
+app.use('/api/handover', handoverRoutes);
+
 app.listen(port, () => {
     console.log(`Server running at http://localhost:${port}`);
 });

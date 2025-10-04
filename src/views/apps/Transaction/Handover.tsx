@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Container,
   Row,
@@ -62,70 +62,32 @@ const HandoverPage = () => {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [activeTab, setActiveTab] = useState("summary");
   const [handoverTo, setHandoverTo] = useState("");
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Dummy data for orders
-  const orders = [
-    {
-      orderNo: "ORD001",
-      table: "T1",
-      amount: 500,
-      type: "Cash",
-      status: "Settled",
-      waiter: "John Doe",
-      time: "14:30",
-      items: 4,
-      kotNo: "KOT001",
-      discount: 50,
-      ncKot: "N/A",
-      cgst: 18,
-      sgst: 18
-    },
-    {
-      orderNo: "ORD002",
-      table: "T3",
-      amount: 750,
-      type: "UPI",
-      status: "Settled",
-      waiter: "Jane Smith",
-      time: "15:15",
-      items: 3,
-      kotNo: "KOT002",
-      discount: 0,
-      ncKot: "N/A",
-      cgst: 27,
-      sgst: 27
-    },
-    {
-      orderNo: "ORD003",
-      table: "T2",
-      amount: 1200,
-      type: "Card",
-      status: "Pending",
-      waiter: "Mike Johnson",
-      time: "16:45",
-      items: 5,
-      kotNo: "KOT003",
-      discount: 100,
-      ncKot: "NC001",
-      cgst: 36,
-      sgst: 36
-    },
-    {
-      orderNo: "ORD004",
-      table: "T5",
-      amount: 850,
-      type: "Cash",
-      status: "Settled",
-      waiter: "Sarah Wilson",
-      time: "17:20",
-      items: 2,
-      kotNo: "KOT004",
-      discount: 25,
-      ncKot: "N/A",
-      cgst: 30.6,
-      sgst: 30.6
-    },
-  ];
+  useEffect(() => {
+    const fetchHandoverData = async () => {
+      try {
+        const response = await fetch('http://localhost:3001/api/handover/data');
+        if (!response.ok) {
+          throw new Error('Failed to fetch handover data');
+        }
+        const data = await response.json();
+        if (data.success) {
+          setOrders(data.data.orders);
+        } else {
+          throw new Error(data.message || 'Failed to fetch data');
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An error occurred');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchHandoverData();
+  }, []);
 
   // Computed summary from orders
   const totalOrders = orders.length;
@@ -238,6 +200,38 @@ const HandoverPage = () => {
     };
     return icons[type as keyof typeof icons] || <DollarSign size={16} />;
   };
+
+  if (loading) {
+    return (
+      <Container fluid className="p-3 bg-light" style={{ height: '100vh' }}>
+        <Card className="mb-3 shadow-sm border-0">
+          <Card.Body className="text-center py-5">
+            <div className="spinner-border text-primary" role="status">
+              <span className="visually-hidden">Loading handover data...</span>
+            </div>
+            <p className="mt-3">Loading handover data...</p>
+          </Card.Body>
+        </Card>
+      </Container>
+    );
+  }
+
+  if (error) {
+    return (
+      <Container fluid className="p-3 bg-light" style={{ height: '100vh' }}>
+        <Card className="mb-3 shadow-sm border-0">
+          <Card.Body className="text-center py-5">
+            <AlertTriangle size={48} className="text-danger mb-3" />
+            <h5 className="text-danger">Error Loading Data</h5>
+            <p className="text-muted">{error}</p>
+            <Button variant="primary" onClick={() => window.location.reload()}>
+              Retry
+            </Button>
+          </Card.Body>
+        </Card>
+      </Container>
+    );
+  }
 
   return (
     <Container fluid className="p-3 bg-light" style={{ height: '100vh' }}>
@@ -456,7 +450,13 @@ const HandoverPage = () => {
                                 </Badge>
                               </td>
                               <td>
-                                <small className="text-muted">{order.time}</small>
+                              <small className="text-muted">
+                                {(() => {
+                                  // Parse as UTC and convert to local time string
+                                  const utcDate = new Date(order.time + 'Z');
+                                  return isNaN(utcDate.getTime()) ? order.time : utcDate.toLocaleTimeString();
+                                })()}
+                              </small>
                               </td>
                               <td className="fw-semibold">₹{order.amount.toLocaleString()}</td>
                               <td>-₹{order.discount.toLocaleString()}</td>
@@ -580,7 +580,10 @@ const HandoverPage = () => {
                 <strong>NCKOT:</strong> {selectedOrder.ncKot}
               </Col>
               <Col md={6}>
-                <strong>Time:</strong> {selectedOrder.time}
+                <strong>Time:</strong> {(() => {
+                  const utcDate = new Date((selectedOrder?.time || '') + 'Z');
+                  return isNaN(utcDate.getTime()) ? selectedOrder?.time : utcDate.toLocaleTimeString();
+                })()}
               </Col>
               <Col md={6}>
                 <strong>Payment:</strong> {selectedOrder.type}

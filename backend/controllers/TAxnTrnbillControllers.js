@@ -592,9 +592,9 @@ exports.settleBill = async (req, res) => {
           s.PaymentTypeID ?? null,
           s.PaymentType || null,
           Number(s.Amount) || 0,
-          s.Batch || null,
+          s.Batch || null, // Correctly sets Batch to null if not provided
           s.Name || null,
-          s.OrderNo || bill.orderNo || null,
+          s.OrderNo || bill.TxnNo, // Correctly assigns the bill's TxnNo to OrderNo
           s.HotelID ?? bill.HotelID ?? null,
           s.Name2 || null,
           s.Name3 || null
@@ -603,7 +603,7 @@ exports.settleBill = async (req, res) => {
 
       db.prepare(`
         UPDATE TAxnTrnbill 
-        SET isSetteled = 1, isBilled = 1, BilledDate = CURRENT_TIMESTAMP 
+        SET isSetteled = 1, isBilled = 1, BilledDate = CURRENT_TIMESTAMP, orderNo = TxnNo
         WHERE TxnID = ?
       `).run(Number(id))
 
