@@ -1,6 +1,6 @@
-# TODO: Fix Time Display in Settlement.tsx and Handover.tsx
+# TODO: Implement KOT Badges in Handover for Settled Bills
 
 ## Tasks
-- [x] Modify date display in Settlement.tsx to treat InsertDate as UTC and show in local time
-- [x] Modify time display in Handover.tsx to treat time as UTC and show in local time
-- [x] Test the changes to ensure correct time display
+- [ ] Modify handoverController.js to fetch settled bills and aggregate KOTs per table
+- [ ] Update handover.tsx to render badges for each KOT in the kots array
+- [ ] Test the changes by settling a bill and verifying handover shows all related KOTs as separate badges
