@@ -17,7 +17,7 @@ const getHandoverData = (req, res) => {
         t.TxnDatetime,
         t.Steward as WaiterID,
         GROUP_CONCAT(DISTINCT CASE WHEN td.Qty > 0 THEN td.KOTNo END) as KOTNo,
-        GROUP_CONCAT(DISTINCT CASE WHEN td.Qty < 0 THEN td.KOTNo END) as RevKOTNo,
+        COALESCE(GROUP_CONCAT(DISTINCT td.RevKOTNo), '') as RevKOTNo,
         GROUP_CONCAT(DISTINCT CASE WHEN td.isNCKOT = 1 THEN td.KOTNo END) as NCKOT,
         t.NCName,
         t.NCPurpose,
@@ -34,7 +34,7 @@ const getHandoverData = (req, res) => {
       WHERE (t.isSetteled = 1 OR t.isBilled = 1)
       AND date(t.TxnDatetime) = date('now')
       GROUP BY t.TxnID
-      ORDER BY t.TxnDatetime DESC
+      ORDER BY t.TxnDatetime DESC;      
     `;
 
     const rows = db.prepare(query).all();

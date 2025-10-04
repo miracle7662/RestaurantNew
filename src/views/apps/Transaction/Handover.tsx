@@ -77,6 +77,8 @@ const HandoverPage = () => {
         }
         const data = await response.json();
         if (data.success) {
+          console.log("Fetched orders data:", data.data.orders); // Debug log to check revKotNo presence
+          console.log("RevKOT numbers in orders:", data.data.orders.map((order: any) => order.revKotNo));
           setOrders(data.data.orders);
         } else {
           throw new Error(data.message || 'Failed to fetch data');
@@ -450,7 +452,9 @@ const HandoverPage = () => {
                               <small className="text-muted">{order.kotNo}</small>
                             </td>
                             <td>
-                              <small className="text-muted">{order.revKotNo}</small>
+                              <small className="text-muted">
+                                {order.revKotNo ? order.revKotNo.split(',').map(kot => kot.trim()).join(', ') : ''}
+                              </small>
                             </td>
                             <td>
                               <Badge bg="outline-primary" text="primary">
@@ -593,7 +597,10 @@ const HandoverPage = () => {
                 <strong>NC Name:</strong> {selectedOrder.ncName}
               </Col>
               <Col md={6}>
-                <strong>RevKOT No:</strong> {selectedOrder.revKotNo}
+                <strong>RevKOT No:</strong>
+                <div>
+                  {selectedOrder?.revKotNo ? selectedOrder.revKotNo.split(',').map(kot => kot.trim()).join(', ') : ''}
+                </div>
               </Col>
               <Col md={6}>
                 <strong>Time:</strong> {(() => {
