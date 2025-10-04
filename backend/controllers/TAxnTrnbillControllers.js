@@ -1092,7 +1092,12 @@ exports.handleF8KeyPress = async (req, res) => {
       }
 
       // Generate new KOT number for reversal
-      const maxRevKOTResult = db.prepare('SELECT MAX(RevKOTNo) as maxRevKOT FROM TAxnTrnbilldetails').get();
+      const maxRevKOTResult = db.prepare(`
+        SELECT MAX(d.RevKOTNo) as maxRevKOT
+        FROM TAxnTrnbilldetails d
+        JOIN TAxnTrnbill b ON d.TxnID = b.TxnID
+        WHERE b.TableID = ?
+      `).get(Number(tableId));
       const newRevKOTNo = (maxRevKOTResult?.maxRevKOT || 0) + 1;
 
       // Update RevQty and KOTNo in database
@@ -1313,7 +1318,12 @@ exports.reverseQuantity = async (req, res) => {
     }
 
     // Generate new KOT number for reversal
-    const maxRevKOTResult = db.prepare('SELECT MAX(RevKOTNo) as maxRevKOT FROM TAxnTrnbilldetails').get();
+    const maxRevKOTResult = db.prepare(`
+      SELECT MAX(d.RevKOTNo) as maxRevKOT
+      FROM TAxnTrnbilldetails d
+      JOIN TAxnTrnbill b ON d.TxnID = b.TxnID
+      WHERE b.TableID = ?
+    `).get(item.TableID);
     const newRevKOTNo = (maxRevKOTResult?.maxRevKOT || 0) + 1;
 
     // Update RevQty and KOTNo

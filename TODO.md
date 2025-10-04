@@ -10,3 +10,8 @@
 - [x] Update the query to fetch these aggregated values.
 - [x] Add NC Name to Order interface and table columns.
 - [x] Update handoverController.js to include NCName from TAxnTrnbilldetails.
+
+## Additional Tasks
+- [x] Fix KOT number generation for reversals in TAxnTrnbillControllers.js
+  - [x] Update handleF8KeyPress to use MAX(d.KOTNo) instead of MAX(d.RevKOTNo)
+  - [x] Update reverseQuantity to use MAX(d.KOTNo) instead of MAX(d.RevKOTNo)
