@@ -1,6 +1,10 @@
-# TODO: Implement KOT Badges in Handover for Settled Bills
+# TODO: Implement KOT Details in Handover for Settled Bills
 
 ## Tasks
-- [ ] Modify handoverController.js to fetch settled bills and aggregate KOTs per table
-- [ ] Update handover.tsx to render badges for each KOT in the kots array
-- [ ] Test the changes by settling a bill and verifying handover shows all related KOTs as separate badges
+- [x] Update Order interface in Handover.tsx to include revKotNo: string;
+- [x] Add RevKOT No column to the orders table in Handover.tsx.
+- [x] Modify handoverController.js to aggregate KOT Nos from TAxnTrnbilldetails:
+  - KOT No: distinct KOTNo where Qty > 0, joined as string.
+  - RevKOT No: distinct KOTNo where Qty < 0, joined as string.
+  - NCKOT: distinct KOTNo where isNCKOT = 1, joined as string.
+- [x] Update the query to fetch these aggregated values.

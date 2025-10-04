@@ -48,6 +48,7 @@ interface Order {
   time: string;
   items: number;
   kotNo: string;
+  revKotNo: string;
   discount: number;
   ncKot: string;
   cgst: number;
@@ -417,6 +418,7 @@ const HandoverPage = () => {
                             <th>Table</th>
                             <th>Waiter</th>
                             <th>KOT No</th>
+                            <th>RevKOT No</th>
                             <th>Items</th>
                             <th>Time</th>
                             <th>Amount</th>
@@ -443,6 +445,9 @@ const HandoverPage = () => {
                               <td>{order.waiter}</td>
                               <td>
                                 <small className="text-muted">{order.kotNo}</small>
+                              </td>
+                              <td>
+                                <small className="text-muted">{order.revKotNo}</small>
                               </td>
                               <td>
                                 <Badge bg="outline-primary" text="primary">
@@ -578,6 +583,9 @@ const HandoverPage = () => {
               </Col>
               <Col md={6}>
                 <strong>NCKOT:</strong> {selectedOrder.ncKot}
+              </Col>
+              <Col md={6}>
+                <strong>RevKOT No:</strong> {selectedOrder.revKotNo}
               </Col>
               <Col md={6}>
                 <strong>Time:</strong> {(() => {

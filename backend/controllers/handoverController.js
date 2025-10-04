@@ -16,7 +16,9 @@ const getHandoverData = (req, res) => {
         t.CESS,
         t.TxnDatetime,
         t.Steward as WaiterID,
-      NULL as KOTNo,
+        GROUP_CONCAT(DISTINCT CASE WHEN td.Qty > 0 THEN td.KOTNo END) as KOTNo,
+        GROUP_CONCAT(DISTINCT CASE WHEN td.Qty < 0 THEN td.KOTNo END) as RevKOTNo,
+        GROUP_CONCAT(DISTINCT CASE WHEN td.isNCKOT = 1 THEN td.KOTNo END) as NCKOT,
         t.NCName,
         t.NCPurpose,
         t.isSetteled,
@@ -31,6 +33,7 @@ const getHandoverData = (req, res) => {
       LEFT JOIN TrnSettlement s ON t.TxnNo = s.OrderNo
       WHERE (t.isSetteled = 1 OR t.isBilled = 1)
       AND date(t.TxnDatetime) = date('now')
+      GROUP BY t.TxnID
       ORDER BY t.TxnDatetime DESC
     `;
 
@@ -49,9 +52,10 @@ const getHandoverData = (req, res) => {
           status: row.isSetteled ? 'Settled' : 'Pending',
           time: new Date(row.TxnDatetime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
           items: 0,
-          kotNo: row.KOTNo,
+          kotNo: row.KOTNo || '',
+          revKotNo: row.RevKOTNo || '',
           discount: parseFloat(row.Discount || 0),
-          ncKot: row.NCName || 'N/A',
+          ncKot: row.NCKOT || 'N/A',
           cgst: parseFloat(row.CGST || 0),
           sgst: parseFloat(row.SGST || 0),
         };
