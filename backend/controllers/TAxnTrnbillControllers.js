@@ -725,31 +725,38 @@ exports.createKOT = async (req, res) => {
       let finalDiscPer = Number(DiscPer) || 0;
       let finalDiscount = Number(Discount) || 0;
       let finalDiscountType = Number(DiscountType) || 0;
+      const isHeaderNCKOT = details.some(item => toBool(item.isNCKOT));
 
       let existingBill = db.prepare(`
-        SELECT TxnID, DiscPer, Discount, DiscountType FROM TAxnTrnbill
+        SELECT TxnID, DiscPer, Discount, DiscountType, isNCKOT FROM TAxnTrnbill
         WHERE TableID = ? AND isCancelled = 0 AND isSetteled = 0 ORDER BY TxnID DESC LIMIT 1
       `).get(Number(TableID));
 
       if (existingBill) {
         txnId = existingBill.TxnID;
         console.log(`Using existing unbilled transaction. TxnID: ${txnId} for TableID: ${TableID}`);
-        
-        // If new discount is provided with KOT, update the main bill. Otherwise, use existing discount.
-        if (Number(DiscPer) > 0 || Number(Discount) > 0) {
-            db.prepare(`
-                UPDATE TAxnTrnbill 
-                SET DiscPer = ?, Discount = ?, DiscountType = ?
-                WHERE TxnID = ?
-            `).run(finalDiscPer, finalDiscount, finalDiscountType, txnId);
+
+        // If new discount or NCKOT details are provided, update the main bill.
+        // Otherwise, use existing values.
+        if (Number(DiscPer) > 0 || Number(Discount) > 0 || NCName || NCPurpose) {
+          db.prepare(`
+              UPDATE TAxnTrnbill 
+              SET 
+                DiscPer = ?, 
+                Discount = ?, 
+                DiscountType = ?,
+                NCName = ?,
+                NCPurpose = ?,
+                isNCKOT = ?
+              WHERE TxnID = ?
+          `).run(finalDiscPer, finalDiscount, finalDiscountType, NCName || null, NCPurpose || null, toBool(isHeaderNCKOT || existingBill.isNCKOT), txnId);
         } else {
-            finalDiscPer = existingBill.DiscPer;
+            finalDiscPer = existingBill.DiscPer; // Keep existing discount if no new one is provided
             finalDiscount = existingBill.Discount;
             finalDiscountType = existingBill.DiscountType;
         }
       } else {
         console.log(`No existing bill for table ${TableID}. Creating a new one.`);
-        const isHeaderNCKOT = details.some(item => toBool(item.isNCKOT));
         let txnNo = null;
         if (outletid) {
           txnNo = generateTxnNo(outletid);
