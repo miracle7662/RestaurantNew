@@ -28,6 +28,15 @@ import {
   Smartphone,
   DollarSign
 } from "lucide-react";
+import {
+  Chart as ChartJS,
+  ArcElement,
+  Tooltip,
+  Legend
+} from 'chart.js';
+import { Pie } from 'react-chartjs-2';
+
+ChartJS.register(ArcElement, Tooltip, Legend);
 
 interface Order {
   orderNo: string;
@@ -39,6 +48,10 @@ interface Order {
   time: string;
   items: number;
   kotNo: string;
+  discount: number;
+  ncKot: string;
+  cgst: number;
+  sgst: number;
 }
 
 const HandoverPage = () => {
@@ -61,7 +74,11 @@ const HandoverPage = () => {
       waiter: "John Doe",
       time: "14:30",
       items: 4,
-      kotNo: "KOT001"
+      kotNo: "KOT001",
+      discount: 50,
+      ncKot: "N/A",
+      cgst: 18,
+      sgst: 18
     },
     { 
       orderNo: "ORD002", 
@@ -72,7 +89,11 @@ const HandoverPage = () => {
       waiter: "Jane Smith",
       time: "15:15",
       items: 3,
-      kotNo: "KOT002"
+      kotNo: "KOT002",
+      discount: 0,
+      ncKot: "N/A",
+      cgst: 27,
+      sgst: 27
     },
     { 
       orderNo: "ORD003", 
@@ -83,7 +104,11 @@ const HandoverPage = () => {
       waiter: "Mike Johnson",
       time: "16:45",
       items: 5,
-      kotNo: "KOT003"
+      kotNo: "KOT003",
+      discount: 100,
+      ncKot: "NC001",
+      cgst: 36,
+      sgst: 36
     },
     { 
       orderNo: "ORD004", 
@@ -94,7 +119,11 @@ const HandoverPage = () => {
       waiter: "Sarah Wilson",
       time: "17:20",
       items: 2,
-      kotNo: "KOT004"
+      kotNo: "KOT004",
+      discount: 25,
+      ncKot: "N/A",
+      cgst: 30.6,
+      sgst: 30.6
     },
   ];
 
@@ -109,6 +138,9 @@ const HandoverPage = () => {
   const completed = orders.filter(order => order.status === "Settled").length;
   const cancelled = orders.filter(order => order.status === "Cancelled").length;
   const averageOrderValue = totalOrders > 0 ? Math.round(totalSales / totalOrders) : 0;
+  const totalDiscount = orders.reduce((sum, order) => sum + order.discount, 0);
+  const totalCGST = orders.reduce((sum, order) => sum + order.cgst, 0);
+  const totalSGST = orders.reduce((sum, order) => sum + order.sgst, 0);
 
   const summary = {
     totalOrders,
@@ -128,6 +160,35 @@ const HandoverPage = () => {
     { type: "Card", amount: summary.card, percentage: totalSales > 0 ? ((summary.card / totalSales) * 100).toFixed(1) : "0" },
     { type: "UPI", amount: summary.upi, percentage: totalSales > 0 ? ((summary.upi / totalSales) * 100).toFixed(1) : "0" },
   ];
+
+  const paymentData = {
+    labels: paymentMethods.map(pm => pm.type),
+    datasets: [{
+      label: 'Payment Breakdown',
+      data: paymentMethods.map(pm => pm.amount),
+      backgroundColor: [
+        'rgba(75, 192, 192, 0.2)', // Cash
+        'rgba(255, 99, 132, 0.2)', // Card
+        'rgba(255, 206, 86, 0.2)'  // UPI
+      ],
+      borderColor: [
+        'rgba(75, 192, 192, 1)',
+        'rgba(255, 99, 132, 1)',
+        'rgba(255, 206, 86, 1)'
+      ],
+      borderWidth: 1,
+    }],
+  };
+
+  const paymentOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'bottom' as const,
+      },
+    },
+  };
 
   const filteredOrders = orders.filter(order => {
     const matchesSearch = order.orderNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -262,40 +323,15 @@ const HandoverPage = () => {
                     <Card.Header className="bg-white border-0">
                       <h6 className="mb-0 fw-bold">Payment Details</h6>
                     </Card.Header>
-                    <Card.Body className="p-0">
-                      <div className="table-responsive">
-                        <Table className="mb-0">
-                          <thead className="table-light">
-                            <tr>
-                              <th>Order No</th>
-                              <th>UPI</th>
-                              <th>Cash</th>
-                              <th>Card</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {orders.map((order) => (
-                              <tr key={order.orderNo}>
-                                <td className="fw-semibold">{order.orderNo}</td>
-                                <td>{order.type === "UPI" ? `₹${order.amount.toLocaleString()}` : '-'}</td>
-                                <td>{order.type === "Cash" ? `₹${order.amount.toLocaleString()}` : '-'}</td>
-                                <td>{order.type === "Card" ? `₹${order.amount.toLocaleString()}` : '-'}</td>
-                              </tr>
-                            ))}
-                            <tr className="table-success fw-bold">
-                              <td>Total</td>
-                              <td>₹{summary.upi.toLocaleString()}</td>
-                              <td>₹{summary.cash.toLocaleString()}</td>
-                              <td>₹{summary.card.toLocaleString()}</td>
-                            </tr>
-                          </tbody>
-                        </Table>
+<Card.Body className="p-3" style={{ height: '220px' }}>
+                      <div style={{ position: 'relative', height: '100%', width: '100%' }}>
+                        <Pie data={paymentData} options={paymentOptions} />
                       </div>
                     </Card.Body>
                   </Card>
                 </Col>
                 <Col md={4}>
-                  <Card className="h-100 border-0 shadow-sm">
+                  <Card className="h-100 border-0 shadow-sm" style={{ maxHeight: '290px' }}>
                     <Card.Header className="bg-white border-0">
                       <h6 className="mb-0 fw-bold">Quick Stats</h6>
                     </Card.Header>
@@ -390,6 +426,10 @@ const HandoverPage = () => {
                             <th>Items</th>
                             <th>Time</th>
                             <th>Amount</th>
+                            <th>Discount</th>
+                            <th>NCKOT</th>
+                            <th>CGST</th>
+                            <th>SGST</th>
                             <th>UPI</th>
                             <th>Cash</th>
                             <th>Card</th>
@@ -419,6 +459,10 @@ const HandoverPage = () => {
                                 <small className="text-muted">{order.time}</small>
                               </td>
                               <td className="fw-semibold">₹{order.amount.toLocaleString()}</td>
+                              <td>-₹{order.discount.toLocaleString()}</td>
+                              <td>{order.ncKot}</td>
+                              <td>₹{order.cgst.toLocaleString()}</td>
+                              <td>₹{order.sgst.toLocaleString()}</td>
                               <td>{order.type === "UPI" ? `₹${order.amount.toLocaleString()}` : '-'}</td>
                               <td>{order.type === "Cash" ? `₹${order.amount.toLocaleString()}` : '-'}</td>
                               <td>{order.type === "Card" ? `₹${order.amount.toLocaleString()}` : '-'}</td>
@@ -444,6 +488,10 @@ const HandoverPage = () => {
                             <td></td>
                             <td></td>
                             <td>₹{totalSales.toLocaleString()}</td>
+                            <td>-₹{totalDiscount.toLocaleString()}</td>
+                            <td>N/A</td>
+                            <td>₹{totalCGST.toLocaleString()}</td>
+                            <td>₹{totalSGST.toLocaleString()}</td>
                             <td>₹{upi.toLocaleString()}</td>
                             <td>₹{cash.toLocaleString()}</td>
                             <td>₹{card.toLocaleString()}</td>
@@ -529,6 +577,9 @@ const HandoverPage = () => {
                 <strong>KOT No:</strong> {selectedOrder.kotNo}
               </Col>
               <Col md={6}>
+                <strong>NCKOT:</strong> {selectedOrder.ncKot}
+              </Col>
+              <Col md={6}>
                 <strong>Time:</strong> {selectedOrder.time}
               </Col>
               <Col md={6}>
@@ -536,6 +587,15 @@ const HandoverPage = () => {
               </Col>
               <Col md={6}>
                 <strong>Status:</strong> <StatusBadge status={selectedOrder.status} />
+              </Col>
+              <Col md={6}>
+                <strong>Discount:</strong> ₹{selectedOrder.discount.toLocaleString()}
+              </Col>
+              <Col md={6}>
+                <strong>CGST:</strong> ₹{selectedOrder.cgst.toLocaleString()}
+              </Col>
+              <Col md={6}>
+                <strong>SGST:</strong> ₹{selectedOrder.sgst.toLocaleString()}
               </Col>
               <Col md={12}>
                 <hr />
