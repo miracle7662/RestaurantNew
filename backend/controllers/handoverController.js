@@ -56,6 +56,7 @@ const getHandoverData = (req, res) => {
           revKotNo: row.RevKOTNo || '',
           discount: parseFloat(row.Discount || 0),
           ncKot: row.NCKOT || 'N/A',
+          ncName: row.NCName || '',
           cgst: parseFloat(row.CGST || 0),
           sgst: parseFloat(row.SGST || 0),
         };

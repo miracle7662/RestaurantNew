@@ -51,6 +51,7 @@ interface Order {
   revKotNo: string;
   discount: number;
   ncKot: string;
+  ncName: string;
   cgst: number;
   sgst: number;
 }
@@ -423,7 +424,9 @@ const HandoverPage = () => {
                             <th>Time</th>
                             <th>Amount</th>
                             <th>Discount</th>
+
                             <th>NCKOT</th>
+                            <th>NC Name</th>
                             <th>CGST</th>
                             <th>SGST</th>
                             <th>UPI</th>
@@ -443,46 +446,47 @@ const HandoverPage = () => {
                                 </Badge>
                               </td>
                               <td>{order.waiter}</td>
-                              <td>
-                                <small className="text-muted">{order.kotNo}</small>
-                              </td>
-                              <td>
-                                <small className="text-muted">{order.revKotNo}</small>
-                              </td>
-                              <td>
-                                <Badge bg="outline-primary" text="primary">
-                                  {order.items}
-                                </Badge>
-                              </td>
-                              <td>
-                              <small className="text-muted">
-                                {(() => {
-                                  // Parse as UTC and convert to local time string
-                                  const utcDate = new Date(order.time + 'Z');
-                                  return isNaN(utcDate.getTime()) ? order.time : utcDate.toLocaleTimeString();
-                                })()}
-                              </small>
-                              </td>
-                              <td className="fw-semibold">₹{order.amount.toLocaleString()}</td>
-                              <td>-₹{order.discount.toLocaleString()}</td>
-                              <td>{order.ncKot}</td>
-                              <td>₹{order.cgst.toLocaleString()}</td>
-                              <td>₹{order.sgst.toLocaleString()}</td>
-                              <td>{order.type === "UPI" ? `₹${order.amount.toLocaleString()}` : '-'}</td>
-                              <td>{order.type === "Cash" ? `₹${order.amount.toLocaleString()}` : '-'}</td>
-                              <td>{order.type === "Card" ? `₹${order.amount.toLocaleString()}` : '-'}</td>
-                              <td>
-                                <StatusBadge status={order.status} />
-                              </td>
-                              <td>
-                                <Button
-                                  variant="outline-primary"
-                                  size="sm"
-                                  onClick={() => handleViewDetails(order)}
-                                >
-                                  <Eye size={14} />
-                                </Button>
-                              </td>
+                            <td>
+                              <small className="text-muted">{order.kotNo}</small>
+                            </td>
+                            <td>
+                              <small className="text-muted">{order.revKotNo}</small>
+                            </td>
+                            <td>
+                              <Badge bg="outline-primary" text="primary">
+                                {order.items}
+                              </Badge>
+                            </td>
+                            <td>
+                            <small className="text-muted">
+                              {(() => {
+                                // Parse as UTC and convert to local time string
+                                const utcDate = new Date(order.time + 'Z');
+                                return isNaN(utcDate.getTime()) ? order.time : utcDate.toLocaleTimeString();
+                              })()}
+                            </small>
+                            </td>
+                            <td className="fw-semibold">₹{order.amount.toLocaleString()}</td>
+                            <td>-₹{order.discount.toLocaleString()}</td>
+                            <td>{order.ncKot}</td>
+                            <td>{order.ncName}</td>
+                            <td>₹{order.cgst.toLocaleString()}</td>
+                            <td>₹{order.sgst.toLocaleString()}</td>
+                            <td>{order.type === "UPI" ? `₹${order.amount.toLocaleString()}` : '-'}</td>
+                            <td>{order.type === "Cash" ? `₹${order.amount.toLocaleString()}` : '-'}</td>
+                            <td>{order.type === "Card" ? `₹${order.amount.toLocaleString()}` : '-'}</td>
+                            <td>
+                              <StatusBadge status={order.status} />
+                            </td>
+                            <td>
+                              <Button
+                                variant="outline-primary"
+                                size="sm"
+                                onClick={() => handleViewDetails(order)}
+                              >
+                                <Eye size={14} />
+                              </Button>
+                            </td>
                             </tr>
                           ))}
                           <tr className="table-success fw-bold">
@@ -494,6 +498,7 @@ const HandoverPage = () => {
                             <td></td>
                             <td>₹{totalSales.toLocaleString()}</td>
                             <td>-₹{totalDiscount.toLocaleString()}</td>
+                            <td>N/A</td>
                             <td>N/A</td>
                             <td>₹{totalCGST.toLocaleString()}</td>
                             <td>₹{totalSGST.toLocaleString()}</td>
@@ -583,6 +588,9 @@ const HandoverPage = () => {
               </Col>
               <Col md={6}>
                 <strong>NCKOT:</strong> {selectedOrder.ncKot}
+              </Col>
+              <Col md={6}>
+                <strong>NC Name:</strong> {selectedOrder.ncName}
               </Col>
               <Col md={6}>
                 <strong>RevKOT No:</strong> {selectedOrder.revKotNo}

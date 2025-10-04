@@ -8,3 +8,5 @@
   - RevKOT No: distinct KOTNo where Qty < 0, joined as string.
   - NCKOT: distinct KOTNo where isNCKOT = 1, joined as string.
 - [x] Update the query to fetch these aggregated values.
+- [x] Add NC Name to Order interface and table columns.
+- [x] Update handoverController.js to include NCName from TAxnTrnbilldetails.
