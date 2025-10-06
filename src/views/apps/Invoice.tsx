@@ -231,7 +231,7 @@ function App() {
                 {/* Items Table */}
                 <div className="table-responsive mb-4">
                   <table className="table table-sm table-hover">
-                    <thead className="table-dark">
+                    <thead className="table-light">
                       <tr>
                         <th>Media</th>
                         <th>KOT No.</th>
@@ -388,7 +388,7 @@ function App() {
                 {/* Target Items Table */}
                 <div className="table-responsive mb-4">
                   <table className="table table-sm table-hover">
-                    <thead className="table-dark">
+                    <thead className="table-light">
                       <tr>
                         <th>Media</th>
                         <th>KOT No.</th>
