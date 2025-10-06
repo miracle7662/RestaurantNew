@@ -23,23 +23,20 @@ const getHandoverData = (req, res) => {
           GROUP_CONCAT(DISTINCT CASE WHEN td.Qty > 0 THEN td.KOTNo END) as KOTNo,
           COALESCE(GROUP_CONCAT(DISTINCT td.RevKOTNo), '') as RevKOTNo,
           GROUP_CONCAT(DISTINCT CASE WHEN td.isNCKOT = 1 THEN td.KOTNo END) as NCKOT,
-          t.NCName,          
+          t.NCName,
           (
             SELECT GROUP_CONCAT(s.PaymentType || ':' || s.Amount)
             FROM TrnSettlement s
-            WHERE s.OrderNo = t.TxnNo
-            GROUP BY s.OrderNo
+            WHERE s.OrderNo = t.TxnNo AND s.isSettled = 1
           ) as Settlements,
           t.isSetteled,
           t.isBilled,
           t.isCancelled,
-          SUM(td.Qty) as TotalItems,
-          s.PaymentType
+          SUM(td.Qty) as TotalItems
       FROM TAxnTrnbill t
       LEFT JOIN TAxnTrnbilldetails td ON t.TxnID = td.TxnID
-      LEFT JOIN TrnSettlement s ON t.TxnNo = s.OrderNo
       LEFT JOIN mst_users u ON t.UserId = u.userid
-      WHERE t.isCancelled = 0
+      WHERE t.isCancelled = 0 AND (t.isBilled = 1 OR t.isSetteled = 1)
       AND date(t.TxnDatetime) = date('now')
       GROUP BY t.TxnID, t.TxnNo
       ORDER BY t.TxnDatetime DESC;
@@ -49,7 +46,12 @@ const getHandoverData = (req, res) => {
 
     // Group by transaction
     const transactions = {};
-    rows.forEach(row => {
+    for (const row of rows) {
+      // If there are no settlements and the bill is not settled, skip it
+      if (!row.Settlements && !row.isSetteled) {
+        continue;
+      }
+
       const settlements = (row.Settlements || '').split(',');
       const paymentBreakdown = {
         cash: 0,
@@ -78,7 +80,7 @@ const getHandoverData = (req, res) => {
           orderNo: row.TxnNo,
           table: row.TableID,
           waiter: row.Steward || 'Unknown',
-          amount: parseFloat(row.TotalAmount || 0),          
+          amount: parseFloat(row.TotalAmount || 0), // This is Net Amount
           type: paymentModes.length > 1 ? 'Split' : (paymentModes[0] || (row.isSetteled ? 'Cash' : 'Unpaid')),
           status: row.isSetteled ? 'Settled' : (row.isBilled ? 'Billed' : 'Pending'),
           time: row.TxnDatetime,
@@ -107,7 +109,7 @@ const getHandoverData = (req, res) => {
           credit: paymentBreakdown.credit,
         };
       }
-    });
+    }
 
     const orders = Object.values(transactions);
 
@@ -115,9 +117,13 @@ const getHandoverData = (req, res) => {
     const totalOrders = orders.length;
     const totalKOTs = orders.length;
     const totalSales = orders.reduce((sum, order) => sum + order.amount, 0);
-    const cash = orders.filter(order => order.type === "Cash").reduce((sum, order) => sum + order.amount, 0);
-    const card = orders.filter(order => order.type === "Card").reduce((sum, order) => sum + order.amount, 0);
-    const upi = orders.filter(order => order.type === "UPI").reduce((sum, order) => sum + order.amount, 0);
+    const cash = orders.reduce((sum, order) => sum + (order.cash || 0), 0);
+    const card = orders.reduce((sum, order) => sum + (order.card || 0), 0);
+    const gpay = orders.reduce((sum, order) => sum + (order.gpay || 0), 0);
+    const phonepe = orders.reduce((sum, order) => sum + (order.phonepe || 0), 0);
+    const qrcode = orders.reduce((sum, order) => sum + (order.qrcode || 0), 0);
+    const upi = gpay + phonepe + qrcode; // Total UPI for backward compatibility if needed elsewhere
+
     const pending = orders.filter(order => order.status === "Pending").length;
     const completed = orders.filter(order => order.status === "Settled").length;
     const cancelled = 0;
@@ -132,7 +138,9 @@ const getHandoverData = (req, res) => {
       totalSales,
       cash,
       card,
-      upi,
+      gpay,
+      phonepe,
+      qrcode,
       pending,
       completed,
       cancelled,
@@ -142,7 +150,9 @@ const getHandoverData = (req, res) => {
     const paymentMethods = [
       { type: "Cash", amount: summary.cash, percentage: totalSales > 0 ? ((summary.cash / totalSales) * 100).toFixed(1) : "0" },
       { type: "Card", amount: summary.card, percentage: totalSales > 0 ? ((summary.card / totalSales) * 100).toFixed(1) : "0" },
-      { type: "UPI", amount: summary.upi, percentage: totalSales > 0 ? ((summary.upi / totalSales) * 100).toFixed(1) : "0" },
+      { type: "GPay", amount: summary.gpay, percentage: totalSales > 0 ? ((summary.gpay / totalSales) * 100).toFixed(1) : "0" },
+      { type: "PhonePe", amount: summary.phonepe, percentage: totalSales > 0 ? ((summary.phonepe / totalSales) * 100).toFixed(1) : "0" },
+      { type: "QR Code", amount: summary.qrcode, percentage: totalSales > 0 ? ((summary.qrcode / totalSales) * 100).toFixed(1) : "0" },
     ];
 
     res.json({

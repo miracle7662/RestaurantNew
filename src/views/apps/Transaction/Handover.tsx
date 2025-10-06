@@ -79,6 +79,7 @@ const HandoverPage = () => {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [activeTab, setActiveTab] = useState("summary");
   const [handoverTo, setHandoverTo] = useState("");
+  const [handoverBy, setHandoverBy] = useState("");
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -112,9 +113,12 @@ const HandoverPage = () => {
   const totalOrders = orders.length;
   const totalKOTs = orders.length;
   const totalSales = orders.reduce((sum, order) => sum + order.amount, 0);
-  const cash = orders.filter(order => order.type === "Cash").reduce((sum, order) => sum + order.amount, 0);
-  const card = orders.filter(order => order.type === "Card").reduce((sum, order) => sum + order.amount, 0);
-  const upi = orders.filter(order => order.type === "UPI").reduce((sum, order) => sum + order.amount, 0);
+  // Correctly calculate total cash, card, and UPI from the detailed breakdown
+  const cash = orders.reduce((sum, order) => sum + (order.cash || 0), 0);
+  const card = orders.reduce((sum, order) => sum + (order.card || 0), 0);
+  const upi = orders.reduce((sum, order) => 
+    sum + (order.gpay || 0) + (order.phonepe || 0) + (order.qrcode || 0), 0
+  );
   const pending = orders.filter(order => order.status === "Pending").length;
   const completed = orders.filter(order => order.status === "Settled").length;
   const cancelled = orders.filter(order => order.status === "Cancelled").length;
@@ -152,6 +156,7 @@ const HandoverPage = () => {
     { type: "Cash", amount: summary.cash, percentage: totalSales > 0 ? ((summary.cash / totalSales) * 100).toFixed(1) : "0" },
     { type: "Card", amount: summary.card, percentage: totalSales > 0 ? ((summary.card / totalSales) * 100).toFixed(1) : "0" },
     { type: "UPI", amount: summary.upi, percentage: totalSales > 0 ? ((summary.upi / totalSales) * 100).toFixed(1) : "0" },
+    
   ];
 
   const paymentData = {
@@ -160,13 +165,19 @@ const HandoverPage = () => {
       label: 'Payment Breakdown',
       data: paymentMethods.map(pm => pm.amount),
       backgroundColor: [
-        'rgba(75, 192, 192, 0.2)', // Cash
-        'rgba(255, 99, 132, 0.2)', // Card
-        'rgba(255, 206, 86, 0.2)'  // UPI
+        'rgba(75, 192, 192, 0.2)',  // Cash
+        'rgba(255, 99, 132, 0.2)',  // Card
+        'rgba(54, 162, 235, 0.2)',  // GPay
+        'rgba(153, 102, 255, 0.2)', // PhonePe
+        'rgba(255, 159, 64, 0.2)',  // QR Code
+        'rgba(255, 206, 86, 0.2)'   // Other UPI
       ],
       borderColor: [
         'rgba(75, 192, 192, 1)',
         'rgba(255, 99, 132, 1)',
+        'rgba(54, 162, 235, 1)',
+        'rgba(153, 102, 255, 1)',
+        'rgba(255, 159, 64, 1)',
         'rgba(255, 206, 86, 1)'
       ],
       borderWidth: 1,
@@ -763,58 +774,7 @@ const HandoverPage = () => {
           </Tabs>
         </div>
 
-        {/* Action Buttons - Sticky Bottom, Compact */}
-        <div className="action-section">
-          <Card className="border-0 shadow-sm">
-            <Card.Body className="py-1 card-body-compact">
-              <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                <div className="flex-grow-1" style={{minWidth: '0'}}>
-                  <Row className="g-1">
-                    <Col md={5}>
-                      <Form.Group>
-                        <Form.Label className="fw-semibold small mb-0">Handover By</Form.Label>
-                        <InputGroup size="sm">
-                          <InputGroup.Text className="bg-light">
-                            <Users size={14} />
-                          </InputGroup.Text>
-                          <Form.Control type="text" value="Cashier A" disabled size="sm" />
-                        </InputGroup>
-                      </Form.Group>
-                    </Col>
-                    <Col md={5}>
-                      <Form.Group>
-                        <Form.Label className="fw-semibold small mb-0">Handover To</Form.Label>
-                        <Form.Select
-                          value={handoverTo}
-                          onChange={(e) => setHandoverTo(e.target.value)}
-                          className="fw-semibold"
-                          size="sm"
-                        >
-                          <option value="">Select User</option>
-                          <option value="Cashier B">Cashier B</option>
-                          <option value="Cashier C">Cashier C</option>
-                          <option value="Manager">Manager</option>
-                        </Form.Select>
-                      </Form.Group>
-                    </Col>
-                  </Row>
-                </div>
-                <div>
-                  <Button
-                    variant="primary"
-                    onClick={handleSaveHandover}
-                    className="px-3 py-1"
-                    disabled={!handoverTo}
-                    size="sm"
-                  >
-                    <CheckCircle size={14} className="me-1" />
-                    Complete Handover
-                  </Button>
-                </div>
-              </div>
-            </Card.Body>
-          </Card>
-        </div>
+        
 
         {/* Order Details Modal - Compact */}
         <Modal show={showDetailsModal} onHide={() => setShowDetailsModal(false)} size="lg" className="modal-compact">
