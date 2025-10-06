@@ -20,10 +20,8 @@ import {
   Printer,
   Eye,
   CheckCircle,
-  XCircle,
   AlertTriangle,
   BarChart3,
-  Users,
   CreditCard,
   Smartphone,
   DollarSign
@@ -424,10 +422,10 @@ const HandoverPage = () => {
         .table-container th:nth-child(27),
         .table-container td:nth-child(27) { width: 5%; text-align: center; } /* Actions */
         .summary-cards {
-          margin-bottom: 0.5rem;
+          margin-bottom: 1rem;
         }
         .payment-section {
-          margin-top: 0.5rem;
+          margin-top: 1rem;
         }
         .filters-section {
           margin-top: 0.5rem;
@@ -442,20 +440,20 @@ const HandoverPage = () => {
           padding: 0.5rem;
         }
         .card-body-compact {
-          padding: 0.5rem;
+          padding: 1rem;
         }
         .header-compact {
-          padding: 0.5rem;
+          padding: 1rem;
         }
         .metric-card {
-          margin-bottom: 0.5rem;
+          margin-bottom: 1rem;
         }
         .chart-container {
-          height: 200px;
+          height: 250px;
           position: relative;
         }
         .stats-container {
-          padding: 0.5rem;
+          padding: 1rem;
         }
         .table-row-compact td {
           padding: 0.25rem 0.5rem;
@@ -520,40 +518,64 @@ const HandoverPage = () => {
                     {
                       title: "Total Orders",
                       value: summary.totalOrders,
-                      icon: <CheckCircle className="text-primary" size={20} />,
+                      icon: <CheckCircle className="text-primary" size={24} />,
                       subtitle: `${summary.completed} completed`
                     },
                     {
                       title: "Total KOTs",
                       value: summary.totalKOTs,
-                      icon: <Printer className="text-success" size={20} />,
+                      icon: <Printer className="text-success" size={24} />,
                       subtitle: "Kitchen orders"
                     },
                     {
                       title: "Total Sales",
                       value: `₹${summary.totalSales.toLocaleString()}`,
-                      icon: <DollarSign className="text-warning" size={20} />,
+                      icon: <DollarSign className="text-warning" size={24} />,
                       subtitle: `Avg: ₹${summary.averageOrderValue}`
                     },
                     {
                       title: "Pending",
                       value: summary.pending,
-                      icon: <AlertTriangle className="text-danger" size={20} />,
+                      icon: <AlertTriangle className="text-danger" size={24} />,
                       subtitle: "Need attention"
                     },
+                    {
+                      title: "Total Discount",
+                      value: `₹${Math.abs(totalDiscount).toLocaleString()}`,
+                      icon: <AlertTriangle className="text-info" size={24} />,
+                      subtitle: "Savings applied"
+                    },
+                    {
+                      title: "Total Tax",
+                      value: `₹${(totalCGST + totalSGST).toLocaleString()}`,
+                      icon: <DollarSign className="text-success" size={24} />,
+                      subtitle: "GST collected"
+                    },
+                    {
+                      title: "Total Items",
+                      value: totalItems,
+                      icon: <CheckCircle className="text-primary" size={24} />,
+                      subtitle: "Items served"
+                    },
+                    {
+                      title: "Total Tables",
+                      value: new Set(orders.map(o => o.table)).size,
+                      icon: <Printer className="text-warning" size={24} />,
+                      subtitle: "Tables used"
+                    },
                   ].map((item, idx) => (
-                    <Col xl={3} lg={6} md={6} className="metric-card" key={idx}>
+                    <Col xl={3} lg={6} md={12} className="metric-card" key={idx}>
                       <Card className="h-100 border-0 shadow-sm">
-                        <Card.Body className="card-body-compact d-flex align-items-center p-2">
-                          <div className="flex-shrink-0 me-2">
-                            <div className="p-2 rounded-circle bg-light">
+                        <Card.Body className="card-body-compact d-flex align-items-center">
+                          <div className="flex-shrink-0 me-3">
+                            <div className="p-3 rounded-circle bg-light">
                               {item.icon}
                             </div>
                           </div>
                           <div className="flex-grow-1">
-                            <h6 className="card-title text-muted mb-0 small">{item.title}</h6>
-                            <h5 className="fw-bold text-dark mb-0">{item.value}</h5>
-                            <small className="text-muted">{item.subtitle}</small>
+                            <div className="text-muted mb-1">{item.title}</div>
+                            <h4 className="fw-bold text-dark mb-0">{item.value}</h4>
+                            <p className="text-muted mb-0 small">{item.subtitle}</p>
                           </div>
                         </Card.Body>
                       </Card>
@@ -566,9 +588,9 @@ const HandoverPage = () => {
                   <Col md={8}>
                     <Card className="h-100 border-0 shadow-sm">
                       <Card.Header className="bg-white border-0 header-compact">
-                        <h6 className="mb-0 fw-bold small">Payment Details</h6>
+                        <h6 className="mb-0 fw-bold">Payment Details</h6>
                       </Card.Header>
-                      <Card.Body className="p-1">
+                      <Card.Body className="p-2">
                         <div className="chart-container">
                           <Pie data={paymentData} options={paymentOptions} />
                         </div>
@@ -578,25 +600,20 @@ const HandoverPage = () => {
                   <Col md={4}>
                     <Card className="h-100 border-0 shadow-sm">
                       <Card.Header className="bg-white border-0 header-compact">
-                        <h6 className="mb-0 fw-bold small">Quick Stats</h6>
+                        <h6 className="mb-0 fw-bold">Quick Stats</h6>
                       </Card.Header>
                       <Card.Body className="stats-container">
-                        <div className="d-flex justify-content-between align-items-center mb-1 small">
+                        <div className="d-flex justify-content-between align-items-center mb-2">
                           <span>Settled Orders</span>
-                          <Badge bg="success" className="fs-6">{summary.completed}</Badge>
+                          <Badge bg="success" className="fs-5">{summary.completed}</Badge>
                         </div>
-                        <div className="d-flex justify-content-between align-items-center mb-1 small">
+                        <div className="d-flex justify-content-between align-items-center mb-2">
                           <span>Pending Orders</span>
-                          <Badge bg="warning" className="fs-6">{summary.pending}</Badge>
+                          <Badge bg="warning" className="fs-5">{summary.pending}</Badge>
                         </div>
-                        <div className="d-flex justify-content-between align-items-center mb-1 small">
+                        <div className="d-flex justify-content-between align-items-center mb-2">
                           <span>Cancelled Orders</span>
-                          <Badge bg="danger" className="fs-6">{summary.cancelled}</Badge>
-                        </div>
-                        <hr className="my-1" />
-                        <div className="d-flex justify-content-between align-items-center small">
-                          <strong>Total Tables</strong>
-                          <strong>{new Set(orders.map(o => o.table)).size}</strong>
+                          <Badge bg="danger" className="fs-5">{summary.cancelled}</Badge>
                         </div>
                       </Card.Body>
                     </Card>
@@ -801,62 +818,76 @@ const HandoverPage = () => {
                 </Card>
 
                 {/* Action Section - Sticky Footer for Orders Tab */}
-                <div className="action-section">
-                  <div className="handover-form">
-                    <Row className="align-items-center">
-                      <Col md={3}>
-                        <div className="handover-form-row">
-                          <label className="handover-form-label">Handover by:</label>
-                          <Form.Control
-                            type="text"
-                            placeholder="Enter name"
-                            value={handoverBy}
-                            onChange={(e) => setHandoverBy(e.target.value)}
-                            className="handover-form-input"
-                            size="sm"
-                          />
-                        </div>
-                      </Col>
-                      <Col md={3}>
-                        <div className="handover-form-row">
-                          <label className="handover-form-label">To:</label>
-                          <Form.Select
-                            value={handoverTo}
-                            onChange={(e) => setHandoverTo(e.target.value)}
-                            className="handover-form-input"
-                            size="sm"
-                          >
-                            <option value="">Select</option>
-                            <option value="Shift A">Shift A</option>
-                            <option value="Shift B">Shift B</option>
-                            <option value="Manager">Manager</option>
-                          </Form.Select>
-                        </div>
-                      </Col>
-                      <Col md={3}>
-                        <div className="handover-form-row">
-                          <label className="handover-form-label">Currency:</label>
-                          <Form.Select
-                            value="INR"
-                            className="handover-form-input"
-                            size="sm"
-                            disabled
-                          >
-                            <option value="INR">INR</option>
-                          </Form.Select>
-                        </div>
-                      </Col>
-                      <Col md={3} className="d-flex justify-content-end gap-2">
-                        <Button variant="success" size="sm" onClick={handleSaveHandover}>
-                          Handover
-                        </Button>
-                        <Button variant="secondary" size="sm" onClick={handleClose}>
-                          Close
-                        </Button>
-                      </Col>
-                    </Row>
-                  </div>
-                </div>
+            <div className="action-section bg-light border rounded-3 p-1 shadow-sm">
+  <div className="handover-form">
+    <Row className="align-items-end g-3">
+      <Col md={3}>
+        <Form.Group controlId="handoverBy">
+          <Form.Label className="fw-semibold text-secondary small">Handover By</Form.Label>
+          <Form.Control
+            type="text"
+            placeholder="Enter name"
+            value={handoverBy}
+            onChange={(e) => setHandoverBy(e.target.value)}
+            size="sm"
+            className="rounded-2 shadow-sm border-0 bg-white"
+          />
+        </Form.Group>
+      </Col>
+
+      <Col md={3}>
+        <Form.Group controlId="handoverTo">
+          <Form.Label className="fw-semibold text-secondary small">To</Form.Label>
+          <Form.Select
+            value={handoverTo}
+            onChange={(e) => setHandoverTo(e.target.value)}
+            size="sm"
+            className="rounded-2 shadow-sm border-0 bg-white"
+          >
+            <option value="">Select Recipient</option>
+            <option value="Shift A">Shift A</option>
+            <option value="Shift B">Shift B</option>
+            <option value="Manager">Manager</option>
+          </Form.Select>
+        </Form.Group>
+      </Col>
+
+      <Col md={3}>
+        <Form.Group controlId="currency">
+          <Form.Label className="fw-semibold text-secondary small">Currency</Form.Label>
+          <Form.Select
+            value="INR"
+            size="sm"
+            className="rounded-2 shadow-sm border-0 bg-white text-muted"
+            disabled
+          >
+            <option value="INR">INR</option>
+          </Form.Select>
+        </Form.Group>
+      </Col>
+
+      <Col md={3} className="d-flex justify-content-end gap-2">
+       <Button
+          variant="outline-secondary"
+          size="sm"
+          className="px-3 rounded-pill shadow-sm fw-semibold"
+          onClick={handleClose}
+        >
+          <i className="bi bi-x-circle me-1"></i> Close
+        </Button>
+        <Button
+          variant="success"
+          size="sm"
+          className="px-3 rounded-pill shadow-sm fw-semibold"
+          onClick={handleSaveHandover}
+        >
+          <i className="bi bi-check-circle me-1"></i> Handover
+        </Button>
+      </Col>
+    </Row>
+  </div>
+</div>
+
               </div>
             </Tab>
           </Tabs>
