@@ -62,6 +62,13 @@ interface Order {
   captain: string;
   user: string;
   date: string;
+  paymentMode?: string;
+  cash?: number;
+  credit?: number;
+  card?: number;
+  gpay?: number;
+  phonepe?: number;
+  qrcode?: number;
 }
 
 const HandoverPage = () => {
@@ -120,6 +127,13 @@ const HandoverPage = () => {
   const totalRevAmt = orders.reduce((sum, order) => sum + (order.revAmt || 0), 0);
   const totalWater = orders.reduce((sum, order) => sum + (order.water || 0), 0);
   const totalItems = orders.reduce((sum, order) => sum + order.items, 0);
+  const totalCash = orders.reduce((sum, order) => sum + (order.cash || 0), 0);
+  const totalCredit = orders.reduce((sum, order) => sum + (order.credit || 0), 0);
+  const totalCard = orders.reduce((sum, order) => sum + (order.card || 0), 0);
+  const totalGpay = orders.reduce((sum, order) => sum + (order.gpay || 0), 0);
+  const totalPhonepe = orders.reduce((sum, order) => sum + (order.phonepe || 0), 0);
+  const totalQrcode = orders.reduce((sum, order) => sum + (order.qrcode || 0), 0);
+
 
   const summary = {
     totalOrders,
@@ -202,12 +216,15 @@ const HandoverPage = () => {
     }
   };
 
+  
+
   const StatusBadge = ({ status }: { status: string }) => {
     const variants = {
       "Settled": "success",
       "Pending": "warning",
       "Cancelled": "danger"
     };
+
     return <Badge bg={variants[status as keyof typeof variants] || "secondary"}>{status}</Badge>;
   };
 
@@ -610,6 +627,13 @@ const HandoverPage = () => {
                             <th>Reverse KOT No</th>
                             <th>Reverse Bill</th>
                             <th>Water</th>
+                            <th>Payment Mode</th>
+                            <th>Cash</th>
+                            <th>Credit</th>
+                            <th>Card</th>
+                            <th>GPay</th>
+                            <th>PhonePe</th>
+                            <th>QR Code</th>
                             <th>Captain</th>
                             <th>User</th>
                             <th>Total Items</th>
@@ -648,6 +672,13 @@ const HandoverPage = () => {
                                 </td>
                                 <td>{order.reverseBill || ''}</td>
                                 <td style={{textAlign: 'right'}}>₹{(order.water || 0).toLocaleString()}</td>
+                                <td>{order.paymentMode || ''}</td>
+                                <td style={{textAlign: 'right'}}>₹{(order.cash || 0).toLocaleString()}</td>
+                                <td style={{textAlign: 'right'}}>₹{(order.credit || 0).toLocaleString()}</td>
+                                <td style={{textAlign: 'right'}}>₹{(order.card || 0).toLocaleString()}</td>
+                                <td style={{textAlign: 'right'}}>₹{(order.gpay || 0).toLocaleString()}</td>
+                                <td style={{textAlign: 'right'}}>₹{(order.phonepe || 0).toLocaleString()}</td>
+                                <td style={{textAlign: 'right'}}>₹{(order.qrcode || 0).toLocaleString()}</td>
                                 <td>{order.captain || order.waiter || ''}</td>
                                 <td>{order.user || ''}</td>
                                 <td style={{textAlign: 'center'}}>
@@ -693,6 +724,13 @@ const HandoverPage = () => {
                             <td></td>
                             <td></td>
                             <td style={{textAlign: 'right'}}>₹{totalWater.toLocaleString()}</td>
+                            <td></td>
+                            <td style={{textAlign: 'right'}}>₹{totalCash.toLocaleString()}</td>
+                            <td style={{textAlign: 'right'}}>₹{totalCredit.toLocaleString()}</td>
+                            <td style={{textAlign: 'right'}}>₹{totalCard.toLocaleString()}</td>
+                            <td style={{textAlign: 'right'}}>₹{totalGpay.toLocaleString()}</td>
+                            <td style={{textAlign: 'right'}}>₹{totalPhonepe.toLocaleString()}</td>
+                            <td style={{textAlign: 'right'}}>₹{totalQrcode.toLocaleString()}</td>
                             <td></td>
                             <td></td>
                             <td style={{textAlign: 'center'}}>{totalItems}</td>
@@ -836,6 +874,27 @@ const HandoverPage = () => {
                   <Col md={6}>
                     <strong>Status:</strong> <StatusBadge status={selectedOrder.status} />
                   </Col>
+                  <Col md={12}><hr className="my-1" /></Col>
+                  <Col md={12}><strong>Payment Breakdown:</strong></Col>
+                  <Col md={6}>
+                    <strong>Payment Mode:</strong> {selectedOrder.paymentMode || ''}
+                  </Col>
+                  <Col md={6}>
+                    <strong>Cash:</strong> ₹{(selectedOrder.cash || 0).toLocaleString()}
+                  </Col>
+                  <Col md={6}>
+                    <strong>Credit:</strong> ₹{(selectedOrder.credit || 0).toLocaleString()}
+                  </Col>
+                  <Col md={6}>
+                    <strong>Card:</strong> ₹{(selectedOrder.card || 0).toLocaleString()}
+                  </Col>
+                  <Col md={6}>
+                    <strong>GPay:</strong> ₹{(selectedOrder.gpay || 0).toLocaleString()}
+                  </Col>
+                  <Col md={6}>
+                    <strong>PhonePe:</strong> ₹{(selectedOrder.phonepe || 0).toLocaleString()}
+                  </Col>
+                  <Col md={6}><strong>QR Code:</strong> ₹{(selectedOrder.qrcode || 0).toLocaleString()}</Col>
                 </Row>
                 <Col md={12}>
                   <hr className="my-1" />

@@ -23,7 +23,13 @@ const getHandoverData = (req, res) => {
           GROUP_CONCAT(DISTINCT CASE WHEN td.Qty > 0 THEN td.KOTNo END) as KOTNo,
           COALESCE(GROUP_CONCAT(DISTINCT td.RevKOTNo), '') as RevKOTNo,
           GROUP_CONCAT(DISTINCT CASE WHEN td.isNCKOT = 1 THEN td.KOTNo END) as NCKOT,
-          t.NCName,
+          t.NCName,          
+          (
+            SELECT GROUP_CONCAT(s.PaymentType || ':' || s.Amount)
+            FROM TrnSettlement s
+            WHERE s.OrderNo = t.TxnNo
+            GROUP BY s.OrderNo
+          ) as Settlements,
           t.isSetteled,
           t.isBilled,
           t.isCancelled,
@@ -44,13 +50,36 @@ const getHandoverData = (req, res) => {
     // Group by transaction
     const transactions = {};
     rows.forEach(row => {
+      const settlements = (row.Settlements || '').split(',');
+      const paymentBreakdown = {
+        cash: 0,
+        card: 0,
+        gpay: 0,
+        phonepe: 0,
+        qrcode: 0,
+        credit: 0,
+      };
+      let paymentModes = [];
+
+      settlements.forEach(s => {
+        const [type, amountStr] = s.split(':');
+        const amount = parseFloat(amountStr) || 0;
+        if (type) paymentModes.push(type);
+        if (type.toLowerCase().includes('cash')) paymentBreakdown.cash += amount;
+        if (type.toLowerCase().includes('card')) paymentBreakdown.card += amount;
+        if (type.toLowerCase().includes('gpay') || type.toLowerCase().includes('google')) paymentBreakdown.gpay += amount;
+        if (type.toLowerCase().includes('phonepe')) paymentBreakdown.phonepe += amount;
+        if (type.toLowerCase().includes('qr')) paymentBreakdown.qrcode += amount;
+        if (type.toLowerCase().includes('credit') && !type.toLowerCase().includes('card')) paymentBreakdown.credit += amount;
+      });
+
       if (!transactions[row.TxnID]) {
         transactions[row.TxnID] = {
           orderNo: row.TxnNo,
           table: row.TableID,
           waiter: row.Steward || 'Unknown',
-          amount: parseFloat(row.TotalAmount || 0),
-          type: row.PaymentType || (row.isSetteled ? 'Cash' : 'Unpaid'),
+          amount: parseFloat(row.TotalAmount || 0),          
+          type: paymentModes.length > 1 ? 'Split' : (paymentModes[0] || (row.isSetteled ? 'Cash' : 'Unpaid')),
           status: row.isSetteled ? 'Settled' : (row.isBilled ? 'Billed' : 'Pending'),
           time: row.TxnDatetime,
           items: parseInt(row.TotalItems || 0),
@@ -69,6 +98,13 @@ const getHandoverData = (req, res) => {
           captain: row.Captain || 'N/A',
           user: row.UserName || 'N/A',
           date: row.TxnDatetime,
+          paymentMode: paymentModes.join(', '),
+          cash: paymentBreakdown.cash,
+          card: paymentBreakdown.card,
+          gpay: paymentBreakdown.gpay,
+          phonepe: paymentBreakdown.phonepe,
+          qrcode: paymentBreakdown.qrcode,
+          credit: paymentBreakdown.credit,
         };
       }
     });
