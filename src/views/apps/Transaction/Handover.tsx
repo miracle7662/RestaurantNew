@@ -761,7 +761,12 @@ const HandoverPage = () => {
                             );
                           })}
                         </tbody>
-                        <tfoot>
+
+                      </Table>
+                    </div>
+                    <div className="total-row-container">
+                      <Table className="mb-0">
+                        <tbody>
                           <tr className="table-success">
                             <td>Total</td>
                             <td></td>
@@ -791,7 +796,7 @@ const HandoverPage = () => {
                             <td></td>
                             <td></td>
                           </tr>
-                        </tfoot>
+                        </tbody>
                       </Table>
                     </div>
                   </Card.Body>
