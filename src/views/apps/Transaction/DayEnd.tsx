@@ -75,7 +75,7 @@ const HandoverPage = () => {
   const [statusFilter, setStatusFilter] = useState("all");
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-  const [activeTab, setActiveTab] = useState("summary");
+  const [activeTab, setActiveTab] = useState("Dashboard");
   const [handoverTo, setHandoverTo] = useState("");
   const [handoverBy, setHandoverBy] = useState("");
   const [orders, setOrders] = useState<Order[]>([]);
@@ -107,7 +107,7 @@ const HandoverPage = () => {
     fetchHandoverData();
   }, []);
 
-  // Computed summary from orders
+  // Computed Dashboard from orders
   const totalOrders = orders.length;
   const totalKOTs = orders.length;
   const totalSales = orders.reduce((sum, order) => sum + order.amount, 0);
@@ -137,7 +137,7 @@ const HandoverPage = () => {
   const totalQrcode = orders.reduce((sum, order) => sum + (order.qrcode || 0), 0);
 
 
-  const summary = {
+  const Dashboard = {
     totalOrders,
     totalKOTs,
     totalSales,
@@ -151,9 +151,9 @@ const HandoverPage = () => {
   };
 
   const paymentMethods = [
-    { type: "Cash", amount: summary.cash, percentage: totalSales > 0 ? ((summary.cash / totalSales) * 100).toFixed(1) : "0" },
-    { type: "Card", amount: summary.card, percentage: totalSales > 0 ? ((summary.card / totalSales) * 100).toFixed(1) : "0" },
-    { type: "UPI", amount: summary.upi, percentage: totalSales > 0 ? ((summary.upi / totalSales) * 100).toFixed(1) : "0" },
+    { type: "Cash", amount: Dashboard.cash, percentage: totalSales > 0 ? ((Dashboard.cash / totalSales) * 100).toFixed(1) : "0" },
+    { type: "Card", amount: Dashboard.card, percentage: totalSales > 0 ? ((Dashboard.card / totalSales) * 100).toFixed(1) : "0" },
+    { type: "UPI", amount: Dashboard.upi, percentage: totalSales > 0 ? ((Dashboard.upi / totalSales) * 100).toFixed(1) : "0" },
     
   ];
 
@@ -391,7 +391,7 @@ const HandoverPage = () => {
         .table-container td:nth-child(26) { width: 6%; text-align: center; } /* Status */
         .table-container th:nth-child(27),
         .table-container td:nth-child(27) { width: 5%; text-align: center; } /* Actions */
-        .summary-cards {
+        .Dashboard-cards {
           margin-bottom: 1rem;
         }
         .payment-section {
@@ -481,31 +481,31 @@ const HandoverPage = () => {
                 </span>
               }
             >
-              {/* Summary Tab Content - Compact */}
+              {/* Dashboard Tab Content - Compact */}
               <div className="p-1">
-                <Row className="summary-cards">
+                <Row className="Dashboard-cards">
                   {[
                     {
                       title: "Total Orders",
-                      value: summary.totalOrders,
+                      value: Dashboard.totalOrders,
                       icon: <CheckCircle className="text-primary" size={24} />,
-                      subtitle: `${summary.completed} completed`
+                      subtitle: `${Dashboard.completed} completed`
                     },
                     {
                       title: "Total KOTs",
-                      value: summary.totalKOTs,
+                      value: Dashboard.totalKOTs,
                       icon: <Printer className="text-success" size={24} />,
                       subtitle: "Kitchen orders"
                     },
                     {
                       title: "Total Sales",
-                      value: `₹${summary.totalSales.toLocaleString()}`,
+                      value: `₹${Dashboard.totalSales.toLocaleString()}`,
                       icon: <DollarSign className="text-warning" size={24} />,
-                      subtitle: `Avg: ₹${summary.averageOrderValue}`
+                      subtitle: `Avg: ₹${Dashboard.averageOrderValue}`
                     },
                     {
                       title: "Pending",
-                      value: summary.pending,
+                      value: Dashboard.pending,
                       icon: <AlertTriangle className="text-danger" size={24} />,
                       subtitle: "Need attention"
                     },
@@ -575,15 +575,15 @@ const HandoverPage = () => {
                       <Card.Body className="stats-container">
                         <div className="d-flex justify-content-between align-items-center mb-2">
                           <span>Settled Orders</span>
-                          <Badge bg="success" className="fs-5">{summary.completed}</Badge>
+                          <Badge bg="success" className="fs-5">{Dashboard.completed}</Badge>
                         </div>
                         <div className="d-flex justify-content-between align-items-center mb-2">
                           <span>Pending Orders</span>
-                          <Badge bg="warning" className="fs-5">{summary.pending}</Badge>
+                          <Badge bg="warning" className="fs-5">{Dashboard.pending}</Badge>
                         </div>
                         <div className="d-flex justify-content-between align-items-center mb-2">
                           <span>Cancelled Orders</span>
-                          <Badge bg="danger" className="fs-5">{summary.cancelled}</Badge>
+                          <Badge bg="danger" className="fs-5">{Dashboard.cancelled}</Badge>
                         </div>
                       </Card.Body>
                     </Card>
@@ -946,7 +946,7 @@ const HandoverPage = () => {
                 </Row>
                 <Col md={12}>
                   <hr className="my-1" />
-                  <strong>Order Summary:</strong>
+                  <strong>Order Dashboard:</strong>
                   <div className="mt-1 p-2 bg-light rounded small">
                     <div className="d-flex justify-content-between">
                       <span>Total Amount:</span>
