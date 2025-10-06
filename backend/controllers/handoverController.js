@@ -5,36 +5,38 @@ const getHandoverData = (req, res) => {
     // Get all billed or settled bills with their details
     const query = `
       SELECT
-        t.TxnID,
-        t.TxnNo,
-        t.TableID,
-        t.Amount as TotalAmount,
-        t.Discount,
-        t.CGST,
-        t.SGST,
-        t.IGST,
-        t.CESS,
-        t.TxnDatetime,
-        t.Steward as WaiterID,
-        GROUP_CONCAT(DISTINCT CASE WHEN td.Qty > 0 THEN td.KOTNo END) as KOTNo,
-        COALESCE(GROUP_CONCAT(DISTINCT td.RevKOTNo), '') as RevKOTNo,
-        GROUP_CONCAT(DISTINCT CASE WHEN td.isNCKOT = 1 THEN td.KOTNo END) as NCKOT,
-        t.NCName,
-        t.NCPurpose,
-        t.isSetteled,
-        td.ItemID,
-        td.Qty,
-        td.RuntimeRate,
-        td.isNCKOT,
-        s.PaymentType,
-        s.Amount as PaymentAmount
+          t.TxnID,
+          t.TxnNo,
+          t.TableID,
+          t.Amount as TotalAmount,
+          t.Discount,
+          t.GrossAmt as GrossAmount,
+          t.CGST,
+          t.SGST,
+          t.RoundOFF,
+          t.RevKOT as RevAmt,
+          t.TxnDatetime,
+          t.Steward as Captain,
+          t.UserId,
+          u.username as UserName,
+          (SELECT SUM(CASE WHEN i.item_name LIKE '%water%' THEN d.RuntimeRate * d.Qty ELSE 0 END) FROM TAxnTrnbilldetails d JOIN mstrestmenu i ON d.ItemID = i.restitemid WHERE d.TxnID = t.TxnID) as Water,
+          GROUP_CONCAT(DISTINCT CASE WHEN td.Qty > 0 THEN td.KOTNo END) as KOTNo,
+          COALESCE(GROUP_CONCAT(DISTINCT td.RevKOTNo), '') as RevKOTNo,
+          GROUP_CONCAT(DISTINCT CASE WHEN td.isNCKOT = 1 THEN td.KOTNo END) as NCKOT,
+          t.NCName,
+          t.isSetteled,
+          t.isBilled,
+          t.isCancelled,
+          SUM(td.Qty) as TotalItems,
+          s.PaymentType
       FROM TAxnTrnbill t
       LEFT JOIN TAxnTrnbilldetails td ON t.TxnID = td.TxnID
       LEFT JOIN TrnSettlement s ON t.TxnNo = s.OrderNo
-      WHERE (t.isSetteled = 1 OR t.isBilled = 1)
+      LEFT JOIN mst_users u ON t.UserId = u.userid
+      WHERE t.isCancelled = 0
       AND date(t.TxnDatetime) = date('now')
-      GROUP BY t.TxnID
-      ORDER BY t.TxnDatetime DESC;      
+      GROUP BY t.TxnID, t.TxnNo
+      ORDER BY t.TxnDatetime DESC;
     `;
 
     const rows = db.prepare(query).all();
@@ -47,22 +49,27 @@ const getHandoverData = (req, res) => {
           orderNo: row.TxnNo,
           table: row.TableID,
           waiter: row.Steward || 'Unknown',
-          amount: parseFloat(row.TotalAmount),
-          type: row.PaymentType || (row.isSetteled ? 'Cash' : 'Pending'),
-          status: row.isSetteled ? 'Settled' : 'Pending',
-          time: new Date(row.TxnDatetime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-          items: 0,
+          amount: parseFloat(row.TotalAmount || 0),
+          type: row.PaymentType || (row.isSetteled ? 'Cash' : 'Unpaid'),
+          status: row.isSetteled ? 'Settled' : (row.isBilled ? 'Billed' : 'Pending'),
+          time: row.TxnDatetime,
+          items: parseInt(row.TotalItems || 0),
           kotNo: row.KOTNo || '',
           revKotNo: row.RevKOTNo || '',
           discount: parseFloat(row.Discount || 0),
-          ncKot: row.NCKOT || 'N/A',
+          ncKot: row.NCKOT || '',
           ncName: row.NCName || '',
           cgst: parseFloat(row.CGST || 0),
           sgst: parseFloat(row.SGST || 0),
+          grossAmount: parseFloat(row.GrossAmount || 0),
+          roundOff: parseFloat(row.RoundOFF || 0),
+          revAmt: parseFloat(row.RevAmt || 0),
+          reverseBill: '', // Placeholder, logic to be determined
+          water: parseFloat(row.Water || 0),
+          captain: row.Captain || 'N/A',
+          user: row.UserName || 'N/A',
+          date: row.TxnDatetime,
         };
-      }
-      if (row.ItemID) {
-        transactions[row.TxnID].items += parseInt(row.Qty);
       }
     });
 
