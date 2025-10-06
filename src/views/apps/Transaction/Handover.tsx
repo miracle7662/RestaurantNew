@@ -388,7 +388,12 @@ const HandoverPage = () => {
         .table-container th:nth-child(13),
         .table-container td:nth-child(13) { width: 6%; text-align: right; } /* Water */
         .table-container th:nth-child(14),
-        .table-container td:nth-child(14) { width: 7%; } /* Payment Mode */
+        .table-container td:nth-child(14) { 
+          width: 12%; 
+          white-space: normal; 
+          word-wrap: break-word; 
+          overflow-wrap: break-word; 
+        } /* Payment Mode */
         .table-container th:nth-child(15),
         .table-container td:nth-child(15) { width: 6%; text-align: right; } /* Cash */
         .table-container th:nth-child(16),
@@ -717,7 +722,9 @@ const HandoverPage = () => {
                                 </td>
                                 <td>{order.reverseBill || ''}</td>
                                 <td style={{textAlign: 'right'}}>₹{(order.water || 0).toLocaleString()}</td>
-                                <td>{order.paymentMode || ''}</td>
+                                <td title={order.paymentMode || ''} style={{whiteSpace: 'normal', wordWrap: 'break-word', overflowWrap: 'break-word'}}>
+                                  {order.paymentMode || ''}
+                                </td>
                                 <td style={{textAlign: 'right'}}>₹{(order.cash || 0).toLocaleString()}</td>
                                 <td style={{textAlign: 'right'}}>₹{(order.credit || 0).toLocaleString()}</td>
                                 <td style={{textAlign: 'right'}}>₹{(order.card || 0).toLocaleString()}</td>
