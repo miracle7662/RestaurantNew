@@ -377,19 +377,33 @@ const HandoverPage = () => {
         .table-container th:nth-child(13),
         .table-container td:nth-child(13) { width: 6%; text-align: right; } /* Water */
         .table-container th:nth-child(14),
-        .table-container td:nth-child(14) { width: 7%; } /* Captain */
+        .table-container td:nth-child(14) { width: 7%; } /* Payment Mode */
         .table-container th:nth-child(15),
-        .table-container td:nth-child(15) { width: 6%; } /* User */
+        .table-container td:nth-child(15) { width: 6%; text-align: right; } /* Cash */
         .table-container th:nth-child(16),
-        .table-container td:nth-child(16) { width: 6%; text-align: center; } /* Total Items */
+        .table-container td:nth-child(16) { width: 6%; text-align: right; } /* Credit */
         .table-container th:nth-child(17),
-        .table-container td:nth-child(17) { width: 7%; } /* Time */
+        .table-container td:nth-child(17) { width: 6%; text-align: right; } /* Card */
         .table-container th:nth-child(18),
-        .table-container td:nth-child(18) { width: 7%; } /* Date */
+        .table-container td:nth-child(18) { width: 6%; text-align: right; } /* GPay */
         .table-container th:nth-child(19),
-        .table-container td:nth-child(19) { width: 6%; text-align: center; } /* Status */
+        .table-container td:nth-child(19) { width: 7%; text-align: right; } /* PhonePe */
         .table-container th:nth-child(20),
-        .table-container td:nth-child(20) { width: 5%; text-align: center; } /* Actions */
+        .table-container td:nth-child(20) { width: 7%; text-align: right; } /* QR Code */
+        .table-container th:nth-child(21),
+        .table-container td:nth-child(21) { width: 7%; } /* Captain */
+        .table-container th:nth-child(22),
+        .table-container td:nth-child(22) { width: 6%; } /* User */
+        .table-container th:nth-child(23),
+        .table-container td:nth-child(23) { width: 6%; text-align: center; } /* Total Items */
+        .table-container th:nth-child(24),
+        .table-container td:nth-child(24) { width: 7%; } /* Time */
+        .table-container th:nth-child(25),
+        .table-container td:nth-child(25) { width: 7%; } /* Date */
+        .table-container th:nth-child(26),
+        .table-container td:nth-child(26) { width: 6%; text-align: center; } /* Status */
+        .table-container th:nth-child(27),
+        .table-container td:nth-child(27) { width: 5%; text-align: center; } /* Actions */
         .summary-cards {
           margin-bottom: 0.5rem;
         }
