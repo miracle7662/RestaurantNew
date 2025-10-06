@@ -256,37 +256,7 @@ const HandoverPage = () => {
     return isNaN(utcDate.getTime()) ? timeStr : utcDate.toLocaleDateString();
   };
 
-  if (loading) {
-    return (
-      <Container fluid className="p-1 bg-light" style={{ height: '100vh' }}>
-        <Card className="mb-3 shadow-sm border-0">
-          <Card.Body className="text-center py-5">
-            <div className="spinner-border text-primary" role="status">
-              <span className="visually-hidden">Loading handover data...</span>
-            </div>
-            <p className="mt-3">Loading handover data...</p>
-          </Card.Body>
-        </Card>
-      </Container>
-    );
-  }
-
-  if (error) {
-    return (
-      <Container fluid className="p-3 bg-light" style={{ height: '100vh' }}>
-        <Card className="mb-3 shadow-sm border-0">
-          <Card.Body className="text-center py-5">
-            <AlertTriangle size={48} className="text-danger mb-3" />
-            <h5 className="text-danger">Error Loading Data</h5>
-            <p className="text-muted">{error}</p>
-            <Button variant="primary" onClick={() => window.location.reload()}>
-              Retry
-            </Button>
-          </Card.Body>
-        </Card>
-      </Container>
-    );
-  }
+  
 
   return (
     <>
