@@ -321,17 +321,11 @@ const HandoverPage = () => {
           font-size: 0.75rem;
           white-space: nowrap;
         }
-        .table-container tfoot td {
+        .table-container tfoot tr {
           position: sticky;
           bottom: 0;
           z-index: 5;
           background-color: #d4edda !important;
-          border-top: 2px solid #28a745;
-          font-weight: bold;
-          color: #155724 !important;
-          padding: 0.25rem 0.5rem;
-          font-size: 0.8rem;
-          white-space: nowrap;
         }
         .table-container .table-success {
           background-color: #d4edda !important;
@@ -340,11 +334,20 @@ const HandoverPage = () => {
           background-color: #d4edda !important;
           color: #155724 !important;
         }
+        .table-container tfoot td {
+          border-top: 2px solid #28a745;
+          font-weight: bold;
+          color: #155724 !important;
+          padding: 0.25rem 0.5rem;
+          font-size: 0.8rem;
+          white-space: nowrap;
+        }
         .table-container table {
           margin-bottom: 0;
           table-layout: fixed;
           width: 100%;
           min-width: 2000px; /* Ensure wide enough for all columns */
+          border-collapse: separate;
         }
         .table-container th,
         .table-container td {
@@ -761,12 +764,7 @@ const HandoverPage = () => {
                             );
                           })}
                         </tbody>
-
-                      </Table>
-                    </div>
-                    <div className="total-row-container">
-                      <Table className="mb-0">
-                        <tbody>
+                        <tfoot>
                           <tr className="table-success">
                             <td>Total</td>
                             <td></td>
@@ -796,7 +794,7 @@ const HandoverPage = () => {
                             <td></td>
                             <td></td>
                           </tr>
-                        </tbody>
+                        </tfoot>
                       </Table>
                     </div>
                   </Card.Body>
