@@ -456,6 +456,26 @@ const HandoverPage = () => {
         .modal-compact .modal-body {
           padding: 0.5rem;
         }
+        .handover-form {
+          border: 1px solid #dee2e6;
+          padding: 1rem;
+          background: #f8f9fa;
+          border-radius: 0.375rem;
+        }
+        .handover-form-row {
+          display: flex;
+          gap: 1rem;
+          align-items: center;
+          margin-bottom: 0.5rem;
+        }
+        .handover-form-label {
+          font-weight: bold;
+          min-width: 100px;
+        }
+        .handover-form-input {
+          flex: 1;
+          min-width: 150px;
+        }
       `}</style>
       <Container fluid className="p-0 bg-light main-container">
         {/* Header Section - Compact */}
@@ -769,6 +789,64 @@ const HandoverPage = () => {
                     </div>
                   </Card.Body>
                 </Card>
+
+                {/* Action Section - Sticky Footer for Orders Tab */}
+                <div className="action-section">
+                  <div className="handover-form">
+                    <Row className="align-items-center">
+                      <Col md={3}>
+                        <div className="handover-form-row">
+                          <label className="handover-form-label">Handover by:</label>
+                          <Form.Control
+                            type="text"
+                            placeholder="Enter name"
+                            value={handoverBy}
+                            onChange={(e) => setHandoverBy(e.target.value)}
+                            className="handover-form-input"
+                            size="sm"
+                          />
+                        </div>
+                      </Col>
+                      <Col md={3}>
+                        <div className="handover-form-row">
+                          <label className="handover-form-label">To:</label>
+                          <Form.Select
+                            value={handoverTo}
+                            onChange={(e) => setHandoverTo(e.target.value)}
+                            className="handover-form-input"
+                            size="sm"
+                          >
+                            <option value="">Select</option>
+                            <option value="Shift A">Shift A</option>
+                            <option value="Shift B">Shift B</option>
+                            <option value="Manager">Manager</option>
+                          </Form.Select>
+                        </div>
+                      </Col>
+                      <Col md={3}>
+                        <div className="handover-form-row">
+                          <label className="handover-form-label">Currency:</label>
+                          <Form.Select
+                            value="INR"
+                            className="handover-form-input"
+                            size="sm"
+                            disabled
+                          >
+                            <option value="INR">INR</option>
+                          </Form.Select>
+                        </div>
+                      </Col>
+                      <Col md={3} className="d-flex justify-content-end gap-2">
+                        <Button variant="success" size="sm" onClick={handleSaveHandover}>
+                          Handover
+                        </Button>
+                        <Button variant="secondary" size="sm" onClick={handleClose}>
+                          Close
+                        </Button>
+                      </Col>
+                    </Row>
+                  </div>
+                </div>
               </div>
             </Tab>
           </Tabs>
