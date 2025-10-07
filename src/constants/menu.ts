@@ -56,6 +56,14 @@ const MENU_ITEMS: MenuItemTypes[] = [
     parentKey: 'apps',
   },
 
+  {
+    key: 'KotTransfer',
+    label: 'KotTransfer',
+    url: '/apps/KotTransfer',
+    icon: 'fi fi-rr-shopping-cart',
+    parentKey: 'apps',
+  },
+
 
   
   {

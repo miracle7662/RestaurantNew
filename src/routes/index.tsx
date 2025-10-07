@@ -10,6 +10,8 @@ import Settlement from '@/views/apps/Transaction/Settlement'
 import Handover from '@/views/apps/Transaction/Handover'
 // import DayEnd from '@/views/apps/Transaction/DayEnd'
 import DayEnd from '../views/apps/Transaction/DayEnd'
+// import KotTransfer from '../views/apps/Transaction/KotTransfer'
+const KotTransfer = React.lazy(() => import('../views/apps/Transaction/KotTransfer'))
 
 
 // Dashboards
@@ -341,6 +343,7 @@ const appsRoutes: RoutesProps = {
       element: <Settlement />,
       route: PrivateRoute,
     },
+    
 
      {
       path: '/apps/Handover',
@@ -354,6 +357,15 @@ const appsRoutes: RoutesProps = {
       element: <  DayEnd />,
       route: PrivateRoute,
     },
+
+    {
+      path: '/apps/KotTransfer',
+      name: ' KotTransfer',
+      element: <  KotTransfer />,
+      route: PrivateRoute,
+    },
+
+    
     {
       path: '/apps/Menu',
       name: 'Menu',

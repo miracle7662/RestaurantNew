@@ -33,6 +33,7 @@ import {
   Legend
 } from 'chart.js';
 import { Pie } from 'react-chartjs-2';
+import HandoverPasswordModal from "../../../components/HandoverPasswordModal.tsx";
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
@@ -94,6 +95,8 @@ const HandoverPage = () => {
     2: 0,
     1: 0,
   });
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordVerified, setPasswordVerified] = useState(false);
 
   useEffect(() => {
     const fetchHandoverData = async () => {
@@ -119,6 +122,12 @@ const HandoverPage = () => {
 
     fetchHandoverData();
   }, []);
+
+  useEffect(() => {
+    if (!passwordVerified) {
+      setShowPasswordModal(true);
+    }
+  }, [passwordVerified]);
 
   // Computed summary from orders
   const totalOrders = orders.length;
@@ -290,6 +299,27 @@ const HandoverPage = () => {
         console.error("Error saving cash denomination:", err);
         alert("An error occurred while saving. Please check the console.");
       });
+  };
+
+  const handlePasswordVerify = async (password: string): Promise<boolean> => {
+    try {
+      const response = await fetch('http://localhost:3001/api/auth/verify-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        setPasswordVerified(true);
+        setShowPasswordModal(false);
+        return true;
+      } else {
+        return false;
+      }
+    } catch (error) {
+      console.error('Password verification error:', error);
+      return false;
+    }
   };
 
 
@@ -1192,6 +1222,13 @@ const HandoverPage = () => {
             </Button>
           </Modal.Footer>
         </Modal>
+
+        {/* Password Verification Modal */}
+        <HandoverPasswordModal
+          show={showPasswordModal}
+          onVerify={handlePasswordVerify}
+          onClose={() => setShowPasswordModal(false)}
+        />
 
       </Container>
     </>
