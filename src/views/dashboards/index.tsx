@@ -22,12 +22,7 @@ const CRM = () => {
         <Col xl={4}>
           <LeadOverview />
         </Col>
-        <Col xl={8}>
-          <LatestLeads />
-        </Col>
-        <Col xl={4}>
-          <ProjectCustomerCard />
-        </Col>
+        
       </Row>
     </>
   )

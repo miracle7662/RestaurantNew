@@ -104,7 +104,7 @@ const KotTransfer = ({ onCancel }: KotTransferProps) => {
       const response = await getUnbilledItemsByTable(tableId);
       const mappedItems: Item[] = response.data.items.map((item: any, index: number) => ({
         id: item.id || index,
-        media: item.tableName || 'Unknown', // This might need adjustment based on API response
+        media: item.tableName || 'Unknown',
         kot: item.kotNo || 0,
         item: item.itemName,
         qty: item.netQty,
@@ -163,6 +163,15 @@ const KotTransfer = ({ onCancel }: KotTransferProps) => {
       const updated = selectedItems.map(item => ({ ...item, selected: true }));
       setSelectedItems(updated);
     }
+  };
+
+  const handleSelectedTableChange = async (tableId: string) => {
+    const numericTableId = Number(tableId);
+    setSelectedTableId(numericTableId);
+    const srcTable = tables.find(t => t.id === tableId);
+    setSelectedTable(srcTable?.name || '');
+    setSelectedOutlet(srcTable?.outlet || '');
+    await fetchItemsForTable(numericTableId, 'selected');
   };
 
   const handleProposedTableChange = async (tableId: string) => {
@@ -273,7 +282,7 @@ const KotTransfer = ({ onCancel }: KotTransferProps) => {
         {/* Source Table Section */}
         <Col md={5}>
           <Card className="border-0 shadow h-100">
-            <Card.Header className="text-white fw-bold" style={{ background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", fontSize: "1.1rem" }}>
+            <Card.Header className="text-white fw-bold" style={{ background: "#007BFF", fontSize: "1.1rem" }}>
               Selected Table
             </Card.Header>
             <Card.Body>
@@ -281,7 +290,15 @@ const KotTransfer = ({ onCancel }: KotTransferProps) => {
                 <Col xs={6}>
                   <Form.Group>
                     <Form.Label className="fw-semibold">Table</Form.Label>
-                    <Form.Control value={selectedTable} readOnly className="fw-bold" />
+                    <Form.Select
+                      value={selectedTableId || ''}
+                      onChange={(e) => handleSelectedTableChange(e.target.value)}
+                      className="fw-bold"
+                    >
+                      {tables.map(t => (
+                        <option key={t.id} value={t.id}>{t.name}</option>
+                      ))}
+                    </Form.Select>
                   </Form.Group>
                 </Col>
                 <Col xs={6}>
@@ -430,7 +447,7 @@ const KotTransfer = ({ onCancel }: KotTransferProps) => {
               height: "80px",
               borderRadius: "12px",
               fontSize: "2rem",
-              background: "linear-gradient(135deg, #6c757d 0%, #495057 100%)",
+              background: "#28a745",
               border: "none"
             }}
           >
@@ -442,7 +459,7 @@ const KotTransfer = ({ onCancel }: KotTransferProps) => {
         {/* Destination Table Section */}
         <Col md={5}>
           <Card className="border-0 shadow h-100">
-            <Card.Header className="text-white fw-bold" style={{ background: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)", fontSize: "1.1rem" }}>
+            <Card.Header className="text-white fw-bold" style={{ backgroundColor: "#007BFF" , fontSize: "1.1rem" }}>
               Proposed Table
             </Card.Header>
             <Card.Body>
@@ -450,7 +467,7 @@ const KotTransfer = ({ onCancel }: KotTransferProps) => {
                 <Col xs={6}>
                   <Form.Group>
                     <Form.Label className="fw-semibold">Outlet</Form.Label>
-                    <Form.Select value={proposedOutlet} onChange={(e) => setProposedOutlet(e.target.value)}>
+                    <Form.Select value={selectedOutlet} onChange={(e) => setSelectedOutlet(e.target.value)}>
                       {outlets.map(outlet => (
                         <option key={outlet.outletid} value={outlet.outlet_name}>{outlet.outlet_name}</option>
                       ))}
@@ -467,7 +484,7 @@ const KotTransfer = ({ onCancel }: KotTransferProps) => {
                         className="fw-bold me-2"
                       >
                         {tables.filter(t => t.id !== selectedTableId?.toString()).map(t => (
-                          <option key={t.id} value={t.name}>{t.name}</option>
+                          <option key={t.id} value={t.id}>{t.name}</option>
                         ))}
                       </Form.Select>
                     </div>

@@ -118,7 +118,7 @@ const getHandoverData = (req, res) => {
     // Calculate summaries
     const totalOrders = orders.length;
     const totalKOTs = orders.length;
-    const totalSales = orders.reduce((sum, order) => sum + order.amount, 0);
+    const totalSales = orders.reduce((sum, order) => sum + (order.amount || 0), 0);
     const cash = orders.reduce((sum, order) => sum + (order.cash || 0), 0);
     const card = orders.reduce((sum, order) => sum + (order.card || 0), 0);
     const gpay = orders.reduce((sum, order) => sum + (order.gpay || 0), 0);

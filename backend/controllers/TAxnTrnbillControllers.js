@@ -987,12 +987,14 @@ exports.getUnbilledItemsByTable = async (req, res) => {
         d.TXnDetailID,
         d.ItemID,
         COALESCE(m.item_name, 'Unknown Item') AS ItemName,
+        COALESCE(t.table_name, 'N/A') as tableName,
         d.Qty,
         COALESCE(d.RevQty, 0) as RevQty,
         (d.Qty - COALESCE(d.RevQty, 0)) as NetQty,
         d.RuntimeRate as price,
         d.KOTNo
       FROM TAxnTrnbilldetails d
+      LEFT JOIN msttablemanagement t ON d.TableID = t.tableid
       JOIN TAxnTrnbill b ON d.TxnID = b.TxnID
       LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
       WHERE b.TableID = ? AND b.isBilled = 0 AND d.isCancelled = 0 AND (d.Qty - COALESCE(d.RevQty, 0)) > 0
@@ -1013,6 +1015,7 @@ exports.getUnbilledItemsByTable = async (req, res) => {
       txnDetailId: r.TXnDetailID,
       itemId: r.ItemID,
       itemName: r.ItemName,
+      tableName: r.tableName,
       qty: r.Qty,
       revQty: r.RevQty,
       netQty: r.NetQty,

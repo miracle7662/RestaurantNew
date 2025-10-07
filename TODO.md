@@ -1,3 +1,7 @@
-- [x] Add POST /api/auth/verify-password route in backend/routes/authRoutes.js
-- [x] Add verifyPassword function in backend/controllers/authController.js
-- [x] Test the endpoint to ensure it works
+- [x] Add handleSelectedTableChange function to handle selected table changes
+- [x] Change selectedTable from read-only Form.Control to Form.Select with table options
+- [x] Change selectedOutlet from Form.Select to read-only Form.Control
+- [x] Change proposedOutlet from Form.Select to read-only Form.Control
+- [x] Update proposed table dropdown options to use value={t.id} instead of {t.name}
+- [x] Verify that changing selected table fetches new items and updates states correctly
+- [x] Ensure transfer logic works in both table and KOT modes
