@@ -170,8 +170,12 @@ const HandoverPage = () => {
 
   ];
 
-  const [reason, setReason] = useState("");
-const expectedHandover = 9500; // example, replace with dynamic value
+  const [reason, setReason] = useState('');
+  // This is the total cash calculated from the denominations entered in the modal.
+  const countedCashTotal = Object.entries(cashDenominations).reduce(
+    (sum, [denom, count]) => sum + parseInt(denom) * count,
+    0
+  );
 
 
   const paymentData = {
@@ -256,8 +260,36 @@ const expectedHandover = 9500; // example, replace with dynamic value
 
 
   const handleSaveCashDenomination = () => {
-    alert(`Cash Denomination saved successfully! Total Cash: ₹${totalCash.toLocaleString()}`);
-    handleCloseCashModal();
+    const payload = {
+      denominations: cashDenominations,
+      total: countedCashTotal,
+      expected: totalCash, // totalCash from sales is the expected amount
+      difference: countedCashTotal - totalCash,
+      reason: reason,
+      handoverTo: handoverTo,
+      handoverBy: handoverBy,
+      // In a real app, you'd get the current user's ID
+      userId: 1, 
+    };
+
+    fetch('http://localhost:3001/api/handover/cash-denomination', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        alert(`Cash Denomination saved successfully! Total Counted Cash: ₹${countedCashTotal.toLocaleString()}`);
+        handleCloseCashModal();
+      } else {
+        alert(`Error: ${data.message}`);
+      }
+    })
+    .catch(err => {
+      console.error("Error saving cash denomination:", err);
+      alert("An error occurred while saving. Please check the console.");
+    });
   };
 
 
@@ -1090,14 +1122,14 @@ const expectedHandover = 9500; // example, replace with dynamic value
     <div className="d-flex justify-content-between py-1">
       <span className="fw-bold text-dark">Total Cash:</span>
       <span className="fw-semibold text-success">
-        {totalCash.toLocaleString()}
+        {countedCashTotal.toLocaleString()}
       </span>
     </div>
 
     <div className="d-flex justify-content-between py-1">
       <span className="fw-bold text-dark">Handover Expected:</span>
       <span className="fw-semibold text-primary">
-        {expectedHandover.toLocaleString()}
+        {totalCash.toLocaleString()}
       </span>
     </div>
 
@@ -1105,10 +1137,10 @@ const expectedHandover = 9500; // example, replace with dynamic value
       <span className="fw-bold text-dark">Surplus / Deficit:</span>
       <span
         className={`fw-bold ${
-          totalCash - expectedHandover >= 0 ? 'text-success' : 'text-danger'
+          countedCashTotal - totalCash >= 0 ? 'text-success' : 'text-danger'
         }`}
       >
-        {(totalCash - expectedHandover).toLocaleString()}
+        {(countedCashTotal - totalCash).toLocaleString()}
       </span>
     </div>
 
@@ -1135,7 +1167,7 @@ const expectedHandover = 9500; // example, replace with dynamic value
       variant="success"
       size="sm"
       onClick={handleSaveCashDenomination}
-      disabled={!reason && totalCash !== expectedHandover} // reason required if mismatch
+      disabled={!reason && countedCashTotal !== totalCash} // reason required if mismatch
     >
       💾 Save
     </Button>

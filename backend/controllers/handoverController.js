@@ -172,6 +172,50 @@ const getHandoverData = (req, res) => {
   }
 };
 
+const saveCashDenomination = (req, res) => {
+  const { denominations, total, userId, reason } = req.body;
+
+  if (!denominations || !userId) {
+    return res.status(400).json({ success: false, message: 'Missing required fields.' });
+  }
+
+  try {
+    const stmt = db.prepare(`
+      INSERT INTO trn_cashdenomination (
+        note_2000, note_500, note_200, note_100, note_50, note_20, note_10, note_5, note_2, note_1,
+        total_2000, total_500, total_200, total_100, total_50, total_20, total_10, total_5, total_2, total_1,
+        grand_total, user_id, handover_reason
+      ) VALUES (
+        @note_2000, @note_500, @note_200, @note_100, @note_50, @note_20, @note_10, @note_5, @note_2, @note_1,
+        @total_2000, @total_500, @total_200, @total_100, @total_50, @total_20, @total_10, @total_5, @total_2, @total_1,
+        @grand_total, @user_id, @reason
+      )
+    `);
+
+    const info = stmt.run({
+      note_2000: denominations['2000'] || 0, note_500: denominations['500'] || 0,
+      note_200: denominations['200'] || 0, note_100: denominations['100'] || 0,
+      note_50: denominations['50'] || 0, note_20: denominations['20'] || 0,
+      note_10: denominations['10'] || 0, note_5: denominations['5'] || 0,
+      note_2: denominations['2'] || 0, note_1: denominations['1'] || 0,
+      total_2000: (denominations['2000'] || 0) * 2000, total_500: (denominations['500'] || 0) * 500,
+      total_200: (denominations['200'] || 0) * 200, total_100: (denominations['100'] || 0) * 100,
+      total_50: (denominations['50'] || 0) * 50, total_20: (denominations['20'] || 0) * 20,
+      total_10: (denominations['10'] || 0) * 10, total_5: (denominations['5'] || 0) * 5,
+      total_2: (denominations['2'] || 0) * 2, total_1: (denominations['1'] || 0) * 1,
+      grand_total: total,
+      user_id: userId,
+      reason: reason || null
+    });
+
+    res.json({ success: true, message: 'Cash denomination saved successfully.', id: info.lastInsertRowid });
+  } catch (error) {
+    console.error('Error saving cash denomination:', error);
+    res.status(500).json({ success: false, message: 'Failed to save cash denomination data.' });
+  }
+};
+
 module.exports = {
-  getHandoverData
+  getHandoverData,
+  saveCashDenomination
 };
