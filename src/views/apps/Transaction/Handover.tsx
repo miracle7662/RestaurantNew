@@ -114,7 +114,7 @@ const HandoverPage = () => {
   // Correctly calculate total cash, card, and UPI from the detailed breakdown
   const cash = orders.reduce((sum, order) => sum + (order.cash || 0), 0);
   const card = orders.reduce((sum, order) => sum + (order.card || 0), 0);
-  const upi = orders.reduce((sum, order) => 
+  const upi = orders.reduce((sum, order) =>
     sum + (order.gpay || 0) + (order.phonepe || 0) + (order.qrcode || 0), 0
   );
   const pending = orders.filter(order => order.status === "Pending").length;
@@ -154,7 +154,7 @@ const HandoverPage = () => {
     { type: "Cash", amount: summary.cash, percentage: totalSales > 0 ? ((summary.cash / totalSales) * 100).toFixed(1) : "0" },
     { type: "Card", amount: summary.card, percentage: totalSales > 0 ? ((summary.card / totalSales) * 100).toFixed(1) : "0" },
     { type: "UPI", amount: summary.upi, percentage: totalSales > 0 ? ((summary.upi / totalSales) * 100).toFixed(1) : "0" },
-    
+
   ];
 
   const paymentData = {
@@ -225,7 +225,7 @@ const HandoverPage = () => {
     }
   };
 
-  
+
 
   const StatusBadge = ({ status }: { status: string }) => {
     const variants = {
@@ -256,7 +256,7 @@ const HandoverPage = () => {
     return isNaN(utcDate.getTime()) ? timeStr : utcDate.toLocaleDateString();
   };
 
-  
+
 
   return (
     <>
@@ -274,10 +274,9 @@ const HandoverPage = () => {
         }
         .table-container {
           position: relative;
-          max-height: 650px; /* Adjusted for ~15 rows and footer */
+          height: calc(100vh - 350px);
           overflow-y: auto;
           overflow-x: auto;
-          height: calc(100vh - 350px); /* Dynamic height to fit more content and accommodate the action footer */
         }
         .table-container thead th {
           position: sticky;
@@ -289,11 +288,17 @@ const HandoverPage = () => {
           font-size: 0.75rem;
           white-space: nowrap;
         }
-        .table-container tfoot tr {
+        .table-container tfoot td {
           position: sticky;
           bottom: 0;
           z-index: 5;
           background-color: #d4edda !important;
+          border-top: 2px solid #28a745;
+          font-weight: bold;
+          color: #155724 !important;
+          padding: 0.25rem 0.5rem;
+          font-size: 0.8rem;
+          white-space: nowrap;
         }
         .table-container .table-success {
           background-color: #d4edda !important;
@@ -302,19 +307,11 @@ const HandoverPage = () => {
           background-color: #d4edda !important;
           color: #155724 !important;
         }
-        .table-container tfoot td {
-          border-top: 2px solid #28a745;
-          font-weight: bold;
-          color: #155724 !important;
-          padding: 0.25rem 0.5rem;
-          font-size: 0.8rem;
-          white-space: nowrap;
-        }
         .table-container table {
           margin-bottom: 0;
           table-layout: fixed;
           width: 100%;
-          min-width: 2000px; /* Ensure wide enough for all columns */
+          min-width: 2000px;
           border-collapse: separate;
         }
         .table-container th,
@@ -695,13 +692,13 @@ const HandoverPage = () => {
                                     {order.table}
                                   </Badge>
                                 </td>
-                                <td className="fw-semibold" style={{textAlign: 'right'}}>₹{order.amount.toLocaleString()}</td>
-                                <td style={{textAlign: 'right'}}>-₹{order.discount.toLocaleString()}</td>
-                                <td style={{textAlign: 'right'}}>₹{(order.grossAmount || 0).toLocaleString()}</td>
-                                <td style={{textAlign: 'right'}}>₹{order.cgst.toLocaleString()}</td>
-                                <td style={{textAlign: 'right'}}>₹{order.sgst.toLocaleString()}</td>
-                                <td style={{textAlign: 'right'}}>₹{(order.roundOff || 0).toLocaleString()}</td>
-                                <td style={{textAlign: 'right'}}>₹{(order.revAmt || 0).toLocaleString()}</td>
+                                <td className="fw-semibold" style={{ textAlign: 'right' }}>₹{order.amount.toLocaleString()}</td>
+                                <td style={{ textAlign: 'right' }}>-₹{order.discount.toLocaleString()}</td>
+                                <td style={{ textAlign: 'right' }}>₹{(order.grossAmount || 0).toLocaleString()}</td>
+                                <td style={{ textAlign: 'right' }}>₹{order.cgst.toLocaleString()}</td>
+                                <td style={{ textAlign: 'right' }}>₹{order.sgst.toLocaleString()}</td>
+                                <td style={{ textAlign: 'right' }}>₹{(order.roundOff || 0).toLocaleString()}</td>
+                                <td style={{ textAlign: 'right' }}>₹{(order.revAmt || 0).toLocaleString()}</td>
                                 <td>
                                   <small className="text-muted">{order.kotNo}</small>
                                 </td>
@@ -711,19 +708,19 @@ const HandoverPage = () => {
                                   </small>
                                 </td>
                                 <td>{order.reverseBill || ''}</td>
-                                <td style={{textAlign: 'right'}}>₹{(order.water || 0).toLocaleString()}</td>
-                                <td title={order.paymentMode || ''} style={{whiteSpace: 'normal', wordWrap: 'break-word', overflowWrap: 'break-word'}}>
+                                <td style={{ textAlign: 'right' }}>₹{(order.water || 0).toLocaleString()}</td>
+                                <td title={order.paymentMode || ''} style={{ whiteSpace: 'normal', wordWrap: 'break-word', overflowWrap: 'break-word' }}>
                                   {order.paymentMode || ''}
                                 </td>
-                                <td style={{textAlign: 'right'}}>₹{(order.cash || 0).toLocaleString()}</td>
-                                <td style={{textAlign: 'right'}}>₹{(order.credit || 0).toLocaleString()}</td>
-                                <td style={{textAlign: 'right'}}>₹{(order.card || 0).toLocaleString()}</td>
-                                <td style={{textAlign: 'right'}}>₹{(order.gpay || 0).toLocaleString()}</td>
-                                <td style={{textAlign: 'right'}}>₹{(order.phonepe || 0).toLocaleString()}</td>
-                                <td style={{textAlign: 'right'}}>₹{(order.qrcode || 0).toLocaleString()}</td>
+                                <td style={{ textAlign: 'right' }}>₹{(order.cash || 0).toLocaleString()}</td>
+                                <td style={{ textAlign: 'right' }}>₹{(order.credit || 0).toLocaleString()}</td>
+                                <td style={{ textAlign: 'right' }}>₹{(order.card || 0).toLocaleString()}</td>
+                                <td style={{ textAlign: 'right' }}>₹{(order.gpay || 0).toLocaleString()}</td>
+                                <td style={{ textAlign: 'right' }}>₹{(order.phonepe || 0).toLocaleString()}</td>
+                                <td style={{ textAlign: 'right' }}>₹{(order.qrcode || 0).toLocaleString()}</td>
                                 <td>{order.captain || order.waiter || ''}</td>
                                 <td>{order.user || ''}</td>
-                                <td style={{textAlign: 'center'}}>
+                                <td style={{ textAlign: 'center' }}>
                                   <Badge bg="outline-primary" text="primary" className="fs-6">
                                     {order.items}
                                   </Badge>
@@ -734,10 +731,10 @@ const HandoverPage = () => {
                                 <td>
                                   <small className="text-muted">{formattedDate}</small>
                                 </td>
-                                <td style={{textAlign: 'center'}}>
+                                <td style={{ textAlign: 'center' }}>
                                   <StatusBadge status={order.status} />
                                 </td>
-                                <td style={{textAlign: 'center'}}>
+                                <td style={{ textAlign: 'center' }}>
                                   <Button
                                     variant="outline-primary"
                                     size="sm"
@@ -751,31 +748,31 @@ const HandoverPage = () => {
                             );
                           })}
                         </tbody>
-                           <tfoot>
+                        <tfoot>
                           <tr className="table-success">
                             <td>Total</td>
                             <td></td>
-                            <td style={{textAlign: 'right'}}>₹{totalSales.toLocaleString()}</td>
-                            <td style={{textAlign: 'right'}}>-₹{totalDiscount.toLocaleString()}</td>
-                            <td style={{textAlign: 'right'}}>₹{totalGrossAmount.toLocaleString()}</td>
-                            <td style={{textAlign: 'right'}}>₹{totalCGST.toLocaleString()}</td>
-                            <td style={{textAlign: 'right'}}>₹{totalSGST.toLocaleString()}</td>
-                            <td style={{textAlign: 'right'}}>₹{totalRoundOff.toLocaleString()}</td>
-                            <td style={{textAlign: 'right'}}>₹{totalRevAmt.toLocaleString()}</td>
+                            <td style={{ textAlign: 'right' }}>₹{totalSales.toLocaleString()}</td>
+                            <td style={{ textAlign: 'right' }}>-₹{totalDiscount.toLocaleString()}</td>
+                            <td style={{ textAlign: 'right' }}>₹{totalGrossAmount.toLocaleString()}</td>
+                            <td style={{ textAlign: 'right' }}>₹{totalCGST.toLocaleString()}</td>
+                            <td style={{ textAlign: 'right' }}>₹{totalSGST.toLocaleString()}</td>
+                            <td style={{ textAlign: 'right' }}>₹{totalRoundOff.toLocaleString()}</td>
+                            <td style={{ textAlign: 'right' }}>₹{totalRevAmt.toLocaleString()}</td>
                             <td></td>
                             <td></td>
                             <td></td>
-                            <td style={{textAlign: 'right'}}>₹{totalWater.toLocaleString()}</td>
+                            <td style={{ textAlign: 'right' }}>₹{totalWater.toLocaleString()}</td>
                             <td></td>
-                            <td style={{textAlign: 'right'}}>₹{totalCash.toLocaleString()}</td>
-                            <td style={{textAlign: 'right'}}>₹{totalCredit.toLocaleString()}</td>
-                            <td style={{textAlign: 'right'}}>₹{totalCard.toLocaleString()}</td>
-                            <td style={{textAlign: 'right'}}>₹{totalGpay.toLocaleString()}</td>
-                            <td style={{textAlign: 'right'}}>₹{totalPhonepe.toLocaleString()}</td>
-                            <td style={{textAlign: 'right'}}>₹{totalQrcode.toLocaleString()}</td>
+                            <td style={{ textAlign: 'right' }}>₹{totalCash.toLocaleString()}</td>
+                            <td style={{ textAlign: 'right' }}>₹{totalCredit.toLocaleString()}</td>
+                            <td style={{ textAlign: 'right' }}>₹{totalCard.toLocaleString()}</td>
+                            <td style={{ textAlign: 'right' }}>₹{totalGpay.toLocaleString()}</td>
+                            <td style={{ textAlign: 'right' }}>₹{totalPhonepe.toLocaleString()}</td>
+                            <td style={{ textAlign: 'right' }}>₹{totalQrcode.toLocaleString()}</td>
                             <td></td>
                             <td></td>
-                            <td style={{textAlign: 'center'}}>{totalItems}</td>
+                            <td style={{ textAlign: 'center' }}>{totalItems}</td>
                             <td></td>
                             <td></td>
                             <td></td>
@@ -787,83 +784,14 @@ const HandoverPage = () => {
                   </Card.Body>
                 </Card>
 
-                {/* Action Section - Sticky Footer for Orders Tab */}
-            <div className="action-section bg-light border rounded-3 p-1 shadow-sm">
-  <div className="handover-form">
-    <Row className="align-items-end g-3">
-      <Col md={3}>
-        <Form.Group controlId="handoverBy">
-          <Form.Label className="fw-semibold text-secondary small">Handover By</Form.Label>
-          <Form.Control
-            type="text"
-            placeholder="Enter name"
-            value={handoverBy}
-            onChange={(e) => setHandoverBy(e.target.value)}
-            size="sm"
-            className="rounded-2 shadow-sm border-0 bg-white"
-          />
-        </Form.Group>
-      </Col>
-
-      <Col md={3}>
-        <Form.Group controlId="handoverTo">
-          <Form.Label className="fw-semibold text-secondary small">To</Form.Label>
-          <Form.Select
-            value={handoverTo}
-            onChange={(e) => setHandoverTo(e.target.value)}
-            size="sm"
-            className="rounded-2 shadow-sm border-0 bg-white"
-          >
-            <option value="">Select Recipient</option>
-            <option value="Shift A">Shift A</option>
-            <option value="Shift B">Shift B</option>
-            <option value="Manager">Manager</option>
-          </Form.Select>
-        </Form.Group>
-      </Col>
-
-      <Col md={3}>
-        <Form.Group controlId="currency">
-          <Form.Label className="fw-semibold text-secondary small">Currency</Form.Label>
-          <Form.Select
-            value="INR"
-            size="sm"
-            className="rounded-2 shadow-sm border-0 bg-white text-muted"
-            disabled
-          >
-            <option value="INR">INR</option>
-          </Form.Select>
-        </Form.Group>
-      </Col>
-
-      <Col md={3} className="d-flex justify-content-end gap-2">
-       <Button
-          variant="outline-secondary"
-          size="sm"
-          className="px-3 rounded-pill shadow-sm fw-semibold"
-          onClick={handleClose}
-        >
-          <i className="bi bi-x-circle me-1"></i> Close
-        </Button>
-        <Button
-          variant="success"
-          size="sm"
-          className="px-3 rounded-pill shadow-sm fw-semibold"
-          onClick={handleSaveHandover}
-        >
-          <i className="bi bi-check-circle me-1"></i> Handover
-        </Button>
-      </Col>
-    </Row>
-  </div>
-</div>
+          
 
               </div>
             </Tab>
           </Tabs>
         </div>
 
-        
+
 
         {/* Order Details Modal - Compact */}
         <Modal show={showDetailsModal} onHide={() => setShowDetailsModal(false)} size="lg" className="modal-compact">
@@ -983,5 +911,4 @@ const HandoverPage = () => {
     </>
   );
 };
-
 export default HandoverPage;
