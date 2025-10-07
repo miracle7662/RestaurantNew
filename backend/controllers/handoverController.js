@@ -23,6 +23,7 @@ const getHandoverData = (req, res) => {
           GROUP_CONCAT(DISTINCT CASE WHEN td.Qty > 0 THEN td.KOTNo END) as KOTNo,
           COALESCE(GROUP_CONCAT(DISTINCT td.RevKOTNo), '') as RevKOTNo,
           GROUP_CONCAT(DISTINCT CASE WHEN td.isNCKOT = 1 THEN td.KOTNo END) as NCKOT,
+          t.NCPurpose,
           t.NCName,
           (
             SELECT GROUP_CONCAT(s.PaymentType || ':' || s.Amount)
@@ -89,6 +90,7 @@ const getHandoverData = (req, res) => {
           revKotNo: row.RevKOTNo || '',
           discount: parseFloat(row.Discount || 0),
           ncKot: row.NCKOT || '',
+          ncPurpose: row.NCPurpose || '',
           ncName: row.NCName || '',
           cgst: parseFloat(row.CGST || 0),
           sgst: parseFloat(row.SGST || 0),
