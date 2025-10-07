@@ -648,7 +648,7 @@ const HandoverPage = () => {
                 <Card className="border-0 shadow-sm mb-0">
                   <Card.Body className="p-0">
                     <div className="table-container">
-                      <Table hover className="mb-0" responsive>
+                      <Table hover className="mb-0">
                         <thead className="table-light">
                           <tr>
                             <th>Bill No</th>
