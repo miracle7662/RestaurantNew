@@ -1,494 +1,334 @@
-// src/App.js
 import React, { useState } from 'react';
+import { ArrowRight, ArrowLeft, Save, X } from 'lucide-react';
 
-// Mock data with updated current date
-const currentDate = '07/Oct/2025'; // Based on system date: October 07, 2025
-const initialData = {
-  tables: [
-    {
-      id: 'C4',
-      outlet: 'Classic Veg',
-      status: 'OCCUPIED',
-      kotNumber: 24,
-      pax: 4,
-      date: currentDate,
-      items: [
-        { id: 1, name: 'Masala Uttapra', quantity: 1, price: 60, media: 'C4', isFixed: false },
-        { id: 2, name: 'Rose Lassi', quantity: 1, price: 40, media: 'C4', isFixed: false },
-        { id: 3, name: 'Cheese Chilly Toast', quantity: 1, price: 30, media: 'C4', isFixed: true }
-      ]
-    },
-    {
-      id: 'C1',
-      outlet: 'Classic Veg',
-      status: 'VACANT',
-      kotNumber: 21,
-      pax: 2,
-      date: currentDate,
-      items: [
-        { id: 4, name: 'Tomato Uttapra', quantity: 1, price: 50, media: 'C1', isFixed: false },
-        { id: 5, name: 'Alu Palak', quantity: 1, price: 21, media: 'C1', isFixed: false }
-      ]
-    },
-    {
-      id: 'C2',
-      outlet: 'Classic Veg',
-      status: 'OCCUPIED',
-      kotNumber: 25,
-      pax: 3,
-      date: currentDate,
-      items: [
-        { id: 6, name: 'Paneer Butter Masala', quantity: 1, price: 180, media: 'C2', isFixed: false },
-        { id: 7, name: 'Butter Naan', quantity: 2, price: 30, media: 'C2', isFixed: false }
-      ]
-    }
-  ]
-};
-
-function App() {
-  const [tables, setTables] = useState(initialData.tables);
-  const [selectedTable, setSelectedTable] = useState(initialData.tables[0]);
-  const [proposedTable, setProposedTable] = useState(initialData.tables[1]);
-  const [transferMode, setTransferMode] = useState('TABLE'); // 'TABLE' or 'KOT'
-  const [selectedItems, setSelectedItems] = useState([]);
-  const [includeFixedItems, setIncludeFixedItems] = useState(false);
-
-  // Calculate totals for items array
-  const calculateTotal = (items) => {
-    return items.reduce((total, item) => total + (item.price * item.quantity), 0);
-  };
-
-  const sourceTotal = calculateTotal(selectedTable.items);
-  const targetTotal = calculateTotal(proposedTable.items);
-  const transferTotal = calculateTotal(selectedItems);
+export default function POSTransferScreen() {
+  const [transferMode, setTransferMode] = useState('allKOTs');
+  const [fixedItems, setFixedItems] = useState(false);
+  const [transferredItems, setTransferredItems] = useState(false);
   
-  const financials = {
-    sourceTotal: sourceTotal - transferTotal,
-    targetTotal: targetTotal + transferTotal,
-    variance: transferTotal,
-    changeAmount: transferTotal
-  };
+  const [selectedTable, setSelectedTable] = useState({
+    table: 'C4',
+    outlet: 'Classic Veg',
+    kot: '24',
+    pax: '1',
+    date: '19-10-10',
+    items: [
+      { media: 'C4', kotNo: 24, item: 'Masala Uttappa', qty: 1 },
+      { media: 'C4', kotNo: 24, item: 'Rose Lassi', qty: 1 },
+      { media: 'C4', kotNo: 24, item: 'Cheese Chilly Toast', qty: 1 }
+    ],
+    total: 130.00,
+    variance: 0.00,
+    change: 0.00
+  });
 
-  // Handle individual item selection
-  const handleItemSelect = (item) => {
-    if (selectedItems.some(selected => selected.id === item.id)) {
-      setSelectedItems(selectedItems.filter(selected => selected.id !== item.id));
-    } else {
-      if (!item.isFixed || includeFixedItems) {
-        setSelectedItems([...selectedItems, item]);
-      }
+  const [proposedTable, setProposedTable] = useState({
+    table: 'C1',
+    outlet: 'Classic Veg',
+    pax: '',
+    date: '19/Oct/2010',
+    items: [],
+    total: 0.00,
+    variance: 0.00,
+    change: 0.00
+  });
+
+  const transferRight = () => {
+    if (selectedTable.items.length > 0) {
+      setProposedTable({
+        ...proposedTable,
+        items: [...proposedTable.items, ...selectedTable.items],
+        total: selectedTable.total,
+        variance: selectedTable.total,
+        change: -selectedTable.total
+      });
+      setSelectedTable({
+        ...selectedTable,
+        items: [],
+        total: 0.00,
+        variance: selectedTable.total,
+        change: selectedTable.total
+      });
     }
   };
 
-  // Handle transfer of selected items
-  const handleTransfer = () => {
-    if (selectedItems.length === 0) return;
-
-    const updatedTables = tables.map(table => {
-      if (table.id === selectedTable.id) {
-        // Remove selected items from source table
-        return {
-          ...table,
-          items: table.items.filter(item => 
-            !selectedItems.some(selected => selected.id === item.id)
-          )
-        };
-      }
-      if (table.id === proposedTable.id) {
-        // Add selected items to target table, updating media and KOT
-        const updatedSelectedItems = selectedItems.map(item => ({
-          ...item,
-          media: table.id,
-          kotNumber: table.kotNumber
-        }));
-        return {
-          ...table,
-          items: [...table.items, ...updatedSelectedItems]
-        };
-      }
-      return table;
-    });
-
-    setTables(updatedTables);
-    setSelectedItems([]);
-    
-    // Refresh selected and proposed table states
-    setSelectedTable(updatedTables.find(t => t.id === selectedTable.id));
-    setProposedTable(updatedTables.find(t => t.id === proposedTable.id));
+  const transferLeft = () => {
+    if (proposedTable.items.length > 0) {
+      setSelectedTable({
+        ...selectedTable,
+        items: [...selectedTable.items, ...proposedTable.items],
+        total: proposedTable.total,
+        variance: proposedTable.total,
+        change: proposedTable.total
+      });
+      setProposedTable({
+        ...proposedTable,
+        items: [],
+        total: 0.00,
+        variance: 0.00,
+        change: 0.00
+      });
+    }
   };
-
-  // Select all eligible items
-  const handleSelectAll = () => {
-    const itemsToSelect = includeFixedItems 
-      ? selectedTable.items 
-      : selectedTable.items.filter(item => !item.isFixed);
-    
-    setSelectedItems(itemsToSelect);
-  };
-
-  // Clear all selections
-  const handleClearSelection = () => {
-    setSelectedItems([]);
-  };
-
-  // Function keys configuration
-  const functionKeys = [
-    { key: 'F2', label: 'KOT Tr', action: () => setTransferMode('KOT') },
-    { key: 'F5', label: 'Rev Bill', action: () => console.log('Reverse Bill') },
-    { key: 'F7', label: 'TBL Tr', action: () => setTransferMode('TABLE') },
-    { key: 'F6', label: 'New Bill', action: () => console.log('New Bill') },
-    { key: 'F8', label: 'Rev KOT', action: () => console.log('Reverse KOT') },
-    { key: 'F9', label: 'Save', action: handleTransfer },
-    { key: 'F10', label: 'Print', action: () => console.log('Print') },
-    { key: 'F11', label: 'Settle', action: () => console.log('Settle') },
-    { key: 'Esc', label: 'Exit', action: () => console.log('Exit') },
-  ];
 
   return (
-    <div className="App bg-light min-vh-100">
-      {/* Header Section */}
-      <div className="bg-white shadow-sm">
-        <div className="container-fluid">
-          <div className="row align-items-center py-3">
-            <div className="col">
-              <h1 className="h3 mb-0 text-primary fw-bold">
-                Table Transfer / KOT Transfer
-              </h1>
-              <p className="text-muted mb-0">Restaurant Management System</p>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-6">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="bg-white rounded-lg shadow-md p-4 mb-4">
+          <div className="flex items-center justify-between">
+            <div className="flex gap-2">
+              <button
+                onClick={() => setTransferMode('allKOTs')}
+                className={`px-6 py-2 rounded-md font-semibold transition-all ${
+                  transferMode === 'allKOTs'
+                    ? 'bg-blue-600 text-white shadow-md'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                Selected Table (All KOTs)
+              </button>
+              <button
+                onClick={() => setTransferMode('kotOnly')}
+                className={`px-6 py-2 rounded-md font-semibold transition-all ${
+                  transferMode === 'kotOnly'
+                    ? 'bg-blue-600 text-white shadow-md'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                Selected KOT Only
+              </button>
             </div>
-            <div className="col-auto">
-              <div className="btn-group" role="group">
-                <button 
-                  className={`btn ${transferMode === 'TABLE' ? 'btn-primary' : 'btn-outline-primary'}`}
-                  onClick={() => setTransferMode('TABLE')}
-                >
-                  Table Transfer
-                </button>
-                <button 
-                  className={`btn ${transferMode === 'KOT' ? 'btn-primary' : 'btn-outline-primary'}`}
-                  onClick={() => setTransferMode('KOT')}
-                >
-                  KOT Transfer
-                </button>
-              </div>
-            </div>
+            <h1 className="text-2xl font-bold text-gray-800">
+              {transferMode === 'allKOTs' ? 'TRANSFER TABLE' : "TRANSFER KOT'S"}
+            </h1>
+            <div className="w-48"></div>
           </div>
         </div>
-      </div>
 
-      {/* Main Content Area */}
-      <div className="container-fluid py-4">
-        <div className="row g-4">
-          {/* Selected Table Panel */}
-          <div className="col-lg-6">
-            <div className="card shadow-sm h-100">
-              <div className="card-header bg-primary text-white">
-                <h5 className="card-title mb-0">
-                  Selected Table ({transferMode === 'TABLE' ? 'All KOTs' : 'Selected KOT Only'})
-                </h5>
+        {/* Main Content */}
+        <div className="grid grid-cols-[1fr_auto_1fr] gap-4">
+          {/* Left Panel - Selected Table */}
+          <div className="bg-white rounded-lg shadow-md p-5">
+            <h2 className="text-lg font-bold text-gray-700 mb-4 border-b pb-2">Selected Table</h2>
+            
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-600 mb-1">Table:</label>
+                <select value={selectedTable.table} onChange={(e) => setSelectedTable({...selectedTable, table: e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500">
+                  <option>C4</option>
+                  <option>C1</option>
+                  <option>C2</option>
+                </select>
               </div>
-              <div className="card-body">
-                {/* Table Details */}
-                <div className="row mb-4">
-                  <div className="col-md-6">
-                    <div className="mb-3">
-                      <label className="form-label small text-muted fw-bold">Table</label>
-                      <select 
-                        className="form-select"
-                        value={selectedTable.id}
-                        onChange={(e) => setSelectedTable(tables.find(t => t.id === e.target.value))}
-                      >
-                        {tables.map(table => (
-                          <option key={table.id} value={table.id}>
-                            {table.id} - {table.outlet}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="mb-3">
-                      <label className="form-label small text-muted fw-bold">Outlet</label>
-                      <p className="fw-semibold mb-0">{selectedTable.outlet}</p>
-                    </div>
-                  </div>
-                  <div className="col-md-6">
-                    <div className="row">
-                      <div className="col-4">
-                        <label className="form-label small text-muted fw-bold">KOT</label>
-                        <p className="fw-semibold mb-0">{selectedTable.kotNumber}</p>
-                      </div>
-                      <div className="col-4">
-                        <label className="form-label small text-muted fw-bold">Pax</label>
-                        <p className="fw-semibold mb-0">{selectedTable.pax}</p>
-                      </div>
-                      <div className="col-4">
-                        <label className="form-label small text-muted fw-bold">Date</label>
-                        <p className="fw-semibold mb-0">{selectedTable.date}</p>
-                      </div>
-                    </div>
-                  </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-600 mb-1">Outlet:</label>
+                <select value={selectedTable.outlet} onChange={(e) => setSelectedTable({...selectedTable, outlet: e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500">
+                  <option>Classic Veg</option>
+                  <option>Premium Veg</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-600 mb-1">KOT:</label>
+                <select value={selectedTable.kot} onChange={(e) => setSelectedTable({...selectedTable, kot: e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500">
+                  <option>24</option>
+                  <option>25</option>
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-600 mb-1">Pax:</label>
+                  <input type="text" value={selectedTable.pax} onChange={(e) => setSelectedTable({...selectedTable, pax: e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500" />
                 </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-600 mb-1">Date:</label>
+                  <input type="text" value={selectedTable.date} onChange={(e) => setSelectedTable({...selectedTable, date: e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500" />
+                </div>
+              </div>
+            </div>
 
-                {/* Items List */}
-                <div className="table-responsive mb-4">
-                  <table className="table table-sm table-hover">
-                    <thead className="table-light">
-                      <tr>
-                        <th>Media</th>
-                        <th>KOT No.</th>
-                        <th>Item</th>
-                        <th className="text-center">Qty</th>
-                        <th className="text-center">Select</th>
+            <div className="border border-gray-300 rounded overflow-hidden mb-3">
+              <table className="w-full">
+                <thead className="bg-gray-200">
+                  <tr>
+                    <th className="px-3 py-2 text-left text-sm font-bold text-gray-700">Media</th>
+                    <th className="px-3 py-2 text-left text-sm font-bold text-gray-700">KOT No</th>
+                    <th className="px-3 py-2 text-left text-sm font-bold text-gray-700">Item</th>
+                    <th className="px-3 py-2 text-right text-sm font-bold text-gray-700">Qty</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white">
+                  {selectedTable.items.length > 0 ? (
+                    selectedTable.items.map((item, idx) => (
+                      <tr key={idx} className="border-t border-gray-200 hover:bg-gray-50">
+                        <td className="px-3 py-2 text-sm">{item.media}</td>
+                        <td className="px-3 py-2 text-sm">{item.kotNo}</td>
+                        <td className="px-3 py-2 text-sm">{item.item}</td>
+                        <td className="px-3 py-2 text-sm text-right">{item.qty}</td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {selectedTable.items.map(item => (
-                        <tr 
-                          key={item.id} 
-                          className={item.isFixed ? 'table-warning' : ''}
-                        >
-                          <td className="fw-semibold">{item.media}</td>
-                          <td>{selectedTable.kotNumber}</td>
-                          <td>
-                            {item.name}
-                            {item.isFixed && (
-                              <span className="badge bg-warning text-dark ms-2">Fixed</span>
-                            )}
-                          </td>
-                          <td className="text-center">{item.quantity}</td>
-                          <td className="text-center">
-                            <input
-                              type="checkbox"
-                              className="form-check-input"
-                              checked={selectedItems.some(selected => selected.id === item.id)}
-                              onChange={() => handleItemSelect(item)}
-                              disabled={item.isFixed && !includeFixedItems}
-                            />
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="4" className="px-3 py-12 text-center text-gray-400 text-sm">No items</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
 
-                {/* Selection Controls */}
-                <div className="row align-items-center mb-4">
-                  <div className="col-md-8">
-                    <div className="d-flex gap-2 flex-wrap">
-                      <button 
-                        className="btn btn-outline-secondary btn-sm"
-                        onClick={handleSelectAll}
-                      >
-                        Select All
-                      </button>
-                      <button 
-                        className="btn btn-outline-secondary btn-sm"
-                        onClick={handleClearSelection}
-                      >
-                        Clear Selection
-                      </button>
-                      <div className="form-check">
-                        <input
-                          className="form-check-input"
-                          type="checkbox"
-                          checked={includeFixedItems}
-                          onChange={(e) => setIncludeFixedItems(e.target.checked)}
-                          id="includeFixed"
-                        />
-                        <label className="form-check-label small" htmlFor="includeFixed">
-                          Include Fixed Items
-                        </label>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="col-md-4 text-end">
-                    <span className="badge bg-info">
-                      Selected: {selectedItems.length} items
-                    </span>
-                  </div>
-                </div>
+            <div className="flex gap-2 mb-3">
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={fixedItems} onChange={(e) => setFixedItems(e.target.checked)} className="w-4 h-4" />
+                <span>Fixed Items</span>
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={transferredItems} onChange={(e) => setTransferredItems(e.target.checked)} className="w-4 h-4" />
+                <span>Transferred Tables' / KOT's Item</span>
+              </label>
+            </div>
 
-                {/* Source Financial Summary */}
-                <div className="card bg-light">
-                  <div className="card-body py-3">
-                    <h6 className="card-title mb-3">Financial Summary</h6>
-                    <div className="row text-center">
-                      <div className="col-4">
-                        <div className="small text-muted">Total Amount</div>
-                        <div className="h6 mb-0 fw-bold text-primary">
-                          ₹{financials.sourceTotal.toFixed(2)}
-                        </div>
-                      </div>
-                      <div className="col-4">
-                        <div className="small text-muted">Variance</div>
-                        <div className="h6 mb-0 fw-bold text-warning">
-                          ₹{financials.variance.toFixed(2)}
-                        </div>
-                      </div>
-                      <div className="col-4">
-                        <div className="small text-muted">Change Amount</div>
-                        <div className="h6 mb-0 fw-bold text-success">
-                          ₹{financials.changeAmount.toFixed(2)}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+            <div className="grid grid-cols-3 gap-2 border-t pt-3">
+              <div>
+                <div className="text-xs font-semibold text-gray-600 mb-1">Total Amount</div>
+                <div className={`text-lg font-bold ${selectedTable.total > 0 ? 'text-red-600' : 'text-gray-800'}`}>
+                  {selectedTable.total.toFixed(2)}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs font-semibold text-gray-600 mb-1">Variance</div>
+                <div className={`text-lg font-bold ${selectedTable.variance > 0 ? 'text-red-600' : 'text-gray-800'}`}>
+                  {selectedTable.variance.toFixed(2)}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs font-semibold text-gray-600 mb-1">Change Amount</div>
+                <div className={`text-lg font-bold ${selectedTable.change > 0 ? 'text-red-600' : 'text-gray-800'}`}>
+                  {selectedTable.change.toFixed(2)}
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Proposed Table Panel */}
-          <div className="col-lg-6">
-            <div className="card shadow-sm h-100">
-              <div className="card-header bg-success text-white">
-                <h5 className="card-title mb-0">TRANSFER {transferMode}</h5>
+          {/* Middle - Transfer Buttons */}
+          <div className="flex flex-col justify-center gap-4">
+            <button
+              onClick={transferRight}
+              className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg p-4 shadow-lg hover:shadow-xl transition-all flex flex-col items-center justify-center gap-2"
+            >
+              <ArrowRight size={32} />
+              <span className="text-xs font-semibold">F7</span>
+            </button>
+            <button
+              onClick={transferLeft}
+              className="bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white rounded-lg p-4 shadow-lg hover:shadow-xl transition-all flex flex-col items-center justify-center gap-2"
+            >
+              <ArrowLeft size={32} />
+              <span className="text-xs font-semibold">F8</span>
+            </button>
+          </div>
+
+          {/* Right Panel - Proposed Table */}
+          <div className="bg-white rounded-lg shadow-md p-5">
+            <h2 className="text-lg font-bold text-gray-700 mb-4 border-b pb-2">Proposed Table</h2>
+            
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-600 mb-1">Outlet:</label>
+                <select value={proposedTable.outlet} onChange={(e) => setProposedTable({...proposedTable, outlet: e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500">
+                  <option>Classic Veg</option>
+                  <option>Premium Veg</option>
+                </select>
               </div>
-              <div className="card-body">
-                {/* Proposed Table Details */}
-                <div className="row mb-4">
-                  <div className="col-md-6">
-                    <div className="mb-3">
-                      <label className="form-label small text-muted fw-bold">Outlet</label>
-                      <p className="fw-semibold mb-0">{proposedTable.outlet}</p>
-                    </div>
-                    <div className="mb-3">
-                      <label className="form-label small text-muted fw-bold">Table</label>
-                      <select 
-                        className="form-select"
-                        value={proposedTable.id}
-                        onChange={(e) => setProposedTable(tables.find(t => t.id === e.target.value))}
-                      >
-                        {tables.map(table => (
-                          <option key={table.id} value={table.id}>
-                            {table.id} - {table.outlet} ({table.status})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                  <div className="col-md-6">
-                    <div className="row">
-                      <div className="col-6">
-                        <label className="form-label small text-muted fw-bold">Date</label>
-                        <p className="fw-semibold mb-0">{proposedTable.date}</p>
-                      </div>
-                      <div className="col-6">
-                        <label className="form-label small text-muted fw-bold">Pax</label>
-                        <p className="fw-semibold mb-0">{proposedTable.pax}</p>
-                      </div>
-                    </div>
-                    <div className="mt-3">
-                      <span className={`badge ${proposedTable.status === 'OCCUPIED' ? 'bg-danger' : 'bg-success'} fs-6`}>
-                        {proposedTable.status}
-                      </span>
-                    </div>
-                  </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-600 mb-1">Table:</label>
+                <select value={proposedTable.table} onChange={(e) => setProposedTable({...proposedTable, table: e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500">
+                  <option>C1</option>
+                  <option>C2</option>
+                  <option>C4</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-600 mb-1">Date:</label>
+                <input type="text" value={proposedTable.date} onChange={(e) => setProposedTable({...proposedTable, date: e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500" />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-600 mb-1">Pax:</label>
+                  <input type="text" value={proposedTable.pax} onChange={(e) => setProposedTable({...proposedTable, pax: e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500" />
                 </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-600 mb-1"></label>
+                  <input type="text" className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500" />
+                </div>
+              </div>
+            </div>
 
-                {/* Target Items List */}
-                <div className="table-responsive mb-4">
-                  <table className="table table-sm table-hover">
-                    <thead className="table-light">
-                      <tr>
-                        <th>Media</th>
-                        <th>KOT No.</th>
-                        <th>Item</th>
-                        <th className="text-center">Qty</th>
+            <div className="border border-gray-300 rounded overflow-hidden mb-3">
+              <table className="w-full">
+                <thead className="bg-gray-200">
+                  <tr>
+                    <th className="px-3 py-2 text-left text-sm font-bold text-gray-700">Media</th>
+                    <th className="px-3 py-2 text-left text-sm font-bold text-gray-700">KOT No</th>
+                    <th className="px-3 py-2 text-left text-sm font-bold text-gray-700">Item</th>
+                    <th className="px-3 py-2 text-right text-sm font-bold text-gray-700">Qty</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white">
+                  {proposedTable.items.length > 0 ? (
+                    proposedTable.items.map((item, idx) => (
+                      <tr key={idx} className="border-t border-gray-200 hover:bg-gray-50">
+                        <td className="px-3 py-2 text-sm">{item.media}</td>
+                        <td className="px-3 py-2 text-sm">{item.kotNo}</td>
+                        <td className="px-3 py-2 text-sm">{item.item}</td>
+                        <td className="px-3 py-2 text-sm text-right">{item.qty}</td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {proposedTable.items.map(item => (
-                        <tr key={item.id}>
-                          <td className="fw-semibold">{item.media}</td>
-                          <td>{proposedTable.kotNumber}</td>
-                          <td>{item.name}</td>
-                          <td className="text-center">{item.quantity}</td>
-                        </tr>
-                      ))}
-                      {/* Preview of transferring items */}
-                      {selectedItems.map(item => (
-                        <tr key={`transfer-${item.id}`} className="table-success">
-                          <td className="fw-semibold">{proposedTable.id}</td>
-                          <td>{proposedTable.kotNumber}</td>
-                          <td>
-                            {item.name} 
-                            <span className="badge bg-success ms-2">→ Transferring</span>
-                          </td>
-                          <td className="text-center">{item.quantity}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="4" className="px-3 py-12 text-center text-gray-400 text-sm">No items</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
 
-                {/* Transfer Button */}
-                <div className="d-grid mb-4">
-                  <button 
-                    className={`btn btn-success btn-lg ${selectedItems.length === 0 ? 'disabled' : ''}`}
-                    onClick={handleTransfer}
-                    disabled={selectedItems.length === 0}
-                  >
-                    <i className="bi bi-arrow-right-circle me-2"></i>
-                    Transfer Selected Items ({selectedItems.length})
-                  </button>
-                </div>
+            <div className="h-8 mb-3"></div>
 
-                {/* Target Financial Summary */}
-                <div className="card bg-light">
-                  <div className="card-body py-3">
-                    <h6 className="card-title mb-3">After Transfer</h6>
-                    <div className="row text-center">
-                      <div className="col-4">
-                        <div className="small text-muted">Total Amount</div>
-                        <div className="h6 mb-0 fw-bold text-primary">
-                          ₹{financials.targetTotal.toFixed(2)}
-                        </div>
-                      </div>
-                      <div className="col-4">
-                        <div className="small text-muted">Variance</div>
-                        <div className="h6 mb-0 fw-bold text-warning">
-                          ₹{financials.variance.toFixed(2)}
-                        </div>
-                      </div>
-                      <div className="col-4">
-                        <div className="small text-muted">Change Amount</div>
-                        <div className={`h6 mb-0 fw-bold ${financials.changeAmount > 0 ? 'text-success' : 'text-danger'}`}>
-                          ₹{financials.changeAmount.toFixed(2)}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+            <div className="grid grid-cols-3 gap-2 border-t pt-3">
+              <div>
+                <div className="text-xs font-semibold text-gray-600 mb-1">Total Amount</div>
+                <div className={`text-lg font-bold ${proposedTable.total > 0 ? 'text-red-600' : 'text-gray-800'}`}>
+                  {proposedTable.total.toFixed(2)}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs font-semibold text-gray-600 mb-1">Variance</div>
+                <div className={`text-lg font-bold ${proposedTable.variance > 0 ? 'text-red-600' : 'text-gray-800'}`}>
+                  {proposedTable.variance.toFixed(2)}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs font-semibold text-gray-600 mb-1">Change Amount</div>
+                <div className={`text-lg font-bold ${proposedTable.change < 0 ? 'text-red-600' : 'text-gray-800'}`}>
+                  {proposedTable.change.toFixed(2)}
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Function Keys Row */}
-        <div className="row mt-4">
-          <div className="col-12">
-            <div className="card">
-              <div className="card-body">
-                <div className="d-flex flex-wrap gap-2 justify-content-center">
-                  {functionKeys.map((fnKey) => (
-                    <button
-                      key={fnKey.key}
-                      onClick={fnKey.action}
-                      className="btn btn-outline-primary position-relative"
-                      style={{ minWidth: '80px' }}
-                    >
-                      <div className="small text-muted">{fnKey.key}</div>
-                      <div className="fw-semibold">{fnKey.label}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
+        {/* Footer Buttons */}
+        <div className="flex justify-end gap-3 mt-4">
+          <button className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-8 py-3 rounded-lg shadow-md hover:shadow-lg transition-all flex items-center gap-2 font-semibold">
+            <Save size={20} />
+            Save (F9)
+          </button>
+          <button className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-8 py-3 rounded-lg shadow-md hover:shadow-lg transition-all flex items-center gap-2 font-semibold">
+            <X size={20} />
+            Exit (Esc)
+          </button>
         </div>
       </div>
     </div>
   );
 }
-
-export default App;
