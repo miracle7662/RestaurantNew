@@ -1,9 +1,8 @@
 // src/App.js
 import React, { useState } from 'react';
-import 'bootstrap/dist/css/bootstrap.min.css';
 
-
-// Mock data
+// Mock data with updated current date
+const currentDate = '07/Oct/2025'; // Based on system date: October 07, 2025
 const initialData = {
   tables: [
     {
@@ -12,7 +11,7 @@ const initialData = {
       status: 'OCCUPIED',
       kotNumber: 24,
       pax: 4,
-      date: '19/Oct/2010',
+      date: currentDate,
       items: [
         { id: 1, name: 'Masala Uttapra', quantity: 1, price: 60, media: 'C4', isFixed: false },
         { id: 2, name: 'Rose Lassi', quantity: 1, price: 40, media: 'C4', isFixed: false },
@@ -25,7 +24,7 @@ const initialData = {
       status: 'VACANT',
       kotNumber: 21,
       pax: 2,
-      date: '19/Oct/2010',
+      date: currentDate,
       items: [
         { id: 4, name: 'Tomato Uttapra', quantity: 1, price: 50, media: 'C1', isFixed: false },
         { id: 5, name: 'Alu Palak', quantity: 1, price: 21, media: 'C1', isFixed: false }
@@ -37,7 +36,7 @@ const initialData = {
       status: 'OCCUPIED',
       kotNumber: 25,
       pax: 3,
-      date: '19/Oct/2010',
+      date: currentDate,
       items: [
         { id: 6, name: 'Paneer Butter Masala', quantity: 1, price: 180, media: 'C2', isFixed: false },
         { id: 7, name: 'Butter Naan', quantity: 2, price: 30, media: 'C2', isFixed: false }
@@ -54,7 +53,7 @@ function App() {
   const [selectedItems, setSelectedItems] = useState([]);
   const [includeFixedItems, setIncludeFixedItems] = useState(false);
 
-  // Calculate totals
+  // Calculate totals for items array
   const calculateTotal = (items) => {
     return items.reduce((total, item) => total + (item.price * item.quantity), 0);
   };
@@ -70,7 +69,7 @@ function App() {
     changeAmount: transferTotal
   };
 
-  // Handle item selection
+  // Handle individual item selection
   const handleItemSelect = (item) => {
     if (selectedItems.some(selected => selected.id === item.id)) {
       setSelectedItems(selectedItems.filter(selected => selected.id !== item.id));
@@ -81,13 +80,13 @@ function App() {
     }
   };
 
-  // Handle transfer
+  // Handle transfer of selected items
   const handleTransfer = () => {
     if (selectedItems.length === 0) return;
 
     const updatedTables = tables.map(table => {
       if (table.id === selectedTable.id) {
-        // Remove items from source table
+        // Remove selected items from source table
         return {
           ...table,
           items: table.items.filter(item => 
@@ -96,14 +95,15 @@ function App() {
         };
       }
       if (table.id === proposedTable.id) {
-        // Add items to target table
+        // Add selected items to target table, updating media and KOT
+        const updatedSelectedItems = selectedItems.map(item => ({
+          ...item,
+          media: table.id,
+          kotNumber: table.kotNumber
+        }));
         return {
           ...table,
-          items: [...table.items, ...selectedItems.map(item => ({
-            ...item,
-            media: table.id,
-            kotNumber: table.kotNumber
-          }))]
+          items: [...table.items, ...updatedSelectedItems]
         };
       }
       return table;
@@ -112,12 +112,12 @@ function App() {
     setTables(updatedTables);
     setSelectedItems([]);
     
-    // Update selected and proposed tables
+    // Refresh selected and proposed table states
     setSelectedTable(updatedTables.find(t => t.id === selectedTable.id));
     setProposedTable(updatedTables.find(t => t.id === proposedTable.id));
   };
 
-  // Select all items
+  // Select all eligible items
   const handleSelectAll = () => {
     const itemsToSelect = includeFixedItems 
       ? selectedTable.items 
@@ -126,12 +126,12 @@ function App() {
     setSelectedItems(itemsToSelect);
   };
 
-  // Clear selection
+  // Clear all selections
   const handleClearSelection = () => {
     setSelectedItems([]);
   };
 
-  // Function keys
+  // Function keys configuration
   const functionKeys = [
     { key: 'F2', label: 'KOT Tr', action: () => setTransferMode('KOT') },
     { key: 'F5', label: 'Rev Bill', action: () => console.log('Reverse Bill') },
@@ -146,7 +146,7 @@ function App() {
 
   return (
     <div className="App bg-light min-vh-100">
-      {/* Header */}
+      {/* Header Section */}
       <div className="bg-white shadow-sm">
         <div className="container-fluid">
           <div className="row align-items-center py-3">
@@ -176,10 +176,10 @@ function App() {
         </div>
       </div>
 
-      {/* Main Content */}
+      {/* Main Content Area */}
       <div className="container-fluid py-4">
         <div className="row g-4">
-          {/* Selected Table Section */}
+          {/* Selected Table Panel */}
           <div className="col-lg-6">
             <div className="card shadow-sm h-100">
               <div className="card-header bg-primary text-white">
@@ -188,7 +188,7 @@ function App() {
                 </h5>
               </div>
               <div className="card-body">
-                {/* Table Information */}
+                {/* Table Details */}
                 <div className="row mb-4">
                   <div className="col-md-6">
                     <div className="mb-3">
@@ -228,7 +228,7 @@ function App() {
                   </div>
                 </div>
 
-                {/* Items Table */}
+                {/* Items List */}
                 <div className="table-responsive mb-4">
                   <table className="table table-sm table-hover">
                     <thead className="table-light">
@@ -270,7 +270,7 @@ function App() {
                   </table>
                 </div>
 
-                {/* Selection Actions */}
+                {/* Selection Controls */}
                 <div className="row align-items-center mb-4">
                   <div className="col-md-8">
                     <div className="d-flex gap-2 flex-wrap">
@@ -307,7 +307,7 @@ function App() {
                   </div>
                 </div>
 
-                {/* Financial Summary */}
+                {/* Source Financial Summary */}
                 <div className="card bg-light">
                   <div className="card-body py-3">
                     <h6 className="card-title mb-3">Financial Summary</h6>
@@ -337,14 +337,14 @@ function App() {
             </div>
           </div>
 
-          {/* Proposed Table Section */}
+          {/* Proposed Table Panel */}
           <div className="col-lg-6">
             <div className="card shadow-sm h-100">
               <div className="card-header bg-success text-white">
                 <h5 className="card-title mb-0">TRANSFER {transferMode}</h5>
               </div>
               <div className="card-body">
-                {/* Proposed Table Information */}
+                {/* Proposed Table Details */}
                 <div className="row mb-4">
                   <div className="col-md-6">
                     <div className="mb-3">
@@ -385,7 +385,7 @@ function App() {
                   </div>
                 </div>
 
-                {/* Target Items Table */}
+                {/* Target Items List */}
                 <div className="table-responsive mb-4">
                   <table className="table table-sm table-hover">
                     <thead className="table-light">
@@ -405,7 +405,7 @@ function App() {
                           <td className="text-center">{item.quantity}</td>
                         </tr>
                       ))}
-                      {/* Items to be transferred */}
+                      {/* Preview of transferring items */}
                       {selectedItems.map(item => (
                         <tr key={`transfer-${item.id}`} className="table-success">
                           <td className="fw-semibold">{proposedTable.id}</td>
@@ -421,7 +421,7 @@ function App() {
                   </table>
                 </div>
 
-                {/* Transfer Actions */}
+                {/* Transfer Button */}
                 <div className="d-grid mb-4">
                   <button 
                     className={`btn btn-success btn-lg ${selectedItems.length === 0 ? 'disabled' : ''}`}
@@ -433,7 +433,7 @@ function App() {
                   </button>
                 </div>
 
-                {/* After Transfer Financial Summary */}
+                {/* Target Financial Summary */}
                 <div className="card bg-light">
                   <div className="card-body py-3">
                     <h6 className="card-title mb-3">After Transfer</h6>
@@ -464,7 +464,7 @@ function App() {
           </div>
         </div>
 
-        {/* Function Keys Panel */}
+        {/* Function Keys Row */}
         <div className="row mt-4">
           <div className="col-12">
             <div className="card">

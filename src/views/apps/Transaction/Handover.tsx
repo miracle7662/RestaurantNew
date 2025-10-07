@@ -274,10 +274,10 @@ const HandoverPage = () => {
         }
         .table-container {
           position: relative;
-          max-height: 750px; /* Adjusted for ~15 rows (assuming ~50px per row) */
+          max-height: 650px; /* Adjusted for ~15 rows and footer */
           overflow-y: auto;
           overflow-x: auto;
-          height: calc(100vh - 200px); /* Dynamic height to fit more content */
+          height: calc(100vh - 350px); /* Dynamic height to fit more content and accommodate the action footer */
         }
         .table-container thead th {
           position: sticky;
@@ -664,8 +664,8 @@ const HandoverPage = () => {
                             <th>Round off</th>
                             <th>Rev Amt</th>
                             <th>KOT No</th>
-                            <th>Reverse KOT No</th>
-                            <th>Reverse Bill</th>
+                            <th>Rev KOT No</th>
+                            <th>Rev Bill</th>
                             <th>Water</th>
                             <th>Payment Mode</th>
                             <th>Cash</th>
@@ -751,7 +751,7 @@ const HandoverPage = () => {
                             );
                           })}
                         </tbody>
-                        <tfoot>
+                           <tfoot>
                           <tr className="table-success">
                             <td>Total</td>
                             <td></td>
