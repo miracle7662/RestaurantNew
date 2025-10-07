@@ -38,7 +38,7 @@ export default function CashDenomination({ orderId, billTotal, onClose }) {
   };
 
   return (
-    <div className="p-3 bg-light rounded shadow-sm">
+    <div className="p-8 bg-light rounded shadow-sm">
       <h5 className="fw-bold mb-3">💵 Cash Denomination</h5>
 
       {message && <Alert variant="success">{message}</Alert>}
@@ -60,7 +60,7 @@ export default function CashDenomination({ orderId, billTotal, onClose }) {
                   type="number"
                   min="0"
                   className="text-center"
-                  value={counts[value] || ""}
+                  value={counts ] || ""}
                   onChange={(e) => handleChange(value, Number(e.target.value))}
                 />
               </td>
