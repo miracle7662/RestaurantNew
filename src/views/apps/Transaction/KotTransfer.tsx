@@ -228,9 +228,9 @@ const TransferTable = () => {
   const destKOT = proposedItems.length > 0 ? proposedItems[0].kot : 0;
 
   return (
-    <div className="container mt-0 p-4 rounded shadow" >
+    <div className="container mt-0 p-2 rounded shadow" >
       {/* Header */}
-      <div className="d-flex justify-content-between align-items-center mb-4 p-3 bg-white rounded shadow-sm">
+      <div className="d-flex justify-content-between align-items-center mb-2 p-2 bg-white rounded shadow-sm">
         <div className="d-flex gap-2">
           <Button 
             variant={transferType === "table" ? "primary" : "outline-primary"} 
