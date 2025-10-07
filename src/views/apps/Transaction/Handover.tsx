@@ -269,7 +269,7 @@ const HandoverPage = () => {
       handoverTo: handoverTo,
       handoverBy: handoverBy,
       // In a real app, you'd get the current user's ID
-      userId: 1, 
+      userId: 1,
     };
 
     fetch('http://localhost:3001/api/handover/cash-denomination', {
@@ -277,19 +277,19 @@ const HandoverPage = () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     })
-    .then(res => res.json())
-    .then(data => {
-      if (data.success) {
-        alert(`Cash Denomination saved successfully! Total Counted Cash: ₹${countedCashTotal.toLocaleString()}`);
-        handleCloseCashModal();
-      } else {
-        alert(`Error: ${data.message}`);
-      }
-    })
-    .catch(err => {
-      console.error("Error saving cash denomination:", err);
-      alert("An error occurred while saving. Please check the console.");
-    });
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          alert(`Cash Denomination saved successfully! Total Counted Cash: ₹${countedCashTotal.toLocaleString()}`);
+          handleCloseCashModal();
+        } else {
+          alert(`Error: ${data.message}`);
+        }
+      })
+      .catch(err => {
+        console.error("Error saving cash denomination:", err);
+        alert("An error occurred while saving. Please check the console.");
+      });
   };
 
 
@@ -899,68 +899,68 @@ const HandoverPage = () => {
                   </Card.Body>
                 </Card>
 
-     <Card
-  className="shadow-sm border-0 mt-4"
-  style={{
-    backgroundColor: "#f1f3f5", // light gray shade
-    padding: "12px 16px",       // more inner space (height)
-    minHeight: "70px",          // ensure footer looks taller
-    borderRadius: "8px",
-  }}
->
-  <div className="d-flex align-items-center flex-wrap gap-3">
-    {/* Handover By */}
-    <div className="d-flex align-items-center gap-2">
-      <span className="fw-semibold text-secondary small">Handover By:</span>
-      <Form.Control
-        type="text"
-        placeholder="Enter name"
-        value={handoverBy}
-        onChange={(e) => setHandoverBy(e.target.value)}
-        size="sm"
-        style={{ width: "140px" }}
-      />
-    </div>
+                <Card
+                  className="shadow-sm border-0 mt-4"
+                  style={{
+                    backgroundColor: "#f1f3f5", // light gray shade
+                    padding: "12px 16px",       // more inner space (height)
+                    minHeight: "70px",          // ensure footer looks taller
+                    borderRadius: "8px",
+                  }}
+                >
+                  <div className="d-flex align-items-center flex-wrap gap-3">
+                    {/* Handover By */}
+                    <div className="d-flex align-items-center gap-2">
+                      <span className="fw-semibold text-secondary small">Handover By:</span>
+                      <Form.Control
+                        type="text"
+                        placeholder="Enter name"
+                        value={handoverBy}
+                        onChange={(e) => setHandoverBy(e.target.value)}
+                        size="sm"
+                        style={{ width: "140px" }}
+                      />
+                    </div>
 
-    {/* To */}
-    <div className="d-flex align-items-center gap-2">
-      <span className="fw-semibold text-secondary small">To:</span>
-      <Form.Select
-        value={handoverTo}
-        onChange={(e) => setHandoverTo(e.target.value)}
-        size="sm"
-        style={{ width: "140px" }}
-      >
-        <option value="">Select</option>
-        <option value="Shift A">Shift A</option>
-        <option value="Shift B">Shift B</option>
-        <option value="Manager">Manager</option>
-      </Form.Select>
-    </div>
+                    {/* To */}
+                    <div className="d-flex align-items-center gap-2">
+                      <span className="fw-semibold text-secondary small">To:</span>
+                      <Form.Select
+                        value={handoverTo}
+                        onChange={(e) => setHandoverTo(e.target.value)}
+                        size="sm"
+                        style={{ width: "140px" }}
+                      >
+                        <option value="">Select</option>
+                        <option value="Shift A">Shift A</option>
+                        <option value="Shift B">Shift B</option>
+                        <option value="Manager">Manager</option>
+                      </Form.Select>
+                    </div>
 
-    {/* Cash Denomination */}
-    <div className="d-flex align-items-center gap-2">
-      <Button
-        variant="outline-secondary"
-        size="sm"
-        onClick={handleOpenCashModal}
-        style={{ minWidth: "150px" }}
-      >
-        Cash Denomination
-      </Button>
-    </div>
+                    {/* Cash Denomination */}
+                    <div className="d-flex align-items-center gap-2">
+                      <Button
+                        variant="outline-secondary"
+                        size="sm"
+                        onClick={handleOpenCashModal}
+                        style={{ minWidth: "150px" }}
+                      >
+                        Cash Denomination
+                      </Button>
+                    </div>
 
-    {/* Action Buttons */}
-    <div className="ms-auto d-flex align-items-center gap-2">
-      <Button variant="success" size="sm" onClick={handleSaveHandover}>
-        Handover
-      </Button>
-      <Button variant="secondary" size="sm" onClick={handleClose}>
-        Close
-      </Button>
-    </div>
-  </div>
-</Card>
+                    {/* Action Buttons */}
+                    <div className="ms-auto d-flex align-items-center gap-2">
+                      <Button variant="success" size="sm" onClick={handleSaveHandover}>
+                        Handover
+                      </Button>
+                      <Button variant="secondary" size="sm" onClick={handleClose}>
+                        Close
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
 
 
 
@@ -1088,111 +1088,110 @@ const HandoverPage = () => {
 
         {/* Cash Denomination Modal - Small Centered */}
         <Modal
-  show={showCashModal}
-  onHide={handleCloseCashModal}
-  size="sm"
-  centered
-  backdrop="static"
-  className="cash-denom-modal"
->
-  {/* Header */}
-  <Modal.Header closeButton className="bg-light py-2 border-bottom">
-    <Modal.Title className="fs-6 fw-semibold text-dark">
-      💵 Cash Denomination Entry
-    </Modal.Title>
-  </Modal.Header>
+          show={showCashModal}
+          onHide={handleCloseCashModal}
+          size="sm"
+          centered
+          backdrop="static"
+          className="cash-denom-modal"
+        >
+          {/* Header */}
+          <Modal.Header closeButton className="bg-light py-2 border-bottom">
+            <Modal.Title className="fs-6 fw-semibold text-dark">
+              💵 Cash Denomination Entry
+            </Modal.Title>
+          </Modal.Header>
 
-  {/* Body */}
-  <Modal.Body style={{ maxHeight: '60vh', overflowY: 'auto', padding: '1rem' }}>
-    <div className="cash-denom-list">
-      {Object.entries(cashDenominations).map(([denomStr, count]) => {
-        const denom = parseInt(denomStr);
-        const amount = denom * count;
-        return (
-          <div
-            key={denom}
-            className="d-flex justify-content-between align-items-center border rounded p-2 mb-2 bg-white shadow-sm"
-          >
-            <span className="fw-semibold text-primary fs-6">{denom}</span>
-            <Form.Control
-              type="number"
-              size="sm"
-              min={0}
-              value={count}
-              onChange={(e) =>
-                handleCountChange(denom, parseInt(e.target.value) || 0)
-              }
-              className="text-center mx-3"
-              style={{ width: '80px' }}
-            />
-            <span className="fw-semibold text-success">
-              {amount.toLocaleString()}
-            </span>
+          {/* Body */}
+          <Modal.Body style={{ maxHeight: '60vh', overflowY: 'auto', padding: '1rem' }}>
+            <div className="cash-denom-list">
+              {Object.entries(cashDenominations).map(([denomStr, count]) => {
+                const denom = parseInt(denomStr);
+                const amount = denom * count;
+                return (
+                  <div
+                    key={denom}
+                    className="d-flex justify-content-between align-items-center border rounded p-2 mb-2 bg-white shadow-sm"
+                  >
+                    <span className="fw-semibold text-primary fs-6">{denom}</span>
+                    <Form.Control
+                      type="number"
+                      size="sm"
+                      min={0}
+                      value={count}
+                      onChange={(e) =>
+                        handleCountChange(denom, parseInt(e.target.value) || 0)
+                      }
+                      className="text-center mx-3"
+                      style={{ width: '80px' }}
+                    />
+                    <span className="fw-semibold text-success">
+                      {amount.toLocaleString()}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </Modal.Body>
+
+          {/* Totals Section */}
+          <div className="px-4 pb-2 border-top bg-light">
+            <div className="d-flex justify-content-between py-1">
+              <span className="fw-bold text-dark">Total Cash:</span>
+              <span className="fw-semibold text-success">
+                {countedCashTotal.toLocaleString()}
+              </span>
+            </div>
+
+            <div className="d-flex justify-content-between py-1">
+              <span className="fw-bold text-dark">Handover Expected:</span>
+              <span className="fw-semibold text-primary">
+                {totalSales.toLocaleString()}
+              </span>
+            </div>
+
+            <div className="d-flex justify-content-between py-1 border-top mt-1">
+              <span className="fw-bold text-dark">Surplus / Deficit:</span>
+              <span
+                className={`fw-bold ${countedCashTotal - totalSales >= 0 ? 'text-success' : 'text-danger'
+                  }`}
+              >
+                {(countedCashTotal - totalSales).toLocaleString()}
+              </span>
+            </div>
+
+            {/* Reason Field */}
+            <div className="mt-3">
+              <Form.Group controlId="reason">
+                <Form.Label className="fw-semibold text-secondary small mb-1">
+                  Reason (if Surplus / Deficit)
+                </Form.Label>
+                <Form.Control
+                  as="textarea"
+                  rows={2}
+                  placeholder="Enter reason..."
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                />
+              </Form.Group>
+            </div>
           </div>
-        );
-      })}
-    </div>
-  </Modal.Body>
 
-  {/* Totals Section */}
-  <div className="px-4 pb-2 border-top bg-light">
-    <div className="d-flex justify-content-between py-1">
-      <span className="fw-bold text-dark">Total Cash:</span>
-      <span className="fw-semibold text-success">
-        {countedCashTotal.toLocaleString()}
-      </span>
-    </div>
-
-    <div className="d-flex justify-content-between py-1">
-      <span className="fw-bold text-dark">Handover Expected:</span>
-      <span className="fw-semibold text-primary">
-        {totalCash.toLocaleString()}
-      </span>
-    </div>
-
-    <div className="d-flex justify-content-between py-1 border-top mt-1">
-      <span className="fw-bold text-dark">Surplus / Deficit:</span>
-      <span
-        className={`fw-bold ${
-          countedCashTotal - totalCash >= 0 ? 'text-success' : 'text-danger'
-        }`}
-      >
-        {(countedCashTotal - totalCash).toLocaleString()}
-      </span>
-    </div>
-
-    {/* Reason Field */}
-    <div className="mt-3">
-      <Form.Group controlId="reason">
-        <Form.Label className="fw-semibold text-secondary small mb-1">
-          Reason (if Surplus / Deficit)
-        </Form.Label>
-        <Form.Control
-          as="textarea"
-          rows={2}
-          placeholder="Enter reason..."
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-        />
-      </Form.Group>
-    </div>
-  </div>
-
-  {/* Footer */}
-  <Modal.Footer className="border-0 pt-0">
-    <Button
-      variant="success"
-      size="sm"
-      onClick={handleSaveCashDenomination}
-      disabled={!reason && countedCashTotal !== totalCash} // reason required if mismatch
-    >
-      💾 Save
-    </Button>
-    <Button variant="outline-secondary" size="sm" onClick={handleCloseCashModal}>
-      ✖ Close
-    </Button>
-  </Modal.Footer>
-</Modal>
+          {/* Footer */}
+          <Modal.Footer className="border-0 pt-0">
+            <Button
+              variant="success"
+              size="sm"
+              onClick={handleSaveCashDenomination}
+              disabled={!reason && countedCashTotal !== totalSales} // reason required if mismatch
+            >
+              💾 Save
+            </Button>
+            <Button variant="outline-secondary" size="sm" onClick={handleCloseCashModal}>
+              ✖ Close
+            </Button>
+          </Modal.Footer>
+        </Modal>
 
       </Container>
     </>

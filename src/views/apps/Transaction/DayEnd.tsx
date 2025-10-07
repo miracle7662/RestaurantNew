@@ -75,12 +75,25 @@ const HandoverPage = () => {
   const [statusFilter, setStatusFilter] = useState("all");
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-  const [activeTab, setActiveTab] = useState("Dashboard");
+  const [activeTab, setActiveTab] = useState("summary");
   const [handoverTo, setHandoverTo] = useState("");
   const [handoverBy, setHandoverBy] = useState("");
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showCashModal, setShowCashModal] = useState(false);
+  const [cashDenominations, setCashDenominations] = useState({
+    2000: 0,
+    500: 0,
+    200: 0,
+    100: 0,
+    50: 0,
+    20: 0,
+    10: 0,
+    5: 0,
+    2: 0,
+    1: 0,
+  });
 
   useEffect(() => {
     const fetchHandoverData = async () => {
@@ -107,7 +120,7 @@ const HandoverPage = () => {
     fetchHandoverData();
   }, []);
 
-  // Computed Dashboard from orders
+  // Computed summary from orders
   const totalOrders = orders.length;
   const totalKOTs = orders.length;
   const totalSales = orders.reduce((sum, order) => sum + order.amount, 0);
@@ -137,7 +150,7 @@ const HandoverPage = () => {
   const totalQrcode = orders.reduce((sum, order) => sum + (order.qrcode || 0), 0);
 
 
-  const Dashboard = {
+  const summary = {
     totalOrders,
     totalKOTs,
     totalSales,
@@ -151,11 +164,19 @@ const HandoverPage = () => {
   };
 
   const paymentMethods = [
-    { type: "Cash", amount: Dashboard.cash, percentage: totalSales > 0 ? ((Dashboard.cash / totalSales) * 100).toFixed(1) : "0" },
-    { type: "Card", amount: Dashboard.card, percentage: totalSales > 0 ? ((Dashboard.card / totalSales) * 100).toFixed(1) : "0" },
-    { type: "UPI", amount: Dashboard.upi, percentage: totalSales > 0 ? ((Dashboard.upi / totalSales) * 100).toFixed(1) : "0" },
+    { type: "Cash", amount: summary.cash, percentage: totalSales > 0 ? ((summary.cash / totalSales) * 100).toFixed(1) : "0" },
+    { type: "Card", amount: summary.card, percentage: totalSales > 0 ? ((summary.card / totalSales) * 100).toFixed(1) : "0" },
+    { type: "UPI", amount: summary.upi, percentage: totalSales > 0 ? ((summary.upi / totalSales) * 100).toFixed(1) : "0" },
 
   ];
+
+  const [reason, setReason] = useState('');
+  // This is the total cash calculated from the denominations entered in the modal.
+  const countedCashTotal = Object.entries(cashDenominations).reduce(
+    (sum, [denom, count]) => sum + parseInt(denom) * count,
+    0
+  );
+
 
   const paymentData = {
     labels: paymentMethods.map(pm => pm.type),
@@ -225,6 +246,52 @@ const HandoverPage = () => {
     }
   };
 
+  const handleOpenCashModal = () => {
+    setShowCashModal(true);
+  };
+
+  const handleCloseCashModal = () => {
+    setShowCashModal(false);
+  };
+
+  const handleCountChange = (denom: number, value: number) => {
+    setCashDenominations(prev => ({ ...prev, [denom]: value }));
+  };
+
+
+  const handleSaveCashDenomination = () => {
+    const payload = {
+      denominations: cashDenominations,
+      total: countedCashTotal,
+      expected: totalCash, // totalCash from sales is the expected amount
+      difference: countedCashTotal - totalCash,
+      reason: reason,
+      handoverTo: handoverTo,
+      handoverBy: handoverBy,
+      // In a real app, you'd get the current user's ID
+      userId: 1,
+    };
+
+    fetch('http://localhost:3001/api/handover/dayend-cash-denomination', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          alert(`Day-End Cash Denomination saved successfully! Total Counted Cash: ₹${countedCashTotal.toLocaleString()}`);
+          handleCloseCashModal();
+        } else {
+          alert(`Error: ${data.message}`);
+        }
+      })
+      .catch(err => {
+        console.error("Error saving cash denomination:", err);
+        alert("An error occurred while saving. Please check the console.");
+      });
+  };
+
 
 
   const StatusBadge = ({ status }: { status: string }) => {
@@ -274,10 +341,9 @@ const HandoverPage = () => {
         }
         .table-container {
           position: relative;
-          max-height: 750px; /* Adjusted for ~15 rows (assuming ~50px per row) */
+          height: calc(100vh - 350px);
           overflow-y: auto;
           overflow-x: auto;
-          height: calc(100vh - 200px); /* Dynamic height to fit more content */
         }
         .table-container thead th {
           position: sticky;
@@ -289,11 +355,17 @@ const HandoverPage = () => {
           font-size: 0.75rem;
           white-space: nowrap;
         }
-        .table-container tfoot tr {
+        .table-container tfoot td {
           position: sticky;
           bottom: 0;
           z-index: 5;
           background-color: #d4edda !important;
+          border-top: 2px solid #28a745;
+          font-weight: bold;
+          color: #155724 !important;
+          padding: 0.25rem 0.5rem;
+          font-size: 0.8rem;
+          white-space: nowrap;
         }
         .table-container .table-success {
           background-color: #d4edda !important;
@@ -302,19 +374,11 @@ const HandoverPage = () => {
           background-color: #d4edda !important;
           color: #155724 !important;
         }
-        .table-container tfoot td {
-          border-top: 2px solid #28a745;
-          font-weight: bold;
-          color: #155724 !important;
-          padding: 0.25rem 0.5rem;
-          font-size: 0.8rem;
-          white-space: nowrap;
-        }
         .table-container table {
           margin-bottom: 0;
           table-layout: fixed;
           width: 100%;
-          min-width: 2000px; /* Ensure wide enough for all columns */
+          min-width: 2400px;
           border-collapse: separate;
         }
         .table-container th,
@@ -331,67 +395,75 @@ const HandoverPage = () => {
         .table-container .table-row-compact td {
           padding: 0.25rem 0.5rem;
         }
+        .table-row-discount, .table-row-discount td {
+          background-color: #fff0f1 !important; /* Light pink for discount */
+          color: #721c24 !important;
+        }
+        .table-row-nckot, .table-row-nckot td {
+          background-color: #eef0ff !important; /* Light blue for NCKOT */
+          color: #2c2e43 !important;
+        }
         /* Specific column widths */
         .table-container th:nth-child(1),
-        .table-container td:nth-child(1) { width: 8%; } /* Bill No */
+        .table-container td:nth-child(1) { width: 10%; } /* Bill No */
         .table-container th:nth-child(2),
-        .table-container td:nth-child(2) { width: 5%; } /* Table */
+        .table-container td:nth-child(2) { width: 6%; } /* Table */
         .table-container th:nth-child(3),
-        .table-container td:nth-child(3) { width: 8%; text-align: right; } /* Total Amount */
+        .table-container td:nth-child(3) { width: 10%; text-align: right; } /* Total Amount */
         .table-container th:nth-child(4),
-        .table-container td:nth-child(4) { width: 7%; text-align: right; } /* Discount */
+        .table-container td:nth-child(4) { width: 8%; text-align: right; } /* Discount */
         .table-container th:nth-child(5),
-        .table-container td:nth-child(5) { width: 8%; text-align: right; } /* Gross Amount */
+        .table-container td:nth-child(5) { width: 10%; text-align: right; } /* Gross Amount */
         .table-container th:nth-child(6),
-        .table-container td:nth-child(6) { width: 6%; text-align: right; } /* CGST */
+        .table-container td:nth-child(6) { width: 7%; text-align: right; } /* CGST */
         .table-container th:nth-child(7),
-        .table-container td:nth-child(7) { width: 6%; text-align: right; } /* SGST */
+        .table-container td:nth-child(7) { width: 7%; text-align: right; } /* SGST */
         .table-container th:nth-child(8),
-        .table-container td:nth-child(8) { width: 7%; text-align: right; } /* Round off */
+        .table-container td:nth-child(8) { width: 8%; text-align: right; } /* Round off */
         .table-container th:nth-child(9),
-        .table-container td:nth-child(9) { width: 7%; text-align: right; } /* Rev Amt */
+        .table-container td:nth-child(9) { width: 8%; text-align: right; } /* Rev Amt */
         .table-container th:nth-child(10),
-        .table-container td:nth-child(10) { width: 6%; } /* KOT No */
+        .table-container td:nth-child(10) { width: 8%; } /* KOT No */
         .table-container th:nth-child(11),
-        .table-container td:nth-child(11) { width: 9%; } /* Reverse KOT No */
+        .table-container td:nth-child(11) { width: 10%; } /* Reverse KOT No */
         .table-container th:nth-child(12),
-        .table-container td:nth-child(12) { width: 8%; } /* Reverse Bill */
+        .table-container td:nth-child(12) { width: 9%; } /* Reverse Bill */
         .table-container th:nth-child(13),
-        .table-container td:nth-child(13) { width: 6%; text-align: right; } /* Water */
+        .table-container td:nth-child(13) { width: 7%; text-align: right; } /* Water */
         .table-container th:nth-child(14),
         .table-container td:nth-child(14) { 
-          width: 12%; 
+          width: 15%; 
           white-space: normal; 
           word-wrap: break-word; 
           overflow-wrap: break-word; 
         } /* Payment Mode */
         .table-container th:nth-child(15),
-        .table-container td:nth-child(15) { width: 6%; text-align: right; } /* Cash */
+        .table-container td:nth-child(15) { width: 8%; text-align: right; } /* Cash */
         .table-container th:nth-child(16),
-        .table-container td:nth-child(16) { width: 6%; text-align: right; } /* Credit */
+        .table-container td:nth-child(16) { width: 8%; text-align: right; } /* Credit */
         .table-container th:nth-child(17),
-        .table-container td:nth-child(17) { width: 6%; text-align: right; } /* Card */
+        .table-container td:nth-child(17) { width: 8%; text-align: right; } /* Card */
         .table-container th:nth-child(18),
-        .table-container td:nth-child(18) { width: 6%; text-align: right; } /* GPay */
+        .table-container td:nth-child(18) { width: 8%; text-align: right; } /* GPay */
         .table-container th:nth-child(19),
-        .table-container td:nth-child(19) { width: 7%; text-align: right; } /* PhonePe */
+        .table-container td:nth-child(19) { width: 8%; text-align: right; } /* PhonePe */
         .table-container th:nth-child(20),
-        .table-container td:nth-child(20) { width: 7%; text-align: right; } /* QR Code */
+        .table-container td:nth-child(20) { width: 8%; text-align: right; } /* QR Code */
         .table-container th:nth-child(21),
-        .table-container td:nth-child(21) { width: 7%; } /* Captain */
+        .table-container td:nth-child(21) { width: 8%; } /* Captain */
         .table-container th:nth-child(22),
-        .table-container td:nth-child(22) { width: 6%; } /* User */
+        .table-container td:nth-child(22) { width: 7%; } /* User */
         .table-container th:nth-child(23),
-        .table-container td:nth-child(23) { width: 6%; text-align: center; } /* Total Items */
+        .table-container td:nth-child(23) { width: 7%; text-align: center; } /* Total Items */
         .table-container th:nth-child(24),
-        .table-container td:nth-child(24) { width: 7%; } /* Time */
+        .table-container td:nth-child(24) { width: 8%; } /* Time */
         .table-container th:nth-child(25),
-        .table-container td:nth-child(25) { width: 7%; } /* Date */
+        .table-container td:nth-child(25) { width: 8%; } /* Date */
         .table-container th:nth-child(26),
-        .table-container td:nth-child(26) { width: 6%; text-align: center; } /* Status */
+        .table-container td:nth-child(26) { width: 7%; text-align: center; } /* Status */
         .table-container th:nth-child(27),
-        .table-container td:nth-child(27) { width: 5%; text-align: center; } /* Actions */
-        .Dashboard-cards {
+        .table-container td:nth-child(27) { width: 6%; text-align: center; } /* Actions */
+        .summary-cards {
           margin-bottom: 1rem;
         }
         .payment-section {
@@ -410,7 +482,7 @@ const HandoverPage = () => {
           padding: 0.5rem;
         }
         .card-body-compact {
-          padding: 1rem;
+          padding: 1.5rem;
         }
         .header-compact {
           padding: 1rem;
@@ -452,6 +524,37 @@ const HandoverPage = () => {
           flex: 1;
           min-width: 150px;
         }
+        .cash-denom-list {
+          max-height: 200px;
+          overflow-y: auto;
+          font-size: 0.85rem;
+        }
+        .cash-denom-item {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 0.25rem 0;
+          border-bottom: 1px solid #dee2e6;
+        }
+        .cash-denom-denom {
+          width: 60px;
+          font-weight: bold;
+        }
+        .cash-denom-count {
+          flex: 1;
+        }
+        .cash-denom-amount {
+          width: 80px;
+          text-align: right;
+          font-weight: 500;
+        }
+        .cash-total {
+          font-weight: bold;
+          color: #28a745;
+          border-top: 2px solid #28a745;
+          padding-top: 0.5rem;
+          margin-top: 0.5rem;
+        }
       `}</style>
       <Container fluid className="p-0 bg-light main-container">
         {/* Header Section - Compact */}
@@ -473,39 +576,39 @@ const HandoverPage = () => {
             className="mb-0"
           >
             <Tab
-              eventKey="Dashboard"
+              eventKey="summary"
               title={
                 <span className="d-flex align-items-center">
                   <BarChart3 size={14} className="me-1" />
-                  Dashboard
+                  Summary
                 </span>
               }
             >
-              {/* Dashboard Tab Content - Compact */}
+              {/* Summary Tab Content - Compact */}
               <div className="p-1">
-                <Row className="Dashboard-cards">
+                <Row className="summary-cards">
                   {[
                     {
                       title: "Total Orders",
-                      value: Dashboard.totalOrders,
+                      value: summary.totalOrders,
                       icon: <CheckCircle className="text-primary" size={24} />,
-                      subtitle: `${Dashboard.completed} completed`
+                      subtitle: `${summary.completed} completed`
                     },
                     {
                       title: "Total KOTs",
-                      value: Dashboard.totalKOTs,
+                      value: summary.totalKOTs,
                       icon: <Printer className="text-success" size={24} />,
                       subtitle: "Kitchen orders"
                     },
                     {
                       title: "Total Sales",
-                      value: `₹${Dashboard.totalSales.toLocaleString()}`,
+                      value: `₹${summary.totalSales.toLocaleString()}`,
                       icon: <DollarSign className="text-warning" size={24} />,
-                      subtitle: `Avg: ₹${Dashboard.averageOrderValue}`
+                      subtitle: `Avg: ₹${summary.averageOrderValue}`
                     },
                     {
                       title: "Pending",
-                      value: Dashboard.pending,
+                      value: summary.pending,
                       icon: <AlertTriangle className="text-danger" size={24} />,
                       subtitle: "Need attention"
                     },
@@ -575,15 +678,15 @@ const HandoverPage = () => {
                       <Card.Body className="stats-container">
                         <div className="d-flex justify-content-between align-items-center mb-2">
                           <span>Settled Orders</span>
-                          <Badge bg="success" className="fs-5">{Dashboard.completed}</Badge>
+                          <Badge bg="success" className="fs-5">{summary.completed}</Badge>
                         </div>
                         <div className="d-flex justify-content-between align-items-center mb-2">
                           <span>Pending Orders</span>
-                          <Badge bg="warning" className="fs-5">{Dashboard.pending}</Badge>
+                          <Badge bg="warning" className="fs-5">{summary.pending}</Badge>
                         </div>
                         <div className="d-flex justify-content-between align-items-center mb-2">
                           <span>Cancelled Orders</span>
-                          <Badge bg="danger" className="fs-5">{Dashboard.cancelled}</Badge>
+                          <Badge bg="danger" className="fs-5">{summary.cancelled}</Badge>
                         </div>
                       </Card.Body>
                     </Card>
@@ -626,9 +729,9 @@ const HandoverPage = () => {
                           onChange={(e) => setStatusFilter(e.target.value)}
                           size="sm"
                         >
-                          <option value="all">Display</option>
-                          <option value="settled">1 day</option>
-                          <option value="pending">2 days</option>
+                          <option value="all">All Status</option>
+                          <option value="settled">Settled</option>
+                          <option value="pending">Pending</option>
                         </Form.Select>
                       </Col>
                       <Col md={3}>
@@ -651,7 +754,7 @@ const HandoverPage = () => {
                 <Card className="border-0 shadow-sm mb-0">
                   <Card.Body className="p-0">
                     <div className="table-container">
-                      <Table hover className="mb-0" responsive>
+                      <Table hover className="mb-0">
                         <thead className="table-light">
                           <tr>
                             <th>Bill No</th>
@@ -664,8 +767,8 @@ const HandoverPage = () => {
                             <th>Round off</th>
                             <th>Rev Amt</th>
                             <th>KOT No</th>
-                            <th>Reverse KOT No</th>
-                            <th>Reverse Bill</th>
+                            <th>Rev KOT No</th>
+                            <th>Rev Bill</th>
                             <th>Water</th>
                             <th>Payment Mode</th>
                             <th>Cash</th>
@@ -687,8 +790,17 @@ const HandoverPage = () => {
                           {filteredOrders.map((order, idx) => {
                             const formattedTime = getFormattedTime(order.time);
                             const formattedDate = getFormattedDate(order.time);
+
+                            const rowClasses = ['table-row-compact'];
+                            if (order.discount > 0) {
+                              rowClasses.push('table-row-discount');
+                            }
+                            if (order.ncKot) {
+                              rowClasses.push('table-row-nckot');
+                            }
+
                             return (
-                              <tr key={idx} className="table-row-compact">
+                              <tr key={idx} className={rowClasses.join(' ')}>
                                 <td className="fw-semibold">{order.orderNo}</td>
                                 <td>
                                   <Badge bg="light" text="dark" className="fs-6">
@@ -787,61 +899,55 @@ const HandoverPage = () => {
                   </Card.Body>
                 </Card>
 
-                {/* Action Section - Sticky Footer for Orders Tab */}
-                <div className="action-section bg-light border rounded-3 p-1 shadow-sm">
-                  <div className="handover-form">
-                    <Row className="align-items-end g-3">
-                      <Col md={3}>
-                        <Form.Group controlId="dayendby">
-                          <Form.Label className="fw-semibold text-secondary small">Day End  By</Form.Label>
-                          <Form.Control
-                            type="text"
-                            placeholder="Enter name"
-                            value={handoverBy}
-                            onChange={(e) => setHandoverBy(e.target.value)}
-                            size="sm"
-                            className="rounded-2 shadow-sm border-0 bg-white"
-                          />
-                        </Form.Group>
-                      </Col>
+                <Card
+                  className="shadow-sm border-0 mt-4"
+                  style={{
+                    backgroundColor: "#f1f3f5", // light gray shade
+                    padding: "12px 16px",       // more inner space (height)
+                    minHeight: "70px",          // ensure footer looks taller
+                    borderRadius: "8px",
+                  }}
+                >
+                  <div className="d-flex align-items-center flex-wrap gap-3">
+                    {/* Handover By */}
+                    <div className="d-flex align-items-center gap-2">
+                      <span className="fw-semibold text-secondary small">Day End By:</span>
+                      <Form.Control
+                        type="text"
+                        placeholder="Enter name"
+                        value={handoverBy}
+                        onChange={(e) => setHandoverBy(e.target.value)}
+                        size="sm"
+                        style={{ width: "140px" }}
+                      />
+                    </div>
 
 
+                    {/* Cash Denomination */}
+                    <div className="d-flex align-items-center gap-2">
+                      <Button
+                        variant="outline-secondary"
+                        size="sm"
+                        onClick={handleOpenCashModal}
+                        style={{ minWidth: "150px" }}
+                      >
+                        Cash Denomination
+                      </Button>
+                    </div>
 
-                      <Col md={3}>
-                        <Form.Group controlId="currency">
-                          <Form.Label className="fw-semibold text-secondary small">Currency</Form.Label>
-                          <Form.Select
-                            value="INR"
-                            size="sm"
-                            className="rounded-2 shadow-sm border-0 bg-white text-muted"
-                            disabled
-                          >
-                            <option value="INR">INR</option>
-                          </Form.Select>
-                        </Form.Group>
-                      </Col>
-
-                      <Col md={3} className="d-flex justify-content-end gap-2">
-                        <Button
-                          variant="outline-secondary"
-                          size="sm"
-                          className="px-3 rounded-pill shadow-sm fw-semibold"
-                          onClick={handleClose}
-                        >
-                          <i className="bi bi-x-circle me-1"></i> Close
-                        </Button>
-                        <Button
-                          variant="success"
-                          size="sm"
-                          className="px-3 rounded-pill shadow-sm fw-semibold"
-                          onClick={handleSaveHandover}
-                        >
-                          <i className="bi bi-check-circle me-1"></i> Day End
-                        </Button>
-                      </Col>
-                    </Row>
+                    {/* Action Buttons */}
+                    <div className="ms-auto d-flex align-items-center gap-2">
+                      <Button variant="success" size="sm" onClick={handleSaveHandover}>
+                        Handover
+                      </Button>
+                      <Button variant="secondary" size="sm" onClick={handleClose}>
+                        Close
+                      </Button>
+                    </div>
                   </div>
-                </div>
+                </Card>
+
+
 
               </div>
             </Tab>
@@ -946,7 +1052,7 @@ const HandoverPage = () => {
                 </Row>
                 <Col md={12}>
                   <hr className="my-1" />
-                  <strong>Order Dashboard:</strong>
+                  <strong>Order Summary:</strong>
                   <div className="mt-1 p-2 bg-light rounded small">
                     <div className="d-flex justify-content-between">
                       <span>Total Amount:</span>
@@ -964,9 +1070,116 @@ const HandoverPage = () => {
           <Modal.Footer className="p-1">
           </Modal.Footer>
         </Modal>
+
+        {/* Cash Denomination Modal - Small Centered */}
+        <Modal
+          show={showCashModal}
+          onHide={handleCloseCashModal}
+          size="sm"
+          centered
+          backdrop="static"
+          className="cash-denom-modal"
+        >
+          {/* Header */}
+          <Modal.Header closeButton className="bg-light py-2 border-bottom">
+            <Modal.Title className="fs-6 fw-semibold text-dark">
+              💵 Cash Denomination Entry
+            </Modal.Title>
+          </Modal.Header>
+
+          {/* Body */}
+          <Modal.Body style={{ maxHeight: '60vh', overflowY: 'auto', padding: '1rem' }}>
+            <div className="cash-denom-list">
+              {Object.entries(cashDenominations).map(([denomStr, count]) => {
+                const denom = parseInt(denomStr);
+                const amount = denom * count;
+                return (
+                  <div
+                    key={denom}
+                    className="d-flex justify-content-between align-items-center border rounded p-2 mb-2 bg-white shadow-sm"
+                  >
+                    <span className="fw-semibold text-primary fs-6">{denom}</span>
+                    <Form.Control
+                      type="number"
+                      size="sm"
+                      min={0}
+                      value={count}
+                      onChange={(e) =>
+                        handleCountChange(denom, parseInt(e.target.value) || 0)
+                      }
+                      className="text-center mx-3"
+                      style={{ width: '80px' }}
+                    />
+                    <span className="fw-semibold text-success">
+                      {amount.toLocaleString()}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </Modal.Body>
+
+          {/* Totals Section */}
+          <div className="px-4 pb-2 border-top bg-light">
+            <div className="d-flex justify-content-between py-1">
+              <span className="fw-bold text-dark">Total Cash:</span>
+              <span className="fw-semibold text-success">
+                {countedCashTotal.toLocaleString()}
+              </span>
+            </div>
+
+            <div className="d-flex justify-content-between py-1">
+              <span className="fw-bold text-dark">Handover Expected:</span>
+              <span className="fw-semibold text-primary" title="Total cash from all settled orders">
+                {totalCash.toLocaleString()}
+              </span>
+            </div>
+
+            <div className="d-flex justify-content-between py-1 border-top mt-1">
+              <span className="fw-bold text-dark">Surplus / Deficit:</span>
+              <span
+                className={`fw-bold ${countedCashTotal - totalCash >= 0 ? 'text-success' : 'text-danger'
+                  }`}
+              >
+                {(countedCashTotal - totalCash).toLocaleString()}
+              </span>
+            </div>
+
+            {/* Reason Field */}
+            <div className="mt-3">
+              <Form.Group controlId="reason">
+                <Form.Label className="fw-semibold text-secondary small mb-1">
+                  Reason (if Surplus / Deficit)
+                </Form.Label>
+                <Form.Control
+                  as="textarea"
+                  rows={2}
+                  placeholder="Enter reason..."
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                />
+              </Form.Group>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <Modal.Footer className="border-0 pt-0">
+            <Button
+              variant="success"
+              size="sm"
+              onClick={handleSaveCashDenomination}
+              disabled={!reason && countedCashTotal !== totalCash} // reason required if mismatch
+            >
+              💾 Save
+            </Button>
+            <Button variant="outline-secondary" size="sm" onClick={handleCloseCashModal}>
+              ✖ Close
+            </Button>
+          </Modal.Footer>
+        </Modal>
+
       </Container>
     </>
   );
 };
-
 export default HandoverPage;
