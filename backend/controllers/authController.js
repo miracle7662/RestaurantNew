@@ -334,6 +334,54 @@ exports.verifyBillCreatorPassword = async (req, res) => {
     }
 };
 
+// Verify password for handover access
+exports.verifyPassword = async (req, res) => {
+    try {
+        const { password } = req.body;
+        const token = req.headers.authorization?.replace('Bearer ', '');
+
+        if (!token) {
+            return res.status(401).json({ success: false, message: 'No token provided' });
+        }
+
+        if (!password) {
+            return res.status(400).json({ success: false, message: 'Password is required' });
+        }
+
+        // Verify JWT token
+        const decoded = jwt.verify(token, JWT_SECRET);
+
+        // Get user details
+        const user = db.prepare(`
+            SELECT u.*, b.hotel_name as brand_name, h.hotel_name as hotel_name
+            FROM mst_users u
+            LEFT JOIN msthotelmasters b ON u.brand_id = b.hotelid
+            LEFT JOIN user_outlet_mapping uom ON u.userid = uom.userid
+            LEFT JOIN msthotelmasters h ON uom.outletid = h.hotelid
+            WHERE u.userid = ? AND u.status = 0
+        `).get(decoded.userid);
+
+        if (!user) {
+            return res.status(401).json({ success: false, message: 'User not found' });
+        }
+
+        // Verify password
+        const isValidPassword = await bcrypt.compare(password, user.password);
+        if (!isValidPassword) {
+            return res.status(401).json({ success: false, message: 'Invalid password' });
+        }
+
+        res.json({ success: true, message: 'Password verified successfully' });
+
+    } catch (error) {
+        console.error('Password verification error:', error);
+        if (error.name === 'JsonWebTokenError') {
+            return res.status(401).json({ success: false, message: 'Invalid token' });
+        }
+        res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+};
+
 // Create initial SuperAdmin (if not exists)
 exports.createInitialSuperAdmin = async () => {
     try {

@@ -71,24 +71,28 @@ const HandoverPasswordModal: React.FC<HandoverPasswordModalProps> = ({
             {error}
           </Alert>
         )}
-        <Form.Group controlId="password">
-          <Form.Label>Password</Form.Label>
-          <Form.Control
-            type="password"
-            placeholder="Enter your password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                handleSubmit(e);
-              }
-            }}
-            disabled={loading}
-            autoFocus
-          />
-        </Form.Group>
+        <Form onSubmit={handleSubmit}>
+          <Form.Group controlId="password">
+            <Form.Label>Password</Form.Label>
+            <Form.Control
+              type="password"
+              placeholder="Enter your password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              disabled={loading}
+              autoFocus
+            />
+          </Form.Group>
+        </Form>
       </Modal.Body>
       <Modal.Footer>
+        <Button
+          variant="primary"
+          onClick={handleSubmit}
+          disabled={loading}
+        >
+          {loading ? <Spinner animation="border" size="sm" /> : 'Submit'}
+        </Button>
         <Button
           variant="secondary"
           onClick={handleClose}

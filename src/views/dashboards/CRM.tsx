@@ -6,7 +6,6 @@ import {
   LeadOverview,
   ProjectCustomerCard,
   ProjectStatisticChart,
-  BillingStats,
   NewMeeting,
   RecentActivity,
 } from '@/components/Dashboards/CRM'
@@ -31,9 +30,7 @@ const CRM = () => {
         <Col xl={4}>
           <ProjectCustomerCard />
         </Col>
-        <Col xl={4}>
-          <BillingStats />
-        </Col>
+        
         <Col xl={4}>
           <NewMeeting />
         </Col>

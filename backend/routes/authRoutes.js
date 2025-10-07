@@ -14,4 +14,7 @@ router.post('/verify-f8-password', authController.verifyF8Password);
 // Verify password of the user who created the bill for F8 action on billed tables
 router.post('/verify-bill-creator-password', authController.verifyBillCreatorPassword);
 
+// Verify password for handover access
+router.post('/verify-password', authController.verifyPassword);
+
 module.exports = router;
