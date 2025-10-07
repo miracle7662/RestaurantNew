@@ -81,6 +81,19 @@ const HandoverPage = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showCashModal, setShowCashModal] = useState(false);
+  const [cashDenominations, setCashDenominations] = useState({
+    2000: 0,
+    500: 0,
+    200: 0,
+    100: 0,
+    50: 0,
+    20: 0,
+    10: 0,
+    5: 0,
+    2: 0,
+    1: 0,
+  });
 
   useEffect(() => {
     const fetchHandoverData = async () => {
@@ -157,6 +170,10 @@ const HandoverPage = () => {
 
   ];
 
+  const [reason, setReason] = useState("");
+const expectedHandover = 9500; // example, replace with dynamic value
+
+
   const paymentData = {
     labels: paymentMethods.map(pm => pm.type),
     datasets: [{
@@ -223,6 +240,24 @@ const HandoverPage = () => {
     if (window.confirm("Are you sure you want to close without saving?")) {
       window.history.back();
     }
+  };
+
+  const handleOpenCashModal = () => {
+    setShowCashModal(true);
+  };
+
+  const handleCloseCashModal = () => {
+    setShowCashModal(false);
+  };
+
+  const handleCountChange = (denom: number, value: number) => {
+    setCashDenominations(prev => ({ ...prev, [denom]: value }));
+  };
+
+
+  const handleSaveCashDenomination = () => {
+    alert(`Cash Denomination saved successfully! Total Cash: ₹${totalCash.toLocaleString()}`);
+    handleCloseCashModal();
   };
 
 
@@ -311,7 +346,7 @@ const HandoverPage = () => {
           margin-bottom: 0;
           table-layout: fixed;
           width: 100%;
-          min-width: 2000px;
+          min-width: 2400px;
           border-collapse: separate;
         }
         .table-container th,
@@ -330,64 +365,64 @@ const HandoverPage = () => {
         }
         /* Specific column widths */
         .table-container th:nth-child(1),
-        .table-container td:nth-child(1) { width: 8%; } /* Bill No */
+        .table-container td:nth-child(1) { width: 10%; } /* Bill No */
         .table-container th:nth-child(2),
-        .table-container td:nth-child(2) { width: 5%; } /* Table */
+        .table-container td:nth-child(2) { width: 6%; } /* Table */
         .table-container th:nth-child(3),
-        .table-container td:nth-child(3) { width: 8%; text-align: right; } /* Total Amount */
+        .table-container td:nth-child(3) { width: 10%; text-align: right; } /* Total Amount */
         .table-container th:nth-child(4),
-        .table-container td:nth-child(4) { width: 7%; text-align: right; } /* Discount */
+        .table-container td:nth-child(4) { width: 8%; text-align: right; } /* Discount */
         .table-container th:nth-child(5),
-        .table-container td:nth-child(5) { width: 8%; text-align: right; } /* Gross Amount */
+        .table-container td:nth-child(5) { width: 10%; text-align: right; } /* Gross Amount */
         .table-container th:nth-child(6),
-        .table-container td:nth-child(6) { width: 6%; text-align: right; } /* CGST */
+        .table-container td:nth-child(6) { width: 7%; text-align: right; } /* CGST */
         .table-container th:nth-child(7),
-        .table-container td:nth-child(7) { width: 6%; text-align: right; } /* SGST */
+        .table-container td:nth-child(7) { width: 7%; text-align: right; } /* SGST */
         .table-container th:nth-child(8),
-        .table-container td:nth-child(8) { width: 7%; text-align: right; } /* Round off */
+        .table-container td:nth-child(8) { width: 8%; text-align: right; } /* Round off */
         .table-container th:nth-child(9),
-        .table-container td:nth-child(9) { width: 7%; text-align: right; } /* Rev Amt */
+        .table-container td:nth-child(9) { width: 8%; text-align: right; } /* Rev Amt */
         .table-container th:nth-child(10),
-        .table-container td:nth-child(10) { width: 6%; } /* KOT No */
+        .table-container td:nth-child(10) { width: 8%; } /* KOT No */
         .table-container th:nth-child(11),
-        .table-container td:nth-child(11) { width: 9%; } /* Reverse KOT No */
+        .table-container td:nth-child(11) { width: 10%; } /* Reverse KOT No */
         .table-container th:nth-child(12),
-        .table-container td:nth-child(12) { width: 8%; } /* Reverse Bill */
+        .table-container td:nth-child(12) { width: 9%; } /* Reverse Bill */
         .table-container th:nth-child(13),
-        .table-container td:nth-child(13) { width: 6%; text-align: right; } /* Water */
+        .table-container td:nth-child(13) { width: 7%; text-align: right; } /* Water */
         .table-container th:nth-child(14),
         .table-container td:nth-child(14) { 
-          width: 12%; 
+          width: 15%; 
           white-space: normal; 
           word-wrap: break-word; 
           overflow-wrap: break-word; 
         } /* Payment Mode */
         .table-container th:nth-child(15),
-        .table-container td:nth-child(15) { width: 6%; text-align: right; } /* Cash */
+        .table-container td:nth-child(15) { width: 8%; text-align: right; } /* Cash */
         .table-container th:nth-child(16),
-        .table-container td:nth-child(16) { width: 6%; text-align: right; } /* Credit */
+        .table-container td:nth-child(16) { width: 8%; text-align: right; } /* Credit */
         .table-container th:nth-child(17),
-        .table-container td:nth-child(17) { width: 6%; text-align: right; } /* Card */
+        .table-container td:nth-child(17) { width: 8%; text-align: right; } /* Card */
         .table-container th:nth-child(18),
-        .table-container td:nth-child(18) { width: 6%; text-align: right; } /* GPay */
+        .table-container td:nth-child(18) { width: 8%; text-align: right; } /* GPay */
         .table-container th:nth-child(19),
-        .table-container td:nth-child(19) { width: 7%; text-align: right; } /* PhonePe */
+        .table-container td:nth-child(19) { width: 8%; text-align: right; } /* PhonePe */
         .table-container th:nth-child(20),
-        .table-container td:nth-child(20) { width: 7%; text-align: right; } /* QR Code */
+        .table-container td:nth-child(20) { width: 8%; text-align: right; } /* QR Code */
         .table-container th:nth-child(21),
-        .table-container td:nth-child(21) { width: 7%; } /* Captain */
+        .table-container td:nth-child(21) { width: 8%; } /* Captain */
         .table-container th:nth-child(22),
-        .table-container td:nth-child(22) { width: 6%; } /* User */
+        .table-container td:nth-child(22) { width: 7%; } /* User */
         .table-container th:nth-child(23),
-        .table-container td:nth-child(23) { width: 6%; text-align: center; } /* Total Items */
+        .table-container td:nth-child(23) { width: 7%; text-align: center; } /* Total Items */
         .table-container th:nth-child(24),
-        .table-container td:nth-child(24) { width: 7%; } /* Time */
+        .table-container td:nth-child(24) { width: 8%; } /* Time */
         .table-container th:nth-child(25),
-        .table-container td:nth-child(25) { width: 7%; } /* Date */
+        .table-container td:nth-child(25) { width: 8%; } /* Date */
         .table-container th:nth-child(26),
-        .table-container td:nth-child(26) { width: 6%; text-align: center; } /* Status */
+        .table-container td:nth-child(26) { width: 7%; text-align: center; } /* Status */
         .table-container th:nth-child(27),
-        .table-container td:nth-child(27) { width: 5%; text-align: center; } /* Actions */
+        .table-container td:nth-child(27) { width: 6%; text-align: center; } /* Actions */
         .summary-cards {
           margin-bottom: 1rem;
         }
@@ -407,7 +442,7 @@ const HandoverPage = () => {
           padding: 0.5rem;
         }
         .card-body-compact {
-          padding: 1rem;
+          padding: 1.5rem;
         }
         .header-compact {
           padding: 1rem;
@@ -448,6 +483,37 @@ const HandoverPage = () => {
         .handover-form-input {
           flex: 1;
           min-width: 150px;
+        }
+        .cash-denom-list {
+          max-height: 200px;
+          overflow-y: auto;
+          font-size: 0.85rem;
+        }
+        .cash-denom-item {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 0.25rem 0;
+          border-bottom: 1px solid #dee2e6;
+        }
+        .cash-denom-denom {
+          width: 60px;
+          font-weight: bold;
+        }
+        .cash-denom-count {
+          flex: 1;
+        }
+        .cash-denom-amount {
+          width: 80px;
+          text-align: right;
+          font-weight: 500;
+        }
+        .cash-total {
+          font-weight: bold;
+          color: #28a745;
+          border-top: 2px solid #28a745;
+          padding-top: 0.5rem;
+          margin-top: 0.5rem;
         }
       `}</style>
       <Container fluid className="p-0 bg-light main-container">
@@ -784,7 +850,70 @@ const HandoverPage = () => {
                   </Card.Body>
                 </Card>
 
-          
+     <Card
+  className="shadow-sm border-0 mt-4"
+  style={{
+    backgroundColor: "#f1f3f5", // light gray shade
+    padding: "12px 16px",       // more inner space (height)
+    minHeight: "70px",          // ensure footer looks taller
+    borderRadius: "8px",
+  }}
+>
+  <div className="d-flex align-items-center flex-wrap gap-3">
+    {/* Handover By */}
+    <div className="d-flex align-items-center gap-2">
+      <span className="fw-semibold text-secondary small">Handover By:</span>
+      <Form.Control
+        type="text"
+        placeholder="Enter name"
+        value={handoverBy}
+        onChange={(e) => setHandoverBy(e.target.value)}
+        size="sm"
+        style={{ width: "140px" }}
+      />
+    </div>
+
+    {/* To */}
+    <div className="d-flex align-items-center gap-2">
+      <span className="fw-semibold text-secondary small">To:</span>
+      <Form.Select
+        value={handoverTo}
+        onChange={(e) => setHandoverTo(e.target.value)}
+        size="sm"
+        style={{ width: "140px" }}
+      >
+        <option value="">Select</option>
+        <option value="Shift A">Shift A</option>
+        <option value="Shift B">Shift B</option>
+        <option value="Manager">Manager</option>
+      </Form.Select>
+    </div>
+
+    {/* Cash Denomination */}
+    <div className="d-flex align-items-center gap-2">
+      <Button
+        variant="outline-secondary"
+        size="sm"
+        onClick={handleOpenCashModal}
+        style={{ minWidth: "150px" }}
+      >
+        Cash Denomination
+      </Button>
+    </div>
+
+    {/* Action Buttons */}
+    <div className="ms-auto d-flex align-items-center gap-2">
+      <Button variant="success" size="sm" onClick={handleSaveHandover}>
+        Handover
+      </Button>
+      <Button variant="secondary" size="sm" onClick={handleClose}>
+        Close
+      </Button>
+    </div>
+  </div>
+</Card>
+
+
 
               </div>
             </Tab>
@@ -907,6 +1036,115 @@ const HandoverPage = () => {
           <Modal.Footer className="p-1">
           </Modal.Footer>
         </Modal>
+
+        {/* Cash Denomination Modal - Small Centered */}
+        <Modal
+  show={showCashModal}
+  onHide={handleCloseCashModal}
+  size="sm"
+  centered
+  backdrop="static"
+  className="cash-denom-modal"
+>
+  {/* Header */}
+  <Modal.Header closeButton className="bg-light py-2 border-bottom">
+    <Modal.Title className="fs-6 fw-semibold text-dark">
+      💵 Cash Denomination Entry
+    </Modal.Title>
+  </Modal.Header>
+
+  {/* Body */}
+  <Modal.Body style={{ maxHeight: '60vh', overflowY: 'auto', padding: '1rem' }}>
+    <div className="cash-denom-list">
+      {Object.entries(cashDenominations).map(([denomStr, count]) => {
+        const denom = parseInt(denomStr);
+        const amount = denom * count;
+        return (
+          <div
+            key={denom}
+            className="d-flex justify-content-between align-items-center border rounded p-2 mb-2 bg-white shadow-sm"
+          >
+            <span className="fw-semibold text-primary fs-6">{denom}</span>
+            <Form.Control
+              type="number"
+              size="sm"
+              min={0}
+              value={count}
+              onChange={(e) =>
+                handleCountChange(denom, parseInt(e.target.value) || 0)
+              }
+              className="text-center mx-3"
+              style={{ width: '80px' }}
+            />
+            <span className="fw-semibold text-success">
+              {amount.toLocaleString()}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  </Modal.Body>
+
+  {/* Totals Section */}
+  <div className="px-4 pb-2 border-top bg-light">
+    <div className="d-flex justify-content-between py-1">
+      <span className="fw-bold text-dark">Total Cash:</span>
+      <span className="fw-semibold text-success">
+        {totalCash.toLocaleString()}
+      </span>
+    </div>
+
+    <div className="d-flex justify-content-between py-1">
+      <span className="fw-bold text-dark">Handover Expected:</span>
+      <span className="fw-semibold text-primary">
+        {expectedHandover.toLocaleString()}
+      </span>
+    </div>
+
+    <div className="d-flex justify-content-between py-1 border-top mt-1">
+      <span className="fw-bold text-dark">Surplus / Deficit:</span>
+      <span
+        className={`fw-bold ${
+          totalCash - expectedHandover >= 0 ? 'text-success' : 'text-danger'
+        }`}
+      >
+        {(totalCash - expectedHandover).toLocaleString()}
+      </span>
+    </div>
+
+    {/* Reason Field */}
+    <div className="mt-3">
+      <Form.Group controlId="reason">
+        <Form.Label className="fw-semibold text-secondary small mb-1">
+          Reason (if Surplus / Deficit)
+        </Form.Label>
+        <Form.Control
+          as="textarea"
+          rows={2}
+          placeholder="Enter reason..."
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+        />
+      </Form.Group>
+    </div>
+  </div>
+
+  {/* Footer */}
+  <Modal.Footer className="border-0 pt-0">
+    <Button
+      variant="success"
+      size="sm"
+      onClick={handleSaveCashDenomination}
+      disabled={!reason && totalCash !== expectedHandover} // reason required if mismatch
+    >
+      💾 Save
+    </Button>
+    <Button variant="outline-secondary" size="sm" onClick={handleCloseCashModal}>
+      ✖ Close
+    </Button>
+  </Modal.Footer>
+</Modal>
+
       </Container>
     </>
   );
