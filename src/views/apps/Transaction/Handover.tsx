@@ -552,6 +552,14 @@ const HandoverPage = () => {
           padding-top: 0.5rem;
           margin-top: 0.5rem;
         }
+        .discount-row {
+          background-color: #f8d7da;
+          opacity: 0.8;
+        }
+        .nckot-row {
+          background-color: #d1ecf1;
+          opacity: 0.8;
+        }
       `}</style>
       <Container fluid className="p-0 bg-light main-container">
         {/* Header Section - Compact */}
@@ -789,8 +797,14 @@ const HandoverPage = () => {
                           {filteredOrders.map((order, idx) => {
                             const formattedTime = getFormattedTime(order.time);
                             const formattedDate = getFormattedDate(order.time);
+                            let rowClass = 'table-row-compact';
+                            if (order.discount > 0) {
+                              rowClass += ' discount-row';
+                            } else if (order.ncKot && order.ncKot.trim() !== '') {
+                              rowClass += ' nckot-row';
+                            }
                             return (
-                              <tr key={idx} className="table-row-compact">
+                              <tr key={idx} className={rowClass}>
                                 <td className="fw-semibold">{order.orderNo}</td>
                                 <td>
                                   <Badge bg="light" text="dark" className="fs-6">
