@@ -49,7 +49,6 @@ interface Order {
   revKotNo: string;
   discount: number;
   ncKot: string;
-  ncPurpose: string;
   ncName: string;
   cgst: number;
   sgst: number;
@@ -396,6 +395,14 @@ const HandoverPage = () => {
         .table-container .table-row-compact td {
           padding: 0.25rem 0.5rem;
         }
+        .table-row-discount, .table-row-discount td {
+          background-color: #fff0f1 !important; /* Light pink for discount */
+          color: #721c24 !important;
+        }
+        .table-row-nckot, .table-row-nckot td {
+          background-color: #eef0ff !important; /* Light blue for NCKOT */
+          color: #2c2e43 !important;
+        }
         /* Specific column widths */
         .table-container th:nth-child(1),
         .table-container td:nth-child(1) { width: 10%; } /* Bill No */
@@ -422,10 +429,6 @@ const HandoverPage = () => {
         .table-container th:nth-child(12),
         .table-container td:nth-child(12) { width: 9%; } /* Reverse Bill */
         .table-container th:nth-child(13),
-        .table-container td:nth-child(13) { width: 9%; } /* NC KOT */
-        .table-container th:nth-child(14),
-        .table-container td:nth-child(14) { width: 9%; } /* NC Name */
-        .table-container th:nth-child(15),
         .table-container td:nth-child(13) { width: 7%; text-align: right; } /* Water */
         .table-container th:nth-child(14),
         .table-container td:nth-child(14) { 
@@ -551,14 +554,6 @@ const HandoverPage = () => {
           border-top: 2px solid #28a745;
           padding-top: 0.5rem;
           margin-top: 0.5rem;
-        }
-        .discount-row {
-          background-color: #f8d7da;
-          opacity: 0.8;
-        }
-        .nckot-row {
-          background-color: #d1ecf1;
-          opacity: 0.8;
         }
       `}</style>
       <Container fluid className="p-0 bg-light main-container">
@@ -774,8 +769,6 @@ const HandoverPage = () => {
                             <th>KOT No</th>
                             <th>Rev KOT No</th>
                             <th>Rev Bill</th>
-                            <th>NC KOT</th>
-                            <th>NC Name</th>
                             <th>Water</th>
                             <th>Payment Mode</th>
                             <th>Cash</th>
@@ -797,14 +790,17 @@ const HandoverPage = () => {
                           {filteredOrders.map((order, idx) => {
                             const formattedTime = getFormattedTime(order.time);
                             const formattedDate = getFormattedDate(order.time);
-                            let rowClass = 'table-row-compact';
+
+                            const rowClasses = ['table-row-compact'];
                             if (order.discount > 0) {
-                              rowClass += ' discount-row';
-                            } else if (order.ncKot && order.ncKot.trim() !== '') {
-                              rowClass += ' nckot-row';
+                              rowClasses.push('table-row-discount');
                             }
+                            if (order.ncKot) {
+                              rowClasses.push('table-row-nckot');
+                            }
+
                             return (
-                              <tr key={idx} className={rowClass}>
+                              <tr key={idx} className={rowClasses.join(' ')}>
                                 <td className="fw-semibold">{order.orderNo}</td>
                                 <td>
                                   <Badge bg="light" text="dark" className="fs-6">
@@ -827,8 +823,6 @@ const HandoverPage = () => {
                                   </small>
                                 </td>
                                 <td>{order.reverseBill || ''}</td>
-                                <td>{order.ncKot || ''}</td>
-                                <td>{order.ncName || ''}</td>
                                 <td style={{ textAlign: 'right' }}>₹{(order.water || 0).toLocaleString()}</td>
                                 <td title={order.paymentMode || ''} style={{ whiteSpace: 'normal', wordWrap: 'break-word', overflowWrap: 'break-word' }}>
                                   {order.paymentMode || ''}
@@ -880,8 +874,6 @@ const HandoverPage = () => {
                             <td style={{ textAlign: 'right' }}>₹{totalSGST.toLocaleString()}</td>
                             <td style={{ textAlign: 'right' }}>₹{totalRoundOff.toLocaleString()}</td>
                             <td style={{ textAlign: 'right' }}>₹{totalRevAmt.toLocaleString()}</td>
-                            <td></td>
-                            <td></td>
                             <td></td>
                             <td></td>
                             <td></td>
@@ -1026,12 +1018,6 @@ const HandoverPage = () => {
                   </Col>
                   <Col md={6}>
                     <strong>Reverse Bill:</strong> {selectedOrder.reverseBill || ''}
-                  </Col>
-                  <Col md={6}>
-                    <strong>NC KOT:</strong> {selectedOrder.ncKot || ''}
-                  </Col>
-                  <Col md={6}>
-                    <strong>NC Name:</strong> {selectedOrder.ncName || ''}
                   </Col>
                   <Col md={6}>
                     <strong>Water:</strong> ₹{(selectedOrder.water || 0).toLocaleString()}
