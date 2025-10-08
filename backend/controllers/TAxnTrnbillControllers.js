@@ -1573,14 +1573,14 @@ exports.saveDayEnd = async (req, res) => {
     const dayend_dateStr = `${dayend_date.getFullYear()}-${pad(dayend_date.getMonth() + 1)}-${pad(dayend_date.getDate())}`;
 
     // Calculate lock_datetime as business_date + 23:59:00 in IST
-    const lockDateTime = new Date(dayend_dateStr + '23:59:00');
+    const lockDateTime = new Date(dayend_dateStr + 'T23:59:00');
     const lockDateTimeIST = toIST(lockDateTime);
 
     // Format lock_datetime as YYYY-MM-DDTHH:mm:ss (no Z)
     const lockDateTimeStr = `${lockDateTimeIST.getFullYear()}-${pad(lockDateTimeIST.getMonth() + 1)}-${pad(lockDateTimeIST.getDate())}T${pad(lockDateTimeIST.getHours())}:${pad(lockDateTimeIST.getMinutes())}:${pad(lockDateTimeIST.getSeconds())}`;
 
     // Format system_datetime as YYYY-MM-DDTHH:mm:ss (no Z)
-    const systemDateTimeStr = `${istDateTime.getFullYear()}-${pad(istDateTime.getMonth() + 1)}-${pad(istDateTime.getDate())}`;
+    const systemDateTimeStr = `${istDateTime.getFullYear()}-${pad(istDateTime.getMonth() + 1)}-${pad(istDateTime.getDate())}T${pad(istDateTime.getHours())}:${pad(istDateTime.getMinutes())}:${pad(istDateTime.getSeconds())}`;
 
     // Insert into trn_dayend with system_datetime and lock_datetime in IST format
     const stmt = db.prepare(`
