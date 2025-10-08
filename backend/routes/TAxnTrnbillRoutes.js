@@ -56,4 +56,8 @@ router.get('/billed-bill/by-table/:tableId', controller.getLatestBilledBillForTa
 router.put('/:id', controller.updateBill)
 
 
+// Save day end
+router.post('/save', controller.saveDayEnd);
+
+
 module.exports = router

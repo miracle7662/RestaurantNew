@@ -15,7 +15,7 @@ function generateTxnNo(outletid) {
   const billPrefix = settings ? settings.bill_prefix : 'BILL-';
 
   // 2. Construct a date-based prefix for searching to ensure daily unique sequence
- 
+
   const prefix = `${billPrefix}`;
   const prefixLen = prefix.length + 1;
   const likePattern = prefix + '%';
@@ -29,9 +29,16 @@ function generateTxnNo(outletid) {
 
   const result = maxStmt.get(prefixLen, outletid, likePattern);
   const newSeq = (result.maxSeq || 0) + 1;
-  
+
   // 4. Construct the final TxnNo, e.g., "BILL-20240521-0001"
   return `${prefix}${String(newSeq).padStart(4, '0')}`;
+}
+
+// Convert to India Standard Time (UTC+5:30)
+function toIST(date) {
+  const utc = date.getTime() + (date.getTimezoneOffset() * 60000);
+  const istOffset = 5.5 * 60 * 60000;
+  return new Date(utc + istOffset);
 }
 
 
@@ -1534,6 +1541,67 @@ exports.generateTxnNo = async (req, res) => {
   } catch (error) {
     console.error('Error generating TxnNo:', error);
     res.status(500).json({ success: false, message: 'Failed to generate TxnNo: ' + error.message, data: null });
+  }
+};
+
+exports.saveDayEnd = async (req, res) => {
+  try {
+    const { total_amount, outlet_id, hotel_id, user_id, system_datetime } = req.body;
+
+    if (!total_amount || !outlet_id || !hotel_id || !user_id || !system_datetime) {
+      return res.status(400).json({ success: false, message: 'Missing required fields: total_amount, outlet_id, hotel_id, user_id, system_datetime' });
+    }
+
+    // Parse system_datetime from request
+    const sysDateTime = new Date(system_datetime);
+    if (isNaN(sysDateTime.getTime())) {
+      return res.status(400).json({ success: false, message: 'Invalid system_datetime format' });
+    }
+
+    
+
+    // Calculate business date based on system_datetime in IST
+    const istDateTime = toIST(sysDateTime);
+    const currentHour = istDateTime.getHours();
+    let dayend_date = new Date(istDateTime);
+    if (currentHour < 6) {
+      dayend_date.setDate(dayend_date.getDate() - 1);
+    }
+
+    // Format date as YYYY-MM-DD for dayend_date
+    const pad = (n) => n.toString().padStart(2, '0');
+    const dayend_dateStr = `${dayend_date.getFullYear()}-${pad(dayend_date.getMonth() + 1)}-${pad(dayend_date.getDate())}`;
+
+    // Calculate lock_datetime as business_date + 23:59:00 in IST
+    const lockDateTime = new Date(dayend_dateStr + '23:59:00');
+    const lockDateTimeIST = toIST(lockDateTime);
+
+    // Format lock_datetime as YYYY-MM-DDTHH:mm:ss (no Z)
+    const lockDateTimeStr = `${lockDateTimeIST.getFullYear()}-${pad(lockDateTimeIST.getMonth() + 1)}-${pad(lockDateTimeIST.getDate())}T${pad(lockDateTimeIST.getHours())}:${pad(lockDateTimeIST.getMinutes())}:${pad(lockDateTimeIST.getSeconds())}`;
+
+    // Format system_datetime as YYYY-MM-DDTHH:mm:ss (no Z)
+    const systemDateTimeStr = `${istDateTime.getFullYear()}-${pad(istDateTime.getMonth() + 1)}-${pad(istDateTime.getDate())}`;
+
+    // Insert into trn_dayend with system_datetime and lock_datetime in IST format
+    const stmt = db.prepare(`
+      INSERT INTO trn_dayend (dayend_date, lock_datetime, dayend_total_amt, outlet_id, hotel_id, created_by_id, system_datetime)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    const info = stmt.run(
+     dayend_dateStr, // dayend_date as YYYY-MM-DD IST
+      lockDateTimeStr, // lock_datetime as YYYY-MM-DDTHH:mm:ss IST
+      total_amount,
+      outlet_id,
+      hotel_id,
+      user_id,
+      systemDateTimeStr // system_datetime as YYYY-MM-DDTHH:mm:ss IST
+    );
+
+    res.json(ok('Day end saved successfully', { lock_datetime: lockDateTimeStr, id: info.lastInsertRowid }));
+  } catch (error) {
+    console.error('Error saving day end:', error);
+    res.status(500).json({ success: false, message: 'Failed to save day end', error: error.message });
   }
 };
 

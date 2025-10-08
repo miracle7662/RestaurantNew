@@ -962,6 +962,19 @@ CREATE TABLE IF NOT EXISTS trn_dayend_cashdenomination (
 );
 
 
+CREATE TABLE IF NOT EXISTS trn_dayend (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  current_date DATETIME DEFAULT CURRENT_TIMESTAMP,     -- System date when record created
+  dayend_date DATETIME NOT NULL,                       -- Actual business day end date
+  system_datetime DATETIME DEFAULT CURRENT_TIMESTAMP,  -- System date and time of day end
+  lock_datetime DATETIME NOT NULL,                     -- Always 11:59 PM of dayend_date
+  outlet_id INTEGER NOT NULL,                          -- Outlet reference
+  hotel_id INTEGER NOT NULL,                           -- Hotel reference
+  dayend_total_amt DECIMAL(15,2) DEFAULT 0.00,         -- Total sales amount for the day
+  created_by_id INTEGER                                -- User who did day end
+);
+
+
 
 
 

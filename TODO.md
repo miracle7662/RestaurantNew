@@ -1,9 +1,9 @@
-# TODO for KotTransfer.tsx Design Improvement
+# TODO: Implement Day End Functionality
 
-- [ ] Update container padding from p-2 to p-4
-- [ ] Remove size="sm" from Form.Select, Form.Control, Table in Selected Table section
-- [ ] Remove size="sm" from Form.Select, Form.Control, Table in Proposed Table section
-- [ ] Remove "small" class from labels, text, and other elements
-- [ ] Increase font sizes in inline styles (e.g., buttons, headers)
-- [ ] Adjust table maxHeight from 200px to 300px
-- [ ] Update button styles for larger appearance
+- [x] Create migration file for trn_dayend table
+- [x] Add system_datetime and lock_datetime columns to trn_dayend table
+- [x] Fix saveDayEnd logic in TAxnTrnbillControllers.js: accept system_datetime, calculate business_date and lock_datetime
+- [x] Update DayEnd.tsx to send system_datetime in the API call
+- [x] Run migration to add new columns
+- [ ] Test the day end API
+- [ ] Ensure routes are registered

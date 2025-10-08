@@ -70,7 +70,7 @@ interface Order {
   qrcode?: number;
 }
 
-const HandoverPage = () => {
+const DayEnd = () => {
   const { user } = useAuthContext();
   const [remarks, setRemarks] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
@@ -78,8 +78,8 @@ const HandoverPage = () => {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [activeTab, setActiveTab] = useState("summary");
-  const [handoverTo, setHandoverTo] = useState("");
-  const [handoverBy, setHandoverBy] = useState(user?.username || "");
+  
+  const [DayEndBy, setDayEndBy] = useState(user?.username || "");
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -234,12 +234,37 @@ const HandoverPage = () => {
     window.print();
   };
 
-  const handleSaveHandover = () => {
-    if (!handoverTo) {
+  const handleSaveDayEnd = async () => {
+    if (!DayEndBy) {
       alert("Please select who you are handing over to.");
       return;
     }
-    alert(`Handover saved successfully! Handed over to ${handoverTo}`);
+
+    const payload = {
+      total_amount: totalSales, // Add total sales amount
+      outlet_id: 1, // Assuming default outlet_id, adjust as needed
+      hotel_id: 1, // Assuming default hotel_id, adjust as needed
+      user_id: user?.userid || 1, // Use user id from context
+      system_datetime: new Date().toISOString(), // Current system datetime
+    };
+
+    try {
+      const response = await fetch('http://localhost:3001/api/TAxnTrnbill/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        alert(`Day-End saved successfully! Handed over to ${DayEndBy}`);
+      } else {
+        alert(`Error: ${data.message}`);
+      }
+    } catch (error) {
+      console.error('Error saving day-end:', error);
+      alert('An error occurred while saving day-end. Please check the console.');
+    }
   };
 
   const handleClose = () => {
@@ -268,8 +293,9 @@ const HandoverPage = () => {
       expected: totalCash, // totalCash from sales is the expected amount
       difference: countedCashTotal - totalCash,
       reason: reason,
-      handoverTo: handoverTo,
-      handoverBy: handoverBy,
+      DayEndBy: DayEndBy,
+   
+     
       // In a real app, you'd get the current user's ID
       userId: 1,
     };
@@ -917,7 +943,8 @@ const HandoverPage = () => {
                       <Form.Control
                         type="text"
                         placeholder="Enter name"
-                        value={handoverBy}
+                        value={DayEndBy}
+                        
                         readOnly
                         size="sm"
                         style={{ width: "140px" }}
@@ -939,8 +966,8 @@ const HandoverPage = () => {
 
                     {/* Action Buttons */}
                     <div className="ms-auto d-flex align-items-center gap-2">
-                      <Button variant="success" size="sm" onClick={handleSaveHandover}>
-                        Handover
+                      <Button variant="success" size="sm" onClick={handleSaveDayEnd}>
+                        DayEnd
                       </Button>
                       <Button variant="secondary" size="sm" onClick={handleClose}>
                         Close
@@ -1184,4 +1211,4 @@ const HandoverPage = () => {
     </>
   );
 };
-export default HandoverPage;
+export default DayEnd;
