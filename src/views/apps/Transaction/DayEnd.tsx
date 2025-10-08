@@ -33,6 +33,7 @@ import {
   Legend
 } from 'chart.js';
 import { Pie } from 'react-chartjs-2';
+import { useAuthContext } from '@/common/context/useAuthContext';
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
@@ -70,6 +71,7 @@ interface Order {
 }
 
 const HandoverPage = () => {
+  const { user } = useAuthContext();
   const [remarks, setRemarks] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -77,7 +79,7 @@ const HandoverPage = () => {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [activeTab, setActiveTab] = useState("summary");
   const [handoverTo, setHandoverTo] = useState("");
-  const [handoverBy, setHandoverBy] = useState("");
+  const [handoverBy, setHandoverBy] = useState(user?.username || "");
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -916,7 +918,7 @@ const HandoverPage = () => {
                         type="text"
                         placeholder="Enter name"
                         value={handoverBy}
-                        onChange={(e) => setHandoverBy(e.target.value)}
+                        readOnly
                         size="sm"
                         style={{ width: "140px" }}
                       />
