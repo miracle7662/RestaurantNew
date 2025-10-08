@@ -5,7 +5,11 @@ import { getUnbilledItemsByTable } from "@/common/api/orders";
 import { OutletData } from "@/common/api/outlet";
 import { useAuthContext } from "@/common";
 
-const TransferTable = () => {
+interface KotTransferProps {
+  onCancel: () => void;
+}
+
+const KotTransfer = ({ onCancel }: KotTransferProps) => {
   const { user } = useAuthContext();
 
   // Type definitions
@@ -544,8 +548,8 @@ const TransferTable = () => {
         <Button variant="success" size="lg" className="px-5 fw-bold">
           💾 Save (F9)
         </Button>
-        <Button variant="danger" size="lg" className="px-5 fw-bold">
-          ✖ Exit (Esc)
+        <Button variant="danger" size="lg" className="px-5 fw-bold" onClick={onCancel}>
+          ✖ Cancel (Esc)
         </Button>
       </div>
 
@@ -581,4 +585,4 @@ const TransferTable = () => {
   );
 };
 
-export default TransferTable;
+export default KotTransfer;
