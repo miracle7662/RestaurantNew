@@ -103,7 +103,7 @@ const TransferTable = () => {
         media: item.tableName || 'Unknown', // This might need adjustment based on API response
         kot: item.kotNo || 0,
         item: item.itemName,
-        qty: item.quantity,
+        qty: item.netQty,
         price: item.price,
         selected: false
       }));
