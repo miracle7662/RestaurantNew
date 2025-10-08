@@ -1,7 +1,9 @@
-- [x] Add handleSelectedTableChange function to handle selected table changes
-- [x] Change selectedTable from read-only Form.Control to Form.Select with table options
-- [x] Change selectedOutlet from Form.Select to read-only Form.Control
-- [x] Change proposedOutlet from Form.Select to read-only Form.Control
-- [x] Update proposed table dropdown options to use value={t.id} instead of {t.name}
-- [x] Verify that changing selected table fetches new items and updates states correctly
-- [x] Ensure transfer logic works in both table and KOT modes
+# TODO for KotTransfer.tsx Design Improvement
+
+- [ ] Update container padding from p-2 to p-4
+- [ ] Remove size="sm" from Form.Select, Form.Control, Table in Selected Table section
+- [ ] Remove size="sm" from Form.Select, Form.Control, Table in Proposed Table section
+- [ ] Remove "small" class from labels, text, and other elements
+- [ ] Increase font sizes in inline styles (e.g., buttons, headers)
+- [ ] Adjust table maxHeight from 200px to 300px
+- [ ] Update button styles for larger appearance
