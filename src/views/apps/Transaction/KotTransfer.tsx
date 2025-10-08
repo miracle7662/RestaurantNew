@@ -22,12 +22,12 @@ const TransferTable = () => {
   interface TableData {
     id: string;
     name: string;
-    status: "occupied" | "available" | "reserved";
+    status: 'occupied' | 'available' | 'reserved';
     outlet: string;
     pax?: number;
   }
 
-  // State management
+    // State management
   const [loading, setLoading] = useState(true);
   const [outlets, setOutlets] = useState<OutletData[]>([]);
   const [tables, setTables] = useState<TableData[]>([]);
@@ -35,11 +35,11 @@ const TransferTable = () => {
   const [proposedItems, setProposedItems] = useState<Item[]>([]);
   const [selectedTableId, setSelectedTableId] = useState<number | null>(null);
   const [proposedTableId, setProposedTableId] = useState<number | null>(null);
-  const [selectedTable, setSelectedTable] = useState("C4");
-  const [selectedOutlet, setSelectedOutlet] = useState("Classic Veg");
-  const [proposedTable, setProposedTable] = useState("C1");
-  const [proposedOutlet, setProposedOutlet] = useState("Classic Veg");
-  const [showTableSelector, setShowTableSelector] = useState(false);
+  const [selectedTable, setSelectedTable] = useState('');
+  const [selectedOutlet, setSelectedOutlet] = useState('');
+  const [proposedTable, setProposedTable] = useState('');
+  const [proposedOutlet, setProposedOutlet] = useState('');
+
   const [transferType, setTransferType] = useState<"table" | "kot">("table");
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [currentDate] = useState(new Date().toLocaleDateString('en-GB'));
@@ -54,35 +54,35 @@ const TransferTable = () => {
           new Promise<OutletData[]>((resolve) => {
             fetchOutletsForDropdown(user, resolve, () => {});
           }),
-          fetch('http://localhost:3001/api/tablemanagement')
+          fetch('http://localhost:3001/api/outlets/tables/all') // Use the new endpoint
         ]);
 
         setOutlets(outletsData);
         const tablesData = await tablesResponse.json();
-        
+
         const mappedTables: TableData[] = tablesData.map((table: any) => ({
-          id: table.name,
-          name: table.name,
-          status: table.status === 'occupied' ? 'occupied' : table.status === 'reserved' ? 'reserved' : 'available',
-          outlet: outletsData.find(o => o.outletid === table.outletId)?.outlet_name || 'Unknown',
+          id: table.tableid.toString(), // Use tableid as the unique identifier
+          name: table.table_name,
+          status: table.status,
+          outlet: table.outlet_name || 'Unknown',
           pax: table.pax || 0
         }));
         setTables(mappedTables);
 
         if (mappedTables.length > 0) {
           const defaultTable = mappedTables.find(t => t.status === 'occupied') || mappedTables[0];
-          setSelectedTable(defaultTable.name);
-          setSelectedTableId(defaultTable.id as any);
-          setSelectedOutlet(defaultTable.outlet);
-          await fetchItemsForTable(defaultTable.id as any, 'selected');
+          setSelectedTableId(Number(defaultTable.id));
+          setSelectedTable(defaultTable.name); // For display
+          setSelectedOutlet(defaultTable.outlet); // For display
+          await fetchItemsForTable(Number(defaultTable.id), 'selected');
         }
 
         const availableTable = mappedTables.find(t => t.status === 'available');
         if (availableTable) {
-          setProposedTable(availableTable.name);
-          setProposedTableId(availableTable.id as any);
-          setProposedOutlet(availableTable.outlet);
-          await fetchItemsForTable(availableTable.id as any, 'proposed');
+          setProposedTableId(Number(availableTable.id));
+          setProposedTable(availableTable.name); // For display
+          setProposedOutlet(availableTable.outlet); // For display
+          await fetchItemsForTable(Number(availableTable.id), 'proposed');
         }
 
       } catch (error) {
@@ -97,12 +97,12 @@ const TransferTable = () => {
 
   const fetchItemsForTable = async (tableId: number, type: 'selected' | 'proposed') => {
     try {
-      const items = await getUnbilledItemsByTable(tableId);
-      const mappedItems: Item[] = items.map((item: any, index: number) => ({
+      const response = await getUnbilledItemsByTable(tableId);
+      const mappedItems: Item[] = response.data.items.map((item: any, index: number) => ({
         id: item.id || index,
-        media: item.tableName || 'Unknown',
-        kot: item.kotId || 0,
-        item: item.name,
+        media: item.tableName || 'Unknown', // This might need adjustment based on API response
+        kot: item.kotNo || 0,
+        item: item.itemName,
         qty: item.quantity,
         price: item.price,
         selected: false
@@ -118,7 +118,7 @@ const TransferTable = () => {
     }
   };
 
-  const sourceTable = tables.find(t => t.id === selectedTable);
+  const sourceTable = tables.find(t => t.id === selectedTableId?.toString());
   const sourcePax = sourceTable?.pax || 0;
   const sourceKOT = selectedItems.length > 0 ? selectedItems[0].kot : 0;
 
@@ -161,14 +161,14 @@ const TransferTable = () => {
     }
   };
 
-  const handleTableSelect = async (tableId: string) => {
-    setProposedTable(tableId);
-    setShowTableSelector(false);
+  const handleProposedTableChange = async (tableId: string) => {
+    const numericTableId = Number(tableId);
+    setProposedTableId(numericTableId);
 
     const destTable = tables.find(t => t.id === tableId);
-    setProposedOutlet(destTable?.outlet || "Classic Veg");
-
-    await fetchItemsForTable(tableId as any, 'proposed');
+    setProposedTable(destTable?.name || '');
+    setProposedOutlet(destTable?.outlet || '');
+    await fetchItemsForTable(numericTableId, 'proposed');
   };
 
   const handleTransfer = () => {
@@ -198,10 +198,10 @@ const TransferTable = () => {
     
     setTables(prevTables =>
       prevTables.map(t => {
-        if (t.id === selectedTable && selectedItems.length === 0) {
+        if (t.id === selectedTableId?.toString() && selectedItems.length === 0) {
           return { ...t, status: "available" as const };
         }
-        if (t.id === proposedTable) {
+        if (t.id === proposedTableId?.toString()) {
           return { ...t, status: "occupied" as const };
         }
         return t;
@@ -209,7 +209,7 @@ const TransferTable = () => {
     );
     
     setShowConfirmModal(false);
-    alert(`Successfully transferred ${itemsToTransfer.length} item${itemsToTransfer.length !== 1 ? 's' : ''} to Table ${proposedTable}`);
+    alert(`Successfully transferred ${itemsToTransfer.length} item${itemsToTransfer.length !== 1 ? 's' : ''} to Table ${proposedTable}`); // proposedTable is name
   };
 
   const getTableStatusBadge = (status: string) => {
@@ -222,7 +222,7 @@ const TransferTable = () => {
     return <Badge bg={variant}>{status.toUpperCase()}</Badge>;
   };
 
-  const destTable = tables.find(t => t.id === proposedTable);
+  const destTable = tables.find(t => t.id === proposedTableId?.toString());
   const destPax = destTable?.pax || 0;
   const destStatus = destTable?.status || "available";
   const destKOT = proposedItems.length > 0 ? proposedItems[0].kot : 0;
@@ -458,11 +458,11 @@ const TransferTable = () => {
                     <Form.Label className="fw-semibold">Table</Form.Label>
                     <div className="d-flex">
                       <Form.Select
-                        value={proposedTable}
-                        onChange={(e) => handleTableSelect(e.target.value)}
+                        value={proposedTableId || ''}
+                        onChange={(e) => handleProposedTableChange(e.target.value)}
                         className="fw-bold me-2"
                       >
-                        {tables.filter(t => t.id !== selectedTable).map(t => (
+                        {tables.filter(t => t.id !== selectedTableId?.toString()).map(t => (
                           <option key={t.id} value={t.name}>{t.name}</option>
                         ))}
                       </Form.Select>
@@ -555,7 +555,7 @@ const TransferTable = () => {
           <Modal.Title>Confirm {isTableMode ? "Table" : "KOT"} Transfer</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <p>Are you sure you want to transfer {effectiveSelectedCount} item{effectiveSelectedCount !== 1 ? 's' : ''} from Table {selectedTable} to Table {proposedTable}?</p>
+          <p>Are you sure you want to transfer {effectiveSelectedCount} item{effectiveSelectedCount !== 1 ? 's' : ''} from Table {selectedTable} to Table {proposedTable}?</p> 
           <Alert variant="warning">
             <strong>Total Amount:</strong> ₹{effectiveSelectedAmount.toFixed(2)}
           </Alert>

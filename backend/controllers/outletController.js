@@ -2474,3 +2474,27 @@ exports.getKotPrintSettings = (req, res) => {
     res.status(500).json({ error: 'Failed to fetch KOT print settings' });
   }
 };
+
+exports.getAllTablesWithOutlets = (req, res) => {
+  try {
+    const query = `
+      SELECT 
+        t.tableid, 
+        t.table_name, 
+        CASE t.status 
+          WHEN 1 THEN 'occupied' 
+          WHEN 2 THEN 'reserved' 
+          ELSE 'available' 
+        END as status,
+        t.outletid,
+        o.outlet_name
+      FROM msttablemanagement t
+      LEFT JOIN mst_outlets o ON t.outletid = o.outletid
+    `;
+    const tables = db.prepare(query).all();
+    res.json(tables);
+  } catch (error) {
+    console.error('Error fetching tables with outlets:', error);
+    res.status(500).json({ error: 'Failed to fetch tables' });
+  }
+};

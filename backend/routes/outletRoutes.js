@@ -10,6 +10,9 @@ router.get('/', outletController.getOutlets);
 // Get outlet by ID
 router.get('/:id', outletController.getOutletById);
 
+// Get all tables with outlet info
+router.get('/tables/all', outletController.getAllTablesWithOutlets);
+
 // Add new outlet
 router.post('/', outletController.addOutlet);
 
