@@ -110,6 +110,10 @@ const EditSettlementPage = ({ role, currentUser }: any) => {
         setPaymentAmounts(newAmounts);
       } else {
         setSelectedPaymentModes([...selectedPaymentModes, mode.mode_name]);
+        // Initialize amount for newly selected payment mode to 0 if not set
+        if (!paymentAmounts[mode.mode_name]) {
+          setPaymentAmounts({ ...paymentAmounts, [mode.mode_name]: "0" });
+        }
       }
     } else {
       setSelectedPaymentModes([mode.mode_name]);
@@ -276,7 +280,7 @@ const EditSettlementPage = ({ role, currentUser }: any) => {
 
             {/* Payment Modes */}
             <Row xs={1} md={2} className="g-3">
-              {outletPaymentModes.map((mode) => (
+              {outletPaymentModes.filter(mode => mode.mode_name).map((mode) => (
                 <Col key={mode.id}>
                   <Card
                     onClick={() => handlePaymentModeClick(mode)}
@@ -300,21 +304,27 @@ const EditSettlementPage = ({ role, currentUser }: any) => {
                         {mode.mode_name}
                       </Card.Title>
 
-                      {/* Amount Input */}
-                      {selectedPaymentModes.includes(mode.mode_name) && (
-                        <Form.Control
-                          type="number"
-                          placeholder="0.00"
-                          value={paymentAmounts[mode.mode_name] || ""}
-                          onChange={(e) =>
-                            handlePaymentAmountChange(mode.mode_name, e.target.value)
-                          }
-                          onClick={(e) => e.stopPropagation()}
-                          autoFocus={isMixedPayment}
-                          readOnly={!isMixedPayment}
-                          className="mt-2 text-center"
-                        />
-                      )}
+                      {/* Amount Display or Input */}
+                      {selectedPaymentModes.includes(mode.mode_name) ? (
+                        isMixedPayment ? (
+                          <Form.Control
+                            type="number"
+                            placeholder="0.00"
+                            value={paymentAmounts[mode.mode_name] || ""}
+                            onChange={(e) =>
+                              handlePaymentAmountChange(mode.mode_name, e.target.value)
+                            }
+                            onClick={(e) => e.stopPropagation()}
+                            autoFocus={isMixedPayment}
+                            readOnly={!isMixedPayment}
+                            className="mt-2 text-center"
+                          />
+                        ) : (
+                          <div className="mt-2 text-center fw-bold">
+                            ₹{parseFloat(paymentAmounts[mode.mode_name] || "0").toFixed(2)}
+                          </div>
+                        )
+                      ) : null}
                     </Card.Body>
                   </Card>
                 </Col>
