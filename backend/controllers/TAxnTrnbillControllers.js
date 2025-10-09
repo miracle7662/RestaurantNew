@@ -1605,5 +1605,42 @@ exports.saveDayEnd = async (req, res) => {
   }
 };
 
+/* -------------------------------------------------------------------------- */
+/* 12) applyNCKOT → update isNCKOT = 1 for a bill and all its items         */
+/* -------------------------------------------------------------------------- */
+exports.applyNCKOT = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { NCName, NCPurpose } = req.body;
+
+    if (!NCName || !NCPurpose) {
+      return res.status(400).json({ success: false, message: 'NCName and NCPurpose are required.' });
+    }
+
+    const bill = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id));
+    if (!bill) {
+      return res.status(404).json({ success: false, message: 'Bill not found', data: null });
+    }
+
+    const tx = db.transaction(() => {
+      // Update the bill header
+      db.prepare(`
+        UPDATE TAxnTrnbill
+        SET isNCKOT = 1, NCName = ?, NCPurpose = ?
+        WHERE TxnID = ?
+      `).run(NCName, NCPurpose, Number(id));
+
+      // Update all associated detail items
+      db.prepare('UPDATE TAxnTrnbilldetails SET isNCKOT = 1 WHERE TxnID = ?').run(Number(id));
+    });
+
+    tx();
+
+    res.json(ok('NCKOT applied to the entire bill successfully.'));
+  } catch (error) {
+    console.error('Error in applyNCKOT:', error);
+    res.status(500).json({ success: false, message: 'Failed to apply NCKOT', data: null, error: error.message });
+  }
+};
 
 module.exports = exports

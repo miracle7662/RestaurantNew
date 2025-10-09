@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useLocation } from 'react-router-dom';
 import { Button, Form, Modal, Table, Card, Row, Col } from "react-bootstrap";
 import OrderDetails from "./OrderDetails";
 import { fetchOutletsForDropdown } from "@/utils/commonfunction";
@@ -1668,14 +1667,42 @@ const Order = () => {
     setShowTaxModal(false);
   };
 
-  const handleSaveNCKOT = () => {
-    // Apply NCKOT to all items in the order
-    setItems(prevItems =>
-      prevItems.map(item => ({ ...item, isNCKOT: 1, NCName: ncName, NCPurpose: ncPurpose }))
-    );
-    setNcName('');
-    setNcPurpose('');
-    setShowNCKOTModal(false);
+  const handleSaveNCKOT = async () => {
+    if (!currentTxnId) {
+      toast.error('No active transaction found. Please save a KOT first.');
+      return;
+    }
+    if (!ncName || !ncPurpose) {
+      toast.error('NC Name and Purpose are required.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch(`http://localhost:3001/api/TAxnTrnbill/${currentTxnId}/apply-nckot`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ NCName: ncName, NCPurpose: ncPurpose }),
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        toast.success('NCKOT applied successfully to all items.');
+        // Clear UI similar to Print & Save KOT
+        setItems([]);
+        setSelectedTable(null);
+        setShowOrderDetails(false);
+        setShowNCKOTModal(false);
+      } else {
+        throw new Error(result.message || 'Failed to apply NCKOT.');
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'An error occurred while applying NCKOT.');
+    } finally {
+      setLoading(false);
+      setNcName('');
+      setNcPurpose('');
+    }
   };
 
   const handleCloseAuthModal = () => {

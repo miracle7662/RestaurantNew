@@ -24,6 +24,9 @@ router.get('/:id', controller.getBillById)
 // Settle bill (multiple payment modes supported)
 router.post('/:id/settle', controller.settleBill)
 
+// Apply NCKOT to an entire existing bill
+router.put('/:id/apply-nckot', controller.applyNCKOT);
+
 // Add items to bill with isBilled and isNCKOT logic
 router.post('/:id/items', controller.addItemToBill)
 
@@ -52,9 +55,8 @@ router.post('/reverse-quantity', controller.reverseQuantity);
 // Get latest billed bill for a table
 router.get('/billed-bill/by-table/:tableId', controller.getLatestBilledBillForTable);
 
-// Generic update bill route (must be last of the /:id routes)
+// Generic update bill route (must be last of the /:id routes to avoid conflicts)
 router.put('/:id', controller.updateBill)
-
 
 // Save day end
 router.post('/save', controller.saveDayEnd);
