@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Modal, Button, Table, Form, Row, Col, Alert, Pagination, Card } from "react-bootstrap";
 import { useNavigate } from 'react-router-dom';
 import axios from "axios";
+import SimpleBar from 'simplebar-react';
 
 const EditSettlementPage = ({ role, currentUser }: any) => {
   const [settlements, setSettlements] = useState<any[]>([]);
@@ -127,226 +128,226 @@ const EditSettlementPage = ({ role, currentUser }: any) => {
   };
 
   return (
-    <div className="container mt-4">
-      <h3>Edit Settlement</h3>
+    <SimpleBar style={{ maxHeight: '80vh' }}>
+      <div className="container mt-4">
+        <h3>Edit Settlement</h3>
 
-      <Alert show={notification.show} variant={notification.type} dismissible onClose={() => setNotification({ show: false, message: '', type: 'success' })}>
-        {notification.message}
-      </Alert>
+        <Alert show={notification.show} variant={notification.type} dismissible onClose={() => setNotification({ show: false, message: '', type: 'success' })}>
+          {notification.message}
+        </Alert>
 
-      {/* Filter Section */}
-      <div className="p-3 bg-light rounded mb-4">
-        <Row>
-          <Col><Form.Control placeholder="Order No" value={filters.orderNo} onChange={(e) => setFilters({ ...filters, orderNo: e.target.value })} /></Col>          
-          <Col><Form.Control type="date" value={filters.from} onChange={(e) => setFilters({ ...filters, from: e.target.value })} /></Col>
-          <Col><Form.Control type="date" value={filters.to} onChange={(e) => setFilters({ ...filters, to: e.target.value })} /></Col>
-          <Col>
-            <Form.Select value={filters.paymentType} onChange={(e) => setFilters({ ...filters, paymentType: e.target.value })}>
-              <option value="">All Payment Types</option>
-              <option>Cash</option>
-              <option>Card</option>
-              <option>UPI</option>
-              <option>Wallet</option>
-            </Form.Select>
-          </Col>
-
-          <Col><Button onClick={() => { fetchData(); }}>Search</Button></Col>
-        </Row>
-      </div>
-
-      {/* Settlement Table */}
-      <Table striped bordered hover>
-        <thead className="table-light"  >
-          <tr>
-          <th>ID</th><th>Order No</th><th>Payment Type</th><th>Hotel ID</th><th>Amount</th><th>Date</th><th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {settlements.map((s) => (
-            <tr key={s.SettlementID} className={s.isSettled === 0 ? "table-danger" : ""}>
-              <td>{s.SettlementID}</td>
-              <td>{s.OrderNo}</td>
-              <td>{s.PaymentType}</td>
-              <td>{s.HotelID}</td>
-              <td>₹{s.Amount.toFixed(2)}</td>
-              <td>{new Date(s.InsertDate.replace(' ', 'T') + 'Z').toLocaleString()}</td>
- 
-             
-             
-              <td>
-                <Button size="sm" variant="primary" onClick={() => handleEdit(s)}>Edit</Button>{" "}
-                {role === "Admin" && <Button size="sm" variant="danger" onClick={() => deleteSettlement(s.SettlementID)}>Delete</Button>}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </Table>
-
-      
-      {/* Edit Modal */}
-      <Modal show={!!editing} onHide={() => setEditing(null)}>
-        <Modal.Header closeButton><Modal.Title>Edit Settlement</Modal.Title></Modal.Header>
-        <Modal.Body>
-          <Form>
-            <Form.Group className="mb-3">
-              <Form.Label>Bill Total</Form.Label>
-              <Form.Control type="number" value={editing?.BillTotal || ''} readOnly />
-            </Form.Group>
-            <Form.Group className="mb-3">
-              <Form.Label>Payment Mode</Form.Label>
-              <Form.Select value={form.PaymentType} onChange={(e) => setForm({ ...form, PaymentType: e.target.value })}>
-                {outletPaymentModes.filter((mode: any) => mode.mode_name).map((mode: any) => <option key={mode.id} value={mode.mode_name}>{mode.mode_name}</option>)}
+        {/* Filter Section */}
+        <div className="p-3 bg-light rounded mb-4">
+          <Row>
+            <Col><Form.Control placeholder="Order No" value={filters.orderNo} onChange={(e) => setFilters({ ...filters, orderNo: e.target.value })} /></Col>          
+            <Col><Form.Control type="date" value={filters.from} onChange={(e) => setFilters({ ...filters, from: e.target.value })} /></Col>
+            <Col><Form.Control type="date" value={filters.to} onChange={(e) => setFilters({ ...filters, to: e.target.value })} /></Col>
+            <Col>
+              <Form.Select value={filters.paymentType} onChange={(e) => setFilters({ ...filters, paymentType: e.target.value })}>
+                <option value="">All Payment Types</option>
+                <option>Cash</option>
+                <option>Card</option>
+                <option>UPI</option>
+                <option>Wallet</option>
               </Form.Select>
-            </Form.Group>
-            <Form.Group className="mb-3">
-              <Form.Label>Amount</Form.Label>
-              <Form.Control type="number" value={form.Amount} readOnly />
-            </Form.Group>
-          </Form>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setEditing(null)}>Cancel</Button>
-          <Button variant="success" onClick={saveEdit}>Save</Button>
-        </Modal.Footer>
-      </Modal>
+            </Col>
 
-      {/* Main Settlement Modal */}
-      <Modal
-        show={showSettlementModal}
-        onHide={() => setShowSettlementModal(false)}
-        centered
-        size="lg"
-      >
-        {/* Header */}
-        <Modal.Header closeButton className="border-0">
-          <Modal.Title className="fw-bold text-dark">Payment Mode</Modal.Title>
-        </Modal.Header>
-
-        {/* Body */}
-        <Modal.Body className="bg-light">
-          {/* Bill Summary */}
-          <div className="p-4 mb-4 bg-white rounded shadow-sm text-center">
-            <h6 className="text-secondary mb-2">Total Amount Due</h6>
-            <div className="fw-bold display-5 text-dark">
-              ₹{grandTotal.toFixed(2)}
-            </div>
-          </div>
-
-          {/* Mixed Payment Toggle */}
-          <div className="d-flex justify-content-end mb-3">
-            <Form.Check
-              type="switch"
-              id="mixed-payment-switch"
-              label="Mixed Payment"
-              checked={isMixedPayment}
-              onChange={(e) => {
-                setIsMixedPayment(e.target.checked);
-                setSelectedPaymentModes([]);
-                setPaymentAmounts({});
-              }}
-            />
-          </div>
-
-          {/* Payment Modes */}
-          <Row xs={1} md={2} className="g-3">
-            {outletPaymentModes.map((mode) => (
-              <Col key={mode.id}>
-                <Card
-                  onClick={() => handlePaymentModeClick(mode)}
-                  className={`text-center h-100 shadow-sm border-0 ${selectedPaymentModes.includes(mode.mode_name)
-                    ? "border border-primary"
-                    : ""
-                    }`}
-                  style={{
-                    cursor: "pointer",
-                    transition: "transform 0.2s ease, box-shadow 0.2s ease",
-                  }}
-                  onMouseEnter={(e) =>
-                    (e.currentTarget.style.transform = "translateY(-4px)")
-                  }
-                  onMouseLeave={(e) =>
-                    (e.currentTarget.style.transform = "translateY(0)")
-                  }
-                >
-                  <Card.Body>
-                    <Card.Title className="fw-semibold">
-                      {mode.mode_name}
-                    </Card.Title>
-
-                    {/* Amount Input */}
-                    {selectedPaymentModes.includes(mode.mode_name) && (
-                      <Form.Control
-                        type="number"
-                        placeholder="0.00"
-                        value={paymentAmounts[mode.mode_name] || ""}
-                        onChange={(e) =>
-                          handlePaymentAmountChange(mode.mode_name, e.target.value)
-                        }
-                        onClick={(e) => e.stopPropagation()}
-                        autoFocus={isMixedPayment}
-                        readOnly={!isMixedPayment}
-                        className="mt-2 text-center"
-                      />
-                    )}
-                  </Card.Body>
-                </Card>
-              </Col>
-            ))}
+            <Col><Button onClick={() => { fetchData(); }}>Search</Button></Col>
           </Row>
+        </div>
 
-          {/* Payment Summary */}
-          <div className="mt-4 p-3 bg-white rounded shadow-sm">
-            <div className="d-flex justify-content-around fw-bold fs-5">
-              <div>
-                <span>Total Paid: </span>
-                <span className="text-primary">{totalPaid.toFixed(2)}</span>
-              </div>
-              <div>
-                <span>Balance Due: </span>
-                <span
-                  className={
-                    settlementBalance === 0 ? "text-success" : "text-danger"
-                  }
-                >
-                  {settlementBalance.toFixed(2)}
-                </span>
+        {/* Settlement Table */}
+        <Table striped bordered hover>
+          <thead className="table-light"  >
+            <tr>
+            <th>ID</th><th>Order No</th><th>Payment Type</th><th>Hotel ID</th><th>Amount</th><th>Date</th><th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {settlements.map((s) => (
+              <tr key={s.SettlementID} className={s.isSettled === 0 ? "table-danger" : ""}>
+                <td>{s.SettlementID}</td>
+                <td>{s.OrderNo}</td>
+                <td>{s.PaymentType}</td>
+                <td>{s.HotelID}</td>
+                <td>₹{s.Amount.toFixed(2)}</td>
+                <td>{new Date(s.InsertDate.replace(' ', 'T') + 'Z').toLocaleString()}</td>
+             
+             
+             
+                <td>
+                  <Button size="sm" variant="primary" onClick={() => handleEdit(s)}>Edit</Button>{" "}
+                  {role === "Admin" && <Button size="sm" variant="danger" onClick={() => deleteSettlement(s.SettlementID)}>Delete</Button>}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </Table>
+
+        
+        {/* Edit Modal */}
+        <Modal show={!!editing} onHide={() => setEditing(null)}>
+          <Modal.Header closeButton><Modal.Title>Edit Settlement</Modal.Title></Modal.Header>
+          <Modal.Body>
+            <Form>
+              <Form.Group className="mb-3">
+                <Form.Label>Bill Total</Form.Label>
+                <Form.Control type="number" value={editing?.BillTotal || ''} readOnly />
+              </Form.Group>
+              <Form.Group className="mb-3">
+                <Form.Label>Payment Mode</Form.Label>
+                <Form.Select value={form.PaymentType} onChange={(e) => setForm({ ...form, PaymentType: e.target.value })}>
+                  {outletPaymentModes.filter((mode: any) => mode.mode_name).map((mode: any) => <option key={mode.id} value={mode.mode_name}>{mode.mode_name}</option>)}
+                </Form.Select>
+              </Form.Group>
+              <Form.Group className="mb-3">
+                <Form.Label>Amount</Form.Label>
+                <Form.Control type="number" value={form.Amount} readOnly />
+              </Form.Group>
+            </Form>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button variant="secondary" onClick={() => setEditing(null)}>Cancel</Button>
+            <Button variant="success" onClick={saveEdit}>Save</Button>
+          </Modal.Footer>
+        </Modal>
+
+        {/* Main Settlement Modal */}
+        <Modal
+          show={showSettlementModal}
+          onHide={() => setShowSettlementModal(false)}
+          centered
+          size="lg"
+        >
+          {/* Header */}
+          <Modal.Header closeButton className="border-0">
+            <Modal.Title className="fw-bold text-dark">Payment Mode</Modal.Title>
+          </Modal.Header>
+
+          {/* Body */}
+          <Modal.Body className="bg-light">
+            {/* Bill Summary */}
+            <div className="p-4 mb-4 bg-white rounded shadow-sm text-center">
+              <h6 className="text-secondary mb-2">Total Amount Due</h6>
+              <div className="fw-bold display-5 text-dark">
+                ₹{grandTotal.toFixed(2)}
               </div>
             </div>
 
-            {/* Validation Messages */}
-            {settlementBalance !== 0 && (
-              <div className="text-danger mt-2 text-center small">
-                Total paid amount must match the grand total.
-              </div>
-            )}
-            {settlementBalance === 0 && totalPaid > 0 && (
-              <div className="text-success mt-2 text-center small">
-                ✅ Payment amount matches. Ready to settle.
-              </div>
-            )}
-          </div>
-        </Modal.Body>
+            {/* Mixed Payment Toggle */}
+            <div className="d-flex justify-content-end mb-3">
+              <Form.Check
+                type="switch"
+                id="mixed-payment-switch"
+                label="Mixed Payment"
+                checked={isMixedPayment}
+                onChange={(e) => {
+                  setIsMixedPayment(e.target.checked);
+                  setSelectedPaymentModes([]);
+                  setPaymentAmounts({});
+                }}
+              />
+            </div>
 
-        {/* Footer */}
-        <Modal.Footer className="border-0 justify-content-between">
-          <Button
-            variant="outline-secondary"
-            onClick={() => setShowSettlementModal(false)}
-            className="px-4"
-          >
-            Back
-          </Button>
-          <Button
-            variant="success"
-            onClick={handleSettleAndPrint}
-            disabled={settlementBalance !== 0 || totalPaid === 0}
-            className="px-4"
-          >
-            Settle & Print
-          </Button>
-        </Modal.Footer>
-      </Modal>
-    </div>
+            {/* Payment Modes */}
+            <Row xs={1} md={2} className="g-3">
+              {outletPaymentModes.map((mode) => (
+                <Col key={mode.id}>
+                  <Card
+                    onClick={() => handlePaymentModeClick(mode)}
+                    className={`text-center h-100 shadow-sm border-0 ${selectedPaymentModes.includes(mode.mode_name)
+                      ? "border border-primary"
+                      : ""
+                      }`}
+                    style={{
+                      cursor: "pointer",
+                      transition: "transform 0.2s ease, box-shadow 0.2s ease",
+                    }}
+                    onMouseEnter={(e) =>
+                      (e.currentTarget.style.transform = "translateY(-4px)")
+                    }
+                    onMouseLeave={(e) =>
+                      (e.currentTarget.style.transform = "translateY(0)")
+                    }
+                  >
+                    <Card.Body>
+                      <Card.Title className="fw-semibold">
+                        {mode.mode_name}
+                      </Card.Title>
+
+                      {/* Amount Input */}
+                      {selectedPaymentModes.includes(mode.mode_name) && (
+                        <Form.Control
+                          type="number"
+                          placeholder="0.00"
+                          value={paymentAmounts[mode.mode_name] || ""}
+                          onChange={(e) =>
+                            handlePaymentAmountChange(mode.mode_name, e.target.value)
+                          }
+                          onClick={(e) => e.stopPropagation()}
+                          autoFocus={isMixedPayment}
+                          readOnly={!isMixedPayment}
+                          className="mt-2 text-center"
+                        />
+                      )}
+                    </Card.Body>
+                  </Card>
+                </Col>
+              ))}
+            </Row>
+
+            {/* Payment Summary */}
+            <div className="mt-4 p-3 bg-white rounded shadow-sm">
+              <div className="d-flex justify-content-around fw-bold fs-5">
+                <div>
+                  <span>Total Paid: </span>
+                  <span className="text-primary">{totalPaid.toFixed(2)}</span>
+                </div>
+                <div>
+                  <span>Balance Due: </span>
+                  <span
+                    className={settlementBalance === 0 ? "text-success" : "text-danger"}
+                  >
+                    {settlementBalance.toFixed(2)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Validation Messages */}
+              {settlementBalance !== 0 && (
+                <div className="text-danger mt-2 text-center small">
+                  Total paid amount must match the grand total.
+                </div>
+              )}
+              {settlementBalance === 0 && totalPaid > 0 && (
+                <div className="text-success mt-2 text-center small">
+                  ✅ Payment amount matches. Ready to settle.
+                </div>
+              )}
+            </div>
+          </Modal.Body>
+
+          {/* Footer */}
+          <Modal.Footer className="border-0 justify-content-between">
+            <Button
+              variant="outline-secondary"
+              onClick={() => setShowSettlementModal(false)}
+              className="px-4"
+            >
+              Back
+            </Button>
+            <Button
+              variant="success"
+              onClick={handleSettleAndPrint}
+              disabled={settlementBalance !== 0 || totalPaid === 0}
+              className="px-4"
+            >
+              Settle & Print
+            </Button>
+          </Modal.Footer>
+        </Modal>
+      </div>
+    </SimpleBar>
   );
 };
 
