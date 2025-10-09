@@ -1,7 +1,7 @@
-# TODO: Fix DayEnd outletid, hotelid, createdbyid default values
+# Handover.tsx Column Addition Task
 
-## Tasks
-- [x] Update User type in useAuthContext.tsx to include outletid and hotelid
-- [x] Modify DayEnd.tsx to use user?.outletid and user?.hotelid instead of hardcoded 1
-- [x] Ensure created_by_id uses user?.userid properly
-- [ ] Test the dayend save functionality
+- [x] Update table headers: Add "Ncname" and "Nckot" columns after "Rev Bill"
+- [x] Update table body rows: Add ncName and ncKot data cells after revbill
+- [x] Update table footer totals: Add empty cells for Ncname and Nckot
+- [ ] Update CSS column widths: Adjust nth-child selectors for new columns
+- [ ] Update order details modal: Add Ncname and Nckot fields

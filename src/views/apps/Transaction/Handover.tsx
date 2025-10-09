@@ -461,40 +461,44 @@ const HandoverPage = () => {
         .table-container th:nth-child(12),
         .table-container td:nth-child(12) { width: 9%; } /* Reverse Bill */
         .table-container th:nth-child(13),
-        .table-container td:nth-child(13) { width: 7%; text-align: right; } /* Water */
+        .table-container td:nth-child(13) { width: 12%; } /* Ncname */
         .table-container th:nth-child(14),
-        .table-container td:nth-child(14) { 
-          width: 15%; 
-          white-space: normal; 
-          word-wrap: break-word; 
-          overflow-wrap: break-word; 
-        } /* Payment Mode */
+        .table-container td:nth-child(14) { width: 12%; } /* Nckot */
         .table-container th:nth-child(15),
-        .table-container td:nth-child(15) { width: 8%; text-align: right; } /* Cash */
+        .table-container td:nth-child(15) { width: 7%; text-align: right; } /* Water */
         .table-container th:nth-child(16),
-        .table-container td:nth-child(16) { width: 8%; text-align: right; } /* Credit */
+        .table-container td:nth-child(16) {
+          width: 15%;
+          white-space: normal;
+          word-wrap: break-word;
+          overflow-wrap: break-word;
+        } /* Payment Mode */
         .table-container th:nth-child(17),
-        .table-container td:nth-child(17) { width: 8%; text-align: right; } /* Card */
+        .table-container td:nth-child(17) { width: 8%; text-align: right; } /* Cash */
         .table-container th:nth-child(18),
-        .table-container td:nth-child(18) { width: 8%; text-align: right; } /* GPay */
+        .table-container td:nth-child(18) { width: 8%; text-align: right; } /* Credit */
         .table-container th:nth-child(19),
-        .table-container td:nth-child(19) { width: 8%; text-align: right; } /* PhonePe */
+        .table-container td:nth-child(19) { width: 8%; text-align: right; } /* Card */
         .table-container th:nth-child(20),
-        .table-container td:nth-child(20) { width: 8%; text-align: right; } /* QR Code */
+        .table-container td:nth-child(20) { width: 8%; text-align: right; } /* GPay */
         .table-container th:nth-child(21),
-        .table-container td:nth-child(21) { width: 8%; } /* Captain */
+        .table-container td:nth-child(21) { width: 8%; text-align: right; } /* PhonePe */
         .table-container th:nth-child(22),
-        .table-container td:nth-child(22) { width: 7%; } /* User */
+        .table-container td:nth-child(22) { width: 8%; text-align: right; } /* QR Code */
         .table-container th:nth-child(23),
-        .table-container td:nth-child(23) { width: 7%; text-align: center; } /* Total Items */
+        .table-container td:nth-child(23) { width: 8%; } /* Captain */
         .table-container th:nth-child(24),
-        .table-container td:nth-child(24) { width: 8%; } /* Time */
+        .table-container td:nth-child(24) { width: 12%; } /* User */
         .table-container th:nth-child(25),
-        .table-container td:nth-child(25) { width: 8%; } /* Date */
+        .table-container td:nth-child(25) { width: 7%; text-align: center; } /* Total Items */
         .table-container th:nth-child(26),
-        .table-container td:nth-child(26) { width: 7%; text-align: center; } /* Status */
+        .table-container td:nth-child(26) { width: 8%; } /* Time */
         .table-container th:nth-child(27),
-        .table-container td:nth-child(27) { width: 6%; text-align: center; } /* Actions */
+        .table-container td:nth-child(27) { width: 8%; } /* Date */
+        .table-container th:nth-child(28),
+        .table-container td:nth-child(28) { width: 7%; text-align: center; } /* Status */
+        .table-container th:nth-child(29),
+        .table-container td:nth-child(29) { width: 6%; text-align: center; } /* Actions */
         .summary-cards {
           margin-bottom: 1rem;
         }
@@ -801,6 +805,8 @@ const HandoverPage = () => {
                             <th>KOT No</th>
                             <th>Rev KOT No</th>
                             <th>Rev Bill</th>
+                            <th>Ncname</th>
+                            <th>Nckot</th>
                             <th>Water</th>
                             <th>Payment Mode</th>
                             <th>Cash</th>
@@ -855,6 +861,8 @@ const HandoverPage = () => {
                                   </small>
                                 </td>
                                 <td>{order.reverseBill || ''}</td>
+                                <td>{order.ncName || ''}</td>
+                                <td>{order.ncKot || ''}</td>
                                 <td style={{ textAlign: 'right' }}>₹{(order.water || 0).toLocaleString()}</td>
                                 <td title={order.paymentMode || ''} style={{ whiteSpace: 'normal', wordWrap: 'break-word', overflowWrap: 'break-word' }}>
                                   {order.paymentMode || ''}
@@ -906,6 +914,8 @@ const HandoverPage = () => {
                             <td style={{ textAlign: 'right' }}>₹{totalSGST.toLocaleString()}</td>
                             <td style={{ textAlign: 'right' }}>₹{totalRoundOff.toLocaleString()}</td>
                             <td style={{ textAlign: 'right' }}>₹{totalRevAmt.toLocaleString()}</td>
+                            <td></td>
+                            <td></td>
                             <td></td>
                             <td></td>
                             <td></td>
