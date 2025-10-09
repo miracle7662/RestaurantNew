@@ -1,3 +1,3 @@
-- [x] Fix lockDateTime NaN issue in saveDayEnd function
-  - [x] Add 'T' separator in Date constructor for lockDateTime
-  - [x] Include time in systemDateTimeStr formatting
+- [ ] Modify Settlement.tsx to import useNavigate and change handleEdit to navigate to Orders with state
+- [ ] Modify Orders.tsx to import useLocation and add useEffect to open settlement modal on navigation state
+- [ ] Test the functionality
