@@ -13,7 +13,7 @@ exports.getSettlements = async (req, res) => {
     let whereClauses = [];
     const params = [];
 
-     if (orderNo) {
+    if (orderNo) {
       whereClauses.push('s.OrderNo LIKE ?');
       params.push(`%${orderNo}%`);
     }
@@ -34,6 +34,7 @@ exports.getSettlements = async (req, res) => {
     }
 
     if (paymentType) {
+      // We will filter by payment type in the TrnSettlement table
       whereClauses.push('s.PaymentType = ?');
       params.push(paymentType);
     }
@@ -43,9 +44,9 @@ exports.getSettlements = async (req, res) => {
       params.push(Number(isSettled));
     }
 
-    const whereSettlement = whereClauses.map(clause => clause.replace(/^s\./, ''));
+    const whereSettlement = whereClauses.map(clause => clause.replace(/^s\./, '').replace(/^pt\./, ''));
     const whereSqlSettlement = whereSettlement.length ? `WHERE ${whereSettlement.join(' AND ')}` : '';
-    const countSql = `SELECT COUNT(*) as total FROM TrnSettlement ${whereSqlSettlement}`;
+    const countSql = `SELECT COUNT(DISTINCT s.SettlementID) as total FROM TrnSettlement s ${whereSqlSettlement}`;
 
     const whereSql = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
     const countResult = db.prepare(countSql).get(...params);
@@ -53,7 +54,9 @@ exports.getSettlements = async (req, res) => {
 
     const offset = (Number(page) - 1) * Number(limit);
     const sql = `
-      SELECT s.*, b.TxnNo as BillNo, b.Amount as BillTotal
+      SELECT s.*, b.TxnNo as BillNo, b.Amount as BillTotal,
+        s.PaymentType as PaymentTypes,
+        s.Amount as PaymentAmount
       FROM TrnSettlement s
       LEFT JOIN TAxnTrnbill b ON s.OrderNo = b.TxnNo AND s.HotelID = b.HotelID
       ${whereSql}
@@ -64,7 +67,14 @@ exports.getSettlements = async (req, res) => {
 
     const settlements = db.prepare(sql).all(...params);
 
-    res.json(ok('Settlements fetched', { settlements, total, page: Number(page), limit: Number(limit) }));
+    // Map PaymentTypes and PaymentAmount to PaymentType and Amount for compatibility
+    const mappedSettlements = settlements.map(s => ({
+      ...s,
+      PaymentType: s.PaymentTypes || '',
+      Amount: s.PaymentAmount || s.Amount
+    }));
+
+    res.json(ok('Settlements fetched', { settlements: mappedSettlements, total, page: Number(page), limit: Number(limit) }));
   } catch (error) {
     console.error("Error in getSettlements:", error);
     res.status(500).json({ success: false, message: 'Failed to fetch settlements', error: error.message, stack: error.stack });

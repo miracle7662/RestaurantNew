@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Modal, Button, Table, Form, Row, Col, Alert, Pagination, Card } from "react-bootstrap";
+import { Modal, Button, Table, Form, Row, Col, Alert, Card } from "react-bootstrap";
 import { useNavigate } from 'react-router-dom';
 import axios from "axios";
 import SimpleBar from 'simplebar-react';
@@ -127,6 +127,31 @@ const EditSettlementPage = ({ role, currentUser }: any) => {
     setShowSettlementModal(false);
   };
 
+  // Helper function to group settlements by OrderNo
+  const groupSettlementsByOrderNo = (settlements: any[]) => {
+    const grouped: { [orderNo: string]: any } = {};
+    settlements.forEach((s) => {
+      if (!grouped[s.OrderNo]) {
+        grouped[s.OrderNo] = {
+          ...s,
+          PaymentTypes: [s.PaymentType],
+          Amount: s.Amount,
+          SettlementIDs: [s.SettlementID],
+          InsertDate: s.InsertDate,
+          HotelID: s.HotelID,
+          isSettled: s.isSettled,
+        };
+      } else {
+        grouped[s.OrderNo].PaymentTypes.push(s.PaymentType);
+        grouped[s.OrderNo].Amount += s.Amount;
+        grouped[s.OrderNo].SettlementIDs.push(s.SettlementID);
+      }
+    });
+    return Object.values(grouped);
+  };
+
+  const groupedSettlements = groupSettlementsByOrderNo(settlements);
+
   return (
     <SimpleBar style={{ maxHeight: '80vh' }}>
       <div className="container mt-4">
@@ -164,11 +189,11 @@ const EditSettlementPage = ({ role, currentUser }: any) => {
             </tr>
           </thead>
           <tbody>
-            {settlements.map((s) => (
-              <tr key={s.SettlementID} className={s.isSettled === 0 ? "table-danger" : ""}>
-                <td>{s.SettlementID}</td>
+            {groupedSettlements.map((s) => (
+              <tr key={s.SettlementIDs.join('-')} className={s.isSettled === 0 ? "table-danger" : ""}>
+                <td>{s.SettlementIDs.join(', ')}</td>
                 <td>{s.OrderNo}</td>
-                <td>{s.PaymentType}</td>
+                <td>{s.PaymentTypes.map((type: string, index: number) => <div key={index}>{type}</div>)}</td>
                 <td>{s.HotelID}</td>
                 <td>₹{s.Amount.toFixed(2)}</td>
                 <td>{new Date(s.InsertDate.replace(' ', 'T') + 'Z').toLocaleString()}</td>
@@ -177,7 +202,7 @@ const EditSettlementPage = ({ role, currentUser }: any) => {
              
                 <td>
                   <Button size="sm" variant="primary" onClick={() => handleEdit(s)}>Edit</Button>{" "}
-                  {role === "Admin" && <Button size="sm" variant="danger" onClick={() => deleteSettlement(s.SettlementID)}>Delete</Button>}
+                  {role === "Admin" && <Button size="sm" variant="danger" onClick={() => deleteSettlement(s.SettlementIDs[0])}>Delete</Button>}
                 </td>
               </tr>
             ))}

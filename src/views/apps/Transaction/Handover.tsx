@@ -307,7 +307,10 @@ const HandoverPage = () => {
     try {
       const response = await fetch('http://localhost:3001/api/auth/verify-password', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${user?.token}`,
+        },
         body: JSON.stringify({ password }),
       });
       const data = await response.json();
@@ -358,7 +361,7 @@ const HandoverPage = () => {
 
 
   return (
-    <>
+    <div>
       <style>{`
         .main-container {
           height: 100vh;
@@ -592,7 +595,8 @@ const HandoverPage = () => {
           margin-top: 0.5rem;
         }
       `}</style>
-      <Container fluid className="p-0 bg-light main-container">
+      {passwordVerified ? (
+        <Container fluid className="p-0 bg-light main-container">
         {/* Header Section - Compact */}
         <Card className="mb-0 shadow-sm border-0">
           <Card.Header className="bg-white border-0 header-compact">
@@ -1233,18 +1237,19 @@ const HandoverPage = () => {
             <Button variant="outline-secondary" size="sm" onClick={handleCloseCashModal}>
               ✖ Close
             </Button>
-          </Modal.Footer>
+        </Modal.Footer>
         </Modal>
 
-        {/* Password Verification Modal */}
-        <HandoverPasswordModal
-          show={showPasswordModal}
-          onVerify={handlePasswordVerify}
-          onClose={() => setShowPasswordModal(false)}
-        />
+        </Container>
+        ) : (
+          <HandoverPasswordModal
+            show={showPasswordModal}
+            onVerify={handlePasswordVerify}
+            onClose={() => {}}
+          />
+        )}
 
-      </Container>
-    </>
+    </div>
   );
 };
 export default HandoverPage;
