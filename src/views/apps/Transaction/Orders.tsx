@@ -1604,10 +1604,14 @@ const Order = () => {
 
       toast.success('Discount applied successfully!');
       setShowDiscountModal(false);
-      // Refresh items to show updated totals and clear the view
-      if (selectedTableId) {
-        refreshItemsForTable(selectedTableId);
-      }
+      
+      // Reset UI to go back to the table selection screen
+      setItems([]);
+      setSelectedTable(null);
+      setShowOrderDetails(false);
+      setCurrentKOTNo(null);
+      setCurrentKOTNos([]);
+      setTxnNo(null);
 
     } catch (error: any) {
       toast.error(error.message || 'An error occurred while applying the discount.');
