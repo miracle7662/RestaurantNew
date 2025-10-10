@@ -1709,6 +1709,7 @@ const Order = () => {
 
       // 3. Reset UI states for the next order
       setItems([]);
+      setReversedItems([]);
       setSelectedTable(null);
       setShowOrderDetails(false);
       setPaymentAmounts({});
