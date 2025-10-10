@@ -1115,6 +1115,10 @@ const Order = () => {
 
       toast.success('Bill marked as printed!');
 
+      // Clear customer fields after successful print
+      setMobileNumber('');
+      setCustomerName('');
+
       // Set the TxnNo from the API response to update the UI for printing
       if (printResult.data && printResult.data.TxnNo) {
         setTxnNo(printResult.data.TxnNo);
@@ -1698,6 +1702,10 @@ const Order = () => {
       }
 
       toast.success('Settlement successful and bill printed!');
+
+      // Clear customer fields after successful settlement
+      setMobileNumber('');
+      setCustomerName('');
 
       // 3. Reset UI states for the next order
       setItems([]);
