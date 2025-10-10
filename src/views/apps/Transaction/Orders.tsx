@@ -2851,25 +2851,7 @@ const Order = () => {
                   className="form-control"
                   style={{ width: '150px', height: '30px', fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}
                 />
-                {activeTab === 'Dine-in' && (
-                  <div style={{ maxWidth: '100px', minHeight: '38px' }}>
-                    <div className="input-group rounded-search">
-                      <input
-                        type="text"
-                        className="form-control"
-                        placeholder="Table"
-                        value={searchTable}
-                        onChange={(e) => setSearchTable(e.target.value)}
-                        style={{ maxWidth: '100px', minHeight: '38px', fontSize: '1.2rem' }}
-                      />
-                    </div>
-                    {isTableInvalid && (
-                      <div className="text-danger small text-center mt-1">
-                        Invalid Table
-                      </div>
-                    )}
-                  </div>
-                )}
+                
                 <div className="d-flex align-items-center ms-2" style={{ position: 'relative', overflow: 'visible' }}>
                   {/* Hamburger Button */}
                   <Button
