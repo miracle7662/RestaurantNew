@@ -35,6 +35,9 @@ interface ReversedMenuItem extends MenuItem {
   status: 'Reversed';
 }
 
+
+
+
 interface TableItem {
   tablemanagementid: string;
   table_name: string;
@@ -154,8 +157,8 @@ const Order = () => {
   const [isMixedPayment, setIsMixedPayment] = useState<boolean>(false);
   const [paymentAmounts, setPaymentAmounts] = useState<Record<string, string>>({});
   const [selectedPaymentModes, setSelectedPaymentModes] = useState<string[]>([]);
-  const [reversedItems, setReversedItems] = useState<ReversedMenuItem[]>([]);
 
+  const [reversedItems, setReversedItems] = useState<ReversedMenuItem[]>([]);
 
 
 
@@ -228,6 +231,7 @@ const Order = () => {
         // Set reversed items from the new API response field
         const fetchedReversedItems: ReversedMenuItem[] = unbilledItemsRes.data.reversedItems || [];
         setReversedItems(fetchedReversedItems);
+
         setItems(fetchedItems);
 
         // Also set TxnNo if it exists on the unbilled transaction
@@ -249,8 +253,8 @@ const Order = () => {
       } else {
         // No billed or unbilled items found
         setItems([]);
-        setReversedItems([]);
         setCurrentKOTNo(null);
+        setReversedItems([]);
         setCurrentKOTNos([]);
         setTxnNo(null);
         setCurrentTxnId(null);
@@ -2798,7 +2802,7 @@ const Order = () => {
                         color: '#721c24', // Darker red
                       }}
                     >
-                      <span style={{ textAlign: 'left' }}>{item.name}</span>
+                      <span style={{ textAlign: 'left' }}>{(item as any).ItemName || item.name}</span>
                       <div className="text-center d-flex justify-content-center align-items-center gap-2">
                         <span className="badge bg-danger">-{item.qty}</span>
                       </div>
