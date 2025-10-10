@@ -1119,6 +1119,12 @@ exports.handleF8KeyPress = async (req, res) => {
       const newRevQty = currentRevQty + 1;
       const reverseAmount = Number(item.RuntimeRate) || 0;
 
+      // Determine reversal type based on bill status
+      const bill = db.prepare('SELECT isBilled FROM TAxnTrnbill WHERE TxnID = ?').get(item.TxnID);
+      const reverseType = bill && bill.isBilled ? 'AfterBill' : 'BeforeBill';
+      const isBeforeBill = reverseType === 'BeforeBill' ? 1 : 0;
+      const isAfterBill = reverseType === 'AfterBill' ? 1 : 0;
+
       db.transaction(() => {
         db.prepare(`
           UPDATE TAxnTrnbilldetails
@@ -1133,6 +1139,17 @@ exports.handleF8KeyPress = async (req, res) => {
         `).run(reverseAmount, item.TxnID);
 
         // Log the reversal
+        db.prepare(`
+          INSERT INTO TAxnTrnReversalLog (
+            TxnDetailID, TxnID, KOTNo, RevKOTNo, ItemID,
+            ActualQty, ReversedQty, RemainingQty, IsBeforeBill, IsAfterBill,
+            ReversedByUserID, ApprovedByAdmin, HotelID, ReversalReason
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+          item.TXnDetailID, item.TxnID, item.KOTNo, newRevKOTNo, item.ItemID,
+          currentQty, 1, availableQty - 1, isBeforeBill, isAfterBill,
+          userId, approvedByAdminId || null, item.HotelID, reversalReason || null
+        );
 
         // Update table status to occupied if it's not already
         db.prepare(`

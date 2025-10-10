@@ -26,6 +26,7 @@ interface MenuItem {
   originalQty?: number; // To track the original quantity from database
   kotNo?: number;
   txnDetailId?: number;
+  isReverse?: boolean; // Added for reverse quantity items
 }
 
 interface TableItem {
@@ -168,21 +169,21 @@ const Order = () => {
         const billedBillData = await billedBillRes.json();
         if (billedBillData.success && billedBillData.data) {
           const { details, ...header } = billedBillData.data;
-          const fetchedItems: MenuItem[] = details.map((item: any) => ({
-            id: item.ItemID,
-            txnDetailId: item.TXnDetailID,
-            name: item.ItemName || 'Unknown Item',
-            price: item.RuntimeRate,
-            qty: (Number(item.Qty) || 0) - (Number(item.RevQty) || 0), // Calculate net quantity
-            isBilled: item.isBilled, // Use the isBilled flag from the item itself
-            revQty: Number(item.RevQty) || 0, // Store revQty
-            isNCKOT: item.isNCKOT,
-            NCName: '',
-            NCPurpose: '',
-            isNew: false, // All items are existing
-            originalQty: item.Qty,
-            kotNo: item.KOTNo, // Use KOTNo from the item detail
-          }));
+        const fetchedItems: MenuItem[] = details.map((item: any) => ({
+          id: item.ItemID,
+          txnDetailId: item.TXnDetailID,
+          name: item.ItemName || 'Unknown Item',
+          price: item.RuntimeRate,
+          qty: (Number(item.Qty) || 0) - (Number(item.RevQty) || 0), // Calculate net quantity
+          isBilled: item.isBilled, // Use the isBilled flag from the item itself
+          revQty: Number(item.RevQty) || 0, // Store revQty
+          isNCKOT: item.isNCKOT,
+          NCName: '',
+          NCPurpose: '',
+          isNew: false, // All items are existing
+          originalQty: item.Qty,
+          kotNo: item.KOTNo, // Use KOTNo from the item detail
+        })).filter((item: any) => item.qty > 0);
 
           setItems(fetchedItems);
           setTxnNo(header.TxnNo); // Set TxnNo from the fetched bill header
