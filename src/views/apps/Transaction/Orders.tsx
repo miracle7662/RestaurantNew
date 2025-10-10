@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useNavigate } from 'react-router-dom';
 import { Button, Form, Modal, Table, Card, Row, Col } from "react-bootstrap";
 import OrderDetails from "./OrderDetails";
 import { fetchOutletsForDropdown } from "@/utils/commonfunction";
@@ -1605,14 +1604,17 @@ const Order = () => {
 
       toast.success('Discount applied successfully!');
       setShowDiscountModal(false);
-      
-      // Reset UI to go back to the table selection screen
+       // Reset UI to go back to the table selection screen
       setItems([]);
       setSelectedTable(null);
       setShowOrderDetails(false);
       setCurrentKOTNo(null);
       setCurrentKOTNos([]);
       setTxnNo(null);
+      
+      if (selectedTableId) {
+        refreshItemsForTable(selectedTableId);
+      }
 
     } catch (error: any) {
       toast.error(error.message || 'An error occurred while applying the discount.');
