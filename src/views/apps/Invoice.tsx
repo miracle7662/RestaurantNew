@@ -252,6 +252,7 @@ export default function BillingPage() {
                       </p>
                     </div>
                     <div className="col-md-6">
+                      
                       <p className="small text-muted mb-1">Status</p>
                       <p className={`fw-semibold ${viewModal.status === 'cancelled' ? 'text-danger' : 'text-success'}`}>
                         {viewModal.status.toUpperCase()}
