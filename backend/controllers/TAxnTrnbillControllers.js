@@ -1687,4 +1687,93 @@ exports.applyNCKOT = async (req, res) => {
   }
 };
 
+/* -------------------------------------------------------------------------- */
+/* 13) applyDiscountToBill → update discount on existing bill and its items   */
+/* -------------------------------------------------------------------------- */
+exports.applyDiscountToBill = async (req, res) => {
+  try {
+    const { id } = req.params; // This is the TxnID (KOT ID)
+    const { discount, discPer, discountType, tableId, items } = req.body;
+
+    if (!id) {
+      return res.status(400).json({ success: false, message: 'KOT ID (TxnID) is required.' });
+    }
+    if (items.length === 0) {
+      return res.status(400).json({ success: false, message: 'No items in the KOT to apply discount to.' });
+    }
+    if (discount === undefined || discPer === undefined || discountType === undefined) {
+      return res.status(400).json({ success: false, message: 'Discount value, percentage, and type are required.' });
+    }
+
+    const bill = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id));
+    if (!bill) {
+      return res.status(404).json({ success: false, message: 'KOT not found.' });
+    }
+
+    const finalDiscount = Number(discount) || 0;
+    const finalDiscPer = Number(discPer) || 0;
+    const finalDiscountType = Number(discountType);
+
+    const trx = db.transaction(() => {
+
+      // 2. Recalculate and update Discount_Amount for each item in TAxnTrnbilldetails
+      const updateDetailStmt = db.prepare(`
+        UPDATE TAxnTrnbilldetails
+        SET Discount_Amount = ?
+        WHERE TXnDetailID = ?
+      `);
+
+      let totalDiscountOnItems = 0;
+
+      for (const item of items) {
+        const lineSubtotal = (Number(item.qty) || 0) * (Number(item.price) || 0);
+        let itemDiscountAmount = 0;
+
+        if (finalDiscountType === 1) { // Percentage
+          // Use the percentage from the request to calculate discount per item
+          itemDiscountAmount = (lineSubtotal * finalDiscPer) / 100; 
+        } else { // Fixed amount - distribute proportionally
+          const subtotalOfAllItems = items.reduce((sum, i) => sum + (Number(i.qty) || 0) * (Number(i.price) || 0), 0);
+          if (subtotalOfAllItems > 0) {
+            itemDiscountAmount = (lineSubtotal / subtotalOfAllItems) * finalDiscount;
+          }
+        }
+
+        updateDetailStmt.run(itemDiscountAmount, item.txnDetailId);
+        totalDiscountOnItems += itemDiscountAmount;
+      }
+
+      // 3. Recalculate the total amount for the bill header
+      const allDetails = db.prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? AND isCancelled = 0').all(Number(id));
+      let totalGross = 0, totalCgst = 0, totalSgst = 0, totalIgst = 0, totalCess = 0;
+      for (const d of allDetails) {
+          totalGross += (Number(d.Qty) || 0) * (Number(d.RuntimeRate) || 0);
+          totalCgst += Number(d.CGST_AMOUNT) || 0;
+          totalSgst += Number(d.SGST_AMOUNT) || 0;
+          totalIgst += Number(d.IGST_AMOUNT) || 0;
+          totalCess += Number(d.CESS_AMOUNT) || 0;
+      }
+      const totalAmount = totalGross - totalDiscountOnItems + totalCgst + totalSgst + totalIgst + totalCess + (bill.RoundOFF || 0);
+
+      // 4. Update the bill header with all correct values in one go
+      db.prepare(`
+        UPDATE TAxnTrnbill 
+        SET
+          Amount = ?,
+          Discount = ?,
+          DiscPer = ?,
+          DiscountType = ?
+        WHERE TxnID = ?
+      `).run(totalAmount, totalDiscountOnItems, finalDiscPer, finalDiscountType, Number(id));
+    });
+
+    trx();
+
+    res.json(ok('Discount applied successfully to the existing KOT.'));
+  } catch (error) {
+    console.error('Error in applyDiscountToBill:', error);
+    res.status(500).json({ success: false, message: 'Failed to apply discount', data: null, error: error.message });
+  }
+};
+
 module.exports = exports

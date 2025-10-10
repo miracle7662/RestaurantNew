@@ -27,6 +27,9 @@ router.post('/:id/settle', controller.settleBill)
 // Apply NCKOT to an entire existing bill
 router.put('/:id/apply-nckot', controller.applyNCKOT);
 
+// Apply Discount to an existing bill
+router.post('/:id/discount', controller.applyDiscountToBill);
+
 // Add items to bill with isBilled and isNCKOT logic
 router.post('/:id/items', controller.addItemToBill)
 

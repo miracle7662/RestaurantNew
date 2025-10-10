@@ -35,9 +35,6 @@ interface ReversedMenuItem extends MenuItem {
   status: 'Reversed';
 }
 
-
-
-
 interface TableItem {
   tablemanagementid: string;
   table_name: string;
@@ -157,8 +154,8 @@ const Order = () => {
   const [isMixedPayment, setIsMixedPayment] = useState<boolean>(false);
   const [paymentAmounts, setPaymentAmounts] = useState<Record<string, string>>({});
   const [selectedPaymentModes, setSelectedPaymentModes] = useState<string[]>([]);
-
   const [reversedItems, setReversedItems] = useState<ReversedMenuItem[]>([]);
+
 
 
 
@@ -231,7 +228,6 @@ const Order = () => {
         // Set reversed items from the new API response field
         const fetchedReversedItems: ReversedMenuItem[] = unbilledItemsRes.data.reversedItems || [];
         setReversedItems(fetchedReversedItems);
-
         setItems(fetchedItems);
 
         // Also set TxnNo if it exists on the unbilled transaction
@@ -253,8 +249,8 @@ const Order = () => {
       } else {
         // No billed or unbilled items found
         setItems([]);
-        setCurrentKOTNo(null);
         setReversedItems([]);
+        setCurrentKOTNo(null);
         setCurrentKOTNos([]);
         setTxnNo(null);
         setCurrentTxnId(null);
@@ -1545,33 +1541,71 @@ const Order = () => {
     console.log('State update - showOrderDetails:', showOrderDetails, 'selectedTable:', selectedTable);
   }, [showOrderDetails, selectedTable]);
 
-  const handleApplyDiscount = () => {
+  const handleApplyDiscount = async () => {
+    if (!currentTxnId) {
+      toast.error("Please save the KOT before applying a discount.");
+      return;
+    }
+
+    let appliedDiscount = 0;
+    let appliedDiscPer = 0;
+
     if (DiscountType === 1) { // Percentage
       if (discountInputValue < 0.5 || discountInputValue > 100 || isNaN(discountInputValue)) {
         toast.error('Discount percentage must be between 0.5% and 100%');
         return;
       }
       const discountThreshold = 20; // Configurable threshold
-      if (discountInputValue > discountThreshold && user?.role_level !== 'admin') {
+      if (discountInputValue > discountThreshold && user?.role_level !== 'superadmin' && user?.role_level !== 'hotel_admin') {
         toast.error('Discount > 20% requires manager approval');
         return;
       }
-      const calculatedDiscount = (taxCalc.subtotal * discountInputValue) / 100;
-      setDiscPer(discountInputValue);
-      setDiscount(calculatedDiscount);
-      toast.success(`Discount ${discountInputValue}% applied by ${givenBy}`);
+      appliedDiscPer = discountInputValue;
+      appliedDiscount = (taxCalc.subtotal * discountInputValue) / 100;
     } else { // Amount
       if (discountInputValue <= 0 || discountInputValue > taxCalc.subtotal || isNaN(discountInputValue)) {
         toast.error(`Discount amount must be > 0 and <= subtotal (${taxCalc.subtotal.toFixed(2)})`);
         return;
       }
-      setDiscPer(0);
-      setDiscount(discountInputValue);
-      toast.success(`Discount of ${discountInputValue.toFixed(2)} applied by ${givenBy}`);
+      appliedDiscPer = 0;
+      appliedDiscount = discountInputValue;
     }
 
-    setShowDiscountModal(false);
-    setReason('');
+    setLoading(true);
+    try {
+      const payload = {
+        discount: appliedDiscount,
+        discPer: appliedDiscPer,
+        discountType: DiscountType,
+        tableId: selectedTableId,
+        items: items, // Send current items to recalculate on backend
+      };
+
+      const response = await fetch(`http://localhost:3001/api/TAxnTrnbill/${currentTxnId}/discount`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.message || 'Failed to apply discount.');
+      }
+
+      toast.success('Discount applied successfully!');
+      setShowDiscountModal(false);
+      // Refresh items to show updated totals and clear the view
+      if (selectedTableId) {
+        refreshItemsForTable(selectedTableId);
+      }
+
+    } catch (error: any) {
+      toast.error(error.message || 'An error occurred while applying the discount.');
+    } finally {
+      setLoading(false);
+      setReason('');
+    }
   };
 
   const handleDiscountKeyDown = (e: React.KeyboardEvent) => {
@@ -2802,7 +2836,7 @@ const Order = () => {
                         color: '#721c24', // Darker red
                       }}
                     >
-                      <span style={{ textAlign: 'left' }}>{(item as any).ItemName || item.name}</span>
+                      <span style={{ textAlign: 'left' }}>{item.name}</span>
                       <div className="text-center d-flex justify-content-center align-items-center gap-2">
                         <span className="badge bg-danger">-{item.qty}</span>
                       </div>
