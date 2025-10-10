@@ -24,6 +24,12 @@ const EditSettlementPage = ({ role, currentUser }: any) => {
   const [totalPaid, setTotalPaid] = useState(0);
   const [settlementBalance, setSettlementBalance] = useState(0);
 
+  interface PaymentMode {
+  id: number;
+  paymenttypeid: number;
+  mode_name: string;
+}
+
   // Fetch settlements
   const fetchData = async (page = currentPage) => {
     try {
@@ -114,23 +120,29 @@ const EditSettlementPage = ({ role, currentUser }: any) => {
     }
   };
 
-  const handlePaymentModeClick = (mode: any) => {
+  const handlePaymentModeClick = (mode: PaymentMode) => {
     if (isMixedPayment) {
-      if (selectedPaymentModes.includes(mode.mode_name)) {
-        setSelectedPaymentModes(selectedPaymentModes.filter(m => m !== mode.mode_name));
-        const newAmounts = { ...paymentAmounts };
-        delete newAmounts[mode.mode_name];
-        setPaymentAmounts(newAmounts);
-      } else {
-        setSelectedPaymentModes([...selectedPaymentModes, mode.mode_name]);
-        // Initialize amount for newly selected payment mode to 0 if not set
-        if (!paymentAmounts[mode.mode_name]) {
-          setPaymentAmounts({ ...paymentAmounts, [mode.mode_name]: "0" });
+      // Mixed Payment Logic
+      const currentTotalPaid = Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0);
+      const remaining = Math.max(0, grandTotal - currentTotalPaid);
+      setSelectedPaymentModes(prev => {
+        const isSelected = prev.includes(mode.mode_name);
+        if (isSelected) {
+          // Deselect: remove from list and clear amount
+          const newAmounts = { ...paymentAmounts };
+          delete newAmounts[mode.mode_name];
+          setPaymentAmounts(newAmounts);
+          return prev.filter(m => m !== mode.mode_name);
+        } else {
+          // Select: add to list and auto-fill with remaining balance
+          setPaymentAmounts(prev => ({ ...prev, [mode.mode_name]: remaining.toFixed(2) }));
+          return [...prev, mode.mode_name];
         }
-      }
+      });
     } else {
+      // Single Payment Logic
       setSelectedPaymentModes([mode.mode_name]);
-      setPaymentAmounts({ [mode.mode_name]: grandTotal.toString() });
+      setPaymentAmounts({ [mode.mode_name]: grandTotal.toFixed(2) });
     }
   };
 
@@ -254,31 +266,7 @@ const EditSettlementPage = ({ role, currentUser }: any) => {
 
         
         {/* Edit Modal */}
-        <Modal show={!!editing} onHide={() => setEditing(null)}>
-          <Modal.Header closeButton><Modal.Title>Edit Settlement</Modal.Title></Modal.Header>
-          <Modal.Body>
-            <Form>
-              <Form.Group className="mb-3">
-                <Form.Label>Bill Total</Form.Label>
-                <Form.Control type="number" value={editing?.BillTotal || ''} readOnly />
-              </Form.Group>
-              <Form.Group className="mb-3">
-                <Form.Label>Payment Mode</Form.Label>
-                <Form.Select value={form.PaymentType} onChange={(e) => setForm({ ...form, PaymentType: e.target.value })}>
-                  {outletPaymentModes.filter((mode: any) => mode.mode_name).map((mode: any) => <option key={mode.id} value={mode.mode_name}>{mode.mode_name}</option>)}
-                </Form.Select>
-              </Form.Group>
-              <Form.Group className="mb-3">
-                <Form.Label>Amount</Form.Label>
-                <Form.Control type="number" value={form.Amount} readOnly />
-              </Form.Group>
-            </Form>
-          </Modal.Body>
-          <Modal.Footer>
-            <Button variant="secondary" onClick={() => setEditing(null)}>Cancel</Button>
-            <Button variant="success" onClick={saveEdit}>Save</Button>
-          </Modal.Footer>
-        </Modal>
+    
 
         {/* Main Settlement Modal */}
         <Modal
