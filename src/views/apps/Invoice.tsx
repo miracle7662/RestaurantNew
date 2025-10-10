@@ -1,334 +1,330 @@
 import React, { useState } from 'react';
-import { ArrowRight, ArrowLeft, Save, X } from 'lucide-react';
+import { Eye, Printer, X, Smartphone, CreditCard, Banknote } from 'lucide-react';
 
-export default function POSTransferScreen() {
-  const [transferMode, setTransferMode] = useState('allKOTs');
-  const [fixedItems, setFixedItems] = useState(false);
-  const [transferredItems, setTransferredItems] = useState(false);
-  
-  const [selectedTable, setSelectedTable] = useState({
-    table: 'C4',
-    outlet: 'Classic Veg',
-    kot: '24',
-    pax: '1',
-    date: '19-10-10',
-    items: [
-      { media: 'C4', kotNo: 24, item: 'Masala Uttappa', qty: 1 },
-      { media: 'C4', kotNo: 24, item: 'Rose Lassi', qty: 1 },
-      { media: 'C4', kotNo: 24, item: 'Cheese Chilly Toast', qty: 1 }
+// Sample bill data
+const initialBills = [
+  {
+    id: 1,
+    billNo: 'BILL-001',
+    customerName: 'Rajesh Kumar',
+    mobile: '+91 98765 43210',
+    items: 'Paneer Tikka, Dal Makhani, Roti x4',
+    paymentMode: 'UPI',
+    amount: 724.50,
+    date: '2025-10-10',
+    time: '14:30',
+    status: 'paid',
+    itemDetails: [
+      { name: 'Paneer Tikka', qty: 2, price: 400 },
+      { name: 'Dal Makhani', qty: 1, price: 250 },
+      { name: 'Roti', qty: 4, price: 40 }
     ],
-    total: 130.00,
-    variance: 0.00,
-    change: 0.00
-  });
+    subtotal: 690,
+    cgst: 17.25,
+    sgst: 17.25,
+    discount: 0
+  },
+  {
+    id: 2,
+    billNo: 'BILL-002',
+    customerName: 'Priya Sharma',
+    mobile: '+91 87654 32109',
+    items: 'Veg Biryani, Raita, Gulab Jamun',
+    paymentMode: 'Cash',
+    amount: 450,
+    date: '2025-10-10',
+    time: '13:15',
+    status: 'paid',
+    itemDetails: [
+      { name: 'Veg Biryani', qty: 1, price: 280 },
+      { name: 'Raita', qty: 1, price: 80 },
+      { name: 'Gulab Jamun', qty: 2, price: 80 }
+    ],
+    subtotal: 440,
+    cgst: 5,
+    sgst: 5,
+    discount: 0
+  },
+  {
+    id: 3,
+    billNo: 'BILL-003',
+    customerName: 'Amit Patel',
+    mobile: '+91 76543 21098',
+    items: 'Masala Dosa, Coffee x2, Idli',
+    paymentMode: 'Card',
+    amount: 320,
+    date: '2025-10-10',
+    time: '12:45',
+    status: 'paid',
+    itemDetails: [
+      { name: 'Masala Dosa', qty: 1, price: 120 },
+      { name: 'Coffee', qty: 2, price: 100 },
+      { name: 'Idli', qty: 2, price: 80 }
+    ],
+    subtotal: 300,
+    cgst: 10,
+    sgst: 10,
+    discount: 0
+  },
+  {
+    id: 4,
+    billNo: 'BILL-004',
+    customerName: 'Sneha Desai',
+    mobile: '+91 65432 10987',
+    items: 'Butter Chicken, Naan, Lassi',
+    paymentMode: 'Split',
+    amount: 890,
+    date: '2025-10-10',
+    time: '19:20',
+    status: 'cancelled',
+    itemDetails: [
+      { name: 'Butter Chicken', qty: 2, price: 600 },
+      { name: 'Naan', qty: 3, price: 90 },
+      { name: 'Lassi', qty: 2, price: 120 }
+    ],
+    subtotal: 810,
+    cgst: 40,
+    sgst: 40,
+    discount: 0
+  },
+  {
+    id: 5,
+    billNo: 'BILL-005',
+    customerName: 'Vikram Singh',
+    mobile: '+91 54321 09876',
+    items: 'Chicken Biryani, Raita, Salad',
+    paymentMode: 'UPI',
+    amount: 550,
+    date: '2025-10-10',
+    time: '18:00',
+    status: 'paid',
+    itemDetails: [
+      { name: 'Chicken Biryani', qty: 1, price: 350 },
+      { name: 'Raita', qty: 1, price: 80 },
+      { name: 'Salad', qty: 1, price: 50 }
+    ],
+    subtotal: 480,
+    cgst: 35,
+    sgst: 35,
+    discount: 0
+  }
+];
 
-  const [proposedTable, setProposedTable] = useState({
-    table: 'C1',
-    outlet: 'Classic Veg',
-    pax: '',
-    date: '19/Oct/2010',
-    items: [],
-    total: 0.00,
-    variance: 0.00,
-    change: 0.00
-  });
+export default function BillingPage() {
+  const [bills] = useState(initialBills);
+  const [viewModal, setViewModal] = useState(null);
 
-  const transferRight = () => {
-    if (selectedTable.items.length > 0) {
-      setProposedTable({
-        ...proposedTable,
-        items: [...proposedTable.items, ...selectedTable.items],
-        total: selectedTable.total,
-        variance: selectedTable.total,
-        change: -selectedTable.total
-      });
-      setSelectedTable({
-        ...selectedTable,
-        items: [],
-        total: 0.00,
-        variance: selectedTable.total,
-        change: selectedTable.total
-      });
+  const getPaymentIcon = (mode) => {
+    switch(mode) {
+      case 'Cash': return <Banknote className="w-4 h-4" />;
+      case 'UPI': return <Smartphone className="w-4 h-4" />;
+      case 'Card': return <CreditCard className="w-4 h-4" />;
+      case 'Split': return <span className="text-sm">⚡</span>;
+      default: return null;
     }
   };
 
-  const transferLeft = () => {
-    if (proposedTable.items.length > 0) {
-      setSelectedTable({
-        ...selectedTable,
-        items: [...selectedTable.items, ...proposedTable.items],
-        total: proposedTable.total,
-        variance: proposedTable.total,
-        change: proposedTable.total
-      });
-      setProposedTable({
-        ...proposedTable,
-        items: [],
-        total: 0.00,
-        variance: 0.00,
-        change: 0.00
-      });
-    }
+  const handlePrint = (bill) => {
+    alert(`Printing bill ${bill.billNo}...`);
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="bg-white rounded-lg shadow-md p-4 mb-4">
-          <div className="flex items-center justify-between">
-            <div className="flex gap-2">
-              <button
-                onClick={() => setTransferMode('allKOTs')}
-                className={`px-6 py-2 rounded-md font-semibold transition-all ${
-                  transferMode === 'allKOTs'
-                    ? 'bg-blue-600 text-white shadow-md'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
-              >
-                Selected Table (All KOTs)
-              </button>
-              <button
-                onClick={() => setTransferMode('kotOnly')}
-                className={`px-6 py-2 rounded-md font-semibold transition-all ${
-                  transferMode === 'kotOnly'
-                    ? 'bg-blue-600 text-white shadow-md'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
-              >
-                Selected KOT Only
-              </button>
-            </div>
-            <h1 className="text-2xl font-bold text-gray-800">
-              {transferMode === 'allKOTs' ? 'TRANSFER TABLE' : "TRANSFER KOT'S"}
-            </h1>
-            <div className="w-48"></div>
-          </div>
-        </div>
-
-        {/* Main Content */}
-        <div className="grid grid-cols-[1fr_auto_1fr] gap-4">
-          {/* Left Panel - Selected Table */}
-          <div className="bg-white rounded-lg shadow-md p-5">
-            <h2 className="text-lg font-bold text-gray-700 mb-4 border-b pb-2">Selected Table</h2>
-            
-            <div className="grid grid-cols-2 gap-3 mb-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-600 mb-1">Table:</label>
-                <select value={selectedTable.table} onChange={(e) => setSelectedTable({...selectedTable, table: e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500">
-                  <option>C4</option>
-                  <option>C1</option>
-                  <option>C2</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-600 mb-1">Outlet:</label>
-                <select value={selectedTable.outlet} onChange={(e) => setSelectedTable({...selectedTable, outlet: e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500">
-                  <option>Classic Veg</option>
-                  <option>Premium Veg</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-600 mb-1">KOT:</label>
-                <select value={selectedTable.kot} onChange={(e) => setSelectedTable({...selectedTable, kot: e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500">
-                  <option>24</option>
-                  <option>25</option>
-                </select>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-600 mb-1">Pax:</label>
-                  <input type="text" value={selectedTable.pax} onChange={(e) => setSelectedTable({...selectedTable, pax: e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500" />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-600 mb-1">Date:</label>
-                  <input type="text" value={selectedTable.date} onChange={(e) => setSelectedTable({...selectedTable, date: e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500" />
-                </div>
-              </div>
-            </div>
-
-            <div className="border border-gray-300 rounded overflow-hidden mb-3">
-              <table className="w-full">
-                <thead className="bg-gray-200">
-                  <tr>
-                    <th className="px-3 py-2 text-left text-sm font-bold text-gray-700">Media</th>
-                    <th className="px-3 py-2 text-left text-sm font-bold text-gray-700">KOT No</th>
-                    <th className="px-3 py-2 text-left text-sm font-bold text-gray-700">Item</th>
-                    <th className="px-3 py-2 text-right text-sm font-bold text-gray-700">Qty</th>
+    <div className="min-vh-100  p-4">
+      <div className="container">
+        <div className="card">
+          <div className="table-responsive">
+            <table className="table table-hover">
+              <thead className="table-light border-bottom">
+                <tr>
+                  <th className="px-4 py-3 text-start small fw-semibold text-secondary">Bill No</th>
+                  <th className="px-4 py-3 text-start small fw-semibold text-secondary">Customer</th>
+                  <th className="px-4 py-3 text-start small fw-semibold text-secondary">Mobile</th>
+                  <th className="px-4 py-3 text-start small fw-semibold text-secondary">Items</th>
+                  <th className="px-4 py-3 text-start small fw-semibold text-secondary">Payment</th>
+                  <th className="px-4 py-3 text-start small fw-semibold text-secondary">Amount</th>
+                  <th className="px-4 py-3 text-start small fw-semibold text-secondary">Date & Time</th>
+                  <th className="px-4 py-3 text-start small fw-semibold text-secondary">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {bills.map((bill) => (
+                  <tr 
+                    key={bill.id} 
+                    className={bill.status === 'cancelled' ? 'table-light' : ''}
+                  >
+                    <td className="px-4 py-4 small fw-medium text-dark">
+                      {bill.billNo}
+                      {bill.status === 'cancelled' && (
+                        <div className="text-xs text-danger fw-medium mt-1">CANCELLED</div>
+                      )}
+                    </td>
+                    <td className="px-4 py-4 small text-secondary">{bill.customerName}</td>
+                    <td className="px-4 py-4 small text-muted">{bill.mobile}</td>
+                    <td className="px-4 py-4 small text-secondary">{bill.items}</td>
+                    <td className="px-4 py-4">
+                      <div className="d-flex align-items-center gap-2 small text-secondary">
+                        {getPaymentIcon(bill.paymentMode)}
+                        <span>{bill.paymentMode}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-4 small fw-bold text-dark">
+                      ₹{bill.amount.toFixed(2)}
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="small text-secondary">{bill.date}</div>
+                      <div className="small text-muted mt-1">{bill.time}</div>
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="d-flex align-items-center gap-3">
+                        <button
+                          onClick={() => setViewModal(bill)}
+                          className="btn btn-link p-0 text-primary"
+                          title="View"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handlePrint(bill)}
+                          className="btn btn-link p-0 text-success"
+                          title="Print"
+                        >
+                          <Printer className="w-4 h-4" />
+                        </button>
+                        {bill.status !== 'cancelled' && (
+                          <button
+                            className="btn btn-link p-0 text-danger"
+                            title="Cancel"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="bg-white">
-                  {selectedTable.items.length > 0 ? (
-                    selectedTable.items.map((item, idx) => (
-                      <tr key={idx} className="border-t border-gray-200 hover:bg-gray-50">
-                        <td className="px-3 py-2 text-sm">{item.media}</td>
-                        <td className="px-3 py-2 text-sm">{item.kotNo}</td>
-                        <td className="px-3 py-2 text-sm">{item.item}</td>
-                        <td className="px-3 py-2 text-sm text-right">{item.qty}</td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan="4" className="px-3 py-12 text-center text-gray-400 text-sm">No items</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="flex gap-2 mb-3">
-              <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={fixedItems} onChange={(e) => setFixedItems(e.target.checked)} className="w-4 h-4" />
-                <span>Fixed Items</span>
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={transferredItems} onChange={(e) => setTransferredItems(e.target.checked)} className="w-4 h-4" />
-                <span>Transferred Tables' / KOT's Item</span>
-              </label>
-            </div>
-
-            <div className="grid grid-cols-3 gap-2 border-t pt-3">
-              <div>
-                <div className="text-xs font-semibold text-gray-600 mb-1">Total Amount</div>
-                <div className={`text-lg font-bold ${selectedTable.total > 0 ? 'text-red-600' : 'text-gray-800'}`}>
-                  {selectedTable.total.toFixed(2)}
-                </div>
-              </div>
-              <div>
-                <div className="text-xs font-semibold text-gray-600 mb-1">Variance</div>
-                <div className={`text-lg font-bold ${selectedTable.variance > 0 ? 'text-red-600' : 'text-gray-800'}`}>
-                  {selectedTable.variance.toFixed(2)}
-                </div>
-              </div>
-              <div>
-                <div className="text-xs font-semibold text-gray-600 mb-1">Change Amount</div>
-                <div className={`text-lg font-bold ${selectedTable.change > 0 ? 'text-red-600' : 'text-gray-800'}`}>
-                  {selectedTable.change.toFixed(2)}
-                </div>
-              </div>
-            </div>
+                ))}
+              </tbody>
+            </table>
           </div>
-
-          {/* Middle - Transfer Buttons */}
-          <div className="flex flex-col justify-center gap-4">
-            <button
-              onClick={transferRight}
-              className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg p-4 shadow-lg hover:shadow-xl transition-all flex flex-col items-center justify-center gap-2"
-            >
-              <ArrowRight size={32} />
-              <span className="text-xs font-semibold">F7</span>
-            </button>
-            <button
-              onClick={transferLeft}
-              className="bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white rounded-lg p-4 shadow-lg hover:shadow-xl transition-all flex flex-col items-center justify-center gap-2"
-            >
-              <ArrowLeft size={32} />
-              <span className="text-xs font-semibold">F8</span>
-            </button>
-          </div>
-
-          {/* Right Panel - Proposed Table */}
-          <div className="bg-white rounded-lg shadow-md p-5">
-            <h2 className="text-lg font-bold text-gray-700 mb-4 border-b pb-2">Proposed Table</h2>
-            
-            <div className="grid grid-cols-2 gap-3 mb-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-600 mb-1">Outlet:</label>
-                <select value={proposedTable.outlet} onChange={(e) => setProposedTable({...proposedTable, outlet: e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500">
-                  <option>Classic Veg</option>
-                  <option>Premium Veg</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-600 mb-1">Table:</label>
-                <select value={proposedTable.table} onChange={(e) => setProposedTable({...proposedTable, table: e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500">
-                  <option>C1</option>
-                  <option>C2</option>
-                  <option>C4</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-600 mb-1">Date:</label>
-                <input type="text" value={proposedTable.date} onChange={(e) => setProposedTable({...proposedTable, date: e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500" />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-600 mb-1">Pax:</label>
-                  <input type="text" value={proposedTable.pax} onChange={(e) => setProposedTable({...proposedTable, pax: e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500" />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-600 mb-1"></label>
-                  <input type="text" className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500" />
-                </div>
-              </div>
-            </div>
-
-            <div className="border border-gray-300 rounded overflow-hidden mb-3">
-              <table className="w-full">
-                <thead className="bg-gray-200">
-                  <tr>
-                    <th className="px-3 py-2 text-left text-sm font-bold text-gray-700">Media</th>
-                    <th className="px-3 py-2 text-left text-sm font-bold text-gray-700">KOT No</th>
-                    <th className="px-3 py-2 text-left text-sm font-bold text-gray-700">Item</th>
-                    <th className="px-3 py-2 text-right text-sm font-bold text-gray-700">Qty</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white">
-                  {proposedTable.items.length > 0 ? (
-                    proposedTable.items.map((item, idx) => (
-                      <tr key={idx} className="border-t border-gray-200 hover:bg-gray-50">
-                        <td className="px-3 py-2 text-sm">{item.media}</td>
-                        <td className="px-3 py-2 text-sm">{item.kotNo}</td>
-                        <td className="px-3 py-2 text-sm">{item.item}</td>
-                        <td className="px-3 py-2 text-sm text-right">{item.qty}</td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan="4" className="px-3 py-12 text-center text-gray-400 text-sm">No items</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="h-8 mb-3"></div>
-
-            <div className="grid grid-cols-3 gap-2 border-t pt-3">
-              <div>
-                <div className="text-xs font-semibold text-gray-600 mb-1">Total Amount</div>
-                <div className={`text-lg font-bold ${proposedTable.total > 0 ? 'text-red-600' : 'text-gray-800'}`}>
-                  {proposedTable.total.toFixed(2)}
-                </div>
-              </div>
-              <div>
-                <div className="text-xs font-semibold text-gray-600 mb-1">Variance</div>
-                <div className={`text-lg font-bold ${proposedTable.variance > 0 ? 'text-red-600' : 'text-gray-800'}`}>
-                  {proposedTable.variance.toFixed(2)}
-                </div>
-              </div>
-              <div>
-                <div className="text-xs font-semibold text-gray-600 mb-1">Change Amount</div>
-                <div className={`text-lg font-bold ${proposedTable.change < 0 ? 'text-red-600' : 'text-gray-800'}`}>
-                  {proposedTable.change.toFixed(2)}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Footer Buttons */}
-        <div className="flex justify-end gap-3 mt-4">
-          <button className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-8 py-3 rounded-lg shadow-md hover:shadow-lg transition-all flex items-center gap-2 font-semibold">
-            <Save size={20} />
-            Save (F9)
-          </button>
-          <button className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-8 py-3 rounded-lg shadow-md hover:shadow-lg transition-all flex items-center gap-2 font-semibold">
-            <X size={20} />
-            Exit (Esc)
-          </button>
         </div>
       </div>
+
+      {/* View Modal */}
+      {viewModal && (
+        <>
+          <div className="modal fade show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} tabIndex="-1">
+            <div className="modal-dialog modal-lg modal-dialog-scrollable">
+              <div className="modal-content">
+                <div className="modal-header border-bottom">
+                  <h2 className="modal-title h4 fw-bold text-dark">Bill Details</h2>
+                  <button
+                    type="button"
+                    onClick={() => setViewModal(null)}
+                    className="btn-close"
+                    data-bs-dismiss="modal"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                
+                <div className="modal-body p-4">
+                  <div className="row g-3 pb-4 mb-4 border-bottom">
+                    <div className="col-md-6">
+                      <p className="small text-muted mb-1">Bill No</p>
+                      <p className="fw-semibold text-dark">{viewModal.billNo}</p>
+                    </div>
+                    <div className="col-md-6">
+                      <p className="small text-muted mb-1">Date & Time</p>
+                      <p className="fw-semibold text-dark">{viewModal.date} {viewModal.time}</p>
+                    </div>
+                    <div className="col-md-6">
+                      <p className="small text-muted mb-1">Customer</p>
+                      <p className="fw-semibold text-dark">{viewModal.customerName}</p>
+                    </div>
+                    <div className="col-md-6">
+                      <p className="small text-muted mb-1">Mobile</p>
+                      <p className="fw-semibold text-dark">{viewModal.mobile}</p>
+                    </div>
+                    <div className="col-md-6">
+                      <p className="small text-muted mb-1">Payment Mode</p>
+                      <p className="fw-semibold text-dark d-flex align-items-center gap-2">
+                        {getPaymentIcon(viewModal.paymentMode)}
+                        {viewModal.paymentMode}
+                      </p>
+                    </div>
+                    <div className="col-md-6">
+                      <p className="small text-muted mb-1">Status</p>
+                      <p className={`fw-semibold ${viewModal.status === 'cancelled' ? 'text-danger' : 'text-success'}`}>
+                        {viewModal.status.toUpperCase()}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mb-4">
+                    <h3 className="h5 fw-bold text-dark mb-3">Ordered Items</h3>
+                    <div className="table-responsive">
+                      <table className="table table-sm">
+                        <thead className="table-light">
+                          <tr>
+                            <th className="px-3 py-2 text-start small fw-semibold text-secondary">Item</th>
+                            <th className="px-3 py-2 text-center small fw-semibold text-secondary">Qty</th>
+                            <th className="px-3 py-2 text-end small fw-semibold text-secondary">Price</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {viewModal.itemDetails.map((item, idx) => (
+                            <tr key={idx}>
+                              <td className="px-3 py-2 small text-secondary">{item.name}</td>
+                              <td className="px-3 py-2 small text-secondary text-center">{item.qty}</td>
+                              <td className="px-3 py-2 small fw-medium text-dark text-end">₹{item.price}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <div className="bg-light rounded p-3 mb-4">
+                    <div className="d-flex justify-content-between small mb-1">
+                      <span className="text-muted">Subtotal</span>
+                      <span className="fw-medium text-dark">₹{viewModal.subtotal}</span>
+                    </div>
+                    <div className="d-flex justify-content-between small mb-1">
+                      <span className="text-muted">CGST (2.5%)</span>
+                      <span className="fw-medium text-dark">₹{viewModal.cgst}</span>
+                    </div>
+                    <div className="d-flex justify-content-between small mb-1">
+                      <span className="text-muted">SGST (2.5%)</span>
+                      <span className="fw-medium text-dark">₹{viewModal.sgst}</span>
+                    </div>
+                    <div className="pt-2 mt-2 border-top border-secondary-subtle d-flex justify-content-between">
+                      <span className="fw-bold text-dark">Grand Total</span>
+                      <span className="fw-bold fs-4 text-dark">₹{viewModal.amount.toFixed(2)}</span>
+                    </div>
+                  </div>
+
+                  <div className="d-flex gap-3">
+                    <button
+                      onClick={() => handlePrint(viewModal)}
+                      className="flex-fill d-flex align-items-center justify-content-center gap-2 px-4 py-3 btn btn-primary"
+                    >
+                      <Printer className="w-4 h-4" />
+                      Print Bill
+                    </button>
+                    <button
+                      onClick={() => setViewModal(null)}
+                      className="px-4 py-3 btn btn-outline-secondary"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          {/* Backdrop */}
+          {viewModal && <div className="modal-backdrop fade show" onClick={() => setViewModal(null)}></div>}
+        </>
+      )}
     </div>
   );
 }
