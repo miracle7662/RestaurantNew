@@ -29,6 +29,15 @@ interface MenuItem {
   isReverse?: boolean; // Added for reverse quantity items
 }
 
+interface ReversedMenuItem extends MenuItem {
+  isReversed: true;
+  ReversalLogID: number;
+  status: 'Reversed';
+}
+
+
+
+
 interface TableItem {
   tablemanagementid: string;
   table_name: string;
@@ -149,6 +158,7 @@ const Order = () => {
   const [paymentAmounts, setPaymentAmounts] = useState<Record<string, string>>({});
   const [selectedPaymentModes, setSelectedPaymentModes] = useState<string[]>([]);
 
+  const [reversedItems, setReversedItems] = useState<ReversedMenuItem[]>([]);
 
 
 
@@ -217,6 +227,11 @@ const Order = () => {
           kotNo: item.kotNo,
         }));
         setCurrentKOTNo(unbilledItemsRes.data.kotNo);
+
+        // Set reversed items from the new API response field
+        const fetchedReversedItems: ReversedMenuItem[] = unbilledItemsRes.data.reversedItems || [];
+        setReversedItems(fetchedReversedItems);
+
         setItems(fetchedItems);
 
         // Also set TxnNo if it exists on the unbilled transaction
@@ -239,6 +254,7 @@ const Order = () => {
         // No billed or unbilled items found
         setItems([]);
         setCurrentKOTNo(null);
+        setReversedItems([]);
         setCurrentKOTNos([]);
         setTxnNo(null);
         setCurrentTxnId(null);
@@ -246,12 +262,13 @@ const Order = () => {
     } catch (error) {
       console.error('Error fetching/refetching items for table:', error);
       setItems([]);
+      setReversedItems([]);
       setTxnNo(null);
       setCurrentKOTNo(null);
       setCurrentKOTNos([]);
       setCurrentTxnId(null);
     }
-  }, [setItems, setCurrentKOTNo, setCurrentKOTNos, setCurrentTxnId]);
+  }, [setItems, setReversedItems, setCurrentKOTNo, setCurrentKOTNos, setCurrentTxnId]);
   // KOT Preview formData state
   const [formData, setFormData] = useState({
     customer_on_kot_dine_in: false,
@@ -2757,6 +2774,47 @@ const Order = () => {
                     );
                   });
                 })()
+              )}
+              {/* Reversed Items Section - Only in Expanded View */}
+              {!isGroupedView && reversedItems.length > 0 && (
+                <>
+                  <div
+                    className="text-left fw-bold p-1"
+                    style={{
+                      backgroundColor: '#f8d7da',
+                      color: '#b71c1c',
+                      borderTop: '1px solid #dee2e6',
+                      borderBottom: '1px solid #dee2e6',
+                    }}
+                  >
+                    Reversed Items
+                  </div>
+                  {reversedItems.map((item, index) => (
+                    <div
+                      key={`reversed-${item.ReversalLogID}-${index}`}
+                      className="border-bottom"
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: '2fr 1fr 1fr',
+                        padding: '0.25rem',
+                        alignItems: 'center',
+                        backgroundColor: '#f8d7da', // Light red
+                        color: '#721c24', // Darker red
+                      }}
+                    >
+                      <span style={{ textAlign: 'left' }}>{item.name}</span>
+                      <div className="text-center d-flex justify-content-center align-items-center gap-2">
+                        <span className="badge bg-danger">-{item.qty}</span>
+                      </div>
+                      <div className="text-center">
+                        <div>-{(item.price * item.qty).toFixed(2)}</div>
+                        <div style={{ fontSize: '0.75rem', color: '#6c757d', width: '50px', height: '16px', margin: '0 auto' }}>
+                          ({item.price.toFixed(2)})
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </>
               )}
             </div>
             <div className="billing-panel-bottom">

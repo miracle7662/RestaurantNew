@@ -1007,7 +1007,25 @@ exports.getUnbilledItemsByTable = async (req, res) => {
       WHERE b.TableID = ? AND b.isBilled = 0 AND d.isCancelled = 0 AND (d.Qty - COALESCE(d.RevQty, 0)) > 0
     `).all(Number(tableId));
 
-    // Fetch discount from the latest unbilled bill for the table
+    // Fetch reversed items from the log for this transaction
+    const reversedItemsRows = bill ? db.prepare(`
+      SELECT
+        l.ReversalLogID,
+        l.ItemID,
+        COALESCE(m.item_name, 'Unknown Item') AS ItemName,
+        l.ReversedQty as qty,
+        d.RuntimeRate as price,
+        'Reversed' as status,
+        1 as isReversed
+      FROM TAxnTrnReversalLog l
+      JOIN TAxnTrnbilldetails d ON l.TxnDetailID = d.TXnDetailID
+      LEFT JOIN mstrestmenu m ON l.ItemID = m.restitemid
+      WHERE l.TxnID = ?
+    `).all(bill.TxnID) : [];
+
+    const reversedItems = reversedItemsRows.map(r => ({ ...r, isReversed: true }));
+
+        // Fetch discount from the latest unbilled bill for the table
     const latestBill = db.prepare(`
       SELECT Discount, DiscPer, DiscountType
       FROM TAxnTrnbill
@@ -1030,10 +1048,20 @@ exports.getUnbilledItemsByTable = async (req, res) => {
       isNew: r.KOTNo === kotNo,
       kotNo: r.KOTNo,
     }));
+   
 
     console.log('Unbilled items for tableId', tableId, ':', items);
 
-    res.json({ success: true, message: 'Fetched unbilled items', data: { kotNo: kotNo, items: items, discount: latestBill || { Discount: 0, DiscPer: 0, DiscountType: 0 } } });
+     res.json({
+      success: true,
+      message: 'Fetched unbilled items',
+      data: {
+        kotNo: kotNo,
+        items: items,
+        reversedItems: reversedItems, // Add reversed items to the response
+        discount: latestBill || { Discount: 0, DiscPer: 0, DiscountType: 0 }
+      }
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to fetch unbilled items', data: null, error: error.message });
   }
