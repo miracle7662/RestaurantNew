@@ -1730,7 +1730,7 @@ exports.applyDiscountToBill = async (req, res) => {
         let itemDiscountAmount = 0;
 
         if (finalDiscountType === 1) { // Percentage
-          // Use the percentage from the request to calculate discount per item
+           // Use the percentage from the request to calculate discount per item
           itemDiscountAmount = (lineSubtotal * finalDiscPer) / 100; 
         } else { // Fixed amount - distribute proportionally
           const subtotalOfAllItems = items.reduce((sum, i) => sum + (Number(i.qty) || 0) * (Number(i.price) || 0), 0);

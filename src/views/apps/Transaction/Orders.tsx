@@ -1620,6 +1620,8 @@ const Order = () => {
   const handlePaymentModeClick = (mode: PaymentMode) => {
     if (isMixedPayment) {
       // Mixed Payment Logic
+      const currentTotalPaid = Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0);
+      const remaining = Math.max(0, grandTotal - currentTotalPaid);
       setSelectedPaymentModes(prev => {
         const isSelected = prev.includes(mode.mode_name);
         if (isSelected) {
@@ -1629,7 +1631,8 @@ const Order = () => {
           setPaymentAmounts(newAmounts);
           return prev.filter(m => m !== mode.mode_name);
         } else {
-          // Select: add to list
+          // Select: add to list and auto-fill with remaining balance
+          setPaymentAmounts(prev => ({ ...prev, [mode.mode_name]: remaining.toFixed(2) }));
           return [...prev, mode.mode_name];
         }
       });
