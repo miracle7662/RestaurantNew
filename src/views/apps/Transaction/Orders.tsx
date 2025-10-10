@@ -226,7 +226,16 @@ const Order = () => {
         setCurrentKOTNo(unbilledItemsRes.data.kotNo);
 
         // Set reversed items from the new API response field
-        const fetchedReversedItems: ReversedMenuItem[] = unbilledItemsRes.data.reversedItems || [];
+        const fetchedReversedItems: ReversedMenuItem[] = (unbilledItemsRes.data.reversedItems || []).map((item: any) => ({
+          ...item,
+          name: item.ItemName || item.itemName || 'Unknown Item',
+          id: item.ItemID || item.itemId,
+          price: item.RuntimeRate || item.price || 0,
+          qty: Math.abs(item.Qty) || 1, // Ensure positive qty for display
+          isReversed: true,
+          ReversalLogID: item.ReversalLogID,
+          status: 'Reversed',
+        }));
         setReversedItems(fetchedReversedItems);
         setItems(fetchedItems);
 
@@ -2827,29 +2836,51 @@ const Order = () => {
                     Reversed Items
                   </div>
                   {reversedItems.map((item, index) => (
-                    <div
-                      key={`reversed-${item.ReversalLogID}-${index}`}
-                      className="border-bottom"
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns: '2fr 1fr 1fr',
-                        padding: '0.25rem',
-                        alignItems: 'center',
-                        backgroundColor: '#f8d7da', // Light red
-                        color: '#721c24', // Darker red
-                      }}
-                    >
-                      <span style={{ textAlign: 'left' }}>{item.name}</span>
-                      <div className="text-center d-flex justify-content-center align-items-center gap-2">
-                        <span className="badge bg-danger">-{item.qty}</span>
-                      </div>
-                      <div className="text-center">
-                        <div>-{(item.price * item.qty).toFixed(2)}</div>
-                        <div style={{ fontSize: '0.75rem', color: '#6c757d', width: '50px', height: '16px', margin: '0 auto' }}>
-                          ({item.price.toFixed(2)})
+                      <div
+                        key={`reversed-${item.ReversalLogID}-${index}`}
+                        className="border-bottom"
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: '2fr 1fr 1fr',
+                          padding: '0.25rem',
+                          alignItems: 'center',
+                          backgroundColor: '#f8d7da', // Light red
+                          color: '#721c24', // Darker red
+                        }}
+                      >
+                        <span style={{ textAlign: 'left' }}>{item.name} <span className="badge bg-danger fw-bold">Reversed</span></span>
+                        <div className="text-center d-flex justify-content-center align-items-center gap-2">
+                          <button
+                            className="btn btn-danger btn-sm"
+                            style={{ padding: '0 5px', lineHeight: '1' }}
+                            disabled={true}
+                          >
+                            −
+                          </button>
+                          <input
+                            type="number"
+                            value={item.qty}
+                            readOnly={true}
+                            className="border rounded text-center no-spinner"
+                            style={{ width: '40px', height: '16px', fontSize: '0.75rem', padding: '0' }}
+                            min="0"
+                            max="999"
+                          />
+                          <button
+                            className="btn btn-success btn-sm"
+                            style={{ padding: '0 5px', lineHeight: '1' }}
+                            disabled={true}
+                          >
+                            +
+                          </button>
+                        </div>
+                        <div className="text-center">
+                          <div>-{(item.price * item.qty).toFixed(2)}</div>
+                          <div style={{ fontSize: '0.75rem', color: '#6c757d', width: '50px', height: '16px', margin: '0 auto' }}>
+                            ({item.price.toFixed(2)})
+                          </div>
                         </div>
                       </div>
-                    </div>
                   ))}
                 </>
               )}
