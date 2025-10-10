@@ -202,6 +202,20 @@ const Order = () => {
               .filter((v, i, a): v is number => v !== undefined && a.indexOf(v) === i)
               .sort((a, b) => a - b)
           );
+
+          // Also fetch and set reversed items for the billed transaction
+          const fetchedReversedItems: ReversedMenuItem[] = (billedBillData.data.reversedItems || []).map((item: any) => ({
+            ...item,
+            name: item.ItemName || item.itemName || 'Unknown Item',
+            id: item.ItemID || item.itemId,
+            price: item.RuntimeRate || item.price || 0,
+            qty: Math.abs(item.Qty) || 1, // Ensure positive qty for display
+            isReversed: true,
+            ReversalLogID: item.ReversalLogID,
+            status: 'Reversed',
+          }));
+          setReversedItems(fetchedReversedItems);
+
           return; // Exit after successfully loading billed items
         }
       }

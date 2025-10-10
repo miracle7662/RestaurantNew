@@ -1480,12 +1480,28 @@ exports.getLatestBilledBillForTable = async (req, res) => {
       WHERE b.TableID = ? AND b.isBilled = 0 AND b.isCancelled = 0 AND d.isCancelled = 0
     `).all(Number(tableId));
 
+    // Step 4: Fetch reversed items from the log for this specific billed transaction
+    const reversedItemsRows = db.prepare(`
+      SELECT
+        l.ReversalID,
+        l.ItemID,
+        COALESCE(m.item_name, 'Unknown Item') AS ItemName,
+        l.ReversedQty as Qty,
+        d.RuntimeRate as price,
+        'Reversed' as status,
+        1 as isReversed
+      FROM TAxnTrnReversalLog l
+      JOIN TAxnTrnbilldetails d ON l.TxnDetailID = d.TXnDetailID
+      LEFT JOIN mstrestmenu m ON l.ItemID = m.restitemid
+      WHERE l.TxnID = ?
+    `).all(bill.TxnID);
+
     // Combine the details. The primary details are from the billed transaction.
     // The frontend will handle displaying them correctly.
     const combinedDetails = [...allDetailsForBill, ...otherUnbilledItems];
 
-    // Respond with the main billed transaction header and all associated items (billed and new)
-    res.json(ok('Fetched billed and unbilled items for the table', { ...bill, details: combinedDetails }));
+    // Respond with the main billed transaction header, all items, and the reversed items
+    res.json(ok('Fetched billed and unbilled items for the table', { ...bill, details: combinedDetails, reversedItems: reversedItemsRows }));
 
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to fetch latest billed bill', data: null, error: error.message });
