@@ -1007,10 +1007,10 @@ exports.getUnbilledItemsByTable = async (req, res) => {
       WHERE b.TableID = ? AND b.isBilled = 0 AND d.isCancelled = 0 AND (d.Qty - COALESCE(d.RevQty, 0)) > 0
     `).all(Number(tableId));
 
-    // Fetch reversed items from the log for this transaction
+  // Fetch reversed items from the log for this transaction
     const reversedItemsRows = bill ? db.prepare(`
       SELECT
-        l.ReversalLogID,
+        l.ReversalID,
         l.ItemID,
         COALESCE(m.item_name, 'Unknown Item') AS ItemName,
         l.ReversedQty as qty,
@@ -1024,7 +1024,6 @@ exports.getUnbilledItemsByTable = async (req, res) => {
     `).all(bill.TxnID) : [];
 
     const reversedItems = reversedItemsRows.map(r => ({ ...r, isReversed: true }));
-
         // Fetch discount from the latest unbilled bill for the table
     const latestBill = db.prepare(`
       SELECT Discount, DiscPer, DiscountType
