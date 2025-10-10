@@ -35,9 +35,6 @@ interface ReversedMenuItem extends MenuItem {
   status: 'Reversed';
 }
 
-
-
-
 interface TableItem {
   tablemanagementid: string;
   table_name: string;
@@ -157,8 +154,8 @@ const Order = () => {
   const [isMixedPayment, setIsMixedPayment] = useState<boolean>(false);
   const [paymentAmounts, setPaymentAmounts] = useState<Record<string, string>>({});
   const [selectedPaymentModes, setSelectedPaymentModes] = useState<string[]>([]);
-
   const [reversedItems, setReversedItems] = useState<ReversedMenuItem[]>([]);
+
 
 
 
@@ -231,7 +228,6 @@ const Order = () => {
         // Set reversed items from the new API response field
         const fetchedReversedItems: ReversedMenuItem[] = unbilledItemsRes.data.reversedItems || [];
         setReversedItems(fetchedReversedItems);
-
         setItems(fetchedItems);
 
         // Also set TxnNo if it exists on the unbilled transaction
@@ -253,8 +249,8 @@ const Order = () => {
       } else {
         // No billed or unbilled items found
         setItems([]);
-        setCurrentKOTNo(null);
         setReversedItems([]);
+        setCurrentKOTNo(null);
         setCurrentKOTNos([]);
         setTxnNo(null);
         setCurrentTxnId(null);
@@ -2779,7 +2775,7 @@ const Order = () => {
               {!isGroupedView && reversedItems.length > 0 && (
                 <>
                   <div
-                    className="text-left fw-bold p-1"
+                    className="text-center fw-bold p-1"
                     style={{
                       backgroundColor: '#f8d7da',
                       color: '#b71c1c',
