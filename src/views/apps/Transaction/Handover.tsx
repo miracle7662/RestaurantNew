@@ -34,6 +34,7 @@ import {
 } from 'chart.js';
 import { Pie } from 'react-chartjs-2';
 import { useAuthContext } from '@/common/context/useAuthContext';
+import { useNavigate } from 'react-router-dom';
 import HandoverPasswordModal from "../../../components/HandoverPasswordModal.tsx";
 
 ChartJS.register(ArcElement, Tooltip, Legend);
@@ -73,6 +74,7 @@ interface Order {
 
 const HandoverPage = () => {
   const { user } = useAuthContext();
+  const navigate = useNavigate();
   const [remarks, setRemarks] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -253,7 +255,7 @@ const HandoverPage = () => {
 
   const handleClose = () => {
     if (window.confirm("Are you sure you want to close without saving?")) {
-      window.history.back();
+       window.history.back();
     }
   };
 
@@ -1245,7 +1247,7 @@ const HandoverPage = () => {
           <HandoverPasswordModal
             show={showPasswordModal}
             onVerify={handlePasswordVerify}
-            onClose={() => {}}
+            onClose={() => navigate('/orders')}
           />
         )}
 
