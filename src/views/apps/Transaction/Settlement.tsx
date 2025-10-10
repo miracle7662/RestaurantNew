@@ -70,11 +70,24 @@ const EditSettlementPage = ({ role, currentUser }: any) => {
 
   // Edit handler
   const handleEdit = (settlement: any) => {
+    setEditing(settlement);
     setGrandTotal(settlement.Amount);
+    const breakdown = settlement.paymentBreakdown || {};
+    const types = Object.keys(breakdown);
+    if (types.length > 1) {
+      setIsMixedPayment(true);
+      setSelectedPaymentModes(types);
+      setPaymentAmounts(Object.fromEntries(types.map(t => [t, breakdown[t].toString()])));
+    } else if (types.length === 1) {
+      setIsMixedPayment(false);
+      setSelectedPaymentModes([types[0]]);
+      setPaymentAmounts({ [types[0]]: settlement.Amount.toString() });
+    } else {
+      setIsMixedPayment(false);
+      setSelectedPaymentModes([]);
+      setPaymentAmounts({});
+    }
     setShowSettlementModal(true);
-    setIsMixedPayment(false);
-    setSelectedPaymentModes([]);
-    setPaymentAmounts({});
   };
 
   const saveEdit = async () => {
@@ -125,10 +138,33 @@ const EditSettlementPage = ({ role, currentUser }: any) => {
     setPaymentAmounts({ ...paymentAmounts, [modeName]: value });
   };
 
-  const handleSettleAndPrint = () => {
-    // Implement settlement logic
-    setNotification({ show: true, message: 'Settlement updated successfully', type: 'success' });
-    setShowSettlementModal(false);
+  const handleSettleAndPrint = async () => {
+    if (!editing) return;
+    try {
+      // Reverse existing settlements
+      for (const id of editing.SettlementIDs) {
+        await axios.delete(`http://localhost:3001/api/settlements/${id}`, { data: { EditedBy: currentUser } });
+      }
+      // Create new settlements for each selected payment mode
+      for (const [mode, amtStr] of Object.entries(paymentAmounts)) {
+        const amt = parseFloat(amtStr);
+        if (amt > 0) {
+          await axios.post("http://localhost:3001/api/settlements", {
+            OrderNo: editing.OrderNo,
+            PaymentType: mode,
+            Amount: amt,
+            HotelID: editing.HotelID,
+            EditedBy: currentUser,
+          });
+        }
+      }
+      setNotification({ show: true, message: 'Settlement updated successfully', type: 'success' });
+      setShowSettlementModal(false);
+      setEditing(null);
+      fetchData();
+    } catch (error: any) {
+      setNotification({ show: true, message: error.response?.data?.message || 'Failed to update settlement', type: 'danger' });
+    }
   };
 
   // Helper function to group settlements by OrderNo
@@ -137,18 +173,21 @@ const EditSettlementPage = ({ role, currentUser }: any) => {
     settlements.forEach((s) => {
       if (!grouped[s.OrderNo]) {
         grouped[s.OrderNo] = {
-          ...s,
+          OrderNo: s.OrderNo,
           PaymentTypes: [s.PaymentType],
           Amount: s.Amount,
           SettlementIDs: [s.SettlementID],
           InsertDate: s.InsertDate,
           HotelID: s.HotelID,
           isSettled: s.isSettled,
+          paymentBreakdown: { [s.PaymentType]: s.Amount },
         };
       } else {
         grouped[s.OrderNo].PaymentTypes.push(s.PaymentType);
         grouped[s.OrderNo].Amount += s.Amount;
         grouped[s.OrderNo].SettlementIDs.push(s.SettlementID);
+        const currentBreakdown = grouped[s.OrderNo].paymentBreakdown;
+        currentBreakdown[s.PaymentType] = (currentBreakdown[s.PaymentType] || 0) + s.Amount;
       }
     });
     return Object.values(grouped);
