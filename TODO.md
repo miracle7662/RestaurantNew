@@ -1,52 +1,56 @@
-# TODO: Implement Pending Orders Modal for Pickup and Delivery in Orders.tsx
+# TODO: Implement Pending Delivery Orders Form in Orders.tsx
 
 ## Overview
-This TODO tracks the implementation of a large modal for displaying pending Pickup and Delivery orders when their navbar tabs are clicked. The modal will match the sizing and layout style of OrderDetails.tsx (full viewport height/width, responsive grid). Each order will be shown as a card with customer details, items, totals, and a "Make Payment" button integrating with the existing settlement flow. Data will be fetched via a new API endpoint `/api/pending-orders?type=${type}` (using mock data if API not ready).
+Enhance the pending delivery orders flow in `src/views/apps/Transaction/Orders.tsx` to support selecting a pending order from the list and entering a detailed editable form matching the screenshot. This includes an items table (editable qty), linked pending items section, notes/customer fields, totals, and submit/back buttons. On submit, update the order and proceed to settlement/print.
 
 ## Steps
 
-### 1. Add New States
-- Add states in Orders.tsx: `showPendingModal` (boolean), `pendingType` ('pickup' | 'delivery' | null), `pendingOrders` (array of order objects), `loadingPending` (boolean), `errorPending` (string | null).
-- Mark as [x] Complete.
+- [ ] **Step 1: Add new states for form view**
+  - Add `selectedPendingOrder: any | null = null;`
+  - Add `formNotes: string = '';`
+  - Add `linkedPendingItems: any[] = [];`
+  - Add `showPendingOrderForm: boolean = false;`
+  - Ensure `items`, `customerName`, `mobileNumber`, `taxCalc` are reusable in form mode.
+  - Update `Orders.tsx` with these states.
 
-### 2. Add fetchPendingOrders Function
-- Implement async function `fetchPendingOrders(type: string)` to fetch from `/api/pending-orders?type=${type}`.
-- Handle loading, errors, and set `pendingOrders` (use mock data array if fetch fails, e.g., sample orders with customer, items, totals).
-- Mark as [x] Complete.
+- [ ] **Step 2: Update pending orders list UI**
+  - In the `showPendingOrdersView` section (card for each order), add an "Edit Order" button next to "Make Payment".
+  - On "Edit Order" click: Call `handleSelectPendingOrder(order)`, set `showPendingOrderForm = true`, populate `items` from `order.items`, set `customerName`/`mobileNumber` from `order.customer`, fetch linked items if needed, recompute `taxCalc`.
 
-### 3. Update Navbar Tab Handlers
-- Modify the onClick for "Pickup" and "Delivery" tabs in the navbar: Set `showPendingModal = true`, `pendingType = type`, and call `fetchPendingOrders(type)`.
-- Ensure other tabs (e.g., Dine In) remain unchanged.
-- Mark as [x] Complete.
+- [ ] **Step 3: Implement pending order form JSX**
+  - Add conditional render: If `showPendingOrderForm && selectedPendingOrder`, show form instead of list.
+  - Header: `<h4>Pending Delivery Orders</h4>` with "Back to List" button (sets `showPendingOrderForm = false`).
+  - Items table: `<Table>` with columns Item Name, Qty (input with +/- like existing), Amount (calculated). Bind to `items`, allow qty edits via handlers.
+  - Linked pending items: `<Table>` listing `linkedPendingItems` (columns: Item Name, Qty, Amount, checkbox to link). On check, append to `items`.
+  - Fields: Mobile No. (input, fetch customer), Customer (readonly), Notes (textarea for `formNotes`).
+  - Totals: Display Subtotal/Grand Total from `taxCalc`.
+  - Buttons: "Back to List", "Submit" (calls `handleSubmitPendingOrder`).
+  - Use Bootstrap: Row/Col for layout, blue styling for buttons/inputs.
 
-### 4. Add PendingOrdersModal JSX
-- Add Bootstrap Modal with size="xl", fullscreen on mobile, custom class "pending-modal".
-- Structure: Header (title based on type, close button), Body (scrollable container-fluid vh-100 flex-column p-0 like OrderDetails, with navbar if needed, Row grid for cards), Footer (close button).
-- Add inline <style> for modal sizing (vh-100, calc max-height), card styles (bordered, hover like OrderDetails).
-- useEffect: Fetch on modal show + type change; clear on hide.
-- Mark as [x] Complete.
+- [ ] **Step 4: Add handlers and logic**
+  - `handleSelectPendingOrder(order: any)`: Set states, populate form data, fetch linked items (e.g., via new API `getLinkedPendingItems(order.id)` if added).
+  - Adapt `handleIncreaseQty`/`handleDecreaseQty` for pending items (update local `items`).
+  - `handleLinkPendingItem(item: any, checked: boolean)`: Add/remove from `items` if checked.
+  - `handleSubmitPendingOrder()`: Validate (e.g., notes optional, items >0), call API to update order (e.g., `updatePendingOrder(selectedPendingOrder.id, {notes: formNotes, items, linkedItems})`), then proceed to settlement modal (`setShowSettlementModal(true)`).
+  - Recompute `taxCalc` on item changes (leverage existing useEffect).
 
-### 5. Implement OrderCard Sub-Component
-- Create inline functional component for each order card: Inputs for customer name/mobile, list of items (<ul> or <div> with name, Qty @ price), totals (Qty: X, Amount: ₹Y), pink "Make Payment" button (btn btn-danger).
-- On button click: Call existing `handleSettlement` with order data (id, total), close modal after success.
-- Grid: Row md=2 (2-column on desktop, 1 on mobile), g-3.
-- Handle empty/loading/error states.
-- Mark as [x] Complete.
+- [ ] **Step 5: API updates (if needed)**
+  - In `src/common/api/orders.ts`: Add `updatePendingOrder(id: number, data: {notes: string, items: any[], linkedItems?: any[]})` (POST/PUT to `/api/TAxnTrnbill/${id}/update`).
+  - Add `getLinkedPendingItems(orderId: number)` if aggregation required (fetch from backend).
+  - Backend: In `backend/controllers/TAxnTrnbillControllers.js`, add endpoint for update (handle notes/items/linking, update DB). Add route in `backend/routes/TAxnTrnbillRoutes.js` if new.
 
-### 6. Integrate with Existing Settlement Flow
-- Ensure "Make Payment" passes order ID/total to `handleSettlement` or opens settlement modal with pre-filled data.
-- Test integration without breaking dine-in flow.
-- Mark as [x] Complete.
+- [ ] **Step 6: Styling and edge cases**
+  - Match screenshot: Blue buttons (`btn-primary`), form layout, input placeholders.
+  - Handle: Empty linked items (show message), validation errors (toasts), loading (Spinner), no items (disable submit).
+  - Ensure responsive (use existing media queries).
 
-### 7. Testing and Cleanup
-- After all edits: Run `npm run dev`, test modal open on tab click, display cards, payment flow.
-- Update TODO: Mark steps [x] Complete.
-- Handle any linter errors or responsive issues.
-- If API needed, note for backend update in TAxnTrnbillControllers.js.
-- Mark as [x] Complete.
+- [ ] **Step 7: Testing**
+  - Run `npm run dev`, test: Delivery tab → pending list → Edit Order → form loads → edit qty/notes/link items → totals update → Submit → settlement.
+  - Verify: Customer auto-fill, calculations, no console errors.
+  - If backend: Test API endpoints separately (e.g., Postman).
 
-## Progress
-- Total Steps: 7
-- Completed: 6/7
+- [ ] **Step 8: Cleanup and completion**
+  - Update TODO.md with completions.
+  - Use `attempt_completion` once verified.
 
-Last Updated: [Current Date]
+Progress: 0/8 steps complete.

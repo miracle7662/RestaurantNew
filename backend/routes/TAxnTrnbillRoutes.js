@@ -8,6 +8,10 @@ router.post('/', controller.createBill)
 // Generate TxnNo and create bill record
 router.post('/generateTxnNo', controller.generateTxnNo)
 
+router.get('/pending-orders', controller.getPendingOrders);
+router.put('/:id/update', controller.updatePendingOrder);
+router.get('/:id/linked-pending-items', controller.getLinkedPendingItems);
+
 // Get all bills
 router.get('/', controller.getAllBills)
 
@@ -63,9 +67,5 @@ router.put('/:id', controller.updateBill)
 
 // Save day end
 router.post('/save', controller.saveDayEnd);
-
-// Get pending orders for pickup/delivery
-router.get('/pending-orders/:type', controller.getPendingOrders);
-
 
 module.exports = router

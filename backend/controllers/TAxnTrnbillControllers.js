@@ -1802,15 +1802,16 @@ exports.applyDiscountToBill = async (req, res) => {
 /* -------------------------------------------------------------------------- */
 exports.getPendingOrders = async (req, res) => {
   try {
-    const { type } = req.params;
+    const { type } = req.query; // Changed from req.params to req.query to match frontend call
     let whereClauses = ['b.isCancelled = 0', 'b.isBilled = 0', 'b.isSetteled = 0'];
+    const params = [];
 
-    // For now, fetch all pending orders regardless of type to show cards
-    // if (type === 'pickup') {
-    //   whereClauses.push('b.isPickup = 1');
-    // } else if (type === 'delivery') {
-    //   whereClauses.push('b.isHomeDelivery = 1');
-    // }
+    // Filter by table_name which will be 'Pickup' or 'Delivery'
+    if (type === 'pickup' || type === 'delivery') {
+      // Case-insensitive comparison
+      whereClauses.push('LOWER(b.table_name) = LOWER(?)');
+      params.push(type);
+    }
 
     const sql = `
       SELECT
@@ -1828,23 +1829,25 @@ exports.getPendingOrders = async (req, res) => {
       LEFT JOIN TAxnTrnbilldetails d ON d.TxnID = b.TxnID AND d.isCancelled = 0
       LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
       WHERE ${whereClauses.join(' AND ')}
-      GROUP BY b.TxnID
+      GROUP BY b.TxnID, b.TxnNo
       ORDER BY b.TxnDatetime DESC
     `;
 
-    const rows = db.prepare(sql).all();
+    const rows = db.prepare(sql).all(...params);
 
     const orders = rows.map(r => ({
       id: r.TxnID, // Add the transaction ID
+      txnId: r.TxnID,
+      kotNo: r.TxnNo,
       customer: {
         name: r.CustomerName || '',
         mobile: r.MobileNo || ''
       },
-      items: r._details ? JSON.parse(`[${r._details}]`).map((d) => ({
+      items: r._details ? JSON.parse(`[${r._details}]`).filter(d => d).map((d) => ({
         name: d.item_name || '',
         qty: d.Qty || 0,
         price: d.RuntimeRate || 0
-      })) : [], // Correctly parse the JSON string from GROUP_CONCAT
+      })) : [],
       total: r.Amount || 0
     }));
 
@@ -1854,6 +1857,123 @@ exports.getPendingOrders = async (req, res) => {
   }
 };
 
+/* -------------------------------------------------------------------------- */
+/* 15) updatePendingOrder → update a pending order with notes and items      */
+/* -------------------------------------------------------------------------- */
+exports.updatePendingOrder = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { notes, items, linkedItems } = req.body;
 
+    if (!id) {
+      return res.status(400).json({ success: false, message: 'Order ID is required', data: null });
+    }
+
+    const bill = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ? AND isBilled = 0 AND isCancelled = 0').get(Number(id));
+    if (!bill) {
+      return res.status(404).json({ success: false, message: 'Pending order not found', data: null });
+    }
+
+    // Update header with notes (using SpecialInst field or similar)
+    db.prepare(`
+      UPDATE TAxnTrnbill 
+      SET SpecialInst = ?, 
+          CustomerName = COALESCE(?, CustomerName),
+          MobileNo = COALESCE(?, MobileNo)
+      WHERE TxnID = ?
+    `).run(notes || null, req.body.CustomerName || null, req.body.MobileNo || null, Number(id));
+
+    // Handle linked items if provided (simple merge or update - assuming linking by updating items)
+    if (linkedItems && Array.isArray(linkedItems) && linkedItems.length > 0) {
+      // For simplicity, add linked items to the current order's details
+      // In a real scenario, this might involve moving from another order
+      const linkStmt = db.prepare(`
+        INSERT INTO TAxnTrnbilldetails (
+          TxnID, ItemID, Qty, RuntimeRate, SpecialInst, isBilled
+        ) VALUES (?, ?, ?, ?, ?, 0)
+      `);
+      for (const item of linkedItems) {
+        linkStmt.run(
+          Number(id),
+          item.ItemID,
+          item.Qty || 0,
+          item.RuntimeRate || 0,
+          item.SpecialInst || null
+        );
+      }
+    }
+
+    // Delete existing details and insert new items
+    db.prepare('DELETE FROM TAxnTrnbilldetails WHERE TxnID = ?').run(Number(id));
+
+    if (Array.isArray(items) && items.length > 0) {
+      const ins = db.prepare(`
+        INSERT INTO TAxnTrnbilldetails (
+          TxnID, ItemID, Qty, RuntimeRate, SpecialInst, isBilled
+        ) VALUES (?, ?, ?, ?, ?, 0)
+      `);
+      let totalGross = 0;
+      for (const item of items) {
+        const qty = Number(item.Qty) || 0;
+        const rate = Number(item.RuntimeRate) || 0;
+        const lineTotal = qty * rate;
+        totalGross += lineTotal;
+        ins.run(
+          Number(id),
+          item.ItemID,
+          qty,
+          rate,
+          item.SpecialInst || null
+        );
+      }
+      // Update header totals
+      db.prepare('UPDATE TAxnTrnbill SET GrossAmt = ?, Amount = ? WHERE TxnID = ?')
+        .run(totalGross, totalGross, Number(id));
+    }
+
+    // Fetch updated order
+    const header = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id));
+    const details = db.prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? AND isCancelled = 0 ORDER BY TXnDetailID').all(Number(id));
+
+    res.json(ok('Pending order updated', { ...header, details }));
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to update pending order', data: null, error: error.message });
+  }
+};
+
+/* -------------------------------------------------------------------------- */
+/* 16) getLinkedPendingItems → fetch linked pending items for an order       */
+/* -------------------------------------------------------------------------- */
+exports.getLinkedPendingItems = async (req, res) => {
+  try {
+    const { id } = req.params; // orderId is TxnID
+
+    if (!id) {
+      return res.status(400).json({ success: false, message: 'Order ID is required', data: null });
+    }
+
+    const bill = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ? AND isBilled = 0 AND isCancelled = 0').get(Number(id));
+    if (!bill) {
+      return res.status(404).json({ success: false, message: 'Pending order not found', data: null });
+    }
+
+    // Fetch details for this order (assuming linked means associated items)
+    // If there's a separate linking table, query that; here assuming direct details
+    const details = db.prepare(`
+      SELECT d.*, COALESCE(m.item_name, 'Unknown Item') AS ItemName
+      FROM TAxnTrnbilldetails d
+      LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
+      WHERE d.TxnID = ? AND d.isCancelled = 0 AND d.isBilled = 0
+      ORDER BY d.TXnDetailID
+    `).all(Number(id));
+
+    // If linked items are from other orders, this would need adjustment
+    // For now, return the order's pending items as "linked"
+
+    res.json(ok('Fetched linked pending items', details));
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to fetch linked pending items', data: null, error: error.message });
+  }
+};
 
 module.exports = exports

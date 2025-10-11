@@ -5,9 +5,9 @@ import { fetchOutletsForDropdown } from "@/utils/commonfunction";
 import { useAuthContext } from "@/common";
 import { getUnbilledItemsByTable } from "@/common/api/orders";
 import { OutletData } from "@/common/api/outlet";
-import AddCustomerModal from "./Customers";
+import AddCustomerModal from "./Customers"; 
 import { toast } from "react-hot-toast";
-import { createKOT, getSavedKOTs, getTaxesByOutletAndDepartment } from "@/common/api/orders";
+import { createKOT, getPendingOrders, getSavedKOTs, getTaxesByOutletAndDepartment } from "@/common/api/orders";
 import F8PasswordModal from "@/components/F8PasswordModal";
 import KotTransfer from "./KotTransfer";
 
@@ -163,6 +163,13 @@ const Order = () => {
   const [pendingOrders, setPendingOrders] = useState<any[]>([]);
   const [loadingPending, setLoadingPending] = useState<boolean>(false);
   const [errorPending, setErrorPending] = useState<string | null>(null);
+
+  // States for Pending Order Form
+  const [selectedPendingOrder, setSelectedPendingOrder] = useState<any | null>(null);
+  const [formNotes, setFormNotes] = useState<string>('');
+  const [linkedPendingItems, setLinkedPendingItems] = useState<any[]>([]);
+  const [showPendingOrderForm, setShowPendingOrderForm] = useState<boolean>(false);
+  const [formItems, setFormItems] = useState<MenuItem[]>([]);
 
 
 
@@ -1851,12 +1858,8 @@ const Order = () => {
     setLoadingPending(true);
     setErrorPending(null);
     try {
-      const response = await fetch(`http://localhost:3001/api/TAxnTrnbill/pending-orders/${type}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch pending orders');
-      }
-      const data = await response.json();
-      if (data.success && Array.isArray(data.data)) {
+      const data = await getPendingOrders(type);
+      if (data.success) {
         setPendingOrders(data.data);
       } else {
         throw new Error(data.message || 'Invalid data format received');
@@ -1864,7 +1867,8 @@ const Order = () => {
     } catch (error: any) {
       setErrorPending(error.message || 'Could not fetch orders.');
       // Fallback to mock data on error
-      
+      setPendingOrders([]); // Clear orders on error
+    } finally {
       setLoadingPending(false);
     }
   };
@@ -1896,6 +1900,16 @@ const Order = () => {
       console.error('Error settling payment:', error);
       toast.error('Error settling payment');
     }
+  };
+
+  const handlePendingMakePayment = (order: any) => {
+    setCurrentTxnId(order.id);
+    setTxnNo(order.kotNo || `Order-${order.id}`);
+    setItems(order.items.map((i: any) => ({ ...i, isBilled: 0, isNew: false }))); // Treat items as existing
+    setTaxCalc(prev => ({ ...prev, grandTotal: order.total, subtotal: order.total })); // Simplified for now
+    setDiscount(0); // Reset discount
+    setShowSettlementModal(true);
+    setShowPendingOrdersView(false); // Hide pending view
   };
 
   const handlePendingOrderTabClick = (type: 'pickup' | 'delivery') => {
@@ -2713,7 +2727,7 @@ const Order = () => {
                     </div>
                   ) : (
                     <p className="text-center text-muted mb-0">
-                      No tables available for {activeNavTab}. Please check TableManagement data.
+                     
                     </p>
                   )}
                 </div>
@@ -2780,7 +2794,7 @@ const Order = () => {
                                 <span>Total Qty: {order.items.reduce((acc: number, item: any) => acc + item.qty, 0)}</span>
                                 <span>Total: ₹{order.total.toFixed(2)}</span>
                               </div>
-                              <Button variant="danger" className="w-100 mt-3">Make Payment</Button>
+                              <Button variant="danger" className="w-100 mt-3" onClick={() => handlePendingMakePayment(order)}>Make Payment</Button>
                             </div>
                           </Card.Body>
                         </Card>

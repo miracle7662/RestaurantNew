@@ -167,3 +167,18 @@ export async function getUnbilledItemsByTable(tableId: number) {
   const { data } = await API.get(`/TAxnTrnbill/unbilled-items/${tableId}`)
   return data
 }
+
+export async function getPendingOrders(type: 'pickup' | 'delivery') {
+  const { data } = await API.get('/TAxnTrnbill/pending-orders', { params: { type } });
+  return data;
+}
+
+export async function updatePendingOrder(id: number, data: { notes: string; items: any[]; linkedItems?: any[] }) {
+  const { data: response } = await API.put(`/TAxnTrnbill/${id}/update`, data);
+  return response;
+}
+
+export async function getLinkedPendingItems(orderId: number) {
+  const { data } = await API.get(`/TAxnTrnbill/linked-pending-items/${orderId}`);
+  return data;
+}
