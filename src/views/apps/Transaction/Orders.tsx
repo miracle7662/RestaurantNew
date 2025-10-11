@@ -1199,12 +1199,20 @@ const Order = () => {
         return;
       }
       setLoading(true);
+
+      const tableNameForKOT =
+        activeTab === 'Pickup'
+          ? 'Pickup'
+          : activeTab === 'Delivery'
+            ? 'Delivery'
+            : selectedTable || null;
       const selectedTableRecord: any = (Array.isArray(filteredTables) ? filteredTables : tableItems)
         .find((t: any) => t && t.table_name && t.table_name === selectedTable)
         || (Array.isArray(tableItems) ? tableItems.find((t: any) => t && t.table_name === selectedTable) : undefined);
       const resolvedTableId = selectedTableRecord ? Number((selectedTableRecord as any).tableid || (selectedTableRecord as any).tablemanagementid) : null;
-      const resolvedDeptId = selectedTableRecord ? Number((selectedTableRecord as any).departmentid) || undefined : undefined;
-      const resolvedOutletId = selectedTableRecord ? Number((selectedTableRecord as any).outletid) || (user?.outletid ? Number(user.outletid) : null) : null;
+      const resolvedDeptId = selectedTableRecord ? Number((selectedTableRecord as any).departmentid) || selectedDeptId || undefined : undefined;
+      const resolvedOutletId = selectedTableRecord?.outletid ? Number(selectedTableRecord.outletid) : (selectedOutletId || Number(user?.outletid) || null);
+
       const userId = user?.id || null;
       const hotelId = user?.hotelid || null;
 
@@ -1284,7 +1292,7 @@ const Order = () => {
       const kotPayload = {
         txnId: currentTxnId || 0,
         tableId: resolvedTableId,
-        table_name: selectedTable, // This was correct
+        table_name: tableNameForKOT,
         items: combinedPayload,
         outletid: resolvedOutletId,
         userId: userId,

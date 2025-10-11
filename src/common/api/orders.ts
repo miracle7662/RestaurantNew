@@ -91,7 +91,7 @@ export async function getTaxesByOutletAndDepartment(params: { outletid?: number 
 // KOT Management API functions
 export async function createKOT(payload: {
   txnId: number;
-  table_name?: string;
+  table_name?: string | null;
   tableId: number | null;
   items: Array<{
     ItemID: number;

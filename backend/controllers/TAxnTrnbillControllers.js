@@ -736,35 +736,35 @@ exports.createKOT = async (req, res) => {
       let finalDiscountType = Number(DiscountType) || 0;
       const isHeaderNCKOT = details.some(item => toBool(item.isNCKOT));
 
-      let existingBill = db.prepare(`
-        SELECT TxnID, DiscPer, Discount, DiscountType, isNCKOT FROM TAxnTrnbill
-        WHERE TableID = ? AND isCancelled = 0 AND isSetteled = 0 ORDER BY TxnID DESC LIMIT 1
-      `).get(Number(TableID));
+      let existingBill = null;
+      // Only search for an existing bill if it's a Dine-in order (i.e., has a TableID).
+      // For Pickup/Delivery, always create a new bill.
+      if (TableID) {
+        existingBill = db.prepare(`
+          SELECT TxnID, DiscPer, Discount, DiscountType, isNCKOT FROM TAxnTrnbill
+          WHERE TableID = ? AND isCancelled = 0 AND isSetteled = 0 ORDER BY TxnID DESC LIMIT 1
+        `).get(Number(TableID));
+      }
 
       if (existingBill) {
         txnId = existingBill.TxnID;
         console.log(`Using existing unbilled transaction. TxnID: ${txnId} for TableID: ${TableID}`);
 
-        // If new discount or NCKOT details are provided, update the main bill.
-        // Otherwise, use existing values.
-        if (Number(DiscPer) > 0 || Number(Discount) > 0 || NCName || NCPurpose) {
-          db.prepare(`
-              UPDATE TAxnTrnbill 
-              SET 
-                table_name = ?,
-                DiscPer = ?, 
-                Discount = ?, 
-                DiscountType = ?,
-                NCName = ?,
-                NCPurpose = ?,
-                isNCKOT = ?
-              WHERE TxnID = ?
-          `).run(table_name, finalDiscPer, finalDiscount, finalDiscountType, NCName || null, NCPurpose || null, toBool(isHeaderNCKOT || existingBill.isNCKOT), txnId);
-        } else {
-            finalDiscPer = existingBill.DiscPer; // Keep existing discount if no new one is provided
-            finalDiscount = existingBill.Discount;
-            finalDiscountType = existingBill.DiscountType;
-        }
+        // Always update the bill header with the latest information, including table_name.
+        // Use new discount/NC info if provided, otherwise fall back to existing values.
+        db.prepare(`
+            UPDATE TAxnTrnbill 
+            SET 
+              table_name = ?,
+              DiscPer = ?, 
+              Discount = ?, 
+              DiscountType = ?,
+              NCName = ?,
+              NCPurpose = ?,
+              isNCKOT = ?
+            WHERE TxnID = ?
+        `).run(table_name, finalDiscPer, finalDiscount, finalDiscountType, NCName || null, NCPurpose || null, toBool(isHeaderNCKOT || existingBill.isNCKOT), txnId);
+
       } else {
         console.log(`No existing bill for table ${TableID}. Creating a new one.`);
         let txnNo = null;
