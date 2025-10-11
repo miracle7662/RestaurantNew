@@ -1793,4 +1793,61 @@ exports.applyDiscountToBill = async (req, res) => {
   }
 };
 
+/* -------------------------------------------------------------------------- */
+/* 14) getPendingOrders → fetch pending orders for pickup or delivery        */
+/* -------------------------------------------------------------------------- */
+exports.getPendingOrders = async (req, res) => {
+  try {
+    const { type } = req.params;
+    let whereClauses = ['b.isCancelled = 0', 'b.isBilled = 0', 'b.isSetteled = 0'];
+
+    if (type === 'pickup') {
+      whereClauses.push('b.isPickup = 1');
+    } else if (type === 'delivery') {
+      whereClauses.push('b.isHomeDelivery = 1');
+    }
+
+    const sql = `
+      SELECT
+        b.*,
+        GROUP_CONCAT(
+          DISTINCT json_object(
+            'TXnDetailID', d.TXnDetailID,
+            'ItemID', d.ItemID,
+            'Qty', d.Qty,
+            'RuntimeRate', d.RuntimeRate,
+            'item_name', m.item_name
+          )
+        ) as _details
+      FROM TAxnTrnbill b
+      LEFT JOIN TAxnTrnbilldetails d ON d.TxnID = b.TxnID AND d.isCancelled = 0
+      LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
+      WHERE ${whereClauses.join(' AND ')}
+      GROUP BY b.TxnID
+      ORDER BY b.TxnDatetime DESC
+    `;
+
+    const rows = db.prepare(sql).all();
+
+    const orders = rows.map(r => ({
+      customer: {
+        name: r.CustomerName || '',
+        mobile: r.MobileNo || ''
+      },
+      items: r._details ? JSON.parse(`[${r._details}]`).map(d => ({
+        name: d.item_name || '',
+        qty: d.Qty || 0,
+        price: d.RuntimeRate || 0
+      })) : [],
+      total: r.Amount || 0
+    }));
+
+    res.json(ok('Fetched pending orders', { orders }));
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to fetch pending orders', data: null, error: error.message });
+  }
+};
+
+
+
 module.exports = exports
