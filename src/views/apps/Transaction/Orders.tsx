@@ -213,6 +213,7 @@ const Order = () => {
             isReversed: true,
             ReversalLogID: item.ReversalLogID,
             status: 'Reversed',
+            kotNo: item.KOTNo,
           }));
           setReversedItems(fetchedReversedItems);
 
@@ -2853,66 +2854,14 @@ const Order = () => {
               )}
               {/* Reversed Items Section - Only in Expanded View */}
               {!isGroupedView && reversedItems.length > 0 && (
-                <>
-                  <div
-                    className="text-center fw-bold p-1"
-                    style={{
-                      backgroundColor: '#f8d7da',
-                      color: '#b71c1c',
-                      borderTop: '1px solid #dee2e6',
-                      borderBottom: '1px solid #dee2e6',
-                    }}
-                  >
-                    Reversed Items
-                  </div>
-                  {reversedItems.map((item, index) => (
-                      <div
-                        key={`reversed-${item.ReversalLogID}-${index}`}
-                        className="border-bottom"
-                        style={{
-                          display: 'grid',
-                          gridTemplateColumns: '2fr 1fr 1fr',
-                          padding: '0.25rem',
-                          alignItems: 'center',
-                          backgroundColor: '#f8d7da', // Light red
-                          color: '#721c24', // Darker red
-                        }}
-                      >
-                        <span style={{ textAlign: 'left' }}>{item.name} <span className="badge bg-danger fw-bold">Reversed</span></span>
-                        <div className="text-center d-flex justify-content-center align-items-center gap-2">
-                          <button
-                            className="btn btn-danger btn-sm"
-                            style={{ padding: '0 5px', lineHeight: '1' }}
-                            disabled={true}
-                          >
-                            −
-                          </button>
-                          <input
-                            type="number"
-                            value={item.qty}
-                            readOnly={true}
-                            className="border rounded text-center no-spinner"
-                            style={{ width: '40px', height: '16px', fontSize: '0.75rem', padding: '0' }}
-                            min="0"
-                            max="999"
-                          />
-                          <button
-                            className="btn btn-success btn-sm"
-                            style={{ padding: '0 5px', lineHeight: '1' }}
-                            disabled={true}
-                          >
-                            +
-                          </button>
-                        </div>
-                        <div className="text-center">
-                          <div>-{(item.price * item.qty).toFixed(2)}</div>
-                          <div style={{ fontSize: '0.75rem', color: '#6c757d', width: '50px', height: '16px', margin: '0 auto' }}>
-                            ({item.price.toFixed(2)})
-                          </div>
-                        </div>
-                      </div>
-                  ))}
-                </>
+                <ReversedItemsDisplay groupedItems={Object.values(reversedItems.reduce((acc, item) => {
+                  const key = `${item.id}-${item.kotNo}`;
+                  if (!acc[key]) {
+                    acc[key] = { ...item, qty: 0 };
+                  }
+                  acc[key].qty += item.qty;
+                  return acc;
+                }, {} as Record<string, ReversedMenuItem>))} />
               )}
             </div>
             <div className="billing-panel-bottom">
@@ -3629,6 +3578,75 @@ const Order = () => {
         </div>
       </div>
     </div>
+  );
+};
+
+const ReversedItemsDisplay = ({ groupedItems }: { groupedItems: ReversedMenuItem[] }) => {
+  const itemsArray = groupedItems;
+
+  if (itemsArray.length === 0) {
+    return null;
+  }
+
+  return (
+    <>
+      <div
+        className="text-center fw-bold p-1"
+        style={{
+          backgroundColor: '#f8d7da',
+          color: '#b71c1c',
+          borderTop: '1px solid #dee2e6',
+          borderBottom: '1px solid #dee2e6',
+        }}
+      >
+        Reversed Items
+      </div>
+      {itemsArray.map((item, index) => (
+        <div
+          key={`reversed-grouped-${item.id}-${item.kotNo}-${index}`}
+          className="border-bottom"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '2fr 1fr 1fr',
+            padding: '0.25rem',
+            alignItems: 'center',
+            backgroundColor: '#f8d7da', // Light red
+            color: '#721c24', // Darker red
+          }}
+        >
+          <span style={{ textAlign: 'left' }}>
+            {item.name}
+            <span className="badge bg-danger fw-bold ms-1">
+              Reversed {item.qty > 1 ? item.qty : ''}
+            </span>
+            {item.kotNo && <span className="badge bg-secondary ms-1">KOT {item.kotNo}</span>}
+          </span>
+          <div className="text-center d-flex justify-content-center align-items-center gap-2">
+            <button
+              className="btn btn-danger btn-sm"
+              style={{ padding: '0 5px', lineHeight: '1' }}
+              disabled={true}
+            >
+              −
+            </button>
+            <input
+              type="number"
+              value={item.qty}
+              readOnly={true}
+              className="border rounded text-center no-spinner"
+              style={{ width: '40px', height: '16px', fontSize: '0.75rem', padding: '0' }}
+              min="0"
+              max="999"
+            />
+            <button className="btn btn-success btn-sm" style={{ padding: '0 5px', lineHeight: '1' }} disabled={true}>+</button>
+          </div>
+          <div className="text-center">
+            <div>-{(item.price * item.qty).toFixed(2)}</div>
+            <div style={{ fontSize: '0.75rem', color: '#6c757d', width: '50px', height: '16px', margin: '0 auto' }}>({item.price.toFixed(2)})</div>
+          </div>
+        </div>
+      ))}
+    </>
   );
 };
 

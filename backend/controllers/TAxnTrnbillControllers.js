@@ -1016,7 +1016,8 @@ exports.getUnbilledItemsByTable = async (req, res) => {
         l.ReversedQty as qty,
         d.RuntimeRate as price,
         'Reversed' as status,
-        1 as isReversed
+        1 as isReversed,
+        d.KOTNo as kotNo
       FROM TAxnTrnReversalLog l
       JOIN TAxnTrnbilldetails d ON l.TxnDetailID = d.TXnDetailID
       LEFT JOIN mstrestmenu m ON l.ItemID = m.restitemid
