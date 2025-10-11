@@ -1,331 +1,195 @@
 import React, { useState } from 'react';
-import { Eye, Printer, X, Smartphone, CreditCard, Banknote } from 'lucide-react';
+import { Modal, Card, Form, Button, Row, Col } from 'react-bootstrap';
 
-// Sample bill data
-const initialBills = [
-  {
-    id: 1,
-    billNo: 'BILL-001',
-    customerName: 'Rajesh Kumar',
-    mobile: '+91 98765 43210',
-    items: 'Paneer Tikka, Dal Makhani, Roti x4',
-    paymentMode: 'UPI',
-    amount: 724.50,
-    date: '2025-10-10',
-    time: '14:30',
-    status: 'paid',
-    itemDetails: [
-      { name: 'Paneer Tikka', qty: 2, price: 400 },
-      { name: 'Dal Makhani', qty: 1, price: 250 },
-      { name: 'Roti', qty: 4, price: 40 }
-    ],
-    subtotal: 690,
-    cgst: 17.25,
-    sgst: 17.25,
-    discount: 0
-  },
-  {
-    id: 2,
-    billNo: 'BILL-002',
-    customerName: 'Priya Sharma',
-    mobile: '+91 87654 32109',
-    items: 'Veg Biryani, Raita, Gulab Jamun',
-    paymentMode: 'Cash',
-    amount: 450,
-    date: '2025-10-10',
-    time: '13:15',
-    status: 'paid',
-    itemDetails: [
-      { name: 'Veg Biryani', qty: 1, price: 280 },
-      { name: 'Raita', qty: 1, price: 80 },
-      { name: 'Gulab Jamun', qty: 2, price: 80 }
-    ],
-    subtotal: 440,
-    cgst: 5,
-    sgst: 5,
-    discount: 0
-  },
-  {
-    id: 3,
-    billNo: 'BILL-003',
-    customerName: 'Amit Patel',
-    mobile: '+91 76543 21098',
-    items: 'Masala Dosa, Coffee x2, Idli',
-    paymentMode: 'Card',
-    amount: 320,
-    date: '2025-10-10',
-    time: '12:45',
-    status: 'paid',
-    itemDetails: [
-      { name: 'Masala Dosa', qty: 1, price: 120 },
-      { name: 'Coffee', qty: 2, price: 100 },
-      { name: 'Idli', qty: 2, price: 80 }
-    ],
-    subtotal: 300,
-    cgst: 10,
-    sgst: 10,
-    discount: 0
-  },
-  {
-    id: 4,
-    billNo: 'BILL-004',
-    customerName: 'Sneha Desai',
-    mobile: '+91 65432 10987',
-    items: 'Butter Chicken, Naan, Lassi',
-    paymentMode: 'Split',
-    amount: 890,
-    date: '2025-10-10',
-    time: '19:20',
-    status: 'cancelled',
-    itemDetails: [
-      { name: 'Butter Chicken', qty: 2, price: 600 },
-      { name: 'Naan', qty: 3, price: 90 },
-      { name: 'Lassi', qty: 2, price: 120 }
-    ],
-    subtotal: 810,
-    cgst: 40,
-    sgst: 40,
-    discount: 0
-  },
-  {
-    id: 5,
-    billNo: 'BILL-005',
-    customerName: 'Vikram Singh',
-    mobile: '+91 54321 09876',
-    items: 'Chicken Biryani, Raita, Salad',
-    paymentMode: 'UPI',
-    amount: 550,
-    date: '2025-10-10',
-    time: '18:00',
-    status: 'paid',
-    itemDetails: [
-      { name: 'Chicken Biryani', qty: 1, price: 350 },
-      { name: 'Raita', qty: 1, price: 80 },
-      { name: 'Salad', qty: 1, price: 50 }
-    ],
-    subtotal: 480,
-    cgst: 35,
-    sgst: 35,
-    discount: 0
-  }
-];
-
-export default function BillingPage() {
-  const [bills] = useState(initialBills);
-  const [viewModal, setViewModal] = useState(null);
-
-  const getPaymentIcon = (mode) => {
-    switch(mode) {
-      case 'Cash': return <Banknote className="w-4 h-4" />;
-      case 'UPI': return <Smartphone className="w-4 h-4" />;
-      case 'Card': return <CreditCard className="w-4 h-4" />;
-      case 'Split': return <span className="text-sm">⚡</span>;
-      default: return null;
+const OrderModal = () => {
+  const [showModal, setShowModal] = useState(false);
+  const [orderType, setOrderType] = useState('Pickup'); // 'Pickup' or 'Delivery'
+  
+  // Sample orders data - replace with your actual state management
+  const [orders, setOrders] = useState([
+    {
+      id: 1,
+      name: '',
+      mobile: '',
+      items: [
+        { name: 'Pizza Margherita', qty: 2, price: 250 },
+        { name: 'Burger Deluxe', qty: 1, price: 150 }
+      ]
+    },
+    {
+      id: 2,
+      name: '',
+      mobile: '',
+      items: [
+        { name: 'Pasta Alfredo', qty: 1, price: 200 },
+        { name: 'Garlic Bread', qty: 3, price: 60 }
+      ]
+    },
+    {
+      id: 3,
+      name: '',
+      mobile: '',
+      items: [
+        { name: 'Chicken Wings', qty: 4, price: 100 }
+      ]
     }
+  ]);
+
+  const handleOpenModal = (type) => {
+    setOrderType(type);
+    setShowModal(true);
   };
 
-  const handlePrint = (bill) => {
-    alert(`Printing bill ${bill.billNo}...`);
+  const handleInputChange = (orderId, field, value) => {
+    setOrders(orders.map(order => 
+      order.id === orderId ? { ...order, [field]: value } : order
+    ));
+  };
+
+  const calculateTotals = (items) => {
+    const totalQty = items.reduce((sum, item) => sum + item.qty, 0);
+    const totalAmount = items.reduce((sum, item) => sum + (item.qty * item.price), 0);
+    return { totalQty, totalAmount };
+  };
+
+  const handleMakePayment = (orderId) => {
+    const order = orders.find(o => o.id === orderId);
+    const { totalQty, totalAmount } = calculateTotals(order.items);
+    
+    console.log('Payment Processing:', {
+      orderType,
+      orderId,
+      name: order.name,
+      mobile: order.mobile,
+      items: order.items,
+      totalQty,
+      totalAmount
+    });
+
+    // Clear this specific order
+    setOrders(orders.map(o => 
+      o.id === orderId ? { ...o, name: '', mobile: '' } : o
+    ));
+
+    alert(`Payment of ₹${totalAmount} processed successfully for ${orderType} order!`);
+  };
+
+  const handleCloseModal = () => {
+    setShowModal(false);
   };
 
   return (
-    <div className="min-vh-100  p-4">
-      <div className="container">
-        <div className="card">
-          <div className="table-responsive">
-            <table className="table table-hover">
-              <thead className="table-light border-bottom">
-                <tr>
-                  <th className="px-4 py-3 text-start small fw-semibold text-secondary">Bill No</th>
-                  <th className="px-4 py-3 text-start small fw-semibold text-secondary">Customer</th>
-                  <th className="px-4 py-3 text-start small fw-semibold text-secondary">Mobile</th>
-                  <th className="px-4 py-3 text-start small fw-semibold text-secondary">Items</th>
-                  <th className="px-4 py-3 text-start small fw-semibold text-secondary">Payment</th>
-                  <th className="px-4 py-3 text-start small fw-semibold text-secondary">Amount</th>
-                  <th className="px-4 py-3 text-start small fw-semibold text-secondary">Date & Time</th>
-                  <th className="px-4 py-3 text-start small fw-semibold text-secondary">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {bills.map((bill) => (
-                  <tr 
-                    key={bill.id} 
-                    className={bill.status === 'cancelled' ? 'table-light' : ''}
-                  >
-                    <td className="px-4 py-4 small fw-medium text-dark">
-                      {bill.billNo}
-                      {bill.status === 'cancelled' && (
-                        <div className="text-xs text-danger fw-medium mt-1">CANCELLED</div>
-                      )}
-                    </td>
-                    <td className="px-4 py-4 small text-secondary">{bill.customerName}</td>
-                    <td className="px-4 py-4 small text-muted">{bill.mobile}</td>
-                    <td className="px-4 py-4 small text-secondary">{bill.items}</td>
-                    <td className="px-4 py-4">
-                      <div className="d-flex align-items-center gap-2 small text-secondary">
-                        {getPaymentIcon(bill.paymentMode)}
-                        <span>{bill.paymentMode}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-4 small fw-bold text-dark">
-                      ₹{bill.amount.toFixed(2)}
-                    </td>
-                    <td className="px-4 py-4">
-                      <div className="small text-secondary">{bill.date}</div>
-                      <div className="small text-muted mt-1">{bill.time}</div>
-                    </td>
-                    <td className="px-4 py-4">
-                      <div className="d-flex align-items-center gap-3">
-                        <button
-                          onClick={() => setViewModal(bill)}
-                          className="btn btn-link p-0 text-primary"
-                          title="View"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handlePrint(bill)}
-                          className="btn btn-link p-0 text-success"
-                          title="Print"
-                        >
-                          <Printer className="w-4 h-4" />
-                        </button>
-                        {bill.status !== 'cancelled' && (
-                          <button
-                            className="btn btn-link p-0 text-danger"
-                            title="Cancel"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+    <div className="p-4">
+      {/* Demo Navbar Buttons */}
+      <div className="mb-3">
+        <Button 
+          variant="primary" 
+          className="me-2"
+          onClick={() => handleOpenModal('Pickup')}
+        >
+          Pickup Orders
+        </Button>
+        <Button 
+          variant="success"
+          onClick={() => handleOpenModal('Delivery')}
+        >
+          Delivery Orders
+        </Button>
       </div>
 
-      {/* View Modal */}
-      {viewModal && (
-        <>
-          <div className="modal fade show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} tabIndex="-1">
-            <div className="modal-dialog modal-lg modal-dialog-scrollable">
-              <div className="modal-content">
-                <div className="modal-header border-bottom">
-                  <h2 className="modal-title h4 fw-bold text-dark">Bill Details</h2>
-                  <button
-                    type="button"
-                    onClick={() => setViewModal(null)}
-                    className="btn-close"
-                    data-bs-dismiss="modal"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-                
-                <div className="modal-body p-4">
-                  <div className="row g-3 pb-4 mb-4 border-bottom">
-                    <div className="col-md-6">
-                      <p className="small text-muted mb-1">Bill No</p>
-                      <p className="fw-semibold text-dark">{viewModal.billNo}</p>
-                    </div>
-                    <div className="col-md-6">
-                      <p className="small text-muted mb-1">Date & Time</p>
-                      <p className="fw-semibold text-dark">{viewModal.date} {viewModal.time}</p>
-                    </div>
-                    <div className="col-md-6">
-                      <p className="small text-muted mb-1">Customer</p>
-                      <p className="fw-semibold text-dark">{viewModal.customerName}</p>
-                    </div>
-                    <div className="col-md-6">
-                      <p className="small text-muted mb-1">Mobile</p>
-                      <p className="fw-semibold text-dark">{viewModal.mobile}</p>
-                    </div>
-                    <div className="col-md-6">
-                      <p className="small text-muted mb-1">Payment Mode</p>
-                      <p className="fw-semibold text-dark d-flex align-items-center gap-2">
-                        {getPaymentIcon(viewModal.paymentMode)}
-                        {viewModal.paymentMode}
-                      </p>
-                    </div>
-                    <div className="col-md-6">
-                      
-                      <p className="small text-muted mb-1">Status</p>
-                      <p className={`fw-semibold ${viewModal.status === 'cancelled' ? 'text-danger' : 'text-success'}`}>
-                        {viewModal.status.toUpperCase()}
-                      </p>
-                    </div>
-                  </div>
+      {/* Order Modal */}
+      <Modal 
+        show={showModal} 
+        onHide={handleCloseModal}
+        size="lg"
+        centered
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>{orderType} Orders - Today</Modal.Title>
+        </Modal.Header>
+        <Modal.Body style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+          <Row>
+            {orders.map((order) => {
+              const { totalQty, totalAmount } = calculateTotals(order.items);
+              
+              return (
+                <Col md={6} key={order.id} className="mb-3">
+                  <Card style={{ border: '3px solid #000' }}>
+                    <Card.Body className="p-3">
+                      {/* Customer Details */}
+                      <div style={{ border: '2px solid #000', padding: '10px', marginBottom: '10px' }}>
+                        <Form.Group className="mb-2">
+                          <Form.Label className="mb-1 fw-bold">Name:</Form.Label>
+                          <Form.Control 
+                            type="text"
+                            value={order.name}
+                            onChange={(e) => handleInputChange(order.id, 'name', e.target.value)}
+                            placeholder="Enter customer name"
+                          />
+                        </Form.Group>
+                        <Form.Group>
+                          <Form.Label className="mb-1 fw-bold">Mo no:</Form.Label>
+                          <Form.Control 
+                            type="tel"
+                            value={order.mobile}
+                            onChange={(e) => handleInputChange(order.id, 'mobile', e.target.value)}
+                            placeholder="Enter mobile number"
+                            maxLength={10}
+                          />
+                        </Form.Group>
+                      </div>
 
-                  <div className="mb-4">
-                    <h3 className="h5 fw-bold text-dark mb-3">Ordered Items</h3>
-                    <div className="table-responsive">
-                      <table className="table table-sm">
-                        <thead className="table-light">
-                          <tr>
-                            <th className="px-3 py-2 text-start small fw-semibold text-secondary">Item</th>
-                            <th className="px-3 py-2 text-center small fw-semibold text-secondary">Qty</th>
-                            <th className="px-3 py-2 text-end small fw-semibold text-secondary">Price</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {viewModal.itemDetails.map((item, idx) => (
-                            <tr key={idx}>
-                              <td className="px-3 py-2 small text-secondary">{item.name}</td>
-                              <td className="px-3 py-2 small text-secondary text-center">{item.qty}</td>
-                              <td className="px-3 py-2 small fw-medium text-dark text-end">₹{item.price}</td>
-                            </tr>
+                      {/* Order Items */}
+                      <div style={{ border: '2px solid #000', padding: '10px' }}>
+                        <h6 className="text-danger fw-bold mb-2">Item Name</h6>
+                        
+                        <div 
+                          style={{ 
+                            maxHeight: '150px', 
+                            overflowY: 'auto',
+                            marginBottom: '10px'
+                          }}
+                        >
+                          {order.items.map((item, index) => (
+                            <div 
+                              key={index}
+                              className="d-flex justify-content-between mb-2 pb-2"
+                              style={{ borderBottom: '1px solid #ddd' }}
+                            >
+                              <span>{item.name}</span>
+                              <span>
+                                <strong>Qty:</strong> {item.qty} | 
+                                <strong> ₹{item.qty * item.price}</strong>
+                              </span>
+                            </div>
                           ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
+                        </div>
 
-                  <div className="bg-light rounded p-3 mb-4">
-                    <div className="d-flex justify-content-between small mb-1">
-                      <span className="text-muted">Subtotal</span>
-                      <span className="fw-medium text-dark">₹{viewModal.subtotal}</span>
-                    </div>
-                    <div className="d-flex justify-content-between small mb-1">
-                      <span className="text-muted">CGST (2.5%)</span>
-                      <span className="fw-medium text-dark">₹{viewModal.cgst}</span>
-                    </div>
-                    <div className="d-flex justify-content-between small mb-1">
-                      <span className="text-muted">SGST (2.5%)</span>
-                      <span className="fw-medium text-dark">₹{viewModal.sgst}</span>
-                    </div>
-                    <div className="pt-2 mt-2 border-top border-secondary-subtle d-flex justify-content-between">
-                      <span className="fw-bold text-dark">Grand Total</span>
-                      <span className="fw-bold fs-4 text-dark">₹{viewModal.amount.toFixed(2)}</span>
-                    </div>
-                  </div>
+                        {/* Footer Section */}
+                        <div className="d-flex justify-content-between align-items-center pt-2" style={{ borderTop: '2px solid #000' }}>
+                          <span className="text-danger fw-bold">total qty: {totalQty}</span>
+                          <span className="text-danger fw-bold">Total amount: ₹{totalAmount}</span>
+                        </div>
 
-                  <div className="d-flex gap-3">
-                    <button
-                      onClick={() => handlePrint(viewModal)}
-                      className="flex-fill d-flex align-items-center justify-content-center gap-2 px-4 py-3 btn btn-primary"
-                    >
-                      <Printer className="w-4 h-4" />
-                      Print Bill
-                    </button>
-                    <button
-                      onClick={() => setViewModal(null)}
-                      className="px-4 py-3 btn btn-outline-secondary"
-                    >
-                      Close
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          {/* Backdrop */}
-          {viewModal && <div className="modal-backdrop fade show" onClick={() => setViewModal(null)}></div>}
-        </>
-      )}
+                        <Button 
+                          variant="danger" 
+                          className="w-100 mt-3 fw-bold"
+                          onClick={() => handleMakePayment(order.id)}
+                          disabled={!order.name || !order.mobile}
+                        >
+                          Make payment
+                        </Button>
+                      </div>
+                    </Card.Body>
+                  </Card>
+                </Col>
+              );
+            })}
+          </Row>
+        </Modal.Body>
+      </Modal>
     </div>
   );
-}
+};
+
+export default OrderModal;
