@@ -1109,6 +1109,7 @@ const Order = () => {
   const handleBackToTables = () => {
     setShowPendingOrdersView(false);
     setShowOrderDetails(false);
+    setActiveNavTab('ALL');
   };
 
 
@@ -1840,34 +1841,50 @@ const Order = () => {
     setLoadingPending(true);
     setErrorPending(null);
     try {
-      // const response = await fetch(`/api/pending-orders?type=${type}`);
-      // if (!response.ok) {
-      //   throw new Error('Failed to fetch pending orders');
-      // }
-      // const data = await response.json();
-      // setPendingOrders(data.orders);
-
-      // Using mock data as per TODO
-      const mockOrders = [
-        { id: 101, customer: { name: 'Amit Kumar', mobile: '9876543210' }, items: [{ name: 'Veg Burger', qty: 2, price: 120 }, { name: 'Coke', qty: 2, price: 40 }], total: 320 },
-        { id: 102, customer: { name: 'Sunita Sharma', mobile: '9988776655' }, items: [{ name: 'Margherita Pizza', qty: 1, price: 250 }], total: 250 },
-        { id: 103, customer: { name: 'Rahul Verma', mobile: '9123456789' }, items: [{ name: 'Pasta', qty: 1, price: 180 }, { name: 'Garlic Bread', qty: 1, price: 90 }], total: 270 },
-      ];
-      // Simulate API delay
-      setTimeout(() => {
-        setPendingOrders(mockOrders);
-        setLoadingPending(false);
-      }, 500);
-
+      const response = await fetch(`http://localhost:3001/api/TAxnTrnbill/pending-orders/${type}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch pending orders');
+      }
+      const data = await response.json();
+      if (data.success && Array.isArray(data.data)) {
+        setPendingOrders(data.data);
+      } else {
+        throw new Error(data.message || 'Invalid data format received');
+      }
     } catch (error: any) {
       setErrorPending(error.message || 'Could not fetch orders.');
       // Fallback to mock data on error
-      const mockOrders = [
-        { id: 101, customer: { name: 'Amit Kumar', mobile: '9876543210' }, items: [{ name: 'Veg Burger', qty: 2, price: 120 }, { name: 'Coke', qty: 2, price: 40 }], total: 320 },
-        { id: 102, customer: { name: 'Sunita Sharma', mobile: '9988776655' }, items: [{ name: 'Margherita Pizza', qty: 1, price: 250 }], total: 250 },
-      ];
-      setPendingOrders(mockOrders);
+      
       setLoadingPending(false);
+    }
+  };
+
+  const handleMakePayment = async (order: any) => {
+    try {
+      const settlements = [{
+        PaymentTypeID: 1,
+        PaymentType: 'Cash',
+        Amount: order.total,
+        OrderNo: order.id.toString(),
+        Name: user?.name || '',
+      }];
+      const response = await fetch(`http://localhost:3001/api/TAxnTrnbill/${order.id}/settle`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ settlements }),
+      });
+    if (response.ok) {
+      toast.success('Payment settled successfully!');
+      if (pendingType) {
+        fetchPendingOrders(pendingType);
+      }
+    } else {
+      const errorData = await response.json();
+      toast.error(errorData.message || 'Failed to settle payment');
+    }
+    } catch (error) {
+      console.error('Error settling payment:', error);
+      toast.error('Error settling payment');
     }
   };
 

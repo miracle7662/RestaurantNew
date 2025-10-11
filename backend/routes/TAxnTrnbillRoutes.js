@@ -41,9 +41,6 @@ router.put('/:id/items/billed', controller.updateBillItemsIsBilled)
 
 
 
-// Pending Orders Routes
-router.get('/pending-orders/:type', controller.getPendingOrders);
-
 // KOT Management Routes
 router.post('/kot', controller.createKOT);
 router.get('/kots/saved', controller.getSavedKOTs);
@@ -66,6 +63,9 @@ router.put('/:id', controller.updateBill)
 
 // Save day end
 router.post('/save', controller.saveDayEnd);
+
+// Get pending orders for pickup/delivery
+router.get('/pending-orders/:type', controller.getPendingOrders);
 
 
 module.exports = router

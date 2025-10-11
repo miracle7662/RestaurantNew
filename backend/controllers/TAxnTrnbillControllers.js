@@ -718,9 +718,7 @@ exports.createKOT = async (req, res) => {
 
     console.log("Received Discount Data for KOT:", { DiscPer, Discount, DiscountType });
 
-    if (!TableID) {
-      return res.status(400).json({ success: false, message: "TableID is required" });
-    }
+   
     if (!Array.isArray(details) || details.length === 0) {
       return res.status(400).json({ success: false, message: "details array is required" });
     }
@@ -1801,11 +1799,12 @@ exports.getPendingOrders = async (req, res) => {
     const { type } = req.params;
     let whereClauses = ['b.isCancelled = 0', 'b.isBilled = 0', 'b.isSetteled = 0'];
 
-    if (type === 'pickup') {
-      whereClauses.push('b.isPickup = 1');
-    } else if (type === 'delivery') {
-      whereClauses.push('b.isHomeDelivery = 1');
-    }
+    // For now, fetch all pending orders regardless of type to show cards
+    // if (type === 'pickup') {
+    //   whereClauses.push('b.isPickup = 1');
+    // } else if (type === 'delivery') {
+    //   whereClauses.push('b.isHomeDelivery = 1');
+    // }
 
     const sql = `
       SELECT
@@ -1830,19 +1829,20 @@ exports.getPendingOrders = async (req, res) => {
     const rows = db.prepare(sql).all();
 
     const orders = rows.map(r => ({
+      id: r.TxnID, // Add the transaction ID
       customer: {
         name: r.CustomerName || '',
         mobile: r.MobileNo || ''
       },
-      items: r._details ? JSON.parse(`[${r._details}]`).map(d => ({
+      items: r._details ? JSON.parse(`[${r._details}]`).map((d) => ({
         name: d.item_name || '',
         qty: d.Qty || 0,
         price: d.RuntimeRate || 0
-      })) : [],
+      })) : [], // Correctly parse the JSON string from GROUP_CONCAT
       total: r.Amount || 0
     }));
 
-    res.json(ok('Fetched pending orders', { orders }));
+    res.json(ok('Fetched pending orders', orders));
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to fetch pending orders', data: null, error: error.message });
   }
