@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Button, Form, Modal, Table, Card, Row, Col } from "react-bootstrap";
+import { Button, Form, Modal, Table, Card, Row, Col, Spinner } from "react-bootstrap";
 import OrderDetails from "./OrderDetails";
 import { fetchOutletsForDropdown } from "@/utils/commonfunction";
 import { useAuthContext } from "@/common";
@@ -155,6 +155,13 @@ const Order = () => {
   const [paymentAmounts, setPaymentAmounts] = useState<Record<string, string>>({});
   const [selectedPaymentModes, setSelectedPaymentModes] = useState<string[]>([]);
   const [reversedItems, setReversedItems] = useState<ReversedMenuItem[]>([]);
+
+  // States for Pending Orders Modal (Pickup/Delivery)
+  const [showPendingOrdersView, setShowPendingOrdersView] = useState<boolean>(false);
+  const [pendingType, setPendingType] = useState<'pickup' | 'delivery' | null>(null);
+  const [pendingOrders, setPendingOrders] = useState<any[]>([]);
+  const [loadingPending, setLoadingPending] = useState<boolean>(false);
+  const [errorPending, setErrorPending] = useState<string | null>(null);
 
 
 
@@ -1098,6 +1105,7 @@ const Order = () => {
   };
 
   const handleBackToTables = () => {
+    setShowPendingOrdersView(false);
     setShowOrderDetails(false);
   };
 
@@ -1826,6 +1834,49 @@ const Order = () => {
     }
   };
 
+  const fetchPendingOrders = async (type: 'pickup' | 'delivery') => {
+    setLoadingPending(true);
+    setErrorPending(null);
+    try {
+      // const response = await fetch(`/api/pending-orders?type=${type}`);
+      // if (!response.ok) {
+      //   throw new Error('Failed to fetch pending orders');
+      // }
+      // const data = await response.json();
+      // setPendingOrders(data.orders);
+
+      // Using mock data as per TODO
+      const mockOrders = [
+        { id: 101, customer: { name: 'Amit Kumar', mobile: '9876543210' }, items: [{ name: 'Veg Burger', qty: 2, price: 120 }, { name: 'Coke', qty: 2, price: 40 }], total: 320 },
+        { id: 102, customer: { name: 'Sunita Sharma', mobile: '9988776655' }, items: [{ name: 'Margherita Pizza', qty: 1, price: 250 }], total: 250 },
+        { id: 103, customer: { name: 'Rahul Verma', mobile: '9123456789' }, items: [{ name: 'Pasta', qty: 1, price: 180 }, { name: 'Garlic Bread', qty: 1, price: 90 }], total: 270 },
+      ];
+      // Simulate API delay
+      setTimeout(() => {
+        setPendingOrders(mockOrders);
+        setLoadingPending(false);
+      }, 500);
+
+    } catch (error: any) {
+      setErrorPending(error.message || 'Could not fetch orders.');
+      // Fallback to mock data on error
+      const mockOrders = [
+        { id: 101, customer: { name: 'Amit Kumar', mobile: '9876543210' }, items: [{ name: 'Veg Burger', qty: 2, price: 120 }, { name: 'Coke', qty: 2, price: 40 }], total: 320 },
+        { id: 102, customer: { name: 'Sunita Sharma', mobile: '9988776655' }, items: [{ name: 'Margherita Pizza', qty: 1, price: 250 }], total: 250 },
+      ];
+      setPendingOrders(mockOrders);
+      setLoadingPending(false);
+    }
+  };
+
+  const handlePendingOrderTabClick = (type: 'pickup' | 'delivery') => {
+    setActiveNavTab(type.charAt(0).toUpperCase() + type.slice(1)); // Set the active tab
+    setShowOrderDetails(false);
+    setPendingType(type);
+    setShowPendingOrdersView(true);
+    fetchPendingOrders(type);
+  };
+
   if (showKotTransfer) {
     return <KotTransfer onCancel={() => setShowKotTransfer(false)} />;
   }
@@ -2469,7 +2520,11 @@ const Order = () => {
                   <li className="nav-item flex-fill">
                     <button
                       className={`nav-link ${activeNavTab === 'ALL' ? 'active bg-primary text-white' : 'text-dark'}`}
-                      onClick={() => setActiveNavTab('ALL')}
+                      onClick={() => {
+                        setShowOrderDetails(false);
+                        setShowPendingOrdersView(false);
+                        setActiveNavTab('ALL');
+                      }}
                       role="tab"
                       style={{ border: 'none', borderRadius: '5px', padding: '8px 12px', fontSize: '14px', fontWeight: 500, textAlign: 'center' }}
                     >
@@ -2493,7 +2548,11 @@ const Order = () => {
                       <li className="nav-item flex-fill" key={index}>
                         <button
                           className={`nav-link ${activeNavTab === department.department_name ? 'active bg-primary text-white' : 'text-dark'}`}
-                          onClick={() => setActiveNavTab(department.department_name)}
+                          onClick={() => {
+                            setShowOrderDetails(false);
+                            setShowPendingOrdersView(false);
+                            setActiveNavTab(department.department_name);
+                          }}
                           role="tab"
                           style={{ border: 'none', borderRadius: '5px', padding: '8px 12px', fontSize: '14px', fontWeight: 500, textAlign: 'center' }}
                         >
@@ -2507,7 +2566,11 @@ const Order = () => {
                     <li className="nav-item flex-fill" key={index + departments.length}>
                       <button
                         className={`nav-link ${tab === activeNavTab ? 'active bg-primary text-white' : 'text-dark'}`}
-                        onClick={() => setActiveNavTab(tab)}
+                        onClick={() => {
+                          if (tab === 'Pickup' || tab === 'Delivery') {
+                            handlePendingOrderTabClick(tab.toLowerCase() as 'pickup' | 'delivery');
+                          } else { setActiveNavTab(tab) }
+                        }}
                         role="tab"
                         style={{ border: 'none', borderRadius: '5px', padding: '8px 12px', fontSize: '14px', fontWeight: 500, textAlign: 'center' }}
                       >
@@ -2518,7 +2581,7 @@ const Order = () => {
                 </ul>
                 <div
                   className="d-flex flex-column justify-content-start align-items-start rounded shadow-sm p-3 mt-3"
-                >
+                > 
                   {loading ? (
                     <p className="text-center text-muted mb-0">Loading tables...</p>
                   ) : activeNavTab === 'ALL' ? (
@@ -2625,6 +2688,77 @@ const Order = () => {
                     </p>
                   )}
                 </div>
+              </div>
+            )}
+            {showPendingOrdersView && (
+              <div className="rounded shadow-sm p-3 mt-0">
+                <style>{`
+                  .order-card {
+                    border: 1px solid #dee2e6;
+                    border-radius: 0.375rem;
+                    transition: box-shadow .15s ease-in-out;
+                  }
+                  .order-card:hover {
+                    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+                  }
+                  .order-card-header {
+                    background-color: rgba(0,0,0,.03);
+                    border-bottom: 1px solid #dee2e6;
+                  }
+                  .order-card-items {
+                    max-height: 200px;
+                    overflow-y: auto;
+                  }
+                `}</style>
+                <div className="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+                  <h4 className="mb-0">Pending {pendingType === 'pickup' ? 'Pickup' : 'Delivery'} Orders</h4>
+                  <Button variant="outline-secondary" onClick={handleBackToTables}>
+                    Back to Tables
+                  </Button>
+                </div>
+                {loadingPending ? (
+                  <div className="d-flex justify-content-center align-items-center h-100">
+                    <Spinner animation="border" role="status">
+                      <span className="visually-hidden">Loading...</span>
+                    </Spinner>
+                  </div>
+                ) : errorPending ? (
+                  <div className="alert alert-danger">{errorPending}</div>
+                ) : pendingOrders.length === 0 ? (
+                  <div className="text-center p-5">No pending orders found.</div>
+                ) : (
+                  <Row md={2} lg={3} xl={3} className="g-3">
+                    {pendingOrders.map(order => (
+                      <Col key={order.id}>
+                        <Card className="order-card h-100">
+                          <Card.Header className="order-card-header">
+                            <strong>Customer:</strong> {order.customer.name} <br />
+                            <strong>Mobile:</strong> {order.customer.mobile}
+                          </Card.Header>
+                          <Card.Body className="d-flex flex-column">
+                            <div className="order-card-items mb-3">
+                              <ul className="list-unstyled">
+                                {order.items.map((item: any, index: number) => (
+                                  <li key={index} className="d-flex justify-content-between border-bottom pb-1 mb-1">
+                                    <span>{item.name}</span>
+                                    <span>{item.qty} @ {item.price.toFixed(2)}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                            <div className="mt-auto">
+                              <div className="d-flex justify-content-between fw-bold border-top pt-2">
+                                <span>Total Qty: {order.items.reduce((acc: number, item: any) => acc + item.qty, 0)}</span>
+                                <span>Total: ₹{order.total.toFixed(2)}</span>
+                              </div>
+                              <Button variant="danger" className="w-100 mt-3">Make Payment</Button>
+                            </div>
+                          </Card.Body>
+                        </Card>
+                      </Col>
+                    ))}
+                  </Row>
+                )}
               </div>
             )}
             {showOrderDetails && (
