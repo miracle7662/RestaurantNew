@@ -813,12 +813,14 @@ const Order = () => {
   const handleTabClick = (tab: string) => {
     console.log('Tab clicked:', tab);
     setActiveTab(tab);
+    setShowPendingOrdersView(false); // Reset pending orders view
     if (['Pickup', 'Delivery', 'Quick Bill', 'Order/KOT', 'Billing'].includes(tab)) {
       setSelectedTable(null);
       setItems([]);
       setShowOrderDetails(true);
     } else {
       setShowOrderDetails(false);
+      setActiveNavTab('ALL'); // Go back to Dine-in tables view
     }
   };
 
