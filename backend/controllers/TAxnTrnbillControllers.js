@@ -154,7 +154,7 @@ exports.createBill = async (req, res) => {
       outletid, TxnNo, TableID, Steward, PAX, AutoKOT, ManualKOT, TxnDatetime,
       GrossAmt, RevKOT, Discount, CGST, SGST, IGST, CESS, RoundOFF, Amount,
       isHomeDelivery, DriverID, CustomerName, MobileNo, Address, Landmark,
-      orderNo, isPickup, HotelID, GuestID, DiscRefID, DiscPer, DiscountType, UserId,
+      orderNo, isPickup, HotelID, GuestID, DiscRefID, DiscPer, DiscountType, UserId, table_name,
       BatchNo, PrevTableID, PrevDeptId, isTrnsfered, isChangeTrfAmt,
       ServiceCharge, ServiceCharge_Amount, Extra1, Extra2, Extra3,
       NCName, NCPurpose,
@@ -219,7 +219,7 @@ exports.createBill = async (req, res) => {
       const stmt = db.prepare(`
         INSERT INTO TAxnTrnbill (
           outletid, TxnNo, TableID, Steward, PAX, AutoKOT, ManualKOT, TxnDatetime,
-          GrossAmt, RevKOT, Discount, CGST, SGST, IGST, CESS, RoundOFF, Amount,
+          GrossAmt, RevKOT, Discount, CGST, SGST, IGST, CESS, RoundOFF, Amount, table_name,
           isHomeDelivery, DriverID, CustomerName, MobileNo, Address, Landmark,
           orderNo, isPickup, HotelID, GuestID, DiscRefID, DiscPer, DiscountType, UserId,
           BatchNo, PrevTableID, PrevDeptId, isTrnsfered, isChangeTrfAmt,
@@ -231,6 +231,7 @@ exports.createBill = async (req, res) => {
       outletid ?? null,
       txnNo || null,
       TableID ?? null,
+      table_name || null,
       Steward || null,
       PAX ?? null,
       toBool(AutoKOT),
@@ -279,13 +280,13 @@ exports.createBill = async (req, res) => {
       if (isArray) {
         const dStmt = db.prepare(`
           INSERT INTO TAxnTrnbilldetails (
-            TxnID, outletid, ItemID, TableID,
+            TxnID, outletid, ItemID, TableID, table_name,
             CGST, CGST_AMOUNT, SGST, SGST_AMOUNT, IGST, IGST_AMOUNT,
             CESS, CESS_AMOUNT, Discount_Amount, Qty, KOTNo, AutoKOT, ManualKOT, SpecialInst,
             isKOTGenerate, isSetteled, isNCKOT, isCancelled,
             DeptID, HotelID, RuntimeRate, RevQty, KOTUsedDate,
             isBilled
-          ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+          ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         `)
 
         const billDiscountType = Number(DiscountType) || 0
@@ -319,6 +320,7 @@ exports.createBill = async (req, res) => {
             d.outletid ?? null,
             d.ItemID ?? null,
             d.TableID ?? null,
+            table_name || null,
             cgstPer,
             Number(cgstAmt) || 0,
             sgstPer,
@@ -370,7 +372,7 @@ exports.updateBill = async (req, res) => {
     const {
       outletid, TxnNo, TableID, Steward, PAX, AutoKOT, ManualKOT, TxnDatetime,
       GrossAmt, RevKOT, Discount, CGST, SGST, IGST, CESS, RoundOFF, Amount,
-      isHomeDelivery, DriverID, CustomerName, MobileNo, Address, Landmark,
+      isHomeDelivery, DriverID, CustomerName, MobileNo, Address, Landmark, table_name,
       orderNo, isPickup, HotelID, GuestID, DiscRefID, DiscPer,DiscountType, UserId,
       BatchNo, PrevTableID, PrevDeptId, isTrnsfered, isChangeTrfAmt,
       ServiceCharge, ServiceCharge_Amount, Extra1, Extra2, Extra3,
@@ -419,7 +421,7 @@ exports.updateBill = async (req, res) => {
     const txn = db.transaction(() => {
       const u = db.prepare(`
         UPDATE TAxnTrnbill SET
-          outletid=?, TxnNo=?, TableID=?, Steward=?, PAX=?, AutoKOT=?, ManualKOT=?, TxnDatetime=?,
+          outletid=?, TxnNo=?, TableID=?, table_name=?, Steward=?, PAX=?, AutoKOT=?, ManualKOT=?, TxnDatetime=?,
           GrossAmt=?, RevKOT=?, Discount=?, CGST=?, SGST=?, IGST=?, CESS=?, RoundOFF=?, Amount=?,
           isHomeDelivery=?, DriverID=?, CustomerName=?, MobileNo=?, Address=?, Landmark=?,
           orderNo=?, isPickup=?, HotelID=?, GuestID=?, DiscRefID=?, DiscPer=?, DiscountType=?, UserId=?,
@@ -432,6 +434,7 @@ exports.updateBill = async (req, res) => {
         outletid ?? null,
         TxnNo || null,
         TableID ?? null,
+        table_name || null,
         Steward || null,
         PAX ?? null,
         toBool(AutoKOT),
@@ -478,13 +481,13 @@ exports.updateBill = async (req, res) => {
       if (Array.isArray(details) && details.length > 0) {
         const ins = db.prepare(`
           INSERT INTO TAxnTrnbilldetails (
-            TxnID, outletid, ItemID, TableID,
+            TxnID, outletid, ItemID, TableID, table_name,
             CGST, CGST_AMOUNT, SGST, SGST_AMOUNT, IGST, IGST_AMOUNT, CESS, CESS_AMOUNT,
             Discount_Amount, Qty, KOTNo, AutoKOT, ManualKOT, SpecialInst,
             isKOTGenerate, isSetteled, isNCKOT, isCancelled,
             DeptID, HotelID, RuntimeRate, RevQty, KOTUsedDate,
             isBilled
-          ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+          ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         `)
         const billDiscountType = Number(DiscountType) || 0
         const billDiscPer = Number(DiscPer) || 0
@@ -517,6 +520,7 @@ exports.updateBill = async (req, res) => {
             d.outletid ?? null,
             d.ItemID ?? null,
             d.TableID ?? null,
+            table_name || null,
             cgstPer,
             cgstAmt,
             sgstPer,
@@ -713,8 +717,8 @@ exports.updateBillItemsIsBilled = async (req, res) => {
 exports.createKOT = async (req, res) => {
   try {
     console.log('Received createKOT body:', JSON.stringify(req.body, null, 2));
-    // The frontend sends some keys in PascalCase (e.g., TableID), so we destructure them directly.
-    const { outletid, TableID, UserId, HotelID, NCName, NCPurpose, DiscPer, Discount, DiscountType, details = [] } = req.body;
+    // Correctly destructure from the frontend payload which uses camelCase (e.g., tableId, userId)
+    const { outletid, tableId: TableID, table_name, userId: UserId, hotelId: HotelID, NCName, NCPurpose, DiscPer, Discount, DiscountType, items: details = [] } = req.body;
 
     console.log("Received Discount Data for KOT:", { DiscPer, Discount, DiscountType });
 
@@ -747,6 +751,7 @@ exports.createKOT = async (req, res) => {
           db.prepare(`
               UPDATE TAxnTrnbill 
               SET 
+                table_name = ?,
                 DiscPer = ?, 
                 Discount = ?, 
                 DiscountType = ?,
@@ -754,7 +759,7 @@ exports.createKOT = async (req, res) => {
                 NCPurpose = ?,
                 isNCKOT = ?
               WHERE TxnID = ?
-          `).run(finalDiscPer, finalDiscount, finalDiscountType, NCName || null, NCPurpose || null, toBool(isHeaderNCKOT || existingBill.isNCKOT), txnId);
+          `).run(table_name, finalDiscPer, finalDiscount, finalDiscountType, NCName || null, NCPurpose || null, toBool(isHeaderNCKOT || existingBill.isNCKOT), txnId);
         } else {
             finalDiscPer = existingBill.DiscPer; // Keep existing discount if no new one is provided
             finalDiscount = existingBill.Discount;
@@ -768,12 +773,12 @@ exports.createKOT = async (req, res) => {
         }
         const insertHeaderStmt = db.prepare(`
           INSERT INTO TAxnTrnbill (
-            outletid, TxnNo, TableID, UserId, HotelID, TxnDatetime,
+            outletid, TxnNo, TableID, table_name, UserId, HotelID, TxnDatetime,
             isBilled, isCancelled, isSetteled, status, AutoKOT,
             NCName, NCPurpose, DiscPer, Discount, DiscountType, isNCKOT
-          ) VALUES (?, ?, ?, ?, ?, datetime('now'), 0, 0, 0, 1, 1, ?, ?, ?, ?, ?, ?)
+          ) VALUES (?, ?, ?, ?, ?, ?, datetime('now'), 0, 0, 0, 1, 1, ?, ?, ?, ?, ?, ?)
         `);
-        const result = insertHeaderStmt.run(outletid, txnNo, Number(TableID), UserId, HotelID, NCName || null, NCPurpose || null, finalDiscPer, finalDiscount, finalDiscountType, toBool(isHeaderNCKOT));
+        const result = insertHeaderStmt.run(outletid, txnNo, Number(TableID), table_name, UserId, HotelID, NCName || null, NCPurpose || null, finalDiscPer, finalDiscount, finalDiscountType, toBool(isHeaderNCKOT));
         txnId = result.lastInsertRowid;
         db.prepare('UPDATE msttablemanagement SET status = 1 WHERE tableid = ?').run(Number(TableID));
         console.log(`Created new bill. TxnID: ${txnId}. Updated table ${TableID} status.`);
@@ -791,11 +796,11 @@ exports.createKOT = async (req, res) => {
 
       const insertDetailStmt = db.prepare(`
         INSERT INTO TAxnTrnbilldetails (
-          TxnID, outletid, ItemID, TableID, Qty, RuntimeRate, DeptID, HotelID,
+          TxnID, outletid, ItemID, TableID, table_name, Qty, RuntimeRate, DeptID, HotelID,
           isKOTGenerate, AutoKOT, KOTUsedDate, isBilled, isCancelled, isSetteled, isNCKOT,
           CGST, CGST_AMOUNT, SGST, SGST_AMOUNT, IGST, IGST_AMOUNT, CESS, CESS_AMOUNT, Discount_Amount, KOTNo
         ) VALUES (
-          @TxnID, @outletid, @ItemID, @TableID, @Qty, @RuntimeRate, @DeptID, @HotelID,
+          @TxnID, @outletid, @ItemID, @TableID, @table_name, @Qty, @RuntimeRate, @DeptID, @HotelID,
           1, 1, datetime('now'), 0, 0, 0, @isNCKOT,
           @CGST, @CGST_AMOUNT, @SGST, @SGST_AMOUNT, @IGST, @IGST_AMOUNT, @CESS, @CESS_AMOUNT, @Discount_Amount, @KOTNo
         )
@@ -834,6 +839,7 @@ exports.createKOT = async (req, res) => {
             outletid: outletid,
             ItemID: item.ItemID,
             TableID: TableID,
+            table_name: table_name,
             Qty: qty,
             RuntimeRate: rate,
             DeptID: item.DeptID,

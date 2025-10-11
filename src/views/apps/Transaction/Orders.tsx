@@ -19,7 +19,8 @@ interface MenuItem {
   isBilled: number;
   isNCKOT: number;
   NCName: string;
-  NCPurpose: string;
+  NCPurpose: string; 
+  table_name?: string;
   isNew?: boolean; // Added to track new items not yet sent to KOT
   alternativeItem?: string;
   modifier?: string[];
@@ -1283,6 +1284,7 @@ const Order = () => {
       const kotPayload = {
         txnId: currentTxnId || 0,
         tableId: resolvedTableId,
+        table_name: selectedTable, // This was correct
         items: combinedPayload,
         outletid: resolvedOutletId,
         userId: userId,

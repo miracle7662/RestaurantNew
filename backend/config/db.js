@@ -744,7 +744,8 @@ CREATE TABLE IF NOT EXISTS TAxnTrnbill (
     TxnID INTEGER PRIMARY KEY AUTOINCREMENT,
     outletid INTEGER,
     TxnNo TEXT,
-    TableID INTEGER,
+    TableID INTEGER, -- The ID of the table from msttablemanagement
+    table_name TEXT, -- The name of the table from msttablemanagement
     Steward TEXT,
     PAX INTEGER,
     AutoKOT BOOLEAN DEFAULT 0,
@@ -802,7 +803,8 @@ CREATE TABLE IF NOT EXISTS TAxnTrnbilldetails (
     TxnID INTEGER NOT NULL,
     outletid INTEGER,
     ItemID INTEGER NOT NULL,
-    TableID INTEGER,
+    TableID INTEGER, -- The ID of the table from msttablemanagement
+    table_name TEXT, -- The name of the table from msttablemanagement
     CGST REAL DEFAULT 0,
     CGST_AMOUNT REAL DEFAULT 0,
     SGST REAL DEFAULT 0,

@@ -91,6 +91,7 @@ export async function getTaxesByOutletAndDepartment(params: { outletid?: number 
 // KOT Management API functions
 export async function createKOT(payload: {
   txnId: number;
+  table_name?: string;
   tableId: number | null;
   items: Array<{
     ItemID: number;
@@ -124,11 +125,13 @@ export async function createKOT(payload: {
   DiscountType?: number;
 }) {
   const backendPayload = {
-    TableID: payload.tableId,
-    details: payload.items,
+    txnId: payload.txnId,
+    tableId: payload.tableId,
+    table_name: payload.table_name,
+    items: payload.items,
     outletid: payload.outletid,
-    UserId: payload.userId,
-    HotelID: payload.hotelId,
+    userId: payload.userId,
+    hotelId: payload.hotelId,
     // Pass NCName and NCPurpose to the backend
     NCName: payload.NCName,
     NCPurpose: payload.NCPurpose,
