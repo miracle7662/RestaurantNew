@@ -311,10 +311,10 @@ const EditSettlementPage = ({ role, currentUser }: any) => {
                 <Col key={mode.id}>
                   <Card
                     onClick={() => handlePaymentModeClick(mode)}
-                    className={`text-center h-100 shadow-sm border-0 ${selectedPaymentModes.includes(mode.mode_name)
-                      ? "border border-primary"
-                      : ""
-                      }`}
+                    className={`text-center h-100 shadow-sm ${selectedPaymentModes.includes(mode.mode_name)
+                        ? "bg-primary bg-opacity-10 border border-primary"
+                        : "border-0"
+                        }`}
                     style={{
                       cursor: "pointer",
                       transition: "transform 0.2s ease, box-shadow 0.2s ease",

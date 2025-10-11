@@ -3617,9 +3617,9 @@ const ReversedItemsDisplay = ({ groupedItems }: { groupedItems: ReversedMenuItem
           <span style={{ textAlign: 'left' }}>
             {item.name}
             <span className="badge bg-danger fw-bold ms-1">
-              Reversed {item.qty > 1 ? item.qty : ''}
+              Reversed {item.qty > 0 ? item.qty : ''}
             </span>
-            {item.kotNo && <span className="badge bg-secondary ms-1">KOT {item.kotNo}</span>}
+          
           </span>
           <div className="text-center d-flex justify-content-center align-items-center gap-2">
             <button
