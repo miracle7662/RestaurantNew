@@ -2736,7 +2736,13 @@ const Order = () => {
               </div>
             )}
             {showPendingOrdersView && (
-              <div className="rounded shadow-sm p-3 mt-0">
+              <div
+                className="rounded shadow-sm p-3 mt-0"
+                style={{
+                  maxHeight: 'calc(100vh - 150px)', // Adjust as needed
+                  overflowY: 'auto',
+                }}
+              >
                 <style>{`
 
       .order-card {
@@ -2750,6 +2756,7 @@ const Order = () => {
         background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
 
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        
 
       }
 
@@ -2864,9 +2871,7 @@ const Order = () => {
                       <Col key={order.id}>
                         <Card className="order-card h-100">
                           <Card.Header className="order-card-header">
-                            <div>
-                              <strong>KOT:</strong> {order.KOTNo || 'N/A'}
-                            </div>
+                            
                             <div>
                               <strong>Customer:</strong> {order.customer.name || ''}
                               <br />
