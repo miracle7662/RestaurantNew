@@ -2735,7 +2735,7 @@ const Order = () => {
             )}
             {showPendingOrdersView && (
               <div className="rounded shadow-sm p-3 mt-0">
-                <style>{`
+                 <style>{`
 
       .order-card {
 
@@ -2879,9 +2879,9 @@ const Order = () => {
                             <div className="mt-auto">
                               <div className="d-flex justify-content-between fw-bold border-top pt-2">
                                 <span> {order.items.reduce((acc: number, item: any) => acc + item.qty, 0)}</span>
-                                <span>₹{order.total.toFixed(2)}</span>
+                                <span> ₹{order.total.toFixed(2)}</span>
                               </div>
-                              <div className="d-flex gap-2 mt-3">
+                                <div className="d-flex gap-2 mt-3">
   <Button 
     variant="danger" 
     className="flex-fill" 
