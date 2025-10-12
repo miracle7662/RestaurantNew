@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Button, Form, Modal, Table, Card, Row, Col, Spinner } from "react-bootstrap";
-import OrderDetails from "./OrderDetails";
+
 import { fetchOutletsForDropdown } from "@/utils/commonfunction";
 import { useAuthContext } from "@/common";
 import { getUnbilledItemsByTable } from "@/common/api/orders";
@@ -8,6 +8,7 @@ import { OutletData } from "@/common/api/outlet";
 import AddCustomerModal from "./Customers";
 import { toast } from "react-hot-toast";
 import { createKOT, getPendingOrders, getSavedKOTs, getTaxesByOutletAndDepartment } from "@/common/api/orders";
+import OrderDetails from "./OrderDetails";
 import F8PasswordModal from "@/components/F8PasswordModal";
 import KotTransfer from "./KotTransfer";
 
@@ -65,6 +66,123 @@ interface PaymentMode {
   paymenttypeid: number;
   mode_name: string;
 }
+
+const BillingPage = () => {
+  const [bills, setBills] = useState<any[]>([]);
+  const [filter, setFilter] = useState("");
+
+  // Load all bills from localStorage
+  useEffect(() => {
+    const savedQuickBills = JSON.parse(localStorage.getItem("quickBills") || "[]");
+    const savedNormalBills = JSON.parse(localStorage.getItem("normalBills") || "[]");
+    setBills([...savedQuickBills, ...savedNormalBills]);
+  }, []);
+
+  // Filter bills by search input
+  const filteredBills = bills.filter(
+    (bill) =>
+      bill.billNo.toLowerCase().includes(filter.toLowerCase()) ||
+      bill.customerName?.toLowerCase().includes(filter.toLowerCase()) ||
+      bill.customerMobile?.includes(filter)
+  );
+
+  return (
+    <div className="container mt-4">
+      <style>{`
+        .billing-page {
+          background: #f9fbfc;
+          padding: 20px;
+          border-radius: 12px;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+        .scroll-area {
+          max-height: 70vh;
+          overflow-y: auto;
+          border-radius: 8px;
+        }
+        .scroll-area::-webkit-scrollbar {
+          width: 8px;
+        }
+        .scroll-area::-webkit-scrollbar-thumb {
+          background: #90caf9;
+          border-radius: 10px;
+        }
+        .scroll-area::-webkit-scrollbar-thumb:hover {
+          background: #64b5f6;
+        }
+        .page-header {
+          background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
+          color: white;
+          padding: 12px 16px;
+          border-radius: 8px 8px 0 0;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+        .search-input {
+          width: 250px;
+          border-radius: 20px;
+        }
+      `}</style>
+
+      <Card className="billing-page">
+        <div className="page-header">
+          <h4 className="mb-0">All Bills</h4>
+          <Form.Control
+            type="text"
+            placeholder="Search bill or customer..."
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            className="search-input"
+          />
+        </div>
+
+        <div className="scroll-area mt-3">
+          <Table bordered hover responsive size="sm">
+            <thead className="table-primary">
+              <tr>
+                <th>Bill No.</th>
+                <th>Items</th>
+                <th>Customer Name</th>
+                <th>Mobile No.</th>
+                <th>Payment Mode</th>
+                <th>Total (₹)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredBills.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="text-center text-muted py-3">
+                    No bills found
+                  </td>
+                </tr>
+              ) : (
+                filteredBills.map((bill) => (
+                  <tr key={bill.id}>
+                    <td>{bill.billNo}</td>
+                    <td>
+                      {bill.items.map((item: any) => item.name).join(", ")}
+                    </td>
+                    <td>{bill.customerName || "N/A"}</td>
+                    <td>{bill.customerMobile || "N/A"}</td>
+                    <td>{bill.paymentMode || "Cash"}</td>
+                    <td>{bill.grandTotal ? bill.grandTotal.toFixed(2) : "0.00"}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </Table>
+        </div>
+
+        <div className="text-end mt-3">
+          <Button variant="outline-primary" onClick={() => window.print()}>
+            Print Summary
+          </Button>
+        </div>
+      </Card>
+    </div>
+  );
+};
 
 const Order = () => {
   const [selectedTable, setSelectedTable] = useState<string | null>('');
@@ -2737,11 +2855,8 @@ const Order = () => {
             )}
             {showPendingOrdersView && (
               <div
-                className="rounded shadow-sm p-3 mt-0"
-                style={{
-                  maxHeight: 'calc(100vh - 150px)', // Adjust as needed
-                  overflowY: 'auto',
-                }}
+                className="rounded shadow-sm p-3 mt-0 bg-light"
+                style={{ maxHeight: 'calc(100vh - 150px)', overflowY: 'auto' }}
               >
                 <style>{`
 
@@ -2919,6 +3034,10 @@ const Order = () => {
                 )}
               </div>
             )}
+            {activeTab === 'Billing' && (
+              <BillingPage />
+            )}
+            
             {showOrderDetails && (
               <div className="rounded shadow-sm p-1 mt-0">
                 <OrderDetails
