@@ -5,7 +5,7 @@ import { fetchOutletsForDropdown } from "@/utils/commonfunction";
 import { useAuthContext } from "@/common";
 import { getUnbilledItemsByTable } from "@/common/api/orders";
 import { OutletData } from "@/common/api/outlet";
-import AddCustomerModal from "./Customers"; 
+import AddCustomerModal from "./Customers";
 import { toast } from "react-hot-toast";
 import { createKOT, getPendingOrders, getSavedKOTs, getTaxesByOutletAndDepartment } from "@/common/api/orders";
 import F8PasswordModal from "@/components/F8PasswordModal";
@@ -19,7 +19,7 @@ interface MenuItem {
   isBilled: number;
   isNCKOT: number;
   NCName: string;
-  NCPurpose: string; 
+  NCPurpose: string;
   table_name?: string;
   isNew?: boolean; // Added to track new items not yet sent to KOT
   alternativeItem?: string;
@@ -191,21 +191,21 @@ const Order = () => {
         const billedBillData = await billedBillRes.json();
         if (billedBillData.success && billedBillData.data) {
           const { details, ...header } = billedBillData.data;
-        const fetchedItems: MenuItem[] = details.map((item: any) => ({
-          id: item.ItemID,
-          txnDetailId: item.TXnDetailID,
-          name: item.ItemName || 'Unknown Item',
-          price: item.RuntimeRate,
-          qty: (Number(item.Qty) || 0) - (Number(item.RevQty) || 0), // Calculate net quantity
-          isBilled: item.isBilled, // Use the isBilled flag from the item itself
-          revQty: Number(item.RevQty) || 0, // Store revQty
-          isNCKOT: item.isNCKOT,
-          NCName: '',
-          NCPurpose: '',
-          isNew: false, // All items are existing
-          originalQty: item.Qty,
-          kotNo: item.KOTNo, // Use KOTNo from the item detail
-        })).filter((item: any) => item.qty > 0);
+          const fetchedItems: MenuItem[] = details.map((item: any) => ({
+            id: item.ItemID,
+            txnDetailId: item.TXnDetailID,
+            name: item.ItemName || 'Unknown Item',
+            price: item.RuntimeRate,
+            qty: (Number(item.Qty) || 0) - (Number(item.RevQty) || 0), // Calculate net quantity
+            isBilled: item.isBilled, // Use the isBilled flag from the item itself
+            revQty: Number(item.RevQty) || 0, // Store revQty
+            isNCKOT: item.isNCKOT,
+            NCName: '',
+            NCPurpose: '',
+            isNew: false, // All items are existing
+            originalQty: item.Qty,
+            kotNo: item.KOTNo, // Use KOTNo from the item detail
+          })).filter((item: any) => item.qty > 0);
 
           setItems(fetchedItems);
           setTxnNo(header.TxnNo); // Set TxnNo from the fetched bill header
@@ -1651,14 +1651,14 @@ const Order = () => {
 
       toast.success('Discount applied successfully!');
       setShowDiscountModal(false);
-       // Reset UI to go back to the table selection screen
+      // Reset UI to go back to the table selection screen
       setItems([]);
       setSelectedTable(null);
       setShowOrderDetails(false);
       setCurrentKOTNo(null);
       setCurrentKOTNos([]);
       setTxnNo(null);
-      
+
       if (selectedTableId) {
         refreshItemsForTable(selectedTableId);
       }
@@ -1887,15 +1887,15 @@ const Order = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ settlements }),
       });
-    if (response.ok) {
-      toast.success('Payment settled successfully!');
-      if (pendingType) {
-        fetchPendingOrders(pendingType);
+      if (response.ok) {
+        toast.success('Payment settled successfully!');
+        if (pendingType) {
+          fetchPendingOrders(pendingType);
+        }
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.message || 'Failed to settle payment');
       }
-    } else {
-      const errorData = await response.json();
-      toast.error(errorData.message || 'Failed to settle payment');
-    }
     } catch (error) {
       console.error('Error settling payment:', error);
       toast.error('Error settling payment');
@@ -2624,7 +2624,7 @@ const Order = () => {
                 </ul>
                 <div
                   className="d-flex flex-column justify-content-start align-items-start rounded shadow-sm p-3 mt-3"
-                > 
+                >
                   {loading ? (
                     <p className="text-center text-muted mb-0">Loading tables...</p>
                   ) : activeNavTab === 'ALL' ? (
@@ -2727,7 +2727,7 @@ const Order = () => {
                     </div>
                   ) : (
                     <p className="text-center text-muted mb-0">
-                     
+
                     </p>
                   )}
                 </div>
@@ -2735,7 +2735,7 @@ const Order = () => {
             )}
             {showPendingOrdersView && (
               <div className="rounded shadow-sm p-3 mt-0">
-                 <style>{`
+                <style>{`
 
       .order-card {
 
@@ -2881,22 +2881,22 @@ const Order = () => {
                                 <span> {order.items.reduce((acc: number, item: any) => acc + item.qty, 0)}</span>
                                 <span> ₹{order.total.toFixed(2)}</span>
                               </div>
-                                <div className="d-flex gap-2 mt-3">
-  <Button 
-    variant="danger" 
-    className="flex-fill" 
-    onClick={() => handlePendingMakePayment(order)}
-  >
-    Make Payment
-  </Button>
-  <Button 
-    variant="outline-primary" 
-    className="flex-fill" 
-    onClick={() => handlePrintBill()}
-  >
-    Print Bill
-  </Button>
-</div>
+                              <div className="d-flex gap-2 mt-3">
+                                <Button
+                                  variant="danger"
+                                  className="flex-fill"
+                                  onClick={() => handlePendingMakePayment(order)}
+                                >
+                                  Make Payment
+                                </Button>
+                                <Button
+                                  variant="outline-primary"
+                                  className="flex-fill"
+                                  onClick={() => handlePrintBill()}
+                                >
+                                  Print Bill
+                                </Button>
+                              </div>
                             </div>
                           </Card.Body>
                         </Card>
@@ -3236,7 +3236,7 @@ const Order = () => {
                   className="form-control"
                   style={{ width: '150px', height: '30px', fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}
                 />
-                
+
                 <div className="d-flex align-items-center ms-2" style={{ position: 'relative', overflow: 'visible' }}>
                   {/* Hamburger Button */}
                   <Button
@@ -3428,7 +3428,7 @@ const Order = () => {
                             fill="currentColor"
                             viewBox="0 0 16 16"
                           >
-                            <path d="M1 2.5A1.5 1.5 0 0 1 2.5 1h3A1.5 1.5 0 0 1 7 2.5v3A1.5 1.5 0 0 1 5.5 7h-3A1.5 1.5 0 0 1 1 5.5v-3zM2.5 2a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3zm6.5.5A1.5 1.5 0 0 1 10.5 1h3A1.5 1.5 0 0 1 15 2.5v3A1.5 1.5 0 0 1 13.5 7h-3A1.5 1.5 0 0 1 9 5.5v-3zm1.5-.5a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3zM1 10.5A1.5 1.5 0 0 1 2.5 9h3A1.5 1.5 0 0 1 7 10.5v3A1.5 1.5 0 0 1 5.5 15h-3A1.5 1.5 0 0 1 1 13.5v-3zm1.5-.5a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3zm6.5.5A1.5 1.5 0 0 1 10.5 9h3a1.5 1.5 0 0 1 1.5 1.5v3a1.5 1.5 0 0 1-1.5 1.5h-3A1.5 1.5 0 0 1 9 13.5v-3zm1.5-.5a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3z"/>
+                            <path d="M1 2.5A1.5 1.5 0 0 1 2.5 1h3A1.5 1.5 0 0 1 7 2.5v3A1.5 1.5 0 0 1 5.5 7h-3A1.5 1.5 0 0 1 1 5.5v-3zM2.5 2a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3zm6.5.5A1.5 1.5 0 0 1 10.5 1h3A1.5 1.5 0 0 1 15 2.5v3A1.5 1.5 0 0 1 13.5 7h-3A1.5 1.5 0 0 1 9 5.5v-3zm1.5-.5a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3zM1 10.5A1.5 1.5 0 0 1 2.5 9h3A1.5 1.5 0 0 1 7 10.5v3A1.5 1.5 0 0 1 5.5 15h-3A1.5 1.5 0 0 1 1 13.5v-3zm1.5-.5a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3zm6.5.5A1.5 1.5 0 0 1 10.5 9h3a1.5 1.5 0 0 1 1.5 1.5v3a1.5 1.5 0 0 1-1.5 1.5h-3A1.5 1.5 0 0 1 9 13.5v-3zm1.5-.5a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3z" />
                           </svg>
                         </Button>
 
@@ -3898,7 +3898,7 @@ const ReversedItemsDisplay = ({ groupedItems }: { groupedItems: ReversedMenuItem
             <span className="badge bg-danger fw-bold ms-1">
               Reversed {item.qty > 0 ? item.qty : ''}
             </span>
-          
+
           </span>
           <div className="text-center d-flex justify-content-center align-items-center gap-2">
             <button
