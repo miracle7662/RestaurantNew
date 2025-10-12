@@ -718,7 +718,7 @@ exports.createKOT = async (req, res) => {
   try {
     console.log('Received createKOT body:', JSON.stringify(req.body, null, 2));
     // Correctly destructure from the frontend payload which uses camelCase (e.g., tableId, userId)
-    const { outletid, tableId: TableID, table_name, userId: UserId, hotelId: HotelID, NCName, NCPurpose, DiscPer, Discount, DiscountType, items: details = [] } = req.body;
+    const { outletid, tableId: TableID, table_name, userId: UserId, hotelId: HotelID, NCName, NCPurpose, DiscPer, Discount, DiscountType, CustomerName, MobileNo, items: details = [] } = req.body;
 
     console.log("Received Discount Data for KOT:", { DiscPer, Discount, DiscountType });
 
@@ -739,7 +739,7 @@ exports.createKOT = async (req, res) => {
       let existingBill = null;
       // Only search for an existing bill if it's a Dine-in order (i.e., has a TableID).
       // For Pickup/Delivery, always create a new bill.
-      if (TableID) {
+      if (TableID && TableID > 0) {
         existingBill = db.prepare(`
           SELECT TxnID, DiscPer, Discount, DiscountType, isNCKOT FROM TAxnTrnbill
           WHERE TableID = ? AND isCancelled = 0 AND isSetteled = 0 ORDER BY TxnID DESC LIMIT 1
@@ -761,9 +761,11 @@ exports.createKOT = async (req, res) => {
               DiscountType = ?,
               NCName = ?,
               NCPurpose = ?,
-              isNCKOT = ?
+              isNCKOT = ?,
+              CustomerName = COALESCE(?, CustomerName),
+              MobileNo = COALESCE(?, MobileNo)
             WHERE TxnID = ?
-        `).run(table_name, finalDiscPer, finalDiscount, finalDiscountType, NCName || null, NCPurpose || null, toBool(isHeaderNCKOT || existingBill.isNCKOT), txnId);
+        `).run(table_name, finalDiscPer, finalDiscount, finalDiscountType, NCName || null, NCPurpose || null, toBool(isHeaderNCKOT || existingBill.isNCKOT), CustomerName, MobileNo, txnId);
 
       } else {
         console.log(`No existing bill for table ${TableID}. Creating a new one.`);
@@ -774,11 +776,11 @@ exports.createKOT = async (req, res) => {
         const insertHeaderStmt = db.prepare(`
           INSERT INTO TAxnTrnbill (
             outletid, TxnNo, TableID, table_name, UserId, HotelID, TxnDatetime,
-            isBilled, isCancelled, isSetteled, status, AutoKOT,
+            isBilled, isCancelled, isSetteled, status, AutoKOT, CustomerName, MobileNo,
             NCName, NCPurpose, DiscPer, Discount, DiscountType, isNCKOT
-          ) VALUES (?, ?, ?, ?, ?, ?, datetime('now'), 0, 0, 0, 1, 1, ?, ?, ?, ?, ?, ?)
+          ) VALUES (?, ?, ?, ?, ?, ?, datetime('now'), 0, 0, 0, 1, 1, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
-        const result = insertHeaderStmt.run(outletid, txnNo, Number(TableID), table_name, UserId, HotelID, NCName || null, NCPurpose || null, finalDiscPer, finalDiscount, finalDiscountType, toBool(isHeaderNCKOT));
+        const result = insertHeaderStmt.run(outletid, txnNo, Number(TableID), table_name, UserId, HotelID, CustomerName, MobileNo, NCName || null, NCPurpose || null, finalDiscPer, finalDiscount, finalDiscountType, toBool(isHeaderNCKOT));
         txnId = result.lastInsertRowid;
         db.prepare('UPDATE msttablemanagement SET status = 1 WHERE tableid = ?').run(Number(TableID));
         console.log(`Created new bill. TxnID: ${txnId}. Updated table ${TableID} status.`);
@@ -1816,6 +1818,8 @@ exports.getPendingOrders = async (req, res) => {
     const sql = `
       SELECT
         b.*,
+        b.CustomerName,
+        b.MobileNo,
         GROUP_CONCAT(
           DISTINCT json_object(
             'TXnDetailID', d.TXnDetailID,
@@ -1838,7 +1842,8 @@ exports.getPendingOrders = async (req, res) => {
     const orders = rows.map(r => ({
       id: r.TxnID, // Add the transaction ID
       txnId: r.TxnID,
-      kotNo: r.TxnNo,
+      kotNo: r.TxnNo, // This is the Bill No.
+      KOTNo: r.KOTNo, // This is the actual KOT No.
       customer: {
         name: r.CustomerName || '',
         mobile: r.MobileNo || ''

@@ -123,6 +123,8 @@ export async function createKOT(payload: {
   DiscPer?: number;
   Discount?: number;
   DiscountType?: number;
+  CustomerName?: string;
+  MobileNo?: string;
 }) {
   const backendPayload = {
     txnId: payload.txnId,
@@ -138,6 +140,8 @@ export async function createKOT(payload: {
     DiscPer: payload.DiscPer,
     Discount: payload.Discount,
     DiscountType: payload.DiscountType,
+    CustomerName: payload.CustomerName,
+    MobileNo: payload.MobileNo,
   };
   const { data } = await API.post('/TAxnTrnbill/kot', backendPayload);
   return data;

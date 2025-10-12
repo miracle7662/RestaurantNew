@@ -1311,6 +1311,8 @@ const Order = () => {
         DiscPer: DiscPer,
         Discount: discount,
         DiscountType: DiscountType,
+        CustomerName: customerName,
+        MobileNo: mobileNumber,
       };
 
       console.log('Sending payload to createKOT:', JSON.stringify(kotPayload, null, 2));
@@ -2862,8 +2864,14 @@ const Order = () => {
                       <Col key={order.id}>
                         <Card className="order-card h-100">
                           <Card.Header className="order-card-header">
-                            <strong>Customer:</strong> {order.customer.name} <br />
-                            <strong>Mobile:</strong> {order.customer.mobile}
+                            <div>
+                              <strong>KOT:</strong> {order.KOTNo || 'N/A'}
+                            </div>
+                            <div>
+                              <strong>Customer:</strong> {order.customer.name || ''}
+                              <br />
+                              <strong>Mobile:</strong> {order.customer.mobile || 'N/A'}
+                            </div>
                           </Card.Header>
                           <Card.Body className="d-flex flex-column">
                             <div className="order-card-items mb-3">
