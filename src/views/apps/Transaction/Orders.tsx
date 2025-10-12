@@ -2736,23 +2736,110 @@ const Order = () => {
             {showPendingOrdersView && (
               <div className="rounded shadow-sm p-3 mt-0">
                 <style>{`
-                  .order-card {
-                    border: 1px solid #dee2e6;
-                    border-radius: 0.375rem;
-                    transition: box-shadow .15s ease-in-out;
-                  }
-                  .order-card:hover {
-                    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
-                  }
-                  .order-card-header {
-                    background-color: rgba(0,0,0,.03);
-                    border-bottom: 1px solid #dee2e6;
-                  }
-                  .order-card-items {
-                    max-height: 200px;
-                    overflow-y: auto;
-                  }
-                `}</style>
+
+      .order-card {
+
+        border: 2px solid #e3f2fd;
+
+        border-radius: 12px;
+
+        transition: all 0.3s ease-in-out;
+
+        background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+
+      }
+
+      .order-card:hover {
+
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+
+        transform: translateY(-2px);
+
+        border-color: #2196f3;
+
+      }
+
+      .order-card-header {
+
+        background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
+
+        color: white;
+
+        border-bottom: none;
+
+        border-radius: 10px 10px 0 0;
+
+        padding: 12px 15px;
+
+      }
+
+      .order-card-header strong {
+
+        color: #ffffff;
+
+      }
+
+      .order-card-items {
+
+        max-height: 200px;
+
+        overflow-y: auto;
+
+        padding: 10px;
+
+      }
+
+      .order-card-items::-webkit-scrollbar {
+
+        width: 8px;
+
+      }
+
+      .order-card-items::-webkit-scrollbar-track {
+
+        background: #f1f1f1;
+
+        border-radius: 10px;
+
+      }
+
+      .order-card-items::-webkit-scrollbar-thumb {
+
+        background: #888;
+
+        border-radius: 10px;
+
+      }
+
+      .order-card-items::-webkit-scrollbar-thumb:hover {
+
+        background: #555;
+
+      }
+
+      .order-card .btn-danger {
+
+        background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
+
+        border: none;
+
+        border-radius: 8px;
+
+        transition: all 0.2s ease;
+
+      }
+
+      .order-card .btn-danger:hover {
+
+        background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%);
+
+        transform: scale(1.05);
+
+      }
+
+    `}</style>
                 <div className="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
                   <h4 className="mb-0">Pending {pendingType === 'pickup' ? 'Pickup' : 'Delivery'} Orders</h4>
                   <Button variant="outline-secondary" onClick={handleBackToTables}>
@@ -2791,10 +2878,25 @@ const Order = () => {
                             </div>
                             <div className="mt-auto">
                               <div className="d-flex justify-content-between fw-bold border-top pt-2">
-                                <span>Total Qty: {order.items.reduce((acc: number, item: any) => acc + item.qty, 0)}</span>
-                                <span>Total: ₹{order.total.toFixed(2)}</span>
+                                <span> {order.items.reduce((acc: number, item: any) => acc + item.qty, 0)}</span>
+                                <span>₹{order.total.toFixed(2)}</span>
                               </div>
-                              <Button variant="danger" className="w-100 mt-3" onClick={() => handlePendingMakePayment(order)}>Make Payment</Button>
+                              <div className="d-flex gap-2 mt-3">
+  <Button 
+    variant="danger" 
+    className="flex-fill" 
+    onClick={() => handlePendingMakePayment(order)}
+  >
+    Make Payment
+  </Button>
+  <Button 
+    variant="outline-primary" 
+    className="flex-fill" 
+    onClick={() => handlePrintBill()}
+  >
+    Print Bill
+  </Button>
+</div>
                             </div>
                           </Card.Body>
                         </Card>
