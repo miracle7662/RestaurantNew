@@ -940,13 +940,15 @@ const Order = () => {
     console.log('Tab clicked:', tab);
     setActiveTab(tab);
     setShowPendingOrdersView(false); // Reset pending orders view
-    if (['Pickup', 'Delivery', 'Quick Bill', 'Order/KOT', 'Billing'].includes(tab)) {
+    if (['Pickup', 'Delivery', 'Quick Bill', 'Order/KOT'].includes(tab)) {
       setSelectedTable(null);
       setItems([]);
       setShowOrderDetails(true);
     } else {
       setShowOrderDetails(false);
-      setActiveNavTab('ALL'); // Go back to Dine-in tables view
+      if (tab === 'Dine-in') {
+        setActiveNavTab('ALL'); // Go back to Dine-in tables view
+      }
     }
   };
 
