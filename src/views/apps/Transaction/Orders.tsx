@@ -1337,8 +1337,12 @@ const Order = () => {
         .find((t: any) => t && t.table_name && t.table_name === selectedTable)
         || (Array.isArray(tableItems) ? tableItems.find((t: any) => t && t.table_name === selectedTable) : undefined);
       const resolvedTableId = selectedTableRecord ? Number((selectedTableRecord as any).tableid || (selectedTableRecord as any).tablemanagementid) : null;
-      const resolvedDeptId = selectedTableRecord ? Number((selectedTableRecord as any).departmentid) || selectedDeptId || undefined : undefined;
-      const resolvedOutletId = selectedTableRecord?.outletid ? Number(selectedTableRecord.outletid) : (selectedOutletId || Number(user?.outletid) || null);
+      const resolvedDeptId = selectedTableRecord ? Number((selectedTableRecord as any).departmentid) || selectedDeptId || undefined : selectedDeptId || undefined;
+      const resolvedOutletId = selectedTableRecord?.outletid
+        ? Number(selectedTableRecord.outletid)
+        : activeTab === 'Pickup' || activeTab === 'Delivery'
+          ? Number(user?.outletid) || selectedOutletId
+          : (selectedOutletId || Number(user?.outletid) || null);
 
       const userId = user?.id || null;
       const hotelId = user?.hotelid || null;

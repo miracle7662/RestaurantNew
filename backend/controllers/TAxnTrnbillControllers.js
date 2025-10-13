@@ -769,9 +769,11 @@ exports.createKOT = async (req, res) => {
 
       } else {
         console.log(`No existing bill for table ${TableID}. Creating a new one.`);
+        // For Pickup/Delivery, outletid comes from the payload, not a table.
+        const headerOutletId = outletid || (details.length > 0 ? details[0].outletid : null);
         let txnNo = null;
-        if (outletid) {
-          txnNo = generateTxnNo(outletid);
+        if (headerOutletId) {
+          txnNo = generateTxnNo(headerOutletId);
         }
         const insertHeaderStmt = db.prepare(`
           INSERT INTO TAxnTrnbill (
@@ -780,7 +782,7 @@ exports.createKOT = async (req, res) => {
             NCName, NCPurpose, DiscPer, Discount, DiscountType, isNCKOT
           ) VALUES (?, ?, ?, ?, ?, ?, datetime('now'), 0, 0, 0, 1, 1, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
-        const result = insertHeaderStmt.run(outletid, txnNo, Number(TableID), table_name, UserId, HotelID, CustomerName, MobileNo, NCName || null, NCPurpose || null, finalDiscPer, finalDiscount, finalDiscountType, toBool(isHeaderNCKOT));
+        const result = insertHeaderStmt.run(headerOutletId, txnNo, Number(TableID), table_name, UserId, HotelID, CustomerName, MobileNo, NCName || null, NCPurpose || null, finalDiscPer, finalDiscount, finalDiscountType, toBool(isHeaderNCKOT));
         txnId = result.lastInsertRowid;
         db.prepare('UPDATE msttablemanagement SET status = 1 WHERE tableid = ?').run(Number(TableID));
         console.log(`Created new bill. TxnID: ${txnId}. Updated table ${TableID} status.`);
