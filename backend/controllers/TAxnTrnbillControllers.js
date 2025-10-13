@@ -2022,4 +2022,43 @@ exports.getBillsByType = async (req, res) => {
   }
 };
 
+/* -------------------------------------------------------------------------- */
+/* 18) getAllBillsForBillingTab → fetch all bills for the billing tab view    */
+/* -------------------------------------------------------------------------- */
+exports.getAllBillsForBillingTab = async (req, res) => {
+  try {
+    // This query fetches all completed (billed or settled) transactions.
+    const sql = `
+      SELECT 
+        b.TxnID,
+        b.TxnNo,
+        COALESCE(b.Order_Type, 'Dine-in') as OrderType,
+        b.CustomerName,
+        b.MobileNo as Mobile,
+        (
+          SELECT GROUP_CONCAT(s.PaymentType) 
+          FROM TrnSettlement s 
+          WHERE s.OrderNo = b.TxnNo
+        ) as PaymentMode,
+        b.Amount as GrandTotal,
+        b.TxnDatetime as CreatedDate
+      FROM TAxnTrnbill b
+      WHERE b.isCancelled = 0 AND (b.isBilled = 1 OR b.isSetteled = 1)
+      ORDER BY b.TxnDatetime DESC
+    `;
+
+    const rows = db.prepare(sql).all();
+
+    // The frontend expects 'data.data', so we wrap it.
+    res.json(ok('Fetched all bills for billing tab', rows));
+  } catch (error) {
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to fetch all bills', 
+      data: null, 
+      error: error.message 
+    });
+  }
+};
+
 module.exports = exports

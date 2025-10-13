@@ -1,74 +1,47 @@
 const express = require('express')
 const router = express.Router()
-const controller = require('../controllers/TAxnTrnbillControllers')
+const controller = require('../controllers/TAxnTrnbillControllers');
 
-// Create new bill
-router.post('/', controller.createBill)
+// --- Bill & KOT Creation ---
+router.post('/', controller.createBill); // Create a new bill record
+router.post('/kot', controller.createKOT); // Create or update a KOT, which may create a bill
+router.post('/generateTxnNo', controller.generateTxnNo); // Generate TxnNo and create a bill record
 
-// Generate TxnNo and create bill record
-router.post('/generateTxnNo', controller.generateTxnNo)
+// --- Bill & KOT Retrieval ---
+router.get('/', controller.getAllBills); // Get all bills (can be filtered)
+router.get('/all', controller.getAllBillsForBillingTab); // Optimized for the "Billing" tab
+router.get('/by-type/:type', controller.getBillsByType); // Get bills by Order_Type (e.g., "Quick Bill")
+router.get('/kots/saved', controller.getSavedKOTs); // Get saved (unbilled) KOTs
+router.get('/latest-kot', controller.getLatestKOTForTable); // Get latest KOT for a table
+router.get('/unbilled-items/:tableId', controller.getUnbilledItemsByTable); // Get unbilled items for a table
+router.get('/billed-bill/by-table/:tableId', controller.getLatestBilledBillForTable); // Get latest billed (but unsettled) bill for a table
 
-router.get('/pending-orders', controller.getPendingOrders);
-router.put('/:id/update', controller.updatePendingOrder);
-router.get('/:id/linked-pending-items', controller.getLinkedPendingItems);
+// --- Pending Orders (Pickup/Delivery) ---
+router.get('/pending-orders', controller.getPendingOrders); // Get pending pickup/delivery orders
+router.put('/:id/update', controller.updatePendingOrder); // Update a pending order
+router.get('/:id/linked-pending-items', controller.getLinkedPendingItems); // Get linked items for a pending order
 
-// Get all bills
-router.get('/', controller.getAllBills)
+// --- Day End ---
+router.post('/save', controller.saveDayEnd); // Save day end report
 
-// Get bills by type (e.g., Quick Bill)
-router.get('/by-type/:type', controller.getBillsByType);
+// --- Specific Bill Actions (by TxnID) ---
+router.get('/:id', controller.getBillById); // Get a single bill by its TxnID
+router.put('/:id', controller.updateBill); // Generic update for a bill
+router.delete('/:id', controller.deleteBill); // Delete a bill
 
-// Specific :id routes must come before the generic /:id route
-// Mark bill as billed (simple update)
-router.put('/:id/mark-billed', controller.markBillAsBilled);
+// --- Item & Status Updates ---
+router.post('/:id/items', controller.addItemToBill); // Add items to an existing bill
+router.put('/:id/mark-billed', controller.markBillAsBilled); // Mark a bill and its items as "Billed"
+router.put('/:id/print', controller.printBill); // Alias for mark-billed
+router.put('/:id/items/billed', controller.updateBillItemsIsBilled); // Mark all items in a bill as "Billed"
 
-// Print bill and mark as billed
-router.put('/:id/print', controller.printBill);
+// --- Financial Actions ---
+router.post('/:id/settle', controller.settleBill); // Settle a bill with payments
+router.put('/:id/apply-nckot', controller.applyNCKOT); // Apply NCKOT to an entire bill
+router.post('/:id/discount', controller.applyDiscountToBill); // Apply a discount to a bill
 
-// Get bill by id (with details)
-router.get('/:id', controller.getBillById)
+// --- Reversal / F8 Actions ---
+router.post('/reverse-qty', controller.handleF8KeyPress); // Legacy F8 handler
+router.post('/reverse-quantity', controller.reverseQuantity); // Simple reverse quantity for one item
 
-// Settle bill (multiple payment modes supported)
-router.post('/:id/settle', controller.settleBill)
-
-// Apply NCKOT to an entire existing bill
-router.put('/:id/apply-nckot', controller.applyNCKOT);
-
-// Apply Discount to an existing bill
-router.post('/:id/discount', controller.applyDiscountToBill);
-
-// Add items to bill with isBilled and isNCKOT logic
-router.post('/:id/items', controller.addItemToBill)
-
-// Update isBilled = 1 for all items in a bill
-router.put('/:id/items/billed', controller.updateBillItemsIsBilled)
-
-// Route for next KOT number
-
-
-
-
-// KOT Management Routes
-router.post('/kot', controller.createKOT);
-router.get('/kots/saved', controller.getSavedKOTs);
-router.get('/latest-kot', controller.getLatestKOTForTable);
-
-// Get unbilled items by table
-router.get('/unbilled-items/:tableId', controller.getUnbilledItemsByTable);
-
-// F8 Key Press - Reverse Quantity Mode (also handles individual item reverse)
-router.post('/reverse-qty', controller.handleF8KeyPress);
-
-// Simple reverse quantity for individual items
-router.post('/reverse-quantity', controller.reverseQuantity);
-
-// Get latest billed bill for a table
-router.get('/billed-bill/by-table/:tableId', controller.getLatestBilledBillForTable);
-
-// Generic update bill route (must be last of the /:id routes to avoid conflicts)
-router.put('/:id', controller.updateBill)
-
-// Save day end
-router.post('/save', controller.saveDayEnd);
-
-module.exports = router
+module.exports = router;
