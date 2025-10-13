@@ -770,6 +770,7 @@ CREATE TABLE IF NOT EXISTS TAxnTrnbill (
     isSetteled BOOLEAN DEFAULT 0,
     isBilled BOOLEAN DEFAULT 0,
     BillCount INTEGER DEFAULT 0,
+    Order_Type TEXT,
     isNCKOT BOOLEAN DEFAULT 0,
     isCancelled BOOLEAN DEFAULT 0,
     isPickup BOOLEAN DEFAULT 0,

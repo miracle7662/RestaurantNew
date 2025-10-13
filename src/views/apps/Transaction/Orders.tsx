@@ -1437,6 +1437,7 @@ const Order = () => {
         DiscountType: DiscountType,
         CustomerName: customerName,
         MobileNo: mobileNumber,
+        Order_Type: activeTab, // Add the active tab as Order_Type
       };
 
       console.log('Sending payload to createKOT:', JSON.stringify(kotPayload, null, 2));

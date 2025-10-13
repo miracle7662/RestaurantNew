@@ -718,7 +718,7 @@ exports.createKOT = async (req, res) => {
   try {
     console.log('Received createKOT body:', JSON.stringify(req.body, null, 2));
     // Correctly destructure from the frontend payload which uses camelCase (e.g., tableId, userId)
-    const { outletid, tableId: TableID, table_name, userId: UserId, hotelId: HotelID, NCName, NCPurpose, DiscPer, Discount, DiscountType, CustomerName, MobileNo, items: details = [] } = req.body;
+    const { outletid, tableId: TableID, table_name, userId: UserId, hotelId: HotelID, NCName, NCPurpose, DiscPer, Discount, DiscountType, CustomerName, MobileNo, Order_Type, items: details = [] } = req.body;
 
     console.log("Received Discount Data for KOT:", { DiscPer, Discount, DiscountType });
 
@@ -759,13 +759,14 @@ exports.createKOT = async (req, res) => {
               DiscPer = ?, 
               Discount = ?, 
               DiscountType = ?,
+              Order_Type = ?,
               NCName = ?,
               NCPurpose = ?,
               isNCKOT = ?,
               CustomerName = COALESCE(?, CustomerName),
               MobileNo = COALESCE(?, MobileNo)
             WHERE TxnID = ?
-        `).run(table_name, finalDiscPer, finalDiscount, finalDiscountType, NCName || null, NCPurpose || null, toBool(isHeaderNCKOT || existingBill.isNCKOT), CustomerName, MobileNo, txnId);
+        `).run(table_name, finalDiscPer, finalDiscount, finalDiscountType, Order_Type, NCName || null, NCPurpose || null, toBool(isHeaderNCKOT || existingBill.isNCKOT), CustomerName, MobileNo, txnId);
 
       } else {
         console.log(`No existing bill for table ${TableID}. Creating a new one.`);
@@ -778,11 +779,11 @@ exports.createKOT = async (req, res) => {
         const insertHeaderStmt = db.prepare(`
           INSERT INTO TAxnTrnbill (
             outletid, TxnNo, TableID, table_name, UserId, HotelID, TxnDatetime,
-            isBilled, isCancelled, isSetteled, status, AutoKOT, CustomerName, MobileNo,
+            isBilled, isCancelled, isSetteled, status, AutoKOT, CustomerName, MobileNo, Order_Type,
             NCName, NCPurpose, DiscPer, Discount, DiscountType, isNCKOT
-          ) VALUES (?, ?, ?, ?, ?, ?, datetime('now'), 0, 0, 0, 1, 1, ?, ?, ?, ?, ?, ?, ?, ?)
+          ) VALUES (?, ?, ?, ?, ?, ?, datetime('now'), 0, 0, 0, 1, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
-        const result = insertHeaderStmt.run(headerOutletId, txnNo, Number(TableID), table_name, UserId, HotelID, CustomerName, MobileNo, NCName || null, NCPurpose || null, finalDiscPer, finalDiscount, finalDiscountType, toBool(isHeaderNCKOT));
+        const result = insertHeaderStmt.run(headerOutletId, txnNo, Number(TableID), table_name, UserId, HotelID, CustomerName, MobileNo, Order_Type, NCName || null, NCPurpose || null, finalDiscPer, finalDiscount, finalDiscountType, toBool(isHeaderNCKOT));
         txnId = result.lastInsertRowid;
         db.prepare('UPDATE msttablemanagement SET status = 1 WHERE tableid = ?').run(Number(TableID));
         console.log(`Created new bill. TxnID: ${txnId}. Updated table ${TableID} status.`);
