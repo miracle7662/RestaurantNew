@@ -126,7 +126,14 @@ const Order = () => {
   const [reverseQtyItems, setReverseQtyItems] = useState<MenuItem[]>([]);
 
   // New state for Focus Mode
-  const [focusMode, setFocusMode] = useState<boolean>(false); // Default OFF
+  const [focusMode, setFocusMode] = useState<boolean>(() => {
+    const savedFocusMode = localStorage.getItem('focusMode');
+    return savedFocusMode ? JSON.parse(savedFocusMode) : false;
+  });
+  useEffect(() => {
+    localStorage.setItem('focusMode', JSON.stringify(focusMode));
+  }, [focusMode]);
+
   const [triggerFocusInDetails, setTriggerFocusInDetails] = useState<number>(0);
 
   // New state for floating button group and modals
@@ -1373,6 +1380,10 @@ const Order = () => {
       const resp = await createKOT(kotPayload);
       if (resp?.success) {
         toast.success('KOT saved successfully!');
+
+        // Clear customer fields after successful KOT save
+        setMobileNumber('');
+        setCustomerName('');
 
         // Update TxnNo and TxnID from the response
         if (resp.data) {
