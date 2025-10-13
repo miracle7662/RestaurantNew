@@ -1247,7 +1247,8 @@ const HandoverPage = () => {
           <HandoverPasswordModal
             show={showPasswordModal}
             onVerify={handlePasswordVerify}
-            onClose={() => navigate('/orders')}
+            onSuccess={() => setShowPasswordModal(false)}
+            onCancel={() => navigate('/orders')}
           />
         )}
 

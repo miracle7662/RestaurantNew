@@ -5,13 +5,15 @@ import { Lock } from 'lucide-react';
 interface HandoverPasswordModalProps {
   show: boolean;
   onVerify: (password: string) => Promise<boolean>;
-  onClose: () => void;
+  onSuccess: () => void;
+  onCancel: () => void;
 }
 
 const HandoverPasswordModal: React.FC<HandoverPasswordModalProps> = ({
   show,
   onVerify,
-  onClose,
+  onSuccess,
+  onCancel,
 }) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -31,7 +33,7 @@ const HandoverPasswordModal: React.FC<HandoverPasswordModalProps> = ({
       const success = await onVerify(password);
       if (success) {
         setPassword('');
-        onClose();
+        onSuccess();
       } else {
         setError('Invalid password. Please try again.');
       }
@@ -45,7 +47,7 @@ const HandoverPasswordModal: React.FC<HandoverPasswordModalProps> = ({
   const handleClose = () => {
     setPassword('');
     setError('');
-    onClose();
+    onCancel();
   };
 
   return (
