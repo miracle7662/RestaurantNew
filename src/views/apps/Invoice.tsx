@@ -1,75 +1,98 @@
 import React, { useState, useEffect } from "react";
-import { Card, Table, Form, Button } from "react-bootstrap";
+import { Card, Table, Form, Button, Row, Col } from "react-bootstrap";
 
-const ReportsPage = () => {
+const ReportPage = () => {
   const [bills, setBills] = useState<any[]>([]);
   const [filteredBills, setFilteredBills] = useState<any[]>([]);
   const [reportType, setReportType] = useState("daily");
   const [customRange, setCustomRange] = useState({ start: "", end: "" });
-  const [totalSales, setTotalSales] = useState(0);
+  const [stats, setStats] = useState({
+    totalBills: 0,
+    totalSales: 0,
+    totalDiscount: 0,
+    totalTax: 0,
+    totalQty: 0,
+  });
 
   useEffect(() => {
-    const savedQuickBills = JSON.parse(localStorage.getItem("quickBills") || "[]");
-    const savedNormalBills = JSON.parse(localStorage.getItem("normalBills") || "[]");
-    const allBills = [...savedQuickBills, ...savedNormalBills];
+    const quickBills = JSON.parse(localStorage.getItem("quickBills") || "[]");
+    const normalBills = JSON.parse(localStorage.getItem("normalBills") || "[]");
+    const allBills = [...quickBills, ...normalBills];
     setBills(allBills);
-    filterBills(allBills, reportType);
+    filterBills(allBills);
   }, [reportType]);
 
-  const filterBills = (data: any[], type: string) => {
+  const filterBills = (data: any[]) => {
     const today = new Date();
     let filtered = [];
 
-    if (type === "daily") {
+    if (reportType === "daily") {
       filtered = data.filter((bill) => {
-        const billDate = new Date(bill.date || bill.createdAt);
-        return billDate.toDateString() === today.toDateString();
+        const d = new Date(bill.date || bill.createdAt);
+        return d.toDateString() === today.toDateString();
       });
-    } else if (type === "monthly") {
+    } else if (reportType === "monthly") {
       filtered = data.filter((bill) => {
-        const billDate = new Date(bill.date || bill.createdAt);
+        const d = new Date(bill.date || bill.createdAt);
         return (
-          billDate.getMonth() === today.getMonth() &&
-          billDate.getFullYear() === today.getFullYear()
+          d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear()
         );
       });
-    } else if (type === "custom") {
+    } else if (reportType === "custom") {
       if (customRange.start && customRange.end) {
         const start = new Date(customRange.start);
         const end = new Date(customRange.end);
         filtered = data.filter((bill) => {
-          const billDate = new Date(bill.date || bill.createdAt);
-          return billDate >= start && billDate <= end;
+          const d = new Date(bill.date || bill.createdAt);
+          return d >= start && d <= end;
         });
       }
     }
 
     setFilteredBills(filtered);
-    setTotalSales(filtered.reduce((sum, b) => sum + (b.grandTotal || 0), 0));
+    calculateStats(filtered);
   };
 
-  const handleCustomFilter = () => {
-    filterBills(bills, "custom");
+  const calculateStats = (bills: any[]) => {
+    const totalBills = bills.length;
+    const totalSales = bills.reduce((s, b) => s + (b.grandTotal || 0), 0);
+    const totalDiscount = bills.reduce((s, b) => s + (b.discount || 0), 0);
+    const totalTax = bills.reduce(
+      (s, b) => s + (b.taxAmount || b.cgstAmt || 0) + (b.sgstAmt || 0),
+      0
+    );
+    const totalQty = bills.reduce(
+      (s, b) => s + (b.items?.reduce((q: number, i: any) => q + i.qty, 0) || 0),
+      0
+    );
+    setStats({ totalBills, totalSales, totalDiscount, totalTax, totalQty });
   };
+
+  const handleCustomFilter = () => filterBills(bills);
 
   return (
     <div className="container mt-4">
-      <Card className="p-3 shadow-sm">
-        <h4 className="text-center mb-3">📊 Sales Reports</h4>
-        <div className="d-flex justify-content-between align-items-center mb-3">
-          <div className="d-flex align-items-center gap-2">
+      <Card className="p-3 shadow-sm border-0">
+        <h4 className="text-center mb-4 fw-bold text-secondary">
+          📊 Restaurant Sales Report
+        </h4>
+
+        {/* ======= Filter Section ======= */}
+        <Row className="mb-3">
+          <Col md={3}>
             <Form.Select
               value={reportType}
               onChange={(e) => setReportType(e.target.value)}
-              style={{ width: "180px" }}
             >
               <option value="daily">Daily Report</option>
               <option value="monthly">Monthly Report</option>
-              <option value="custom">Custom Range</option>
+              <option value="custom">Custom Date Range</option>
             </Form.Select>
+          </Col>
 
-            {reportType === "custom" && (
-              <>
+          {reportType === "custom" && (
+            <>
+              <Col md={3}>
                 <Form.Control
                   type="date"
                   value={customRange.start}
@@ -77,6 +100,8 @@ const ReportsPage = () => {
                     setCustomRange({ ...customRange, start: e.target.value })
                   }
                 />
+              </Col>
+              <Col md={3}>
                 <Form.Control
                   type="date"
                   value={customRange.end}
@@ -84,54 +109,127 @@ const ReportsPage = () => {
                     setCustomRange({ ...customRange, end: e.target.value })
                   }
                 />
-                <Button variant="primary" onClick={handleCustomFilter}>
+              </Col>
+              <Col md={2}>
+                <Button variant="outline-secondary" onClick={handleCustomFilter}>
                   Apply
                 </Button>
-              </>
-            )}
-          </div>
-          <Button variant="outline-secondary" onClick={() => window.print()}>
-            Print Report
-          </Button>
-        </div>
+              </Col>
+            </>
+          )}
+          <Col md="auto" className="text-end">
+            <Button variant="outline-primary" onClick={() => window.print()}>
+              🖨️ Print
+            </Button>
+          </Col>
+        </Row>
 
+        {/* ======= Soft-Colored Summary Cards ======= */}
+        <Row className="text-center mb-4">
+          <Col>
+            <Card
+              className="p-3 shadow-sm rounded-4 border-0"
+              style={{ backgroundColor: "#E3F2FD", color: "#0D47A1" }}
+            >
+              <h6>Total Bills</h6>
+              <h4>{stats.totalBills}</h4>
+            </Card>
+          </Col>
+
+          <Col>
+            <Card
+              className="p-3 shadow-sm rounded-4 border-0"
+              style={{ backgroundColor: "#E8F5E9", color: "#1B5E20" }}
+            >
+              <h6>Total Sales</h6>
+              <h4>₹{stats.totalSales.toFixed(2)}</h4>
+            </Card>
+          </Col>
+
+          <Col>
+            <Card
+              className="p-3 shadow-sm rounded-4 border-0"
+              style={{ backgroundColor: "#FFF3E0", color: "#E65100" }}
+            >
+              <h6>Total Discount</h6>
+              <h4>₹{stats.totalDiscount.toFixed(2)}</h4>
+            </Card>
+          </Col>
+
+          <Col>
+            <Card
+              className="p-3 shadow-sm rounded-4 border-0"
+              style={{ backgroundColor: "#E0F7FA", color: "#006064" }}
+            >
+              <h6>Total Tax</h6>
+              <h4>₹{stats.totalTax.toFixed(2)}</h4>
+            </Card>
+          </Col>
+
+          <Col>
+            <Card
+              className="p-3 shadow-sm rounded-4 border-0"
+              style={{ backgroundColor: "#FCE4EC", color: "#AD1457" }}
+            >
+              <h6>Total Qty Sold</h6>
+              <h4>{stats.totalQty}</h4>
+            </Card>
+          </Col>
+        </Row>
+
+        {/* ======= Report Table ======= */}
         <Table bordered hover responsive size="sm">
-          <thead className="table-primary">
-            <tr>
-              <th>Bill No.</th>
+          <thead style={{ backgroundColor: "#E3F2FD" }}>
+            <tr className="text-secondary">
+              <th>Bill No</th>
               <th>Date</th>
               <th>Customer</th>
+              <th>Mobile</th>
+              <th>Type</th>
               <th>Payment Mode</th>
-              <th>Total (₹)</th>
+              <th>Total Qty</th>
+              <th>Subtotal (₹)</th>
+              <th>Discount (₹)</th>
+              <th>Tax (₹)</th>
+              <th>Grand Total (₹)</th>
             </tr>
           </thead>
           <tbody>
             {filteredBills.length === 0 ? (
               <tr>
-                <td colSpan={5} className="text-center text-muted py-3">
+                <td colSpan={11} className="text-center text-muted py-3">
                   No records found
                 </td>
               </tr>
             ) : (
-              filteredBills.map((bill) => (
-                <tr key={bill.billNo}>
-                  <td>{bill.billNo}</td>
-                  <td>{new Date(bill.date || bill.createdAt).toLocaleDateString()}</td>
-                  <td>{bill.customerName || "N/A"}</td>
-                  <td>{bill.paymentMode || "Cash"}</td>
-                  <td>{bill.grandTotal?.toFixed(2)}</td>
+              filteredBills.map((b, i) => (
+                <tr key={i}>
+                  <td>{b.billNo}</td>
+                  <td>{new Date(b.date || b.createdAt).toLocaleDateString()}</td>
+                  <td>{b.customerName || "N/A"}</td>
+                  <td>{b.customerMobile || "N/A"}</td>
+                  <td>{b.orderType || "Dine-in"}</td>
+                  <td>{b.paymentMode || "Cash"}</td>
+                  <td>{b.items?.reduce((q: number, i: any) => q + i.qty, 0) || 0}</td>
+                  <td>{(b.subtotal || 0).toFixed(2)}</td>
+                  <td>{(b.discount || 0).toFixed(2)}</td>
+                  <td>
+                    {((b.cgstAmt || 0) + (b.sgstAmt || 0)).toFixed(2)}
+                  </td>
+                  <td>{(b.grandTotal || 0).toFixed(2)}</td>
                 </tr>
               ))
             )}
           </tbody>
         </Table>
 
-        <div className="text-end fw-bold fs-5 mt-2">
-          Total Sales: ₹{totalSales.toFixed(2)}
+        {/* ======= Total Footer ======= */}
+        <div className="text-end fw-bold fs-5 mt-2 text-secondary">
+          Total Sales: ₹{stats.totalSales.toFixed(2)}
         </div>
       </Card>
     </div>
   );
 };
 
-export default ReportsPage;
+export default ReportPage;

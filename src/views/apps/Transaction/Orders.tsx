@@ -3006,7 +3006,7 @@ const Order = () => {
                           <th>Mobile No</th>
                           <th>Payment Mode</th>
                           <th>Total Amount</th>
-                          <th>Date</th>
+                          
                         </tr>
                       </thead>
                       <tbody>
@@ -3019,7 +3019,7 @@ const Order = () => {
                               <td>{bill.Mobile}</td>
                               <td>{bill.PaymentMode}</td>
                               <td>{bill.GrandTotal}</td>
-                              <td>{new Date(bill.CreatedDate).toLocaleString()}</td>
+                             
                             </tr>
                           ))
                         ) : (
