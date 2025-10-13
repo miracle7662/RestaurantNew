@@ -15,6 +15,9 @@ router.get('/:id/linked-pending-items', controller.getLinkedPendingItems);
 // Get all bills
 router.get('/', controller.getAllBills)
 
+// Get bills by type (e.g., Quick Bill)
+router.get('/by-type/:type', controller.getBillsByType);
+
 // Specific :id routes must come before the generic /:id route
 // Mark bill as billed (simple update)
 router.put('/:id/mark-billed', controller.markBillAsBilled);

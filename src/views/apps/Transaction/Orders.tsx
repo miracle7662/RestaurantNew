@@ -289,6 +289,7 @@ const Order = () => {
   const [showPendingOrderForm, setShowPendingOrderForm] = useState<boolean>(false);
   const [showBillingPage, setShowBillingPage] = useState<boolean>(false);
   const [formItems, setFormItems] = useState<MenuItem[]>([]);
+  const [quickBillData, setQuickBillData] = useState<any[]>([]);
 
 
 
@@ -937,13 +938,28 @@ const Order = () => {
     }, 0);
   };
 
+  const fetchQuickBillData = async () => {
+    try {
+      const res = await fetch("http://localhost:3001/api/TAxnTrnbill/by-type/Quick Bill");
+      const data = await res.json();
+      if (data.success) {
+        setQuickBillData(data.data);
+      } else {
+        toast.error(data.message || "Failed to fetch quick bill data");
+      }
+    } catch (err) {
+      console.error("Failed to fetch quick bill data", err);
+      toast.error("An error occurred while fetching quick bills.");
+    }
+  };
+
   const handleTabClick = (tab: string) => {
     console.log('Tab clicked:', tab);
     setActiveTab(tab);
     setActiveNavTab('ALL'); // Reset main nav tab to avoid conflicts
     setShowPendingOrdersView(false); // Reset pending orders view
     setShowBillingPage(false); // Reset billing page view by default
-
+  
     if (['Pickup', 'Delivery', 'Quick Bill', 'Order/KOT', 'Billing'].includes(tab)) {
       setSelectedTable(null);
       setItems([]);
@@ -951,6 +967,9 @@ const Order = () => {
       if (tab === 'Billing') {
         setShowBillingPage(true);
         setShowOrderDetails(false); // Don't show order details for billing tab
+      } else if (tab === 'Quick Bill') {
+        // This is for the right-side panel tab. We want to show the order entry form.
+        setActiveNavTab('Dine-in'); // Reset nav tab to prevent showing history table
       }
     } else {
       setShowOrderDetails(false);
@@ -1541,6 +1560,11 @@ const Order = () => {
           setShowOrderDetails(false);
           setCurrentKOTNo(null);
           setCurrentKOTNos([]);
+        }
+
+        // If it was a quick bill, refresh the quick bill data
+        if (activeTab === 'Quick Bill') {
+          await fetchQuickBillData();
         }
 
         // Refresh saved KOTs list in the background without blocking UI
@@ -2748,9 +2772,11 @@ const Order = () => {
                           if (tab === 'Pickup' || tab === 'Delivery') {
                             handlePendingOrderTabClick(tab.toLowerCase() as 'pickup' | 'delivery');
                           } else if (tab === 'Quick Bill') {
-                            setShowOrderDetails(false);
+                            // When Quick Bill is clicked from the left navbar
+                            fetchQuickBillData(); // Fetch the data
+                            setShowOrderDetails(false); // Hide the order entry panel
                             setShowPendingOrdersView(false);
-                            setActiveNavTab('Quick Bill');
+                            setActiveNavTab('Quick Bill'); // Set the tab as active
                           } else { setActiveNavTab(tab) }
                         }}
                         role="tab"
@@ -3053,8 +3079,41 @@ const Order = () => {
                 )}
               </div>
             )}
-            {(activeNavTab === 'Quick Bill' || showBillingPage) && (
+            {showBillingPage && (
               <BillingPage />
+            )}
+            {activeNavTab === 'Quick Bill' && !showOrderDetails && (
+              <div className="mt-3">
+                <h5 className="mb-3">Quick Bill History</h5>
+                <Table striped bordered hover responsive size="sm">
+                  <thead className="table-info">
+                    <tr>
+                      <th>Bill No</th>
+                      <th>Customer Name</th>
+                      <th>Mobile No</th>
+                      <th>Payment Mode</th>
+                      <th>Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {quickBillData.length > 0 ? (
+                      quickBillData.map((bill) => (
+                        <tr key={bill.TxnID}>
+                          <td>{bill.TxnNo}</td>
+                          <td>{bill.CustomerName || 'N/A'}</td>
+                          <td>{bill.MobileNo || 'N/A'}</td>
+                          <td>{bill.PaymentMode || 'N/A'}</td>
+                          <td>{bill.GrandTotal?.toFixed(2)}</td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={5} className="text-center text-muted">No quick bills found.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </Table>
+              </div>
             )}
             
             {showOrderDetails && activeNavTab !== 'Quick Bill' && (

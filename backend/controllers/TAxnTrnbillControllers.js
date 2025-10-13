@@ -1984,4 +1984,42 @@ exports.getLinkedPendingItems = async (req, res) => {
   }
 };
 
+/* -------------------------------------------------------------------------- */
+/* 17) getBillsByType → fetch bills by a specific order type (e.g., Quick Bill) */
+/* -------------------------------------------------------------------------- */
+exports.getBillsByType = async (req, res) => {
+  try {
+    const { type } = req.params;
+
+    if (!type) {
+      return res.status(400).json({ success: false, message: 'Order type is required.' });
+    }
+
+    // Use a parameterized query to prevent SQL injection
+    const sql = `
+      SELECT 
+        b.TxnID,
+        b.TxnNo,
+        b.CustomerName,
+        b.MobileNo,
+        b.Amount,
+        (SELECT GROUP_CONCAT(s.PaymentType) FROM TrnSettlement s WHERE s.OrderNo = b.TxnNo) as PaymentMode
+      FROM TAxnTrnbill b
+      WHERE b.Order_Type = ? AND b.isCancelled = 0
+      ORDER BY b.TxnDatetime DESC
+    `;
+
+    const rows = db.prepare(sql).all(type);
+
+    const data = rows.map(r => ({
+      ...r,
+      GrandTotal: r.Amount, // Alias Amount to GrandTotal for frontend consistency
+    }));
+
+    res.json(ok(`Fetched ${type} bills`, data));
+  } catch (error) {
+    res.status(500).json({ success: false, message: `Failed to fetch ${type} bills`, data: null, error: error.message });
+  }
+};
+
 module.exports = exports
