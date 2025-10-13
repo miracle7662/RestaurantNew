@@ -1988,8 +1988,9 @@ exports.getLinkedPendingItems = async (req, res) => {
 /* 17) getBillsByType → fetch bills by a specific order type (e.g., Quick Bill) */
 /* -------------------------------------------------------------------------- */
 exports.getBillsByType = async (req, res) => {
+  const { type } = req.params;
   try {
-    const { type } = req.params;
+    
 
     if (!type) {
       return res.status(400).json({ success: false, message: 'Order type is required.' });
