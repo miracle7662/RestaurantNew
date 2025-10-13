@@ -287,6 +287,7 @@ const Order = () => {
   const [formNotes, setFormNotes] = useState<string>('');
   const [linkedPendingItems, setLinkedPendingItems] = useState<any[]>([]);
   const [showPendingOrderForm, setShowPendingOrderForm] = useState<boolean>(false);
+  const [showBillingPage, setShowBillingPage] = useState<boolean>(false);
   const [formItems, setFormItems] = useState<MenuItem[]>([]);
 
 
@@ -941,10 +942,16 @@ const Order = () => {
     setActiveTab(tab);
     setActiveNavTab('ALL'); // Reset main nav tab to avoid conflicts
     setShowPendingOrdersView(false); // Reset pending orders view
+    setShowBillingPage(false); // Reset billing page view by default
+
     if (['Pickup', 'Delivery', 'Quick Bill', 'Order/KOT', 'Billing'].includes(tab)) {
       setSelectedTable(null);
       setItems([]);
       setShowOrderDetails(true);
+      if (tab === 'Billing') {
+        setShowBillingPage(true);
+        setShowOrderDetails(false); // Don't show order details for billing tab
+      }
     } else {
       setShowOrderDetails(false);
       if (tab === 'Dine-in') {
@@ -3046,7 +3053,7 @@ const Order = () => {
                 )}
               </div>
             )}
-            {activeNavTab === 'Quick Bill' && (
+            {(activeNavTab === 'Quick Bill' || showBillingPage) && (
               <BillingPage />
             )}
             
