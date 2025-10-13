@@ -939,8 +939,9 @@ const Order = () => {
   const handleTabClick = (tab: string) => {
     console.log('Tab clicked:', tab);
     setActiveTab(tab);
+    setActiveNavTab('ALL'); // Reset main nav tab to avoid conflicts
     setShowPendingOrdersView(false); // Reset pending orders view
-    if (['Pickup', 'Delivery', 'Quick Bill', 'Order/KOT'].includes(tab)) {
+    if (['Pickup', 'Delivery', 'Quick Bill', 'Order/KOT', 'Billing'].includes(tab)) {
       setSelectedTable(null);
       setItems([]);
       setShowOrderDetails(true);
@@ -2739,6 +2740,10 @@ const Order = () => {
                         onClick={() => {
                           if (tab === 'Pickup' || tab === 'Delivery') {
                             handlePendingOrderTabClick(tab.toLowerCase() as 'pickup' | 'delivery');
+                          } else if (tab === 'Quick Bill') {
+                            setShowOrderDetails(false);
+                            setShowPendingOrdersView(false);
+                            setActiveNavTab('Quick Bill');
                           } else { setActiveNavTab(tab) }
                         }}
                         role="tab"
@@ -3041,11 +3046,11 @@ const Order = () => {
                 )}
               </div>
             )}
-            {activeTab === 'Billing' && (
+            {activeNavTab === 'Quick Bill' && (
               <BillingPage />
             )}
             
-            {showOrderDetails && (
+            {showOrderDetails && activeNavTab !== 'Quick Bill' && (
               <div className="rounded shadow-sm p-1 mt-0">
                 <OrderDetails
                   tableId={selectedTable}
