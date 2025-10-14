@@ -166,6 +166,7 @@ const Order = () => {
   const [paymentAmounts, setPaymentAmounts] = useState<Record<string, string>>({});
   const [selectedPaymentModes, setSelectedPaymentModes] = useState<string[]>([]);
   const [reversedItems, setReversedItems] = useState<ReversedMenuItem[]>([]);
+  const [tip, setTip] = useState<number>(0);
 
   // States for Pending Orders Modal (Pickup/Delivery)
   const [showPendingOrdersView, setShowPendingOrdersView] = useState<boolean>(false);
@@ -3134,7 +3135,7 @@ const Order = () => {
         </div>
         <div className="billing-panel border-start ">
           <div className="p-1 w-100 h-100 d-flex flex-column">
-            <div className="billing-panel-header flex-shrink-0" style={{ position: 'sticky', top: 0, zIndex: 100,   }}>
+            <div className="billing-panel-header flex-shrink-0" style={{ position: 'sticky', top: 0, zIndex: 100, }}>
               <div className="d-flex flex-wrap gap-1 border-bottom pb-0">
                 <div className="d-flex flex-wrap gap-1 flex-grow-1">
                   {['Dine-in', 'Pickup', 'Delivery', 'Quick Bill', 'Order/KOT', 'Billing'].map((tab, index) => (
@@ -3354,7 +3355,7 @@ const Order = () => {
                 }, {} as Record<string, ReversedMenuItem>))} />
               )}
             </div>
-            <div className="billing-panel-footer mt-auto flex-shrink-0" style={{ position: 'sticky', bottom: 0, zIndex: 10, backgroundColor: 'white',  }}>
+            <div className="billing-panel-footer mt-auto flex-shrink-0" style={{ position: 'sticky', bottom: 0, zIndex: 10, backgroundColor: 'white', }}>
               <div className="d-flex flex-column flex-md-row gap-2 mt-2">
                 <div className="d-flex gap- position-relative">
                   <div
@@ -4007,12 +4008,25 @@ const Order = () => {
                   ))}
                 </Row>
 
+                {/* Tip Input */}
+                <div className="mb-3 p-3 bg-white rounded shadow-sm">
+                  <Form.Label className="fw-semibold text-dark mb-2">Optional Tip</Form.Label>
+                  <Form.Control
+                    type="number"
+                    placeholder="0.00"
+                    value={tip || ""}
+                    onChange={(e) => setTip(parseFloat(e.target.value) || 0)}
+                    className="text-center"
+                    step="0.01"
+                  />
+                </div>
+
                 {/* Payment Summary */}
                 <div className="mt-4 p-3 bg-white rounded shadow-sm">
                   <div className="d-flex justify-content-around fw-bold fs-5">
                     <div>
                       <span>Total Paid: </span>
-                      <span className="text-primary">{totalPaid.toFixed(2)}</span>
+                      <span className="text-primary">{(totalPaid + (tip || 0)).toFixed(2)}</span>
                     </div>
                     <div>
                       <span>Balance Due: </span>
@@ -4029,12 +4043,12 @@ const Order = () => {
                   {/* Validation Messages */}
                   {settlementBalance !== 0 && (
                     <div className="text-danger mt-2 text-center small">
-                      Total paid amount must match the grand total.
+                      Total paid amount + tip must match the grand total.
                     </div>
                   )}
-                  {settlementBalance === 0 && totalPaid > 0 && (
+                  {settlementBalance === 0 && totalPaid + (tip || 0) > 0 && (
                     <div className="text-success mt-2 text-center small">
-                      ✅ Payment amount matches. Ready to settle.
+                      ✅ Payment amount + tip matches. Ready to settle.
                     </div>
                   )}
                 </div>
@@ -4052,7 +4066,7 @@ const Order = () => {
                 <Button
                   variant="success"
                   onClick={handleSettleAndPrint}
-                  disabled={settlementBalance !== 0 || totalPaid === 0}
+                  disabled={settlementBalance !== 0 || totalPaid + (tip || 0) === 0}
                   className="px-4"
                 >
                   Settle & Print
