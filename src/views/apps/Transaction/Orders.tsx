@@ -2500,13 +2500,13 @@ const Order = () => {
           }
           @media (min-width: 768px) {
             .main-container {
-              flex-direction: row !important;
-              height: 100vh !important;
+              flex-direction: row !important; /* This is correct */
+              height: calc(100vh - 60px) !important; /* Adjust for main navbar height if any */
             }
             .billing-panel {
-              width: 400px !important;
+              width: 400px !important; /* This is correct */
               max-width: 400px !important;
-              height: 92vh !important;
+              height: 100vh !important;
               margin-left: auto;
               position: sticky;
               top: 0;
@@ -2518,10 +2518,10 @@ const Order = () => {
               gap: 1rem;
             }
             .item-list-container {
-              max-height: calc(92vh - 300px) !important;
+              /* This will be controlled by flex-grow */
             }
             .billing-panel-inner {
-              height: 92vh !important;
+              height: 100% !important; /* Changed from 92vh to 100% */
             }
             .billing-panel-bottom {
               position: sticky;
@@ -2537,14 +2537,14 @@ const Order = () => {
           .billing-panel-inner {
             display: flex;
             flex-direction: column;
+            height: 100%;
           }
           .item-list-container {
             display: flex;
             flex-direction: column;
             overflow-y: auto;
-            scrollbar-width: thin;
-            scrollbar-color: #888 #f1f1f1;
             flex-grow: 1;
+            max-height: 500px; /* Set max height for desktop */
           }
           .item-list-container::-webkit-scrollbar {
             width: 8px;
@@ -2558,6 +2558,7 @@ const Order = () => {
           .item-list-container::-webkit-scrollbar-thumb:hover {
             background: #555;
           }
+          
           @media print {
             body * {
               visibility: hidden;
@@ -3130,8 +3131,8 @@ const Order = () => {
           </>
         </div>
         <div className="billing-panel border-start p-0">
-          <div className="rounded shadow-sm p-1 w-100 billing-panel-inner">
-            <div>
+          <div className="p-1 w-100 h-100 d-flex flex-column">
+            <div className="billing-panel-header flex-shrink-0" style={{ position: 'sticky', top: 0, zIndex: 10, background: 'white' }}>
               <div className="d-flex flex-wrap gap-1 border-bottom pb-0">
                 <div className="d-flex flex-wrap gap-1 flex-grow-1">
                   {['Dine-in', 'Pickup', 'Delivery', 'Quick Bill', 'Order/KOT', 'Billing'].map((tab, index) => (
@@ -3175,8 +3176,9 @@ const Order = () => {
                 <span className="text-center">Amount</span>
               </div>
             </div>
-            <div
-              className="border rounded item-list-container"
+            <div 
+              className="border item-list-container flex-grow-1"
+              style={{ overflowY: 'auto', maxHeight: '500px' }}
               ref={itemListRef}
             >
               {items.length === 0 ? (
@@ -3240,6 +3242,11 @@ const Order = () => {
                         : groupedItem.kotNo
                           ? kotColorMap.get(groupedItem.kotNo) ?? 'transparent'
                           : 'transparent';
+                    }
+
+                    // Add zebra striping for readability if no other color is set
+                    if (backgroundColor === 'transparent' && index % 2 !== 0) {
+                      backgroundColor = '#f8f9fa'; // A light grey for alternate rows
                     }
 
                     return (
@@ -3341,7 +3348,7 @@ const Order = () => {
                 }, {} as Record<string, ReversedMenuItem>))} />
               )}
             </div>
-            <div className="billing-panel-bottom">
+            <div className="billing-panel-footer mt-auto flex-shrink-0" style={{ position: 'sticky', bottom: 0, zIndex: 10, background: 'white', paddingTop: '0.5rem' }}>
               <div className="d-flex flex-column flex-md-row gap-2 mt-2">
                 <div className="d-flex gap-1 position-relative">
                   <div
@@ -3694,7 +3701,6 @@ const Order = () => {
                 </div>
               </div>
             </div>
-          </div>
 
           <Modal show={showSavedKOTsModal} onHide={() => setShowSavedKOTsModal(false)} centered size="lg" onShow={async () => {
             try {
@@ -4052,6 +4058,7 @@ const Order = () => {
               <Button variant="primary" onClick={handleAuth}>Submit</Button>
             </Modal.Footer>
           </Modal>
+          </div>
         </div>
       </div>
     </div>
