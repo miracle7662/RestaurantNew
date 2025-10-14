@@ -3132,7 +3132,7 @@ const Order = () => {
         </div>
         <div className="billing-panel border-start p-0">
           <div className="p-1 w-100 h-100 d-flex flex-column">
-            <div className="billing-panel-header flex-shrink-0" style={{ position: 'sticky', top: 0, zIndex: 10, background: 'white' }}>
+            <div className="billing-panel-header flex-shrink-0" style={{ position: 'sticky', top: 0, zIndex: 100, backgroundColor: 'white', borderBottom: '1px solid #ddd' }}>
               <div className="d-flex flex-wrap gap-1 border-bottom pb-0">
                 <div className="d-flex flex-wrap gap-1 flex-grow-1">
                   {['Dine-in', 'Pickup', 'Delivery', 'Quick Bill', 'Order/KOT', 'Billing'].map((tab, index) => (
@@ -3169,6 +3169,7 @@ const Order = () => {
                   display: 'grid',
                   gridTemplateColumns: '2fr 1fr 1fr',
                   padding: '0.5rem',
+                  position: 'sticky', top: '95px', zIndex: 100, backgroundColor: 'white'
                 }}
               >
                 <span style={{ textAlign: 'left' }}>Item Name</span>
@@ -3176,9 +3177,9 @@ const Order = () => {
                 <span className="text-center">Amount</span>
               </div>
             </div>
-            <div 
-              className="border item-list-container flex-grow-1"
-              style={{ overflowY: 'auto', maxHeight: '500px' }}
+            <div
+              className="item-list-container flex-grow-1"
+              style={{ maxHeight: '460px', overflowY: 'auto', border: '1px solid #dee2e6', borderRadius: '12px', marginTop: '8px', padding: '4px 0', background: '#f9fafb' }}
               ref={itemListRef}
             >
               {items.length === 0 ? (
@@ -3246,22 +3247,26 @@ const Order = () => {
 
                     // Add zebra striping for readability if no other color is set
                     if (backgroundColor === 'transparent' && index % 2 !== 0) {
-                      backgroundColor = '#f8f9fa'; // A light grey for alternate rows
+                      backgroundColor = '#f1f3f5'; // A light grey for alternate rows
+                    } else if (backgroundColor === 'transparent') {
+                      backgroundColor = '#fdfdfd';
                     }
 
                     return (
                       <div
                         key={isGroupedItem ? `${item.id}-${item.price}-${index}` : (item.txnDetailId ?? `new-${item.id}-${index}`)}
-                        className="border-bottom"
                         style={{
                           display: 'grid',
                           gridTemplateColumns: '2fr 1fr 1fr',
                           padding: '0.25rem',
                           alignItems: 'center',
                           backgroundColor: backgroundColor,
+                          fontSize: '0.9rem',
+                          minHeight: '40px',
+                          borderBottom: '1px solid #eee'
                         }}
                       >
-                        <span style={{ textAlign: 'left' }}>{item.name}</span>
+                        <span style={{ textAlign: 'left', paddingLeft: '0.5rem' }}>{item.name}</span>
                         <div className="text-center d-flex justify-content-center align-items-center gap-2">
                           <button
                             className="btn btn-danger btn-sm"
@@ -3341,14 +3346,14 @@ const Order = () => {
                 <ReversedItemsDisplay groupedItems={Object.values(reversedItems.reduce((acc, item) => {
                   const key = `${item.id}-${item.kotNo}`;
                   if (!acc[key]) {
-                    acc[key] = { ...item, qty: 0 };
+                    acc[key] = { ...item, qty: 0, price: item.price };
                   }
                   acc[key].qty += item.qty;
                   return acc;
                 }, {} as Record<string, ReversedMenuItem>))} />
               )}
             </div>
-            <div className="billing-panel-footer mt-auto flex-shrink-0" style={{ position: 'sticky', bottom: 0, zIndex: 10, background: 'white', paddingTop: '0.5rem' }}>
+            <div className="billing-panel-footer mt-auto flex-shrink-0" style={{ position: 'sticky', bottom: 0, zIndex: 10, backgroundColor: 'white', paddingTop: '0.5rem' }}>
               <div className="d-flex flex-column flex-md-row gap-2 mt-2">
                 <div className="d-flex gap-1 position-relative">
                   <div
