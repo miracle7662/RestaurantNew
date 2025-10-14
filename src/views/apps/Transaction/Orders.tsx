@@ -541,8 +541,9 @@ const Order = () => {
   };
 
   useEffect(() => {
-    if (itemListRef.current) {
-      itemListRef.current.scrollTop = itemListRef.current.scrollHeight;
+    const lastItem = items[items.length - 1];
+    if (itemListRef.current && items.length > 10 && lastItem?.isNew) {
+      itemListRef.current.scrollTo({ top: itemListRef.current.scrollHeight, behavior: 'smooth' });
     }
   }, [items]);
 
@@ -1243,7 +1244,7 @@ const Order = () => {
       }
 
       // 4. Update items in the UI to reflect their 'billed' state.
-      setItems(prevItems => prevItems.map(item => ({ ...item, isNew: false, isBilled: 1 })));
+      setItems(prevItems => prevItems.map(item => ({ ...item, isNew: false, isBilled: 1, originalQty: item.qty })));
     } catch (error: any) {
       console.error('Error printing bill:', error);
       toast.error(error.message || 'An error occurred while printing the bill.');
@@ -1393,7 +1394,7 @@ const Order = () => {
           setTxnNo(resp.data.TxnNo);
           setCurrentTxnId(resp.data.TxnID);
         }
-
+  
         // Clear items after KOT save to reset the panel
         setItems([]);
 
@@ -1414,10 +1415,6 @@ const Order = () => {
             )
           );
         }
-
-        // Clear KOT number for settlement print
-        setCurrentKOTNo(null);
-        setCurrentKOTNos([]);
 
         // Open print preview with KOT content
         const printWindow = window.open('', '_blank');
@@ -1466,16 +1463,12 @@ const Order = () => {
         // After printing, decide what to do based on focusMode
         if (focusMode) {
           // Clear table, stay on view, focus table input
-          setSelectedTable(null);
-          setCurrentKOTNo(null);
-          setCurrentKOTNos([]);
+          setSelectedTable('');
           setTriggerFocusInDetails(c => c + 1); // Trigger focus in OrderDetails
         } else {
           // Option 2: Focus Mode OFF - Clear items and return to table grid view
           setSelectedTable(null);
           setShowOrderDetails(false);
-          setCurrentKOTNo(null);
-          setCurrentKOTNos([]);
         }
 
         // If it was a quick bill, refresh the quick bill data
@@ -1837,6 +1830,7 @@ const Order = () => {
       setBillActionState('initial');
       fetchTableManagement(); // Refresh table statuses
       setCurrentKOTNo(null);
+      setShowPendingOrdersView(false); // Hide pending view after successful settlement
       setCurrentKOTNos([]);
       setTxnNo(null);
 
@@ -1984,7 +1978,6 @@ const Order = () => {
     setTaxCalc(prev => ({ ...prev, grandTotal: order.total, subtotal: order.total })); // Simplified for now
     setDiscount(0); // Reset discount
     setShowSettlementModal(true);
-    setShowPendingOrdersView(false); // Hide pending view
   };
 
   const handlePendingOrderTabClick = (type: 'pickup' | 'delivery') => {
@@ -2815,298 +2808,245 @@ const Order = () => {
                 </div>
               </div>
             )}
-            {showPendingOrdersView && (
-              <div
-                className="rounded shadow-sm p-3 mt-0 bg-light"
-                style={{ maxHeight: 'calc(100vh - 150px)', overflowY: 'auto' }}
-              >
-                <style>{`
+           {showBillingPage && (
+  (() => {
+    // Pagination logic
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    const currentBills = allBills.slice(indexOfFirstItem, indexOfLastItem);
+    const totalPages = Math.ceil(allBills.length / itemsPerPage);
 
+    const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
+
+    return (
+      <div
+        className="rounded shadow-sm p-3 mt-0 bg-light"
+        style={{ maxHeight: 'calc(100vh - 150px)', overflowY: 'auto' }}
+      >
+        <h5 className="mb-3">All Bills</h5>
+        <Table striped bordered hover responsive size="sm">
+          <thead className="table-info">
+            <tr>
+              <th>Bill No</th>
+              <th>Order Type</th>
+              <th>Customer Name</th>
+              <th>Mobile No</th>
+              <th>Payment Mode</th>
+              <th>Total Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {currentBills.length > 0 ? (
+              currentBills.map((bill) => (
+                <tr key={bill.TxnID}>
+                  <td>{bill.TxnNo}</td>
+                  <td>{bill.OrderType}</td>
+                  <td>{bill.CustomerName}</td>
+                  <td>{bill.Mobile}</td>
+                  <td>{bill.PaymentMode}</td>
+                  <td>{bill.GrandTotal}</td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={6} className="text-center text-muted">No bills found.</td>
+              </tr>
+            )}
+          </tbody>
+        </Table>
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="d-flex justify-content-end align-items-center">
+            <span className="me-3">
+              Page {currentPage} of {totalPages}
+            </span>
+            <Button
+              variant="outline-primary"
+              size="sm"
+              onClick={() => paginate(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="me-2"
+            >
+              Previous
+            </Button>
+            <Button
+              variant="outline-primary"
+              size="sm"
+              onClick={() => paginate(currentPage + 1)}
+              disabled={currentPage === totalPages}
+            >
+              Next
+            </Button>
+          </div>
+        )}
+      </div>
+    );
+  })()
+)}
+{activeNavTab === 'Quick Bill' && !showOrderDetails && (
+  <div
+    className="rounded shadow-sm p-3 mt-0 bg-light"
+    style={{ maxHeight: 'calc(100vh - 150px)', overflowY: 'auto' }}
+  >
+    <h5 className="mb-3">Quick Bill History</h5>
+    <Table striped bordered hover responsive size="sm">
+      <thead className="table-info">
+        <tr>
+          <th>Bill No</th>
+          <th>Customer Name</th>
+          <th>Mobile No</th>
+          <th>Payment Mode</th>
+          <th>Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        {quickBillData.length > 0 ? (
+          quickBillData.map((bill) => (
+            <tr key={bill.TxnID}>
+              <td>{bill.TxnNo}</td>
+              <td>{bill.CustomerName || 'N/A'}</td>
+              <td>{bill.MobileNo || 'N/A'}</td>
+              <td>{bill.PaymentMode || 'N/A'}</td>
+              <td>{bill.GrandTotal?.toFixed(2)}</td>
+            </tr>
+          ))
+        ) : (
+          <tr>
+            <td colSpan={5} className="text-center text-muted">No quick bills found.</td>
+          </tr>
+        )}
+      </tbody>
+    </Table>
+  </div>
+)}
+{showPendingOrdersView && (
+  <div
+    className="rounded shadow-sm p-3 mt-0 bg-light"
+    style={{ maxHeight: 'calc(100vh - 150px)', overflowY: 'auto' }}
+  >
+    <style>{`
       .order-card {
-
         border: 2px solid #e3f2fd;
-
         border-radius: 12px;
-
         transition: all 0.3s ease-in-out;
-
         background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
-
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        
-
       }
-
       .order-card:hover {
-
         box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-
         transform: translateY(-2px);
-
         border-color: #2196f3;
-
       }
-
       .order-card-header {
-
         background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
-
         color: white;
-
         border-bottom: none;
-
         border-radius: 10px 10px 0 0;
-
         padding: 12px 15px;
-
       }
-
       .order-card-header strong {
-
         color: #ffffff;
-
       }
-
       .order-card-items {
-
         max-height: 200px;
-
         overflow-y: auto;
-
         padding: 10px;
-
       }
-
       .order-card-items::-webkit-scrollbar {
-
         width: 8px;
-
       }
-
       .order-card-items::-webkit-scrollbar-track {
-
         background: #f1f1f1;
-
         border-radius: 10px;
-
       }
-
       .order-card-items::-webkit-scrollbar-thumb {
-
         background: #888;
-
         border-radius: 10px;
-
       }
-
       .order-card-items::-webkit-scrollbar-thumb:hover {
-
         background: #555;
-
       }
-
       .order-card .btn-danger {
-
         background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
-
         border: none;
-
         border-radius: 8px;
-
         transition: all 0.2s ease;
-
       }
-
       .order-card .btn-danger:hover {
-
         background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%);
-
         transform: scale(1.05);
-
       }
-
     `}</style>
-                <div className="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
-                  <h4 className="mb-0">Pending {pendingType === 'pickup' ? 'Pickup' : 'Delivery'} Orders</h4>
-                  <Button variant="outline-secondary" onClick={handleBackToTables}>
-                    Back to Tables
-                  </Button>
+    <div className="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+      <h4 className="mb-0">Pending {pendingType === 'pickup' ? 'Pickup' : 'Delivery'} Orders</h4>
+      <Button variant="outline-secondary" onClick={handleBackToTables}>
+        Back to Tables
+      </Button>
+    </div>
+    {loadingPending ? (
+      <div className="d-flex justify-content-center align-items-center h-100">
+        <Spinner animation="border" role="status">
+          <span className="visually-hidden">Loading...</span>
+        </Spinner>
+      </div>
+    ) : errorPending ? (
+      <div className="alert alert-danger">{errorPending}</div>
+    ) : pendingOrders.length === 0 ? (
+      <div className="text-center p-5">No pending orders found.</div>
+    ) : (
+      <Row md={2} lg={3} xl={3} className="g-3">
+        {pendingOrders.map(order => (
+          <Col key={order.id}>
+            <Card className="order-card h-100">
+              <Card.Header className="order-card-header">
+                <div>
+                  <strong>Customer:</strong> {order.customer.name || ''}
+                  <br />
+                  <strong>Mobile:</strong> {order.customer.mobile || 'N/A'}
                 </div>
-                {loadingPending ? (
-                  <div className="d-flex justify-content-center align-items-center h-100">
-                    <Spinner animation="border" role="status">
-                      <span className="visually-hidden">Loading...</span>
-                    </Spinner>
-                  </div>
-                ) : errorPending ? (
-                  <div className="alert alert-danger">{errorPending}</div>
-                ) : pendingOrders.length === 0 ? (
-                  <div className="text-center p-5">No pending orders found.</div>
-                ) : (
-                  <Row md={2} lg={3} xl={3} className="g-3">
-                    {pendingOrders.map(order => (
-                      <Col key={order.id}>
-                        <Card className="order-card h-100">
-                          <Card.Header className="order-card-header">
-
-                            <div>
-                              <strong>Customer:</strong> {order.customer.name || ''}
-                              <br />
-                              <strong>Mobile:</strong> {order.customer.mobile || 'N/A'}
-                            </div>
-                          </Card.Header>
-                          <Card.Body className="d-flex flex-column">
-                            <div className="order-card-items mb-3">
-                              <ul className="list-unstyled">
-                                {order.items.map((item: any, index: number) => (
-                                  <li key={index} className="d-flex justify-content-between border-bottom pb-1 mb-1">
-                                    <span>{item.name}</span>
-                                    <span>{item.qty} @ {item.price.toFixed(2)}</span>
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                            <div className="mt-auto">
-                              <div className="d-flex justify-content-between fw-bold border-top pt-2">
-                                <span> {order.items.reduce((acc: number, item: any) => acc + item.qty, 0)}</span>
-                                <span> ₹{order.total.toFixed(2)}</span>
-                              </div>
-                              <div className="d-flex gap-2 mt-3">
-                                <Button
-                                  variant="danger"
-                                  className="flex-fill"
-                                  onClick={() => handlePendingMakePayment(order)}
-                                >
-                                  Make Payment
-                                </Button>
-                                <Button
-                                  variant="outline-primary"
-                                  className="flex-fill"
-                                  onClick={() => handlePrintBill()}
-                                >
-                                  Print Bill
-                                </Button>
-                              </div>
-                            </div>
-                          </Card.Body>
-                        </Card>
-                      </Col>
+              </Card.Header>
+              <Card.Body className="d-flex flex-column">
+                <div className="order-card-items mb-3">
+                  <ul className="list-unstyled">
+                    {order.items.map((item: any, index: number) => (
+                      <li key={index} className="d-flex justify-content-between border-bottom pb-1 mb-1">
+                        <span>{item.name}</span>
+                        <span>{item.qty} @ {item.price.toFixed(2)}</span>
+                      </li>
                     ))}
-                  </Row>
-                )}
-              </div>
-            )}
-            {showBillingPage && (
-              (() => {
-                // Pagination logic
-                const indexOfLastItem = currentPage * itemsPerPage;
-                const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-                const currentBills = allBills.slice(indexOfFirstItem, indexOfLastItem);
-                const totalPages = Math.ceil(allBills.length / itemsPerPage);
-
-                const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
-
-                return (
-                  <div
-                    className="rounded shadow-sm p-3 mt-0 bg-light"
-                    style={{ maxHeight: 'calc(100vh - 150px)', overflowY: 'auto' }}
-                  >
-                    <h5 className="mb-3">All Bills</h5>
-                    <Table striped bordered hover responsive>
-                      <thead>
-                        <tr>
-                          <th>Bill No</th>
-                          <th>Order Type</th>
-                          <th>Customer Name</th>
-                          <th>Mobile No</th>
-                          <th>Payment Mode</th>
-                          <th>Total Amount</th>
-
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {currentBills.length > 0 ? (
-                          currentBills.map((bill) => (
-                            <tr key={bill.TxnID}>
-                              <td>{bill.TxnNo}</td>
-                              <td>{bill.OrderType}</td>
-                              <td>{bill.CustomerName}</td>
-                              <td>{bill.Mobile}</td>
-                              <td>{bill.PaymentMode}</td>
-                              <td>{bill.GrandTotal}</td>
-
-                            </tr>
-                          ))
-                        ) : (
-                          <tr>
-                            <td colSpan={7} className="text-center text-muted">No bills found.</td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </Table>
-
-                    {/* Pagination Controls */}
-                    {totalPages > 1 && (
-                      <div className="d-flex justify-content-end align-items-center">
-                        <span className="me-3">
-                          Page {currentPage} of {totalPages}
-                        </span>
-                        <Button
-                          variant="outline-primary"
-                          size="sm"
-                          onClick={() => paginate(currentPage - 1)}
-                          disabled={currentPage === 1}
-                          className="me-2"
-                        >
-                          Previous
-                        </Button>
-                        <Button
-                          variant="outline-primary"
-                          size="sm"
-                          onClick={() => paginate(currentPage + 1)}
-                          disabled={currentPage === totalPages}
-                        >
-                          Next
-                        </Button>
-                      </div>
-                    )}
+                  </ul>
+                </div>
+                <div className="mt-auto">
+                  <div className="d-flex justify-content-between fw-bold border-top pt-2">
+                    <span> {order.items.reduce((acc: number, item: any) => acc + item.qty, 0)}</span>
+                    <span> ₹{order.total.toFixed(2)}</span>
                   </div>
-                );
-              })()
-            )}
-            {activeNavTab === 'Quick Bill' && !showOrderDetails && (
-              <div className="mt-3">
-                <h5 className="mb-3">Quick Bill History</h5>
-                <Table striped bordered hover responsive size="sm">
-                  <thead className="table-info">
-                    <tr>
-                      <th>Bill No</th>
-                      <th>Customer Name</th>
-                      <th>Mobile No</th>
-                      <th>Payment Mode</th>
-                      <th>Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {quickBillData.length > 0 ? (
-                      quickBillData.map((bill) => (
-                        <tr key={bill.TxnID}>
-                          <td>{bill.TxnNo}</td>
-                          <td>{bill.CustomerName || 'N/A'}</td>
-                          <td>{bill.MobileNo || 'N/A'}</td>
-                          <td>{bill.PaymentMode || 'N/A'}</td>
-                          <td>{bill.GrandTotal?.toFixed(2)}</td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan={5} className="text-center text-muted">No quick bills found.</td>
-                      </tr>
-                    )}
-                  </tbody>
-                </Table>
-              </div>
-            )}
+                  <div className="d-flex gap-2 mt-3">
+                    <Button
+                      variant="danger"
+                      className="flex-fill"
+                      onClick={() => handlePendingMakePayment(order)}
+                    >
+                      Make Payment
+                    </Button>
+                    <Button
+                      variant="outline-primary"
+                      className="flex-fill"
+                      onClick={() => handlePrintBill()}
+                    >
+                      Print Bill
+                    </Button>
+                  </div>
+                </div>
+              </Card.Body>
+            </Card>
+          </Col>
+        ))}
+      </Row>
+    )}
+  </div>
+)}
 
             {showOrderDetails && activeNavTab !== 'Quick Bill' && (
               <div className="rounded shadow-sm p-1 mt-0">
@@ -3181,8 +3121,9 @@ const Order = () => {
               </div>
             </div>
             <div
+              ref={itemListRef}
               className="border item-list-container flex-grow-1"
-              style={{ overflowY: 'auto', maxHeight: '590px' }}
+              style={{ overflowY: 'auto', maxHeight: '400px' }}
             >
               {items.length === 0 ? (
                 <p className="text-center text-muted mb-0">No items added</p>

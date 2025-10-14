@@ -51,69 +51,106 @@ const ProjectStatisticChart = () => {
       summary[type] = (summary[type] || 0) + amount
     })
 
-    return Object.keys(summary).map((key) => ({
-      name: key,
-      type: 'bar',
-      data: [summary[key]],
-    }))
+    return {
+      categories: Object.keys(summary),
+      data: Object.values(summary),
+    }
   }
 
   // fallback sample data (old demo data)
   const getChartData = () => {
-    switch (selectedOption.value) {
-      case 'monthly':
-        return [
-          { name: 'Tasks Completed', type: 'bar', data: [10, 25, 11, 28, 12, 32, 10, 25, 11, 28, 12, 32] },
-          { name: 'Upcomming Projects', type: 'line', data: [15, 20, 18, 35, 22, 23, 15, 25, 16, 18, 22, 23] },
-          { name: 'Project Pending', type: 'bar', data: [20, 11, 26, 10, 30, 14, 20, 11, 26, 10, 30, 14] },
-        ]
-      default:
-        return []
+    return {
+      categories: ['Cash', 'UPI', 'Card', 'Net Banking', 'Wallet'],
+      data: [45000, 32000, 28000, 15000, 12000],
     }
   }
 
+  const chartData = settlements.length > 0 ? getPaymentTypeSummary() : getChartData()
+
   const apexOptions: ApexCharts.ApexOptions = {
     chart: {
-      width: '100%',
-      stacked: false,
+      type: 'bar',
+      height: 400,
       foreColor: '#7d8aa2',
       fontFamily: 'Inter, sans-serif',
       toolbar: { show: false },
-    },
-    stroke: {
-      width: [2, 2, 2],
-      curve: 'smooth',
-      lineCap: 'round',
+      animations: {
+        enabled: true,
+        easing: 'easeinout',
+        speed: 800,
+      },
     },
     plotOptions: {
       bar: {
-        horizontal: false,
-        borderRadius: 3,
-        columnWidth: '35%',
+        horizontal: true,
+        borderRadius: 8,
+        barHeight: '70%',
+        distributed: true,
+        dataLabels: {
+          position: 'top',
+        },
+      },
+    },
+    colors: [themeColor, '#34c38f', '#e49e3d', '#5b73e8', '#f1b44c'],
+    dataLabels: {
+      enabled: true,
+      formatter: (val) => `₹${Number(val).toLocaleString('en-IN')}`,
+      offsetX: 30,
+      style: {
+        fontSize: '13px',
+        fontWeight: 600,
+        colors: ['#304758'],
+      },
+      background: {
+        enabled: true,
+        foreColor: '#fff',
+        padding: 8,
+        borderRadius: 4,
+        borderWidth: 1,
+        borderColor: '#e0e0e0',
+        opacity: 0.95,
       },
     },
     xaxis: {
-      categories:
-        settlements.length > 0
-          ? ['Payment Types']
-          : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+      categories: chartData.categories,
       axisBorder: { show: false },
       axisTicks: { show: false },
+      labels: {
+        formatter: (val) => `₹${Number(val).toLocaleString('en-IN')}`,
+        style: {
+          fontSize: '12px',
+        },
+      },
     },
     yaxis: {
       labels: {
-        formatter: (val) => `₹${val}`,
+        style: {
+          fontSize: '13px',
+          fontWeight: 500,
+        },
       },
     },
     grid: {
-      padding: { left: 16, right: 0 },
-      strokeDashArray: 3,
-      borderColor: 'rgba(170, 180, 195, 0.25)',
+      padding: { left: 20, right: 40 },
+      strokeDashArray: 4,
+      borderColor: 'rgba(170, 180, 195, 0.2)',
+      xaxis: {
+        lines: { show: true },
+      },
+      yaxis: {
+        lines: { show: false },
+      },
     },
-    legend: { show: true },
-    colors: [themeColor, '#e49e3d', '#E4E8EF', '#34c38f'],
-    dataLabels: { enabled: false },
-    tooltip: { theme: 'dark' },
+    legend: { show: false },
+    tooltip: {
+      theme: 'dark',
+      y: {
+        formatter: (val) => `₹${Number(val).toLocaleString('en-IN')}`,
+      },
+      style: {
+        fontSize: '13px',
+      },
+    },
   }
 
   const handleChange = (selectedOption: any) => {
@@ -122,9 +159,9 @@ const ProjectStatisticChart = () => {
 
   return (
     <>
-      <Card>
-        <Card.Header className="d-sm-flex align-items-center py-3">
-          <Card.Title>Settlement Payment Statistics</Card.Title>
+      <Card className="shadow-sm">
+        <Card.Header className="d-sm-flex align-items-center py-3 bg-light border-bottom">
+          <Card.Title className="mb-0 fw-semibold">Settlement Payment Statistics</Card.Title>
           <div className="ms-auto mt-3 mt-sm-0" style={{ width: '160px' }}>
             <Select
               value={selectedOption}
@@ -135,11 +172,12 @@ const ProjectStatisticChart = () => {
             />
           </div>
         </Card.Header>
-        <Card.Body>
+        <Card.Body className="p-4">
           <ReactApexChart
             options={apexOptions}
-            series={settlements.length > 0 ? getPaymentTypeSummary() : getChartData()}
-            height={366}
+            series={[{ name: 'Amount', data: chartData.data }]}
+            type="bar"
+            height={400}
           />
         </Card.Body>
       </Card>
