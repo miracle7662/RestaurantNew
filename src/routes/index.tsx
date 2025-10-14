@@ -10,8 +10,10 @@ import Settlement from '@/views/apps/Transaction/Settlement'
 import Handover from '@/views/apps/Transaction/Handover'
 // import DayEnd from '@/views/apps/Transaction/DayEnd'
 import DayEnd from '../views/apps/Transaction/DayEnd'
+
 // import KotTransfer from '../views/apps/Transaction/KotTransfer'
 const KotTransfer = React.lazy(() => import('../views/apps/Transaction/KotTransfer'))
+import Reports from '../views/apps/Transaction/Reports'
 
 
 // Dashboards
@@ -364,6 +366,14 @@ const appsRoutes: RoutesProps = {
       element: <  KotTransfer />,
       route: PrivateRoute,
     },
+
+     {
+      path: '/apps/Reports',
+      name: ' Reports',
+      element: <  Reports/>,
+      route: PrivateRoute,
+    },
+
 
     
     {
