@@ -1152,7 +1152,7 @@ const HandoverPage = () => {
           </Modal.Header>
 
           {/* Body */}
-          <Modal.Body style={{ maxHeight: '60vh', overflowY: 'auto', padding: '1rem' }}>
+          <Modal.Body style={{ maxHeight: '90vh', overflowY: 'auto', padding: '1rem' }}>
             <div className="cash-denom-list">
               {Object.entries(cashDenominations).map(([denomStr, count]) => {
                 const denom = parseInt(denomStr);
