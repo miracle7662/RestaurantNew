@@ -3178,13 +3178,14 @@ const Order = () => {
             <div
               ref={itemListRef}
               className="border item-list-container flex-grow-1"
-              style={{ overflowY: 'auto', maxHeight: '400px' }}
+              style={{ overflowY: 'auto' }}
             >
               {items.length === 0 ? (
                 <p className="text-center text-muted mb-0">No items added</p>
               ) : (
                 (() => {
                   const kotColors = ['#f0f8ff', '#fafad2', '#e6e6fa', '#f0fff0', '#fff5ee', '#f5f5dc'];
+                  // Sort items: new items first, then by KOT number, then by detail ID
                   const sortedItems: MenuItem[] = [...items].sort((a, b) => {
                     const kotA = a.kotNo ?? Infinity;
                     const kotB = b.kotNo ?? Infinity;
@@ -3340,7 +3341,7 @@ const Order = () => {
                 })()
               )}
               {/* Reversed Items Section - Only in Expanded View */}
-              {!isGroupedView && reversedItems.length > 0 && (
+              {reversedItems.length > 0 && (
                 <ReversedItemsDisplay groupedItems={Object.values(reversedItems.reduce((acc, item) => {
                   const key = `${item.id}-${item.kotNo}`;
                   if (!acc[key]) {
@@ -3351,8 +3352,8 @@ const Order = () => {
                 }, {} as Record<string, ReversedMenuItem>))} />
               )}
             </div>
-            <div className="billing-panel-footer mt-auto flex-shrink-0" style={{ position: 'sticky', bottom: 0, zIndex: 10, backgroundColor: 'white', }}>
-              <div className="d-flex flex-column flex-md-row gap-2 mt-2">
+            <div className="billing-panel-footer mt-auto flex-shrink-0" style={{ backgroundColor: 'white' }}>
+              <div className="d-flex flex-column flex-md-row gap-2 mt-2 p-2 border-top">
                 <div className="d-flex gap- position-relative">
                   <div
                     className="border rounded d-flex align-items-center justify-content-center"
@@ -3429,7 +3430,7 @@ const Order = () => {
                   </button>
                 </div>
               </div>
-              <div className="d-flex flex-column flex-md-row gap-2 mt-2">
+              <div className="d-flex flex-column flex-md-row gap-2 mt-2 p-2">
                 {(activeTab === 'Delivery' || activeTab === 'Billing') && (
                   <input
                     type="text"
@@ -3661,7 +3662,7 @@ const Order = () => {
                 </div>
 
               </div>
-              <div className="mt-1">
+              <div className="mt-1 p-2">
                 <div className="bg-white border rounded p-2">
 
                   {discount > 0 && (

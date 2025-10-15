@@ -500,7 +500,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
 
   // Delete all items
   const handleDeleteAll = () => {
-    setItems([]);
+    window.location.reload();
   };
 
   // Handle customer modal
@@ -557,7 +557,12 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
                         </button>
                       </li>
                       <li className="nav-item">
-                        <button className="btn btn-sm btn-outline-secondary">Refresh</button>
+                        <button
+                          className="btn btn-sm btn-outline-secondary"
+                          onClick={() => window.location.reload()}
+                        >
+                          Refresh
+                        </button>
                       </li>
                       <li className="nav-item d-flex align-items-center ms-2">
                         <div className="form-check form-switch">
