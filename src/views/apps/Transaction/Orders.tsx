@@ -2595,7 +2595,8 @@ const Order = () => {
             flex-direction: column;
             overflow-y: auto;
             flex-grow: 1;
-            max-height: 500px; /* Set max height for desktop */
+            max-height: 450px; /* Set max height for desktop */
+            /* max-height is now controlled by flex-grow */
           }
           .item-list-container::-webkit-scrollbar {
             width: 8px;
@@ -3353,13 +3354,13 @@ const Order = () => {
               )}
             </div>
             <div className="billing-panel-footer mt-auto flex-shrink-0" style={{ backgroundColor: 'white' }}>
-              <div className="d-flex flex-column flex-md-row gap-2 mt-2 p-2 border-top">
+              <div className="d-flex flex-column flex-md-row gap-1 p-1">
                 <div className="d-flex gap- position-relative">
                   <div
                     className="border rounded d-flex align-items-center justify-content-center"
                     style={{
                       width: '50px',
-                      height: '30px',
+                      height: '28px',
                       fontSize: '0.875rem',
                       cursor: 'pointer',
                     }}
@@ -3400,7 +3401,7 @@ const Order = () => {
                     className="form-control"
                     style={{
                       width: "150px",
-                      height: "30px",
+                      height: "28px",
                       fontSize: "0.875rem",
                       padding: "0.25rem 0.5rem",
                     }}
@@ -3415,14 +3416,14 @@ const Order = () => {
                     className="form-control"
                     style={{
                       width: "150px",
-                      height: "30px",
+                      height: "28px",
                       fontSize: "0.875rem",
                       padding: "0.25rem 0.5rem",
                     }}
                   />
                   <button
                     className="btn btn-outline-primary ms-1"
-                    style={{ height: '30px', padding: '0 8px', fontSize: '0.875rem' }}
+                    style={{ height: '28px', padding: '0 8px', fontSize: '0.875rem' }}
                     onClick={handleAddCustomerClick}
                     title="Add Customer"
                   >
@@ -3430,24 +3431,24 @@ const Order = () => {
                   </button>
                 </div>
               </div>
-              <div className="d-flex flex-column flex-md-row gap-2 mt-2 p-2">
+              <div className="d-flex flex-column flex-md-row gap-1 p-1 border-top pt-2">
                 {(activeTab === 'Delivery' || activeTab === 'Billing') && (
                   <input
                     type="text"
                     placeholder="Customer Address"
                     className="form-control"
-                    style={{ width: '150px', height: '30px', fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}
+                    style={{ width: '150px', height: '28px', fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}
                   />
                 )}
                 <input
                   type="text"
                   placeholder="KOT Note"
                   className="form-control"
-                  style={{ width: '150px', height: '30px', fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}
+                  style={{ width: '150px', height: '28px', fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}
                 />
 
                 <div className="d-flex align-items-center ms-2" style={{ position: 'relative', overflow: 'visible' }}>
-                  {/* Hamburger Button */}
+                  {/* Floating Action Buttons */}
                   <Button
                     variant="primary"
                     className="rounded-circle d-flex justify-content-center align-items-center"
@@ -3662,7 +3663,9 @@ const Order = () => {
                 </div>
 
               </div>
-              <div className="mt-1 p-2">
+            </div>
+            <div className="billing-panel-footer mt-auto flex-shrink-0" style={{ backgroundColor: 'white' }}>
+              <div className="p-2">
                 <div className="bg-white border rounded p-2">
 
                   {discount > 0 && (
