@@ -1248,10 +1248,9 @@ const HandoverPage = () => {
             show={showPasswordModal}
             onVerify={handlePasswordVerify}
             onSuccess={() => setShowPasswordModal(false)}
-            onCancel={() => navigate('/orders')}
+            onCancel={() => navigate('/apps/Orders')}
           />
         )}
-
     </div>
   );
 };
