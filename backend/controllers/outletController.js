@@ -35,7 +35,6 @@ exports.getOutlets = (req, res) => {
              b.hotel_name as brand_name
       FROM mst_outlets o
       LEFT JOIN msthotelmasters b ON o.hotelid = b.hotelid
-     
     `;
 
     const params = [];
@@ -45,18 +44,18 @@ exports.getOutlets = (req, res) => {
         // No additional filter, fetches all outlets
         break;
       case 'brand_admin':
-        query += ' AND o.hotelid = ?';
+        query += ' WHERE o.hotelid = ?';
         params.push(hotelid);
         break;
       case 'hotel_admin':
-        query += ' AND o.hotelid = ?';
+        query += ' WHERE o.hotelid = ?';
         params.push(hotelid);
         break;
       case 'outlet_user':
         if (!hotelid) {
           return res.status(400).json({ message: 'Hotel ID is required for outlet_user' });
         }
-        query += ' AND o.hotelid = ?';
+        query += ' WHERE o.hotelid = ?';
         params.push(hotelid);
         break;
       default:
