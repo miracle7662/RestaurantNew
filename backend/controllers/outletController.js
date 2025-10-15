@@ -34,43 +34,39 @@ exports.getOutlets = (req, res) => {
       SELECT DISTINCT o.*,
              b.hotel_name as brand_name
       FROM mst_outlets o
-      INNER JOIN msthotelmasters b ON o.hotelid = b.hotelid
-      WHERE 1=1
+      LEFT JOIN msthotelmasters b ON o.hotelid = b.hotelid
+     
     `;
 
     const params = [];
 
     switch (role_level) {
       case 'superadmin':
-        break; // All outlets (active and inactive)
+        // No additional filter, fetches all outlets
+        break;
       case 'brand_admin':
-        query += ' AND o.brand_id = ?';
-        params.push(brandId);
+        query += ' AND o.hotelid = ?';
+        params.push(hotelid);
         break;
       case 'hotel_admin':
         query += ' AND o.hotelid = ?';
         params.push(hotelid);
         break;
       case 'outlet_user':
-        query += ' AND o.hotelid = ?';
-        params.push(hotelid);
         if (!hotelid) {
           return res.status(400).json({ message: 'Hotel ID is required for outlet_user' });
         }
+        query += ' AND o.hotelid = ?';
+        params.push(hotelid);
         break;
       default:
         return res.status(403).json({ message: 'Insufficient permissions' });
     }
 
     query += ' ORDER BY o.outlet_name';
-
     console.log('Constructed query:', query, 'with params:', params);
     const outlets = db.prepare(query).all(...params);
     console.log('Found outlets:', outlets);
-
-    if (outlets.length === 0) {
-      return res.status(404).json({ message: 'No outlets found for the user' });
-    }
 
     res.json(outlets);
   } catch (error) {
