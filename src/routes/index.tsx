@@ -8,14 +8,34 @@ import Billing from '@/views/pages/account-settings/Billing'
 import Customers from '@/views/apps/Transaction/Customers'
 import Settlement from '@/views/apps/Transaction/Settlement'
 import Handover from '@/views/apps/Transaction/Handover'
-// import DayEnd from '@/views/apps/Transaction/DayEnd'
 import DayEnd from '../views/apps/Transaction/DayEnd'
-
-// import KotTransfer from '../views/apps/Transaction/KotTransfer'
 const KotTransfer = React.lazy(() => import('../views/apps/Transaction/KotTransfer'))
+
+
+// DAaily Reports
 import Reports from '../views/apps/Transaction/Reports'
 
+// Daily Reports
+import DailySalesReport from '../views/apps/Masters/Reports/DailySalesReport'
+import DailySalesusershift from '../views/apps/Masters/Reports/DailySalesusershift'
+import MonthlySales from '../views/apps/Masters/Reports/MonthlySales'
+import PaymentModeSales from '../views/apps/Masters/Reports/PaymentModeSales'
+import KitchenAllocation from '../views/apps/Masters/Reports/KitchenAllocation'
+import DayEndReport from '../views/apps/Masters/Reports/DayEndReport'
+import HandoverReport from '../views/apps/Masters/Reports/HandoverReport'
+import BillReprinted from '../views/apps/Masters/Reports/BillReprinted'
+import KotUsedSummary from '../views/apps/Masters/Reports/KotUsedSummary'
+import BillSummary from '../views/apps/Masters/Reports/BillSummary'
+import CreditSummary from '../views/apps/Masters/Reports/CreditSummary'
+import DiscountSummary from '../views/apps/Masters/Reports/DiscountSummary'
+import ReverseKOTsAndBills from '../views/apps/Masters/Reports/ReverseKOTsAndBills'
+import KitchenWiseSalesSummary from '../views/apps/Masters/Reports/KitchenWiseSalesSummary'
+import NCKOTDetails from '../views/apps/Masters/Reports/NCKOTDetails'
+import APCAPPReport from '../views/apps/Masters/Reports/APCAPPReport'
+import SpecialItems from '../views/apps/Masters/Reports/SpecialItems'
+import CashPaidReceivedBetweenDepartments from '../views/apps/Masters/Reports/CashPaidReceivedBetweenDepartments'
 
+ 
 // Dashboards
 const Ecommerce = React.lazy(() => import('./../views/dashboards'))
 const Analytics = React.lazy(() => import('./../views/dashboards/Analytics'))
@@ -372,6 +392,123 @@ const appsRoutes: RoutesProps = {
       name: ' Reports',
       element: <  Reports/>,
       route: PrivateRoute,
+    },
+
+
+    {
+      path: '/Reports',
+      name: 'Reports',
+      header: 'Navigation',
+      children: [
+        {
+          path: '/Reports/DailySalesReport',
+          name: 'DailySalesReport',
+          element: <DailySalesReport />,
+          route: PrivateRoute,
+        },
+        {
+          path: '/Reports/DailySalesusershift',
+          name: 'DailySalesusershift',
+          element: <DailySalesusershift />,
+          route: PrivateRoute,
+        },
+        {
+          path: '/Reports/MonthlySales',
+          name: 'MonthlySales',
+          element: <MonthlySales />,
+          route: PrivateRoute,
+        },
+        {
+          path: '/Reports/PaymentModeSales',
+          name: 'PaymentModeSales',
+          element: <PaymentModeSales />,
+          route: PrivateRoute,
+        },
+        {
+          path: '/Reports/KitchenAllocation',
+          name: 'KitchenAllocation',
+          element: <KitchenAllocation />,
+          route: PrivateRoute,
+        },
+        {
+          path: '/Reports/DayEndReport',
+          name: 'DayEndReport',
+          element: <DayEndReport />,
+          route: PrivateRoute,
+        },
+        {
+          path: '/Reports/HandoverReport',
+          name: 'HandoverReport',
+          element: <HandoverReport />,
+          route: PrivateRoute,
+        },
+        {
+          path: '/Reports/BillReprinted',
+          name: 'BillReprinted',
+          element: <BillReprinted />,
+          route: PrivateRoute,
+        },
+        {
+          path: '/Reports/KotUsedSummary',
+          name: 'KotUsedSummary',
+          element: <KotUsedSummary />,
+          route: PrivateRoute,
+        },
+        {
+          path: '/Reports/BillSummary',
+          name: 'BillSummary',
+          element: <BillSummary />,
+          route: PrivateRoute,
+        },
+        {
+          path: '/Reports/CreditSummary',
+          name: 'CreditSummary',
+          element: <CreditSummary />,
+          route: PrivateRoute,
+        },
+        {
+          path: '/Reports/DiscountSummary',
+          name: 'DiscountSummary',
+          element: <DiscountSummary />,
+          route: PrivateRoute,
+        },
+        {
+          path: '/Reports/ReverseKOTsAndBills',
+          name: 'ReverseKOTsAndBills',
+          element: <ReverseKOTsAndBills />,
+          route: PrivateRoute,
+        },
+        {
+          path: '/Reports/KitchenWiseSalesSummary',
+          name: 'KitchenWiseSalesSummary',
+          element: <KitchenWiseSalesSummary />,
+          route: PrivateRoute,
+        },
+        {
+          path: '/Reports/NCKOTDetails',
+          name: 'NCKOTDetails',
+          element: <NCKOTDetails />,
+          route: PrivateRoute,
+        },
+        {
+          path: '/Reports/APCAPPReport',
+          name: 'APCAPPReport',
+          element: <APCAPPReport />,
+          route: PrivateRoute,
+        },
+        {
+          path: '/Reports/SpecialItems',
+          name: 'SpecialItems',
+          element: <SpecialItems />,
+          route: PrivateRoute,
+        },
+        {
+          path: '/Reports/CashPaidReceivedBetweenDepartments',
+          name: 'CashPaidReceivedBetweenDepartments',
+          element: <CashPaidReceivedBetweenDepartments />,
+          route: PrivateRoute,
+        },
+      ],
     },
 
 

@@ -73,12 +73,124 @@ const MENU_ITEMS: MenuItemTypes[] = [
     icon: 'fi fi-rs-user-headset',
     parentKey: 'apps',
   },
+
+  
   {
     key: 'Reports',
     label: 'Reports',
-    url: '/apps/reports',
+    isTitle: false,
     icon: 'fi fi-rs-mobile',
     parentKey: 'apps',
+    children: [
+      {
+        key: 'DailySalesReport',
+        label: 'DailySalesReport',
+        url: '/Reports/DailySalesReport',
+        parentKey: 'Reports',
+      },
+      {
+        key: 'DailySalesusershift',
+        label: 'DailySalesusershift',
+        url: '/Reports/DailySalesusershift',
+        parentKey: 'Reports',
+      },
+      {
+        key: 'MonthlySales',
+        label: 'MonthlySales',
+        url: '/Reports/MonthlySales',
+        parentKey: 'Reports',
+      },
+      {
+        key: 'PaymentModeSales',
+        label: 'PaymentModeSales',
+        url: '/Reports/PaymentModeSales',
+        parentKey: 'Reports',
+      },
+      {
+        key: 'KitchenAllocation',
+        label: 'KitchenAllocation',
+        url: '/Reports/KitchenAllocation',
+        parentKey: 'Reports',
+      },
+      {
+        key: 'DayEndReport',
+        label: 'DayEndReport',
+        url: '/Reports/DayEndReport',
+        parentKey: 'Reports',
+      },
+      {
+        key: 'HandoverReport',
+        label: 'HandoverReport',
+        url: '/Reports/HandoverReport',
+        parentKey: 'Reports',
+      },
+      {
+        key: 'BillReprinted',
+        label: 'BillReprinted',
+        url: '/Reports/BillReprinted',
+        parentKey: 'Reports',
+      },
+      {
+        key: 'KotUsedSummary',
+        label: 'KotUsedSummary',
+        url: '/Reports/KotUsedSummary',
+        parentKey: 'Reports',
+      },
+      {
+        key: 'BillSummary',
+        label: 'BillSummary',
+        url: '/Reports/BillSummary',
+        parentKey: 'Reports',
+      },
+      {
+        key: 'CreditSummary',
+        label: 'CreditSummary',
+        url: '/Reports/CreditSummary',
+        parentKey: 'Reports',
+      },
+      {
+        key: 'DiscountSummary',
+        label: 'DiscountSummary',
+        url: '/Reports/DiscountSummary',
+        parentKey: 'Reports',
+      },
+      {
+        key: 'ReverseKOTsAndBills',
+        label: 'ReverseKOTsAndBills',
+        url: '/Reports/ReverseKOTsAndBills',
+        parentKey: 'Reports',
+      },
+      {
+        key: 'KitchenWiseSalesSummary',
+        label: 'KitchenWiseSalesSummary',
+        url: '/Reports/KitchenWiseSalesSummary',
+        parentKey: 'Reports',
+      },
+      {
+        key: 'NCKOTDetails',
+        label: 'NCKOTDetails',
+        url: '/Reports/NCKOTDetails',
+        parentKey: 'Reports',
+      },
+      {
+        key: 'APCAPPReport',
+        label: 'APCAPPReport',
+        url: '/Reports/APCAPPReport',
+        parentKey: 'Reports',
+      },
+      {
+        key: 'SpecialItems',
+        label: 'SpecialItems',
+        url: '/Reports/SpecialItems',
+        parentKey: 'Reports',
+      },
+      {
+        key: 'CashPaidReceivedBetweenDepartments',
+        label: 'CashPaidReceivedBetweenDepartments',
+        url: '/Reports/CashPaidReceivedBetweenDepartments',
+        parentKey: 'Reports',
+      },
+    ],
   },
 
   {

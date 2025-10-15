@@ -6,7 +6,7 @@ import { OutletData } from "@/common/api/outlet";
 import { useAuthContext } from "@/common";
 
 interface KotTransferProps {
-  onCancel: () => void;
+  onCancel?: () => void;
 }
 
 const KotTransfer = ({ onCancel }: KotTransferProps) => {
