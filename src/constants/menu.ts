@@ -78,6 +78,16 @@ const MENU_ITEMS: MenuItemTypes[] = [
   {
     key: 'Reports',
     label: 'Reports',
+    url: '/apps/Reports',
+    icon: 'fi fi-rs-mobile',
+    parentKey: 'apps',
+  },
+
+
+  
+  {
+    key: 'Reports',
+    label: 'Reports',
     isTitle: false,
     icon: 'fi fi-rs-mobile',
     parentKey: 'apps',
