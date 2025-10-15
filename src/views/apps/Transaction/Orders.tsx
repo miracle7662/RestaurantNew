@@ -751,6 +751,13 @@ const Order = () => {
     fetchData();
   }, [user?.id, user?.hotelid, user?.outletid, user?.role_level]);
 
+  // Set default outlet ID based on logged-in user
+  useEffect(() => {
+    if (user?.outletid && !selectedOutletId) {
+      setSelectedOutletId(Number(user.outletid));
+    }
+  }, [user, selectedOutletId]);
+
   useEffect(() => {
     if (!loading && outlets.length === 0 && !errorMessage && user) {
       console.log('No outlets found:', { loading, outletsLength: outlets.length, errorMessage, user });
@@ -2001,13 +2008,31 @@ const Order = () => {
     }
   };
 
+  const fetchPaymentModesForOutlet = async (outletId: number) => {
+    try {
+      const res = await fetch(`http://localhost:3001/api/payment-modes/by-outlet/${outletId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setOutletPaymentModes(data);
+      } else {
+        setOutletPaymentModes([]);
+      }
+    } catch (error) {
+      console.error("Failed to fetch payment modes", error);
+      setOutletPaymentModes([]);
+    }
+  };
+
   const handlePendingMakePayment = (order: any) => {
     setCurrentTxnId(order.id);
     setTxnNo(order.kotNo || `Order-${order.id}`);
     setItems(order.items.map((i: any) => ({ ...i, isBilled: 0, isNew: false }))); // Treat items as existing
     setTaxCalc(prev => ({ ...prev, grandTotal: order.total, subtotal: order.total })); // Simplified for now
     setDiscount(0); // Reset discount
-    setShowSettlementModal(true);
+    setSelectedOutletId(order.outletid); // Set the outlet ID from the order
+    fetchPaymentModesForOutlet(order.outletid).then(() => {
+      setShowSettlementModal(true); // Show modal after payment modes are fetched
+    });
   };
 
   const handlePendingOrderTabClick = (type: 'pickup' | 'delivery') => {
