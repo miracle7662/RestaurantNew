@@ -1265,6 +1265,36 @@ const Order = () => {
         setLoading(false);
         return;
       }
+
+      let currentTaxRates = { ...taxRates };
+
+      // For non-dine-in tabs, ensure tax rates are loaded for the default department
+      if (['Pickup', 'Delivery', 'Quick Bill'].includes(activeTab)) {
+        const outletIdForTaxes = Number(user?.outletid) || selectedOutletId;
+        if (outletIdForTaxes && departments.length > 0) {
+          // Find the first department associated with the current outlet
+          const defaultDept = departments.find(d => d.outletid === outletIdForTaxes) || departments[0];
+
+          if (defaultDept) {
+            try {
+              const taxResp = await getTaxesByOutletAndDepartment({ outletid: outletIdForTaxes, departmentid: defaultDept.departmentid });
+              if (taxResp?.success && taxResp?.data?.taxes) {
+                const t = taxResp.data.taxes;
+                currentTaxRates = {
+                  cgst: Number(t.cgst) || 0,
+                  sgst: Number(t.sgst) || 0,
+                  igst: Number(t.igst) || 0,
+                  cess: Number(t.cess) || 0,
+                };
+                setTaxRates(currentTaxRates); // Update state for UI, but use local var for payload
+              }
+            } catch (taxError) {
+              console.error("Error fetching taxes for non-dine-in KOT:", taxError);
+            }
+          }
+        }
+      }
+
       setLoading(true);
 
       const tableNameForKOT =
@@ -1296,10 +1326,10 @@ const Order = () => {
         if (qtyDelta <= 0) return null;
 
         const lineSubtotal = Number(i.price) * qtyDelta;
-        const cgstPer = Number(taxRates.cgst) || 0;
-        const sgstPer = Number(taxRates.sgst) || 0;
-        const igstPer = Number(taxRates.igst) || 0;
-        const cessPer = Number(taxRates.cess) || 0;
+        const cgstPer = Number(currentTaxRates.cgst) || 0;
+        const sgstPer = Number(currentTaxRates.sgst) || 0;
+        const igstPer = Number(currentTaxRates.igst) || 0;
+        const cessPer = Number(currentTaxRates.cess) || 0;
         const cgstAmt = (lineSubtotal * cgstPer) / 100;
         const sgstAmt = (lineSubtotal * sgstPer) / 100;
         const igstAmt = (lineSubtotal * igstPer) / 100;
