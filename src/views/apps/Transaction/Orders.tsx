@@ -2587,8 +2587,8 @@ const Order = () => {
           }
           .billing-panel-inner {
             display: flex;
-            flex-direction: column;
-            height: 100%;
+            flex-direction: column; /* This is correct */
+            height: 100%; /* This is correct */
           }
           .item-list-container {
             display: flex;
@@ -2596,7 +2596,6 @@ const Order = () => {
             overflow-y: auto;
             flex-grow: 1;
             max-height: 450px; /* Set max height for desktop */
-            /* max-height is now controlled by flex-grow */
           }
           .item-list-container::-webkit-scrollbar {
             width: 8px;
@@ -3131,7 +3130,7 @@ const Order = () => {
         </div>
         <div className="billing-panel border-start ">
           <div className="p-1 w-100 h-100 d-flex flex-column">
-            <div className="billing-panel-header flex-shrink-0" style={{ position: 'sticky', top: 0, zIndex: 100, }}>
+            <div className="billing-panel-header flex-shrink-0">
               <div className="d-flex flex-wrap gap-1 border-bottom pb-0">
                 <div className="d-flex flex-wrap gap-1 flex-grow-1">
                   {['Dine-in', 'Pickup', 'Delivery', 'Quick Bill', 'Order/KOT', 'Billing'].map((tab, index) => (
@@ -3164,12 +3163,7 @@ const Order = () => {
               </div>
               <div
                 className="rounded border fw-bold text-black"
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '2fr 1fr 1fr',
-                  padding: '0.5rem',
-                  position: 'sticky', top: '95px', zIndex: 100, backgroundColor: 'white'
-                }}
+                style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', padding: '0.5rem', backgroundColor: 'white' }}
               >
                 <span style={{ textAlign: 'left' }}>Item Name</span>
                 <span className="text-center">Qty</span>
@@ -3178,7 +3172,7 @@ const Order = () => {
             </div>
             <div
               ref={itemListRef}
-              className="border item-list-container flex-grow-1"
+              className="border item-list-container"
               style={{ overflowY: 'auto' }}
             >
               {items.length === 0 ? (
@@ -3342,7 +3336,7 @@ const Order = () => {
                 })()
               )}
               {/* Reversed Items Section - Only in Expanded View */}
-              {reversedItems.length > 0 && (
+              {reversedItems.length > 0 && !isGroupedView && (
                 <ReversedItemsDisplay groupedItems={Object.values(reversedItems.reduce((acc, item) => {
                   const key = `${item.id}-${item.kotNo}`;
                   if (!acc[key]) {
@@ -3353,7 +3347,7 @@ const Order = () => {
                 }, {} as Record<string, ReversedMenuItem>))} />
               )}
             </div>
-            <div className="billing-panel-footer mt-auto flex-shrink-0" style={{ backgroundColor: 'white' }}>
+            <div className="billing-panel-footer flex-shrink-0" style={{ backgroundColor: 'white' }}>
               <div className="d-flex flex-column flex-md-row gap-1 p-1">
                 <div className="d-flex gap- position-relative">
                   <div
@@ -3664,7 +3658,7 @@ const Order = () => {
 
               </div>
             </div>
-            <div className="billing-panel-footer mt-auto flex-shrink-0" style={{ backgroundColor: 'white' }}>
+            <div className="billing-panel-footer mt-auto flex-shrink-0" style={{ backgroundColor: 'white', position: 'sticky', bottom: 0 }}>
               <div className="p-2">
                 <div className="bg-white border rounded p-2">
 
