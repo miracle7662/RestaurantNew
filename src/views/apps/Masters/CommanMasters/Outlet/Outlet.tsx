@@ -416,7 +416,8 @@ const OutletList: React.FC = () => {
       end_time: endTime,
       warehouseid: selectedWarehouseForm ? Number(selectedWarehouseForm) : 0,
       registered_at: new Date().toISOString(),
-      created_by_id: user?.userid || 1,
+      created_by_id: user?.id,
+      updated_by_id: modalType === 'Edit Item' ? user?.id : undefined,
     };
 
     try {
