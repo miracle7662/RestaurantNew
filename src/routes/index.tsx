@@ -69,6 +69,7 @@ const KOTPrintSettings = React.lazy(() => import('../views/apps/Masters/CommanMa
 const BillPrintSettings = React.lazy(() => import('../views/apps/Masters/CommanMasters/Outlet/BillPrintSettings'))
 const HotelTypeMasters = React.lazy(() => import('../views/apps/Masters/CommanMasters/HotelTypeMasters'))
 const UserType = React.lazy(() => import('../views/apps/Masters/CommanMasters/UserType'))
+const Warehouse = React.lazy(() => import('../views/apps/Masters/CommanMasters/Warehouse'))
 
 
 // const ManagePosAccessLevel = React.lazy(() => import('../views/OutletConfigration/ManagePosAccessLevel'))
@@ -595,6 +596,13 @@ const appsRoutes: RoutesProps = {
       path: '/apps/MessageMaster',
       name: 'MessageMaster',
       element: <MessageMaster />,
+      route: PrivateRoute,
+    },
+
+     {
+      path: '/apps/Warehouse',
+      name: 'Warehouse',
+      element: <Warehouse />,
       route: PrivateRoute,
     },
 

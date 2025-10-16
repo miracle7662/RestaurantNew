@@ -219,6 +219,14 @@ const MENU_ITEMS: MenuItemTypes[] = [
     parentKey: 'apps',
   },
 
+   {
+    key: 'Warehouse',
+    label: 'Warehouse',
+    url: '/apps/Warehouse',
+    icon: 'fi fi-sr-sign-out-alt',
+    parentKey: 'apps',
+  },
+
   //Menu 2
 
   {

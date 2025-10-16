@@ -21,6 +21,21 @@ import {
 import { Preloader } from '@/components/Misc/Preloader';
 import Swal from 'sweetalert2';
 
+interface warehouseItem {
+  warehouse_name: string;
+  warehouseid: string;
+  location: string;
+  total_items: number;
+  status: string;
+  created_by_id: string;
+  created_date: string;
+  updated_by_id: string;
+  updated_date: string;
+  hotelid: string;
+  client_code: string;
+  marketid: string;
+}
+
 // Debounce utility function
 const debounce = (func: (...args: any[]) => void, wait: number) => {
   let timeout: NodeJS.Timeout;
@@ -50,6 +65,8 @@ const OutletList: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [brands, setBrands] = useState<Array<{ hotelid: number; hotel_name: string }>>([]);
   const [selectedBrand, setSelectedBrand] = useState<number | null>(null);
+  const [warehouses, setWarehouses] = useState<warehouseItem[]>([]);
+  const [selectedWarehouse, setSelectedWarehouse] = useState<string>('');
   const [countries, setCountries] = useState<Country[]>([]);
   const [selectedCountry, setSelectedCountry] = useState<number | null>(null);
   const [timezones, setTimezones] = useState<Timezone[]>([]);
@@ -81,6 +98,18 @@ const OutletList: React.FC = () => {
   const [nextResetKOTDays, setNextResetKOTDays] = useState<string>('daily');
   const [startTime, setStartTime] = useState<number>(0);
   const [endTime, setEndTime] = useState<number>(6);
+  const [addCustomQr, setAddCustomQr] = useState<boolean>(false);
+  const [selectedWarehouseForm, setSelectedWarehouseForm] = useState<string>('');
+
+  const fetchWarehouses = async () => {
+    try {
+      const res = await fetch('http://localhost:3001/api/warehouse');
+      const data = await res.json();
+      setWarehouses(data);
+    } catch (err) {
+      toast.error('Failed to fetch Warehouses');
+    }
+  };
 
   useEffect(() => {
     console.log('OutletList component mounted');
@@ -91,6 +120,7 @@ const OutletList: React.FC = () => {
       fetchOutlets();
       fetchMasterData();
       fetchBrands(user, setBrands);
+      fetchWarehouses();
     } else {
       console.log('User not authenticated, cannot fetch data');
     }
@@ -189,11 +219,12 @@ const OutletList: React.FC = () => {
     setAddress(outlet.address || '');
     setGstNo(outlet.gst_no || '');
     setStatus(outlet.status === 0);
-    setLogoutPOS(true);
-    setPasswordProtection(false);
-    setSendPaymentLink(false);
-    setSendEbillWhatsApp(false);
-    setReduceInventory(false);
+    setLogoutPOS(outlet.logout_pos === 1);
+    setPasswordProtection(outlet.password_protection === 1);
+    setSendPaymentLink(outlet.send_payment_link === 1);
+    setSendEbillWhatsApp(outlet.send_ebill_whatsapp === 1);
+    setAddCustomQr(outlet.add_custom_qr === 1);
+    setReduceInventory(outlet.reduce_inventory === 1);
     setNextResetBillDays(outlet.next_reset_bill_days || 'daily');
     setNextResetKOTDays(outlet.next_reset_kot_days || 'daily');
     setStartTime(0);
@@ -251,6 +282,8 @@ const OutletList: React.FC = () => {
     setNextResetKOTDays('daily');
     setStartTime(0);
     setEndTime(6);
+    setAddCustomQr(false);
+    setSelectedWarehouseForm('');
   };
 
   const handleCloseModal = () => {
@@ -361,6 +394,12 @@ const OutletList: React.FC = () => {
       next_reset_kot_days: nextResetKOTDays,
       phone: contactPhone,
       email: notificationEmail,
+      logout_pos: logoutPOS ? 1 : 0,
+      password_protection: passwordProtection ? 1 : 0,
+      send_payment_link: sendPaymentLink ? 1 : 0,
+      send_ebill_whatsapp: sendEbillWhatsApp ? 1 : 0,
+      add_custom_qr: addCustomQr ? 1 : 0,
+      reduce_inventory: reduceInventory ? 1 : 0,
       website: '',
       logo: '',
       fssai_no: '',
@@ -1006,12 +1045,8 @@ const OutletList: React.FC = () => {
                     />
                   </Form.Group>
                 </Col>
-                <Col md={6}>
-                  <Form.Group controlId="tenantId">
-                    <Form.Label>Tenant Id</Form.Label>
-                    <Form.Control type="text" value="0" readOnly />
-                  </Form.Group>
-                </Col>
+                
+                
               </Row>
               <Row className="mb-3">
                 <Col md={12}>
@@ -1109,14 +1144,19 @@ const OutletList: React.FC = () => {
                     />
                   </Form.Group>
                 </Col>
+
                 <Col md={6}>
-                  <Form.Group controlId="copyStoreSettings">
-                    <Form.Label>Copy Store Settings</Form.Label>
-                    <Form.Select>
-                      <option>Search</option>
-                    </Form.Select>
+                  <Form.Group controlId="tenantId">
+                    <Form.Label> fssai_no</Form.Label>
+                    <Form.Control
+                      type="text"
+                      placeholder="Enter FSSAI Number"
+                      value={gstNo}
+                      onChange={(e) => setGstNo(e.target.value)}
+                    />
                   </Form.Group>
                 </Col>
+               
               </Row>
               <Row className="mb-3">
                 <Col md={6}>
@@ -1134,7 +1174,11 @@ const OutletList: React.FC = () => {
                 <Col md={6}>
                   <Form.Group controlId="addCustomQRCode">
                     <Form.Label>Add Custom QR Code</Form.Label>
-                    <Button variant="dark">Add QR Link</Button>
+                    <Form.Check
+                      type="switch"
+                      checked={addCustomQr}
+                      onChange={(e) => setAddCustomQr(e.target.checked)}
+                    />
                   </Form.Group>
                 </Col>
               </Row>
@@ -1199,8 +1243,16 @@ const OutletList: React.FC = () => {
                 <Col md={6}>
                   <Form.Group controlId="inventoryDetails">
                     <Form.Label>Back Office Inventory Details</Form.Label>
-                    <Form.Select>
-                      <option>Select Warehouse</option>
+                    <Form.Select
+                      value={selectedWarehouseForm}
+                      onChange={(e) => setSelectedWarehouseForm(e.target.value)}
+                    >
+                      <option value="">Select Warehouse</option>
+                      {warehouses.map((warehouse) => (
+                        <option key={warehouse.warehouseid} value={warehouse.warehouseid}>
+                          {warehouse.warehouse_name}
+                        </option>
+                      ))}
                     </Form.Select>
                   </Form.Group>
                 </Col>

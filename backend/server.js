@@ -40,6 +40,7 @@ const msttableDepartmentRoutes = require('./routes/msttableDepartmentRoutes');
 const paymentmethodRoutes = require('./routes/paymentmethodRoutes');
 const TAxnTrnbillRoutes = require('./routes/TAxnTrnbillRoutes');
 const settlementRoutes = require('./routes/settlementRoutes');
+const WarehouseRoutes= require('./routes/WarehouseRoutes');
 
 
 
@@ -86,6 +87,7 @@ app.use('/api/table-department', msttableDepartmentRoutes); // Register table de
 app.use('/api/payment', paymentmethodRoutes);
 app.use('/api/TAxnTrnbill', TAxnTrnbillRoutes);
 app.use('/api/settlements', settlementRoutes); // Register settlement routes
+app.use('/api/warehouse', WarehouseRoutes); // Register warehouse routes
 
 // ✅ Add a health check endpoint
 app.get('/api/health', (req, res) => {

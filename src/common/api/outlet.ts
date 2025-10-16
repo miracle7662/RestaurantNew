@@ -33,6 +33,15 @@ export interface OutletData {
   fssai_no?: string
   status?: number
   digital_order?: number
+  logout_pos?: number
+  password_protection?: number
+  send_payment_link?: number
+  send_ebill_whatsapp?: number
+  add_custom_qr?: number
+  start_time?: number
+  end_time?: number
+  warehouse_id?: number
+  reduce_inventory?: number
   registered_at?: string
   created_by_id?: number
   created_date?: string
@@ -48,7 +57,6 @@ export interface OutletData {
 
 // Interface for outlet settings
 
-
 class OutletService {
   // Get brands/hotels for dropdown
   getBrands = (params?: { role_level?: string; hotelid?: number }) => {
@@ -56,12 +64,12 @@ class OutletService {
   }
 
   // Get all outlets
-  getOutlets = (params?: { 
-    brand_id?: number; 
-    hotelid?: number; 
-    role_level?: string;
-    created_by_id?: number;
-    outletid?: number;
+  getOutlets = (params?: {
+    brand_id?: number
+    hotelid?: number
+    role_level?: string
+    created_by_id?: number
+    outletid?: number
   }) => {
     return api.get('/api/outlets', params || {})
   }
@@ -87,10 +95,14 @@ class OutletService {
   }
 
   // Get outlets for dropdown
-  getOutletsForDropdown = (params?: { role_level?: string; hotelid?: number; brandId?: number }) => {
+  getOutletsForDropdown = (params?: {
+    role_level?: string
+    hotelid?: number
+    brandId?: number
+  }) => {
     return api.get('/api/outlets', params || {})
   }
-  
+
   //    getOutletSettings = (id: number) => {
   //   return api.get(`/api/outlets/settings/${id}`, {});
   // };
@@ -98,10 +110,6 @@ class OutletService {
   // updateOutletSettings = (id: number, data: Partial<OutletSettings>) => {
   //   return api.update(`/api/outlets/settings/${id}`, data);
   // };
-
 }
 
-
-
-
-export default new OutletService() 
+export default new OutletService()

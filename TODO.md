@@ -1,7 +1,10 @@
-- [ ] Fix frontend table not showing newly added tables due to improper filter application after data fetch
-- [ ] Add applyFilters function to centralize filtering logic
-- [ ] Update fetchTableManagement to call applyFilters after setting tableItems
-- [ ] Modify handleSearch to set searchTerm and call applyFilters (debounced)
-- [ ] Modify handleOutletFilterChange to set selectedOutletId and call applyFilters
-- [ ] Remove redundant filtering logic from handleSearch and handleOutletFilterChange
-- [ ] Test adding a new table and verify it appears in the frontend table
+# TODO: Update Outlet Controller for New Fields
+
+## Tasks
+- [x] Update addOutlet function: Add destructuring for new fields (logout_pos, password_protection, send_payment_link, send_ebill_whatsapp, add_custom_qr, start_time, end_time, warehouse_id, reduce_inventory)
+- [x] Update addOutlet function: Modify INSERT statement to include new fields with proper conversion for switches
+- [x] Update addOutlet function: Update response object to include new fields
+- [x] Update updateOutlet function: Add destructuring for new fields
+- [x] Update updateOutlet function: Modify UPDATE statement to include new fields with proper conversion for switches
+- [x] Update updateOutlet function: Update response object to include new fields
+- [ ] Test the changes to ensure switches are stored as 1/0 and dropdowns as exact values

@@ -304,6 +304,15 @@ CREATE TABLE IF NOT EXISTS mst_outlets (
     fssai_no TEXT,
     status INTEGER DEFAULT 1,
     digital_order INTEGER DEFAULT 0,
+    logout_pos INTEGER DEFAULT 0,              -- Switch (logout POS)
+    password_protection INTEGER DEFAULT 0,     -- Switch
+    send_payment_link INTEGER DEFAULT 0,       -- Switch
+    send_ebill_whatsapp INTEGER DEFAULT 0,     -- Switch
+    add_custom_qr INTEGER DEFAULT 0,           -- Button action
+    start_time INTEGER DEFAULT 0,              -- Counter (Start Time)
+    end_time INTEGER DEFAULT 0,                -- Counter (End Time)
+    warehouse_id INTEGER,                      -- Back Office Inventory Details dropdown
+    reduce_inventory INTEGER DEFAULT 0,        -- Switch
     registered_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     created_by_id INTEGER,
     created_date DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -976,6 +985,21 @@ CREATE TABLE IF NOT EXISTS trn_dayend (
   hotel_id INTEGER NOT NULL,                           -- Hotel reference
   dayend_total_amt DECIMAL(15,2) DEFAULT 0.00,         -- Total sales amount for the day
   created_by_id INTEGER                                -- User who did day end
+);
+
+CREATE TABLE IF NOT EXISTS mstwarehouse (
+  warehouseid INTEGER PRIMARY KEY AUTOINCREMENT,
+  warehouse_name TEXT NOT NULL,
+  location TEXT NOT NULL,
+  total_items INTEGER DEFAULT 0,
+  status INTEGER DEFAULT 0,
+  created_by_id TEXT,
+  created_date TEXT,
+  updated_by_id TEXT,
+  updated_date TEXT,
+  hotelid TEXT,
+  client_code TEXT,
+  marketid TEXT
 );
 
 

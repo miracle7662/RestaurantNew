@@ -1,5 +1,11 @@
 const db = require('../config/db')
 
+// Welcome endpoint with logging
+exports.welcome = (req, res) => {
+  console.log(`Request received: ${req.method} ${req.path}`)
+  res.json({ message: 'Welcome to the API!' })
+}
+
 // Get brands/hotels based on user role
 exports.getBrands = (req, res) => {
   try {
@@ -103,6 +109,15 @@ exports.addOutlet = (req, res) => {
       status,
       digital_order,
       created_by_id,
+      logout_pos,
+      password_protection,
+      send_payment_link,
+      send_ebill_whatsapp,
+      add_custom_qr,
+      start_time,
+      end_time,
+      warehouse_id,
+      reduce_inventory,
     } = req.body
 
     // Validate required fields
@@ -120,8 +135,9 @@ exports.addOutlet = (req, res) => {
                 address, city, zip_code, country, timezone, start_day_time, close_day_time,
                 next_reset_bill_date, next_reset_bill_days, next_reset_kot_date, next_reset_kot_days,
                 contact_phone, notification_email, description, logo, gst_no, fssai_no,
-                status, digital_order, created_by_id, created_date
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                status, digital_order, created_by_id, created_date,
+                logout_pos, password_protection, send_payment_link, send_ebill_whatsapp, add_custom_qr, start_time, end_time, warehouse_id, reduce_inventory
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,  ?,?, ?)
         `)
 
     const outletResult = outletStmt.run(
@@ -153,6 +169,15 @@ exports.addOutlet = (req, res) => {
       digital_order || 0,
       created_by_id,
       new Date().toISOString(),
+      logout_pos == true || logout_pos == 1 ? 1 : 0,
+      password_protection == true || password_protection == 1 ? 1 : 0,
+      send_payment_link == true || send_payment_link == 1 ? 1 : 0,
+      send_ebill_whatsapp == true || send_ebill_whatsapp == 1 ? 1 : 0,
+      add_custom_qr == true || add_custom_qr == 1 ? 1 : 0,
+      start_time,
+      end_time,
+      warehouse_id,
+      reduce_inventory == true || reduce_inventory == 1 ? 1 : 0,
     )
 
     const outletId = outletResult.lastInsertRowid;
@@ -740,6 +765,15 @@ generalSettingsStmt.run(
       digital_order: digital_order || 0,
       created_by_id,
       created_date: new Date().toISOString(),
+      logout_pos: logout_pos == true || logout_pos == 1 ? 1 : 0,
+      password_protection: password_protection == true || password_protection == 1 ? 1 : 0,
+      send_payment_link: send_payment_link == true || send_payment_link == 1 ? 1 : 0,
+      send_ebill_whatsapp: send_ebill_whatsapp == true || send_ebill_whatsapp == 1 ? 1 : 0,
+      add_custom_qr: add_custom_qr == true || add_custom_qr == 1 ? 1 : 0,
+      start_time,
+      end_time,
+      warehouse_id,
+      reduce_inventory: reduce_inventory == true || reduce_inventory == 1 ? 1 : 0,
     })
   } catch (error) {
     // Rollback the transaction on error
@@ -778,6 +812,15 @@ exports.updateOutlet = (req, res) => {
       fssai_no,
       status,
       digital_order,
+      logout_pos,
+      password_protection,
+      send_payment_link,
+      send_ebill_whatsapp,
+      add_custom_qr,
+      start_time,
+      end_time,
+      warehouse_id,
+      reduce_inventory,
       updated_by_id,
     } = req.body
 
@@ -787,14 +830,16 @@ exports.updateOutlet = (req, res) => {
     }
 
     const stmt = db.prepare(`
-            UPDATE mst_outlets SET 
-                outlet_name = ?, hotelid = ?, market_id = ?, outlet_code = ?, phone = ?, 
-                email = ?, website = ?, address = ?, city = ?, zip_code = ?, country = ?, 
-                timezone = ?, start_day_time = ?, close_day_time = ?, next_reset_bill_date = ?, 
-                next_reset_bill_days = ?, next_reset_kot_date = ?, next_reset_kot_days = ?, 
-                contact_phone = ?, notification_email = ?, description = ?, logo = ?, 
-                gst_no = ?, fssai_no = ?, status = ?, digital_order = ?, updated_by_id = ?, 
-                updated_date = ? 
+            UPDATE mst_outlets SET
+                outlet_name = ?, hotelid = ?, market_id = ?, outlet_code = ?, phone = ?,
+                email = ?, website = ?, address = ?, city = ?, zip_code = ?, country = ?,
+                timezone = ?, start_day_time = ?, close_day_time = ?, next_reset_bill_date = ?,
+                next_reset_bill_days = ?, next_reset_kot_date = ?, next_reset_kot_days = ?,
+                contact_phone = ?, notification_email = ?, description = ?, logo = ?,
+                gst_no = ?, fssai_no = ?, status = ?, digital_order = ?, logout_pos = ?,
+                password_protection = ?, send_payment_link = ?, send_ebill_whatsapp = ?, add_custom_qr = ?,
+                start_time = ?, end_time = ?, warehouse_id = ?, reduce_inventory = ?, updated_by_id = ?,
+                updated_date = ?
             WHERE outletid = ?
         `)
 
@@ -825,6 +870,15 @@ exports.updateOutlet = (req, res) => {
       fssai_no,
       status,
       digital_order,
+      logout_pos == true || logout_pos == 1 ? 1 : 0,
+      password_protection == true || password_protection == 1 ? 1 : 0,
+      send_payment_link == true || send_payment_link == 1 ? 1 : 0,
+      send_ebill_whatsapp == true || send_ebill_whatsapp == 1 ? 1 : 0,
+      add_custom_qr == true || add_custom_qr == 1 ? 1 : 0,
+      start_time,
+      end_time,
+      warehouse_id,
+      reduce_inventory == true || reduce_inventory == 1 ? 1 : 0,
       updated_by_id,
       new Date().toISOString(),
       id,
@@ -858,6 +912,15 @@ exports.updateOutlet = (req, res) => {
       fssai_no,
       status,
       digital_order,
+      logout_pos: logout_pos == true || logout_pos == 1 ? 1 : 0,
+      password_protection: password_protection == true || password_protection == 1 ? 1 : 0,
+      send_payment_link: send_payment_link == true || send_payment_link == 1 ? 1 : 0,
+      send_ebill_whatsapp: send_ebill_whatsapp == true || send_ebill_whatsapp == 1 ? 1 : 0,
+      add_custom_qr: add_custom_qr == true || add_custom_qr == 1 ? 1 : 0,
+      start_time,
+      end_time,
+      warehouse_id,
+      reduce_inventory: reduce_inventory == true || reduce_inventory == 1 ? 1 : 0,
       updated_by_id,
       updated_date: new Date().toISOString(),
     })
