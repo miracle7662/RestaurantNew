@@ -2,7 +2,7 @@
 // import axios from 'axios';
 // import config from '@/config';
 import { toast } from 'react-toastify'
-import outletService from './../common/api/outlet' // adjust path if needed
+import outletService, { OutletData } from './../common/api/outlet' // adjust path if needed
 // import { OutletData } from '@/common/api/outlet'; // make sure this type is exported properly
 
 export interface CountryItem {
@@ -91,14 +91,6 @@ export interface UserTypeItem {
   User_type: string
   usertypeid: number
   status: string
-}
-
- export interface OutletData {
-  outletid: number // ✅ no `?`
-  outlet_name: string
-  outlet_code?: string
-  status: number
-  registered_at?: string
 }
 
  export interface TableItem {
