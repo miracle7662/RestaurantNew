@@ -3,57 +3,19 @@ const db = require("../config/db"); // SQLite connection
 // Get all table records with search and pagination
 exports.getAllTables = (req, res) => {
   try {
-    const search = req.query.search ? req.query.search.toString().toLowerCase() : '';
-    const page = req.query.page ? parseInt(req.query.page.toString()) : 1;
-    const limit = req.query.limit ? parseInt(req.query.limit.toString()) : 10;
-    const offset = (page - 1) * limit;
-
-    let baseSql = 
-      " FROM msttablemanagement tm " +
-      " LEFT JOIN msthotelmasters h ON tm.hotelid = h.hotelid " +
-      " LEFT JOIN mst_outlets o ON tm.outletid = o.outletid ";
-
-    let whereClause = '';
-    const params = {};
-
-    if (search) {
-      whereClause = 
-        " WHERE LOWER(tm.table_name) LIKE @search " +
-        " OR LOWER(h.hotel_name) LIKE @search " +
-        " OR LOWER(o.outlet_name) LIKE @search ";
-      params['search'] = '%' + search + '%';
-    }
-
-    // Get total count for pagination
-    const countSql = "SELECT COUNT(*) as total " + baseSql + whereClause;
-    const totalRow = db.prepare(countSql).get(params);
-    const total = totalRow ? totalRow.total : 0;
-
-    // Get paginated data
-    const dataSql = 
-      "SELECT tm.*, h.hotel_name, o.outlet_name " +
-      baseSql +
-      whereClause +
-      " LIMIT @limit OFFSET @offset ";
-    params['limit'] = limit;
-    params['offset'] = offset;
-
-    const rows = db.prepare(dataSql).all(params);
+    const sql = "SELECT * FROM msttablemanagement";
+    const rows = db.prepare(sql).all();
 
     res.json({
       success: true,
       data: rows,
-      pagination: {
-        total,
-        page,
-        limit,
-      },
     });
   } catch (error) {
     console.error("Error fetching tables:", error);
     res.status(500).json({ success: false, message: "Failed to fetch tables", error: error.message });
   }
 };
+
 
 // Create a new table record (✅ departmentid added)
 // Create a new table record

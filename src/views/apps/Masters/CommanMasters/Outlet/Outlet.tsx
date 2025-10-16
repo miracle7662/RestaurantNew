@@ -85,7 +85,7 @@ const OutletList: React.FC = () => {
   useEffect(() => {
     console.log('OutletList component mounted');
     console.log('Current user in OutletList:', user);
-    
+
     if (user) {
       console.log('User authenticated, fetching data...');
       fetchOutlets();
@@ -881,12 +881,24 @@ const OutletList: React.FC = () => {
                 </Col>
               </Row>
               <Row className="mb-3">
+
                 <Col md={6}>
                   <Form.Group controlId="nextResetBillDate">
                     <Form.Label>Next Reset Bill Date</Form.Label>
-                    <Form.Control type="text" value="26 MAY 2025 5:30 AM" readOnly />
+                    <Form.Control
+                      type="date"
+                      placeholder="dd-mm-yyyy"
+                      style={{
+                        backgroundColor: "#f8fafc",
+                        color: "#374151",
+                        border: "1px solid #d1d5db",
+                        borderRadius: "8px",
+                        padding: "8px 12px",
+                      }}
+                    />
                   </Form.Group>
                 </Col>
+
                 <Col md={6}>
                   <Form.Group controlId="nextResetBillDays">
                     <Form.Label>Next Reset Bill (In Days)</Form.Label>
@@ -906,7 +918,17 @@ const OutletList: React.FC = () => {
                 <Col md={6}>
                   <Form.Group controlId="nextResetKOTDate">
                     <Form.Label>Next Reset KOT Date</Form.Label>
-                    <Form.Control type="text" value="26 MAY 2025 5:30 AM" readOnly />
+                    <Form.Control
+                      type="date"
+                      placeholder="dd-mm-yyyy"
+                      style={{
+                        backgroundColor: "#f8fafc",
+                        color: "#374151",
+                        border: "1px solid #d1d5db",
+                        borderRadius: "8px",
+                        padding: "8px 12px",
+                      }}
+                    />
                   </Form.Group>
                 </Col>
                 <Col md={6}>

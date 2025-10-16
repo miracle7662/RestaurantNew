@@ -1,717 +1,524 @@
-import React, { useState, useEffect } from "react";
-import { Card, Table, Form, Button, Row, Col, Modal, Dropdown, Tab, Tabs } from "react-bootstrap";
-import * as XLSX from "xlsx";
-import jsPDF from "jspdf";
-import "jspdf-autotable";
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import Swal from 'sweetalert2';
+import { toast } from 'react-hot-toast';
+import { Preloader } from '@/components/Misc/Preloader';
+import { Button, Card, Stack, Pagination, Table, Form } from 'react-bootstrap';
+import TitleHelmet from '@/components/Common/TitleHelmet';
+import { useAuthContext } from '../../common/context/useAuthContext';
+import {
+  useReactTable,
+  getCoreRowModel,
+  getPaginationRowModel,
+  getFilteredRowModel,
+  ColumnDef,
+  flexRender,
+} from '@tanstack/react-table';
 
-const ReportPage = () => {
-  const [bills, setBills] = useState<any[]>([]);
-  const [filteredBills, setFilteredBills] = useState<any[]>([]);
-  const [reportType, setReportType] = useState("daily");
-  const [reportCategory, setReportCategory] = useState("sales");
-  const [customRange, setCustomRange] = useState({ start: "", end: "" });
-  const [filters, setFilters] = useState({
-    orderType: "",
-    paymentMode: "",
-    outlet: ""
-  });
-  const [stats, setStats] = useState({
-    totalBills: 0,
-    totalSales: 0,
-    totalDiscount: 0,
-    totalTax: 0,
-    totalQty: 0,
-  });
-  const [visibleColumns, setVisibleColumns] = useState({
-    billNo: true,
-    date: true,
-    customerName: true,
-    mobile: true,
-    orderType: true,
-    paymentMode: true,
-    waiter: true,
-    subtotal: true,
-    discount: true,
-    tax: true,
-    grandTotal: true,
-    itemsCount: true
-  });
-  const [showColumnModal, setShowColumnModal] = useState(false);
-  const [ingredientUsage, setIngredientUsage] = useState<any[]>([]);
+interface warehouseItem {
+  warehouse_name: string;
+  warehouseid: string;
+  location: string;
+  total_items: number;
+  status: string;
+  created_by_id: string;
+  created_date: string;
+  updated_by_id: string;
+  updated_date: string;
+  hotelid: string;
+  client_code: string;
+  marketid: string;
+}
 
-  // Mock recipes data
-  const recipes = {
-    "Paneer Butter Masala": { "Paneer": 0.25, "Butter": 0.05, "Tomato": 0.1, "Cream": 0.02, "Spices": 0.01 },
-    "Naan": { "Flour": 0.1, "Oil": 0.01, "Yeast": 0.005, "Yogurt": 0.02 },
-    "Biryani": { "Rice": 0.2, "Chicken": 0.15, "Spices": 0.02, "Onion": 0.05, "Oil": 0.01 },
-    "Butter Chicken": { "Chicken": 0.2, "Butter": 0.03, "Cream": 0.03, "Tomato": 0.08, "Spices": 0.01 },
-    "Dal Makhani": { "Lentils": 0.15, "Butter": 0.02, "Cream": 0.01, "Tomato": 0.05, "Spices": 0.005 }
+interface WarehouseModalProps {
+  show: boolean;
+  onHide: () => void;
+  onSuccess: () => void;
+  warehouse: warehouseItem | null;
+  onUpdateSelectedWarehouse?: (warehouse: warehouseItem) => void;
+}
+
+// Debounce utility function
+const debounce = (func: (...args: any[]) => void, wait: number) => {
+  let timeout: NodeJS.Timeout;
+  return (...args: any[]) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
   };
+};
 
-  const ingredientCosts = {
-    "Paneer": 200, "Butter": 50, "Tomato": 40, "Cream": 80, "Spices": 300,
-    "Flour": 30, "Oil": 120, "Yeast": 100, "Yogurt": 60, "Rice": 50,
-    "Chicken": 150, "Onion": 20, "Lentils": 80
-  };
-
-  // Mock inventory opening stock and purchases for the period
-  const mockInventory = {
-    "Paneer": { opening: 10, purchase: 20, unit: "kg" },
-    "Butter": { opening: 5, purchase: 10, unit: "kg" },
-    "Tomato": { opening: 15, purchase: 25, unit: "kg" },
-    "Cream": { opening: 3, purchase: 5, unit: "L" },
-    "Spices": { opening: 2, purchase: 3, unit: "kg" },
-    "Flour": { opening: 20, purchase: 30, unit: "kg" },
-    "Oil": { opening: 10, purchase: 15, unit: "L" },
-    "Yeast": { opening: 1, purchase: 2, unit: "kg" },
-    "Yogurt": { opening: 8, purchase: 12, unit: "L" },
-    "Rice": { opening: 25, purchase: 35, unit: "kg" },
-    "Chicken": { opening: 12, purchase: 18, unit: "kg" },
-    "Onion": { opening: 10, purchase: 15, unit: "kg" },
-    "Lentils": { opening: 15, purchase: 20, unit: "kg" }
-  };
-
-  useEffect(() => {
-    loadBills();
-  }, []);
-
-  useEffect(() => {
-    filterBills(bills);
-  }, [reportType, reportCategory, filters, customRange]);
-
-  const loadBills = () => {
-    const quickBills = JSON.parse(localStorage.getItem("quickBills") || "[]");
-    const normalBills = JSON.parse(localStorage.getItem("normalBills") || "[]");
-    const allBills = [...quickBills, ...normalBills].map(bill => ({
-      ...bill,
-      itemsCount: bill.items?.reduce((q: number, i: any) => q + i.qty, 0) || 0,
-      tax: (bill.cgstAmt || 0) + (bill.sgstAmt || 0)
-    }));
-    setBills(allBills);
-    filterBills(allBills);
-  };
-
-  const filterBills = (data: any[]) => {
-    const today = new Date();
-    let filtered = data;
-
-    // Date filtering
-    if (reportType === "daily") {
-      filtered = filtered.filter((bill) => {
-        const d = new Date(bill.date || bill.createdAt);
-        return d.toDateString() === today.toDateString();
-      });
-    } else if (reportType === "monthly") {
-      filtered = filtered.filter((bill) => {
-        const d = new Date(bill.date || bill.createdAt);
-        return (
-          d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear()
-        );
-      });
-    } else if (reportType === "custom" && customRange.start && customRange.end) {
-      const start = new Date(customRange.start);
-      const end = new Date(customRange.end);
-      filtered = filtered.filter((bill) => {
-        const d = new Date(bill.date || bill.createdAt);
-        return d >= start && d <= end;
-      });
-    }
-
-    // Additional filters
-    if (filters.orderType) {
-      filtered = filtered.filter(bill => bill.orderType === filters.orderType);
-    }
-    if (filters.paymentMode) {
-      filtered = filtered.filter(bill => bill.paymentMode === filters.paymentMode);
-    }
-    if (filters.outlet) {
-      filtered = filtered.filter(bill => bill.outlet === filters.outlet);
-    }
-
-    setFilteredBills(filtered);
-    calculateStats(filtered);
-    calculateIngredientUsage(filtered);
-  };
-
-  const calculateStats = (bills: any[]) => {
-    const totalBills = bills.length;
-    const totalSales = bills.reduce((s, b) => s + (b.grandTotal || 0), 0);
-    const totalDiscount = bills.reduce((s, b) => s + (b.discount || 0), 0);
-    const totalTax = bills.reduce((s, b) => s + (b.tax || 0), 0);
-    const totalQty = bills.reduce((s, b) => s + (b.itemsCount || 0), 0);
-    setStats({ totalBills, totalSales, totalDiscount, totalTax, totalQty });
-  };
-
-  const calculateIngredientUsage = (bills: any[]) => {
-    const usage: any = {};
-
-    bills.forEach(bill => {
-      bill.items?.forEach((item: any) => {
-        const recipe = recipes[item.name as keyof typeof recipes];
-        if (recipe) {
-          Object.entries(recipe).forEach(([ingredient, quantityPerItem]) => {
-            if (!usage[ingredient]) {
-              usage[ingredient] = {
-                ingredient,
-                unit: "kg",
-                quantityUsed: 0,
-                cost: 0
-              };
-            }
-            const quantity = item.qty * quantityPerItem;
-            usage[ingredient].quantityUsed += quantity;
-            usage[ingredient].cost += quantity * ingredientCosts[ingredient as keyof typeof ingredientCosts];
-          });
-        }
-      });
-    });
-
-    // Extend with inventory data for balance calculation
-    const extendedUsage = Object.values(usage).map((u: any) => {
-      const inv = mockInventory[u.ingredient as keyof typeof mockInventory];
-      if (inv) {
-        const totalAvailable = inv.opening + inv.purchase;
-        const balance = totalAvailable - u.quantityUsed;
-        const wastage = Math.max(0, balance < 0 ? -balance : 0); // Simple wastage assumption if negative
-        return { ...u, opening: inv.opening, purchase: inv.purchase, balance: Math.max(0, balance), wastage: 0.5 }; // Mock wastage
-      }
-      return u;
-    });
-
-    setIngredientUsage(extendedUsage);
-  };
-
-  // Calculate payment summary
-  const calculatePaymentSummary = (bills: any[]) => {
-    const summary: any = {};
-    bills.forEach(bill => {
-      const mode = bill.paymentMode || "Cash";
-      summary[mode] = (summary[mode] || 0) + (bill.grandTotal || 0);
-    });
-    return Object.entries(summary).map(([mode, total]) => ({ mode, total: total as number }));
-  };
-
-  // Calculate staff summary
-  const calculateStaffSummary = (bills: any[]) => {
-    const summary: any = {};
-    bills.forEach(bill => {
-      const staff = bill.waiter || "Unknown";
-      if (!summary[staff]) {
-        summary[staff] = { bills: 0, sales: 0, tips: 0 }; // Mock tips
-      }
-      summary[staff].bills += 1;
-      summary[staff].sales += (bill.grandTotal || 0);
-      summary[staff].tips += Math.floor(Math.random() * 50) + 10; // Mock tips
-    });
-    return Object.entries(summary).map(([name, data]: any) => ({
-      name,
-      bills: data.bills,
-      sales: data.sales,
-      avgBill: data.bills > 0 ? data.sales / data.bills : 0,
-      tips: data.tips
-    }));
-  };
-
-  const paymentSummary = calculatePaymentSummary(filteredBills);
-  const staffSummary = calculateStaffSummary(filteredBills);
-
-  const handleCustomFilter = () => filterBills(bills);
-
-  const handleResetFilters = () => {
-    setFilters({ orderType: "", paymentMode: "", outlet: "" });
-    setCustomRange({ start: "", end: "" });
-    setReportType("daily");
-    setReportCategory("sales");
-  };
-
-  const exportToExcel = () => {
-    let data: any[] = [];
-    if (reportCategory === "sales") {
-      data = filteredBills.map(bill => ({
-        "Bill No": bill.billNo,
-        "Date": new Date(bill.date || bill.createdAt).toLocaleDateString(),
-        "Customer": bill.customerName || "N/A",
-        "Mobile": bill.customerMobile || "N/A",
-        "Order Type": bill.orderType || "Dine-in",
-        "Payment Mode": bill.paymentMode || "Cash",
-        "Subtotal": bill.subtotal || 0,
-        "Discount": bill.discount || 0,
-        "Tax": bill.tax || 0,
-        "Grand Total": bill.grandTotal || 0,
-        "Items Count": bill.itemsCount || 0
-      }));
-    } else if (reportCategory === "payment") {
-      data = paymentSummary.map(p => ({ "Payment Mode": p.mode, "Total": p.total }));
-    } else if (reportCategory === "staff") {
-      data = staffSummary.map(s => ({ "Staff Name": s.name, "Bills Handled": s.bills, "Total Sales": s.sales, "Avg Bill": s.avgBill, "Tips": s.tips }));
-    } else if (reportCategory === "kitchen" || reportCategory === "inventory") {
-      data = ingredientUsage.map(i => ({ "Ingredient": i.ingredient, "Unit": i.unit, "Quantity Used": i.quantityUsed, "Cost": i.cost, ...(reportCategory === "inventory" && { "Opening": i.opening, "Purchase": i.purchase, "Balance": i.balance, "Wastage": i.wastage }) }));
-    }
-
-    const worksheet = XLSX.utils.json_to_sheet(data);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, `${reportCategory} Report`);
-    XLSX.writeFile(workbook, `restaurant-${reportCategory}-report-${new Date().toISOString().split('T')[0]}.xlsx`);
-  };
-
-  const exportToPDF = () => {
-    const doc = new jsPDF();
-    const title = `${reportCategory.charAt(0).toUpperCase() + reportCategory.slice(1)} Report`;
-    
-    // Title
-    doc.setFontSize(16);
-    doc.text(title, 14, 15);
-    doc.setFontSize(10);
-    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 22);
-    
-    let startY = 35;
-    let body: any[][] = [];
-    let head: string[] = [];
-
-    if (reportCategory === "sales") {
-      doc.text(`Total Bills: ${stats.totalBills}`, 14, startY);
-      startY += 7;
-      doc.text(`Total Sales: ₹${stats.totalSales.toFixed(2)}`, 14, startY);
-      startY += 7;
-      head = ['Bill No', 'Date', 'Customer', 'Order Type', 'Grand Total'];
-      body = filteredBills.slice(0, 20).map(bill => [ // Limit rows for PDF
-        bill.billNo,
-        new Date(bill.date || bill.createdAt).toLocaleDateString(),
-        bill.customerName || "N/A",
-        bill.orderType || "Dine-in",
-        `₹${(bill.grandTotal || 0).toFixed(2)}`
-      ]);
-    } else if (reportCategory === "payment") {
-      head = ['Payment Mode', 'Total (₹)'];
-      body = paymentSummary.map(p => [p.mode, `₹${p.total.toFixed(2)}`]);
-    } else if (reportCategory === "staff") {
-      head = ['Staff Name', 'Bills', 'Total Sales (₹)', 'Avg Bill (₹)', 'Tips (₹)'];
-      body = staffSummary.map(s => [s.name, s.bills, s.sales.toFixed(2), s.avgBill.toFixed(2), s.tips]);
-    } else if (reportCategory === "kitchen" || reportCategory === "inventory") {
-      head = reportCategory === "kitchen" ? ['Ingredient', 'Unit', 'Quantity Used', 'Cost (₹)'] : ['Ingredient', 'Unit', 'Opening', 'Purchase', 'Used', 'Balance', 'Wastage', 'Cost (₹)'];
-      body = ingredientUsage.map(i => {
-        const row = [i.ingredient, i.unit, i.quantityUsed.toFixed(3), i.cost.toFixed(2)];
-        if (reportCategory === "inventory") {
-          row.splice(2, 0, i.opening, i.purchase);
-          row.splice(6, 0, i.balance, i.wastage);
-        }
-        return row.map(r => typeof r === 'number' ? r.toFixed(2) : r);
-      });
-    }
-
-    (doc as any).autoTable({
-      startY,
-      head: [head],
-      body,
-    });
-    
-    doc.save(`restaurant-${reportCategory}-report-${new Date().toISOString().split('T')[0]}.pdf`);
-  };
-
-  const toggleColumn = (column: string) => {
-    setVisibleColumns(prev => ({
-      ...prev,
-      [column]: !prev[column as keyof typeof visibleColumns]
-    }));
-  };
-
-  const ColumnSelectorModal = () => (
-    <Modal show={showColumnModal} onHide={() => setShowColumnModal(false)}>
-      <Modal.Header closeButton>
-        <Modal.Title>Select Columns to Display (Sales Report)</Modal.Title>
-      </Modal.Header>
-      <Modal.Body>
-        <Row>
-          {Object.entries(visibleColumns).map(([key, value]) => (
-            <Col md={6} key={key}>
-              <Form.Check
-                type="checkbox"
-                label={key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
-                checked={value}
-                onChange={() => toggleColumn(key)}
-                className="mb-2"
-              />
-            </Col>
-          ))}
-        </Row>
-      </Modal.Body>
-    </Modal>
-  );
-
-  const renderSalesSection = () => (
-    <>
-      {/* Summary Cards */}
-      <Row className="text-center mb-4">
-        <Col>
-          <Card className="p-3 shadow-sm rounded-4 border-0" style={{ backgroundColor: "#E3F2FD", color: "#0D47A1" }}>
-            <h6>🧾 Total Bills</h6>
-            <h4>{stats.totalBills}</h4>
-          </Card>
-        </Col>
-        <Col>
-          <Card className="p-3 shadow-sm rounded-4 border-0" style={{ backgroundColor: "#E8F5E9", color: "#1B5E20" }}>
-            <h6>💰 Total Sales</h6>
-            <h4>₹{stats.totalSales.toFixed(2)}</h4>
-          </Card>
-        </Col>
-        <Col>
-          <Card className="p-3 shadow-sm rounded-4 border-0" style={{ backgroundColor: "#FFF3E0", color: "#E65100" }}>
-            <h6>💸 Total Discount</h6>
-            <h4>₹{stats.totalDiscount.toFixed(2)}</h4>
-          </Card>
-        </Col>
-        <Col>
-          <Card className="p-3 shadow-sm rounded-4 border-0" style={{ backgroundColor: "#E0F7FA", color: "#006064" }}>
-            <h6>💷 Total Tax</h6>
-            <h4>₹{stats.totalTax.toFixed(2)}</h4>
-          </Card>
-        </Col>
-        <Col>
-          <Card className="p-3 shadow-sm rounded-4 border-0" style={{ backgroundColor: "#FCE4EC", color: "#AD1457" }}>
-            <h6>🍽️ Total Qty Sold</h6>
-            <h4>{stats.totalQty}</h4>
-          </Card>
-        </Col>
-      </Row>
-
-      {/* Sales Table */}
-      <Table bordered hover responsive size="sm">
-        <thead style={{ backgroundColor: "#E3F2FD" }}>
-          <tr className="text-secondary">
-            {visibleColumns.billNo && <th>Bill No</th>}
-            {visibleColumns.date && <th>Date</th>}
-            {visibleColumns.customerName && <th>Customer</th>}
-            {visibleColumns.mobile && <th>Mobile</th>}
-            {visibleColumns.orderType && <th>Type</th>}
-            {visibleColumns.paymentMode && <th>Payment Mode</th>}
-            {visibleColumns.waiter && <th>Waiter</th>}
-            {visibleColumns.subtotal && <th>Subtotal (₹)</th>}
-            {visibleColumns.discount && <th>Discount (₹)</th>}
-            {visibleColumns.tax && <th>Tax (₹)</th>}
-            {visibleColumns.grandTotal && <th>Grand Total (₹)</th>}
-            {visibleColumns.itemsCount && <th>Items Count</th>}
-          </tr>
-        </thead>
-        <tbody>
-          {filteredBills.length === 0 ? (
-            <tr>
-              <td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="text-center text-muted py-3">
-                No records found
-              </td>
-            </tr>
-          ) : (
-            filteredBills.map((b, i) => (
-              <tr key={i}>
-                {visibleColumns.billNo && <td>{b.billNo}</td>}
-                {visibleColumns.date && <td>{new Date(b.date || b.createdAt).toLocaleDateString()}</td>}
-                {visibleColumns.customerName && <td>{b.customerName || "N/A"}</td>}
-                {visibleColumns.mobile && <td>{b.customerMobile || "N/A"}</td>}
-                {visibleColumns.orderType && <td>{b.orderType || "Dine-in"}</td>}
-                {visibleColumns.paymentMode && <td>{b.paymentMode || "Cash"}</td>}
-                {visibleColumns.waiter && <td>{b.waiter || "N/A"}</td>}
-                {visibleColumns.subtotal && <td>{(b.subtotal || 0).toFixed(2)}</td>}
-                {visibleColumns.discount && <td>{(b.discount || 0).toFixed(2)}</td>}
-                {visibleColumns.tax && <td>{(b.tax || 0).toFixed(2)}</td>}
-                {visibleColumns.grandTotal && <td>{(b.grandTotal || 0).toFixed(2)}</td>}
-                {visibleColumns.itemsCount && <td>{b.itemsCount || 0}</td>}
-              </tr>
-            ))
-          )}
-        </tbody>
-      </Table>
-    </>
-  );
-
-  const renderPaymentSection = () => (
-    <Card className="p-3 shadow-sm border-0">
-      <Card.Header style={{ backgroundColor: "#E8F5E9" }}>
-        <h5 className="mb-0">💳 Payment and Collection Summary</h5>
-      </Card.Header>
-      <Card.Body>
-        <Table bordered hover responsive size="sm">
-          <thead style={{ backgroundColor: "#FFF3E0" }}>
-            <tr>
-              <th>Payment Mode</th>
-              <th>Total Amount (₹)</th>
-              <th>Percentage</th>
-            </tr>
-          </thead>
-          <tbody>
-            {paymentSummary.map((p, i) => {
-              const percentage = ((p.total / stats.totalSales) * 100).toFixed(1);
-              return (
-                <tr key={i}>
-                  <td>{p.mode}</td>
-                  <td>{p.total.toFixed(2)}</td>
-                  <td>{percentage}%</td>
-                </tr>
-              );
-            })}
-            <tr className="fw-bold">
-              <td>Total</td>
-              <td>{stats.totalSales.toFixed(2)}</td>
-              <td>100%</td>
-            </tr>
-          </tbody>
-        </Table>
-      </Card.Body>
-    </Card>
-  );
-
-  const renderStaffSection = () => (
-    <Card className="p-3 shadow-sm border-0">
-      <Card.Header style={{ backgroundColor: "#E0F7FA" }}>
-        <h5 className="mb-0">🧑‍💼 Staff / Waiter Performance Report</h5>
-      </Card.Header>
-      <Card.Body>
-        <Table bordered hover responsive size="sm">
-          <thead style={{ backgroundColor: "#FFF3E0" }}>
-            <tr>
-              <th>Staff Name</th>
-              <th>Bills Handled</th>
-              <th>Total Sales (₹)</th>
-              <th>Avg Bill (₹)</th>
-              <th>Tips (₹)</th>
-            </tr>
-          </thead>
-          <tbody>
-            {staffSummary.map((s, i) => (
-              <tr key={i}>
-                <td>{s.name}</td>
-                <td>{s.bills}</td>
-                <td>{s.sales.toFixed(2)}</td>
-                <td>{s.avgBill.toFixed(2)}</td>
-                <td>{s.tips.toFixed(2)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </Table>
-      </Card.Body>
-    </Card>
-  );
-
-  const renderKitchenSection = () => (
-    <Card className="mt-4 border-0 shadow-sm">
-      <Card.Header style={{ backgroundColor: "#E8F5E9" }}>
-        <h5 className="mb-0">🍳 Kitchen Ingredient Usage Report</h5>
-      </Card.Header>
-      <Card.Body>
-        <Table bordered hover responsive size="sm">
-          <thead>
-            <tr>
-              <th>Ingredient</th>
-              <th>Unit</th>
-              <th>Quantity Used</th>
-              <th>Cost (₹)</th>
-            </tr>
-          </thead>
-          <tbody>
-            {ingredientUsage.map((ingredient, index) => (
-              <tr key={index}>
-                <td>{ingredient.ingredient}</td>
-                <td>{ingredient.unit}</td>
-                <td>{ingredient.quantityUsed.toFixed(3)}</td>
-                <td>{ingredient.cost.toFixed(2)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </Table>
-      </Card.Body>
-    </Card>
-  );
-
-  const renderInventorySection = () => (
-    <Card className="mt-4 border-0 shadow-sm">
-      <Card.Header style={{ backgroundColor: "#FCE4EC" }}>
-        <h5 className="mb-0">🧱 Inventory & Purchase Report</h5>
-      </Card.Header>
-      <Card.Body>
-        <Table bordered hover responsive size="sm">
-          <thead>
-            <tr>
-              <th>Item</th>
-              <th>Unit</th>
-              <th>Opening Stock</th>
-              <th>Purchase</th>
-              <th>Used</th>
-              <th>Wastage</th>
-              <th>Closing Stock</th>
-              <th>Cost (₹)</th>
-            </tr>
-          </thead>
-          <tbody>
-            {ingredientUsage.map((ingredient, index) => (
-              <tr key={index}>
-                <td>{ingredient.ingredient}</td>
-                <td>{ingredient.unit}</td>
-                <td>{ingredient.opening?.toFixed(2) || 0}</td>
-                <td>{ingredient.purchase?.toFixed(2) || 0}</td>
-                <td>{ingredient.quantityUsed.toFixed(3)}</td>
-                <td>{ingredient.wastage?.toFixed(3) || 0}</td>
-                <td>{ingredient.balance?.toFixed(3) || 0}</td>
-                <td>{ingredient.cost.toFixed(2)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </Table>
-      </Card.Body>
-    </Card>
-  );
-
-  const renderReportContent = () => {
-    switch (reportCategory) {
-      case "sales":
-        return renderSalesSection();
-      case "payment":
-        return renderPaymentSection();
-      case "staff":
-        return renderStaffSection();
-      case "kitchen":
-        return renderKitchenSection();
-      case "inventory":
-        return renderInventorySection();
-      default:
-        return renderSalesSection();
-    }
-  };
-
-  return (
-    <div className="container mt-4">
-      <Card className="p-3 shadow-sm border-0">
-        <h4 className="text-center mb-4 fw-bold text-secondary">
-          📊 Restaurant Reporting System
-        </h4>
-
-        {/* Enhanced Filter Section */}
-        <Row className="mb-3 g-2">
-          <Col md={2}>
-            <Form.Select value={reportType} onChange={(e) => setReportType(e.target.value)}>
-              <option value="daily">Daily Report</option>
-              <option value="monthly">Monthly Report</option>
-              <option value="custom">Custom Date Range</option>
-            </Form.Select>
-          </Col>
-
-          {reportType === "custom" && (
-            <>
-              <Col md={2}>
-                <Form.Control
-                  type="date"
-                  value={customRange.start}
-                  onChange={(e) => setCustomRange({ ...customRange, start: e.target.value })}
-                />
-              </Col>
-              <Col md={2}>
-                <Form.Control
-                  type="date"
-                  value={customRange.end}
-                  onChange={(e) => setCustomRange({ ...customRange, end: e.target.value })}
-                />
-              </Col>
-            </>
-          )}
-
-          <Col md={2}>
-            <Form.Select value={reportCategory} onChange={(e) => setReportCategory(e.target.value)}>
-              <option value="sales">Sales Report</option>
-              <option value="payment">Payment Report</option>
-              <option value="staff">Staff Report</option>
-              <option value="kitchen">Kitchen Usage</option>
-              <option value="inventory">Inventory Report</option>
-            </Form.Select>
-          </Col>
-
-          <Col md={1}>
-            <Form.Select value={filters.orderType} onChange={(e) => setFilters({...filters, orderType: e.target.value})}>
-              <option value="">All Order Types</option>
-              <option value="dine-in">Dine-in</option>
-              <option value="takeaway">Takeaway</option>
-              <option value="delivery">Delivery</option>
-            </Form.Select>
-          </Col>
-
-          <Col md={1}>
-            <Form.Select value={filters.paymentMode} onChange={(e) => setFilters({...filters, paymentMode: e.target.value})}>
-              <option value="">All Payment Modes</option>
-              <option value="cash">Cash</option>
-              <option value="card">Card</option>
-              <option value="upi">UPI</option>
-              <option value="online">Online</option>
-            </Form.Select>
-          </Col>
-
-          <Col md={1}>
-            <Form.Select value={filters.outlet} onChange={(e) => setFilters({...filters, outlet: e.target.value})}>
-              <option value="">All Outlets</option>
-              <option value="main">Main Outlet</option>
-              <option value="branch-1">Branch 1</option>
-              <option value="branch-2">Branch 2</option>
-            </Form.Select>
-          </Col>
-
-          <Col md={1} className="d-flex gap-1">
-            <Button variant="outline-primary" onClick={handleCustomFilter} size="sm">
-              Apply
-            </Button>
-            <Button variant="outline-secondary" onClick={handleResetFilters} size="sm">
-              Reset
-            </Button>
-          </Col>
-        </Row>
-
-        {/* Action Buttons */}
-        <Row className="mb-3">
-          <Col className="d-flex gap-2 justify-content-end">
-            {reportCategory === "sales" && (
-              <Button variant="outline-info" onClick={() => setShowColumnModal(true)} size="sm">
-                ⚙️ Columns
-              </Button>
-            )}
-            <Dropdown>
-              <Dropdown.Toggle variant="outline-success" size="sm">
-                📤 Export
-              </Dropdown.Toggle>
-              <Dropdown.Menu>
-                <Dropdown.Item onClick={exportToExcel}>Export to Excel</Dropdown.Item>
-                <Dropdown.Item onClick={exportToPDF}>Export to PDF</Dropdown.Item>
-              </Dropdown.Menu>
-            </Dropdown>
-            <Button variant="outline-primary" onClick={() => window.print()} size="sm">
-              🖨️ Print
-            </Button>
-          </Col>
-        </Row>
-
-        {renderReportContent()}
-
-        {/* Footer Summary (for sales and payment) */}
-        {(reportCategory === "sales" || reportCategory === "payment") && (
-          <div className="mt-4 p-3 rounded" style={{ backgroundColor: "#F5F5F5" }}>
-            <Row className="text-center">
-              <Col md={3}>
-                <h6 className="text-muted mb-1">Total Sales</h6>
-                <h5 className="text-success fw-bold">₹{stats.totalSales.toFixed(2)}</h5>
-              </Col>
-              <Col md={3}>
-                <h6 className="text-muted mb-1">Average Bill Value</h6>
-                <h5 className="text-info fw-bold">₹{(stats.totalSales / (stats.totalBills || 1)).toFixed(2)}</h5>
-              </Col>
-              <Col md={3}>
-                <h6 className="text-muted mb-1">Total Discount</h6>
-                <h5 className="text-warning fw-bold">₹{stats.totalDiscount.toFixed(2)}</h5>
-              </Col>
-              <Col md={3}>
-                <h6 className="text-muted mb-1">Total Tax</h6>
-                <h5 className="text-primary fw-bold">₹{stats.totalTax.toFixed(2)}</h5>
-              </Col>
-            </Row>
-          </div>
-        )}
-      </Card>
-
-      <ColumnSelectorModal />
-    </div>
+const getStatusBadge = (status: number) => {
+  return status === 0 ? (
+    <span className="badge bg-success">Active</span>
+  ) : (
+    <span className="badge bg-danger">Inactive</span>
   );
 };
 
-export default ReportPage;
+// Main Warehouse Component
+const Warehouse: React.FC = () => {
+  const [warehouseItem, setWarehouseItem] = useState<warehouseItem[]>([]);
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [loading, setLoading] = useState<boolean>(false);
+  const [showModal, setShowModal] = useState(false);
+  const [selectedWarehouse, setSelectedWarehouse] = useState<warehouseItem | null>(null);
+  const [showDetails, setShowDetails] = useState(false);
+
+  const fetchWarehouse = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('http://localhost:3001/api/warehouse');
+      const data = await res.json();
+      console.log('Fetched warehouse:', data);
+      setWarehouseItem(data);
+    } catch (err) {
+      toast.error('Failed to fetch Warehouse');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchWarehouse();
+  }, []);
+
+  // Define columns for react-table with explicit widths
+  const columns = useMemo<ColumnDef<warehouseItem>[]>(() => [
+    {
+      id: 'srNo',
+      header: 'Sr No',
+      size: 50,
+      cell: ({ row }) => <div style={{ textAlign: 'center' }}>{row.index + 1}</div>,
+    },
+    {
+      accessorKey: 'warehouse_name',
+      header: 'Warehouse Name',
+      size: 200,
+      cell: (info) => <div style={{ textAlign: 'center' }}>{info.getValue<string>()}</div>,
+    },
+    {
+      accessorKey: 'location',
+      header: 'Location',
+      size: 200,
+      cell: (info) => <div style={{ textAlign: 'center' }}>{info.getValue<string>()}</div>,
+    },
+    {
+      accessorKey: 'status',
+      header: 'Status',
+      size: 150,
+      cell: (info) => {
+        const statusValue = info.getValue<string | number>();
+        return (
+          <div style={{ textAlign: 'center' }}>
+            {getStatusBadge(Number(statusValue))}
+          </div>
+        );
+      },
+    },
+    {
+      id: 'actions',
+      header: () => <div style={{ textAlign: 'center' }}>Action</div>,
+      size: 200,
+      cell: ({ row }) => (
+        <div className="d-flex gap-2 justify-content-center">
+          <button
+            className="btn btn-sm btn-info"
+            onClick={() => handleViewClick(row.original)}
+            title="View Warehouse Details"
+          >
+            <i className="fi fi-rr-eye"></i>
+          </button>
+          <button
+            className="btn btn-sm btn-success"
+            onClick={() => handleEditClick(row.original)}
+            title="Edit Warehouse"
+          >
+            <i className="fi fi-rr-edit"></i>
+          </button>
+          <button
+            className="btn btn-sm btn-danger"
+            onClick={() => handleDeleteWarehouse(row.original)}
+            title="Delete Warehouse"
+          >
+            <i className="fi fi-rr-trash"></i>
+          </button>
+        </div>
+      ),
+    },
+  ], []);
+
+  // Initialize react-table with pagination and filtering
+  const table = useReactTable({
+    data: warehouseItem,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    initialState: {
+      pagination: {
+        pageSize: 10,
+      },
+    },
+    state: {
+      globalFilter: searchTerm,
+    },
+  });
+
+  const handleSearch = useCallback(
+    debounce((value: string) => {
+      table.setGlobalFilter(value);
+    }, 300),
+    [table]
+  );
+
+  const onSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+    handleSearch(value);
+  };
+
+  const handleViewClick = (warehouse: warehouseItem) => {
+    setSelectedWarehouse(warehouse);
+    setShowDetails(true);
+  };
+
+  const handleEditClick = (warehouse: warehouseItem) => {
+    setSelectedWarehouse(warehouse);
+    setShowModal(true);
+  };
+
+  const handleDeleteWarehouse = async (warehouse: warehouseItem) => {
+    const res = await Swal.fire({
+      title: 'Are you sure?',
+      text: 'You will not be able to recover this Warehouse!',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3E97FF',
+      confirmButtonText: 'Yes, delete it!',
+    });
+    if (res.isConfirmed) {
+      try {
+        await fetch(`http://localhost:3001/api/warehouse/${warehouse.warehouseid}`, { method: 'DELETE' });
+        toast.success('Deleted successfully');
+        fetchWarehouse();
+        setSelectedWarehouse(null);
+        setShowDetails(false);
+      } catch {
+        toast.error('Failed to delete');
+      }
+    }
+  };
+
+  const getPaginationItems = () => {
+    const items = [];
+    const maxPagesToShow = 5;
+    const pageIndex = table.getState().pagination.pageIndex;
+    const totalPages = table.getPageCount();
+    let startPage = Math.max(0, pageIndex - Math.floor(maxPagesToShow / 2));
+    const endPage = Math.min(totalPages - 1, startPage + maxPagesToShow - 1);
+
+    if (endPage - startPage < maxPagesToShow - 1) {
+      startPage = Math.max(0, endPage - maxPagesToShow + 1);
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+      items.push(
+        <Pagination.Item
+          key={i}
+          active={i === pageIndex}
+          onClick={() => table.setPageIndex(i)}
+        >
+          {i + 1}
+        </Pagination.Item>
+      );
+    }
+    return items;
+  };
+
+  // Combined WarehouseModal Component
+  const WarehouseModal: React.FC<WarehouseModalProps> = ({ show, onHide, onSuccess, warehouse, onUpdateSelectedWarehouse }) => {
+    const [warehouse_name, setWarehouse_name] = useState('');
+    const [location, setLocation] = useState('');
+    const [status, setStatus] = useState('Active');
+    const [loading, setLoading] = useState(false);
+    const { user } = useAuthContext(); // Assuming useAuthContext provides user info
+
+    const isEditMode = !!warehouse;
+
+    useEffect(() => {
+      if (warehouse && isEditMode) {
+        setWarehouse_name(warehouse.warehouse_name);
+        setLocation(warehouse.location);
+        setStatus(String(warehouse.status) === '0' ? 'Active' : 'Inactive');
+        console.log('Edit warehouse status:', warehouse.status, typeof warehouse.status);
+      } else {
+        setWarehouse_name('');
+        setLocation('');
+        setStatus('Active');
+      }
+    }, [warehouse]);
+
+    const handleSubmit = async () => {
+      if (!warehouse_name || !location || !status) {
+        toast.error('Warehouse Name, Location and Status are required');
+        return;
+      }
+
+      // Use authenticated user ID and context
+      const userId = user.id;
+      const hotelId = user.hotelid || '1';
+      const marketId = user.marketid || '1';
+
+      setLoading(true);
+      try {
+        const statusValue = status === 'Active' ? 0 : 1;
+        const currentDate = new Date().toISOString();
+        
+        const payload = {
+          warehouse_name,
+          location,
+          status: statusValue,
+          ...(isEditMode
+            ? {
+                warehouseid: warehouse!.warehouseid,
+                updated_by_id: userId,
+                updated_date: currentDate,
+                hotelid: warehouse!.hotelid || hotelId,
+                marketid: warehouse!.marketid || marketId
+              }
+            : {
+                created_by_id: userId,
+                created_date: currentDate,
+                hotelid: hotelId,
+                marketid: marketId,
+              }),
+        };
+        console.log('Sending to backend:', payload);
+
+        const url = isEditMode
+          ? `http://localhost:3001/api/warehouse/${warehouse!.warehouseid}`
+          : 'http://localhost:3001/api/warehouse';
+        const method = isEditMode ? 'PUT' : 'POST';
+
+        const res = await fetch(url, {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        if (res.ok) {
+          toast.success(`Warehouse ${isEditMode ? 'updated' : 'added'} successfully`);
+          if (isEditMode && warehouse && onUpdateSelectedWarehouse) {
+            const updatedWarehouse = {
+              ...warehouse,
+              warehouse_name,
+              location,
+              status: statusValue.toString(),
+              updated_by_id: userId,
+              updated_date: currentDate,
+              warehouseid: warehouse.warehouseid,
+            };
+            onUpdateSelectedWarehouse(updatedWarehouse);
+          }
+          setWarehouse_name('');
+          setLocation('');
+          setStatus('Active');
+          onSuccess();
+          onHide();
+        } else {
+          const errorData = await res.json();
+          console.log('Backend error:', errorData);
+          toast.error(`Failed to ${isEditMode ? 'update' : 'add'} Warehouse`);
+        }
+      } catch (err) {
+        console.error(`${isEditMode ? 'Edit' : 'Add'} Warehouse error:`, err);
+        toast.error('Something went wrong');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (!show) return null;
+
+    return (
+      <div className="modal" style={{ display: show ? 'block' : 'none', background: 'rgba(0,0,0,0.5)', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
+        <div className="modal-content" style={{ background: 'white', padding: '20px', maxWidth: '600px', margin: '100px auto', borderRadius: '8px' }}>
+          <div className="d-flex justify-content-between align-items-center mb-3">
+            <h5 className="mb-0">{isEditMode ? 'Edit Warehouse' : 'Add Warehouse'}</h5>
+            <button className="btn-close" onClick={onHide}></button>
+          </div>
+          <div className="row mb-3">
+            <div className="col-md-12">
+              <label className="form-label">Warehouse Name <span style={{ color: 'red' }}>*</span></label>
+              <input
+                type="text"
+                className="form-control"
+                value={warehouse_name}
+                onChange={(e) => setWarehouse_name(e.target.value)}
+                placeholder="Enter Warehouse Name"
+              />
+            </div>
+          </div>
+          <div className="row mb-3">
+            <div className="col-md-12">
+              <label className="form-label">Location <span style={{ color: 'red' }}>*</span></label>
+              <input
+                type="text"
+                className="form-control"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                placeholder="Enter Location"
+              />
+            </div>
+          </div>
+          <div className="row mb-3">
+            <div className="col-md-12">
+              <label className="form-label">Status <span style={{ color: 'red' }}>*</span></label>
+              <select
+                className="form-control"
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+              >
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
+              </select>
+            </div>
+          </div>
+          <div className="d-flex justify-content-end mt-4">
+            <button className="btn btn-success me-2" onClick={handleSubmit} disabled={loading}>
+              {loading ? (isEditMode ? 'Updating...' : 'Adding...') : (isEditMode ? 'Save' : 'Create')}
+            </button>
+            <button className="btn btn-danger" onClick={onHide} disabled={loading}>
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Warehouse Details Card
+  const WarehouseDetailsCard = () => {
+    if (!selectedWarehouse) return null;
+
+    return (
+      <Card className="mt-3">
+        <Card.Header className="d-flex justify-content-between align-items-center">
+          <h5>Warehouse Details</h5>
+          <Button variant="secondary" size="sm" onClick={() => { setSelectedWarehouse(null); setShowDetails(false); }}>
+            Close
+          </Button>
+        </Card.Header>
+        <Card.Body>
+          <p><strong>Warehouse Name:</strong> {selectedWarehouse.warehouse_name}</p>
+          <p><strong>Location:</strong> {selectedWarehouse.location}</p>
+          <p><strong>Total Items:</strong> {selectedWarehouse.total_items}</p>
+          <p><strong>Last Updated:</strong> {selectedWarehouse.updated_date}</p>
+        </Card.Body>
+      </Card>
+    );
+  };
+
+  return (
+    <>
+      <TitleHelmet title="Warehouse List" />
+      <Card className="m-1">
+        <div className="d-flex justify-content-between align-items-center p-3 border-bottom">
+          <h4 className="mb-0">Warehouse List</h4>
+          <div style={{ display: 'flex', gap: '4px' }}>
+            <Button variant="success" onClick={() => setShowModal(true)}>
+              <i className="bi bi-plus"></i> Add Warehouse
+            </Button>
+          </div>
+        </div>
+        <div className="p-3">
+          <div className="mb-3">
+            <input
+              type="text"
+              className="form-control rounded-pill"
+              placeholder="Search..."
+              value={searchTerm}
+              onChange={onSearchChange}
+              style={{ width: '350px', borderColor: '#ccc', borderWidth: '2px' }}
+            />
+          </div>
+          <div className="flex-grow-1" style={{ overflowY: 'auto' }}>
+            {loading ? (
+              <Stack className="align-items-center justify-content-center flex-grow-1 h-100">
+                <Preloader />
+              </Stack>
+            ) : (
+              <>
+                <Table responsive hover className="mb-4">
+                  <thead>
+                    {table.getHeaderGroups().map((headerGroup) => (
+                      <tr key={headerGroup.id}>
+                        {headerGroup.headers.map((header) => (
+                          <th key={header.id} style={{ width: header.column.columnDef.size, textAlign: header.id === 'actions' ? 'left' : 'center' }}>
+                            {flexRender(header.column.columnDef.header, header.getContext())}
+                          </th>
+                        ))}
+                      </tr>
+                    ))}
+                  </thead>
+                  <tbody>
+                    {table.getRowModel().rows.map((row) => (
+                      <tr key={row.id}>
+                        {row.getVisibleCells().map((cell) => (
+                          <td key={cell.id} style={{ textAlign: cell.column.id === 'actions' ? 'left' : 'center' }}>
+                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </Table>
+                <Stack direction="horizontal" className="justify-content-between align-items-center">
+                  <div>
+                    <Form.Select
+                      value={table.getState().pagination.pageSize}
+                      onChange={(e) => table.setPageSize(Number(e.target.value))}
+                      style={{ width: '100px', display: 'inline-block', marginRight: '10px' }}
+                    >
+                      <option value="5">5</option>
+                      <option value="10">10</option>
+                      <option value="20">20</option>
+                      <option value="50">50</option>
+                    </Form.Select>
+                    <span className="text-muted">
+                      Showing {table.getRowModel().rows.length} of {warehouseItem.length} entries
+                    </span>
+                  </div>
+                  <Pagination>
+                    <Pagination.Prev
+                      onClick={() => table.previousPage()}
+                      disabled={!table.getCanPreviousPage()}
+                    />
+                    {getPaginationItems()}
+                    <Pagination.Next
+                      onClick={() => table.nextPage()}
+                      disabled={!table.getCanNextPage()}
+                    />
+                  </Pagination>
+                </Stack>
+                {showDetails && <WarehouseDetailsCard />}
+              </>
+            )}
+          </div>
+        </div>
+      </Card>
+      <WarehouseModal
+        show={showModal}
+        onHide={() => {
+          setShowModal(false);
+          setSelectedWarehouse(null);
+        }}
+        warehouse={selectedWarehouse}
+        onSuccess={fetchWarehouse}
+        onUpdateSelectedWarehouse={setSelectedWarehouse}
+      />
+    </>
+  );
+};
+
+export default Warehouse;

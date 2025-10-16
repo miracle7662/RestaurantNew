@@ -2,7 +2,7 @@ import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 
 import { toast } from 'react-hot-toast';
 import { Preloader } from '@/components/Misc/Preloader';
-import { Card,  } from 'react-bootstrap';
+import { Card } from 'react-bootstrap';
 import TitleHelmet from '@/components/Common/TitleHelmet';
 import { useAuthContext } from '@/common';
 
@@ -84,7 +84,6 @@ const CustomersPage: React.FC = () => {
   const [customers, setCustomers] = useState<Customer[]>([]); // Local state for customers
   const [, setFilteredCustomers] = useState<Customer[]>([]);
 
-
    // Fetch customer data (READ)
   const fetchCustomers = async () => {
     setLoading(true);
@@ -136,6 +135,11 @@ const CustomersPage: React.FC = () => {
   const handlePanChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const panValue = e.target.value.replace(/[^a-zA-Z0-9]/g, '');
     if (panValue.length <= 10) setPanNo(panValue.toUpperCase());
+  };
+
+  const handleGstChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const gstValue = e.target.value.replace(/[^a-zA-Z0-9]/g, '');
+    if (gstValue.length <= 15) setGstNo(gstValue.toUpperCase());
   };
 
   const resetForm = () => {
@@ -421,435 +425,446 @@ const CustomersPage: React.FC = () => {
   };
 
   return (
-    <div className="container-fluid p-4">
+    <div className="d-flex flex-column" style={{ height: '100vh', overflow: 'hidden' }}>
       <TitleHelmet title="Customers" />
       {loading && <Preloader />}
-      <Card className="p-4" style={{ borderRadius: '8px', minWidth: '600px' }}>
-        <h3 className="mb-4" style={{ fontSize: '1.2rem' }}>
-          {selectedCustomerId ? 'Edit Customer' : 'Add New Customer'}
-        </h3>
+      <div className="container-fluid p-4 flex-grow-1 d-flex flex-column" style={{ overflow: 'auto' }}>
+        <Card className="p-4 flex-grow-1 d-flex flex-column" style={{ borderRadius: '8px', minWidth: '600px', maxHeight: '100%' }}>
+          <h3 className="mb-4" style={{ fontSize: '1.2rem' }}>
+            {selectedCustomerId ? 'Edit Customer' : 'Add New Customer'}
+          </h3>
 
-        <div className="container-fluid">
-          {/* First Row - Country Code and Mobile */}
-          <div className="row g-2 mb-2">
-            <div className="col-md-1">
-              <label className="form-label" style={{ fontSize: '0.85rem' }}> Code *</label>
-              <select
-                className="form-control form-control-sm"
-                value={countryCode}
-                onChange={(e) => setCountryCode(e.target.value)}
+          <div className="container-fluid flex-grow-1 d-flex flex-column overflow-auto">
+            {/* First Row - Country Code and Mobile */}
+            <div className="row g-2 mb-2">
+              <div className="col-md-1">
+                <label className="form-label" style={{ fontSize: '0.85rem' }}> Code *</label>
+                <select
+                  className="form-control form-control-sm"
+                  value={countryCode}
+                  onChange={(e) => setCountryCode(e.target.value)}
+                  disabled={loading}
+                  style={{ padding: '0.25rem 0.5rem', fontSize: '0.85rem' }}
+                  required
+                  tabIndex={1}
+                >
+                  <option value="+91">+91</option>
+                  <option value="+1">+1</option>
+                  <option value="+44">+44</option>
+                </select>
+              </div>
+              <div className="col-md-4">
+                <label className="form-label" style={{ fontSize: '0.85rem' }}>Mobile *</label>
+                <input
+                  type="text"
+                  className="form-control form-control-sm"
+                  placeholder="Mobile number"
+                  value={mobile}
+                  onChange={handleMobileChange}
+                  disabled={loading}
+                  style={{ fontSize: '0.85rem' }}
+                  maxLength={10}
+                  required
+                  tabIndex={2}
+                />
+              </div>
+            </div>
+
+            {/* Second Row - Name and Email */}
+            <div className="row g-2 mb-2">
+              <div className="col-md-6">
+                <label className="form-label" style={{ fontSize: '0.85rem' }}>Name *</label>
+                <input
+                  type="text"
+                  className="form-control form-control-sm"
+                  placeholder="Name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  disabled={loading}
+                  style={{ fontSize: '0.85rem' }}
+                  required
+                  tabIndex={3}
+                />
+              </div>
+              <div className="col-md-6">
+                <label className="form-label" style={{ fontSize: '0.85rem' }}>Email</label>
+                <input
+                  type="email"
+                  className="form-control form-control-sm"
+                  placeholder="Email"
+                  value={mail}
+                  onChange={(e) => setMail(e.target.value)}
+                  disabled={loading}
+                  style={{ fontSize: '0.85rem' }}
+                  tabIndex={10}
+                />
+              </div>
+            </div>
+
+            {/* Third Row - Address1 and Address2 */}
+            <div className="row g-2 mb-2">
+              <div className="col-md-6">
+                <label className="form-label" style={{ fontSize: '0.85rem' }}>Address 1</label>
+                <input
+                  type="text"
+                  className="form-control form-control-sm"
+                  placeholder="Address line 1"
+                  value={address1}
+                  onChange={(e) => setAddress1(e.target.value)}
+                  disabled={loading}
+                  style={{ fontSize: '0.85rem' }}
+                  tabIndex={4}
+                />
+              </div>
+              <div className="col-md-6">
+                <label className="form-label" style={{ fontSize: '0.85rem' }}>Address 2</label>
+                <input
+                  type="text"
+                  className="form-control form-control-sm"
+                  placeholder="Address line 2"
+                  value={address2}
+                  onChange={(e) => setAddress2(e.target.value)}
+                  disabled={loading}
+                  style={{ fontSize: '0.85rem' }}
+                  tabIndex={11}
+                />
+              </div>
+            </div>
+
+            {/* Fourth Row - State, City, Birthday, Anniversary */}
+            <div className="row g-2 mb-2">
+              <div className="col-md-3 position-relative">
+                <label className="form-label" style={{ fontSize: '0.85rem' }}>State</label>
+                <input
+                  type="text"
+                  className="form-control form-control-sm"
+                  placeholder="Search state"
+                  value={stateSearch}
+                  onChange={handleStateSearch}
+                  onFocus={() => setShowStateDropdown(true)}
+                  onBlur={() => setTimeout(() => setShowStateDropdown(false), 200)}
+                  onKeyDown={handleStateKeyDown}
+                  disabled={loading}
+                  style={{ fontSize: '0.85rem' }}
+                  tabIndex={5}
+                />
+                {showStateDropdown && (
+                  <div
+                    ref={stateDropdownRef}
+                    style={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: 0,
+                      right: 0,
+                      background: 'white',
+                      border: '1px solid #dee2e6',
+                      borderRadius: '4px',
+                      maxHeight: '150px',
+                      overflowY: 'auto',
+                      zIndex: 1001,
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                    }}
+                  >
+                    {filteredStates.length > 0 ? (
+                      filteredStates.map((state, index) => (
+                        <div
+                          key={state.stateid}
+                          onClick={() => handleStateSelect(state)}
+                          onMouseEnter={() => setStateHighlightIndex(index)}
+                          style={{
+                            padding: '8px',
+                            cursor: 'pointer',
+                            fontSize: '0.85rem',
+                            borderBottom: '1px solid #f0f0f0',
+                            background: index === stateHighlightIndex ? '#e9ecef' : 'white',
+                          }}
+                          onMouseDown={(e) => e.preventDefault()}
+                        >
+                          {state.state_name}
+                        </div>
+                      ))
+                    ) : (
+                      <div style={{ padding: '8px', fontSize: '0.85rem', color: '#6c757d' }}>
+                        No states found
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+              <div className="col-md-3 position-relative">
+                <label className="form-label" style={{ fontSize: '0.85rem' }}>City</label>
+                <input
+                  type="text"
+                  className="form-control form-control-sm"
+                  placeholder="Search city"
+                  value={citySearch}
+                  onChange={handleCitySearch}
+                  onFocus={() => setShowCityDropdown(true)}
+                  onBlur={() => setTimeout(() => setShowCityDropdown(false), 200)}
+                  onKeyDown={handleCityKeyDown}
+                  disabled={loading}
+                  style={{ fontSize: '0.85rem' }}
+                  tabIndex={6}
+                />
+                {showCityDropdown && (
+                  <div
+                    ref={cityDropdownRef}
+                    style={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: 0,
+                      right: 0,
+                      background: 'white',
+                      border: '1px solid #dee2e6',
+                      borderRadius: '4px',
+                      maxHeight: '150px',
+                      overflowY: 'auto',
+                      zIndex: 1001,
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                    }}
+                  >
+                    {filteredCities.length > 0 ? (
+                      filteredCities.map((city, index) => (
+                        <div
+                          key={city.cityid}
+                          onClick={() => handleCitySelect(city)}
+                          onMouseEnter={() => setCityHighlightIndex(index)}
+                          style={{
+                            padding: '8px',
+                            cursor: 'pointer',
+                            fontSize: '0.85rem',
+                            borderBottom: '1px solid #f0f0f0',
+                            background: index === cityHighlightIndex ? '#e9ecef' : 'white',
+                          }}
+                          onMouseDown={(e) => e.preventDefault()}
+                        >
+                          {city.city_name}
+                        </div>
+                      ))
+                    ) : (
+                      <div style={{ padding: '8px', fontSize: '0.85rem', color: '#6c757d' }}>
+                        No cities found
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+              <div className="col-md-3">
+                <label className="form-label" style={{ fontSize: '0.85rem' }}>Birthday</label>
+                <input
+                  type="date"
+                  className="form-control form-control-sm"
+                  value={birthday}
+                  onChange={(e) => setBirthday(e.target.value)}
+                  disabled={loading}
+                  style={{ fontSize: '0.85rem' }}
+                  max="2025-08-01"
+                  tabIndex={12}
+                />
+              </div>
+              <div className="col-md-3">
+                <label className="form-label" style={{ fontSize: '0.85rem' }}>Anniversary</label>
+                <input
+                  type="date"
+                  className="form-control form-control-sm"
+                  value={anniversary}
+                  onChange={(e) => setAnniversary(e.target.value)}
+                  disabled={loading}
+                  style={{ fontSize: '0.85rem' }}
+                  max="2025-08-01"
+                  tabIndex={13}
+                />
+              </div>
+            </div>
+
+            {/* Fifth Row - Pincode */}
+            <div className="row g-2 mb-2">
+              <div className="col-md-6">
+                <label className="form-label" style={{ fontSize: '0.85rem' }}>Pincode</label>
+                <input
+                  type="text"
+                  className="form-control form-control-sm"
+                  placeholder="Pincode"
+                  value={pincode}
+                  onChange={handlePincodeChange}
+                  disabled={loading}
+                  style={{ fontSize: '0.85rem' }}
+                  maxLength={6}
+                  tabIndex={7}
+                />
+              </div>
+            </div>
+
+            {/* Sixth Row - GST No and Aadhar No */}
+            <div className="row g-2 mb-2">
+              <div className="col-md-3">
+                <label className="form-label" style={{ fontSize: '0.85rem' }}>GST No.</label>
+                <input
+                  type="text"
+                  className="form-control form-control-sm"
+                  placeholder="GST"
+                  value={gstNo}
+                  onChange={handleGstChange}
+                  disabled={loading}
+                  style={{ fontSize: '0.85rem' }}
+                  maxLength={15}
+                  tabIndex={8}
+                />
+              </div>
+              <div className="col-md-3">
+                <label className="form-label" style={{ fontSize: '0.85rem' }}>Aadhar No.</label>
+                <input
+                  type="text"
+                  className="form-control form-control-sm"
+                  placeholder="Aadhar"
+                  value={aadharNo}
+                  onChange={handleAadharChange}
+                  disabled={loading}
+                  style={{ fontSize: '0.85rem' }}
+                  maxLength={12}
+                  tabIndex={9}
+                />
+              </div>
+              <div className="col-md-3">
+                <label className="form-label" style={{ fontSize: '0.85rem' }}>FSSAI</label>
+                <input
+                  type="text"
+                  className="form-control form-control-sm"
+                  placeholder="FSSAI"
+                  value={fssai}
+                  onChange={(e) => setFssai(e.target.value)}
+                  disabled={loading}
+                  style={{ fontSize: '0.85rem' }}
+                  tabIndex={14}
+                />
+              </div>
+              <div className="col-md-3">
+                <label className="form-label" style={{ fontSize: '0.85rem' }}>PAN No.</label>
+                <input
+                  type="text"
+                  className="form-control form-control-sm"
+                  placeholder="PAN"
+                  value={panNo}
+                  onChange={handlePanChange}
+                  disabled={loading}
+                  style={{ fontSize: '0.85rem' }}
+                  maxLength={10}
+                  tabIndex={15}
+                />
+              </div>
+            </div>
+            {/* New Row - Create Wallet */}
+            <div className="row g-2 mb-2">
+              <div className="col-md-3">
+                <label className="form-label" style={{ fontSize: '0.85rem' }}>Create Wallet</label>
+                <input
+                  type="checkbox"
+                  className="form-check-input"
+                  checked={createWallet}
+                  onChange={(e) => setCreateWallet(e.target.checked)}
+                  disabled={loading}
+                  style={{ marginTop: '0.25rem' }}
+                  tabIndex={16}
+                />
+              </div>
+            </div>
+
+            {/* Buttons */}
+            <div className="d-flex justify-content-end mt-3">
+              <button
+                className="btn btn-outline-primary btn-sm me-2"
+                onClick={resetForm}
                 disabled={loading}
-                style={{ padding: '0.25rem 0.5rem', fontSize: '0.85rem' }}
-                required
-                tabIndex={1}
+                style={{ padding: '0.25rem 0.75rem', fontSize: '0.85rem' }}
+                tabIndex={18}
               >
-                <option value="+91">+91</option>
-                <option value="+1">+1</option>
-                <option value="+44">+44</option>
-              </select>
-            </div>
-            <div className="col-md-4">
-              <label className="form-label" style={{ fontSize: '0.85rem' }}>Mobile *</label>
-              <input
-                type="text"
-                className="form-control form-control-sm"
-                placeholder="Mobile number"
-                value={mobile}
-                onChange={handleMobileChange}
+                Clear Form
+              </button>
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={handleSubmit}
                 disabled={loading}
-                style={{ fontSize: '0.85rem' }}
-                maxLength={10}
-                required
-                tabIndex={2}
-              />
+                style={{ padding: '0.25rem 0.75rem', fontSize: '0.85rem' }}
+                tabIndex={19}
+              >
+                {loading ? (selectedCustomerId ? 'Updating...' : 'Adding...') : (selectedCustomerId ? 'Update' : 'Add')}
+              </button>
             </div>
           </div>
 
-          {/* Second Row - Name and Email */}
-          <div className="row g-2 mb-2">
-            <div className="col-md-6">
-              <label className="form-label" style={{ fontSize: '0.85rem' }}>Name *</label>
-              <input
-                type="text"
-                className="form-control form-control-sm"
-                placeholder="Name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                disabled={loading}
-                style={{ fontSize: '0.85rem' }}
-                required
-                tabIndex={3}
-              />
+          {/* Customer List Section with scroll */}
+          <div className="mt-3" style={{ fontSize: '0.85rem' }}>
+            <div className="d-flex justify-content-between align-items-center mb-2">
+              <h5 style={{ fontSize: '1rem' }}>Customer List</h5>
+              <div className="col-md-4">
+                <input
+                  type="text"
+                  className="form-control form-control-sm"
+                  placeholder="Search by mobile..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  style={{ fontSize: '0.85rem' }}
+                  tabIndex={20}
+                />
+              </div>
             </div>
-            <div className="col-md-6">
-              <label className="form-label" style={{ fontSize: '0.85rem' }}>Email</label>
-              <input
-                type="email"
-                className="form-control form-control-sm"
-                placeholder="Email"
-                value={mail}
-                onChange={(e) => setMail(e.target.value)}
-                disabled={loading}
-                style={{ fontSize: '0.85rem' }}
-                tabIndex={10}
-              />
-            </div>
-          </div>
 
-          {/* Third Row - Address1 and Address2 */}
-          <div className="row g-2 mb-2">
-            <div className="col-md-6">
-              <label className="form-label" style={{ fontSize: '0.85rem' }}>Address 1</label>
-              <input
-                type="text"
-                className="form-control form-control-sm"
-                placeholder="Address line 1"
-                value={address1}
-                onChange={(e) => setAddress1(e.target.value)}
-                disabled={loading}
-                style={{ fontSize: '0.85rem' }}
-                tabIndex={4}
-              />
-            </div>
-            <div className="col-md-6">
-              <label className="form-label" style={{ fontSize: '0.85rem' }}>Address 2</label>
-              <input
-                type="text"
-                className="form-control form-control-sm"
-                placeholder="Address line 2"
-                value={address2}
-                onChange={(e) => setAddress2(e.target.value)}
-                disabled={loading}
-                style={{ fontSize: '0.85rem' }}
-                tabIndex={11}
-              />
-            </div>
-          </div>
-
-          {/* Fourth Row - State, City, Birthday, Anniversary */}
-          <div className="row g-2 mb-2">
-            <div className="col-md-3">
-              <label className="form-label" style={{ fontSize: '0.85rem' }}>State</label>
-              <input
-                type="text"
-                className="form-control form-control-sm"
-                placeholder="Search state"
-                value={stateSearch}
-                onChange={handleStateSearch}
-                onFocus={() => setShowStateDropdown(true)}
-                onBlur={() => setTimeout(() => setShowStateDropdown(false), 200)}
-                onKeyDown={handleStateKeyDown}
-                disabled={loading}
-                style={{ fontSize: '0.85rem' }}
-                tabIndex={5}
-              />
-              {showStateDropdown && (
-                <div
-                  ref={stateDropdownRef}
-                  style={{
-                    position: 'absolute',
-                    background: 'white',
-                    border: '1px solid #dee2e6',
-                    borderRadius: '4px',
-                    maxHeight: '150px',
-                    overflowY: 'auto',
-                    width: 'calc(25% - 8px)',
-                    zIndex: 1001,
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                  }}
-                >
-                  {filteredStates.length > 0 ? (
-                    filteredStates.map((state, index) => (
-                      <div
-                        key={state.stateid}
-                        onClick={() => handleStateSelect(state)}
-                        onMouseEnter={() => setStateHighlightIndex(index)}
-                        style={{
-                          padding: '8px',
-                          cursor: 'pointer',
-                          fontSize: '0.85rem',
-                          borderBottom: '1px solid #f0f0f0',
-                          background: index === stateHighlightIndex ? '#e9ecef' : 'white',
-                        }}
-                        onMouseDown={(e) => e.preventDefault()}
-                      >
-                        {state.state_name}
-                      </div>
-                    ))
-                  ) : (
-                    <div style={{ padding: '8px', fontSize: '0.85rem', color: '#6c757d' }}>
-                      No states found
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-            <div className="col-md-3">
-              <label className="form-label" style={{ fontSize: '0.85rem' }}>City</label>
-              <input
-                type="text"
-                className="form-control form-control-sm"
-                placeholder="Search city"
-                value={citySearch}
-                onChange={handleCitySearch}
-                onFocus={() => setShowCityDropdown(true)}
-                onBlur={() => setTimeout(() => setShowCityDropdown(false), 200)}
-                onKeyDown={handleCityKeyDown}
-                disabled={loading}
-                style={{ fontSize: '0.85rem' }}
-                tabIndex={6}
-              />
-              {showCityDropdown && (
-                <div
-                  ref={cityDropdownRef}
-                  style={{
-                    position: 'absolute',
-                    background: 'white',
-                    border: '1px solid #dee2e6',
-                    borderRadius: '4px',
-                    maxHeight: '150px',
-                    overflowY: 'auto',
-                    width: 'calc(25% - 8px)',
-                    zIndex: 1001,
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                  }}
-                >
-                  {filteredCities.length > 0 ? (
-                    filteredCities.map((city, index) => (
-                      <div
-                        key={city.cityid}
-                        onClick={() => handleCitySelect(city)}
-                        onMouseEnter={() => setCityHighlightIndex(index)}
-                        style={{
-                          padding: '8px',
-                          cursor: 'pointer',
-                          fontSize: '0.85rem',
-                          borderBottom: '1px solid #f0f0f0',
-                          background: index === cityHighlightIndex ? '#e9ecef' : 'white',
-                        }}
-                        onMouseDown={(e) => e.preventDefault()}
-                      >
-                        {city.city_name}
-                      </div>
-                    ))
-                  ) : (
-                    <div style={{ padding: '8px', fontSize: '0.85rem', color: '#6c757d' }}>
-                      No cities found
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-            <div className="col-md-3">
-              <label className="form-label" style={{ fontSize: '0.85rem' }}>Birthday</label>
-              <input
-                type="date"
-                className="form-control form-control-sm"
-                value={birthday}
-                onChange={(e) => setBirthday(e.target.value)}
-                disabled={loading}
-                style={{ fontSize: '0.85rem' }}
-                max="2025-08-01"
-                tabIndex={12}
-              />
-            </div>
-            <div className="col-md-3">
-              <label className="form-label" style={{ fontSize: '0.85rem' }}>Anniversary</label>
-              <input
-                type="date"
-                className="form-control form-control-sm"
-                value={anniversary}
-                onChange={(e) => setAnniversary(e.target.value)}
-                disabled={loading}
-                style={{ fontSize: '0.85rem' }}
-                max="2025-08-01"
-                tabIndex={13}
-              />
-            </div>
-          </div>
-
-          {/* Fifth Row - Pincode */}
-          <div className="row g-2 mb-2">
-            <div className="col-md-6">
-              <label className="form-label" style={{ fontSize: '0.85rem' }}>Pincode</label>
-              <input
-                type="text"
-                className="form-control form-control-sm"
-                placeholder="Pincode"
-                value={pincode}
-                onChange={handlePincodeChange}
-                disabled={loading}
-                style={{ fontSize: '0.85rem' }}
-                maxLength={6}
-                tabIndex={7}
-              />
-            </div>
-          </div>
-
-          {/* Sixth Row - GST No and Aadhar No */}
-          <div className="row g-2 mb-2">
-            <div className="col-md-3">
-              <label className="form-label" style={{ fontSize: '0.85rem' }}>GST No.</label>
-              <input
-                type="text"
-                className="form-control form-control-sm"
-                placeholder="GST"
-                value={gstNo}
-                onChange={(e) => setGstNo(e.target.value)}
-                disabled={loading}
-                style={{ fontSize: '0.85rem' }}
-                tabIndex={8}
-              />
-            </div>
-            <div className="col-md-3">
-              <label className="form-label" style={{ fontSize: '0.85rem' }}>Aadhar No.</label>
-              <input
-                type="text"
-                className="form-control form-control-sm"
-                placeholder="Aadhar"
-                value={aadharNo}
-                onChange={handleAadharChange}
-                disabled={loading}
-                style={{ fontSize: '0.85rem' }}
-                maxLength={12}
-                tabIndex={9}
-              />
-            </div>
-            <div className="col-md-3">
-              <label className="form-label" style={{ fontSize: '0.85rem' }}>FSSAI</label>
-              <input
-                type="text"
-                className="form-control form-control-sm"
-                placeholder="FSSAI"
-                value={fssai}
-                onChange={(e) => setFssai(e.target.value)}
-                disabled={loading}
-                style={{ fontSize: '0.85rem' }}
-                tabIndex={14}
-              />
-            </div>
-            <div className="col-md-3">
-              <label className="form-label" style={{ fontSize: '0.85rem' }}>PAN No.</label>
-              <input
-                type="text"
-                className="form-control form-control-sm"
-                placeholder="PAN"
-                value={panNo}
-                onChange={handlePanChange}
-                disabled={loading}
-                style={{ fontSize: '0.85rem' }}
-                maxLength={10}
-                tabIndex={15}
-              />
-            </div>
-          </div>
-          {/* New Row - Create Wallet */}
-          <div className="row g-2 mb-2">
-            <div className="col-md-3">
-              <label className="form-label" style={{ fontSize: '0.85rem' }}>Create Wallet</label>
-              <input
-                type="checkbox"
-                className="form-check-input"
-                checked={createWallet}
-                onChange={(e) => setCreateWallet(e.target.checked)}
-                disabled={loading}
-                style={{ marginTop: '0.25rem' }}
-                tabIndex={16}
-              />
-            </div>
-          </div>
-
-          {/* Buttons */}
-          <div className="d-flex justify-content-end mt-3">
-            <button
-              className="btn btn-outline-primary btn-sm me-2"
-              onClick={resetForm}
-              disabled={loading}
-              style={{ padding: '0.25rem 0.75rem', fontSize: '0.85rem' }}
-              tabIndex={18}
-            >
-              Clear Form
-            </button>
-            <button
-              className="btn btn-primary btn-sm"
-              onClick={handleSubmit}
-              disabled={loading}
-              style={{ padding: '0.25rem 0.75rem', fontSize: '0.85rem' }}
-              tabIndex={19}
-            >
-              {loading ? (selectedCustomerId ? 'Updating...' : 'Adding...') : (selectedCustomerId ? 'Update' : 'Add')}
-            </button>
-          </div>
-        </div>
-
-        {/* Customer List Section with scroll */}
-        <div className="mt-3" style={{ fontSize: '0.85rem' }}>
-          <div className="d-flex justify-content-between align-items-center mb-2">
-            <h5 style={{ fontSize: '1rem' }}>Customer List</h5>
-            <div className="col-md-4">
-              <input
-                type="text"
-                className="form-control form-control-sm"
-                placeholder="Search by mobile..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                style={{ fontSize: '0.85rem' }}
-                tabIndex={20}
-              />
-            </div>
-          </div>
-
-          <div className="table-responsive" style={{
-            maxHeight: '150px',
-            overflowY: 'auto',
-            border: '1px solid #dee2e6',
-            borderRadius: '4px'
-          }}>
-            <table className="table table-bordered table-sm mb-0">
-              <thead style={{
-                top: 0,
-                zIndex: 1,
-                boxShadow: '0 2px 2px -1px rgba(0, 0, 0, 0.1)'
-              }}>
-                <tr>
-                  <th style={{
-                    fontSize: '0.85rem',
-                    padding: '8px',
-                    whiteSpace: 'nowrap',
-                    position: 'sticky',
-                    left: 0,
-                    zIndex: 2
-                  }}>Sr No</th>
-                  <th style={{ fontSize: '0.85rem', padding: '8px', whiteSpace: 'nowrap' }}>C NAME</th>
-                  <th style={{ fontSize: '0.85rem', padding: '8px', whiteSpace: 'nowrap' }}>MOBILE</th>
-                  <th style={{ fontSize: '0.85rem', padding: '8px', whiteSpace: 'nowrap' }}>MAIL</th>
-                  <th style={{ fontSize: '0.85rem', padding: '8px', whiteSpace: 'nowrap' }}>CITY</th>
-                  <th style={{ fontSize: '0.85rem', padding: '8px', whiteSpace: 'nowrap' }}>ADDRESS 1</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredCustomers.map((customer, index) => (
-                  <tr key={customer.customerid} onClick={() => handleCustomerClick(customer)} style={{ cursor: 'pointer' }}>
-                    <td style={{
+            <div className="table-responsive" style={{
+              maxHeight: '200px',
+              overflowY: 'auto',
+              border: '1px solid #dee2e6',
+              borderRadius: '4px'
+            }}>
+              <table className="table table-bordered table-sm mb-0">
+                <thead style={{
+                  position: 'sticky',
+                  top: 0,
+                  zIndex: 1,
+                  boxShadow: '0 2px 2px -1px rgba(0, 0, 0, 0.1)',
+                  backgroundColor: 'white'
+                }}>
+                  <tr>
+                    <th style={{
                       fontSize: '0.85rem',
                       padding: '8px',
                       whiteSpace: 'nowrap',
                       position: 'sticky',
                       left: 0,
-                      zIndex: 1
-                    }}>{index + 1}</td>
-                    <td style={{ fontSize: '0.85rem', padding: '8px', whiteSpace: 'nowrap' }}>{customer.name}</td>
-                    <td style={{ fontSize: '0.85rem', padding: '8px', whiteSpace: 'nowrap' }}>{customer.mobile}</td>
-                    <td style={{ fontSize: '0.85rem', padding: '8px', whiteSpace: 'nowrap' }}>{customer.mail || '-'}</td>
-                    <td style={{ fontSize: '0.85rem', padding: '8px', whiteSpace: 'nowrap' }}>{customer.city_name || '-'}</td>
-                    <td style={{ fontSize: '0.85rem', padding: '8px', whiteSpace: 'nowrap' }}>{customer.address1 || '-'}</td>
+                      zIndex: 2,
+                      backgroundColor: 'white'
+                    }}>Sr No</th>
+                    <th style={{ fontSize: '0.85rem', padding: '8px', whiteSpace: 'nowrap' }}>C NAME</th>
+                    <th style={{ fontSize: '0.85rem', padding: '8px', whiteSpace: 'nowrap' }}>MOBILE</th>
+                    <th style={{ fontSize: '0.85rem', padding: '8px', whiteSpace: 'nowrap' }}>MAIL</th>
+                    <th style={{ fontSize: '0.85rem', padding: '8px', whiteSpace: 'nowrap' }}>CITY</th>
+                    <th style={{ fontSize: '0.85rem', padding: '8px', whiteSpace: 'nowrap' }}>ADDRESS 1</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {filteredCustomers.map((customer, index) => (
+                    <tr key={customer.customerid} onClick={() => handleCustomerClick(customer)} style={{ cursor: 'pointer' }}>
+                      <td style={{
+                        fontSize: '0.85rem',
+                        padding: '8px',
+                        whiteSpace: 'nowrap',
+                        position: 'sticky',
+                        left: 0,
+                        zIndex: 1,
+                        backgroundColor: 'white'
+                      }}>{index + 1}</td>
+                      <td style={{ fontSize: '0.85rem', padding: '8px', whiteSpace: 'nowrap' }}>{customer.name}</td>
+                      <td style={{ fontSize: '0.85rem', padding: '8px', whiteSpace: 'nowrap' }}>{customer.mobile}</td>
+                      <td style={{ fontSize: '0.85rem', padding: '8px', whiteSpace: 'nowrap' }}>{customer.mail || '-'}</td>
+                      <td style={{ fontSize: '0.85rem', padding: '8px', whiteSpace: 'nowrap' }}>{customer.city_name || '-'}</td>
+                      <td style={{ fontSize: '0.85rem', padding: '8px', whiteSpace: 'nowrap' }}>{customer.address1 || '-'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
-      </Card>
+        </Card>
+      </div>
     </div>
   );
 };
