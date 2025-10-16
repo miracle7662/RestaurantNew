@@ -3,19 +3,19 @@ const db = require('../config/db');
 exports.getHotelMasters = (req, res) => {
     const { role_level, hotelid } = req.query;
    
-    let query = 'select H.hotelid, H.hotel_name,H.marketid,H.short_name,H.phone,H.email,H.fssai_no, H.trn_gstno,H.panno,H.website,H.address,H.stateid,H.hoteltypeid,H.Masteruserid,H.status,H.created_by_id,H.created_date,H.updated_by_id,H.updated_date,  M.market_name from msthotelmasters H inner join mstmarkets M on M.marketid=H.marketid';
+    let query = 'select H.hotelid, H.hotel_name,H.marketid,H.short_name,H.phone,H.email,H.fssai_no, H.trn_gstno,H.panno,H.website,H.address,H.stateid,H.hoteltypeid,H.Masteruserid,H.status,H.created_by_id,H.created_date,H.updated_by_id,H.updated_date,  M.market_name from msthotelmasters H inner join mstmarkets M on M.marketid=H.marketid ';
     let params = [];
-    
+
     // If user is hotel_admin, only show their hotel
     // if (role_level === 'hotel_admin' && hotel_id) {
     //     query += ' WHERE H.hotelid = ?';
     //     params.push(hotel_id);
     // }
 
-if (role_level === 'hotel_admin'&& hotelid) {
-    query += ' WHERE H.hotelid = ?';
-    params.push(hotelid);
-}
+    if (role_level === 'hotel_admin' && hotelid) {
+        query += ' WHERE H.hotelid = ?';
+        params.push(hotelid);
+    }
 
     // If user is superadmin, show all hotels (no additional WHERE clause)
     
