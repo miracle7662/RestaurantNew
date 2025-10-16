@@ -40,7 +40,7 @@ export interface OutletData {
   add_custom_qr?: number
   start_time?: number
   end_time?: number
-  warehouse_id?: number
+  warehouseid?: number
   reduce_inventory?: number
   registered_at?: string
   created_by_id?: number

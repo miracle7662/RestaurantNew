@@ -311,7 +311,7 @@ CREATE TABLE IF NOT EXISTS mst_outlets (
     add_custom_qr INTEGER DEFAULT 0,           -- Button action
     start_time INTEGER DEFAULT 0,              -- Counter (Start Time)
     end_time INTEGER DEFAULT 0,                -- Counter (End Time)
-    warehouse_id INTEGER,                      -- Back Office Inventory Details dropdown
+    warehouseid INTEGER,                      -- Back Office Inventory Details dropdown
     reduce_inventory INTEGER DEFAULT 0,        -- Switch
     registered_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     created_by_id INTEGER,
@@ -1001,6 +1001,14 @@ CREATE TABLE IF NOT EXISTS mstwarehouse (
   client_code TEXT,
   marketid TEXT
 );
+
+CREATE TABLE shifts  (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  shift_type TEXT CHECK (shift_type IN ('Morning', 'Evening', 'Night'))
+  
+
+);
+
 
 
 

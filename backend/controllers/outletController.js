@@ -116,7 +116,7 @@ exports.addOutlet = (req, res) => {
       add_custom_qr,
       start_time,
       end_time,
-      warehouse_id,
+      warehouseid,
       reduce_inventory,
     } = req.body
 
@@ -136,7 +136,7 @@ exports.addOutlet = (req, res) => {
                 next_reset_bill_date, next_reset_bill_days, next_reset_kot_date, next_reset_kot_days,
                 contact_phone, notification_email, description, logo, gst_no, fssai_no,
                 status, digital_order, created_by_id, created_date,
-                logout_pos, password_protection, send_payment_link, send_ebill_whatsapp, add_custom_qr, start_time, end_time, warehouse_id, reduce_inventory
+                logout_pos, password_protection, send_payment_link, send_ebill_whatsapp, add_custom_qr, start_time, end_time, warehouseid, reduce_inventory
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,  ?,?, ?)
         `)
 
@@ -176,7 +176,7 @@ exports.addOutlet = (req, res) => {
       add_custom_qr == true || add_custom_qr == 1 ? 1 : 0,
       start_time,
       end_time,
-      warehouse_id,
+      warehouseid,
       reduce_inventory == true || reduce_inventory == 1 ? 1 : 0,
     )
 
@@ -772,7 +772,7 @@ generalSettingsStmt.run(
       add_custom_qr: add_custom_qr == true || add_custom_qr == 1 ? 1 : 0,
       start_time,
       end_time,
-      warehouse_id,
+      warehouseid: warehouseid,
       reduce_inventory: reduce_inventory == true || reduce_inventory == 1 ? 1 : 0,
     })
   } catch (error) {
@@ -819,7 +819,7 @@ exports.updateOutlet = (req, res) => {
       add_custom_qr,
       start_time,
       end_time,
-      warehouse_id,
+      warehouseid,
       reduce_inventory,
       updated_by_id,
     } = req.body
@@ -838,7 +838,7 @@ exports.updateOutlet = (req, res) => {
                 contact_phone = ?, notification_email = ?, description = ?, logo = ?,
                 gst_no = ?, fssai_no = ?, status = ?, digital_order = ?, logout_pos = ?,
                 password_protection = ?, send_payment_link = ?, send_ebill_whatsapp = ?, add_custom_qr = ?,
-                start_time = ?, end_time = ?, warehouse_id = ?, reduce_inventory = ?, updated_by_id = ?,
+                start_time = ?, end_time = ?, warehouseid = ?, reduce_inventory = ?, updated_by_id = ?,
                 updated_date = ?
             WHERE outletid = ?
         `)
@@ -877,7 +877,7 @@ exports.updateOutlet = (req, res) => {
       add_custom_qr == true || add_custom_qr == 1 ? 1 : 0,
       start_time,
       end_time,
-      warehouse_id,
+      warehouseid,
       reduce_inventory == true || reduce_inventory == 1 ? 1 : 0,
       updated_by_id,
       new Date().toISOString(),
@@ -919,7 +919,7 @@ exports.updateOutlet = (req, res) => {
       add_custom_qr: add_custom_qr == true || add_custom_qr == 1 ? 1 : 0,
       start_time,
       end_time,
-      warehouse_id,
+      warehouseid,
       reduce_inventory: reduce_inventory == true || reduce_inventory == 1 ? 1 : 0,
       updated_by_id,
       updated_date: new Date().toISOString(),

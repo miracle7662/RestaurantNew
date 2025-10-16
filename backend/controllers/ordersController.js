@@ -120,5 +120,20 @@ exports.getTaxesByOutletAndDepartment = (req, res) => {
   }
 };
 
+exports.getShiftTypes = (req, res) => {
+  try {
+    const sql = `
+      SELECT id, shift_type
+      FROM shifts
+    `;
+    const rows = db.prepare(sql).all();
+    res.json(rows);
+  } catch (err) {
+    console.error("❌ Error fetching shifts:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
 module.exports = exports;
 

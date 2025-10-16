@@ -96,6 +96,8 @@ const OutletList: React.FC = () => {
   const [reduceInventory, setReduceInventory] = useState<boolean>(false);
   const [nextResetBillDays, setNextResetBillDays] = useState<string>('daily');
   const [nextResetKOTDays, setNextResetKOTDays] = useState<string>('daily');
+  const [nextResetBillDate, setNextResetBillDate] = useState<string>('');
+  const [nextResetKOTDate, setNextResetKOTDate] = useState<string>('');
   const [startTime, setStartTime] = useState<number>(0);
   const [endTime, setEndTime] = useState<number>(6);
   const [addCustomQr, setAddCustomQr] = useState<boolean>(false);
@@ -227,6 +229,9 @@ const OutletList: React.FC = () => {
     setReduceInventory(outlet.reduce_inventory === 1);
     setNextResetBillDays(outlet.next_reset_bill_days || 'daily');
     setNextResetKOTDays(outlet.next_reset_kot_days || 'daily');
+    setNextResetBillDate(outlet.next_reset_bill_date || '');
+    setNextResetKOTDate(outlet.next_reset_kot_date || '');
+    setSelectedWarehouseForm(outlet.warehouseid ? outlet.warehouseid.toString() : '');
     setStartTime(0);
     setEndTime(6);
 
