@@ -64,6 +64,7 @@ db.exec(`
 CREATE TABLE IF NOT EXISTS mstkitchencategory(
 kitchencategoryid INTEGER PRIMARY KEY AUTOINCREMENT,
 Kitchen_Category TEXT(200),
+kitchenmaingroupid INTEGER,
 alternative_category_name TEXT(200),
 Description text(400),
 alternative_category_Description TEXT(400),

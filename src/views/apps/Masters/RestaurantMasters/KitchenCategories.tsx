@@ -29,6 +29,13 @@ interface KitchenCategoryItem {
   updated_date: string;
   hotelid: string;
   marketid: string;
+  kitchenmaingroupid?: number;
+}
+
+interface KitchenGroupItem {
+  kitchenmaingroupid: number;
+  Kitchen_main_Group: string;
+  status: number;
 }
 
 interface KitchenCategoryModalProps {
@@ -37,6 +44,7 @@ interface KitchenCategoryModalProps {
   KitchenCategory: KitchenCategoryItem | null;
   onSuccess: () => void;
   onUpdateSelectedKitchenCategory: (KitchenCategory: KitchenCategoryItem) => void;
+  kitchenGroups: KitchenGroupItem[];
 }
 
 // Debounce utility function
@@ -60,6 +68,7 @@ const getStatusBadge = (status: number) => {
 // Main KitchenCategory Component
 const KitchenCategory: React.FC = () => {
   const [kitchenCategoryItems, setKitchenCategoryItems] = useState<KitchenCategoryItem[]>([]);
+  const [kitchenGroups, setKitchenGroups] = useState<KitchenGroupItem[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [showModal, setShowModal] = useState(false);
@@ -84,8 +93,19 @@ const KitchenCategory: React.FC = () => {
     }
   };
 
+  const fetchKitchenGroups = async () => {
+    try {
+      const res = await fetch('http://localhost:3001/api/KitchenMainGroup');
+      const data = await res.json();
+      setKitchenGroups(data);
+    } catch (err) {
+      toast.error('Failed to fetch Kitchen Groups');
+    }
+  };
+
   useEffect(() => {
     fetchKitchenCategory();
+    fetchKitchenGroups();
   }, []);
 
   // Define columns for react-table
@@ -113,6 +133,7 @@ const KitchenCategory: React.FC = () => {
         size: 200,
         cell: (info) => <div style={{ textAlign: 'center' }}>{info.getValue<string>()}</div>,
       },
+      
       {
         accessorKey: 'Description',
         header: 'Description',
@@ -180,7 +201,7 @@ const KitchenCategory: React.FC = () => {
         ),
       },
     ],
-    []
+    [kitchenGroups]
   );
 
   // Initialize react-table with pagination
@@ -281,9 +302,11 @@ const KitchenCategory: React.FC = () => {
     KitchenCategory,
     onSuccess,
     onUpdateSelectedKitchenCategory,
+    kitchenGroups,
   }) => {
     const [Kitchen_Category, setKitchen_Category] = useState('');
     const [alternative_category_name, setalternative_category_name] = useState('');
+    const [selectedKitchenGroupId, setSelectedKitchenGroupId] = useState<number | undefined>(undefined);
     const [Description, setDescription] = useState('');
     const [alternative_category_Description, setalternative_category_Description] = useState('');
     const [categorycolor, setcategorycolor] = useState('');
@@ -296,6 +319,7 @@ const KitchenCategory: React.FC = () => {
       if (KitchenCategory) {
         setKitchen_Category(KitchenCategory.Kitchen_Category);
         setalternative_category_name(KitchenCategory.alternative_category_name);
+        setSelectedKitchenGroupId(KitchenCategory.kitchenmaingroupid);
         setDescription(KitchenCategory.Description);
         setalternative_category_Description(KitchenCategory.alternative_category_Description);
         setcategorycolor(KitchenCategory.categorycolor);
@@ -304,6 +328,7 @@ const KitchenCategory: React.FC = () => {
       } else {
         setKitchen_Category('');
         setalternative_category_name('');
+        setSelectedKitchenGroupId(undefined);
         setDescription('');
         setalternative_category_Description('');
         setcategorycolor('');
@@ -313,8 +338,8 @@ const KitchenCategory: React.FC = () => {
     }, [KitchenCategory]);
 
     const handleSave = async () => {
-      if (!Kitchen_Category || !alternative_category_name || !status) {
-        toast.error('Category Name, Alternative Category Name, and Status are required');
+      if (!Kitchen_Category || !alternative_category_name || !selectedKitchenGroupId || !status) {
+        toast.error('Category Name, Alternative Category Name, Kitchen Group, and Status are required');
         return;
       }
 
@@ -328,6 +353,7 @@ const KitchenCategory: React.FC = () => {
         const payload = {
           Kitchen_Category,
           alternative_category_name,
+          kitchenmaingroupid: selectedKitchenGroupId,
           Description,
           alternative_category_Description,
           digital_order_image: digital_order_image ? digital_order_image.name : null,
@@ -366,6 +392,7 @@ const KitchenCategory: React.FC = () => {
               ...KitchenCategory,
               Kitchen_Category,
               alternative_category_name,
+              kitchenmaingroupid: selectedKitchenGroupId,
               Description,
               alternative_category_Description,
               digital_order_image,
@@ -380,6 +407,7 @@ const KitchenCategory: React.FC = () => {
           }
           setKitchen_Category('');
           setalternative_category_name('');
+          setSelectedKitchenGroupId(undefined);
           setDescription('');
           setalternative_category_Description('');
           setcategorycolor('');
@@ -440,6 +468,26 @@ const KitchenCategory: React.FC = () => {
                 onChange={(e) => setalternative_category_name(e.target.value)}
                 placeholder="Alternative Category Name"
               />
+            </div>
+          </div>
+
+          <div className="row mb-3">
+            <div className="col-md-6">
+              <label className="form-label">
+                Kitchen Group: <span className="text-danger">*</span>
+              </label>
+              <Form.Select
+                value={selectedKitchenGroupId || ''}
+                onChange={(e) => setSelectedKitchenGroupId(e.target.value ? Number(e.target.value) : undefined)}
+                disabled={loading}
+              >
+                <option value="">Select Kitchen Group</option>
+                {kitchenGroups.map((group) => (
+                  <option key={group.kitchenmaingroupid} value={group.kitchenmaingroupid}>
+                    {group.Kitchen_main_Group}
+                  </option>
+                ))}
+              </Form.Select>
             </div>
           </div>
 
@@ -655,6 +703,7 @@ const KitchenCategory: React.FC = () => {
         KitchenCategory={selectedKitchenCategory}
         onSuccess={fetchKitchenCategory}
         onUpdateSelectedKitchenCategory={setSelectedKitchenCategory}
+        kitchenGroups={kitchenGroups}
       />
     </>
   );

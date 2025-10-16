@@ -27,3 +27,4 @@ exports.deleteKitchenMainGroup = (req, res) => {
     stmt.run(id);
     res.json({ message: 'Deleted' });
 };
+
