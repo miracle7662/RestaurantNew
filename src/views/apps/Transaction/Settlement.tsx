@@ -208,8 +208,8 @@ const EditSettlementPage = ({ role, currentUser }: any) => {
   const groupedSettlements = groupSettlementsByOrderNo(settlements);
 
   return (
-    <SimpleBar style={{ maxHeight: '80vh' }}>
-      <div className="container mt-4">
+    <div className="container-fluid p-0 m-0 fade-in" >
+      <div className="container-fluid">
         <h3>Edit Settlement</h3>
 
         <Alert show={notification.show} variant={notification.type} dismissible onClose={() => setNotification({ show: false, message: '', type: 'success' })}>
@@ -409,7 +409,7 @@ const EditSettlementPage = ({ role, currentUser }: any) => {
           </Modal.Footer>
         </Modal>
       </div>
-    </SimpleBar>
+    </div>
   );
 };
 
