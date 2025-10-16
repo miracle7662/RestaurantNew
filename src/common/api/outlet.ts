@@ -38,9 +38,9 @@ export interface OutletData {
   send_payment_link?: number
   send_ebill_whatsapp?: number
   add_custom_qr?: number
-  start_time?: number
-  end_time?: number
-  warehouseid?: number
+  start_time: number
+  end_time: number
+  warehouseid: number
   reduce_inventory?: number
   registered_at?: string
   created_by_id?: number

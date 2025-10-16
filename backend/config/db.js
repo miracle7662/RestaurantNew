@@ -1002,7 +1002,7 @@ CREATE TABLE IF NOT EXISTS mstwarehouse (
   marketid TEXT
 );
 
-CREATE TABLE shifts  (
+CREATE TABLE IF NOT EXISTS mstshifts  (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   shift_type TEXT CHECK (shift_type IN ('Morning', 'Evening', 'Night'))
   

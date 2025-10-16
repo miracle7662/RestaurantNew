@@ -102,6 +102,7 @@ const OutletList: React.FC = () => {
   const [endTime, setEndTime] = useState<number>(6);
   const [addCustomQr, setAddCustomQr] = useState<boolean>(false);
   const [selectedWarehouseForm, setSelectedWarehouseForm] = useState<string>('');
+  const [fssaiNo, setFssaiNo] = useState<string>('');
 
   const fetchWarehouses = async () => {
     try {
@@ -220,6 +221,7 @@ const OutletList: React.FC = () => {
     setDescription(outlet.description || 'TMBILL - ONLINE ORDERING PLATFORM');
     setAddress(outlet.address || '');
     setGstNo(outlet.gst_no || '');
+    setFssaiNo(outlet.fssai_no || '');
     setStatus(outlet.status === 0);
     setLogoutPOS(outlet.logout_pos === 1);
     setPasswordProtection(outlet.password_protection === 1);
@@ -232,8 +234,8 @@ const OutletList: React.FC = () => {
     setNextResetBillDate(outlet.next_reset_bill_date || '');
     setNextResetKOTDate(outlet.next_reset_kot_date || '');
     setSelectedWarehouseForm(outlet.warehouseid ? outlet.warehouseid.toString() : '');
-    setStartTime(0);
-    setEndTime(6);
+    setStartTime(outlet.start_time || 0);
+    setEndTime(outlet.end_time || 6);
 
     if (outlet.country_code) {
       fetchTimezones(outlet.country_code).then(() => {
@@ -407,9 +409,12 @@ const OutletList: React.FC = () => {
       reduce_inventory: reduceInventory ? 1 : 0,
       website: '',
       logo: '',
-      fssai_no: '',
-      next_reset_bill_date: '',
-      next_reset_kot_date: '',
+      fssai_no: fssaiNo,
+      next_reset_bill_date: nextResetBillDate,
+      next_reset_kot_date: nextResetKOTDate,
+      start_time: startTime,
+      end_time: endTime,
+      warehouseid: selectedWarehouseForm ? Number(selectedWarehouseForm) : 0,
       registered_at: new Date().toISOString(),
       created_by_id: user?.userid || 1,
     };
@@ -932,6 +937,8 @@ const OutletList: React.FC = () => {
                     <Form.Control
                       type="date"
                       placeholder="dd-mm-yyyy"
+                      value={nextResetBillDate}
+                      onChange={(e) => setNextResetBillDate(e.target.value)}
                       style={{
                         backgroundColor: "#f8fafc",
                         color: "#374151",
@@ -965,6 +972,8 @@ const OutletList: React.FC = () => {
                     <Form.Control
                       type="date"
                       placeholder="dd-mm-yyyy"
+                      value={nextResetKOTDate}
+                      onChange={(e) => setNextResetKOTDate(e.target.value)}
                       style={{
                         backgroundColor: "#f8fafc",
                         color: "#374151",
@@ -1151,13 +1160,13 @@ const OutletList: React.FC = () => {
                 </Col>
 
                 <Col md={6}>
-                  <Form.Group controlId="tenantId">
-                    <Form.Label> fssai_no</Form.Label>
+                  <Form.Group controlId="fssaiNo">
+                    <Form.Label>FSSAI No.</Form.Label>
                     <Form.Control
                       type="text"
                       placeholder="Enter FSSAI Number"
-                      value={gstNo}
-                      onChange={(e) => setGstNo(e.target.value)}
+                      value={fssaiNo}
+                      onChange={(e) => setFssaiNo(e.target.value)}
                     />
                   </Form.Group>
                 </Col>
@@ -1193,7 +1202,7 @@ const OutletList: React.FC = () => {
                   <Row>
                     <Col md={6}>
                       <Form.Group controlId="startTime">
-                        <Form.Label>Start Time</Form.Label>
+                        <Form.Label>Start Time <span className="text-danger">*</span></Form.Label>
                         <div className="input-group">
                           <Button
                             variant="outline-secondary"
@@ -1218,7 +1227,7 @@ const OutletList: React.FC = () => {
                     </Col>
                     <Col md={6}>
                       <Form.Group controlId="endTime">
-                        <Form.Label>End Time</Form.Label>
+                        <Form.Label>End Time <span className="text-danger">*</span></Form.Label>
                         <div className="input-group">
                           <Button
                             variant="outline-secondary"
@@ -1247,7 +1256,7 @@ const OutletList: React.FC = () => {
               <Row className="mb-3">
                 <Col md={6}>
                   <Form.Group controlId="inventoryDetails">
-                    <Form.Label>Back Office Inventory Details</Form.Label>
+                    <Form.Label>Back Office Inventory Details <span className="text-danger">*</span></Form.Label>
                     <Form.Select
                       value={selectedWarehouseForm}
                       onChange={(e) => setSelectedWarehouseForm(e.target.value)}
