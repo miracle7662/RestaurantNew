@@ -298,10 +298,29 @@ exports.verifyBillCreatorPassword = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Bill creator not found' });
         }
 
-        // Verify password against the bill creator
+        // If the current user is an admin, try their password first.
+        if (currentUser.role_level === 'hotel_admin' || currentUser.role_level === 'superadmin') {
+            const isAdminPasswordValid = await bcrypt.compare(password, currentUser.password);
+            if (isAdminPasswordValid) {
+                return res.json({ success: true, message: 'Admin password verified successfully.' });
+            }
+        }
+        
+        // If the current user is not an admin or their password was incorrect,
+        // check the password of the user who created the bill.
         const isValidPassword = await bcrypt.compare(password, billCreator.password);
         if (!isValidPassword) {
-            return res.status(401).json({ success: false, message: 'Invalid password' });
+            // If that fails, check the password of the admin who created the bill creator.
+            if (billCreator.created_by_id) {
+                const creatorAdmin = db.prepare('SELECT password FROM mst_users WHERE userid = ?').get(billCreator.created_by_id);
+                if (creatorAdmin) {
+                    const isCreatorAdminPasswordValid = await bcrypt.compare(password, creatorAdmin.password);
+                    if (isCreatorAdminPasswordValid) {
+                        return res.json({ success: true, message: 'Creator admin password verified successfully.' });
+                    }
+                }
+            }
+            return res.status(401).json({ success: false, message: 'Invalid Password' });
         }
 
         // Log the verification attempt
@@ -399,15 +418,28 @@ exports.verifyCreatorPassword = async (req, res) => {
         // Verify JWT to get current user's ID
         const decoded = jwt.verify(token, JWT_SECRET);
 
-        // Find the current user to get their creator's ID
-        const currentUser = db.prepare('SELECT created_by_id FROM mst_users WHERE userid = ?').get(decoded.userid);
+        // Get current user's full details
+        const currentUserInfo = db.prepare('SELECT userid, password, role_level, created_by_id FROM mst_users WHERE userid = ?').get(decoded.userid);
 
-        if (!currentUser || !currentUser.created_by_id) {
+        if (!currentUserInfo) {
+            return res.status(404).json({ success: false, message: 'Current user not found.' });
+        }
+
+        // 1. If the current user is an admin, try their password first.
+        if (currentUserInfo.role_level === 'hotel_admin' || currentUserInfo.role_level === 'superadmin') {
+            const isAdminPasswordValid = await bcrypt.compare(password, currentUserInfo.password);
+            if (isAdminPasswordValid) {
+                return res.json({ success: true, message: 'Admin password verified successfully.' });
+            }
+        }
+
+        // Find the current user to get their creator's ID
+        if (!currentUserInfo.created_by_id) {
             return res.status(404).json({ success: false, message: 'Creator (Hotel Admin) not found for this user.' });
         }
 
         // Get the creator's (Hotel Admin's) details, specifically the password hash
-        const creator = db.prepare("SELECT password, role_level FROM mst_users WHERE userid = ? AND role_level IN ('hotel_admin', 'brand_admin', 'superadmin')").get(currentUser.created_by_id);
+        const creator = db.prepare("SELECT password, role_level FROM mst_users WHERE userid = ? AND role_level IN ('hotel_admin', 'brand_admin', 'superadmin')").get(currentUserInfo.created_by_id);
 
         if (!creator) {
             return res.status(404).json({ success: false, message: 'Creator user record not found or is not an authorized admin.' });
@@ -417,7 +449,7 @@ exports.verifyCreatorPassword = async (req, res) => {
         const isValidPassword = await bcrypt.compare(password, creator.password);
 
         if (!isValidPassword) {
-            return res.status(401).json({ success: false, message: 'Invalid password' });
+            return res.status(401).json({ success: false, message: 'Invalid Admin Password' });
         }
 
         // If password is valid

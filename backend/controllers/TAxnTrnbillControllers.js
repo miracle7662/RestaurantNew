@@ -2075,19 +2075,19 @@ exports.reverseBill = async (req, res) => {
     }
 
     // ✅ Check if bill exists and get its TableID
-    const bill = db.prepare('SELECT TxnID, TableID FROM TAxnTrnbill WHERE TxnID = ?').get(txnId);
+    const bill = db.prepare('SELECT TxnID, TableID, Amount FROM TAxnTrnbill WHERE TxnID = ?').get(txnId);
     if (!bill) {
       return res.status(404).json({ success: false, message: 'Bill not found.' });
     }
 
     const trx = db.transaction((txnIdToReverse) => {
-      // ✅ Reverse the bill and also mark it as cancelled
+      // ✅ Reverse the bill, mark it as cancelled, and update RevKOT with the bill's total amount.
       const reverseBillStmt = db.prepare(`
         UPDATE TAxnTrnbill
-        SET isreversebill = 1, isCancelled = 1
+        SET isreversebill = 1, isCancelled = 1, RevKOT = ?
         WHERE TxnID = ?
       `);
-      reverseBillStmt.run(txnIdToReverse);
+      reverseBillStmt.run(bill.Amount, txnIdToReverse);
 
       // ✅ If the bill had a table, update its status to vacant (0)
       if (bill.TableID) {
