@@ -11,8 +11,7 @@ import { createKOT, getPendingOrders, getSavedKOTs, getTaxesByOutletAndDepartmen
 import OrderDetails from "./OrderDetails";
 import F8PasswordModal from "@/components/F8PasswordModal";
 import KotTransfer from "./KotTransfer";
-import { collapseToast } from "react-toastify";
-import Billing from "@/views/pages/account-settings/Billing";
+
 
 interface MenuItem {
   id: number;
