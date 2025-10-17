@@ -1434,6 +1434,11 @@ const Order = () => {
   
         // Clear items after KOT save to reset the panel
         setItems([]);
+        // Also clear the KOT/Transaction numbers to fully reset the panel
+        setTxnNo(null);
+        setCurrentTxnId(null);
+        setCurrentKOTNo(null);
+        setCurrentKOTNos([]);
 
         // Clear reverse items after successful save and deactivate Reverse Mode
         if (reverseItemsToKOT.length > 0) {
