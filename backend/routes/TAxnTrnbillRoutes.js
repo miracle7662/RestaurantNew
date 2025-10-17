@@ -44,4 +44,7 @@ router.post('/:id/discount', controller.applyDiscountToBill); // Apply a discoun
 router.post('/reverse-qty', controller.handleF8KeyPress); // Legacy F8 handler
 router.post('/reverse-quantity', controller.reverseQuantity); // Simple reverse quantity for one item
 
+// --- Bill Reversal (F9) ---
+router.post('/:id/reverse', controller.reverseBill); // Mark a bill as reversed
+
 module.exports = router;

@@ -8,6 +8,8 @@ interface F8PasswordModalProps {
   error?: string;
   loading?: boolean;
   txnId?: string;
+  title?: string;
+  description?: string;
 }
 
 const F8PasswordModal: React.FC<F8PasswordModalProps> = ({
@@ -16,7 +18,9 @@ const F8PasswordModal: React.FC<F8PasswordModalProps> = ({
   onSubmit,
   error,
   loading = false,
-  txnId
+  txnId,
+  title = "F8 Action - Password Required",
+  description = "This table has been billed. Please enter your password to proceed with F8 (Reverse Quantity) action."
 }) => {
   const [password, setPassword] = useState('');
 
@@ -35,13 +39,11 @@ const F8PasswordModal: React.FC<F8PasswordModalProps> = ({
   return (
     <Modal show={show} onHide={handleHide} centered>
       <Modal.Header closeButton>
-        <Modal.Title>F8 Action - Password Required</Modal.Title>
+        <Modal.Title>{title}</Modal.Title>
       </Modal.Header>
       <Form onSubmit={handleSubmit}>
         <Modal.Body>
-          <p className="mb-3">
-            This table has been billed. Please enter your password to proceed with F8 (Reverse Quantity) action.
-          </p>
+          <p className="mb-3">{description}</p>
           <Form.Group className="mb-3">
             <Form.Label>Password</Form.Label>
             <Form.Control

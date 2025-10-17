@@ -1,8 +1,10 @@
-# TODO: Make warehouseid, start_time, and end_time Required Fields
+# TODO: Implement F9 Key Functionality to Reverse Table Orders for Billed Items
 
-## Tasks
-- [x] Update OutletData interface in src/common/api/outlet.ts to make warehouseid, start_time, and end_time required
-- [x] Update Outlet.tsx to add required asterisks (*) to labels for warehouseid, start_time, and end_time
-- [x] Add validation in handleModalSubmit in Outlet.tsx to check for these required fields
-- [ ] Test form submission to ensure validation works
-- [ ] Verify outlets are created/updated correctly with required fields
+## Steps to Complete
+
+- [x] Modify the `handleKeyDown` function in `src/views/apps/Transaction/Orders.tsx` to add a case for 'F9'.
+- [x] In the F9 case, check if any items have `isBilled === 1`.
+- [x] If billed items exist, reverse the `items` array using `setItems(items.slice().reverse())`.
+- [x] Show a success toast message indicating the order has been reversed.
+- [x] If no billed items, show an error toast message.
+- [x] Test the F9 key press to ensure it works as expected.

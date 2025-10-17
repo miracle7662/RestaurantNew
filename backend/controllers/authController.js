@@ -382,6 +382,56 @@ exports.verifyPassword = async (req, res) => {
     }
 };
 
+// Verify password of the user's creator (e.g., Hotel Admin for an Outlet User)
+exports.verifyCreatorPassword = async (req, res) => {
+    try {
+        const { password } = req.body;
+        const token = req.headers.authorization?.replace('Bearer ', '');
+
+        if (!token) {
+            return res.status(401).json({ success: false, message: 'No token provided' });
+        }
+
+        if (!password) {
+            return res.status(400).json({ success: false, message: 'Password is required' });
+        }
+
+        // Verify JWT to get current user's ID
+        const decoded = jwt.verify(token, JWT_SECRET);
+
+        // Find the current user to get their creator's ID
+        const currentUser = db.prepare('SELECT created_by_id FROM mst_users WHERE userid = ?').get(decoded.userid);
+
+        if (!currentUser || !currentUser.created_by_id) {
+            return res.status(404).json({ success: false, message: 'Creator (Hotel Admin) not found for this user.' });
+        }
+
+        // Get the creator's (Hotel Admin's) details, specifically the password hash
+        const creator = db.prepare("SELECT password, role_level FROM mst_users WHERE userid = ? AND role_level IN ('hotel_admin', 'brand_admin', 'superadmin')").get(currentUser.created_by_id);
+
+        if (!creator) {
+            return res.status(404).json({ success: false, message: 'Creator user record not found or is not an authorized admin.' });
+        }
+
+        // Verify the provided password against the creator's hashed password
+        const isValidPassword = await bcrypt.compare(password, creator.password);
+
+        if (!isValidPassword) {
+            return res.status(401).json({ success: false, message: 'Invalid password' });
+        }
+
+        // If password is valid
+        res.json({ success: true, message: 'Password verified successfully' });
+
+    } catch (error) {
+        console.error('Creator password verification error:', error);
+        if (error.name === 'JsonWebTokenError') {
+            return res.status(401).json({ success: false, message: 'Invalid token' });
+        }
+        res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+};
+
 // Create initial SuperAdmin (if not exists)
 exports.createInitialSuperAdmin = async () => {
     try {

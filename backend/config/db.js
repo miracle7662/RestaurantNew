@@ -785,6 +785,7 @@ CREATE TABLE IF NOT EXISTS TAxnTrnbill (
     isCancelled BOOLEAN DEFAULT 0,
     isPickup BOOLEAN DEFAULT 0,
     isDayEnd BOOLEAN DEFAULT 0,
+    isreversebill BOOLEAN DEFAULT 0,
     NCName TEXT,
     NCPurpose TEXT,
     BilledDate DATETIME,

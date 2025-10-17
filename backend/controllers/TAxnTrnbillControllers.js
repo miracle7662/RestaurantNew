@@ -2062,4 +2062,50 @@ exports.getAllBillsForBillingTab = async (req, res) => {
   }
 };
 
+/* -------------------------------------------------------------------------- */
+/* 19) reverseBill → Mark a bill as reversed (for F9 action)                  */
+/* -------------------------------------------------------------------------- */
+exports.reverseBill = async (req, res) => {
+  try {
+    const { id: txnId } = req.params;
+
+    if (!txnId) {
+      return res.status(400).json({ success: false, message: 'Transaction ID is required.' });
+    }
+
+    // ✅ Check if bill exists and get its TableID
+    const bill = db.prepare('SELECT TxnID, TableID FROM TAxnTrnbill WHERE TxnID = ?').get(txnId);
+    if (!bill) {
+      return res.status(404).json({ success: false, message: 'Bill not found.' });
+    }
+
+    const trx = db.transaction((txnIdToReverse) => {
+      // ✅ Reverse the bill and also mark it as cancelled
+      const reverseBillStmt = db.prepare(`
+        UPDATE TAxnTrnbill 
+        SET isreversebill = 1, isCancelled = 1
+        WHERE TxnID = ?
+      `);
+      reverseBillStmt.run(txnIdToReverse);
+
+      // ✅ If the bill had a table, update its status to vacant (0)
+      if (bill.TableID) {
+        const updateTableStmt = db.prepare(`
+          UPDATE msttablemanagement 
+          SET status = 0 
+          WHERE tableid = ?`);
+        updateTableStmt.run(bill.TableID);
+      }
+    });
+
+    trx(txnId); // Pass txnId to the transaction
+    res.json({ success: true, message: 'Bill has been reversed successfully.' });
+  } catch (error) {
+    console.error('Error reversing bill:', error);
+    res.status(500).json({ success: false, message: 'Internal server error while reversing the bill.' });
+  }
+};
+
+
+
 module.exports = exports

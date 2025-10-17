@@ -117,6 +117,17 @@ const Order = () => {
   const [f8PasswordError, setF8PasswordError] = useState<string>('');
   const [f8PasswordLoading, setF8PasswordLoading] = useState<boolean>(false);
 
+  // New state for F9 password modal for reversing orders
+  const [showF9PasswordModal, setShowF9PasswordModal] = useState<boolean>(false);
+  const [f9PasswordError, setF9PasswordError] = useState<string>('');
+  const [f9PasswordLoading, setF9PasswordLoading] = useState<boolean>(false);
+
+  // New state for F9 password modal
+  const [showF9BilledPasswordModal, setShowF9BilledPasswordModal] = useState<boolean>(false);
+  const [f9BilledPasswordError, setF9BilledPasswordError] = useState<string>('');
+  const [f9BilledPasswordLoading, setF9BilledPasswordLoading] = useState<boolean>(false);
+
+
   // New state for Reverse Qty Mode authentication
   const [reverseQtyConfig, setReverseQtyConfig] = useState<'NoPassword' | 'PasswordRequired'>('PasswordRequired'); // Config for Reverse Qty Mode
   const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
@@ -1614,6 +1625,71 @@ const Order = () => {
     }
   };
 
+  const handleF9PasswordSubmit = async (password: string) => {
+    if (!user?.token) {
+      toast.error("Authentication token not found. Please log in again.");
+      return;
+    }
+
+    setF9BilledPasswordLoading(true);
+    setF9BilledPasswordError('');
+    try {
+      const response = await fetch('http://localhost:3001/api/auth/verify-creator-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${user.token}`
+        },
+        body: JSON.stringify({ password })
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        // Password verified, now call the bill reversal endpoint
+        if (!currentTxnId) {
+          setF9BilledPasswordError("Transaction ID not found. Cannot reverse bill.");
+          return;
+        }
+
+        try {
+          const reverseResponse = await fetch(`http://localhost:3001/api/TAxnTrnbill/${currentTxnId}/reverse`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${user.token}`
+            },
+            body: JSON.stringify({ userId: user.id }) // Pass admin's ID for logging
+          });
+
+          const reverseData = await reverseResponse.json();
+
+          if (reverseResponse.ok && reverseData.success) {
+            toast.success('Bill reversed successfully!');
+            setShowF9BilledPasswordModal(false);
+
+            // Reset the UI
+            setItems([]);
+            setSelectedTable(null);
+            setShowOrderDetails(false);
+            fetchTableManagement(); // Refresh table statuses
+
+          } else {
+            setF9BilledPasswordError(reverseData.message || 'Failed to reverse the bill.');
+          }
+        } catch (reverseError) {
+          setF9BilledPasswordError('An error occurred while reversing the bill.');
+        }
+      } else {
+        setF9BilledPasswordError(data.message || 'Invalid password');
+      }
+    } catch (error) {
+      setF9BilledPasswordError('An error occurred. Please try again.');
+    } finally {
+      setF9BilledPasswordLoading(false);
+    }
+  };
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.key >= '0' && e.key <= '9') {
@@ -1690,6 +1766,23 @@ const Order = () => {
           }
         };
         fetchLatestReverseQtySettingForUnbilled();
+      }
+      if (e.key === 'F9') {
+        e.preventDefault();
+        if (items.length === 0) {
+          toast.error("No items to reverse.");
+          return;
+        }
+
+        // Check if there are any billed items before proceeding
+        const hasBilledItems = items.some(item => item.isBilled === 1);
+
+        if (hasBilledItems) {
+          // Only show password modal if there are billed items
+          setShowF9BilledPasswordModal(true);
+        } else {
+          toast.error("F9 (Bill Reversal) is only available for billed orders.");
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -4085,6 +4178,19 @@ const Order = () => {
               error={f8PasswordError}
               loading={f8PasswordLoading}
               txnId={currentTxnId?.toString()}
+            />
+            
+            {/* F9 Billed Password Modal */}
+            <F8PasswordModal
+              show={showF9BilledPasswordModal}
+              onHide={() => {
+                setShowF9BilledPasswordModal(false);
+                setF9BilledPasswordError('');
+              }}
+              onSubmit={handleF9PasswordSubmit}
+              error={f9BilledPasswordError}
+              loading={f9BilledPasswordLoading}
+              title="Admin Password for Reversal"
             />
 
             <Modal show={showAuthModal} onHide={handleCloseAuthModal} centered>

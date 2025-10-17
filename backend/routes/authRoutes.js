@@ -17,4 +17,9 @@ router.post('/verify-bill-creator-password', authController.verifyBillCreatorPas
 // Verify password for handover access
 router.post('/verify-password', authController.verifyPassword);
 
+// Verify password of the user's creator (for F9 action)
+router.post('/verify-creator-password', authController.verifyCreatorPassword);
+
+
+
 module.exports = router;
