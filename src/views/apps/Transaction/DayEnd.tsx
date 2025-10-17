@@ -34,6 +34,8 @@ import {
 } from 'chart.js';
 import { Pie } from 'react-chartjs-2';
 import { useAuthContext } from '@/common/context/useAuthContext';
+import { useNavigate } from 'react-router-dom';
+import HandoverPasswordModal from "../../../components/HandoverPasswordModal.tsx";
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
@@ -72,6 +74,7 @@ interface Order {
 
 const DayEnd = () => {
   const { user } = useAuthContext();
+  const navigate = useNavigate();
   const [remarks, setRemarks] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -96,6 +99,8 @@ const DayEnd = () => {
     2: 0,
     1: 0,
   });
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordVerified, setPasswordVerified] = useState(false);
 
   useEffect(() => {
     const fetchHandoverData = async () => {
@@ -121,6 +126,12 @@ const DayEnd = () => {
 
     fetchHandoverData();
   }, []);
+
+  useEffect(() => {
+    if (!passwordVerified) {
+      setShowPasswordModal(true);
+    }
+  }, [passwordVerified]);
 
   // Computed summary from orders
   const totalOrders = orders.length;
@@ -320,6 +331,29 @@ const DayEnd = () => {
       });
   };
 
+  const handlePasswordVerify = async (password: string): Promise<boolean> => {
+    try {
+      const response = await fetch('http://localhost:3001/api/auth/verify-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${user?.token}`,
+        },
+        body: JSON.stringify({ password }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        setPasswordVerified(true);
+        setShowPasswordModal(false);
+        return true;
+      } else {
+        return false;
+      }
+    } catch (error) {
+      console.error('Password verification error:', error);
+      return false;
+    }
+  };
 
 
   const StatusBadge = ({ status }: { status: string }) => {
@@ -354,7 +388,7 @@ const DayEnd = () => {
 
 
   return (
-    <>
+    <div>
       <style>{`
         .main-container {
           height: 100vh;
@@ -584,7 +618,8 @@ const DayEnd = () => {
           margin-top: 0.5rem;
         }
       `}</style>
-      <Container fluid className="p-0 bg-light main-container">
+      {passwordVerified ? (
+        <Container fluid className="p-0 bg-light main-container">
         {/* Header Section - Compact */}
         <Card className="mb-0 shadow-sm border-0">
           <Card.Header className="bg-white border-0 header-compact">
@@ -1208,7 +1243,15 @@ const DayEnd = () => {
         </Modal>
 
       </Container>
-    </>
+      ) : (
+        <HandoverPasswordModal
+          show={showPasswordModal}
+          onVerify={handlePasswordVerify}
+          onSuccess={() => setShowPasswordModal(false)}
+          onCancel={() => navigate('/apps/Orders')}
+        />
+      )}
+    </div>
   );
 };
 export default DayEnd;

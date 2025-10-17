@@ -3,7 +3,7 @@ import { Button, Modal, Form, Row, Col, Table, Tabs, Tab } from 'react-bootstrap
 import { toast } from 'react-hot-toast';
 import { useAuthContext } from '@/common';
 import outletUserService, { OutletUserData, HotelAdminData } from '@/common/api/outletUser';
-import { fetchDesignation, fetchUserType, fetchOutlets, fetchShiftTypes, ShiftTypeItem } from '@/utils/commonfunction';
+import { fetchDesignation, fetchUserType, fetchOutlets, fetchShiftTypes, ShiftTypeItem, fetchWarehouses, WarehouseItem } from '@/utils/commonfunction';
 import { OutletData } from '@/common/api/outlet';
 
 
@@ -17,6 +17,7 @@ const OutletUserList: React.FC = () => {
   const [hotelAdmins, setHotelAdmins] = useState<HotelAdminData[]>([]);
   const [loading, setLoading] = useState(true);
   const [outlets, setOutlets] = useState<OutletData[]>([]);
+  const [warehouses, setWarehouses] = useState<WarehouseItem[]>([]);
   const [designations, setDesignations] = useState<Array<{ designationid: number; Designation: string }>>([]);
   const [userTypes, setUserTypes] = useState<Array<{ usertypeid: number; User_type: string }>>([]);
   const [designationid, setDesignationId] = useState<number | null>(null);
@@ -63,6 +64,7 @@ const OutletUserList: React.FC = () => {
       fetchDesignation(setDesignations, setDesignationId);
       fetchUserType(setUserTypes, setUserTypeId);
       fetchShiftTypes(setShiftTypes, setShiftTime);
+      fetchWarehouses(setWarehouses, setLoading);
     } catch (error) {
       console.error('Error fetching master data:', error);
       toast.error('Failed to fetch master data. Please check if the backend server is running.');
@@ -802,12 +804,20 @@ const OutletUserList: React.FC = () => {
                   <Col md={6}>
                     <Form.Group controlId="assignWarehouse">
                       <Form.Label>Assign Warehouse</Form.Label>
-                      <Form.Control
-                        type="text"
-                        placeholder="Enter Warehouse"
+                      <Form.Select
                         value={assignWarehouse}
                         onChange={(e) => setAssignWarehouse(e.target.value)}
-                      />
+                        disabled={loading}
+                      >
+                        <option value="">Select Warehouse</option>
+                        {warehouses.map((warehouse) => (
+                          <option
+                            key={warehouse.warehouseid}
+                            value={warehouse.warehouseid}>
+                            {warehouse.warehouse_name}
+                          </option>
+                        ))}
+                      </Form.Select>
                     </Form.Group>
                   </Col>
                   <Col md={6}>

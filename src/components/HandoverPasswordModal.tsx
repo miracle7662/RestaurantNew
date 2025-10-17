@@ -66,7 +66,7 @@ const HandoverPasswordModal: React.FC<HandoverPasswordModalProps> = ({
       </Modal.Header>
       <Modal.Body>
         <p className="mb-3">
-          Please re-enter your password to access the Handover page.
+          Please re-enter your password to access the page.
         </p>
         {error && (
           <Alert variant="danger" className="mb-3">

@@ -151,6 +151,12 @@ export interface unitmasterItem {
   unit_name: string
   status: number
 }
+
+export interface WarehouseItem {
+  warehouseid: number
+  warehouse_name: string
+}
+
 export const fetchCountries = async (
   setCountryItems: (data: CountryItem[]) => void,
   setCountryId: (id: number) => void,
@@ -691,6 +697,22 @@ export const fetchShiftTypes = async (
   }
 };
 
+export const fetchWarehouses = async (
+  setWarehouses: (data: WarehouseItem[]) => void,
+  setLoading: (loading: boolean) => void,
+) => {
+  try {
+    setLoading(true)
+    const res = await fetch('http://localhost:3001/api/warehouse')
+    const data: WarehouseItem[] = await res.json()
+    setWarehouses(data)
+  } catch (err) {
+    toast.error('Failed to fetch warehouses')
+    console.error('Fetch warehouses error:', err)
+  } finally {
+    setLoading(false)
+  }
+}
 
 // export const fetchhotelmasters = async (
 //   setHotels: (data: HotelMasterItem[]) => void,
