@@ -1286,11 +1286,11 @@ const OutletList: React.FC = () => {
           )}
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="danger" onClick={handleCloseModal}>
-            Close
-          </Button>
           <Button variant="success" onClick={handleModalSubmit}>
             {modalType === 'Add Outlet' ? 'Create' : 'Update'}
+          </Button>
+          <Button variant="danger" onClick={handleCloseModal}>
+            Close
           </Button>
         </Modal.Footer>
       </Modal>

@@ -960,11 +960,11 @@ const OutletUserList: React.FC = () => {
           </Form>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="danger" onClick={handleCloseModal}>
-            Close
-          </Button>
           <Button variant="success" onClick={handleModalSubmit}>
             {modalType === 'Edit Outlet User' || modalType === 'Edit Hotel Admin' ? 'Update' : 'Create'}
+          </Button>
+           <Button variant="danger" onClick={handleCloseModal}>
+            Close
           </Button>
         </Modal.Footer>
       </Modal>
