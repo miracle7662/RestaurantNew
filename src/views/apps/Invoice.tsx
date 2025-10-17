@@ -1,524 +1,242 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import Swal from 'sweetalert2';
-import { toast } from 'react-hot-toast';
-import { Preloader } from '@/components/Misc/Preloader';
-import { Button, Card, Stack, Pagination, Table, Form } from 'react-bootstrap';
-import TitleHelmet from '@/components/Common/TitleHelmet';
-import { useAuthContext } from '../../common/context/useAuthContext';
-import {
-  useReactTable,
-  getCoreRowModel,
-  getPaginationRowModel,
-  getFilteredRowModel,
-  ColumnDef,
-  flexRender,
-} from '@tanstack/react-table';
+import React, { useState } from 'react';
+import { RefreshCw, Plus } from 'lucide-react';
 
-interface warehouseItem {
-  warehouse_name: string;
-  warehouseid: string;
-  location: string;
-  total_items: number;
-  status: string;
-  created_by_id: string;
-  created_date: string;
-  updated_by_id: string;
-  updated_date: string;
-  hotelid: string;
-  client_code: string;
-  marketid: string;
+// Types
+type TableStatus = 'blank' | 'running' | 'printed' | 'paid' | 'running-kot';
+
+interface Table {
+  id: number;
+  name: string;
+  status: TableStatus;
+  hasCustomer?: boolean;
+  hasView?: boolean;
 }
 
-interface WarehouseModalProps {
-  show: boolean;
-  onHide: () => void;
-  onSuccess: () => void;
-  warehouse: warehouseItem | null;
-  onUpdateSelectedWarehouse?: (warehouse: warehouseItem) => void;
-}
+// Table data
+const acTables: Table[] = [
+  { id: 1, name: 'Table 1', status: 'blank' },
+  { id: 2, name: 'Table 2', status: 'running', hasCustomer: true },
+  { id: 3, name: 'Table 3', status: 'blank' },
+  { id: 4, name: 'Table 4', status: 'blank' },
+  { id: 5, name: 'Table 5', status: 'running', hasCustomer: true },
+  { id: 6, name: 'Table 6', status: 'blank' },
+  { id: 7, name: 'Table 7', status: 'blank' },
+  { id: 8, name: 'Table 8', status: 'running', hasCustomer: true },
+  { id: 9, name: 'Table 9', status: 'paid', hasCustomer: true, hasView: true },
+  { id: 10, name: 'Table 10', status: 'blank' },
+  { id: 11, name: 'Table 11', status: 'blank' },
+  { id: 12, name: 'Table 12', status: 'running', hasCustomer: true },
+  { id: 13, name: 'Table 13', status: 'blank' },
+  { id: 14, name: 'Table 14', status: 'printed', hasCustomer: true },
+  { id: 15, name: 'Table 15', status: 'blank' },
+  { id: 16, name: 'Table 16', status: 'blank' },
+  { id: 17, name: 'Table 17', status: 'blank' },
+  { id: 18, name: 'Table 18', status: 'blank' },
+  { id: 19, name: 'Table 19', status: 'paid', hasCustomer: true, hasView: true },
+  { id: 20, name: 'Table 20', status: 'blank' },
+  { id: 21, name: 'Table 21', status: 'blank' },
+  { id: 22, name: 'Table 22', status: 'blank' },
+  { id: 23, name: 'Table 23', status: 'blank' },
+  { id: 24, name: 'Table 24', status: 'blank' },
+  { id: 25, name: 'Table 25', status: 'blank' },
+  { id: 26, name: 'Table 26', status: 'printed', hasCustomer: true },
+  { id: 27, name: 'Table 27', status: 'running-kot', hasCustomer: true, hasView: true },
+  { id: 28, name: 'Table 28', status: 'paid', hasCustomer: true, hasView: true },
+];
 
-// Debounce utility function
-const debounce = (func: (...args: any[]) => void, wait: number) => {
-  let timeout: NodeJS.Timeout;
-  return (...args: any[]) => {
-    clearTimeout(timeout);
-    timeout = setTimeout(() => func(...args), wait);
-  };
-};
+const nonAcTables: Table[] = [
+  { id: 1, name: 'Table 1', status: 'blank' },
+  { id: 2, name: 'Table 2', status: 'paid', hasCustomer: true, hasView: true },
+  { id: 3, name: 'Table 3', status: 'blank' },
+  { id: 4, name: 'Table 4', status: 'blank' },
+  { id: 5, name: 'Table 5', status: 'paid', hasCustomer: true, hasView: true },
+  { id: 6, name: 'Table 6', status: 'blank' },
+  { id: 7, name: 'Table 7', status: 'blank' },
+  { id: 8, name: 'Table 8', status: 'paid', hasCustomer: true, hasView: true },
+  { id: 9, name: 'Table 9', status: 'blank' },
+];
 
-const getStatusBadge = (status: number) => {
-  return status === 0 ? (
-    <span className="badge bg-success">Active</span>
-  ) : (
-    <span className="badge bg-danger">Inactive</span>
-  );
-};
-
-// Main Warehouse Component
-const Warehouse: React.FC = () => {
-  const [warehouseItem, setWarehouseItem] = useState<warehouseItem[]>([]);
-  const [searchTerm, setSearchTerm] = useState<string>('');
-  const [loading, setLoading] = useState<boolean>(false);
-  const [showModal, setShowModal] = useState(false);
-  const [selectedWarehouse, setSelectedWarehouse] = useState<warehouseItem | null>(null);
-  const [showDetails, setShowDetails] = useState(false);
-
-  const fetchWarehouse = async () => {
-    try {
-      setLoading(true);
-      const res = await fetch('http://localhost:3001/api/warehouse');
-      const data = await res.json();
-      console.log('Fetched warehouse:', data);
-      setWarehouseItem(data);
-    } catch (err) {
-      toast.error('Failed to fetch Warehouse');
-    } finally {
-      setLoading(false);
+// Table Card Component
+const TableCard: React.FC<{ table: Table }> = ({ table }) => {
+  const getStatusClass = (status: TableStatus): string => {
+    switch (status) {
+      case 'running': return 'bg-primary text-white';
+      case 'printed': return 'bg-success text-white';
+      case 'paid': return 'bg-warning';
+      case 'running-kot': return 'bg-warning-orange';
+      default: return 'bg-light border';
     }
-  };
-
-  useEffect(() => {
-    fetchWarehouse();
-  }, []);
-
-  // Define columns for react-table with explicit widths
-  const columns = useMemo<ColumnDef<warehouseItem>[]>(() => [
-    {
-      id: 'srNo',
-      header: 'Sr No',
-      size: 50,
-      cell: ({ row }) => <div style={{ textAlign: 'center' }}>{row.index + 1}</div>,
-    },
-    {
-      accessorKey: 'warehouse_name',
-      header: 'Warehouse Name',
-      size: 200,
-      cell: (info) => <div style={{ textAlign: 'center' }}>{info.getValue<string>()}</div>,
-    },
-    {
-      accessorKey: 'location',
-      header: 'Location',
-      size: 200,
-      cell: (info) => <div style={{ textAlign: 'center' }}>{info.getValue<string>()}</div>,
-    },
-    {
-      accessorKey: 'status',
-      header: 'Status',
-      size: 150,
-      cell: (info) => {
-        const statusValue = info.getValue<string | number>();
-        return (
-          <div style={{ textAlign: 'center' }}>
-            {getStatusBadge(Number(statusValue))}
-          </div>
-        );
-      },
-    },
-    {
-      id: 'actions',
-      header: () => <div style={{ textAlign: 'center' }}>Action</div>,
-      size: 200,
-      cell: ({ row }) => (
-        <div className="d-flex gap-2 justify-content-center">
-          <button
-            className="btn btn-sm btn-info"
-            onClick={() => handleViewClick(row.original)}
-            title="View Warehouse Details"
-          >
-            <i className="fi fi-rr-eye"></i>
-          </button>
-          <button
-            className="btn btn-sm btn-success"
-            onClick={() => handleEditClick(row.original)}
-            title="Edit Warehouse"
-          >
-            <i className="fi fi-rr-edit"></i>
-          </button>
-          <button
-            className="btn btn-sm btn-danger"
-            onClick={() => handleDeleteWarehouse(row.original)}
-            title="Delete Warehouse"
-          >
-            <i className="fi fi-rr-trash"></i>
-          </button>
-        </div>
-      ),
-    },
-  ], []);
-
-  // Initialize react-table with pagination and filtering
-  const table = useReactTable({
-    data: warehouseItem,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    initialState: {
-      pagination: {
-        pageSize: 10,
-      },
-    },
-    state: {
-      globalFilter: searchTerm,
-    },
-  });
-
-  const handleSearch = useCallback(
-    debounce((value: string) => {
-      table.setGlobalFilter(value);
-    }, 300),
-    [table]
-  );
-
-  const onSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setSearchTerm(value);
-    handleSearch(value);
-  };
-
-  const handleViewClick = (warehouse: warehouseItem) => {
-    setSelectedWarehouse(warehouse);
-    setShowDetails(true);
-  };
-
-  const handleEditClick = (warehouse: warehouseItem) => {
-    setSelectedWarehouse(warehouse);
-    setShowModal(true);
-  };
-
-  const handleDeleteWarehouse = async (warehouse: warehouseItem) => {
-    const res = await Swal.fire({
-      title: 'Are you sure?',
-      text: 'You will not be able to recover this Warehouse!',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#d33',
-      cancelButtonColor: '#3E97FF',
-      confirmButtonText: 'Yes, delete it!',
-    });
-    if (res.isConfirmed) {
-      try {
-        await fetch(`http://localhost:3001/api/warehouse/${warehouse.warehouseid}`, { method: 'DELETE' });
-        toast.success('Deleted successfully');
-        fetchWarehouse();
-        setSelectedWarehouse(null);
-        setShowDetails(false);
-      } catch {
-        toast.error('Failed to delete');
-      }
-    }
-  };
-
-  const getPaginationItems = () => {
-    const items = [];
-    const maxPagesToShow = 5;
-    const pageIndex = table.getState().pagination.pageIndex;
-    const totalPages = table.getPageCount();
-    let startPage = Math.max(0, pageIndex - Math.floor(maxPagesToShow / 2));
-    const endPage = Math.min(totalPages - 1, startPage + maxPagesToShow - 1);
-
-    if (endPage - startPage < maxPagesToShow - 1) {
-      startPage = Math.max(0, endPage - maxPagesToShow + 1);
-    }
-
-    for (let i = startPage; i <= endPage; i++) {
-      items.push(
-        <Pagination.Item
-          key={i}
-          active={i === pageIndex}
-          onClick={() => table.setPageIndex(i)}
-        >
-          {i + 1}
-        </Pagination.Item>
-      );
-    }
-    return items;
-  };
-
-  // Combined WarehouseModal Component
-  const WarehouseModal: React.FC<WarehouseModalProps> = ({ show, onHide, onSuccess, warehouse, onUpdateSelectedWarehouse }) => {
-    const [warehouse_name, setWarehouse_name] = useState('');
-    const [location, setLocation] = useState('');
-    const [status, setStatus] = useState('Active');
-    const [loading, setLoading] = useState(false);
-    const { user } = useAuthContext(); // Assuming useAuthContext provides user info
-
-    const isEditMode = !!warehouse;
-
-    useEffect(() => {
-      if (warehouse && isEditMode) {
-        setWarehouse_name(warehouse.warehouse_name);
-        setLocation(warehouse.location);
-        setStatus(String(warehouse.status) === '0' ? 'Active' : 'Inactive');
-        console.log('Edit warehouse status:', warehouse.status, typeof warehouse.status);
-      } else {
-        setWarehouse_name('');
-        setLocation('');
-        setStatus('Active');
-      }
-    }, [warehouse]);
-
-    const handleSubmit = async () => {
-      if (!warehouse_name || !location || !status) {
-        toast.error('Warehouse Name, Location and Status are required');
-        return;
-      }
-
-      // Use authenticated user ID and context
-      const userId = user.id;
-      const hotelId = user.hotelid || '1';
-      const marketId = user.marketid || '1';
-
-      setLoading(true);
-      try {
-        const statusValue = status === 'Active' ? 0 : 1;
-        const currentDate = new Date().toISOString();
-        
-        const payload = {
-          warehouse_name,
-          location,
-          status: statusValue,
-          ...(isEditMode
-            ? {
-                warehouseid: warehouse!.warehouseid,
-                updated_by_id: userId,
-                updated_date: currentDate,
-                hotelid: warehouse!.hotelid || hotelId,
-                marketid: warehouse!.marketid || marketId
-              }
-            : {
-                created_by_id: userId,
-                created_date: currentDate,
-                hotelid: hotelId,
-                marketid: marketId,
-              }),
-        };
-        console.log('Sending to backend:', payload);
-
-        const url = isEditMode
-          ? `http://localhost:3001/api/warehouse/${warehouse!.warehouseid}`
-          : 'http://localhost:3001/api/warehouse';
-        const method = isEditMode ? 'PUT' : 'POST';
-
-        const res = await fetch(url, {
-          method,
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-
-        if (res.ok) {
-          toast.success(`Warehouse ${isEditMode ? 'updated' : 'added'} successfully`);
-          if (isEditMode && warehouse && onUpdateSelectedWarehouse) {
-            const updatedWarehouse = {
-              ...warehouse,
-              warehouse_name,
-              location,
-              status: statusValue.toString(),
-              updated_by_id: userId,
-              updated_date: currentDate,
-              warehouseid: warehouse.warehouseid,
-            };
-            onUpdateSelectedWarehouse(updatedWarehouse);
-          }
-          setWarehouse_name('');
-          setLocation('');
-          setStatus('Active');
-          onSuccess();
-          onHide();
-        } else {
-          const errorData = await res.json();
-          console.log('Backend error:', errorData);
-          toast.error(`Failed to ${isEditMode ? 'update' : 'add'} Warehouse`);
-        }
-      } catch (err) {
-        console.error(`${isEditMode ? 'Edit' : 'Add'} Warehouse error:`, err);
-        toast.error('Something went wrong');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (!show) return null;
-
-    return (
-      <div className="modal" style={{ display: show ? 'block' : 'none', background: 'rgba(0,0,0,0.5)', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
-        <div className="modal-content" style={{ background: 'white', padding: '20px', maxWidth: '600px', margin: '100px auto', borderRadius: '8px' }}>
-          <div className="d-flex justify-content-between align-items-center mb-3">
-            <h5 className="mb-0">{isEditMode ? 'Edit Warehouse' : 'Add Warehouse'}</h5>
-            <button className="btn-close" onClick={onHide}></button>
-          </div>
-          <div className="row mb-3">
-            <div className="col-md-12">
-              <label className="form-label">Warehouse Name <span style={{ color: 'red' }}>*</span></label>
-              <input
-                type="text"
-                className="form-control"
-                value={warehouse_name}
-                onChange={(e) => setWarehouse_name(e.target.value)}
-                placeholder="Enter Warehouse Name"
-              />
-            </div>
-          </div>
-          <div className="row mb-3">
-            <div className="col-md-12">
-              <label className="form-label">Location <span style={{ color: 'red' }}>*</span></label>
-              <input
-                type="text"
-                className="form-control"
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                placeholder="Enter Location"
-              />
-            </div>
-          </div>
-          <div className="row mb-3">
-            <div className="col-md-12">
-              <label className="form-label">Status <span style={{ color: 'red' }}>*</span></label>
-              <select
-                className="form-control"
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-              >
-                <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
-              </select>
-            </div>
-          </div>
-          <div className="d-flex justify-content-end mt-4">
-            <button className="btn btn-success me-2" onClick={handleSubmit} disabled={loading}>
-              {loading ? (isEditMode ? 'Updating...' : 'Adding...') : (isEditMode ? 'Save' : 'Create')}
-            </button>
-            <button className="btn btn-danger" onClick={onHide} disabled={loading}>
-              Close
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // Warehouse Details Card
-  const WarehouseDetailsCard = () => {
-    if (!selectedWarehouse) return null;
-
-    return (
-      <Card className="mt-3">
-        <Card.Header className="d-flex justify-content-between align-items-center">
-          <h5>Warehouse Details</h5>
-          <Button variant="secondary" size="sm" onClick={() => { setSelectedWarehouse(null); setShowDetails(false); }}>
-            Close
-          </Button>
-        </Card.Header>
-        <Card.Body>
-          <p><strong>Warehouse Name:</strong> {selectedWarehouse.warehouse_name}</p>
-          <p><strong>Location:</strong> {selectedWarehouse.location}</p>
-          <p><strong>Total Items:</strong> {selectedWarehouse.total_items}</p>
-          <p><strong>Last Updated:</strong> {selectedWarehouse.updated_date}</p>
-        </Card.Body>
-      </Card>
-    );
   };
 
   return (
-    <>
-      <TitleHelmet title="Warehouse List" />
-      <Card className="m-1">
-        <div className="d-flex justify-content-between align-items-center p-3 border-bottom">
-          <h4 className="mb-0">Warehouse List</h4>
-          <div style={{ display: 'flex', gap: '4px' }}>
-            <Button variant="success" onClick={() => setShowModal(true)}>
-              <i className="bi bi-plus"></i> Add Warehouse
-            </Button>
-          </div>
-        </div>
-        <div className="p-3">
-          <div className="mb-3">
-            <input
-              type="text"
-              className="form-control rounded-pill"
-              placeholder="Search..."
-              value={searchTerm}
-              onChange={onSearchChange}
-              style={{ width: '350px', borderColor: '#ccc', borderWidth: '2px' }}
-            />
-          </div>
-          <div className="flex-grow-1" style={{ overflowY: 'auto' }}>
-            {loading ? (
-              <Stack className="align-items-center justify-content-center flex-grow-1 h-100">
-                <Preloader />
-              </Stack>
-            ) : (
-              <>
-                <Table responsive hover className="mb-4">
-                  <thead>
-                    {table.getHeaderGroups().map((headerGroup) => (
-                      <tr key={headerGroup.id}>
-                        {headerGroup.headers.map((header) => (
-                          <th key={header.id} style={{ width: header.column.columnDef.size, textAlign: header.id === 'actions' ? 'left' : 'center' }}>
-                            {flexRender(header.column.columnDef.header, header.getContext())}
-                          </th>
-                        ))}
-                      </tr>
-                    ))}
-                  </thead>
-                  <tbody>
-                    {table.getRowModel().rows.map((row) => (
-                      <tr key={row.id}>
-                        {row.getVisibleCells().map((cell) => (
-                          <td key={cell.id} style={{ textAlign: cell.column.id === 'actions' ? 'left' : 'center' }}>
-                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </Table>
-                <Stack direction="horizontal" className="justify-content-between align-items-center">
-                  <div>
-                    <Form.Select
-                      value={table.getState().pagination.pageSize}
-                      onChange={(e) => table.setPageSize(Number(e.target.value))}
-                      style={{ width: '100px', display: 'inline-block', marginRight: '10px' }}
-                    >
-                      <option value="5">5</option>
-                      <option value="10">10</option>
-                      <option value="20">20</option>
-                      <option value="50">50</option>
-                    </Form.Select>
-                    <span className="text-muted">
-                      Showing {table.getRowModel().rows.length} of {warehouseItem.length} entries
-                    </span>
-                  </div>
-                  <Pagination>
-                    <Pagination.Prev
-                      onClick={() => table.previousPage()}
-                      disabled={!table.getCanPreviousPage()}
-                    />
-                    {getPaginationItems()}
-                    <Pagination.Next
-                      onClick={() => table.nextPage()}
-                      disabled={!table.getCanNextPage()}
-                    />
-                  </Pagination>
-                </Stack>
-                {showDetails && <WarehouseDetailsCard />}
-              </>
+    <div 
+      className={`card ${getStatusClass(table.status)} text-center p-3 cursor-pointer table-card`}
+      style={{ minHeight: '100px', cursor: 'pointer' }}
+    >
+      <div className="card-body p-2">
+        <h6 className="card-title mb-2 fw-bold" style={{ fontSize: '13px' }}>{table.name}</h6>
+        {(table.hasCustomer || table.hasView) && (
+          <div className="d-flex justify-content-center gap-2 mt-2">
+            {table.hasCustomer && (
+              <span className="badge rounded-circle bg-white bg-opacity-25 p-1" style={{ width: '24px', height: '24px' }}>
+                👤
+              </span>
+            )}
+            {table.hasView && (
+              <span className="badge rounded-circle bg-white bg-opacity-25 p-1" style={{ width: '24px', height: '24px' }}>
+                👁
+              </span>
             )}
           </div>
-        </div>
-      </Card>
-      <WarehouseModal
-        show={showModal}
-        onHide={() => {
-          setShowModal(false);
-          setSelectedWarehouse(null);
-        }}
-        warehouse={selectedWarehouse}
-        onSuccess={fetchWarehouse}
-        onUpdateSelectedWarehouse={setSelectedWarehouse}
-      />
-    </>
+        )}
+      </div>
+    </div>
   );
 };
 
-export default Warehouse;
+// Legend Component
+const Legend: React.FC = () => {
+  const legendItems = [
+    { label: 'Move KOT / Serve', color: '#f0f0f0', border: true },
+    { label: 'Blank Table', color: '#f0f0f0', border: true },
+    { label: 'Running Table', color: '#0d6efd' },
+    { label: 'Printed Table', color: '#198754' },
+    { label: 'Paid Table', color: '#ffc107' },
+    { label: 'Running KOT Table', color: '#fd7e14' },
+  ];
+
+  return (
+    <div className="d-flex gap-3 flex-wrap align-items-center">
+      {legendItems.map((item, idx) => (
+        <div key={idx} className="d-flex align-items-center gap-2">
+          <div 
+            style={{ 
+              width: '16px', 
+              height: '16px', 
+              backgroundColor: item.color,
+              border: item.border ? '1px solid #ddd' : 'none',
+              borderRadius: '3px'
+            }}
+          />
+          <small className="text-muted">{item.label}</small>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+// Main App Component
+export default function App() {
+  const [selectedLayout, setSelectedLayout] = useState('Default Layout');
+
+  const handleRefresh = () => {
+    window.location.reload();
+  };
+
+  return (
+    <div className="vh-100 d-flex flex-column bg-light">
+      <style>{`
+        .table-card {
+          transition: all 0.2s ease;
+        }
+        .table-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .bg-warning-orange {
+          background-color: #fd7e14 !important;
+        }
+        .main-content {
+          overflow-y: auto;
+          height: calc(100vh - 140px);
+        }
+        .cursor-pointer {
+          cursor: pointer;
+        }
+      `}</style>
+
+      {/* Header */}
+      <div className="bg-white border-bottom">
+        <div className="container-fluid py-2 px-3">
+          <div className="d-flex justify-content-between align-items-center">
+            <h5 className="mb-0 fw-semibold">Table View</h5>
+            <div className="d-flex gap-2">
+              <button className="btn btn-outline-secondary btn-sm" onClick={handleRefresh}>
+                <RefreshCw size={16} />
+              </button>
+              <button className="btn btn-danger btn-sm">Delivery</button>
+              <button className="btn btn-danger btn-sm">Take Away</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Toolbar */}
+      <div className="bg-white border-bottom">
+        <div className="container-fluid py-3 px-3">
+          <div className="row align-items-center">
+            <div className="col-auto">
+              <div className="d-flex gap-2">
+                <button className="btn btn-danger btn-sm">
+                  <Plus size={16} className="me-1" />
+                  Table Reservation
+                </button>
+                <button className="btn btn-danger btn-sm">
+                  <Plus size={16} className="me-1" />
+                  Contactless
+                </button>
+              </div>
+            </div>
+            
+            <div className="col">
+              <Legend />
+            </div>
+            
+            <div className="col-auto">
+              <div className="d-flex gap-2 align-items-center">
+                <small className="text-muted">Floor Plan</small>
+                <select 
+                  className="form-select form-select-sm" 
+                  style={{ width: 'auto' }}
+                  value={selectedLayout}
+                  onChange={(e) => setSelectedLayout(e.target.value)}
+                >
+                  <option>Default Layout</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="main-content">
+        <div className="container-fluid p-3">
+          {/* A/C Section */}
+          <div className="mb-4">
+            <h6 className="fw-semibold mb-3 pb-2 border-bottom">A/C</h6>
+            <div className="row row-cols-2 row-cols-sm-4 row-cols-md-6 row-cols-lg-8 row-cols-xl-9 g-3">
+              {acTables.map((table) => (
+                <div key={table.id} className="col">
+                  <TableCard table={table} />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Non A/C Section */}
+          <div className="mb-4">
+            <h6 className="fw-semibold mb-3 pb-2 border-bottom">Non A/C</h6>
+            <div className="row row-cols-2 row-cols-sm-4 row-cols-md-6 row-cols-lg-8 row-cols-xl-9 g-3">
+              {nonAcTables.map((table) => (
+                <div key={table.id} className="col">
+                  <TableCard table={table} />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
