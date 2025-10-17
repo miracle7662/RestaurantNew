@@ -3,7 +3,7 @@ import { Button, Modal, Form, Row, Col, Table, Tabs, Tab } from 'react-bootstrap
 import { toast } from 'react-hot-toast';
 import { useAuthContext } from '@/common';
 import outletUserService, { OutletUserData, HotelAdminData } from '@/common/api/outletUser';
-import { fetchDesignation, fetchUserType, fetchOutlets } from '@/utils/commonfunction';
+import { fetchDesignation, fetchUserType, fetchOutlets, fetchShiftTypes, ShiftTypeItem } from '@/utils/commonfunction';
 import { OutletData } from '@/common/api/outlet';
 
 
@@ -20,6 +20,7 @@ const OutletUserList: React.FC = () => {
   const [designations, setDesignations] = useState<Array<{ designationid: number; Designation: string }>>([]);
   const [userTypes, setUserTypes] = useState<Array<{ usertypeid: number; User_type: string }>>([]);
   const [designationid, setDesignationId] = useState<number | null>(null);
+  const [shiftTypes, setShiftTypes] = useState<ShiftTypeItem[]>([]);
   const [usertypeid, setUserTypeId] = useState<number | null>(null);
 
   const [username, setUsername] = useState<string>('');
@@ -61,6 +62,7 @@ const OutletUserList: React.FC = () => {
       console.log('Fetched outlets:', outlets);
       fetchDesignation(setDesignations, setDesignationId);
       fetchUserType(setUserTypes, setUserTypeId);
+      fetchShiftTypes(setShiftTypes, setShiftTime);
     } catch (error) {
       console.error('Error fetching master data:', error);
       toast.error('Failed to fetch master data. Please check if the backend server is running.');
@@ -766,13 +768,22 @@ const OutletUserList: React.FC = () => {
                 <Row className="mb-3">
                   <Col md={6}>
                     <Form.Group controlId="shiftTime">
-                      <Form.Label>Shift Time</Form.Label>
-                      <Form.Control
-                        type="text"
-                        placeholder="Enter Shift Time"
+                      <Form.Label>Shift Time</Form.Label>                      
+                      <Form.Select
                         value={shiftTime}
                         onChange={(e) => setShiftTime(e.target.value)}
-                      />
+                      >
+                        <option value="">Select Shift</option>
+                        {shiftTypes.map((shift) => (
+                          <option
+                            key={shift.id}
+                            value={shift.shift_type}
+                          >
+                            {shift.shift_type}
+                          </option>
+                        ))}
+                      </Form.Select>
+
                     </Form.Group>
                   </Col>
                   <Col md={6}>

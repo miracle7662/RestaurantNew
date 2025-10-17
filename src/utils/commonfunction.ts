@@ -140,6 +140,12 @@ export interface TaxGroup {
   taxgroup_name: string
   status: number
 }
+
+export interface ShiftTypeItem {
+  id: number
+  shift_type: string
+}
+
 export interface unitmasterItem {
   unitid: number
   unit_name: string
@@ -664,6 +670,26 @@ export const fetchOutletsForDropdown = async (
   }
 };
 
+export const fetchShiftTypes = async (
+  setShiftTypes: (data: ShiftTypeItem[]) => void,
+  setSelectedShift: (shiftType: string) => void,
+  currentShiftId?: number,
+) => {
+  try {
+    const res = await fetch('http://localhost:3001/api/orders/shift-types');
+    const data: ShiftTypeItem[] = await res.json();
+    setShiftTypes(data);
+    // The original function was setting the ID, but the state seems to hold the string value.
+    // Let's set the shift_type string instead.
+    if (data.length > 0 && !currentShiftId) {
+      setSelectedShift(data[0].shift_type);
+    }
+  } catch (err) {
+    toast.error('Failed to fetch shift types');
+    console.error('Fetch shift types error:', err);
+    setShiftTypes([]);
+  }
+};
 
 
 // export const fetchhotelmasters = async (

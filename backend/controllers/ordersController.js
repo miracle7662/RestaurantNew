@@ -124,7 +124,8 @@ exports.getShiftTypes = (req, res) => {
   try {
     const sql = `
       SELECT id, shift_type
-      FROM shifts
+      FROM mstshifts
+     
     `;
     const rows = db.prepare(sql).all();
     res.json(rows);
@@ -135,5 +136,5 @@ exports.getShiftTypes = (req, res) => {
 };
 
 
-module.exports = exports;
 
+module.exports = exports;
