@@ -1433,7 +1433,7 @@ const Order = () => {
   
         // Clear items after KOT save to reset the panel
         setItems([]);
-        // Also clear the KOT/Transaction numbers to fully reset the panel
+         // Also clear the KOT/Transaction numbers to fully reset the panel
         setTxnNo(null);
         setCurrentTxnId(null);
         setCurrentKOTNo(null);
