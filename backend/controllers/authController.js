@@ -425,13 +425,21 @@ exports.verifyCreatorPassword = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Current user not found.' });
         }
 
-        // 1. If the current user is an admin, try their password first.
-        if (currentUserInfo.role_level === 'hotel_admin' || currentUserInfo.role_level === 'superadmin') {
-            const isAdminPasswordValid = await bcrypt.compare(password, currentUserInfo.password);
-            if (isAdminPasswordValid) {
-                return res.json({ success: true, message: 'Admin password verified successfully.' });
-            }
+        // 1. First, try to verify against the current user's own password.
+        // This allows any user (including outlet users) to use their own password.
+        const isCurrentUserPasswordValid = await bcrypt.compare(password, currentUserInfo.password);
+        if (isCurrentUserPasswordValid) {
+            return res.json({ success: true, message: 'Password verified successfully.' });
         }
+
+        // 2. If the current user's password fails, and they are an admin, we can stop here
+        // because we already checked their password. If they aren't an admin, we proceed
+        // to check their creator's password as a fallback.
+        if (currentUserInfo.role_level === 'hotel_admin' || currentUserInfo.role_level === 'superadmin') {
+             return res.status(401).json({ success: false, message: 'Invalid Password' });
+        }
+
+        // 3. As a fallback for non-admin users, check the creator's password.
 
         // Find the current user to get their creator's ID
         if (!currentUserInfo.created_by_id) {
@@ -449,11 +457,11 @@ exports.verifyCreatorPassword = async (req, res) => {
         const isValidPassword = await bcrypt.compare(password, creator.password);
 
         if (!isValidPassword) {
-            return res.status(401).json({ success: false, message: 'Invalid Admin Password' });
+            return res.status(401).json({ success: false, message: 'Invalid user or admin password' });
         }
 
         // If password is valid
-        res.json({ success: true, message: 'Password verified successfully' });
+        res.json({ success: true, message: 'Admin password verified successfully' });
 
     } catch (error) {
         console.error('Creator password verification error:', error);
