@@ -2081,10 +2081,19 @@ exports.reverseBill = async (req, res) => {
     }
 
     const trx = db.transaction((txnIdToReverse) => {
-      // ✅ Reverse the bill, mark it as cancelled, and update RevKOT with the bill's total amount.
+      // ✅ Reverse the bill:
+      // 1. Mark it as reversed (isreversebill = 1) and cancelled (isCancelled = 1).
+      // 2. Store the original total amount in RevKOT (revAmt).
+      // 3. Zero out financial fields as requested.
       const reverseBillStmt = db.prepare(`
         UPDATE TAxnTrnbill
-        SET isreversebill = 1, isCancelled = 1, RevKOT = ?
+        SET 
+          isreversebill = 1, 
+          isCancelled = 1, 
+          RevKOT = ?, 
+          Amount = 0,
+          GrossAmt = 0,
+          CGST = 0, SGST = 0, IGST = 0, CESS = 0
         WHERE TxnID = ?
       `);
       reverseBillStmt.run(bill.Amount, txnIdToReverse);

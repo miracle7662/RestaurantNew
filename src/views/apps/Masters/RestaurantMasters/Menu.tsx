@@ -553,6 +553,35 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
   const { user } = useAuthContext();
 
   useEffect(() => {
+    const resetForm = () => {
+      setSelectedOutlet(user?.outletid ? Number(user.outletid) : null);
+      setSelectedBrand(user?.hotelid ? Number(user.hotelid) : null);
+      setItemNo(null);
+      setItemName('');
+      setPrintName(null);
+      setShortName(null);
+      setKitchenCategoryId(null);
+      setKitchenSubCategoryId(null);
+      setKitchenMainGroupId(null);
+      setItemGroupId(null);
+      setItemMainGroupId(null);
+      setStockUnit(null);
+      setPrice('');
+      setTaxgroupid(null);
+      setRuntimeRates(false);
+      setIsCommonToAllDepartments(false);
+      setItemDescription(null);
+      setItemHsncode(null);
+      setStatus(1);
+      setNewItem({ departmentRates: [] });
+    };
+
+    if (show && !isEdit) {
+      resetForm();
+    }
+  }, [show, isEdit, user]);
+
+  useEffect(() => {
     if (mstmenu && isEdit) {
       setSelectedOutlet(mstmenu.outletid || null);
       setSelectedBrand(mstmenu.hotelid || null);

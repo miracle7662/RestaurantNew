@@ -99,6 +99,7 @@ const DayEnd = () => {
     2: 0,
     1: 0,
   });
+  
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [passwordVerified, setPasswordVerified] = useState(false);
 
@@ -835,7 +836,7 @@ const DayEnd = () => {
                             <th>Rev Amt</th>
                             <th>KOT No</th>
                             <th>Rev KOT No</th>
-                            <th>IsReverse Bill</th>
+                            <th>Reverse Bill</th>
                             <th>Water</th>
                             <th>Payment Mode</th>
                             <th>Cash</th>
@@ -892,7 +893,11 @@ const DayEnd = () => {
                                     {order.revKotNo ? order.revKotNo.split(',').map(kot => kot.trim()).join(', ') : ''}
                                   </small>
                                 </td>
-                                <td>{order.reverseBill == 1 ? 'Yes' : 'No'}</td>
+                                <td style={{ textAlign: 'right' }}>
+                                  {order.reverseBill == 1 
+                                    ? `₹${(order.revAmt || 0).toLocaleString()}` 
+                                    : 'No'}
+                                </td>
                                 <td style={{ textAlign: 'right' }}>₹{(order.water || 0).toLocaleString()}</td>
                                 <td title={order.paymentMode || ''} style={{ whiteSpace: 'normal', wordWrap: 'break-word', overflowWrap: 'break-word' }}>
                                   {order.paymentMode || ''}

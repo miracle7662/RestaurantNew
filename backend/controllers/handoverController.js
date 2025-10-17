@@ -82,8 +82,10 @@ const getHandoverData = (req, res) => {
           orderNo: row.TxnNo,
           table: row.TableID,
           waiter: row.Steward || 'Unknown',
-          amount: parseFloat(row.TotalAmount || 0), // This is Net Amount
-          type: paymentModes.length > 1 ? 'Split' : (paymentModes[0] || (row.isSetteled ? 'Cash' : 'Unpaid')),
+          amount: row.isreversebill ? 0 : parseFloat(row.TotalAmount || 0), // This is Net Amount. Zero for reversed bills.
+          type: row.isreversebill 
+            ? 'Reversed' 
+            : (paymentModes.length > 1 ? 'Split' : (paymentModes[0] || (row.isSetteled ? 'Cash' : 'Unpaid'))),
           status: row.isSetteled ? 'Settled' : (row.isBilled ? 'Billed' : 'Pending'),
           time: row.TxnDatetime,
           items: parseInt(row.TotalItems || 0),
