@@ -2083,7 +2083,7 @@ exports.reverseBill = async (req, res) => {
     const trx = db.transaction((txnIdToReverse) => {
       // ✅ Reverse the bill and also mark it as cancelled
       const reverseBillStmt = db.prepare(`
-        UPDATE TAxnTrnbill 
+        UPDATE TAxnTrnbill
         SET isreversebill = 1, isCancelled = 1
         WHERE TxnID = ?
       `);

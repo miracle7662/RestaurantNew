@@ -32,12 +32,13 @@ const getHandoverData = (req, res) => {
           ) as Settlements,
           t.isSetteled,
           t.isBilled,
+          t.isreversebill,
           t.isCancelled,
           SUM(td.Qty) as TotalItems
       FROM TAxnTrnbill t
       LEFT JOIN TAxnTrnbilldetails td ON t.TxnID = td.TxnID
       LEFT JOIN mst_users u ON t.UserId = u.userid
-      WHERE t.isCancelled = 0 AND (t.isBilled = 1 OR t.isSetteled = 1)
+      WHERE (t.isCancelled = 0 AND (t.isBilled = 1 OR t.isSetteled = 1)) OR t.isreversebill = 1
       AND date(t.TxnDatetime) = date('now')
       GROUP BY t.TxnID, t.TxnNo
       ORDER BY t.TxnDatetime DESC;
@@ -97,7 +98,7 @@ const getHandoverData = (req, res) => {
           grossAmount: parseFloat(row.GrossAmount || 0),
           roundOff: parseFloat(row.RoundOFF || 0),
           revAmt: parseFloat(row.RevAmt || 0),
-          reverseBill: '', // Placeholder, logic to be determined
+          reverseBill: row.isreversebill,
           water: parseFloat(row.Water || 0),
           captain: row.Captain || 'N/A',
           user: row.UserName || 'N/A',
