@@ -58,7 +58,7 @@ interface Order {
   grossAmount: number;
   roundOff: number;
   revAmt: number;
-  reverseBill: string;
+  reverseBill: number | string; // Can be 0/1 from DB
   water: number;
   captain: string;
   user: string;
@@ -465,6 +465,10 @@ const DayEnd = () => {
           background-color: #eef0ff !important; /* Light blue for NCKOT */
           color: #2c2e43 !important;
         }
+        .table-row-reversed, .table-row-reversed td {
+          background-color: #f8d7da !important; /* Light red for reversed bill */
+          color: #721c24 !important;
+        }
         /* Specific column widths */
         .table-container th:nth-child(1),
         .table-container td:nth-child(1) { width: 10%; } /* Bill No */
@@ -831,7 +835,7 @@ const DayEnd = () => {
                             <th>Rev Amt</th>
                             <th>KOT No</th>
                             <th>Rev KOT No</th>
-                            <th>Rev Bill</th>
+                            <th>IsReverse Bill</th>
                             <th>Water</th>
                             <th>Payment Mode</th>
                             <th>Cash</th>
@@ -861,6 +865,9 @@ const DayEnd = () => {
                             if (order.ncKot) {
                               rowClasses.push('table-row-nckot');
                             }
+                            if (order.reverseBill == 1) {
+                              rowClasses.push('table-row-reversed');
+                            }
 
                             return (
                               <tr key={idx} className={rowClasses.join(' ')}>
@@ -885,7 +892,7 @@ const DayEnd = () => {
                                     {order.revKotNo ? order.revKotNo.split(',').map(kot => kot.trim()).join(', ') : ''}
                                   </small>
                                 </td>
-                                <td>{order.reverseBill || ''}</td>
+                                <td>{order.reverseBill == 1 ? 'Yes' : 'No'}</td>
                                 <td style={{ textAlign: 'right' }}>₹{(order.water || 0).toLocaleString()}</td>
                                 <td title={order.paymentMode || ''} style={{ whiteSpace: 'normal', wordWrap: 'break-word', overflowWrap: 'break-word' }}>
                                   {order.paymentMode || ''}

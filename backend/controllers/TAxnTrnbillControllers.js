@@ -2003,6 +2003,7 @@ exports.getBillsByType = async (req, res) => {
         b.TxnNo,
         b.CustomerName,
         b.MobileNo,
+        b.isreversebill,
         b.Amount,
         (SELECT GROUP_CONCAT(s.PaymentType) FROM TrnSettlement s WHERE s.OrderNo = b.TxnNo) as PaymentMode
       FROM TAxnTrnbill b
