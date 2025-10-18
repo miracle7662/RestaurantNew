@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { RefreshCw, Plus } from 'lucide-react';
+import { useAuthContext } from '@/common';
 
 // Types
 type TableStatus = 'blank' | 'running' | 'printed' | 'paid' | 'running-kot';
@@ -10,60 +11,32 @@ interface Table {
   status: TableStatus;
   hasCustomer?: boolean;
   hasView?: boolean;
+  outletid?: number;
 }
 
-// Table data
-const acTables: Table[] = [
-  { id: 1, name: 'Table 1', status: 'blank' },
-  { id: 2, name: 'Table 2', status: 'running', hasCustomer: true },
-  { id: 3, name: 'Table 3', status: 'blank' },
-  { id: 4, name: 'Table 4', status: 'blank' },
-  { id: 5, name: 'Table 5', status: 'running', hasCustomer: true },
-  { id: 6, name: 'Table 6', status: 'blank' },
-  { id: 7, name: 'Table 7', status: 'blank' },
-  { id: 8, name: 'Table 8', status: 'running', hasCustomer: true },
-  { id: 9, name: 'Table 9', status: 'paid', hasCustomer: true, hasView: true },
-  { id: 10, name: 'Table 10', status: 'blank' },
-  { id: 11, name: 'Table 11', status: 'blank' },
-  { id: 12, name: 'Table 12', status: 'running', hasCustomer: true },
-  { id: 13, name: 'Table 13', status: 'blank' },
-  { id: 14, name: 'Table 14', status: 'printed', hasCustomer: true },
-  { id: 15, name: 'Table 15', status: 'blank' },
-  { id: 16, name: 'Table 16', status: 'blank' },
-  { id: 17, name: 'Table 17', status: 'blank' },
-  { id: 18, name: 'Table 18', status: 'blank' },
-  { id: 19, name: 'Table 19', status: 'paid', hasCustomer: true, hasView: true },
-  { id: 20, name: 'Table 20', status: 'blank' },
-  { id: 21, name: 'Table 21', status: 'blank' },
-  { id: 22, name: 'Table 22', status: 'blank' },
-  { id: 23, name: 'Table 23', status: 'blank' },
-  { id: 24, name: 'Table 24', status: 'blank' },
-  { id: 25, name: 'Table 25', status: 'blank' },
-  { id: 26, name: 'Table 26', status: 'printed', hasCustomer: true },
-  { id: 27, name: 'Table 27', status: 'running-kot', hasCustomer: true, hasView: true },
-  { id: 28, name: 'Table 28', status: 'paid', hasCustomer: true, hasView: true },
-];
+interface TableApiData {
+  id: number;
+  name: string;
+  status: TableStatus;
+  hasCustomer?: boolean;
+  hasView?: boolean;
+}
 
-const nonAcTables: Table[] = [
-  { id: 1, name: 'Table 1', status: 'blank' },
-  { id: 2, name: 'Table 2', status: 'paid', hasCustomer: true, hasView: true },
-  { id: 3, name: 'Table 3', status: 'blank' },
-  { id: 4, name: 'Table 4', status: 'blank' },
-  { id: 5, name: 'Table 5', status: 'paid', hasCustomer: true, hasView: true },
-  { id: 6, name: 'Table 6', status: 'blank' },
-  { id: 7, name: 'Table 7', status: 'blank' },
-  { id: 8, name: 'Table 8', status: 'paid', hasCustomer: true, hasView: true },
-  { id: 9, name: 'Table 9', status: 'blank' },
-];
+interface Outlet {
+  outletid: number;
+  outlet_name: string;
+}
 
 // Table Card Component
-const TableCard: React.FC<{ table: Table }> = ({ table }) => {
+const TableCard: React.FC<{ table: TableApiData }> = ({ table }) => {
   const getStatusClass = (status: TableStatus): string => {
     switch (status) {
       case 'running': return 'bg-primary text-white';
       case 'printed': return 'bg-success text-white';
-      case 'paid': return 'bg-warning';
+      case 'paid': return 'bg-light border';
       case 'running-kot': return 'bg-warning-orange';
+      case 'occupied': return 'bg-primary text-white'; // Map 'occupied' to 'running' style
+      case 'available': return 'bg-light border'; // Map 'available' to 'blank' style
       default: return 'bg-light border';
     }
   };
@@ -101,7 +74,7 @@ const Legend: React.FC = () => {
     { label: 'Blank Table', color: '#f0f0f0', border: true },
     { label: 'Running Table', color: '#0d6efd' },
     { label: 'Printed Table', color: '#198754' },
-    { label: 'Paid Table', color: '#ffc107' },
+    { label: 'Paid Table', color: '#f0f0f0', border: true },
     { label: 'Running KOT Table', color: '#fd7e14' },
   ];
 
@@ -128,14 +101,117 @@ const Legend: React.FC = () => {
 // Main App Component
 export default function App() {
   const [selectedLayout, setSelectedLayout] = useState('Default Layout');
+  const [selectedOutletId, setSelectedOutletId] = useState<number | 'all'>('all');
+  const [outlets, setOutlets] = useState<Outlet[]>([]);
+  const [allTables, setAllTables] = useState<Table[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [tableInput, setTableInput] = useState('');
+  const { user } = useAuthContext();
+
+  useEffect(() => {
+    const fetchTables = async () => {
+      try {
+        if (!user || !user.hotelid) {
+          throw new Error('User not authenticated or hotel ID missing');
+        }
+        const params = new URLSearchParams({ hotelid: String(user.hotelid) });
+        const response = await fetch(`http://localhost:3001/api/tablemanagement/with-outlets?${params.toString()}`);
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch tables');
+        }
+        const data = await response.json();
+        const mappedTables: Table[] = data.map((t: any) => ({
+          id: t.tableid,
+          name: t.table_name,
+          status: t.status, // 'occupied', 'available', 'reserved'
+          outletid: t.outletid,
+          // You might need to add logic for hasCustomer and hasView based on bill status
+        }));
+        setAllTables(mappedTables);
+      } catch (err: any) {
+        setError(err.message);
+      }
+    };
+
+    const fetchOutlets = async () => {
+      try {
+        if (!user) {
+          throw new Error('User not authenticated');
+        }
+        const params = new URLSearchParams({ role_level: user.role_level, hotelid: String(user.hotelid) });
+        const response = await fetch(`http://localhost:3001/api/outlets?${params.toString()}`);
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch outlets');
+        }
+        const data = await response.json();
+        setOutlets(data);
+      } catch (err: any) {
+        setError(err.message);
+      }
+    };
+
+    const fetchData = async () => {
+      setLoading(true);
+      setError(null);
+      await Promise.all([fetchTables(), fetchOutlets()]);
+      setLoading(false);
+    };
+
+    fetchData();
+  }, [user]);
+
+  // Group tables by their outletid
+  const tablesByOutlet = allTables.reduce((acc, table) => {
+    if (table.outletid) {
+      if (!acc[table.outletid]) {
+        acc[table.outletid] = [];
+      }
+      acc[table.outletid].push(table);
+    }
+    return acc;
+  }, {} as Record<number, Table[]>);
+
+  // Filter outlets to show based on dropdown selection
+  const displayedOutlets = selectedOutletId === 'all' ? outlets : outlets.filter(o => o.outletid === selectedOutletId);
 
   const handleRefresh = () => {
     window.location.reload();
   };
 
+  const handleTableInputEnter = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      const num = parseInt(tableInput);
+      if (!isNaN(num) && selectedOutletId !== 'all') {
+        const tables = tablesByOutlet[selectedOutletId] || [];
+        const table = tables.find(t => t.id === num);
+        if (table) {
+          // Scroll to section first
+          const outlet = outlets.find(o => o.outletid === selectedOutletId);
+          const section = document.querySelector(`#outlet-section-${outlet?.outletid}`);
+          section?.scrollIntoView({ behavior: 'smooth' });
+          // Then to table
+          setTimeout(() => {
+            const tableId = `table-${table.id}-${selectedOutlet.toLowerCase()}-section`;
+            const card = document.getElementById(tableId);
+            card?.scrollIntoView({ behavior: 'smooth' });
+          }, 500);
+        }
+      }
+      setTableInput('');
+    }
+  };
+
   return (
-    <div className="vh-100 d-flex flex-column bg-light">
+    <div className="d-flex flex-column bg-light" style={{ height: '100%', minHeight: '100vh' }}>
       <style>{`
+        html, body, #root {
+          height: 100%;
+          margin: 0;
+          padding: 0;
+        }
         .table-card {
           transition: all 0.2s ease;
         }
@@ -147,8 +223,10 @@ export default function App() {
           background-color: #fd7e14 !important;
         }
         .main-content {
+          flex: 1;
           overflow-y: auto;
-          height: calc(100vh - 140px);
+          display: flex;
+          flex-direction: column;
         }
         .cursor-pointer {
           cursor: pointer;
@@ -177,14 +255,28 @@ export default function App() {
           <div className="row align-items-center">
             <div className="col-auto">
               <div className="d-flex gap-2">
-                <button className="btn btn-danger btn-sm">
-                  <Plus size={16} className="me-1" />
-                  Table Reservation
-                </button>
-                <button className="btn btn-danger btn-sm">
-                  <Plus size={16} className="me-1" />
-                  Contactless
-                </button>
+                <input 
+                  type="number" 
+                  className="form-control form-control-sm" 
+                  placeholder="Table No" 
+                  value={tableInput}
+                  onChange={e => setTableInput(e.target.value)}
+                  onKeyDown={handleTableInputEnter}
+                  style={{width: '100px'}}
+                />
+                <select 
+                  className="form-select form-select-sm" 
+                  value={selectedOutletId}
+                  onChange={e => setSelectedOutletId(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+                  style={{width: '120px'}}
+                >
+                  <option value="all">All Outlets</option>
+                  {outlets.map(outlet => (
+                    <option key={outlet.outletid} value={outlet.outletid}>
+                      {outlet.outlet_name}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
             
@@ -211,31 +303,31 @@ export default function App() {
 
       {/* Main Content */}
       <div className="main-content">
-        <div className="container-fluid p-3">
-          {/* A/C Section */}
-          <div className="mb-4">
-            <h6 className="fw-semibold mb-3 pb-2 border-bottom">A/C</h6>
-            <div className="row row-cols-2 row-cols-sm-4 row-cols-md-6 row-cols-lg-8 row-cols-xl-9 g-3">
-              {acTables.map((table) => (
-                <div key={table.id} className="col">
-                  <TableCard table={table} />
+        {loading ? (
+          <div className="d-flex justify-content-center align-items-center h-100">Loading...</div>
+        ) : error ? (
+          <div className="alert alert-danger m-3">{error}</div>
+        ) : (
+          <div className="container-fluid p-3">
+            {displayedOutlets.map(outlet => {
+              const tablesForOutlet = tablesByOutlet[outlet.outletid] || [];
+              return (
+                <div key={outlet.outletid} id={`outlet-section-${outlet.outletid}`} className="mb-4">
+                  <h6 className="fw-semibold mb-3 pb-2 border-bottom">{outlet.outlet_name}</h6>
+                  {tablesForOutlet.length > 0 ? (
+                    <div className="row row-cols-2 row-cols-sm-4 row-cols-md-6 row-cols-lg-8 row-cols-xl-9 g-3">
+                      {tablesForOutlet.map((table) => (
+                        <div key={table.id} id={`table-${table.id}-outlet-${outlet.outletid}`} className="col">
+                          <TableCard table={table} />
+                        </div>
+                      ))}
+                    </div>
+                  ) : (<p className="text-muted">No tables found for this outlet.</p>)}
                 </div>
-              ))}
-            </div>
+              );
+            })}
           </div>
-
-          {/* Non A/C Section */}
-          <div className="mb-4">
-            <h6 className="fw-semibold mb-3 pb-2 border-bottom">Non A/C</h6>
-            <div className="row row-cols-2 row-cols-sm-4 row-cols-md-6 row-cols-lg-8 row-cols-xl-9 g-3">
-              {nonAcTables.map((table) => (
-                <div key={table.id} className="col">
-                  <TableCard table={table} />
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );

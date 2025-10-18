@@ -11,4 +11,7 @@ router.put("/:tableid", TableManagementController.updateTable);    // Update tab
 router.put("/:tableid/status", TableManagementController.updateTableStatus); // Update table status
 router.delete("/:tableid", TableManagementController.deleteTable); // Delete table
 
+// Get all tables with their associated outlet names
+router.get("/with-outlets", TableManagementController.getAllTablesWithOutlets);
+
 module.exports = router;

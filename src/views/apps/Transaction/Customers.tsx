@@ -458,77 +458,83 @@ const CustomersPage: React.FC = () => {
               
               {/* First Row: Country Code + Mobile + Name */}
               <div className="col-12">
-                <div className="row g-3 align-items-end">
-                  <div className="col-md-2">
-                    <label className="form-label fw-medium text-dark mb-1" style={{ fontSize: '0.85rem' }}>
-                      Country Code *
-                    </label>
-                    <select
-                      className="form-control form-control-sm border-0 shadow-sm"
-                      value={countryCode}
-                      onChange={(e) => setCountryCode(e.target.value)}
-                      disabled={loading}
-                      style={{ 
-                        padding: '0.5rem 0.5rem', 
-                        fontSize: '0.85rem',
-                        background: '#f8f9fa',
-                        borderRadius: '8px',
-                        height: '38px'
-                      }}
-                      required
-                      tabIndex={1}
-                    >
-                      <option value="+91">+91 (IN)</option>
-                      <option value="+1">+1 (US)</option>
-                      <option value="+44">+44 (UK)</option>
-                    </select>
+                <div className="row g-3">
+                  <div className="col-md-4">
+                    <div className="d-flex align-items-center gap-2">
+                      <label className="form-label fw-medium text-dark mb-0" style={{ fontSize: '0.85rem', whiteSpace: 'nowrap', minWidth: '100px' }}>
+                        Country Code *
+                      </label>
+                      <select
+                        className="form-control form-control-sm border-0 shadow-sm flex-grow-1"
+                        value={countryCode}
+                        onChange={(e) => setCountryCode(e.target.value)}
+                        disabled={loading}
+                        style={{ 
+                          padding: '0.5rem 0.5rem', 
+                          fontSize: '0.85rem',
+                          background: '#f8f9fa',
+                          borderRadius: '8px',
+                          height: '38px'
+                        }}
+                        required
+                        tabIndex={1}
+                      >
+                        <option value="+91">+91 (IN)</option>
+                        <option value="+1">+1 (US)</option>
+                        <option value="+44">+44 (UK)</option>
+                      </select>
+                    </div>
                   </div>
                   
-                  <div className="col-md-3">
-                    <label className="form-label fw-medium text-dark mb-1" style={{ fontSize: '0.85rem' }}>
-                      Mobile Number *
-                    </label>
-                    <input
-                      type="text"
-                      className="form-control form-control-sm border-0 shadow-sm"
-                      placeholder="10-digit mobile"
-                      value={mobile}
-                      onChange={handleMobileChange}
-                      disabled={loading}
-                      style={{ 
-                        fontSize: '0.85rem',
-                        padding: '0.5rem 0.75rem',
-                        background: '#f8f9fa',
-                        borderRadius: '8px',
-                        height: '38px'
-                      }}
-                      maxLength={10}
-                      required
-                      tabIndex={2}
-                    />
+                  <div className="col-md-4">
+                    <div className="d-flex align-items-center gap-2">
+                      <label className="form-label fw-medium text-dark mb-0" style={{ fontSize: '0.85rem', whiteSpace: 'nowrap', minWidth: '100px' }}>
+                        Mobile Number *
+                      </label>
+                      <input
+                        type="text"
+                        className="form-control form-control-sm border-0 shadow-sm flex-grow-1"
+                        placeholder="10-digit mobile"
+                        value={mobile}
+                        onChange={handleMobileChange}
+                        disabled={loading}
+                        style={{ 
+                          fontSize: '0.85rem',
+                          padding: '0.5rem 0.75rem',
+                          background: '#f8f9fa',
+                          borderRadius: '8px',
+                          height: '38px'
+                        }}
+                        maxLength={10}
+                        required
+                        tabIndex={2}
+                      />
+                    </div>
                   </div>
 
-                  <div className="col-md-7">
-                    <label className="form-label fw-medium text-dark mb-1" style={{ fontSize: '0.85rem' }}>
-                      Full Name *
-                    </label>
-                    <input
-                      type="text"
-                      className="form-control form-control-sm border-0 shadow-sm"
-                      placeholder="Enter customer full name"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      disabled={loading}
-                      style={{ 
-                        fontSize: '0.85rem',
-                        padding: '0.5rem 0.75rem',
-                        background: '#f8f9fa',
-                        borderRadius: '8px',
-                        height: '38px'
-                      }}
-                      required
-                      tabIndex={3}
-                    />
+                  <div className="col-md-4">
+                    <div className="d-flex align-items-center gap-2">
+                      <label className="form-label fw-medium text-dark mb-0" style={{ fontSize: '0.85rem', whiteSpace: 'nowrap', minWidth: '100px' }}>
+                        Full Name *
+                      </label>
+                      <input
+                        type="text"
+                        className="form-control form-control-sm border-0 shadow-sm flex-grow-1"
+                        placeholder="Enter customer full name"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        disabled={loading}
+                        style={{ 
+                          fontSize: '0.85rem',
+                          padding: '0.5rem 0.75rem',
+                          background: '#f8f9fa',
+                          borderRadius: '8px',
+                          height: '38px'
+                        }}
+                        required
+                        tabIndex={3}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -537,47 +543,51 @@ const CustomersPage: React.FC = () => {
               <div className="col-12">
                 <div className="row g-3">
                   <div className="col-md-6">
-                    <label className="form-label fw-medium text-dark mb-1" style={{ fontSize: '0.85rem' }}>
-                      Email Address
-                    </label>
-                    <input
-                      type="email"
-                      className="form-control form-control-sm border-0 shadow-sm"
-                      placeholder="Enter email address"
-                      value={mail}
-                      onChange={(e) => setMail(e.target.value)}
-                      disabled={loading}
-                      style={{ 
-                        fontSize: '0.85rem',
-                        padding: '0.5rem 0.75rem',
-                        background: '#f8f9fa',
-                        borderRadius: '8px',
-                        height: '38px'
-                      }}
-                      tabIndex={4}
-                    />
+                    <div className="d-flex align-items-center gap-2">
+                      <label className="form-label fw-medium text-dark mb-0" style={{ fontSize: '0.85rem', whiteSpace: 'nowrap', minWidth: '100px' }}>
+                        Email Address
+                      </label>
+                      <input
+                        type="email"
+                        className="form-control form-control-sm border-0 shadow-sm flex-grow-1"
+                        placeholder="Enter email address"
+                        value={mail}
+                        onChange={(e) => setMail(e.target.value)}
+                        disabled={loading}
+                        style={{ 
+                          fontSize: '0.85rem',
+                          padding: '0.5rem 0.75rem',
+                          background: '#f8f9fa',
+                          borderRadius: '8px',
+                          height: '38px'
+                        }}
+                        tabIndex={4}
+                      />
+                    </div>
                   </div>
 
                   <div className="col-md-6">
-                    <label className="form-label fw-medium text-dark mb-1" style={{ fontSize: '0.85rem' }}>
-                      Address Line 1
-                    </label>
-                    <input
-                      type="text"
-                      className="form-control form-control-sm border-0 shadow-sm"
-                      placeholder="Enter address line 1"
-                      value={address1}
-                      onChange={(e) => setAddress1(e.target.value)}
-                      disabled={loading}
-                      style={{ 
-                        fontSize: '0.85rem',
-                        padding: '0.5rem 0.75rem',
-                        background: '#f8f9fa',
-                        borderRadius: '8px',
-                        height: '38px'
-                      }}
-                      tabIndex={5}
-                    />
+                    <div className="d-flex align-items-center gap-2">
+                      <label className="form-label fw-medium text-dark mb-0" style={{ fontSize: '0.85rem', whiteSpace: 'nowrap', minWidth: '100px' }}>
+                        Address Line 1
+                      </label>
+                      <input
+                        type="text"
+                        className="form-control form-control-sm border-0 shadow-sm flex-grow-1"
+                        placeholder="Enter address line 1"
+                        value={address1}
+                        onChange={(e) => setAddress1(e.target.value)}
+                        disabled={loading}
+                        style={{ 
+                          fontSize: '0.85rem',
+                          padding: '0.5rem 0.75rem',
+                          background: '#f8f9fa',
+                          borderRadius: '8px',
+                          height: '38px'
+                        }}
+                        tabIndex={5}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -586,50 +596,54 @@ const CustomersPage: React.FC = () => {
               <div className="col-12">
                 <div className="row g-3">
                   <div className="col-md-4">
-                    <label className="form-label fw-medium text-dark mb-1" style={{ fontSize: '0.85rem' }}>
-                      Address Line 2
-                    </label>
-                    <input
-                      type="text"
-                      className="form-control form-control-sm border-0 shadow-sm"
-                      placeholder="Enter address line 2"
-                      value={address2}
-                      onChange={(e) => setAddress2(e.target.value)}
-                      disabled={loading}
-                      style={{ 
-                        fontSize: '0.85rem',
-                        padding: '0.5rem 0.75rem',
-                        background: '#f8f9fa',
-                        borderRadius: '8px',
-                        height: '38px'
-                      }}
-                      tabIndex={6}
-                    />
+                    <div className="d-flex align-items-center gap-2">
+                      <label className="form-label fw-medium text-dark mb-0" style={{ fontSize: '0.85rem', whiteSpace: 'nowrap', minWidth: '100px' }}>
+                        Address Line 2
+                      </label>
+                      <input
+                        type="text"
+                        className="form-control form-control-sm border-0 shadow-sm flex-grow-1"
+                        placeholder="Enter address line 2"
+                        value={address2}
+                        onChange={(e) => setAddress2(e.target.value)}
+                        disabled={loading}
+                        style={{ 
+                          fontSize: '0.85rem',
+                          padding: '0.5rem 0.75rem',
+                          background: '#f8f9fa',
+                          borderRadius: '8px',
+                          height: '38px'
+                        }}
+                        tabIndex={6}
+                      />
+                    </div>
                   </div>
 
                   <div className="col-md-4 position-relative">
-                    <label className="form-label fw-medium text-dark mb-1" style={{ fontSize: '0.85rem' }}>
-                      State
-                    </label>
-                    <input
-                      type="text"
-                      className="form-control form-control-sm border-0 shadow-sm"
-                      placeholder="Search state"
-                      value={stateSearch}
-                      onChange={handleStateSearch}
-                      onFocus={() => setShowStateDropdown(true)}
-                      onBlur={() => setTimeout(() => setShowStateDropdown(false), 200)}
-                      onKeyDown={handleStateKeyDown}
-                      disabled={loading}
-                      style={{ 
-                        fontSize: '0.85rem',
-                        padding: '0.5rem 0.75rem',
-                        background: '#f8f9fa',
-                        borderRadius: '8px',
-                        height: '38px'
-                      }}
-                      tabIndex={7}
-                    />
+                    <div className="d-flex align-items-center gap-2 position-relative" style={{ flexWrap: 'nowrap' }}>
+                      <label className="form-label fw-medium text-dark mb-0" style={{ fontSize: '0.85rem', whiteSpace: 'nowrap', minWidth: '100px' }}>
+                        State
+                      </label>
+                      <input
+                        type="text"
+                        className="form-control form-control-sm border-0 shadow-sm flex-grow-1"
+                        placeholder="Search state"
+                        value={stateSearch}
+                        onChange={handleStateSearch}
+                        onFocus={() => setShowStateDropdown(true)}
+                        onBlur={() => setTimeout(() => setShowStateDropdown(false), 200)}
+                        onKeyDown={handleStateKeyDown}
+                        disabled={loading}
+                        style={{ 
+                          fontSize: '0.85rem',
+                          padding: '0.5rem 0.75rem',
+                          background: '#f8f9fa',
+                          borderRadius: '8px',
+                          height: '38px'
+                        }}
+                        tabIndex={7}
+                      />
+                    </div>
                     {showStateDropdown && (
                       <div
                         ref={stateDropdownRef}
@@ -677,28 +691,30 @@ const CustomersPage: React.FC = () => {
                   </div>
 
                   <div className="col-md-4 position-relative">
-                    <label className="form-label fw-medium text-dark mb-1" style={{ fontSize: '0.85rem' }}>
-                      City
-                    </label>
-                    <input
-                      type="text"
-                      className="form-control form-control-sm border-0 shadow-sm"
-                      placeholder="Search city"
-                      value={citySearch}
-                      onChange={handleCitySearch}
-                      onFocus={() => setShowCityDropdown(true)}
-                      onBlur={() => setTimeout(() => setShowCityDropdown(false), 200)}
-                      onKeyDown={handleCityKeyDown}
-                      disabled={loading}
-                      style={{ 
-                        fontSize: '0.85rem',
-                        padding: '0.5rem 0.75rem',
-                        background: '#f8f9fa',
-                        borderRadius: '8px',
-                        height: '38px'
-                      }}
-                      tabIndex={8}
-                    />
+                    <div className="d-flex align-items-center gap-2 position-relative" style={{ flexWrap: 'nowrap' }}>
+                      <label className="form-label fw-medium text-dark mb-0" style={{ fontSize: '0.85rem', whiteSpace: 'nowrap', minWidth: '100px' }}>
+                        City
+                      </label>
+                      <input
+                        type="text"
+                        className="form-control form-control-sm border-0 shadow-sm flex-grow-1"
+                        placeholder="Search city"
+                        value={citySearch}
+                        onChange={handleCitySearch}
+                        onFocus={() => setShowCityDropdown(true)}
+                        onBlur={() => setTimeout(() => setShowCityDropdown(false), 200)}
+                        onKeyDown={handleCityKeyDown}
+                        disabled={loading}
+                        style={{ 
+                          fontSize: '0.85rem',
+                          padding: '0.5rem 0.75rem',
+                          background: '#f8f9fa',
+                          borderRadius: '8px',
+                          height: '38px'
+                        }}
+                        tabIndex={8}
+                      />
+                    </div>
                     {showCityDropdown && (
                       <div
                         ref={cityDropdownRef}
@@ -751,70 +767,76 @@ const CustomersPage: React.FC = () => {
               <div className="col-12">
                 <div className="row g-3">
                   <div className="col-md-4">
-                    <label className="form-label fw-medium text-dark mb-1" style={{ fontSize: '0.85rem' }}>
-                      Pincode
-                    </label>
-                    <input
-                      type="text"
-                      className="form-control form-control-sm border-0 shadow-sm"
-                      placeholder="6-digit pincode"
-                      value={pincode}
-                      onChange={handlePincodeChange}
-                      disabled={loading}
-                      style={{ 
-                        fontSize: '0.85rem',
-                        padding: '0.5rem 0.75rem',
-                        background: '#f8f9fa',
-                        borderRadius: '8px',
-                        height: '38px'
-                      }}
-                      maxLength={6}
-                      tabIndex={9}
-                    />
+                    <div className="d-flex align-items-center gap-2">
+                      <label className="form-label fw-medium text-dark mb-0" style={{ fontSize: '0.85rem', whiteSpace: 'nowrap', minWidth: '100px' }}>
+                        Pincode
+                      </label>
+                      <input
+                        type="text"
+                        className="form-control form-control-sm border-0 shadow-sm flex-grow-1"
+                        placeholder="6-digit pincode"
+                        value={pincode}
+                        onChange={handlePincodeChange}
+                        disabled={loading}
+                        style={{ 
+                          fontSize: '0.85rem',
+                          padding: '0.5rem 0.75rem',
+                          background: '#f8f9fa',
+                          borderRadius: '8px',
+                          height: '38px'
+                        }}
+                        maxLength={6}
+                        tabIndex={9}
+                      />
+                    </div>
                   </div>
 
                   <div className="col-md-4">
-                    <label className="form-label fw-medium text-dark mb-1" style={{ fontSize: '0.85rem' }}>
-                      Birthday
-                    </label>
-                    <input
-                      type="date"
-                      className="form-control form-control-sm border-0 shadow-sm"
-                      value={birthday}
-                      onChange={(e) => setBirthday(e.target.value)}
-                      disabled={loading}
-                      style={{ 
-                        fontSize: '0.85rem',
-                        padding: '0.5rem 0.75rem',
-                        background: '#f8f9fa',
-                        borderRadius: '8px',
-                        height: '38px'
-                      }}
-                      max="2025-08-01"
-                      tabIndex={10}
-                    />
+                    <div className="d-flex align-items-center gap-2">
+                      <label className="form-label fw-medium text-dark mb-0" style={{ fontSize: '0.85rem', whiteSpace: 'nowrap', minWidth: '100px' }}>
+                        Birthday
+                      </label>
+                      <input
+                        type="date"
+                        className="form-control form-control-sm border-0 shadow-sm flex-grow-1"
+                        value={birthday}
+                        onChange={(e) => setBirthday(e.target.value)}
+                        disabled={loading}
+                        style={{ 
+                          fontSize: '0.85rem',
+                          padding: '0.5rem 0.75rem',
+                          background: '#f8f9fa',
+                          borderRadius: '8px',
+                          height: '38px'
+                        }}
+                        max="2025-08-01"
+                        tabIndex={10}
+                      />
+                    </div>
                   </div>
 
                   <div className="col-md-4">
-                    <label className="form-label fw-medium text-dark mb-1" style={{ fontSize: '0.85rem' }}>
-                      Anniversary
-                    </label>
-                    <input
-                      type="date"
-                      className="form-control form-control-sm border-0 shadow-sm"
-                      value={anniversary}
-                      onChange={(e) => setAnniversary(e.target.value)}
-                      disabled={loading}
-                      style={{ 
-                        fontSize: '0.85rem',
-                        padding: '0.5rem 0.75rem',
-                        background: '#f8f9fa',
-                        borderRadius: '8px',
-                        height: '38px'
-                      }}
-                      max="2025-08-01"
-                      tabIndex={11}
-                    />
+                    <div className="d-flex align-items-center gap-2">
+                      <label className="form-label fw-medium text-dark mb-0" style={{ fontSize: '0.85rem', whiteSpace: 'nowrap', minWidth: '100px' }}>
+                        Anniversary
+                      </label>
+                      <input
+                        type="date"
+                        className="form-control form-control-sm border-0 shadow-sm flex-grow-1"
+                        value={anniversary}
+                        onChange={(e) => setAnniversary(e.target.value)}
+                        disabled={loading}
+                        style={{ 
+                          fontSize: '0.85rem',
+                          padding: '0.5rem 0.75rem',
+                          background: '#f8f9fa',
+                          borderRadius: '8px',
+                          height: '38px'
+                        }}
+                        max="2025-08-01"
+                        tabIndex={11}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -823,94 +845,102 @@ const CustomersPage: React.FC = () => {
               <div className="col-12">
                 <div className="row g-3">
                   <div className="col-md-3">
-                    <label className="form-label fw-medium text-dark mb-1" style={{ fontSize: '0.85rem' }}>
-                      GST Number
-                    </label>
-                    <input
-                      type="text"
-                      className="form-control form-control-sm border-0 shadow-sm"
-                      placeholder="GST number"
-                      value={gstNo}
-                      onChange={handleGstChange}
-                      disabled={loading}
-                      style={{ 
-                        fontSize: '0.85rem',
-                        padding: '0.5rem 0.75rem',
-                        background: '#f8f9fa',
-                        borderRadius: '8px',
-                        height: '38px'
-                      }}
-                      maxLength={15}
-                      tabIndex={12}
-                    />
+                    <div className="d-flex align-items-center gap-2">
+                      <label className="form-label fw-medium text-dark mb-0" style={{ fontSize: '0.85rem', whiteSpace: 'nowrap', minWidth: '100px' }}>
+                        GST Number
+                      </label>
+                      <input
+                        type="text"
+                        className="form-control form-control-sm border-0 shadow-sm flex-grow-1"
+                        placeholder="GST number"
+                        value={gstNo}
+                        onChange={handleGstChange}
+                        disabled={loading}
+                        style={{ 
+                          fontSize: '0.85rem',
+                          padding: '0.5rem 0.75rem',
+                          background: '#f8f9fa',
+                          borderRadius: '8px',
+                          height: '38px'
+                        }}
+                        maxLength={15}
+                        tabIndex={12}
+                      />
+                    </div>
                   </div>
 
                   <div className="col-md-3">
-                    <label className="form-label fw-medium text-dark mb-1" style={{ fontSize: '0.85rem' }}>
-                      Aadhar Number
-                    </label>
-                    <input
-                      type="text"
-                      className="form-control form-control-sm border-0 shadow-sm"
-                      placeholder="12-digit Aadhar"
-                      value={aadharNo}
-                      onChange={handleAadharChange}
-                      disabled={loading}
-                      style={{ 
-                        fontSize: '0.85rem',
-                        padding: '0.5rem 0.75rem',
-                        background: '#f8f9fa',
-                        borderRadius: '8px',
-                        height: '38px'
-                      }}
-                      maxLength={12}
-                      tabIndex={13}
-                    />
+                    <div className="d-flex align-items-center gap-2">
+                      <label className="form-label fw-medium text-dark mb-0" style={{ fontSize: '0.85rem', whiteSpace: 'nowrap', minWidth: '100px' }}>
+                        Aadhar Number
+                      </label>
+                      <input
+                        type="text"
+                        className="form-control form-control-sm border-0 shadow-sm flex-grow-1"
+                        placeholder="12-digit Aadhar"
+                        value={aadharNo}
+                        onChange={handleAadharChange}
+                        disabled={loading}
+                        style={{ 
+                          fontSize: '0.85rem',
+                          padding: '0.5rem 0.75rem',
+                          background: '#f8f9fa',
+                          borderRadius: '8px',
+                          height: '38px'
+                        }}
+                        maxLength={12}
+                        tabIndex={13}
+                      />
+                    </div>
                   </div>
 
                   <div className="col-md-3">
-                    <label className="form-label fw-medium text-dark mb-1" style={{ fontSize: '0.85rem' }}>
-                      FSSAI License
-                    </label>
-                    <input
-                      type="text"
-                      className="form-control form-control-sm border-0 shadow-sm"
-                      placeholder="FSSAI number"
-                      value={fssai}
-                      onChange={(e) => setFssai(e.target.value)}
-                      disabled={loading}
-                      style={{ 
-                        fontSize: '0.85rem',
-                        padding: '0.5rem 0.75rem',
-                        background: '#f8f9fa',
-                        borderRadius: '8px',
-                        height: '38px'
-                      }}
-                      tabIndex={14}
-                    />
+                    <div className="d-flex align-items-center gap-2">
+                      <label className="form-label fw-medium text-dark mb-0" style={{ fontSize: '0.85rem', whiteSpace: 'nowrap', minWidth: '100px' }}>
+                        FSSAI License
+                      </label>
+                      <input
+                        type="text"
+                        className="form-control form-control-sm border-0 shadow-sm flex-grow-1"
+                        placeholder="FSSAI number"
+                        value={fssai}
+                        onChange={(e) => setFssai(e.target.value)}
+                        disabled={loading}
+                        style={{ 
+                          fontSize: '0.85rem',
+                          padding: '0.5rem 0.75rem',
+                          background: '#f8f9fa',
+                          borderRadius: '8px',
+                          height: '38px'
+                        }}
+                        tabIndex={14}
+                      />
+                    </div>
                   </div>
 
                   <div className="col-md-3">
-                    <label className="form-label fw-medium text-dark mb-1" style={{ fontSize: '0.85rem' }}>
-                      PAN Number
-                    </label>
-                    <input
-                      type="text"
-                      className="form-control form-control-sm border-0 shadow-sm"
-                      placeholder="PAN number"
-                      value={panNo}
-                      onChange={handlePanChange}
-                      disabled={loading}
-                      style={{ 
-                        fontSize: '0.85rem',
-                        padding: '0.5rem 0.75rem',
-                        background: '#f8f9fa',
-                        borderRadius: '8px',
-                        height: '38px'
-                      }}
-                      maxLength={10}
-                      tabIndex={15}
-                    />
+                    <div className="d-flex align-items-center gap-2">
+                      <label className="form-label fw-medium text-dark mb-0" style={{ fontSize: '0.85rem', whiteSpace: 'nowrap', minWidth: '100px' }}>
+                        PAN Number
+                      </label>
+                      <input
+                        type="text"
+                        className="form-control form-control-sm border-0 shadow-sm flex-grow-1"
+                        placeholder="PAN number"
+                        value={panNo}
+                        onChange={handlePanChange}
+                        disabled={loading}
+                        style={{ 
+                          fontSize: '0.85rem',
+                          padding: '0.5rem 0.75rem',
+                          background: '#f8f9fa',
+                          borderRadius: '8px',
+                          height: '38px'
+                        }}
+                        maxLength={10}
+                        tabIndex={15}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>

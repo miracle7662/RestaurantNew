@@ -125,3 +125,36 @@ exports.updateTableStatus = (req, res) => {
     res.status(500).json({ success: false, message: "Failed to update table status", error: error.message });
   }
 };
+
+// Get all tables with their associated outlet names, filtered by hotelid
+exports.getAllTablesWithOutlets = (req, res) => {
+  try {
+    const { hotelid } = req.query;
+    if (!hotelid) {
+      return res.status(400).json({ error: 'Hotel ID is required' });
+    }
+
+    const query = `
+      SELECT 
+        t.tableid, 
+        t.table_name, 
+        CASE t.status 
+          WHEN 1 THEN 'running' 
+          WHEN 2 THEN 'printed' 
+          WHEN 3 THEN 'paid'
+          WHEN 4 THEN 'running-kot'
+          ELSE 'available' 
+        END as status,
+        t.outletid,
+        o.outlet_name
+      FROM msttablemanagement t
+      LEFT JOIN mst_outlets o ON t.outletid = o.outletid
+      WHERE t.hotelid = ?
+    `;
+    const tables = db.prepare(query).all(hotelid);
+    res.json(tables);
+  } catch (error) {
+    console.error('Error fetching tables with outlets:', error);
+    res.status(500).json({ error: 'Failed to fetch tables' });
+  }
+};
