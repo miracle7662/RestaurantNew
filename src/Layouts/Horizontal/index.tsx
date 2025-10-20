@@ -19,6 +19,8 @@ const HorizontalLayout = ({ children }: HorizontaLayoutProps) => {
   const { settings, updateSettings } = useThemeContext()
   const [showLiveChat, setShowLiveChat] = useState(false)
 
+  const isFullPage = location.pathname === '/apps/Tableview'
+
   const handleSupportLiveChat = () => {
     setShowLiveChat(!showLiveChat)
   }
@@ -46,13 +48,17 @@ const HorizontalLayout = ({ children }: HorizontaLayoutProps) => {
   return (
     <Suspense fallback={<div />}>
       <div className="wrapper">
-        <Suspense fallback={<PreloaderFull />}>
-          <Header toggleMenu={toggleMenu} navOpen={horizontalDropdownOpen} />
-        </Suspense>
+        {!isFullPage && (
+          <>
+            <Suspense fallback={<PreloaderFull />}>
+              <Header toggleMenu={toggleMenu} navOpen={horizontalDropdownOpen} />
+            </Suspense>
 
-        <Suspense fallback={<div />}>
-          <Navigation isMenuOpened={horizontalDropdownOpen} />
-        </Suspense>
+            <Suspense fallback={<div />}>
+              <Navigation isMenuOpened={horizontalDropdownOpen} />
+            </Suspense>
+          </>
+        )}
 
         <main className="main-content">
           <div

@@ -227,6 +227,14 @@ const MENU_ITEMS: MenuItemTypes[] = [
     parentKey: 'apps',
   },
 
+   {
+    key: 'Tableview',
+    label: 'Tableview',
+    url: '/apps/Tableview',
+    icon: 'fi fi-sr-sign-out-alt',
+    parentKey: 'apps',
+  },
+
   //Menu 2
 
   {

@@ -1,5 +1,5 @@
 import { Preloader, PreloaderFull } from '@/components/Misc/Preloader'
-import React, { Suspense, useEffect,  } from 'react'
+import React, { Suspense, useEffect } from 'react'
 //import { Button, Stack } from 'react-bootstrap'
 import { ThemeSettings, useThemeContext } from '../common/context'
 //import { useViewport } from '../hooks'
@@ -19,7 +19,7 @@ const VerticalLayout = ({ children }: VerticalLayoutProps) => {
  // const { width } = useViewport()
   const { settings, updateSidebar,  } = useThemeContext()
 
- 
+  const isFullPage = location.pathname === '/apps/Tableview'
 
   useEffect(() => {
     changeHTMLAttribute('data-color-scheme', settings.color)
@@ -44,13 +44,17 @@ const VerticalLayout = ({ children }: VerticalLayoutProps) => {
   return (
     <Suspense fallback={<div />}>
       <div className="wrapper">
-        <Suspense fallback={<PreloaderFull />}>
-          <Navigation />
-        </Suspense>
+        {!isFullPage && (
+          <>
+            <Suspense fallback={<PreloaderFull />}>
+              <Navigation />
+            </Suspense>
 
-        <Suspense fallback={<div />}>
-          <Header />
-        </Suspense>
+            <Suspense fallback={<div />}>
+              <Header />
+            </Suspense>
+          </>
+        )}
 
         <main className="main-content">
           <div
