@@ -235,6 +235,14 @@ const MENU_ITEMS: MenuItemTypes[] = [
     parentKey: 'apps',
   },
 
+   {
+    key: 'Billview',
+    label: 'Billview',
+    url: '/apps/Billview',
+    icon: 'fi fi-sr-sign-out-alt',
+    parentKey: 'apps',
+  },
+
   //Menu 2
 
   {

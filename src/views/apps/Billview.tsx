@@ -148,7 +148,7 @@ const ModernBill = () => {
         </Card>
       </div>
 
-      <style jsx>{`
+      <style >{`
         .modern-bill {
           background: white;
           border: 1px solid #e0e0e0;

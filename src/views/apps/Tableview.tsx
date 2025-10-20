@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { RefreshCw, Plus } from 'lucide-react';
 import { useAuthContext } from '@/common';
+import { useNavigate } from 'react-router-dom';
 
 // Types
 type TableStatus = 'blank' | 'running' | 'printed' | 'paid' | 'running-kot' | 'occupied' | 'available' | 'reserved';
@@ -103,6 +104,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [tableInput, setTableInput] = useState('');
   const { user } = useAuthContext();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchTables = async () => {
@@ -156,7 +158,21 @@ export default function App() {
     };
 
     fetchData();
-  }, [user]);
+
+    // Add event listener for Escape key
+    const handleEscapeKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        navigate('/');
+      }
+    };
+
+    document.addEventListener('keydown', handleEscapeKey);
+
+    // Cleanup event listener on unmount
+    return () => {
+      document.removeEventListener('keydown', handleEscapeKey);
+    };
+  }, [user, navigate]);
 
   // Group tables by their outletid
   const tablesByOutlet = allTables.reduce((acc, table) => {

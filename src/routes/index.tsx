@@ -49,6 +49,7 @@ const Kanban = React.lazy(() => import('./../views/apps/Kanban'))
 const Contact = React.lazy(() => import('./../views/apps/Contact'))
 const Calendar = React.lazy(() => import('./../views/apps/Calendar'))
 const Tableview = React.lazy(() => import('../views/apps/Tableview'))
+const Billview = React.lazy(() => import('../views/apps/Billview'))
 
 // Update the path below to the correct location and casing of your Orders component file
 const Orders = React.lazy(() => import('../views/apps/Transaction/Orders')) // Updated to use <Orders /> compone
@@ -611,6 +612,13 @@ const appsRoutes: RoutesProps = {
       path: '/apps/Tableview',
       name: 'Tableview',
       element: <Tableview />,
+      route: PrivateRoute,
+    },
+
+    {
+      path: '/apps/Billview',
+      name: 'Billview',
+      element: <Billview />,
       route: PrivateRoute,
     },
 
