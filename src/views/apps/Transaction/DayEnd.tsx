@@ -894,7 +894,7 @@ const DayEnd = () => {
                                   </small>
                                 </td>
                                 <td style={{ textAlign: 'right' }}>
-                                  {order.reverseBill == 1 
+                                  {order.reverseBill == 1
                                     ? `₹${(order.revAmt || 0).toLocaleString()}` 
                                     : 'No'}
                                 </td>

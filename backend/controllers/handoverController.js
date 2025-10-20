@@ -39,7 +39,7 @@ const getHandoverData = (req, res) => {
       LEFT JOIN TAxnTrnbilldetails td ON t.TxnID = td.TxnID
       LEFT JOIN mst_users u ON t.UserId = u.userid
       WHERE (t.isCancelled = 0 AND (t.isBilled = 1 OR t.isSetteled = 1)) OR t.isreversebill = 1
-      AND date(t.TxnDatetime) = date('now')
+     
       GROUP BY t.TxnID, t.TxnNo
       ORDER BY t.TxnDatetime DESC;
     `;
@@ -82,7 +82,7 @@ const getHandoverData = (req, res) => {
           orderNo: row.TxnNo,
           table: row.TableID,
           waiter: row.Steward || 'Unknown',
-          amount: row.isreversebill ? 0 : parseFloat(row.TotalAmount || 0), // This is Net Amount. Zero for reversed bills.
+          amount: parseFloat(row.TotalAmount || 0), // This is Net Amount.
           type: row.isreversebill 
             ? 'Reversed' 
             : (paymentModes.length > 1 ? 'Split' : (paymentModes[0] || (row.isSetteled ? 'Cash' : 'Unpaid'))),

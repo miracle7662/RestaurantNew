@@ -58,7 +58,7 @@ interface Order {
   grossAmount: number;
   roundOff: number;
   revAmt: number;
-  reverseBill: string;
+  reverseBill: number | string; // Can be 0/1 from DB
   water: number;
   captain: string;
   user: string;
@@ -439,6 +439,10 @@ const HandoverPage = () => {
         .table-row-nckot, .table-row-nckot td {
           background-color: #eef0ff !important; /* Light blue for NCKOT */
           color: #2c2e43 !important;
+        }
+        .table-row-reversed, .table-row-reversed td {
+          background-color: #f8d7da !important; /* Light red for reversed bill */
+          color: #721c24 !important;
         }
         /* Specific column widths */
         .table-container th:nth-child(1),
@@ -842,6 +846,9 @@ const HandoverPage = () => {
                             if (order.ncKot) {
                               rowClasses.push('table-row-nckot');
                             }
+                            if (order.reverseBill == 1) {
+                              rowClasses.push('table-row-reversed');
+                            }
 
                             return (
                               <tr key={idx} className={rowClasses.join(' ')}>
@@ -866,7 +873,11 @@ const HandoverPage = () => {
                                     {order.revKotNo ? order.revKotNo.split(',').map(kot => kot.trim()).join(', ') : ''}
                                   </small>
                                 </td>
-                                <td>{order.reverseBill || ''}</td>
+                                <td style={{ textAlign: 'right' }}>
+                                  {order.reverseBill == 1 
+                                    ? `₹${(order.revAmt || 0).toLocaleString()}` 
+                                    : 'No'}
+                                </td>
                                 <td>{order.ncName || ''}</td>
                                 <td>{order.ncKot || ''}</td>
                                 <td style={{ textAlign: 'right' }}>₹{(order.water || 0).toLocaleString()}</td>
