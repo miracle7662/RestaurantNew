@@ -33,12 +33,12 @@ const TableCard: React.FC<{ table: TableApiData }> = ({ table }) => {
     switch (status) {
       case 'running': return 'bg-primary';
       case 'printed': return 'bg-success';
-      case 'paid': return 'bg-light';
+      case 'paid': return 'bg-white';
       case 'running-kot': return 'bg-warning-orange';
       case 'occupied': return 'bg-primary'; // Map 'occupied' to 'running' style
-      case 'available': return 'bg-light'; // Map 'available' to 'blank' style
+      case 'available': return 'bg-white'; // Map 'available' to 'blank' style
       case 'reserved': return 'bg-warning'; // Add handling for 'reserved' if needed
-      default: return 'bg-light';
+      default: return 'bg-white';
     }
   };
 
@@ -200,7 +200,7 @@ export default function App() {
   };
 
   return (
-    <div className="d-flex flex-column bg-light" style={{ height: '100vh', minHeight: '100vh' }}>
+    <div className="d-flex flex-column" style={{ height: '100vh', minHeight: '100vh' }}>
       <style>{`
         html, body, #root {
           height: 100vh;
@@ -336,7 +336,7 @@ export default function App() {
       </div>
 
       {/* Main Content */}
-      <div className="full-screen-content">
+      <div className="full-screen-content ">
         {loading ? (
           <div className="d-flex justify-content-center align-items-center h-100">Loading...</div>
         ) : error ? (

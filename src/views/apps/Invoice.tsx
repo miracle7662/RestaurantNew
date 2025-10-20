@@ -1,334 +1,150 @@
-import React, { useState, useEffect } from 'react';
-import { RefreshCw, Plus } from 'lucide-react';
-import { useAuthContext } from '@/common';
+import React from 'react';
+import { Container, Table, Badge } from 'react-bootstrap';
 
-// Types
-type TableStatus = 'blank' | 'running' | 'printed' | 'paid' | 'running-kot';
-
-interface Table {
-  id: number;
-  name: string;
-  status: TableStatus;
-  hasCustomer?: boolean;
-  hasView?: boolean;
-  outletid?: number;
-}
-
-interface TableApiData {
-  id: number;
-  name: string;
-  status: TableStatus;
-  hasCustomer?: boolean;
-  hasView?: boolean;
-}
-
-interface Outlet {
-  outletid: number;
-  outlet_name: string;
-}
-
-// Table Card Component
-const TableCard: React.FC<{ table: TableApiData }> = ({ table }) => {
-  const getStatusClass = (status: TableStatus): string => {
-    switch (status) {
-      case 'running': return 'bg-primary text-white';
-      case 'printed': return 'bg-success text-white';
-      case 'paid': return 'bg-light border';
-      case 'running-kot': return 'bg-warning-orange';
-      case 'occupied': return 'bg-primary text-white'; // Map 'occupied' to 'running' style
-      case 'available': return 'bg-light border'; // Map 'available' to 'blank' style
-      default: return 'bg-light border';
-    }
-  };
-
+const ModernBill = () => {
   return (
-    <div 
-      className={`card ${getStatusClass(table.status)} text-center p-3 cursor-pointer table-card`}
-      style={{ minHeight: '100px', cursor: 'pointer' }}
-    >
-      <div className="card-body p-2">
-        <h6 className="card-title mb-2 fw-bold" style={{ fontSize: '13px' }}>{table.name}</h6>
-        {(table.hasCustomer || table.hasView) && (
-          <div className="d-flex justify-content-center gap-2 mt-2">
-            {table.hasCustomer && (
-              <span className="badge rounded-circle bg-white bg-opacity-25 p-1" style={{ width: '24px', height: '24px' }}>
-                👤
-              </span>
-            )}
-            {table.hasView && (
-              <span className="badge rounded-circle bg-white bg-opacity-25 p-1" style={{ width: '24px', height: '24px' }}>
-                👁
-              </span>
-            )}
+    <Container className="py-4">
+      <div className="modern-bill p-4 shadow-lg rounded">
+        {/* Header Section */}
+        <div className="bill-header mb-4">
+          <div className="d-flex justify-content-between align-items-center mb-3">
+            <h2 className="text-primary mb-0">BILL</h2>
+            <span className="text-muted">Group Item (Ctrl+G)(For Special Instructions - Press F4)</span>
           </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
-// Legend Component
-const Legend: React.FC = () => {
-  const legendItems = [
-    { label: 'Move KOT / Serve', color: '#f0f0f0', border: true },
-    { label: 'Blank Table', color: '#f0f0f0', border: true },
-    { label: 'Running Table', color: '#0d6efd' },
-    { label: 'Printed Table', color: '#198754' },
-    { label: 'Paid Table', color: '#f0f0f0', border: true },
-    { label: 'Running KOT Table', color: '#fd7e14' },
-  ];
-
-  return (
-    <div className="d-flex gap-3 flex-wrap align-items-center">
-      {legendItems.map((item, idx) => (
-        <div key={idx} className="d-flex align-items-center gap-2">
-          <div 
-            style={{ 
-              width: '16px', 
-              height: '16px', 
-              backgroundColor: item.color,
-              border: item.border ? '1px solid #ddd' : 'none',
-              borderRadius: '3px'
-            }}
-          />
-          <small className="text-muted">{item.label}</small>
+          
+          <div className="info-row p-3 bg-light rounded">
+            <div className="d-flex justify-content-between">
+              <div>
+                <strong>Waiter:</strong> ASD
+              </div>
+              <div>
+                <strong>PAX:</strong> 1
+              </div>
+              <div>
+                <strong>KOT No:</strong> 26
+              </div>
+              <div>
+                <strong>Date:</strong> 19-10-10
+              </div>
+            </div>
+          </div>
         </div>
-      ))}
-    </div>
-  );
-};
 
-// Main App Component
-export default function App() {
-  const [selectedLayout, setSelectedLayout] = useState('Default Layout');
-  const [selectedOutletId, setSelectedOutletId] = useState<number | 'all'>('all');
-  const [outlets, setOutlets] = useState<Outlet[]>([]);
-  const [allTables, setAllTables] = useState<Table[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [tableInput, setTableInput] = useState('');
-  const { user } = useAuthContext();
+        {/* Items Table */}
+        <div className="items-table mb-4">
+          <Table responsive bordered className="modern-table">
+            <thead className="table-primary">
+              <tr>
+                <th>No</th>
+                <th>Item Name</th>
+                <th className="text-center">Qty</th>
+                <th className="text-end">Rate</th>
+                <th className="text-end">Total</th>
+                <th className="text-center">MkotNo/Time</th>
+                <th>Special Instructions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>123</td>
+                <td>Alu Palak</td>
+                <td className="text-center">1</td>
+                <td className="text-end">48</td>
+                <td className="text-end">48.00</td>
+                <td className="text-center">
+                  <Badge bg="secondary">21/06:27 A</Badge>
+                </td>
+                <td></td>
+              </tr>
+              <tr>
+                <td>33</td>
+                <td>Tomato Uttappa</td>
+                <td className="text-center">1</td>
+                <td className="text-end">23</td>
+                <td className="text-end">23.00</td>
+                <td className="text-center">
+                  <Badge bg="secondary">21/06:27 A</Badge>
+                </td>
+                <td></td>
+              </tr>
+            </tbody>
+          </Table>
+        </div>
 
-  useEffect(() => {
-    const fetchTables = async () => {
-      try {
-        if (!user || !user.hotelid) {
-          throw new Error('User not authenticated or hotel ID missing');
+        {/* Summary Section */}
+        <div className="summary-section">
+          <Table responsive bordered className="modern-table">
+            <thead className="table-secondary">
+              <tr>
+                <th>Discount (#3)</th>
+                <th className="text-end">Gross Amt</th>
+                <th className="text-end">Rev KOT(+)</th>
+                <th className="text-center">Disc(+)</th>
+                <th className="text-end">CGST (+)</th>
+                <th className="text-end">SGST (+)</th>
+                <th className="text-end">R. Off (+)</th>
+                <th className="text-center">Ser Chg (+)</th>
+                <th className="text-end">Final Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>N C KDT</td>
+                <td className="text-end">71.00</td>
+                <td className="text-end">0.00</td>
+                <td className="text-center">0</td>
+                <td className="text-end">0.00</td>
+                <td className="text-end">0.00</td>
+                <td className="text-end">-1.00</td>
+                <td className="text-center">O</td>
+                <td className="text-end fw-bold text-success">70.00</td>
+              </tr>
+            </tbody>
+          </Table>
+        </div>
+      </div>
+
+      <style jsx>{`
+        .modern-bill {
+          background: white;
+          border: 1px solid #e0e0e0;
         }
-        const params = new URLSearchParams({ hotelid: String(user.hotelid) });
-        const response = await fetch(`http://localhost:3001/api/tablemanagement/with-outlets?${params.toString()}`);
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch tables');
+        
+        .modern-table {
+          font-size: 0.9rem;
         }
-        const data = await response.json();
-        const mappedTables: Table[] = data.map((t: any) => ({
-          id: t.tableid,
-          name: t.table_name,
-          status: t.status, // 'occupied', 'available', 'reserved'
-          outletid: t.outletid,
-          // You might need to add logic for hasCustomer and hasView based on bill status
-        }));
-        setAllTables(mappedTables);
-      } catch (err: any) {
-        setError(err.message);
-      }
-    };
-
-    const fetchOutlets = async () => {
-      try {
-        if (!user) {
-          throw new Error('User not authenticated');
+        
+        .modern-table th {
+          font-weight: 600;
+          border-bottom: 2px solid #dee2e6;
         }
-        const params = new URLSearchParams({ role_level: user.role_level, hotelid: String(user.hotelid) });
-        const response = await fetch(`http://localhost:3001/api/outlets?${params.toString()}`);
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch outlets');
+        
+        .modern-table td, .modern-table th {
+          padding: 0.75rem;
+          vertical-align: middle;
         }
-        const data = await response.json();
-        setOutlets(data);
-      } catch (err: any) {
-        setError(err.message);
-      }
-    };
-
-    const fetchData = async () => {
-      setLoading(true);
-      setError(null);
-      await Promise.all([fetchTables(), fetchOutlets()]);
-      setLoading(false);
-    };
-
-    fetchData();
-  }, [user]);
-
-  // Group tables by their outletid
-  const tablesByOutlet = allTables.reduce((acc, table) => {
-    if (table.outletid) {
-      if (!acc[table.outletid]) {
-        acc[table.outletid] = [];
-      }
-      acc[table.outletid].push(table);
-    }
-    return acc;
-  }, {} as Record<number, Table[]>);
-
-  // Filter outlets to show based on dropdown selection
-  const displayedOutlets = selectedOutletId === 'all' ? outlets : outlets.filter(o => o.outletid === selectedOutletId);
-
-  const handleRefresh = () => {
-    window.location.reload();
-  };
-
-  const handleTableInputEnter = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      const num = parseInt(tableInput);
-      if (!isNaN(num) && selectedOutletId !== 'all') {
-        const tables = tablesByOutlet[selectedOutletId] || [];
-        const table = tables.find(t => t.id === num);
-        if (table) {
-          // Scroll to section first
-          const outlet = outlets.find(o => o.outletid === selectedOutletId);
-          const section = document.querySelector(`#outlet-section-${outlet?.outletid}`);
-          section?.scrollIntoView({ behavior: 'smooth' });
-          // Then to table
-          setTimeout(() => {
-            const tableId = `table-${table.id}-${selectedOutlet.toLowerCase()}-section`;
-            const card = document.getElementById(tableId);
-            card?.scrollIntoView({ behavior: 'smooth' });
-          }, 500);
+        
+        .info-row {
+          border-left: 4px solid #0d6efd;
         }
-      }
-      setTableInput('');
-    }
-  };
-
-  return (
-    <div className="d-flex flex-column bg-light" style={{ height: '100%', minHeight: '100vh' }}>
-      <style>{`
-        html, body, #root {
-          height: 100%;
-          margin: 0;
-          padding: 0;
+        
+        .bill-header h2 {
+          font-weight: 700;
+          letter-spacing: 1px;
         }
-        .table-card {
-          transition: all 0.2s ease;
-        }
-        .table-card:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        }
-        .bg-warning-orange {
-          background-color: #fd7e14 !important;
-        }
-        .main-content {
-          flex: 1;
-          overflow-y: auto;
-          display: flex;
-          flex-direction: column;
-        }
-        .cursor-pointer {
-          cursor: pointer;
+        
+        @media (max-width: 768px) {
+          .modern-table {
+            font-size: 0.8rem;
+          }
+          
+          .modern-table td, .modern-table th {
+            padding: 0.5rem;
+          }
         }
       `}</style>
-
-      {/* Header */}
-      <div className="bg-white border-bottom">
-        <div className="container-fluid py-2 px-3">
-          <div className="d-flex justify-content-between align-items-center">
-            <h5 className="mb-0 fw-semibold">Table View</h5>
-            <div className="d-flex gap-2">
-              <button className="btn btn-outline-secondary btn-sm" onClick={handleRefresh}>
-                <RefreshCw size={16} />
-              </button>
-              <button className="btn btn-danger btn-sm">Delivery</button>
-              <button className="btn btn-danger btn-sm">Take Away</button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Toolbar */}
-      <div className="bg-white border-bottom">
-        <div className="container-fluid py-3 px-3">
-          <div className="row align-items-center">
-            <div className="col-auto">
-              <div className="d-flex gap-2">
-                <input 
-                  type="number" 
-                  className="form-control form-control-sm" 
-                  placeholder="Table No" 
-                  value={tableInput}
-                  onChange={e => setTableInput(e.target.value)}
-                  onKeyDown={handleTableInputEnter}
-                  style={{width: '100px'}}
-                />
-                <select 
-                  className="form-select form-select-sm" 
-                  value={selectedOutletId}
-                  onChange={e => setSelectedOutletId(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-                  style={{width: '120px'}}
-                >
-                  <option value="all">All Outlets</option>
-                  {outlets.map(outlet => (
-                    <option key={outlet.outletid} value={outlet.outletid}>
-                      {outlet.outlet_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            
-            <div className="col">
-              <Legend />
-            </div>
-            
-            <div className="col-auto">
-              <div className="d-flex gap-2 align-items-center">
-                <small className="text-muted">Floor Plan</small>
-                <select 
-                  className="form-select form-select-sm" 
-                  style={{ width: 'auto' }}
-                  value={selectedLayout}
-                  onChange={(e) => setSelectedLayout(e.target.value)}
-                >
-                  <option>Default Layout</option>
-                </select>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="main-content">
-        {loading ? (
-          <div className="d-flex justify-content-center align-items-center h-100">Loading...</div>
-        ) : error ? (
-          <div className="alert alert-danger m-3">{error}</div>
-        ) : (
-          <div className="container-fluid p-3">
-            {displayedOutlets.map(outlet => {
-              const tablesForOutlet = tablesByOutlet[outlet.outletid] || [];
-              return (
-                <div key={outlet.outletid} id={`outlet-section-${outlet.outletid}`} className="mb-4">
-                  <h6 className="fw-semibold mb-3 pb-2 border-bottom">{outlet.outlet_name}</h6>
-                  {tablesForOutlet.length > 0 ? (
-                    <div className="row row-cols-2 row-cols-sm-4 row-cols-md-6 row-cols-lg-8 row-cols-xl-9 g-3">
-                      {tablesForOutlet.map((table) => (
-                        <div key={table.id} id={`table-${table.id}-outlet-${outlet.outletid}`} className="col">
-                          <TableCard table={table} />
-                        </div>
-                      ))}
-                    </div>
-                  ) : (<p className="text-muted">No tables found for this outlet.</p>)}
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    </div>
+    </Container>
   );
-}
+};
+
+export default ModernBill;
