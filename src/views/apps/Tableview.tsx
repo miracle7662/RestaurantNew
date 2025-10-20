@@ -3,7 +3,7 @@ import { RefreshCw, Plus } from 'lucide-react';
 import { useAuthContext } from '@/common';
 
 // Types
-type TableStatus = 'blank' | 'running' | 'printed' | 'paid' | 'running-kot' | 'occupied' | 'available';
+type TableStatus = 'blank' | 'running' | 'printed' | 'paid' | 'running-kot' | 'occupied' | 'available' | 'reserved';
 
 interface Table {
   id: number;
@@ -31,38 +31,32 @@ interface Outlet {
 const TableCard: React.FC<{ table: TableApiData }> = ({ table }) => {
   const getStatusClass = (status: TableStatus): string => {
     switch (status) {
-      case 'running': return 'bg-primary text-white';
-      case 'printed': return 'bg-success text-white';
-      case 'paid': return 'bg-light border';
+      case 'running': return 'bg-primary';
+      case 'printed': return 'bg-success';
+      case 'paid': return 'bg-light';
       case 'running-kot': return 'bg-warning-orange';
-      case 'occupied': return 'bg-primary text-white'; // Map 'occupied' to 'running' style
-      case 'available': return 'bg-light border'; // Map 'available' to 'blank' style
-      default: return 'bg-light border';
+      case 'occupied': return 'bg-primary'; // Map 'occupied' to 'running' style
+      case 'available': return 'bg-light'; // Map 'available' to 'blank' style
+      case 'reserved': return 'bg-warning'; // Add handling for 'reserved' if needed
+      default: return 'bg-light';
     }
   };
 
   return (
     <div
-      className={`card ${getStatusClass(table.status)} text-center p-2 cursor-pointer table-card`}
-      style={{ minHeight: '70px', cursor: 'pointer' }}
+      className={`${getStatusClass(table.status)} cursor-pointer table-card d-flex align-items-center justify-content-center`}
+      style={{
+        width: '100%',
+        height: '100%',
+        minWidth: '80px',
+        minHeight: '80px',
+        borderRadius: '8px',
+        cursor: 'pointer',
+        border: '1px solid #ddd',
+        aspectRatio: '1 / 1'
+      }}
     >
-      <div className="card-body p-1">
-        <h6 className="card-title mb-1 fw-bold" style={{ fontSize: '12px' }}>{table.name}</h6>
-        {(table.hasCustomer || table.hasView) && (
-          <div className="d-flex justify-content-center gap-1 mt-1">
-            {table.hasCustomer && (
-              <span className="badge rounded-circle bg-white bg-opacity-25 p-1" style={{ width: '20px', height: '20px' }}>
-                👤
-              </span>
-            )}
-            {table.hasView && (
-              <span className="badge rounded-circle bg-white bg-opacity-25 p-1" style={{ width: '20px', height: '20px' }}>
-                👁
-              </span>
-            )}
-          </div>
-        )}
-      </div>
+      <span className="text-dark fw-bold" style={{ fontSize: '14px' }}>{table.name}</span>
     </div>
   );
 };
@@ -76,6 +70,7 @@ const Legend: React.FC = () => {
     { label: 'Printed Table', color: '#198754' },
     { label: 'Paid Table', color: '#f0f0f0', border: true },
     { label: 'Running KOT Table', color: '#fd7e14' },
+    { label: 'Reserved Table', color: '#ffc107' },
   ];
 
   return (
@@ -258,6 +253,18 @@ export default function App() {
           bottom: 0;
           overflow-y: auto;
         }
+        .table-grid .col {
+          padding: 4px !important;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+        }
+        .table-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+          gap: 8px;
+          margin-bottom: 20px;
+        }
       `}</style>
 
       {/* Header */}
@@ -337,14 +344,14 @@ export default function App() {
         ) : (
           <div className="p-3">
             {displayedOutlets.map(outlet => {
-              const tablesForOutlet = tablesByOutlet[outlet.outletid] || [];
+              const tablesForOutlet = (tablesByOutlet[outlet.outletid] || []).sort((a, b) => parseInt(a.name) - parseInt(b.name));
               return (
                 <div key={outlet.outletid} id={`outlet-section-${outlet.outletid}`} className="mb-4">
                   <h6 className="fw-semibold mb-3 pb-2 border-bottom">{outlet.outlet_name}</h6>
                   {tablesForOutlet.length > 0 ? (
-                    <div className="row row-cols-3 row-cols-sm-5 row-cols-md-7 row-cols-lg-9 row-cols-xl-10 g-2">
+                    <div className="table-grid">
                       {tablesForOutlet.map((table) => (
-                        <div key={table.id} id={`table-${table.id}-outlet-${outlet.outletid}`} className="col">
+                        <div key={table.id} id={`table-${table.id}-outlet-${outlet.outletid}`} className="table-card-wrapper">
                           <TableCard table={table} />
                         </div>
                       ))}
