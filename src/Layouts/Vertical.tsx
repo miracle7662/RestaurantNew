@@ -19,7 +19,9 @@ const VerticalLayout = ({ children }: VerticalLayoutProps) => {
  // const { width } = useViewport()
   const { settings, updateSidebar,  } = useThemeContext()
 
-  const isFullPage = location.pathname === '/apps/Tableview'
+  const fullPageRoutes = ['/fullpage', '/apps/Tableview', '/apps/Billview']
+  const isFullPage = fullPageRoutes.includes(location.pathname)
+
 
   useEffect(() => {
     changeHTMLAttribute('data-color-scheme', settings.color)

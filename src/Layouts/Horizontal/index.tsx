@@ -19,7 +19,8 @@ const HorizontalLayout = ({ children }: HorizontaLayoutProps) => {
   const { settings, updateSettings } = useThemeContext()
   const [showLiveChat, setShowLiveChat] = useState(false)
 
-  const isFullPage = location.pathname === '/apps/Tableview'
+  const fullPageRoutes = ['/fullpage', '/apps/Tableview', '/apps/Billview']
+  const isFullPage = fullPageRoutes.includes(location.pathname)
 
   const handleSupportLiveChat = () => {
     setShowLiveChat(!showLiveChat)

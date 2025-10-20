@@ -51,6 +51,7 @@ const Calendar = React.lazy(() => import('./../views/apps/Calendar'))
 const Tableview = React.lazy(() => import('../views/apps/Tableview'))
 const Billview = React.lazy(() => import('../views/apps/Billview'))
 
+
 // Update the path below to the correct location and casing of your Orders component file
 const Orders = React.lazy(() => import('../views/apps/Transaction/Orders')) // Updated to use <Orders /> compone
 const Menu = React.lazy(() => import('../views/apps/Masters/RestaurantMasters/Menu')) // Updated to use <Menu /> component
@@ -622,6 +623,7 @@ const appsRoutes: RoutesProps = {
       route: PrivateRoute,
     },
 
+   
     // {
     //   path: '/apps/OrderDetails',
     //   name: 'OrderDetails',
