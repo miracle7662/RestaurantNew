@@ -1,170 +1,339 @@
-import React, { useEffect } from 'react';
-import { Container, Row, Col, Card, Table, Badge, Button } from 'react-bootstrap';
+import React, { useEffect, useState } from 'react';
+import { Row, Col, Card, Table, Badge, Button } from 'react-bootstrap';
 
 const ModernBill = () => {
+  const [headerHeight, setHeaderHeight] = useState(0);
+  const [toolbarHeight, setToolbarHeight] = useState(0);
+
   useEffect(() => {
-    const innerContent = document.querySelector('.inner-content.apps-content');
-    if (innerContent) {
-      (innerContent as HTMLElement).style.padding = '0';
+    // Remove padding or margin from layout containers
+    const mainContent = document.querySelector('main.main-content') as HTMLElement;
+    const innerContent = document.querySelector('.inner-content.apps-content') as HTMLElement;
+
+    if (mainContent) {
+      mainContent.style.padding = '0';
+      mainContent.style.margin = '0';
+      mainContent.style.width = '100%';
     }
 
-    return () => {
-      if (innerContent) {
-        (innerContent as HTMLElement).style.padding = '';
+    if (innerContent) {
+      innerContent.style.padding = '0';
+      innerContent.style.margin = '0';
+      innerContent.style.width = '100%';
+    }
+
+    // Calculate heights dynamically
+    const calculateHeights = () => {
+      const header = document.querySelector('.full-screen-header') as HTMLElement;
+      const toolbar = document.querySelector('.full-screen-toolbar') as HTMLElement;
+      if (header) {
+        setHeaderHeight(header.offsetHeight);
       }
+      if (toolbar) {
+        setToolbarHeight(toolbar.offsetHeight);
+      }
+    };
+
+    calculateHeights();
+
+    // Recalculate on resize
+    window.addEventListener('resize', calculateHeights);
+
+    return () => {
+      if (mainContent) {
+        mainContent.style.padding = '';
+        mainContent.style.margin = '';
+      }
+      if (innerContent) {
+        innerContent.style.padding = '';
+        innerContent.style.margin = '';
+      }
+      window.removeEventListener('resize', calculateHeights);
     };
   }, []);
 
   return (
-    <div className="d-flex flex-column" style={{ height: '100vh', minHeight: '100vh' }}>
+    <div
+      className="d-flex flex-column w-100"
+      style={{
+        height: '100vh',
+        minHeight: '100vh',
+        margin: 0,
+        padding: 0,
+        overflow: 'hidden',
+        background: 'white',
+      }}
+    >
       <style>{`
         html, body, #root {
           height: 100vh;
           margin: 0;
           padding: 0;
           overflow: hidden;
+          width: 100vw;
         }
+
+        main.main-content, .inner-content.apps-content {
+          margin: 0 !important;
+          padding: 0 !important;
+          width: 100% !important;
+          background: white !important;
+        }
+
+        .container-fluid,
+        .row,
+        .col,
+        .table,
+        .card,
+        .bill-header,
+        .content-wrapper,
+        .modern-bill {
+          width: 100vw !important;
+          max-width: 100% !important;
+          margin-right: 0 !important;
+          padding-right: 0 !important;
+          box-sizing: border-box;
+        }
+
+        body {
+          overflow-x: hidden !important;
+        }
+
+        .full-screen-header {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          z-index: 1050;
+          background: white;
+          border-bottom: 1px solid #dee2e6;
+        }
+
+        .full-screen-toolbar {
+          position: fixed;
+          left: 0;
+          right: 0;
+          z-index: 1049;
+          background: white;
+          border-bottom: 1px solid #dee2e6;
+          top: ${headerHeight}px;
+          transition: top 0.1s ease;
+        }
+
+        .full-screen-content {
+          position: fixed;
+          left: 0;
+          right: 0;
+          bottom: 150px;
+          overflow-y: auto;
+          top: ${headerHeight + toolbarHeight}px;
+          transition: top 0.1s ease;
+        }
+
+        .bottom-bar {
+          position: fixed;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          height: 150px;
+          background: white;
+          border-top: 1px solid #dee2e6;
+          z-index: 1050;
+          overflow-y: auto;
+          display: flex;
+          flex-direction: column;
+        }
+
         .bill-header {
           background: white;
           border-bottom: 1px solid #dee2e6;
           flex-shrink: 0;
         }
+
         .content-wrapper {
-          flex: 1;
+          height: 100%;
           overflow: hidden;
         }
+
         .modern-bill {
-          padding: 0;
           display: flex;
           flex-direction: column;
           width: 100%;
           height: 100%;
+          padding: 0;
+          margin: 0;
         }
-        
+
         .modern-table {
           font-size: 0.9rem;
           margin-bottom: 0;
         }
-        
+
         .modern-table th {
           font-weight: 600;
           border-bottom: 2px solid #dee2e6;
-          position: sticky;
-          top: 0;
-          z-index: 10;
-          background-color: inherit;
+          position: sticky !important;
+          top: 0 !important;
+          z-index: 20 !important;
+          background-color: #f8f9fa !important;
         }
-        
+
+        .modern-table thead tr.table-primary th {
+          background-color: #f8f9fa !important;
+          color: black !important;
+        }
+
         .modern-table td, .modern-table th {
-          padding: 0.75rem;
+          padding: 0.5rem;
           vertical-align: middle;
         }
-        
+
         .info-card {
           border: 1px solid #dee2e6;
           transition: all 0.3s ease;
+          background: #f8f9fa;
         }
-        
+
         .info-card:hover {
           box-shadow: 0 2px 8px rgba(0,0,0,0.1);
           transform: translateY(-2px);
         }
-        
+
         .total-card {
           background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
           border: none;
           color: white;
         }
-        
+
         .footer-card {
           border: 1px solid #dee2e6;
           background: #f8f9fa;
         }
-        
+
         .function-btn {
           border-radius: 15px;
           font-size: 0.75rem;
           padding: 4px 12px;
           min-width: 80px;
+          background: #e3f2fd;
+          border: 1px solid #2196f3;
+          color: #1976d2;
         }
-        
+
+        .function-btn:hover {
+          background: #bbdefb;
+        }
+
         .bill-header h2 {
           font-weight: 700;
           letter-spacing: 1px;
         }
-        
+
         .items-table {
           flex: 1;
           overflow-y: auto;
+          height: 100%;
         }
-        
-        .summary-section {
-          flex-shrink: 0;
+
+        .summary-section .modern-table thead tr {
+          background: #e3f2fd;
         }
-        
+
+        .summary-section .modern-table tbody tr {
+          background: white;
+        }
+
+        .summary-section .modern-table td {
+          border-top: none;
+          border-bottom: 1px solid #dee2e6;
+        }
+
+        .summary-section .modern-table th {
+          border: none;
+          color: #1976d2;
+        }
+
+        .bottom-content {
+          padding: 0.5rem;
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+        }
+
         @media (max-width: 768px) {
           .modern-table {
             font-size: 0.8rem;
           }
-          
+
           .modern-table td, .modern-table th {
-            padding: 0.5rem;
+            padding: 0.4rem;
           }
-          
+
           .function-btn {
             font-size: 0.7rem;
             padding: 3px 8px;
             min-width: 70px;
           }
+
+          .bottom-bar {
+            height: 180px;
+          }
+
+          .full-screen-content {
+            bottom: 180px;
+          }
         }
       `}</style>
 
       {/* Header */}
-      <div className="bill-header bg-light">
-        <div className="container-fluid py-2 px-3">
-          <div className="d-flex justify-content-between align-items-center mb-3">
+      <div className="full-screen-header">
+        <div className="container-fluid py-1 px-2">
+          <div className="d-flex justify-content-between align-items-center mb-1">
             <h2 className="text-primary mb-0">BILL</h2>
-            <span className="text-muted">Group Item (Ctrl+G)(For Special Instructions - Press F4)</span>
+            <span className="text-muted small">
+              Group Item (Ctrl+G)(For Special Instructions - Press F4)
+            </span>
           </div>
-          
+
           {/* Card Layout for Header Information */}
-          <Row className="g-3 mb-3">
+          <Row className="g-2 mb-2">
             <Col md={3}>
               <Card className="h-100 text-center info-card">
-                <Card.Body className="py-2">
-                  <Card.Title className="small text-muted mb-1">Waiter</Card.Title>
+                <Card.Body className="py-1">
+                  <Card.Title className="small text-muted mb-0">Waiter</Card.Title>
                   <Card.Text className="fw-bold mb-0">ASD</Card.Text>
                 </Card.Body>
               </Card>
             </Col>
             <Col md={2}>
               <Card className="h-100 text-center info-card">
-                <Card.Body className="py-2">
-                  <Card.Title className="small text-muted mb-1">PAX</Card.Title>
+                <Card.Body className="py-1">
+                  <Card.Title className="small text-muted mb-0">PAX</Card.Title>
                   <Card.Text className="fw-bold mb-0">1</Card.Text>
                 </Card.Body>
               </Card>
             </Col>
             <Col md={2}>
               <Card className="h-100 text-center info-card">
-                <Card.Body className="py-2">
-                  <Card.Title className="small text-muted mb-1">KOT No</Card.Title>
+                <Card.Body className="py-1">
+                  <Card.Title className="small text-muted mb-0">KOT No</Card.Title>
                   <Card.Text className="fw-bold mb-0">26</Card.Text>
                 </Card.Body>
               </Card>
             </Col>
             <Col md={3}>
               <Card className="h-100 text-center info-card">
-                <Card.Body className="py-2">
-                  <Card.Title className="small text-muted mb-1">Date</Card.Title>
+                <Card.Body className="py-1">
+                  <Card.Title className="small text-muted mb-0">Date</Card.Title>
                   <Card.Text className="fw-bold mb-0">19-10</Card.Text>
                 </Card.Body>
               </Card>
             </Col>
             <Col md={2}>
               <Card className="h-100 text-center total-card">
-                <Card.Body className="py-2">
-                  <Card.Title className="small text-white mb-1">Total</Card.Title>
+                <Card.Body className="py-1">
+                  <Card.Title className="small text-white mb-0">Total</Card.Title>
                   <Card.Text className="fw-bold text-white mb-0">₹70.00</Card.Text>
                 </Card.Body>
               </Card>
@@ -173,55 +342,69 @@ const ModernBill = () => {
         </div>
       </div>
 
-      {/* Content */}
-      <div className="content-wrapper">
-        <div className="modern-bill">
-          {/* Items Table */}
-          <div className="items-table">
-            <Table responsive bordered className="modern-table">
-              <thead>
-                <tr className="table-primary">
-                  <th>No</th>
-                  <th>Item Name</th>
-                  <th className="text-center">Qty</th>
-                  <th className="text-end">Rate</th>
-                  <th className="text-end">Total</th>
-                  <th className="text-center">MkotNo/Time</th>
-                  <th>Special Instructions</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>123</td>
-                  <td>Alu Palak</td>
-                  <td className="text-center">1</td>
-                  <td className="text-end">48</td>
-                  <td className="text-end">48.00</td>
-                  <td className="text-center">
-                    <Badge bg="secondary">21/06:27 A</Badge>
-                  </td>
-                  <td></td>
-                </tr>
-                <tr>
-                  <td>33</td>
-                  <td>Tomato Uttappa</td>
-                  <td className="text-center">1</td>
-                  <td className="text-end">23</td>
-                  <td className="text-end">23.00</td>
-                  <td className="text-center">
-                    <Badge bg="secondary">21/06:27 A</Badge>
-                  </td>
-                  <td></td>
-                </tr>
-              </tbody>
-            </Table>
-          </div>
+      {/* Toolbar - Empty for now, similar to Tableview structure */}
+      <div className="full-screen-toolbar" style={{ top: `${headerHeight}px` }}>
+        <div className="container-fluid py-1 px-2">
+          {/* Add toolbar content if needed, otherwise keep minimal */}
+        </div>
+      </div>
 
+      {/* Main Content */}
+      <div className="full-screen-content" style={{ top: `${headerHeight + toolbarHeight}px` }}>
+        <div className="content-wrapper">
+          <div className="modern-bill">
+            {/* Items Table */}
+            <div className="items-table">
+              <Table responsive bordered className="modern-table">
+                <thead>
+                  <tr className="table-primary">
+                    <th>No</th>
+                    <th>Item Name</th>
+                    <th className="text-center">Qty</th>
+                    <th className="text-end">Rate</th>
+                    <th className="text-end">Total</th>
+                    <th className="text-center">MkotNo/Time</th>
+                    <th>Special Instructions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>123</td>
+                    <td>Alu Palak</td>
+                    <td className="text-center">1</td>
+                    <td className="text-end">48</td>
+                    <td className="text-end">48.00</td>
+                    <td className="text-center">
+                      <Badge bg="secondary">21/06:27 A</Badge>
+                    </td>
+                    <td></td>
+                  </tr>
+                  <tr>
+                    <td>33</td>
+                    <td>Tomato Uttappa</td>
+                    <td className="text-center">1</td>
+                    <td className="text-end">23</td>
+                    <td className="text-end">23.00</td>
+                    <td className="text-center">
+                      <Badge bg="secondary">21/06:27 A</Badge>
+                    </td>
+                    <td></td>
+                  </tr>
+                </tbody>
+              </Table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom Bar for Summary and Footer */}
+      <div className="bottom-bar">
+        <div className="bottom-content">
           {/* Summary Section */}
-          <div className="summary-section">
+          <div className="summary-section mb-1">
             <Table responsive bordered className="modern-table">
               <thead>
-                <tr className="table-secondary">
+                <tr>
                   <th>Discount (#3)</th>
                   <th className="text-end">Gross Amt</th>
                   <th className="text-end">Rev KOT(+)</th>
@@ -250,9 +433,9 @@ const ModernBill = () => {
           </div>
 
           {/* Footer with Function Keys */}
-          <Card className="mt-4 footer-card">
-            <Card.Body className="py-2">
-              <div className="d-flex flex-wrap justify-content-center gap-2">
+          <Card className="footer-card">
+            <Card.Body className="py-1">
+              <div className="d-flex flex-wrap justify-content-center gap-1">
                 <Button variant="outline-primary" size="sm" className="function-btn">KOT Tr (F2)</Button>
                 <Button variant="outline-primary" size="sm" className="function-btn">Rev Bill (F5)</Button>
                 <Button variant="outline-primary" size="sm" className="function-btn">TBL Tr (F7)</Button>
