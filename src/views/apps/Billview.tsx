@@ -1,5 +1,6 @@
 import React, { useEffect, useState, KeyboardEvent } from 'react';
 import { Row, Col, Card, Table, Badge, Button, Form } from 'react-bootstrap';
+import axios from 'axios';
 
 interface BillItem {
   itemNo: string;
@@ -14,15 +15,20 @@ interface BillItem {
   specialInstructions: string;
 }
 
+interface MenuItem {
+  restitemid: number;
+  item_no: string;
+  item_name: string;
+  price: number;
+}
+
 const ModernBill = () => {
   const [headerHeight, setHeaderHeight] = useState(0);
   const [toolbarHeight, setToolbarHeight] = useState(0);
 
-  const [billItems, setBillItems] = useState<BillItem[]>([
-    { itemNo: '123', itemName: 'Alu Palak', qty: 1, rate: 48, total: 48.00, cgst: 1.2, sgst: 1.2, igst: 0, mkotNo: '21/06:27 A', specialInstructions: '' },
-    { itemNo: '33', itemName: 'Tomato Uttappa', qty: 1, rate: 23, total: 23.00, cgst: 0.58, sgst: 0.58, igst: 0, mkotNo: '21/06:27 A', specialInstructions: '' },
-    { itemNo: '', itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' },
-  ]);
+  const [billItems, setBillItems] = useState<BillItem[]>([{ itemNo: '', itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' }]);
+
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
 
   const [grossAmount, setGrossAmount] = useState(0);
   const [totalCgst, setTotalCgst] = useState(0);
@@ -31,16 +37,19 @@ const ModernBill = () => {
   const [finalAmount, setFinalAmount] = useState(0);
 
   // Mock data for item lookup
-  const masterItems = [
-    { id: 123, name: "Alu Palak", rate: 48 },
-    { id: 33, name: "Tomato Uttappa", rate: 23 },
-    { id: 103, name: "Paneer Butter Masala", rate: 150 },
-    { id: 104, name: "Veg Pulao", rate: 120 },
-    { id: 105, name: "Roti", rate: 15 },
-  ];
+  // This is now replaced by the menuItems state fetched from the API
 
   useEffect(() => {
-    // Initial calculation
+    // 1. Fetch menu items from the API when the component mounts
+    const fetchMenuItems = async () => {
+      try {
+        const response = await axios.get('/api/menu'); // Assuming your API endpoint is /api/menu
+        setMenuItems(response.data);
+      } catch (error) {
+        console.error('Failed to fetch menu items:', error);
+      }
+    };
+    fetchMenuItems();
     calculateTotals(billItems);
 
     // Remove padding or margin from layout containers
@@ -119,10 +128,11 @@ const ModernBill = () => {
 
     if (field === 'itemNo') {
       currentItem.itemNo = value as string;
-      const found = masterItems.find(i => i.id.toString() === value);
+      // 2. When item code is typed, find the item in the fetched menu list
+      const found = menuItems.find(i => i.item_no.toString() === value);
       if (found) {
-        currentItem.itemName = found.name;
-        currentItem.rate = found.rate;
+        currentItem.itemName = found.item_name;
+        currentItem.rate = found.price;
       } else {
         currentItem.itemName = "";
         currentItem.rate = 0;
