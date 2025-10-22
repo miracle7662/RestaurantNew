@@ -29,7 +29,7 @@ interface Outlet {
 }
 
 // Table Card Component
-const TableCard: React.FC<{ table: TableApiData }> = ({ table }) => {
+const TableCard: React.FC<{ table: Table; onClick: () => void }> = ({ table, onClick }) => {
   const getStatusClass = (status: TableStatus): string => {
     switch (status) {
       case 'running': return 'bg-primary';
@@ -56,6 +56,7 @@ const TableCard: React.FC<{ table: TableApiData }> = ({ table }) => {
         border: '1px solid #ddd',
         aspectRatio: '1 / 1'
       }}
+      onClick={onClick}
     >
       <span className="text-dark fw-bold" style={{ fontSize: '14px' }}>{table.name}</span>
     </div>
@@ -190,6 +191,10 @@ export default function App() {
 
   const handleRefresh = () => {
     window.location.reload();
+  };
+
+  const handleTableClick = (table: Table) => {
+    navigate('/apps/Billview', { state: { tableId: table.id } });
   };
 
   const handleTableInputEnter = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -368,7 +373,7 @@ export default function App() {
                     <div className="table-grid">
                       {tablesForOutlet.map((table) => (
                         <div key={table.id} id={`table-${table.id}-outlet-${outlet.outletid}`} className="table-card-wrapper">
-                          <TableCard table={table} />
+                          <TableCard table={table} onClick={() => handleTableClick(table)} />
                         </div>
                       ))}
                     </div>

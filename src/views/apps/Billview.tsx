@@ -1,6 +1,7 @@
 import React, { useEffect, useState, KeyboardEvent } from 'react';
 import { Row, Col, Card, Table, Badge, Button, Form } from 'react-bootstrap';
 import axios from 'axios';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 interface BillItem {
   itemNo: string;
@@ -35,6 +36,10 @@ const ModernBill = () => {
   const [totalSgst, setTotalSgst] = useState(0);
   const [roundOff, setRoundOff] = useState(0);
   const [finalAmount, setFinalAmount] = useState(0);
+
+  const navigate = useNavigate();
+  const location = useLocation();
+  const tableId = location.state?.tableId;
 
   // Mock data for item lookup
   // This is now replaced by the menuItems state fetched from the API
@@ -85,6 +90,17 @@ const ModernBill = () => {
     // Recalculate on resize
     window.addEventListener('resize', calculateHeights);
 
+    // Add event listener for Escape key
+    const handleEscapeKey = (event: Event) => {
+       const keyboardEvent = event as unknown as KeyboardEvent;
+
+      if (keyboardEvent.key === 'Escape') {
+        navigate('/');
+      }
+    };
+
+    document.addEventListener('keydown', handleEscapeKey);
+
     return () => {
       if (mainContent) {
         mainContent.style.padding = '';
@@ -95,8 +111,9 @@ const ModernBill = () => {
         innerContent.style.margin = '';
       }
       window.removeEventListener('resize', calculateHeights);
+      document.removeEventListener('keydown', handleEscapeKey);
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [navigate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const calculateTotals = (items: BillItem[]) => {
     const updatedItems = items.map(item => {
