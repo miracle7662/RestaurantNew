@@ -1,4 +1,4 @@
-import React, { useEffect, useState, KeyboardEvent } from 'react';
+import React, { useEffect, useState, useRef, KeyboardEvent } from 'react';
 import { Row, Col, Card, Table, Badge, Button, Form } from 'react-bootstrap';
 import axios from 'axios';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -40,6 +40,8 @@ const ModernBill = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const tableId = location.state?.tableId;
+
+  const inputRefs = useRef<(HTMLInputElement | null)[][]>([]);
 
   // Mock data for item lookup
   // This is now replaced by the menuItems state fetched from the API
@@ -162,9 +164,28 @@ const ModernBill = () => {
     calculateTotals(updated);
   };
 
-  const handleKeyPress = (e: KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyPress = (index: number, field: keyof BillItem) => (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
-      setBillItems([...billItems, { itemNo: "", itemName: "", qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' }]);
+      if (field === 'itemNo') {
+        // Focus and select qty field of the same row
+        const qtyRef = inputRefs.current[index]?.[1];
+        if (qtyRef) {
+          qtyRef.focus();
+          qtyRef.select();
+        }
+      } else if (field === 'qty') {
+        // Add new row and focus itemNo of the new row
+        const newBillItems = [...billItems, { itemNo: "", itemName: "", qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' }];
+        setBillItems(newBillItems);
+        // Focus the new itemNo after state update
+        setTimeout(() => {
+          const newItemNoRef = inputRefs.current[newBillItems.length - 1]?.[0];
+          if (newItemNoRef) {
+            newItemNoRef.focus();
+          }
+        }, 0);
+      }
+      // No action for rate and specialInstructions
     }
   };
 
@@ -494,20 +515,28 @@ const ModernBill = () => {
                     <tr key={index}>
                       <td>
                         <Form.Control
+                          ref={(el) => {
+                            if (!inputRefs.current[index]) inputRefs.current[index] = [];
+                            inputRefs.current[index][0] = el;
+                          }}
                           type="text"
                           value={item.itemNo}
                           onChange={(e) => handleItemChange(index, 'itemNo', e.target.value)}
-                          onKeyDown={handleKeyPress}
+                          onKeyDown={handleKeyPress(index, 'itemNo')}
                           className="form-control-sm"
                         />
                       </td>
                       <td>{item.itemName}</td>
                       <td className="text-center">
                         <Form.Control
+                          ref={(el) => {
+                            if (!inputRefs.current[index]) inputRefs.current[index] = [];
+                            inputRefs.current[index][1] = el;
+                          }}
                           type="number"
                           value={item.qty}
                           onChange={(e) => handleItemChange(index, 'qty', Number(e.target.value))}
-                          onKeyDown={handleKeyPress}
+                          onKeyDown={handleKeyPress(index, 'qty')}
                           className="form-control-sm text-center"
                           style={{ width: '60px', margin: 'auto' }}
                         />
@@ -517,7 +546,7 @@ const ModernBill = () => {
                           type="number"
                           value={item.rate}
                           onChange={(e) => handleItemChange(index, 'rate', Number(e.target.value))}
-                          onKeyDown={handleKeyPress}
+                          onKeyDown={handleKeyPress(index, 'rate')}
                           className="form-control-sm text-end"
                         />
                       </td>
@@ -530,7 +559,7 @@ const ModernBill = () => {
                           type="text"
                           value={item.specialInstructions}
                           onChange={(e) => handleItemChange(index, 'specialInstructions', e.target.value)}
-                          onKeyDown={handleKeyPress}
+                          onKeyDown={handleKeyPress(index, 'specialInstructions')}
                           className="form-control-sm"
                         />
                       </td>
