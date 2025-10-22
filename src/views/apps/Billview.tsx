@@ -1,11 +1,48 @@
-import React, { useEffect, useState } from 'react';
-import { Row, Col, Card, Table, Badge, Button } from 'react-bootstrap';
+import React, { useEffect, useState, KeyboardEvent } from 'react';
+import { Row, Col, Card, Table, Badge, Button, Form } from 'react-bootstrap';
+
+interface BillItem {
+  itemNo: string;
+  itemName: string;
+  qty: number;
+  rate: number;
+  total: number;
+  cgst: number;
+  sgst: number;
+  igst: number;
+  mkotNo: string;
+  specialInstructions: string;
+}
 
 const ModernBill = () => {
   const [headerHeight, setHeaderHeight] = useState(0);
   const [toolbarHeight, setToolbarHeight] = useState(0);
 
+  const [billItems, setBillItems] = useState<BillItem[]>([
+    { itemNo: '123', itemName: 'Alu Palak', qty: 1, rate: 48, total: 48.00, cgst: 1.2, sgst: 1.2, igst: 0, mkotNo: '21/06:27 A', specialInstructions: '' },
+    { itemNo: '33', itemName: 'Tomato Uttappa', qty: 1, rate: 23, total: 23.00, cgst: 0.58, sgst: 0.58, igst: 0, mkotNo: '21/06:27 A', specialInstructions: '' },
+    { itemNo: '', itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' },
+  ]);
+
+  const [grossAmount, setGrossAmount] = useState(0);
+  const [totalCgst, setTotalCgst] = useState(0);
+  const [totalSgst, setTotalSgst] = useState(0);
+  const [roundOff, setRoundOff] = useState(0);
+  const [finalAmount, setFinalAmount] = useState(0);
+
+  // Mock data for item lookup
+  const masterItems = [
+    { id: 123, name: "Alu Palak", rate: 48 },
+    { id: 33, name: "Tomato Uttappa", rate: 23 },
+    { id: 103, name: "Paneer Butter Masala", rate: 150 },
+    { id: 104, name: "Veg Pulao", rate: 120 },
+    { id: 105, name: "Roti", rate: 15 },
+  ];
+
   useEffect(() => {
+    // Initial calculation
+    calculateTotals(billItems);
+
     // Remove padding or margin from layout containers
     const mainContent = document.querySelector('main.main-content') as HTMLElement;
     const innerContent = document.querySelector('.inner-content.apps-content') as HTMLElement;
@@ -50,7 +87,59 @@ const ModernBill = () => {
       }
       window.removeEventListener('resize', calculateHeights);
     };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const calculateTotals = (items: BillItem[]) => {
+    const updatedItems = items.map(item => {
+      const total = item.qty * item.rate;
+      const cgst = total * 0.025; // 2.5% CGST
+      const sgst = total * 0.025; // 2.5% SGST
+      return { ...item, total, cgst, sgst, igst: 0 };
+    });
+
+    const gross = updatedItems.reduce((sum, item) => sum + item.total, 0);
+    const cgstTotal = updatedItems.reduce((sum, item) => sum + item.cgst, 0);
+    const sgstTotal = updatedItems.reduce((sum, item) => sum + item.sgst, 0);
+
+    const totalBeforeRoundOff = gross + cgstTotal + sgstTotal;
+    const roundedFinalAmount = Math.round(totalBeforeRoundOff);
+    const ro = roundedFinalAmount - totalBeforeRoundOff;
+
+    setGrossAmount(gross);
+    setTotalCgst(cgstTotal);
+    setTotalSgst(sgstTotal);
+    setFinalAmount(roundedFinalAmount);
+    setRoundOff(ro);
+    setBillItems(updatedItems);
+  };
+
+  const handleItemChange = (index: number, field: keyof BillItem, value: string | number) => {
+    const updated = [...billItems];
+    const currentItem = { ...updated[index] };
+
+    if (field === 'itemNo') {
+      currentItem.itemNo = value as string;
+      const found = masterItems.find(i => i.id.toString() === value);
+      if (found) {
+        currentItem.itemName = found.name;
+        currentItem.rate = found.rate;
+      } else {
+        currentItem.itemName = "";
+        currentItem.rate = 0;
+      }
+    } else {
+      (currentItem[field] as any) = value;
+    }
+
+    updated[index] = currentItem;
+    calculateTotals(updated);
+  };
+
+  const handleKeyPress = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      setBillItems([...billItems, { itemNo: "", itemName: "", qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' }]);
+    }
+  };
 
   return (
     <div
@@ -106,7 +195,7 @@ const ModernBill = () => {
           right: 0;
           z-index: 1050;
           background: white;
-          border-bottom: 1px solid #dee2e6;
+          border-bottom: 1px solid #ced4da;
         }
 
         .full-screen-toolbar {
@@ -115,7 +204,7 @@ const ModernBill = () => {
           right: 0;
           z-index: 1049;
           background: white;
-          border-bottom: 1px solid #dee2e6;
+          border-bottom: 1px solid #ced4da;
           top: ${headerHeight}px;
           transition: top 0.1s ease;
         }
@@ -137,16 +226,16 @@ const ModernBill = () => {
           right: 0;
           height: 150px;
           background: white;
-          border-top: 1px solid #dee2e6;
+          border-top: 1px solid #ced4da;
           z-index: 1050;
           overflow-y: auto;
           display: flex;
           flex-direction: column;
         }
 
-        .bill-header {
+        .bill-header { /* This class seems unused, but updating for consistency */
           background: white;
-          border-bottom: 1px solid #dee2e6;
+          border-bottom: 1px solid #ced4da;
           flex-shrink: 0;
         }
 
@@ -166,16 +255,18 @@ const ModernBill = () => {
 
         .modern-table {
           font-size: 0.9rem;
-          margin-bottom: 0;
+          margin-bottom: 0;          
         }
 
         .modern-table th {
           font-weight: 600;
-          border-bottom: 2px solid #dee2e6;
           position: sticky !important;
           top: 0 !important;
           z-index: 20 !important;
           background-color: #f8f9fa !important;
+        }
+        .modern-table.table-bordered {
+          border: 1px solid #ced4da;
         }
 
         .modern-table thead tr.table-primary th {
@@ -185,13 +276,17 @@ const ModernBill = () => {
 
         .modern-table td, .modern-table th {
           padding: 0.5rem;
-          vertical-align: middle;
+          vertical-align: middle;          
+        }
+
+        .modern-table.table-bordered td, .modern-table.table-bordered th {
+          border: 1px solid #ced4da;
         }
 
         .info-card {
-          border: 1px solid #dee2e6;
+          border: 1px solid #ced4da;
           transition: all 0.3s ease;
-          background: #f8f9fa;
+          background: #eef7ff; /* Faint blue background */
         }
 
         .info-card:hover {
@@ -206,7 +301,7 @@ const ModernBill = () => {
         }
 
         .footer-card {
-          border: 1px solid #dee2e6;
+          border: 1px solid #ced4da;
           background: #f8f9fa;
         }
 
@@ -245,12 +340,12 @@ const ModernBill = () => {
 
         .summary-section .modern-table td {
           border-top: none;
-          border-bottom: 1px solid #dee2e6;
+          border-bottom: 1px solid #ced4da !important;
         }
 
         .summary-section .modern-table th {
-          border: none;
           color: #1976d2;
+          border-bottom: 1px solid #ced4da;
         }
 
         .bottom-content {
@@ -301,7 +396,7 @@ const ModernBill = () => {
             <Col md={3}>
               <Card className="h-100 text-center info-card">
                 <Card.Body className="py-1">
-                  <Card.Title className="small text-muted mb-0">Waiter</Card.Title>
+                  <Card.Title className="small text-muted mb-0 fw-bold">Waiter</Card.Title>
                   <Card.Text className="fw-bold mb-0">ASD</Card.Text>
                 </Card.Body>
               </Card>
@@ -309,7 +404,7 @@ const ModernBill = () => {
             <Col md={2}>
               <Card className="h-100 text-center info-card">
                 <Card.Body className="py-1">
-                  <Card.Title className="small text-muted mb-0">PAX</Card.Title>
+                  <Card.Title className="small text-muted mb-0 fw-bold">PAX</Card.Title>
                   <Card.Text className="fw-bold mb-0">1</Card.Text>
                 </Card.Body>
               </Card>
@@ -317,7 +412,7 @@ const ModernBill = () => {
             <Col md={2}>
               <Card className="h-100 text-center info-card">
                 <Card.Body className="py-1">
-                  <Card.Title className="small text-muted mb-0">KOT No</Card.Title>
+                  <Card.Title className="small text-muted mb-0 fw-bold">KOT No</Card.Title>
                   <Card.Text className="fw-bold mb-0">26</Card.Text>
                 </Card.Body>
               </Card>
@@ -325,7 +420,7 @@ const ModernBill = () => {
             <Col md={3}>
               <Card className="h-100 text-center info-card">
                 <Card.Body className="py-1">
-                  <Card.Title className="small text-muted mb-0">Date</Card.Title>
+                  <Card.Title className="small text-muted mb-0 fw-bold">Date</Card.Title>
                   <Card.Text className="fw-bold mb-0">19-10</Card.Text>
                 </Card.Body>
               </Card>
@@ -333,8 +428,8 @@ const ModernBill = () => {
             <Col md={2}>
               <Card className="h-100 text-center total-card">
                 <Card.Body className="py-1">
-                  <Card.Title className="small text-white mb-0">Total</Card.Title>
-                  <Card.Text className="fw-bold text-white mb-0">₹70.00</Card.Text>
+                  <Card.Title className="small text-white mb-0 fw-bold">Total</Card.Title>                  
+                  <Card.Text className="fw-bold text-white mb-0">₹{finalAmount.toFixed(2)}</Card.Text>
                 </Card.Body>
               </Card>
             </Col>
@@ -368,28 +463,52 @@ const ModernBill = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  <tr>
-                    <td>123</td>
-                    <td>Alu Palak</td>
-                    <td className="text-center">1</td>
-                    <td className="text-end">48</td>
-                    <td className="text-end">48.00</td>
-                    <td className="text-center">
-                      <Badge bg="secondary">21/06:27 A</Badge>
-                    </td>
-                    <td></td>
-                  </tr>
-                  <tr>
-                    <td>33</td>
-                    <td>Tomato Uttappa</td>
-                    <td className="text-center">1</td>
-                    <td className="text-end">23</td>
-                    <td className="text-end">23.00</td>
-                    <td className="text-center">
-                      <Badge bg="secondary">21/06:27 A</Badge>
-                    </td>
-                    <td></td>
-                  </tr>
+                  {billItems.map((item, index) => (
+                    <tr key={index}>
+                      <td>
+                        <Form.Control
+                          type="text"
+                          value={item.itemNo}
+                          onChange={(e) => handleItemChange(index, 'itemNo', e.target.value)}
+                          onKeyDown={handleKeyPress}
+                          className="form-control-sm"
+                        />
+                      </td>
+                      <td>{item.itemName}</td>
+                      <td className="text-center">
+                        <Form.Control
+                          type="number"
+                          value={item.qty}
+                          onChange={(e) => handleItemChange(index, 'qty', Number(e.target.value))}
+                          onKeyDown={handleKeyPress}
+                          className="form-control-sm text-center"
+                          style={{ width: '60px', margin: 'auto' }}
+                        />
+                      </td>
+                      <td className="text-end">
+                        <Form.Control
+                          type="number"
+                          value={item.rate}
+                          onChange={(e) => handleItemChange(index, 'rate', Number(e.target.value))}
+                          onKeyDown={handleKeyPress}
+                          className="form-control-sm text-end"
+                        />
+                      </td>
+                      <td className="text-end">{item.total.toFixed(2)}</td>
+                      <td className="text-center">
+                        {item.mkotNo && <Badge bg="secondary">{item.mkotNo}</Badge>}
+                      </td>
+                      <td>
+                        <Form.Control
+                          type="text"
+                          value={item.specialInstructions}
+                          onChange={(e) => handleItemChange(index, 'specialInstructions', e.target.value)}
+                          onKeyDown={handleKeyPress}
+                          className="form-control-sm"
+                        />
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </Table>
             </div>
@@ -419,14 +538,14 @@ const ModernBill = () => {
               <tbody>
                 <tr>
                   <td>N C KDT</td>
-                  <td className="text-end">71.00</td>
+                  <td className="text-end">{grossAmount.toFixed(2)}</td>
                   <td className="text-end">0.00</td>
+                  <td className="text-center">0.00</td>
+                  <td className="text-end">{totalCgst.toFixed(2)}</td>
+                  <td className="text-end">{totalSgst.toFixed(2)}</td>
+                  <td className="text-end">{roundOff.toFixed(2)}</td>
                   <td className="text-center">0</td>
-                  <td className="text-end">0.00</td>
-                  <td className="text-end">0.00</td>
-                  <td className="text-end">-1.00</td>
-                  <td className="text-center">0</td>
-                  <td className="text-end fw-bold text-success">70.00</td>
+                  <td className="text-end fw-bold text-success">{finalAmount.toFixed(2)}</td>
                 </tr>
               </tbody>
             </Table>
