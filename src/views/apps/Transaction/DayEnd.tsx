@@ -256,7 +256,7 @@ const DayEnd = () => {
       total_amount: totalSales, // Add total sales amount
       outlet_id: user?.outletid || 1, // Use outlet_id from user context or fallback to 1
       hotel_id: user?.hotelid || 1, // Use hotel_id from user context or fallback to 1
-      user_id: user?.id || 1, // Use user id from context or fallback to 1
+      user_id: user?.userid || 1, // Use user id from context or fallback to 1
       system_datetime: new Date().toISOString(), // Current system datetime
     };
 

@@ -41,6 +41,8 @@ const ModernBill = () => {
   const location = useLocation();
   const tableId = location.state?.tableId;
 
+  console.log('Table ID:', tableId);
+
   const inputRefs = useRef<(HTMLInputElement | null)[][]>([]);
 
   // Mock data for item lookup
