@@ -68,13 +68,11 @@ const ModernBill = () => {
     if (mainContent) {
       mainContent.style.padding = '0';
       mainContent.style.margin = '0';
-      mainContent.style.width = '100%';
     }
 
     if (innerContent) {
       innerContent.style.padding = '0';
       innerContent.style.margin = '0';
-      innerContent.style.width = '100%';
     }
 
     // Calculate heights dynamically
@@ -109,10 +107,12 @@ const ModernBill = () => {
       if (mainContent) {
         mainContent.style.padding = '';
         mainContent.style.margin = '';
+        mainContent.style.width = '';
       }
       if (innerContent) {
         innerContent.style.padding = '';
         innerContent.style.margin = '';
+        innerContent.style.width = '';
       }
       window.removeEventListener('resize', calculateHeights);
       document.removeEventListener('keydown', handleEscapeKey);
@@ -227,7 +227,6 @@ const ModernBill = () => {
         .bill-header,
         .content-wrapper,
         .modern-bill {
-          width: 100vw !important;
           max-width: 100% !important;
           margin-right: 0 !important;
           padding-right: 0 !important;
