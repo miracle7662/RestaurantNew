@@ -1,8 +1,8 @@
-# TODO: Implement Table Click to Navigate to Billview with Table ID
-
-## Steps to Complete:
-- [x] Update TableCard component in Tableview.tsx to accept onClick prop and attach it to the div.
-- [x] Add handleTableClick function in the main App component of Tableview.tsx to navigate to '/apps/Billview' with tableId in state.
-- [x] Pass the handleTableClick to each TableCard in the table grid.
-- [x] Update Billview.tsx to use useLocation to retrieve tableId from state and log it.
-- [x] Test the navigation by clicking a table and verifying Billview loads with tableId.
+- [ ] Update salesSummary table to display Badge for revKot
+- [ ] Update itemWiseSales table to display Badge for revKot
+- [ ] Update categoryWiseSales table to display Badge for revKot
+- [ ] Update paymentMethodWiseSales table to display Badge for revKot
+- [ ] Update hourlySales table to display Badge for revKot
+- [ ] Update tableWiseSales table to display Badge for revKot
+- [ ] Update waiterWiseSales table to display Badge for revKot
+- [ ] Test the component to ensure badges render correctly
