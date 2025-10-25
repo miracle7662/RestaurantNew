@@ -1,17 +1,72 @@
-import React, { useState, useEffect } from "react";
-import { Card, Table, Form, Button, Row, Col, Modal, Dropdown, Tab, Tabs, Badge } from "react-bootstrap";
+import { useState, useEffect } from "react";
+import { Card, Table, Form, Button, Row, Col, Dropdown } from "react-bootstrap";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 
-const ReportPage = () => {
-  // Define a type for report data with an index signature
-  type ReportData = {
-    [key: string]: any;
-  };
+interface Bill {
+  [key: string]: any; // Index signature for dynamic property access in export functions
+  billNo: string;
+  billDate: string;
+  kotNo: string;
+  revKot: boolean;
+  grossAmount: number;
+  discount: number;
+  amount: number;
+  cgst: number;
+  sgst: number;
+  cess: number;
+  serviceCharge: number;
+  totalAmount: number;
+  paymentMode: string;
+  customerName: string;
+  address: string;
+  mobile: string;
+  orderType: string;
+  itemsCount: number;
+  tax: number;
+  card?: number;
+  ncName?: string;
+  waiter?: string;
+  type?: string;
+  items?: number;
+  reverseBill?: number;
+  date: string;
+  captain?: string;
+  ncKot?: boolean;
+  cash?: number;
+  credit?: number;
+  user?: string;
+  orderNo?: string;
+  outlet?: string;
+}
 
-  const [bills, setBills] = useState<any[]>([]);
-  const [filteredBills, setFilteredBills] = useState<any[]>([]);
+const defaultBill: Bill = {
+  billNo: "N/A",
+  billDate: "",
+  kotNo: "N/A",
+  revKot: false,
+  grossAmount: 0,
+  discount: 0,
+  amount: 0,
+  cgst: 0,
+  sgst: 0,
+  cess: 0,
+  serviceCharge: 0,
+  totalAmount: 0,
+  paymentMode: "N/A",
+  customerName: "N/A",
+  address: "N/A",
+  mobile: "N/A",
+  orderType: "N/A",
+  itemsCount: 0,
+  tax: 0,
+  date: "",
+};
+
+const ReportPage = () => {
+  const [bills, setBills] = useState<Bill[]>([]);
+  const [filteredBills, setFilteredBills] = useState<Bill[]>([]);
   const [reportType, setReportType] = useState("daily");
   const [reportCategory, setReportCategory] = useState("billSummary");
   const [customRange, setCustomRange] = useState({ start: "", end: "" });
@@ -20,110 +75,9 @@ const ReportPage = () => {
     paymentMode: "",
     outlet: ""
   });
-  const [ingredientUsage, setIngredientUsage] = useState<any[]>([]);
-
-  // Mock recipes data
-  const recipes = {
-    "Paneer Butter Masala": { "Paneer": 0.25, "Butter": 0.05, "Tomato": 0.1, "Cream": 0.02, "Spices": 0.01 },
-    "Naan": { "Flour": 0.1, "Oil": 0.01, "Yeast": 0.005, "Yogurt": 0.02 },
-    "Biryani": { "Rice": 0.2, "Chicken": 0.15, "Spices": 0.02, "Onion": 0.05, "Oil": 0.01 },
-    "Butter Chicken": { "Chicken": 0.2, "Butter": 0.03, "Cream": 0.03, "Tomato": 0.08, "Spices": 0.01 },
-    "Dal Makhani": { "Lentils": 0.15, "Butter": 0.02, "Cream": 0.01, "Tomato": 0.05, "Spices": 0.005 }
-  };
-
-  const ingredientCosts = {
-    "Paneer": 200, "Butter": 50, "Tomato": 40, "Cream": 80, "Spices": 300,
-    "Flour": 30, "Oil": 120, "Yeast": 100, "Yogurt": 60, "Rice": 50,
-    "Chicken": 150, "Onion": 20, "Lentils": 80
-  };
-
-  // Mock inventory opening stock and purchases for the period
-  const mockInventory = {
-    "Paneer": { opening: 10, purchase: 20, unit: "kg" },
-    "Butter": { opening: 5, purchase: 10, unit: "kg" },
-    "Tomato": { opening: 15, purchase: 25, unit: "kg" },
-    "Cream": { opening: 3, purchase: 5, unit: "L" },
-    "Spices": { opening: 2, purchase: 3, unit: "kg" },
-    "Flour": { opening: 20, purchase: 30, unit: "kg" },
-    "Oil": { opening: 10, purchase: 15, unit: "L" },
-    "Yeast": { opening: 1, purchase: 2, unit: "kg" },
-    "Yogurt": { opening: 8, purchase: 12, unit: "L" },
-    "Rice": { opening: 25, purchase: 35, unit: "kg" },
-    "Chicken": { opening: 12, purchase: 18, unit: "kg" },
-    "Onion": { opening: 10, purchase: 15, unit: "kg" },
-    "Lentils": { opening: 15, purchase: 20, unit: "kg" }
-  };
-
-  // Mock data for new reports
-  const mockCreditDetails = {
-    "Bill001": { cardNumber: "****1234", bank: "HDFC", amount: 500 },
-    "Bill002": { cardNumber: "****5678", bank: "SBI", amount: 300 },
-    // Add more as needed
-  };
-
-  const mockReverseKOTs = [
-    { id: 1, billNo: "Bill003", reason: "Customer Cancel", timestamp: new Date().toISOString(), billDate: new Date().toISOString().split('T')[0], kotNo: "KOT001", revKot: false, grossAmount: 1000, discount: 50, amount: 950, cgst: 95, sgst: 95, cess: 0, serviceCharge: 20, totalAmount: 1160, paymentMode: "Cash", customerName: "John Doe", address: "123 Main St", mobile: "1234567890", orderType: "Dine In" },
-    // Add more
-  ];
-
-  const mockKitchens = ["Main Kitchen", "Tandoor", "Bar"];
-  const mockKitchenSales = {
-    "Main Kitchen": 15000,
-    "Tandoor": 8000,
-    "Bar": 5000
-  };
-
-  const mockNCKOTs = [
-    { id: 1, kotNo: "KOT001", status: "NC", items: ["Item1"], billNo: "Bill001", billDate: new Date().toISOString().split('T')[0], revKot: false, grossAmount: 1000, discount: 50, amount: 950, cgst: 95, sgst: 95, cess: 0, serviceCharge: 20, totalAmount: 1160, paymentMode: "Cash", customerName: "John Doe", address: "123 Main St", mobile: "1234567890", orderType: "Dine In" },
-    // Add more
-  ];
-
-  const mockAPCPayments = [
-    { type: "APC", amount: 2000, details: "Advance Payment", billNo: "Bill001", billDate: new Date().toISOString().split('T')[0], kotNo: "KOT001", revKot: false, grossAmount: 1000, discount: 50, amount: 950, cgst: 95, sgst: 95, cess: 0, serviceCharge: 20, totalAmount: 1160, paymentMode: "Cash", customerName: "John Doe", address: "123 Main St", mobile: "1234567890", orderType: "Dine In" },
-    { type: "APP", amount: 1500, details: "Party Payment", billNo: "Bill002", billDate: new Date().toISOString().split('T')[0], kotNo: "KOT002", revKot: false, grossAmount: 800, discount: 40, amount: 760, cgst: 76, sgst: 76, cess: 0, serviceCharge: 15, totalAmount: 927, paymentMode: "Card", customerName: "Jane Doe", address: "456 Oak St", mobile: "0987654321", orderType: "Take Away" }
-  ];
-
-  const mockSpecialItems = [
-    { name: "Special Dish", qty: 5, sales: 2500, billNo: "Bill001", billDate: new Date().toISOString().split('T')[0], kotNo: "KOT001", revKot: false, grossAmount: 1000, discount: 50, amount: 950, cgst: 95, sgst: 95, cess: 0, serviceCharge: 20, totalAmount: 1160, paymentMode: "Cash", customerName: "John Doe", address: "123 Main St", mobile: "1234567890", orderType: "Dine In" },
-    // Add more
-  ];
-
-  const mockInterDeptCash = [
-    { from: "Kitchen", to: "Front Desk", amount: 1000, type: "Paid", billNo: "Bill001", billDate: new Date().toISOString().split('T')[0], kotNo: "KOT001", revKot: false, grossAmount: 1000, discount: 50, amount: 950, cgst: 95, sgst: 95, cess: 0, serviceCharge: 20, totalAmount: 1160, paymentMode: "Cash", customerName: "John Doe", address: "123 Main St", mobile: "1234567890", orderType: "Dine In" },
-    { from: "Front Desk", to: "Bar", amount: 500, type: "Received", billNo: "Bill002", billDate: new Date().toISOString().split('T')[0], kotNo: "KOT002", revKot: false, grossAmount: 800, discount: 40, amount: 760, cgst: 76, sgst: 76, cess: 0, serviceCharge: 15, totalAmount: 927, paymentMode: "Card", customerName: "Jane Doe", address: "456 Oak St", mobile: "0987654321", orderType: "Take Away" }
-  ];
-
-  const mockUserShifts = [
-    { user: "User1", shift: "Morning", sales: 10000, billNo: "Bill001", billDate: new Date().toISOString().split('T')[0], kotNo: "KOT001", revKot: false, grossAmount: 1000, discount: 50, amount: 950, cgst: 95, sgst: 95, cess: 0, serviceCharge: 20, totalAmount: 1160, paymentMode: "Cash", customerName: "John Doe", address: "123 Main St", mobile: "1234567890", orderType: "Dine In" },
-    { user: "User2", shift: "Evening", sales: 12000, billNo: "Bill002", billDate: new Date().toISOString().split('T')[0], kotNo: "KOT002", revKot: false, grossAmount: 800, discount: 40, amount: 760, cgst: 76, sgst: 76, cess: 0, serviceCharge: 15, totalAmount: 927, paymentMode: "Card", customerName: "Jane Doe", address: "456 Oak St", mobile: "0987654321", orderType: "Take Away" }
-  ];
-
-  const mockMonthlySales = [
-    { month: "Jan", sales: 50000, billNo: "Bill001", billDate: new Date().toISOString().split('T')[0], kotNo: "KOT001", revKot: false, grossAmount: 1000, discount: 50, amount: 950, cgst: 95, sgst: 95, cess: 0, serviceCharge: 20, totalAmount: 1160, paymentMode: "Cash", customerName: "John Doe", address: "123 Main St", mobile: "1234567890", orderType: "Dine In" },
-    { month: "Feb", sales: 55000, billNo: "Bill002", billDate: new Date().toISOString().split('T')[0], kotNo: "KOT002", revKot: false, grossAmount: 800, discount: 40, amount: 760, cgst: 76, sgst: 76, cess: 0, serviceCharge: 15, totalAmount: 927, paymentMode: "Card", customerName: "Jane Doe", address: "456 Oak St", mobile: "0987654321", orderType: "Take Away" }
-  ];
-
-  const mockPaymentModeSales = [
-    { mode: "Cash", sales: 20000, billNo: "Bill001", billDate: new Date().toISOString().split('T')[0], kotNo: "KOT001", revKot: false, grossAmount: 1000, discount: 50, amount: 950, cgst: 95, sgst: 95, cess: 0, serviceCharge: 20, totalAmount: 1160, paymentMode: "Cash", customerName: "John Doe", address: "123 Main St", mobile: "1234567890", orderType: "Dine In" },
-    { mode: "Card", sales: 15000, billNo: "Bill002", billDate: new Date().toISOString().split('T')[0], kotNo: "KOT002", revKot: false, grossAmount: 800, discount: 40, amount: 760, cgst: 76, sgst: 76, cess: 0, serviceCharge: 15, totalAmount: 927, paymentMode: "Card", customerName: "Jane Doe", address: "456 Oak St", mobile: "0987654321", orderType: "Take Away" }
-  ];
-
-  const mockKitchenAlloc = [
-    { kitchen: "Main", allocation: "80%", billNo: "Bill001", billDate: new Date().toISOString().split('T')[0], kotNo: "KOT001", revKot: false, grossAmount: 1000, discount: 50, amount: 950, cgst: 95, sgst: 95, cess: 0, serviceCharge: 20, totalAmount: 1160, paymentMode: "Cash", customerName: "John Doe", address: "123 Main St", mobile: "1234567890", orderType: "Dine In" },
-    { kitchen: "Tandoor", allocation: "20%", billNo: "Bill002", billDate: new Date().toISOString().split('T')[0], kotNo: "KOT002", revKot: false, grossAmount: 800, discount: 40, amount: 760, cgst: 76, sgst: 76, cess: 0, serviceCharge: 15, totalAmount: 927, paymentMode: "Card", customerName: "Jane Doe", address: "456 Oak St", mobile: "0987654321", orderType: "Take Away" }
-  ];
-
-  const mockDayEnd = { totalSales: 30000, cashInHand: 25000, discrepancies: [], billNo: "Bill001", billDate: new Date().toISOString().split('T')[0], kotNo: "KOT001", revKot: false, grossAmount: 1000, discount: 50, amount: 950, cgst: 95, sgst: 95, cess: 0, serviceCharge: 20, totalAmount: 1160, paymentMode: "Cash", customerName: "John Doe", address: "123 Main St", mobile: "1234567890", orderType: "Dine In" };
-
-  const mockHandover = { handoverTime: new Date().toISOString(), notes: "Smooth handover", billNo: "Bill001", billDate: new Date().toISOString().split('T')[0], kotNo: "KOT001", revKot: false, grossAmount: 1000, discount: 50, amount: 950, cgst: 95, sgst: 95, cess: 0, serviceCharge: 20, totalAmount: 1160, paymentMode: "Cash", customerName: "John Doe", address: "123 Main St", mobile: "1234567890", orderType: "Dine In" };
-
-  const mockBillReprinted = [
-    { billNo: "Bill004", reprints: 2, reason: "Customer Request", billDate: new Date().toISOString().split('T')[0], kotNo: "KOT004", revKot: false, grossAmount: 1200, discount: 60, amount: 1140, cgst: 114, sgst: 114, cess: 0, serviceCharge: 25, totalAmount: 1393, paymentMode: "UPI", customerName: "Bob Smith", address: "789 Pine St", mobile: "1122334455", orderType: "Delivery" }
-  ];
-
-  const mockKotUsed = [
-    { kotNo: "KOT002", usedIn: "Bill005", items: 3, billDate: new Date().toISOString().split('T')[0], revKot: false, grossAmount: 900, discount: 45, amount: 855, cgst: 85.5, sgst: 85.5, cess: 0, serviceCharge: 18, totalAmount: 1044, paymentMode: "Cash", customerName: "Alice Johnson", address: "321 Elm St", mobile: "5566778899", orderType: "Dine In" }
-  ];
+  const [ingredientUsage, setIngredientUsage] = useState<unknown[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     loadBills();
@@ -133,36 +87,53 @@ const ReportPage = () => {
     filterBills(bills);
   }, [reportType, reportCategory, filters, customRange]);
 
-  const loadBills = () => {
-    const quickBills = JSON.parse(localStorage.getItem("quickBills") || "[]");
-    const normalBills = JSON.parse(localStorage.getItem("normalBills") || "[]");
-    const allBills = [...quickBills, ...normalBills].map(bill => ({
-      ...bill,
-      itemsCount: bill.items?.reduce((q: number, i: any) => q + i.qty, 0) || 0,
-      tax: (bill.cgstAmt || 0) + (bill.sgstAmt || 0),
-      // Ensure all required fields are present, mock if not
-      billDate: bill.date || bill.createdAt || new Date().toISOString().split('T')[0],
-      kotNo: bill.kotNo || "N/A",
-      revKot: bill.revKot || false,
-      grossAmount: bill.grossAmount || bill.subTotal || 0,
-      discount: bill.discount || 0,
-      amount: bill.amount || (bill.grandTotal - (bill.cgstAmt || 0) - (bill.sgstAmt || 0) - (bill.cess || 0) - (bill.serviceCharge || 0)) || 0,
-      cgst: bill.cgstAmt || 0,
-      sgst: bill.sgstAmt || 0,
-      cess: bill.cess || 0,
-      serviceCharge: bill.serviceCharge || 0,
-      totalAmount: bill.grandTotal || 0,
-      paymentMode: bill.paymentMode || "Cash",
-      customerName: bill.customerName || "N/A",
-      address: bill.address || "N/A",
-      mobile: bill.mobile || "N/A",
-      orderType: bill.orderType || "N/A"
-    }));
-    setBills(allBills);
-    filterBills(allBills);
+  const loadBills = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('http://localhost:3001/api/handover/data');
+      if (!response.ok) {
+        throw new Error('Failed to fetch report data');
+      }
+      const data = await response.json();
+      if (data.success) {
+        console.log("Fetched bills data:", data.data.orders);
+        const orders: any[] = data.data.orders || [];
+        const allBills: Bill[] = orders.map((order: any) => ({
+          ...order,
+          billNo: order.orderNo,
+          billDate: order.date ? new Date(order.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+          kotNo: order.kotNo || "N/A",
+          revKot: order.reverseBill == 1,
+          grossAmount: order.grossAmount || order.amount || 0,
+          discount: order.discount || 0,
+          amount: order.amount || 0,
+          cgst: order.cgst || 0,
+          sgst: order.sgst || 0,
+          cess: 0,
+          serviceCharge: 0,
+          totalAmount: order.amount || 0,
+          paymentMode: order.paymentMode || "Cash",
+          customerName: order.ncName || order.waiter || "N/A",
+          address: "N/A",
+          mobile: "N/A",
+          orderType: order.type || "Dine In",
+          itemsCount: order.items || 0,
+          tax: (order.cgst || 0) + (order.sgst || 0),
+        }));
+        setBills(allBills);
+        filterBills(allBills);
+      } else {
+        throw new Error(data.message || 'Failed to fetch data');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+      console.error('Error fetching report data:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const filterBills = (data: any[]) => {
+  const filterBills = (data: Bill[]) => {
     const today = new Date();
     let filtered = data;
 
@@ -203,104 +174,138 @@ const ReportPage = () => {
     calculateIngredientUsage(filtered);
   };
 
-  const calculateIngredientUsage = (bills: any[]) => {
-    const usage: any = {};
-
-    bills.forEach(bill => {
-      bill.items?.forEach((item: any) => {
-        const recipe = recipes[item.name as keyof typeof recipes];
-        if (recipe) {
-          Object.entries(recipe).forEach(([ingredient, quantityPerItem]) => {
-            if (!usage[ingredient]) {
-              usage[ingredient] = {
-                ingredient,
-                unit: "kg",
-                quantityUsed: 0,
-                cost: 0
-              };
-            }
-            const quantity = item.qty * quantityPerItem;
-            usage[ingredient].quantityUsed += quantity;
-            usage[ingredient].cost += quantity * ingredientCosts[ingredient as keyof typeof ingredientCosts];
-          });
-        }
-      });
-    });
-
-    // Extend with inventory data for balance calculation
-    const extendedUsage = Object.values(usage).map((u: any) => {
-      const inv = mockInventory[u.ingredient as keyof typeof mockInventory];
-      if (inv) {
-        const totalAvailable = inv.opening + inv.purchase;
-        const balance = totalAvailable - u.quantityUsed;
-        const wastage = Math.max(0, balance < 0 ? -balance : 0); // Simple wastage assumption if negative
-        return { ...u, opening: inv.opening, purchase: inv.purchase, balance: Math.max(0, balance), wastage: 0.5 }; // Mock wastage
-      }
-      return u;
-    });
-
-    setIngredientUsage(extendedUsage);
+  const calculateIngredientUsage = (bills: Bill[]) => {
+    // Simplified without recipes, as items not detailed
+    setIngredientUsage([]);
   };
 
   // Calculate payment summary
-  const calculatePaymentSummary = (bills: any[]) => {
-    const summary: any = {};
+  const calculatePaymentSummary = (bills: Bill[]) => {
+    const summary: { [key: string]: number } = {};
     bills.forEach(bill => {
       const mode = bill.paymentMode || "Cash";
       summary[mode] = (summary[mode] || 0) + (bill.totalAmount || 0);
     });
-    return Object.entries(summary).map(([mode, total]) => ({ mode, total: total as number, billNo: bills[0]?.billNo || "N/A", billDate: bills[0]?.billDate || "", kotNo: bills[0]?.kotNo || "", revKot: bills[0]?.revKot || false, grossAmount: bills[0]?.grossAmount || 0, discount: bills[0]?.discount || 0, amount: bills[0]?.amount || 0, cgst: bills[0]?.cgst || 0, sgst: bills[0]?.sgst || 0, cess: bills[0]?.cess || 0, serviceCharge: bills[0]?.serviceCharge || 0, totalAmount: bills[0]?.totalAmount || 0, paymentMode: mode, customerName: bills[0]?.customerName || "", address: bills[0]?.address || "", mobile: bills[0]?.mobile || "", orderType: bills[0]?.orderType || "" }));
+    return Object.entries(summary).map(([mode, total]) => ({ ...defaultBill, ...(bills[0] || {}), mode, total: total as number }));
   };
 
-  // New calculations for added reports
-  const calculateBillSummary = (bills: any[]) => {
+  // Calculations using fetched data
+  const calculateBillSummary = (bills: Bill[]) => {
     return bills.map(bill => ({
       ...bill,
-      creditDetails: mockCreditDetails[bill.billNo] || { cardNumber: "N/A", bank: "N/A", amount: 0 }
+      creditDetails: { cardNumber: "N/A", bank: "N/A", amount: bill.card || 0 }
     }));
   };
 
-  const calculateCreditSummary = (bills: any[]) => {
-    const credits = bills.filter(b => b.paymentMode === "Credit").reduce((acc, b) => acc + (b.totalAmount || 0), 0);
-    return [{ type: "Total Credit", amount: credits, billNo: bills[0]?.billNo || "N/A", billDate: bills[0]?.billDate || "", kotNo: bills[0]?.kotNo || "", revKot: bills[0]?.revKot || false, grossAmount: bills[0]?.grossAmount || 0, discount: bills[0]?.discount || 0, amount: bills[0]?.amount || 0, cgst: bills[0]?.cgst || 0, sgst: bills[0]?.sgst || 0, cess: bills[0]?.cess || 0, serviceCharge: bills[0]?.serviceCharge || 0, totalAmount: bills[0]?.totalAmount || 0, paymentMode: "Credit", customerName: bills[0]?.customerName || "", address: bills[0]?.address || "", mobile: bills[0]?.mobile || "", orderType: bills[0]?.orderType || "" }];
+  const calculateCreditSummary = (bills: Bill[]) => {
+    const credits = bills.filter(b => b.paymentMode?.toLowerCase().includes('credit')).reduce((acc, b) => acc + (b.totalAmount || 0), 0);
+    return [{ ...defaultBill, ...(bills[0] || {}), type: "Total Credit", amount: credits }];
   };
 
-  const calculateDiscountSummary = (bills: any[]) => {
+  const calculateDiscountSummary = (bills: Bill[]) => {
     const totalDiscount = bills.reduce((s, b) => s + (b.discount || 0), 0);
-    const avgDiscount = totalDiscount / bills.length || 0;
-    return [{ type: "Total Discount", amount: totalDiscount, billNo: bills[0]?.billNo || "N/A", billDate: bills[0]?.billDate || "", kotNo: bills[0]?.kotNo || "", revKot: bills[0]?.revKot || false, grossAmount: bills[0]?.grossAmount || 0, discount: totalDiscount, amount: bills[0]?.amount || 0, cgst: bills[0]?.cgst || 0, sgst: bills[0]?.sgst || 0, cess: bills[0]?.cess || 0, serviceCharge: bills[0]?.serviceCharge || 0, totalAmount: bills[0]?.totalAmount || 0, paymentMode: bills[0]?.paymentMode || "", customerName: bills[0]?.customerName || "", address: bills[0]?.address || "", mobile: bills[0]?.mobile || "", orderType: bills[0]?.orderType || "" }, { type: "Avg Discount", amount: avgDiscount, billNo: bills[0]?.billNo || "N/A", billDate: bills[0]?.billDate || "", kotNo: bills[0]?.kotNo || "", revKot: bills[0]?.revKot || false, grossAmount: bills[0]?.grossAmount || 0, discount: avgDiscount, amount: bills[0]?.amount || 0, cgst: bills[0]?.cgst || 0, sgst: bills[0]?.sgst || 0, cess: bills[0]?.cess || 0, serviceCharge: bills[0]?.serviceCharge || 0, totalAmount: bills[0]?.totalAmount || 0, paymentMode: bills[0]?.paymentMode || "", customerName: bills[0]?.customerName || "", address: bills[0]?.address || "", mobile: bills[0]?.mobile || "", orderType: bills[0]?.orderType || "" }];
+    const avgDiscount = bills.length > 0 ? totalDiscount / bills.length : 0;
+    return [{ ...defaultBill, ...(bills[0] || {}), type: "Total Discount", amount: totalDiscount, discount: totalDiscount }, { ...defaultBill, ...(bills[0] || {}), type: "Avg Discount", amount: avgDiscount, discount: avgDiscount }];
   };
 
-  const calculateReverseKOTsBills = () => mockReverseKOTs;
+  const calculateReverseKOTsBills = () => {
+    const reversed = filteredBills.filter(b => b.revKot).map((b, idx) => ({ ...b, id: idx + 1, reason: "Reversal", timestamp: b.date }));
+    return reversed;
+  };
 
   const calculateKitchenWiseSales = () => {
-    // Mock based on kitchens
-    return Object.entries(mockKitchenSales).map(([kitchen, sales]) => ({ kitchen, sales, billNo: "N/A", billDate: "", kotNo: "", revKot: false, grossAmount: 0, discount: 0, amount: 0, cgst: 0, sgst: 0, cess: 0, serviceCharge: 0, totalAmount: sales, paymentMode: "", customerName: "", address: "", mobile: "", orderType: "" }));
+    // Aggregate by captain as kitchen proxy
+    const grouped = filteredBills.reduce<{ [key: string]: { kitchen: string; sales: number } & Bill }>((acc, b) => {
+      const kitchen = b.captain || "Unknown";
+      if (!acc[kitchen]) acc[kitchen] = { kitchen, sales: 0, ...b };
+      acc[kitchen].sales += b.amount || 0;
+      return acc;
+    }, {});
+    return Object.values(grouped) as (({ kitchen: string; sales: number } & Bill)[] & { [key: string]: any });
   };
 
-  const calculateNCKOTDetails = () => mockNCKOTs;
+  const calculateNCKOTDetails = () => {
+    const ncKots = filteredBills.filter(b => b.ncKot).map((b, idx) => ({ ...b, id: idx + 1, status: "NC", items: [b.kotNo || "N/A"] }));
+    return ncKots;
+  };
 
-  const calculateAPCAPPSummary = () => mockAPCPayments;
+  const calculateAPCAPPSummary = () => {
+    // Use cash/credit as proxy
+    const apc = filteredBills.filter(b => (b.cash ?? 0) > 0).map((b, idx) => ({ ...b, type: "APC", amount: b.cash, details: "Cash Payment", id: idx + 1 }));
+    return apc;
+  };
 
-  const calculateSpecialItemsSummary = () => mockSpecialItems;
+  const calculateSpecialItemsSummary = () => {
+    // High value bills as special
+    const special = filteredBills.filter(b => b.amount > (Math.max(...filteredBills.map(f => f.amount || 0)) * 0.5 || 0)).map((b, idx) => ({ ...b, name: "Special Order", qty: b.items || 1, sales: b.amount, id: idx + 1 }));
+    return special;
+  };
 
-  const calculateInterDeptCash = () => mockInterDeptCash;
+  const calculateInterDeptCash = () => {
+    // Use credit as inter-dept proxy
+    const inter = filteredBills.filter(b => (b.credit ?? 0) > 0).map((b, idx) => ({ ...b, from: "Front Desk", to: "Accounts", amount: b.credit, type: "Paid", id: idx + 1 }));
+    return inter;
+  };
 
-  const calculateDailySalesUserShift = () => mockUserShifts;
+  const calculateDailySalesUserShift = () => {
+    const grouped = filteredBills.reduce<{ [key: string]: { user?: string; shift?: string; sales: number } & Bill }>((acc, b) => {
+      const userShift = `${b.user || 'Unknown'}-${b.captain || 'Morning'}`;
+      if (!acc[userShift]) acc[userShift] = { ...b, user: b.user, shift: b.captain, sales: 0 };
+      acc[userShift].sales += b.amount || 0;
+      return acc;
+    }, {});
+    return Object.values(grouped) as (({ user?: string; shift?: string; sales: number } & Bill)[] & { [key: string]: any });
+  };
 
-  const calculateMonthlySalesSummary = () => mockMonthlySales;
+  const calculateMonthlySalesSummary = () => {
+    const monthly = filteredBills.reduce<{ [key: string]: { month: string; sales: number } & Bill }>((acc, b) => {
+      const month = new Date(b.billDate).toLocaleString('default', { month: 'short' });
+      if (!acc[month]) acc[month] = { ...b, month, sales: 0 };
+      acc[month].sales += b.amount || 0;
+      return acc;
+    }, {});
+    return Object.values(monthly) as (({ month: string; sales: number } & Bill)[] & { [key: string]: any });
+  };
 
-  const calculatePaymentModeSalesSummary = (bills: any[]) => calculatePaymentSummary(bills); // Reuse
+  const calculatePaymentModeSalesSummary = (bills: Bill[]) => calculatePaymentSummary(bills);
 
-  const calculateKitchenAllocation = () => mockKitchenAlloc;
+  const calculateKitchenAllocation = () => {
+    // Similar to kitchen wise, add allocation percentage
+    const totalSales = filteredBills.reduce((sum, b) => sum + (b.amount || 0), 0);
+    const grouped = filteredBills.reduce<{ [key: string]: { kitchen: string; allocation: string; sales: number } & Bill }>((acc, b) => {
+      const kitchen = b.captain || "Unknown";
+      if (!acc[kitchen]) acc[kitchen] = { kitchen, allocation: "0%", sales: 0, ...b };
+      acc[kitchen].sales += b.amount || 0;
+      return acc;
+    }, {});
+    Object.values(grouped).forEach(g => {
+      g.allocation = totalSales > 0 ? `${((g.sales / totalSales) * 100).toFixed(1)}%` : "0%";
+    });
+    return Object.values(grouped) as (({ kitchen: string; allocation: string; sales: number } & Bill)[] & { [key: string]: any });
+  };
 
-  const calculateDayEndReport = () => ({ ...mockDayEnd, billNo: mockDayEnd.billNo, billDate: mockDayEnd.billDate, kotNo: mockDayEnd.kotNo, revKot: mockDayEnd.revKot, grossAmount: mockDayEnd.grossAmount, discount: mockDayEnd.discount, amount: mockDayEnd.amount, cgst: mockDayEnd.cgst, sgst: mockDayEnd.sgst, cess: mockDayEnd.cess, serviceCharge: mockDayEnd.serviceCharge, totalAmount: mockDayEnd.totalSales, paymentMode: mockDayEnd.paymentMode, customerName: mockDayEnd.customerName, address: mockDayEnd.address, mobile: mockDayEnd.mobile, orderType: mockDayEnd.orderType });
+  const calculateDayEndReport = () => ({ 
+    totalSales: filteredBills.reduce((sum, b) => sum + (b.totalAmount || 0), 0),
+    cashInHand: filteredBills.reduce((sum, b) => sum + (b.cash || 0), 0),
+    discrepancies: [],
+    ...defaultBill, ...(filteredBills[0] || {})
+  });
 
-  const calculateHandoverReport = () => ({ ...mockHandover, billNo: mockHandover.billNo, billDate: mockHandover.billDate, kotNo: mockHandover.kotNo, revKot: mockHandover.revKot, grossAmount: mockHandover.grossAmount, discount: mockHandover.discount, amount: mockHandover.amount, cgst: mockHandover.cgst, sgst: mockHandover.sgst, cess: mockHandover.cess, serviceCharge: mockHandover.serviceCharge, totalAmount: mockHandover.totalAmount, paymentMode: mockHandover.paymentMode, customerName: mockHandover.customerName, address: mockHandover.address, mobile: mockHandover.mobile, orderType: mockHandover.orderType });
+  const calculateHandoverReport = () => ({ 
+    handoverTime: new Date().toISOString(),
+    notes: `Handover for ${filteredBills.length} bills`,
+    ...defaultBill, ...(filteredBills[0] || {})
+  });
 
-  const calculateBillReprinted = () => mockBillReprinted;
+  const calculateBillReprinted = () => {
+    // Mock reprints not available, return empty or use all as 0
+    return filteredBills.map((b, idx) => ({ ...b, reprints: 0, reason: "N/A" }));
+  };
 
-  const calculateKotUsedSummary = () => mockKotUsed;
+  const calculateKotUsedSummary = () => {
+    // Use all KOTs
+    return filteredBills.map((b, idx) => ({ ...b, usedIn: b.orderNo ?? "N/A", items: b.items || 0, id: idx + 1 }));
+  };
 
   const billSummaryData = calculateBillSummary(filteredBills);
   const creditSummary = calculateCreditSummary(filteredBills);
@@ -335,7 +340,7 @@ const ReportPage = () => {
     let data: any[] = [];
     const commonFields = ["billNo", "billDate", "kotNo", "revKot", "grossAmount", "discount", "amount", "cgst", "sgst", "cess", "serviceCharge", "totalAmount", "paymentMode", "customerName", "address", "mobile", "orderType"];
     if (reportCategory === "billSummary") {
-      data = billSummaryData.map((b: ReportData) => {
+      data = billSummaryData.map(b => {
         const row: any = {};
         commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = b[field]);
         row["Card Number"] = b.creditDetails.cardNumber;
@@ -344,7 +349,7 @@ const ReportPage = () => {
         return row;
       });
     } else if (reportCategory === "creditSummary") {
-      data = creditSummary.map((c: ReportData) => {
+      data = creditSummary.map((c: { [key: string]: any }) => {
         const row: any = {};
         commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = c[field]);
         row["Type"] = c.type;
@@ -352,7 +357,7 @@ const ReportPage = () => {
         return row;
       });
     } else if (reportCategory === "discountSummary") {
-      data = discountSummary.map((d: ReportData) => {
+      data = discountSummary.map((d: { [key: string]: any }) => {
         const row: any = {};
         commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = d[field]);
         row["Type"] = d.type;
@@ -360,7 +365,7 @@ const ReportPage = () => {
         return row;
       });
     } else if (reportCategory === "reverseKOTs") {
-      data = reverseKOTsBills.map((r: ReportData) => {
+      data = reverseKOTsBills.map(r => {
         const row: any = {};
         commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = r[field]);
         row["ID"] = r.id;
@@ -369,7 +374,7 @@ const ReportPage = () => {
         return row;
       });
     } else if (reportCategory === "kitchenWise") {
-      data = kitchenWiseSales.map((k: ReportData) => {
+      data = kitchenWiseSales.map(k => {
         const row: any = {};
         commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = k[field]);
         row["Kitchen"] = k.kitchen;
@@ -377,7 +382,7 @@ const ReportPage = () => {
         return row;
       });
     } else if (reportCategory === "ncKOT") {
-      data = ncKOTDetails.map((n: ReportData) => {
+      data = ncKOTDetails.map(n => {
         const row: any = {};
         commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = n[field]);
         row["ID"] = n.id;
@@ -386,7 +391,7 @@ const ReportPage = () => {
         return row;
       });
     } else if (reportCategory === "apcApp") {
-      data = apcAppSummary.map((a: ReportData) => {
+      data = apcAppSummary.map(a => {
         const row: any = {};
         commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = a[field]);
         row["Type"] = a.type;
@@ -395,7 +400,7 @@ const ReportPage = () => {
         return row;
       });
     } else if (reportCategory === "specialItems") {
-      data = specialItemsSummary.map((s: ReportData) => {
+      data = specialItemsSummary.map(s => {
         const row: any = {};
         commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = s[field]);
         row["Name"] = s.name;
@@ -404,7 +409,7 @@ const ReportPage = () => {
         return row;
       });
     } else if (reportCategory === "interDeptCash") {
-      data = interDeptCash.map((i: ReportData) => {
+      data = interDeptCash.map(i => {
         const row: any = {};
         commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = i[field]);
         row["From"] = i.from;
@@ -414,7 +419,7 @@ const ReportPage = () => {
         return row;
       });
     } else if (reportCategory === "dailySalesUserShift") {
-      data = dailySalesUserShift.map((d: ReportData) => {
+      data = dailySalesUserShift.map((d: { [key: string]: any }) => {
         const row: any = {};
         commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = d[field]);
         row["User"] = d.user;
@@ -423,7 +428,7 @@ const ReportPage = () => {
         return row;
       });
     } else if (reportCategory === "monthlySales") {
-      data = monthlySalesSummary.map((m: ReportData) => {
+      data = monthlySalesSummary.map((m: { [key: string]: any }) => {
         const row: any = {};
         commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = m[field]);
         row["Month"] = m.month;
@@ -431,7 +436,7 @@ const ReportPage = () => {
         return row;
       });
     } else if (reportCategory === "paymentModeSales") {
-      data = paymentModeSalesSummary.map((p: ReportData) => {
+      data = paymentModeSalesSummary.map((p: { [key: string]: any }) => {
         const row: any = {};
         commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = p[field]);
         row["Mode"] = p.mode;
@@ -439,7 +444,7 @@ const ReportPage = () => {
         return row;
       });
     } else if (reportCategory === "kitchenAllocation") {
-      data = kitchenAllocation.map((k: ReportData) => {
+      data = kitchenAllocation.map((k: { [key: string]: any }) => {
         const row: any = {};
         commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = k[field]);
         row["Kitchen"] = k.kitchen;
@@ -448,18 +453,18 @@ const ReportPage = () => {
       });
     } else if (reportCategory === "dayEnd") {
       const row: any = {};
-      commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = (dayEndReport as ReportData)[field]);
+      commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = (dayEndReport as { [key: string]: any })[field]);
       row["Total Sales"] = dayEndReport.totalSales;
       row["Cash In Hand"] = dayEndReport.cashInHand;
       data = [row];
     } else if (reportCategory === "handover") {
       const row: any = {};
-      commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = (handoverReport as ReportData)[field]);
+      commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = (handoverReport as { [key: string]: any })[field]);
       row["Handover Time"] = handoverReport.handoverTime;
       row["Notes"] = handoverReport.notes;
       data = [row];
     } else if (reportCategory === "billReprinted") {
-      data = billReprinted.map((b: ReportData) => {
+      data = billReprinted.map(b => {
         const row: any = {};
         commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = b[field]);
         row["Reprints"] = b.reprints;
@@ -467,7 +472,7 @@ const ReportPage = () => {
         return row;
       });
     } else if (reportCategory === "kotUsedSummary") {
-      data = kotUsedSummary.map((k: ReportData) => {
+      data = kotUsedSummary.map((k: { [key: string]: any }) => {
         const row: any = {};
         commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = k[field]);
         row["Used In"] = k.usedIn;
@@ -500,7 +505,7 @@ const ReportPage = () => {
 
     if (reportCategory === "billSummary") {
       head = [...commonHead, "Card Number", "Bank", "Card Amount (₹)"];
-      body = billSummaryData.slice(0, 10).map((b: ReportData) => [
+      body = billSummaryData.slice(0, 10).map(b => [
         b.billNo, 
         b.billDate, 
         b.kotNo, 
@@ -524,7 +529,7 @@ const ReportPage = () => {
       ]);
     } else if (reportCategory === "creditSummary") {
       head = [...commonHead, "Type", "Amount (₹)"];
-      body = creditSummary.map((c: ReportData) => [
+      body = creditSummary.map(c => [
         c.billNo, 
         c.billDate, 
         c.kotNo, 
@@ -547,7 +552,7 @@ const ReportPage = () => {
       ]);
     } else if (reportCategory === "discountSummary") {
       head = [...commonHead, "Type", "Amount (₹)"];
-      body = discountSummary.map((d: ReportData) => [
+      body = discountSummary.map(d => [
         d.billNo, 
         d.billDate, 
         d.kotNo, 
@@ -570,7 +575,7 @@ const ReportPage = () => {
       ]);
     } else if (reportCategory === "reverseKOTs") {
       head = [...commonHead, "ID", "Reason", "Timestamp"];
-      body = reverseKOTsBills.map((r: ReportData) => [
+      body = reverseKOTsBills.map(r => [
         r.billNo, 
         r.billDate, 
         r.kotNo, 
@@ -594,7 +599,7 @@ const ReportPage = () => {
       ]);
     } else if (reportCategory === "kitchenWise") {
       head = [...commonHead, "Kitchen", "Sales (₹)"];
-      body = kitchenWiseSales.map((k: ReportData) => [
+      body = kitchenWiseSales.map(k => [
         k.billNo, 
         k.billDate, 
         k.kotNo, 
@@ -617,7 +622,7 @@ const ReportPage = () => {
       ]);
     } else if (reportCategory === "ncKOT") {
       head = [...commonHead, "ID", "Status", "Items"];
-      body = ncKOTDetails.map((n: ReportData) => [
+      body = ncKOTDetails.map(n => [
         n.billNo, 
         n.billDate, 
         n.kotNo, 
@@ -641,7 +646,7 @@ const ReportPage = () => {
       ]);
     } else if (reportCategory === "apcApp") {
       head = [...commonHead, "Type", "Amount (₹)", "Details"];
-      body = apcAppSummary.map((a: ReportData) => [
+      body = apcAppSummary.map(a => [
         a.billNo, 
         a.billDate, 
         a.kotNo, 
@@ -660,12 +665,12 @@ const ReportPage = () => {
         a.mobile, 
         a.orderType,
         a.type,
-        a.amount.toFixed(2),
+        (a.amount ?? 0).toFixed(2),
         a.details
       ]);
     } else if (reportCategory === "specialItems") {
       head = [...commonHead, "Name", "Qty", "Sales (₹)"];
-      body = specialItemsSummary.map((s: ReportData) => [
+      body = specialItemsSummary.map(s => [
         s.billNo, 
         s.billDate, 
         s.kotNo, 
@@ -685,11 +690,11 @@ const ReportPage = () => {
         s.orderType,
         s.name,
         s.qty,
-        s.sales.toFixed(2)
+        (s.sales ?? 0).toFixed(2)
       ]);
     } else if (reportCategory === "interDeptCash") {
       head = [...commonHead, "From", "To", "Amount (₹)", "Type"];
-      body = interDeptCash.map((i: ReportData) => [
+      body = interDeptCash.map(i => [
         i.billNo, 
         i.billDate, 
         i.kotNo, 
@@ -709,12 +714,12 @@ const ReportPage = () => {
         i.orderType,
         i.from,
         i.to,
-        i.amount.toFixed(2),
+        (i.amount ?? 0).toFixed(2),
         i.type
       ]);
     } else if (reportCategory === "dailySalesUserShift") {
       head = [...commonHead, "User", "Shift", "Sales (₹)"];
-      body = dailySalesUserShift.map((d: ReportData) => [
+      body = dailySalesUserShift.map(d => [
         d.billNo, 
         d.billDate, 
         d.kotNo, 
@@ -734,11 +739,11 @@ const ReportPage = () => {
         d.orderType,
         d.user,
         d.shift,
-        d.sales.toFixed(2)
+        (d.sales ?? 0).toFixed(2)
       ]);
     } else if (reportCategory === "monthlySales") {
       head = [...commonHead, "Month", "Sales (₹)"];
-      body = monthlySalesSummary.map((m: ReportData) => [
+      body = monthlySalesSummary.map(m => [
         m.billNo, 
         m.billDate, 
         m.kotNo, 
@@ -757,11 +762,11 @@ const ReportPage = () => {
         m.mobile, 
         m.orderType,
         m.month,
-        m.sales.toFixed(2)
+        (m.sales ?? 0).toFixed(2)
       ]);
     } else if (reportCategory === "paymentModeSales") {
       head = [...commonHead, "Mode", "Sales (₹)"];
-      body = paymentModeSalesSummary.map((p: ReportData) => [
+      body = paymentModeSalesSummary.map(p => [
         p.billNo, 
         p.billDate, 
         p.kotNo, 
@@ -780,11 +785,11 @@ const ReportPage = () => {
         p.mobile, 
         p.orderType,
         p.mode,
-        p.total.toFixed(2)
+        (p.total ?? 0).toFixed(2)
       ]);
     } else if (reportCategory === "kitchenAllocation") {
       head = [...commonHead, "Kitchen", "Allocation"];
-      body = kitchenAllocation.map((k: ReportData) => [
+      body = kitchenAllocation.map(k => [
         k.billNo, 
         k.billDate, 
         k.kotNo, 
@@ -803,12 +808,12 @@ const ReportPage = () => {
         k.mobile, 
         k.orderType,
         k.kitchen,
-        k.allocation
+        k.allocation ?? "0%"
       ]);
     } else if (reportCategory === "dayEnd") {
       head = [...commonHead, "Metric", "Value (₹)"];
       body = [[
-        (dayEndReport as ReportData).billNo, 
+        dayEndReport.billNo, 
         dayEndReport.billDate, 
         dayEndReport.kotNo, 
         dayEndReport.revKot ? "Yes" : "No", 
@@ -828,7 +833,7 @@ const ReportPage = () => {
         "Total Sales",
         dayEndReport.totalSales.toFixed(2)
       ], [
-        (dayEndReport as ReportData).billNo, 
+        dayEndReport.billNo, 
         dayEndReport.billDate, 
         dayEndReport.kotNo, 
         dayEndReport.revKot ? "Yes" : "No", 
@@ -851,7 +856,7 @@ const ReportPage = () => {
     } else if (reportCategory === "handover") {
       head = [...commonHead, "Handover Time", "Notes"];
       body = [[
-        (handoverReport as ReportData).billNo, 
+        handoverReport.billNo, 
         handoverReport.billDate, 
         handoverReport.kotNo, 
         handoverReport.revKot ? "Yes" : "No", 
@@ -873,7 +878,7 @@ const ReportPage = () => {
       ]];
     } else if (reportCategory === "billReprinted") {
       head = [...commonHead, "Reprints", "Reason"];
-      body = billReprinted.map((b: ReportData) => [
+      body = billReprinted.map(b => [
         b.billNo, 
         b.billDate, 
         b.kotNo, 
@@ -896,7 +901,7 @@ const ReportPage = () => {
       ]);
     } else if (reportCategory === "kotUsedSummary") {
       head = [...commonHead, "Used In", "Items"];
-      body = kotUsedSummary.map((k: ReportData) => [
+      body = kotUsedSummary.map(k => [
         k.billNo || k.usedIn, 
         k.billDate, 
         k.kotNo, 
@@ -928,7 +933,7 @@ const ReportPage = () => {
     doc.save(`restaurant-${reportCategory}-report-${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
-  // New render sections with added fields
+  // Render sections remain the same, as they use calculated data
   const renderBillSummarySection = () => (
     <Card className="p-2 shadow-sm border-0">
       <Card.Header style={{ backgroundColor: "#E3F2FD" }}>
@@ -944,7 +949,7 @@ const ReportPage = () => {
             </tr>
           </thead>
           <tbody>
-            {billSummaryData.map((b, i) => (
+            {billSummaryData.length > 0 ? billSummaryData.map((b, i) => (
               <tr key={i}>
                 <td>{b.billNo}</td>
                 <td>{b.billDate}</td>
@@ -967,7 +972,7 @@ const ReportPage = () => {
                 <td>{b.creditDetails.bank}</td>
                 <td>{b.creditDetails.amount.toFixed(2)}</td>
               </tr>
-            ))}
+            )) : <tr><td colSpan={20} className="text-center">No data available</td></tr>}
           </tbody>
         </Table>
       </Card.Body>
@@ -989,29 +994,29 @@ const ReportPage = () => {
             </tr>
           </thead>
           <tbody>
-            {creditSummary.map((c, i) => (
+            {creditSummary.length > 0 ? creditSummary.map((c, i) => (
               <tr key={i}>
                 <td>{c.billNo}</td>
                 <td>{c.billDate}</td>
                 <td>{c.kotNo}</td>
                 <td>{c.revKot ? "Yes" : "No"}</td>
-                <td>{c.grossAmount.toFixed(2)}</td>
-                <td>{c.discount.toFixed(2)}</td>
-                <td>{c.amount.toFixed(2)}</td>
-                <td>{c.cgst.toFixed(2)}</td>
-                <td>{c.sgst.toFixed(2)}</td>
-                <td>{c.cess.toFixed(2)}</td>
-                <td>{c.serviceCharge.toFixed(2)}</td>
-                <td>{c.totalAmount.toFixed(2)}</td>
+                <td>{(c.grossAmount ?? 0).toFixed(2)}</td>
+                <td>{(c.discount ?? 0).toFixed(2)}</td>
+                <td>{(c.amount ?? 0).toFixed(2)}</td>
+                <td>{(c.cgst ?? 0).toFixed(2)}</td>
+                <td>{(c.sgst ?? 0).toFixed(2)}</td>
+                <td>{(c.cess ?? 0).toFixed(2)}</td>
+                <td>{(c.serviceCharge ?? 0).toFixed(2)}</td>
+                <td>{(c.totalAmount ?? 0).toFixed(2)}</td>
                 <td>{c.paymentMode}</td>
                 <td>{c.customerName}</td>
                 <td>{c.address}</td>
                 <td>{c.mobile}</td>
                 <td>{c.orderType}</td>
                 <td>{c.type}</td>
-                <td>{c.amount.toFixed(2)}</td>
+                <td>{(c.amount ?? 0).toFixed(2)}</td>
               </tr>
-            ))}
+            )) : <tr><td colSpan={19} className="text-center">No data available</td></tr>}
           </tbody>
         </Table>
       </Card.Body>
@@ -1033,29 +1038,29 @@ const ReportPage = () => {
             </tr>
           </thead>
           <tbody>
-            {discountSummary.map((d, i) => (
+            {discountSummary.length > 0 ? discountSummary.map((d, i) => (
               <tr key={i}>
                 <td>{d.billNo}</td>
                 <td>{d.billDate}</td>
                 <td>{d.kotNo}</td>
                 <td>{d.revKot ? "Yes" : "No"}</td>
-                <td>{d.grossAmount.toFixed(2)}</td>
-                <td>{d.discount.toFixed(2)}</td>
-                <td>{d.amount.toFixed(2)}</td>
-                <td>{d.cgst.toFixed(2)}</td>
-                <td>{d.sgst.toFixed(2)}</td>
-                <td>{d.cess.toFixed(2)}</td>
-                <td>{d.serviceCharge.toFixed(2)}</td>
-                <td>{d.totalAmount.toFixed(2)}</td>
+                <td>{(d.grossAmount ?? 0).toFixed(2)}</td>
+                <td>{(d.discount ?? 0).toFixed(2)}</td>
+                <td>{(d.amount ?? 0).toFixed(2)}</td>
+                <td>{(d.cgst ?? 0).toFixed(2)}</td>
+                <td>{(d.sgst ?? 0).toFixed(2)}</td>
+                <td>{(d.cess ?? 0).toFixed(2)}</td>
+                <td>{(d.serviceCharge ?? 0).toFixed(2)}</td>
+                <td>{(d.totalAmount ?? 0).toFixed(2)}</td>
                 <td>{d.paymentMode}</td>
                 <td>{d.customerName}</td>
                 <td>{d.address}</td>
                 <td>{d.mobile}</td>
                 <td>{d.orderType}</td>
                 <td>{d.type}</td>
-                <td>{d.amount.toFixed(2)}</td>
+                <td>{(d.amount ?? 0).toFixed(2)}</td>
               </tr>
-            ))}
+            )) : <tr><td colSpan={19} className="text-center">No data available</td></tr>}
           </tbody>
         </Table>
       </Card.Body>
@@ -1077,20 +1082,20 @@ const ReportPage = () => {
             </tr>
           </thead>
           <tbody>
-            {reverseKOTsBills.map((r, i) => (
+            {reverseKOTsBills.length > 0 ? reverseKOTsBills.map((r, i) => (
               <tr key={i}>
                 <td>{r.billNo}</td>
                 <td>{r.billDate}</td>
                 <td>{r.kotNo}</td>
                 <td>{r.revKot ? "Yes" : "No"}</td>
-                <td>{r.grossAmount.toFixed(2)}</td>
-                <td>{r.discount.toFixed(2)}</td>
-                <td>{r.amount.toFixed(2)}</td>
-                <td>{r.cgst.toFixed(2)}</td>
-                <td>{r.sgst.toFixed(2)}</td>
-                <td>{r.cess.toFixed(2)}</td>
-                <td>{r.serviceCharge.toFixed(2)}</td>
-                <td>{r.totalAmount.toFixed(2)}</td>
+                <td>{(r.grossAmount ?? 0).toFixed(2)}</td>
+                <td>{(r.discount ?? 0).toFixed(2)}</td>
+                <td>{(r.amount ?? 0).toFixed(2)}</td>
+                <td>{(r.cgst ?? 0).toFixed(2)}</td>
+                <td>{(r.sgst ?? 0).toFixed(2)}</td>
+                <td>{(r.cess ?? 0).toFixed(2)}</td>
+                <td>{(r.serviceCharge ?? 0).toFixed(2)}</td>
+                <td>{(r.totalAmount ?? 0).toFixed(2)}</td>
                 <td>{r.paymentMode}</td>
                 <td>{r.customerName}</td>
                 <td>{r.address}</td>
@@ -1100,7 +1105,7 @@ const ReportPage = () => {
                 <td>{r.reason}</td>
                 <td>{new Date(r.timestamp).toLocaleString()}</td>
               </tr>
-            ))}
+            )) : <tr><td colSpan={20} className="text-center">No data available</td></tr>}
           </tbody>
         </Table>
       </Card.Body>
@@ -1122,29 +1127,29 @@ const ReportPage = () => {
             </tr>
           </thead>
           <tbody>
-            {kitchenWiseSales.map((k, i) => (
+            {kitchenWiseSales.length > 0 ? kitchenWiseSales.map((k, i) => (
               <tr key={i}>
                 <td>{k.billNo}</td>
                 <td>{k.billDate}</td>
                 <td>{k.kotNo}</td>
                 <td>{k.revKot ? "Yes" : "No"}</td>
-                <td>{k.grossAmount.toFixed(2)}</td>
-                <td>{k.discount.toFixed(2)}</td>
-                <td>{k.amount.toFixed(2)}</td>
-                <td>{k.cgst.toFixed(2)}</td>
-                <td>{k.sgst.toFixed(2)}</td>
-                <td>{k.cess.toFixed(2)}</td>
-                <td>{k.serviceCharge.toFixed(2)}</td>
-                <td>{k.totalAmount.toFixed(2)}</td>
+                <td>{(k.grossAmount ?? 0).toFixed(2)}</td>
+                <td>{(k.discount ?? 0).toFixed(2)}</td>
+                <td>{(k.amount ?? 0).toFixed(2)}</td>
+                <td>{(k.cgst ?? 0).toFixed(2)}</td>
+                <td>{(k.sgst ?? 0).toFixed(2)}</td>
+                <td>{(k.cess ?? 0).toFixed(2)}</td>
+                <td>{(k.serviceCharge ?? 0).toFixed(2)}</td>
+                <td>{(k.totalAmount ?? 0).toFixed(2)}</td>
                 <td>{k.paymentMode}</td>
                 <td>{k.customerName}</td>
                 <td>{k.address}</td>
                 <td>{k.mobile}</td>
                 <td>{k.orderType}</td>
                 <td>{k.kitchen}</td>
-                <td>{k.sales.toFixed(2)}</td>
+                <td>{(k.sales ?? 0).toFixed(2)}</td>
               </tr>
-            ))}
+            )) : <tr><td colSpan={19} className="text-center">No data available</td></tr>}
           </tbody>
         </Table>
       </Card.Body>
@@ -1166,20 +1171,20 @@ const ReportPage = () => {
             </tr>
           </thead>
           <tbody>
-            {ncKOTDetails.map((n, i) => (
+            {ncKOTDetails.length > 0 ? ncKOTDetails.map((n, i) => (
               <tr key={i}>
                 <td>{n.billNo}</td>
                 <td>{n.billDate}</td>
                 <td>{n.kotNo}</td>
                 <td>{n.revKot ? "Yes" : "No"}</td>
-                <td>{n.grossAmount.toFixed(2)}</td>
-                <td>{n.discount.toFixed(2)}</td>
-                <td>{n.amount.toFixed(2)}</td>
-                <td>{n.cgst.toFixed(2)}</td>
-                <td>{n.sgst.toFixed(2)}</td>
-                <td>{n.cess.toFixed(2)}</td>
-                <td>{n.serviceCharge.toFixed(2)}</td>
-                <td>{n.totalAmount.toFixed(2)}</td>
+                <td>{(n.grossAmount ?? 0).toFixed(2)}</td>
+                <td>{(n.discount ?? 0).toFixed(2)}</td>
+                <td>{(n.amount ?? 0).toFixed(2)}</td>
+                <td>{(n.cgst ?? 0).toFixed(2)}</td>
+                <td>{(n.sgst ?? 0).toFixed(2)}</td>
+                <td>{(n.cess ?? 0).toFixed(2)}</td>
+                <td>{(n.serviceCharge ?? 0).toFixed(2)}</td>
+                <td>{(n.totalAmount ?? 0).toFixed(2)}</td>
                 <td>{n.paymentMode}</td>
                 <td>{n.customerName}</td>
                 <td>{n.address}</td>
@@ -1189,7 +1194,7 @@ const ReportPage = () => {
                 <td>{n.status}</td>
                 <td>{n.items.join(", ")}</td>
               </tr>
-            ))}
+            )) : <tr><td colSpan={20} className="text-center">No data available</td></tr>}
           </tbody>
         </Table>
       </Card.Body>
@@ -1211,30 +1216,30 @@ const ReportPage = () => {
             </tr>
           </thead>
           <tbody>
-            {apcAppSummary.map((a, i) => (
+            {apcAppSummary.length > 0 ? apcAppSummary.map((a, i) => (
               <tr key={i}>
                 <td>{a.billNo}</td>
                 <td>{a.billDate}</td>
                 <td>{a.kotNo}</td>
                 <td>{a.revKot ? "Yes" : "No"}</td>
-                <td>{a.grossAmount.toFixed(2)}</td>
-                <td>{a.discount.toFixed(2)}</td>
-                <td>{a.amount.toFixed(2)}</td>
-                <td>{a.cgst.toFixed(2)}</td>
-                <td>{a.sgst.toFixed(2)}</td>
-                <td>{a.cess.toFixed(2)}</td>
-                <td>{a.serviceCharge.toFixed(2)}</td>
-                <td>{a.totalAmount.toFixed(2)}</td>
+                <td>{(a.grossAmount ?? 0).toFixed(2)}</td>
+                <td>{(a.discount ?? 0).toFixed(2)}</td>
+                <td>{(a.amount ?? 0).toFixed(2)}</td>
+                <td>{(a.cgst ?? 0).toFixed(2)}</td>
+                <td>{(a.sgst ?? 0).toFixed(2)}</td>
+                <td>{(a.cess ?? 0).toFixed(2)}</td>
+                <td>{(a.serviceCharge ?? 0).toFixed(2)}</td>
+                <td>{(a.totalAmount ?? 0).toFixed(2)}</td>
                 <td>{a.paymentMode}</td>
                 <td>{a.customerName}</td>
                 <td>{a.address}</td>
                 <td>{a.mobile}</td>
                 <td>{a.orderType}</td>
                 <td>{a.type}</td>
-                <td>{a.amount.toFixed(2)}</td>
-                <td>{a.details}</td>
+                <td>{(a.amount ?? 0).toFixed(2)}</td>
+                <td>{a.details ?? "N/A"}</td>
               </tr>
-            ))}
+            )) : <tr><td colSpan={20} className="text-center">No data available</td></tr>}
           </tbody>
         </Table>
       </Card.Body>
@@ -1256,20 +1261,20 @@ const ReportPage = () => {
             </tr>
           </thead>
           <tbody>
-            {specialItemsSummary.map((s, i) => (
+            {specialItemsSummary.length > 0 ? specialItemsSummary.map((s, i) => (
               <tr key={i}>
                 <td>{s.billNo}</td>
                 <td>{s.billDate}</td>
                 <td>{s.kotNo}</td>
                 <td>{s.revKot ? "Yes" : "No"}</td>
-                <td>{s.grossAmount.toFixed(2)}</td>
-                <td>{s.discount.toFixed(2)}</td>
-                <td>{s.amount.toFixed(2)}</td>
-                <td>{s.cgst.toFixed(2)}</td>
-                <td>{s.sgst.toFixed(2)}</td>
-                <td>{s.cess.toFixed(2)}</td>
-                <td>{s.serviceCharge.toFixed(2)}</td>
-                <td>{s.totalAmount.toFixed(2)}</td>
+                <td>{(s.grossAmount ?? 0).toFixed(2)}</td>
+                <td>{(s.discount ?? 0).toFixed(2)}</td>
+                <td>{(s.amount ?? 0).toFixed(2)}</td>
+                <td>{(s.cgst ?? 0).toFixed(2)}</td>
+                <td>{(s.sgst ?? 0).toFixed(2)}</td>
+                <td>{(s.cess ?? 0).toFixed(2)}</td>
+                <td>{(s.serviceCharge ?? 0).toFixed(2)}</td>
+                <td>{(s.totalAmount ?? 0).toFixed(2)}</td>
                 <td>{s.paymentMode}</td>
                 <td>{s.customerName}</td>
                 <td>{s.address}</td>
@@ -1277,9 +1282,9 @@ const ReportPage = () => {
                 <td>{s.orderType}</td>
                 <td>{s.name}</td>
                 <td>{s.qty}</td>
-                <td>{s.sales.toFixed(2)}</td>
+                <td>{(s.sales ?? 0).toFixed(2)}</td>
               </tr>
-            ))}
+            )) : <tr><td colSpan={20} className="text-center">No data available</td></tr>}
           </tbody>
         </Table>
       </Card.Body>
@@ -1301,20 +1306,20 @@ const ReportPage = () => {
             </tr>
           </thead>
           <tbody>
-            {interDeptCash.map((i, j) => (
+            {interDeptCash.length > 0 ? interDeptCash.map((i, j) => (
               <tr key={j}>
                 <td>{i.billNo}</td>
                 <td>{i.billDate}</td>
                 <td>{i.kotNo}</td>
                 <td>{i.revKot ? "Yes" : "No"}</td>
-                <td>{i.grossAmount.toFixed(2)}</td>
-                <td>{i.discount.toFixed(2)}</td>
-                <td>{i.amount.toFixed(2)}</td>
-                <td>{i.cgst.toFixed(2)}</td>
-                <td>{i.sgst.toFixed(2)}</td>
-                <td>{i.cess.toFixed(2)}</td>
-                <td>{i.serviceCharge.toFixed(2)}</td>
-                <td>{i.totalAmount.toFixed(2)}</td>
+                <td>{(i.grossAmount ?? 0).toFixed(2)}</td>
+                <td>{(i.discount ?? 0).toFixed(2)}</td>
+                <td>{(i.amount ?? 0).toFixed(2)}</td>
+                <td>{(i.cgst ?? 0).toFixed(2)}</td>
+                <td>{(i.sgst ?? 0).toFixed(2)}</td>
+                <td>{(i.cess ?? 0).toFixed(2)}</td>
+                <td>{(i.serviceCharge ?? 0).toFixed(2)}</td>
+                <td>{(i.totalAmount ?? 0).toFixed(2)}</td>
                 <td>{i.paymentMode}</td>
                 <td>{i.customerName}</td>
                 <td>{i.address}</td>
@@ -1322,10 +1327,10 @@ const ReportPage = () => {
                 <td>{i.orderType}</td>
                 <td>{i.from}</td>
                 <td>{i.to}</td>
-                <td>{i.amount.toFixed(2)}</td>
+                <td>{(i.amount ?? 0).toFixed(2)}</td>
                 <td>{i.type}</td>
               </tr>
-            ))}
+            )) : <tr><td colSpan={21} className="text-center">No data available</td></tr>}
           </tbody>
         </Table>
       </Card.Body>
@@ -1347,20 +1352,20 @@ const ReportPage = () => {
             </tr>
           </thead>
           <tbody>
-            {dailySalesUserShift.map((d, i) => (
+            {dailySalesUserShift.length > 0 ? dailySalesUserShift.map((d, i) => (
               <tr key={i}>
                 <td>{d.billNo}</td>
                 <td>{d.billDate}</td>
                 <td>{d.kotNo}</td>
                 <td>{d.revKot ? "Yes" : "No"}</td>
-                <td>{d.grossAmount.toFixed(2)}</td>
-                <td>{d.discount.toFixed(2)}</td>
-                <td>{d.amount.toFixed(2)}</td>
-                <td>{d.cgst.toFixed(2)}</td>
-                <td>{d.sgst.toFixed(2)}</td>
-                <td>{d.cess.toFixed(2)}</td>
-                <td>{d.serviceCharge.toFixed(2)}</td>
-                <td>{d.totalAmount.toFixed(2)}</td>
+                <td>{(d.grossAmount ?? 0).toFixed(2)}</td>
+                <td>{(d.discount ?? 0).toFixed(2)}</td>
+                <td>{(d.amount ?? 0).toFixed(2)}</td>
+                <td>{(d.cgst ?? 0).toFixed(2)}</td>
+                <td>{(d.sgst ?? 0).toFixed(2)}</td>
+                <td>{(d.cess ?? 0).toFixed(2)}</td>
+                <td>{(d.serviceCharge ?? 0).toFixed(2)}</td>
+                <td>{(d.totalAmount ?? 0).toFixed(2)}</td>
                 <td>{d.paymentMode}</td>
                 <td>{d.customerName}</td>
                 <td>{d.address}</td>
@@ -1368,9 +1373,9 @@ const ReportPage = () => {
                 <td>{d.orderType}</td>
                 <td>{d.user}</td>
                 <td>{d.shift}</td>
-                <td>{d.sales.toFixed(2)}</td>
+                <td>{(d.sales ?? 0).toFixed(2)}</td>
               </tr>
-            ))}
+            )) : <tr><td colSpan={20} className="text-center">No data available</td></tr>}
           </tbody>
         </Table>
       </Card.Body>
@@ -1392,29 +1397,29 @@ const ReportPage = () => {
             </tr>
           </thead>
           <tbody>
-            {monthlySalesSummary.map((m, i) => (
+            {monthlySalesSummary.length > 0 ? monthlySalesSummary.map((m, i) => (
               <tr key={i}>
                 <td>{m.billNo}</td>
                 <td>{m.billDate}</td>
                 <td>{m.kotNo}</td>
                 <td>{m.revKot ? "Yes" : "No"}</td>
-                <td>{m.grossAmount.toFixed(2)}</td>
-                <td>{m.discount.toFixed(2)}</td>
-                <td>{m.amount.toFixed(2)}</td>
-                <td>{m.cgst.toFixed(2)}</td>
-                <td>{m.sgst.toFixed(2)}</td>
-                <td>{m.cess.toFixed(2)}</td>
-                <td>{m.serviceCharge.toFixed(2)}</td>
-                <td>{m.totalAmount.toFixed(2)}</td>
+                <td>{(m.grossAmount ?? 0).toFixed(2)}</td>
+                <td>{(m.discount ?? 0).toFixed(2)}</td>
+                <td>{(m.amount ?? 0).toFixed(2)}</td>
+                <td>{(m.cgst ?? 0).toFixed(2)}</td>
+                <td>{(m.sgst ?? 0).toFixed(2)}</td>
+                <td>{(m.cess ?? 0).toFixed(2)}</td>
+                <td>{(m.serviceCharge ?? 0).toFixed(2)}</td>
+                <td>{(m.totalAmount ?? 0).toFixed(2)}</td>
                 <td>{m.paymentMode}</td>
                 <td>{m.customerName}</td>
                 <td>{m.address}</td>
                 <td>{m.mobile}</td>
                 <td>{m.orderType}</td>
                 <td>{m.month}</td>
-                <td>{m.sales.toFixed(2)}</td>
+                <td>{(m.sales ?? 0).toFixed(2)}</td>
               </tr>
-            ))}
+            )) : <tr><td colSpan={19} className="text-center">No data available</td></tr>}
           </tbody>
         </Table>
       </Card.Body>
@@ -1436,29 +1441,29 @@ const ReportPage = () => {
             </tr>
           </thead>
           <tbody>
-            {paymentModeSalesSummary.map((p, i) => (
+            {paymentModeSalesSummary.length > 0 ? paymentModeSalesSummary.map((p, i) => (
               <tr key={i}>
                 <td>{p.billNo}</td>
                 <td>{p.billDate}</td>
                 <td>{p.kotNo}</td>
                 <td>{p.revKot ? "Yes" : "No"}</td>
-                <td>{p.grossAmount.toFixed(2)}</td>
-                <td>{p.discount.toFixed(2)}</td>
-                <td>{p.amount.toFixed(2)}</td>
-                <td>{p.cgst.toFixed(2)}</td>
-                <td>{p.sgst.toFixed(2)}</td>
-                <td>{p.cess.toFixed(2)}</td>
-                <td>{p.serviceCharge.toFixed(2)}</td>
-                <td>{p.totalAmount.toFixed(2)}</td>
+                <td>{(p.grossAmount ?? 0).toFixed(2)}</td>
+                <td>{(p.discount ?? 0).toFixed(2)}</td>
+                <td>{(p.amount ?? 0).toFixed(2)}</td>
+                <td>{(p.cgst ?? 0).toFixed(2)}</td>
+                <td>{(p.sgst ?? 0).toFixed(2)}</td>
+                <td>{(p.cess ?? 0).toFixed(2)}</td>
+                <td>{(p.serviceCharge ?? 0).toFixed(2)}</td>
+                <td>{(p.totalAmount ?? 0).toFixed(2)}</td>
                 <td>{p.paymentMode}</td>
                 <td>{p.customerName}</td>
                 <td>{p.address}</td>
                 <td>{p.mobile}</td>
                 <td>{p.orderType}</td>
                 <td>{p.mode}</td>
-                <td>{p.total.toFixed(2)}</td>
+                <td>{(p.total ?? 0).toFixed(2)}</td>
               </tr>
-            ))}
+            )) : <tr><td colSpan={19} className="text-center">No data available</td></tr>}
           </tbody>
         </Table>
       </Card.Body>
@@ -1480,29 +1485,29 @@ const ReportPage = () => {
             </tr>
           </thead>
           <tbody>
-            {kitchenAllocation.map((k, i) => (
+            {kitchenAllocation.length > 0 ? kitchenAllocation.map((k, i) => (
               <tr key={i}>
                 <td>{k.billNo}</td>
                 <td>{k.billDate}</td>
                 <td>{k.kotNo}</td>
                 <td>{k.revKot ? "Yes" : "No"}</td>
-                <td>{k.grossAmount.toFixed(2)}</td>
-                <td>{k.discount.toFixed(2)}</td>
-                <td>{k.amount.toFixed(2)}</td>
-                <td>{k.cgst.toFixed(2)}</td>
-                <td>{k.sgst.toFixed(2)}</td>
-                <td>{k.cess.toFixed(2)}</td>
-                <td>{k.serviceCharge.toFixed(2)}</td>
-                <td>{k.totalAmount.toFixed(2)}</td>
+                <td>{(k.grossAmount ?? 0).toFixed(2)}</td>
+                <td>{(k.discount ?? 0).toFixed(2)}</td>
+                <td>{(k.amount ?? 0).toFixed(2)}</td>
+                <td>{(k.cgst ?? 0).toFixed(2)}</td>
+                <td>{(k.sgst ?? 0).toFixed(2)}</td>
+                <td>{(k.cess ?? 0).toFixed(2)}</td>
+                <td>{(k.serviceCharge ?? 0).toFixed(2)}</td>
+                <td>{(k.totalAmount ?? 0).toFixed(2)}</td>
                 <td>{k.paymentMode}</td>
                 <td>{k.customerName}</td>
                 <td>{k.address}</td>
                 <td>{k.mobile}</td>
                 <td>{k.orderType}</td>
                 <td>{k.kitchen}</td>
-                <td>{k.allocation}</td>
+                <td>{k.allocation ?? "0%"}</td>
               </tr>
-            ))}
+            )) : <tr><td colSpan={19} className="text-center">No data available</td></tr>}
           </tbody>
         </Table>
       </Card.Body>
@@ -1529,42 +1534,42 @@ const ReportPage = () => {
               <td>{dayEndReport.billDate}</td>
               <td>{dayEndReport.kotNo}</td>
               <td>{dayEndReport.revKot ? "Yes" : "No"}</td>
-              <td>{dayEndReport.grossAmount.toFixed(2)}</td>
-              <td>{dayEndReport.discount.toFixed(2)}</td>
-              <td>{dayEndReport.amount.toFixed(2)}</td>
-              <td>{dayEndReport.cgst.toFixed(2)}</td>
-              <td>{dayEndReport.sgst.toFixed(2)}</td>
-              <td>{dayEndReport.cess.toFixed(2)}</td>
-              <td>{dayEndReport.serviceCharge.toFixed(2)}</td>
-              <td>{dayEndReport.totalAmount.toFixed(2)}</td>
+              <td>{(dayEndReport.grossAmount ?? 0).toFixed(2)}</td>
+              <td>{(dayEndReport.discount ?? 0).toFixed(2)}</td>
+              <td>{(dayEndReport.amount ?? 0).toFixed(2)}</td>
+              <td>{(dayEndReport.cgst ?? 0).toFixed(2)}</td>
+              <td>{(dayEndReport.sgst ?? 0).toFixed(2)}</td>
+              <td>{(dayEndReport.cess ?? 0).toFixed(2)}</td>
+              <td>{(dayEndReport.serviceCharge ?? 0).toFixed(2)}</td>
+              <td>{(dayEndReport.totalAmount ?? 0).toFixed(2)}</td>
               <td>{dayEndReport.paymentMode}</td>
               <td>{dayEndReport.customerName}</td>
               <td>{dayEndReport.address}</td>
               <td>{dayEndReport.mobile}</td>
               <td>{dayEndReport.orderType}</td>
               <td>Total Sales</td>
-              <td>{dayEndReport.totalSales.toFixed(2)}</td>
+              <td>{(dayEndReport.totalSales ?? 0).toFixed(2)}</td>
             </tr>
             <tr>
               <td>{dayEndReport.billNo}</td>
               <td>{dayEndReport.billDate}</td>
               <td>{dayEndReport.kotNo}</td>
               <td>{dayEndReport.revKot ? "Yes" : "No"}</td>
-              <td>{dayEndReport.grossAmount.toFixed(2)}</td>
-              <td>{dayEndReport.discount.toFixed(2)}</td>
-              <td>{dayEndReport.amount.toFixed(2)}</td>
-              <td>{dayEndReport.cgst.toFixed(2)}</td>
-              <td>{dayEndReport.sgst.toFixed(2)}</td>
-              <td>{dayEndReport.cess.toFixed(2)}</td>
-              <td>{dayEndReport.serviceCharge.toFixed(2)}</td>
-              <td>{dayEndReport.totalAmount.toFixed(2)}</td>
+              <td>{(dayEndReport.grossAmount ?? 0).toFixed(2)}</td>
+              <td>{(dayEndReport.discount ?? 0).toFixed(2)}</td>
+              <td>{(dayEndReport.amount ?? 0).toFixed(2)}</td>
+              <td>{(dayEndReport.cgst ?? 0).toFixed(2)}</td>
+              <td>{(dayEndReport.sgst ?? 0).toFixed(2)}</td>
+              <td>{(dayEndReport.cess ?? 0).toFixed(2)}</td>
+              <td>{(dayEndReport.serviceCharge ?? 0).toFixed(2)}</td>
+              <td>{(dayEndReport.totalAmount ?? 0).toFixed(2)}</td>
               <td>{dayEndReport.paymentMode}</td>
               <td>{dayEndReport.customerName}</td>
               <td>{dayEndReport.address}</td>
               <td>{dayEndReport.mobile}</td>
               <td>{dayEndReport.orderType}</td>
               <td>Cash In Hand</td>
-              <td>{dayEndReport.cashInHand.toFixed(2)}</td>
+              <td>{(dayEndReport.cashInHand ?? 0).toFixed(2)}</td>
             </tr>
           </tbody>
         </Table>
@@ -1592,14 +1597,14 @@ const ReportPage = () => {
               <td>{handoverReport.billDate}</td>
               <td>{handoverReport.kotNo}</td>
               <td>{handoverReport.revKot ? "Yes" : "No"}</td>
-              <td>{handoverReport.grossAmount.toFixed(2)}</td>
-              <td>{handoverReport.discount.toFixed(2)}</td>
-              <td>{handoverReport.amount.toFixed(2)}</td>
-              <td>{handoverReport.cgst.toFixed(2)}</td>
-              <td>{handoverReport.sgst.toFixed(2)}</td>
-              <td>{handoverReport.cess.toFixed(2)}</td>
-              <td>{handoverReport.serviceCharge.toFixed(2)}</td>
-              <td>{handoverReport.totalAmount.toFixed(2)}</td>
+              <td>{(handoverReport.grossAmount ?? 0).toFixed(2)}</td>
+              <td>{(handoverReport.discount ?? 0).toFixed(2)}</td>
+              <td>{(handoverReport.amount ?? 0).toFixed(2)}</td>
+              <td>{(handoverReport.cgst ?? 0).toFixed(2)}</td>
+              <td>{(handoverReport.sgst ?? 0).toFixed(2)}</td>
+              <td>{(handoverReport.cess ?? 0).toFixed(2)}</td>
+              <td>{(handoverReport.serviceCharge ?? 0).toFixed(2)}</td>
+              <td>{(handoverReport.totalAmount ?? 0).toFixed(2)}</td>
               <td>{handoverReport.paymentMode}</td>
               <td>{handoverReport.customerName}</td>
               <td>{handoverReport.address}</td>
@@ -1629,20 +1634,20 @@ const ReportPage = () => {
             </tr>
           </thead>
           <tbody>
-            {billReprinted.map((b, i) => (
+            {billReprinted.length > 0 ? billReprinted.map((b, i) => (
               <tr key={i}>
                 <td>{b.billNo}</td>
                 <td>{b.billDate}</td>
                 <td>{b.kotNo}</td>
                 <td>{b.revKot ? "Yes" : "No"}</td>
-                <td>{b.grossAmount.toFixed(2)}</td>
-                <td>{b.discount.toFixed(2)}</td>
-                <td>{b.amount.toFixed(2)}</td>
-                <td>{b.cgst.toFixed(2)}</td>
-                <td>{b.sgst.toFixed(2)}</td>
-                <td>{b.cess.toFixed(2)}</td>
-                <td>{b.serviceCharge.toFixed(2)}</td>
-                <td>{b.totalAmount.toFixed(2)}</td>
+                <td>{(b.grossAmount ?? 0).toFixed(2)}</td>
+                <td>{(b.discount ?? 0).toFixed(2)}</td>
+                <td>{(b.amount ?? 0).toFixed(2)}</td>
+                <td>{(b.cgst ?? 0).toFixed(2)}</td>
+                <td>{(b.sgst ?? 0).toFixed(2)}</td>
+                <td>{(b.cess ?? 0).toFixed(2)}</td>
+                <td>{(b.serviceCharge ?? 0).toFixed(2)}</td>
+                <td>{(b.totalAmount ?? 0).toFixed(2)}</td>
                 <td>{b.paymentMode}</td>
                 <td>{b.customerName}</td>
                 <td>{b.address}</td>
@@ -1651,7 +1656,7 @@ const ReportPage = () => {
                 <td>{b.reprints}</td>
                 <td>{b.reason}</td>
               </tr>
-            ))}
+            )) : <tr><td colSpan={19} className="text-center">No data available</td></tr>}
           </tbody>
         </Table>
       </Card.Body>
@@ -1673,29 +1678,29 @@ const ReportPage = () => {
             </tr>
           </thead>
           <tbody>
-            {kotUsedSummary.map((k, i) => (
+            {kotUsedSummary.length > 0 ? kotUsedSummary.map((k, i) => (
               <tr key={i}>
                 <td>{k.billNo || k.usedIn}</td>
                 <td>{k.billDate}</td>
                 <td>{k.kotNo}</td>
                 <td>{k.revKot ? "Yes" : "No"}</td>
-                <td>{k.grossAmount.toFixed(2)}</td>
-                <td>{k.discount.toFixed(2)}</td>
-                <td>{k.amount.toFixed(2)}</td>
-                <td>{k.cgst.toFixed(2)}</td>
-                <td>{k.sgst.toFixed(2)}</td>
-                <td>{k.cess.toFixed(2)}</td>
-                <td>{k.serviceCharge.toFixed(2)}</td>
-                <td>{k.totalAmount.toFixed(2)}</td>
+                <td>{(k.grossAmount ?? 0).toFixed(2)}</td>
+                <td>{(k.discount ?? 0).toFixed(2)}</td>
+                <td>{(k.amount ?? 0).toFixed(2)}</td>
+                <td>{(k.cgst ?? 0).toFixed(2)}</td>
+                <td>{(k.sgst ?? 0).toFixed(2)}</td>
+                <td>{(k.cess ?? 0).toFixed(2)}</td>
+                <td>{(k.serviceCharge ?? 0).toFixed(2)}</td>
+                <td>{(k.totalAmount ?? 0).toFixed(2)}</td>
                 <td>{k.paymentMode}</td>
                 <td>{k.customerName}</td>
                 <td>{k.address}</td>
                 <td>{k.mobile}</td>
                 <td>{k.orderType}</td>
                 <td>{k.usedIn}</td>
-                <td>{k.items}</td>
+                <td>{k.items ?? 0}</td>
               </tr>
-            ))}
+            )) : <tr><td colSpan={19} className="text-center">No data available</td></tr>}
           </tbody>
         </Table>
       </Card.Body>
@@ -1742,6 +1747,9 @@ const ReportPage = () => {
         return renderBillSummarySection();
     }
   };
+
+  if (loading) return <div className="text-center p-4"><div>Loading reports...</div></div>;
+  if (error) return <div className="text-center p-4 text-danger">{error}</div>;
 
   return (
     <Card className="apps-card">

@@ -24,6 +24,8 @@ const getHandoverData = (req, res) => {
           t.RevKOT as RevAmt,
           t.TxnDatetime,
           t.Steward as Captain,
+          t.CustomerName,
+          t.MobileNo,
           t.UserId,
           u.username as UserName,
           (SELECT SUM(CASE WHEN i.item_name LIKE '%water%' THEN d.RuntimeRate * d.Qty ELSE 0 END) FROM TAxnTrnbilldetails d JOIN mstrestmenu i ON d.ItemID = i.restitemid WHERE d.TxnID = t.TxnID) as Water,

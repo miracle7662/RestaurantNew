@@ -1265,4 +1265,5 @@ const HandoverPage = () => {
     </div>
   );
 };
+
 export default HandoverPage;
