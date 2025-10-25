@@ -7,6 +7,7 @@ router.post("/", Controller.createPaymentMode);
 router.get("/", Controller.getAllPaymentModes);
 router.get("/by-outlet/:outletid", Controller.getPaymentModesByOutlet);
 router.put("/:id", Controller.updatePaymentMode);
+router.put("/sequence", Controller.updatePaymentModeSequence); // New route for sequence update
 router.delete("/:id", Controller.deletePaymentMode);
 
 

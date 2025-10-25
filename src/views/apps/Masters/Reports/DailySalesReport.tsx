@@ -45,6 +45,9 @@ interface Bill {
   qrcode?: number;
  
   outlet?: string;
+  outlet_name?: string;
+  table_name?: string;
+  department_name?: string;
 }
 
 const defaultBill: Bill = {
@@ -93,6 +96,12 @@ const ReportPage = () => {
   }, []);
 
   useEffect(() => {
+    if (customRange.start && customRange.end) {
+      loadBills();
+    }
+  }, [customRange.start, customRange.end]);
+
+  useEffect(() => {
     filterBills(bills);
     // Only filter when customRange is valid
     if (customRange.start && customRange.end && new Date(customRange.start) <= new Date(customRange.end)) {
@@ -105,7 +114,7 @@ const ReportPage = () => {
   const loadBills = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:3001/api/handover/getDailySalesData');
+      const response = await fetch('http://localhost:3001/api/reports', );
       if (!response.ok) {
         throw new Error('Failed to fetch report data');
       }
@@ -150,6 +159,9 @@ const ReportPage = () => {
           gpay: order.gpay,
           phonepe: order.phonepe,
           qrcode: order.qrcode,
+          outlet_name: order.outlet_name,
+          table_name: order.table_name,
+          department_name: order.department_name,
         }));
         setBills(allBills);
         filterBills(allBills);
@@ -1043,8 +1055,8 @@ const ReportPage = () => {
         <Card.Body style={{ overflowY: 'auto', maxHeight: '70vh' }}>
           <Table bordered hover responsive size="sm">
             <thead style={{ backgroundColor: "#FFF3E0" }}>
-              <tr>
-                {["Bill No", "Bill Date", "KOT No", "Rev KOT No", "Gross Amount (₹)", "Discount (₹)", "Amount (₹)", "CGST (₹)", "SGST (₹)", "Round Off", "Rev Amt", "Total Amount (₹)", "Payment Mode", "Customer Name", "Waiter", "Captain", "User", "Order Type", "Card Number", "Bank", "Card Amount (₹)"].map((h, i) => (
+              <tr >
+                {["Bill No", "Sale Amt (₹)", "Discount (₹)", "Net Amt (₹)", "CGST (₹)", "SGST (₹)", "Round Off", "Gross Total (₹)", "Cash (₹)", "ICICI/HDFC (₹)", "HDFC BANK (₹)", "Swiggy (₹)", "Zomato (₹)", "Credit (₹)", "Staff Credit (₹)", "Customer Name", "Bill Date", "KOT No", "Rev KOT No", "Rev Amt", "Payment Mode", "Waiter", "Captain", "User", "Order Type", "Card Number", "Bank", "Card Amount (₹)", "Outlet Name", "Table Name", "Department Name"].map((h, i) => (
                   <th key={i} style={{ position: 'sticky', top: 0, backgroundColor: '#FFF3E0', zIndex: 1 }}>{h}</th>
                 ))}
               </tr>
@@ -1052,44 +1064,54 @@ const ReportPage = () => {
             <tbody>
               {billSummaryData.length > 0 ? billSummaryData.map((b, i) => (
                 <tr key={i}>
-                  <td>{b.billNo}</td>
-                  <td>{b.billDate}</td>
-                  <td>{b.kotNo}</td>
-                  <td>{b.revKotNo}</td>
-                  <td>{b.grossAmount?.toFixed(2) || 0}</td>
-                  <td>{b.discount?.toFixed(2) || 0}</td>
-                  <td>{b.amount?.toFixed(2) || 0}</td>
-                  <td>{b.cgst?.toFixed(2) || 0}</td>
-                  <td>{b.sgst?.toFixed(2) || 0}</td>
-                  <td>{b.roundOff?.toFixed(2) || 0}</td>
-                  <td>{b.revAmt?.toFixed(2) || 0}</td>
-                  <td>{b.totalAmount?.toFixed(2) || 0}</td>
-                  <td>{b.paymentMode}</td>
-                  <td>{b.customerName}</td>
-                  <td>{b.waiter}</td>
-                  <td>{b.captain}</td>
-                  <td>{b.user}</td>
-                  <td>{b.orderType}</td>
-                  <td>{b.creditDetails?.cardNumber}</td>
-                  <td>{b.creditDetails?.bank}</td>
-                  <td>{b.creditDetails?.amount.toFixed(2)}</td>
+                  <td>{b.billNo}</td>                                     {/* BillNo */}
+                  <td>{b.totalAmount?.toFixed(2) || 0}</td>              {/* Sale Amt */}
+                  <td>{b.discount?.toFixed(2) || 0}</td>                  {/* Dist */}
+                  <td>{b.amount?.toFixed(2) || 0}</td>                    {/* Net Amt */}
+                  <td>{b.cgst?.toFixed(2) || 0}</td>                      {/* CGST */}
+                  <td>{b.sgst?.toFixed(2) || 0}</td>                      {/* SGST */}
+                  <td>{b.roundOff?.toFixed(2) || 0}</td>                  {/* R.Off */}
+                  <td>{b.grossAmount?.toFixed(2) || 0}</td>              {/* GrossTotal */}
+                  <td>{b.cash?.toFixed(2) || 0}</td>                      {/* Cash */}
+                  <td>{b.card?.toFixed(2) || 0}</td>                      {/* ICICI/HDFC (assuming card) */}
+                  <td>{0.00.toFixed(2)}</td>                              {/* HDFC BANK (placeholder) */}
+                  <td>{0.00.toFixed(2)}</td>                              {/* Swiggy (placeholder) */}
+                  <td>{0.00.toFixed(2)}</td>                              {/* Zomato (placeholder) */}
+                  <td>{b.credit?.toFixed(2) || 0}</td>                    {/* Credit */}
+                  <td>{0.00.toFixed(2)}</td>                              {/* Staff Credit (placeholder) */}
+                  <td>{b.customerName}</td>                               {/* Customer Name */}
+                  {/* Other fields */}
+                  <td>{b.billDate}</td>                                   
+                  <td>{b.kotNo}</td>                                      
+                  <td>{b.revKotNo}</td>                                   
+                  <td>{b.revAmt?.toFixed(2) || 0}</td>                     
+                  <td>{b.paymentMode}</td>                                
+                  <td>{b.waiter}</td>                                     
+                  <td>{b.captain}</td>                                    
+                  <td>{b.user}</td>                                       
+                  <td>{b.orderType}</td>                                  
+                  <td>{b.creditDetails?.cardNumber}</td>                  
+                  <td>{b.creditDetails?.bank}</td>                        
+                  <td>{b.creditDetails?.amount.toFixed(2)}</td>           
+                  <td>{b.outlet_name}</td>
+                  <td>{b.table_name}</td>
+                  <td>{b.department_name}</td>
                 </tr>
-              )) : <tr><td colSpan={21} className="text-center">No data available</td></tr>}
+              )) : <tr><td colSpan={31} className="text-center">No data available</td></tr>}
             </tbody>
             {billSummaryData.length > 0 && (
               <tfoot className="fw-bold">
                 <tr>
-                  <td colSpan={4}>Total</td>
-                  <td>{totals.grossAmount.toFixed(2)}</td>
+                  <td>Total</td>
+                  <td>{totals.totalAmount.toFixed(2)}</td>
                   <td>{totals.discount.toFixed(2)}</td>
                   <td>{totals.amount.toFixed(2)}</td>
                   <td>{totals.cgst.toFixed(2)}</td>
                   <td>{totals.sgst.toFixed(2)}</td>
                   <td>{totals.roundOff.toFixed(2)}</td>
-                  <td>{totals.revAmt.toFixed(2)}</td>
-                  <td>{totals.totalAmount.toFixed(2)}</td>
-                  <td colSpan={8}></td>
-                  <td>{totals.cardAmount.toFixed(2)}</td>
+                  <td>{totals.grossAmount.toFixed(2)}</td>
+                  <td colSpan={10}></td>
+                  <td colSpan={11}></td>
                 </tr>
               </tfoot>
             )}

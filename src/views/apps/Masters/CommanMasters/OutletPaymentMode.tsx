@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Button, Card, Form, ListGroup, Row, Col } from 'react-bootstrap';
 import axios from 'axios';
 import { fetchOutletsForDropdown } from '@/utils/commonfunction';
-import { OutletData } from '@/common/api/outlet';
+import { OutletData } from "@/common/api/outlet";
 import { useAuthContext } from '@/common';
 import { toast } from 'react-hot-toast';
 
@@ -11,6 +11,7 @@ interface PaymentMode {
   outletid: number;
   mode_name: string;
   is_active: number;
+  sequence?: number;
 }
 
 interface Outlet {
@@ -34,7 +35,8 @@ const PaymentModes: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [searchTermRight, setSearchTermRight] = useState<string>('');
   const { user } = useAuthContext();
-  const [outlets, setOutlets] = useState<Outlet[]>([]);
+  const [outlets, setOutlets] = useState<OutletData[]>([]);
+  
   const [availablePaymentModes, setAvailablePaymentModes] = useState<string[]>([]);
   const [paymentTypes, setPaymentTypes] = useState<PaymentType[]>([]);
   const [adding, setAdding] = useState(false);
@@ -93,6 +95,7 @@ const fetchPaymentModes = async () => {
         .filter((mode) => mode && mode.mode_name)
         .map((mode) => ({
           ...mode,
+          sequence: mode.sequence ?? 0,
           is_active: mode.is_active ?? 1,
         }))
     );
@@ -245,10 +248,32 @@ const fetchPaymentModes = async () => {
 
   // Save changes and reload data
   const handleSaveChanges = async () => {
-    toast.success('Changes saved successfully!');
-    if (selectedOutlet) {
-      await fetchPaymentModes();
-      localStorage.setItem('lastSelectedOutlet', selectedOutlet);
+    if (!selectedOutlet) {
+      toast.error('Please select an outlet first.');
+      return;
+    }
+
+    // Get the IDs of the currently added payment modes in their display order
+    const orderedPaymentTypeIds = filteredPaymentModesRight.map(mode => {
+      const paymentType = paymentTypes.find(pt => pt.mode_name === mode.mode_name);
+      return paymentType?.paymenttypeid;
+    }).filter((id): id is number => id !== undefined);
+
+    try {
+      setLoading(true);
+      await axios.put('/api/payment-modes/sequence', {
+        outletid: parseInt(selectedOutlet),
+        orderedPaymentTypeIds: orderedPaymentTypeIds,
+      }, {
+        headers: { Authorization: `Bearer ${user.token}` },
+      });
+
+      toast.success('Changes saved successfully!');
+      await fetchPaymentModes(); // Refresh the list to show updated sequence if needed
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Failed to save changes.');
+    } finally {
+      setLoading(false);
     }
   };
 

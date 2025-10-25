@@ -738,17 +738,17 @@ CREATE TABLE IF NOT EXISTS payment_types (
     created_date DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
--- Payment Modes (outlet + hotel specific)
 CREATE TABLE IF NOT EXISTS payment_modes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     hotelid INTEGER,
     outletid INTEGER,
     paymenttypeid INTEGER NOT NULL,
+    sequence INTEGER DEFAULT 0, -- 🔹 Added field to define order/priority of payment modes
     is_active BOOLEAN NOT NULL DEFAULT 1,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-   
 );
+
 
 CREATE TABLE IF NOT EXISTS TAxnTrnbill (
     TxnID INTEGER PRIMARY KEY AUTOINCREMENT,

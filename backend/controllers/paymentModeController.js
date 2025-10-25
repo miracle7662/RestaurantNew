@@ -73,6 +73,45 @@ exports.getAllPaymentModes = (req, res) => {
   }
 };
 
+// Update payment mode sequence for an outlet
+exports.updatePaymentModeSequence = (req, res) => {
+  try {
+    const { outletid, orderedPaymentTypeIds } = req.body;
+
+    if (!outletid || !Array.isArray(orderedPaymentTypeIds)) {
+      return res.status(400).json({ error: "Outlet ID and an array of ordered payment type IDs are required" });
+    }
+
+    const transaction = db.transaction(() => {
+      // First, reset sequence for all payment modes for the given outlet to 0
+      const resetStmt = db.prepare('UPDATE payment_modes SET sequence = 0 WHERE outletid = ?');
+      resetStmt.run(outletid);
+
+      // Then, update the sequence for the provided payment modes in order
+      const updateStmt = db.prepare(
+        'UPDATE payment_modes SET sequence = ? WHERE outletid = ? AND paymenttypeid = ?'
+      );
+
+      orderedPaymentTypeIds.forEach((paymenttypeid, index) => {
+        updateStmt.run(index + 1, outletid, paymenttypeid);
+      });
+    });
+
+    transaction();
+
+    // Return the updated list, ordered by the new sequence
+    const updatedModes = db.prepare(`
+        SELECT pm.id, pm.hotelid, pm.outletid, pm.paymenttypeid, pm.sequence, pt.mode_name
+        FROM payment_modes pm
+        JOIN payment_types pt ON pm.paymenttypeid = pt.paymenttypeid
+        WHERE pm.outletid = ? AND pm.sequence > 0 ORDER BY pm.sequence ASC`).all(outletid);
+
+    res.json(updatedModes);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 // Get payment modes by outlet ID
 exports.getPaymentModesByOutlet = (req, res) => {
   try {
