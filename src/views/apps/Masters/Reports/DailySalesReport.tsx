@@ -76,6 +76,7 @@ const ReportPage = () => {
   const [reportType, setReportType] = useState("monthly");
   const [reportCategory, setReportCategory] = useState("billSummary");
   const [customRange, setCustomRange] = useState({ start: "", end: "" });
+  const [kitchenAllocationType, setKitchenAllocationType] = useState("allocation");
   const [filters, setFilters] = useState({
     orderType: "",
     paymentMode: "",
@@ -370,6 +371,34 @@ const ReportPage = () => {
         row["Card Amount"] = b.creditDetails.amount;
         return row;
       });
+
+      // Calculate and add total row for Excel
+      const totals = billSummaryData.reduce((acc, bill) => {
+        acc.grossAmount += bill.grossAmount || 0;
+        acc.discount += bill.discount || 0;
+        acc.amount += bill.amount || 0;
+        acc.cgst += bill.cgst || 0;
+        acc.sgst += bill.sgst || 0;
+        acc.roundOff += bill.roundOff || 0;
+        acc.revAmt += bill.revAmt || 0;
+        acc.totalAmount += bill.totalAmount || 0;
+        acc.cardAmount += bill.creditDetails?.amount || 0;
+        return acc;
+      }, { grossAmount: 0, discount: 0, amount: 0, cgst: 0, sgst: 0, roundOff: 0, revAmt: 0, totalAmount: 0, cardAmount: 0 });
+
+      const totalRow: any = {
+        'Bill No': 'Total',
+        'Gross Amount (₹)': totals.grossAmount.toFixed(2),
+        'Discount (₹)': totals.discount.toFixed(2),
+        'Amount (₹)': totals.amount.toFixed(2),
+        'CGST (₹)': totals.cgst.toFixed(2),
+        'SGST (₹)': totals.sgst.toFixed(2),
+        'Round Off': totals.roundOff.toFixed(2),
+        'Rev Amt': totals.revAmt.toFixed(2),
+        'Total Amount (₹)': totals.totalAmount.toFixed(2),
+        'Card Amount (₹)': totals.cardAmount.toFixed(2),
+      };
+      data.push(totalRow);
     } else if (reportCategory === "creditSummary") {
       data = creditSummary.map((c: { [key: string]: any }) => {
         const row: any = {};
@@ -956,51 +985,83 @@ const ReportPage = () => {
   };
 
   // Render sections remain the same, as they use calculated data
-  const renderBillSummarySection = () => (
-    <Card className="p-2 shadow-sm border-0">
-      <Card.Header style={{ backgroundColor: "#E3F2FD" }}>
-        <h5 className="mb-0">📋 Bill Summary with Credit Card Details</h5>
-      </Card.Header>
-      <Card.Body style={{ overflowY: 'auto', maxHeight: '70vh' }}>
-        <Table bordered hover responsive size="sm">
-          <thead style={{ backgroundColor: "#FFF3E0" }}>
-            <tr>
-              {["Bill No", "Bill Date", "KOT No", "Rev KOT No", "Gross Amount (₹)", "Discount (₹)", "Amount (₹)", "CGST (₹)", "SGST (₹)", "Round Off", "Rev Amt", "Total Amount (₹)", "Payment Mode", "Customer Name", "Waiter", "Captain", "User", "Order Type", "Card Number", "Bank", "Card Amount (₹)"].map((h, i) => (
-                <th key={i} style={{ position: 'sticky', top: 0, backgroundColor: '#FFF3E0', zIndex: 1 }}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {billSummaryData.length > 0 ? billSummaryData.map((b, i) => (
-              <tr key={i}>
-                <td>{b.billNo}</td>
-                <td>{b.billDate}</td>
-                <td>{b.kotNo}</td>
-                <td>{b.revKotNo}</td>
-                <td>{b.grossAmount?.toFixed(2) || 0}</td>
-                <td>{b.discount?.toFixed(2) || 0}</td>
-                <td>{b.amount?.toFixed(2) || 0}</td>
-                <td>{b.cgst?.toFixed(2) || 0}</td>
-                <td>{b.sgst?.toFixed(2) || 0}</td>
-                <td>{b.roundOff?.toFixed(2) || 0}</td>
-                <td>{b.revAmt?.toFixed(2) || 0}</td>
-                <td>{b.totalAmount?.toFixed(2) || 0}</td>
-                <td>{b.paymentMode}</td>
-                <td>{b.customerName}</td>
-                <td>{b.waiter}</td>
-                <td>{b.captain}</td>
-                <td>{b.user}</td>
-                <td>{b.orderType}</td>
-                <td>{b.creditDetails?.cardNumber}</td>
-                <td>{b.creditDetails?.bank}</td>
-                <td>{b.creditDetails?.amount.toFixed(2)}</td>
+  const renderBillSummarySection = () => {
+    const totals = billSummaryData.reduce((acc, bill) => {
+      acc.grossAmount += bill.grossAmount || 0;
+      acc.discount += bill.discount || 0;
+      acc.amount += bill.amount || 0;
+      acc.cgst += bill.cgst || 0;
+      acc.sgst += bill.sgst || 0;
+      acc.roundOff += bill.roundOff || 0;
+      acc.revAmt += bill.revAmt || 0;
+      acc.totalAmount += bill.totalAmount || 0;
+      acc.cardAmount += bill.creditDetails?.amount || 0;
+      return acc;
+    }, { grossAmount: 0, discount: 0, amount: 0, cgst: 0, sgst: 0, roundOff: 0, revAmt: 0, totalAmount: 0, cardAmount: 0 });
+
+    return (
+      <Card className="p-2 shadow-sm border-0">
+        <Card.Header style={{ backgroundColor: "#E3F2FD" }}>
+          <h5 className="mb-0">📋 Bill Summary with Credit Card Details</h5>
+        </Card.Header>
+        <Card.Body style={{ overflowY: 'auto', maxHeight: '70vh' }}>
+          <Table bordered hover responsive size="sm">
+            <thead style={{ backgroundColor: "#FFF3E0" }}>
+              <tr>
+                {["Bill No", "Bill Date", "KOT No", "Rev KOT No", "Gross Amount (₹)", "Discount (₹)", "Amount (₹)", "CGST (₹)", "SGST (₹)", "Round Off", "Rev Amt", "Total Amount (₹)", "Payment Mode", "Customer Name", "Waiter", "Captain", "User", "Order Type", "Card Number", "Bank", "Card Amount (₹)"].map((h, i) => (
+                  <th key={i} style={{ position: 'sticky', top: 0, backgroundColor: '#FFF3E0', zIndex: 1 }}>{h}</th>
+                ))}
               </tr>
-            )) : <tr><td colSpan={21} className="text-center">No data available</td></tr>}
-          </tbody>
-        </Table>
-      </Card.Body>
-    </Card>
-  );
+            </thead>
+            <tbody>
+              {billSummaryData.length > 0 ? billSummaryData.map((b, i) => (
+                <tr key={i}>
+                  <td>{b.billNo}</td>
+                  <td>{b.billDate}</td>
+                  <td>{b.kotNo}</td>
+                  <td>{b.revKotNo}</td>
+                  <td>{b.grossAmount?.toFixed(2) || 0}</td>
+                  <td>{b.discount?.toFixed(2) || 0}</td>
+                  <td>{b.amount?.toFixed(2) || 0}</td>
+                  <td>{b.cgst?.toFixed(2) || 0}</td>
+                  <td>{b.sgst?.toFixed(2) || 0}</td>
+                  <td>{b.roundOff?.toFixed(2) || 0}</td>
+                  <td>{b.revAmt?.toFixed(2) || 0}</td>
+                  <td>{b.totalAmount?.toFixed(2) || 0}</td>
+                  <td>{b.paymentMode}</td>
+                  <td>{b.customerName}</td>
+                  <td>{b.waiter}</td>
+                  <td>{b.captain}</td>
+                  <td>{b.user}</td>
+                  <td>{b.orderType}</td>
+                  <td>{b.creditDetails?.cardNumber}</td>
+                  <td>{b.creditDetails?.bank}</td>
+                  <td>{b.creditDetails?.amount.toFixed(2)}</td>
+                </tr>
+              )) : <tr><td colSpan={21} className="text-center">No data available</td></tr>}
+            </tbody>
+            {billSummaryData.length > 0 && (
+              <tfoot className="fw-bold">
+                <tr>
+                  <td colSpan={4}>Total</td>
+                  <td>{totals.grossAmount.toFixed(2)}</td>
+                  <td>{totals.discount.toFixed(2)}</td>
+                  <td>{totals.amount.toFixed(2)}</td>
+                  <td>{totals.cgst.toFixed(2)}</td>
+                  <td>{totals.sgst.toFixed(2)}</td>
+                  <td>{totals.roundOff.toFixed(2)}</td>
+                  <td>{totals.revAmt.toFixed(2)}</td>
+                  <td>{totals.totalAmount.toFixed(2)}</td>
+                  <td colSpan={8}></td>
+                  <td>{totals.cardAmount.toFixed(2)}</td>
+                </tr>
+              </tfoot>
+            )}
+          </Table>
+        </Card.Body>
+      </Card>
+    );
+  };
 
   const renderCreditSummarySection = () => (
     <Card className="p-2 shadow-sm border-0">
@@ -1498,39 +1559,51 @@ const ReportPage = () => {
       <Card.Header style={{ backgroundColor: "#FCE4EC" }}>
         <h5 className="mb-0">🍳 Kitchen Allocation</h5>
       </Card.Header>
+      <Card.Header className="py-2">
+        <Row className="align-items-center">
+          <Col xs="auto" className="pe-0">
+            <Form.Label className="mb-0">Report Type:</Form.Label>
+          </Col>
+          <Col xs="auto">
+            <Form.Select
+              size="sm"
+              value={kitchenAllocationType}
+              onChange={(e) => setKitchenAllocationType(e.target.value)}
+            >
+              <option value="allocation">Allocation (default)</option>
+              <option value="withAmount">With Amount</option>
+            </Form.Select>
+          </Col>
+        </Row>
+      </Card.Header>
       <Card.Body style={{ overflowY: 'auto', maxHeight: '70vh' }}>
         <Table bordered hover responsive size="sm">
           <thead style={{ backgroundColor: "#FFF3E0" }}>
             <tr>
-              {["Bill No", "Bill Date", "KOT No", "Rev KOT", "Gross Amount (₹)", "Discount (₹)", "Amount (₹)", "CGST (₹)", "SGST (₹)", "Cess (₹)", "Service Charge (₹)", "Total Amount (₹)", "Payment Mode", "Customer Name", "Address", "Mobile", "Order Type", "Kitchen", "Allocation"].map((h, i) => (
-                <th key={i} style={{ position: 'sticky', top: 0, backgroundColor: '#FFF3E0', zIndex: 1 }}>{h}</th>
-              ))}
+              {kitchenAllocationType === 'allocation' ? (
+                ["Item No", "Item Name", "Qty"].map((h, i) => (
+                  <th key={i} style={{ position: 'sticky', top: 0, backgroundColor: '#FFF3E0', zIndex: 1 }}>{h}</th>
+                ))
+              ) : (
+                ["Item No", "Item Name", "Qty", "Amount"].map((h, i) => (
+                  <th key={i} style={{ position: 'sticky', top: 0, backgroundColor: '#FFF3E0', zIndex: 1 }}>{h}</th>
+                ))
+              )}
             </tr>
           </thead>
           <tbody>
             {kitchenAllocation.length > 0 ? kitchenAllocation.map((k, i) => (
               <tr key={i}>
-                <td>{k.billNo}</td>
-                <td>{k.billDate}</td>
-                <td>{k.kotNo}</td>
-                <td>{k.revKot ? "Yes" : "No"}</td>
-                <td>{(k.grossAmount ?? 0).toFixed(2)}</td>
-                <td>{(k.discount ?? 0).toFixed(2)}</td>
-                <td>{(k.amount ?? 0).toFixed(2)}</td>
-                <td>{(k.cgst ?? 0).toFixed(2)}</td>
-                <td>{(k.sgst ?? 0).toFixed(2)}</td>
-                <td>{(k.cess ?? 0).toFixed(2)}</td>
-                <td>{(k.serviceCharge ?? 0).toFixed(2)}</td>
-                <td>{(k.totalAmount ?? 0).toFixed(2)}</td>
-                <td>{k.paymentMode}</td>
+                <td>{k.orderNo}</td>
                 <td>{k.customerName}</td>
-                <td>{k.address}</td>
-                <td>{k.mobile}</td>
-                <td>{k.orderType}</td>
-                <td>{k.kitchen}</td>
-                <td>{k.allocation ?? "0%"}</td>
+                <td>{k.itemsCount}</td>
+                {kitchenAllocationType === 'withAmount' && (
+                  <td>{(k.amount ?? 0).toFixed(2)}</td>
+                )}
               </tr>
-            )) : <tr><td colSpan={19} className="text-center">No data available</td></tr>}
+            )) : (
+              <tr><td colSpan={kitchenAllocationType === 'allocation' ? 3 : 4} className="text-center">No data available</td></tr>
+            )}
           </tbody>
         </Table>
       </Card.Body>
