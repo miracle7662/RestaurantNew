@@ -9,6 +9,7 @@ const getReportData = (req, res) => {
           t.TxnNo,
           mt.tableid as TableID,
           mt.table_name,
+          mo.outletid,
           mo.outlet_name,
           d.department_name,
           t.Amount as TotalAmount,
@@ -96,6 +97,7 @@ const getReportData = (req, res) => {
           cgst: parseFloat(row.CGST || 0),
           sgst: parseFloat(row.SGST || 0),
           outlet_name: row.outlet_name,
+          outletid: row.outletid, // Add outletid to the response object
           table_name: row.table_name,
           department_name: row.department_name,
           grossAmount: parseFloat(row.GrossAmount || 0),

@@ -5,7 +5,7 @@ const Controller = require("../controllers/paymentModeController");
 // Payment modes CRUD
 router.post("/", Controller.createPaymentMode);
 router.get("/", Controller.getAllPaymentModes);
-router.get("/by-outlet/:outletid", Controller.getPaymentModesByOutlet);
+router.get("/by-outlet", Controller.getPaymentModesByOutlet);
 router.put("/:id", Controller.updatePaymentMode);
 router.put("/sequence", Controller.updatePaymentModeSequence); // New route for sequence update
 router.delete("/:id", Controller.deletePaymentMode);

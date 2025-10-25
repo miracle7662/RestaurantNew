@@ -4,6 +4,9 @@ import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import { Alert } from 'react-bootstrap';
+import { useAuthContext } from "@/common";
+import { fetchOutletsForDropdown } from "@/utils/commonfunction";
+import { OutletData } from "@/common/api/outlet";
 
 interface Bill {
   [key: string]: any; // Index signature for dynamic property access in export functions
@@ -45,6 +48,7 @@ interface Bill {
   qrcode?: number;
  
   outlet?: string;
+  outletid?: number;
   outlet_name?: string;
   table_name?: string;
   department_name?: string;
@@ -74,6 +78,11 @@ const defaultBill: Bill = {
   date: "",
 };
 
+interface PaymentMode {
+  id: number;
+  mode_name: string;
+}
+
 const ReportPage = () => {
   const [bills, setBills] = useState<Bill[]>([]);
   const [filteredBills, setFilteredBills] = useState<Bill[]>([]);
@@ -90,10 +99,19 @@ const ReportPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dateError, setDateError] = useState<string | null>(null);
+  const [outlets, setOutlets] = useState<OutletData[]>([]);
+  const [dynamicPaymentModes, setDynamicPaymentModes] = useState<PaymentMode[]>([]);
+  const { user } = useAuthContext();
 
   useEffect(() => {
-    loadBills();
-  }, []);
+    const fetchInitialData = async () => {
+      setLoading(true);
+      await fetchOutletsForDropdown(user, setOutlets, setLoading);
+      await loadBills();
+      setLoading(false);
+    };
+    if (user) fetchInitialData();
+  }, [user]);
 
   useEffect(() => {
     if (customRange.start && customRange.end) {
@@ -110,6 +128,25 @@ const ReportPage = () => {
       filterBills(bills);
     }
   }, [reportType, reportCategory, filters, customRange.start, customRange.end]);
+
+  useEffect(() => {
+    const fetchPaymentModes = async () => {
+      try {
+        // The controller is updated to handle an empty outletid, returning all unique modes
+        const response = await fetch(`http://localhost:3001/api/payment-modes/by-outlet?outletid=${filters.outlet || ''}`);
+        if (response.ok) {
+          const data = await response.json();
+          setDynamicPaymentModes(data);
+        } else {
+          console.error("Failed to fetch payment modes");
+          setDynamicPaymentModes([]);
+        }
+      } catch (error) {
+        console.error("Error fetching payment modes:", error);
+      }
+    };
+    fetchPaymentModes();
+  }, [filters.outlet]);
 
   const loadBills = async () => {
     try {
@@ -160,6 +197,7 @@ const ReportPage = () => {
           phonepe: order.phonepe,
           qrcode: order.qrcode,
           outlet_name: order.outlet_name,
+          outletid: order.outletid,
           table_name: order.table_name,
           department_name: order.department_name,
         }));
@@ -225,10 +263,10 @@ const ReportPage = () => {
       filtered = filtered.filter(bill => bill.orderType === filters.orderType);
     }
     if (filters.paymentMode) {
-      filtered = filtered.filter(bill => bill.paymentMode === filters.paymentMode);
+      filtered = filtered.filter(bill => bill.paymentMode?.includes(filters.paymentMode));
     }
     if (filters.outlet) {
-      filtered = filtered.filter(bill => bill.outlet === filters.outlet);
+      filtered = filtered.filter(bill => bill.outletid == Number(filters.outlet));
     }
 
     setFilteredBills(filtered);
@@ -1055,8 +1093,12 @@ const ReportPage = () => {
         <Card.Body style={{ overflowY: 'auto', maxHeight: '70vh' }}>
           <Table bordered hover responsive size="sm">
             <thead style={{ backgroundColor: "#FFF3E0" }}>
-              <tr >
-                {["Bill No", "Sale Amt (₹)", "Discount (₹)", "Net Amt (₹)", "CGST (₹)", "SGST (₹)", "Round Off", "Gross Total (₹)", "Cash (₹)", "ICICI/HDFC (₹)", "HDFC BANK (₹)", "Swiggy (₹)", "Zomato (₹)", "Credit (₹)", "Staff Credit (₹)", "Customer Name", "Bill Date", "KOT No", "Rev KOT No", "Rev Amt", "Payment Mode", "Waiter", "Captain", "User", "Order Type", "Card Number", "Bank", "Card Amount (₹)", "Outlet Name", "Table Name", "Department Name"].map((h, i) => (
+              <tr>
+                {[
+                  "Bill No", "Sale Amt (₹)", "Discount (₹)", "Net Amt (₹)", "CGST (₹)", "SGST (₹)", "Round Off", "Gross Total (₹)",
+                  ...dynamicPaymentModes.map(pm => `${pm.mode_name} (₹)`),
+                  "Customer Name", "Bill Date", "KOT No", "Rev KOT No", "Rev Amt", "Payment Mode", "Waiter", "Captain", "User", "Order Type", "Card Number", "Bank", "Card Amount (₹)", "Outlet Name", "Table Name", "Department Name"
+                ].map((h, i) => (
                   <th key={i} style={{ position: 'sticky', top: 0, backgroundColor: '#FFF3E0', zIndex: 1 }}>{h}</th>
                 ))}
               </tr>
@@ -1072,13 +1114,22 @@ const ReportPage = () => {
                   <td>{b.sgst?.toFixed(2) || 0}</td>                      {/* SGST */}
                   <td>{b.roundOff?.toFixed(2) || 0}</td>                  {/* R.Off */}
                   <td>{b.grossAmount?.toFixed(2) || 0}</td>              {/* GrossTotal */}
-                  <td>{b.cash?.toFixed(2) || 0}</td>                      {/* Cash */}
-                  <td>{b.card?.toFixed(2) || 0}</td>                      {/* ICICI/HDFC (assuming card) */}
-                  <td>{0.00.toFixed(2)}</td>                              {/* HDFC BANK (placeholder) */}
-                  <td>{0.00.toFixed(2)}</td>                              {/* Swiggy (placeholder) */}
-                  <td>{0.00.toFixed(2)}</td>                              {/* Zomato (placeholder) */}
-                  <td>{b.credit?.toFixed(2) || 0}</td>                    {/* Credit */}
-                  <td>{0.00.toFixed(2)}</td>                              {/* Staff Credit (placeholder) */}
+                  {dynamicPaymentModes.map(pm => {
+                    const modeKey = pm.mode_name.toLowerCase().replace(/[^a-z0-9]/gi, '');
+                    let amount = 0;
+                    if (modeKey.includes('cash')) amount = b.cash ?? 0;
+                    else if (modeKey.includes('card')) amount = b.card ?? 0;
+                    else if (modeKey.includes('credit')) amount = b.credit ?? 0;
+                    else if (modeKey.includes('gpay')) amount = b.gpay ?? 0;
+                    else if (modeKey.includes('phonepe')) amount = b.phonepe ?? 0;
+                    else if (modeKey.includes('qr')) amount = b.qrcode ?? 0;
+                    else {
+                      // Fallback for other modes like Zomato, Swiggy, etc.
+                      // This assumes the backend provides a matching key.
+                      amount = (b as any)[modeKey] ?? 0;
+                    }
+                    return <td key={pm.id}>{(amount).toFixed(2)}</td>;
+                  })}
                   <td>{b.customerName}</td>                               {/* Customer Name */}
                   {/* Other fields */}
                   <td>{b.billDate}</td>                                   
@@ -1110,8 +1161,8 @@ const ReportPage = () => {
                   <td>{totals.sgst.toFixed(2)}</td>
                   <td>{totals.roundOff.toFixed(2)}</td>
                   <td>{totals.grossAmount.toFixed(2)}</td>
-                  <td colSpan={10}></td>
-                  <td colSpan={11}></td>
+                  {/* Dynamic colspan for payment modes */}
+                  <td colSpan={dynamicPaymentModes.length + 11}></td>
                 </tr>
               </tfoot>
             )}
@@ -1940,6 +1991,21 @@ const ReportPage = () => {
                 <option value="handover">Handover Report</option>
                 <option value="billReprinted">Bill Reprinted</option>
                 <option value="kotUsedSummary">KOT Used Summary</option>
+              </Form.Select>
+            </Col>
+
+            <Col md={2} xs={12}>
+              <Form.Select
+                name="outlet"
+                value={filters.outlet}
+                onChange={(e) => setFilters(prev => ({ ...prev, outlet: e.target.value }))}
+                className="form-select-sm"
+                size="sm"
+              >
+                <option value="">All Outlets</option>
+                {outlets.map(outlet => (
+                  <option key={outlet.outletid} value={outlet.outletid}>{outlet.outlet_name}</option>
+                ))}
               </Form.Select>
             </Col>
 

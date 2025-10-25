@@ -76,10 +76,12 @@ exports.getAllPaymentModes = (req, res) => {
 // Update payment mode sequence for an outlet
 exports.updatePaymentModeSequence = (req, res) => {
   try {
-    const { outletid, orderedPaymentTypeIds } = req.body;
+    console.log('Received req.body:', req.body);
+    let { outletid, orderedPaymentTypeIds } = req.body;
 
-    if (!outletid || !Array.isArray(orderedPaymentTypeIds)) {
-      return res.status(400).json({ error: "Outlet ID and an array of ordered payment type IDs are required" });
+    outletid = parseInt(outletid);
+    if (isNaN(outletid) || outletid <= 0 || !Array.isArray(orderedPaymentTypeIds) || orderedPaymentTypeIds.length === 0) {
+      return res.status(400).json({ error: "Valid outlet ID and non-empty array of ordered payment type IDs are required" });
     }
 
     const transaction = db.transaction(() => {
@@ -115,18 +117,29 @@ exports.updatePaymentModeSequence = (req, res) => {
 // Get payment modes by outlet ID
 exports.getPaymentModesByOutlet = (req, res) => {
   try {
-    const { outletid } = req.params;
-    if (!outletid) {
-      return res.status(400).json({ error: "Outlet ID is required" });
-    }
+    const { outletid } = req.query; // Changed to query param for flexibility
 
-    const sql = `
-      SELECT pm.id, pm.paymenttypeid, pt.mode_name, pm.outletid
+    let sql = `
+      SELECT pt.paymenttypeid as id, pt.mode_name, MIN(pm.sequence) as sequence
       FROM payment_modes pm
       JOIN payment_types pt ON pm.paymenttypeid = pt.paymenttypeid
-      WHERE pm.outletid = ? AND pm.is_active = 1 AND pt.status = 1
+      WHERE pm.is_active = 1 AND pt.status = 1
     `;
-    const rows = db.prepare(sql).all(outletid);
+    const params = [];
+
+    // If a specific outlet is requested, filter by it.
+    // The 'outletid' will be a string from the query, so check for truthiness.
+    if (outletid && outletid !== 'null' && outletid !== 'undefined') {
+      sql += ' AND pm.outletid = ?';
+      params.push(outletid);
+    }
+
+    // Group by payment type to get unique modes.
+    // Order by sequence to maintain a consistent order.
+    // If no outlet is selected, it will show all unique active payment modes.
+    sql += ' GROUP BY pt.paymenttypeid, pt.mode_name ORDER BY sequence, pt.mode_name';
+
+    const rows = db.prepare(sql).all(...params);
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
