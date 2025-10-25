@@ -6,16 +6,20 @@ import "jspdf-autotable";
 
 interface Bill {
   [key: string]: any; // Index signature for dynamic property access in export functions
+  orderNo: string;
   billNo: string;
   billDate: string;
   kotNo: string;
-  revKot: boolean;
+  revKotNo?: string;
+  revKot: boolean; // This can be derived from reverseBill
   grossAmount: number;
   discount: number;
   amount: number;
   cgst: number;
   sgst: number;
   cess: number;
+  roundOff?: number;
+  revAmt?: number;
   serviceCharge: number;
   totalAmount: number;
   paymentMode: string;
@@ -23,26 +27,28 @@ interface Bill {
   address: string;
   mobile: string;
   orderType: string;
+  waiter?: string;
+  captain?: string;
+  user?: string;
   itemsCount: number;
   tax: number;
-  card?: number;
-  ncName?: string;
-  waiter?: string;
-  type?: string;
-  items?: number;
-  reverseBill?: number;
+  reverseBill?: number | string;
   date: string;
-  captain?: string;
-  ncKot?: boolean;
+  ncKot?: string;
+  ncName?: string;
   cash?: number;
   credit?: number;
-  user?: string;
-  orderNo?: string;
+  card?: number;
+  gpay?: number;
+  phonepe?: number;
+  qrcode?: number;
+ 
   outlet?: string;
 }
 
 const defaultBill: Bill = {
   billNo: "N/A",
+  orderNo: "N/A",
   billDate: "",
   kotNo: "N/A",
   revKot: false,
@@ -67,7 +73,7 @@ const defaultBill: Bill = {
 const ReportPage = () => {
   const [bills, setBills] = useState<Bill[]>([]);
   const [filteredBills, setFilteredBills] = useState<Bill[]>([]);
-  const [reportType, setReportType] = useState("daily");
+  const [reportType, setReportType] = useState("monthly");
   const [reportCategory, setReportCategory] = useState("billSummary");
   const [customRange, setCustomRange] = useState({ start: "", end: "" });
   const [filters, setFilters] = useState({
@@ -99,26 +105,42 @@ const ReportPage = () => {
         console.log("Fetched bills data:", data.data.orders);
         const orders: any[] = data.data.orders || [];
         const allBills: Bill[] = orders.map((order: any) => ({
-          ...order,
+          orderNo: order.orderNo,
           billNo: order.orderNo,
           billDate: order.date ? new Date(order.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
           kotNo: order.kotNo || "N/A",
+          revKotNo: order.revKotNo,
           revKot: order.reverseBill == 1,
           grossAmount: order.grossAmount || order.amount || 0,
           discount: order.discount || 0,
           amount: order.amount || 0,
           cgst: order.cgst || 0,
           sgst: order.sgst || 0,
+          roundOff: order.roundOff || 0,
+          revAmt: order.revAmt || 0,
           cess: 0,
           serviceCharge: 0,
           totalAmount: order.amount || 0,
           paymentMode: order.paymentMode || "Cash",
-          customerName: order.ncName || order.waiter || "N/A",
+          customerName: order.customerName || "N/A", // Assuming customerName might exist
+          waiter: order.waiter,
+          captain: order.captain,
+          user: order.user,
           address: "N/A",
           mobile: "N/A",
-          orderType: order.type || "Dine In",
-          itemsCount: order.items || 0,
+          orderType: order.type || "Dine-in",
+          itemsCount: order.items,
           tax: (order.cgst || 0) + (order.sgst || 0),
+          reverseBill: order.reverseBill,
+          date: order.date,
+          ncKot: order.ncKot,
+          ncName: order.ncName,
+          cash: order.cash,
+          credit: order.credit,
+          card: order.card,
+          gpay: order.gpay,
+          phonepe: order.phonepe,
+          qrcode: order.qrcode,
         }));
         setBills(allBills);
         filterBills(allBills);
@@ -943,7 +965,7 @@ const ReportPage = () => {
         <Table bordered hover responsive size="sm">
           <thead style={{ backgroundColor: "#FFF3E0" }}>
             <tr>
-              {["Bill No", "Bill Date", "KOT No", "Rev KOT", "Gross Amount (₹)", "Discount (₹)", "Amount (₹)", "CGST (₹)", "SGST (₹)", "Cess (₹)", "Service Charge (₹)", "Total Amount (₹)", "Payment Mode", "Customer Name", "Address", "Mobile", "Order Type", "Card Number", "Bank", "Card Amount (₹)"].map((h, i) => (
+              {["Bill No", "Bill Date", "KOT No", "Rev KOT No", "Gross Amount (₹)", "Discount (₹)", "Amount (₹)", "CGST (₹)", "SGST (₹)", "Round Off", "Rev Amt", "Total Amount (₹)", "Payment Mode", "Customer Name", "Waiter", "Captain", "User", "Order Type", "Card Number", "Bank", "Card Amount (₹)"].map((h, i) => (
                 <th key={i} style={{ position: 'sticky', top: 0, backgroundColor: '#FFF3E0', zIndex: 1 }}>{h}</th>
               ))}
             </tr>
@@ -954,25 +976,26 @@ const ReportPage = () => {
                 <td>{b.billNo}</td>
                 <td>{b.billDate}</td>
                 <td>{b.kotNo}</td>
-                <td>{b.revKot ? "Yes" : "No"}</td>
+                <td>{b.revKotNo}</td>
                 <td>{b.grossAmount?.toFixed(2) || 0}</td>
                 <td>{b.discount?.toFixed(2) || 0}</td>
                 <td>{b.amount?.toFixed(2) || 0}</td>
                 <td>{b.cgst?.toFixed(2) || 0}</td>
                 <td>{b.sgst?.toFixed(2) || 0}</td>
-                <td>{b.cess?.toFixed(2) || 0}</td>
-                <td>{b.serviceCharge?.toFixed(2) || 0}</td>
+                <td>{b.roundOff?.toFixed(2) || 0}</td>
+                <td>{b.revAmt?.toFixed(2) || 0}</td>
                 <td>{b.totalAmount?.toFixed(2) || 0}</td>
                 <td>{b.paymentMode}</td>
                 <td>{b.customerName}</td>
-                <td>{b.address}</td>
-                <td>{b.mobile}</td>
+                <td>{b.waiter}</td>
+                <td>{b.captain}</td>
+                <td>{b.user}</td>
                 <td>{b.orderType}</td>
-                <td>{b.creditDetails.cardNumber}</td>
-                <td>{b.creditDetails.bank}</td>
-                <td>{b.creditDetails.amount.toFixed(2)}</td>
+                <td>{b.creditDetails?.cardNumber}</td>
+                <td>{b.creditDetails?.bank}</td>
+                <td>{b.creditDetails?.amount.toFixed(2)}</td>
               </tr>
-            )) : <tr><td colSpan={20} className="text-center">No data available</td></tr>}
+            )) : <tr><td colSpan={21} className="text-center">No data available</td></tr>}
           </tbody>
         </Table>
       </Card.Body>
