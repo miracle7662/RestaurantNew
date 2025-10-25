@@ -20,7 +20,6 @@ import DailySalesReport from '../views/apps/Masters/Reports/DailySalesReport'
 import DailySalesusershift from '../views/apps/Masters/Reports/DailySalesusershift'
 import MonthlySales from '../views/apps/Masters/Reports/MonthlySales'
 import PaymentModeSales from '../views/apps/Masters/Reports/PaymentModeSales'
-import KitchenAllocation from '../views/apps/Masters/Reports/KitchenAllocation'
 import DayEndReport from '../views/apps/Masters/Reports/DayEndReport'
 import HandoverReport from '../views/apps/Masters/Reports/HandoverReport'
 import BillReprinted from '../views/apps/Masters/Reports/BillReprinted'
@@ -428,12 +427,7 @@ const appsRoutes: RoutesProps = {
           element: <PaymentModeSales />,
           route: PrivateRoute,
         },
-        {
-          path: '/Reports/KitchenAllocation',
-          name: 'KitchenAllocation',
-          element: <KitchenAllocation />,
-          route: PrivateRoute,
-        },
+        
         {
           path: '/Reports/DayEndReport',
           name: 'DayEndReport',
