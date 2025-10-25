@@ -1812,6 +1812,24 @@ const ReportPage = () => {
               </Form.Select>
             </Col>
 
+            {["reverseKOTs", "discountSummary"].includes(reportCategory) && (
+              <Col md={2} xs={6}>
+                <Form.Select
+                  value={reportType}
+                  onChange={(e) => setReportType(e.target.value)}
+                  className="form-select-sm"
+                  size="sm"
+                >
+                  <option value="daily">Daily</option>
+                  <option value="monthly">Monthly</option>
+                  <option value="custom">Custom</option>
+                  {/* If you add a 'weekly' option, ensure the filterBills function handles it. */}
+                  {/* <option value="weekly">Weekly</option> */}
+                </Form.Select>
+              </Col>
+            )}
+
+
             <Col md={2} xs={6}>
               <Form.Control
                 type="date"
