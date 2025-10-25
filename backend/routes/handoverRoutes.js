@@ -3,6 +3,7 @@ const router = express.Router();
 const handoverController = require('../controllers/handoverController');
 
 router.get('/data', handoverController.getHandoverData);
+router.get('/getDailySalesData', handoverController.getDailySalesData);
 router.post('/cash-denomination', handoverController.saveCashDenomination);
 router.post('/dayend-cash-denomination', handoverController.saveDayEndCashDenomination);
 

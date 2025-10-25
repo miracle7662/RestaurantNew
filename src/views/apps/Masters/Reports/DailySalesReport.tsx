@@ -3,6 +3,7 @@ import { Card, Table, Form, Button, Row, Col, Dropdown } from "react-bootstrap";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
+import { Alert } from 'react-bootstrap';
 
 interface Bill {
   [key: string]: any; // Index signature for dynamic property access in export functions
@@ -85,6 +86,7 @@ const ReportPage = () => {
   const [ingredientUsage, setIngredientUsage] = useState<unknown[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [dateError, setDateError] = useState<string | null>(null);
 
   useEffect(() => {
     loadBills();
@@ -92,12 +94,18 @@ const ReportPage = () => {
 
   useEffect(() => {
     filterBills(bills);
-  }, [reportType, reportCategory, filters, customRange]);
+    // Only filter when customRange is valid
+    if (customRange.start && customRange.end && new Date(customRange.start) <= new Date(customRange.end)) {
+      filterBills(bills);
+    } else if (reportType !== 'custom') {
+      filterBills(bills);
+    }
+  }, [reportType, reportCategory, filters, customRange.start, customRange.end]);
 
   const loadBills = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:3001/api/handover/data');
+      const response = await fetch('http://localhost:3001/api/handover/getDailySalesData');
       if (!response.ok) {
         throw new Error('Failed to fetch report data');
       }
@@ -153,6 +161,24 @@ const ReportPage = () => {
       console.error('Error fetching report data:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDateChange = (field: 'start' | 'end', value: string) => {
+    const updatedRange = { ...customRange, [field]: value };
+    setCustomRange(updatedRange);
+
+    if (updatedRange.start && updatedRange.end) {
+      const startDate = new Date(updatedRange.start);
+      const endDate = new Date(updatedRange.end);
+
+      if (startDate > endDate) {
+        setDateError("❌ 'From Date' cannot be greater than 'To Date'");
+      } else {
+        setDateError(null);
+      }
+    } else if (dateError) { // Clear error if one of the dates is cleared
+      setDateError(null);
     }
   };
 
@@ -1918,8 +1944,8 @@ const ReportPage = () => {
                 type="date"
                 placeholder="From Date"
                 value={customRange.start}
-                onChange={(e) => setCustomRange({ ...customRange, start: e.target.value })}
                 className="form-control-sm"
+                onChange={(e) => handleDateChange("start", e.target.value)}
                 size="sm"
               />
             </Col>
@@ -1929,8 +1955,8 @@ const ReportPage = () => {
                 type="date"
                 placeholder="To Date"
                 value={customRange.end}
-                onChange={(e) => setCustomRange({ ...customRange, end: e.target.value })}
                 className="form-control-sm"
+                onChange={(e) => handleDateChange("end", e.target.value)}
                 size="sm"
               />
             </Col>
@@ -1959,6 +1985,14 @@ const ReportPage = () => {
               </Button>
             </Col>
           </Row>
+
+          {dateError && (
+            <Row className="mb-2">
+              <Col>
+                <Alert variant="danger" className="py-1 mb-0 text-center">{dateError}</Alert>
+              </Col>
+            </Row>
+          )}
 
           {renderReportContent()}
         </div>

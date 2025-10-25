@@ -332,9 +332,155 @@ const saveDayEnd = async (req, res) => {
   }
 };
 
+const getDailySalesData = (req, res) => {
+  try {
+    const { fromDate, toDate } = req.query;
+
+    // If no date is passed, use today as default
+    const startDate = fromDate ? `${fromDate} 00:00:00` : new Date().toISOString().split('T')[0] + ' 00:00:00';
+    const endDate = toDate ? `${toDate} 23:59:59` : new Date().toISOString().split('T')[0] + ' 23:59:59';
+
+    const query = `
+      SELECT
+          t.TxnID,
+          t.TxnNo,
+          t.TableID,
+          t.Amount AS TotalAmount,
+          t.Discount,
+          t.GrossAmt AS GrossAmount,
+          t.CGST,
+          t.SGST,
+          t.RoundOFF,
+          t.RevKOT AS RevAmt,
+          t.TxnDatetime,
+          t.Steward AS Captain,
+          t.CustomerName,
+          t.MobileNo,
+          t.UserId,
+          u.username AS UserName,
+          (SELECT SUM(CASE WHEN i.item_name LIKE '%water%' THEN d.RuntimeRate * d.Qty ELSE 0 END)
+           FROM TAxnTrnbilldetails d
+           JOIN mstrestmenu i ON d.ItemID = i.restitemid
+           WHERE d.TxnID = t.TxnID) AS Water,
+          GROUP_CONCAT(DISTINCT CASE WHEN td.Qty > 0 THEN td.KOTNo END) AS KOTNo,
+          COALESCE(GROUP_CONCAT(DISTINCT td.RevKOTNo), '') AS RevKOTNo,
+          GROUP_CONCAT(DISTINCT CASE WHEN td.isNCKOT = 1 THEN td.KOTNo END) AS NCKOT,
+          t.NCPurpose,
+          t.NCName,
+          (
+            SELECT GROUP_CONCAT(s.PaymentType || ':' || s.Amount)
+            FROM TrnSettlement s
+            WHERE s.OrderNo = t.TxnNo AND s.isSettled = 1
+          ) AS Settlements,
+          t.isSetteled,
+          t.isBilled,
+          t.isreversebill,
+          t.isCancelled,
+          SUM(td.Qty) AS TotalItems
+      FROM TAxnTrnbill t
+      LEFT JOIN TAxnTrnbilldetails td ON t.TxnID = td.TxnID
+      LEFT JOIN mst_users u ON t.UserId = u.userid
+      WHERE ((t.isCancelled = 0 AND (t.isBilled = 1 OR t.isSetteled = 1)) OR t.isreversebill = 1)
+        AND t.TxnDatetime BETWEEN ? AND ?
+      GROUP BY t.TxnID, t.TxnNo
+      ORDER BY t.TxnDatetime DESC;
+    `;
+
+    const rows = db.prepare(query).all(startDate, endDate);
+
+    // 🔹 Process and structure the result similar to handover
+    const transactions = {};
+    for (const row of rows) {
+      if (!row.Settlements && !row.isSetteled) continue;
+
+      const settlements = (row.Settlements || '').split(',');
+      const paymentBreakdown = {
+        cash: 0,
+        card: 0,
+        gpay: 0,
+        phonepe: 0,
+        qrcode: 0,
+        credit: 0,
+      };
+      const paymentModes = [];
+
+      settlements.forEach(s => {
+        const [type, amountStr] = s.split(':');
+        const amount = parseFloat(amountStr) || 0;
+        if (type) paymentModes.push(type);
+        if (type.toLowerCase().includes('cash')) paymentBreakdown.cash += amount;
+        if (type.toLowerCase().includes('card')) paymentBreakdown.card += amount;
+        if (type.toLowerCase().includes('gpay') || type.toLowerCase().includes('google')) paymentBreakdown.gpay += amount;
+        if (type.toLowerCase().includes('phonepe')) paymentBreakdown.phonepe += amount;
+        if (type.toLowerCase().includes('qr')) paymentBreakdown.qrcode += amount;
+        if (type.toLowerCase().includes('credit') && !type.toLowerCase().includes('card')) paymentBreakdown.credit += amount;
+      });
+
+      if (!transactions[row.TxnID]) {
+        transactions[row.TxnID] = {
+          orderNo: row.TxnNo,
+          table: row.TableID,
+          waiter: row.Steward || 'Unknown',
+          amount: parseFloat(row.TotalAmount || 0),
+          type: row.isreversebill
+            ? 'Reversed'
+            : (paymentModes.length > 1 ? 'Split' : (paymentModes[0] || (row.isSetteled ? 'Cash' : 'Unpaid'))),
+          status: row.isSetteled ? 'Settled' : (row.isBilled ? 'Billed' : 'Pending'),
+          time: row.TxnDatetime,
+          items: parseInt(row.TotalItems || 0),
+          kotNo: row.KOTNo || '',
+          revKotNo: row.RevKOTNo || '',
+          discount: parseFloat(row.Discount || 0),
+          ncKot: row.NCKOT || '',
+          ncPurpose: row.NCPurpose || '',
+          ncName: row.NCName || '',
+          cgst: parseFloat(row.CGST || 0),
+          sgst: parseFloat(row.SGST || 0),
+          grossAmount: parseFloat(row.GrossAmount || 0),
+          roundOff: parseFloat(row.RoundOFF || 0),
+          revAmt: parseFloat(row.RevAmt || 0),
+          reverseBill: row.isreversebill,
+          water: parseFloat(row.Water || 0),
+          captain: row.Captain || 'N/A',
+          user: row.UserName || 'N/A',
+          date: row.TxnDatetime,
+          paymentMode: paymentModes.join(', '),
+          ...paymentBreakdown,
+        };
+      }
+    }
+
+    const orders = Object.values(transactions);
+
+    // 🔹 Calculate totals
+    const totalSales = orders.reduce((sum, o) => sum + o.amount, 0);
+    const summary = {
+      totalOrders: orders.length,
+      totalSales,
+      cash: orders.reduce((s, o) => s + (o.cash || 0), 0),
+      card: orders.reduce((s, o) => s + (o.card || 0), 0),
+      gpay: orders.reduce((s, o) => s + (o.gpay || 0), 0),
+      phonepe: orders.reduce((s, o) => s + (o.phonepe || 0), 0),
+      qrcode: orders.reduce((s, o) => s + (o.qrcode || 0), 0),
+      credit: orders.reduce((s, o) => s + (o.credit || 0), 0),
+      averageOrderValue: orders.length ? (totalSales / orders.length).toFixed(2) : 0,
+    };
+
+    res.json({
+      success: true,
+      data: { fromDate, toDate, orders, summary },
+    });
+  } catch (error) {
+    console.error("Error fetching daily sales data:", error);
+    res.status(500).json({ success: false, message: "Failed to fetch daily sales data" });
+  }
+};
+
+
 module.exports = {
   getHandoverData,
   saveCashDenomination,
   saveDayEndCashDenomination,
-  saveDayEnd
+  saveDayEnd,
+  getDailySalesData
 };
