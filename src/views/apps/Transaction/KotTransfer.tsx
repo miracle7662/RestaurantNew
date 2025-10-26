@@ -149,14 +149,6 @@ const KotTransfer = ({ onCancel }: KotTransferProps) => {
     setSelectedItems(updated);
   };
 
-  const handleSelectAll = (checked: boolean) => {
-    if (isTableMode) return;
-    const updated = selectedItems.map(item => ({
-      ...item,
-      selected: checked
-    }));
-    setSelectedItems(updated);
-  };
 
   const handleTransferTypeChange = (type: "table" | "kot") => {
     setTransferType(type);

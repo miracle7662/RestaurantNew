@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect} from "react";
 import { Card, Table, Form, Button, Row, Col, Dropdown } from "react-bootstrap";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
@@ -95,7 +95,6 @@ const ReportPage = () => {
     paymentMode: "",
     outlet: ""
   });
-  const [ingredientUsage, setIngredientUsage] = useState<unknown[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dateError, setDateError] = useState<string | null>(null);
@@ -111,12 +110,11 @@ const ReportPage = () => {
       setLoading(false);
     };
     if (user) fetchInitialData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   useEffect(() => {
-    if (customRange.start && customRange.end) {
-      loadBills();
-    }
+    // Filtering is handled client-side, no need to reload data
   }, [customRange.start, customRange.end]);
 
   useEffect(() => {
@@ -127,7 +125,7 @@ const ReportPage = () => {
     } else if (reportType !== 'custom') {
       filterBills(bills);
     }
-  }, [reportType, reportCategory, filters, customRange.start, customRange.end]);
+  }, [reportType, reportCategory, filters, customRange.start, customRange.end, bills]);
 
   useEffect(() => {
     const fetchPaymentModes = async () => {
@@ -270,12 +268,6 @@ const ReportPage = () => {
     }
 
     setFilteredBills(filtered);
-    calculateIngredientUsage(filtered);
-  };
-
-  const calculateIngredientUsage = (bills: Bill[]) => {
-    // Simplified without recipes, as items not detailed
-    setIngredientUsage([]);
   };
 
   // Calculate payment summary
@@ -308,7 +300,7 @@ const ReportPage = () => {
   };
 
   const calculateReverseKOTsBills = () => {
-    const reversed = filteredBills.filter(b => b.revKot).map((b, idx) => ({ ...b, id: idx + 1, reason: "Reversal", timestamp: b.date }));
+    const reversed = filteredBills.filter(b => b.revKot).map((b) => ({ ...b, id: Math.floor(Math.random() * 1000), reason: "Reversal", timestamp: b.date }));
     return reversed;
   };
 
@@ -324,25 +316,25 @@ const ReportPage = () => {
   };
 
   const calculateNCKOTDetails = () => {
-    const ncKots = filteredBills.filter(b => b.ncKot).map((b, idx) => ({ ...b, id: idx + 1, status: "NC", items: [b.kotNo || "N/A"] }));
+    const ncKots = filteredBills.filter(b => b.ncKot).map((b) => ({ ...b, id: Math.floor(Math.random() * 1000), status: "NC", items: [b.kotNo || "N/A"] }));
     return ncKots;
   };
 
   const calculateAPCAPPSummary = () => {
     // Use cash/credit as proxy
-    const apc = filteredBills.filter(b => (b.cash ?? 0) > 0).map((b, idx) => ({ ...b, type: "APC", amount: b.cash, details: "Cash Payment", id: idx + 1 }));
+    const apc = filteredBills.filter(b => (b.cash ?? 0) > 0).map((b) => ({ ...b, type: "APC", amount: b.cash ?? 0, details: "Cash Payment", id: Math.floor(Math.random() * 1000) }));
     return apc;
   };
 
   const calculateSpecialItemsSummary = () => {
     // High value bills as special
-    const special = filteredBills.filter(b => b.amount > (Math.max(...filteredBills.map(f => f.amount || 0)) * 0.5 || 0)).map((b, idx) => ({ ...b, name: "Special Order", qty: b.items || 1, sales: b.amount, id: idx + 1 }));
+    const special = filteredBills.filter(b => b.amount > (Math.max(...filteredBills.map(f => f.amount || 0)) * 0.5 || 0)).map((b) => ({ ...b, name: "Special Order", qty: b.items || 1, sales: b.amount, id: Math.floor(Math.random() * 1000) }));
     return special;
   };
 
   const calculateInterDeptCash = () => {
     // Use credit as inter-dept proxy
-    const inter = filteredBills.filter(b => (b.credit ?? 0) > 0).map((b, idx) => ({ ...b, from: "Front Desk", to: "Accounts", amount: b.credit, type: "Paid", id: idx + 1 }));
+    const inter = filteredBills.filter(b => (b.credit ?? 0) > 0).map((b) => ({ ...b, from: "Front Desk", to: "Accounts", amount: b.credit, type: "Paid", id: Math.floor(Math.random() * 1000) }));
     return inter;
   };
 
@@ -398,12 +390,12 @@ const ReportPage = () => {
 
   const calculateBillReprinted = () => {
     // Mock reprints not available, return empty or use all as 0
-    return filteredBills.map((b, idx) => ({ ...b, reprints: 0, reason: "N/A" }));
+    return filteredBills.map((b) => ({ ...b, reprints: 0, reason: "N/A" }));
   };
 
   const calculateKotUsedSummary = () => {
     // Use all KOTs
-    return filteredBills.map((b, idx) => ({ ...b, usedIn: b.orderNo ?? "N/A", items: b.items || 0, id: idx + 1 }));
+    return filteredBills.map((b) => ({ ...b, usedIn: b.orderNo ?? "N/A", items: b.items || 0 }));
   };
 
   const billSummaryData = calculateBillSummary(filteredBills);
@@ -424,8 +416,6 @@ const ReportPage = () => {
   const billReprinted = calculateBillReprinted();
   const kotUsedSummary = calculateKotUsedSummary();
 
-  const paymentSummary = calculatePaymentSummary(filteredBills);
-
   const handleCustomFilter = () => filterBills(bills);
 
   const handleResetFilters = () => {
@@ -441,7 +431,7 @@ const ReportPage = () => {
     if (reportCategory === "billSummary") {
       data = billSummaryData.map(b => {
         const row: any = {};
-        commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = b[field]);
+        commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = (b as any)[field]);
         row["Card Number"] = b.creditDetails.cardNumber;
         row["Bank"] = b.creditDetails.bank;
         row["Card Amount"] = b.creditDetails.amount;
@@ -488,7 +478,7 @@ const ReportPage = () => {
     } else if (reportCategory === "creditSummary") {
       data = creditSummary.map((c: { [key: string]: any }) => {
         const row: any = {};
-        commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = c[field]);
+        commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = (c as any)[field]);
         row["Type"] = c.type;
         row["Amount"] = c.amount;
         return row;
@@ -496,7 +486,7 @@ const ReportPage = () => {
     } else if (reportCategory === "discountSummary") {
       data = discountSummary.map((d: { [key: string]: any }) => {
         const row: any = {};
-        commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = d[field]);
+        commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = (d as any)[field]);
         row["Type"] = d.type;
         row["Amount"] = d.amount;
         return row;
@@ -504,7 +494,7 @@ const ReportPage = () => {
     } else if (reportCategory === "reverseKOTs") {
       data = reverseKOTsBills.map(r => {
         const row: any = {};
-        commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = r[field]);
+        commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = (r as any)[field]);
         row["ID"] = r.id;
         row["Reason"] = r.reason;
         row["Timestamp"] = r.timestamp;
@@ -513,7 +503,7 @@ const ReportPage = () => {
     } else if (reportCategory === "kitchenWise") {
       data = kitchenWiseSales.map(k => {
         const row: any = {};
-        commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = k[field]);
+        commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = (k as any)[field]);
         row["Kitchen"] = k.kitchen;
         row["Sales"] = k.sales;
         return row;
@@ -521,7 +511,7 @@ const ReportPage = () => {
     } else if (reportCategory === "ncKOT") {
       data = ncKOTDetails.map(n => {
         const row: any = {};
-        commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = n[field]);
+        commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = (n as any)[field]);
         row["ID"] = n.id;
         row["Status"] = n.status;
         row["Items"] = n.items.join(", ");
@@ -530,7 +520,7 @@ const ReportPage = () => {
     } else if (reportCategory === "apcApp") {
       data = apcAppSummary.map(a => {
         const row: any = {};
-        commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = a[field]);
+        commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = (a as any)[field]);
         row["Type"] = a.type;
         row["Amount"] = a.amount;
         row["Details"] = a.details;
@@ -539,7 +529,7 @@ const ReportPage = () => {
     } else if (reportCategory === "specialItems") {
       data = specialItemsSummary.map(s => {
         const row: any = {};
-        commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = s[field]);
+        commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = (s as any)[field]);
         row["Name"] = s.name;
         row["Qty"] = s.qty;
         row["Sales"] = s.sales;
@@ -548,7 +538,7 @@ const ReportPage = () => {
     } else if (reportCategory === "interDeptCash") {
       data = interDeptCash.map(i => {
         const row: any = {};
-        commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = i[field]);
+        commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = (i as any)[field]);
         row["From"] = i.from;
         row["To"] = i.to;
         row["Amount"] = i.amount;
@@ -558,7 +548,7 @@ const ReportPage = () => {
     } else if (reportCategory === "dailySalesUserShift") {
       data = dailySalesUserShift.map((d: { [key: string]: any }) => {
         const row: any = {};
-        commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = d[field]);
+        commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = (d as any)[field]);
         row["User"] = d.user;
         row["Shift"] = d.shift;
         row["Sales"] = d.sales;
@@ -567,7 +557,7 @@ const ReportPage = () => {
     } else if (reportCategory === "monthlySales") {
       data = monthlySalesSummary.map((m: { [key: string]: any }) => {
         const row: any = {};
-        commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = m[field]);
+        commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = (m as any)[field]);
         row["Month"] = m.month;
         row["Sales"] = m.sales;
         return row;
@@ -575,7 +565,7 @@ const ReportPage = () => {
     } else if (reportCategory === "paymentModeSales") {
       data = paymentModeSalesSummary.map((p: { [key: string]: any }) => {
         const row: any = {};
-        commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = p[field]);
+        commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = (p as any)[field]);
         row["Mode"] = p.mode;
         row["Sales"] = p.total;
         return row;
@@ -583,27 +573,27 @@ const ReportPage = () => {
     } else if (reportCategory === "kitchenAllocation") {
       data = kitchenAllocation.map((k: { [key: string]: any }) => {
         const row: any = {};
-        commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = k[field]);
+        commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = (k as any)[field]);
         row["Kitchen"] = k.kitchen;
         row["Allocation"] = k.allocation;
         return row;
       });
     } else if (reportCategory === "dayEnd") {
       const row: any = {};
-      commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = (dayEndReport as { [key: string]: any })[field]);
+      commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = (dayEndReport as any)[field]);
       row["Total Sales"] = dayEndReport.totalSales;
       row["Cash In Hand"] = dayEndReport.cashInHand;
       data = [row];
     } else if (reportCategory === "handover") {
       const row: any = {};
-      commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = (handoverReport as { [key: string]: any })[field]);
+      commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = (handoverReport as any)[field]);
       row["Handover Time"] = handoverReport.handoverTime;
       row["Notes"] = handoverReport.notes;
       data = [row];
     } else if (reportCategory === "billReprinted") {
       data = billReprinted.map(b => {
         const row: any = {};
-        commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = b[field]);
+        commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = (b as any)[field]);
         row["Reprints"] = b.reprints;
         row["Reason"] = b.reason;
         return row;
@@ -611,7 +601,7 @@ const ReportPage = () => {
     } else if (reportCategory === "kotUsedSummary") {
       data = kotUsedSummary.map((k: { [key: string]: any }) => {
         const row: any = {};
-        commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = k[field]);
+        commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = (k as any)[field]);
         row["Used In"] = k.usedIn;
         row["Items"] = k.items;
         return row;

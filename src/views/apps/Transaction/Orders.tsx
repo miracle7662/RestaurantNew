@@ -102,7 +102,7 @@ const Order = () => {
   const [selectedOutletId, setSelectedOutletId] = useState<number | null>(null);
   const [showDiscountModal, setShowDiscountModal] = useState<boolean>(false);
   const [discount, setDiscount] = useState<number>(0);
-  const [DiscPer, setDiscPer] = useState<number>(0);
+  const [DiscPer, ] = useState<number>(0);
   const [givenBy, setGivenBy] = useState<string>(user?.name || '');
   const [reason, setReason] = useState<string>('');
   const [DiscountType, setDiscountType] = useState<number>(1); // 1 for percentage, 0 for amount
@@ -118,9 +118,7 @@ const Order = () => {
   const [f8PasswordLoading, setF8PasswordLoading] = useState<boolean>(false);
 
   // New state for F9 password modal for reversing orders
-  const [showF9PasswordModal, setShowF9PasswordModal] = useState<boolean>(false);
-  const [f9PasswordError, setF9PasswordError] = useState<string>('');
-  const [f9PasswordLoading, setF9PasswordLoading] = useState<boolean>(false);
+ 
 
   // New state for F9 password modal
   const [showF9BilledPasswordModal, setShowF9BilledPasswordModal] = useState<boolean>(false);
@@ -129,7 +127,7 @@ const Order = () => {
 
 
   // New state for Reverse Qty Mode authentication
-  const [reverseQtyConfig, setReverseQtyConfig] = useState<'NoPassword' | 'PasswordRequired'>('PasswordRequired'); // Config for Reverse Qty Mode
+  const [, setReverseQtyConfig] = useState<'NoPassword' | 'PasswordRequired'>('PasswordRequired'); // Config for Reverse Qty Mode
   const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
   const [authPassword, setAuthPassword] = useState<string>('');
   const [authError, setAuthError] = useState<string>('');
@@ -186,12 +184,8 @@ const Order = () => {
   const [errorPending, setErrorPending] = useState<string | null>(null);
 
   // States for Pending Order Form
-  const [selectedPendingOrder, setSelectedPendingOrder] = useState<any | null>(null);
-  const [formNotes, setFormNotes] = useState<string>('');
-  const [linkedPendingItems, setLinkedPendingItems] = useState<any[]>([]);
-  const [showPendingOrderForm, setShowPendingOrderForm] = useState<boolean>(false);
+ 
   const [showBillingPage, setShowBillingPage] = useState<boolean>(false);
-  const [formItems, setFormItems] = useState<MenuItem[]>([]);
   const [quickBillData, setQuickBillData] = useState<any[]>([]);
   const [allBills, setAllBills] = useState<any[]>([]);
 
@@ -1061,10 +1055,7 @@ const Order = () => {
     }
   };
 
-  const totalAmount = items
-    .reduce((sum, item) => sum + item.price * item.qty, 0)
-    .toFixed(2);
-
+ 
   useEffect(() => {
     const selectedDepartment = departments.find(d => d.department_name === activeNavTab) || null;
     if (selectedDepartment) {

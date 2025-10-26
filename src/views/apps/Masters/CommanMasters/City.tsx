@@ -3,7 +3,7 @@ import Swal from 'sweetalert2';
 import { toast } from 'react-hot-toast';
 import { Preloader } from '@/components/Misc/Preloader';
 import { Button, Card, Stack, Pagination, Table, Modal, Form } from 'react-bootstrap';
-import { ContactSearchBar, ContactSidebar } from '@/components/Apps/Contact';
+import { ContactSearchBar,  } from '@/components/Apps/Contact';
 import TitleHelmet from '@/components/Common/TitleHelmet';
 import {
   useReactTable,
@@ -31,19 +31,8 @@ interface CityItem {
   updated_date: string;
 }
 
-interface Category {
-  name: string;
-  value: string;
-  icon: string;
-  badge?: number;
-  badgeClassName?: string;
-}
 
-interface Label {
-  name: string;
-  value: string;
-  gradient: string;
-}
+
 
 interface CityModalProps {
   show: boolean;
@@ -74,7 +63,6 @@ const getStatusBadge = (status: number) => {
 // Main Component
 const City: React.FC = () => {
   const [cityItems, setCityItems] = useState<CityItem[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string>('alls');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [filteredCities, setFilteredCities] = useState<CityItem[]>([]);
   const [selectedCity, setSelectedCity] = useState<CityItem | null>(null);
@@ -184,29 +172,9 @@ const City: React.FC = () => {
     initialState: { pagination: { pageSize: 10 } },
   });
 
-  // Sidebar categories and labels
-  const categories: Category[] = useMemo(
-    () => [
-      {
-        name: 'Cities',
-        value: 'alls',
-        icon: 'fi-rr-map',
-        badge: cityItems.length,
-        badgeClassName: 'bg-primary-subtle text-primary',
-      },
-    ],
-    [cityItems.length]
-  );
+  
 
-  const labels: Label[] = useMemo(
-    () => [
-      { name: 'Metro Cities', value: 'metro', gradient: 'success' },
-      { name: 'Tier 2 Cities', value: 'tier2', gradient: 'warning' },
-      { name: 'Tier 3 Cities', value: 'tier3', gradient: 'danger' },
-      { name: 'Rural Areas', value: 'rural', gradient: 'info' },
-    ],
-    []
-  );
+
 
   // Search handler
   const handleSearch = (value: string) => {
@@ -230,15 +198,7 @@ const City: React.FC = () => {
     [cityItems]
   );
 
-  // Category change handler
-  const handleCategoryChange = useCallback(
-    (categoryValue: string) => {
-      setSelectedCategory(categoryValue);
-      setSearchTerm('');
-      setFilteredCities(cityItems);
-    },
-    [cityItems]
-  );
+
 
   // City selection handler
   const handleCityItemClick = useCallback((city: CityItem) => {
@@ -563,7 +523,7 @@ const CityModal: React.FC<CityModalProps> = ({ show, onHide, onSuccess, city, on
       });
 
       if (res.ok) {
-        const responseData = await res.json();
+        await res.json();
         toast.success(`City ${isEditMode ? 'updated' : 'added'} successfully`);
         
         if (isEditMode && city && onUpdateSelectedCity) {

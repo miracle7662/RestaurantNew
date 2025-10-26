@@ -317,7 +317,7 @@ const RegisterUserModal: React.FC<RegisterUserModalProps> = ({ show, onHide, bra
 // Main BrandList component
 const BrandList: React.FC = () => {
   const { user } = useAuthContext();
-  const [HotelMastersItem, setHotelMastersItem] = useState<HotelMastersItem[]>([]);
+  const [, setHotelMastersItem] = useState<HotelMastersItem[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [showAddBrandModal, setShowAddBrandModal] = useState(false);
   const [showEditBrandModal, setShowEditBrandModal] = useState(false);
@@ -329,8 +329,7 @@ const BrandList: React.FC = () => {
   const [selectedBrand, setSelectedBrand] = useState<HotelMastersItem | null>(null);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [filteredHotelMasters, setFilteredHotelMasters] = useState<HotelMastersItem[]>([]);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
+  const [, setShowEditModal] = useState(false);
   const [selectedHotelMasters, setSelectedHotelMasters] = useState<HotelMastersItem | null>(null);
 
 
@@ -741,7 +740,7 @@ const AddHotelMastersModal: React.FC<AddHotelMastersModalProps> = ({ show, onHid
   const [status, setStatus] = useState('Active'); // Default to 'Active'
 
   const [markets, setMarkets] = useState<MarketItem[]>([]);
-  const [market_name, setMarketName] = useState<string>('');
+  const [, setMarketName] = useState<string>('');
   const [marketid, setMarketId] = useState<number | null>(null);
 
   const [states, setStates] = useState<StateItem[]>([]);
@@ -1092,7 +1091,7 @@ const EditHotelMastersModal: React.FC<EditHotelMastersModalProps> = ({ show, onH
   const [hotel_name, setHotelName] = useState<string>('');
   const [short_name, setShortName] = useState<string>('');
   const [marketid, setMarketid] = useState<number | null>(null);
-  const [hotelid, setHotelid] = useState<string>('');
+  const [, setHotelid] = useState<string>('');
   const [phone, setPhone] = useState<string>('');
   const [email, setEmail] = useState<string>('');
   const [fssai_no, setFssaiNo] = useState<string>('');

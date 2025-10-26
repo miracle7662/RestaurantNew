@@ -5,6 +5,7 @@ const api = new APICore()
 // interface for outlet data
 export interface OutletData {
   outletid?: number
+  
   outlet_name: string
   hotelid?: number
   market_id?: string

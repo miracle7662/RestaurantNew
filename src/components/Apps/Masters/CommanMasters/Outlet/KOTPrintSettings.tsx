@@ -1,7 +1,6 @@
 // src/components/KOTPrintSettings.tsx
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Button } from 'react-bootstrap';
-import { toast } from 'react-toastify';
 
 interface KOTPrintSettingsProps {
   formData: any;

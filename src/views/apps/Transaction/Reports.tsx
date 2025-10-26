@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { Card, Table, Form, Button, Row, Col, Modal, Dropdown, Tab, Tabs } from "react-bootstrap";
+import  { useState, useEffect, useMemo, useCallback } from "react";
+import { Card, Table, Form, Button, Row, Col, Modal, Dropdown } from "react-bootstrap";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
@@ -79,7 +79,7 @@ const ReportPage = () => {
     filterBills(bills);
   }, [reportType, reportCategory, filters, customRange]);
 
-  const loadBills = () => {
+  const loadBills = useCallback(() => {
     const quickBills = JSON.parse(localStorage.getItem("quickBills") || "[]");
     const normalBills = JSON.parse(localStorage.getItem("normalBills") || "[]");
     const allBills = [...quickBills, ...normalBills].map(bill => ({
@@ -89,9 +89,9 @@ const ReportPage = () => {
     }));
     setBills(allBills);
     filterBills(allBills);
-  };
+  }, []);
 
-  const filterBills = (data: any[]) => {
+  const filterBills = useCallback((data: any[]) => {
     const today = new Date();
     let filtered = data;
 
@@ -131,7 +131,7 @@ const ReportPage = () => {
     setFilteredBills(filtered);
     calculateStats(filtered);
     calculateIngredientUsage(filtered);
-  };
+  }, [reportType, reportCategory, filters, customRange]);
 
   const calculateStats = (bills: any[]) => {
     const totalBills = bills.length;
@@ -212,8 +212,8 @@ const ReportPage = () => {
     }));
   };
 
-  const paymentSummary = calculatePaymentSummary(filteredBills);
-  const staffSummary = calculateStaffSummary(filteredBills);
+  const paymentSummary = useMemo(() => calculatePaymentSummary(filteredBills), [filteredBills]);
+  const staffSummary = useMemo(() => calculateStaffSummary(filteredBills), [filteredBills]);
 
   const handleCustomFilter = () => filterBills(bills);
 

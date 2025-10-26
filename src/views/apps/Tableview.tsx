@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, Plus } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import { useAuthContext } from '@/common';
 import { useNavigate } from 'react-router-dom';
 
@@ -15,13 +15,7 @@ interface Table {
   outletid?: number;
 }
 
-interface TableApiData {
-  id: number;
-  name: string;
-  status: TableStatus;
-  hasCustomer?: boolean;
-  hasView?: boolean;
-}
+
 
 interface Outlet {
   outletid: number;

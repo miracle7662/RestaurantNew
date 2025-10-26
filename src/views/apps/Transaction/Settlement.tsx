@@ -1,20 +1,18 @@
-import React, { useEffect, useState } from "react";
+import  { useEffect, useState } from "react";
 import { Modal, Button, Table, Form, Row, Col, Alert, Card } from "react-bootstrap";
-import { useNavigate } from 'react-router-dom';
 import axios from "axios";
-import SimpleBar from 'simplebar-react';
+
 
 const EditSettlementPage = ({ role, currentUser }: any) => {
   const [settlements, setSettlements] = useState<any[]>([]);
   const [filters, setFilters] = useState({ orderNo: "", hotelId: "", outletId: "", from: "", to: "", paymentType: "" });
   const [editing, setEditing] = useState<any>(null);
-  const [form, setForm] = useState({ PaymentType: "", Amount: "" });
   const [outletPaymentModes, setOutletPaymentModes] = useState<any[]>([]);
   const [notification, setNotification] = useState({ show: false, message: '', type: 'success' });
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  const [currentPage, ] = useState(1);
+  const [, setTotalPages] = useState(1);
   const [selectedOutletId, setSelectedOutletId] = useState<number | null>(currentUser?.outletid ? Number(currentUser.outletid) : null);
-  const navigate = useNavigate();
+  
 
   const [showSettlementModal, setShowSettlementModal] = useState(false);
   const [grandTotal, setGrandTotal] = useState(0);
@@ -96,20 +94,7 @@ const EditSettlementPage = ({ role, currentUser }: any) => {
     setShowSettlementModal(true);
   };
 
-  const saveEdit = async () => {
-    try {
-      await axios.put(`http://localhost:3001/api/settlements/${editing.SettlementID}`, {
-        ...form,
-        EditedBy: currentUser,
-      });
-      setNotification({ show: true, message: 'Settlement updated successfully', type: 'success' });
-      setEditing(null);
-      fetchData();
-    } catch (error: any) {
-      setNotification({ show: true, message: error.response?.data?.message || 'Failed to update settlement', type: 'danger' });
-    }
-  };
-
+  
   const deleteSettlement = async (id: any) => {
     try {
       await axios.delete(`http://localhost:3001/api/settlements/${id}`, { data: { EditedBy: currentUser } });

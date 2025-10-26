@@ -385,7 +385,7 @@ const KitchenCategory: React.FC = () => {
           body: JSON.stringify(payload),
         });
         if (res.ok) {
-          const responseData = await res.json();
+           await res.json();
           toast.success(`KitchenCategory ${KitchenCategory ? 'updated' : 'added'} successfully`);
           if (KitchenCategory) {
             const updatedKitchenCategory = {

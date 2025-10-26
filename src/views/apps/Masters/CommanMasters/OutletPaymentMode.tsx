@@ -13,10 +13,7 @@ interface PaymentMode {
   is_active: number;
 }
 
-interface Outlet {
-  outletid: number;
-  outlet_name: string;
-}
+
 
 interface PaymentType {
   paymenttypeid: number;
@@ -25,7 +22,7 @@ interface PaymentType {
 
 const PaymentModes: React.FC = () => {
   const [paymentModes, setPaymentModes] = useState<PaymentMode[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
+  const [, setLoading] = useState<boolean>(false);
   const [selectedOutlet, setSelectedOutlet] = useState<string>(
     localStorage.getItem('lastSelectedOutlet') || ''
   );

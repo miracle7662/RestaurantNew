@@ -469,7 +469,6 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('bill-preview');
-  const [timeDelay, setTimeDelay] = useState(0);
   const navigate = useNavigate();
   const outletid = Outlet?.outletid;
   const hotelId = Outlet?.hotelid;
@@ -773,22 +772,6 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
         ...prev[category as keyof OutletSettings] as object,
         [key]: checked,
       },
-    }));
-  };
-
-  const handleIncrement = () => {
-    setTimeDelay((prev) => prev + 1);
-    setFormData((prev) => ({
-      ...prev,
-      online_orders_time_delay: (timeDelay + 1).toString(),
-    }));
-  };
-
-  const handleDecrement = () => {
-    setTimeDelay((prev) => (prev > 0 ? prev - 1 : 0));
-    setFormData((prev) => ({
-      ...prev,
-      online_orders_time_delay: (timeDelay > 0 ? timeDelay - 1 : 0).toString(),
     }));
   };
 

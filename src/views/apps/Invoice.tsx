@@ -1,4 +1,3 @@
-import React from 'react';
 import { Container, Row, Col, Card, Table, Badge, Button } from 'react-bootstrap';
 
 const ModernBill = () => {
@@ -148,7 +147,7 @@ const ModernBill = () => {
         </Card>
       </div>
 
-      <style jsx>{`
+      <style type="text/css">{`
         .modern-bill {
           background: white;
           border: 1px solid #e0e0e0;

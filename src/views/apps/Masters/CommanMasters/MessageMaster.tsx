@@ -30,19 +30,7 @@ interface MessageMasterItem {
   marketid?: string;
 }
 
-interface Category {
-  name: string;
-  value: string;
-  icon: string;
-  badge?: number;
-  badgeClassName?: string;
-}
 
-interface Label {
-  name: string;
-  value: string;
-  gradient: string;
-}
 
 interface ModalProps {
   show: boolean;
@@ -95,7 +83,6 @@ const ContactSearchBar: React.FC<{
 // Main Component
 const MessageMaster: React.FC = () => {
   const [MessageMasterItem, setMessageMasterItem] = useState<MessageMasterItem[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string>('alls');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [filteredMessageMaster, setFilteredMessageMaster] = useState<MessageMasterItem[]>([]);
   const [selectedMessageMaster, setSelectedMessageMaster] = useState<MessageMasterItem | null>(null);
@@ -228,38 +215,10 @@ const MessageMaster: React.FC = () => {
     [handleSearch]
   );
 
-  const categories: Category[] = useMemo(
-    () => [
-      {
-        name: 'Messages',
-        value: 'alls',
-        icon: 'fi-rr-globe',
-        badge: MessageMasterItem.length,
-        badgeClassName: 'bg-primary-subtle text-primary',
-      },
-    ],
-    [MessageMasterItem.length]
-  );
 
-  const labels: Label[] = useMemo(
-    () => [
-      { name: 'North America', value: 'north_america', gradient: 'success' },
-      { name: 'Europe', value: 'europe', gradient: 'warning' },
-      { name: 'Asia', value: 'asia', gradient: 'danger' },
-      { name: 'Africa', value: 'africa', gradient: 'info' },
-    ],
-    []
-  );
 
-  const handleCategoryChange = useCallback(
-    (categoryValue: string) => {
-      setSelectedCategory(categoryValue);
-      setSearchTerm('');
-      setFilteredMessageMaster(MessageMasterItem);
-      table.setGlobalFilter('');
-    },
-    [MessageMasterItem, table]
-  );
+
+
 
   const handleMessageMasterItemClick = useCallback((mstmessagemaster: MessageMasterItem) => {
     setSelectedMessageMaster(mstmessagemaster);
@@ -297,20 +256,7 @@ const MessageMaster: React.FC = () => {
     setSelectedMessageMasterIndex(index);
   }, [filteredMessageMaster, selectedMessageMaster]);
 
-  const handleNext = useCallback(() => {
-    if (selectedMessageMasterIndex < filteredMessageMaster.length - 1) {
-      setSelectedMessageMaster(filteredMessageMaster[selectedMessageMasterIndex + 1]);
-      setContainerToggle(true);
-    }
-  }, [selectedMessageMasterIndex, filteredMessageMaster]);
-
-  const handlePrev = useCallback(() => {
-    if (selectedMessageMasterIndex > 0) {
-      setSelectedMessageMaster(filteredMessageMaster[selectedMessageMasterIndex - 1]);
-      setContainerToggle(true);
-    }
-  }, [selectedMessageMasterIndex, filteredMessageMaster]);
-
+ 
   const getPaginationItems = () => {
     const items = [];
     const maxPagesToShow = 5;

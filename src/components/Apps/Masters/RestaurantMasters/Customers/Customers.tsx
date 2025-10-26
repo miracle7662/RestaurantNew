@@ -393,7 +393,6 @@ const CustomerPage: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [showAddCustomerModal, setShowAddCustomerModal] = useState(false);
   const [showEditCustomerModal, setShowEditCustomerModal] = useState(false);
-  const [searchTerm, setSearchTerm] = useState<string>('');
   const [filteredCustomers, setFilteredCustomers] = useState<Customer[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const { user } = useAuthContext();
@@ -517,7 +516,6 @@ const CustomerPage: React.FC = () => {
   // Handle search
   const handleSearch = useCallback(
     debounce((value: string) => {
-      setSearchTerm(value);
       const filtered = customers.filter((item) =>
         item.name.toLowerCase().includes(value.toLowerCase())
       );

@@ -75,7 +75,7 @@ const getStatusBadge = (status: number) => {
 
 // Main Component
 const ItemGroup: React.FC = () => {
-  const { user } = useAuthContext();
+
   const [itemGroupItems, setItemGroupItems] = useState<ItemGroupItem[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('alls');
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -587,6 +587,7 @@ const ItemGroupModal: React.FC<ItemGroupModalProps> = ({ show, onHide, itemGroup
       const userId = user?.id || '1';
       const hotelId = user?.hotelid || '1';
       const marketId = user?.marketid || '1';
+      
 
       const payload = {
         itemgroupname,

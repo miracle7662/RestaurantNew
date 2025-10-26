@@ -58,7 +58,6 @@ const Designation: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [showModal, setShowModal] = useState(false);
   const [selectedDesignation, setSelectedDesignation] = useState<DesignationItem | null>(null);
-  const { user } = useAuthContext();
 
   const fetchDesignation = async () => {
     try {

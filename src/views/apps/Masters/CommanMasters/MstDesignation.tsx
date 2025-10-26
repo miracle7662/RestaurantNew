@@ -54,7 +54,6 @@ const getStatusBadge = (status: number | string) => {
 
 // Main Designation Component
 const Designation: React.FC = () => {
-  const { user } = useAuthContext();
   const [designationItems, setDesignationItems] = useState<DesignationItem[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);

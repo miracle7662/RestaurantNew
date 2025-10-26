@@ -66,7 +66,7 @@ const Outlet = React.lazy(() => import('../views/apps/Masters/CommanMasters/Outl
 const OutletDesignation = React.lazy(() => import('../views/apps/Masters/CommanMasters/OutletDesignation'))
 const OutletUser = React.lazy(() => import('../views/apps/Masters/CommanMasters/OutletUser/OutletUser'))
 const OutletPaymentMode = React.lazy(() => import('../views/apps/Masters/CommanMasters/OutletPaymentMode'))
-const AddOutlet = React.lazy(() => import('../views/apps/Masters/CommanMasters/Outlet/AddOutlet'))
+// const AddOutlet = React.lazy(() => import('../views/apps/Masters/CommanMasters/Outlet/AddOutlet'))
 const KOTPrintSettings = React.lazy(() => import('../views/apps/Masters/CommanMasters/Outlet/KOTPrintSettings'))
 const BillPrintSettings = React.lazy(() => import('../views/apps/Masters/CommanMasters/Outlet/BillPrintSettings'))
 const HotelTypeMasters = React.lazy(() => import('../views/apps/Masters/CommanMasters/HotelTypeMasters'))

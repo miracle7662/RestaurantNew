@@ -268,11 +268,11 @@ const TableDepartment: React.FC = () => {
     const [taxgroupid, setTaxGroupId] = useState<number | null>(null);
     const [loading, setLoading] = useState<boolean>(false);
     const [outlets, setOutlets] = useState<OutletData[]>([]);
-    const [brands, setBrands] = useState<Array<{ hotelid: number; hotel_name: string }>>([]);
+    const [, setBrands] = useState<Array<{ hotelid: number; hotel_name: string }>>([]);
     const [taxGroups, setTaxGroups] = useState<Array<{ taxgroupid: number; taxgroup_name: string }>>([]);
     const { user } = useAuthContext();
 
-    // Fetch tax groups
+    // Fetch tax groups 
     const fetchTaxGroups = async () => {
       try {
         setLoading(true);

@@ -66,7 +66,6 @@ const OutletList: React.FC = () => {
   const [brands, setBrands] = useState<Array<{ hotelid: number; hotel_name: string }>>([]);
   const [selectedBrand, setSelectedBrand] = useState<number | null>(null);
   const [warehouses, setWarehouses] = useState<warehouseItem[]>([]);
-  const [selectedWarehouse, setSelectedWarehouse] = useState<string>('');
   const [countries, setCountries] = useState<Country[]>([]);
   const [selectedCountry, setSelectedCountry] = useState<number | null>(null);
   const [timezones, setTimezones] = useState<Timezone[]>([]);

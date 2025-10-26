@@ -3,13 +3,13 @@ import { Link, Navigate } from 'react-router-dom'
 import { useAuthContext } from '@/common'
 import { Button, Form, Stack } from 'react-bootstrap'
 import TitleHelmet from '@/components/Common/TitleHelmet'
-import useLogin from '../useAuth/useLogin_old'
+import useLogin from '../useAuth/useLogin'
 import AuthLayout from '@/Layouts/AuthLayout'
 import AuthCorporate from './AuthCorporate'
 
 const LoginCorporate = () => {
   const { removeSession } = useAuthContext()
-  const { loading, login, redirectUrl, isAuthenticated } = useLogin()
+  const { loading, loginWithEmail, redirectUrl, isAuthenticated } = useLogin()
   const [email, setEmail] = useState<string>('admin@email.com')
   const [password, setPassword] = useState<string>('12345678')
   const [rememberMe, setRememberMe] = useState<boolean>(false)
@@ -52,7 +52,7 @@ const LoginCorporate = () => {
     const isPasswordValid = validatePassword(password)
 
     if (isEmailValid && isPasswordValid) {
-      login(e, { email, password })
+      loginWithEmail(e, { email, password })
     }
   }
 

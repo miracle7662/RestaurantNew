@@ -2,12 +2,8 @@ import PageDashBreadcrumb from '@/components/Common/PageDashBreadcrumb'
 import { Col, Row } from 'react-bootstrap'
 import {
   CrmMiniCard,
-  LatestLeads,
   LeadOverview,
-  ProjectCustomerCard,
   ProjectStatisticChart,
-  NewMeeting,
-  RecentActivity,
 } from '@/components/Dashboards/CRM'
 
 const CRM = () => {

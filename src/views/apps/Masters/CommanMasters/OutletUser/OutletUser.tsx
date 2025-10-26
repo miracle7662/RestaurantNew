@@ -20,9 +20,9 @@ const OutletUserList: React.FC = () => {
   const [warehouses, setWarehouses] = useState<WarehouseItem[]>([]);
   const [designations, setDesignations] = useState<Array<{ designationid: number; Designation: string }>>([]);
   const [userTypes, setUserTypes] = useState<Array<{ usertypeid: number; User_type: string }>>([]);
-  const [designationid, setDesignationId] = useState<number | null>(null);
+  const [, setDesignationId] = useState<number | null>(null);
   const [shiftTypes, setShiftTypes] = useState<ShiftTypeItem[]>([]);
-  const [usertypeid, setUserTypeId] = useState<number | null>(null);
+  const [, setUserTypeId] = useState<number | null>(null);
 
   const [username, setUsername] = useState<string>('');
   const [email, setEmail] = useState<string>('');

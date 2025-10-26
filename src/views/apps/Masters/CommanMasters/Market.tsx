@@ -52,7 +52,7 @@ const getStatusBadge = (status: number | string) => {
 
 // Main Market Component
 const Market: React.FC = () => {
-  const { user } = useAuthContext();
+  
   const [marketItems, setMarketItems] = useState<MarketItem[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);

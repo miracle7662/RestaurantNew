@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import  { useState, useEffect } from "react";
 import {
   Container,
   Row,
@@ -22,8 +22,6 @@ import {
   CheckCircle,
   AlertTriangle,
   BarChart3,
-  CreditCard,
-  Smartphone,
   DollarSign
 } from "lucide-react";
 import {
@@ -75,7 +73,7 @@ interface Order {
 const HandoverPage = () => {
   const { user } = useAuthContext();
   const navigate = useNavigate();
-  const [remarks, setRemarks] = useState("");
+
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [showDetailsModal, setShowDetailsModal] = useState(false);
@@ -84,8 +82,8 @@ const HandoverPage = () => {
   const [handoverTo, setHandoverTo] = useState("");
   const [handoverBy, setHandoverBy] = useState(user?.username || "");
   const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [, setLoading] = useState(true);
+  const [, setError] = useState<string | null>(null);
   const [showCashModal, setShowCashModal] = useState(false);
   const [cashDenominations, setCashDenominations] = useState({
     2000: 0,
@@ -241,9 +239,7 @@ const HandoverPage = () => {
     setShowDetailsModal(true);
   };
 
-  const handlePrintReport = () => {
-    window.print();
-  };
+ 
 
   const handleSaveHandover = () => {
     if (!handoverTo) {
@@ -341,14 +337,7 @@ const HandoverPage = () => {
     return <Badge bg={variants[status as keyof typeof variants] || "secondary"}>{status}</Badge>;
   };
 
-  const PaymentIcon = ({ type }: { type: string }) => {
-    const icons = {
-      "Cash": <DollarSign size={16} />,
-      "Card": <CreditCard size={16} />,
-      "UPI": <Smartphone size={16} />
-    };
-    return icons[type as keyof typeof icons] || <DollarSign size={16} />;
-  };
+ 
 
   const getFormattedTime = (timeStr: string) => {
     const utcDate = new Date(timeStr + 'Z');

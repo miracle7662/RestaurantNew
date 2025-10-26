@@ -299,12 +299,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
   const allItems: CardItem[] = cardItems;
 
   // Toggle category dropdown (no longer needed for static categories)
-  const toggleDropdown = (groupName: string) => {
-    setSelectedItemGroup(
-      menuItems.find((item) => item.groupname === groupName)?.item_group_id || null
-    );
-    setShowSidebar(false);
-  };
+
 
   // Filter items based on search and selected item group
   const filterItems = useCallback(() => {

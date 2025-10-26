@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import  { useState, useEffect } from "react";
 import {
   Container,
   Row,
@@ -22,8 +22,6 @@ import {
   CheckCircle,
   AlertTriangle,
   BarChart3,
-  CreditCard,
-  Smartphone,
   DollarSign
 } from "lucide-react";
 import {
@@ -75,7 +73,6 @@ interface Order {
 const DayEnd = () => {
   const { user } = useAuthContext();
   const navigate = useNavigate();
-  const [remarks, setRemarks] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [showDetailsModal, setShowDetailsModal] = useState(false);
@@ -242,9 +239,6 @@ const DayEnd = () => {
     setShowDetailsModal(true);
   };
 
-  const handlePrintReport = () => {
-    window.print();
-  };
 
   const handleSaveDayEnd = async () => {
     if (!DayEndBy) {
@@ -367,14 +361,7 @@ const DayEnd = () => {
     return <Badge bg={variants[status as keyof typeof variants] || "secondary"}>{status}</Badge>;
   };
 
-  const PaymentIcon = ({ type }: { type: string }) => {
-    const icons = {
-      "Cash": <DollarSign size={16} />,
-      "Card": <CreditCard size={16} />,
-      "UPI": <Smartphone size={16} />
-    };
-    return icons[type as keyof typeof icons] || <DollarSign size={16} />;
-  };
+
 
   const getFormattedTime = (timeStr: string) => {
     const utcDate = new Date(timeStr + 'Z');
