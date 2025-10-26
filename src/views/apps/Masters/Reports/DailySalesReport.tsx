@@ -1149,14 +1149,14 @@ const ReportPage = () => {
             <tbody>
               {billSummaryData.length > 0 ? billSummaryData.map((b, i) => (
                 <tr key={i}>
-                  <td>{b.billNo}</td>                                     {/* BillNo */}
-                  <td>{b.totalAmount?.toFixed(2) || 0}</td>              {/* Sale Amt */}
-                  <td>{b.discount?.toFixed(2) || 0}</td>                  {/* Discount */}
-                  <td>{b.amount?.toFixed(2) || 0}</td>                    {/* Net Amt */}
-                  <td>{b.cgst?.toFixed(2) || 0}</td>                      {/* CGST */}
-                  <td>{b.sgst?.toFixed(2) || 0}</td>                      {/* SGST */}
-                  <td>{b.roundOff?.toFixed(2) || 0}</td>                  {/* R.Off */}
-                  <td>{b.grossAmount?.toFixed(2) || 0}</td>              {/* GrossTotal */}
+                  <td className="text-start">{b.billNo}</td>                                     {/* BillNo */}
+                  <td className="text-end">{b.totalAmount?.toFixed(2) || '0.00'}</td>              {/* Sale Amt */}
+                  <td className="text-end">{b.discount?.toFixed(2) || '0.00'}</td>                  {/* Discount */}
+                  <td className="text-end">{b.amount?.toFixed(2) || '0.00'}</td>                    {/* Net Amt */}
+                  <td className="text-end">{b.cgst?.toFixed(2) || '0.00'}</td>                      {/* CGST */}
+                  <td className="text-end">{b.sgst?.toFixed(2) || '0.00'}</td>                      {/* SGST */}
+                  <td className="text-end">{b.roundOff?.toFixed(2) || '0.00'}</td>                  {/* R.Off */}
+                  <td className="text-end">{b.grossAmount?.toFixed(2) || '0.00'}</td>              {/* GrossTotal */}
                   {dynamicPaymentModes.map(pm => {
                     const modeKey = pm.mode_name.toLowerCase().replace(/[^a-z0-9]/gi, '');
                     let amount = 0;
@@ -1171,45 +1171,45 @@ const ReportPage = () => {
                       // This assumes the backend provides a matching key.
                       amount = (b as any)[modeKey] ?? 0;
                     }
-                    return <td key={pm.id}>{(amount).toFixed(2)}</td>;
+                    return <td key={pm.id} className="text-end">{(amount).toFixed(2)}</td>;
                   })}
-                  <td>{b.customerName}</td>                               {/* Customer Name */}
+                  <td className="text-start">{b.customerName}</td>                               {/* Customer Name */}
                   {/* Other fields */}
-                  <td>{b.billDate}</td>                                   
-                  <td>{b.kotNo}</td>                                      
-                  <td>{b.revKotNo}</td>                                   
-                  <td>{b.revAmt?.toFixed(2) || 0}</td>                     
-                  <td>{b.paymentMode}</td>                                
-                  <td>{b.waiter}</td>                                     
-                  <td>{b.captain}</td>                                    
-                  <td>{b.user}</td>                                       
-                  <td>{b.orderType}</td>                                  
-                  <td>{b.creditDetails?.cardNumber}</td>                  
-                  <td>{b.creditDetails?.bank}</td>                        
-                  <td>{b.creditDetails?.amount.toFixed(2)}</td>           
-                  <td>{b.outlet_name}</td>
-                  <td>{b.table_name}</td>
-                  <td>{b.department_name}</td>                          
+                  <td className="text-start">{b.billDate}</td>
+                  <td className="text-start">{b.kotNo}</td>
+                  <td className="text-start">{b.revKotNo}</td>
+                  <td className="text-end">{b.revAmt?.toFixed(2) || '0.00'}</td>
+                  <td className="text-start">{b.paymentMode}</td>
+                  <td className="text-start">{b.waiter}</td>
+                  <td className="text-start">{b.captain}</td>
+                  <td className="text-start">{b.user}</td>
+                  <td className="text-start">{b.orderType}</td>
+                  <td className="text-start">{b.creditDetails?.cardNumber}</td>
+                  <td className="text-start">{b.creditDetails?.bank}</td>
+                  <td className="text-end">{b.creditDetails?.amount.toFixed(2)}</td>
+                  <td className="text-start">{b.outlet_name}</td>
+                  <td className="text-start">{b.table_name}</td>
+                  <td className="text-start">{b.department_name}</td>
                   {/* New fields at the end */}
-                  <td>{b.discPer?.toFixed(2) || 0}</td>                   {/* Discount % */}
-                  <td>{b.discountType === 1 ? 'Percentage' : 'Amount'}</td> {/* Discount Type */}
-                  <td>{b.igst?.toFixed(2) || 0}</td>                      {/* IGST */}
-                  <td>{b.serviceCharge_Amount?.toFixed(2) || 0}</td>      {/* Service Charge */}
-                  <td>{b.pax}</td>                                        {/* PAX */} 
+                  <td className="text-end">{b.discPer?.toFixed(2) || '0.00'}</td>                   {/* Discount % */}
+                  <td className="text-start">{b.discountType === 1 ? 'Percentage' : 'Amount'}</td> {/* Discount Type */}
+                  <td className="text-end">{b.igst?.toFixed(2) || '0.00'}</td>                      {/* IGST */}
+                  <td className="text-end">{b.serviceCharge_Amount?.toFixed(2) || '0.00'}</td>      {/* Service Charge */}
+                  <td className="text-center">{b.pax}</td>                                        {/* PAX */}
                   {/* Additional fields at the end */}
-                  <td>{b.isHomeDelivery ? 'Yes' : 'No'}</td>
-                  <td>{b.isPickup ? 'Yes' : 'No'}</td>
-                  <td>{b.isCancelled ? 'Yes' : 'No'}</td>
-                  <td>{b.ncKot || 'N/A'}</td>
-                  <td>{b.ncName || 'N/A'}</td>
-                  <td>{b.ncPurpose || 'N/A'}</td> 
+                  <td className="text-center">{b.isHomeDelivery ? 'Yes' : 'No'}</td>
+                  <td className="text-center">{b.isPickup ? 'Yes' : 'No'}</td>
+                  <td className="text-center">{b.isCancelled ? 'Yes' : 'No'}</td>
+                  <td className="text-start">{b.ncKot || 'N/A'}</td>
+                  <td className="text-start">{b.ncName || 'N/A'}</td>
+                  <td className="text-start">{b.ncPurpose || 'N/A'}</td>
                   {/* Final new fields */}
-                  <td>{b.billedDate ? new Date(b.billedDate).toLocaleString() : 'N/A'}</td>
-                  <td>{b.mobile || 'N/A'}</td>
-                  <td>{b.address || 'N/A'}</td>
-                  <td>{b.landmark || 'N/A'}</td>
-                  <td>{b.handOverEmpID || 'N/A'}</td>
-                  <td>{b.dayEndEmpID || 'N/A'}</td>
+                  <td className="text-start">{b.billedDate ? new Date(b.billedDate).toLocaleString() : 'N/A'}</td>
+                  <td className="text-start">{b.mobile || 'N/A'}</td>
+                  <td className="text-start">{b.address || 'N/A'}</td>
+                  <td className="text-start">{b.landmark || 'N/A'}</td>
+                  <td className="text-center">{b.handOverEmpID || 'N/A'}</td>
+                  <td className="text-center">{b.dayEndEmpID || 'N/A'}</td>
                 </tr>
               )) : <tr><td colSpan={48} className="text-center">No data available</td></tr>}
             </tbody>

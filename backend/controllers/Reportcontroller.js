@@ -140,7 +140,6 @@ const getReportData = (req, res) => {
           phonepe: paymentBreakdown.phonepe,
           qrcode: paymentBreakdown.qrcode,
           credit: paymentBreakdown.credit,
-          credit: paymentBreakdown.credit,
         };
       }
     });
