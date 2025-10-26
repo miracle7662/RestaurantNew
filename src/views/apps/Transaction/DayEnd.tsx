@@ -79,10 +79,10 @@ const DayEnd = () => {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [activeTab, setActiveTab] = useState("summary");
   
-  const [DayEndBy, setDayEndBy] = useState(user?.username || "");
+  const [DayEndBy, ] = useState(user?.username || "");
   const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [, setLoading] = useState(true);
+  const [, setError] = useState<string | null>(null);
   const [showCashModal, setShowCashModal] = useState(false);
   const [cashDenominations, setCashDenominations] = useState({
     2000: 0,

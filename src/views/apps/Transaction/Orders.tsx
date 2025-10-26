@@ -1140,8 +1140,8 @@ const Order = () => {
   useEffect(() => {
     if (selectedOutletId) {
       const fetchPaymentModes = async () => {
-        try {
-          const res = await fetch(`http://localhost:3001/api/payment-modes/by-outlet/${selectedOutletId}`);
+        try { // The URL was incorrect, it should be a query parameter
+          const res = await fetch(`http://localhost:3001/api/payment-modes/by-outlet?outletid=${selectedOutletId}`);
           if (res.ok) {
             const data = await res.json();
             setOutletPaymentModes(data);

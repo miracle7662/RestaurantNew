@@ -82,11 +82,11 @@ const ContactSearchBar: React.FC<{
 
 // Main Component
 const MessageMaster: React.FC = () => {
-  const [MessageMasterItem, setMessageMasterItem] = useState<MessageMasterItem[]>([]);
+  const [, setMessageMasterItem] = useState<MessageMasterItem[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [filteredMessageMaster, setFilteredMessageMaster] = useState<MessageMasterItem[]>([]);
   const [selectedMessageMaster, setSelectedMessageMaster] = useState<MessageMasterItem | null>(null);
-  const [selectedMessageMasterIndex, setSelectedMessageMasterIndex] = useState<number>(-1);
+  const [, setSelectedMessageMasterIndex] = useState<number>(-1);
   const [loading, setLoading] = useState<boolean>(false);
   const [showModal, setShowModal] = useState(false);
   const [sidebarLeftToggle, setSidebarLeftToggle] = useState<boolean>(false);

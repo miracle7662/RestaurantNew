@@ -21,10 +21,15 @@ interface Bill {
   amount: number;
   cgst: number;
   sgst: number;
+  igst: number;
   cess: number;
   roundOff?: number;
   revAmt?: number;
   serviceCharge: number;
+  serviceCharge_Amount: number;
+  discountType?: number;
+  discPer?: number;
+  ncPurpose?: string;
   totalAmount: number;
   paymentMode: string;
   customerName: string;
@@ -33,6 +38,7 @@ interface Bill {
   orderType: string;
   waiter?: string;
   captain?: string;
+  pax?: number;
   user?: string;
   itemsCount: number;
   tax: number;
@@ -41,6 +47,13 @@ interface Bill {
   ncKot?: string;
   ncName?: string;
   cash?: number;
+  isHomeDelivery?: boolean;
+  isPickup?: boolean;
+  isCancelled?: boolean;
+  billedDate?: string;
+  handOverEmpID?: number;
+  dayEndEmpID?: number;
+  landmark?: string;
   credit?: number;
   card?: number;
   gpay?: number;
@@ -65,9 +78,15 @@ const defaultBill: Bill = {
   amount: 0,
   cgst: 0,
   sgst: 0,
+  igst: 0,
   cess: 0,
   serviceCharge: 0,
+  serviceCharge_Amount: 0,
   totalAmount: 0,
+  discountType: 0,
+  discPer: 0,
+  ncPurpose: "N/A",
+  pax: 0,
   paymentMode: "N/A",
   customerName: "N/A",
   address: "N/A",
@@ -169,10 +188,15 @@ const ReportPage = () => {
           amount: order.amount || 0,
           cgst: order.cgst || 0,
           sgst: order.sgst || 0,
+          igst: order.igst || 0,
           roundOff: order.roundOff || 0,
           revAmt: order.revAmt || 0,
           cess: 0,
-          serviceCharge: 0,
+          serviceCharge: order.serviceCharge || 0,
+          serviceCharge_Amount: order.serviceCharge_Amount || 0,
+          discountType: order.discountType,
+          discPer: order.discPer,
+          ncPurpose: order.ncPurpose,
           totalAmount: order.amount || 0,
           paymentMode: order.paymentMode || "Cash",
           customerName: order.customerName || "N/A", // Assuming customerName might exist
@@ -180,6 +204,7 @@ const ReportPage = () => {
           captain: order.captain,
           user: order.user,
           address: "N/A",
+          pax: order.pax,
           mobile: "N/A",
           orderType: order.type || "Dine-in",
           itemsCount: order.items,
@@ -188,6 +213,13 @@ const ReportPage = () => {
           date: order.date,
           ncKot: order.ncKot,
           ncName: order.ncName,
+          isHomeDelivery: order.isHomeDelivery,
+          isPickup: order.isPickup,
+          isCancelled: order.isCancelled,
+          billedDate: order.billedDate,
+          handOverEmpID: order.handOverEmpID,
+          dayEndEmpID: order.dayEndEmpID,
+          landmark: order.landmark,
           cash: order.cash,
           credit: order.credit,
           card: order.card,
@@ -447,6 +479,7 @@ const ReportPage = () => {
         acc.sgst += bill.sgst || 0;
         acc.roundOff += bill.roundOff || 0;
         acc.revAmt += bill.revAmt || 0;
+        acc.serviceCharge_Amount += bill.serviceCharge_Amount || 0;
         acc.totalAmount += bill.totalAmount || 0;
         acc.cardAmount += bill.creditDetails?.amount || 0;
         return acc;
@@ -463,6 +496,7 @@ const ReportPage = () => {
         'Cgst': totals.cgst.toFixed(2),
         'Sgst': totals.sgst.toFixed(2),
         'Cess': '',
+        'Service Charge Amount': totals.serviceCharge_Amount.toFixed(2),
         'Service Charge': '',
         'Total Amount': totals.totalAmount.toFixed(2),
         'Payment Mode': '',
@@ -1062,18 +1096,34 @@ const ReportPage = () => {
 
   // Render sections remain the same, as they use calculated data
   const renderBillSummarySection = () => {
+    const initialTotals = {
+      grossAmount: 0, discount: 0, amount: 0, cgst: 0, sgst: 0, igst: 0, roundOff: 0,
+      revAmt: 0, serviceCharge_Amount: 0, totalAmount: 0, cardAmount: 0,
+      ...dynamicPaymentModes.reduce((acc, mode) => {
+        const modeKey = mode.mode_name.toLowerCase().replace(/[^a-z0-9]/gi, '');
+        acc[modeKey] = 0;
+        return acc;
+      }, {} as { [key: string]: number })
+    };
+
     const totals = billSummaryData.reduce((acc, bill) => {
-      acc.grossAmount += bill.grossAmount || 0;
+      acc.totalAmount += bill.totalAmount || 0;
       acc.discount += bill.discount || 0;
       acc.amount += bill.amount || 0;
       acc.cgst += bill.cgst || 0;
       acc.sgst += bill.sgst || 0;
       acc.roundOff += bill.roundOff || 0;
+      acc.grossAmount += bill.grossAmount || 0;
       acc.revAmt += bill.revAmt || 0;
-      acc.totalAmount += bill.totalAmount || 0;
-      acc.cardAmount += bill.creditDetails?.amount || 0;
+      acc.igst += bill.igst || 0;
+      acc.serviceCharge_Amount += bill.serviceCharge_Amount || 0;
+      dynamicPaymentModes.forEach(pm => {
+        const modeKey = pm.mode_name.toLowerCase().replace(/[^a-z0-9]/gi, '');
+        acc[modeKey] += (bill as any)[modeKey] || 0;
+      });
+      acc.cardAmount += bill.creditDetails?.amount || 0; // For the specific "Card Amount" column
       return acc;
-    }, { grossAmount: 0, discount: 0, amount: 0, cgst: 0, sgst: 0, roundOff: 0, revAmt: 0, totalAmount: 0, cardAmount: 0 });
+    }, initialTotals);
 
     return (
       <Card className="p-2 shadow-sm border-0">
@@ -1087,7 +1137,10 @@ const ReportPage = () => {
                 {[
                   "Bill No", "Sale Amt (₹)", "Discount (₹)", "Net Amt (₹)", "CGST (₹)", "SGST (₹)", "Round Off", "Gross Total (₹)",
                   ...dynamicPaymentModes.map(pm => `${pm.mode_name} (₹)`),
-                  "Customer Name", "Bill Date", "KOT No", "Rev KOT No", "Rev Amt", "Payment Mode", "Waiter", "Captain", "User", "Order Type", "Card Number", "Bank", "Card Amount (₹)", "Outlet Name", "Table Name", "Department Name"
+                  "Customer Name", "Bill Date", "KOT No", "Rev KOT No", "Rev Amt", "Payment Mode", "Waiter", "Captain", "User", "Order Type", "Card Number", "Bank", "Card Amount (₹)", "Outlet Name", "Table Name", "Department Name",
+                  "Discount %", "Discount Type", "IGST (₹)", "Service Charge (₹)", "PAX",
+                  "Home Delivery", "Pickup", "Cancelled", "NC KOT", "NC Name", "NC Purpose",
+                  "Billed Date", "Mobile No", "Address", "Landmark", "Handover Emp", "DayEnd Emp"
                 ].map((h, i) => (
                   <th key={i} style={{ position: 'sticky', top: 0, backgroundColor: '#FFF3E0', zIndex: 1 }}>{h}</th>
                 ))}
@@ -1098,7 +1151,7 @@ const ReportPage = () => {
                 <tr key={i}>
                   <td>{b.billNo}</td>                                     {/* BillNo */}
                   <td>{b.totalAmount?.toFixed(2) || 0}</td>              {/* Sale Amt */}
-                  <td>{b.discount?.toFixed(2) || 0}</td>                  {/* Dist */}
+                  <td>{b.discount?.toFixed(2) || 0}</td>                  {/* Discount */}
                   <td>{b.amount?.toFixed(2) || 0}</td>                    {/* Net Amt */}
                   <td>{b.cgst?.toFixed(2) || 0}</td>                      {/* CGST */}
                   <td>{b.sgst?.toFixed(2) || 0}</td>                      {/* SGST */}
@@ -1136,23 +1189,60 @@ const ReportPage = () => {
                   <td>{b.creditDetails?.amount.toFixed(2)}</td>           
                   <td>{b.outlet_name}</td>
                   <td>{b.table_name}</td>
-                  <td>{b.department_name}</td>
+                  <td>{b.department_name}</td>                          
+                  {/* New fields at the end */}
+                  <td>{b.discPer?.toFixed(2) || 0}</td>                   {/* Discount % */}
+                  <td>{b.discountType === 1 ? 'Percentage' : 'Amount'}</td> {/* Discount Type */}
+                  <td>{b.igst?.toFixed(2) || 0}</td>                      {/* IGST */}
+                  <td>{b.serviceCharge_Amount?.toFixed(2) || 0}</td>      {/* Service Charge */}
+                  <td>{b.pax}</td>                                        {/* PAX */} 
+                  {/* Additional fields at the end */}
+                  <td>{b.isHomeDelivery ? 'Yes' : 'No'}</td>
+                  <td>{b.isPickup ? 'Yes' : 'No'}</td>
+                  <td>{b.isCancelled ? 'Yes' : 'No'}</td>
+                  <td>{b.ncKot || 'N/A'}</td>
+                  <td>{b.ncName || 'N/A'}</td>
+                  <td>{b.ncPurpose || 'N/A'}</td> 
+                  {/* Final new fields */}
+                  <td>{b.billedDate ? new Date(b.billedDate).toLocaleString() : 'N/A'}</td>
+                  <td>{b.mobile || 'N/A'}</td>
+                  <td>{b.address || 'N/A'}</td>
+                  <td>{b.landmark || 'N/A'}</td>
+                  <td>{b.handOverEmpID || 'N/A'}</td>
+                  <td>{b.dayEndEmpID || 'N/A'}</td>
                 </tr>
-              )) : <tr><td colSpan={31} className="text-center">No data available</td></tr>}
+              )) : <tr><td colSpan={48} className="text-center">No data available</td></tr>}
             </tbody>
             {billSummaryData.length > 0 && (
               <tfoot className="fw-bold">
                 <tr>
                   <td>Total</td>
-                  <td>{totals.totalAmount.toFixed(2)}</td>
-                  <td>{totals.discount.toFixed(2)}</td>
-                  <td>{totals.amount.toFixed(2)}</td>
-                  <td>{totals.cgst.toFixed(2)}</td>
-                  <td>{totals.sgst.toFixed(2)}</td>
-                  <td>{totals.roundOff.toFixed(2)}</td>
-                  <td>{totals.grossAmount.toFixed(2)}</td>
+                  <td className="text-end">{totals.totalAmount.toFixed(2)}</td>
+                  <td className="text-end">{totals.discount.toFixed(2)}</td>
+                  <td className="text-end">{totals.amount.toFixed(2)}</td>
+                  <td className="text-end">{totals.cgst.toFixed(2)}</td>
+                  <td className="text-end">{totals.sgst.toFixed(2)}</td>
+                  <td className="text-end">{totals.roundOff.toFixed(2)}</td>
+                  <td className="text-end">{totals.grossAmount.toFixed(2)}</td>
                   {/* Dynamic colspan for payment modes */}
-                  <td colSpan={dynamicPaymentModes.length + 11}></td>
+                  {dynamicPaymentModes.map(pm => {
+                    const modeKey = pm.mode_name.toLowerCase().replace(/[^a-z0-9]/gi, '');
+                    return <td key={`total-${pm.id}`} className="text-end">{(totals as any)[modeKey]?.toFixed(2) || '0.00'}</td>;
+                  })}
+                  {/* Empty cells for non-total columns */}
+                  <td></td>{/* Customer Name */}
+                  <td></td>{/* Bill Date */}
+                  <td></td>{/* KOT No */}
+                  <td></td>{/* Rev KOT No */}
+                  <td className="text-end">{totals.revAmt.toFixed(2)}</td>
+                  <td colSpan={5}></td>{/* Payment Mode to Order Type */}
+                  <td></td>{/* Card Number */}
+                  <td></td>{/* Bank */}
+                  <td className="text-end">{totals.cardAmount.toFixed(2)}</td>
+                  <td colSpan={5}></td>{/* Outlet to PAX */}
+                  <td className="text-end">{totals.igst.toFixed(2)}</td>
+                  <td className="text-end">{totals.serviceCharge_Amount.toFixed(2)}</td>
+                  <td colSpan={7}></td>{/* PAX to DayEnd Emp */}
                 </tr>
               </tfoot>
             )}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import  { useState, useEffect } from "react";
 import { Card, Row, Col, Form, Button, Table, Badge, Alert, Modal } from "react-bootstrap";
 import { fetchOutletsForDropdown } from "@/utils/commonfunction";
 import { getUnbilledItemsByTable } from "@/common/api/orders";
@@ -32,7 +32,7 @@ const KotTransfer = ({ onCancel }: KotTransferProps) => {
   }
 
   // State management
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
   const [outlets, setOutlets] = useState<OutletData[]>([]);
   const [tables, setTables] = useState<TableData[]>([]);
   const [selectedItems, setSelectedItems] = useState<Item[]>([]);
@@ -42,7 +42,7 @@ const KotTransfer = ({ onCancel }: KotTransferProps) => {
   const [selectedTable, setSelectedTable] = useState('');
   const [selectedOutlet, setSelectedOutlet] = useState('');
   const [proposedTable, setProposedTable] = useState('');
-  const [proposedOutlet, setProposedOutlet] = useState('');
+  const [, setProposedOutlet] = useState('');
 
   const [transferType, setTransferType] = useState<"table" | "kot">("table");
   const [showConfirmModal, setShowConfirmModal] = useState(false);
