@@ -582,6 +582,11 @@ exports.deleteBill = async (req, res) => {
 /* -------------------------------------------------------------------------- */
 exports.settleBill = async (req, res) => {
   try {
+    // --- Logging for Debugging ---
+    console.log(`[${new Date().toISOString()}] --- settleBill Request Received ---`);
+    console.log('Request Params (ID):', req.params.id);
+    console.log('Request Body (settlements):', JSON.stringify(req.body, null, 2));
+
     const { id } = req.params
     const { settlements = [] } = req.body
 
@@ -591,16 +596,18 @@ exports.settleBill = async (req, res) => {
 
     const bill = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id))
     if (!bill) return res.status(404).json({ success: false, message: 'Bill not found', data: null })
+    console.log('Found bill:', JSON.stringify(bill, null, 2));
 
     const tx = db.transaction(() => {
       const ins = db.prepare(`
         INSERT INTO TrnSettlement (
-          PaymentTypeID, PaymentType, Amount, Batch, Name, OrderNo, HotelID, Name2, Name3
-        ) VALUES (?,?,?,?,?,?,?,?,?)
+          PaymentTypeID, PaymentType, Amount, Batch, Name, OrderNo, HotelID, Name2, Name3, isSettled
+        ) VALUES (?,?,?,?,?,?,?,?,?,?)
       `)
       for (const s of settlements) {
+        console.log('Processing settlement:', JSON.stringify(s, null, 2));
         ins.run(
-          s.PaymentTypeID ?? null,
+          s.PaymentTypeID ?? 1, // Default to 1 (Cash) if not provided
           s.PaymentType || null,
           Number(s.Amount) || 0,
           s.Batch || null, // Correctly sets Batch to null if not provided
@@ -608,7 +615,8 @@ exports.settleBill = async (req, res) => {
           s.OrderNo || bill.TxnNo, // Correctly assigns the bill's TxnNo to OrderNo
           s.HotelID ?? bill.HotelID ?? null,
           s.Name2 || null,
-          s.Name3 || null
+          s.Name3 || null,
+          1 // Mark as settled
         )
       }
 
@@ -621,9 +629,13 @@ exports.settleBill = async (req, res) => {
       db.prepare(`UPDATE TAxnTrnbilldetails SET isSetteled = 1 WHERE TxnID = ?`).run(Number(id))
 
       // Set table status to vacant (0) after settlement
-      db.prepare(`UPDATE msttablemanagement SET status = 0 WHERE tableid = ?`).run(bill.TableID)
+      if (bill.TableID) {
+        console.log(`Updating table ${bill.TableID} status to vacant.`);
+        db.prepare(`UPDATE msttablemanagement SET status = 0 WHERE tableid = ?`).run(bill.TableID);
+      }
     })
 
+    console.log('Executing database transaction...');
     tx()
 
     const header = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id))
@@ -634,8 +646,11 @@ exports.settleBill = async (req, res) => {
       ORDER BY SettlementID
     `).all(header.orderNo || null, header.HotelID || null)
 
+    console.log('--- settleBill Success ---');
     res.json(ok('Bill settled', { ...header, details: items, settlement: stl }))
   } catch (error) {
+    console.error('--- ERROR in settleBill ---');
+    console.error(error);
     res.status(500).json({ success: false, message: 'Failed to settle bill', data: null, error: error.message })
   }
 }
