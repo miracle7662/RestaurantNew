@@ -459,14 +459,68 @@ const ReportPage = () => {
 
   const exportToExcel = () => {
     let data: any[] = [];
-    const commonFields = ["billNo", "billDate", "kotNo", "revKot", "grossAmount", "discount", "amount", "cgst", "sgst", "cess", "serviceCharge", "totalAmount", "paymentMode", "customerName", "address", "mobile", "orderType"];
     if (reportCategory === "billSummary") {
       data = billSummaryData.map(b => {
-        const row: any = {};
-        commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = (b as any)[field]);
-        row["Card Number"] = b.creditDetails.cardNumber;
-        row["Bank"] = b.creditDetails.bank;
-        row["Card Amount"] = b.creditDetails.amount;
+        const row: { [key: string]: any } = {
+          "Bill No": b.billNo,
+          "Sale Amt (₹)": b.totalAmount?.toFixed(2) || '0.00',
+          "Discount (₹)": b.discount?.toFixed(2) || '0.00',
+          "Net Amt (₹)": b.amount?.toFixed(2) || '0.00',
+          "CGST (₹)": b.cgst?.toFixed(2) || '0.00',
+          "SGST (₹)": b.sgst?.toFixed(2) || '0.00',
+          "Round Off": b.roundOff?.toFixed(2) || '0.00',
+          "Gross Total (₹)": b.grossAmount?.toFixed(2) || '0.00',
+        };
+
+        dynamicPaymentModes.forEach(pm => {
+          const modeKey = pm.mode_name.toLowerCase().replace(/[^a-z0-9]/gi, '');
+          let amount = 0;
+          if (modeKey.includes('cash')) amount = b.cash ?? 0;
+          else if (modeKey.includes('card')) amount = b.card ?? 0;
+          else if (modeKey.includes('credit')) amount = b.credit ?? 0;
+          else if (modeKey.includes('gpay')) amount = b.gpay ?? 0;
+          else if (modeKey.includes('phonepe')) amount = b.phonepe ?? 0;
+          else if (modeKey.includes('qr')) amount = b.qrcode ?? 0;
+          else amount = (b as any)[modeKey] ?? 0;
+          row[`${pm.mode_name} (₹)`] = amount.toFixed(2);
+        });
+
+        Object.assign(row, {
+          "Customer Name": b.customerName,
+          "Bill Date": b.billDate,
+          "KOT No": b.kotNo,
+          "Rev KOT No": b.revKotNo,
+          "Rev Amt": b.revAmt?.toFixed(2) || '0.00',
+          "Payment Mode": b.paymentMode,
+          "Waiter": b.waiter,
+          "Captain": b.captain,
+          "User": b.user,
+          "Order Type": b.orderType,
+          "Card Number": b.creditDetails?.cardNumber,
+          "Bank": b.creditDetails?.bank,
+          "Card Amount (₹)": b.creditDetails?.amount.toFixed(2),
+          "Outlet Name": b.outlet_name,
+          "Table Name": b.table_name,
+          "Department Name": b.department_name,
+          "Discount %": b.discPer?.toFixed(2) || '0.00',
+          "Discount Type": b.discountType === 1 ? 'Percentage' : 'Amount',
+          "IGST (₹)": b.igst?.toFixed(2) || '0.00',
+          "Service Charge (₹)": b.serviceCharge_Amount?.toFixed(2) || '0.00',
+          "PAX": b.pax,
+          "Home Delivery": b.isHomeDelivery ? 'Yes' : 'No',
+          "Pickup": b.isPickup ? 'Yes' : 'No',
+          "Cancelled": b.isCancelled ? 'Yes' : 'No',
+          "NC KOT": b.ncKot || 'N/A',
+          "NC Name": b.ncName || 'N/A',
+          "NC Purpose": b.ncPurpose || 'N/A',
+          "Billed Date": b.billedDate ? new Date(b.billedDate).toLocaleString() : 'N/A',
+          "Mobile No": b.mobile || 'N/A',
+          "Address": b.address || 'N/A',
+          "Landmark": b.landmark || 'N/A',
+          "Handover Emp": b.handOverEmpID || 'N/A',
+          "DayEnd Emp": b.dayEndEmpID || 'N/A'
+        });
+
         return row;
       });
 
@@ -478,54 +532,61 @@ const ReportPage = () => {
         acc.cgst += bill.cgst || 0;
         acc.sgst += bill.sgst || 0;
         acc.roundOff += bill.roundOff || 0;
+        acc.igst += bill.igst || 0;
         acc.revAmt += bill.revAmt || 0;
         acc.serviceCharge_Amount += bill.serviceCharge_Amount || 0;
         acc.totalAmount += bill.totalAmount || 0;
         acc.cardAmount += bill.creditDetails?.amount || 0;
+        dynamicPaymentModes.forEach(pm => {
+          const modeKey = pm.mode_name.toLowerCase().replace(/[^a-z0-9]/gi, '');
+          let amount = 0;
+          if (modeKey.includes('cash')) amount = bill.cash ?? 0;
+          else if (modeKey.includes('card')) amount = bill.card ?? 0;
+          else if (modeKey.includes('credit')) amount = bill.credit ?? 0;
+          else if (modeKey.includes('gpay')) amount = bill.gpay ?? 0;
+          else if (modeKey.includes('phonepe')) amount = bill.phonepe ?? 0;
+          else if (modeKey.includes('qr')) amount = bill.qrcode ?? 0;
+          else amount = (bill as any)[modeKey] ?? 0;
+          (acc as any)[modeKey] = ((acc as any)[modeKey] || 0) + amount;
+        });
         return acc;
-      }, { grossAmount: 0, discount: 0, amount: 0, cgst: 0, sgst: 0, roundOff: 0, revAmt: 0, totalAmount: 0, cardAmount: 0 });
+      }, {
+        grossAmount: 0, discount: 0, amount: 0, cgst: 0, sgst: 0, roundOff: 0, revAmt: 0, totalAmount: 0, cardAmount: 0, igst: 0, serviceCharge_Amount: 0,
+        ...dynamicPaymentModes.reduce((acc, mode) => {
+          const modeKey = mode.mode_name.toLowerCase().replace(/[^a-z0-9]/gi, '');
+          acc[modeKey] = 0;
+          return acc;
+        }, {} as { [key: string]: number })
+      });
 
       const totalRow: any = {
         'Bill No': 'Total',
-        'Bill Date': '',
-        'Kot No': '',
-        'Rev Kot': '',
-        'Gross Amount': totals.grossAmount.toFixed(2),
-        'Discount': totals.discount.toFixed(2),
-        'Amount': totals.amount.toFixed(2),
-        'Cgst': totals.cgst.toFixed(2),
-        'Sgst': totals.sgst.toFixed(2),
-        'Cess': '',
-        'Service Charge Amount': totals.serviceCharge_Amount.toFixed(2),
-        'Service Charge': '',
-        'Total Amount': totals.totalAmount.toFixed(2),
-        'Payment Mode': '',
-        'Customer Name': '',
-        'Address': '',
-        'Mobile': '',
-        'Order Type': '',
-        'Card Number': '',
-        'Bank': '',
-        'Card Amount': totals.cardAmount.toFixed(2),
+        'Sale Amt (₹)': totals.totalAmount.toFixed(2),
+        'Discount (₹)': totals.discount.toFixed(2),
+        'Net Amt (₹)': totals.amount.toFixed(2),
+        'CGST (₹)': totals.cgst.toFixed(2),
+        'SGST (₹)': totals.sgst.toFixed(2),
+        'Round Off': totals.roundOff.toFixed(2),
+        'Gross Total (₹)': totals.grossAmount.toFixed(2),
       };
+
+      dynamicPaymentModes.forEach(pm => {
+        const modeKey = pm.mode_name.toLowerCase().replace(/[^a-z0-9]/gi, '');
+        totalRow[`${pm.mode_name} (₹)`] = (totals as any)[modeKey]?.toFixed(2) || '0.00';
+      });
+
+      Object.assign(totalRow, {
+        'Rev Amt': totals.revAmt.toFixed(2),
+        'Card Amount (₹)': totals.cardAmount.toFixed(2),
+        'IGST (₹)': totals.igst.toFixed(2),
+        'Service Charge (₹)': totals.serviceCharge_Amount.toFixed(2),
+      });
+
       data.push(totalRow);
-    } else if (reportCategory === "creditSummary") {
-      data = creditSummary.map((c: { [key: string]: any }) => {
-        const row: any = {};
-        commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = (c as any)[field]);
-        row["Type"] = c.type;
-        row["Amount"] = c.amount;
-        return row;
-      });
-    } else if (reportCategory === "discountSummary") {
-      data = discountSummary.map((d: { [key: string]: any }) => {
-        const row: any = {};
-        commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = (d as any)[field]);
-        row["Type"] = d.type;
-        row["Amount"] = d.amount;
-        return row;
-      });
-    } else if (reportCategory === "reverseKOTs") {
+    }
+    // The other report categories are not the focus of the request.
+    // Keeping their logic as is.
+    else if (reportCategory === "reverseKOTs") {
       data = reverseKOTsBills.map(r => {
         const row: any = {};
         commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = (r as any)[field]);
