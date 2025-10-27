@@ -6,6 +6,7 @@ import "jspdf-autotable";
 import { Alert } from 'react-bootstrap';
 import { useAuthContext } from "@/common";
 import { fetchOutletsForDropdown } from "@/utils/commonfunction";
+import brandService, { BrandData } from "@/common/api/brand";
 import { OutletData } from "@/common/api/outlet";
 
 interface Bill {
@@ -119,6 +120,7 @@ const ReportPage = () => {
   const [dateError, setDateError] = useState<string | null>(null);
   const [outlets, setOutlets] = useState<OutletData[]>([]);
   const [dynamicPaymentModes, setDynamicPaymentModes] = useState<PaymentMode[]>([]);
+  const [hotelDetails, setHotelDetails] = useState<BrandData | null>(null);
   const { user } = useAuthContext();
 
   useEffect(() => {
@@ -126,6 +128,14 @@ const ReportPage = () => {
       setLoading(true);
       await fetchOutletsForDropdown(user, setOutlets, setLoading);
       await loadBills();
+      if (user?.hotelid) {
+        try {
+          const response = await brandService.getBrandById(String(user.hotelid));
+          setHotelDetails(response.data);
+        } catch (error) {
+          console.error("Failed to fetch hotel details", error);
+        }
+      }
       setLoading(false);
     };
     if (user) fetchInitialData();
@@ -461,9 +471,9 @@ const ReportPage = () => {
     // 1. Get hotel info from user context
     console.log("User context data:", user);
 
-const hotel_name = user?.name || 'Hotel Name Not Found';
-const hotelAddress = user?.address || 'Address not available';
-const hotelPhone = user?.phone || 'Phone not available';
+const hotel_name = hotelDetails?.hotel_name || user?.hotel_name || 'Hotel Name Not Found';
+const hotelAddress = hotelDetails?.address || 'Address not available';
+const hotelPhone = hotelDetails?.phone || 'Phone not available';
 
 
     // 2. Determine date range for the report title
