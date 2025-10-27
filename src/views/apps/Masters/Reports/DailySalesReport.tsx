@@ -458,6 +458,31 @@ const ReportPage = () => {
   };
 
   const exportToExcel = () => {
+    // 1. Get hotel info from user context
+    console.log("User context data:", user);
+
+const hotel_name = user?.name || 'Hotel Name Not Found';
+const hotelAddress = user?.address || 'Address not available';
+const hotelPhone = user?.phone || 'Phone not available';
+
+
+    // 2. Determine date range for the report title
+    const formatDate = (date: Date) => date.toLocaleDateString('en-CA'); // YYYY-MM-DD
+    const fromDate = customRange.start ? formatDate(new Date(customRange.start)) : formatDate(new Date());
+    const toDate = customRange.end ? formatDate(new Date(customRange.end)) : formatDate(new Date());
+
+    // 3. Create the dynamic header rows
+    const header = [
+      [hotel_name],
+      [hotelAddress],
+      [`Phone : ${hotelPhone}`],
+      [], // Empty row for spacing
+      [`Daily Summary Report - ${fromDate} To ${toDate}`],
+      []  // Empty row for spacing
+    ];
+
+    const worksheet = XLSX.utils.aoa_to_sheet(header);
+
     let data: any[] = [];
     if (reportCategory === "billSummary") {
       data = billSummaryData.map(b => {
@@ -587,6 +612,8 @@ const ReportPage = () => {
     // The other report categories are not the focus of the request.
     // Keeping their logic as is.
     else if (reportCategory === "reverseKOTs") {
+      const commonFields = ["billNo", "billDate", "kotNo", "revKot", "grossAmount", "discount", "amount", "cgst", "sgst", "cess", "serviceCharge", "totalAmount", "paymentMode", "customerName", "address", "mobile", "orderType"];
+
       data = reverseKOTsBills.map(r => {
         const row: any = {};
         commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = (r as any)[field]);
@@ -596,6 +623,8 @@ const ReportPage = () => {
         return row;
       });
     } else if (reportCategory === "kitchenWise") {
+      const commonFields = ["billNo", "billDate", "kotNo", "revKot", "grossAmount", "discount", "amount", "cgst", "sgst", "cess", "serviceCharge", "totalAmount", "paymentMode", "customerName", "address", "mobile", "orderType"];
+
       data = kitchenWiseSales.map(k => {
         const row: any = {};
         commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = (k as any)[field]);
@@ -604,6 +633,8 @@ const ReportPage = () => {
         return row;
       });
     } else if (reportCategory === "ncKOT") {
+      const commonFields = ["billNo", "billDate", "kotNo", "revKot", "grossAmount", "discount", "amount", "cgst", "sgst", "cess", "serviceCharge", "totalAmount", "paymentMode", "customerName", "address", "mobile", "orderType"];
+
       data = ncKOTDetails.map(n => {
         const row: any = {};
         commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = (n as any)[field]);
@@ -613,6 +644,8 @@ const ReportPage = () => {
         return row;
       });
     } else if (reportCategory === "apcApp") {
+      const commonFields = ["billNo", "billDate", "kotNo", "revKot", "grossAmount", "discount", "amount", "cgst", "sgst", "cess", "serviceCharge", "totalAmount", "paymentMode", "customerName", "address", "mobile", "orderType"];
+
       data = apcAppSummary.map(a => {
         const row: any = {};
         commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = (a as any)[field]);
@@ -622,6 +655,8 @@ const ReportPage = () => {
         return row;
       });
     } else if (reportCategory === "specialItems") {
+      const commonFields = ["billNo", "billDate", "kotNo", "revKot", "grossAmount", "discount", "amount", "cgst", "sgst", "cess", "serviceCharge", "totalAmount", "paymentMode", "customerName", "address", "mobile", "orderType"];
+
       data = specialItemsSummary.map(s => {
         const row: any = {};
         commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = (s as any)[field]);
@@ -631,6 +666,8 @@ const ReportPage = () => {
         return row;
       });
     } else if (reportCategory === "interDeptCash") {
+      const commonFields = ["billNo", "billDate", "kotNo", "revKot", "grossAmount", "discount", "amount", "cgst", "sgst", "cess", "serviceCharge", "totalAmount", "paymentMode", "customerName", "address", "mobile", "orderType"];
+
       data = interDeptCash.map(i => {
         const row: any = {};
         commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = (i as any)[field]);
@@ -641,6 +678,8 @@ const ReportPage = () => {
         return row;
       });
     } else if (reportCategory === "dailySalesUserShift") {
+      const commonFields = ["billNo", "billDate", "kotNo", "revKot", "grossAmount", "discount", "amount", "cgst", "sgst", "cess", "serviceCharge", "totalAmount", "paymentMode", "customerName", "address", "mobile", "orderType"];
+
       data = dailySalesUserShift.map((d: { [key: string]: any }) => {
         const row: any = {};
         commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = (d as any)[field]);
@@ -650,6 +689,8 @@ const ReportPage = () => {
         return row;
       });
     } else if (reportCategory === "monthlySales") {
+      const commonFields = ["billNo", "billDate", "kotNo", "revKot", "grossAmount", "discount", "amount", "cgst", "sgst", "cess", "serviceCharge", "totalAmount", "paymentMode", "customerName", "address", "mobile", "orderType"];
+
       data = monthlySalesSummary.map((m: { [key: string]: any }) => {
         const row: any = {};
         commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = (m as any)[field]);
@@ -658,6 +699,8 @@ const ReportPage = () => {
         return row;
       });
     } else if (reportCategory === "paymentModeSales") {
+      const commonFields = ["billNo", "billDate", "kotNo", "revKot", "grossAmount", "discount", "amount", "cgst", "sgst", "cess", "serviceCharge", "totalAmount", "paymentMode", "customerName", "address", "mobile", "orderType"];
+
       data = paymentModeSalesSummary.map((p: { [key: string]: any }) => {
         const row: any = {};
         commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = (p as any)[field]);
@@ -666,6 +709,8 @@ const ReportPage = () => {
         return row;
       });
     } else if (reportCategory === "kitchenAllocation") {
+      const commonFields = ["billNo", "billDate", "kotNo", "revKot", "grossAmount", "discount", "amount", "cgst", "sgst", "cess", "serviceCharge", "totalAmount", "paymentMode", "customerName", "address", "mobile", "orderType"];
+
       data = kitchenAllocation.map((k: { [key: string]: any }) => {
         const row: any = {};
         commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = (k as any)[field]);
@@ -674,18 +719,24 @@ const ReportPage = () => {
         return row;
       });
     } else if (reportCategory === "dayEnd") {
+      const commonFields = ["billNo", "billDate", "kotNo", "revKot", "grossAmount", "discount", "amount", "cgst", "sgst", "cess", "serviceCharge", "totalAmount", "paymentMode", "customerName", "address", "mobile", "orderType"];
+
       const row: any = {};
       commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = (dayEndReport as any)[field]);
       row["Total Sales"] = dayEndReport.totalSales;
       row["Cash In Hand"] = dayEndReport.cashInHand;
       data = [row];
     } else if (reportCategory === "handover") {
+      const commonFields = ["billNo", "billDate", "kotNo", "revKot", "grossAmount", "discount", "amount", "cgst", "sgst", "cess", "serviceCharge", "totalAmount", "paymentMode", "customerName", "address", "mobile", "orderType"];
+
       const row: any = {};
       commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = (handoverReport as any)[field]);
       row["Handover Time"] = handoverReport.handoverTime;
       row["Notes"] = handoverReport.notes;
       data = [row];
     } else if (reportCategory === "billReprinted") {
+      const commonFields = ["billNo", "billDate", "kotNo", "revKot", "grossAmount", "discount", "amount", "cgst", "sgst", "cess", "serviceCharge", "totalAmount", "paymentMode", "customerName", "address", "mobile", "orderType"];
+
       data = billReprinted.map(b => {
         const row: any = {};
         commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = (b as any)[field]);
@@ -694,6 +745,8 @@ const ReportPage = () => {
         return row;
       });
     } else if (reportCategory === "kotUsedSummary") {
+      const commonFields = ["billNo", "billDate", "kotNo", "revKot", "grossAmount", "discount", "amount", "cgst", "sgst", "cess", "serviceCharge", "totalAmount", "paymentMode", "customerName", "address", "mobile", "orderType"];
+
       data = kotUsedSummary.map((k: { [key: string]: any }) => {
         const row: any = {};
         commonFields.forEach(field => row[field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1')] = (k as any)[field]);
@@ -703,7 +756,7 @@ const ReportPage = () => {
       });
     }
 
-    const worksheet = XLSX.utils.json_to_sheet(data);
+    XLSX.utils.sheet_add_json(worksheet, data, { origin: -1 }); // Append data after the header
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, `${reportCategory} Report`);
     XLSX.writeFile(workbook, `restaurant-${reportCategory}-report-${new Date().toISOString().split('T')[0]}.xlsx`);
