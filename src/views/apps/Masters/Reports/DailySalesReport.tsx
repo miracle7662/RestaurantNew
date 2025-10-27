@@ -2169,9 +2169,9 @@ const hotelPhone = hotelDetails?.phone || 'Phone not available';
           </h4>
 
           {/* Optimized Single Row for Filters and Actions */}
-          <Row className="mb-2 g-2 align-items-center flex-wrap">
-            <Col md={3} xs={12}>
-              <Form.Select 
+          <Row className="mb-2 g-2 align-items-center">
+            <Col lg={3} md={6} xs={12}>
+              <Form.Select
                 value={reportCategory} 
                 onChange={(e) => setReportCategory(e.target.value)}
                 className="form-select-sm"
@@ -2198,7 +2198,7 @@ const hotelPhone = hotelDetails?.phone || 'Phone not available';
               </Form.Select>
             </Col>
 
-            <Col md={2} xs={12}>
+            <Col lg={2} md={6} xs={12}>
               <Form.Select
                 name="outlet"
                 value={filters.outlet}
@@ -2214,7 +2214,7 @@ const hotelPhone = hotelDetails?.phone || 'Phone not available';
             </Col>
 
             {["reverseKOTs", "discountSummary"].includes(reportCategory) && (
-              <Col md={2} xs={6}>
+              <Col lg="auto" md={4} xs={12}>
                 <Form.Select
                   value={reportType}
                   onChange={(e) => setReportType(e.target.value)}
@@ -2230,8 +2230,7 @@ const hotelPhone = hotelDetails?.phone || 'Phone not available';
               </Col>
             )}
 
-
-            <Col md={2} xs={6}>
+            <Col lg={2} md={4} xs={6}>
               <Form.Control
                 type="date"
                 placeholder="From Date"
@@ -2242,7 +2241,7 @@ const hotelPhone = hotelDetails?.phone || 'Phone not available';
               />
             </Col>
 
-            <Col md={2} xs={6}>
+            <Col lg={2} md={4} xs={6}>
               <Form.Control
                 type="date"
                 placeholder="To Date"
@@ -2253,7 +2252,7 @@ const hotelPhone = hotelDetails?.phone || 'Phone not available';
               />
             </Col>
 
-            <Col md={2} xs={12} className="d-flex gap-1">
+            <Col lg="auto" md={12} xs={12} className="d-flex gap-1">
               <Button variant="outline-primary" onClick={handleCustomFilter} size="sm">
                 Apply
               </Button>
@@ -2262,7 +2261,7 @@ const hotelPhone = hotelDetails?.phone || 'Phone not available';
               </Button>
             </Col>
 
-            <Col md="auto" className="ms-auto d-flex gap-2">
+            <Col lg="auto" md={12} xs={12} className="ms-lg-auto d-flex gap-2 justify-content-start">
               <Dropdown>
                 <Dropdown.Toggle variant="outline-success" size="sm">
                   📤 Export
