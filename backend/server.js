@@ -34,7 +34,8 @@ const taxGroupRoutes = require('./routes/msttaxgroupRoutes');
 const restTaxMasterRoutes = require('./routes/restTaxMasterRoutes');
 const ordersRoutes = require('./routes/ordersRoutes');
 
-
+const handoverRoutes = require('./routes/handoverRoutes.js');
+const DayendRoutes = require('./routes/DayendRoutes');
 const paymentModesRoutes = require('./routes/paymentModesRoutes');
 const msttableDepartmentRoutes = require('./routes/msttableDepartmentRoutes');
 const paymentmethodRoutes = require('./routes/paymentmethodRoutes');
@@ -82,7 +83,8 @@ app.use('/api/resttaxmaster', restTaxMasterRoutes);
 app.use('/api/orders', ordersRoutes);
 
 
-
+app.use('/api/handover', handoverRoutes); // Register handover routes
+app.use('/api/dayend', DayendRoutes);
 app.use('/api/payment-modes', paymentModesRoutes); // Register payment modes routes
 app.use('/api/table-department', msttableDepartmentRoutes); // Register table department routes
 app.use('/api/payment', paymentmethodRoutes);
@@ -97,10 +99,9 @@ app.get('/api/health', (req, res) => {
 });
 
 
-const handoverRoutes = require('./routes/handoverRoutes.js');
 
 // ✅ Start server
-app.use('/api/handover', handoverRoutes);
+
 
 app.listen(port, () => {
     console.log(`Server running at http://localhost:${port}`);

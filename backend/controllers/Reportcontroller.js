@@ -3,6 +3,11 @@ const db = require('../config/db');
 
 const getReportData = (req, res) => {
   try {
+    // Get start and end dates from query params, default to today if not provided
+    const today = new Date().toISOString().split('T')[0];
+    const startDate = req.query.start || today;
+    const endDate = req.query.end || today;
+
     const query = `
       SELECT
           t.TxnID,
@@ -37,9 +42,9 @@ const getReportData = (req, res) => {
           t.Steward as Captain,
           t.UserId,
           u.username as UserName,
-          (SELECT SUM(CASE WHEN i.item_name LIKE '%water%' THEN d.RuntimeRate * d.Qty ELSE 0 END) 
-            FROM TAxnTrnbilldetails d 
-            JOIN mstrestmenu i ON d.ItemID = i.restitemid 
+          (SELECT SUM(CASE WHEN i.item_name LIKE '%water%' THEN d.RuntimeRate * d.Qty ELSE 0 END)
+            FROM TAxnTrnbilldetails d
+            JOIN mstrestmenu i ON d.ItemID = i.restitemid
             WHERE d.TxnID = t.TxnID) as Water,
           GROUP_CONCAT(DISTINCT CASE WHEN td.Qty > 0 THEN td.KOTNo END) as KOTNo,
           COALESCE(GROUP_CONCAT(DISTINCT td.RevKOTNo), '') as RevKOTNo,
@@ -62,12 +67,13 @@ const getReportData = (req, res) => {
       LEFT JOIN msttablemanagement mt ON t.TableID = mt.tableid
       LEFT JOIN mst_outlets mo ON mt.outletid = mo.outletid
       LEFT JOIN msttable_department d ON mt.departmentid = d.departmentid
-      WHERE (t.isCancelled = 0 AND (t.isBilled = 1 OR t.isSetteled = 1)) OR t.isreversebill = 1
+      WHERE ((t.isCancelled = 0 AND (t.isBilled = 1 OR t.isSetteled = 1)) OR t.isreversebill = 1)
+        AND DATE(t.TxnDatetime) BETWEEN ? AND ?
       GROUP BY t.TxnID, t.TxnNo
       ORDER BY t.TxnDatetime DESC;
     `;
 
-    const rows = db.prepare(query).all();
+    const rows = db.prepare(query).all(startDate, endDate);
     const transactions = {};
 
     rows.forEach(row => {

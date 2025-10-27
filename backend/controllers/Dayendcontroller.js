@@ -1,8 +1,12 @@
+
 const db = require('../config/db');
-
-
-
-const getHandoverData = (req, res) => {
+// Convert to India Standard Time (UTC+5:30)
+function toIST(date) {
+  const utc = date.getTime() + (date.getTimezoneOffset() * 60000);
+  const istOffset = 5.5 * 60 * 60000;
+  return new Date(utc + istOffset);
+}
+const getDayendData = (req, res) => {
   try {
     // Get all billed or settled bills with their details
     const query = `
@@ -42,7 +46,7 @@ const getHandoverData = (req, res) => {
       FROM TAxnTrnbill t
       LEFT JOIN TAxnTrnbilldetails td ON t.TxnID = td.TxnID
       LEFT JOIN mst_users u ON t.UserId = u.userid
-      WHERE (t.isCancelled = 0 AND (t.isBilled = 1 OR t.isSetteled = 1)) OR t.isreversebill = 1
+      WHERE  t.isDayEnd=0 and (t.isCancelled = 0 AND (t.isBilled = 1 OR t.isSetteled = 1)) OR t.isreversebill = 1
      
       GROUP BY t.TxnID, t.TxnNo
       ORDER BY t.TxnDatetime DESC;
@@ -176,12 +180,15 @@ const getHandoverData = (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error fetching handover data:', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch handover data' });
+    console.error('Error fetching dayend data:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch dayend data' });
   }
 };
 
-const saveCashDenomination = (req, res) => {
+
+
+
+const saveDayEndCashDenomination = (req, res) => {
   const { denominations, total, userId, reason } = req.body;
 
   if (!denominations || !userId) {
@@ -190,14 +197,14 @@ const saveCashDenomination = (req, res) => {
 
   try {
     const stmt = db.prepare(`
-      INSERT INTO trn_cashdenomination (
+      INSERT INTO trn_dayend_cashdenomination (
         note_2000, note_500, note_200, note_100, note_50, note_20, note_10, note_5, note_2, note_1,
         total_2000, total_500, total_200, total_100, total_50, total_20, total_10, total_5, total_2, total_1,
-        grand_total, user_id, handover_reason
+        grand_total, user_id
       ) VALUES (
         @note_2000, @note_500, @note_200, @note_100, @note_50, @note_20, @note_10, @note_5, @note_2, @note_1,
         @total_2000, @total_500, @total_200, @total_100, @total_50, @total_20, @total_10, @total_5, @total_2, @total_1,
-        @grand_total, @user_id, @reason
+        @grand_total, @user_id
       )
     `);
 
@@ -214,23 +221,108 @@ const saveCashDenomination = (req, res) => {
       total_2: (denominations['2'] || 0) * 2, total_1: (denominations['1'] || 0) * 1,
       grand_total: total,
       user_id: userId,
-      reason: reason || null
     });
 
-    res.json({ success: true, message: 'Cash denomination saved successfully.', id: info.lastInsertRowid });
+    res.json({ success: true, message: 'Day-End cash denomination saved successfully.', id: info.lastInsertRowid });
   } catch (error) {
-    console.error('Error saving cash denomination:', error);
-    res.status(500).json({ success: false, message: 'Failed to save cash denomination data.' });
+    console.error('Error saving day-end cash denomination:', error);
+    res.status(500).json({ success: false, message: 'Failed to save day-end cash denomination data.' });
+  }
+};
+
+const saveDayEnd = async (req, res) => {
+  try {
+    const { total_amount, outlet_id, hotel_id, user_id } = req.body;
+
+    if (total_amount === undefined || !outlet_id || !hotel_id || !user_id) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing required fields: total_amount, outlet_id, hotel_id, user_id",
+      });
+    }
+
+    // Fetch last record for outlet + hotel
+    const lastDayEnd = db.prepare(`
+      SELECT dayend_date, current_date
+      FROM trn_dayend
+      WHERE outlet_id = ? AND hotel_id = ?
+      ORDER BY id DESC LIMIT 1
+    `).get(outlet_id, hotel_id);
+
+    let dayend_date_obj;
+
+    if (lastDayEnd && lastDayEnd.dayend_date) {
+      // ✅ Close the last business date that is pending
+      dayend_date_obj = new Date(lastDayEnd.dayend_date);
+    } else {
+      // ✅ First time DayEnd → Close today’s business date
+      dayend_date_obj = new Date();
+      dayend_date_obj.setHours(0, 0, 0, 0);
+    }
+
+    // ✅ Next business date
+    const current_date_obj = new Date(dayend_date_obj);
+    current_date_obj.setDate(current_date_obj.getDate() + 1);
+
+    const formatDate = (date) =>
+      `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
+        date.getDate()
+      ).padStart(2, "0")}`;
+
+    const dayend_dateStr = formatDate(dayend_date_obj);
+    const current_dateStr = formatDate(current_date_obj);
+
+    // ✅ Always 23:59:59 of closed business date
+    const lock_datetimeStr = `${dayend_dateStr} 23:59:59`;
+
+    
+
+    const insert = db.prepare(`
+      INSERT INTO trn_dayend
+      (current_date, dayend_date, system_datetime, lock_datetime, outlet_id, hotel_id, dayend_total_amt, created_by_id)
+      VALUES (?, ?, CURRENT_TIMESTAMP, ?, ?, ?, ?, ?)
+    `);
+
+    const result = insert.run(
+      current_dateStr,   // ✅ Next Business Date
+      dayend_dateStr,    // ✅ Business Date closing today
+      lock_datetimeStr,
+      outlet_id,
+      hotel_id,
+      total_amount,
+      user_id
+    );
+
+    // ✅ Update bills
+    db.prepare(`
+      UPDATE TAxnTrnbill
+      SET isDayEnd = 1
+      WHERE isDayEnd = 0
+        AND ((isCancelled = 0 AND (isBilled = 1 OR isSetteled = 1))
+        OR isreversebill = 1)
+        AND outletid = ? AND hotelid = ?
+    `).run(outlet_id, hotel_id);
+
+    return res.json({
+      success: true,
+      message: "Day End completed successfully ✅",
+      data: { id: result.lastInsertRowid },
+    });
+
+  } catch (error) {
+    console.error("Day End Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error while processing Day End ❌",
+      error: error.message,
+    });
   }
 };
 
 
 
-
-
 module.exports = {
-  getHandoverData,
-  saveCashDenomination,
- 
-  
+  getDayendData,
+  saveDayEndCashDenomination,
+  saveDayEnd,
 };

@@ -101,11 +101,11 @@ const DayEnd = () => {
   const [passwordVerified, setPasswordVerified] = useState(false);
 
   useEffect(() => {
-    const fetchHandoverData = async () => {
+    const fetchdayendData = async () => {
       try {
-        const response = await fetch('http://localhost:3001/api/handover/data');
+        const response = await fetch('http://localhost:3001/api/dayend/data');
         if (!response.ok) {
-          throw new Error('Failed to fetch handover data');
+          throw new Error('Failed to fetch dayend data');
         }
         const data = await response.json();
         if (data.success) {
@@ -122,14 +122,14 @@ const DayEnd = () => {
       }
     };
 
-    fetchHandoverData();
+    fetchdayendData();
   }, []);
 
   useEffect(() => {
-    if (!passwordVerified) {
+    if (user && !passwordVerified) { // Only show modal if user is loaded AND password is not verified
       setShowPasswordModal(true);
     }
-  }, [passwordVerified]);
+  }, [user, passwordVerified]); // Add user to dependency array
 
   // Computed summary from orders
   const totalOrders = orders.length;
@@ -255,7 +255,7 @@ const DayEnd = () => {
     };
 
     try {
-      const response = await fetch('http://localhost:3001/api/TAxnTrnbill/save', {
+      const response = await fetch('http://localhost:3001/api/dayend/save-dayend', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -306,7 +306,7 @@ const DayEnd = () => {
       userId: 1,
     };
 
-    fetch('http://localhost:3001/api/handover/dayend-cash-denomination', {
+    fetch('http://localhost:3001/api/dayend/dayend-cash-denomination', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -328,6 +328,11 @@ const DayEnd = () => {
 
   const handlePasswordVerify = async (password: string): Promise<boolean> => {
     try {
+      if (!user?.token) {
+        console.error('Authentication token is missing for password verification.');
+        // Optionally, display a user-friendly message here, e.g., toast.error('Authentication required. Please log in again.');
+        return false;
+      }
       const response = await fetch('http://localhost:3001/api/auth/verify-password', {
         method: 'POST',
         headers: {
@@ -971,7 +976,7 @@ const DayEnd = () => {
                   }}
                 >
                   <div className="d-flex align-items-center flex-wrap gap-3">
-                    {/* Handover By */}
+                    {/* Day End By */}
                     <div className="d-flex align-items-center gap-2">
                       <span className="fw-semibold text-secondary small">Day End By:</span>
                       <Form.Control
@@ -1192,7 +1197,7 @@ const DayEnd = () => {
             </div>
 
             <div className="d-flex justify-content-between py-1">
-              <span className="fw-bold text-dark">Handover Expected:</span>
+              <span className="fw-bold text-dark">Total CashExpected:</span>
               <span className="fw-semibold text-primary" title="Total cash from all settled orders">
                 {totalCash.toLocaleString()}
               </span>
