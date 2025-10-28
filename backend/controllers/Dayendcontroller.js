@@ -237,9 +237,10 @@ const saveDayEnd = async (req, res) => {
     if (!outlet_id || !hotel_id || !userid)
       return res.status(400).json({ success: false, message: "Missing fields" });
 
-    console.log("=== USING NEW trn_dayend TABLE STRUCTURE ===");
+    console.log("=== DAY END PROCESS ===");
+    console.log("Outlet:", outlet_id, "Hotel:", hotel_id, "User:", userid);
     
-    // Get last record from the table
+    // Get last record
     const last = db.prepare(`
       SELECT dayend_date, next_date FROM trn_dayend
       WHERE outlet_id = ? AND hotel_id = ?
@@ -251,30 +252,51 @@ const saveDayEnd = async (req, res) => {
     let dayend_date, next_date;
 
     if (last) {
-      console.log("Previous record found:");
-      console.log("dayend_date:", last.dayend_date);
-      console.log("next_date:", last.next_date);
-      
-      // Use the next_date from last record as dayend_date for new record
       dayend_date = last.next_date;
-      
-      // Calculate next day
       const nextDay = new Date(last.next_date);
       nextDay.setDate(nextDay.getDate() + 1);
       next_date = `${nextDay.getFullYear()}-${String(nextDay.getMonth() + 1).padStart(2, '0')}-${String(nextDay.getDate()).padStart(2, '0')}`;
     } else {
-      console.log("No previous records - first dayend");
       const today = new Date();
       dayend_date = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-      
       const nextDay = new Date(today);
       nextDay.setDate(today.getDate() + 1);
       next_date = `${nextDay.getFullYear()}-${String(nextDay.getMonth() + 1).padStart(2, '0')}-${String(nextDay.getDate()).padStart(2, '0')}`;
     }
 
-    console.log("Inserting new record:");
-    console.log("dayend_date:", dayend_date);
-    console.log("next_date:", next_date);
+    console.log("Calculated dates - Dayend:", dayend_date, "Next:", next_date);
+
+    // 🔹 Enhanced duplicate prevention with more details
+    const existingDayend = db.prepare(`
+      SELECT id, dayend_date, created_by_id, system_datetime 
+      FROM trn_dayend 
+      WHERE outlet_id = ? AND hotel_id = ? AND dayend_date = ?
+    `).get(outlet_id, hotel_id, dayend_date);
+
+    if (existingDayend) {
+      console.log("❌ Duplicate dayend prevented for date:", dayend_date);
+      return res.status(409).json({
+        success: false,
+        message: `Day-end for ${dayend_date} already completed.`,
+        details: {
+          existingId: existingDayend.id,
+          completedBy: existingDayend.created_by_id,
+          completedAt: existingDayend.system_datetime
+        }
+      });
+    }
+
+    // 🔹 Additional safety check - prevent future dates
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    
+    const dayendDateObj = new Date(dayend_date);
+    if (dayendDateObj > new Date(todayStr)) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot perform day-end for future date: ${dayend_date}`
+      });
+    }
 
     // Indian time for system_datetime
     const now = new Date();
@@ -283,51 +305,49 @@ const saveDayEnd = async (req, res) => {
 
     const lock_datetime = `${dayend_date} 23:59:59`;
 
-    // Insert into the table
+    console.log("Inserting new dayend record...");
+
+    // Insert the dayend record
     const result = db.prepare(`
       INSERT INTO trn_dayend
       (dayend_date, next_date, system_datetime, lock_datetime, outlet_id, hotel_id, dayend_total_amt, created_by_id)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
-      dayend_date, 
-      next_date, 
-      formattedIndiaTime, 
-      lock_datetime, 
-      outlet_id, 
-      hotel_id, 
-      total_amount || 0, 
+      dayend_date,
+      next_date,
+      formattedIndiaTime,
+      lock_datetime,
+      outlet_id,
+      hotel_id,
+      total_amount || 0,
       userid
     );
 
     const lastInsertId = result.lastInsertRowid;
-    console.log("Insert successful, ID:", lastInsertId);
-
-    // Verify what was stored
+    
+    // Verify the inserted data
     const storedData = db.prepare(`
       SELECT id, dayend_date, next_date, system_datetime FROM trn_dayend WHERE id = ?
     `).get(lastInsertId);
-    
-    console.log("Stored in database:", storedData);
 
-    // Check all records to see the pattern
-    const allRecords = db.prepare(`
-      SELECT id, dayend_date, next_date FROM trn_dayend ORDER BY id DESC LIMIT 5
-    `).all();
-    console.log("Last 5 records:", allRecords);
-
-    console.log("=== COMPLETE ===");
+    console.log("✅ Dayend completed successfully:", storedData);
 
     return res.json({ 
       success: true, 
-      message: "Day End completed ✅",
+      message: `Day End for ${dayend_date} completed successfully ✅`,
       data: storedData
     });
 
   } catch (e) {
-    console.error("Day End Error:", e);
-    res.status(500).json({ success: false, message: e.message });
+    console.error("❌ Day End Error:", e);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to complete day end',
+      error: e.message 
+    });
   }
 };
+
 module.exports = {
   getDayendData,
   saveDayEndCashDenomination,
