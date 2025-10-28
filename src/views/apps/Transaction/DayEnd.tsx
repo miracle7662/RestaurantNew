@@ -244,43 +244,45 @@ const DayEnd = () => {
   };
 
 
-  const handleSaveDayEnd = async () => {
-    if (!DayEndBy) {
-      alert("Please select who you are handing over to.");
-      return;
-    }
+ const handleSaveDayEnd = async () => {
+  if (!DayEndBy) {
+    alert("Please select who you are handing over to.");
+    return;
+  }
 
-    // ✅ Use the current local date for dayend_date.
-    const today = new Date();
-    const workingDate = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+  const today = new Date();
+  const workingDate = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
 
-    const payload = {
-      total_amount: totalSales, // Add total sales amount
-      outlet_id: user?.outletid || 1, // Use outlet_id from user context or fallback to 1
-      hotel_id: user?.hotelid || 1, // Use hotel_id from user context or fallback to 1
-      userid: user?.userid || 1, // Use user id from context or fallback to 1
-      // ✅ Send the working date to the backend.
-      dayend_date: workingDate,
-    };
-
-    try {
-      const response = await fetch('http://localhost:3001/api/dayend/save-dayend', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        alert(`Day-End saved successfully! Handed over to ${DayEndBy}`);
-      } else {
-        alert(`Error: ${data.message}`);
-      }
-    } catch (error) {
-      console.error('Error saving day-end:', error);
-      alert('An error occurred while saving day-end. Please check the console.');
-    }
+  const payload = {
+    total_amount: totalSales,
+    outlet_id: user?.outletid || 1,
+    hotel_id: user?.hotelid || 1,
+    userid: user?.userid || 1,
+    dayend_date: workingDate,
   };
+
+  console.log("Frontend sending payload:", payload); // Add this line
+
+  try {
+    const response = await fetch('http://localhost:3001/api/dayend/save-dayend', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await response.json();
+    console.log("Backend response:", data); // Add this line
+
+    if (data.success) {
+      alert(`Day-End saved successfully! Handed over to ${DayEndBy}`);
+    } else {
+      alert(`Error: ${data.message}`);
+    }
+  } catch (error) {
+    console.error('Error saving day-end:', error);
+    alert('An error occurred while saving day-end. Please check the console.');
+  }
+};
 
   const handleClose = () => {
     if (window.confirm("Are you sure you want to close without saving?")) {

@@ -911,37 +911,7 @@ CREATE TABLE IF NOT EXISTS trn_cashdenomination (
   handover_reason TEXT
 );
 
-CREATE TABLE IF NOT EXISTS trn_dayend_cashdenomination (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  dayend_id INTEGER,                    -- Link to Day-End record
-  note_2000 INTEGER DEFAULT 0,          -- Count of ₹2000 notes
-  note_1000 INTEGER DEFAULT 0,          -- Count of ₹1000 notes (optional)
-  note_500 INTEGER DEFAULT 0,
-  note_200 INTEGER DEFAULT 0,
-  note_100 INTEGER DEFAULT 0,
-  note_50 INTEGER DEFAULT 0,
-  note_20 INTEGER DEFAULT 0,
-  note_10 INTEGER DEFAULT 0,
-  note_5 INTEGER DEFAULT 0,
-  note_2 INTEGER DEFAULT 0,
-  note_1 INTEGER DEFAULT 0,
 
-  total_2000 DECIMAL(10,2) DEFAULT 0,
-  total_1000 DECIMAL(10,2) DEFAULT 0,
-  total_500 DECIMAL(10,2) DEFAULT 0,
-  total_200 DECIMAL(10,2) DEFAULT 0,
-  total_100 DECIMAL(10,2) DEFAULT 0,
-  total_50 DECIMAL(10,2) DEFAULT 0,
-  total_20 DECIMAL(10,2) DEFAULT 0,
-  total_10 DECIMAL(10,2) DEFAULT 0,
-  total_5 DECIMAL(10,2) DEFAULT 0,
-  total_2 DECIMAL(10,2) DEFAULT 0,
-  total_1 DECIMAL(10,2) DEFAULT 0,
-
-  grand_total DECIMAL(12,2) DEFAULT 0,   -- Sum of all totals
-  user_id INTEGER NOT NULL,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
 
 CREATE TABLE IF NOT EXISTS trn_dayend_cashdenomination (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -979,7 +949,7 @@ CREATE TABLE IF NOT EXISTS trn_dayend_cashdenomination (
 CREATE TABLE IF NOT EXISTS trn_dayend (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   dayend_date TEXT NOT NULL,
-  current_date TEXT NOT NULL,
+  next_date TEXT NOT NULL,
   system_datetime DATETIME DEFAULT CURRENT_TIMESTAMP,
   lock_datetime DATETIME NOT NULL,
   outlet_id INTEGER NOT NULL,

@@ -237,60 +237,97 @@ const saveDayEnd = async (req, res) => {
     if (!outlet_id || !hotel_id || !userid)
       return res.status(400).json({ success: false, message: "Missing fields" });
 
+    console.log("=== USING NEW trn_dayend TABLE STRUCTURE ===");
+    
+    // Get last record from the table
     const last = db.prepare(`
-      SELECT dayend_date, current_date FROM trn_dayend
+      SELECT dayend_date, next_date FROM trn_dayend
       WHERE outlet_id = ? AND hotel_id = ?
       ORDER BY id DESC LIMIT 1
     `).get(outlet_id, hotel_id);
 
-    let dayend_date, current_date;
+    console.log("Last record:", last);
+
+    let dayend_date, next_date;
 
     if (last) {
-      // next cycle continues from last current_date
-      const prev = new Date(last.current_date);
-      dayend_date = prev.toISOString().slice(0, 10);
-
-      const next = new Date(prev);
-      next.setDate(prev.getDate() + 1);
-      current_date = next.toISOString().slice(0, 10);
+      console.log("Previous record found:");
+      console.log("dayend_date:", last.dayend_date);
+      console.log("next_date:", last.next_date);
+      
+      // Use the next_date from last record as dayend_date for new record
+      dayend_date = last.next_date;
+      
+      // Calculate next day
+      const nextDay = new Date(last.next_date);
+      nextDay.setDate(nextDay.getDate() + 1);
+      next_date = `${nextDay.getFullYear()}-${String(nextDay.getMonth() + 1).padStart(2, '0')}-${String(nextDay.getDate()).padStart(2, '0')}`;
     } else {
+      console.log("No previous records - first dayend");
       const today = new Date();
-      dayend_date = today.toISOString().slice(0, 10);
-
-      const next = new Date(today);
-      next.setDate(today.getDate() + 1);
-      current_date = next.toISOString().slice(0, 10);
+      dayend_date = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      
+      const nextDay = new Date(today);
+      nextDay.setDate(today.getDate() + 1);
+      next_date = `${nextDay.getFullYear()}-${String(nextDay.getMonth() + 1).padStart(2, '0')}-${String(nextDay.getDate()).padStart(2, '0')}`;
     }
 
-    // Build the raw SQL string as per TODO.md
-    const sql = `
-      INSERT INTO trn_dayend (dayend_date, current_date, system_datetime, lock_datetime, outlet_id, hotel_id, dayend_total_amt, created_by_id)
-      VALUES ('${dayend_date}', '${current_date}', CURRENT_TIMESTAMP,  CURRENT_TIMESTAMP, ${outlet_id}, ${hotel_id}, ${total_amount || 0}, ${userid});
-    `;
+    console.log("Inserting new record:");
+    console.log("dayend_date:", dayend_date);
+    console.log("next_date:", next_date);
 
-    // Log and execute the query
-    console.log("🧩 Final SQL:", sql);
-    db.exec(sql);
+    // Indian time for system_datetime
+    const now = new Date();
+    const indiaTime = new Date(now.getTime() + (5.5 * 60 * 60 * 1000));
+    const formattedIndiaTime = indiaTime.toISOString().replace('T', ' ').slice(0, 19);
 
-    // Update TAxnTrnbill to set isDayEnd=1 and DayEndEmpID for the day-ended bills
-    const updateSql = `
-      UPDATE TAxnTrnbill
-      SET isDayEnd = 1, DayEndEmpID = ${userid}
-      WHERE outletid = ${outlet_id} AND HotelID = ${hotel_id} AND (isDayEnd = 0 OR isDayEnd IS NULL) AND ((isCancelled = 0 AND (isBilled = 1 OR isSetteled = 1)) OR isreversebill = 1);
-    `;
-    console.log("🧩 Update SQL:", updateSql);
-    db.exec(updateSql);
+    const lock_datetime = `${dayend_date} 23:59:59`;
 
-    return res.json({ success: true, message: "Day End completed ✅" });
+    // Insert into the table
+    const result = db.prepare(`
+      INSERT INTO trn_dayend
+      (dayend_date, next_date, system_datetime, lock_datetime, outlet_id, hotel_id, dayend_total_amt, created_by_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      dayend_date, 
+      next_date, 
+      formattedIndiaTime, 
+      lock_datetime, 
+      outlet_id, 
+      hotel_id, 
+      total_amount || 0, 
+      userid
+    );
+
+    const lastInsertId = result.lastInsertRowid;
+    console.log("Insert successful, ID:", lastInsertId);
+
+    // Verify what was stored
+    const storedData = db.prepare(`
+      SELECT id, dayend_date, next_date, system_datetime FROM trn_dayend WHERE id = ?
+    `).get(lastInsertId);
+    
+    console.log("Stored in database:", storedData);
+
+    // Check all records to see the pattern
+    const allRecords = db.prepare(`
+      SELECT id, dayend_date, next_date FROM trn_dayend ORDER BY id DESC LIMIT 5
+    `).all();
+    console.log("Last 5 records:", allRecords);
+
+    console.log("=== COMPLETE ===");
+
+    return res.json({ 
+      success: true, 
+      message: "Day End completed ✅",
+      data: storedData
+    });
 
   } catch (e) {
     console.error("Day End Error:", e);
     res.status(500).json({ success: false, message: e.message });
   }
 };
-
-
-
 module.exports = {
   getDayendData,
   saveDayEndCashDenomination,
