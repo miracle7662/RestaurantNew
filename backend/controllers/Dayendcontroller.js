@@ -232,27 +232,28 @@ const saveDayEndCashDenomination = (req, res) => {
 
 const saveDayEnd = async (req, res) => {
   try {
-    const { total_amount, outlet_id, hotel_id, userid } = req.body;
+    const { dayend_total_amt, outlet_id, hotel_id, created_by_id } = req.body;
 
-    if (!outlet_id || !hotel_id || !userid)
+    if (!outlet_id || !hotel_id || !created_by_id)
       return res.status(400).json({ success: false, message: "Missing fields" });
 
     console.log("=== DAY END PROCESS ===");
-    console.log("Outlet:", outlet_id, "Hotel:", hotel_id, "User:", userid);
+    console.log("Outlet:", outlet_id, "Hotel:", hotel_id, "User:", created_by_id, "Amount:", dayend_total_amt);
     
     // Get last record
     const last = db.prepare(`
       SELECT dayend_date, next_date FROM trn_dayend
       WHERE outlet_id = ? AND hotel_id = ?
       ORDER BY id DESC LIMIT 1
-    `).get(outlet_id, hotel_id);
+    `).get(outlet_id, hotel_id); // Positional binding is fine here
 
     console.log("Last record:", last);
 
     let dayend_date, next_date;
 
     if (last) {
-      dayend_date = last.next_date;
+      // Use the next_date from the last record as the current dayend_date
+      dayend_date = last.next_date; 
       const nextDay = new Date(last.next_date);
       nextDay.setDate(nextDay.getDate() + 1);
       next_date = `${nextDay.getFullYear()}-${String(nextDay.getMonth() + 1).padStart(2, '0')}-${String(nextDay.getDate()).padStart(2, '0')}`;
@@ -266,37 +267,9 @@ const saveDayEnd = async (req, res) => {
 
     console.log("Calculated dates - Dayend:", dayend_date, "Next:", next_date);
 
-    // 🔹 Enhanced duplicate prevention with more details
-    const existingDayend = db.prepare(`
-      SELECT id, dayend_date, created_by_id, system_datetime 
-      FROM trn_dayend 
-      WHERE outlet_id = ? AND hotel_id = ? AND dayend_date = ?
-    `).get(outlet_id, hotel_id, dayend_date);
-
-    if (existingDayend) {
-      console.log("❌ Duplicate dayend prevented for date:", dayend_date);
-      return res.status(409).json({
-        success: false,
-        message: `Day-end for ${dayend_date} already completed.`,
-        details: {
-          existingId: existingDayend.id,
-          completedBy: existingDayend.created_by_id,
-          completedAt: existingDayend.system_datetime
-        }
-      });
-    }
-
-    // 🔹 Additional safety check - prevent future dates
-    const today = new Date();
-    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     
-    const dayendDateObj = new Date(dayend_date);
-    if (dayendDateObj > new Date(todayStr)) {
-      return res.status(400).json({
-        success: false,
-        message: `Cannot perform day-end for future date: ${dayend_date}`
-      });
-    }
+
+    
 
     // Indian time for system_datetime
     const now = new Date();
@@ -309,18 +282,23 @@ const saveDayEnd = async (req, res) => {
 
     // Insert the dayend record
     const result = db.prepare(`
-      INSERT INTO trn_dayend
-      (dayend_date, next_date, system_datetime, lock_datetime, outlet_id, hotel_id, dayend_total_amt, created_by_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      dayend_date,
-      next_date,
-      formattedIndiaTime,
-      lock_datetime,
-      outlet_id,
-      hotel_id,
-      total_amount || 0,
-      userid
+      INSERT INTO trn_dayend (
+        dayend_date, next_date, system_datetime, lock_datetime, 
+        outlet_id, hotel_id, dayend_total_amt, created_by_id
+      ) VALUES (
+        @dayend_date, @next_date, @system_datetime, @lock_datetime, 
+        @outlet_id, @hotel_id, @dayend_total_amt, @created_by_id
+      )
+    `).run({
+      dayend_date: dayend_date,
+      next_date: next_date,
+      system_datetime: formattedIndiaTime,
+      lock_datetime: lock_datetime,
+      outlet_id: outlet_id,
+      hotel_id: hotel_id,
+      dayend_total_amt: dayend_total_amt || 0,
+      created_by_id: created_by_id
+    }
     );
 
     const lastInsertId = result.lastInsertRowid;

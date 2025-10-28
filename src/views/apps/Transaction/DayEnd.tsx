@@ -103,6 +103,7 @@ const DayEnd = () => {
   const [passwordVerified, setPasswordVerified] = useState(false);
   const [showOnlyNotDayEnded, setShowOnlyNotDayEnded] = useState(false);
 
+
   useEffect(() => {
     const fetchdayendData = async () => {
       try {
@@ -249,16 +250,12 @@ const DayEnd = () => {
     alert("Please select who you are handing over to.");
     return;
   }
-
-  const today = new Date();
-  const workingDate = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
-
+ 
   const payload = {
-    total_amount: totalSales,
-    outlet_id: user?.outletid || 1,
+    dayend_total_amt: totalSales,
+    outlet_id: user?.outletid,
     hotel_id: user?.hotelid || 1,
-    userid: user?.userid || 1,
-    dayend_date: workingDate,
+    created_by_id: user?.id || 1,
   };
 
   console.log("Frontend sending payload:", payload); // Add this line
