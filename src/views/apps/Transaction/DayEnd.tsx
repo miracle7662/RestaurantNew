@@ -68,6 +68,8 @@ interface Order {
   gpay?: number;
   phonepe?: number;
   qrcode?: number;
+  isDayEnd?: number;
+  dayEndEmpID?: number;
 }
 
 const DayEnd = () => {
@@ -99,6 +101,7 @@ const DayEnd = () => {
   
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [passwordVerified, setPasswordVerified] = useState(false);
+  const [showOnlyNotDayEnded, setShowOnlyNotDayEnded] = useState(false);
 
   useEffect(() => {
     const fetchdayendData = async () => {
@@ -231,7 +234,8 @@ const DayEnd = () => {
       (order.captain || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (order.user || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "all" || order.status.toLowerCase() === statusFilter.toLowerCase();
-    return matchesSearch && matchesStatus;
+    const matchesDayEnd = !showOnlyNotDayEnded || (order.isDayEnd === 0 || order.isDayEnd == null);
+    return matchesSearch && matchesStatus && matchesDayEnd;
   });
 
   const handleViewDetails = (order: Order) => {
@@ -246,12 +250,17 @@ const DayEnd = () => {
       return;
     }
 
+    // ✅ Use the current local date for dayend_date.
+    const today = new Date();
+    const workingDate = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+
     const payload = {
       total_amount: totalSales, // Add total sales amount
       outlet_id: user?.outletid || 1, // Use outlet_id from user context or fallback to 1
       hotel_id: user?.hotelid || 1, // Use hotel_id from user context or fallback to 1
-      user_id: user?.userid || 1, // Use user id from context or fallback to 1
-      system_datetime: new Date().toISOString(), // Current system datetime
+      userid: user?.userid || 1, // Use user id from context or fallback to 1
+      // ✅ Send the working date to the backend.
+      dayend_date: workingDate,
     };
 
     try {
@@ -368,16 +377,32 @@ const DayEnd = () => {
 
 
 
-  const getFormattedTime = (timeStr: string) => {
-    const utcDate = new Date(timeStr + 'Z');
-    return isNaN(utcDate.getTime()) ? timeStr : utcDate.toLocaleTimeString();
-  };
+ const getFormattedTime = (timeStr: string) => {
+  const utcDate = new Date(timeStr);
+  // If invalid date, return as-is
+  if (isNaN(utcDate.getTime())) return timeStr;
+  // Convert to Indian Standard Time
+  return utcDate.toLocaleTimeString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+};
 
-  const getFormattedDate = (timeStr: string) => {
-    const utcDate = new Date(timeStr + 'Z');
-    return isNaN(utcDate.getTime()) ? timeStr : utcDate.toLocaleDateString();
-  };
+const getFormattedDate = (dateStr: string) => {
+  const dateObj = new Date(dateStr);
 
+  if (isNaN(dateObj.getTime())) {
+    return dateStr; // Return original string if date is invalid
+  }
+
+  return dateObj.toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+};
 
 
   return (
@@ -806,6 +831,15 @@ const DayEnd = () => {
                           </Button>
                         </div>
                       </Col>
+                      <Col md={3}>
+                        <Form.Check
+                          type="checkbox"
+                          label="Show only not day-ended"
+                          checked={showOnlyNotDayEnded}
+                          onChange={(e) => setShowOnlyNotDayEnded(e.target.checked)}
+                          
+                        />
+                      </Col>
                     </Row>
                   </Card.Body>
                 </Card>
@@ -849,7 +883,7 @@ const DayEnd = () => {
                         <tbody>
                           {filteredOrders.map((order, idx) => {
                             const formattedTime = getFormattedTime(order.time);
-                            const formattedDate = getFormattedDate(order.time);
+                            const formattedDate = getFormattedDate(order.date);
 
                             const rowClasses = ['table-row-compact'];
                             if (order.discount > 0) {

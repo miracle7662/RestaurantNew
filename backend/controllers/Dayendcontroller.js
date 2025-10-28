@@ -1,11 +1,7 @@
 
 const db = require('../config/db');
 // Convert to India Standard Time (UTC+5:30)
-function toIST(date) {
-  const utc = date.getTime() + (date.getTimezoneOffset() * 60000);
-  const istOffset = 5.5 * 60 * 60000;
-  return new Date(utc + istOffset);
-}
+
 const getDayendData = (req, res) => {
   try {
     // Get all billed or settled bills with their details
@@ -23,8 +19,8 @@ const getDayendData = (req, res) => {
           t.RevKOT as RevAmt,
           t.TxnDatetime,
           t.Steward as Captain,
-          
-         
+
+
           t.UserId,
           u.username as UserName,
           (SELECT SUM(CASE WHEN i.item_name LIKE '%water%' THEN d.RuntimeRate * d.Qty ELSE 0 END) FROM TAxnTrnbilldetails d JOIN mstrestmenu i ON d.ItemID = i.restitemid WHERE d.TxnID = t.TxnID) as Water,
@@ -42,12 +38,14 @@ const getDayendData = (req, res) => {
           t.isBilled,
           t.isreversebill,
           t.isCancelled,
+          t.isDayEnd,
+          t.DayEndEmpID,
           SUM(td.Qty) as TotalItems
       FROM TAxnTrnbill t
       LEFT JOIN TAxnTrnbilldetails td ON t.TxnID = td.TxnID
       LEFT JOIN mst_users u ON t.UserId = u.userid
-      WHERE  t.isDayEnd=0 and (t.isCancelled = 0 AND (t.isBilled = 1 OR t.isSetteled = 1)) OR t.isreversebill = 1
-     
+      WHERE  t.isDayEnd= 0 and (t.isCancelled = 0 AND (t.isBilled = 1 OR t.isSetteled = 1)) OR t.isreversebill = 1
+
       GROUP BY t.TxnID, t.TxnNo
       ORDER BY t.TxnDatetime DESC;
     `;
@@ -91,8 +89,8 @@ const getDayendData = (req, res) => {
           table: row.TableID,
           waiter: row.Steward || 'Unknown',
           amount: parseFloat(row.TotalAmount || 0), // This is Net Amount.
-          type: row.isreversebill 
-            ? 'Reversed' 
+          type: row.isreversebill
+            ? 'Reversed'
             : (paymentModes.length > 1 ? 'Split' : (paymentModes[0] || (row.isSetteled ? 'Cash' : 'Unpaid'))),
           status: row.isSetteled ? 'Settled' : (row.isBilled ? 'Billed' : 'Pending'),
           time: row.TxnDatetime,
@@ -120,6 +118,8 @@ const getDayendData = (req, res) => {
           phonepe: paymentBreakdown.phonepe,
           qrcode: paymentBreakdown.qrcode,
           credit: paymentBreakdown.credit,
+          isDayEnd: row.isDayEnd,
+          dayEndEmpID: row.DayEndEmpID,
         };
       }
     }
@@ -232,90 +232,60 @@ const saveDayEndCashDenomination = (req, res) => {
 
 const saveDayEnd = async (req, res) => {
   try {
-    const { total_amount, outlet_id, hotel_id, user_id } = req.body;
+    const { total_amount, outlet_id, hotel_id, userid } = req.body;
 
-    if (total_amount === undefined || !outlet_id || !hotel_id || !user_id) {
-      return res.status(400).json({
-        success: false,
-        message: "Missing required fields: total_amount, outlet_id, hotel_id, user_id",
-      });
-    }
+    if (!outlet_id || !hotel_id || !userid)
+      return res.status(400).json({ success: false, message: "Missing fields" });
 
-    // Fetch last record for outlet + hotel
-    const lastDayEnd = db.prepare(`
-      SELECT dayend_date, current_date
-      FROM trn_dayend
+    const last = db.prepare(`
+      SELECT dayend_date, current_date FROM trn_dayend
       WHERE outlet_id = ? AND hotel_id = ?
       ORDER BY id DESC LIMIT 1
     `).get(outlet_id, hotel_id);
 
-    let dayend_date_obj;
+    let dayend_date, current_date;
 
-    if (lastDayEnd && lastDayEnd.dayend_date) {
-      // ✅ Close the last business date that is pending
-      dayend_date_obj = new Date(lastDayEnd.dayend_date);
+    if (last) {
+      // next cycle continues from last current_date
+      const prev = new Date(last.current_date);
+      dayend_date = prev.toISOString().slice(0, 10);
+
+      const next = new Date(prev);
+      next.setDate(prev.getDate() + 1);
+      current_date = next.toISOString().slice(0, 10);
     } else {
-      // ✅ First time DayEnd → Close today’s business date
-      dayend_date_obj = new Date();
-      dayend_date_obj.setHours(0, 0, 0, 0);
+      const today = new Date();
+      dayend_date = today.toISOString().slice(0, 10);
+
+      const next = new Date(today);
+      next.setDate(today.getDate() + 1);
+      current_date = next.toISOString().slice(0, 10);
     }
 
-    // ✅ Next business date
-    const current_date_obj = new Date(dayend_date_obj);
-    current_date_obj.setDate(current_date_obj.getDate() + 1);
+    // Build the raw SQL string as per TODO.md
+    const sql = `
+      INSERT INTO trn_dayend (dayend_date, current_date, system_datetime, lock_datetime, outlet_id, hotel_id, dayend_total_amt, created_by_id)
+      VALUES ('${dayend_date}', '${current_date}', CURRENT_TIMESTAMP,  CURRENT_TIMESTAMP, ${outlet_id}, ${hotel_id}, ${total_amount || 0}, ${userid});
+    `;
 
-    const formatDate = (date) =>
-      `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
-        date.getDate()
-      ).padStart(2, "0")}`;
+    // Log and execute the query
+    console.log("🧩 Final SQL:", sql);
+    db.exec(sql);
 
-    const dayend_dateStr = formatDate(dayend_date_obj);
-    const current_dateStr = formatDate(current_date_obj);
-
-    // ✅ Always 23:59:59 of closed business date
-    const lock_datetimeStr = `${dayend_dateStr} 23:59:59`;
-
-    
-
-    const insert = db.prepare(`
-      INSERT INTO trn_dayend
-      (current_date, dayend_date, system_datetime, lock_datetime, outlet_id, hotel_id, dayend_total_amt, created_by_id)
-      VALUES (?, ?, CURRENT_TIMESTAMP, ?, ?, ?, ?, ?)
-    `);
-
-    const result = insert.run(
-      current_dateStr,   // ✅ Next Business Date
-      dayend_dateStr,    // ✅ Business Date closing today
-      lock_datetimeStr,
-      outlet_id,
-      hotel_id,
-      total_amount,
-      user_id
-    );
-
-    // ✅ Update bills
-    db.prepare(`
+    // Update TAxnTrnbill to set isDayEnd=1 and DayEndEmpID for the day-ended bills
+    const updateSql = `
       UPDATE TAxnTrnbill
-      SET isDayEnd = 1
-      WHERE isDayEnd = 0
-        AND ((isCancelled = 0 AND (isBilled = 1 OR isSetteled = 1))
-        OR isreversebill = 1)
-        AND outletid = ? AND hotelid = ?
-    `).run(outlet_id, hotel_id);
+      SET isDayEnd = 1, DayEndEmpID = ${userid}
+      WHERE outletid = ${outlet_id} AND HotelID = ${hotel_id} AND (isDayEnd = 0 OR isDayEnd IS NULL) AND ((isCancelled = 0 AND (isBilled = 1 OR isSetteled = 1)) OR isreversebill = 1);
+    `;
+    console.log("🧩 Update SQL:", updateSql);
+    db.exec(updateSql);
 
-    return res.json({
-      success: true,
-      message: "Day End completed successfully ✅",
-      data: { id: result.lastInsertRowid },
-    });
+    return res.json({ success: true, message: "Day End completed ✅" });
 
-  } catch (error) {
-    console.error("Day End Error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Error while processing Day End ❌",
-      error: error.message,
-    });
+  } catch (e) {
+    console.error("Day End Error:", e);
+    res.status(500).json({ success: false, message: e.message });
   }
 };
 
