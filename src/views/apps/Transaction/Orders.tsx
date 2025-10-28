@@ -2957,7 +2957,7 @@ const Order = () => {
                 </div>
               </div>
             )}
-           {showBillingPage && (
+        {showBillingPage && (
   (() => {
     // Pagination logic
     const indexOfLastItem = currentPage * itemsPerPage;
@@ -2968,71 +2968,90 @@ const Order = () => {
     const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
 
     return (
-      <div
-        className="rounded shadow-sm p-3 mt-0 bg-light"
-        style={{ maxHeight: 'calc(100vh - 150px)', overflowY: 'auto' }}
-      >
-        <h5 className="mb-3">All Bills</h5>
-        <Table striped bordered hover responsive size="sm">
-          <thead className="table-info">
-            <tr>
-              <th>Bill No</th>
-              <th>Order Type</th>
-              <th>Customer Name</th>
-              <th>Mobile No</th>
-              <th>Payment Mode</th>
-              <th>Total Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            {currentBills.length > 0 ? (
-              currentBills.map((bill) => (
-                <tr key={bill.TxnID}>
-                  <td>{bill.TxnNo}</td>
-                  <td>{bill.OrderType}</td>
-                  <td>{bill.CustomerName}</td>
-                  <td>{bill.Mobile}</td>
-                  <td>{bill.PaymentMode}</td>
-                  <td>{bill.GrandTotal}</td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan={6} className="text-center text-muted">No bills found.</td>
-              </tr>
-            )}
-          </tbody>
-        </Table>
+      <div className="d-flex">
+        {/* Left side content (like Quick Bill layout) */}
+        <div
+          className="rounded shadow-sm p-3 mt-0 bg-light"
+          style={{
+            width: '100%',
+            minWidth: '350px',
+            maxHeight: 'calc(100vh - 120px)',
+            overflowY: 'auto',
+          }}
+        >
+          <h5 className="mb-3 text-center text-primary fw-semibold">All Bills</h5>
 
-        {/* Pagination Controls */}
-        {totalPages > 1 && (
-          <div className="d-flex justify-content-end align-items-center">
-            <span className="me-3">
-              Page {currentPage} of {totalPages}
-            </span>
-            <Button
-              variant="outline-primary"
-              size="sm"
-              onClick={() => paginate(currentPage - 1)}
-              disabled={currentPage === 1}
-              className="me-2"
-            >
-              Previous
-            </Button>
-            <Button
-              variant="outline-primary"
-              size="sm"
-              onClick={() => paginate(currentPage + 1)}
-              disabled={currentPage === totalPages}
-            >
-              Next
-            </Button>
-          </div>
-        )}
+          <Table striped bordered hover responsive size="sm" className="mb-0">
+            <thead className="table-info sticky-top">
+              <tr>
+                <th>Bill No</th>
+                <th>Order Type</th>
+                <th>Customer</th>
+                <th>Mobile</th>
+                <th>Payment</th>
+                <th>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {currentBills.length > 0 ? (
+                currentBills.map((bill) => (
+                  <tr key={bill.TxnID}>
+                    <td>{bill.TxnNo}</td>
+                    <td>{bill.OrderType}</td>
+                    <td>{bill.CustomerName}</td>
+                    <td>{bill.Mobile}</td>
+                    <td>{bill.PaymentMode}</td>
+                    <td>{bill.GrandTotal}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={6} className="text-center text-muted">
+                    No bills found.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </Table>
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="d-flex justify-content-between align-items-center mt-2">
+              <span className="text-muted small">
+                Page {currentPage} of {totalPages}
+              </span>
+              <div>
+                <Button
+                  variant="outline-primary"
+                  size="sm"
+                  onClick={() => paginate(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="me-2"
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant="outline-primary"
+                  size="sm"
+                  onClick={() => paginate(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Optional right-side space (reserved for future details or actions) */}
+        <div className="flex-grow-1 ms-3">
+          {/* You can render selected bill details or summary here later */}
+        </div>
       </div>
     );
   })()
 )}
+
 {activeNavTab === 'Quick Bill' && !showOrderDetails && (
   <div
     className="rounded shadow-sm p-3 mt-0 bg-light"

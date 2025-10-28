@@ -44,7 +44,7 @@ const getDayendData = (req, res) => {
       FROM TAxnTrnbill t
       LEFT JOIN TAxnTrnbilldetails td ON t.TxnID = td.TxnID
       LEFT JOIN mst_users u ON t.UserId = u.userid
-      WHERE  t.isDayEnd= 0 and (t.isCancelled = 0 AND (t.isBilled = 1 OR t.isSetteled = 1)) OR t.isreversebill = 1
+      WHERE  t.isDayEnd= 0 and (t.isCancelled = 0 AND (t.isBilled = 1 OR t.isSetteled = 1)) 
 
       GROUP BY t.TxnID, t.TxnNo
       ORDER BY t.TxnDatetime DESC;
