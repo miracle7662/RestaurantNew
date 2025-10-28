@@ -1657,6 +1657,14 @@ exports.saveDayEnd = async (req, res) => {
     const pad = (n) => n.toString().padStart(2, '0');
     const dayend_dateStr = `${dayend_date.getFullYear()}-${pad(dayend_date.getMonth() + 1)}-${pad(dayend_date.getDate())}`;
 
+    // Prevent duplicate entries
+    const exists = db
+      .prepare(`SELECT id FROM trn_dayend WHERE dayend_date = ? AND outlet_id = ?`)
+      .get(dayend_dateStr, outlet_id);
+    if (exists) {
+      return res.status(400).json({ success: false, message: "Day end has already been completed for this date and outlet." });
+    }
+
     // Calculate lock_datetime as business_date + 23:59:00 in IST
     const lockDateTime = new Date(dayend_dateStr + 'T23:59:00');
     const lockDateTimeIST = toIST(lockDateTime);

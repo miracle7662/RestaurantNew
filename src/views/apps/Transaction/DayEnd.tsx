@@ -229,9 +229,9 @@ const DayEnd = () => {
   };
 
   const filteredOrders = orders.filter(order => {
-    const matchesSearch = order.orderNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.table.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.waiter.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const matchesSearch = (order.orderNo || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (order.table || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (order.waiter || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (order.captain || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (order.user || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "all" || order.status.toLowerCase() === statusFilter.toLowerCase();
