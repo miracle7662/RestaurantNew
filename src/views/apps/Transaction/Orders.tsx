@@ -2098,7 +2098,7 @@ const Order = () => {
 
   const fetchPaymentModesForOutlet = async (outletId: number) => {
     try {
-      const res = await fetch(`http://localhost:3001/api/payment-modes/by-outlet/${outletId}`);
+      const res = await fetch(`http://localhost:3001/api/payment-modes/by-outlet?outletid=${outletId}`);
       if (res.ok) {
         const data = await res.json();
         setOutletPaymentModes(data);
@@ -4011,6 +4011,19 @@ const Order = () => {
               show={showSettlementModal}
               onHide={() => setShowSettlementModal(false)}
               centered
+              onShow={() => {
+                // When the modal is shown, check if it's for single payment
+                if (!isMixedPayment) {
+                  // Find the 'Cash' payment mode
+                  const cashMode = outletPaymentModes.find(
+                    (mode) => mode.mode_name.toLowerCase() === 'cash'
+                  );
+                  if (cashMode) {
+                    // Automatically select 'Cash' and set the amount
+                    handlePaymentModeClick(cashMode);
+                  }
+                }
+              }}
               size="lg"
             >
               {/* Header */}
