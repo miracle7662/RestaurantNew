@@ -225,12 +225,13 @@ const HandoverPage = () => {
   };
 
   const filteredOrders = orders.filter(order => {
-    const matchesSearch = order.orderNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.table.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.waiter.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (order.captain || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (order.user || '').toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === "all" || order.status.toLowerCase() === statusFilter.toLowerCase();
+    const search = (searchTerm || '').toLowerCase();
+    const matchesSearch = ((order.orderNo || '').toLowerCase().includes(search)) ||
+      ((order.table || '').toLowerCase().includes(search)) ||
+      ((order.waiter || '').toLowerCase().includes(search)) ||
+      ((order.captain || '').toLowerCase().includes(search)) ||
+      ((order.user || '').toLowerCase().includes(search));
+    const matchesStatus = statusFilter === "all" || ((order.status || '').toLowerCase() === (statusFilter || '').toLowerCase());
     return matchesSearch && matchesStatus;
   });
 
