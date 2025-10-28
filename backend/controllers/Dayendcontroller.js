@@ -234,7 +234,7 @@ const saveDayEnd = async (req, res) => {
   try {
     const { dayend_total_amt, outlet_id, hotel_id, created_by_id } = req.body;
 
-    if (!outlet_id || !hotel_id || !created_by_id)
+    if (outlet_id === undefined || hotel_id === undefined || created_by_id === undefined)
       return res.status(400).json({ success: false, message: "Missing fields" });
 
     console.log("=== DAY END PROCESS ===");
@@ -302,7 +302,16 @@ const saveDayEnd = async (req, res) => {
     );
 
     const lastInsertId = result.lastInsertRowid;
-    
+
+    // Update TAxnTrnbill table to mark transactions as dayended
+    const updateTxn = db.prepare(`
+      UPDATE TAxnTrnbill
+      SET isDayEnd = 1, DayEndEmpID = @created_by_id
+      WHERE isDayEnd = 0 AND ((isCancelled = 0 AND (isBilled = 1 OR isSetteled = 1)) OR isreversebill = 1)
+    `).run({ created_by_id });
+
+    console.log(`Updated ${updateTxn.changes} transactions in TAxnTrnbill`);
+
     // Verify the inserted data
     const storedData = db.prepare(`
       SELECT id, dayend_date, next_date, system_datetime FROM trn_dayend WHERE id = ?
@@ -310,8 +319,8 @@ const saveDayEnd = async (req, res) => {
 
     console.log("✅ Dayend completed successfully:", storedData);
 
-    return res.json({ 
-      success: true, 
+    return res.json({
+      success: true,
       message: `Day End for ${dayend_date} completed successfully ✅`,
       data: storedData
     });

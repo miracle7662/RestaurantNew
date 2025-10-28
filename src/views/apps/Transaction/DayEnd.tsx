@@ -253,7 +253,7 @@ const DayEnd = () => {
  
   const payload = {
     dayend_total_amt: totalSales,
-    outlet_id: user?.outletid,
+    outlet_id: user?.outletid || 1,
     hotel_id: user?.hotelid || 1,
     created_by_id: user?.id || 1,
   };
