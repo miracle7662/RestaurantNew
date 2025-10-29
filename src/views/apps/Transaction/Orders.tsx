@@ -1314,16 +1314,42 @@ const Order = () => {
       const selectedTableRecord: any = (Array.isArray(filteredTables) ? filteredTables : tableItems)
         .find((t: any) => t && t.table_name && t.table_name === selectedTable)
         || (Array.isArray(tableItems) ? tableItems.find((t: any) => t && t.table_name === selectedTable) : undefined);
-      const resolvedTableId = selectedTableRecord ? Number((selectedTableRecord as any).tableid || (selectedTableRecord as any).tablemanagementid) : null;
-      const resolvedDeptId = selectedTableRecord ? Number((selectedTableRecord as any).departmentid) || selectedDeptId || undefined : selectedDeptId || undefined;
-      const resolvedOutletId = selectedTableRecord?.outletid
-        ? Number(selectedTableRecord.outletid)
-        : activeTab === 'Pickup' || activeTab === 'Delivery'
-          ? Number(user?.outletid) || selectedOutletId
-          : (selectedOutletId || Number(user?.outletid) || null);
+
+      let resolvedTableId = selectedTableRecord ? Number((selectedTableRecord as any).tableid || (selectedTableRecord as any).tablemanagementid) : null;
+      let resolvedDeptId = selectedTableRecord ? Number((selectedTableRecord as any).departmentid) || selectedDeptId : undefined;
+      let resolvedOutletId = selectedTableRecord?.outletid ? Number(selectedTableRecord.outletid) : (selectedOutletId || Number(user?.outletid) || null);
+
+      // For non-dine-in tabs, explicitly set outlet and department.
+      if (['Pickup', 'Delivery', 'Quick Bill'].includes(activeTab)) {
+        resolvedTableId = null; // No physical table for these orders
+
+        // Try to get outlet from user, then selected outlet, then from the first available department.
+        let potentialOutletId = Number(user?.outletid) || selectedOutletId;
+        if (!potentialOutletId && departments.length > 0) {
+          // Fallback for admins who don't have a user.outletid but have departments loaded.
+          // Use the outlet from the first department in the list.
+          potentialOutletId = departments[0].outletid;
+        }
+        resolvedOutletId = potentialOutletId;
+
+        if (resolvedOutletId && departments.length > 0) {
+          // Find the first department associated with the resolved outlet.
+          // If none, fall back to the very first department available.
+          const defaultDept = departments.find(d => d.outletid === resolvedOutletId) ?? departments[0];
+          if (defaultDept) { // Check if a department was found
+            resolvedDeptId = defaultDept.departmentid;
+          }
+        }
+      }
 
       const userId = user?.id || null;
       const hotelId = user?.hotelid || null;
+
+      if (!resolvedOutletId) {
+        toast.error("Outlet could not be determined. Please select an outlet.");
+        setLoading(false);
+        return;
+      }
 
       const newKotItemsPayload = newItemsToKOT.map(i => {
         // Calculate the change in quantity. If it's a new item, originalQty will be undefined.
@@ -1347,7 +1373,7 @@ const Order = () => {
           Qty: qtyDelta,
           RuntimeRate: i.price,
           TableID: resolvedTableId || undefined,
-          DeptID: resolvedDeptId ?? selectedDeptId ?? undefined,
+          DeptID: resolvedDeptId,
           outletid: resolvedOutletId,
           CGST: cgstPer,
           CGST_AMOUNT: Number(cgstAmt.toFixed(2)),
@@ -1370,7 +1396,7 @@ const Order = () => {
         Qty: -i.qty, // Negative quantity for reversal
         RuntimeRate: i.price,
         TableID: resolvedTableId || undefined,
-        DeptID: resolvedDeptId ?? selectedDeptId ?? undefined,
+        DeptID: resolvedDeptId,
         outletid: resolvedOutletId,
         CGST: 0,
         CGST_AMOUNT: 0,
