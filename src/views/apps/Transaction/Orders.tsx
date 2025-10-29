@@ -3823,49 +3823,50 @@ const Order = () => {
 
 
                   <div className="row align-items-center">
-                    <div className="col-12 d-flex justify-content-between align-items-center">
-                      <div className="d-flex align-items-center gap-2">
-                        {hasModifications ? (
-                          <button
-                            className="btn btn-dark rounded btn-sm"
-                            onClick={handlePrintAndSaveKOT}
-                            disabled={items.length === 0 || !!invalidTable}
-                          >
-                            Print & Save KOT
-                          </button>
-                        ) : billActionState === 'initial' ? (
-                          <Button
-                            size="sm"
-                            variant="primary"
-                            onClick={() => setBillActionState('printOrSettle')}
-                            disabled={items.length === 0}
-                          >
-                            🖨️ Bill
-                          </Button>
-                        ) : (
-                          <>
+                    <div className="col-12 d-flex align-items-center">
+                      {items.length > 0 && (
+                        <div className="d-flex align-items-center gap-2">
+                          {hasModifications ? (
+                            <button
+                              className="btn btn-dark rounded btn-sm"
+                              onClick={handlePrintAndSaveKOT}
+                              disabled={items.length === 0 || !!invalidTable}
+                            >
+                              Print & Save KOT
+                            </button>
+                          ) : billActionState === 'initial' ? (
                             <Button
                               size="sm"
                               variant="primary"
-                              onClick={handlePrintBill}
+                              onClick={() => setBillActionState('printOrSettle')}
                               disabled={items.length === 0}
                             >
                               🖨️ Bill
                             </Button>
+                          ) : (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="primary"
+                                onClick={handlePrintBill}
+                                disabled={items.length === 0}
+                              >
+                                🖨️ Bill
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="success"
+                                onClick={() => setShowSettlementModal(true)}
+                                disabled={items.length === 0}
+                              >
+                                💳 Settle
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      )}
 
-                            <Button
-                              size="sm"
-                              variant="success"
-                              onClick={() => setShowSettlementModal(true)}
-                              disabled={items.length === 0}
-                            >
-                              💳 Settle
-                            </Button>
-                          </>
-                        )}
-                      </div>
-
-                      <div>
+                      <div className="ms-auto">
                         <span
                           className="fw-bold"
                           style={{ fontSize: '22px' }}
