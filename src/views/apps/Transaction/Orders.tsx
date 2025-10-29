@@ -1274,35 +1274,6 @@ const Order = () => {
         return;
       }
 
-      let currentTaxRates = { ...taxRates };
-
-      // For non-dine-in tabs, ensure tax rates are loaded for the default department
-      if (['Pickup', 'Delivery', 'Quick Bill'].includes(activeTab)) {
-        const outletIdForTaxes = Number(user?.outletid) || selectedOutletId;
-        if (outletIdForTaxes && departments.length > 0) {
-          // Find the first department associated with the current outlet
-          const defaultDept = departments.find(d => d.outletid === outletIdForTaxes) || departments[0];
-
-          if (defaultDept) {
-            try {
-              const taxResp = await getTaxesByOutletAndDepartment({ outletid: outletIdForTaxes, departmentid: defaultDept.departmentid });
-              if (taxResp?.success && taxResp?.data?.taxes) {
-                const t = taxResp.data.taxes;
-                currentTaxRates = {
-                  cgst: Number(t.cgst) || 0,
-                  sgst: Number(t.sgst) || 0,
-                  igst: Number(t.igst) || 0,
-                  cess: Number(t.cess) || 0,
-                };
-                setTaxRates(currentTaxRates); // Update state for UI, but use local var for payload
-              }
-            } catch (taxError) {
-              console.error("Error fetching taxes for non-dine-in KOT:", taxError);
-            }
-          }
-        }
-      }
-
       setLoading(true);
 
       const tableNameForKOT =
@@ -1349,6 +1320,33 @@ const Order = () => {
         toast.error("Outlet could not be determined. Please select an outlet.");
         setLoading(false);
         return;
+      }
+
+      let currentTaxRates = { ...taxRates };
+
+      // For non-dine-in tabs, ensure tax rates are loaded for the resolved department
+      if (['Pickup', 'Delivery', 'Quick Bill'].includes(activeTab) && resolvedOutletId && resolvedDeptId) {
+        try {
+          const taxResp = await getTaxesByOutletAndDepartment({
+            outletid: resolvedOutletId,
+            departmentid: resolvedDeptId
+          });
+          if (taxResp?.success && taxResp?.data?.taxes) {
+            const t = taxResp.data.taxes;
+            currentTaxRates = {
+              cgst: Number(t.cgst) || 0,
+              sgst: Number(t.sgst) || 0,
+              igst: Number(t.igst) || 0,
+              cess: Number(t.cess) || 0,
+            };
+            // Use the fetched rates for this transaction, and also update the state for UI consistency
+            setTaxRates(currentTaxRates);
+          }
+        } catch (taxError) {
+          console.error("Error fetching taxes for non-dine-in KOT:", taxError);
+          toast.error("Could not fetch tax rates for the order.");
+          // Do not proceed if taxes can't be fetched, as it would lead to incorrect billing.
+        }
       }
 
       const newKotItemsPayload = newItemsToKOT.map(i => {
