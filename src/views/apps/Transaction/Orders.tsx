@@ -3597,12 +3597,12 @@ const Order = () => {
                   <Button
                     variant="primary"
                     className="rounded-circle d-flex justify-content-center align-items-center"
-                    style={{ width: '36px', height: '36px', padding: '0', zIndex: 1005 }}
+                    style={{ width: '30px', height: '30px', padding: '0', zIndex: 1005 }}
                     onClick={() => setShowOptions(true)}
                   >
                     <svg
-                      width="20"
-                      height="20"
+                      width="15"
+                      height="15"
                       viewBox="0 0 24 24"
                       fill="none"
                       xmlns="http://www.w3.org/2000/svg"
