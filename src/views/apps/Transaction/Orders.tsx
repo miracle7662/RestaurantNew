@@ -3538,7 +3538,7 @@ const Order = () => {
                   </button>
                 </div>
               </div>
-              <div className="d-flex flex-column flex-md-row gap-1 p-1 border-top pt-2">
+              <div className="d-flex flex-column flex-md-row gap-0 p-3 border-top pt-1">
                 {(activeTab === 'Delivery' || activeTab === 'Billing') && (
                   <input
                     type="text"
@@ -3558,7 +3558,7 @@ const Order = () => {
                   {/* Floating Action Buttons */}
                   <Button
                     variant="primary"
-                    className="rounded-circle d-flex justify-content-center align-items-center"
+                    className="rounded-circle d-flex justify-content- align-items-right"
                     style={{ width: '36px', height: '36px', padding: '0', zIndex: 1005 }}
                     onClick={() => setShowOptions(true)}
                   >
