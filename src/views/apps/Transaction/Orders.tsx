@@ -2651,7 +2651,7 @@ const Order = () => {
             .billing-panel {
               width: 400px !important; /* This is correct */
               max-width: 400px !important;
-              height: 100vh !important;
+              height: calc(100vh - 60px) !important; /* Match parent container height */
               margin-left: auto;
               position: sticky;
               top: 0;
@@ -3559,7 +3559,7 @@ const Order = () => {
                   <Button
                     variant="primary"
                     className="rounded-circle d-flex justify-content-center align-items-center"
-                    style={{ width: '36px', height: '36px', padding: '0', zIndex: 1001 }}
+                    style={{ width: '36px', height: '36px', padding: '0', zIndex: 1005 }}
                     onClick={() => setShowOptions(true)}
                   >
                     <svg
@@ -3593,7 +3593,7 @@ const Order = () => {
                           boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
                           padding: '10px 15px',
                           minWidth: '220px', // Increased minimum width
-                          zIndex: 1000,
+                          zIndex: 1004,
                         }}
                       >
                         {/* Tax Button */}
