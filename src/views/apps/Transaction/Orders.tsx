@@ -3538,7 +3538,7 @@ const Order = () => {
                   </button>
                 </div>
               </div>
-              <div className="d-flex flex-column flex-md-row gap-0 p-3 border-top pt-1">
+              <div className="d-flex flex-column flex-md-row gap-2 p-3 border-top pt-1">
                 {(activeTab === 'Delivery' || activeTab === 'Billing') && (
                   <input
                     type="text"
@@ -3554,11 +3554,11 @@ const Order = () => {
                   style={{ width: '150px', height: '28px', fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}
                 />
 
-                <div className="d-flex align-items-center ms-2" style={{ position: 'relative', overflow: 'visible' }}>
+                <div className="d-flex align-items-center ms-auto" style={{ position: 'relative', overflow: 'visible' }}>
                   {/* Floating Action Buttons */}
                   <Button
                     variant="primary"
-                    className="rounded-circle d-flex justify-content- align-items-right"
+                    className="rounded-circle d-flex justify-content-center align-items-center"
                     style={{ width: '36px', height: '36px', padding: '0', zIndex: 1005 }}
                     onClick={() => setShowOptions(true)}
                   >
@@ -3585,9 +3585,9 @@ const Order = () => {
                         className="d-flex flex-row gap-3"
                         style={{
                           position: 'absolute',
-                          top: '-60px',
-                          left: '50%',
-                          transform: 'translateX(-50%)',
+                          top: '50%',
+                          right: 'calc(100% + 10px)', // Position to the left with a 10px gap
+                          transform: 'translateY(-50%)',
                           backgroundColor: '#eef3ff',
                           borderRadius: '30px',
                           boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
