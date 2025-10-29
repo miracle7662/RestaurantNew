@@ -61,7 +61,7 @@ interface Order {
   captain: string;
   user: string;
   date: string;
-  paymentMode?: string;
+  paymentType?: string;
   cash?: number;
   credit?: number;
   card?: number;
@@ -865,12 +865,12 @@ const getFormattedDate = (dateStr: string) => {
                             <th>Rev Amt</th>
                             <th>KOT No</th>
                             <th>Rev KOT No</th>
-                            <th>Reverse Bill</th>
                             <th>Bill No</th>
                             <th>Outlet ID</th>
                             <th>Water</th>
-                            <th>Payment Mode</th>
+                            <th>Payment Type</th>
                             <th>Cash</th>
+                            <th>Reverse Bill</th>
                             <th>Credit</th>
                             <th>Card</th>
                             <th>GPay</th>
@@ -923,18 +923,18 @@ const getFormattedDate = (dateStr: string) => {
                                     {order.revKotNo ? order.revKotNo.split(',').map(kot => kot.trim()).join(', ') : ''}
                                   </small>
                                 </td>
+                                <td className="fw-semibold">{order.orderNo}</td>
+                                <td>{order.outletid}</td>
+                                <td style={{ textAlign: 'right' }}>₹{(order.water || 0).toLocaleString()}</td>
+                                <td title={order.paymentType || ''} style={{ whiteSpace: 'normal', wordWrap: 'break-word', overflowWrap: 'break-word' }}>
+                                  {order.paymentType || ''}
+                                </td>
+                                <td style={{ textAlign: 'right' }}>₹{(order.cash || 0).toLocaleString()}</td>
                                 <td style={{ textAlign: 'right' }}>
                                   {order.reverseBill == 1
                                     ? `₹${(order.revAmt || 0).toLocaleString()}` 
                                     : 'No'}
                                 </td>
-                                <td className="fw-semibold">{order.orderNo}</td>
-                                <td>{order.outletid}</td>
-                                <td style={{ textAlign: 'right' }}>₹{(order.water || 0).toLocaleString()}</td>
-                                <td title={order.paymentMode || ''} style={{ whiteSpace: 'normal', wordWrap: 'break-word', overflowWrap: 'break-word' }}>
-                                  {order.paymentMode || ''}
-                                </td>
-                                <td style={{ textAlign: 'right' }}>₹{(order.cash || 0).toLocaleString()}</td>
                                 <td style={{ textAlign: 'right' }}>₹{(order.credit || 0).toLocaleString()}</td>
                                 <td style={{ textAlign: 'right' }}>₹{(order.card || 0).toLocaleString()}</td>
                                 <td style={{ textAlign: 'right' }}>₹{(order.gpay || 0).toLocaleString()}</td>
@@ -983,11 +983,10 @@ const getFormattedDate = (dateStr: string) => {
                             <td></td>
                             <td></td>
                             <td></td>
-                            <td></td>
-                            <td></td>
                             <td style={{ textAlign: 'right' }}>₹{totalWater.toLocaleString()}</td>
                             <td></td>
                             <td style={{ textAlign: 'right' }}>₹{totalCash.toLocaleString()}</td>
+                            <td></td>
                             <td style={{ textAlign: 'right' }}>₹{totalCredit.toLocaleString()}</td>
                             <td style={{ textAlign: 'right' }}>₹{totalCard.toLocaleString()}</td>
                             <td style={{ textAlign: 'right' }}>₹{totalGpay.toLocaleString()}</td>
@@ -1143,7 +1142,7 @@ const getFormattedDate = (dateStr: string) => {
                   <Col md={12}><hr className="my-1" /></Col>
                   <Col md={12}><strong>Payment Breakdown:</strong></Col>
                   <Col md={6}>
-                    <strong>Payment Mode:</strong> {selectedOrder.paymentMode || ''}
+                    <strong>Payment Type:</strong> {selectedOrder.paymentType || ''}
                   </Col>
                   <Col md={6}>
                     <strong>Cash:</strong> ₹{(selectedOrder.cash || 0).toLocaleString()}

@@ -1244,11 +1244,14 @@ const Order = () => {
 
       // 3. Update table status to 'billed' (red, status=2)
       if (selectedTable) {
-        setTableItems(prevTables =>
-          prevTables.map(table =>
-            table.table_name === selectedTable ? { ...table, status: 2 } : table
-          )
-        );
+        const tableToUpdate = tableItems.find(t => t.table_name === selectedTable);
+        if (tableToUpdate) {
+          await fetch(`http://localhost:3001/api/tablemanagement/${tableToUpdate.tablemanagementid}/status`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 2 }), // 2 for Billed
+          });
+        }
       }
 
       // 4. Update items in the UI to reflect their 'billed' state.
@@ -1982,7 +1985,17 @@ const Order = () => {
       setSelectedPaymentModes([]);
       setIsMixedPayment(false);
       setShowSettlementModal(false);
-      setBillActionState('initial');
+      setBillActionState('initial');      
+      if (selectedTable) {
+        const tableToUpdate = tableItems.find(t => t.table_name === selectedTable);
+        if (tableToUpdate) {
+          await fetch(`http://localhost:3001/api/tablemanagement/${tableToUpdate.tablemanagementid}/status`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 0 }), // 0 for Vacant
+          });
+        }
+      }
       fetchTableManagement(); // Refresh table statuses
       setCurrentKOTNo(null);
       setShowPendingOrdersView(false); // Hide pending view after successful settlement
