@@ -446,11 +446,11 @@ const Order = () => {
 
   const getTableButtonClass = (table: TableItem, isSelected: boolean) => {
     if (isSelected) return 'btn-success';
-    // Use separate status field for coloring: 0=default,1=green,2=red
+    // Use status for coloring: 0=available, 1=occupied/KOT saved, 2=billed/printed
     switch (table.status) {
       case 1: return 'btn-success'; // KOT saved/occupied (green)
       case 0: return 'btn-outline-success'; // Default background (white/grey)
-      case 2: return 'btn-danger'; // red for billed
+      case 2: return 'btn-danger'; // Billed/Printed (red)
       default: return 'btn-outline-success';
     }
   };

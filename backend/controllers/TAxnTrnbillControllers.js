@@ -1554,6 +1554,12 @@ exports.printBill = async (req, res) => {
       WHERE TxnID = ?
     `).run(Number(id))
 
+    // ✅ Update table status to 'billed' (2)
+    if (bill.TableID) {
+      db.prepare('UPDATE msttablemanagement SET status = 2 WHERE tableid = ?').run(bill.TableID);
+    }
+
+
     const header = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id))
     const items = db.prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? ORDER BY TXnDetailID').all(Number(id))
 
