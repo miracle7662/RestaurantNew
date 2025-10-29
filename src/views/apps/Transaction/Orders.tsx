@@ -2126,6 +2126,20 @@ const Order = () => {
     }
   };
 
+  const handlePrintPendingOrder = async (order: any) => {
+    // 1. Load the order data into the state, similar to handlePendingMakePayment
+    setCurrentTxnId(order.id);
+    setTxnNo(order.kotNo || `Order-${order.id}`);
+    const orderItems = order.items.map((i: any) => ({ ...i, isBilled: 0, isNew: false }));
+    setItems(orderItems);
+    setSelectedOutletId(order.outletid);
+
+    // 2. Use a timeout to ensure state is updated before printing
+    setTimeout(() => {
+      handlePrintBill();
+    }, 100); // A small delay is usually sufficient
+  };
+
   const fetchPaymentModesForOutlet = async (outletId: number) => {
     try {
       const res = await fetch(`http://localhost:3001/api/payment-modes/by-outlet?outletid=${outletId}`);
@@ -3225,7 +3239,7 @@ const Order = () => {
                     <Button
                       variant="outline-primary"
                       className="flex-fill"
-                      onClick={() => handlePrintBill()}
+                      onClick={() => handlePrintPendingOrder(order)}
                     >
                       Print Bill
                     </Button>
