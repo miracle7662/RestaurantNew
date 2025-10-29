@@ -269,23 +269,31 @@ const saveDayEnd = async (req, res) => {
 
     console.log("Calculated dates - Dayend:", dayend_date, "Next:", next_date);
 
-    
-
-    
-
     // Indian time for system_datetime
-    const now = new Date();
-    const indiaTime = new Date(now.getTime() + (5.5 * 60 * 60 * 1000));
+    const nowUTC = new Date();
+    // convert to India time (UTC+5:30)
+    const indiaTime = new Date(nowUTC.getTime() + (5.5 * 60 * 60 * 1000));
     const formattedIndiaTime = indiaTime.toISOString().replace('T', ' ').slice(0, 19);
 
-    const lock_datetime = `${dayend_date} 23:59:59`;
+    // Default lock time is dayend_date at 23:59:59
+    // But special case: if server india time is exactly 00:00 (midnight)
+    // (means day just rolled over) -> we want lock_datetime to show 23:59 of the day being day-ended.
+    // This ensures UI shows "11:59" for the lock time when dayend wasn't done and system time is 12:00 AM.
+    let lock_datetime;
+    if (indiaTime.getHours() === 0 && indiaTime.getMinutes() === 0) {
+      // explicit previous-day-23:59 representation for clarity (no seconds in UI required)
+      lock_datetime = `${dayend_date} 23:59:00`;
+    } else {
+      // normal behaviour
+      lock_datetime = `${dayend_date} 23:59:59`;
+    }
 
-    console.log("Inserting new dayend record...");
+    console.log("India time:", formattedIndiaTime, "Lock datetime:", lock_datetime);
 
     // Insert the dayend record
     const result = db.prepare(`
       INSERT INTO trn_dayend (
-        dayend_date, next_date, system_datetime, lock_datetime, 
+        dayend_date, next_date, system_datetime, lock_datetime,
         outlet_id, hotel_id, dayend_total_amt, created_by_id
       ) VALUES (
         @dayend_date, @next_date, @system_datetime, @lock_datetime, 
@@ -300,8 +308,7 @@ const saveDayEnd = async (req, res) => {
       hotel_id: hotel_id,
       dayend_total_amt: dayend_total_amt || 0,
       created_by_id: created_by_id
-    }
-    );
+    });
 
     const lastInsertId = result.lastInsertRowid;
 
@@ -316,7 +323,7 @@ const saveDayEnd = async (req, res) => {
 
     // Verify the inserted data
     const storedData = db.prepare(`
-      SELECT id, dayend_date, next_date, system_datetime FROM trn_dayend WHERE id = ?
+      SELECT id, dayend_date, next_date, system_datetime, lock_datetime FROM trn_dayend WHERE id = ?
     `).get(lastInsertId);
 
     console.log("✅ Dayend completed successfully:", storedData);
