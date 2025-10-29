@@ -3789,7 +3789,7 @@ const Order = () => {
                       <div className="d-flex align-items-center gap-2">
                         {hasModifications ? (
                           <button
-                            className="btn btn-dark rounded"
+                            className="btn btn-dark rounded btn-sm"
                             onClick={handlePrintAndSaveKOT}
                             disabled={items.length === 0 || !!invalidTable}
                           >
@@ -3797,6 +3797,7 @@ const Order = () => {
                           </button>
                         ) : billActionState === 'initial' ? (
                           <Button
+                            size="sm"
                             variant="primary"
                             onClick={() => setBillActionState('printOrSettle')}
                             disabled={items.length === 0}
@@ -3806,6 +3807,7 @@ const Order = () => {
                         ) : (
                           <>
                             <Button
+                              size="sm"
                               variant="primary"
                               onClick={handlePrintBill}
                               disabled={items.length === 0}
@@ -3814,6 +3816,7 @@ const Order = () => {
                             </Button>
 
                             <Button
+                              size="sm"
                               variant="success"
                               onClick={() => setShowSettlementModal(true)}
                               disabled={items.length === 0}
@@ -3827,7 +3830,7 @@ const Order = () => {
                       <div>
                         <span
                           className="fw-bold"
-                          style={{ fontSize: '28px' }}
+                          style={{ fontSize: '22px' }}
                         >
                           ₹{(taxCalc.grandTotal - discount - revKotTotal).toFixed(2)}
                         </span>
