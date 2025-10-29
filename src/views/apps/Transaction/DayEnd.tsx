@@ -70,6 +70,7 @@ interface Order {
   qrcode?: number;
   isDayEnd?: number;
   dayEndEmpID?: number;
+  outletid?: number;
 }
 
 const DayEnd = () => {
@@ -246,16 +247,17 @@ const DayEnd = () => {
 
 
  const handleSaveDayEnd = async () => {
-  if (!DayEndBy) {
-    alert("Please select who you are handing over to.");
+  if (orders.length === 0) {
+    alert("No orders to process for Day-End.");
     return;
   }
- 
+
+  // Derive outlet_id from the first order to ensure it's not null
   const payload = {
     dayend_total_amt: totalSales,
-    outlet_id: user?.outletid || 1,
-    hotel_id: user?.hotelid || 1,
-    created_by_id: user?.id || 1,
+    outlet_id: orders[0]?.outletid || user?.outletid,
+    hotel_id: user?.hotelid,
+    created_by_id: user?.id,
   };
 
   console.log("Frontend sending payload:", payload); // Add this line
@@ -263,15 +265,18 @@ const DayEnd = () => {
   try {
     const response = await fetch('http://localhost:3001/api/dayend/save-dayend', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${user?.token}`,
+      },
+      body: JSON.stringify(payload), // Pass the complete payload
     });
 
     const data = await response.json();
     console.log("Backend response:", data); // Add this line
 
     if (data.success) {
-      alert(`Day-End saved successfully! Handed over to ${DayEndBy}`);
+      alert(data.message || `Day-End saved successfully!`);
     } else {
       alert(`Error: ${data.message}`);
     }
@@ -850,7 +855,6 @@ const getFormattedDate = (dateStr: string) => {
                       <Table hover className="mb-0">
                         <thead className="table-light">
                           <tr>
-                            <th>Bill No</th>
                             <th>Table</th>
                             <th>Total Amount</th>
                             <th>Discount</th>
@@ -862,6 +866,8 @@ const getFormattedDate = (dateStr: string) => {
                             <th>KOT No</th>
                             <th>Rev KOT No</th>
                             <th>Reverse Bill</th>
+                            <th>Bill No</th>
+                            <th>Outlet ID</th>
                             <th>Water</th>
                             <th>Payment Mode</th>
                             <th>Cash</th>
@@ -897,7 +903,6 @@ const getFormattedDate = (dateStr: string) => {
 
                             return (
                               <tr key={idx} className={rowClasses.join(' ')}>
-                                <td className="fw-semibold">{order.orderNo}</td>
                                 <td>
                                   <Badge bg="light" text="dark" className="fs-6">
                                     {order.table}
@@ -923,6 +928,8 @@ const getFormattedDate = (dateStr: string) => {
                                     ? `₹${(order.revAmt || 0).toLocaleString()}` 
                                     : 'No'}
                                 </td>
+                                <td className="fw-semibold">{order.orderNo}</td>
+                                <td>{order.outletid}</td>
                                 <td style={{ textAlign: 'right' }}>₹{(order.water || 0).toLocaleString()}</td>
                                 <td title={order.paymentMode || ''} style={{ whiteSpace: 'normal', wordWrap: 'break-word', overflowWrap: 'break-word' }}>
                                   {order.paymentMode || ''}
@@ -966,7 +973,6 @@ const getFormattedDate = (dateStr: string) => {
                         <tfoot>
                           <tr className="table-success">
                             <td>Total</td>
-                            <td></td>
                             <td style={{ textAlign: 'right' }}>₹{totalSales.toLocaleString()}</td>
                             <td style={{ textAlign: 'right' }}>-₹{totalDiscount.toLocaleString()}</td>
                             <td style={{ textAlign: 'right' }}>₹{totalGrossAmount.toLocaleString()}</td>
@@ -974,6 +980,8 @@ const getFormattedDate = (dateStr: string) => {
                             <td style={{ textAlign: 'right' }}>₹{totalSGST.toLocaleString()}</td>
                             <td style={{ textAlign: 'right' }}>₹{totalRoundOff.toLocaleString()}</td>
                             <td style={{ textAlign: 'right' }}>₹{totalRevAmt.toLocaleString()}</td>
+                            <td></td>
+                            <td></td>
                             <td></td>
                             <td></td>
                             <td></td>
@@ -1068,6 +1076,9 @@ const getFormattedDate = (dateStr: string) => {
                 <Row className="g-2 small">
                   <Col md={6}>
                     <strong>Bill No:</strong> {selectedOrder.orderNo}
+                  </Col>
+                  <Col md={6}>
+                    <strong>Outlet ID:</strong> {selectedOrder.outletid}
                   </Col>
                   <Col md={6}>
                     <strong>Table:</strong> {selectedOrder.table}
