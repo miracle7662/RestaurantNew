@@ -193,7 +193,7 @@ const EditSettlementPage = ({ role, currentUser }: any) => {
   const groupedSettlements = groupSettlementsByOrderNo(settlements);
 
   return (
-    <div className="container-fluid p-0 m-0 fade-in" >
+    <div className="container-fluid p-0 m-0 fade-in" style={{ height: '100vh', overflowY: 'auto' }}>
       <div className="container-fluid">
         <h3>Edit Settlement</h3>
 

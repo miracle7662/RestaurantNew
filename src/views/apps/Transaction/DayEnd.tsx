@@ -855,6 +855,7 @@ const getFormattedDate = (dateStr: string) => {
                       <Table hover className="mb-0">
                         <thead className="table-light">
                           <tr>
+                            <th>Bill No</th>
                             <th>Table</th>
                             <th>Total Amount</th>
                             <th>Discount</th>
@@ -865,7 +866,6 @@ const getFormattedDate = (dateStr: string) => {
                             <th>Rev Amt</th>
                             <th>KOT No</th>
                             <th>Rev KOT No</th>
-                            <th>Bill No</th>
                             <th>Outlet ID</th>
                             <th>Water</th>
                             <th>Payment Type</th>
@@ -903,6 +903,7 @@ const getFormattedDate = (dateStr: string) => {
 
                             return (
                               <tr key={idx} className={rowClasses.join(' ')}>
+                                <td className="fw-semibold">{order.orderNo}</td>
                                 <td>
                                   <Badge bg="light" text="dark" className="fs-6">
                                     {order.table}
@@ -923,7 +924,6 @@ const getFormattedDate = (dateStr: string) => {
                                     {order.revKotNo ? order.revKotNo.split(',').map(kot => kot.trim()).join(', ') : ''}
                                   </small>
                                 </td>
-                                <td className="fw-semibold">{order.orderNo}</td>
                                 <td>{order.outletid}</td>
                                 <td style={{ textAlign: 'right' }}>₹{(order.water || 0).toLocaleString()}</td>
                                 <td title={order.paymentType || ''} style={{ whiteSpace: 'normal', wordWrap: 'break-word', overflowWrap: 'break-word' }}>
@@ -972,6 +972,7 @@ const getFormattedDate = (dateStr: string) => {
                         </tbody>
                         <tfoot>
                           <tr className="table-success">
+                            <td></td>
                             <td>Total</td>
                             <td style={{ textAlign: 'right' }}>₹{totalSales.toLocaleString()}</td>
                             <td style={{ textAlign: 'right' }}>-₹{totalDiscount.toLocaleString()}</td>
