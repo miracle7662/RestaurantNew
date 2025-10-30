@@ -245,7 +245,7 @@ const saveDayEnd = async (req, res) => {
       SELECT dayend_date, curr_date FROM trn_dayend
       WHERE outlet_id = ? AND hotel_id = ?
       ORDER BY id DESC LIMIT 1
-    `).get(outlet_id, hotel_id); // Positional binding is fine here
+    `).get(outlet_id, hotel_id);
 
     console.log("Last record:", last);
 
@@ -282,7 +282,38 @@ const saveDayEnd = async (req, res) => {
     const indiaTime = new Date(now.getTime() + (5.5 * 60 * 60 * 1000));
     const formattedIndiaTime = indiaTime.toISOString().replace('T', ' ').slice(0, 19);
 
-    const lock_datetime = `${dayend_date} 23:59:59`;
+    // ==============================
+    // ✅ NEW LOGIC for lock_datetime
+    // ==============================
+
+    // Check current conditions
+    const isMidnight = indiaTime.getHours() === 0 && indiaTime.getMinutes() === 0;
+    let isDayEndPending = false;
+
+    if (last) {
+      const lastCurr = new Date(last.curr_date);
+      const today = new Date(indiaTime.toISOString().split('T')[0]);
+      isDayEndPending = lastCurr < today;
+    }
+
+    let lock_datetime;
+
+    if (isDayEndPending) {
+      // 1️⃣ User has not done DayEnd yet → show today's 23:59
+      lock_datetime = `${curr_date} 23:59:00`;
+    } else if (isMidnight) {
+      // 2️⃣ System time is 12:00 AM → show previous day 23:59
+      const prev = new Date(indiaTime);
+      prev.setDate(prev.getDate() - 1);
+      const prevDate = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}-${String(prev.getDate()).padStart(2, '0')}`;
+      lock_datetime = `${prevDate} 23:59:00`;
+    } else {
+      // Otherwise → current system time
+      lock_datetime = formattedIndiaTime;
+    }
+
+    console.log("Lock DateTime selected:", lock_datetime);
+    // ==============================
 
     console.log("Inserting new dayend record...");
 
@@ -296,16 +327,15 @@ const saveDayEnd = async (req, res) => {
         @outlet_id, @hotel_id, @dayend_total_amt, @created_by_id
       )
     `).run({
-      dayend_date: dayend_date,
-      curr_date: curr_date,
+      dayend_date,
+      curr_date,
       system_datetime: formattedIndiaTime,
-      lock_datetime: lock_datetime,
-      outlet_id: outlet_id,
-      hotel_id: hotel_id,
+      lock_datetime,
+      outlet_id,
+      hotel_id,
       dayend_total_amt: dayend_total_amt || 0,
-      created_by_id: created_by_id
-    }
-    );
+      created_by_id
+    });
 
     const lastInsertId = result.lastInsertRowid;
 
@@ -341,59 +371,12 @@ const saveDayEnd = async (req, res) => {
   }
 };
 
-const getCurrentBusinessDate = (req, res) => {
-  try {
-    const { outlet_id, hotel_id } = req.query;
 
-    if (!outlet_id || !hotel_id) {
-      return res.status(400).json({ success: false, message: "Missing outlet_id or hotel_id" });
-    }
 
-    // Get last dayend record
-    const last = db.prepare(`
-      SELECT dayend_date, curr_date FROM trn_dayend
-      WHERE outlet_id = ? AND hotel_id = ?
-      ORDER BY id DESC LIMIT 1
-    `).get(outlet_id, hotel_id);
-
-    let currentBusinessDate, lockTime;
-
-    if (last) {
-      // If there's a previous dayend, current business date is the curr_date
-      currentBusinessDate = last.curr_date;
-      lockTime = `${currentBusinessDate} 23:59:59`;
-    } else {
-      // No previous dayend, calculate based on current IST time
-      const now = new Date();
-      const indiaTime = new Date(now.getTime() + (5.5 * 60 * 60 * 1000));
-      const currentHour = indiaTime.getHours();
-
-      let businessDate = new Date(indiaTime);
-      // If current time is after midnight (12:00 AM) and before 6:00 AM, use previous day as business date
-      if (currentHour < 6) {
-        businessDate.setDate(businessDate.getDate() - 1);
-      }
-
-      currentBusinessDate = `${businessDate.getFullYear()}-${String(businessDate.getMonth() + 1).padStart(2, '0')}-${String(businessDate.getDate()).padStart(2, '0')}`;
-      lockTime = `${currentBusinessDate} 23:59:59`;
-    }
-
-    res.json({
-      success: true,
-      data: {
-        currentBusinessDate,
-        lockTime
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching current business date:', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch current business date' });
-  }
-};
 
 module.exports = {
   getDayendData,
   saveDayEndCashDenomination,
   saveDayEnd,
-  getCurrentBusinessDate,
+  
 };
