@@ -550,7 +550,9 @@ const getFormattedDate = (dateStr: string) => {
         .table-container th:nth-child(26),
         .table-container td:nth-child(26) { width: 7%; text-align: center; } /* Status */
         .table-container th:nth-child(27),
-        .table-container td:nth-child(27) { width: 6%; text-align: center; } /* Actions */
+        .table-container td:nth-child(27) { width: 7%; text-align: center; } /* Status */
+        .table-container th:nth-child(28),
+        .table-container td:nth-child(28) { width: 6%; text-align: center; } /* Actions */
         .summary-cards {
           margin-bottom: 1rem;
         }
