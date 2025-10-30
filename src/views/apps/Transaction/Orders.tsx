@@ -253,6 +253,7 @@ const Order = () => {
               .sort((a, b) => a - b)
           );
 
+          setBillActionState('printOrSettle');
           // Also fetch and set reversed items for the billed transaction
           const fetchedReversedItems: ReversedMenuItem[] = (billedBillData.data.reversedItems || []).map((item: any) => ({
             ...item,
@@ -268,6 +269,8 @@ const Order = () => {
           setReversedItems(fetchedReversedItems);
 
           return; // Exit after successfully loading billed items
+        } else {
+          setBillActionState('initial'); // Reset if no billed bill is found
         }
       }
 
@@ -337,6 +340,7 @@ const Order = () => {
       setCurrentKOTNo(null);
       setCurrentKOTNos([]);
       setCurrentTxnId(null);
+      setBillActionState('initial'); // Reset on error
     }
   }, [setItems, setReversedItems, setCurrentKOTNo, setCurrentKOTNos, setCurrentTxnId]);
   // KOT Preview formData state
@@ -866,6 +870,7 @@ const Order = () => {
 
         // Refetch items for the selected table
         refreshItemsForTable(tableIdNum);
+
       } else {
         console.warn('Selected table object not found for seat:', seat);
         setItems([]); // Clear items if table not found
