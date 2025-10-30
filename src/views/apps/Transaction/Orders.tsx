@@ -1704,6 +1704,16 @@ const Order = () => {
             toast.success('Bill reversed successfully!');
             setShowF9BilledPasswordModal(false);
 
+            // ✅ Optimistically update the table status in the UI
+            const reversedTableName = selectedTable;
+            if (reversedTableName) {
+              setTableItems(prevTables =>
+                prevTables.map(table =>
+                  table.table_name === reversedTableName ? { ...table, status: 0 } : table
+                )
+              );
+            }
+
             // ✅ Clear current UI states
             setItems([]);
             setReversedItems([]);
@@ -1713,9 +1723,6 @@ const Order = () => {
             setTxnNo(null);
             setCurrentKOTNo(null);
             setCurrentKOTNos([]);
-
-            // ✅ Refresh all tables from backend to update statuses
-            await fetchTableManagement();
           } else {
             setF9BilledPasswordError(reverseData.message || 'Failed to reverse the bill.');
           }

@@ -245,20 +245,18 @@ const saveDayEnd = async (req, res) => {
     // ===========================================
     const pendingTables = db.prepare(`
       SELECT TableID
-      FROM TAxnTrnBill
+      FROM msttablemanagement
       WHERE outletid = ?
         AND hotelid = ?
-        AND isDayEnd = 0
-        AND isCancelled = 0
-        AND (isBilled = 0 OR isSetteled = 0)
+        AND status = 1
     `).all(outlet_id, hotel_id);
 
     if (pendingTables.length > 0) {
-      console.log("⛔ Pending Tables Found:", pendingTables.map(t => t.table_id));
+      console.log("⛔ Pending Tables Found:", pendingTables.map(t => t.TableID));
       return res.status(400).json({
         success: false,
         message: "Day End cannot be completed — Some tables still have pending bills!",
-        pendingTables: pendingTables.map(t => t.table_id)
+        pendingTables: pendingTables.map(t => t.TableID)
       });
     }
     // ===========================================
@@ -386,7 +384,7 @@ const saveDayEnd = async (req, res) => {
     console.error("❌ Day End Error:", e);
     res.status(500).json({
       success: false,
-      message: 'Failed to complete day end',
+      message: e.message || 'Failed to complete day end',
       error: e.message
     });
   }
