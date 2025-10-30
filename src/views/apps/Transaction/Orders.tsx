@@ -484,6 +484,7 @@ const Order = () => {
               return { ...item, status };
             })
           );
+         
           setTableItems(formattedData);
           setFilteredTables(formattedData);
           setErrorMessage('');
@@ -1270,6 +1271,9 @@ const Order = () => {
 
       // 4. Update items in the UI to reflect their 'billed' state.
       setItems(prevItems => prevItems.map(item => ({ ...item, isNew: false, isBilled: 1, originalQty: item.qty })));
+
+      // 5. Refresh the page to reflect all changes
+      window.location.reload();
     } catch (error: any) {
       console.error('Error printing bill:', error);
       toast.error(error.message || 'An error occurred while printing the bill.');
@@ -4384,4 +4388,3 @@ const ReversedItemsDisplay = ({ groupedItems }: { groupedItems: ReversedMenuItem
 };
 
 export default Order;
-        
