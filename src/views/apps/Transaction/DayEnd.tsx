@@ -1,4 +1,6 @@
 import  { useState, useEffect } from "react";
+import toast from "react-hot-toast";
+
 import {
   Container,
   Row,
@@ -248,11 +250,10 @@ const DayEnd = () => {
 
  const handleSaveDayEnd = async () => {
   if (orders.length === 0) {
-    alert("No orders to process for Day-End.");
+    toast.error("No orders to process for Day-End.");
     return;
   }
 
-  // Derive outlet_id from the first order to ensure it's not null
   const payload = {
     dayend_total_amt: totalSales,
     outlet_id: orders[0]?.outletid || user?.outletid,
@@ -260,7 +261,7 @@ const DayEnd = () => {
     created_by_id: user?.id,
   };
 
-  console.log("Frontend sending payload:", payload); // Add this line
+  console.log("Frontend sending payload:", payload);
 
   try {
     const response = await fetch('http://localhost:3001/api/dayend/save-dayend', {
@@ -269,22 +270,31 @@ const DayEnd = () => {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${user?.token}`,
       },
-      body: JSON.stringify(payload), // Pass the complete payload
+      body: JSON.stringify(payload),
     });
 
     const data = await response.json();
-    console.log("Backend response:", data); // Add this line
+    console.log("Backend response:", data);
 
-    if (data.success) {
-      alert(data.message || `Day-End saved successfully!`);
+    if (response.ok && data.success) {
+      toast.success(data.message || "✅ Day-End saved successfully!");
     } else {
-      alert(`Error: ${data.message}`);
+      // Backend may return pending table info
+      toast.error(data.message || "❌ Day-End failed!");
+
+      if (data.pendingTables?.length) {
+        toast(`⚠️ Pending Tables: ${data.pendingTables.join(", ")}`, {
+          icon: "🪑",
+          duration: 5000,
+        });
+      }
     }
   } catch (error) {
-    console.error('Error saving day-end:', error);
-    alert('An error occurred while saving day-end. Please check the console.');
+    console.error("Error saving day-end:", error);
+    toast.error("⚠️ An error occurred while saving Day-End. Please try again.");
   }
 };
+
 
   const handleClose = () => {
     if (window.confirm("Are you sure you want to close without saving?")) {

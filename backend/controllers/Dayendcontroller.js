@@ -234,11 +234,34 @@ const saveDayEnd = async (req, res) => {
   try {
     const { dayend_total_amt, outlet_id, hotel_id, created_by_id } = req.body;
 
-    if (outlet_id === undefined || hotel_id === undefined || created_by_id === undefined)
+    if (!outlet_id || !hotel_id || !created_by_id)
       return res.status(400).json({ success: false, message: "Missing fields" });
 
     console.log("=== DAY END PROCESS ===");
     console.log("Outlet:", outlet_id, "Hotel:", hotel_id, "User:", created_by_id, "Amount:", dayend_total_amt);
+
+    // ===========================================
+    // ✅ STEP 1: CHECK PENDING TABLES BEFORE DAYEND
+    // ===========================================
+    const pendingTables = db.prepare(`
+      SELECT TableID
+      FROM TAxnTrnBill
+      WHERE outletid = ?
+        AND hotelid = ?
+        AND isDayEnd = 0
+        AND isCancelled = 0
+        AND (isBilled = 0 OR isSetteled = 0)
+    `).all(outlet_id, hotel_id);
+
+    if (pendingTables.length > 0) {
+      console.log("⛔ Pending Tables Found:", pendingTables.map(t => t.table_id));
+      return res.status(400).json({
+        success: false,
+        message: "Day End cannot be completed — Some tables still have pending bills!",
+        pendingTables: pendingTables.map(t => t.table_id)
+      });
+    }
+    // ===========================================
 
     // Get last record
     const last = db.prepare(`
@@ -264,7 +287,7 @@ const saveDayEnd = async (req, res) => {
       const currentHour = indiaTime.getHours();
 
       let businessDate = new Date(indiaTime);
-      // If current time is after midnight (12:00 AM) and before 6:00 AM, use previous day as business date
+       // If current time is after midnight (12:00 AM) and before 6:00 AM, use previous day as business date
       if (currentHour < 6) {
         businessDate.setDate(businessDate.getDate() - 1);
       }
@@ -285,8 +308,7 @@ const saveDayEnd = async (req, res) => {
     // ==============================
     // ✅ NEW LOGIC for lock_datetime
     // ==============================
-
-    // Check current conditions
+// Check current conditions
     const isMidnight = indiaTime.getHours() === 0 && indiaTime.getMinutes() === 0;
     let isDayEndPending = false;
 
@@ -302,18 +324,17 @@ const saveDayEnd = async (req, res) => {
       // 1️⃣ User has not done DayEnd yet → show today's 23:59
       lock_datetime = `${curr_date} 23:59:00`;
     } else if (isMidnight) {
-      // 2️⃣ System time is 12:00 AM → show previous day 23:59
+       // 2️⃣ System time is 12:00 AM → show previous day 23:59
       const prev = new Date(indiaTime);
       prev.setDate(prev.getDate() - 1);
       const prevDate = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}-${String(prev.getDate()).padStart(2, '0')}`;
       lock_datetime = `${prevDate} 23:59:00`;
-    } else {
+    } else { 
       // Otherwise → current system time
       lock_datetime = formattedIndiaTime;
     }
 
     console.log("Lock DateTime selected:", lock_datetime);
-    // ==============================
 
     console.log("Inserting new dayend record...");
 
