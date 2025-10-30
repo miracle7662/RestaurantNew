@@ -470,8 +470,8 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
 
   // Add item to order
   const handleAddItem = (newItem: Omit<MenuItemState, 'qty'>, qty: number = 1) => {
-    if (reverseQtyMode && isBilled) {
-      return; // Prevent adding new items in reverse qty mode for billed tables
+    if (reverseQtyMode) {
+      return; // Prevent adding new items in reverse qty mode
     }
     // Always find and update quantity for existing new items, regardless of view mode.
     setItems((prevItems) => {
@@ -868,7 +868,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
                               transition: 'transform 0.2s, box-shadow 0.2s',
                               minHeight: '120px',
                             }}
-                            onClick={() => handleAddItem({ id: Number(item.userId), name: item.ItemName, price: item.price, isBilled: 0, isNCKOT: 0, NCName: '', NCPurpose: '' }, parseInt(quantity) || 1)}
+                            onClick={() => !reverseQtyMode && handleAddItem({ id: Number(item.userId), name: item.ItemName, price: item.price, isBilled: 0, isNCKOT: 0, NCName: '', NCPurpose: '' }, parseInt(quantity) || 1)}
                             onMouseEnter={(e) => {
                               e.currentTarget.style.transform = 'translateY(-4px)';
                               e.currentTarget.style.boxShadow = '0 8px 16px rgba(0, 0, 0, 0.1)';
