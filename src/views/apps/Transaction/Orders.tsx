@@ -842,6 +842,7 @@ const Order = () => {
   const handleTableClick = (seat: string) => {
     console.log('Button clicked for table:', seat);
     // Force reset selectedTable to null first to allow re-selection of the same table
+    setReverseQtyMode(false); // Turn off reverse mode on table change
     setSelectedTable(null);
     setItems([]); // Reset items for the new table
     setCurrentKOTNo(null); // Reset KOT number for the new table
@@ -3315,6 +3316,7 @@ const Order = () => {
                   triggerFocus={triggerFocusInDetails}
                   refreshItemsForTable={refreshItemsForTable}
                   reverseQtyMode={reverseQtyMode}
+                  setReverseQtyMode={setReverseQtyMode}
                   isBilled={items.some(item => item.isBilled === 1)}
                 />
 

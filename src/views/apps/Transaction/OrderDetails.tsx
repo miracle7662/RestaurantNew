@@ -66,6 +66,7 @@ interface OrderDetailsProps {
   triggerFocus: number;
   refreshItemsForTable: (tableIdNum: number) => Promise<void>;
   reverseQtyMode: boolean;
+  setReverseQtyMode: Dispatch<SetStateAction<boolean>>;
   isBilled: boolean;
 }
   
@@ -86,6 +87,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
   triggerFocus,
   refreshItemsForTable,
   reverseQtyMode,
+  setReverseQtyMode,
   isBilled,
 }) => {
   const [searchTable, setSearchTable] = useState<string>(tableId || '');
@@ -173,6 +175,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
       const matchedTable = filteredTables.find(
         (table) => table.table_name.toLowerCase() === searchTable.toLowerCase()
       );
+      setReverseQtyMode(false); // Turn off reverse mode on table change
       if (matchedTable) {
         setSelectedTable(searchTable);
         // setItems([]); // This was clearing items fetched by the parent component.
@@ -192,13 +195,14 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
         setItems([]);
       }
     } else if (hasTyped) {
+      setReverseQtyMode(false); // Turn off reverse mode when clearing table
       setSelectedTable(null);
       setInvalidTable('');
       setIsTableInvalid(false);
       setHasTyped(false);
       setItems([]);
     }
-  }, [searchTable, setSelectedTable, setInvalidTable, hasTyped, validTables, filteredTables, setSelectedDeptId, setSelectedOutletId, refreshItemsForTable, setItems]);
+  }, [searchTable, setSelectedTable, setInvalidTable, hasTyped, validTables, filteredTables, setSelectedDeptId, setSelectedOutletId, refreshItemsForTable, setItems, setReverseQtyMode]);
 
   // Fetch menu items for sidebar and card items
   const fetchMenuItems = async (hotelid?: number, outletid?: number) => {
