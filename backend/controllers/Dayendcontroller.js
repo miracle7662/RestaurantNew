@@ -239,37 +239,43 @@ const saveDayEnd = async (req, res) => {
 
     console.log("=== DAY END PROCESS ===");
     console.log("Outlet:", outlet_id, "Hotel:", hotel_id, "User:", created_by_id, "Amount:", dayend_total_amt);
-    
+
     // Get last record
     const last = db.prepare(`
-      SELECT dayend_date, next_date FROM trn_dayend
+      SELECT dayend_date, curr_date FROM trn_dayend
       WHERE outlet_id = ? AND hotel_id = ?
       ORDER BY id DESC LIMIT 1
     `).get(outlet_id, hotel_id); // Positional binding is fine here
 
     console.log("Last record:", last);
 
-    let dayend_date, next_date;
+    let dayend_date, curr_date;
 
     if (last) {
-      // Use the next_date from the last record as the current dayend_date
-      dayend_date = last.next_date; 
-      const nextDay = new Date(last.next_date);
+      // Use the curr_date from the last record as the current dayend_date
+      dayend_date = last.curr_date;
+      const nextDay = new Date(last.curr_date);
       nextDay.setDate(nextDay.getDate() + 1);
-      next_date = `${nextDay.getFullYear()}-${String(nextDay.getMonth() + 1).padStart(2, '0')}-${String(nextDay.getDate()).padStart(2, '0')}`;
+      curr_date = `${nextDay.getFullYear()}-${String(nextDay.getMonth() + 1).padStart(2, '0')}-${String(nextDay.getDate()).padStart(2, '0')}`;
     } else {
-      const today = new Date();
-      dayend_date = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-      const nextDay = new Date(today);
-      nextDay.setDate(today.getDate() + 1);
-      next_date = `${nextDay.getFullYear()}-${String(nextDay.getMonth() + 1).padStart(2, '0')}-${String(nextDay.getDate()).padStart(2, '0')}`;
+      // No previous dayend, calculate based on current IST time
+      const now = new Date();
+      const indiaTime = new Date(now.getTime() + (5.5 * 60 * 60 * 1000));
+      const currentHour = indiaTime.getHours();
+
+      let businessDate = new Date(indiaTime);
+      // If current time is after midnight (12:00 AM) and before 6:00 AM, use previous day as business date
+      if (currentHour < 6) {
+        businessDate.setDate(businessDate.getDate() - 1);
+      }
+
+      dayend_date = `${businessDate.getFullYear()}-${String(businessDate.getMonth() + 1).padStart(2, '0')}-${String(businessDate.getDate()).padStart(2, '0')}`;
+      const nextDay = new Date(businessDate);
+      nextDay.setDate(businessDate.getDate() + 1);
+      curr_date = `${nextDay.getFullYear()}-${String(nextDay.getMonth() + 1).padStart(2, '0')}-${String(nextDay.getDate()).padStart(2, '0')}`;
     }
 
-    console.log("Calculated dates - Dayend:", dayend_date, "Next:", next_date);
-
-    
-
-    
+    console.log("Calculated dates - Dayend:", dayend_date, "Next:", curr_date);
 
     // Indian time for system_datetime
     const now = new Date();
@@ -283,15 +289,15 @@ const saveDayEnd = async (req, res) => {
     // Insert the dayend record
     const result = db.prepare(`
       INSERT INTO trn_dayend (
-        dayend_date, next_date, system_datetime, lock_datetime, 
+        dayend_date, curr_date, system_datetime, lock_datetime,
         outlet_id, hotel_id, dayend_total_amt, created_by_id
       ) VALUES (
-        @dayend_date, @next_date, @system_datetime, @lock_datetime, 
+        @dayend_date, @curr_date, @system_datetime, @lock_datetime,
         @outlet_id, @hotel_id, @dayend_total_amt, @created_by_id
       )
     `).run({
       dayend_date: dayend_date,
-      next_date: next_date,
+      curr_date: curr_date,
       system_datetime: formattedIndiaTime,
       lock_datetime: lock_datetime,
       outlet_id: outlet_id,
@@ -314,7 +320,7 @@ const saveDayEnd = async (req, res) => {
 
     // Verify the inserted data
     const storedData = db.prepare(`
-      SELECT id, dayend_date, next_date, system_datetime FROM trn_dayend WHERE id = ?
+      SELECT id, dayend_date, curr_date, system_datetime, lock_datetime FROM trn_dayend WHERE id = ?
     `).get(lastInsertId);
 
     console.log("✅ Dayend completed successfully:", storedData);
@@ -327,11 +333,61 @@ const saveDayEnd = async (req, res) => {
 
   } catch (e) {
     console.error("❌ Day End Error:", e);
-    res.status(500).json({ 
-      success: false, 
+    res.status(500).json({
+      success: false,
       message: 'Failed to complete day end',
-      error: e.message 
+      error: e.message
     });
+  }
+};
+
+const getCurrentBusinessDate = (req, res) => {
+  try {
+    const { outlet_id, hotel_id } = req.query;
+
+    if (!outlet_id || !hotel_id) {
+      return res.status(400).json({ success: false, message: "Missing outlet_id or hotel_id" });
+    }
+
+    // Get last dayend record
+    const last = db.prepare(`
+      SELECT dayend_date, curr_date FROM trn_dayend
+      WHERE outlet_id = ? AND hotel_id = ?
+      ORDER BY id DESC LIMIT 1
+    `).get(outlet_id, hotel_id);
+
+    let currentBusinessDate, lockTime;
+
+    if (last) {
+      // If there's a previous dayend, current business date is the curr_date
+      currentBusinessDate = last.curr_date;
+      lockTime = `${currentBusinessDate} 23:59:59`;
+    } else {
+      // No previous dayend, calculate based on current IST time
+      const now = new Date();
+      const indiaTime = new Date(now.getTime() + (5.5 * 60 * 60 * 1000));
+      const currentHour = indiaTime.getHours();
+
+      let businessDate = new Date(indiaTime);
+      // If current time is after midnight (12:00 AM) and before 6:00 AM, use previous day as business date
+      if (currentHour < 6) {
+        businessDate.setDate(businessDate.getDate() - 1);
+      }
+
+      currentBusinessDate = `${businessDate.getFullYear()}-${String(businessDate.getMonth() + 1).padStart(2, '0')}-${String(businessDate.getDate()).padStart(2, '0')}`;
+      lockTime = `${currentBusinessDate} 23:59:59`;
+    }
+
+    res.json({
+      success: true,
+      data: {
+        currentBusinessDate,
+        lockTime
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching current business date:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch current business date' });
   }
 };
 
@@ -339,4 +395,5 @@ module.exports = {
   getDayendData,
   saveDayEndCashDenomination,
   saveDayEnd,
+  getCurrentBusinessDate,
 };

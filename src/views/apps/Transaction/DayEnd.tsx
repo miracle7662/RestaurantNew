@@ -103,6 +103,8 @@ const DayEnd = () => {
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [passwordVerified, setPasswordVerified] = useState(false);
   const [showOnlyNotDayEnded, setShowOnlyNotDayEnded] = useState(false);
+  const [currentBusinessDate, setCurrentBusinessDate] = useState('');
+  const [lockTime, setLockTime] = useState('');
 
 
   useEffect(() => {
@@ -129,6 +131,30 @@ const DayEnd = () => {
 
     fetchdayendData();
   }, []);
+
+  useEffect(() => {
+    const fetchCurrentBusinessDate = async () => {
+      try {
+        const response = await fetch(`http://localhost:3001/api/dayend/current-business-date?outlet_id=${user?.outletid}&hotel_id=${user?.hotelid}`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch current business date');
+        }
+        const data = await response.json();
+        if (data.success) {
+          setCurrentBusinessDate(data.data.currentBusinessDate);
+          setLockTime(data.data.lockTime);
+        } else {
+          throw new Error(data.message || 'Failed to fetch business date');
+        }
+      } catch (err) {
+        console.error('Error fetching current business date:', err);
+      }
+    };
+
+    if (user?.outletid && user?.hotelid) {
+      fetchCurrentBusinessDate();
+    }
+  }, [user]);
 
   useEffect(() => {
     if (user && !passwordVerified) { // Only show modal if user is loaded AND password is not verified
@@ -651,7 +677,8 @@ const getFormattedDate = (dateStr: string) => {
           <Card.Header className="bg-white border-0 header-compact">
             <Row>
               <Col>
-                <h5 className="fw-bold text-primary mb-0">Day End</h5>
+                <h5 className="fw-bold text-primary mb-0">Day End - {currentBusinessDate}</h5>
+                {lockTime && <p className="text-muted mb-0 small">Lock Time: {lockTime}</p>}
               </Col>
             </Row>
           </Card.Header>

@@ -949,7 +949,7 @@ CREATE TABLE IF NOT EXISTS trn_dayend_cashdenomination (
 CREATE TABLE IF NOT EXISTS trn_dayend (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   dayend_date TEXT NOT NULL,
-  next_date TEXT NOT NULL,
+  curr_date TEXT NOT NULL,
   system_datetime DATETIME DEFAULT CURRENT_TIMESTAMP,
   lock_datetime DATETIME NOT NULL,
   outlet_id INTEGER NOT NULL,
