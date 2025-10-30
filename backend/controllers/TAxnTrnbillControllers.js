@@ -2145,6 +2145,29 @@ exports.reverseBill = async (req, res) => {
   }
 };
 
+/* -------------------------------------------------------------------------- */
+/* 20) getBillStatusByTable → fetch isBilled/isSetteled for a table          */
+/* -------------------------------------------------------------------------- */
+exports.getBillStatusByTable = async (req, res) => {
+  try {
+    const { tableId } = req.params;
+    const bill = db.prepare(`
+      SELECT isBilled, isSetteled
+      FROM TAxnTrnbill
+      WHERE TableID = ? 
+      ORDER BY TxnID DESC LIMIT 1
+    `).get(Number(tableId));
+
+    if (!bill) {
+      return res.json({ success: true, data: { isBilled: 0, isSetteled: 0 } });
+    }
+
+    res.json({ success: true, data: bill });
+  } catch (error) {
+    console.error('Error fetching bill status:', error);
+    res.status(500).json({ success: false, message: 'Error fetching bill status' });
+  }
+};
 
 
 module.exports = exports

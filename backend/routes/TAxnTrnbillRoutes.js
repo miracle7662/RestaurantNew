@@ -16,6 +16,7 @@ router.get('/latest-kot', controller.getLatestKOTForTable); // Get latest KOT fo
 router.get('/unbilled-items/:tableId', controller.getUnbilledItemsByTable); // Get unbilled items for a table
 router.get('/billed-bill/by-table/:tableId', controller.getLatestBilledBillForTable); // Get latest billed (but unsettled) bill for a table
 
+router.get("/bill-status/:tableId", controller.getBillStatusByTable);
 // --- Pending Orders (Pickup/Delivery) ---
 router.get('/pending-orders', controller.getPendingOrders); // Get pending pickup/delivery orders
 router.put('/:id/update', controller.updatePendingOrder); // Update a pending order

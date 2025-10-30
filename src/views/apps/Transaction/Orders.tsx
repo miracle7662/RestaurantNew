@@ -466,10 +466,24 @@ const Order = () => {
         const response = await res.json();
         console.log('Raw tableItems data:', JSON.stringify(response, null, 2));
         if (response.success && Array.isArray(response.data)) {
-          const formattedData = response.data.map((item: any) => ({
-            ...item,
-            status: Number(item.status),
-          }));
+          const formattedData = await Promise.all(
+            response.data.map(async (item: any) => {
+              let status = Number(item.status);
+          
+              // Fetch bill status for each table from backend
+              const res = await fetch(`http://localhost:3001/api/TAxnTrnbill/bill-status/${item.tableid}`);
+              const data = await res.json();
+          
+              if (data.success && data.data) {
+                const { isBilled, isSetteled } = data.data;
+          
+                if (isBilled === 1 && isSetteled !== 1) status = 2; // 🔴 red when billed but not settled
+                if (isSetteled === 1) status = 0; // ⚪ vacant when settled
+              }
+          
+              return { ...item, status };
+            })
+          );
           setTableItems(formattedData);
           setFilteredTables(formattedData);
           setErrorMessage('');
@@ -4370,3 +4384,4 @@ const ReversedItemsDisplay = ({ groupedItems }: { groupedItems: ReversedMenuItem
 };
 
 export default Order;
+        
