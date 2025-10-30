@@ -102,9 +102,11 @@ const Order = () => {
   const [selectedOutletId, setSelectedOutletId] = useState<number | null>(null);
   const [showDiscountModal, setShowDiscountModal] = useState<boolean>(false);
   const [discount, setDiscount] = useState<number>(0);
-  const [DiscPer, ] = useState<number>(0);
+  const [DiscPer,] = useState<number>(0);
   const [givenBy, setGivenBy] = useState<string>(user?.name || '');
   const [reason, setReason] = useState<string>('');
+  const [persistentTxnId, setPersistentTxnId] = useState<number | null>(null);
+  const [persistentTableId, setPersistentTableId] = useState<number | null>(null);
   const [DiscountType, setDiscountType] = useState<number>(1); // 1 for percentage, 0 for amount
   const [discountInputValue, setDiscountInputValue] = useState<number>(0);
   const [currentKOTNo, setCurrentKOTNo] = useState<number | null>(null);
@@ -118,7 +120,7 @@ const Order = () => {
   const [f8PasswordLoading, setF8PasswordLoading] = useState<boolean>(false);
 
   // New state for F9 password modal for reversing orders
- 
+
 
   // New state for F9 password modal
   const [showF9BilledPasswordModal, setShowF9BilledPasswordModal] = useState<boolean>(false);
@@ -184,7 +186,7 @@ const Order = () => {
   const [errorPending, setErrorPending] = useState<string | null>(null);
 
   // States for Pending Order Form
- 
+
   const [showBillingPage, setShowBillingPage] = useState<boolean>(false);
   const [quickBillData, setQuickBillData] = useState<any[]>([]);
   const [allBills, setAllBills] = useState<any[]>([]);
@@ -243,6 +245,8 @@ const Order = () => {
           })).filter((item: any) => item.qty > 0);
 
           setItems(fetchedItems);
+          setPersistentTxnId(header.TxnID);
+          setPersistentTableId(tableIdNum);
           setTxnNo(header.TxnNo); // Set TxnNo from the fetched bill header
           setCurrentTxnId(header.TxnID);
           setCurrentKOTNo(header.KOTNo); // A billed order might have a KOT no.
@@ -293,6 +297,8 @@ const Order = () => {
         }));
         setCurrentKOTNo(unbilledItemsRes.data.kotNo);
 
+        setPersistentTxnId(unbilledItemsRes.data.items.length > 0 ? unbilledItemsRes.data.items[0].txnId : null);
+        setPersistentTableId(tableIdNum);
         // Set reversed items from the new API response field
         const fetchedReversedItems: ReversedMenuItem[] = (unbilledItemsRes.data.reversedItems || []).map((item: any) => ({
           ...item,
@@ -331,12 +337,16 @@ const Order = () => {
         setCurrentKOTNos([]);
         setTxnNo(null);
         setCurrentTxnId(null);
+        // Do NOT clear persistent IDs here, as they are needed for reversal
+        // setPersistentTxnId(null);
+        // setPersistentTableId(null);
       }
     } catch (error) {
       console.error('Error fetching/refetching items for table:', error);
       setItems([]);
       setReversedItems([]);
       setTxnNo(null);
+      // Do NOT clear persistent IDs on error if we are in reverse mode
       setCurrentKOTNo(null);
       setCurrentKOTNos([]);
       setCurrentTxnId(null);
@@ -473,22 +483,22 @@ const Order = () => {
           const formattedData = await Promise.all(
             response.data.map(async (item: any) => {
               let status = Number(item.status);
-          
+
               // Fetch bill status for each table from backend
               const res = await fetch(`http://localhost:3001/api/TAxnTrnbill/bill-status/${item.tableid}`);
               const data = await res.json();
-          
+
               if (data.success && data.data) {
                 const { isBilled, isSetteled } = data.data;
-          
+
                 if (isBilled === 1 && isSetteled !== 1) status = 2; // 🔴 red when billed but not settled
                 if (isSetteled === 1) status = 0; // ⚪ vacant when settled
               }
-          
+
               return { ...item, status };
             })
           );
-         
+
           setTableItems(formattedData);
           setFilteredTables(formattedData);
           setErrorMessage('');
@@ -1076,7 +1086,7 @@ const Order = () => {
     }
   };
 
- 
+
   useEffect(() => {
     const selectedDepartment = departments.find(d => d.department_name === activeNavTab) || null;
     if (selectedDepartment) {
@@ -1483,10 +1493,10 @@ const Order = () => {
           setTxnNo(resp.data.TxnNo);
           setCurrentTxnId(resp.data.TxnID);
         }
-  
+
         // Clear items after KOT save to reset the panel
         setItems([]);
-         // Also clear the KOT/Transaction numbers to fully reset the panel
+        // Also clear the KOT/Transaction numbers to fully reset the panel
         setTxnNo(null);
         setCurrentTxnId(null);
         setCurrentKOTNo(null);
@@ -1584,6 +1594,56 @@ const Order = () => {
       }
     } catch (e: any) {
       toast.error(e?.message || 'Error saving KOT');
+    } finally {
+      setLoading(false);
+    }
+  };
+  const handleSaveReverse = async () => {
+    if (!persistentTxnId || !persistentTableId) {
+      toast.error("Cannot save reversal. No active transaction or table selected for reversal.");
+      return;
+    }
+
+    // All original items are considered reversed in this scenario
+    const allOriginalItems = items.map(item => ({
+      id: item.id,
+      qty: item.originalQty || item.qty, // Use originalQty if available
+      price: item.price,
+      kotNo: item.kotNo,
+      // Include other necessary fields if your backend needs them
+    }));
+
+    setLoading(true);
+    try {
+      const response = await fetch('http://localhost:3001/api/TAxnTrnbill/save-full-reverse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          txnId: persistentTxnId,
+          tableId: persistentTableId,
+          reversedItems: reverseQtyItems, // Use the correct list of reversed items
+          userId: user?.id,
+        }),
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        toast.success('Table reversal saved successfully!');
+        // Reset all relevant states
+        setReverseQtyItems([]);
+        setReverseQtyMode(false);
+        setItems([]);
+        setSelectedTable(null);
+        setCurrentTxnId(null);
+        setPersistentTxnId(null);
+        setPersistentTableId(null);
+        setShowOrderDetails(false);
+        fetchTableManagement(); // Refresh table grid
+      } else {
+        throw new Error(result.message || 'Failed to save reversal.');
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'An error occurred while saving the reversal.');
     } finally {
       setLoading(false);
     }
@@ -2016,7 +2076,7 @@ const Order = () => {
       setSelectedPaymentModes([]);
       setIsMixedPayment(false);
       setShowSettlementModal(false);
-      setBillActionState('initial');      
+      setBillActionState('initial');
       if (selectedTable) {
         const tableToUpdate = tableItems.find(t => t.table_name === selectedTable);
         if (tableToUpdate) {
@@ -3039,143 +3099,143 @@ const Order = () => {
                 </div>
               </div>
             )}
-        {showBillingPage && (
-  (() => {
-    // Pagination logic
-    const indexOfLastItem = currentPage * itemsPerPage;
-    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-    const currentBills = allBills.slice(indexOfFirstItem, indexOfLastItem);
-    const totalPages = Math.ceil(allBills.length / itemsPerPage);
+            {showBillingPage && (
+              (() => {
+                // Pagination logic
+                const indexOfLastItem = currentPage * itemsPerPage;
+                const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+                const currentBills = allBills.slice(indexOfFirstItem, indexOfLastItem);
+                const totalPages = Math.ceil(allBills.length / itemsPerPage);
 
-    const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
+                const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
 
-    return (
-      <div className="d-flex">
-        {/* Left side content (like Quick Bill layout) */}
-        <div
-          className="rounded shadow-sm p-3 mt-0 bg-light"
-          style={{
-            width: '100%',
-            minWidth: '350px',
-            maxHeight: 'calc(100vh - 120px)',
-            overflowY: 'auto',
-          }}
-        >
-          <h5 className="mb-3 text-center text-primary fw-semibold">All Bills</h5>
+                return (
+                  <div className="d-flex">
+                    {/* Left side content (like Quick Bill layout) */}
+                    <div
+                      className="rounded shadow-sm p-3 mt-0 bg-light"
+                      style={{
+                        width: '100%',
+                        minWidth: '350px',
+                        maxHeight: 'calc(100vh - 120px)',
+                        overflowY: 'auto',
+                      }}
+                    >
+                      <h5 className="mb-3 text-center text-primary fw-semibold">All Bills</h5>
 
-          <Table striped bordered hover responsive size="sm" className="mb-0">
-            <thead className="table-info sticky-top">
-              <tr>
-                <th>Bill No</th>
-                <th>Order Type</th>
-                <th>Customer</th>
-                <th>Mobile</th>
-                <th>Payment</th>
-                <th>Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {currentBills.length > 0 ? (
-                currentBills.map((bill) => (
-                  <tr key={bill.TxnID}>
-                    <td>{bill.TxnNo}</td>
-                    <td>{bill.OrderType}</td>
-                    <td>{bill.CustomerName}</td>
-                    <td>{bill.Mobile}</td>
-                    <td>{bill.PaymentMode}</td>
-                    <td>{bill.GrandTotal}</td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={6} className="text-center text-muted">
-                    No bills found.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </Table>
+                      <Table striped bordered hover responsive size="sm" className="mb-0">
+                        <thead className="table-info sticky-top">
+                          <tr>
+                            <th>Bill No</th>
+                            <th>Order Type</th>
+                            <th>Customer</th>
+                            <th>Mobile</th>
+                            <th>Payment</th>
+                            <th>Total</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {currentBills.length > 0 ? (
+                            currentBills.map((bill) => (
+                              <tr key={bill.TxnID}>
+                                <td>{bill.TxnNo}</td>
+                                <td>{bill.OrderType}</td>
+                                <td>{bill.CustomerName}</td>
+                                <td>{bill.Mobile}</td>
+                                <td>{bill.PaymentMode}</td>
+                                <td>{bill.GrandTotal}</td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td colSpan={6} className="text-center text-muted">
+                                No bills found.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </Table>
 
-          {/* Pagination Controls */}
-          {totalPages > 1 && (
-            <div className="d-flex justify-content-between align-items-center mt-2">
-              <span className="text-muted small">
-                Page {currentPage} of {totalPages}
-              </span>
-              <div>
-                <Button
-                  variant="outline-primary"
-                  size="sm"
-                  onClick={() => paginate(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  className="me-2"
-                >
-                  Previous
-                </Button>
-                <Button
-                  variant="outline-primary"
-                  size="sm"
-                  onClick={() => paginate(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                >
-                  Next
-                </Button>
+                      {/* Pagination Controls */}
+                      {totalPages > 1 && (
+                        <div className="d-flex justify-content-between align-items-center mt-2">
+                          <span className="text-muted small">
+                            Page {currentPage} of {totalPages}
+                          </span>
+                          <div>
+                            <Button
+                              variant="outline-primary"
+                              size="sm"
+                              onClick={() => paginate(currentPage - 1)}
+                              disabled={currentPage === 1}
+                              className="me-2"
+                            >
+                              Previous
+                            </Button>
+                            <Button
+                              variant="outline-primary"
+                              size="sm"
+                              onClick={() => paginate(currentPage + 1)}
+                              disabled={currentPage === totalPages}
+                            >
+                              Next
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Optional right-side space (reserved for future details or actions) */}
+                    <div className="flex-grow-1 ms-3">
+                      {/* You can render selected bill details or summary here later */}
+                    </div>
+                  </div>
+                );
+              })()
+            )}
+
+            {activeNavTab === 'Quick Bill' && !showOrderDetails && (
+              <div
+                className="rounded shadow-sm p-3 mt-0 bg-light"
+                style={{ maxHeight: 'calc(100vh - 150px)', overflowY: 'auto' }}
+              >
+                <h5 className="mb-3">Quick Bill History</h5>
+                <Table striped bordered hover responsive size="sm">
+                  <thead className="table-info">
+                    <tr>
+                      <th>Bill No</th>
+                      <th>Customer Name</th>
+                      <th>Mobile No</th>
+                      <th>Payment Mode</th>
+                      <th>Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {quickBillData.length > 0 ? (
+                      quickBillData.map((bill) => (
+                        <tr key={bill.TxnID}>
+                          <td>{bill.TxnNo}</td>
+                          <td>{bill.CustomerName || 'N/A'}</td>
+                          <td>{bill.MobileNo || 'N/A'}</td>
+                          <td>{bill.PaymentMode || 'N/A'}</td>
+                          <td>{bill.GrandTotal?.toFixed(2)}</td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={5} className="text-center text-muted">No quick bills found.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </Table>
               </div>
-            </div>
-          )}
-        </div>
-
-        {/* Optional right-side space (reserved for future details or actions) */}
-        <div className="flex-grow-1 ms-3">
-          {/* You can render selected bill details or summary here later */}
-        </div>
-      </div>
-    );
-  })()
-)}
-
-{activeNavTab === 'Quick Bill' && !showOrderDetails && (
-  <div
-    className="rounded shadow-sm p-3 mt-0 bg-light"
-    style={{ maxHeight: 'calc(100vh - 150px)', overflowY: 'auto' }}
-  >
-    <h5 className="mb-3">Quick Bill History</h5>
-    <Table striped bordered hover responsive size="sm">
-      <thead className="table-info">
-        <tr>
-          <th>Bill No</th>
-          <th>Customer Name</th>
-          <th>Mobile No</th>
-          <th>Payment Mode</th>
-          <th>Total</th>
-        </tr>
-      </thead>
-      <tbody>
-        {quickBillData.length > 0 ? (
-          quickBillData.map((bill) => (
-            <tr key={bill.TxnID}>
-              <td>{bill.TxnNo}</td>
-              <td>{bill.CustomerName || 'N/A'}</td>
-              <td>{bill.MobileNo || 'N/A'}</td>
-              <td>{bill.PaymentMode || 'N/A'}</td>
-              <td>{bill.GrandTotal?.toFixed(2)}</td>
-            </tr>
-          ))
-        ) : (
-          <tr>
-            <td colSpan={5} className="text-center text-muted">No quick bills found.</td>
-          </tr>
-        )}
-      </tbody>
-    </Table>
-  </div>
-)}
-{showPendingOrdersView && (
-  <div
-    className="rounded shadow-sm p-3 mt-0 bg-light"
-    style={{ maxHeight: 'calc(100vh - 150px)', overflowY: 'auto' }}
-  >
-    <style>{`
+            )}
+            {showPendingOrdersView && (
+              <div
+                className="rounded shadow-sm p-3 mt-0 bg-light"
+                style={{ maxHeight: 'calc(100vh - 150px)', overflowY: 'auto' }}
+              >
+                <style>{`
       .order-card {
         border: 2px solid #e3f2fd;
         border-radius: 12px;
@@ -3228,75 +3288,75 @@ const Order = () => {
         transform: scale(1.05);
       }
     `}</style>
-    <div className="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
-      <h4 className="mb-0">Pending {pendingType === 'pickup' ? 'Pickup' : 'Delivery'} Orders</h4>
-      <Button variant="outline-secondary" onClick={handleBackToTables}>
-        Back to Tables
-      </Button>
-    </div>
-    {loadingPending ? (
-      <div className="d-flex justify-content-center align-items-center h-100">
-        <Spinner animation="border" role="status">
-          <span className="visually-hidden">Loading...</span>
-        </Spinner>
-      </div>
-    ) : errorPending ? (
-      <div className="alert alert-danger">{errorPending}</div>
-    ) : pendingOrders.length === 0 ? (
-      <div className="text-center p-5">No pending orders found.</div>
-    ) : (
-      <Row md={2} lg={3} xl={3} className="g-3">
-        {pendingOrders.map(order => (
-          <Col key={order.id}>
-            <Card className="order-card h-100">
-              <Card.Header className="order-card-header">
-                <div>
-                  <strong>Customer:</strong> {order.customer.name || ''}
-                  <br />
-                  <strong>Mobile:</strong> {order.customer.mobile || 'N/A'}
+                <div className="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+                  <h4 className="mb-0">Pending {pendingType === 'pickup' ? 'Pickup' : 'Delivery'} Orders</h4>
+                  <Button variant="outline-secondary" onClick={handleBackToTables}>
+                    Back to Tables
+                  </Button>
                 </div>
-              </Card.Header>
-              <Card.Body className="d-flex flex-column">
-                <div className="order-card-items mb-3">
-                  <ul className="list-unstyled">
-                    {order.items.map((item: any, index: number) => (
-                      <li key={index} className="d-flex justify-content-between border-bottom pb-1 mb-1">
-                        <span>{item.name}</span>
-                        <span>{item.qty} @ {item.price.toFixed(2)}</span>
-                      </li>
+                {loadingPending ? (
+                  <div className="d-flex justify-content-center align-items-center h-100">
+                    <Spinner animation="border" role="status">
+                      <span className="visually-hidden">Loading...</span>
+                    </Spinner>
+                  </div>
+                ) : errorPending ? (
+                  <div className="alert alert-danger">{errorPending}</div>
+                ) : pendingOrders.length === 0 ? (
+                  <div className="text-center p-5">No pending orders found.</div>
+                ) : (
+                  <Row md={2} lg={3} xl={3} className="g-3">
+                    {pendingOrders.map(order => (
+                      <Col key={order.id}>
+                        <Card className="order-card h-100">
+                          <Card.Header className="order-card-header">
+                            <div>
+                              <strong>Customer:</strong> {order.customer.name || ''}
+                              <br />
+                              <strong>Mobile:</strong> {order.customer.mobile || 'N/A'}
+                            </div>
+                          </Card.Header>
+                          <Card.Body className="d-flex flex-column">
+                            <div className="order-card-items mb-3">
+                              <ul className="list-unstyled">
+                                {order.items.map((item: any, index: number) => (
+                                  <li key={index} className="d-flex justify-content-between border-bottom pb-1 mb-1">
+                                    <span>{item.name}</span>
+                                    <span>{item.qty} @ {item.price.toFixed(2)}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                            <div className="mt-auto">
+                              <div className="d-flex justify-content-between fw-bold border-top pt-2">
+                                <span> {order.items.reduce((acc: number, item: any) => acc + item.qty, 0)}</span>
+                                <span> ₹{order.total.toFixed(2)}</span>
+                              </div>
+                              <div className="d-flex gap-2 mt-3">
+                                <Button
+                                  variant="danger"
+                                  className="flex-fill"
+                                  onClick={() => handlePendingMakePayment(order)}
+                                >
+                                  Make Payment
+                                </Button>
+                                <Button
+                                  variant="outline-primary"
+                                  className="flex-fill"
+                                  onClick={() => handlePrintPendingOrder(order)}
+                                >
+                                  Print Bill
+                                </Button>
+                              </div>
+                            </div>
+                          </Card.Body>
+                        </Card>
+                      </Col>
                     ))}
-                  </ul>
-                </div>
-                <div className="mt-auto">
-                  <div className="d-flex justify-content-between fw-bold border-top pt-2">
-                    <span> {order.items.reduce((acc: number, item: any) => acc + item.qty, 0)}</span>
-                    <span> ₹{order.total.toFixed(2)}</span>
-                  </div>
-                  <div className="d-flex gap-2 mt-3">
-                    <Button
-                      variant="danger"
-                      className="flex-fill"
-                      onClick={() => handlePendingMakePayment(order)}
-                    >
-                      Make Payment
-                    </Button>
-                    <Button
-                      variant="outline-primary"
-                      className="flex-fill"
-                      onClick={() => handlePrintPendingOrder(order)}
-                    >
-                      Print Bill
-                    </Button>
-                  </div>
-                </div>
-              </Card.Body>
-            </Card>
-          </Col>
-        ))}
-      </Row>
-    )}
-  </div>
-)}
+                  </Row>
+                )}
+              </div>
+            )}
 
             {showOrderDetails && activeNavTab !== 'Quick Bill' && (
               <div className="rounded shadow-sm p-1 mt-0">
@@ -3857,478 +3917,472 @@ const Order = () => {
             <div className="billing-panel-footer mt-auto flex-shrink-0" style={{ backgroundColor: 'white', position: 'sticky', bottom: 0 }}>
               <div className="p-2">
                 <div className="bg-white border rounded p-2">
+                  {(() => {
+                    const allItemsReversed = items.length === 0 && reverseQtyItems.length > 0;
+                    return allItemsReversed && (
+                      <Button variant="danger" className="fw-bold mt-2 w-100" onClick={handleSaveReverse}>
+                        Save Reverse
+                      </Button>
+                    );
+                  })()}
 
                   {discount > 0 && (
                     <div className="d-flex justify-content-between"><span>Discount ({DiscountType === 1 ? `${DiscPer}%` : 'Amt'})</span><span>- {discount.toFixed(2)}</span></div>
                   )}
-                  {revKotTotal > 0 && (
-                    <div className="d-flex justify-content-between text-danger"><span>RevKOT</span><span>- {revKotTotal.toFixed(2)}</span></div>
-                  )}
-
-
-
-                  <div className="row align-items-center">
-                    <div className="col-12 d-flex align-items-center">
-                      {items.length > 0 && (
-                        <div className="d-flex align-items-center gap-2">
-                          {hasModifications ? (
-                            <button
-                              className="btn btn-dark rounded btn-sm"
-                              onClick={handlePrintAndSaveKOT}
-                              disabled={items.length === 0 || !!invalidTable}
-                            >
-                              Print & Save KOT
-                            </button>
-                          ) : billActionState === 'initial' ? (
+                  <div className="col-12 d-flex align-items-center">
+                    {items.length > 0 && (
+                      <div className="d-flex align-items-center gap-2">
+                        {hasModifications ? (
+                          <button
+                            className="btn btn-dark rounded btn-sm"
+                            onClick={handlePrintAndSaveKOT}
+                          >
+                            Print & Save KOT
+                          </button>
+                        ) : billActionState === 'initial' ? (
+                          <Button
+                            size="sm"
+                            variant="primary"
+                            onClick={() => setBillActionState('printOrSettle')}
+                            disabled={items.length === 0}
+                          >
+                            🖨️ Bill
+                          </Button>
+                        ) : (
+                          <>
                             <Button
                               size="sm"
                               variant="primary"
-                              onClick={() => setBillActionState('printOrSettle')}
+                              onClick={handlePrintBill}
                               disabled={items.length === 0}
                             >
                               🖨️ Bill
                             </Button>
-                          ) : (
-                            <>
-                              <Button
-                                size="sm"
-                                variant="primary"
-                                onClick={handlePrintBill}
-                                disabled={items.length === 0}
-                              >
-                                🖨️ Bill
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="success"
-                                onClick={() => setShowSettlementModal(true)}
-                                disabled={items.length === 0}
-                              >
-                                💳 Settle
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      )}
-
-                      <div className="ms-auto">
-                        <span
-                          className="fw-bold"
-                          style={{ fontSize: '22px' }}
-                        >
-                          ₹{(taxCalc.grandTotal - discount - revKotTotal).toFixed(2)}
-                        </span>
+                            <Button
+                              size="sm"
+                              variant="success"
+                              onClick={() => setShowSettlementModal(true)}
+                              disabled={items.length === 0}
+                            >
+                              💳 Settle
+                            </Button>
+                          </>
+                        )}
                       </div>
-                    </div>
-                  </div>
-
-
-
-
-
-                </div>
-              </div>
-            </div>
-
-            <Modal show={showSavedKOTsModal} onHide={() => setShowSavedKOTsModal(false)} centered size="lg" onShow={async () => {
-              try {
-                const resp = await getSavedKOTs({ isBilled: 0 })
-                const list = resp?.data || resp
-                if (Array.isArray(list)) setSavedKOTs(list)
-              } catch (err) {
-                console.warn('getSavedKOTs modal load failed')
-              }
-            }}>
-              <Modal.Header closeButton>
-                <Modal.Title>Saved KOTs</Modal.Title>
-              </Modal.Header>
-              <Modal.Body style={{ maxHeight: '500px', overflowY: 'auto' }}>
-                {(!savedKOTs || savedKOTs.length === 0) ? (
-                  <p className="text-center text-muted">No KOTs saved yet.</p>
-                ) : (
-                  <Table bordered hover>
-                    <thead>
-                      <tr>
-                        <th>#</th>
-                        <th>TxnID</th>
-                        <th>KOT No</th>
-                        <th>TableID</th>
-                        <th>Amount</th>
-                        <th>OrderNo</th>
-                        <th>Date</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {savedKOTs.map((kot: any, index: number) => (
-                        <tr key={index}>
-                          <td>{index + 1}</td>
-                          <td>{kot.TxnID}</td>
-                          <td>{kot.KOTNo}</td>
-                          <td>{kot.TableID ?? ''}</td>
-                          <td>{kot.Amount}</td>
-                          <td>{kot.orderNo || ''}</td>
-                          <td>{kot.TxnDatetime}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </Table>
-                )}
-              </Modal.Body>
-              <Modal.Footer>
-                <Button variant="secondary" onClick={() => setShowSavedKOTsModal(false)}>
-                  Close
-                </Button>
-              </Modal.Footer>
-            </Modal>
-
-            <Modal show={showDiscountModal} onHide={() => setShowDiscountModal(false)} centered onShow={() => {
-              if (DiscountType === 1) {
-                setDiscountInputValue(DiscPer);
-              } else {
-                setDiscountInputValue(discount);
-              }
-              const discountInput = document.getElementById('discountInput') as HTMLInputElement; if (discountInput) discountInput.focus();
-            }}>
-              <Modal.Header closeButton><Modal.Title>Apply Discount</Modal.Title></Modal.Header>
-              <Modal.Body>
-                <div className="mb-3">
-                  <label className="form-label">Discount Type</label>
-                  <select className="form-control" value={DiscountType} onChange={(e) => setDiscountType(Number(e.target.value))}>
-                    <option value={1}>Percentage</option>
-                    <option value={0}>Amount</option>
-                  </select>
-                </div>
-                <div className="mb-3">
-                  <label htmlFor="discountInput" className="form-label">{DiscountType === 1 ? 'Discount Percentage (0.5% - 100%)' : 'Discount Amount'}</label>
-                  <input
-                    type="number"
-                    id="discountInput"
-                    className="form-control"
-                    value={discountInputValue}
-                    onChange={(e) => setDiscountInputValue(parseFloat(e.target.value) || 0)}
-                    onKeyDown={handleDiscountKeyDown}
-                    step={DiscountType === 1 ? "0.5" : "0.01"}
-                    min={DiscountType === 1 ? "0.5" : "0"}
-                    max={DiscountType === 1 ? "100" : ""}
-                  />
-                </div>
-                <div className="mb-3">
-                  <label htmlFor="givenBy" className="form-label">Given By</label>
-                  <input type="text" id="givenBy" className="form-control" value={givenBy} readOnly={user?.role_level !== 'admin'} onChange={(e) => setGivenBy(e.target.value)} />
-                </div>
-                <div className="mb-3">
-                  <label htmlFor="reason" className="form-label">Reason (Optional)</label>
-                  <textarea id="reason" className="form-control" value={reason} onChange={(e) => setReason(e.target.value)} />
-                </div>
-              </Modal.Body>
-              <Modal.Footer>
-                <Button variant="secondary" onClick={() => setShowDiscountModal(false)}>Cancel</Button>
-                <Button variant="primary" onClick={handleApplyDiscount}>Apply</Button>
-              </Modal.Footer>
-            </Modal>
-            <Modal
-              show={showNewCustomerForm}
-              onHide={handleCloseCustomerModal}
-              centered
-              size="xl"
-              backdrop="static"
-              keyboard={false}
-            >
-              <Modal.Header closeButton style={{ padding: '0.5rem', margin: 0 }} >
-              </Modal.Header>
-              <Modal.Body style={{ padding: '0px', maxHeight: '780px', overflowY: 'auto' }}>
-                <AddCustomerModal />
-              </Modal.Body>
-              <Modal.Footer>
-                <Button variant="secondary" onClick={handleCloseCustomerModal}>
-                  Close
-                </Button>
-              </Modal.Footer>
-            </Modal>
-
-            <Modal
-              show={showTaxModal}
-              onHide={() => setShowTaxModal(false)}
-              centered
-              size="xl"
-              backdrop="static"
-              keyboard={false}
-            >
-              <Modal.Header closeButton>
-                <Modal.Title>View Tax Rates</Modal.Title>
-              </Modal.Header>
-
-              <Modal.Body>
-                <div>
-                  <h6>Tax Summary</h6>
-                  <div style={{ overflowX: 'auto' }}>
-                    <table
-                      className="table table-bordered text-center"
-                      style={{ minWidth: '800px', width: '100%' }}  // Inline CSS applied here
-                    >
-                      <thead>
-                        <tr>
-                          <th>Subtotal</th>
-                          {taxRates.cgst > 0 && <th>CGST ({taxRates.cgst}%)</th>}
-                          {taxRates.sgst > 0 && <th>SGST ({taxRates.sgst}%)</th>}
-                          {taxRates.igst > 0 && <th>IGST ({taxRates.igst}%)</th>}
-                          {taxRates.cess > 0 && <th>CESS ({taxRates.cess}%)</th>}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr>
-                          <td>{taxCalc.subtotal.toFixed(2)}</td>
-                          {taxRates.cgst > 0 && <td>{taxCalc.cgstAmt.toFixed(2)}</td>}
-                          {taxRates.sgst > 0 && <td>{taxCalc.sgstAmt.toFixed(2)}</td>}
-                          {taxRates.igst > 0 && <td>{taxCalc.igstAmt.toFixed(2)}</td>}
-                          {taxRates.cess > 0 && <td>{taxCalc.cessAmt.toFixed(2)}</td>}
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </Modal.Body>
-
-              <Modal.Footer>
-                <Button variant="secondary" onClick={() => setShowTaxModal(false)}>Cancel</Button>
-                <Button variant="primary" onClick={handleSaveTax}>Save</Button>
-              </Modal.Footer>
-            </Modal>
-
-
-            <Modal show={showNCKOTModal} onHide={() => setShowNCKOTModal(false)} centered>
-              <Modal.Header closeButton>
-                <Modal.Title>NCKOT</Modal.Title>
-              </Modal.Header>
-              <Modal.Body>
-                <div className="mb-3">
-                  <label>Name</label>
-                  <input type="text" className="form-control" value={ncName} onChange={(e) => setNcName(e.target.value)} />
-                </div>
-                <div className="mb-3">
-                  <label>Purpose</label>
-                  <input type="text" className="form-control" value={ncPurpose} onChange={(e) => setNcPurpose(e.target.value)} />
-                </div>
-              </Modal.Body>
-              <Modal.Footer>
-                <Button variant="secondary" onClick={() => setShowNCKOTModal(false)}>Cancel</Button>
-                <Button variant="primary" onClick={handleSaveNCKOT}>Save</Button>
-              </Modal.Footer>
-            </Modal>
-
-            {/* Settlement Modal */}
-
-            {/* Main Settlement Modal */}
-            <Modal
-              show={showSettlementModal}
-              onHide={() => setShowSettlementModal(false)}
-              centered
-              onShow={() => {
-                // When the modal is shown, check if it's for single payment
-                if (!isMixedPayment) {
-                  // Find the 'Cash' payment mode
-                  const cashMode = outletPaymentModes.find(
-                    (mode) => mode.mode_name.toLowerCase() === 'cash'
-                  );
-                  if (cashMode) {
-                    // Automatically select 'Cash' and set the amount
-                    handlePaymentModeClick(cashMode);
-                  }
-                }
-              }}
-              size="lg"
-            >
-              {/* Header */}
-              <Modal.Header closeButton className="border-0">
-                <Modal.Title className="fw-bold text-dark">Payment Mode</Modal.Title>
-              </Modal.Header>
-
-              {/* Body */}
-              <Modal.Body className="bg-light">
-                {/* Bill Summary */}
-                <div className="p-4 mb-4 bg-white rounded shadow-sm text-center">
-                  <h6 className="text-secondary mb-2">Total Amount Due</h6>
-                  <div className="fw-bold display-5 text-dark">
-                    ₹{grandTotal.toFixed(2)}
-                  </div>
-                </div>
-
-                {/* Mixed Payment Toggle */}
-                <div className="d-flex justify-content-end mb-3">
-                  <Form.Check
-                    type="switch"
-                    id="mixed-payment-switch"
-                    label="Mixed Payment"
-                    checked={isMixedPayment}
-                    onChange={(e) => {
-                      setIsMixedPayment(e.target.checked);
-                      setSelectedPaymentModes([]);
-                      setPaymentAmounts({});
-                    }}
-                  />
-                </div>
-
-                {/* Payment Modes */}
-                <Row xs={1} md={2} className="g-3">
-                  {outletPaymentModes.map((mode) => (
-                    <Col key={mode.id}>
-                      <Card
-                        onClick={() => handlePaymentModeClick(mode)}
-                        className={`text-center h-100 shadow-sm border-0 ${selectedPaymentModes.includes(mode.mode_name)
-                          ? "border border-primary"
-                          : ""
-                          }`}
-                        style={{
-                          cursor: "pointer",
-                          transition: "transform 0.2s ease, box-shadow 0.2s ease",
-                        }}
-                        onMouseEnter={(e) =>
-                          (e.currentTarget.style.transform = "translateY(-4px)")
-                        }
-                        onMouseLeave={(e) =>
-                          (e.currentTarget.style.transform = "translateY(0)")
-                        }
-                      >
-                        <Card.Body>
-                          <Card.Title className="fw-semibold">
-                            {mode.mode_name}
-                          </Card.Title>
-
-                          {/* Amount Input */}
-                          {selectedPaymentModes.includes(mode.mode_name) && (
-                            <Form.Control
-                              type="number"
-                              placeholder="0.00"
-                              value={paymentAmounts[mode.mode_name] || ""}
-                              onChange={(e) =>
-                                handlePaymentAmountChange(mode.mode_name, e.target.value)
-                              }
-                              onClick={(e) => e.stopPropagation()}
-                              autoFocus={isMixedPayment}
-                              readOnly={!isMixedPayment}
-                              className="mt-2 text-center"
-                            />
-                          )}
-                        </Card.Body>
-                      </Card>
-                    </Col>
-                  ))}
-                </Row>
-
-                {/* Tip Input */}
-                <div className="mb-3 p-3 bg-white rounded shadow-sm">
-                  <Form.Label className="fw-semibold text-dark mb-2">Optional Tip</Form.Label>
-                  <Form.Control
-                    type="number"
-                    placeholder="0.00"
-                    value={tip || ""}
-                    onChange={(e) => setTip(parseFloat(e.target.value) || 0)}
-                    className="text-center"
-                    step="0.01"
-                  />
-                </div>
-
-                {/* Payment Summary */}
-                <div className="mt-4 p-3 bg-white rounded shadow-sm">
-                  <div className="d-flex justify-content-around fw-bold fs-5">
-                    <div>
-                      <span>Total Paid: </span>
-                      <span className="text-primary">{(totalPaid + (tip || 0)).toFixed(2)}</span>
-                    </div>
-                    <div>
-                      <span>Balance Due: </span>
+                    )}
+                    <div className="ms-auto">
                       <span
-                        className={
-                          settlementBalance === 0 ? "text-success" : "text-danger"
-                        }
+                        className="fw-bold"
+                        style={{ fontSize: '22px' }}
                       >
-                        {settlementBalance.toFixed(2)}
+                        ₹{(taxCalc.grandTotal - discount - revKotTotal).toFixed(2)}
                       </span>
                     </div>
                   </div>
-
-                  {/* Validation Messages */}
-                  {settlementBalance !== 0 && (
-                    <div className="text-danger mt-2 text-center small">
-                      Total paid amount + tip must match the grand total.
-                    </div>
-                  )}
-                  {settlementBalance === 0 && totalPaid + (tip || 0) > 0 && (
-                    <div className="text-success mt-2 text-center small">
-                      ✅ Payment amount + tip matches. Ready to settle.
-                    </div>
-                  )}
                 </div>
-              </Modal.Body>
-
-              {/* Footer */}
-              <Modal.Footer className="border-0 justify-content-between">
-                <Button
-                  variant="outline-secondary"
-                  onClick={() => setShowSettlementModal(false)}
-                  className="px-4"
-                >
-                  Back
-                </Button>
-                <Button
-                  variant="success"
-                  onClick={handleSettleAndPrint}
-                  disabled={settlementBalance !== 0 || totalPaid + (tip || 0) === 0}
-                  className="px-4"
-                >
-                  Settle & Print
-                </Button>
-              </Modal.Footer>
-            </Modal>
-
-
-            {/* F8PasswordModal */}
-
-            <F8PasswordModal
-              show={showF8PasswordModal}
-              onHide={() => {
-                setShowF8PasswordModal(false);
-                setF8PasswordError(''); // Clear error on close
-              }}
-              onSubmit={handleF8PasswordSubmit}
-              error={f8PasswordError}
-              loading={f8PasswordLoading}
-              txnId={currentTxnId?.toString()}
-            />
-            
-            {/* F9 Billed Password Modal */}
-            <F8PasswordModal
-              show={showF9BilledPasswordModal}
-              onHide={() => {
-                setShowF9BilledPasswordModal(false);
-                setF9BilledPasswordError('');
-              }}
-              onSubmit={handleF9PasswordSubmit}
-              error={f9BilledPasswordError}
-              loading={f9BilledPasswordLoading}
-              title="Admin Password for Reversal"
-            />
-
-            <Modal show={showAuthModal} onHide={handleCloseAuthModal} centered>
-              <Modal.Header closeButton>
-                <Modal.Title>Reverse Qty Mode</Modal.Title>
-              </Modal.Header>
-              <Modal.Body>
-                <div className="mb-3">
-                  <label>Password</label>
-                  <input type="password" className="form-control" value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} onKeyPress={(e) => { if (e.key === 'Enter') handleAuth(); }} autoFocus />
-                </div>
-                {authError && <div className="text-danger">{authError}</div>}
-              </Modal.Body>
-              <Modal.Footer>
-                <Button variant="secondary" onClick={handleCloseAuthModal}>Cancel</Button>
-                <Button variant="primary" onClick={handleAuth}>Submit</Button>
-              </Modal.Footer>
-            </Modal>
+              </div>
+            </div>
           </div>
+
+          <Modal show={showSavedKOTsModal} onHide={() => setShowSavedKOTsModal(false)} centered size="lg" onShow={async () => {
+            try {
+              const resp = await getSavedKOTs({ isBilled: 0 })
+              const list = resp?.data || resp
+              if (Array.isArray(list)) setSavedKOTs(list)
+            } catch (err) {
+              console.warn('getSavedKOTs modal load failed')
+            }
+          }}>
+            <Modal.Header closeButton>
+              <Modal.Title>Saved KOTs</Modal.Title>
+            </Modal.Header>
+            <Modal.Body style={{ maxHeight: '500px', overflowY: 'auto' }}>
+              {(!savedKOTs || savedKOTs.length === 0) ? (
+                <p className="text-center text-muted">No KOTs saved yet.</p>
+              ) : (
+                <Table bordered hover>
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>TxnID</th>
+                      <th>KOT No</th>
+                      <th>TableID</th>
+                      <th>Amount</th>
+                      <th>OrderNo</th>
+                      <th>Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {savedKOTs.map((kot: any, index: number) => (
+                      <tr key={index}>
+                        <td>{index + 1}</td>
+                        <td>{kot.TxnID}</td>
+                        <td>{kot.KOTNo}</td>
+                        <td>{kot.TableID ?? ''}</td>
+                        <td>{kot.Amount}</td>
+                        <td>{kot.orderNo || ''}</td>
+                        <td>{kot.TxnDatetime}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </Table>
+              )}
+            </Modal.Body>
+            <Modal.Footer>
+              <Button variant="secondary" onClick={() => setShowSavedKOTsModal(false)}>
+                Close
+              </Button>
+            </Modal.Footer>
+          </Modal>
+
+          <Modal show={showDiscountModal} onHide={() => setShowDiscountModal(false)} centered onShow={() => {
+            if (DiscountType === 1) {
+              setDiscountInputValue(DiscPer);
+            } else {
+              setDiscountInputValue(discount);
+            }
+            const discountInput = document.getElementById('discountInput') as HTMLInputElement; if (discountInput) discountInput.focus();
+          }}>
+            <Modal.Header closeButton><Modal.Title>Apply Discount</Modal.Title></Modal.Header>
+            <Modal.Body>
+              <div className="mb-3">
+                <label className="form-label">Discount Type</label>
+                <select className="form-control" value={DiscountType} onChange={(e) => setDiscountType(Number(e.target.value))}>
+                  <option value={1}>Percentage</option>
+                  <option value={0}>Amount</option>
+                </select>
+              </div>
+              <div className="mb-3">
+                <label htmlFor="discountInput" className="form-label">{DiscountType === 1 ? 'Discount Percentage (0.5% - 100%)' : 'Discount Amount'}</label>
+                <input
+                  type="number"
+                  id="discountInput"
+                  className="form-control"
+                  value={discountInputValue}
+                  onChange={(e) => setDiscountInputValue(parseFloat(e.target.value) || 0)}
+                  onKeyDown={handleDiscountKeyDown}
+                  step={DiscountType === 1 ? "0.5" : "0.01"}
+                  min={DiscountType === 1 ? "0.5" : "0"}
+                  max={DiscountType === 1 ? "100" : ""}
+                />
+              </div>
+              <div className="mb-3">
+                <label htmlFor="givenBy" className="form-label">Given By</label>
+                <input type="text" id="givenBy" className="form-control" value={givenBy} readOnly={user?.role_level !== 'admin'} onChange={(e) => setGivenBy(e.target.value)} />
+              </div>
+              <div className="mb-3">
+                <label htmlFor="reason" className="form-label">Reason (Optional)</label>
+                <textarea id="reason" className="form-control" value={reason} onChange={(e) => setReason(e.target.value)} />
+              </div>
+            </Modal.Body>
+            <Modal.Footer>
+              <Button variant="secondary" onClick={() => setShowDiscountModal(false)}>Cancel</Button>
+              <Button variant="primary" onClick={handleApplyDiscount}>Apply</Button>
+            </Modal.Footer>
+          </Modal>
+          <Modal
+            show={showNewCustomerForm}
+            onHide={handleCloseCustomerModal}
+            centered
+            size="xl"
+            backdrop="static"
+            keyboard={false}
+          >
+            <Modal.Header closeButton style={{ padding: '0.5rem', margin: 0 }} >
+            </Modal.Header>
+            <Modal.Body style={{ padding: '0px', maxHeight: '780px', overflowY: 'auto' }}>
+              <AddCustomerModal />
+            </Modal.Body>
+            <Modal.Footer>
+              <Button variant="secondary" onClick={handleCloseCustomerModal}>
+                Close
+              </Button>
+            </Modal.Footer>
+          </Modal>
+
+          <Modal
+            show={showTaxModal}
+            onHide={() => setShowTaxModal(false)}
+            centered
+            size="xl"
+            backdrop="static"
+            keyboard={false}
+          >
+            <Modal.Header closeButton>
+              <Modal.Title>View Tax Rates</Modal.Title>
+            </Modal.Header>
+
+            <Modal.Body>
+              <div>
+                <h6>Tax Summary</h6>
+                <div style={{ overflowX: 'auto' }}>
+                  <table
+                    className="table table-bordered text-center"
+                    style={{ minWidth: '800px', width: '100%' }}  // Inline CSS applied here
+                  >
+                    <thead>
+                      <tr>
+                        <th>Subtotal</th>
+                        {taxRates.cgst > 0 && <th>CGST ({taxRates.cgst}%)</th>}
+                        {taxRates.sgst > 0 && <th>SGST ({taxRates.sgst}%)</th>}
+                        {taxRates.igst > 0 && <th>IGST ({taxRates.igst}%)</th>}
+                        {taxRates.cess > 0 && <th>CESS ({taxRates.cess}%)</th>}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>{taxCalc.subtotal.toFixed(2)}</td>
+                        {taxRates.cgst > 0 && <td>{taxCalc.cgstAmt.toFixed(2)}</td>}
+                        {taxRates.sgst > 0 && <td>{taxCalc.sgstAmt.toFixed(2)}</td>}
+                        {taxRates.igst > 0 && <td>{taxCalc.igstAmt.toFixed(2)}</td>}
+                        {taxRates.cess > 0 && <td>{taxCalc.cessAmt.toFixed(2)}</td>}
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </Modal.Body>
+
+            <Modal.Footer>
+              <Button variant="secondary" onClick={() => setShowTaxModal(false)}>Cancel</Button>
+              <Button variant="primary" onClick={handleSaveTax}>Save</Button>
+            </Modal.Footer>
+          </Modal>
+
+
+          <Modal show={showNCKOTModal} onHide={() => setShowNCKOTModal(false)} centered>
+            <Modal.Header closeButton>
+              <Modal.Title>NCKOT</Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+              <div className="mb-3">
+                <label>Name</label>
+                <input type="text" className="form-control" value={ncName} onChange={(e) => setNcName(e.target.value)} />
+              </div>
+              <div className="mb-3">
+                <label>Purpose</label>
+                <input type="text" className="form-control" value={ncPurpose} onChange={(e) => setNcPurpose(e.target.value)} />
+              </div>
+            </Modal.Body>
+            <Modal.Footer>
+              <Button variant="secondary" onClick={() => setShowNCKOTModal(false)}>Cancel</Button>
+              <Button variant="primary" onClick={handleSaveNCKOT}>Save</Button>
+            </Modal.Footer>
+          </Modal>
+
+          {/* Settlement Modal */}
+
+          {/* Main Settlement Modal */}
+          <Modal
+            show={showSettlementModal}
+            onHide={() => setShowSettlementModal(false)}
+            centered
+            onShow={() => {
+              // When the modal is shown, check if it's for single payment
+              if (!isMixedPayment) {
+                // Find the 'Cash' payment mode
+                const cashMode = outletPaymentModes.find(
+                  (mode) => mode.mode_name.toLowerCase() === 'cash'
+                );
+                if (cashMode) {
+                  // Automatically select 'Cash' and set the amount
+                  handlePaymentModeClick(cashMode);
+                }
+              }
+            }}
+            size="lg"
+          >
+            {/* Header */}
+            <Modal.Header closeButton className="border-0">
+              <Modal.Title className="fw-bold text-dark">Payment Mode</Modal.Title>
+            </Modal.Header>
+
+            {/* Body */}
+            <Modal.Body className="bg-light">
+              {/* Bill Summary */}
+              <div className="p-4 mb-4 bg-white rounded shadow-sm text-center">
+                <h6 className="text-secondary mb-2">Total Amount Due</h6>
+                <div className="fw-bold display-5 text-dark">
+                  ₹{grandTotal.toFixed(2)}
+                </div>
+              </div>
+
+              {/* Mixed Payment Toggle */}
+              <div className="d-flex justify-content-end mb-3">
+                <Form.Check
+                  type="switch"
+                  id="mixed-payment-switch"
+                  label="Mixed Payment"
+                  checked={isMixedPayment}
+                  onChange={(e) => {
+                    setIsMixedPayment(e.target.checked);
+                    setSelectedPaymentModes([]);
+                    setPaymentAmounts({});
+                  }}
+                />
+              </div>
+
+              {/* Payment Modes */}
+              <Row xs={1} md={2} className="g-3">
+                {outletPaymentModes.map((mode) => (
+                  <Col key={mode.id}>
+                    <Card
+                      onClick={() => handlePaymentModeClick(mode)}
+                      className={`text-center h-100 shadow-sm border-0 ${selectedPaymentModes.includes(mode.mode_name)
+                        ? "border border-primary"
+                        : ""
+                        }`}
+                      style={{
+                        cursor: "pointer",
+                        transition: "transform 0.2s ease, box-shadow 0.2s ease",
+                      }}
+                      onMouseEnter={(e) =>
+                        (e.currentTarget.style.transform = "translateY(-4px)")
+                      }
+                      onMouseLeave={(e) =>
+                        (e.currentTarget.style.transform = "translateY(0)")
+                      }
+                    >
+                      <Card.Body>
+                        <Card.Title className="fw-semibold">
+                          {mode.mode_name}
+                        </Card.Title>
+
+                        {/* Amount Input */}
+                        {selectedPaymentModes.includes(mode.mode_name) && (
+                          <Form.Control
+                            type="number"
+                            placeholder="0.00"
+                            value={paymentAmounts[mode.mode_name] || ""}
+                            onChange={(e) =>
+                              handlePaymentAmountChange(mode.mode_name, e.target.value)
+                            }
+                            onClick={(e) => e.stopPropagation()}
+                            autoFocus={isMixedPayment}
+                            readOnly={!isMixedPayment}
+                            className="mt-2 text-center"
+                          />
+                        )}
+                      </Card.Body>
+                    </Card>
+                  </Col>
+                ))}
+              </Row>
+
+              {/* Tip Input */}
+              <div className="mb-3 p-3 bg-white rounded shadow-sm">
+                <Form.Label className="fw-semibold text-dark mb-2">Optional Tip</Form.Label>
+                <Form.Control
+                  type="number"
+                  placeholder="0.00"
+                  value={tip || ""}
+                  onChange={(e) => setTip(parseFloat(e.target.value) || 0)}
+                  className="text-center"
+                  step="0.01"
+                />
+              </div>
+
+              {/* Payment Summary */}
+              <div className="mt-4 p-3 bg-white rounded shadow-sm">
+                <div className="d-flex justify-content-around fw-bold fs-5">
+                  <div>
+                    <span>Total Paid: </span>
+                    <span className="text-primary">{(totalPaid + (tip || 0)).toFixed(2)}</span>
+                  </div>
+                  <div>
+                    <span>Balance Due: </span>
+                    <span
+                      className={
+                        settlementBalance === 0 ? "text-success" : "text-danger"
+                      }
+                    >
+                      {settlementBalance.toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Validation Messages */}
+                {settlementBalance !== 0 && (
+                  <div className="text-danger mt-2 text-center small">
+                    Total paid amount + tip must match the grand total.
+                  </div>
+                )}
+                {settlementBalance === 0 && totalPaid + (tip || 0) > 0 && (
+                  <div className="text-success mt-2 text-center small">
+                    ✅ Payment amount + tip matches. Ready to settle.
+                  </div>
+                )}
+              </div>
+            </Modal.Body>
+
+            {/* Footer */}
+            <Modal.Footer className="border-0 justify-content-between">
+              <Button
+                variant="outline-secondary"
+                onClick={() => setShowSettlementModal(false)}
+                className="px-4"
+              >
+                Back
+              </Button>
+              <Button
+                variant="success"
+                onClick={handleSettleAndPrint}
+                disabled={settlementBalance !== 0 || totalPaid + (tip || 0) === 0}
+                className="px-4"
+              >
+                Settle & Print
+              </Button>
+            </Modal.Footer>
+          </Modal>
+
+
+          {/* F8PasswordModal */}
+
+          <F8PasswordModal
+            show={showF8PasswordModal}
+            onHide={() => {
+              setShowF8PasswordModal(false);
+              setF8PasswordError(''); // Clear error on close
+            }}
+            onSubmit={handleF8PasswordSubmit}
+            error={f8PasswordError}
+            loading={f8PasswordLoading}
+            txnId={currentTxnId?.toString()}
+          />
+
+          {/* F9 Billed Password Modal */}
+          <F8PasswordModal
+            show={showF9BilledPasswordModal}
+            onHide={() => {
+              setShowF9BilledPasswordModal(false);
+              setF9BilledPasswordError('');
+            }}
+            onSubmit={handleF9PasswordSubmit}
+            error={f9BilledPasswordError}
+            loading={f9BilledPasswordLoading}
+            title="Admin Password for Reversal"
+          />
+
+          <Modal show={showAuthModal} onHide={handleCloseAuthModal} centered>
+            <Modal.Header closeButton>
+              <Modal.Title>Reverse Qty Mode</Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+              <div className="mb-3">
+                <label>Password</label>
+                <input type="password" className="form-control" value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} onKeyPress={(e) => { if (e.key === 'Enter') handleAuth(); }} autoFocus />
+              </div>
+              {authError && <div className="text-danger">{authError}</div>}
+            </Modal.Body>
+            <Modal.Footer>
+              <Button variant="secondary" onClick={handleCloseAuthModal}>Cancel</Button>
+              <Button variant="primary" onClick={handleAuth}>Submit</Button>
+            </Modal.Footer>
+          </Modal>
         </div>
       </div>
     </div>
+  
   );
 };
 

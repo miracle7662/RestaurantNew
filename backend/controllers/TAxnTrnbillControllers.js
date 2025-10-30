@@ -2172,5 +2172,132 @@ exports.getBillStatusByTable = async (req, res) => {
   }
 };
 
+/* -------------------------------------------------------------------------- */
+/* 21) saveFullReverse → Save a full table reversal                           */
+/* -------------------------------------------------------------------------- */
+exports.saveFullReverse = async (req, res) => {
+  try {
+    const { txnId, tableId, reversedItems, userId } = req.body;
+
+    if (!txnId || !tableId || !Array.isArray(reversedItems) || reversedItems.length === 0) {
+      return res.status(400).json({ success: false, message: 'Missing required data for reversal.' });
+    }
+
+    const bill = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(txnId);
+    if (!bill) {
+      return res.status(404).json({ success: false, message: 'Transaction not found.' });
+    }
+
+    const trx = db.transaction(() => {
+      // 1. Insert new detail rows with negative quantities for each reversed item
+      const insertDetailStmt = db.prepare(`
+        INSERT INTO TAxnTrnbilldetails (
+          TxnID, outletid, ItemID, TableID, table_name, Qty, RuntimeRate, DeptID, HotelID,
+          isKOTGenerate, AutoKOT, KOTUsedDate, isBilled, isCancelled, isSetteled, isNCKOT, KOTNo
+        ) VALUES (
+          @TxnID, @outletid, @ItemID, @TableID, @table_name, @Qty, @RuntimeRate, @DeptID, @HotelID,
+          1, 1, datetime('now'), 0, 1, 0, @isNCKOT, @KOTNo
+        )
+      `);
+
+      for (const item of reversedItems) {
+        insertDetailStmt.run({
+          TxnID: txnId,
+          outletid: item.outletid || bill.outletid,
+          ItemID: item.id,
+          TableID: tableId,
+          table_name: bill.table_name,
+          Qty: -Math.abs(item.qty), // Ensure quantity is negative
+          RuntimeRate: item.price,
+          DeptID: item.DeptID || bill.DeptID,
+          HotelID: item.HotelID || bill.HotelID,
+          isNCKOT: item.isNCKOT || 0,
+          KOTNo: item.kotNo,
+        });
+      }
+
+      // 2. Mark the main bill as reversed and cancelled
+      db.prepare(`
+        UPDATE TAxnTrnbill 
+        SET isreversebill = 1, isCancelled = 1, status = 0 
+        WHERE TxnID = ?
+      `).run(txnId);
+
+      // 3. Update the table status to vacant (0)
+      db.prepare('UPDATE msttablemanagement SET status = 0 WHERE tableid = ?').run(tableId);
+    });
+
+    trx();
+    res.json({ success: true, message: 'Full table reversal saved successfully.' });
+
+  } catch (error) {
+    console.error('Error in saveFullReverse:', error);
+    res.status(500).json({ success: false, message: 'Failed to save full reversal.', error: error.message });
+  }
+};
+
+/* -------------------------------------------------------------------------- */
+/* 21) saveFullReverse → Save a full table reversal                           */
+/* -------------------------------------------------------------------------- */
+exports.saveFullReverse = async (req, res) => {
+  try {
+    const { txnId, tableId, reversedItems, userId } = req.body;
+
+    if (!txnId || !tableId || !Array.isArray(reversedItems) || reversedItems.length === 0) {
+      return res.status(400).json({ success: false, message: 'Missing required data for reversal.' });
+    }
+
+    const bill = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(txnId);
+    if (!bill) {
+      return res.status(404).json({ success: false, message: 'Transaction not found.' });
+    }
+
+    const trx = db.transaction(() => {
+      // 1. Insert new detail rows with negative quantities for each reversed item
+      const insertDetailStmt = db.prepare(`
+        INSERT INTO TAxnTrnbilldetails (
+          TxnID, outletid, ItemID, TableID, table_name, Qty, RuntimeRate, DeptID, HotelID,
+          isKOTGenerate, AutoKOT, KOTUsedDate, isBilled, isCancelled, isSetteled, isNCKOT, KOTNo
+        ) VALUES (
+          @TxnID, @outletid, @ItemID, @TableID, @table_name, @Qty, @RuntimeRate, @DeptID, @HotelID,
+          1, 1, datetime('now'), 0, 1, 0, @isNCKOT, @KOTNo
+        )
+      `);
+
+      for (const item of reversedItems) {
+        insertDetailStmt.run({
+          TxnID: txnId,
+          outletid: item.outletid || bill.outletid,
+          ItemID: item.id,
+          TableID: tableId,
+          table_name: bill.table_name,
+          Qty: -Math.abs(item.qty), // Ensure quantity is negative
+          RuntimeRate: item.price,
+          DeptID: item.DeptID || bill.DeptID,
+          HotelID: item.HotelID || bill.HotelID,
+          isNCKOT: item.isNCKOT || 0,
+          KOTNo: item.kotNo,
+        });
+      }
+
+      // 2. Mark the main bill as reversed and cancelled
+      db.prepare(`
+        UPDATE TAxnTrnbill 
+        SET isreversebill = 1, isCancelled = 1, status = 0 
+        WHERE TxnID = ?
+      `).run(txnId);
+
+      // 3. Update the table status to vacant (0)
+      db.prepare('UPDATE msttablemanagement SET status = 0 WHERE tableid = ?').run(tableId);
+    });
+
+    trx();
+    res.json({ success: true, message: 'Full table reversal saved successfully.' });
+
+  } catch (error) {
+    console.error('Error in saveFullReverse:', error);
+    res.status(500).json({ success: false, message: 'Failed to save full reversal.', error: error.message });
+  }
+};
 
 module.exports = exports
