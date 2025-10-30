@@ -5,5 +5,6 @@ const Dayendcontroller = require('../controllers/Dayendcontroller');
 router.get('/data', Dayendcontroller.getDayendData);
 router.post('/dayend-cash-denomination', Dayendcontroller.saveDayEndCashDenomination);
 router.post('/save-dayend', Dayendcontroller.saveDayEnd);
+router.get('/latest-curr-date', Dayendcontroller.getLatestCurrDate);
 
 module.exports = router;

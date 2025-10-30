@@ -395,9 +395,32 @@ const saveDayEnd = async (req, res) => {
 
 
 
+const getLatestCurrDate = (req, res) => {
+  try {
+    const query = `
+      SELECT curr_date FROM trn_dayend
+      ORDER BY id DESC LIMIT 1
+    `;
+    const row = db.prepare(query).get();
+
+    if (row) {
+      res.json({ success: true, curr_date: row.curr_date });
+    } else {
+      // If no dayend done yet, return current date as fallback
+      const now = new Date();
+      const indiaTime = new Date(now.getTime() + (5.5 * 60 * 60 * 1000));
+      const currentDate = `${indiaTime.getFullYear()}-${String(indiaTime.getMonth() + 1).padStart(2, '0')}-${String(indiaTime.getDate()).padStart(2, '0')}`;
+      res.json({ success: true, curr_date: currentDate });
+    }
+  } catch (error) {
+    console.error('Error fetching latest curr_date:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch latest curr_date' });
+  }
+};
+
 module.exports = {
   getDayendData,
   saveDayEndCashDenomination,
   saveDayEnd,
-  
+  getLatestCurrDate,
 };

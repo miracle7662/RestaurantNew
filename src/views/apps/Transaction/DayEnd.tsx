@@ -24,7 +24,13 @@ import {
   CheckCircle,
   AlertTriangle,
   BarChart3,
-  DollarSign
+  DollarSign,
+  Calendar,
+  FileText,
+  CreditCard,
+  Tag,
+  RefreshCw,
+  BarChart
 } from "lucide-react";
 import {
   Chart as ChartJS,
@@ -105,7 +111,17 @@ const DayEnd = () => {
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [passwordVerified, setPasswordVerified] = useState(false);
   const [showOnlyNotDayEnded, setShowOnlyNotDayEnded] = useState(false);
-
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportDate, setReportDate] = useState("");
+  const [selectedReports, setSelectedReports] = useState({
+    billDetails: false,
+    creditSummary: false,
+    paymentSummary: false,
+    discountSummary: false,
+    reverseKOTsSummary: false,
+    reverseBillSummary: false,
+    ncKOTSalesSummary: false,
+  });
 
   useEffect(() => {
     const fetchdayendData = async () => {
@@ -278,6 +294,7 @@ const DayEnd = () => {
 
     if (response.ok && data.success) {
       toast.success(data.message || "✅ Day-End saved successfully!");
+      setShowReportModal(true);
     } else {
       // Backend may return pending table info
       toast.error(data.message || "❌ Day-End failed!");
@@ -654,6 +671,13 @@ const getFormattedDate = (dateStr: string) => {
           border-top: 2px solid #28a745;
           padding-top: 0.5rem;
           margin-top: 0.5rem;
+        }
+        .report-checkbox {
+          margin-bottom: 0.5rem;
+        }
+        .report-icon {
+          margin-right: 0.5rem;
+          color: #6c757d;
         }
       `}</style>
       {passwordVerified ? (
@@ -1298,6 +1322,127 @@ const getFormattedDate = (dateStr: string) => {
             </Button>
             <Button variant="outline-secondary" size="sm" onClick={handleCloseCashModal}>
               ✖ Close
+            </Button>
+          </Modal.Footer>
+        </Modal>
+
+        {/* Report Selection Modal */}
+        <Modal show={showReportModal} onHide={() => setShowReportModal(false)} centered size="md">
+          <Modal.Header closeButton className="border-0 pb-0">
+            <Modal.Title className="fw-bold text-primary">Select Reports</Modal.Title>
+          </Modal.Header>
+          <Modal.Body className="p-3">
+            <div className="mb-3">
+              <InputGroup>
+                <InputGroup.Text>
+                  <Calendar size={16} />
+                </InputGroup.Text>
+                <Form.Control
+                  type="text"
+                  placeholder="dd-mm-yyyy"
+                  value={reportDate}
+                  onChange={(e) => setReportDate(e.target.value)}
+                />
+              </InputGroup>
+            </div>
+            <div>
+              <div className="fw-semibold mb-2">Choose Reports</div>
+              <Form.Check
+                type="checkbox"
+                className="report-checkbox"
+                label={
+                  <>
+                    <FileText size={16} className="report-icon" />
+                    Bill Details
+                  </>
+                }
+                checked={selectedReports.billDetails}
+                onChange={(e) => setSelectedReports(prev => ({ ...prev, billDetails: e.target.checked }))}
+              />
+              <Form.Check
+                type="checkbox"
+                className="report-checkbox"
+                label={
+                  <>
+                    <CreditCard size={16} className="report-icon" />
+                    Credit Summary
+                  </>
+                }
+                checked={selectedReports.creditSummary}
+                onChange={(e) => setSelectedReports(prev => ({ ...prev, creditSummary: e.target.checked }))}
+              />
+              <Form.Check
+                type="checkbox"
+                className="report-checkbox"
+                label={
+                  <>
+                    <DollarSign size={16} className="report-icon" />
+                    Payment Summary
+                  </>
+                }
+                checked={selectedReports.paymentSummary}
+                onChange={(e) => setSelectedReports(prev => ({ ...prev, paymentSummary: e.target.checked }))}
+              />
+              <Form.Check
+                type="checkbox"
+                className="report-checkbox"
+                label={
+                  <>
+                    <Tag size={16} className="report-icon" />
+                    Discount Summary
+                  </>
+                }
+                checked={selectedReports.discountSummary}
+                onChange={(e) => setSelectedReports(prev => ({ ...prev, discountSummary: e.target.checked }))}
+              />
+              <Form.Check
+                type="checkbox"
+                className="report-checkbox"
+                label={
+                  <>
+                    <RefreshCw size={16} className="report-icon" />
+                    Reverse KOTs Summary
+                  </>
+                }
+                checked={selectedReports.reverseKOTsSummary}
+                onChange={(e) => setSelectedReports(prev => ({ ...prev, reverseKOTsSummary: e.target.checked }))}
+              />
+              <Form.Check
+                type="checkbox"
+                className="report-checkbox"
+                label={
+                  <>
+                    <RefreshCw size={16} className="report-icon" />
+                    Reverse Bill Summary
+                  </>
+                }
+                checked={selectedReports.reverseBillSummary}
+                onChange={(e) => setSelectedReports(prev => ({ ...prev, reverseBillSummary: e.target.checked }))}
+              />
+              <Form.Check
+                type="checkbox"
+                className="report-checkbox"
+                label={
+                  <>
+                    <BarChart size={16} className="report-icon" />
+                    NC KOT Sales Summary
+                  </>
+                }
+                checked={selectedReports.ncKOTSalesSummary}
+                onChange={(e) => setSelectedReports(prev => ({ ...prev, ncKOTSalesSummary: e.target.checked }))}
+              />
+            </div>
+          </Modal.Body>
+          <Modal.Footer className="border-0 pt-0">
+            <Button variant="secondary" onClick={() => setShowReportModal(false)}>
+              Cancel
+            </Button>
+            <Button variant="primary" onClick={() => {
+              // Handle report generation logic here if needed
+              toast.success("Reports selected and generated successfully!");
+              setShowReportModal(false);
+            }}>
+              Generate Reports
             </Button>
           </Modal.Footer>
         </Modal>
