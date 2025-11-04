@@ -1833,10 +1833,15 @@ const Order = () => {
 
         const isBilled = items.some(item => item.isBilled === 1);
 
+        // The user wants F8 to work ONLY on billed tables.
         if (isBilled) {
           // Billed table: show password modal for admin verification
           setShowF8PasswordModal(true);
           return; // Stop further execution
+        } else {
+          // Unbilled table: show an error and do not proceed.
+          toast.error("F8 (Reverse Qty) is only available for billed orders.");
+          return;
         }
 
         // UNBILLED TABLE: Proceed with normal F8 functionality (outlet setting based)
