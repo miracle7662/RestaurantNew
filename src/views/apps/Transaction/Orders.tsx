@@ -994,6 +994,12 @@ const Order = () => {
         return;
       }
 
+      // Check if it's the last item on a billed order
+      if (item.isBilled === 1 && items.length === 1 && items[0].qty === 1) {
+        toast.error("At least one item must remain. You cannot reverse all items.");
+        return;
+      }
+
       
 
 
@@ -1452,12 +1458,6 @@ const Order = () => {
       }));
 
       const combinedPayload = [...newKotItemsPayload, ...reverseKotItemsPayload];
-
-      if (combinedPayload.length === 0) {
-        toast.error('No new or reversed item quantities to save.');
-        setLoading(false);
-        return;
-      }
 
       // Find the first NCKOT item to get the overall NCName and NCPurpose for the bill header
       const firstNCItem = newKotItemsPayload.find(item => item.isNCKOT);
