@@ -1604,15 +1604,7 @@ const Order = () => {
       return;
     }
 
-    // All original items are considered reversed in this scenario
-    const allOriginalItems = items.map(item => ({
-      id: item.id,
-      qty: item.originalQty || item.qty, // Use originalQty if available
-      price: item.price,
-      kotNo: item.kotNo,
-      // Include other necessary fields if your backend needs them
-    }));
-
+    // Reversed items are taken from reverseQtyItems and sent to the backend.
     setLoading(true);
     try {
       const response = await fetch('http://localhost:3001/api/TAxnTrnbill/save-full-reverse', {

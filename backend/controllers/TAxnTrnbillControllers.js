@@ -1477,7 +1477,7 @@ exports.getLatestBilledBillForTable = async (req, res) => {
     const bill = db.prepare(`
       SELECT * 
       FROM TAxnTrnbill 
-      WHERE TableID = ? AND isBilled = 1 AND isSetteled = 0 AND isreversebill = 0
+      WHERE TableID = ? AND isBilled = 1 AND isSetteled = 0 AND isreversebill = 0 AND isCancelled = 0
       ORDER BY TxnID DESC 
       LIMIT 1
     `).get(Number(tableId));
