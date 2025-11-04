@@ -994,6 +994,13 @@ const Order = () => {
         return;
       }
 
+      // Check if this is the last item with quantity 1
+      if (items.length === 1 && item.qty === 1) {
+        toast.error("At least one item must remain. You cannot reverse all items.");
+        return;
+      }
+
+
       if (!selectedTable || !item.txnDetailId) {
         toast.error('Unable to process reverse quantity - missing table or item details');
         return;
