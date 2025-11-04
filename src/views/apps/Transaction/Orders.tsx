@@ -1825,6 +1825,12 @@ const Order = () => {
           return;
         }
 
+        // Check if there are any items on the table
+        if (items.length === 0) {
+          toast.error("No items on the table to reverse.");
+          return;
+        }
+
         const isBilled = items.some(item => item.isBilled === 1);
 
         if (isBilled) {
