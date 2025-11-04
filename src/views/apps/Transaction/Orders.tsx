@@ -1604,7 +1604,8 @@ const Order = () => {
       return;
     }
 
-    // Reversed items are taken from reverseQtyItems and sent to the backend.
+   
+
     setLoading(true);
     try {
       const response = await fetch('http://localhost:3001/api/TAxnTrnbill/save-full-reverse', {
