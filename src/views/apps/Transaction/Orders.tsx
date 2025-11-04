@@ -994,11 +994,7 @@ const Order = () => {
         return;
       }
 
-      // Check if this is the last item with quantity 1
-      if (items.length === 1 && item.qty === 1) {
-        toast.error("At least one item must remain. You cannot reverse all items.");
-        return;
-      }
+      
 
 
       if (!selectedTable || !item.txnDetailId) {
@@ -1833,15 +1829,10 @@ const Order = () => {
 
         const isBilled = items.some(item => item.isBilled === 1);
 
-        // The user wants F8 to work ONLY on billed tables.
         if (isBilled) {
           // Billed table: show password modal for admin verification
           setShowF8PasswordModal(true);
           return; // Stop further execution
-        } else {
-          // Unbilled table: show an error and do not proceed.
-          toast.error("F8 (Reverse Qty) is only available for billed orders.");
-          return;
         }
 
         // UNBILLED TABLE: Proceed with normal F8 functionality (outlet setting based)
