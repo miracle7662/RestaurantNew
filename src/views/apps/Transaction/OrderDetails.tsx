@@ -14,6 +14,7 @@ interface MenuItemState {
   isNCKOT: number;
   NCName: string;
   NCPurpose: string;
+  kotNo?: number;
   isNew?: boolean; // Added to track new items not yet sent to KOT
 }
 

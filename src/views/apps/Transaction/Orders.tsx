@@ -68,6 +68,8 @@ interface PaymentMode {
   mode_name: string;
 }
 
+
+
 const Order = () => {
   const [selectedTable, setSelectedTable] = useState<string | null>('');
   const [items, setItems] = useState<MenuItem[]>([]);
@@ -1287,6 +1289,7 @@ const Order = () => {
       // 5. Refresh the page to reflect all changes
       window.location.reload();
       // 5. Refresh the table list to show the new 'billed' status (red color)
+
       fetchTableManagement();
     } catch (error: any) {
       console.error('Error printing bill:', error);
@@ -1590,6 +1593,88 @@ const Order = () => {
       setLoading(false);
     }
   };
+
+  const handlePrintKOTAndBill = async () => {
+    if (items.length === 0) {
+      toast.error('No items to process.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // --- Step 1: Call Print KOT logic ---
+      const newItemsToKOT = items.filter(item => item.isNew);
+      if (newItemsToKOT.length === 0) {
+        toast.error('No new items to save as KOT.');
+        setLoading(false);
+        return;
+      }
+
+      // --- Step 1.5: Calculate totals and taxes ---
+      const subtotal = newItemsToKOT.reduce((sum, item) => sum + item.price * item.qty, 0);
+      const finalDiscount = discount; // Use the discount from state
+      const cgstAmt = (subtotal * taxRates.cgst) / 100;
+      const sgstAmt = (subtotal * taxRates.sgst) / 100;
+      const igstAmt = (subtotal * taxRates.igst) / 100;
+      const cessAmt = (subtotal * taxRates.cess) / 100;
+      const grandTotal = subtotal - finalDiscount + cgstAmt + sgstAmt + igstAmt + cessAmt;
+      const finalRoundOff = Math.round(grandTotal) - grandTotal;
+
+      const kotPayload = {
+        txnId: currentTxnId || 0,
+        tableId: null, // Quick Bill does not have a tableId
+        table_name: 'Quick Bill',
+        items: newItemsToKOT.map(i => ({
+          ItemID: i.id,
+          Qty: i.qty,
+          RuntimeRate: i.price,
+          CGST: taxRates.cgst,
+          SGST: taxRates.sgst,
+          IGST: taxRates.igst,
+          CESS: taxRates.cess,
+          outletid: selectedOutletId || Number(user?.outletid),
+          HotelID: user?.hotelid,
+        })),
+        outletid: selectedOutletId || Number(user?.outletid),
+        userId: user?.id,
+        hotelId: user?.hotelid,
+        Order_Type: 'Quick Bill',
+        GrossAmt: subtotal,
+        Discount: finalDiscount,
+        CGST: cgstAmt,
+        SGST: sgstAmt,
+        CESS: cessAmt,
+        RoundOFF: finalRoundOff,
+        Amount: grandTotal,
+      };
+
+      const kotResponse = await createKOT(kotPayload);
+      if (!kotResponse?.success || !kotResponse.data?.TxnID) {
+        throw new Error(kotResponse?.message || 'Failed to save KOT.');
+      }
+
+      const newTxnId = kotResponse.data.TxnID;
+
+      // --- Step 2: Immediately call Final Bill Save logic ---
+      const printResponse = await fetch(`http://localhost:3001/api/TAxnTrnbill/${newTxnId}/mark-billed`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      const printResult = await printResponse.json();
+      if (!printResult.success) {
+        throw new Error(printResult.message || 'Failed to mark bill as printed.');
+      }
+
+      toast.success('KOT + Bill printed successfully!');
+      window.location.reload(); // Refresh to clear state and show updated table statuses
+    } catch (error: any) {
+      toast.error(error.message || 'An error occurred during the process.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSaveReverse = async () => {
     if (!persistentTxnId || !persistentTableId) {
       toast.error("Cannot save reversal. No active transaction or table found.");
@@ -3960,26 +4045,32 @@ const Order = () => {
                 <div className="bg-white border rounded p-2">                  
                   {(showSaveReverseButton || (items.length === 0 && reverseQtyItems.length > 0)) && (
                     <Button
-                      variant="danger"
-                      className="fw-bold mt-2 w-100"
-                      disabled={isSaveReverseDisabled}
-                      onClick={handleSaveReverse}
+                      variant="danger" className="fw-bold mt-2 w-100" disabled={isSaveReverseDisabled} onClick={handleSaveReverse}
                     >
                       {isSaveReverseDisabled ? "Saving..." : "Save Reverse"}
                     </Button>
                   )}
 
                   {discount > 0 && (
-                    <div className="d-flex justify-content-between"><span>Discount ({DiscountType === 1 ? `${DiscPer}%` : 'Amt'})</span><span>- {discount.toFixed(2)}</span></div>
+                    <div className="d-flex justify-content-between">
+                      <span>Discount ({DiscountType === 1 ? `${DiscPer}%` : 'Amt'})</span>
+                      <span>- {discount.toFixed(2)}</span>
+                    </div>
                   )}
                   <div className="col-12 d-flex align-items-center">
                     {items.length > 0 && (
                       <div className="d-flex align-items-center gap-2">
-                        {hasModifications ? (
-                          <button
-                            className="btn btn-dark rounded btn-sm"
-                            onClick={handlePrintAndSaveKOT}
+                        {activeTab === 'Quick Bill' ? (
+                          <Button
+                            size="sm"
+                            variant="success"
+                            onClick={handlePrintKOTAndBill}
+                            disabled={loading}
                           >
+                            ✅ Print KOT & Bill
+                          </Button>
+                        ) : hasModifications ? (
+                          <button className="btn btn-dark rounded btn-sm" onClick={handlePrintAndSaveKOT}>
                             Print & Save KOT
                           </button>
                         ) : billActionState === 'initial' ? (
