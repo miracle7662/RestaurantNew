@@ -1076,27 +1076,6 @@ const Order = () => {
       if (item.isBilled === 1 && selectedTableId) {
         refreshItemsForTable(selectedTableId);
       }
-
-      // Also update the database (optional - for persistence)
-      try {
-        const response = await fetch('http://localhost:3001/api/TAxnTrnbill/reverse-quantity', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            txnDetailId: item.txnDetailId,
-            userId: user?.id, // Add the user ID here
-          }),
-        });
-
-        if (!response.ok) {
-          console.log('Database update failed, but frontend update succeeded');
-        }
-      } catch (dbError) {
-        console.log('Database update failed, but frontend update succeeded');
-      }
-
     } catch (error) {
       console.error('Error processing reverse quantity:', error);
       toast.error('Error processing reverse quantity');
@@ -1614,38 +1593,54 @@ const Order = () => {
       toast.error("Cannot save reversal. No active transaction or table found.");
       return;
     }
-  
+
     setIsSaveReverseDisabled(true);
-  
+
     try {
-      const response = await fetch('http://localhost:3001/api/TAxnTrnbill/save-full-reverse', {
+      const response = await fetch('http://localhost:3001/api/TAxnTrnbill/create-reverse-kot', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           txnId: persistentTxnId,
           tableId: persistentTableId,
           reversedItems: reverseQtyItems,
-          userId: user?.id,
+          userId: user?.id
         }),
       });
-  
+
       const result = await response.json();
       if (result.success) {
-        toast.success('Reversed items saved successfully.');
+        toast.success('Reverse KOT processed successfully.');
+
+        // Open print preview for the reverse KOT
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+          const contentToPrint = document.getElementById('kot-preview');
+          if (contentToPrint) {
+            printWindow.document.write(contentToPrint.innerHTML);
+            printWindow.document.close();
+            printWindow.focus();
+            printWindow.print();
+          }
+        }
+
+        // Reset UI after successful reversal and print
         setReverseQtyMode(false);
         setShowSaveReverseButton(false);
         setReverseQtyItems([]);
         setSelectedTable(null);
+        setShowOrderDetails(false);
         fetchTableManagement();
       } else {
-        toast.error(result.message);
-        setIsSaveReverseDisabled(false);
+        throw new Error(result.message || 'Failed to process reverse KOT.');
       }
-    } catch (error) {
-      toast.error('Error while saving reversal.');
+    } catch (error: any) {
+      toast.error(error.message || 'Error while saving reversal.');
+    } finally {
       setIsSaveReverseDisabled(false);
     }
   };
+
   const handleF8PasswordSubmit = async (password: string, txnId?: string) => {
     if (!user?.token) {
       toast.error("Authentication token not found. Please log in again.");

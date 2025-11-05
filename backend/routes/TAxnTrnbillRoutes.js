@@ -44,7 +44,7 @@ router.post('/:id/discount', controller.applyDiscountToBill); // Apply a discoun
 // --- Reversal / F8 Actions ---
 router.post('/reverse-qty', controller.handleF8KeyPress); // Legacy F8 handler
 router.post('/reverse-quantity', controller.reverseQuantity); // Simple reverse quantity for one item
-router.post('/save-full-reverse', controller.saveFullReverse); // Save a full table reversal (F8)
+router.post('/create-reverse-kot', controller.createReverseKOT); // Process and print a reverse KOT
 
 // --- Bill Reversal (F9) ---
 router.post('/:id/reverse', controller.reverseBill); // Mark a bill as reversed

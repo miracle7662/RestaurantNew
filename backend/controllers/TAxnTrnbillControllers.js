@@ -925,6 +925,86 @@ exports.createKOT = async (req, res) => {
 }
 
 /* -------------------------------------------------------------------------- */
+/* 22) createReverseKOT → Log reversed items and generate a reverse KOT       */
+/* -------------------------------------------------------------------------- */
+exports.createReverseKOT = async (req, res) => {
+  try {
+    const { txnId, tableId, reversedItems, userId } = req.body;
+
+    if (!txnId || !tableId || !Array.isArray(reversedItems) || reversedItems.length === 0) {
+      return res.status(400).json({ success: false, message: 'Missing required data for reversal.' });
+    }
+
+    const trx = db.transaction(() => {
+      const updateDetailStmt = db.prepare(`
+        UPDATE TAxnTrnbilldetails 
+        SET RevQty = COALESCE(RevQty, 0) + ? 
+        WHERE TXnDetailID = ?
+      `);
+
+      const logReversalStmt = db.prepare(`
+        INSERT INTO TAxnTrnReversalLog (
+          TxnDetailID, TxnID, KOTNo, ItemID, ActualQty, ReversedQty, RemainingQty, 
+          IsBeforeBill, IsAfterBill, ReversedByUserID, ReversalReason
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+
+      let totalReverseAmount = 0;
+
+      for (const item of reversedItems) {
+        if (!item.txnDetailId || !item.qty) continue;
+
+        const detail = db.prepare('SELECT * FROM TAxnTrnbilldetails WHERE TXnDetailID = ?').get(item.txnDetailId);
+        if (detail) {
+          const newRevQty = (detail.RevQty || 0) + item.qty;
+          updateDetailStmt.run(item.qty, item.txnDetailId);
+
+          const remainingQty = detail.Qty - newRevQty;
+          logReversalStmt.run(
+            item.txnDetailId,
+            detail.TxnID,
+            detail.KOTNo,
+            detail.ItemID,
+            detail.Qty,
+            item.qty,
+            remainingQty,
+            detail.isBilled ? 0 : 1, // IsBeforeBill
+            detail.isBilled ? 1 : 0, // IsAfterBill
+            userId,
+            'Item Reversed' // Reason
+          );
+
+          totalReverseAmount += (Number(detail.RuntimeRate) || 0) * item.qty;
+        }
+      }
+
+      // Update the RevKOT amount on the main bill header
+      if (totalReverseAmount > 0) {
+        db.prepare(`
+          UPDATE TAxnTrnbill
+          SET RevKOT = COALESCE(RevKOT, 0) + ?
+          WHERE TxnID = ?
+        `).run(totalReverseAmount, txnId);
+      }
+
+      // Optionally, if you want to fully cancel the bill if all items are reversed:
+      // const remainingItems = db.prepare('SELECT SUM(Qty - RevQty) as netQty FROM TAxnTrnbilldetails WHERE TxnID = ?').get(txnId);
+      // if (remainingItems && remainingItems.netQty <= 0) {
+      //   db.prepare(`UPDATE TAxnTrnbill SET isCancelled = 1, status = 0 WHERE TxnID = ?`).run(txnId);
+      //   db.prepare('UPDATE msttablemanagement SET status = 0 WHERE tableid = ?').run(tableId);
+      // }
+    });
+
+    trx();
+    res.json({ success: true, message: 'Reversed items processed successfully.' });
+
+  } catch (error) {
+    console.error('Error in createReverseKOT:', error);
+    res.status(500).json({ success: false, message: 'Failed to process reversed items.', error: error.message });
+  }
+};
+
+/* -------------------------------------------------------------------------- */
 /* 9) getSavedKOTs → fetch all unbilled KOTs for table, merged                */
 /* -------------------------------------------------------------------------- */
 exports.getSavedKOTs = async (req, res) => {
@@ -2207,19 +2287,7 @@ exports.saveFullReverse = async (req, res) => {
                     updateDetailStmt.run(item.qty, item.txnDetailId);
 
                     const remainingQty = detail.Qty - newRevQty;
-                    logReversalStmt.run(
-                        item.txnDetailId,
-                        detail.TxnID,
-                        detail.KOTNo,
-                        detail.ItemID,
-                        detail.Qty,
-                        item.qty,
-                        remainingQty,
-                        detail.isBilled ? 0 : 1,
-                        detail.isBilled ? 1 : 0,
-                        userId,
-                        'Full Reverse Save'
-                    );
+                    logReversalStmt.run(item.txnDetailId, detail.TxnID, detail.KOTNo, detail.ItemID, detail.Qty, item.qty, remainingQty, detail.isBilled ? 0 : 1, detail.isBilled ? 1 : 0, userId, 'Full Reverse Save');
                 }
             }
 
@@ -2235,4 +2303,4 @@ exports.saveFullReverse = async (req, res) => {
         res.status(500).json({ success: false, message: 'Failed to save full reversal.', error: error.message });
     }
 };
-module.exports = exports
+module.exports = exports;
