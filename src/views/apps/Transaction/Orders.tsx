@@ -1912,14 +1912,25 @@ const Order = () => {
           console.log(`Ctrl + ${tabIndex} pressed, activating tab: ${selectedTab}`);
         }
       }
-      if (e.key === 'F8') {
-        e.preventDefault();
+    if (e.key === "F8") {
+  e.preventDefault();
 
-        if (!selectedTable) {
-          toast.error("Please select a table first.");
-          return;
-        }
+  // ✅ If Dine-in tab → Table must be selected
+  if (activeTab === "Dine-in" && !selectedTable) {
+    toast.error("Please select a table first.");
+    return;
+  }
 
+  // ✅ If Pickup / Delivery / QuickBill → Order must exist (TxnID required)
+  if (
+    (activeTab === "Pickup" ||
+      activeTab === "Delivery" ||
+      activeTab === "Quick Bill") &&
+    !persistentTxnId
+  ) {
+    toast.error("No active order found to reverse!");
+    return;
+  }
         // Check if there are any items on the table
         if (items.length === 0) {
           toast.error("No items on the table to reverse.");
@@ -2342,6 +2353,7 @@ const Order = () => {
 
     // 3. Load the order's data into the state
     setCurrentTxnId(order.id);
+    setPersistentTxnId(order.id); // Set the persistent ID for F8 functionality
     setTxnNo(order.kotNo);
     setCustomerName(order.customer.name);
     setMobileNumber(order.customer.mobile);
