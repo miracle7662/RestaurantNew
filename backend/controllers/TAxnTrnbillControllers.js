@@ -751,15 +751,16 @@ exports.createKOT = async (req, res) => {
       let finalDiscountType = Number(DiscountType) || 0;
       const isHeaderNCKOT = details.some(item => toBool(item.isNCKOT));
 
-      // Use the provided txnId from the payload if it exists
+       // Use the provided txnId from the payload if it exists
       const { txnId: payloadTxnId } = req.body;
 
       let existingBill = null;
-      // Search for an existing bill by TableID (for Dine-in) or by TxnID (for Pickup/Delivery)
+        // Search for an existing bill by TableID (for Dine-in) or by TxnID (for Pickup/Delivery)
       if (payloadTxnId) { // This check is now first
         // For Pickup/Delivery or subsequent KOTs for Dine-in, find the bill by its TxnID
         existingBill = db.prepare('SELECT TxnID, DiscPer, Discount, DiscountType, isNCKOT FROM TAxnTrnbill WHERE TxnID = ?').get(payloadTxnId);
       } else if (TableID && TableID > 0) {
+     
         existingBill = db.prepare(`
           SELECT TxnID, DiscPer, Discount, DiscountType, isNCKOT FROM TAxnTrnbill
           WHERE TableID = ? AND isCancelled = 0 AND isSetteled = 0 ORDER BY TxnID DESC LIMIT 1
