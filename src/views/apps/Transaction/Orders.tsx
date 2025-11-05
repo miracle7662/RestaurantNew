@@ -119,6 +119,8 @@ const Order = () => {
   const [f8PasswordError, setF8PasswordError] = useState<string>('');
   const [f8PasswordLoading, setF8PasswordLoading] = useState<boolean>(false);
 
+  const [showSaveReverseButton, setShowSaveReverseButton] = useState(false);
+  const [isSaveReverseDisabled, setIsSaveReverseDisabled] = useState(false);
   // New state for F9 password modal for reversing orders
 
 
@@ -1021,6 +1023,9 @@ const Order = () => {
             if (item.isBilled === 1) {
               toast.success(`Reversed 1 qty of "${item.name}"`);
             } else {
+          if (reverseQtyMode) {
+            setShowSaveReverseButton(true);
+          }
               toast.success(`Quantity decreased for "${item.name}" (${currentItem.qty - 1} remaining)`);
             }
 
@@ -1043,6 +1048,9 @@ const Order = () => {
             if (item.isBilled === 1) {
               toast.success(`Reversed 1 qty of "${item.name}"`);
             } else {
+              if (reverseQtyMode) {
+                setShowSaveReverseButton(true);
+              }
               toast.success(`"${item.name}" removed from order`);
             }
 
@@ -1603,13 +1611,12 @@ const Order = () => {
   };
   const handleSaveReverse = async () => {
     if (!persistentTxnId || !persistentTableId) {
-      toast.error("Cannot save reversal. No active transaction or table selected for reversal.");
+      toast.error("Cannot save reversal. No active transaction or table found.");
       return;
     }
-
-   
-
-    setLoading(true);
+  
+    setIsSaveReverseDisabled(true);
+  
     try {
       const response = await fetch('http://localhost:3001/api/TAxnTrnbill/save-full-reverse', {
         method: 'POST',
@@ -1617,31 +1624,26 @@ const Order = () => {
         body: JSON.stringify({
           txnId: persistentTxnId,
           tableId: persistentTableId,
-          reversedItems: reverseQtyItems, // Use the correct list of reversed items
+          reversedItems: reverseQtyItems,
           userId: user?.id,
         }),
       });
-
+  
       const result = await response.json();
       if (result.success) {
-        toast.success('Table reversal saved successfully!');
-        // Reset all relevant states
-        setReverseQtyItems([]);
+        toast.success('Reversed items saved successfully.');
         setReverseQtyMode(false);
-        setItems([]);
+        setShowSaveReverseButton(false);
+        setReverseQtyItems([]);
         setSelectedTable(null);
-        setCurrentTxnId(null);
-        setPersistentTxnId(null);
-        setPersistentTableId(null);
-        setShowOrderDetails(false);
-        fetchTableManagement(); // Refresh table grid
+        fetchTableManagement();
       } else {
-        throw new Error(result.message || 'Failed to save reversal.');
+        toast.error(result.message);
+        setIsSaveReverseDisabled(false);
       }
-    } catch (error: any) {
-      toast.error(error.message || 'An error occurred while saving the reversal.');
-    } finally {
-      setLoading(false);
+    } catch (error) {
+      toast.error('Error while saving reversal.');
+      setIsSaveReverseDisabled(false);
     }
   };
   const handleF8PasswordSubmit = async (password: string, txnId?: string) => {
@@ -1684,6 +1686,8 @@ const Order = () => {
         // Proceed with F8 action: activate reverse mode, set expanded view, refresh items, initialize reverseQtyItems
         setReverseQtyMode(true);
         setIsGroupedView(false);
+        setShowSaveReverseButton(true);
+        setIsSaveReverseDisabled(false);
         setReverseQtyItems([]); // Initialize empty for reversals
         // Refresh items to get latest net qty from backend
         if (selectedTableId) {
@@ -3927,6 +3931,17 @@ const Order = () => {
                       </Button>
                     );
                   })()}
+
+                  {showSaveReverseButton && (
+                    <Button
+                      variant="danger"
+                      className="fw-bold mt-2 w-100"
+                      disabled={isSaveReverseDisabled}
+                      onClick={handleSaveReverse}
+                    >
+                      {isSaveReverseDisabled ? "Saving..." : "Save Reverse"}
+                    </Button>
+                  )}
 
                   {discount > 0 && (
                     <div className="d-flex justify-content-between"><span>Discount ({DiscountType === 1 ? `${DiscPer}%` : 'Amt'})</span><span>- {discount.toFixed(2)}</span></div>
