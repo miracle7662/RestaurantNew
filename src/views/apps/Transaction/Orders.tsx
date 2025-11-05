@@ -3922,17 +3922,8 @@ const Order = () => {
             </div>
             <div className="billing-panel-footer mt-auto flex-shrink-0" style={{ backgroundColor: 'white', position: 'sticky', bottom: 0 }}>
               <div className="p-2">
-                <div className="bg-white border rounded p-2">
-                  {(() => {
-                    const allItemsReversed = items.length === 0 && reverseQtyItems.length > 0;
-                    return allItemsReversed && (
-                      <Button variant="danger" className="fw-bold mt-2 w-100" onClick={handleSaveReverse}>
-                        Save Reverse
-                      </Button>
-                    );
-                  })()}
-
-                  {showSaveReverseButton && (
+                <div className="bg-white border rounded p-2">                  
+                  {(showSaveReverseButton || (items.length === 0 && reverseQtyItems.length > 0)) && (
                     <Button
                       variant="danger"
                       className="fw-bold mt-2 w-100"
