@@ -1478,15 +1478,18 @@ const Order = () => {
       const resp = await createKOT(kotPayload);
       if (resp?.success) {
         toast.success('KOT saved successfully!');
-
-        // Clear customer fields after successful KOT save
-        setMobileNumber('');
-        setCustomerName('');
-
+ 
         // Update TxnNo and TxnID from the response
         if (resp.data) {
           setTxnNo(resp.data.TxnNo);
           setCurrentTxnId(resp.data.TxnID);
+        }
+
+        // For Dine-in, clear everything to ready the panel for the next table.
+        // For Pickup/Delivery, keep the items and transaction details loaded.
+        if (activeTab === 'Dine-in') {
+          setItems([]);
+          setCurrentTxnId(null);
         }
 
         // Clear items after KOT save to reset the panel
