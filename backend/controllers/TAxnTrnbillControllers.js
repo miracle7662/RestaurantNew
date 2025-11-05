@@ -960,18 +960,27 @@ exports.createReverseKOT = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Missing transaction ID or items for reversal.' });
     }
 
-    // Find the maximum existing RevKOTNo to generate a new one
+    // Get outletid from the transaction to generate a daily sequential RevKOTNo
+    const bill = db.prepare('SELECT outletid FROM TAxnTrnbill WHERE TxnID = ?').get(txnId);
+    if (!bill || !bill.outletid) {
+      return res.status(404).json({ success: false, message: 'Transaction or outlet not found.' });
+    }
+    const outletid = bill.outletid;
+
+    // Find the maximum existing RevKOTNo for the current day for the outlet to generate a new one
     const maxRevKOTResult = db.prepare(`
       SELECT MAX(RevKOTNo) as maxRevKOT 
       FROM TAxnTrnbilldetails
-      WHERE TxnID = ? AND RevKOTNo IS NOT NULL
-    `).get(txnId);
+      WHERE outletid = ? AND date(KOTUsedDate) = date('now')
+    `).get(outletid);
+
     const newRevKOTNo = (maxRevKOTResult?.maxRevKOT || 0) + 1;
+    console.log(`Generated RevKOT number: ${newRevKOTNo} for outlet ${outletid}`);
 
     const trx = db.transaction(() => {
       const updateDetailStmt = db.prepare(`
         UPDATE TAxnTrnbilldetails 
-        SET RevQty = COALESCE(RevQty, 0) + ?, RevKOTNo = ?
+        SET RevQty = COALESCE(RevQty, 0) + ?, RevKOTNo = ?, KOTUsedDate = datetime('now')
         WHERE TXnDetailID = ?
       `);
 
@@ -990,7 +999,7 @@ exports.createReverseKOT = async (req, res) => {
         const detail = db.prepare('SELECT * FROM TAxnTrnbilldetails WHERE TXnDetailID = ?').get(item.txnDetailId);
         if (detail) {
           const newRevQty = (detail.RevQty || 0) + item.qty;
-          updateDetailStmt.run(item.qty, newRevKOTNo, item.txnDetailId);
+          updateDetailStmt.run(item.qty, newRevKOTNo, item.txnDetailId); // KOTUsedDate is updated here
 
           const remainingQty = detail.Qty - newRevQty;
           logReversalStmt.run(
