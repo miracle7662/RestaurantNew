@@ -1604,7 +1604,8 @@ const Order = () => {
           txnId: persistentTxnId,
           tableId: persistentTableId,
           reversedItems: reverseQtyItems,
-          userId: user?.id
+          userId: user?.id,
+          reversalReason: 'Full Reverse from UI' // You can add a specific reason here if needed
         }),
       });
 
@@ -1628,9 +1629,18 @@ const Order = () => {
         setReverseQtyMode(false);
         setShowSaveReverseButton(false);
         setReverseQtyItems([]);
-        setSelectedTable(null);
-        setShowOrderDetails(false);
-        fetchTableManagement();
+
+        if (result.fullReverse) {
+          // If it was a full reversal, clear the table and hide order details
+          setSelectedTable(null);
+          setShowOrderDetails(false);
+          fetchTableManagement(); // Refresh table status
+        } else {
+          // If it was a partial reversal, refresh items for the current table
+          if (selectedTableId) {
+            refreshItemsForTable(selectedTableId);
+          }
+        }
       } else {
         throw new Error(result.message || 'Failed to process reverse KOT.');
       }
