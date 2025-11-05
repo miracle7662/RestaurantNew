@@ -1912,7 +1912,8 @@ const Order = () => {
           console.log(`Ctrl + ${tabIndex} pressed, activating tab: ${selectedTab}`);
         }
       }
-    if (e.key === "F8") {
+      // 🔹 Keyboard event listener for F8 Reverse Mode
+if (e.key === "F8") {
   e.preventDefault();
 
   // ✅ If Dine-in tab → Table must be selected
@@ -1931,6 +1932,7 @@ const Order = () => {
     toast.error("No active order found to reverse!");
     return;
   }
+
         // Check if there are any items on the table
         if (items.length === 0) {
           toast.error("No items on the table to reverse.");
@@ -2353,7 +2355,7 @@ const Order = () => {
 
     // 3. Load the order's data into the state
     setCurrentTxnId(order.id);
-    setPersistentTxnId(order.id); // Set the persistent ID for F8 functionality
+     setPersistentTxnId(order.id); // Set the persistent ID for F8 functionality
     setTxnNo(order.kotNo);
     setCustomerName(order.customer.name);
     setMobileNumber(order.customer.mobile);
