@@ -1286,6 +1286,8 @@ const Order = () => {
 
       // 5. Refresh the page to reflect all changes
       window.location.reload();
+      // 5. Refresh the table list to show the new 'billed' status (red color)
+      fetchTableManagement();
     } catch (error: any) {
       console.error('Error printing bill:', error);
       toast.error(error.message || 'An error occurred while printing the bill.');
@@ -2241,6 +2243,29 @@ const Order = () => {
     }
   };
 
+  const handleLoadPendingOrder = (order: any) => {
+    // 1. Hide the pending orders list and show the main order details panel
+    setShowPendingOrdersView(false);
+    setShowOrderDetails(true);
+
+    // 2. Set the active tab to match the order type
+    const orderType = order.type.charAt(0).toUpperCase() + order.type.slice(1);
+    setActiveTab(orderType);
+
+    // 3. Load the order's data into the state
+    setCurrentTxnId(order.id);
+    setTxnNo(order.kotNo);
+    setCustomerName(order.customer.name);
+    setMobileNumber(order.customer.mobile);
+    setSelectedOutletId(order.outletid); // Set the outlet ID from the order
+
+    // 4. Map and set the items, marking them as existing (not new)
+    const existingItems = order.items.map((item: any) => ({
+      ...item, isNew: false, isBilled: 0
+    }));
+    setItems(existingItems);
+  };
+
   const handlePrintPendingOrder = async (order: any) => {
     // 1. Load the order data into the state, similar to handlePendingMakePayment
     setCurrentTxnId(order.id);
@@ -2286,6 +2311,7 @@ const Order = () => {
     setActiveNavTab(type.charAt(0).toUpperCase() + type.slice(1)); // Set the active tab
     setShowOrderDetails(false);
     setPendingType(type);
+    setItems([]); // Clear items when viewing the list
     setShowPendingOrdersView(true);
     fetchPendingOrders(type);
   };
@@ -3319,7 +3345,11 @@ const Order = () => {
                   <Row md={2} lg={3} xl={3} className="g-3">
                     {pendingOrders.map(order => (
                       <Col key={order.id}>
-                        <Card className="order-card h-100">
+                        <Card 
+                          className="order-card h-100"
+                          onClick={() => handleLoadPendingOrder(order)}
+                          style={{ cursor: 'pointer' }}
+                        >
                           <Card.Header className="order-card-header">
                             <div>
                               <strong>Customer:</strong> {order.customer.name || ''}
@@ -3347,14 +3377,14 @@ const Order = () => {
                                 <Button
                                   variant="danger"
                                   className="flex-fill"
-                                  onClick={() => handlePendingMakePayment(order)}
+                                  onClick={(e) => { e.stopPropagation(); handlePendingMakePayment(order); }}
                                 >
                                   Make Payment
                                 </Button>
                                 <Button
                                   variant="outline-primary"
                                   className="flex-fill"
-                                  onClick={() => handlePrintPendingOrder(order)}
+                                  onClick={(e) => { e.stopPropagation(); handlePrintPendingOrder(order); }}
                                 >
                                   Print Bill
                                 </Button>

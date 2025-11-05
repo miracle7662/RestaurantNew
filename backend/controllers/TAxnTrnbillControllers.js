@@ -1944,6 +1944,7 @@ exports.getPendingOrders = async (req, res) => {
       SELECT
         b.*,
         b.CustomerName,
+        b.outletid,
         b.MobileNo,
         GROUP_CONCAT(
           DISTINCT json_object(
@@ -1968,6 +1969,7 @@ exports.getPendingOrders = async (req, res) => {
       id: r.TxnID, // Add the transaction ID
       txnId: r.TxnID,
       kotNo: r.TxnNo, // This is the Bill No.
+      outletid: r.outletid, // Pass outletid to frontend
       KOTNo: r.KOTNo, // This is the actual KOT No.
       customer: {
         name: r.CustomerName || '',
@@ -1978,7 +1980,8 @@ exports.getPendingOrders = async (req, res) => {
         qty: d.Qty || 0,
         price: d.RuntimeRate || 0
       })) : [],
-      total: r.Amount || 0
+      total: r.Amount || 0,
+      type: r.table_name, // 'pickup' or 'delivery'
     }));
 
     res.json(ok('Fetched pending orders', orders));
