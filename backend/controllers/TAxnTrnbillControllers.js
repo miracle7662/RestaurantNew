@@ -34,6 +34,18 @@ function generateTxnNo(outletid) {
   return `${prefix}${String(newSeq).padStart(4, '0')}`;
 }
 
+// Generate a new OrderNo
+function generateOrderNo(outletid) {
+  // For simplicity, we'll generate a unique order number across all outlets for now.
+  // You could add a prefix based on outlet if needed.
+  const result = db.prepare(`
+    SELECT MAX(CAST(orderNo AS INTEGER)) as maxOrderNo
+    FROM TAxnTrnbill
+  `).get();
+  const newOrderNo = (result.maxOrderNo || 0) + 1;
+  return String(newOrderNo).padStart(4, '0');
+}
+
 // Convert to India Standard Time (UTC+5:30)
 function toIST(date) {
   const utc = date.getTime() + (date.getTimezoneOffset() * 60000);
@@ -797,14 +809,15 @@ exports.createKOT = async (req, res) => {
         if (headerOutletId) {
           txnNo = generateTxnNo(headerOutletId);
         }
+        const newOrderNo = generateOrderNo(headerOutletId); // Generate new OrderNo
         const insertHeaderStmt = db.prepare(`
           INSERT INTO TAxnTrnbill (
             outletid, TxnNo, TableID, table_name, UserId, HotelID, TxnDatetime,
-            isBilled, isCancelled, isSetteled, status, AutoKOT, CustomerName, MobileNo, Order_Type,
+            isBilled, isCancelled, isSetteled, status, AutoKOT, CustomerName, MobileNo, Order_Type, orderNo,
             NCName, NCPurpose, DiscPer, Discount, DiscountType, isNCKOT
-          ) VALUES (?, ?, ?, ?, ?, ?, datetime('now'), 0, 0, 0, 1, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ) VALUES (?, ?, ?, ?, ?, ?, datetime('now'), 0, 0, 0, 1, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
-        const result = insertHeaderStmt.run(headerOutletId, txnNo, Number(TableID), table_name, UserId, HotelID, CustomerName, MobileNo, Order_Type, NCName || null, NCPurpose || null, finalDiscPer, finalDiscount, finalDiscountType, toBool(isHeaderNCKOT));
+        const result = insertHeaderStmt.run(headerOutletId, null, Number(TableID), table_name, UserId, HotelID, CustomerName, MobileNo, Order_Type, newOrderNo, NCName || null, NCPurpose || null, finalDiscPer, finalDiscount, finalDiscountType, toBool(isHeaderNCKOT));
         txnId = result.lastInsertRowid;
         db.prepare('UPDATE msttablemanagement SET status = 1 WHERE tableid = ?').run(Number(TableID));
         console.log(`Created new bill. TxnID: ${txnId}. Updated table ${TableID} status.`);
