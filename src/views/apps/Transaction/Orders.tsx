@@ -1004,13 +1004,7 @@ const Order = () => {
         return;
       }
 
-      
-
-
-      if (!selectedTable || !item.txnDetailId) {
-        toast.error('Unable to process reverse quantity - missing table or item details');
-        return;
-      }
+    
 
       // Update the item quantity in the frontend state
       setItems(currentItems => {
@@ -1679,8 +1673,8 @@ const Order = () => {
   };
 
   const handleSaveReverse = async () => {
-    if (!persistentTxnId || !persistentTableId) {
-      toast.error("Cannot save reversal. No active transaction or table found.");
+    if (!persistentTxnId) {
+      toast.error('Cannot save reversal. No active transaction found.');
       return;
     }
 
@@ -2363,7 +2357,10 @@ if (e.key === "F8") {
 
     // 4. Map and set the items, marking them as existing (not new)
     const existingItems = order.items.map((item: any) => ({
-      ...item, isNew: false, isBilled: 0
+     ...item,
+      txnDetailId: item.TXnDetailID, // Map the correct ID
+      isNew: false, isBilled: 0
+     
     }));
     setItems(existingItems);
   };

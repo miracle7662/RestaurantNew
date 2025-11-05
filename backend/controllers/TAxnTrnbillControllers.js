@@ -950,8 +950,8 @@ exports.createReverseKOT = async (req, res) => {
   try {
     const { txnId, tableId, reversedItems, userId, reversalReason } = req.body;
 
-    if (!txnId || !tableId || !Array.isArray(reversedItems) || reversedItems.length === 0) {
-      return res.status(400).json({ success: false, message: 'Missing required data for reversal.' });
+    if (!txnId || !Array.isArray(reversedItems) || reversedItems.length === 0) {
+      return res.status(400).json({ success: false, message: 'Missing transaction ID or items for reversal.' });
     }
 
     const trx = db.transaction(() => {
@@ -1019,11 +1019,14 @@ exports.createReverseKOT = async (req, res) => {
           SET isreversebill = 1, isCancelled = 1, status = 0
           WHERE TxnID = ?
         `).run(txnId);
-        db.prepare(`
-          UPDATE msttablemanagement
-          SET status = 0
-          WHERE tableid = ?
-        `).run(tableId);
+        // Only update table status if a tableId was provided (for Dine-in)
+        if (tableId) {
+          db.prepare(`
+            UPDATE msttablemanagement
+            SET status = 0
+            WHERE tableid = ?
+          `).run(tableId);
+        }
         return { fullReverse: true }; // Indicate a full reversal
       }
       return { fullReverse: false }; // Indicate a partial reversal
@@ -2290,4 +2293,45 @@ exports.getBillStatusByTable = async (req, res) => {
 /* -------------------------------------------------------------------------- */
 /* 21) saveFullReverse → Save a full table reversal                           */
 /* -------------------------------------------------------------------------- */
+exports.saveFullReverse = async (req, res) => {
+  try {
+    const { txnId, tableId, reversedItems, userId, reversalReason } = req.body;
+
+    if (!txnId || !Array.isArray(reversedItems) || reversedItems.length === 0) {
+      return res.status(400).json({ success: false, message: 'Missing required data for reversal.' });
+    }
+
+    const trx = db.transaction(() => {
+      // Mark the bill header as reversed and cancelled
+      db.prepare(`
+        UPDATE TAxnTrnbill
+        SET isreversebill = 1, isCancelled = 1, status = 0
+        WHERE TxnID = ?
+      `).run(txnId);
+
+      // Mark all detail items as cancelled
+      db.prepare(`
+        UPDATE TAxnTrnbilldetails
+        SET isCancelled = 1, RevQty = Qty
+        WHERE TxnID = ?
+      `).run(txnId);
+
+      // If a tableId is provided (for Dine-in), update its status to vacant
+      if (tableId) {
+        db.prepare(`
+          UPDATE msttablemanagement
+          SET status = 0
+          WHERE tableid = ?
+        `).run(tableId);
+      }
+    });
+
+    trx();
+    res.json({ success: true, message: 'Full bill reversed successfully.' });
+  } catch (error) {
+    console.error('Error in saveFullReverse:', error);
+    res.status(500).json({ success: false, message: 'Failed to process full reversal.', error: error.message });
+  }
+};
+
 module.exports = exports;
