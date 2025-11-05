@@ -809,7 +809,13 @@ exports.createKOT = async (req, res) => {
         if (headerOutletId) {
           txnNo = generateTxnNo(headerOutletId);
         }
-        const newOrderNo = generateOrderNo(headerOutletId); // Generate new OrderNo
+        // Generate OrderNo only for Pickup, Delivery, or Quick Bill
+        let newOrderNo = null;
+        const orderTypesToGenerateNo = ['Pickup', 'Delivery', 'Quick Bill'];
+        if (Order_Type && orderTypesToGenerateNo.includes(Order_Type)) {
+          newOrderNo = generateOrderNo(headerOutletId);
+        }
+
         const insertHeaderStmt = db.prepare(`
           INSERT INTO TAxnTrnbill (
             outletid, TxnNo, TableID, table_name, UserId, HotelID, TxnDatetime,
@@ -954,18 +960,26 @@ exports.createReverseKOT = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Missing transaction ID or items for reversal.' });
     }
 
+    // Find the maximum existing RevKOTNo to generate a new one
+    const maxRevKOTResult = db.prepare(`
+      SELECT MAX(RevKOTNo) as maxRevKOT 
+      FROM TAxnTrnbilldetails
+      WHERE TxnID = ? AND RevKOTNo IS NOT NULL
+    `).get(txnId);
+    const newRevKOTNo = (maxRevKOTResult?.maxRevKOT || 0) + 1;
+
     const trx = db.transaction(() => {
       const updateDetailStmt = db.prepare(`
         UPDATE TAxnTrnbilldetails 
-        SET RevQty = COALESCE(RevQty, 0) + ? 
+        SET RevQty = COALESCE(RevQty, 0) + ?, RevKOTNo = ?
         WHERE TXnDetailID = ?
       `);
 
       const logReversalStmt = db.prepare(`
         INSERT INTO TAxnTrnReversalLog (
-          TxnDetailID, TxnID, KOTNo, ItemID, ActualQty, ReversedQty, RemainingQty, 
+          TxnDetailID, TxnID, KOTNo, ItemID, RevKOTNo, ActualQty, ReversedQty, RemainingQty, 
           IsBeforeBill, IsAfterBill, ReversedByUserID, ReversalReason
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?, ?)
       `);
 
       let totalReverseAmount = 0;
@@ -976,7 +990,7 @@ exports.createReverseKOT = async (req, res) => {
         const detail = db.prepare('SELECT * FROM TAxnTrnbilldetails WHERE TXnDetailID = ?').get(item.txnDetailId);
         if (detail) {
           const newRevQty = (detail.RevQty || 0) + item.qty;
-          updateDetailStmt.run(item.qty, item.txnDetailId);
+          updateDetailStmt.run(item.qty, newRevKOTNo, item.txnDetailId);
 
           const remainingQty = detail.Qty - newRevQty;
           logReversalStmt.run(
@@ -984,6 +998,7 @@ exports.createReverseKOT = async (req, res) => {
             detail.TxnID,
             detail.KOTNo,
             detail.ItemID,
+            newRevKOTNo, // Log the new RevKOTNo
             detail.Qty,
             item.qty,
             remainingQty,
@@ -1016,7 +1031,7 @@ exports.createReverseKOT = async (req, res) => {
       if (remainingItemsCheck && remainingItemsCheck.netQty <= 0) {
         db.prepare(`
           UPDATE TAxnTrnbill
-          SET isreversebill = 1, isCancelled = 1, status = 0
+          SET isreversebill = 0, isCancelled = 1, status = 0
           WHERE TxnID = ?
         `).run(txnId);
         // Only update table status if a tableId was provided (for Dine-in)

@@ -1709,22 +1709,21 @@ const Order = () => {
           }
         }
 
-        // Reset UI after successful reversal and print
-        setReverseQtyMode(false);
-        setShowSaveReverseButton(false);
-        setReverseQtyItems([]);
-
         if (result.fullReverse) {
           // If it was a full reversal, clear the table and hide order details
           setSelectedTable(null);
           setShowOrderDetails(false);
           fetchTableManagement(); // Refresh table status
         } else {
-          // If it was a partial reversal, refresh items for the current table
-          if (selectedTableId) {
-            refreshItemsForTable(selectedTableId);
-          }
+          // For both partial and full reversals, reset the UI state
+          setItems([]);
+          setReversedItems([]); // Also clear the reversed items list
+          setSelectedTable(null);
+          setShowOrderDetails(false);
         }
+        setReverseQtyMode(false);
+        setShowSaveReverseButton(false);
+        setReverseQtyItems([]);
       } else {
         throw new Error(result.message || 'Failed to process reverse KOT.');
       }
