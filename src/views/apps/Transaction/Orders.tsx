@@ -4142,7 +4142,7 @@ if (e.key === "F8") {
                           <Button
                             size="sm"
                             variant="primary"
-                            onClick={() => setBillActionState('printOrSettle')}
+                           onClick={handlePrintBill}
                             disabled={items.length === 0}
                           >
                             🖨️ Bill (F10)
