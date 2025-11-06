@@ -1956,6 +1956,17 @@ const Order = () => {
           console.log(`Ctrl + ${tabIndex} pressed, activating tab: ${selectedTab}`);
         }
       }
+      if (e.key === "F10" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
+        e.preventDefault();
+        handlePrintBill();
+        return;
+      }
+      if (e.key === "F9" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
+        e.preventDefault();
+        handlePrintAndSaveKOT();
+        return;
+      }
+
       // 🔹 Keyboard event listener for F8 Reverse Mode
 if (e.key === "F8") {
   e.preventDefault();
