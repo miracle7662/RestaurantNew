@@ -857,6 +857,7 @@ const Order = () => {
     console.log('Button clicked for table:', seat);
     // Force reset selectedTable to null first to allow re-selection of the same table
     setReverseQtyMode(false); // Turn off reverse mode on table change
+    setIsGroupedView(true); // Reset to grouped view on table change
     setSelectedTable(null);
     setItems([]); // Reset items for the new table
     setCurrentKOTNo(null); // Reset KOT number for the new table
