@@ -4134,51 +4134,54 @@ if (e.key === "F8") {
                     </div>
                   )}
                   <div className="col-12 d-flex align-items-center">
-                    {items.length > 0 && (
-                      <div className="d-flex align-items-center gap-2">
-                        {activeTab === 'Quick Bill' ? (
-                          <Button
-                            size="sm"
-                            variant="success"
-                            onClick={handlePrintKOTAndBill}
-                            disabled={loading}
-                          >
-                            ✅ Print KOT & Bill
-                          </Button>
-                        ) : hasModifications ? (
-                          <button className="btn btn-dark rounded btn-sm" onClick={handlePrintAndSaveKOT}>
-                             🖨️ KOT (F9)
-                          </button>
-                        ) : billActionState === 'initial' ? (
-                          <Button
-                            size="sm"
-                            variant="primary"
-                           onClick={handlePrintBill}
-                            disabled={items.length === 0}
-                          >
-                            🖨️ Bill (F10)
-                          </Button>
-                        ) : (
-                          <>
+                    {!reverseQtyMode && items.length > 0 && (
+                        <div className="d-flex align-items-center gap-2">
+                          {activeTab === 'Quick Bill' ? (
+                            <Button
+                              size="sm"
+                              variant="success"
+                              onClick={handlePrintKOTAndBill}
+                              disabled={loading}
+                            >
+                              ✅ Print KOT & Bill
+                            </Button>
+                          ) : hasModifications ? (
+                            <button
+                              className="btn btn-dark rounded btn-sm"
+                              onClick={handlePrintAndSaveKOT}
+                              disabled={reverseQtyMode}>
+                               🖨️ KOT (F9)
+                            </button>
+                          ) : billActionState === 'initial' ? (
                             <Button
                               size="sm"
                               variant="primary"
                               onClick={handlePrintBill}
-                              disabled={items.length === 0}
+                              disabled={items.length === 0 || reverseQtyMode}
                             >
-                              🖨️ Bill
+                              🖨️ Bill (F10)
                             </Button>
-                            <Button
-                              size="sm"
-                              variant="success"
-                              onClick={() => setShowSettlementModal(true)}
-                              disabled={items.length === 0}
-                            >
-                              💳 Settle
-                            </Button>
-                          </>
-                        )}
-                      </div>
+                          ) : (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="primary"
+                                onClick={handlePrintBill}
+                                disabled={items.length === 0 || reverseQtyMode}
+                              >
+                                🖨️ Bill
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="success"
+                                onClick={() => setShowSettlementModal(true)}
+                                disabled={items.length === 0 || reverseQtyMode}
+                              >
+                                💳 Settle
+                              </Button>
+                            </>
+                          )}
+                        </div>
                     )}
                     <div className="ms-auto">
                       <span
