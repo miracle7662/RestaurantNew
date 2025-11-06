@@ -1616,6 +1616,10 @@ const Order = () => {
       const cessAmt = (subtotal * taxRates.cess) / 100;
       const grandTotal = subtotal - finalDiscount + cgstAmt + sgstAmt + igstAmt + cessAmt;
       const finalRoundOff = Math.round(grandTotal) - grandTotal;
+      
+      // Resolve department ID for Quick Bill
+      const quickBillDept = departments.find(d => d.outletid === (selectedOutletId || Number(user?.outletid)));
+      const departmentId = quickBillDept ? quickBillDept.departmentid : null;
 
       const kotPayload = {
         txnId: currentTxnId || 0,
@@ -1636,6 +1640,7 @@ const Order = () => {
         userId: user?.id,
         hotelId: user?.hotelid,
         Order_Type: 'Quick Bill',
+        departmentId: departmentId, // ✅ Department ID
         GrossAmt: subtotal,
         Discount: finalDiscount,
         CGST: cgstAmt,
@@ -1656,6 +1661,14 @@ const Order = () => {
       const printResponse = await fetch(`http://localhost:3001/api/TAxnTrnbill/${newTxnId}/mark-billed`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ // ✅ Pass required data to billing API
+          outletId: selectedOutletId || Number(user?.outletid),
+          departmentId: departmentId,
+          cgst: taxRates.cgst,
+          sgst: taxRates.sgst,
+          igst: taxRates.igst,
+          cess: taxRates.cess,
+        }),
       });
 
       const printResult = await printResponse.json();
@@ -1812,6 +1825,51 @@ const Order = () => {
           toast.error('Invalid table name. Please select a valid table.');
         }
       }
+    }
+  };
+
+  const handleLoadQuickBill = async (bill: any) => {
+    try {
+      setLoading(true);
+      // 1. Fetch full bill details from the backend
+      const res = await fetch(`http://localhost:3001/api/TAxnTrnbill/${bill.TxnID}`);
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || 'Failed to fetch bill details.');
+      }
+      const billDetailsData = await res.json();
+
+      if (billDetailsData.success && billDetailsData.data) {
+        const fullBill = billDetailsData.data;
+
+        // 2. Map the fetched items to the MenuItem interface
+        const fetchedItems: MenuItem[] = fullBill.details.map((item: any) => ({
+          id: item.ItemID,
+          txnDetailId: item.TXnDetailID,
+          name: item.ItemName || 'Unknown Item', // Assuming ItemName is joined in the API
+          price: item.RuntimeRate,
+          qty: (Number(item.Qty) || 0) - (Number(item.RevQty) || 0),
+          isBilled: item.isBilled,
+          isNCKOT: item.isNCKOT,
+          NCName: '',
+          NCPurpose: '',
+          isNew: false, // All items are existing
+          originalQty: item.Qty,
+          kotNo: item.KOTNo,
+        })).filter((item: MenuItem) => item.qty > 0); // Filter out fully reversed items
+
+        // 3. Update the state to show the bill in the right panel
+        setActiveTab('Quick Bill');
+        setShowOrderDetails(true); // Show the right-side billing panel
+        setItems(fetchedItems);
+        setCurrentTxnId(fullBill.TxnID);
+        setTxnNo(fullBill.TxnNo);
+        setBillActionState('printOrSettle'); // The bill is already created
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'An error occurred while loading the bill.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -3348,7 +3406,7 @@ if (e.key === "F8") {
                   <tbody>
                     {quickBillData.length > 0 ? (
                       quickBillData.map((bill) => (
-                        <tr key={bill.TxnID}>
+                        <tr key={bill.TxnID} onClick={() => handleLoadQuickBill(bill)} style={{ cursor: 'pointer' }}>
                           <td>{bill.TxnNo}</td>
                           <td>{bill.CustomerName || 'N/A'}</td>
                           <td>{bill.MobileNo || 'N/A'}</td>
