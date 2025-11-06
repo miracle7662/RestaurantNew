@@ -4609,7 +4609,7 @@ const ReversedItemsDisplay = ({ items }: { items: ReversedMenuItem[] }) => {
           borderBottom: '1px solid #dee2e6',
         }}
       >
-        Reversed Items
+       
       </div>
       {items.map((item, index) => (
         <div
@@ -4627,7 +4627,7 @@ const ReversedItemsDisplay = ({ items }: { items: ReversedMenuItem[] }) => {
           <span style={{ textAlign: 'left' }}>
             {item.name}
             <span className="badge bg-danger fw-bold ms-1" title={`KOT: ${item.kotNo}`}>
-              Reversed {item.qty > 0 ? item.qty : ''}
+               {item.qty > 0 ? item.qty : ''}
             </span>
 
           </span>
