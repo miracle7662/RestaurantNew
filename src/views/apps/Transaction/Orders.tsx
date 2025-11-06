@@ -34,7 +34,7 @@ interface MenuItem {
 
 interface ReversedMenuItem extends MenuItem {
   isReversed: true;
-  ReversalLogID: number;
+  reversalLogId: number;
   status: 'Reversed';
 }
 
@@ -305,13 +305,13 @@ const Order = () => {
         setPersistentTableId(tableIdNum);
         // Set reversed items from the new API response field
         const fetchedReversedItems: ReversedMenuItem[] = (unbilledItemsRes.data.reversedItems || []).map((item: any) => ({
-          ...item,
-          name: item.ItemName || item.itemName || 'Unknown Item',
-          id: item.ItemID || item.itemId,
-          price: item.RuntimeRate || item.price || 0,
-          qty: Math.abs(item.Qty) || 1, // Ensure positive qty for display
+          id: item.ItemID,
+          name: item.ItemName,
+          price: item.price,
+          qty: item.reversedQty,
+          kotNo: item.kotNo,
           isReversed: true,
-          ReversalLogID: item.ReversalLogID,
+          reversalLogId: item.reversalLogId,
           status: 'Reversed',
         }));
         setReversedItems(fetchedReversedItems);
@@ -3796,14 +3796,7 @@ if (e.key === "F8") {
               )}
               {/* Reversed Items Section - Only in Expanded View */}
               {reversedItems.length > 0 && !isGroupedView && (
-                <ReversedItemsDisplay groupedItems={Object.values(reversedItems.reduce((acc, item) => {
-                  const key = `${item.id}-${item.kotNo}`;
-                  if (!acc[key]) {
-                    acc[key] = { ...item, qty: 0, price: item.price };
-                  }
-                  acc[key].qty += item.qty;
-                  return acc;
-                }, {} as Record<string, ReversedMenuItem>))} />
+                <ReversedItemsDisplay items={reversedItems} />
               )}
             </div>
             <div className="billing-panel-footer flex-shrink-0" style={{ backgroundColor: 'white' }}>
@@ -4600,10 +4593,8 @@ if (e.key === "F8") {
   );
 };
 
-const ReversedItemsDisplay = ({ groupedItems }: { groupedItems: ReversedMenuItem[] }) => {
-  const itemsArray = groupedItems;
-
-  if (itemsArray.length === 0) {
+const ReversedItemsDisplay = ({ items }: { items: ReversedMenuItem[] }) => {
+  if (items.length === 0) {
     return null;
   }
 
@@ -4620,10 +4611,10 @@ const ReversedItemsDisplay = ({ groupedItems }: { groupedItems: ReversedMenuItem
       >
         Reversed Items
       </div>
-      {itemsArray.map((item, index) => (
+      {items.map((item, index) => (
         <div
-          key={`reversed-grouped-${item.id}-${item.kotNo}-${index}`}
-          className="border-bottom"
+          key={`reversed-item-${item.reversalLogId || index}`}
+          className="border-bottom" // Use reversalLogId for a unique key
           style={{
             display: 'grid',
             gridTemplateColumns: '2fr 1fr 1fr',
@@ -4635,7 +4626,7 @@ const ReversedItemsDisplay = ({ groupedItems }: { groupedItems: ReversedMenuItem
         >
           <span style={{ textAlign: 'left' }}>
             {item.name}
-            <span className="badge bg-danger fw-bold ms-1">
+            <span className="badge bg-danger fw-bold ms-1" title={`KOT: ${item.kotNo}`}>
               Reversed {item.qty > 0 ? item.qty : ''}
             </span>
 

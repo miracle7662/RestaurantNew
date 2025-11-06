@@ -1173,23 +1173,24 @@ exports.getUnbilledItemsByTable = async (req, res) => {
     `).all(Number(tableId));
 
   // Fetch reversed items from the log for this transaction
-    const reversedItemsRows = bill ? db.prepare(`
+    const reversedItemsRows = bill
+    ? db.prepare(`
       SELECT
-        l.ReversalID,
+        l.ReversalID as reversalLogId,
         l.ItemID,
         COALESCE(m.item_name, 'Unknown Item') AS ItemName,
-        l.ReversedQty as qty,
+        l.ReversedQty as reversedQty,
         d.RuntimeRate as price,
         'Reversed' as status,
-        1 as isReversed,
-        d.KOTNo as kotNo
+        d.KOTNo as kotNo,
+        d.TXnDetailID as txnDetailId,
+        l.ReversalDate as reversalTime
       FROM TAxnTrnReversalLog l
       JOIN TAxnTrnbilldetails d ON l.TxnDetailID = d.TXnDetailID
       LEFT JOIN mstrestmenu m ON l.ItemID = m.restitemid
       WHERE l.TxnID = ?
-    `).all(bill.TxnID) : [];
-
-    const reversedItems = reversedItemsRows.map(r => ({ ...r, isReversed: true }));
+    `).all(bill.TxnID)
+    : [];
         // Fetch discount from the latest unbilled bill for the table
     const latestBill = db.prepare(`
       SELECT Discount, DiscPer, DiscountType
@@ -1221,9 +1222,9 @@ exports.getUnbilledItemsByTable = async (req, res) => {
       success: true,
       message: 'Fetched unbilled items',
       data: {
-        kotNo: kotNo,
-        items: items,
-        reversedItems: reversedItems, // Add reversed items to the response
+        kotNo,
+        items,
+        reversedItems: reversedItemsRows,
         discount: latestBill || { Discount: 0, DiscPer: 0, DiscountType: 0 }
       }
     });
