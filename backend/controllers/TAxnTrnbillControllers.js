@@ -1715,22 +1715,29 @@ exports.printBill = async (req, res) => {
 /* -------------------------------------------------------------------------- */
 exports.markBillAsBilled = async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params
+    const { outletId } = req.body // ✅ Get outletId from body
 
-    const bill = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id));
+    const bill = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id))
     if (!bill) {
-      return res.status(404).json({ success: false, message: 'Bill not found', data: null });
+      return res.status(404).json({ success: false, message: 'Bill not found', data: null })
     }
 
     // Update isBilled = 1 for all items in the bill
-    db.prepare('UPDATE TAxnTrnbilldetails SET isBilled = 1 WHERE TxnID = ?').run(Number(id));
+    db.prepare('UPDATE TAxnTrnbilldetails SET isBilled = 1 WHERE TxnID = ?').run(Number(id))
 
     // Update the bill header to mark it as billed and set the date
+    // ✅ Also generate the TxnNo here if it doesn't exist
+    let txnNo = bill.TxnNo
+    if (!txnNo && outletId) {
+      txnNo = generateTxnNo(outletId)
+    }
+
     db.prepare(`
       UPDATE TAxnTrnbill
-      SET isBilled = 1, BilledDate = CURRENT_TIMESTAMP
+      SET isBilled = 1, BilledDate = CURRENT_TIMESTAMP, TxnNo = ?
       WHERE TxnID = ?
-    `).run(Number(id));
+    `).run(txnNo, Number(id))
 
     const header = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id));
     const items = db.prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? ORDER BY TXnDetailID').all(Number(id));

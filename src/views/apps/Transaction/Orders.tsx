@@ -127,7 +127,7 @@ const Order = () => {
 
 
   // New state for F9 password modal
-  const [showF9BilledPasswordModal, setShowF9BilledPasswordModal] = useState<boolean>(false);
+  const [showF9BilledPasswordModal, setShowCtrlF9BilledPasswordModal] = useState<boolean>(false);
   const [f9BilledPasswordError, setF9BilledPasswordError] = useState<string>('');
   const [f9BilledPasswordLoading, setF9BilledPasswordLoading] = useState<boolean>(false);
 
@@ -1661,14 +1661,7 @@ const Order = () => {
       const printResponse = await fetch(`http://localhost:3001/api/TAxnTrnbill/${newTxnId}/mark-billed`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ // ✅ Pass required data to billing API
-          outletId: selectedOutletId || Number(user?.outletid),
-          departmentId: departmentId,
-          cgst: taxRates.cgst,
-          sgst: taxRates.sgst,
-          igst: taxRates.igst,
-          cess: taxRates.cess,
-        }),
+        body: JSON.stringify({ outletId: selectedOutletId || Number(user?.outletid) }),
       });
 
       const printResult = await printResponse.json();
@@ -1914,7 +1907,7 @@ const Order = () => {
 
           if (reverseResponse.ok && reverseData.success) {
             toast.success('Bill reversed successfully!');
-            setShowF9BilledPasswordModal(false);
+            setShowCtrlF9BilledPasswordModal(false);
 
             // ✅ Optimistically update the table status in the UI
             const reversedTableName = selectedTable;
@@ -2047,9 +2040,10 @@ if (e.key === "F8") {
         };
         fetchLatestReverseQtySettingForUnbilled();
       }
-      if (e.key === 'F9') {
+      if (e.ctrlKey && e.key === 'F9') {
         e.preventDefault();
         if (items.length === 0) {
+          
           toast.error("No items to reverse.");
           return;
         }
@@ -2059,7 +2053,7 @@ if (e.key === "F8") {
 
         if (hasBilledItems) {
           // Only show password modal if there are billed items
-          setShowF9BilledPasswordModal(true);
+          setShowCtrlF9BilledPasswordModal(true);
         } else {
           toast.error("F9 (Bill Reversal) is only available for billed orders.");
         }
@@ -4142,7 +4136,7 @@ if (e.key === "F8") {
                           </Button>
                         ) : hasModifications ? (
                           <button className="btn btn-dark rounded btn-sm" onClick={handlePrintAndSaveKOT}>
-                            Print & Save KOT
+                             🖨️ KOT (F9)
                           </button>
                         ) : billActionState === 'initial' ? (
                           <Button
@@ -4151,7 +4145,7 @@ if (e.key === "F8") {
                             onClick={() => setBillActionState('printOrSettle')}
                             disabled={items.length === 0}
                           >
-                            🖨️ Bill
+                            🖨️ Bill (F10)
                           </Button>
                         ) : (
                           <>
@@ -4559,7 +4553,7 @@ if (e.key === "F8") {
           <F8PasswordModal
             show={showF9BilledPasswordModal}
             onHide={() => {
-              setShowF9BilledPasswordModal(false);
+              setShowCtrlF9BilledPasswordModal(false);
               setF9BilledPasswordError('');
             }}
             onSubmit={handleF9PasswordSubmit}
