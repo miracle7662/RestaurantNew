@@ -1846,7 +1846,7 @@ const Order = () => {
         const fetchedItems: MenuItem[] = fullBill.details.map((item: any) => ({
           id: item.ItemID,
           txnDetailId: item.TXnDetailID,
-          name: item.ItemName || 'Unknown Item', // Assuming ItemName is joined in the API
+          name: item.ItemName || 'Unknown Item',
           price: item.RuntimeRate,
           qty: (Number(item.Qty) || 0) - (Number(item.RevQty) || 0),
           isBilled: item.isBilled,

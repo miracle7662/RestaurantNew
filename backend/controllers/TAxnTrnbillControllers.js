@@ -138,9 +138,11 @@ exports.getBillById = async (req, res) => {
     if (!bill) return res.status(404).json({ success: false, message: 'Bill not found', data: null })
 
     const details = db.prepare(`
-      SELECT * FROM TAxnTrnbilldetails 
-      WHERE TxnID = ? AND isCancelled = 0 
-      ORDER BY TXnDetailID ASC
+      SELECT d.*, m.item_name as ItemName
+      FROM TAxnTrnbilldetails d
+      LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
+      WHERE d.TxnID = ? AND d.isCancelled = 0 
+      ORDER BY d.TXnDetailID ASC
     `).all(Number(id))
 
     const settlements = db.prepare(`
