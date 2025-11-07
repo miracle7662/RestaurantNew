@@ -320,13 +320,20 @@ exports.createBill = async (req, res) => {
           const igstAmt = Number(d.IGST_AMOUNT) || (lineSubtotal * igstPer) / 100
           const cessAmt = Number(d.CESS_AMOUNT) || (lineSubtotal * cessPer) / 100
 
-          let itemDiscountAmount = 0
-          if (billDiscountType === 1) { // Percentage
-            itemDiscountAmount = (lineSubtotal * billDiscPer) / 100
-          } else { // Fixed amount
-            // As per requirement, the full fixed discount is applied to each item.
-            itemDiscountAmount = billDiscount
+          // Distribute discount proportionally based on the line item's value relative to the total gross amount
+          let itemDiscountAmount = 0;
+          if (finalGross > 0) { // Avoid division by zero
+            if (billDiscountType === 1) { // Percentage discount
+              // The discount percentage is applied to each item's subtotal
+              itemDiscountAmount = (lineSubtotal * billDiscPer) / 100;
+            } else if (billDiscountType === 0 && billDiscount > 0) { // Fixed amount discount
+              // Distribute the fixed discount proportionally
+              const proportion = lineSubtotal / finalGross;
+              itemDiscountAmount = billDiscount * proportion;
+            }
           }
+
+
           const isNCKOT = toBool(d.isNCKOT)
 
           dStmt.run(
@@ -520,12 +527,17 @@ exports.updateBill = async (req, res) => {
           const igstAmt = Number(d.IGST_AMOUNT) || (lineSubtotal * igstPer) / 100
           const cessAmt = Number(d.CESS_AMOUNT) || (lineSubtotal * cessPer) / 100
 
-          let itemDiscountAmount = 0
-          if (billDiscountType === 1) { // Percentage
-            itemDiscountAmount = (lineSubtotal * billDiscPer) / 100
-          } else { // Fixed amount
-            // As per requirement, the full fixed discount is applied to each item.
-            itemDiscountAmount = billDiscount
+          // Distribute discount proportionally based on the line item's value relative to the total gross amount
+          let itemDiscountAmount = 0;
+          if (finalGross > 0) { // Avoid division by zero
+            if (billDiscountType === 1) { // Percentage discount
+              // The discount percentage is applied to each item's subtotal
+              itemDiscountAmount = (lineSubtotal * billDiscPer) / 100;
+            } else if (billDiscountType === 0 && billDiscount > 0) { // Fixed amount discount
+              // Distribute the fixed discount proportionally
+              const proportion = lineSubtotal / finalGross;
+              itemDiscountAmount = billDiscount * proportion;
+            }
           }
 
           const isNCKOT = toBool(d.isNCKOT)

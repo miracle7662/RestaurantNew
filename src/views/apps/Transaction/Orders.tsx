@@ -1162,7 +1162,7 @@ const Order = () => {
     if (selectedOutletId) {
       fetchKotPrintSettings(selectedOutletId);
       fetchBillPreviewSettings(selectedOutletId);
-      // Fetch outlet settings for Reverse Qty Mode and include_tax_in_invoice
+      // Fetch outlet settings for Reverse Qty Mode
       const fetchReverseQtySetting = async () => {
         try {
           const res = await fetch(`http://localhost:3001/api/outlets/outlet-settings/${selectedOutletId}`);
@@ -1177,7 +1177,7 @@ const Order = () => {
               // include_tax_in_invoice may be returned with different casing
               const incFlag = settings.include_tax_in_invoice ?? settings.IncludeTaxInInvoice ?? settings.includeTaxInInvoice ?? settings.includeTaxInInvoice;
               setIncludeTaxInInvoice(Number(incFlag) === 1 ? 1 : 0);
-              // Debug console for tax mode
+                 // Debug console for tax mode
               console.log("Include Tax in Invoice:", Number(incFlag) === 1 ? "Inclusive" : "Exclusive");
             } else {
               setReverseQtyConfig('PasswordRequired'); // Default to password required
