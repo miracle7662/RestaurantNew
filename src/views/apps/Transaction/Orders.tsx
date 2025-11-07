@@ -100,6 +100,8 @@ const Order = () => {
   const [customerName, setCustomerName] = useState<string>('');
   const [taxRates, setTaxRates] = useState<{ cgst: number; sgst: number; igst: number; cess: number }>({ cgst: 0, sgst: 0, igst: 0, cess: 0 });
   const [taxCalc, setTaxCalc] = useState<{ subtotal: number; cgstAmt: number; sgstAmt: number; igstAmt: number; cessAmt: number; grandTotal: number }>({ subtotal: 0, cgstAmt: 0, sgstAmt: 0, igstAmt: 0, cessAmt: 0, grandTotal: 0 });
+  // 0 = exclusive (default), 1 = inclusive
+  const [includeTaxInInvoice, setIncludeTaxInInvoice] = useState<number>(0);
   const [selectedDeptId, setSelectedDeptId] = useState<number | null>(null);
   const [selectedOutletId, setSelectedOutletId] = useState<number | null>(null);
   const [showDiscountModal, setShowDiscountModal] = useState<boolean>(false);
@@ -1125,14 +1127,36 @@ const Order = () => {
   }, [selectedDeptId, selectedOutletId]);
 
   useEffect(() => {
-    const subtotal = items.reduce((sum, item) => sum + item.price * item.qty, 0);
-    const cgstAmt = (subtotal * (Number(taxRates.cgst) || 0)) / 100;
-    const sgstAmt = (subtotal * (Number(taxRates.sgst) || 0)) / 100;
-    const igstAmt = (subtotal * (Number(taxRates.igst) || 0)) / 100;
-    const cessAmt = (subtotal * (Number(taxRates.cess) || 0)) / 100;
-    const grandTotal = subtotal + cgstAmt + sgstAmt + igstAmt + cessAmt;
-    setTaxCalc({ subtotal, cgstAmt, sgstAmt, igstAmt, cessAmt, grandTotal });
-  }, [items, taxRates]);
+    // Compute totals differently depending on includeTaxInInvoice flag
+    // When includeTaxInInvoice === 1, unit prices are tax-inclusive
+    const lineTotal = items.reduce((sum, item) => sum + item.price * item.qty, 0);
+    const cgstPer = Number(taxRates.cgst) || 0;
+    const sgstPer = Number(taxRates.sgst) || 0;
+    const igstPer = Number(taxRates.igst) || 0;
+    const cessPer = Number(taxRates.cess) || 0;
+    const combinedPer = cgstPer + sgstPer + igstPer + cessPer;
+
+    if (includeTaxInInvoice === 1) {
+      // Prices include tax. Extract taxable subtotal from gross (lineTotal).
+      const subtotal = combinedPer > 0 ? lineTotal / (1 + combinedPer / 100) : lineTotal;
+      const cgstAmt = (subtotal * cgstPer) / 100;
+      const sgstAmt = (subtotal * sgstPer) / 100;
+      const igstAmt = (subtotal * igstPer) / 100;
+      const cessAmt = (subtotal * cessPer) / 100;
+      // Grand total equals original lineTotal when inclusive
+      const grandTotal = Math.round((subtotal + cgstAmt + sgstAmt + igstAmt + cessAmt) * 100) / 100;
+      setTaxCalc({ subtotal: Math.round(subtotal * 100) / 100, cgstAmt, sgstAmt, igstAmt, cessAmt, grandTotal });
+    } else {
+      // Exclusive tax: prices are taxable and taxes are added on top
+      const subtotal = lineTotal;
+      const cgstAmt = (subtotal * cgstPer) / 100;
+      const sgstAmt = (subtotal * sgstPer) / 100;
+      const igstAmt = (subtotal * igstPer) / 100;
+      const cessAmt = (subtotal * cessPer) / 100;
+      const grandTotal = Math.round((subtotal + cgstAmt + sgstAmt + igstAmt + cessAmt) * 100) / 100;
+      setTaxCalc({ subtotal: Math.round(subtotal * 100) / 100, cgstAmt, sgstAmt, igstAmt, cessAmt, grandTotal });
+    }
+  }, [items, taxRates, includeTaxInInvoice]);
 
   useEffect(() => {
     if (selectedOutletId) {
@@ -1144,10 +1168,18 @@ const Order = () => {
           const res = await fetch(`http://localhost:3001/api/outlets/outlet-settings/${selectedOutletId}`);
           if (res.ok) {
             const settings = await res.json();
-            if (settings && settings.ReverseQtyMode !== undefined) {
-              setReverseQtyConfig(settings.ReverseQtyMode === 1 ? 'PasswordRequired' : 'NoPassword');
+            if (settings) {
+              if (settings.ReverseQtyMode !== undefined) {
+                setReverseQtyConfig(settings.ReverseQtyMode === 1 ? 'PasswordRequired' : 'NoPassword');
+              } else {
+                setReverseQtyConfig('PasswordRequired'); // Default to password required
+              }
+              // include_tax_in_invoice may be returned with different casing
+              const incFlag = settings.include_tax_in_invoice ?? settings.IncludeTaxInInvoice ?? settings.includeTaxInInvoice ?? settings.includeTaxInInvoice;
+              setIncludeTaxInInvoice(Number(incFlag) === 1 ? 1 : 0);
             } else {
               setReverseQtyConfig('PasswordRequired'); // Default to password required
+              setIncludeTaxInInvoice(0);
             }
           } else {
             setReverseQtyConfig('PasswordRequired'); // Default to password required
@@ -2592,7 +2624,13 @@ if (e.key === "F8" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                 <div>
                   {(formData.show_kot_no_quick_bill || !formData.hide_table_name_quick_bill) && (
-                    <strong>KOT No:</strong>
+                    <>
+                      <strong>KOT No:</strong>
+                      {/* Tax Type display based on outlet setting */}
+                      <div style={{ textAlign: 'center', marginBottom: '6px', fontSize: '9pt' }}>
+                        <strong>Tax Type:</strong> {includeTaxInInvoice === 1 ? 'Inclusive' : 'Exclusive'}
+                      </div>
+                    </>
                   )}{' '}
                   {currentKOTNo}
                 </div>
