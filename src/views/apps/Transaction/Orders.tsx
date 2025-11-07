@@ -2028,6 +2028,11 @@ const Order = () => {
         handlePrintAndSaveKOT();
         return;
       }
+      if (e.key === "F11" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
+        e.preventDefault();
+        handlePrintAndSettle();
+        return;
+      }
 
       // 🔹 Keyboard event listener for F8 Reverse Mode
 if (e.key === "F8") {
