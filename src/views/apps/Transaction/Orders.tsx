@@ -1679,45 +1679,66 @@ const Order = () => {
     }
   };
 
-  const handlePrintAndSettle = async () => {
-    if (items.length === 0) {
-      toast.error('No items to process.');
-      return;
-    }
-    if (!currentTxnId) {
-      toast.error('Cannot proceed. No transaction ID found.');
-      return;
-    }
-  
-    setLoading(true);
-    try {
-      // Step 1: Mark the bill as printed
-      const printResponse = await fetch(`http://localhost:3001/api/TAxnTrnbill/${currentTxnId}/mark-billed`, {
+ const handlePrintAndSettle = async () => {
+  if (items.length === 0) {
+    toast.error('No items to process.');
+    return;
+  }
+
+  if (!currentTxnId) {
+    toast.error('Cannot proceed. No transaction ID found.');
+    return;
+  }
+
+  setLoading(true);
+  try {
+    // ✅ Step 1: Print bill first and mark as billed
+    const printResponse = await fetch(
+      `http://localhost:3001/api/TAxnTrnbill/${currentTxnId}/mark-billed`,
+      {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ outletId: selectedOutletId || Number(user?.outletid) }),
-      });
-  
-      const printResult = await printResponse.json();
-      if (!printResult.success) {
-        throw new Error(printResult.message || 'Failed to mark bill as printed.');
+        body: JSON.stringify({
+          outletId: selectedOutletId || Number(user?.outletid),
+        }),
       }
-  
-      toast.success('Bill marked as printed!');
-  
-      // Step 2: Open the settlement modal
-      // Fetch payment modes for the current outlet before showing the modal
-      if (selectedOutletId) {
-        await fetchPaymentModesForOutlet(selectedOutletId);
-      }
-      setShowSettlementModal(true);
-  
-    } catch (error: any) {
-      toast.error(error.message || 'An error occurred during the print and settle process.');
-    } finally {
-      setLoading(false);
+    );
+
+    const printResult = await printResponse.json();
+
+    if (!printResult.success) {
+      throw new Error(printResult.message || 'Failed to mark bill as printed.');
     }
-  };
+
+    toast.success('Bill marked as printed!');
+
+    // ✅ Step 2: Print the bill visually
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      const contentToPrint = document.getElementById('bill-preview');
+      if (contentToPrint) {
+        printWindow.document.write(contentToPrint.innerHTML);
+        printWindow.document.close();
+        printWindow.focus();
+        await new Promise((resolve) => setTimeout(resolve, 500)); // short delay
+        printWindow.print();
+      }
+    }
+
+    // ✅ Step 3: After print completes → fetch payment modes and open settlement modal
+    if (selectedOutletId) {
+      await fetchPaymentModesForOutlet(selectedOutletId);
+    }
+
+    setShowSettlementModal(true); // open settlement modal immediately after print
+  } catch (error: any) {
+    toast.error(
+      error.message || 'An error occurred during the print & settle process.'
+    );
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleSaveReverse = async () => {
     if (!persistentTxnId) {
