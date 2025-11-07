@@ -1679,6 +1679,46 @@ const Order = () => {
     }
   };
 
+  const handlePrintAndSettle = async () => {
+    if (items.length === 0) {
+      toast.error('No items to process.');
+      return;
+    }
+    if (!currentTxnId) {
+      toast.error('Cannot proceed. No transaction ID found.');
+      return;
+    }
+  
+    setLoading(true);
+    try {
+      // Step 1: Mark the bill as printed
+      const printResponse = await fetch(`http://localhost:3001/api/TAxnTrnbill/${currentTxnId}/mark-billed`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ outletId: selectedOutletId || Number(user?.outletid) }),
+      });
+  
+      const printResult = await printResponse.json();
+      if (!printResult.success) {
+        throw new Error(printResult.message || 'Failed to mark bill as printed.');
+      }
+  
+      toast.success('Bill marked as printed!');
+  
+      // Step 2: Open the settlement modal
+      // Fetch payment modes for the current outlet before showing the modal
+      if (selectedOutletId) {
+        await fetchPaymentModesForOutlet(selectedOutletId);
+      }
+      setShowSettlementModal(true);
+  
+    } catch (error: any) {
+      toast.error(error.message || 'An error occurred during the print and settle process.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSaveReverse = async () => {
     if (!persistentTxnId) {
       toast.error('Cannot save reversal. No active transaction found.');
@@ -4128,54 +4168,69 @@ if (e.key === "F8") {
                     </div>
                   )}
                   <div className="col-12 d-flex align-items-center">
-                    {!reverseQtyMode && items.length > 0 && (
-                        <div className="d-flex align-items-center gap-2">
-                          {activeTab === 'Quick Bill' ? (
-                            <Button
-                              size="sm"
-                              variant="success"
-                              onClick={handlePrintKOTAndBill}
-                              disabled={loading}
-                            >
-                              ✅ Print KOT & Bill
-                            </Button>
-                          ) : hasModifications ? (
-                            <button
-                              className="btn btn-dark rounded btn-sm"
-                              onClick={handlePrintAndSaveKOT}
-                              disabled={reverseQtyMode}>
-                               🖨️ KOT (F9)
-                            </button>
-                          ) : billActionState === 'initial' ? (
+                    {!reverseQtyMode && (
+                      <div className="d-flex align-items-center gap-2">
+                        {/* Case 1: No items exist */}
+                        {items.length === 0 && (
+                          <span className="text-muted small">Add items to proceed</span>
+                        )}
+
+                        {/* Case 2: New items added (first KOT) */}
+                        {items.length > 0 && hasModifications && (
+                          <button
+                            className="btn btn-dark rounded btn-sm"
+                            onClick={handlePrintAndSaveKOT}
+                            disabled={reverseQtyMode}>
+                            🖨️ KOT (F9)
+                          </button>
+                        )}
+
+                        {/* Case 3: Existing items, no new modifications */}
+                        {items.length > 0 &&
+                          !hasModifications &&
+                          items.some(item => !item.isNew && item.isBilled === 0) && (
+                          <>
                             <Button
                               size="sm"
                               variant="primary"
                               onClick={handlePrintBill}
-                              disabled={items.length === 0 || reverseQtyMode}
+                              disabled={reverseQtyMode || items.every(item => item.isBilled === 1)}
                             >
                               🖨️ Bill (F10)
                             </Button>
-                          ) : (
-                            <>
-                              <Button
-                                size="sm"
-                                variant="primary"
-                                onClick={handlePrintBill}
-                                disabled={items.length === 0 || reverseQtyMode}
-                              >
-                                🖨️ Bill
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="success"
-                                onClick={() => setShowSettlementModal(true)}
-                                disabled={items.length === 0 || reverseQtyMode}
-                              >
-                                💳 Settle
-                              </Button>
-                            </>
-                          )}
-                        </div>
+                            <Button
+                              size="sm"
+                              variant="success"
+                              onClick={handlePrintAndSettle}
+                              disabled={reverseQtyMode || items.every(item => item.isBilled === 1)}
+                            >
+                              💳 Print Bill & Settle
+                            </Button>
+                          </>
+                        )}
+
+                        {/* Case 4: Billed items exist */}
+                        {items.some(item => item.isBilled === 1) && (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="primary"
+                              onClick={handlePrintBill}
+                              disabled={reverseQtyMode}
+                            >
+                              🖨️ Bill
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="success"
+                              onClick={() => setShowSettlementModal(true)}
+                              disabled={reverseQtyMode}
+                            >
+                              💳 Settle
+                            </Button>
+                          </>
+                        )}
+                      </div>
                     )}
                     <div className="ms-auto">
                       <span
