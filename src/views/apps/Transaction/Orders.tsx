@@ -1127,36 +1127,55 @@ const Order = () => {
   }, [selectedDeptId, selectedOutletId]);
 
   useEffect(() => {
-    // Compute totals differently depending on includeTaxInInvoice flag
-    // When includeTaxInInvoice === 1, unit prices are tax-inclusive
-    const lineTotal = items.reduce((sum, item) => sum + item.price * item.qty, 0);
     const cgstPer = Number(taxRates.cgst) || 0;
     const sgstPer = Number(taxRates.sgst) || 0;
     const igstPer = Number(taxRates.igst) || 0;
     const cessPer = Number(taxRates.cess) || 0;
     const combinedPer = cgstPer + sgstPer + igstPer + cessPer;
+    const lineTotal = items.reduce((sum, item) => sum + item.price * item.qty, 0);
+    
+    let finalSubtotal: number, cgstAmt: number, sgstAmt: number, igstAmt: number, cessAmt: number, grandTotal: number;
 
     if (includeTaxInInvoice === 1) {
-      // Prices include tax. Extract taxable subtotal from gross (lineTotal).
-      const subtotal = combinedPer > 0 ? lineTotal / (1 + combinedPer / 100) : lineTotal;
-      const cgstAmt = (subtotal * cgstPer) / 100;
-      const sgstAmt = (subtotal * sgstPer) / 100;
-      const igstAmt = (subtotal * igstPer) / 100;
-      const cessAmt = (subtotal * cessPer) / 100;
-      // Grand total equals original lineTotal when inclusive
-      const grandTotal = Math.round((subtotal + cgstAmt + sgstAmt + igstAmt + cessAmt) * 100) / 100;
-      setTaxCalc({ subtotal: Math.round(subtotal * 100) / 100, cgstAmt, sgstAmt, igstAmt, cessAmt, grandTotal });
+      // Inclusive Tax: Prices include tax.
+      // 1. Find pre-tax base from the item total (lineTotal).
+      const preTaxBase = combinedPer > 0 ? lineTotal / (1 + combinedPer / 100) : lineTotal;
+      
+      // 2. Discount is applied on the pre-tax base to get the new taxable value.
+      const discountAmount = discount;
+      const newTaxableValue = preTaxBase - discountAmount;
+      
+      // 3. Recalculate taxes on the new taxable value.
+      cgstAmt = (newTaxableValue * cgstPer) / 100;
+      sgstAmt = (newTaxableValue * sgstPer) / 100;
+      igstAmt = (newTaxableValue * igstPer) / 100;
+      cessAmt = (newTaxableValue * cessPer) / 100;
+      
+      // 4. Final bill is the new taxable value plus the new taxes.
+      grandTotal = newTaxableValue + cgstAmt + sgstAmt + igstAmt + cessAmt;
+      finalSubtotal = preTaxBase; // Subtotal should reflect the pre-tax base before discount.
+
     } else {
-      // Exclusive tax: prices are taxable and taxes are added on top
-      const subtotal = lineTotal;
-      const cgstAmt = (subtotal * cgstPer) / 100;
-      const sgstAmt = (subtotal * sgstPer) / 100;
-      const igstAmt = (subtotal * igstPer) / 100;
-      const cessAmt = (subtotal * cessPer) / 100;
-      const grandTotal = Math.round((subtotal + cgstAmt + sgstAmt + igstAmt + cessAmt) * 100) / 100;
-      setTaxCalc({ subtotal: Math.round(subtotal * 100) / 100, cgstAmt, sgstAmt, igstAmt, cessAmt, grandTotal });
+      // Exclusive Tax: Prices do not include tax.
+      // Step 1: Apply discount to the base amount (lineTotal) to get the taxable value.
+      const taxableValue = lineTotal - discount;
+      
+      // Step 2: Add tax on the discounted value.
+      cgstAmt = (taxableValue * cgstPer) / 100;
+      sgstAmt = (taxableValue * sgstPer) / 100;
+      igstAmt = (taxableValue * igstPer) / 100;
+      cessAmt = (taxableValue * cessPer) / 100;
+      
+      // Step 3: Final bill is the taxable value plus all taxes.
+      grandTotal = taxableValue + cgstAmt + sgstAmt + igstAmt + cessAmt;
+      finalSubtotal = lineTotal; // Subtotal should reflect the base amount before discount.
     }
-  }, [items, taxRates, includeTaxInInvoice]);
+
+    setTaxCalc({
+      subtotal: finalSubtotal, cgstAmt, sgstAmt, igstAmt, cessAmt, grandTotal
+    });
+
+  }, [items, taxRates, includeTaxInInvoice, discount]);
 
   useEffect(() => {
     if (selectedOutletId) {
@@ -2216,6 +2235,7 @@ if (e.key === "F8" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
     }
 
     setLoading(true);
+    setDiscount(appliedDiscount); // Ensure the discount state is updated
     try {
       const payload = {
         discount: appliedDiscount,
@@ -4302,8 +4322,8 @@ if (e.key === "F8" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
                       <span
                         className="fw-bold"
                         style={{ fontSize: '22px' }}
-                      >
-                        ₹{(taxCalc.grandTotal - discount - revKotTotal).toFixed(2)}
+                      > 
+                        ₹{(taxCalc.grandTotal - revKotTotal).toFixed(2)}
                       </span>
                     </div>
                   </div>

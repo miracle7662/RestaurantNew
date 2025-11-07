@@ -920,29 +920,54 @@ exports.createKOT = async (req, res) => {
       // Manually recalculate and update bill totals to ensure accuracy,
       // as relying on triggers can be inconsistent.
       const allDetails = db.prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? AND isCancelled = 0').all(txnId);
+      const billHeader = db.prepare('SELECT RoundOFF, Discount, outletid FROM TAxnTrnbill WHERE TxnID = ?').get(txnId);
+      const outletSettings = db.prepare('SELECT include_tax_in_invoice FROM mstoutlet_settings WHERE outletid = ?').get(billHeader.outletid);
+      const includeTaxInInvoice = outletSettings ? outletSettings.include_tax_in_invoice : 0;
       
-      let totalGross = 0, totalCgst = 0, totalSgst = 0, totalIgst = 0, totalCess = 0, totalDiscount = 0;
+      let totalGross = 0;
       for (const d of allDetails) {
           const qty = Number(d.Qty) || 0;
           const rate = Number(d.RuntimeRate) || 0;
           totalGross += qty * rate;
-          totalCgst += Number(d.CGST_AMOUNT) || 0;
-          totalSgst += Number(d.SGST_AMOUNT) || 0;
-          totalIgst += Number(d.IGST_AMOUNT) || 0;
-          totalCess += Number(d.CESS_AMOUNT) || 0;
-          totalDiscount += Number(d.Discount_Amount) || 0;
       }
 
-      const billHeader = db.prepare('SELECT RoundOFF FROM TAxnTrnbill WHERE TxnID = ?').get(txnId);
+      let totalCgst = 0, totalSgst = 0, totalIgst = 0, totalCess = 0, finalAmount = 0;
+      const discountAmount = Number(billHeader.Discount) || 0;
       const roundOff = Number(billHeader?.RoundOFF) || 0;
 
-      const totalAmount = totalGross - totalDiscount + totalCgst + totalSgst + totalIgst + totalCess + roundOff;
+      // Use tax percentages from the first item as they are consistent for the bill.
+      const firstDetail = allDetails[0] || {};
+      const cgstPer = Number(firstDetail.CGST) || 0;
+      const sgstPer = Number(firstDetail.SGST) || 0;
+      const igstPer = Number(firstDetail.IGST) || 0;
+      const cessPer = Number(firstDetail.CESS) || 0;
+
+      if (includeTaxInInvoice === 1) {
+        const combinedPer = cgstPer + sgstPer + igstPer + cessPer;
+        const preTaxBase = combinedPer > 0 ? totalGross / (1 + combinedPer / 100) : totalGross;
+        const newTaxableValue = preTaxBase - discountAmount;
+
+        totalCgst = (newTaxableValue * cgstPer) / 100;
+        totalSgst = (newTaxableValue * sgstPer) / 100;
+        totalIgst = (newTaxableValue * igstPer) / 100;
+        totalCess = (newTaxableValue * cessPer) / 100;
+        finalAmount = newTaxableValue + totalCgst + totalSgst + totalIgst + totalCess + roundOff;
+      } else {
+        const taxableValue = totalGross - discountAmount;
+        // Recalculate taxes based on the post-discount taxable value
+        totalCgst = (taxableValue * cgstPer) / 100;
+        totalSgst = (taxableValue * sgstPer) / 100;
+        totalIgst = (taxableValue * igstPer) / 100;
+        totalCess = (taxableValue * cessPer) / 100;
+        finalAmount = taxableValue + totalCgst + totalSgst + totalIgst + totalCess + roundOff;
+      }
+
 
       db.prepare(`
           UPDATE TAxnTrnbill
           SET GrossAmt = ?, Discount = ?, CGST = ?, SGST = ?, IGST = ?, CESS = ?, Amount = ?
           WHERE TxnID = ?
-      `).run(totalGross, totalDiscount, totalCgst, totalSgst, totalIgst, totalCess, totalAmount, txnId);
+      `).run(totalGross, discountAmount, totalCgst, totalSgst, totalIgst, totalCess, finalAmount, txnId);
       return { txnId, kotNo };
     })(); // Immediately invoke the transaction
 
@@ -1959,28 +1984,47 @@ exports.applyDiscountToBill = async (req, res) => {
         totalDiscountOnItems += itemDiscountAmount;
       }
 
-      // 3. Recalculate the total amount for the bill header
+      // 3. Recalculate the total amount for the bill header based on the new discount
       const allDetails = db.prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? AND isCancelled = 0').all(Number(id));
-      let totalGross = 0, totalCgst = 0, totalSgst = 0, totalIgst = 0, totalCess = 0;
+      const outletSettings = db.prepare('SELECT include_tax_in_invoice FROM mstoutlet_settings WHERE outletid = ?').get(bill.outletid);
+      const includeTaxInInvoice = outletSettings ? outletSettings.include_tax_in_invoice : 0;
+
+      let totalGross = 0;
       for (const d of allDetails) {
           totalGross += (Number(d.Qty) || 0) * (Number(d.RuntimeRate) || 0);
-          totalCgst += Number(d.CGST_AMOUNT) || 0;
-          totalSgst += Number(d.SGST_AMOUNT) || 0;
-          totalIgst += Number(d.IGST_AMOUNT) || 0;
-          totalCess += Number(d.CESS_AMOUNT) || 0;
       }
-      const totalAmount = totalGross - totalDiscountOnItems + totalCgst + totalSgst + totalIgst + totalCess + (bill.RoundOFF || 0);
+
+      let totalCgst = 0, totalSgst = 0, totalIgst = 0, totalCess = 0, finalAmount = 0;
+      const firstDetail = allDetails[0] || {};
+      const cgstPer = Number(firstDetail.CGST) || 0;
+      const sgstPer = Number(firstDetail.SGST) || 0;
+      const igstPer = Number(firstDetail.IGST) || 0;
+      const cessPer = Number(firstDetail.CESS) || 0;
+
+      if (includeTaxInInvoice === 1) {
+        const combinedPer = cgstPer + sgstPer + igstPer + cessPer;
+        const preTaxBase = combinedPer > 0 ? totalGross / (1 + combinedPer / 100) : totalGross;
+        const newTaxableValue = preTaxBase - finalDiscount;
+        totalCgst = (newTaxableValue * cgstPer) / 100;
+        totalSgst = (newTaxableValue * sgstPer) / 100;
+        totalIgst = (newTaxableValue * igstPer) / 100;
+        totalCess = (newTaxableValue * cessPer) / 100;
+        finalAmount = newTaxableValue + totalCgst + totalSgst + totalIgst + totalCess + (bill.RoundOFF || 0);
+      } else {
+        const taxableValue = totalGross - finalDiscount;
+        totalCgst = (taxableValue * cgstPer) / 100;
+        totalSgst = (taxableValue * sgstPer) / 100;
+        totalIgst = (taxableValue * igstPer) / 100;
+        totalCess = (taxableValue * cessPer) / 100;
+        finalAmount = taxableValue + totalCgst + totalSgst + totalIgst + totalCess + (bill.RoundOFF || 0);
+      }
 
       // 4. Update the bill header with all correct values in one go
       db.prepare(`
         UPDATE TAxnTrnbill 
-        SET
-          Amount = ?,
-          Discount = ?,
-          DiscPer = ?,
-          DiscountType = ?
+        SET Amount = ?, Discount = ?, DiscPer = ?, DiscountType = ?, CGST = ?, SGST = ?, IGST = ?, CESS = ?
         WHERE TxnID = ?
-      `).run(totalAmount, totalDiscountOnItems, finalDiscPer, finalDiscountType, Number(id));
+      `).run(finalAmount, finalDiscount, finalDiscPer, finalDiscountType, totalCgst, totalSgst, totalIgst, totalCess, Number(id));
     });
 
     trx();
