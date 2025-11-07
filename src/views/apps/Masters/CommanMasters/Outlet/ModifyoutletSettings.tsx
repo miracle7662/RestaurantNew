@@ -17,6 +17,7 @@ interface OutletSettings {
   next_reset_order_number_days: string;
   decimal_points: number;
   bill_round_off: boolean;
+  bill_round_off_to: number;
   enable_loyalty: boolean;
   multiple_price_setting: boolean;
   include_tax_in_invoice?: boolean;
@@ -98,6 +99,7 @@ const ModifyOutletSettingsModal: React.FC<{
     next_reset_order_number_days: 'Reset Order Number Daily',
     decimal_points: 2,
     bill_round_off: false,
+    bill_round_off_to: 1,
     enable_loyalty: false,
     multiple_price_setting: false,
     verify_pos_system_login: false,
@@ -224,6 +226,7 @@ const ModifyOutletSettingsModal: React.FC<{
         bill_round_off: formData.bill_round_off ? 1 : 0,
         enable_loyalty: formData.enable_loyalty ? 1 : 0,
         multiple_price_setting: formData.multiple_price_setting ? 1 : 0,
+        bill_round_off_to: formData.bill_round_off_to,
         include_tax_in_invoice: formData.include_tax_in_invoice ? 1 : 0,
         service_charges: formData.service_charges || 0,
         verify_pos_system_login: formData.verify_pos_system_login ? 1 : 0,
@@ -432,17 +435,55 @@ return (
               </div>
             </Form.Group>
           </Col>
-          <Col md={3}>
-            <Form.Group controlId="bill_round_off">
-              <Form.Label>Bill Round Off</Form.Label>
-              <Form.Check
-                type="switch"
-                checked={formData.bill_round_off}
-                onChange={handleChange}
-                aria-label="Toggle bill round off"
-              />
-            </Form.Group>
+          <Col md={6}>
+            <Row>
+<Col md={6}>
+  <Form.Group controlId="bill_round_off">
+    <Form.Label>Bill Round Off</Form.Label>
+
+    <div className="d-flex align-items-center gap-2">
+      {/* Toggle switch always on left */}
+      <Form.Check
+        type="switch"
+        checked={formData.bill_round_off}
+        onChange={handleChange}
+        aria-label="Toggle bill round off"
+      />
+
+      {/* Dropdown shows only when toggle is ON */}
+      {formData.bill_round_off && (
+        <Form.Select
+          value={formData.bill_round_off_to}
+          onChange={handleChange}
+          style={{ width: "130px" }}
+        >
+          <option value={1}>Nearest 1</option>
+          <option value={5}>Nearest 5</option>
+          <option value={10}>Nearest 10</option>
+        </Form.Select>
+      )}
+    </div>
+  </Form.Group>
+</Col>
+
+            <Col md={3}>
+  <Form.Group controlId="multiple_price_setting">
+    <Form.Label style={{ whiteSpace: "nowrap" }}>Multiple Price Setting</Form.Label>
+    <Form.Check
+      type="switch"
+      checked={formData.multiple_price_setting}
+      onChange={handleChange}
+      aria-label="Toggle multiple price setting"
+    />
+  </Form.Group>
+</Col>
+
+              
+              
+            </Row>
+            
           </Col>
+          
           <Col md={3}>
             <Form.Group controlId="enable_loyalty">
               <Form.Label>Enable Loyalty</Form.Label>
@@ -454,17 +495,7 @@ return (
               />
             </Form.Group>
           </Col>
-          <Col md={3}>
-            <Form.Group controlId="multiple_price_setting">
-              <Form.Label>Multiple Price Setting</Form.Label>
-              <Form.Check
-                type="switch"
-                checked={formData.multiple_price_setting}
-                onChange={handleChange}
-                aria-label="Toggle multiple price setting"
-              />
-            </Form.Group>
-          </Col>
+          
         </Row>
         <Row className="mb-3">
           <Col md={3}>

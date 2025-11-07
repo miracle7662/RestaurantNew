@@ -2035,7 +2035,7 @@ const Order = () => {
       }
 
       // 🔹 Keyboard event listener for F8 Reverse Mode
-if (e.key === "F8") {
+if (e.key === "F8" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
   e.preventDefault();
 
   // ✅ If Dine-in tab → Table must be selected

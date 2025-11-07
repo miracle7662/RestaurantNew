@@ -666,6 +666,7 @@ CREATE TABLE IF NOT EXISTS mstoutlet_settings (
     next_reset_order_number_days VARCHAR(50) DEFAULT 'Reset Order Number Daily',
     decimal_points INT DEFAULT 2,
     bill_round_off BOOLEAN,
+    bill_round_off_to REAL DEFAULT 1,
     enable_loyalty BOOLEAN,
     multiple_price_setting BOOLEAN,
     include_tax_in_invoice BOOLEAN,

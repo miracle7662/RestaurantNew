@@ -1008,6 +1008,7 @@ exports.updateOutletSettings = (req, res) => {
       next_reset_order_number_days,
       decimal_points,
       bill_round_off,
+      bill_round_off_to,
       enable_loyalty,
       multiple_price_setting,
       service_charges,
@@ -1100,6 +1101,7 @@ exports.updateOutletSettings = (req, res) => {
           next_reset_order_number_days = ?,
           decimal_points = ?,
           bill_round_off = ?,
+          bill_round_off_to = ?,
           enable_loyalty = ?,
           multiple_price_setting = ?,
           include_tax_in_invoice = ?,
@@ -1169,6 +1171,7 @@ exports.updateOutletSettings = (req, res) => {
         next_reset_order_number_days,
         decimal_points,
         bill_round_off,
+        bill_round_off_to,
         enable_loyalty,
         multiple_price_setting,
         include_tax_in_invoice,
@@ -1240,6 +1243,7 @@ const insertStmt = db.prepare(`
           next_reset_order_number_days,
           decimal_points,
           bill_round_off,
+          bill_round_off_to,
           enable_loyalty,
           multiple_price_setting,
           include_tax_in_invoice,
@@ -1298,7 +1302,7 @@ const insertStmt = db.prepare(`
           keeta_enabled,
           notification_channel,
           ReverseQtyMode
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `);
 
 
@@ -1310,6 +1314,7 @@ const insertStmt = db.prepare(`
         next_reset_order_number_days,
         decimal_points,
         bill_round_off,
+        bill_round_off_to,
         enable_loyalty,
         multiple_price_setting,
         include_tax_in_invoice,
