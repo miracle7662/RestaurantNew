@@ -1854,21 +1854,15 @@ const Order = () => {
           }
         }
 
-        if (result.fullReverse) {
-          // If it was a full reversal, clear the table and hide order details
-          setSelectedTable(null);
-          setShowOrderDetails(false);
-          fetchTableManagement(); // Refresh table status
-        } else {
-          // For both partial and full reversals, reset the UI state
-          setItems([]);
-          setReversedItems([]); // Also clear the reversed items list
-          setSelectedTable(null);
-          setShowOrderDetails(false);
-        }
+        // For both partial and full reversals, reset the UI state and refresh tables.
+        setItems([]);
+        setReversedItems([]);
+        setSelectedTable(null);
+        setShowOrderDetails(false);
         setReverseQtyMode(false);
         setShowSaveReverseButton(false);
         setReverseQtyItems([]);
+        fetchTableManagement(); // Refresh table statuses to show green
       } else {
         throw new Error(result.message || 'Failed to process reverse KOT.');
       }
@@ -2283,16 +2277,9 @@ if (e.key === "F8" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
 
       toast.success('Discount applied successfully!');
       setShowDiscountModal(false);
-      // Reset UI to go back to the table selection screen
-      setItems([]);
-      setSelectedTable(null);
-      setShowOrderDetails(false);
-      setCurrentKOTNo(null);
-      setCurrentKOTNos([]);
-      setTxnNo(null);
-
+      // Instead of clearing the table, just refresh its data to show the discount.
       if (selectedTableId) {
-        refreshItemsForTable(selectedTableId);
+        await refreshItemsForTable(selectedTableId);
       }
 
     } catch (error: any) {

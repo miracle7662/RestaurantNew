@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+
 import { toast } from 'react-hot-toast';
 import { Preloader } from '@/components/Misc/Preloader';
 import { Card } from 'react-bootstrap';
 import TitleHelmet from '@/components/Common/TitleHelmet';
 import { useAuthContext } from '@/common';
+
 import {
   fetchStates,
   StateItem,
@@ -39,7 +41,13 @@ interface Customer {
 }
 
 // Debounce utility function
-
+const debounce = (func: (...args: any[]) => void, wait: number) => {
+  let timeout: NodeJS.Timeout;
+  return (...args: any[]) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  };
+};
 
 // CustomersPage Component
 const CustomersPage: React.FC = () => {
@@ -73,10 +81,10 @@ const CustomersPage: React.FC = () => {
   const [cityHighlightIndex, setCityHighlightIndex] = useState<number>(-1);
   const [stateid, setStateId] = useState<number | null>(null);
   const [cityid, setCityid] = useState<number | null>(null);
-  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]); // Local state for customers
   const [, setFilteredCustomers] = useState<Customer[]>([]);
 
-  // Fetch customer data (READ)
+   // Fetch customer data (READ)
   const fetchCustomers = async () => {
     setLoading(true);
     try {
@@ -102,12 +110,12 @@ const CustomersPage: React.FC = () => {
     fetchCustomers();
   }, [user]);
 
+
   useEffect(() => {
     fetchStates(setStates, setStateId).catch((err) => toast.error('Error fetching states'));
     fetchCities(setCities, setCityid).catch((err) => toast.error('Error fetching cities'));
   }, []);
 
-  // Input handlers remain the same...
   const handleMobileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const mobileValue = e.target.value.replace(/\D/g, '');
     if (mobileValue.length <= 10) setMobile(mobileValue);
@@ -127,11 +135,6 @@ const CustomersPage: React.FC = () => {
   const handlePanChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const panValue = e.target.value.replace(/[^a-zA-Z0-9]/g, '');
     if (panValue.length <= 10) setPanNo(panValue.toUpperCase());
-  };
-
-  const handleGstChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const gstValue = e.target.value.replace(/[^a-zA-Z0-9]/g, '');
-    if (gstValue.length <= 15) setGstNo(gstValue.toUpperCase());
   };
 
   const resetForm = () => {
@@ -417,691 +420,437 @@ const CustomersPage: React.FC = () => {
   };
 
   return (
-    <div className="d-flex flex-column" style={{ height: '100vh', overflow: 'hidden', background: '#f8f9fa' }}>
+    <div className="d-flex flex-column" style={{ height: '100vh', overflow: 'hidden' }}>
       <TitleHelmet title="Customers" />
       {loading && <Preloader />}
-      
       <div className="container-fluid p-4 flex-grow-1 d-flex flex-column" style={{ overflow: 'auto' }}>
-        <Card className="p-4 flex-grow-1 d-flex flex-column shadow-sm border-0" 
-              style={{ 
-                borderRadius: '12px', 
-                minWidth: '600px', 
-                background: 'white'
-              }}>
-          
-          {/* Header Section */}
-          <div className="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom">
-            <div>
-              <h3 className="mb-1 fw-bold text-dark" style={{ fontSize: '1.4rem' }}>
-                {selectedCustomerId ? 'Edit Customer' : 'Add New Customer'}
-              </h3>
-              <p className="text-muted mb-0" style={{ fontSize: '0.9rem' }}>
-                {selectedCustomerId ? 'Update customer information' : 'Create a new customer profile'}
-              </p>
+        <Card className="p-4 flex-grow-1 d-flex flex-column" style={{ borderRadius: '8px', minWidth: '600px', maxHeight: '100%' }}>
+          <h3 className="mb-4" style={{ fontSize: '1.2rem' }}>
+            {selectedCustomerId ? 'Edit Customer' : 'Add New Customer'}
+          </h3>
+
+          <div className="container-fluid flex-grow-1 d-flex flex-column overflow-auto">
+            {/* First Row - Country Code and Mobile */}
+            <div className="row g-2 mb-2">
+              <div className="col-md-1">
+                <label className="form-label" style={{ fontSize: '0.85rem' }}> Code *</label>
+                <select
+                  className="form-control form-control-sm"
+                  value={countryCode}
+                  onChange={(e) => setCountryCode(e.target.value)}
+                  disabled={loading}
+                  style={{ padding: '0.25rem 0.5rem', fontSize: '0.85rem' }}
+                  required
+                  tabIndex={1}
+                >
+                  <option value="+91">+91</option>
+                  <option value="+1">+1</option>
+                  <option value="+44">+44</option>
+                </select>
+              </div>
+              <div className="col-md-4">
+                <label className="form-label" style={{ fontSize: '0.85rem' }}>Mobile *</label>
+                <input
+                  type="text"
+                  className="form-control form-control-sm"
+                  placeholder="Mobile number"
+                  value={mobile}
+                  onChange={handleMobileChange}
+                  disabled={loading}
+                  style={{ fontSize: '0.85rem' }}
+                  maxLength={10}
+                  required
+                  tabIndex={2}
+                />
+              </div>
             </div>
-            {selectedCustomerId && (
-              <span className="badge bg-primary px-3 py-2" style={{ fontSize: '0.8rem' }}>
-                Editing Mode
-              </span>
-            )}
-          </div>
 
-          <div className="container-fluid flex-grow-1">
-            {/* Compact Form Layout - No Scroll Required */}
-            <div className="row g-3">
-              
-              {/* First Row: Country Code + Mobile + Name */}
-              <div className="col-12">
-                <div className="row g-3">
-                  <div className="col-md-4">
-                    <div className="d-flex align-items-center gap-2">
-                      <label className="form-label fw-medium text-dark mb-0" style={{ fontSize: '0.85rem', whiteSpace: 'nowrap', minWidth: '100px' }}>
-                        Country Code *
-                      </label>
-                      <select
-                        className="form-control form-control-sm border-0 shadow-sm flex-grow-1"
-                        value={countryCode}
-                        onChange={(e) => setCountryCode(e.target.value)}
-                        disabled={loading}
-                        style={{ 
-                          padding: '0.5rem 0.5rem', 
-                          fontSize: '0.85rem',
-                          background: '#f8f9fa',
-                          borderRadius: '8px',
-                          height: '38px'
-                        }}
-                        required
-                        tabIndex={1}
-                      >
-                        <option value="+91">+91 (IN)</option>
-                        <option value="+1">+1 (US)</option>
-                        <option value="+44">+44 (UK)</option>
-                      </select>
-                    </div>
-                  </div>
-                  
-                  <div className="col-md-4">
-                    <div className="d-flex align-items-center gap-2">
-                      <label className="form-label fw-medium text-dark mb-0" style={{ fontSize: '0.85rem', whiteSpace: 'nowrap', minWidth: '100px' }}>
-                        Mobile Number *
-                      </label>
-                      <input
-                        type="text"
-                        className="form-control form-control-sm border-0 shadow-sm flex-grow-1"
-                        placeholder="10-digit mobile"
-                        value={mobile}
-                        onChange={handleMobileChange}
-                        disabled={loading}
-                        style={{ 
-                          fontSize: '0.85rem',
-                          padding: '0.5rem 0.75rem',
-                          background: '#f8f9fa',
-                          borderRadius: '8px',
-                          height: '38px'
-                        }}
-                        maxLength={10}
-                        required
-                        tabIndex={2}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="col-md-4">
-                    <div className="d-flex align-items-center gap-2">
-                      <label className="form-label fw-medium text-dark mb-0" style={{ fontSize: '0.85rem', whiteSpace: 'nowrap', minWidth: '100px' }}>
-                        Full Name *
-                      </label>
-                      <input
-                        type="text"
-                        className="form-control form-control-sm border-0 shadow-sm flex-grow-1"
-                        placeholder="Enter customer full name"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        disabled={loading}
-                        style={{ 
-                          fontSize: '0.85rem',
-                          padding: '0.5rem 0.75rem',
-                          background: '#f8f9fa',
-                          borderRadius: '8px',
-                          height: '38px'
-                        }}
-                        required
-                        tabIndex={3}
-                      />
-                    </div>
-                  </div>
-                </div>
+            {/* Second Row - Name and Email */}
+            <div className="row g-2 mb-2">
+              <div className="col-md-6">
+                <label className="form-label" style={{ fontSize: '0.85rem' }}>Name *</label>
+                <input
+                  type="text"
+                  className="form-control form-control-sm"
+                  placeholder="Name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  disabled={loading}
+                  style={{ fontSize: '0.85rem' }}
+                  required
+                  tabIndex={3}
+                />
               </div>
-
-              {/* Second Row: Email + Address Line 1 */}
-              <div className="col-12">
-                <div className="row g-3">
-                  <div className="col-md-6">
-                    <div className="d-flex align-items-center gap-2">
-                      <label className="form-label fw-medium text-dark mb-0" style={{ fontSize: '0.85rem', whiteSpace: 'nowrap', minWidth: '100px' }}>
-                        Email Address
-                      </label>
-                      <input
-                        type="email"
-                        className="form-control form-control-sm border-0 shadow-sm flex-grow-1"
-                        placeholder="Enter email address"
-                        value={mail}
-                        onChange={(e) => setMail(e.target.value)}
-                        disabled={loading}
-                        style={{ 
-                          fontSize: '0.85rem',
-                          padding: '0.5rem 0.75rem',
-                          background: '#f8f9fa',
-                          borderRadius: '8px',
-                          height: '38px'
-                        }}
-                        tabIndex={4}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="col-md-6">
-                    <div className="d-flex align-items-center gap-2">
-                      <label className="form-label fw-medium text-dark mb-0" style={{ fontSize: '0.85rem', whiteSpace: 'nowrap', minWidth: '100px' }}>
-                        Address Line 1
-                      </label>
-                      <input
-                        type="text"
-                        className="form-control form-control-sm border-0 shadow-sm flex-grow-1"
-                        placeholder="Enter address line 1"
-                        value={address1}
-                        onChange={(e) => setAddress1(e.target.value)}
-                        disabled={loading}
-                        style={{ 
-                          fontSize: '0.85rem',
-                          padding: '0.5rem 0.75rem',
-                          background: '#f8f9fa',
-                          borderRadius: '8px',
-                          height: '38px'
-                        }}
-                        tabIndex={5}
-                      />
-                    </div>
-                  </div>
-                </div>
+              <div className="col-md-6">
+                <label className="form-label" style={{ fontSize: '0.85rem' }}>Email</label>
+                <input
+                  type="email"
+                  className="form-control form-control-sm"
+                  placeholder="Email"
+                  value={mail}
+                  onChange={(e) => setMail(e.target.value)}
+                  disabled={loading}
+                  style={{ fontSize: '0.85rem' }}
+                  tabIndex={10}
+                />
               </div>
+            </div>
 
-              {/* Third Row: Address Line 2 + State + City */}
-              <div className="col-12">
-                <div className="row g-3">
-                  <div className="col-md-4">
-                    <div className="d-flex align-items-center gap-2">
-                      <label className="form-label fw-medium text-dark mb-0" style={{ fontSize: '0.85rem', whiteSpace: 'nowrap', minWidth: '100px' }}>
-                        Address Line 2
-                      </label>
-                      <input
-                        type="text"
-                        className="form-control form-control-sm border-0 shadow-sm flex-grow-1"
-                        placeholder="Enter address line 2"
-                        value={address2}
-                        onChange={(e) => setAddress2(e.target.value)}
-                        disabled={loading}
-                        style={{ 
-                          fontSize: '0.85rem',
-                          padding: '0.5rem 0.75rem',
-                          background: '#f8f9fa',
-                          borderRadius: '8px',
-                          height: '38px'
-                        }}
-                        tabIndex={6}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="col-md-4 position-relative">
-                    <div className="d-flex align-items-center gap-2 position-relative" style={{ flexWrap: 'nowrap' }}>
-                      <label className="form-label fw-medium text-dark mb-0" style={{ fontSize: '0.85rem', whiteSpace: 'nowrap', minWidth: '100px' }}>
-                        State
-                      </label>
-                      <input
-                        type="text"
-                        className="form-control form-control-sm border-0 shadow-sm flex-grow-1"
-                        placeholder="Search state"
-                        value={stateSearch}
-                        onChange={handleStateSearch}
-                        onFocus={() => setShowStateDropdown(true)}
-                        onBlur={() => setTimeout(() => setShowStateDropdown(false), 200)}
-                        onKeyDown={handleStateKeyDown}
-                        disabled={loading}
-                        style={{ 
-                          fontSize: '0.85rem',
-                          padding: '0.5rem 0.75rem',
-                          background: '#f8f9fa',
-                          borderRadius: '8px',
-                          height: '38px'
-                        }}
-                        tabIndex={7}
-                      />
-                    </div>
-                    {showStateDropdown && (
-                      <div
-                        ref={stateDropdownRef}
-                        className="shadow-sm border-0"
-                        style={{
-                          position: 'absolute',
-                          top: '100%',
-                          left: 0,
-                          right: 0,
-                          background: 'white',
-                          border: '1px solid #e9ecef',
-                          borderRadius: '8px',
-                          maxHeight: '150px',
-                          overflowY: 'auto',
-                          zIndex: 1001,
-                          boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                        }}
-                      >
-                        {filteredStates.length > 0 ? (
-                          filteredStates.map((state, index) => (
-                            <div
-                              key={state.stateid}
-                              onClick={() => handleStateSelect(state)}
-                              onMouseEnter={() => setStateHighlightIndex(index)}
-                              style={{
-                                padding: '0.5rem 1rem',
-                                cursor: 'pointer',
-                                fontSize: '0.85rem',
-                                borderBottom: '1px solid #f8f9fa',
-                                background: index === stateHighlightIndex ? '#e7f1ff' : 'white',
-                                transition: 'background-color 0.15s ease',
-                              }}
-                              onMouseDown={(e) => e.preventDefault()}
-                            >
-                              {state.state_name}
-                            </div>
-                          ))
-                        ) : (
-                          <div style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', color: '#6c757d' }}>
-                            No states found
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="col-md-4 position-relative">
-                    <div className="d-flex align-items-center gap-2 position-relative" style={{ flexWrap: 'nowrap' }}>
-                      <label className="form-label fw-medium text-dark mb-0" style={{ fontSize: '0.85rem', whiteSpace: 'nowrap', minWidth: '100px' }}>
-                        City
-                      </label>
-                      <input
-                        type="text"
-                        className="form-control form-control-sm border-0 shadow-sm flex-grow-1"
-                        placeholder="Search city"
-                        value={citySearch}
-                        onChange={handleCitySearch}
-                        onFocus={() => setShowCityDropdown(true)}
-                        onBlur={() => setTimeout(() => setShowCityDropdown(false), 200)}
-                        onKeyDown={handleCityKeyDown}
-                        disabled={loading}
-                        style={{ 
-                          fontSize: '0.85rem',
-                          padding: '0.5rem 0.75rem',
-                          background: '#f8f9fa',
-                          borderRadius: '8px',
-                          height: '38px'
-                        }}
-                        tabIndex={8}
-                      />
-                    </div>
-                    {showCityDropdown && (
-                      <div
-                        ref={cityDropdownRef}
-                        className="shadow-sm border-0"
-                        style={{
-                          position: 'absolute',
-                          top: '100%',
-                          left: 0,
-                          right: 0,
-                          background: 'white',
-                          border: '1px solid #e9ecef',
-                          borderRadius: '8px',
-                          maxHeight: '150px',
-                          overflowY: 'auto',
-                          zIndex: 1001,
-                          boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                        }}
-                      >
-                        {filteredCities.length > 0 ? (
-                          filteredCities.map((city, index) => (
-                            <div
-                              key={city.cityid}
-                              onClick={() => handleCitySelect(city)}
-                              onMouseEnter={() => setCityHighlightIndex(index)}
-                              style={{
-                                padding: '0.5rem 1rem',
-                                cursor: 'pointer',
-                                fontSize: '0.85rem',
-                                borderBottom: '1px solid #f8f9fa',
-                                background: index === cityHighlightIndex ? '#e7f1ff' : 'white',
-                                transition: 'background-color 0.15s ease',
-                              }}
-                              onMouseDown={(e) => e.preventDefault()}
-                            >
-                              {city.city_name}
-                            </div>
-                          ))
-                        ) : (
-                          <div style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', color: '#6c757d' }}>
-                            No cities found
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
+            {/* Third Row - Address1 and Address2 */}
+            <div className="row g-2 mb-2">
+              <div className="col-md-6">
+                <label className="form-label" style={{ fontSize: '0.85rem' }}>Address 1</label>
+                <input
+                  type="text"
+                  className="form-control form-control-sm"
+                  placeholder="Address line 1"
+                  value={address1}
+                  onChange={(e) => setAddress1(e.target.value)}
+                  disabled={loading}
+                  style={{ fontSize: '0.85rem' }}
+                  tabIndex={4}
+                />
               </div>
-
-              {/* Fourth Row: Pincode + Birthday + Anniversary */}
-              <div className="col-12">
-                <div className="row g-3">
-                  <div className="col-md-4">
-                    <div className="d-flex align-items-center gap-2">
-                      <label className="form-label fw-medium text-dark mb-0" style={{ fontSize: '0.85rem', whiteSpace: 'nowrap', minWidth: '100px' }}>
-                        Pincode
-                      </label>
-                      <input
-                        type="text"
-                        className="form-control form-control-sm border-0 shadow-sm flex-grow-1"
-                        placeholder="6-digit pincode"
-                        value={pincode}
-                        onChange={handlePincodeChange}
-                        disabled={loading}
-                        style={{ 
-                          fontSize: '0.85rem',
-                          padding: '0.5rem 0.75rem',
-                          background: '#f8f9fa',
-                          borderRadius: '8px',
-                          height: '38px'
-                        }}
-                        maxLength={6}
-                        tabIndex={9}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="col-md-4">
-                    <div className="d-flex align-items-center gap-2">
-                      <label className="form-label fw-medium text-dark mb-0" style={{ fontSize: '0.85rem', whiteSpace: 'nowrap', minWidth: '100px' }}>
-                        Birthday
-                      </label>
-                      <input
-                        type="date"
-                        className="form-control form-control-sm border-0 shadow-sm flex-grow-1"
-                        value={birthday}
-                        onChange={(e) => setBirthday(e.target.value)}
-                        disabled={loading}
-                        style={{ 
-                          fontSize: '0.85rem',
-                          padding: '0.5rem 0.75rem',
-                          background: '#f8f9fa',
-                          borderRadius: '8px',
-                          height: '38px'
-                        }}
-                        max="2025-08-01"
-                        tabIndex={10}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="col-md-4">
-                    <div className="d-flex align-items-center gap-2">
-                      <label className="form-label fw-medium text-dark mb-0" style={{ fontSize: '0.85rem', whiteSpace: 'nowrap', minWidth: '100px' }}>
-                        Anniversary
-                      </label>
-                      <input
-                        type="date"
-                        className="form-control form-control-sm border-0 shadow-sm flex-grow-1"
-                        value={anniversary}
-                        onChange={(e) => setAnniversary(e.target.value)}
-                        disabled={loading}
-                        style={{ 
-                          fontSize: '0.85rem',
-                          padding: '0.5rem 0.75rem',
-                          background: '#f8f9fa',
-                          borderRadius: '8px',
-                          height: '38px'
-                        }}
-                        max="2025-08-01"
-                        tabIndex={11}
-                      />
-                    </div>
-                  </div>
-                </div>
+              <div className="col-md-6">
+                <label className="form-label" style={{ fontSize: '0.85rem' }}>Address 2</label>
+                <input
+                  type="text"
+                  className="form-control form-control-sm"
+                  placeholder="Address line 2"
+                  value={address2}
+                  onChange={(e) => setAddress2(e.target.value)}
+                  disabled={loading}
+                  style={{ fontSize: '0.85rem' }}
+                  tabIndex={11}
+                />
               </div>
+            </div>
 
-              {/* Fifth Row: GST + Aadhar + FSSAI + PAN */}
-              <div className="col-12">
-                <div className="row g-3">
-                  <div className="col-md-3">
-                    <div className="d-flex align-items-center gap-2">
-                      <label className="form-label fw-medium text-dark mb-0" style={{ fontSize: '0.85rem', whiteSpace: 'nowrap', minWidth: '100px' }}>
-                        GST Number
-                      </label>
-                      <input
-                        type="text"
-                        className="form-control form-control-sm border-0 shadow-sm flex-grow-1"
-                        placeholder="GST number"
-                        value={gstNo}
-                        onChange={handleGstChange}
-                        disabled={loading}
-                        style={{ 
-                          fontSize: '0.85rem',
-                          padding: '0.5rem 0.75rem',
-                          background: '#f8f9fa',
-                          borderRadius: '8px',
-                          height: '38px'
-                        }}
-                        maxLength={15}
-                        tabIndex={12}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="col-md-3">
-                    <div className="d-flex align-items-center gap-2">
-                      <label className="form-label fw-medium text-dark mb-0" style={{ fontSize: '0.85rem', whiteSpace: 'nowrap', minWidth: '100px' }}>
-                        Aadhar Number
-                      </label>
-                      <input
-                        type="text"
-                        className="form-control form-control-sm border-0 shadow-sm flex-grow-1"
-                        placeholder="12-digit Aadhar"
-                        value={aadharNo}
-                        onChange={handleAadharChange}
-                        disabled={loading}
-                        style={{ 
-                          fontSize: '0.85rem',
-                          padding: '0.5rem 0.75rem',
-                          background: '#f8f9fa',
-                          borderRadius: '8px',
-                          height: '38px'
-                        }}
-                        maxLength={12}
-                        tabIndex={13}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="col-md-3">
-                    <div className="d-flex align-items-center gap-2">
-                      <label className="form-label fw-medium text-dark mb-0" style={{ fontSize: '0.85rem', whiteSpace: 'nowrap', minWidth: '100px' }}>
-                        FSSAI License
-                      </label>
-                      <input
-                        type="text"
-                        className="form-control form-control-sm border-0 shadow-sm flex-grow-1"
-                        placeholder="FSSAI number"
-                        value={fssai}
-                        onChange={(e) => setFssai(e.target.value)}
-                        disabled={loading}
-                        style={{ 
-                          fontSize: '0.85rem',
-                          padding: '0.5rem 0.75rem',
-                          background: '#f8f9fa',
-                          borderRadius: '8px',
-                          height: '38px'
-                        }}
-                        tabIndex={14}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="col-md-3">
-                    <div className="d-flex align-items-center gap-2">
-                      <label className="form-label fw-medium text-dark mb-0" style={{ fontSize: '0.85rem', whiteSpace: 'nowrap', minWidth: '100px' }}>
-                        PAN Number
-                      </label>
-                      <input
-                        type="text"
-                        className="form-control form-control-sm border-0 shadow-sm flex-grow-1"
-                        placeholder="PAN number"
-                        value={panNo}
-                        onChange={handlePanChange}
-                        disabled={loading}
-                        style={{ 
-                          fontSize: '0.85rem',
-                          padding: '0.5rem 0.75rem',
-                          background: '#f8f9fa',
-                          borderRadius: '8px',
-                          height: '38px'
-                        }}
-                        maxLength={10}
-                        tabIndex={15}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Sixth Row: Create Wallet Checkbox */}
-              <div className="col-12">
-                <div className="form-check form-switch mt-2">
-                  <input
-                    className="form-check-input"
-                    type="checkbox"
-                    role="switch"
-                    checked={createWallet}
-                    onChange={(e) => setCreateWallet(e.target.checked)}
-                    disabled={loading}
-                    style={{ 
-                      width: '2.5em',
-                      height: '1.25em'
+            {/* Fourth Row - State, City, Birthday, Anniversary */}
+            <div className="row g-2 mb-2">
+              <div className="col-md-3 position-relative">
+                <label className="form-label" style={{ fontSize: '0.85rem' }}>State</label>
+                <input
+                  type="text"
+                  className="form-control form-control-sm"
+                  placeholder="Search state"
+                  value={stateSearch}
+                  onChange={handleStateSearch}
+                  onFocus={() => setShowStateDropdown(true)}
+                  onBlur={() => setTimeout(() => setShowStateDropdown(false), 200)}
+                  onKeyDown={handleStateKeyDown}
+                  disabled={loading}
+                  style={{ fontSize: '0.85rem' }}
+                  tabIndex={5}
+                />
+                {showStateDropdown && (
+                  <div
+                    ref={stateDropdownRef}
+                    style={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: 0,
+                      right: 0,
+                      background: 'white',
+                      border: '1px solid #dee2e6',
+                      borderRadius: '4px',
+                      maxHeight: '150px',
+                      overflowY: 'auto',
+                      zIndex: 1001,
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
                     }}
-                    tabIndex={16}
-                  />
-                  <label className="form-check-label fw-medium text-dark ms-2" style={{ fontSize: '0.85rem' }}>
-                    Create Wallet for Customer
-                  </label>
-                </div>
+                  >
+                    {filteredStates.length > 0 ? (
+                      filteredStates.map((state, index) => (
+                        <div
+                          key={state.stateid}
+                          onClick={() => handleStateSelect(state)}
+                          onMouseEnter={() => setStateHighlightIndex(index)}
+                          style={{
+                            padding: '8px',
+                            cursor: 'pointer',
+                            fontSize: '0.85rem',
+                            borderBottom: '1px solid #f0f0f0',
+                            background: index === stateHighlightIndex ? '#e9ecef' : 'white',
+                          }}
+                          onMouseDown={(e) => e.preventDefault()}
+                        >
+                          {state.state_name}
+                        </div>
+                      ))
+                    ) : (
+                      <div style={{ padding: '8px', fontSize: '0.85rem', color: '#6c757d' }}>
+                        No states found
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+              <div className="col-md-3 position-relative">
+                <label className="form-label" style={{ fontSize: '0.85rem' }}>City</label>
+                <input
+                  type="text"
+                  className="form-control form-control-sm"
+                  placeholder="Search city"
+                  value={citySearch}
+                  onChange={handleCitySearch}
+                  onFocus={() => setShowCityDropdown(true)}
+                  onBlur={() => setTimeout(() => setShowCityDropdown(false), 200)}
+                  onKeyDown={handleCityKeyDown}
+                  disabled={loading}
+                  style={{ fontSize: '0.85rem' }}
+                  tabIndex={6}
+                />
+                {showCityDropdown && (
+                  <div
+                    ref={cityDropdownRef}
+                    style={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: 0,
+                      right: 0,
+                      background: 'white',
+                      border: '1px solid #dee2e6',
+                      borderRadius: '4px',
+                      maxHeight: '150px',
+                      overflowY: 'auto',
+                      zIndex: 1001,
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                    }}
+                  >
+                    {filteredCities.length > 0 ? (
+                      filteredCities.map((city, index) => (
+                        <div
+                          key={city.cityid}
+                          onClick={() => handleCitySelect(city)}
+                          onMouseEnter={() => setCityHighlightIndex(index)}
+                          style={{
+                            padding: '8px',
+                            cursor: 'pointer',
+                            fontSize: '0.85rem',
+                            borderBottom: '1px solid #f0f0f0',
+                            background: index === cityHighlightIndex ? '#e9ecef' : 'white',
+                          }}
+                          onMouseDown={(e) => e.preventDefault()}
+                        >
+                          {city.city_name}
+                        </div>
+                      ))
+                    ) : (
+                      <div style={{ padding: '8px', fontSize: '0.85rem', color: '#6c757d' }}>
+                        No cities found
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+              <div className="col-md-3">
+                <label className="form-label" style={{ fontSize: '0.85rem' }}>Birthday</label>
+                <input
+                  type="date"
+                  className="form-control form-control-sm"
+                  value={birthday}
+                  onChange={(e) => setBirthday(e.target.value)}
+                  disabled={loading}
+                  style={{ fontSize: '0.85rem' }}
+                  max="2025-08-01"
+                  tabIndex={12}
+                />
+              </div>
+              <div className="col-md-3">
+                <label className="form-label" style={{ fontSize: '0.85rem' }}>Anniversary</label>
+                <input
+                  type="date"
+                  className="form-control form-control-sm"
+                  value={anniversary}
+                  onChange={(e) => setAnniversary(e.target.value)}
+                  disabled={loading}
+                  style={{ fontSize: '0.85rem' }}
+                  max="2025-08-01"
+                  tabIndex={13}
+                />
               </div>
             </div>
 
-            {/* Action Buttons */}
-            <div className="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
+            {/* Fifth Row - Pincode */}
+            <div className="row g-2 mb-2">
+              <div className="col-md-6">
+                <label className="form-label" style={{ fontSize: '0.85rem' }}>Pincode</label>
+                <input
+                  type="text"
+                  className="form-control form-control-sm"
+                  placeholder="Pincode"
+                  value={pincode}
+                  onChange={handlePincodeChange}
+                  disabled={loading}
+                  style={{ fontSize: '0.85rem' }}
+                  maxLength={6}
+                  tabIndex={7}
+                />
+              </div>
+            </div>
+
+            {/* Sixth Row - GST No and Aadhar No */}
+            <div className="row g-2 mb-2">
+              <div className="col-md-3">
+                <label className="form-label" style={{ fontSize: '0.85rem' }}>GST No.</label>
+                <input
+                  type="text"
+                  className="form-control form-control-sm"
+                  placeholder="GST"
+                  value={gstNo}
+                  onChange={(e) => setGstNo(e.target.value)}
+                  disabled={loading}
+                  style={{ fontSize: '0.85rem' }}
+                  tabIndex={8}
+                />
+              </div>
+              <div className="col-md-3">
+                <label className="form-label" style={{ fontSize: '0.85rem' }}>Aadhar No.</label>
+                <input
+                  type="text"
+                  className="form-control form-control-sm"
+                  placeholder="Aadhar"
+                  value={aadharNo}
+                  onChange={handleAadharChange}
+                  disabled={loading}
+                  style={{ fontSize: '0.85rem' }}
+                  maxLength={12}
+                  tabIndex={9}
+                />
+              </div>
+              <div className="col-md-3">
+                <label className="form-label" style={{ fontSize: '0.85rem' }}>FSSAI</label>
+                <input
+                  type="text"
+                  className="form-control form-control-sm"
+                  placeholder="FSSAI"
+                  value={fssai}
+                  onChange={(e) => setFssai(e.target.value)}
+                  disabled={loading}
+                  style={{ fontSize: '0.85rem' }}
+                  tabIndex={14}
+                />
+              </div>
+              <div className="col-md-3">
+                <label className="form-label" style={{ fontSize: '0.85rem' }}>PAN No.</label>
+                <input
+                  type="text"
+                  className="form-control form-control-sm"
+                  placeholder="PAN"
+                  value={panNo}
+                  onChange={handlePanChange}
+                  disabled={loading}
+                  style={{ fontSize: '0.85rem' }}
+                  maxLength={10}
+                  tabIndex={15}
+                />
+              </div>
+            </div>
+            {/* New Row - Create Wallet */}
+            <div className="row g-2 mb-2">
+              <div className="col-md-3">
+                <label className="form-label" style={{ fontSize: '0.85rem' }}>Create Wallet</label>
+                <input
+                  type="checkbox"
+                  className="form-check-input"
+                  checked={createWallet}
+                  onChange={(e) => setCreateWallet(e.target.checked)}
+                  disabled={loading}
+                  style={{ marginTop: '0.25rem' }}
+                  tabIndex={16}
+                />
+              </div>
+            </div>
+
+            {/* Buttons */}
+            <div className="d-flex justify-content-end mt-3">
               <button
-                className="btn btn-outline-secondary btn-sm px-3"
+                className="btn btn-outline-primary btn-sm me-2"
                 onClick={resetForm}
                 disabled={loading}
-                style={{ 
-                  padding: '0.5rem 1rem', 
-                  fontSize: '0.85rem',
-                  borderRadius: '8px',
-                  border: '1px solid #dee2e6'
-                }}
-                tabIndex={17}
+                style={{ padding: '0.25rem 0.75rem', fontSize: '0.85rem' }}
+                tabIndex={18}
               >
                 Clear Form
               </button>
               <button
-                className="btn btn-primary btn-sm px-4"
+                className="btn btn-primary btn-sm"
                 onClick={handleSubmit}
                 disabled={loading}
-                style={{ 
-                  padding: '0.5rem 1rem', 
-                  fontSize: '0.85rem',
-                  borderRadius: '8px',
-                  background: 'linear-gradient(135deg, #007bff 0%, #0056b3 100%)',
-                  border: 'none'
-                }}
-                tabIndex={18}
+                style={{ padding: '0.25rem 0.75rem', fontSize: '0.85rem' }}
+                tabIndex={19}
               >
-                {loading ? (
-                  <>
-                    <span className="spinner-border spinner-border-sm me-2" />
-                    {selectedCustomerId ? 'Updating...' : 'Adding...'}
-                  </>
-                ) : (
-                  selectedCustomerId ? 'Update Customer' : 'Add Customer'
-                )}
+                {loading ? (selectedCustomerId ? 'Updating...' : 'Adding...') : (selectedCustomerId ? 'Update' : 'Add')}
               </button>
             </div>
           </div>
 
-          {/* Customer List Section */}
-          <div className="mt-4 pt-3 border-top">
-            <div className="d-flex justify-content-between align-items-center mb-3">
-              <h5 className="fw-bold text-dark mb-0" style={{ fontSize: '1.1rem' }}>
-                Customer List
-              </h5>
+          {/* Customer List Section with scroll */}
+          <div className="mt-3" style={{ fontSize: '0.85rem' }}>
+            <div className="d-flex justify-content-between align-items-center mb-2">
+              <h5 style={{ fontSize: '1rem' }}>Customer List</h5>
               <div className="col-md-4">
-                <div className="input-group input-group-sm">
-                  <span className="input-group-text border-0 bg-light">
-                    <i className="bi bi-search" style={{ fontSize: '0.8rem' }}></i>
-                  </span>
-                  <input
-                    type="text"
-                    className="form-control form-control-sm border-0 shadow-sm"
-                    placeholder="Search by mobile..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    style={{ 
-                      fontSize: '0.85rem',
-                      background: '#f8f9fa',
-                      borderRadius: '8px'
-                    }}
-                    tabIndex={19}
-                  />
-                </div>
+                <input
+                  type="text"
+                  className="form-control form-control-sm"
+                  placeholder="Search by mobile..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  style={{ fontSize: '0.85rem' }}
+                  tabIndex={20}
+                />
               </div>
             </div>
 
-            <div 
-              className="table-responsive border-0 shadow-sm rounded-3" 
-              style={{
-                maxHeight: '300px',
-                overflowY: 'auto',
-                background: 'white'
-              }}
-            >
-              <table className="table table-hover table-sm mb-0">
+            <div className="table-responsive" style={{
+              maxHeight: '200px',
+              overflowY: 'auto',
+              border: '1px solid #dee2e6',
+              borderRadius: '4px'
+            }}>
+              <table className="table table-bordered table-sm mb-0">
                 <thead style={{
                   position: 'sticky',
                   top: 0,
                   zIndex: 1,
-                  backgroundColor: '#f8f9fa'
+                  boxShadow: '0 2px 2px -1px rgba(0, 0, 0, 0.1)',
+                  backgroundColor: 'white'
                 }}>
                   <tr>
-                    <th style={{ fontSize: '0.8rem', padding: '12px', whiteSpace: 'nowrap', fontWeight: '600', color: '#495057' }}>
-                      #
-                    </th>
-                    <th style={{ fontSize: '0.8rem', padding: '12px', whiteSpace: 'nowrap', fontWeight: '600', color: '#495057' }}>
-                      Customer Name
-                    </th>
-                    <th style={{ fontSize: '0.8rem', padding: '12px', whiteSpace: 'nowrap', fontWeight: '600', color: '#495057' }}>
-                      Mobile
-                    </th>
-                    <th style={{ fontSize: '0.8rem', padding: '12px', whiteSpace: 'nowrap', fontWeight: '600', color: '#495057' }}>
-                      Email
-                    </th>
-                    <th style={{ fontSize: '0.8rem', padding: '12px', whiteSpace: 'nowrap', fontWeight: '600', color: '#495057' }}>
-                      City
-                    </th>
-                    <th style={{ fontSize: '0.8rem', padding: '12px', whiteSpace: 'nowrap', fontWeight: '600', color: '#495057' }}>
-                      Address
-                    </th>
+                    <th style={{
+                      fontSize: '0.85rem',
+                      padding: '8px',
+                      whiteSpace: 'nowrap',
+                      position: 'sticky',
+                      left: 0,
+                      zIndex: 2,
+                      backgroundColor: 'white'
+                    }}>Sr No</th>
+                    <th style={{ fontSize: '0.85rem', padding: '8px', whiteSpace: 'nowrap' }}>C NAME</th>
+                    <th style={{ fontSize: '0.85rem', padding: '8px', whiteSpace: 'nowrap' }}>MOBILE</th>
+                    <th style={{ fontSize: '0.85rem', padding: '8px', whiteSpace: 'nowrap' }}>MAIL</th>
+                    <th style={{ fontSize: '0.85rem', padding: '8px', whiteSpace: 'nowrap' }}>CITY</th>
+                    <th style={{ fontSize: '0.85rem', padding: '8px', whiteSpace: 'nowrap' }}>ADDRESS 1</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredCustomers.map((customer, index) => (
-                    <tr 
-                      key={customer.customerid} 
-                      onClick={() => handleCustomerClick(customer)} 
-                      style={{ 
-                        cursor: 'pointer',
-                        transition: 'background-color 0.15s ease'
-                      }}
-                      className={selectedCustomerId === customer.customerid ? 'table-primary' : ''}
-                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
-                      onMouseLeave={(e) => {
-                        if (selectedCustomerId !== customer.customerid) {
-                          e.currentTarget.style.backgroundColor = 'white';
-                        }
-                      }}
-                    >
-                      <td style={{ fontSize: '0.8rem', padding: '12px', whiteSpace: 'nowrap', borderBottom: '1px solid #f8f9fa' }}>
-                        {index + 1}
-                      </td>
-                      <td style={{ fontSize: '0.8rem', padding: '12px', whiteSpace: 'nowrap', borderBottom: '1px solid #f8f9fa' }}>
-                        <strong>{customer.name}</strong>
-                      </td>
-                      <td style={{ fontSize: '0.8rem', padding: '12px', whiteSpace: 'nowrap', borderBottom: '1px solid #f8f9fa' }}>
-                        {customer.mobile}
-                      </td>
-                      <td style={{ fontSize: '0.8rem', padding: '12px', whiteSpace: 'nowrap', borderBottom: '1px solid #f8f9fa' }}>
-                        {customer.mail || '-'}
-                      </td>
-                      <td style={{ fontSize: '0.8rem', padding: '12px', whiteSpace: 'nowrap', borderBottom: '1px solid #f8f9fa' }}>
-                        {customer.city_name || '-'}
-                      </td>
-                      <td style={{ fontSize: '0.8rem', padding: '12px', whiteSpace: 'nowrap', borderBottom: '1px solid #f8f9fa' }}>
-                        {customer.address1 || '-'}
-                      </td>
+                    <tr key={customer.customerid} onClick={() => handleCustomerClick(customer)} style={{ cursor: 'pointer' }}>
+                      <td style={{
+                        fontSize: '0.85rem',
+                        padding: '8px',
+                        whiteSpace: 'nowrap',
+                        position: 'sticky',
+                        left: 0,
+                        zIndex: 1,
+                        backgroundColor: 'white'
+                      }}>{index + 1}</td>
+                      <td style={{ fontSize: '0.85rem', padding: '8px', whiteSpace: 'nowrap' }}>{customer.name}</td>
+                      <td style={{ fontSize: '0.85rem', padding: '8px', whiteSpace: 'nowrap' }}>{customer.mobile}</td>
+                      <td style={{ fontSize: '0.85rem', padding: '8px', whiteSpace: 'nowrap' }}>{customer.mail || '-'}</td>
+                      <td style={{ fontSize: '0.85rem', padding: '8px', whiteSpace: 'nowrap' }}>{customer.city_name || '-'}</td>
+                      <td style={{ fontSize: '0.85rem', padding: '8px', whiteSpace: 'nowrap' }}>{customer.address1 || '-'}</td>
                     </tr>
                   ))}
                 </tbody>

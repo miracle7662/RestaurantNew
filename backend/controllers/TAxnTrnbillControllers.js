@@ -1099,6 +1099,14 @@ exports.createReverseKOT = async (req, res) => {
         `).run(totalReverseAmount, txnId);
       }
 
+      // After a reversal, the bill is no longer considered fully billed or settled.
+      // Reset these flags to allow for re-billing or further modifications.
+      db.prepare(`
+        UPDATE TAxnTrnbill
+        SET isBilled = 0, isSetteled = 0
+        WHERE TxnID = ?
+      `).run(txnId);
+
       // Check if all items are now fully reversed and cancel the bill if so
       const remainingItemsCheck = db.prepare(`
         SELECT SUM(Qty - COALESCE(RevQty, 0)) as netQty

@@ -751,19 +751,21 @@ CREATE TABLE IF NOT EXISTS payment_modes (
 );
 
 
+PRAGMA foreign_keys = ON;
+
 CREATE TABLE IF NOT EXISTS TAxnTrnbill (
     TxnID INTEGER PRIMARY KEY AUTOINCREMENT,
     outletid INTEGER,
     TxnNo TEXT,
-    TableID INTEGER, -- The ID of the table from msttablemanagement
-    table_name TEXT, -- The name of the table from msttablemanagement
+    TableID INTEGER,               -- FK → msttablemanagement
+    table_name TEXT,
     Steward TEXT,
     PAX INTEGER,
     AutoKOT BOOLEAN DEFAULT 0,
     ManualKOT BOOLEAN DEFAULT 0,
     TxnDatetime DATETIME DEFAULT CURRENT_TIMESTAMP,
-    GrossAmt decimal DEFAULT 0,
-    RevKOT  DEFAULT 0,
+    GrossAmt DECIMAL DEFAULT 0,
+    RevKOT DEFAULT 0,
     Discount REAL DEFAULT 0,
     CGST REAL DEFAULT 0,
     SGST REAL DEFAULT 0,
@@ -772,7 +774,7 @@ CREATE TABLE IF NOT EXISTS TAxnTrnbill (
     RoundOFF REAL DEFAULT 0,
     Amount REAL DEFAULT 0,
     isHomeDelivery BOOLEAN DEFAULT 0,
-    DriverID INTEGER,
+    DriverID INTEGER,              -- FK → mst_drivers
     CustomerName TEXT,
     MobileNo TEXT,
     Address TEXT,
@@ -790,26 +792,32 @@ CREATE TABLE IF NOT EXISTS TAxnTrnbill (
     NCName TEXT,
     NCPurpose TEXT,
     BilledDate DATETIME,
-    HandOverEmpID INTEGER,
-    DayEndEmpID INTEGER,
-    HotelID INTEGER,
-    GuestID INTEGER,
-    DiscRefID INTEGER,
-    DiscPer REAL DEFAULT 0, -- Discount percentage if type is percentage, otherwise 0.
-    DiscountType integer, 
-    UserId INTEGER,
+    HandOverEmpID INTEGER,         -- FK → mst_employees
+    DayEndEmpID INTEGER,           -- FK → mst_employees
+    HotelID INTEGER,               -- FK → msthotelmasters
+    GuestID INTEGER,               -- FK → mst_guest
+    DiscRefID INTEGER,             -- FK → mst_discount_ref
+    DiscPer REAL DEFAULT 0,
+    DiscountType INTEGER,
+    UserId INTEGER,                -- FK → mst_users
     BatchNo TEXT,
-    PrevTableID INTEGER,
-    PrevDeptId INTEGER,
+    PrevTableID INTEGER,           -- FK → msttablemanagement
+    PrevDeptId INTEGER,            -- FK → mst_department
     isTrnsfered BOOLEAN DEFAULT 0,
     isChangeTrfAmt BOOLEAN DEFAULT 0,
     ServiceCharge REAL DEFAULT 0,
     ServiceCharge_Amount REAL DEFAULT 0,
     status INTEGER DEFAULT 1,
-    Extra1 TEXT,                         
-    Extra2 TEXT,                         
-    Extra3 TEXT 
+    Extra1 TEXT,
+    Extra2 TEXT,
+    Extra3 TEXT,
+
+    FOREIGN KEY (TableID) REFERENCES msttablemanagement(TableID) ON DELETE SET NULL ON UPDATE CASCADE,
+    FOREIGN KEY (HotelID) REFERENCES msthotelmasters(HotelID) ON DELETE SET NULL ON UPDATE CASCADE,
+    FOREIGN KEY (outletid) REFERENCES mst_outlets(outletid) ON DELETE SET NULL ON UPDATE CASCADE,
+    FOREIGN KEY (UserId) REFERENCES mst_users(UserID) ON DELETE SET NULL ON UPDATE CASCADE
 );
+
 
 CREATE TABLE IF NOT EXISTS TAxnTrnbilldetails (
     TXnDetailID INTEGER PRIMARY KEY AUTOINCREMENT,
