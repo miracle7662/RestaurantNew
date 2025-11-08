@@ -219,10 +219,20 @@ exports.createBill = async (req, res) => {
     const finalIgst = isArray ? computedIgstAmt : (Number(IGST) || 0);
     const finalCess = isArray ? computedCessAmt : (Number(CESS) || 0);
     const finalDiscount = Number(Discount) || 0;
-    const finalRoundOff = Number(RoundOFF) || 0;
 
-    // Calculate final amount based on computed/provided values
-    const finalAmount = finalGross - finalDiscount + finalCgst + finalSgst + finalIgst + finalCess + finalRoundOff;
+    // Recalculate total before rounding
+    let totalBeforeRoundOff = finalGross - finalDiscount + finalCgst + finalSgst + finalIgst + finalCess;
+
+    // Apply rounding on the backend to ensure consistency
+    const { bill_round_off, bill_round_off_to } = db.prepare('SELECT bill_round_off, bill_round_off_to FROM mstoutlet_settings WHERE outletid = ?').get(outletid) || {};
+    
+    let finalAmount = totalBeforeRoundOff;
+    let finalRoundOff = 0;
+
+    if (bill_round_off && bill_round_off_to > 0) {
+      finalAmount = Math.round(totalBeforeRoundOff / bill_round_off_to) * bill_round_off_to;
+      finalRoundOff = finalAmount - totalBeforeRoundOff;
+    }
 
     const trx = db.transaction(() => {
       let txnNo = TxnNo;
@@ -434,10 +444,20 @@ exports.updateBill = async (req, res) => {
     const finalIgst = isArray ? computedIgstAmt : (Number(IGST) || 0);
     const finalCess = isArray ? computedCessAmt : (Number(CESS) || 0);
     const finalDiscount = Number(Discount) || 0;
-    const finalRoundOff = Number(RoundOFF) || 0;
 
-    // Calculate final amount based on computed/provided values
-    const finalAmount = finalGross - finalDiscount + finalCgst + finalSgst + finalIgst + finalCess + finalRoundOff;
+    // Recalculate total before rounding
+    let totalBeforeRoundOff = finalGross - finalDiscount + finalCgst + finalSgst + finalIgst + finalCess;
+
+    // Apply rounding on the backend to ensure consistency
+    const { bill_round_off, bill_round_off_to } = db.prepare('SELECT bill_round_off, bill_round_off_to FROM mstoutlet_settings WHERE outletid = ?').get(outletid) || {};
+    
+    let finalAmount = totalBeforeRoundOff;
+    let finalRoundOff = 0;
+
+    if (bill_round_off && bill_round_off_to > 0) {
+      finalAmount = Math.round(totalBeforeRoundOff / bill_round_off_to) * bill_round_off_to;
+      finalRoundOff = finalAmount - totalBeforeRoundOff;
+    }
 
     const txn = db.transaction(() => {
       const u = db.prepare(`
@@ -923,25 +943,26 @@ exports.createKOT = async (req, res) => {
       const billHeader = db.prepare('SELECT RoundOFF, Discount, outletid FROM TAxnTrnbill WHERE TxnID = ?').get(txnId);
       const outletSettings = db.prepare('SELECT include_tax_in_invoice FROM mstoutlet_settings WHERE outletid = ?').get(billHeader.outletid);
       const includeTaxInInvoice = outletSettings ? outletSettings.include_tax_in_invoice : 0;
-      
+
       let totalGross = 0;
       for (const d of allDetails) {
           const qty = Number(d.Qty) || 0;
           const rate = Number(d.RuntimeRate) || 0;
           totalGross += qty * rate;
       }
-
-      let totalCgst = 0, totalSgst = 0, totalIgst = 0, totalCess = 0, finalAmount = 0;
+      
+      let totalCgst = 0, totalSgst = 0, totalIgst = 0, totalCess = 0;
       const discountAmount = Number(billHeader.Discount) || 0;
-      const roundOff = Number(billHeader?.RoundOFF) || 0;
-
+      
       // Use tax percentages from the first item as they are consistent for the bill.
       const firstDetail = allDetails[0] || {};
       const cgstPer = Number(firstDetail.CGST) || 0;
       const sgstPer = Number(firstDetail.SGST) || 0;
       const igstPer = Number(firstDetail.IGST) || 0;
       const cessPer = Number(firstDetail.CESS) || 0;
-
+      
+      let totalBeforeRoundOff = 0;
+      
       if (includeTaxInInvoice === 1) {
         const combinedPer = cgstPer + sgstPer + igstPer + cessPer;
         const preTaxBase = combinedPer > 0 ? totalGross / (1 + combinedPer / 100) : totalGross;
@@ -951,7 +972,7 @@ exports.createKOT = async (req, res) => {
         totalSgst = (newTaxableValue * sgstPer) / 100;
         totalIgst = (newTaxableValue * igstPer) / 100;
         totalCess = (newTaxableValue * cessPer) / 100;
-        finalAmount = newTaxableValue + totalCgst + totalSgst + totalIgst + totalCess + roundOff;
+        totalBeforeRoundOff = newTaxableValue + totalCgst + totalSgst + totalIgst + totalCess;
       } else {
         const taxableValue = totalGross - discountAmount;
         // Recalculate taxes based on the post-discount taxable value
@@ -959,15 +980,24 @@ exports.createKOT = async (req, res) => {
         totalSgst = (taxableValue * sgstPer) / 100;
         totalIgst = (taxableValue * igstPer) / 100;
         totalCess = (taxableValue * cessPer) / 100;
-        finalAmount = taxableValue + totalCgst + totalSgst + totalIgst + totalCess + roundOff;
+        totalBeforeRoundOff = taxableValue + totalCgst + totalSgst + totalIgst + totalCess;
       }
 
+      // Apply rounding on the backend to ensure consistency
+      const { bill_round_off, bill_round_off_to } = db.prepare('SELECT bill_round_off, bill_round_off_to FROM mstoutlet_settings WHERE outletid = ?').get(billHeader.outletid) || {};
+      let finalAmount = totalBeforeRoundOff;
+      let finalRoundOff = 0;
+
+      if (bill_round_off && bill_round_off_to > 0) {
+        finalAmount = Math.round(totalBeforeRoundOff / bill_round_off_to) * bill_round_off_to;
+        finalRoundOff = finalAmount - totalBeforeRoundOff;
+      }
 
       db.prepare(`
           UPDATE TAxnTrnbill
-          SET GrossAmt = ?, Discount = ?, CGST = ?, SGST = ?, IGST = ?, CESS = ?, Amount = ?
+          SET GrossAmt = ?, Discount = ?, CGST = ?, SGST = ?, IGST = ?, CESS = ?, Amount = ?, RoundOFF = ?
           WHERE TxnID = ?
-      `).run(totalGross, discountAmount, totalCgst, totalSgst, totalIgst, totalCess, finalAmount, txnId);
+      `).run(totalGross, discountAmount, totalCgst, totalSgst, totalIgst, totalCess, finalAmount, finalRoundOff, txnId);
       return { txnId, kotNo };
     })(); // Immediately invoke the transaction
 
@@ -1989,42 +2019,54 @@ exports.applyDiscountToBill = async (req, res) => {
       const outletSettings = db.prepare('SELECT include_tax_in_invoice FROM mstoutlet_settings WHERE outletid = ?').get(bill.outletid);
       const includeTaxInInvoice = outletSettings ? outletSettings.include_tax_in_invoice : 0;
 
-      let totalGross = 0;
+      let totalGross = 0, totalCgst = 0, totalSgst = 0, totalIgst = 0, totalCess = 0;
+
       for (const d of allDetails) {
           totalGross += (Number(d.Qty) || 0) * (Number(d.RuntimeRate) || 0);
       }
 
-      let totalCgst = 0, totalSgst = 0, totalIgst = 0, totalCess = 0, finalAmount = 0;
       const firstDetail = allDetails[0] || {};
       const cgstPer = Number(firstDetail.CGST) || 0;
       const sgstPer = Number(firstDetail.SGST) || 0;
       const igstPer = Number(firstDetail.IGST) || 0;
       const cessPer = Number(firstDetail.CESS) || 0;
+      let totalBeforeRoundOff = 0;
 
       if (includeTaxInInvoice === 1) {
         const combinedPer = cgstPer + sgstPer + igstPer + cessPer;
         const preTaxBase = combinedPer > 0 ? totalGross / (1 + combinedPer / 100) : totalGross;
         const newTaxableValue = preTaxBase - finalDiscount;
+
         totalCgst = (newTaxableValue * cgstPer) / 100;
         totalSgst = (newTaxableValue * sgstPer) / 100;
         totalIgst = (newTaxableValue * igstPer) / 100;
         totalCess = (newTaxableValue * cessPer) / 100;
-        finalAmount = newTaxableValue + totalCgst + totalSgst + totalIgst + totalCess + (bill.RoundOFF || 0);
+        totalBeforeRoundOff = newTaxableValue + totalCgst + totalSgst + totalIgst + totalCess;
       } else {
         const taxableValue = totalGross - finalDiscount;
         totalCgst = (taxableValue * cgstPer) / 100;
         totalSgst = (taxableValue * sgstPer) / 100;
         totalIgst = (taxableValue * igstPer) / 100;
         totalCess = (taxableValue * cessPer) / 100;
-        finalAmount = taxableValue + totalCgst + totalSgst + totalIgst + totalCess + (bill.RoundOFF || 0);
+        totalBeforeRoundOff = taxableValue + totalCgst + totalSgst + totalIgst + totalCess;
+      }
+
+      // Apply rounding on the backend to ensure consistency
+      const { bill_round_off, bill_round_off_to } = db.prepare('SELECT bill_round_off, bill_round_off_to FROM mstoutlet_settings WHERE outletid = ?').get(bill.outletid) || {};
+      let finalAmount = totalBeforeRoundOff;
+      let finalRoundOff = 0;
+
+      if (bill_round_off && bill_round_off_to > 0) {
+        finalAmount = Math.round(totalBeforeRoundOff / bill_round_off_to) * bill_round_off_to;
+        finalRoundOff = finalAmount - totalBeforeRoundOff;
       }
 
       // 4. Update the bill header with all correct values in one go
       db.prepare(`
         UPDATE TAxnTrnbill 
-        SET Amount = ?, Discount = ?, DiscPer = ?, DiscountType = ?, CGST = ?, SGST = ?, IGST = ?, CESS = ?
+        SET Amount = ?, Discount = ?, DiscPer = ?, DiscountType = ?, CGST = ?, SGST = ?, IGST = ?, CESS = ?, RoundOFF = ?
         WHERE TxnID = ?
-      `).run(finalAmount, finalDiscount, finalDiscPer, finalDiscountType, totalCgst, totalSgst, totalIgst, totalCess, Number(id));
+      `).run(finalAmount, finalDiscount, finalDiscPer, finalDiscountType, totalCgst, totalSgst, totalIgst, totalCess, finalRoundOff, Number(id));
     });
 
     trx();

@@ -114,6 +114,10 @@ const Order = () => {
   const [DiscountType, setDiscountType] = useState<number>(1); // 1 for percentage, 0 for amount
   const [discountInputValue, setDiscountInputValue] = useState<number>(0);
   const [currentKOTNo, setCurrentKOTNo] = useState<number | null>(null);
+  const [roundOffEnabled, setRoundOffEnabled] = useState<boolean>(false);
+  const [roundOffTo, setRoundOffTo] = useState<number>(1);
+  const [roundOffValue, setRoundOffValue] = useState<number>(0);
+
   const [currentKOTNos, setCurrentKOTNos] = useState<number[]>([]);
   const [currentTxnId, setCurrentTxnId] = useState<number | null>(null);
   const [TxnNo, setTxnNo] = useState<string | null>(null); // New state for displaying Bill No  
@@ -200,6 +204,15 @@ const Order = () => {
   // Pagination state for the "All Bills" table
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10); // You can make this configurable
+
+  // Function to apply rounding
+  const applyRoundOff = (amount: number, roundTo: number) => {
+    if (roundTo <= 0) return { roundedAmount: amount, roundOffValue: 0 };
+    const roundedAmount = Math.round(amount / roundTo) * roundTo;
+    const roundOffValue = roundedAmount - amount;
+    return { roundedAmount, roundOffValue };
+  };
+
 
 
 
@@ -1171,11 +1184,21 @@ const Order = () => {
       finalSubtotal = lineTotal; // Subtotal should reflect the base amount before discount.
     }
 
+    let finalGrandTotal = grandTotal;
+    let appliedRoundOff = 0;
+
+    if (roundOffEnabled) {
+      const { roundedAmount, roundOffValue } = applyRoundOff(grandTotal, roundOffTo);
+      finalGrandTotal = roundedAmount;
+      appliedRoundOff = roundOffValue;
+    }
+    setRoundOffValue(appliedRoundOff);
+
     setTaxCalc({
-      subtotal: finalSubtotal, cgstAmt, sgstAmt, igstAmt, cessAmt, grandTotal
+      subtotal: finalSubtotal, cgstAmt, sgstAmt, igstAmt, cessAmt, grandTotal: finalGrandTotal
     });
 
-  }, [items, taxRates, includeTaxInInvoice, discount]);
+  }, [items, taxRates, includeTaxInInvoice, discount, roundOffEnabled, roundOffTo]);
 
   useEffect(() => {
     if (selectedOutletId) {
@@ -1190,6 +1213,8 @@ const Order = () => {
             if (settings) {
               if (settings.ReverseQtyMode !== undefined) {
                 setReverseQtyConfig(settings.ReverseQtyMode === 1 ? 'PasswordRequired' : 'NoPassword');
+                setRoundOffEnabled(!!settings.bill_round_off);
+                setRoundOffTo(settings.bill_round_off_to || 1);
               } else {
                 setReverseQtyConfig('PasswordRequired'); // Default to password required
               }
@@ -4253,6 +4278,13 @@ if (e.key === "F8" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
                       <span>- {discount.toFixed(2)}</span>
                     </div>
                   )}
+                  {roundOffEnabled && roundOffValue !== 0 && (
+                    <div className="d-flex justify-content-between">
+                      <span>Round Off ({roundOffTo})</span>
+                      <span>{roundOffValue >= 0 ? '+' : ''}{roundOffValue.toFixed(2)}</span>
+                    </div>
+                  )}
+
                   <div className="col-12 d-flex align-items-center">
                     {!reverseQtyMode && (
                       <div className="d-flex align-items-center gap-2">

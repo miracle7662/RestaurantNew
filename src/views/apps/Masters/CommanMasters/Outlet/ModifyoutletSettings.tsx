@@ -442,27 +442,30 @@ return (
     <Form.Label>Bill Round Off</Form.Label>
 
     <div className="d-flex align-items-center gap-2">
-      {/* Toggle switch always on left */}
-      <Form.Check
-        type="switch"
-        checked={formData.bill_round_off}
-        onChange={handleChange}
-        aria-label="Toggle bill round off"
-      />
+  {/* Toggle switch always on left */}
+  <Form.Check
+    type="switch"
+    id="bill_round_off" // ✅ Match with formData field
+    checked={formData.bill_round_off}
+    onChange={handleChange}
+    aria-label="Toggle bill round off"
+  />
 
-      {/* Dropdown shows only when toggle is ON */}
-      {formData.bill_round_off && (
-        <Form.Select
-          value={formData.bill_round_off_to}
-          onChange={handleChange}
-          style={{ width: "130px" }}
-        >
-          <option value={1}>Nearest 1</option>
-          <option value={5}>Nearest 5</option>
-          <option value={10}>Nearest 10</option>
-        </Form.Select>
-      )}
-    </div>
+  {/* Dropdown shows only when toggle is ON */}
+  {formData.bill_round_off && (
+    <Form.Select
+      id="bill_round_off_to" // ✅ Match with formData field
+      value={formData.bill_round_off_to}
+      onChange={handleChange}
+      style={{ width: "130px" }}
+    >
+      <option value={1}>Nearest 1</option>
+      <option value={5}>Nearest 5</option>
+      <option value={10}>Nearest 10</option>
+    </Form.Select>
+  )}
+</div>
+
   </Form.Group>
 </Col>
 
