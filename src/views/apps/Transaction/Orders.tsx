@@ -1010,6 +1010,29 @@ const Order = () => {
         return;
       }
 
+      // For pickup/delivery, we need to call the backend to persist the reversal
+      if ((activeTab === 'Pickup' || activeTab === 'Delivery') && item.txnDetailId) {
+        try {
+          const response = await fetch('http://localhost:3001/api/TAxnTrnbill/create-reverse-kot', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+           body: JSON.stringify({
+  txnId: persistentTxnId,
+  reversedItems: [{ txnDetailId: item.txnDetailId, qty: 1 }], // ✅ include txnDetailId
+  userId: user?.id,
+  reversalReason: 'Item reversed from order screen'
+}),
+
+          });
+          const result = await response.json();
+          if (!result.success) {
+            throw new Error(result.message || 'Failed to save reversal to backend.');
+          }
+        } catch (error: any) {
+          toast.error(error.message);
+          return; // Stop UI update if backend fails
+        }
+      }
     
 
       // Update the item quantity in the frontend state
@@ -1077,6 +1100,11 @@ const Order = () => {
       // Refresh items for billed orders to reflect changes
       if (item.isBilled === 1 && selectedTableId) {
         refreshItemsForTable(selectedTableId);
+      }
+
+      // Refresh pending orders list for pickup/delivery
+      if (activeTab === 'Pickup' || activeTab === 'Delivery') {
+        fetchPendingOrders(activeTab.toLowerCase() as 'pickup' | 'delivery');
       }
     } catch (error) {
       console.error('Error processing reverse quantity:', error);
@@ -1409,9 +1437,10 @@ const Order = () => {
             ? 'Delivery'
             : selectedTable || null;
       const selectedTableRecord: any = (Array.isArray(filteredTables) ? filteredTables : tableItems)
-        .find((t: any) => t && t.table_name && t.table_name === selectedTable)
-        || (Array.isArray(tableItems) ? tableItems.find((t: any) => t && t.table_name === selectedTable) : undefined);
+        .find((t: any) => t && t.table_name && selectedTable && t.table_name.toLowerCase() === selectedTable.toLowerCase())
+        || (Array.isArray(tableItems) ? tableItems.find((t: any) => t && t.table_name && selectedTable && t.table_name.toLowerCase() === selectedTable.toLowerCase()) : undefined);
 
+        
       let resolvedTableId = selectedTableRecord ? Number((selectedTableRecord as any).tableid || (selectedTableRecord as any).tablemanagementid) : null;
       let resolvedDeptId = selectedTableRecord ? Number((selectedTableRecord as any).departmentid) || selectedDeptId : undefined;
       let resolvedOutletId = selectedTableRecord?.outletid ? Number(selectedTableRecord.outletid) : (selectedOutletId || Number(user?.outletid) || null);
