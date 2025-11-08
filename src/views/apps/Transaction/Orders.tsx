@@ -115,9 +115,9 @@ const Order = () => {
   const [discountInputValue, setDiscountInputValue] = useState<number>(0);
   const [currentKOTNo, setCurrentKOTNo] = useState<number | null>(null);
   const [roundOffEnabled, setRoundOffEnabled] = useState<boolean>(false);
-  const [roundOffTo, setRoundOffTo] = useState<number>(1);
-  const [roundOffValue, setRoundOffValue] = useState<number>(0);
-
+  const [roundOffTo, setRoundOffTo] = useState<number>(1); // Default to 1
+  const [roundOffValue, setRoundOffValue] = useState<number>(0); // To store the calculated round-off value
+  
   const [currentKOTNos, setCurrentKOTNos] = useState<number[]>([]);
   const [currentTxnId, setCurrentTxnId] = useState<number | null>(null);
   const [TxnNo, setTxnNo] = useState<string | null>(null); // New state for displaying Bill No  
@@ -213,16 +213,6 @@ const Order = () => {
     return { roundedAmount, roundOffValue };
   };
 
-
-
-
-
-
-  const revKotTotal = reverseQtyItems.reduce((sum, item) => sum + item.price * item.qty, 0);
-
-  const totalPaid = Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0);
-  const grandTotal = Math.round((taxCalc.grandTotal - discount - revKotTotal) * 100) / 100;
-  const settlementBalance = grandTotal - totalPaid;
 
   const hasModifications = items.some(item => item.isNew) || reverseQtyItems.length > 0;
 
@@ -1146,40 +1136,40 @@ const Order = () => {
     const cessPer = Number(taxRates.cess) || 0;
     const combinedPer = cgstPer + sgstPer + igstPer + cessPer;
     const lineTotal = items.reduce((sum, item) => sum + item.price * item.qty, 0);
-    
+
     let finalSubtotal: number, cgstAmt: number, sgstAmt: number, igstAmt: number, cessAmt: number, grandTotal: number;
 
     if (includeTaxInInvoice === 1) {
       // Inclusive Tax: Prices include tax.
       // 1. Find pre-tax base from the item total (lineTotal).
       const preTaxBase = combinedPer > 0 ? lineTotal / (1 + combinedPer / 100) : lineTotal;
-      
+
       // 2. Discount is applied on the pre-tax base to get the new taxable value.
       const discountAmount = discount;
       const newTaxableValue = preTaxBase - discountAmount;
-      
+
       // 3. Recalculate taxes on the new taxable value.
       cgstAmt = (newTaxableValue * cgstPer) / 100;
       sgstAmt = (newTaxableValue * sgstPer) / 100;
       igstAmt = (newTaxableValue * igstPer) / 100;
       cessAmt = (newTaxableValue * cessPer) / 100;
-      
+
       // 4. Final bill is the new taxable value plus the new taxes.
       grandTotal = newTaxableValue + cgstAmt + sgstAmt + igstAmt + cessAmt;
       finalSubtotal = preTaxBase; // Subtotal should reflect the pre-tax base before discount.
 
     } else {
       // Exclusive Tax: Prices do not include tax.
-      // Step 1: Apply discount to the base amount (lineTotal) to get the taxable value.
+      // 1. Apply discount to the base amount (lineTotal) to get the taxable value.
       const taxableValue = lineTotal - discount;
-      
-      // Step 2: Add tax on the discounted value.
+
+      // 2. Add tax on the discounted value.
       cgstAmt = (taxableValue * cgstPer) / 100;
       sgstAmt = (taxableValue * sgstPer) / 100;
       igstAmt = (taxableValue * igstPer) / 100;
       cessAmt = (taxableValue * cessPer) / 100;
-      
-      // Step 3: Final bill is the taxable value plus all taxes.
+
+      // 3. Final bill is the taxable value plus all taxes.
       grandTotal = taxableValue + cgstAmt + sgstAmt + igstAmt + cessAmt;
       finalSubtotal = lineTotal; // Subtotal should reflect the base amount before discount.
     }
@@ -1200,6 +1190,15 @@ const Order = () => {
 
   }, [items, taxRates, includeTaxInInvoice, discount, roundOffEnabled, roundOffTo]);
 
+  const revKotTotal = reverseQtyItems.reduce((sum, item) => sum + item.price * item.qty, 0);
+  const grandTotal = taxCalc.grandTotal; // This already includes rounding
+  const totalPaid = Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0);
+  const settlementBalance = grandTotal - totalPaid;
+  
+  // This is the final amount to be displayed and settled, after discount and reverse KOT
+  const finalBillAmount = grandTotal - revKotTotal;
+
+
   useEffect(() => {
     if (selectedOutletId) {
       fetchKotPrintSettings(selectedOutletId);
@@ -1211,16 +1210,14 @@ const Order = () => {
           if (res.ok) {
             const settings = await res.json();
             if (settings) {
-              if (settings.ReverseQtyMode !== undefined) {
-                setReverseQtyConfig(settings.ReverseQtyMode === 1 ? 'PasswordRequired' : 'NoPassword');
-                setRoundOffEnabled(!!settings.bill_round_off);
-                setRoundOffTo(settings.bill_round_off_to || 1);
-              } else {
-                setReverseQtyConfig('PasswordRequired'); // Default to password required
-              }
+              setReverseQtyConfig(settings.ReverseQtyMode === 1 ? 'PasswordRequired' : 'NoPassword');
+              setRoundOffEnabled(!!settings.bill_round_off);
+              setRoundOffTo(settings.bill_round_off_to || 1);
+
               // include_tax_in_invoice may be returned with different casing
               const incFlag = settings.include_tax_in_invoice ?? settings.IncludeTaxInInvoice ?? settings.includeTaxInInvoice ?? settings.includeTaxInInvoice;
               setIncludeTaxInInvoice(Number(incFlag) === 1 ? 1 : 0);
+
                  // Debug console for tax mode
               console.log("Include Tax in Invoice:", Number(incFlag) === 1 ? "Inclusive" : "Exclusive");
             } else {
@@ -1229,10 +1226,12 @@ const Order = () => {
             }
           } else {
             setReverseQtyConfig('PasswordRequired'); // Default to password required
+            setIncludeTaxInInvoice(0);
           }
         } catch (error) {
           console.error("Failed to fetch outlet settings for Reverse Qty Mode", error);
           setReverseQtyConfig('PasswordRequired'); // Default to password required
+          setIncludeTaxInInvoice(0);
         }
       };
       fetchReverseQtySetting();
@@ -3024,11 +3023,11 @@ if (e.key === "F8" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
 
           <hr style={{ border: 'none', borderTop: '1px dashed #000', margin: '5px 0' }} />
 
-          {/* Totals */}
+          {/* Totals - Updated for correct calculation display */}
           <div style={{ textAlign: 'right', fontSize: '9pt', marginBottom: '5px' }}>
             {discount > 0 && (
               <div style={{ marginBottom: '2px' }}>
-                Discount: Rs. {discount.toFixed(2)}
+                Discount: -₹{discount.toFixed(2)}
               </div>
             )}
             <div style={{ marginBottom: '2px' }}>
@@ -3036,28 +3035,34 @@ if (e.key === "F8" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
             </div>
             {taxCalc.cgstAmt > 0 && (
               <div style={{ marginBottom: '2px' }}>
-                CGST @{taxRates.cgst}%: Rs. {taxCalc.cgstAmt.toFixed(2)}
+                CGST @{taxRates.cgst}%: +₹{taxCalc.cgstAmt.toFixed(2)}
               </div>
             )}
             {taxCalc.sgstAmt > 0 && (
               <div style={{ marginBottom: '2px' }}>
-                SGST @{taxRates.sgst}%: Rs. {taxCalc.sgstAmt.toFixed(2)}
+                SGST @{taxRates.sgst}%: +₹{taxCalc.sgstAmt.toFixed(2)}
               </div>
             )}
             {taxCalc.igstAmt > 0 && (
               <div style={{ marginBottom: '2px' }}>
-                IGST @{taxRates.igst}%: Rs. {taxCalc.igstAmt.toFixed(2)}
+                IGST @{taxRates.igst}%: +₹{taxCalc.igstAmt.toFixed(2)}
               </div>
             )}
             {taxCalc.cessAmt > 0 && (
               <div style={{ marginBottom: '2px' }}>
-                CESS @{taxRates.cess}%: Rs. {taxCalc.cessAmt.toFixed(2)}
+                CESS @{taxRates.cess}%: +₹{taxCalc.cessAmt.toFixed(2)}
+              </div>
+            )}
+            {roundOffEnabled && roundOffValue !== 0 && (
+              <div style={{ marginBottom: '2px' }}>
+                Round Off: {roundOffValue > 0 ? '+' : ''}₹{roundOffValue.toFixed(2)}
               </div>
             )}
             <div style={{ fontWeight: 'bold', fontSize: '10pt', borderTop: '1px solid #000', paddingTop: '5px' }}>
-              &amp; GRAND TOTAL Rs. {(taxCalc.grandTotal - discount).toFixed(2)}
+              GRAND TOTAL: ₹{(taxCalc.grandTotal).toFixed(2)}
             </div>
           </div>
+
 
           {/* Note */}
           {(formData as any).note && (
@@ -4355,7 +4360,7 @@ if (e.key === "F8" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
                         className="fw-bold"
                         style={{ fontSize: '22px' }}
                       > 
-                        ₹{(taxCalc.grandTotal - revKotTotal).toFixed(2)}
+                        ₹{finalBillAmount.toFixed(2)}
                       </span>
                     </div>
                   </div>
@@ -4582,7 +4587,7 @@ if (e.key === "F8" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
               {/* Bill Summary */}
               <div className="p-4 mb-4 bg-white rounded shadow-sm text-center">
                 <h6 className="text-secondary mb-2">Total Amount Due</h6>
-                <div className="fw-bold display-5 text-dark">
+                <div className="fw-bold display-5 text-dark" id="settlement-grand-total">
                   ₹{grandTotal.toFixed(2)}
                 </div>
               </div>
@@ -4667,7 +4672,7 @@ if (e.key === "F8" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
                 <div className="d-flex justify-content-around fw-bold fs-5">
                   <div>
                     <span>Total Paid: </span>
-                    <span className="text-primary">{(totalPaid + (tip || 0)).toFixed(2)}</span>
+                    <span className="text-primary" id="settlement-total-paid">{(totalPaid + (tip || 0)).toFixed(2)}</span>
                   </div>
                   <div>
                     <span>Balance Due: </span>
@@ -4676,7 +4681,7 @@ if (e.key === "F8" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
                         settlementBalance === 0 ? "text-success" : "text-danger"
                       }
                     >
-                      {settlementBalance.toFixed(2)}
+                      {(grandTotal - (totalPaid + (tip || 0))).toFixed(2)}
                     </span>
                   </div>
                 </div>
@@ -4707,7 +4712,7 @@ if (e.key === "F8" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
               <Button
                 variant="success"
                 onClick={handleSettleAndPrint}
-                disabled={settlementBalance !== 0 || totalPaid + (tip || 0) === 0}
+                disabled={(grandTotal - (totalPaid + (tip || 0))) !== 0 || (totalPaid + (tip || 0)) === 0}
                 className="px-4"
               >
                 Settle & Print
