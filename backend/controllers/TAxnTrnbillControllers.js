@@ -1099,6 +1099,53 @@ exports.createReverseKOT = async (req, res) => {
         `).run(totalReverseAmount, txnId);
       }
 
+      // --- Recalculate Bill Totals After Reversal ---
+      const allDetails = db.prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? AND isCancelled = 0').all(txnId);
+      const billHeader = db.prepare('SELECT Discount, outletid FROM TAxnTrnbill WHERE TxnID = ?').get(txnId);
+      const outletSettings = db.prepare('SELECT include_tax_in_invoice, bill_round_off, bill_round_off_to FROM mstoutlet_settings WHERE outletid = ?').get(billHeader.outletid);
+      const includeTaxInInvoice = outletSettings ? outletSettings.include_tax_in_invoice : 0;
+
+      let totalGross = 0;
+      for (const d of allDetails) {
+        const netQty = (Number(d.Qty) || 0) - (Number(d.RevQty) || 0);
+        totalGross += netQty * (Number(d.RuntimeRate) || 0);
+      }
+
+      let totalCgst = 0, totalSgst = 0, totalIgst = 0, totalCess = 0;
+      const discountAmount = Number(billHeader.Discount) || 0;
+
+      const firstDetail = allDetails[0] || {};
+      const cgstPer = Number(firstDetail.CGST) || 0;
+      const sgstPer = Number(firstDetail.SGST) || 0;
+      const igstPer = Number(firstDetail.IGST) || 0;
+      const cessPer = Number(firstDetail.CESS) || 0;
+      let totalBeforeRoundOff = 0;
+
+      if (includeTaxInInvoice === 1) {
+        const combinedPer = cgstPer + sgstPer + igstPer + cessPer;
+        const preTaxBase = combinedPer > 0 ? totalGross / (1 + combinedPer / 100) : totalGross;
+        const newTaxableValue = preTaxBase - discountAmount;
+        totalCgst = (newTaxableValue * cgstPer) / 100;
+        totalSgst = (newTaxableValue * sgstPer) / 100;
+        totalIgst = (newTaxableValue * igstPer) / 100;
+        totalCess = (newTaxableValue * cessPer) / 100;
+        totalBeforeRoundOff = newTaxableValue + totalCgst + totalSgst + totalIgst + totalCess;
+      } else {
+        const taxableValue = totalGross - discountAmount;
+        totalCgst = (taxableValue * cgstPer) / 100;
+        totalSgst = (taxableValue * sgstPer) / 100;
+        totalIgst = (taxableValue * igstPer) / 100;
+        totalCess = (taxableValue * cessPer) / 100;
+        totalBeforeRoundOff = taxableValue + totalCgst + totalSgst + totalIgst + totalCess;
+      }
+
+      let finalAmount = totalBeforeRoundOff;
+      let finalRoundOff = 0;
+      if (outletSettings && outletSettings.bill_round_off && outletSettings.bill_round_off_to > 0) {
+        finalAmount = Math.round(totalBeforeRoundOff / outletSettings.bill_round_off_to) * outletSettings.bill_round_off_to;
+        finalRoundOff = finalAmount - totalBeforeRoundOff;
+      }
+
       // After a reversal, the bill is no longer considered fully billed or settled.
       // Reset these flags to allow for re-billing or further modifications.
       db.prepare(`
@@ -1106,6 +1153,13 @@ exports.createReverseKOT = async (req, res) => {
         SET isBilled = 0, isSetteled = 0
         WHERE TxnID = ?
       `).run(txnId);
+
+      // Update the bill header with recalculated totals
+      db.prepare(`
+        UPDATE TAxnTrnbill
+        SET GrossAmt = ?, CGST = ?, SGST = ?, IGST = ?, CESS = ?, Amount = ?, RoundOFF = ?
+        WHERE TxnID = ?
+      `).run(totalGross, totalCgst, totalSgst, totalIgst, totalCess, finalAmount, finalRoundOff, txnId);
 
       // Check if all items are now fully reversed and cancel the bill if so
       const remainingItemsCheck = db.prepare(`

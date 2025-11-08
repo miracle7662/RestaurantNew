@@ -1134,14 +1134,16 @@ const Order = () => {
     const sgstPer = Number(taxRates.sgst) || 0;
     const igstPer = Number(taxRates.igst) || 0;
     const cessPer = Number(taxRates.cess) || 0;
-    const combinedPer = cgstPer + sgstPer + igstPer + cessPer;
-    const lineTotal = items.reduce((sum, item) => sum + item.price * item.qty, 0);
+
+    // Correctly calculate subtotal based on active (non-reversed) items
+    const activeItems = items.filter(item => !item.isReverse);
+    const lineTotal = activeItems.reduce((sum, item) => sum + item.price * item.qty, 0);
 
     let finalSubtotal: number, cgstAmt: number, sgstAmt: number, igstAmt: number, cessAmt: number, grandTotal: number;
 
     if (includeTaxInInvoice === 1) {
       // Inclusive Tax: Prices include tax.
-      // 1. Find pre-tax base from the item total (lineTotal).
+      const combinedPer = cgstPer + sgstPer + igstPer + cessPer;
       const preTaxBase = combinedPer > 0 ? lineTotal / (1 + combinedPer / 100) : lineTotal;
 
       // 2. Discount is applied on the pre-tax base to get the new taxable value.
@@ -1160,7 +1162,7 @@ const Order = () => {
 
     } else {
       // Exclusive Tax: Prices do not include tax.
-      // 1. Apply discount to the base amount (lineTotal) to get the taxable value.
+      // 1. Apply discount to the subtotal (lineTotal) to get the taxable value.
       const taxableValue = lineTotal - discount;
 
       // 2. Add tax on the discounted value.
@@ -1188,12 +1190,12 @@ const Order = () => {
       subtotal: finalSubtotal, cgstAmt, sgstAmt, igstAmt, cessAmt, grandTotal: finalGrandTotal
     });
 
-  }, [items, taxRates, includeTaxInInvoice, discount, roundOffEnabled, roundOffTo]);
+  }, [items, reversedItems, taxRates, includeTaxInInvoice, discount, roundOffEnabled, roundOffTo]);
 
   const revKotTotal = reverseQtyItems.reduce((sum, item) => sum + item.price * item.qty, 0);
   const grandTotal = taxCalc.grandTotal; // This already includes rounding
   const totalPaid = Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0);
-  const settlementBalance = grandTotal - totalPaid;
+  const settlementBalance = taxCalc.grandTotal - totalPaid;
   
   // This is the final amount to be displayed and settled, after discount and reverse KOT
   const finalBillAmount = grandTotal - revKotTotal;
@@ -1215,7 +1217,11 @@ const Order = () => {
               setRoundOffTo(settings.bill_round_off_to || 1);
 
               // include_tax_in_invoice may be returned with different casing
-              const incFlag = settings.include_tax_in_invoice ?? settings.IncludeTaxInInvoice ?? settings.includeTaxInInvoice ?? settings.includeTaxInInvoice;
+              const incFlag =
+                settings.include_tax_in_invoice ??
+                (settings as any).IncludeTaxInInvoice ??
+                (settings as any).includeTaxInInvoice ??
+                (settings as any).includeTaxInInvoice;
               setIncludeTaxInInvoice(Number(incFlag) === 1 ? 1 : 0);
 
                  // Debug console for tax mode
@@ -1343,19 +1349,29 @@ const Order = () => {
       }
 
 
-      // 3. Update table status to 'billed' (red, status=2)
+      // 3. Update table status after discount and print
       if (selectedTable) {
         const tableToUpdate = tableItems.find(t => t.table_name === selectedTable);
         if (tableToUpdate) {
+          // If discount applied, set green (status=1), else red (status=2)
+          const newStatus = discount > 0 ? 1 : 2;
+
           await fetch(`http://localhost:3001/api/tablemanagement/${tableToUpdate.tablemanagementid}/status`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ status: 2 }), // 2 for Billed
+            body: JSON.stringify({ status: newStatus }),
           });
+
+          // Update UI immediately
+          setTableItems(prevTables =>
+            prevTables.map(table =>
+              table.table_name === selectedTable ? { ...table, status: newStatus } : table
+            )
+          );
         }
       }
 
-      // 4. Update items in the UI to reflect their 'billed' state.
+      // 4. Update items in the UI to reflect their 'billed' state
       setItems(prevItems => prevItems.map(item => ({ ...item, isNew: false, isBilled: 1, originalQty: item.qty })));
 
       // 5. Refresh the page to reflect all changes
