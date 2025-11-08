@@ -4296,64 +4296,61 @@ if (e.key === "F8" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
                   <div className="col-12 d-flex align-items-center">
                     {!reverseQtyMode && (
                       <div className="d-flex align-items-center gap-2">
-                        {/* Case 1: No items exist */}
-                        {items.length === 0 && (
-                          <span className="text-muted small">Add items to proceed</span>
-                        )}
-
-                        {/* Case 2: New items added (first KOT) */}
-                        {items.length > 0 && hasModifications && (
+                        {hasModifications ? (
+                          // Case 1: There are new items or reverse KOT items. Show only KOT button.
                           <button
                             className="btn btn-dark rounded btn-sm"
                             onClick={handlePrintAndSaveKOT}
-                            disabled={reverseQtyMode}>
+                            disabled={reverseQtyMode}
+                          >
                             🖨️ KOT (F9)
                           </button>
-                        )}
-
-                        {/* Case 3: Existing items, no new modifications */}
-                        {items.length > 0 &&
-                          !hasModifications &&
-                          items.some(item => !item.isNew && item.isBilled === 0) && (
+                        ) : (
+                          // Case 2: No new items. Show other buttons based on state.
                           <>
-                            <Button
-                              size="sm"
-                              variant="primary"
-                              onClick={handlePrintBill}
-                              disabled={reverseQtyMode || items.every(item => item.isBilled === 1)}
-                            >
-                              🖨️ Bill (F10)
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="success"
-                              onClick={handlePrintAndSettle}
-                              disabled={reverseQtyMode || items.every(item => item.isBilled === 1)}
-                            >
-                              💳 Print Bill & Settle
-                            </Button>
-                          </>
-                        )}
+                            {items.length === 0 && (
+                              <span className="text-muted small">Add items to proceed</span>
+                            )}
 
-                        {/* Case 4: Billed items exist */}
-                        {items.some(item => item.isBilled === 1) && (
-                          <>
-                            <Button
-                              size="sm"
-                              variant="primary"
-                              onClick={handlePrintBill}
-                              disabled={reverseQtyMode}
-                            >
-                              🖨️ Bill
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="success"
-                              onClick={() => setShowSettlementModal(true)}
-                              disabled={reverseQtyMode}
-                            >
-                              💳 Settle
-                            </Button>
+                            {/* Unbilled items exist */}
+                            {items.length > 0 && items.some(item => item.isBilled === 0) && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="primary"
+                                  onClick={handlePrintBill}
+                                >
+                                  🖨️ Bill (F10)
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="success"
+                                  onClick={handlePrintAndSettle}
+                                >
+                                  💳 Print Bill & Settle
+                                </Button>
+                              </>
+                            )}
+
+                            {/* All items are billed */}
+                            {items.length > 0 && items.every(item => item.isBilled === 1) && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="primary"
+                                  onClick={handlePrintBill}
+                                >
+                                  🖨️ Bill
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="success"
+                                  onClick={() => setShowSettlementModal(true)}
+                                >
+                                  💳 Settle
+                                </Button>
+                              </>
+                            )}
                           </>
                         )}
                       </div>
