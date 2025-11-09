@@ -267,6 +267,15 @@ const Order = () => {
           );
 
           setBillActionState('printOrSettle');
+          // Restore applied discount for billed tables
+          if (header.Discount || header.DiscPer) {
+            setDiscount(header.Discount || 0);
+            setDiscountInputValue(header.DiscountType === 1 ? header.DiscPer : header.Discount || 0);
+            setDiscountType(header.DiscountType !== null ? header.DiscountType : 1);
+          } else {
+            setDiscount(0);
+            setDiscountInputValue(0);
+          }
           // Also fetch and set reversed items for the billed transaction
           const fetchedReversedItems: ReversedMenuItem[] = (billedBillData.data.reversedItems || []).map((item: any) => ({
             ...item,
