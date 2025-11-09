@@ -1321,13 +1321,13 @@ exports.getUnbilledItemsByTable = async (req, res) => {
     `).all(bill.TxnID)
     : [];
         // Fetch discount from the latest unbilled bill for the table
-    const latestBill = db.prepare(`
-      SELECT Discount, DiscPer, DiscountType
+    const latestBillHeader = db.prepare(`
+      SELECT TxnID, Discount, DiscPer, DiscountType
       FROM TAxnTrnbill
       WHERE TableID = ? AND isBilled = 0 AND isCancelled = 0
       ORDER BY TxnID DESC
       LIMIT 1
-    `).get(Number(tableId));
+    `).get(Number(tableId)) || {};
 
     // Map to add isNew flag
     const items = rows.map(r => ({
@@ -1354,7 +1354,7 @@ exports.getUnbilledItemsByTable = async (req, res) => {
         kotNo,
         items,
         reversedItems: reversedItemsRows,
-        discount: latestBill || { Discount: 0, DiscPer: 0, DiscountType: 0 }
+        header: latestBillHeader
       }
     });
   } catch (error) {

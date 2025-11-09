@@ -359,6 +359,25 @@ const Order = () => {
         // setPersistentTxnId(null);
         // setPersistentTableId(null);
       }
+      // If unbilled items were fetched, restore discount from the header
+      if (unbilledItemsRes.success && unbilledItemsRes.data && unbilledItemsRes.data.header) {
+        const { header } = unbilledItemsRes.data;
+        if (header.Discount || header.DiscPer) {
+          setDiscount(header.Discount || 0);
+          setDiscountInputValue(header.DiscountType === 1 ? header.DiscPer : header.Discount || 0);
+          setDiscountType(header.DiscountType !== null ? header.DiscountType : 1);
+        }
+      } else {
+        setItems([]);
+        setReversedItems([]);
+        setCurrentKOTNo(null);
+        setCurrentKOTNos([]);
+        setTxnNo(null);
+        setCurrentTxnId(null);
+        // Do NOT clear persistent IDs here, as they are needed for reversal
+        // setPersistentTxnId(null);
+        // setPersistentTableId(null);
+      }
     } catch (error) {
       console.error('Error fetching/refetching items for table:', error);
       setItems([]);
