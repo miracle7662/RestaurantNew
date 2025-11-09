@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { useAuthContext } from '@/common';
+import { OutletData } from "@/common/api/outlet";
+
 import { Button, Modal, Form, Row, Col, Card, Table, Navbar, Offcanvas } from 'react-bootstrap';
 import {
   fetchKitchenCategory,
@@ -99,10 +101,7 @@ interface ItemModalProps extends ModalProps {
   isEdit: boolean;
 }
 
-interface OutletData {
-  outletid: number;
-  outlet_name: string;
-}
+
 
 const Menu: React.FC = () => {
   const [data, setData] = useState<MenuItem[]>([]);
