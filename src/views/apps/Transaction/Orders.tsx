@@ -1197,6 +1197,35 @@ const Order = () => {
     const igstPer = Number(taxRates.igst) || 0;
     const cessPer = Number(taxRates.cess) || 0;
 
+   if (reverseQtyMode && reverseQtyItems.length > 0) {
+  const { cgst, sgst, igst, cess } = taxRates;
+
+  const baseAmount = reverseQtyItems.reduce(
+    (sum, item) => sum + (Number(item.price) * Number(item.qty)),
+    0
+  );
+
+  const cgstAmt = (baseAmount * cgst) / 100;
+  const sgstAmt = (baseAmount * sgst) / 100;
+  const igstAmt = (baseAmount * igst) / 100;
+  const cessAmt = (baseAmount * cess) / 100;
+
+  const grandTotal = baseAmount + cgstAmt + sgstAmt + igstAmt + cessAmt;
+
+  setTaxCalc({
+    subtotal: baseAmount,
+    cgstAmt,
+    sgstAmt,
+    igstAmt,
+    cessAmt,
+    grandTotal
+  });
+
+  // ✅ Force UI update for total immediately
+  console.log("Reverse Mode Total:", grandTotal);
+  return;
+}
+
     // Correctly calculate subtotal based on active (non-reversed) items
     const activeItems = items.filter(item => !item.isReverse);
     const lineTotal = activeItems.reduce((sum, item) => sum + item.price * item.qty, 0);
@@ -1253,14 +1282,6 @@ const Order = () => {
     });
 
   }, [items, reversedItems, taxRates, includeTaxInInvoice, discount, roundOffEnabled, roundOffTo]);
-
-  const revKotTotal = reverseQtyItems.reduce((sum, item) => sum + item.price * item.qty, 0);
-  const grandTotal = taxCalc.grandTotal; // This already includes rounding
-  const totalPaid = Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0);
-  const settlementBalance = taxCalc.grandTotal - totalPaid;
-  
-  // This is the final amount to be displayed and settled, after discount and reverse KOT
-  const finalBillAmount = grandTotal - revKotTotal;
 
 
   useEffect(() => {
@@ -2383,6 +2404,7 @@ if (e.key === "F8" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
       // Mixed Payment Logic
       const currentTotalPaid = Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0);
       const remaining = Math.max(0, grandTotal - currentTotalPaid);
+      const remaining = Math.max(0, taxCalc.grandTotal - currentTotalPaid);
       setSelectedPaymentModes(prev => {
         const isSelected = prev.includes(mode.mode_name);
         if (isSelected) {
@@ -2401,6 +2423,7 @@ if (e.key === "F8" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
       // Single Payment Logic
       setSelectedPaymentModes([mode.mode_name]);
       setPaymentAmounts({ [mode.mode_name]: grandTotal.toFixed(2) });
+      setPaymentAmounts({ [mode.mode_name]: taxCalc.grandTotal.toFixed(2) });
     }
   };
 
@@ -4423,7 +4446,7 @@ if (e.key === "F8" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
                         className="fw-bold"
                         style={{ fontSize: '22px' }}
                       > 
-                        ₹{finalBillAmount.toFixed(2)}
+                        ₹{Number(taxCalc.grandTotal || 0).toFixed(2)}
                       </span>
                     </div>
                   </div>
@@ -4650,8 +4673,8 @@ if (e.key === "F8" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
               {/* Bill Summary */}
               <div className="p-4 mb-4 bg-white rounded shadow-sm text-center">
                 <h6 className="text-secondary mb-2">Total Amount Due</h6>
-                <div className="fw-bold display-5 text-dark" id="settlement-grand-total">
-                  ₹{grandTotal.toFixed(2)}
+                <div className="fw-bold display-5 text-dark" id="settlement-grand-total"> 
+                  ₹{taxCalc.grandTotal.toFixed(2)}
                 </div>
               </div>
 
@@ -4733,29 +4756,29 @@ if (e.key === "F8" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
               {/* Payment Summary */}
               <div className="mt-4 p-3 bg-white rounded shadow-sm">
                 <div className="d-flex justify-content-around fw-bold fs-5">
-                  <div>
+                  <div> 
                     <span>Total Paid: </span>
-                    <span className="text-primary" id="settlement-total-paid">{(totalPaid + (tip || 0)).toFixed(2)}</span>
+                    <span className="text-primary" id="settlement-total-paid">{(Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0) + (tip || 0)).toFixed(2)}</span>
                   </div>
                   <div>
                     <span>Balance Due: </span>
-                    <span
+                    <span 
                       className={
-                        settlementBalance === 0 ? "text-success" : "text-danger"
+                        (taxCalc.grandTotal - (Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0) + (tip || 0))) === 0 ? "text-success" : "text-danger"
                       }
                     >
-                      {(grandTotal - (totalPaid + (tip || 0))).toFixed(2)}
+                      {(taxCalc.grandTotal - (Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0) + (tip || 0))).toFixed(2)}
                     </span>
                   </div>
                 </div>
 
                 {/* Validation Messages */}
-                {settlementBalance !== 0 && (
+                {(taxCalc.grandTotal - (Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0) + (tip || 0))) !== 0 && (
                   <div className="text-danger mt-2 text-center small">
                     Total paid amount + tip must match the grand total.
                   </div>
                 )}
-                {settlementBalance === 0 && totalPaid + (tip || 0) > 0 && (
+                {(taxCalc.grandTotal - (Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0) + (tip || 0))) === 0 && (Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0) + (tip || 0)) > 0 && (
                   <div className="text-success mt-2 text-center small">
                     ✅ Payment amount + tip matches. Ready to settle.
                   </div>
@@ -4775,7 +4798,7 @@ if (e.key === "F8" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
               <Button
                 variant="success"
                 onClick={handleSettleAndPrint}
-                disabled={(grandTotal - (totalPaid + (tip || 0))) !== 0 || (totalPaid + (tip || 0)) === 0}
+                disabled={(taxCalc.grandTotal - (Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0) + (tip || 0))) !== 0 || (Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0) + (tip || 0)) === 0}
                 className="px-4"
               >
                 Settle & Print
