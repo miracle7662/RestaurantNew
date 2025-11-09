@@ -2473,6 +2473,11 @@ if (e.key === "F8" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
       setMobileNumber('');
       setCustomerName('');
 
+      // Reset discount and round-off fields
+      setDiscount(0);
+      setDiscountInputValue(0);
+      setRoundOffValue(0);
+
       // 3. Reset UI states for the next order
       setItems([]);
       setReversedItems([]);
