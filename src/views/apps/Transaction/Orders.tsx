@@ -879,6 +879,12 @@ const Order = () => {
     setShowOrderDetails(true);
     setInvalidTable('');
 
+    // Reset discount values when switching tables
+    setDiscount(0);
+    setDiscountInputValue(0);
+    setDiscountType(1); // Default to percentage
+
+
     // Delay setting selectedTable to seat to trigger re-render and re-fetch
     setTimeout(() => {
       setSelectedTable(seat);
