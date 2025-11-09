@@ -172,7 +172,6 @@ const ReportPage = () => {
       if (inv) {
         const totalAvailable = inv.opening + inv.purchase;
         const balance = totalAvailable - u.quantityUsed;
-        const wastage = Math.max(0, balance < 0 ? -balance : 0); // Simple wastage assumption if negative
         return { ...u, opening: inv.opening, purchase: inv.purchase, balance: Math.max(0, balance), wastage: 0.5 }; // Mock wastage
       }
       return u;

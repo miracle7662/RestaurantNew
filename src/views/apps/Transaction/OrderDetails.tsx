@@ -284,22 +284,22 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
   }, []);
 
   // Categorize items dynamically based on item groups
-  const itemCategories = useMemo(() => {
-    const categories: { [key: string]: CardItem[] } = { All: cardItems };
-    menuItems.forEach((item) => {
-      if (item.item_group_id !== null && item.groupname) {
-        const groupName = item.groupname;
-        if (!categories[groupName]) {
-          categories[groupName] = [];
-        }
-        const cardItem = cardItems.find((ci) => ci.userId === String(item.menuid));
-        if (cardItem) {
-          categories[groupName].push(cardItem);
-        }
-      }
-    });
-    return categories;
-  }, [cardItems, menuItems]);
+  // const itemCategories = useMemo(() => {
+  //   const categories: { [key: string]: CardItem[] } = { All: cardItems };
+  //   menuItems.forEach((item) => {
+  //     if (item.item_group_id !== null && item.groupname) {
+  //       const groupName = item.groupname;
+  //       if (!categories[groupName]) {
+  //         categories[groupName] = [];
+  //       }
+  //       const cardItem = cardItems.find((ci) => ci.userId === String(item.menuid));
+  //       if (cardItem) {
+  //         categories[groupName].push(cardItem);
+  //       }
+  //     }
+  //   });
+  //   return categories;
+  // }, [cardItems, menuItems]);
 
   const allItems: CardItem[] = cardItems;
 

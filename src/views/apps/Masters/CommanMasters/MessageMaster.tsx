@@ -283,13 +283,7 @@ const MessageMaster: React.FC = () => {
     return items;
   };
 
-  const cardClasses = useMemo(() => {
-    const classes = ['apps-card'];
-    if (sidebarMiniToggle) classes.push('apps-sidebar-mini-toggle');
-    if (containerToggle) classes.push('apps-container-toggle');
-    if (sidebarLeftToggle) classes.push('apps-sidebar-left-toggle');
-    return classes.join(' ');
-  }, [sidebarMiniToggle, containerToggle, sidebarLeftToggle]);
+ [sidebarMiniToggle, containerToggle, ];
 
   useEffect(() => {
     const handleResize = () => {
@@ -302,10 +296,7 @@ const MessageMaster: React.FC = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, [sidebarLeftToggle]);
 
-  const handleMenuClick = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
-    e.stopPropagation();
-    setSidebarLeftToggle((prev) => !prev);
-  }, []);
+  
 
   return (
     <>

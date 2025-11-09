@@ -376,7 +376,7 @@ const ReportPage = () => {
 
   const calculateInterDeptCash = () => {
     // Use credit as inter-dept proxy
-    const inter = filteredBills.filter(b => (b.credit ?? 0) > 0).map((b) => ({ ...b, from: "Front Desk", to: "Accounts", amount: b.credit, type: "Paid", id: Math.floor(Math.random() * 1000) }));
+    const inter = filteredBills.filter(b => (b.credit ?? 0) > 0).map((b) => ({ ...b, from: "Front Desk", to: "Accounts", amount: b.credit ?? 0, type: "Paid", id: Math.floor(Math.random() * 1000) }));
     return inter;
   };
 
@@ -560,6 +560,25 @@ const hotelPhone = hotelDetails?.phone || 'Phone not available';
       });
 
       // Calculate and add total row for Excel
+      const initialTotals: { [key: string]: number } = {
+        grossAmount: 0,
+        discount: 0,
+        amount: 0,
+        cgst: 0,
+        sgst: 0,
+        roundOff: 0,
+        revAmt: 0,
+        serviceCharge_Amount: 0,
+        totalAmount: 0,
+        cardAmount: 0,
+        igst: 0,
+        ...dynamicPaymentModes.reduce((acc, mode) => {
+          const modeKey = mode.mode_name.toLowerCase().replace(/[^a-z0-9]/gi, '');
+          acc[modeKey] = 0;
+          return acc;
+        }, {} as { [key: string]: number })
+      };
+
       const totals = billSummaryData.reduce((acc, bill) => {
         acc.grossAmount += bill.grossAmount || 0;
         acc.discount += bill.discount || 0;
@@ -582,17 +601,10 @@ const hotelPhone = hotelDetails?.phone || 'Phone not available';
           else if (modeKey.includes('phonepe')) amount = bill.phonepe ?? 0;
           else if (modeKey.includes('qr')) amount = bill.qrcode ?? 0;
           else amount = (bill as any)[modeKey] ?? 0;
-          (acc as any)[modeKey] = ((acc as any)[modeKey] || 0) + amount;
+          acc[modeKey] = (acc[modeKey] || 0) + amount;
         });
         return acc;
-      }, {
-        grossAmount: 0, discount: 0, amount: 0, cgst: 0, sgst: 0, roundOff: 0, revAmt: 0, totalAmount: 0, cardAmount: 0, igst: 0, serviceCharge_Amount: 0,
-        ...dynamicPaymentModes.reduce((acc, mode) => {
-          const modeKey = mode.mode_name.toLowerCase().replace(/[^a-z0-9]/gi, '');
-          acc[modeKey] = 0;
-          return acc;
-        }, {} as { [key: string]: number })
-      });
+      }, initialTotals);
 
       const totalRow: any = {
         'Bill No': 'Total',
@@ -1220,16 +1232,24 @@ const hotelPhone = hotelDetails?.phone || 'Phone not available';
 
   // Render sections remain the same, as they use calculated data
   const renderBillSummarySection = () => {
-    const initialTotals = {
-      grossAmount: 0, discount: 0, amount: 0, cgst: 0, sgst: 0, igst: 0, roundOff: 0,
-      revAmt: 0, serviceCharge_Amount: 0, totalAmount: 0, cardAmount: 0,
-      ...dynamicPaymentModes.reduce((acc, mode) => {
-        const modeKey = mode.mode_name.toLowerCase().replace(/[^a-z0-9]/gi, '');
-        acc[modeKey] = 0;
-        return acc;
-      }, {} as { [key: string]: number })
-    };
-
+    const initialTotals: { [key: string]: number } = {
+  grossAmount: 0, 
+  discount: 0, 
+  amount: 0, 
+  cgst: 0, 
+  sgst: 0, 
+  igst: 0, 
+  roundOff: 0,
+  revAmt: 0, 
+  serviceCharge_Amount: 0, 
+  totalAmount: 0, 
+  cardAmount: 0,
+  ...dynamicPaymentModes.reduce((acc, mode) => {
+    const modeKey = mode.mode_name.toLowerCase().replace(/[^a-z0-9]/gi, '');
+    acc[modeKey] = 0;
+    return acc;
+  }, {} as { [key: string]: number })
+};
     const totals = billSummaryData.reduce((acc, bill) => {
       acc.totalAmount += bill.totalAmount || 0;
       acc.discount += bill.discount || 0;

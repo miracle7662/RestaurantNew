@@ -339,11 +339,7 @@ export default function CustomerManagement() {
         if (selectedCustomerId) {
           setCustomers((prev) => prev.map((c) => (c.customerid === selectedCustomerId ? data : c)));
         } else {
-          // The backend might be wrapping the new customer in a `data` property.
-          const newCustomer = data.data || data;
-          if (newCustomer && newCustomer.customerid) {
-            setCustomers((prev) => [...prev, newCustomer]);
-          }
+          setCustomers((prev) => [...prev, data]);
         }
         handleClear();
       } else {
@@ -575,135 +571,67 @@ export default function CustomerManagement() {
         </div>
       </div>
       {/* Customer List Section */}
-<div
-  className="card shadow-sm border-0 mt-4"
-  style={{ height: 'calc(100vh - 450px)', display: 'flex', flexDirection: 'column' }}
->
-  <div className="card-header bg-white border-bottom d-flex justify-content-between align-items-center m-0 py-2">
-    <h6 className="mb-0 text-secondary fw-semibold">Customer List</h6>
-    <div className="d-flex align-items-center">
-      <input
-        type="text"
-        className="form-control form-control-sm"
-        placeholder="🔍 Search by name or mobile..."
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-        style={{ width: '250px' }}
-      />
-    </div>
-  </div>
-
-  {/* Scrollable area */}
-  <div
-    className="card-body p-0"
-    style={{ flex: '1 1 auto', overflow: 'hidden' }}
-  >
-    <div
-      className="table-responsive"
-      style={{
-        height: '100%',
-        overflowY: 'auto',
-        scrollbarWidth: 'thin', // for Firefox
-      }}
-    >
-      <table
-        className="table table-sm table-hover align-middle mb-0"
-        style={{ tableLayout: 'fixed', width: '100%' }}
-      >
-        <thead
-          className="table-light"
-          style={{
-            position: 'sticky',
-            top: 0,
-            zIndex: 10,
-            backgroundColor: 'white',
-          }}
-        >
-          <tr>
-            <th
-              style={{
-                width: '50px',
-                position: 'sticky',
-                left: 0,
-                backgroundColor: 'white',
-                zIndex: 11,
-              }}
-            >
-              #
-            </th>
-            <th style={{ width: '150px' }}>Name</th>
-            <th style={{ width: '120px' }}>Mobile</th>
-            <th style={{ width: '200px' }}>Email</th>
-            <th style={{ width: '120px' }}>City</th>
-            <th style={{ width: '120px' }}>State</th>
-            <th
-              style={{
-                width: '100px',
-                position: 'sticky',
-                right: 0,
-                backgroundColor: 'white',
-                zIndex: 11,
-              }}
-            >
-              Actions
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredCustomers.length === 0 ? (
-            <tr>
-              <td colSpan={7} className="text-center text-muted py-4">
-                {searchTerm
-                  ? 'No matching customers'
-                  : 'No customers added yet'}
-              </td>
-            </tr>
-          ) : (
-            filteredCustomers.map((c, i) => (
-              <tr key={c.customerid}>
-                <td
-                  className="text-muted"
-                  style={{
-                    position: 'sticky',
-                    left: 0,
-                    backgroundColor: 'white',
-                    zIndex: 1,
-                  }}
-                >
-                  {i + 1}
-                </td>
-                <td className="fw-semibold" style={{ wordBreak: 'break-word' }}>
-                  {c.name}
-                </td>
-                <td style={{ wordBreak: 'break-word' }}>{c.mobile || '-'}</td>
-                <td style={{ wordBreak: 'break-word' }}>{c.mail || '-'}</td>
-                <td>{c.city_name || '-'}</td>
-                <td>{c.state_name || '-'}</td>
-                <td
-                  style={{
-                    position: 'sticky',
-                    right: 0,
-                    backgroundColor: 'white',
-                    zIndex: 1,
-                  }}
-                >
-                  <button
-                    className="btn btn-outline-primary btn-sm"
-                    onClick={() => handleEdit(c)}
-                    disabled={loading}
-                  >
-                    Edit
-                  </button>
-                </td>
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
-    </div>
-  </div>
-</div>
-
+      <div className="card shadow-sm border-0 mt-4" style={{ maxHeight: 'calc(100vh - 300px)', overflow: 'hidden' }}>
+        <div className="card-header bg-white border-bottom d-flex justify-content-between align-items-center m-0 py-2">
+          <h6 className="mb-0 text-secondary fw-semibold">Customer List</h6>
+          <div className="d-flex align-items-center">
+            <input
+              type="text"
+              className="form-control form-control-sm"
+              placeholder="🔍 Search by name or mobile..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{ width: "250px" }}
+            />
+          </div>
+        </div>
+        <div className="card-body p-0" style={{ height: 'calc(100% - 60px)', overflow: 'hidden' }}>
+          <div className="table-responsive" style={{ height: '100%', overflowY: 'auto' }}>
+            <table className="table table-sm table-hover align-middle mb-0" style={{ tableLayout: 'fixed', width: '100%' }}>
+              <thead className="table-light" style={{ position: 'sticky', top: 0, zIndex: 10, backgroundColor: 'white' }}>
+                <tr>
+                  <th style={{ width: "50px", position: 'sticky', left: 0, backgroundColor: 'white', zIndex: 11 }}>#</th>
+                  <th style={{ width: "150px" }}>Name</th>
+                  <th style={{ width: "120px" }}>Mobile</th>
+                  <th style={{ width: "200px" }}>Email</th>
+                  <th style={{ width: "120px" }}>City</th>
+                  <th style={{ width: "120px" }}>State</th>
+                  <th style={{ width: "100px", position: 'sticky', right: 0, backgroundColor: 'white', zIndex: 11 }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredCustomers.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="text-center text-muted py-4">
+                      {searchTerm ? 'No matching customers' : 'No customers added yet'}
+                    </td>
+                  </tr>
+                ) : (
+                  filteredCustomers.map((c, i) => (
+                    <tr key={c.customerid}>
+                      <td className="text-muted" style={{ position: 'sticky', left: 0, backgroundColor: 'white', zIndex: 1 }}>{i + 1}</td>
+                      <td className="fw-semibold" style={{ wordBreak: 'break-word' }}>{c.name}</td>
+                      <td style={{ wordBreak: 'break-word' }}>{c.mobile || "-"}</td>
+                      <td style={{ wordBreak: 'break-word' }}>{c.mail || "-"}</td>
+                      <td>{c.city_name || "-"}</td>
+                      <td>{c.state_name || "-"}</td>
+                      <td style={{ position: 'sticky', right: 0, backgroundColor: 'white', zIndex: 1 }}>
+                        <button
+                          className="btn btn-outline-primary btn-sm"
+                          onClick={() => handleEdit(c)}
+                          disabled={loading}
+                        >
+                          Edit
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

@@ -127,7 +127,6 @@ const KotTransfer = ({ onCancel }: KotTransferProps) => {
   const sourceTable = tables.find(t => t.id === selectedTableId?.toString());
   const sourcePax = sourceTable?.pax || 0;
   const sourceKOT = selectedItems.length > 0 ? selectedItems[0].kot : 0;
-  const sourceStatus = sourceTable?.status || "available";
 
   const totalSelectedAmount = selectedItems
     .filter(item => item.selected)
@@ -138,7 +137,6 @@ const KotTransfer = ({ onCancel }: KotTransferProps) => {
   const change = Math.abs(variance);
 
   const selectedCount = selectedItems.filter(item => item.selected).length;
-  const allSelected = selectedItems.length > 0 && selectedItems.every(item => item.selected);
   const totalItemsCount = selectedItems.length;
   const isTableMode = transferType === "table";
   const effectiveSelectedCount = isTableMode ? totalItemsCount : selectedCount;
