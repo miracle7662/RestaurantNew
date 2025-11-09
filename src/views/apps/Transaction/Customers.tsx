@@ -1,19 +1,31 @@
-import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-
-import { toast } from 'react-hot-toast';
-import { Preloader } from '@/components/Misc/Preloader';
-import { Card } from 'react-bootstrap';
-import TitleHelmet from '@/components/Common/TitleHelmet';
-import { useAuthContext } from '@/common';
-
+import { useState, useEffect, useMemo } from "react";
+import { toast } from "react-hot-toast";
+import { useAuthContext } from "@/common";
 import {
   fetchStates,
   StateItem,
   fetchCities,
   CityItem,
-} from '../../../utils/commonfunction';
+} from "../../../utils/commonfunction";
 
-// Define the Customer interface
+interface CustomerFormData {
+  mobile1: string;
+  mobile2: string;
+  email: string;
+  name: string;
+  add2: string;
+  add1: string;
+  gstin: string;
+  aadharNo: string;
+  city: string;
+  pincode: string;
+  fssai: string;
+  panNo: string;
+  state: string;
+  birthday: string;
+  anniversary: string;
+}
+
 interface Customer {
   customerid: number;
   name: string;
@@ -40,51 +52,117 @@ interface Customer {
   updated_date?: string;
 }
 
-// Debounce utility function
-const debounce = (func: (...args: any[]) => void, wait: number) => {
-  let timeout: NodeJS.Timeout;
-  return (...args: any[]) => {
-    clearTimeout(timeout);
-    timeout = setTimeout(() => func(...args), wait);
-  };
-};
+interface LabelProps {
+  children: React.ReactNode;
+  required?: boolean;
+}
 
-// CustomersPage Component
-const CustomersPage: React.FC = () => {
-  const [name, setName] = useState<string>('');
-  const [countryCode, setCountryCode] = useState<string>('+91');
-  const [mobile, setMobile] = useState<string>('');
-  const [mail, setMail] = useState<string>('');
-  const [address1, setAddress1] = useState<string>('');
-  const [address2, setAddress2] = useState<string>('');
-  const [pincode, setPincode] = useState<string>('');
-  const [gstNo, setGstNo] = useState<string>('');
-  const [fssai, setFssai] = useState<string>('');
-  const [panNo, setPanNo] = useState<string>('');
-  const [aadharNo, setAadharNo] = useState<string>('');
-  const [birthday, setBirthday] = useState<string>('');
-  const [anniversary, setAnniversary] = useState<string>('');
-  const [createWallet, setCreateWallet] = useState(false);
+const Label: React.FC<LabelProps> = ({ children, required = false }) => (
+  <label className="form-label small fw-semibold mb-0 text-nowrap" style={{ width: "100px" }}>
+    {children}
+    {required && <span className="text-danger"> *</span>}
+  </label>
+);
+
+interface FieldProps {
+  label: string;
+  name: keyof CustomerFormData;
+  type?: string;
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  placeholder?: string;
+  required?: boolean;
+  disabled?: boolean;
+}
+
+const Field: React.FC<FieldProps> = ({ label, name, type = "text", value, onChange, placeholder, required = false, disabled = false }) => (
+  <div className="d-flex align-items-center mb-3">
+    <Label required={required}>{label}</Label>
+    <input
+      type={type}
+      className="form-control form-control-sm"
+      name={name}
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      disabled={disabled}
+      style={{ marginLeft: "10px", flex: "1" }}
+    />
+  </div>
+);
+
+interface PairedField {
+  label: string;
+  name: keyof CustomerFormData;
+  type?: string;
+  placeholder?: string;
+  required?: boolean;
+  max?: string;
+}
+
+interface PairedFieldsProps {
+  fields: PairedField[];
+  formData: CustomerFormData;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  customOnChanges?: Partial<Record<keyof CustomerFormData, (e: React.ChangeEvent<HTMLInputElement>) => void>>;
+  disabled?: boolean;
+}
+
+const PairedFields: React.FC<PairedFieldsProps> = ({ fields, formData, onChange, customOnChanges, disabled = false }) => (
+  <div className="d-flex mb-3">
+    {fields.map((field, index) => {
+      const fieldOnChange = customOnChanges?.[field.name] || onChange;
+      return (
+        <div key={field.name} className="d-flex align-items-center" style={{ flex: "1" }}>
+          <Label required={field.required}>{field.label}</Label>
+          <input
+            type={field.type}
+            className="form-control form-control-sm"
+            name={field.name}
+            value={formData[field.name]}
+            onChange={fieldOnChange}
+            placeholder={field.placeholder}
+            max={field.max}
+            disabled={disabled}
+            style={{ marginLeft: "10px", flex: "1" }}
+          />
+          {index === 0 && <div style={{ width: "20px" }}></div>}
+        </div>
+      );
+    })}
+  </div>
+);
+
+export default function CustomerManagement() {
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [formData, setFormData] = useState<CustomerFormData>({
+    mobile1: "",
+    mobile2: "",
+    email: "",
+    name: "",
+    add2: "",
+    add1: "",
+    gstin: "",
+    aadharNo: "",
+    city: "",
+    pincode: "",
+    fssai: "",
+    panNo: "",
+    state: "",
+    birthday: "",
+    anniversary: "",
+  });
   const [loading, setLoading] = useState<boolean>(false);
   const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null);
-  const { user } = useAuthContext();
+  const [searchTerm, setSearchTerm] = useState<string>('');
   const [states, setStates] = useState<StateItem[]>([]);
   const [cities, setCities] = useState<CityItem[]>([]);
-  const [searchTerm, setSearchTerm] = useState<string>('');
-  const [stateSearch, setStateSearch] = useState<string>('');
-  const [citySearch, setCitySearch] = useState<string>('');
-  const [showStateDropdown, setShowStateDropdown] = useState<boolean>(false);
-  const [showCityDropdown, setShowCityDropdown] = useState<boolean>(false);
-  const stateDropdownRef = useRef<HTMLDivElement>(null);
-  const cityDropdownRef = useRef<HTMLDivElement>(null);
-  const [stateHighlightIndex, setStateHighlightIndex] = useState<number>(-1);
-  const [cityHighlightIndex, setCityHighlightIndex] = useState<number>(-1);
   const [stateid, setStateId] = useState<number | null>(null);
-  const [cityid, setCityid] = useState<number | null>(null);
-  const [customers, setCustomers] = useState<Customer[]>([]); // Local state for customers
-  const [, setFilteredCustomers] = useState<Customer[]>([]);
+  const [cityid, setCityId] = useState<number | null>(null);
+  const { user } = useAuthContext();
+  const todayStr = new Date().toISOString().split('T')[0];
 
-   // Fetch customer data (READ)
+  // Fetch customer data (READ)
   const fetchCustomers = async () => {
     setLoading(true);
     try {
@@ -93,9 +171,9 @@ const CustomersPage: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
       });
       if (res.ok) {
-        const data = await res.json();
-        setCustomers(data);
-        setFilteredCustomers(data);
+        const responseData = await res.json();
+        const customerList = Array.isArray(responseData) ? responseData : (responseData.data || []);
+        setCustomers(customerList);
       } else {
         toast.error('Failed to fetch customer data');
       }
@@ -107,141 +185,139 @@ const CustomersPage: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchCustomers();
+    if (user) {
+      fetchCustomers();
+    }
   }, [user]);
 
-
   useEffect(() => {
-    fetchStates(setStates, setStateId).catch((err) => toast.error('Error fetching states'));
-    fetchCities(setCities, setCityid).catch((err) => toast.error('Error fetching cities'));
+    fetchStates(setStates, () => {}).catch((err) => toast.error('Error fetching states'));
+    fetchCities(setCities, () => {}).catch((err) => toast.error('Error fetching cities'));
   }, []);
 
-  const handleMobileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  useEffect(() => {
+    if (!formData.state) {
+      setStateId(null);
+      return;
+    }
+    const match = states.find(s => s.state_name.toLowerCase() === formData.state.toLowerCase());
+    setStateId(match ? match.stateid : null);
+  }, [formData.state, states]);
+
+  useEffect(() => {
+    if (!formData.city) {
+      setCityId(null);
+      return;
+    }
+    const match = cities.find(c => c.city_name.toLowerCase() === formData.city.toLowerCase());
+    setCityId(match ? match.cityid : null);
+  }, [formData.city, cities]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    });
+  };
+
+  const handleMobile1Change = (e: React.ChangeEvent<HTMLInputElement>) => {
     const mobileValue = e.target.value.replace(/\D/g, '');
-    if (mobileValue.length <= 10) setMobile(mobileValue);
-    setSearchTerm(mobileValue);
+    if (mobileValue.length <= 10) setFormData({ ...formData, mobile1: mobileValue });
+  };
+
+  const handleMobile2Change = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const mobileValue = e.target.value.replace(/\D/g, '');
+    if (mobileValue.length <= 10) setFormData({ ...formData, mobile2: mobileValue });
   };
 
   const handlePincodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const pincodeValue = e.target.value.replace(/\D/g, '');
-    if (pincodeValue.length <= 6) setPincode(pincodeValue);
+    if (pincodeValue.length <= 6) setFormData({ ...formData, pincode: pincodeValue });
   };
 
   const handleAadharChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const aadharValue = e.target.value.replace(/\D/g, '');
-    if (aadharValue.length <= 12) setAadharNo(aadharValue);
+    if (aadharValue.length <= 12) setFormData({ ...formData, aadharNo: aadharValue });
   };
 
   const handlePanChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const panValue = e.target.value.replace(/[^a-zA-Z0-9]/g, '');
-    if (panValue.length <= 10) setPanNo(panValue.toUpperCase());
-  };
-
-  const resetForm = () => {
-    setName('');
-    setCountryCode('+91');
-    setMobile('');
-    setMail('');
-    setAddress1('');
-    setAddress2('');
-    setPincode('');
-    setGstNo('');
-    setFssai('');
-    setPanNo('');
-    setAadharNo('');
-    setBirthday('');
-    setAnniversary('');
-    setCreateWallet(false);
-    setSearchTerm('');
-    setStateId(null);
-    setCityid(null);
-    setSelectedCustomerId(null);
-    setStateSearch('');
-    setCitySearch('');
-    setShowStateDropdown(false);
-    setShowCityDropdown(false);
-    setStateHighlightIndex(-1);
-    setCityHighlightIndex(-1);
+    const panValue = e.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    if (panValue.length <= 10) setFormData({ ...formData, panNo: panValue });
   };
 
   const validateForm = () => {
-    if (!name.trim()) {
+    if (!formData.name.trim()) {
       toast.error('Name is required');
       return false;
     }
-    if (!mobile.trim()) {
+    if (!formData.mobile1.trim()) {
       toast.error('Mobile is required');
       return false;
     }
-    if (!countryCode.trim()) {
-      toast.error('Country code is required');
-      return false;
-    }
-    if (mobile && !/^\d{10}$/.test(mobile)) {
+    if (formData.mobile1 && !/^\d{10}$/.test(formData.mobile1)) {
       toast.error('Mobile number must be exactly 10 digits');
       return false;
     }
-    if (mail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) {
+    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       toast.error('Please enter a valid email address');
       return false;
     }
-    if (birthday && new Date(birthday) > new Date('2025-08-01')) {
+    if (formData.birthday && new Date(formData.birthday) > new Date()) {
       toast.error('Birthday cannot be in the future');
       return false;
     }
-    if (anniversary && (!/^\d{4}-\d{2}-\d{2}$/.test(anniversary) || new Date(anniversary) > new Date('2025-08-01'))) {
-      toast.error('Anniversary must be a valid date up to today');
+    if (formData.anniversary && new Date(formData.anniversary) > new Date()) {
+      toast.error('Anniversary cannot be in the future');
       return false;
     }
-    if (aadharNo && !/^\d{12}$/.test(aadharNo)) {
+    if (formData.aadharNo && !/^\d{12}$/.test(formData.aadharNo)) {
       toast.error('Aadhar number must be exactly 12 digits');
       return false;
     }
-    if (panNo && !/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(panNo)) {
+    if (formData.panNo && !/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(formData.panNo)) {
       toast.error('PAN number must be exactly 10 characters (e.g., ABCDE1234F)');
       return false;
     }
-    if (pincode && !/^\d{6}$/.test(pincode)) {
+    if (formData.pincode && !/^\d{6}$/.test(formData.pincode)) {
       toast.error('Pincode must be exactly 6 digits');
       return false;
     }
-    if (gstNo && !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[0-9A-Z]{1}Z[0-9A-Z]{1}$/.test(gstNo)) {
+    if (formData.gstin && !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[0-9A-Z]{1}Z[0-9A-Z]{1}$/.test(formData.gstin)) {
       toast.error('GST number must be a valid 15-digit alphanumeric format (e.g., 22AAAAA0000A1Z5)');
       return false;
     }
     return true;
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
     if (!validateForm()) return;
     setLoading(true);
     try {
       const currentDate = new Date().toISOString();
       const payload = {
-        name,
-        countryCode,
-        mobile,
-        mail,
+        name: formData.name,
+        countryCode: '+91',
+        mobile: formData.mobile1,
+        mail: formData.email,
         cityid: cityid?.toString() ?? '',
-        city_name: cities.find((c) => c.cityid === cityid)?.city_name || '',
-        address1,
-        address2: address2 || undefined,
+        city_name: formData.city,
+        address1: formData.add1,
+        address2: formData.add2 || undefined,
         stateid: stateid?.toString() ?? '',
-        state_name: states.find((s) => s.stateid === stateid)?.state_name || '',
-        pincode: pincode || undefined,
-        gstNo: gstNo || undefined,
-        fssai: fssai || undefined,
-        panNo: panNo || undefined,
-        aadharNo: aadharNo || undefined,
-        birthday: birthday || undefined,
-        anniversary: anniversary || undefined,
-        createWallet,
+        state_name: formData.state,
+        pincode: formData.pincode || undefined,
+        gstNo: formData.gstin || undefined,
+        fssai: formData.fssai || undefined,
+        panNo: formData.panNo || undefined,
+        aadharNo: formData.aadharNo || undefined,
+        birthday: formData.birthday || undefined,
+        anniversary: formData.anniversary || undefined,
         created_by_id: selectedCustomerId ? undefined : user?.id || 1,
         created_date: selectedCustomerId ? undefined : currentDate,
         updated_by_id: user?.id || 1,
         updated_date: currentDate,
       };
-
       let res;
       if (selectedCustomerId) {
         res = await fetch(`http://localhost:3001/api/customer/${selectedCustomerId}`, {
@@ -256,15 +332,20 @@ const CustomersPage: React.FC = () => {
           body: JSON.stringify(payload),
         });
       }
-
       if (res.ok) {
+        const data = await res.json();
         const message = selectedCustomerId ? 'Customer updated successfully' : 'Customer added successfully';
         toast.success(message);
-        const updatedCustomers = selectedCustomerId
-          ? customers.map((c) => (c.customerid === selectedCustomerId ? { ...c, ...payload } : c))
-          : [...customers, { ...payload, customerid: Date.now() } as Customer];
-        setCustomers(updatedCustomers);
-        resetForm();
+        if (selectedCustomerId) {
+          setCustomers((prev) => prev.map((c) => (c.customerid === selectedCustomerId ? data : c)));
+        } else {
+          // The backend might be wrapping the new customer in a `data` property.
+          const newCustomer = data.data || data;
+          if (newCustomer && newCustomer.customerid) {
+            setCustomers((prev) => [...prev, newCustomer]);
+          }
+        }
+        handleClear();
       } else {
         const errorData = await res.json().catch(() => ({}));
         toast.error(errorData.message || `Failed to ${selectedCustomerId ? 'update' : 'add'} customer`);
@@ -276,591 +357,353 @@ const CustomersPage: React.FC = () => {
     }
   };
 
-  const handleCustomerClick = (customer: Customer) => {
+  const handleEdit = (customer: Customer) => {
     setSelectedCustomerId(customer.customerid);
-    setName(customer.name || '');
-    setCountryCode(customer.countryCode || '+91');
-    setMobile(customer.mobile || '');
-    setMail(customer.mail || '');
-    setAddress1(customer.address1 || '');
-    setAddress2(customer.address2 || '');
+    setFormData({
+      mobile1: customer.mobile || '',
+      mobile2: '',
+      email: customer.mail || '',
+      name: customer.name || '',
+      add2: customer.address2 || '',
+      add1: customer.address1 || '',
+      gstin: customer.gstNo || '',
+      aadharNo: customer.aadharNo || '',
+      city: customer.city_name || '',
+      pincode: customer.pincode || '',
+      fssai: customer.fssai || '',
+      panNo: customer.panNo || '',
+      state: customer.state_name || '',
+      birthday: customer.birthday || '',
+      anniversary: customer.anniversary || '',
+    });
     setStateId(customer.stateid ? Number(customer.stateid) : null);
-    setCityid(customer.cityid ? Number(customer.cityid) : null);
-    setPincode(customer.pincode || '');
-    setGstNo(customer.gstNo || '');
-    setFssai(customer.fssai || '');
-    setPanNo(customer.panNo || '');
-    setAadharNo(customer.aadharNo || '');
-    setBirthday(customer.birthday || '');
-    setAnniversary(customer.anniversary || '');
-    setCreateWallet(customer.createWallet || false);
-    setSearchTerm(customer.mobile || '');
-    setStateSearch(customer.state_name || '');
-    setCitySearch(customer.city_name || '');
-    setShowStateDropdown(false);
-    setShowCityDropdown(false);
-    setStateHighlightIndex(-1);
-    setCityHighlightIndex(-1);
+    setCityId(customer.cityid ? Number(customer.cityid) : null);
+  };
+
+  const handleClear = () => {
+    setFormData({
+      mobile1: "",
+      mobile2: "",
+      email: "",
+      name: "",
+      add2: "",
+      add1: "",
+      gstin: "",
+      aadharNo: "",
+      city: "",
+      pincode: "",
+      fssai: "",
+      panNo: "",
+      state: "",
+      birthday: "",
+      anniversary: "",
+    });
+    setSelectedCustomerId(null);
+    setStateId(null);
+    setCityId(null);
   };
 
   const filteredCustomers = useMemo(() => {
-    return (customers || []).filter(customer =>
-      customer.mobile.includes(searchTerm)
+    return customers.filter((customer) =>
+      customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      customer.mobile.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [customers, searchTerm]);
 
-  const filteredStates = useMemo(() => {
-    if (!stateSearch) return states.filter((s) => String(s.status) === '0');
-    const lowerSearch = stateSearch.toLowerCase();
-    const filtered = states.filter(
-      (s) => String(s.status) === '0' && s.state_name.toLowerCase().includes(lowerSearch)
-    );
-    return filtered.sort((a, b) => {
-      const aName = a.state_name.toLowerCase();
-      const bName = b.state_name.toLowerCase();
-      if (aName.startsWith(lowerSearch) && !bName.startsWith(lowerSearch)) return -1;
-      if (!aName.startsWith(lowerSearch) && bName.startsWith(lowerSearch)) return 1;
-      return aName.localeCompare(bName);
-    });
-  }, [states, stateSearch]);
-
-  const filteredCities = useMemo(() => {
-    if (!citySearch) return cities.filter((c) => String(c.status) === '0');
-    const lowerSearch = citySearch.toLowerCase();
-    const filtered = cities.filter(
-      (c) => String(c.status) === '0' && c.city_name.toLowerCase().includes(lowerSearch)
-    );
-    return filtered.sort((a, b) => {
-      const aName = a.city_name.toLowerCase();
-      const bName = b.city_name.toLowerCase();
-      if (aName.startsWith(lowerSearch) && !bName.startsWith(lowerSearch)) return -1;
-      if (!aName.startsWith(lowerSearch) && bName.startsWith(lowerSearch)) return 1;
-      return aName.localeCompare(bName);
-    });
-  }, [cities, citySearch]);
-
-  const handleStateSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setStateSearch(e.target.value);
-    setShowStateDropdown(true);
-    setStateId(null);
-    setStateHighlightIndex(-1);
-  };
-
-  const handleCitySearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setCitySearch(e.target.value);
-    setShowCityDropdown(true);
-    setCityid(null);
-    setCityHighlightIndex(-1);
-  };
-
-  const handleStateSelect = (state: StateItem) => {
-    setStateId(state.stateid);
-    setStateSearch(state.state_name);
-    setShowStateDropdown(false);
-    setStateHighlightIndex(-1);
-  };
-
-  const handleCitySelect = (city: CityItem) => {
-    setCityid(city.cityid);
-    setCitySearch(city.city_name);
-    setShowCityDropdown(false);
-    setCityHighlightIndex(-1);
-  };
-
-  const handleStateKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (!showStateDropdown || filteredStates.length === 0) return;
-
-    switch (e.key) {
-      case 'ArrowUp':
-        e.preventDefault();
-        setStateHighlightIndex((prev) => (prev > 0 ? prev - 1 : filteredStates.length - 1));
-        break;
-      case 'ArrowDown':
-        e.preventDefault();
-        setStateHighlightIndex((prev) => (prev < filteredStates.length - 1 ? prev + 1 : 0));
-        break;
-      case 'Enter':
-        e.preventDefault();
-        if (stateHighlightIndex >= 0 && stateHighlightIndex < filteredStates.length) {
-          handleStateSelect(filteredStates[stateHighlightIndex]);
-        }
-        break;
-      case 'Escape':
-        e.preventDefault();
-        setShowStateDropdown(false);
-        setStateHighlightIndex(-1);
-        break;
-    }
-  };
-
-  const handleCityKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (!showCityDropdown || filteredCities.length === 0) return;
-
-    switch (e.key) {
-      case 'ArrowUp':
-        e.preventDefault();
-        setCityHighlightIndex((prev) => (prev > 0 ? prev - 1 : filteredCities.length - 1));
-        break;
-      case 'ArrowDown':
-        e.preventDefault();
-        setCityHighlightIndex((prev) => (prev < filteredCities.length - 1 ? prev + 1 : 0));
-        break;
-      case 'Enter':
-        e.preventDefault();
-        if (cityHighlightIndex >= 0 && cityHighlightIndex < filteredCities.length) {
-          handleCitySelect(filteredCities[cityHighlightIndex]);
-        }
-        break;
-      case 'Escape':
-        e.preventDefault();
-        setShowCityDropdown(false);
-        setCityHighlightIndex(-1);
-        break;
-    }
+  const customOnChanges = {
+    pincode: handlePincodeChange,
+    aadharNo: handleAadharChange,
+    panNo: handlePanChange,
   };
 
   return (
-    <div className="d-flex flex-column" style={{ height: '100vh', overflow: 'hidden' }}>
-      <TitleHelmet title="Customers" />
-      {loading && <Preloader />}
-      <div className="container-fluid p-4 flex-grow-1 d-flex flex-column" style={{ overflow: 'auto' }}>
-        <Card className="p-4 flex-grow-1 d-flex flex-column" style={{ borderRadius: '8px', minWidth: '600px', maxHeight: '100%' }}>
-          <h3 className="mb-4" style={{ fontSize: '1.2rem' }}>
+    <div
+      className="container py-4"
+      style={{
+        backgroundColor: "#f2f2f2",
+        minHeight: "100vh",
+        maxWidth: "1100px",
+      }}
+    >
+      <div className="card shadow-sm border-0 bg-white">
+        <div className="card-header bg-white border-bottom py-2">
+          <h5 className="mb-0 text-primary fw-semibold">
             {selectedCustomerId ? 'Edit Customer' : 'Add New Customer'}
-          </h3>
-
-          <div className="container-fluid flex-grow-1 d-flex flex-column overflow-auto">
-            {/* First Row - Country Code and Mobile */}
-            <div className="row g-2 mb-2">
-              <div className="col-md-1">
-                <label className="form-label" style={{ fontSize: '0.85rem' }}> Code *</label>
-                <select
-                  className="form-control form-control-sm"
-                  value={countryCode}
-                  onChange={(e) => setCountryCode(e.target.value)}
-                  disabled={loading}
-                  style={{ padding: '0.25rem 0.5rem', fontSize: '0.85rem' }}
-                  required
-                  tabIndex={1}
-                >
-                  <option value="+91">+91</option>
-                  <option value="+1">+1</option>
-                  <option value="+44">+44</option>
-                </select>
-              </div>
-              <div className="col-md-4">
-                <label className="form-label" style={{ fontSize: '0.85rem' }}>Mobile *</label>
-                <input
-                  type="text"
-                  className="form-control form-control-sm"
-                  placeholder="Mobile number"
-                  value={mobile}
-                  onChange={handleMobileChange}
-                  disabled={loading}
-                  style={{ fontSize: '0.85rem' }}
-                  maxLength={10}
-                  required
-                  tabIndex={2}
-                />
-              </div>
-            </div>
-
-            {/* Second Row - Name and Email */}
-            <div className="row g-2 mb-2">
+          </h5>
+        </div>
+        <div className="card-body">
+          <form onSubmit={handleSubmit}>
+            <div className="row">
+              {/* Left Column */}
               <div className="col-md-6">
-                <label className="form-label" style={{ fontSize: '0.85rem' }}>Name *</label>
-                <input
-                  type="text"
-                  className="form-control form-control-sm"
-                  placeholder="Name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  disabled={loading}
-                  style={{ fontSize: '0.85rem' }}
-                  required
-                  tabIndex={3}
-                />
-              </div>
-              <div className="col-md-6">
-                <label className="form-label" style={{ fontSize: '0.85rem' }}>Email</label>
-                <input
-                  type="email"
-                  className="form-control form-control-sm"
-                  placeholder="Email"
-                  value={mail}
-                  onChange={(e) => setMail(e.target.value)}
-                  disabled={loading}
-                  style={{ fontSize: '0.85rem' }}
-                  tabIndex={10}
-                />
-              </div>
-            </div>
-
-            {/* Third Row - Address1 and Address2 */}
-            <div className="row g-2 mb-2">
-              <div className="col-md-6">
-                <label className="form-label" style={{ fontSize: '0.85rem' }}>Address 1</label>
-                <input
-                  type="text"
-                  className="form-control form-control-sm"
-                  placeholder="Address line 1"
-                  value={address1}
-                  onChange={(e) => setAddress1(e.target.value)}
-                  disabled={loading}
-                  style={{ fontSize: '0.85rem' }}
-                  tabIndex={4}
-                />
-              </div>
-              <div className="col-md-6">
-                <label className="form-label" style={{ fontSize: '0.85rem' }}>Address 2</label>
-                <input
-                  type="text"
-                  className="form-control form-control-sm"
-                  placeholder="Address line 2"
-                  value={address2}
-                  onChange={(e) => setAddress2(e.target.value)}
-                  disabled={loading}
-                  style={{ fontSize: '0.85rem' }}
-                  tabIndex={11}
-                />
-              </div>
-            </div>
-
-            {/* Fourth Row - State, City, Birthday, Anniversary */}
-            <div className="row g-2 mb-2">
-              <div className="col-md-3 position-relative">
-                <label className="form-label" style={{ fontSize: '0.85rem' }}>State</label>
-                <input
-                  type="text"
-                  className="form-control form-control-sm"
-                  placeholder="Search state"
-                  value={stateSearch}
-                  onChange={handleStateSearch}
-                  onFocus={() => setShowStateDropdown(true)}
-                  onBlur={() => setTimeout(() => setShowStateDropdown(false), 200)}
-                  onKeyDown={handleStateKeyDown}
-                  disabled={loading}
-                  style={{ fontSize: '0.85rem' }}
-                  tabIndex={5}
-                />
-                {showStateDropdown && (
-                  <div
-                    ref={stateDropdownRef}
-                    style={{
-                      position: 'absolute',
-                      top: '100%',
-                      left: 0,
-                      right: 0,
-                      background: 'white',
-                      border: '1px solid #dee2e6',
-                      borderRadius: '4px',
-                      maxHeight: '150px',
-                      overflowY: 'auto',
-                      zIndex: 1001,
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                    }}
-                  >
-                    {filteredStates.length > 0 ? (
-                      filteredStates.map((state, index) => (
-                        <div
-                          key={state.stateid}
-                          onClick={() => handleStateSelect(state)}
-                          onMouseEnter={() => setStateHighlightIndex(index)}
-                          style={{
-                            padding: '8px',
-                            cursor: 'pointer',
-                            fontSize: '0.85rem',
-                            borderBottom: '1px solid #f0f0f0',
-                            background: index === stateHighlightIndex ? '#e9ecef' : 'white',
-                          }}
-                          onMouseDown={(e) => e.preventDefault()}
-                        >
-                          {state.state_name}
-                        </div>
-                      ))
-                    ) : (
-                      <div style={{ padding: '8px', fontSize: '0.85rem', color: '#6c757d' }}>
-                        No states found
-                      </div>
-                    )}
+                <div className="pe-3">
+                  <div className="d-flex align-items-center mb-3">
+                    <Label required>Mobile No</Label>
+                    <div className="d-flex" style={{ flex: "1", marginLeft: "10px" }}>
+                      <input
+                        type="tel"
+                        className="form-control form-control-sm"
+                        name="mobile1"
+                        value={formData.mobile1}
+                        onChange={handleMobile1Change}
+                        placeholder="Enter mobile number 1"
+                        required
+                        disabled={loading}
+                        style={{ flex: "1", marginRight: "5px" }}
+                      />
+                      <input
+                        type="tel"
+                        className="form-control form-control-sm"
+                        name="mobile2"
+                        value={formData.mobile2}
+                        onChange={handleMobile2Change}
+                        placeholder="Enter mobile number 2"
+                        disabled={loading}
+                        style={{ flex: "1", marginLeft: "5px" }}
+                      />
+                    </div>
                   </div>
-                )}
+                  <Field
+                    label="Name"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleInputChange}
+                    placeholder="Enter name"
+                    required
+                    disabled={loading}
+                  />
+                  <Field
+                    label="Address 1"
+                    name="add1"
+                    value={formData.add1}
+                    onChange={handleInputChange}
+                    placeholder="Enter address"
+                    disabled={loading}
+                  />
+                  <PairedFields
+                    fields={[
+                      { label: "City", name: "city", placeholder: "City" },
+                      { label: "Pincode", name: "pincode", placeholder: "Pincode" },
+                    ]}
+                    formData={formData}
+                    onChange={handleInputChange}
+                    customOnChanges={customOnChanges}
+                    disabled={loading}
+                  />
+                  <Field
+                    label="State"
+                    name="state"
+                    value={formData.state}
+                    onChange={handleInputChange}
+                    placeholder="State"
+                    disabled={loading}
+                  />
+                  <PairedFields
+                    fields={[
+                      { label: "Birthday", name: "birthday", type: "date", max: todayStr },
+                      { label: "Anniversary", name: "anniversary", type: "date", max: todayStr },
+                    ]}
+                    formData={formData}
+                    onChange={handleInputChange}
+                    disabled={loading}
+                  />
+                </div>
               </div>
-              <div className="col-md-3 position-relative">
-                <label className="form-label" style={{ fontSize: '0.85rem' }}>City</label>
-                <input
-                  type="text"
-                  className="form-control form-control-sm"
-                  placeholder="Search city"
-                  value={citySearch}
-                  onChange={handleCitySearch}
-                  onFocus={() => setShowCityDropdown(true)}
-                  onBlur={() => setTimeout(() => setShowCityDropdown(false), 200)}
-                  onKeyDown={handleCityKeyDown}
-                  disabled={loading}
-                  style={{ fontSize: '0.85rem' }}
-                  tabIndex={6}
-                />
-                {showCityDropdown && (
-                  <div
-                    ref={cityDropdownRef}
-                    style={{
-                      position: 'absolute',
-                      top: '100%',
-                      left: 0,
-                      right: 0,
-                      background: 'white',
-                      border: '1px solid #dee2e6',
-                      borderRadius: '4px',
-                      maxHeight: '150px',
-                      overflowY: 'auto',
-                      zIndex: 1001,
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                    }}
-                  >
-                    {filteredCities.length > 0 ? (
-                      filteredCities.map((city, index) => (
-                        <div
-                          key={city.cityid}
-                          onClick={() => handleCitySelect(city)}
-                          onMouseEnter={() => setCityHighlightIndex(index)}
-                          style={{
-                            padding: '8px',
-                            cursor: 'pointer',
-                            fontSize: '0.85rem',
-                            borderBottom: '1px solid #f0f0f0',
-                            background: index === cityHighlightIndex ? '#e9ecef' : 'white',
-                          }}
-                          onMouseDown={(e) => e.preventDefault()}
-                        >
-                          {city.city_name}
-                        </div>
-                      ))
-                    ) : (
-                      <div style={{ padding: '8px', fontSize: '0.85rem', color: '#6c757d' }}>
-                        No cities found
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-              <div className="col-md-3">
-                <label className="form-label" style={{ fontSize: '0.85rem' }}>Birthday</label>
-                <input
-                  type="date"
-                  className="form-control form-control-sm"
-                  value={birthday}
-                  onChange={(e) => setBirthday(e.target.value)}
-                  disabled={loading}
-                  style={{ fontSize: '0.85rem' }}
-                  max="2025-08-01"
-                  tabIndex={12}
-                />
-              </div>
-              <div className="col-md-3">
-                <label className="form-label" style={{ fontSize: '0.85rem' }}>Anniversary</label>
-                <input
-                  type="date"
-                  className="form-control form-control-sm"
-                  value={anniversary}
-                  onChange={(e) => setAnniversary(e.target.value)}
-                  disabled={loading}
-                  style={{ fontSize: '0.85rem' }}
-                  max="2025-08-01"
-                  tabIndex={13}
-                />
-              </div>
-            </div>
-
-            {/* Fifth Row - Pincode */}
-            <div className="row g-2 mb-2">
+              {/* Right Column */}
               <div className="col-md-6">
-                <label className="form-label" style={{ fontSize: '0.85rem' }}>Pincode</label>
-                <input
-                  type="text"
-                  className="form-control form-control-sm"
-                  placeholder="Pincode"
-                  value={pincode}
-                  onChange={handlePincodeChange}
-                  disabled={loading}
-                  style={{ fontSize: '0.85rem' }}
-                  maxLength={6}
-                  tabIndex={7}
-                />
+                <div className="ps-3">
+                  <Field
+                    label="Email"
+                    name="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    placeholder="Enter email"
+                    disabled={loading}
+                  />
+                  <Field
+                    label="Address 2"
+                    name="add2"
+                    value={formData.add2}
+                    onChange={handleInputChange}
+                    placeholder="Enter address"
+                    disabled={loading}
+                  />
+                  <PairedFields
+                    fields={[
+                      { label: "GSTIN", name: "gstin", placeholder: "GSTIN" },
+                      { label: "Aadhar No", name: "aadharNo", placeholder: "Aadhar No" },
+                    ]}
+                    formData={formData}
+                    onChange={handleInputChange}
+                    customOnChanges={customOnChanges}
+                    disabled={loading}
+                  />
+                  <PairedFields
+                    fields={[
+                      { label: "FSSAI", name: "fssai", placeholder: "FSSAI No" },
+                      { label: "PAN No", name: "panNo", placeholder: "PAN No" },
+                    ]}
+                    formData={formData}
+                    onChange={handleInputChange}
+                    customOnChanges={customOnChanges}
+                    disabled={loading}
+                  />
+                </div>
               </div>
             </div>
-
-            {/* Sixth Row - GST No and Aadhar No */}
-            <div className="row g-2 mb-2">
-              <div className="col-md-3">
-                <label className="form-label" style={{ fontSize: '0.85rem' }}>GST No.</label>
-                <input
-                  type="text"
-                  className="form-control form-control-sm"
-                  placeholder="GST"
-                  value={gstNo}
-                  onChange={(e) => setGstNo(e.target.value)}
-                  disabled={loading}
-                  style={{ fontSize: '0.85rem' }}
-                  tabIndex={8}
-                />
-              </div>
-              <div className="col-md-3">
-                <label className="form-label" style={{ fontSize: '0.85rem' }}>Aadhar No.</label>
-                <input
-                  type="text"
-                  className="form-control form-control-sm"
-                  placeholder="Aadhar"
-                  value={aadharNo}
-                  onChange={handleAadharChange}
-                  disabled={loading}
-                  style={{ fontSize: '0.85rem' }}
-                  maxLength={12}
-                  tabIndex={9}
-                />
-              </div>
-              <div className="col-md-3">
-                <label className="form-label" style={{ fontSize: '0.85rem' }}>FSSAI</label>
-                <input
-                  type="text"
-                  className="form-control form-control-sm"
-                  placeholder="FSSAI"
-                  value={fssai}
-                  onChange={(e) => setFssai(e.target.value)}
-                  disabled={loading}
-                  style={{ fontSize: '0.85rem' }}
-                  tabIndex={14}
-                />
-              </div>
-              <div className="col-md-3">
-                <label className="form-label" style={{ fontSize: '0.85rem' }}>PAN No.</label>
-                <input
-                  type="text"
-                  className="form-control form-control-sm"
-                  placeholder="PAN"
-                  value={panNo}
-                  onChange={handlePanChange}
-                  disabled={loading}
-                  style={{ fontSize: '0.85rem' }}
-                  maxLength={10}
-                  tabIndex={15}
-                />
-              </div>
-            </div>
-            {/* New Row - Create Wallet */}
-            <div className="row g-2 mb-2">
-              <div className="col-md-3">
-                <label className="form-label" style={{ fontSize: '0.85rem' }}>Create Wallet</label>
-                <input
-                  type="checkbox"
-                  className="form-check-input"
-                  checked={createWallet}
-                  onChange={(e) => setCreateWallet(e.target.checked)}
-                  disabled={loading}
-                  style={{ marginTop: '0.25rem' }}
-                  tabIndex={16}
-                />
-              </div>
-            </div>
-
-            {/* Buttons */}
-            <div className="d-flex justify-content-end mt-3">
+            <div className="text-end mt-4">
               <button
-                className="btn btn-outline-primary btn-sm me-2"
-                onClick={resetForm}
+                type="button"
+                className="btn btn-outline-secondary btn-sm me-2"
+                onClick={handleClear}
                 disabled={loading}
-                style={{ padding: '0.25rem 0.75rem', fontSize: '0.85rem' }}
-                tabIndex={18}
               >
-                Clear Form
+                Clear
               </button>
-              <button
-                className="btn btn-primary btn-sm"
-                onClick={handleSubmit}
-                disabled={loading}
-                style={{ padding: '0.25rem 0.75rem', fontSize: '0.85rem' }}
-                tabIndex={19}
-              >
-                {loading ? (selectedCustomerId ? 'Updating...' : 'Adding...') : (selectedCustomerId ? 'Update' : 'Add')}
+              <button type="submit" className="btn btn-primary btn-sm" disabled={loading}>
+                {loading
+                  ? selectedCustomerId
+                    ? 'Updating...'
+                    : 'Adding...'
+                  : selectedCustomerId
+                  ? 'Update Customer'
+                  : 'Add Customer'}
               </button>
             </div>
-          </div>
-
-          {/* Customer List Section with scroll */}
-          <div className="mt-3" style={{ fontSize: '0.85rem' }}>
-            <div className="d-flex justify-content-between align-items-center mb-2">
-              <h5 style={{ fontSize: '1rem' }}>Customer List</h5>
-              <div className="col-md-4">
-                <input
-                  type="text"
-                  className="form-control form-control-sm"
-                  placeholder="Search by mobile..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  style={{ fontSize: '0.85rem' }}
-                  tabIndex={20}
-                />
-              </div>
-            </div>
-
-            <div className="table-responsive" style={{
-              maxHeight: '200px',
-              overflowY: 'auto',
-              border: '1px solid #dee2e6',
-              borderRadius: '4px'
-            }}>
-              <table className="table table-bordered table-sm mb-0">
-                <thead style={{
-                  position: 'sticky',
-                  top: 0,
-                  zIndex: 1,
-                  boxShadow: '0 2px 2px -1px rgba(0, 0, 0, 0.1)',
-                  backgroundColor: 'white'
-                }}>
-                  <tr>
-                    <th style={{
-                      fontSize: '0.85rem',
-                      padding: '8px',
-                      whiteSpace: 'nowrap',
-                      position: 'sticky',
-                      left: 0,
-                      zIndex: 2,
-                      backgroundColor: 'white'
-                    }}>Sr No</th>
-                    <th style={{ fontSize: '0.85rem', padding: '8px', whiteSpace: 'nowrap' }}>C NAME</th>
-                    <th style={{ fontSize: '0.85rem', padding: '8px', whiteSpace: 'nowrap' }}>MOBILE</th>
-                    <th style={{ fontSize: '0.85rem', padding: '8px', whiteSpace: 'nowrap' }}>MAIL</th>
-                    <th style={{ fontSize: '0.85rem', padding: '8px', whiteSpace: 'nowrap' }}>CITY</th>
-                    <th style={{ fontSize: '0.85rem', padding: '8px', whiteSpace: 'nowrap' }}>ADDRESS 1</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredCustomers.map((customer, index) => (
-                    <tr key={customer.customerid} onClick={() => handleCustomerClick(customer)} style={{ cursor: 'pointer' }}>
-                      <td style={{
-                        fontSize: '0.85rem',
-                        padding: '8px',
-                        whiteSpace: 'nowrap',
-                        position: 'sticky',
-                        left: 0,
-                        zIndex: 1,
-                        backgroundColor: 'white'
-                      }}>{index + 1}</td>
-                      <td style={{ fontSize: '0.85rem', padding: '8px', whiteSpace: 'nowrap' }}>{customer.name}</td>
-                      <td style={{ fontSize: '0.85rem', padding: '8px', whiteSpace: 'nowrap' }}>{customer.mobile}</td>
-                      <td style={{ fontSize: '0.85rem', padding: '8px', whiteSpace: 'nowrap' }}>{customer.mail || '-'}</td>
-                      <td style={{ fontSize: '0.85rem', padding: '8px', whiteSpace: 'nowrap' }}>{customer.city_name || '-'}</td>
-                      <td style={{ fontSize: '0.85rem', padding: '8px', whiteSpace: 'nowrap' }}>{customer.address1 || '-'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </Card>
+          </form>
+        </div>
       </div>
+      {/* Customer List Section */}
+<div
+  className="card shadow-sm border-0 mt-4"
+  style={{ height: 'calc(100vh - 450px)', display: 'flex', flexDirection: 'column' }}
+>
+  <div className="card-header bg-white border-bottom d-flex justify-content-between align-items-center m-0 py-2">
+    <h6 className="mb-0 text-secondary fw-semibold">Customer List</h6>
+    <div className="d-flex align-items-center">
+      <input
+        type="text"
+        className="form-control form-control-sm"
+        placeholder="🔍 Search by name or mobile..."
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+        style={{ width: '250px' }}
+      />
+    </div>
+  </div>
+
+  {/* Scrollable area */}
+  <div
+    className="card-body p-0"
+    style={{ flex: '1 1 auto', overflow: 'hidden' }}
+  >
+    <div
+      className="table-responsive"
+      style={{
+        height: '100%',
+        overflowY: 'auto',
+        scrollbarWidth: 'thin', // for Firefox
+      }}
+    >
+      <table
+        className="table table-sm table-hover align-middle mb-0"
+        style={{ tableLayout: 'fixed', width: '100%' }}
+      >
+        <thead
+          className="table-light"
+          style={{
+            position: 'sticky',
+            top: 0,
+            zIndex: 10,
+            backgroundColor: 'white',
+          }}
+        >
+          <tr>
+            <th
+              style={{
+                width: '50px',
+                position: 'sticky',
+                left: 0,
+                backgroundColor: 'white',
+                zIndex: 11,
+              }}
+            >
+              #
+            </th>
+            <th style={{ width: '150px' }}>Name</th>
+            <th style={{ width: '120px' }}>Mobile</th>
+            <th style={{ width: '200px' }}>Email</th>
+            <th style={{ width: '120px' }}>City</th>
+            <th style={{ width: '120px' }}>State</th>
+            <th
+              style={{
+                width: '100px',
+                position: 'sticky',
+                right: 0,
+                backgroundColor: 'white',
+                zIndex: 11,
+              }}
+            >
+              Actions
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {filteredCustomers.length === 0 ? (
+            <tr>
+              <td colSpan={7} className="text-center text-muted py-4">
+                {searchTerm
+                  ? 'No matching customers'
+                  : 'No customers added yet'}
+              </td>
+            </tr>
+          ) : (
+            filteredCustomers.map((c, i) => (
+              <tr key={c.customerid}>
+                <td
+                  className="text-muted"
+                  style={{
+                    position: 'sticky',
+                    left: 0,
+                    backgroundColor: 'white',
+                    zIndex: 1,
+                  }}
+                >
+                  {i + 1}
+                </td>
+                <td className="fw-semibold" style={{ wordBreak: 'break-word' }}>
+                  {c.name}
+                </td>
+                <td style={{ wordBreak: 'break-word' }}>{c.mobile || '-'}</td>
+                <td style={{ wordBreak: 'break-word' }}>{c.mail || '-'}</td>
+                <td>{c.city_name || '-'}</td>
+                <td>{c.state_name || '-'}</td>
+                <td
+                  style={{
+                    position: 'sticky',
+                    right: 0,
+                    backgroundColor: 'white',
+                    zIndex: 1,
+                  }}
+                >
+                  <button
+                    className="btn btn-outline-primary btn-sm"
+                    onClick={() => handleEdit(c)}
+                    disabled={loading}
+                  >
+                    Edit
+                  </button>
+                </td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
     </div>
   );
-};
-
-export default CustomersPage;
+}

@@ -79,8 +79,8 @@ const Order = () => {
   const [selectedCountryCode, setSelectedCountryCode] = useState<string>('+91');
   const [showCountryOptions, setShowCountryOptions] = useState<boolean>(false);
   const [showNewCustomerForm, setShowNewCustomerForm] = useState<boolean>(false);
-  const [searchTable, setSearchTable] = useState<string>('');
-  const [isTableInvalid, setIsTableInvalid] = useState<boolean>(false);
+  const [searchTable, ] = useState<string>('');
+  const [, setIsTableInvalid] = useState<boolean>(false);
   const itemListRef = useRef<HTMLDivElement>(null);
   const [invalidTable, setInvalidTable] = useState<string>('');
   const [activeNavTab, setActiveNavTab] = useState<string>('ALL');
@@ -95,7 +95,7 @@ const Order = () => {
   const [departments, setDepartments] = useState<DepartmentItem[]>([]);
   const [tableSearchInput, setTableSearchInput] = useState<string>('');
   const tableSearchInputRef = useRef<HTMLInputElement>(null);
-  const [selectedTableId, setSelectedTableId] = useState<number | null>(null);
+  const [selectedTableId, ] = useState<number | null>(null);
   const [mobileNumber, setMobileNumber] = useState<string>('');
   const [customerName, setCustomerName] = useState<string>('');
   const [taxRates, setTaxRates] = useState<{ cgst: number; sgst: number; igst: number; cess: number }>({ cgst: 0, sgst: 0, igst: 0, cess: 0 });
@@ -179,7 +179,7 @@ const Order = () => {
   const [ncPurpose, setNcPurpose] = useState<string>('');
 
   // New states for settlement flow
-  const [billActionState, setBillActionState] = useState<'initial' | 'printOrSettle'>('initial');
+  const [, setBillActionState] = useState<'initial' | 'printOrSettle'>('initial');
   const [outletPaymentModes, setOutletPaymentModes] = useState<PaymentMode[]>([]);
   const [showSettlementModal, setShowSettlementModal] = useState<boolean>(false);
   const [isMixedPayment, setIsMixedPayment] = useState<boolean>(false);
@@ -2612,34 +2612,7 @@ if (e.key === "F8" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
     }
   };
 
-  const handleMakePayment = async (order: any) => {
-    try {
-      const settlements = [{
-        PaymentTypeID: 1,
-        PaymentType: 'Cash',
-        Amount: order.total,
-        OrderNo: order.id.toString(),
-        Name: user?.name || '',
-      }];
-      const response = await fetch(`http://localhost:3001/api/TAxnTrnbill/${order.id}/settle`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ settlements }),
-      });
-      if (response.ok) {
-        toast.success('Payment settled successfully!');
-        if (pendingType) {
-          fetchPendingOrders(pendingType);
-        }
-      } else {
-        const errorData = await response.json();
-        toast.error(errorData.message || 'Failed to settle payment');
-      }
-    } catch (error) {
-      console.error('Error settling payment:', error);
-      toast.error('Error settling payment');
-    }
-  };
+ 
 
   const handleLoadPendingOrder = (order: any) => {
     // 1. Hide the pending orders list and show the main order details panel

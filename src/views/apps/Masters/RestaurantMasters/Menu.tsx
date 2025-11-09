@@ -113,8 +113,8 @@ const Menu: React.FC = () => {
   const [showSidebar, setShowSidebar] = useState(false);
   const [globalFilter, setGlobalFilter] = useState<string>('');
   const [loading, setLoading] = useState(true);
-  const [outlets, setOutlets] = useState<OutletData[]>([]);
-  const [brands, setBrands] = useState<any[]>([]);
+  const [, setOutlets] = useState<OutletData[]>([]);
+  const [, setBrands] = useState<any[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]); // State for sidebar menu items
   const [selectedItemGroup, setSelectedItemGroup] = useState<number | null>(null); // State for selected item group filter
   const [error, setError] = useState<string | null>(null); // State for error handling

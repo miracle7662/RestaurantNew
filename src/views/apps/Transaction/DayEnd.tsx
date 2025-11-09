@@ -1327,7 +1327,7 @@ const getFormattedDate = (dateStr: string) => {
         </Modal>
 
         {/* Report Selection Modal */}
-        <Modal show={showReportModal} onHide={() => setShowReportModal(false)} centered size="md">
+        <Modal show={showReportModal} onHide={() => setShowReportModal(false)} centered size="sm">
           <Modal.Header closeButton className="border-0 pb-0">
             <Modal.Title className="fw-bold text-primary">Select Reports</Modal.Title>
           </Modal.Header>
