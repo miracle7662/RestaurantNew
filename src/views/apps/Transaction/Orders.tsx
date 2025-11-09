@@ -2403,7 +2403,6 @@ if (e.key === "F8" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
     if (isMixedPayment) {
       // Mixed Payment Logic
       const currentTotalPaid = Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0);
-      const remaining = Math.max(0, grandTotal - currentTotalPaid);
       const remaining = Math.max(0, taxCalc.grandTotal - currentTotalPaid);
       setSelectedPaymentModes(prev => {
         const isSelected = prev.includes(mode.mode_name);
@@ -2422,17 +2421,20 @@ if (e.key === "F8" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
     } else {
       // Single Payment Logic
       setSelectedPaymentModes([mode.mode_name]);
-      setPaymentAmounts({ [mode.mode_name]: grandTotal.toFixed(2) });
       setPaymentAmounts({ [mode.mode_name]: taxCalc.grandTotal.toFixed(2) });
     }
   };
 
   const handleSettleAndPrint = async () => {
+    // Define these variables before using them
+    const totalPaid = Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0) + (tip || 0);
+    const settlementBalance = taxCalc.grandTotal - totalPaid;
+
     if (!currentTxnId) {
       toast.error('Cannot settle bill. No transaction ID found.');
       return;
     }
-    if (settlementBalance !== 0 || totalPaid === 0) {
+    if (settlementBalance !== 0 || totalPaid === 0) { // Now this check will work
       toast.error('Payment amount does not match the total due.');
       return;
     }
@@ -4925,3 +4927,4 @@ const ReversedItemsDisplay = ({ items }: { items: ReversedMenuItem[] }) => {
 };
 
 export default Order;
+ 
