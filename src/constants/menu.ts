@@ -36,7 +36,7 @@ const MENU_ITEMS: MenuItemTypes[] = [
     key: 'Settlement',
     label: 'Settlement',
     url: '/apps/Settlement',
-    icon: "fi fi-rr-browser",
+    icon: "fi fi-rs-sack-dollar",
     parentKey: 'apps',
   },
 
@@ -44,7 +44,7 @@ const MENU_ITEMS: MenuItemTypes[] = [
     key: 'Handover',
     label: 'Handover',
     url: '/apps/Handover',
-    icon: 'fi fi-rr-circle-user',
+    icon: 'fi fi-rr-hand-holding-seeding',
     parentKey: 'apps',
   },
 
