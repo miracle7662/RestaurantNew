@@ -2630,6 +2630,8 @@ if (e.key === "F8" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
         // Clear reverse quantity items when turning off reverse mode
         if (!newMode) {
           setReverseQtyItems([]);
+          setShowSaveReverseButton(false); // Turn off button when mode is off
+          setIsSaveReverseDisabled(true); // Disable button when mode is off
         } else {
           // When activating reverse mode, also set to expanded view
           setIsGroupedView(false);
@@ -4391,8 +4393,8 @@ if (e.key === "F8" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
                   {showSaveReverseButton && reverseQtyItems.length > 0 && (
                     <Button
                       variant="danger"
-                      className="fw-bold mt-2 w-100"
-                      disabled={isSaveReverseDisabled || !selectedTable}
+                      className="fw-bold mt-2 w-100" // Changed disabled condition
+                      disabled={isSaveReverseDisabled || !persistentTxnId}
                       onClick={handleSaveReverse}
                     >
                       {isSaveReverseDisabled ? "Saving..." : "Save Reverse"}
