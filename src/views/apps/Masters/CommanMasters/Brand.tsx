@@ -41,6 +41,7 @@ interface HotelMastersItem {
   website: string;
   address: string;
   stateid: string;
+  cityid: string;
   hoteltypeid: string;
   status: string;
   created_by_id: string;
@@ -798,6 +799,7 @@ const AddHotelMastersModal: React.FC<AddHotelMastersModalProps> = ({ show, onHid
         website,
         address,
         stateid,
+        cityid,
         hoteltypeid,
         status: statusValue,
         created_by_id: 1, // Default to null (or 0 if backend requires)
@@ -1167,6 +1169,7 @@ const EditHotelMastersModal: React.FC<EditHotelMastersModalProps> = ({ show, onH
       setAddress(HotelMasters.address || '');
       setHoteltypeid(Number(HotelMasters.hoteltypeid) || 0);
       setStateId(Number(HotelMasters.stateid) || 0); // fallback to 0 if falsy
+      setCityId(Number(HotelMasters.cityid) || 0); // fallback to 0 if falsy
       setStatus(String(HotelMasters.status) === '0' ? 'Active' : 'Inactive');
       console.log('Edit HotelMasters status:', HotelMasters.status, typeof HotelMasters.status); // Debug log
 
@@ -1225,6 +1228,7 @@ const EditHotelMastersModal: React.FC<EditHotelMastersModalProps> = ({ show, onH
         website,
         address,
         stateid,
+        cityid,
         hoteltypeid,
         status: statusValue,
         hotelid: hotelId,

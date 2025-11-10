@@ -3,7 +3,16 @@ const db = require('../config/db');
 exports.getHotelMasters = (req, res) => {
     const { role_level, hotelid } = req.query;
    
-    let query = 'select H.hotelid, H.hotel_name,H.marketid,H.short_name,H.phone,H.email,H.fssai_no, H.trn_gstno,H.panno,H.website,H.address,H.stateid,H.hoteltypeid,H.Masteruserid,H.status,H.created_by_id,H.created_date,H.updated_by_id,H.updated_date,  M.market_name from msthotelmasters H inner join mstmarkets M on M.marketid=H.marketid ';
+    let query = `
+        SELECT 
+            H.hotelid, H.hotel_name, H.marketid, H.short_name, H.phone, H.email, 
+            H.fssai_no, H.trn_gstno, H.panno, H.website, H.address, H.stateid, H.cityid,
+            H.hoteltypeid, H.Masteruserid, H.status, H.created_by_id, H.created_date, 
+            H.updated_by_id, H.updated_date, M.market_name, C.city_name 
+        FROM msthotelmasters H 
+        LEFT JOIN mstmarkets M ON M.marketid = H.marketid 
+        LEFT JOIN mstcitymaster C ON C.cityid = H.cityid
+    `;
     let params = [];
 
     // If user is hotel_admin, only show their hotel
@@ -25,7 +34,16 @@ exports.getHotelMasters = (req, res) => {
 
 exports.getHotelMastersById = (req, res) => {
     const { id } = req.params;
-    const msthotelmasters = db.prepare('select H.hotelid, H.hotel_name,H.marketid,H.short_name,H.phone,H.email,H.fssai_no, H.trn_gstno,H.panno,H.website,H.address,H.stateid,H.hoteltypeid,H.Masteruserid,H.status,H.created_by_id,H.created_date,H.updated_by_id,H.updated_date,  M.market_name from msthotelmasters H inner join mstmarkets M on M.marketid=H.marketid WHERE H.hotelid = ?').get(id);
+    const msthotelmasters = db.prepare(`
+        SELECT 
+            H.hotelid, H.hotel_name, H.marketid, H.short_name, H.phone, H.email, 
+            H.fssai_no, H.trn_gstno, H.panno, H.website, H.address, H.stateid, H.cityid,
+            H.hoteltypeid, H.Masteruserid, H.status, H.created_by_id, H.created_date, 
+            H.updated_by_id, H.updated_date, M.market_name, C.city_name 
+        FROM msthotelmasters H 
+        LEFT JOIN mstmarkets M ON M.marketid = H.marketid 
+        LEFT JOIN mstcitymaster C ON C.cityid = H.cityid 
+        WHERE H.hotelid = ?`).get(id);
     
     if (msthotelmasters) {
         res.json(msthotelmasters);
@@ -35,18 +53,18 @@ exports.getHotelMastersById = (req, res) => {
 };
 
 exports.addHotelMasters = (req, res) => {
-   const {hotel_name,  marketid,  short_name, phone, email, fssai_no, trn_gstno,panno,website,address,stateid,hoteltypeid, status,created_by_id,created_date, Masteruserid} = req.body;
-    const stmt = db.prepare('INSERT INTO msthotelmasters ( hotel_name,  marketid,  short_name, phone, email, fssai_no, trn_gstno, panno,website, address, stateid, hoteltypeid, status,created_by_id, created_date,  Masteruserid ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,? ,?)');
-    const result = stmt.run(hotel_name, marketid, short_name, phone, email, fssai_no, trn_gstno,panno,website,address,stateid,hoteltypeid,  status,created_by_id,    created_date,  Masteruserid);
-    res.json({ id: result.lastInsertRowid, hotel_name,marketid,  short_name, phone, email, fssai_no, trn_gstno,panno,website,address,stateid,hoteltypeid, status, created_by_id, created_date,  Masteruserid});
+   const {hotel_name,  marketid,  short_name, phone, email, fssai_no, trn_gstno,panno,website,address,stateid, cityid, hoteltypeid, status,created_by_id,created_date, Masteruserid} = req.body;
+    const stmt = db.prepare('INSERT INTO msthotelmasters ( hotel_name,  marketid,  short_name, phone, email, fssai_no, trn_gstno, panno,website, address, stateid, cityid, hoteltypeid, status,created_by_id, created_date,  Masteruserid ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,? ,?)');
+    const result = stmt.run(hotel_name, marketid, short_name, phone, email, fssai_no, trn_gstno,panno,website,address,stateid, cityid, hoteltypeid,  status,created_by_id,    created_date,  Masteruserid);
+    res.json({ id: result.lastInsertRowid, hotel_name,marketid,  short_name, phone, email, fssai_no, trn_gstno,panno,website,address,stateid, cityid, hoteltypeid, status, created_by_id, created_date,  Masteruserid});
 };
 
 exports.updateHotelMasters= (req, res) => {
     const { id } = req.params;
-    const {hotel_name,  marketid,  short_name, phone, email, fssai_no, trn_gstno,panno,website,address,stateid, hoteltypeid, Masteruserid,status,updated_by_id,updated_date } = req.body;
-    const stmt = db.prepare('UPDATE msthotelmasters SET hotel_name = ?,   marketid = ?,  short_name = ?, phone = ?,  email = ?, fssai_no = ?, trn_gstno = ?,panno= ?,website= ?,address= ?,stateid= ?, hoteltypeid= ?,Masteruserid= ?, status = ?, updated_by_id = ?, updated_date = ? WHERE hotelid = ?');
-    stmt.run(hotel_name,  marketid,  short_name, phone, email, fssai_no, trn_gstno, panno,website, address, stateid, hoteltypeid, Masteruserid,status, updated_by_id,updated_date, id);
-    res.json({ id, hotel_name,  marketid,  short_name, phone,   email, fssai_no, trn_gstno, panno,website, address, stateid, hoteltypeid, Masteruserid,status, updated_by_id,updated_date });
+    const {hotel_name,  marketid,  short_name, phone, email, fssai_no, trn_gstno,panno,website,address,stateid, cityid, hoteltypeid, Masteruserid,status,updated_by_id,updated_date } = req.body;
+    const stmt = db.prepare('UPDATE msthotelmasters SET hotel_name = ?,   marketid = ?,  short_name = ?, phone = ?,  email = ?, fssai_no = ?, trn_gstno = ?,panno= ?,website= ?,address= ?,stateid= ?, cityid = ?, hoteltypeid= ?,Masteruserid= ?, status = ?, updated_by_id = ?, updated_date = ? WHERE hotelid = ?');
+    stmt.run(hotel_name,  marketid,  short_name, phone, email, fssai_no, trn_gstno, panno,website, address, stateid, cityid, hoteltypeid, Masteruserid,status, updated_by_id,updated_date, id);
+    res.json({ id, hotel_name,  marketid,  short_name, phone,   email, fssai_no, trn_gstno, panno,website, address, stateid, cityid, hoteltypeid, Masteruserid,status, updated_by_id,updated_date });
 };
 
 exports.deleteHotelMasters = (req, res) => {

@@ -140,8 +140,8 @@ updated_date DATETIME
 
 );
 
-    CREATE TABLE IF NOT EXISTS msthotelmasters (
-        hotelid INTEGER PRIMARY KEY AUTOINCREMENT,
+CREATE TABLE IF NOT EXISTS msthotelmasters (
+hotelid INTEGER PRIMARY KEY AUTOINCREMENT,
 hotel_name text(200),
 marketid	INTEGER,
 short_name	text(200),
@@ -153,6 +153,7 @@ panno	text(200),
 website	text(200),
 address	text(400),
 stateid	INTEGER,
+cityid	INTEGER,
 hoteltypeid	INTEGER,
 status INTEGER ,
 created_by_id INTEGER,
