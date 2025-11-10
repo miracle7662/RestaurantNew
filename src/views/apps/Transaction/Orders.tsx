@@ -1746,13 +1746,18 @@ const Order = () => {
         }
 
         // After printing, decide what to do based on focusMode
-        if (focusMode) {
-          // Clear table, stay on view, focus table input
-          setSelectedTable('');
-          setTriggerFocusInDetails(c => c + 1); // Trigger focus in OrderDetails
-        } else {
-          // Option 2: Focus Mode OFF - Clear items and return to table grid view
+        if (['Pickup', 'Delivery', 'Quick Bill'].includes(activeTab)) {
+          // For these tabs, always go back to the Dine-in table grid view.
+          setActiveTab('Dine-in');
+          setShowOrderDetails(false);
           setSelectedTable(null);
+        } else if (focusMode) {
+          // For Dine-in with Focus Mode ON
+          setSelectedTable(''); // Clear table in details view
+          setTriggerFocusInDetails(c => c + 1);
+        } else {
+          // For Dine-in with Focus Mode OFF
+          setSelectedTable(null); // Clear selection
           setShowOrderDetails(false);
         }
 
