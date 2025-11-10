@@ -25,8 +25,8 @@ const MENU_ITEMS: MenuItemTypes[] = [
     isTitle: true,
   },
   {
-    key: 'Orders',
-    label: 'Orders',
+    key: '  Orders',
+    label: 'POS Orders',
     url: '/apps/orders',
     icon: 'fi fi-rr-shopping-cart',
     parentKey: 'apps',
@@ -36,7 +36,7 @@ const MENU_ITEMS: MenuItemTypes[] = [
     key: 'Settlement',
     label: 'Settlement',
     url: '/apps/Settlement',
-    icon: 'fi fi-rr-shopping-cart',
+    icon: "fi fi-rr-browser",
     parentKey: 'apps',
   },
 
@@ -44,7 +44,7 @@ const MENU_ITEMS: MenuItemTypes[] = [
     key: 'Handover',
     label: 'Handover',
     url: '/apps/Handover',
-    icon: 'fi fi-rr-shopping-cart',
+    icon: 'fi fi-rr-circle-user',
     parentKey: 'apps',
   },
 
@@ -52,7 +52,7 @@ const MENU_ITEMS: MenuItemTypes[] = [
     key: 'DayEnd',
     label: 'DayEnd',
     url: '/apps/DayEnd',
-    icon: 'fi fi-rr-shopping-cart',
+    icon: 'fi fi-rr-apps-add',
     parentKey: 'apps',
   },
 
@@ -60,28 +60,28 @@ const MENU_ITEMS: MenuItemTypes[] = [
     key: 'KotTransfer',
     label: 'KotTransfer',
     url: '/apps/KotTransfer',
-    icon: 'fi fi-rr-shopping-cart',
+    icon: 'fi fi-rr-square-terminal',
     parentKey: 'apps',
   },
 
 
   
   {
-    key: 'Costumers',
-    label: 'Costumers',
+    key: 'Customers',
+    label: 'Customers',
     url: '/apps/Customers',
     icon: 'fi fi-rs-user-headset',
     parentKey: 'apps',
   },
 
   
-  {
-    key: 'Reports',
-    label: 'Reports',
-    url: '/apps/Reports',
-    icon: 'fi fi-rs-mobile',
-    parentKey: 'apps',
-  },
+  // {
+  //   key: 'Reports',
+  //   label: 'Reports',
+  //   url: '/apps/Reports',
+  //   icon: 'fi fi-rs-mobile',
+  //   parentKey: 'apps',
+  // },
 
 
   
@@ -219,7 +219,25 @@ const MENU_ITEMS: MenuItemTypes[] = [
     parentKey: 'apps',
   },
 
-   {
+  
+  //Menu 2
+
+  {
+    key: 'SuperAdmin',
+    label: 'SuperAdmin',
+    isTitle: true,
+  },
+
+    {
+        key: 'Brand',
+        label: 'Brand',
+        url: '/OutletConfigration/Brand',
+        icon: 'fi fi-rr-dashboard ',
+        parentKey: 'OutletConfigration',
+        
+      },
+
+       {
     key: 'Warehouse',
     label: 'Warehouse',
     url: '/apps/Warehouse',
@@ -243,22 +261,6 @@ const MENU_ITEMS: MenuItemTypes[] = [
     parentKey: 'apps',
   },
 
-  //Menu 2
-
-  {
-    key: 'SuperAdmin',
-    label: 'SuperAdmin',
-    isTitle: true,
-  },
-
-    {
-        key: 'Brand',
-        label: 'Brand',
-        url: '/OutletConfigration/Brand',
-        icon: 'fi fi-rr-dashboard ',
-        parentKey: 'OutletConfigration',
-        
-      },
 
       
   {
