@@ -2050,7 +2050,7 @@ exports.applyDiscountToBill = async (req, res) => {
     const trx = db.transaction(() => {
 
       // 2. Recalculate and update Discount_Amount for each item in TAxnTrnbilldetails
-      const updateDetailStmt = db.prepare(`
+      const updateDetailStmt = db.prepare(/*sql*/ `
         UPDATE TAxnTrnbilldetails
         SET Discount_Amount = ?
         WHERE TXnDetailID = ?
@@ -2124,9 +2124,9 @@ exports.applyDiscountToBill = async (req, res) => {
       }
 
       // 4. Update the bill header with all correct values in one go
-      db.prepare(`
+      db.prepare(/*sql*/ `
         UPDATE TAxnTrnbill 
-        SET Amount = ?, Discount = ?, DiscPer = ?, DiscountType = ?, CGST = ?, SGST = ?, IGST = ?, CESS = ?, RoundOFF = ?
+        SET Amount = ?, Discount = ?, DiscPer = ?, DiscountType = ?, CGST = ?, SGST = ?, IGST = ?, CESS = ?, RoundOFF = ?, isBilled = 0
         WHERE TxnID = ?
       `).run(finalAmount, finalDiscount, finalDiscPer, finalDiscountType, totalCgst, totalSgst, totalIgst, totalCess, finalRoundOff, Number(id));
     });

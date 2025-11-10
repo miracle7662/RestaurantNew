@@ -1448,7 +1448,7 @@ const Order = () => {
         const tableToUpdate = tableItems.find(t => t.table_name === selectedTable);
         if (tableToUpdate) {
           // If discount applied, set green (status=1), else red (status=2)
-          const newStatus = discount > 0 ? 1 : 2;
+          const newStatus = 2; // Always set to 2 (billed/red) on printing
 
           await fetch(`http://localhost:3001/api/tablemanagement/${tableToUpdate.tablemanagementid}/status`, {
             method: 'PUT',
@@ -2390,6 +2390,24 @@ if (e.key === "F8" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
       toast.success('Discount applied successfully!');
       setShowDiscountModal(false);
       // Instead of clearing the table, just refresh its data to show the discount.
+      // If the table was billed, applying a discount should make it 'occupied' (green) again.
+      const wasBilled = items.some(item => item.isBilled === 1);
+      if (wasBilled && selectedTable) {
+        const tableToUpdate = tableItems.find(t => t.table_name === selectedTable);
+        if (tableToUpdate) {
+          // Optimistically update UI to green
+          setTableItems(prevTables =>
+            prevTables.map(table =>
+              table.table_name === selectedTable ? { ...table, status: 1 } : table
+            )
+          );
+          // The backend now handles setting isBilled=0, so a refresh will show correct state.
+          if (selectedTableId) {
+            await refreshItemsForTable(selectedTableId);
+          }
+        }
+      }
+
       if (selectedTableId) {
         await refreshItemsForTable(selectedTableId);
       }
