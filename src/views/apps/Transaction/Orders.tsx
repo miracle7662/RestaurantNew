@@ -1049,30 +1049,42 @@ const Order = () => {
         return;
       }
 
-      // For pickup/delivery, we need to call the backend to persist the reversal
-      if ((activeTab === 'Pickup' || activeTab === 'Delivery') && item.txnDetailId) {
+    // For pickup/delivery/quick bill, call the backend to persist the reversal
+    if (['Pickup', 'Delivery', 'Quick Bill'].includes(activeTab)) {
+      if (!persistentTxnId || !item.txnDetailId) {
+        toast.error("Cannot reverse item: Missing transaction or item ID.");
+        return;
+      }
+
         try {
-          const response = await fetch('http://localhost:3001/api/TAxnTrnbill/create-reverse-kot', {
+        const payload = {
+          TxnID: persistentTxnId,
+          TXnDetailID: item.txnDetailId,
+          RevQty: 1
+        };
+
+        console.log("Reversing item with payload:", JSON.stringify(payload, null, 2));
+
+          const response = await fetch("http://localhost:3001/api/TAxnTrnbill/reverse-item", {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-           body: JSON.stringify({
-  txnId: persistentTxnId,
-  reversedItems: [{ txnDetailId: item.txnDetailId, qty: 1 }], // ✅ include txnDetailId
-  userId: user?.id,
-  reversalReason: 'Item reversed from order screen'
-}),
-
+          body: JSON.stringify(payload),
           });
           const result = await response.json();
           if (!result.success) {
             throw new Error(result.message || 'Failed to save reversal to backend.');
+          }
+          // After successful backend update, refresh the view based on order type
+          if (activeTab === 'Quick Bill' && persistentTxnId) {
+            await handleLoadQuickBill({ TxnID: persistentTxnId });
+          } else if (activeTab === 'Pickup' || activeTab === 'Delivery') {
+            fetchPendingOrders(activeTab.toLowerCase() as 'pickup' | 'delivery');
           }
         } catch (error: any) {
           toast.error(error.message);
           return; // Stop UI update if backend fails
         }
       }
-    
 
       // Update the item quantity in the frontend state
       setItems(currentItems => {
@@ -1746,11 +1758,13 @@ const Order = () => {
         }
 
         // After printing, decide what to do based on focusMode
-        if (['Pickup', 'Delivery', 'Quick Bill'].includes(activeTab)) {
-          // For these tabs, always go back to the Dine-in table grid view.
-          setActiveTab('Dine-in');
-          setShowOrderDetails(false);
-          setSelectedTable(null);
+        if (activeTab === 'Pickup' || activeTab === 'Delivery') {
+          // For these tabs, refresh the pending orders list and show it.
+          handlePendingOrderTabClick(activeTab.toLowerCase() as 'pickup' | 'delivery');
+        } else if (activeTab === 'Quick Bill') {
+          // For Quick Bill, refresh its history view.
+          fetchQuickBillData();
+          setActiveNavTab('Quick Bill'); // Show the history list
         } else if (focusMode) {
           // For Dine-in with Focus Mode ON
           setSelectedTable(''); // Clear table in details view
@@ -2668,10 +2682,11 @@ if (e.key === "F8" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
 
     // 4. Map and set the items, marking them as existing (not new)
     const existingItems = order.items.map((item: any) => ({
-     ...item,
-      txnDetailId: item.TXnDetailID, // Map the correct ID
-      isNew: false, isBilled: 0
-     
+      ...item,
+      id: item.ItemID, // Ensure 'id' is mapped for other functions
+      txnDetailId: item.TXnDetailID, // Correctly map the detail ID
+      isNew: false, 
+      isBilled: 0
     }));
     setItems(existingItems);
   };

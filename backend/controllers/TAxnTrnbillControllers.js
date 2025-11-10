@@ -1005,7 +1005,7 @@ exports.createKOT = async (req, res) => {
     const header = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(txnId); // Fetch header
     const items = db.prepare(`
       SELECT d.*, m.item_name as ItemName
-      FROM TAxnTrnbilldetails d
+      FROM TAxnTrnbilldetails d 
       LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
       WHERE d.TxnID = ? AND d.isCancelled = 0 ORDER BY d.TXnDetailID
     `).all(txnId); // Fetch details with item_name
@@ -2076,6 +2076,7 @@ exports.applyDiscountToBill = async (req, res) => {
         totalDiscountOnItems += itemDiscountAmount;
       }
 
+      
       // 3. Recalculate the total amount for the bill header based on the new discount
       const allDetails = db.prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? AND isCancelled = 0').all(Number(id));
       const outletSettings = db.prepare('SELECT include_tax_in_invoice FROM mstoutlet_settings WHERE outletid = ?').get(bill.outletid);
@@ -2194,7 +2195,9 @@ exports.getPendingOrders = async (req, res) => {
       items: r._details ? JSON.parse(`[${r._details}]`).filter(d => d).map((d) => ({
         name: d.item_name || '',
         qty: d.Qty || 0,
-        price: d.RuntimeRate || 0
+        price: d.RuntimeRate || 0,
+        ItemID: d.ItemID, // Ensure ItemID is passed
+        TXnDetailID: d.TXnDetailID // Ensure TXnDetailID is passed
       })) : [],
       total: r.Amount || 0,
       type: r.table_name, // 'pickup' or 'delivery'
@@ -2525,6 +2528,39 @@ exports.saveFullReverse = async (req, res) => {
   } catch (error) {
     console.error('Error in saveFullReverse:', error);
     res.status(500).json({ success: false, message: 'Failed to process full reversal.', error: error.message });
+  }
+};
+
+/* -------------------------------------------------------------------------- */
+/* 22) reverseItem → Reverse quantity for a single item                       */
+/* -------------------------------------------------------------------------- */
+exports.reverseItem = async (req, res) => {
+  try {
+    const { TxnID, TXnDetailID, RevQty } = req.body;
+
+    if (!TxnID || !TXnDetailID) {
+      return res.status(400).json({ success: false, message: 'TxnID and TXnDetailID are required.' });
+    }
+
+
+    const detail = db.prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? AND TXnDetailID = ?').get(TxnID, TXnDetailID);
+
+    if (!detail) {
+      return res.status(404).json({ success: false, message: 'Item not found in this transaction detail.' });
+    }
+
+    const newRevQty = (Number(detail.RevQty) || 0) + Number(RevQty || 1);
+
+    db.prepare(`
+      UPDATE TAxnTrnbilldetails
+      SET RevQty = ?, KOTUsedDate = ?
+      WHERE TXnDetailID = ?
+    `).run(newRevQty, new Date().toISOString(), detail.TXnDetailID);
+
+    res.json({ success: true, message: 'Item reversed successfully' });
+  } catch (err) {
+    console.error('Error in reverseItem:', err);
+    res.status(500).json({ success: false, message: 'Reverse failed', error: err.message });
   }
 };
 
