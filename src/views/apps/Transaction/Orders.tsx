@@ -903,6 +903,11 @@ const Order = () => {
     setDiscountInputValue(0);
     setDiscountType(1); // Default to percentage
 
+    // Hide and re-enable the Save Reverse button when changing tables
+    setShowSaveReverseButton(false);
+    setIsSaveReverseDisabled(false);
+    setReverseQtyItems([]); // Clear pending reversed items
+
 
     // Delay setting selectedTable to seat to trigger re-render and re-fetch
     setTimeout(() => {
@@ -1082,6 +1087,7 @@ const Order = () => {
             if (item.isBilled === 1) {
               toast.success(`Reversed 1 qty of "${item.name}"`);
             } else {
+              // ✅ Show the "Save Reverse" button when an item is reversed
           if (reverseQtyMode) {
             setShowSaveReverseButton(true);
           }
@@ -1107,6 +1113,7 @@ const Order = () => {
             if (item.isBilled === 1) {
               toast.success(`Reversed 1 qty of "${item.name}"`);
             } else {
+              // ✅ Show the "Save Reverse" button when an item is reversed
               if (reverseQtyMode) {
                 setShowSaveReverseButton(true);
               }
@@ -1923,6 +1930,7 @@ const Order = () => {
       return;
     }
 
+    // ✅ Disable the button immediately to prevent double-clicks
     setIsSaveReverseDisabled(true);
 
     try {
@@ -4338,9 +4346,12 @@ if (e.key === "F8" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
             <div className="billing-panel-footer mt-auto flex-shrink-0" style={{ backgroundColor: 'white', position: 'sticky', bottom: 0 }}>
               <div className="p-2">
                 <div className="bg-white border rounded p-2">                  
-                  {(showSaveReverseButton || (items.length === 0 && reverseQtyItems.length > 0)) && (
+                  {showSaveReverseButton && reverseQtyItems.length > 0 && (
                     <Button
-                      variant="danger" className="fw-bold mt-2 w-100" disabled={isSaveReverseDisabled} onClick={handleSaveReverse}
+                      variant="danger"
+                      className="fw-bold mt-2 w-100"
+                      disabled={isSaveReverseDisabled || !selectedTable}
+                      onClick={handleSaveReverse}
                     >
                       {isSaveReverseDisabled ? "Saving..." : "Save Reverse"}
                     </Button>

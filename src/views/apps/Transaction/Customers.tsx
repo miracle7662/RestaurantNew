@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { toast } from "react-hot-toast";
 import { useAuthContext } from "@/common";
+
 import {
   fetchStates,
   StateItem,
@@ -21,6 +22,8 @@ interface CustomerFormData {
   pincode: string;
   fssai: string;
   panNo: string;
+  customerType: string;
+  status: string;
   state: string;
   birthday: string;
   anniversary: string;
@@ -69,25 +72,39 @@ interface FieldProps {
   name: keyof CustomerFormData;
   type?: string;
   value: string;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
   placeholder?: string;
   required?: boolean;
   disabled?: boolean;
+  children?: React.ReactNode;
 }
 
-const Field: React.FC<FieldProps> = ({ label, name, type = "text", value, onChange, placeholder, required = false, disabled = false }) => (
+const Field: React.FC<FieldProps> = ({ label, name, type = "text", value, onChange, placeholder, required = false, disabled = false, children }) => (
   <div className="d-flex align-items-center mb-3">
     <Label required={required}>{label}</Label>
-    <input
-      type={type}
-      className="form-control form-control-sm"
-      name={name}
-      value={value}
-      onChange={onChange}
-      placeholder={placeholder}
-      disabled={disabled}
-      style={{ marginLeft: "10px", flex: "1" }}
-    />
+    {children ? (
+      <select
+        className="form-select form-select-sm"
+        name={name}
+        value={value}
+        onChange={onChange}
+        disabled={disabled}
+        style={{ marginLeft: "10px", flex: "1" }}
+      >
+        {children}
+      </select>
+    ) : (
+      <input
+        type={type}
+        className="form-control form-control-sm"
+        name={name}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        disabled={disabled}
+        style={{ marginLeft: "10px", flex: "1" }}
+      />
+    )}
   </div>
 );
 
@@ -103,7 +120,7 @@ interface PairedField {
 interface PairedFieldsProps {
   fields: PairedField[];
   formData: CustomerFormData;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
   customOnChanges?: Partial<Record<keyof CustomerFormData, (e: React.ChangeEvent<HTMLInputElement>) => void>>;
   disabled?: boolean;
 }
@@ -151,6 +168,8 @@ export default function CustomerManagement() {
     state: "",
     birthday: "",
     anniversary: "",
+    customerType: "",
+    status: "",
   });
   const [loading, setLoading] = useState<boolean>(false);
   const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null);
@@ -213,7 +232,7 @@ export default function CustomerManagement() {
     setCityId(match ? match.cityid : null);
   }, [formData.city, cities]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
@@ -369,6 +388,8 @@ export default function CustomerManagement() {
       fssai: customer.fssai || '',
       panNo: customer.panNo || '',
       state: customer.state_name || '',
+      customerType: '',
+      status: '',
       birthday: customer.birthday || '',
       anniversary: customer.anniversary || '',
     });
@@ -391,6 +412,8 @@ export default function CustomerManagement() {
       fssai: "",
       panNo: "",
       state: "",
+      customerType: "",
+      status: "",
       birthday: "",
       anniversary: "",
     });
@@ -476,6 +499,14 @@ export default function CustomerManagement() {
                     placeholder="Enter address"
                     disabled={loading}
                   />
+                   <Field
+                    label="State"
+                    name="state"
+                    value={formData.state}
+                    onChange={handleInputChange}
+                    placeholder="State"
+                    disabled={loading}
+                  />
                   <PairedFields
                     fields={[
                       { label: "City", name: "city", placeholder: "City" },
@@ -486,14 +517,7 @@ export default function CustomerManagement() {
                     customOnChanges={customOnChanges}
                     disabled={loading}
                   />
-                  <Field
-                    label="State"
-                    name="state"
-                    value={formData.state}
-                    onChange={handleInputChange}
-                    placeholder="State"
-                    disabled={loading}
-                  />
+                 
                   <PairedFields
                     fields={[
                       { label: "Birthday", name: "birthday", type: "date", max: todayStr },
@@ -503,6 +527,15 @@ export default function CustomerManagement() {
                     onChange={handleInputChange}
                     disabled={loading}
                   />
+
+                  <Field
+  label="GSTIN"
+  name="gstin"
+  value={formData.gstin}
+  onChange={handleInputChange}
+  placeholder="Enter GSTIN"
+  disabled={loading}
+/>
                 </div>
               </div>
               {/* Right Column */}
@@ -525,26 +558,55 @@ export default function CustomerManagement() {
                     placeholder="Enter address"
                     disabled={loading}
                   />
-                  <PairedFields
-                    fields={[
-                      { label: "GSTIN", name: "gstin", placeholder: "GSTIN" },
-                      { label: "Aadhar No", name: "aadharNo", placeholder: "Aadhar No" },
-                    ]}
-                    formData={formData}
-                    onChange={handleInputChange}
-                    customOnChanges={customOnChanges}
-                    disabled={loading}
-                  />
-                  <PairedFields
-                    fields={[
-                      { label: "FSSAI", name: "fssai", placeholder: "FSSAI No" },
-                      { label: "PAN No", name: "panNo", placeholder: "PAN No" },
-                    ]}
-                    formData={formData}
-                    onChange={handleInputChange}
-                    customOnChanges={customOnChanges}
-                    disabled={loading}
-                  />
+                 <Field
+  label="Aadhar No"
+  name="aadharNo"
+  value={formData.aadharNo}
+  onChange={handleInputChange}
+  placeholder="Enter Aadhar No"
+  disabled={loading}
+/>
+                 <Field
+  label="FSSAI"
+  name="fssai"
+  value={formData.fssai}
+  onChange={handleInputChange}
+  placeholder="Enter FSSAI No"
+  disabled={loading}
+/>
+
+<Field
+  label="PAN No"
+  name="panNo"
+  value={formData.panNo}
+  onChange={handleInputChange}
+  placeholder="Enter PAN No"
+  disabled={loading}
+/>
+<Field
+  label="Customer Type"
+  name="customerType"
+  value={formData.customerType}
+  onChange={handleInputChange}
+  disabled={loading}
+>
+  <option value="">Select Type</option>
+  <option value="Customer">Customer</option>
+  <option value="Regular">Regular</option>
+</Field>
+
+<Field
+  label="Status"
+  name="status"
+  value={formData.status}
+  onChange={handleInputChange}
+  disabled={loading}
+>
+  <option value="">Select Status</option>
+  <option value="Active">Active</option>
+  <option value="Inactive">Inactive</option>
+</Field>
+
                 </div>
               </div>
             </div>
