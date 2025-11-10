@@ -48,6 +48,8 @@ interface Customer {
   aadharNo?: string;
   birthday?: string;
   anniversary?: string;
+  customerType?: string;
+  status?: number;
   createWallet?: boolean;
   created_by_id?: number;
   created_date?: string;
@@ -150,7 +152,7 @@ const PairedFields: React.FC<PairedFieldsProps> = ({ fields, formData, onChange,
   </div>
 );
 
-export default function CustomerManagement() {
+function Customers() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [formData, setFormData] = useState<CustomerFormData>({
     mobile1: "",
@@ -168,7 +170,7 @@ export default function CustomerManagement() {
     state: "",
     birthday: "",
     anniversary: "",
-    customerType: "",
+    customerType: "Regular",
     status: "",
   });
   const [loading, setLoading] = useState<boolean>(false);
@@ -203,16 +205,40 @@ export default function CustomerManagement() {
     }
   };
 
+  // Fetch hotelmaster data for default state and city
+  const fetchHotelMaster = async (hotelid: number) => {
+    try {
+      const res = await fetch(`http://localhost:3001/api/hotelmasters/${hotelid}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (res.ok) {
+        const hotelData = await res.json();
+        if (hotelData.stateid && hotelData.cityid) {
+          setFormData(prev => ({
+            ...prev,
+            state: hotelData.state_name || '',
+            city: hotelData.city_name || '',
+          }));
+          setStateId(hotelData.stateid);
+          setCityId(hotelData.cityid);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching hotelmaster data', err);
+    }
+  };
+
   useEffect(() => {
     if (user) {
       fetchCustomers();
+      if (user.hotelid) {
+        fetchHotelMaster(user.hotelid);
+      }
     }
   }, [user]);
 
-  useEffect(() => {
-    fetchStates(setStates, () => {}).catch((err) => toast.error('Error fetching states'));
-    fetchCities(setCities, () => {}).catch((err) => toast.error('Error fetching cities'));
-  }, []);
+ 
 
   useEffect(() => {
     if (!formData.state) {
@@ -314,6 +340,7 @@ export default function CustomerManagement() {
     setLoading(true);
     try {
       const currentDate = new Date().toISOString();
+      const statusValue = formData.status === 'Active' ? 0 : (formData.status === 'Inactive' ? 1 : 0);
       const payload = {
         name: formData.name,
         countryCode: '+91',
@@ -332,6 +359,8 @@ export default function CustomerManagement() {
         aadharNo: formData.aadharNo || undefined,
         birthday: formData.birthday || undefined,
         anniversary: formData.anniversary || undefined,
+        customerType: formData.customerType,
+        status: statusValue,
         created_by_id: selectedCustomerId ? undefined : user?.id || 1,
         created_date: selectedCustomerId ? undefined : currentDate,
         updated_by_id: user?.id || 1,
@@ -388,8 +417,8 @@ export default function CustomerManagement() {
       fssai: customer.fssai || '',
       panNo: customer.panNo || '',
       state: customer.state_name || '',
-      customerType: '',
-      status: '',
+      customerType: customer.customerType || 'Regular',
+      status: customer.status === 0 ? 'Active' : 'Inactive',
       birthday: customer.birthday || '',
       anniversary: customer.anniversary || '',
     });
@@ -412,7 +441,7 @@ export default function CustomerManagement() {
       fssai: "",
       panNo: "",
       state: "",
-      customerType: "",
+      customerType: "Regular",
       status: "",
       birthday: "",
       anniversary: "",
@@ -437,7 +466,7 @@ export default function CustomerManagement() {
 
   return (
     <div
-      className="container py-4"
+      className="container py-1"
       style={{
         backgroundColor: "#f2f2f2",
         minHeight: "100vh",
@@ -459,17 +488,20 @@ export default function CustomerManagement() {
                   <div className="d-flex align-items-center mb-3">
                     <Label required>Mobile No</Label>
                     <div className="d-flex" style={{ flex: "1", marginLeft: "10px" }}>
-                      <input
-                        type="tel"
-                        className="form-control form-control-sm"
-                        name="mobile1"
-                        value={formData.mobile1}
-                        onChange={handleMobile1Change}
-                        placeholder="Enter mobile number 1"
-                        required
-                        disabled={loading}
-                        style={{ flex: "1", marginRight: "5px" }}
-                      />
+                      <div className="input-group input-group-sm" style={{ flex: "1", marginRight: "5px" }}>
+                        <span className="input-group-text" style={{ width: "60px", backgroundColor: "#f8f9fa", borderRight: "none" }}>+91</span>
+                        <input
+                          type="tel"
+                          className="form-control form-control-sm"
+                          name="mobile1"
+                          value={formData.mobile1}
+                          onChange={handleMobile1Change}
+                          placeholder="Enter mobile number 1"
+                          required
+                          disabled={loading}
+                          style={{ borderLeft: "none" }}
+                        />
+                      </div>
                       <input
                         type="tel"
                         className="form-control form-control-sm"
@@ -499,7 +531,7 @@ export default function CustomerManagement() {
                     placeholder="Enter address"
                     disabled={loading}
                   />
-                   <Field
+                  <Field
                     label="State"
                     name="state"
                     value={formData.state}
@@ -517,7 +549,7 @@ export default function CustomerManagement() {
                     customOnChanges={customOnChanges}
                     disabled={loading}
                   />
-                 
+
                   <PairedFields
                     fields={[
                       { label: "Birthday", name: "birthday", type: "date", max: todayStr },
@@ -529,13 +561,13 @@ export default function CustomerManagement() {
                   />
 
                   <Field
-  label="GSTIN"
-  name="gstin"
-  value={formData.gstin}
-  onChange={handleInputChange}
-  placeholder="Enter GSTIN"
-  disabled={loading}
-/>
+                    label="GSTIN"
+                    name="gstin"
+                    value={formData.gstin}
+                    onChange={handleInputChange}
+                    placeholder="Enter GSTIN"
+                    disabled={loading}
+                  />
                 </div>
               </div>
               {/* Right Column */}
@@ -558,54 +590,54 @@ export default function CustomerManagement() {
                     placeholder="Enter address"
                     disabled={loading}
                   />
-                 <Field
-  label="Aadhar No"
-  name="aadharNo"
-  value={formData.aadharNo}
-  onChange={handleInputChange}
-  placeholder="Enter Aadhar No"
-  disabled={loading}
-/>
-                 <Field
-  label="FSSAI"
-  name="fssai"
-  value={formData.fssai}
-  onChange={handleInputChange}
-  placeholder="Enter FSSAI No"
-  disabled={loading}
-/>
+                  <Field
+                    label="Aadhar No"
+                    name="aadharNo"
+                    value={formData.aadharNo}
+                    onChange={handleInputChange}
+                    placeholder="Enter Aadhar No"
+                    disabled={loading}
+                  />
+                  <Field
+                    label="FSSAI"
+                    name="fssai"
+                    value={formData.fssai}
+                    onChange={handleInputChange}
+                    placeholder="Enter FSSAI No"
+                    disabled={loading}
+                  />
 
-<Field
-  label="PAN No"
-  name="panNo"
-  value={formData.panNo}
-  onChange={handleInputChange}
-  placeholder="Enter PAN No"
-  disabled={loading}
-/>
-<Field
-  label="Customer Type"
-  name="customerType"
-  value={formData.customerType}
-  onChange={handleInputChange}
-  disabled={loading}
->
-  <option value="">Select Type</option>
-  <option value="Customer">Customer</option>
-  <option value="Regular">Regular</option>
-</Field>
+                  <Field
+                    label="PAN No"
+                    name="panNo"
+                    value={formData.panNo}
+                    onChange={handleInputChange}
+                    placeholder="Enter PAN No"
+                    disabled={loading}
+                  />
+                  <Field
+                    label="Customer Type"
+                    name="customerType"
+                    value={formData.customerType}
+                    onChange={handleInputChange}
+                    disabled={loading}
+                  >
+                    <option value="">Select Type</option>
+                    <option value="Customer">Customer</option>
+                    <option value="Regular">Regular</option>
+                  </Field>
 
-<Field
-  label="Status"
-  name="status"
-  value={formData.status}
-  onChange={handleInputChange}
-  disabled={loading}
->
-  <option value="">Select Status</option>
-  <option value="Active">Active</option>
-  <option value="Inactive">Inactive</option>
-</Field>
+                  <Field
+                    label="Status"
+                    name="status"
+                    value={formData.status}
+                    onChange={handleInputChange}
+                    disabled={loading}
+                  >
+                    <option value="">Select Status</option>
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
+                  </Field>
 
                 </div>
               </div>
@@ -625,15 +657,18 @@ export default function CustomerManagement() {
                     ? 'Updating...'
                     : 'Adding...'
                   : selectedCustomerId
-                  ? 'Update Customer'
-                  : 'Add Customer'}
+                    ? 'Update Customer'
+                    : 'Add Customer'}
               </button>
             </div>
           </form>
         </div>
       </div>
       {/* Customer List Section */}
-      <div className="card shadow-sm border-0 mt-4" style={{ maxHeight: 'calc(100vh - 300px)', overflow: 'hidden' }}>
+      <div
+        className="card shadow-sm border-0 mt-2"
+        style={{ maxHeight: "calc(100vh - 300px)" }}
+      >
         <div className="card-header bg-white border-bottom d-flex justify-content-between align-items-center m-0 py-2">
           <h6 className="mb-0 text-secondary fw-semibold">Customer List</h6>
           <div className="d-flex align-items-center">
@@ -647,53 +682,63 @@ export default function CustomerManagement() {
             />
           </div>
         </div>
-        <div className="card-body p-0" style={{ height: 'calc(100% - 60px)', overflow: 'hidden' }}>
-          <div className="table-responsive" style={{ height: '100%', overflowY: 'auto' }}>
-            <table className="table table-sm table-hover align-middle mb-0" style={{ tableLayout: 'fixed', width: '100%' }}>
-              <thead className="table-light" style={{ position: 'sticky', top: 0, zIndex: 10, backgroundColor: 'white' }}>
+
+        {/* 👇 Scroll only here */}
+        <div className="table-responsive" style={{ maxHeight: "200px", overflowY: "auto" }}>
+          <table
+            className="table table-sm table-hover align-middle mb-0"
+            style={{ tableLayout: "fixed", width: "100%" }}
+          >
+            <thead className="table-light" style={{ position: "sticky", top: 0, zIndex: 10, backgroundColor: "light" }}>
+              <tr>
+                <th style={{ width: "50px", position: "sticky", left: 0, backgroundColor: "light", zIndex: 11 }}>#</th>
+                <th style={{ width: "120px" }}>Name</th>
+                <th style={{ width: "100px" }}>Mobile</th>
+                <th style={{ width: "150px" }}>Email</th>
+                <th style={{ width: "100px" }}>City</th>
+                <th style={{ width: "100px" }}>State</th>
+                <th style={{ width: "80px" }}>Type</th>
+                <th style={{ width: "100px", position: "sticky", right: 0, backgroundColor: "light", zIndex: 11 }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredCustomers.length === 0 ? (
                 <tr>
-                  <th style={{ width: "50px", position: 'sticky', left: 0, backgroundColor: 'white', zIndex: 11 }}>#</th>
-                  <th style={{ width: "150px" }}>Name</th>
-                  <th style={{ width: "120px" }}>Mobile</th>
-                  <th style={{ width: "200px" }}>Email</th>
-                  <th style={{ width: "120px" }}>City</th>
-                  <th style={{ width: "120px" }}>State</th>
-                  <th style={{ width: "100px", position: 'sticky', right: 0, backgroundColor: 'white', zIndex: 11 }}>Actions</th>
+                  <td colSpan={8} className="text-center text-muted py-4">
+                    {searchTerm ? "No matching customers" : "No customers added yet"}
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {filteredCustomers.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="text-center text-muted py-4">
-                      {searchTerm ? 'No matching customers' : 'No customers added yet'}
+              ) : (
+                filteredCustomers.map((c, i) => (
+                  <tr key={c.customerid}>
+                    <td className="text-muted" style={{ position: "sticky", left: 0, backgroundColor: "white", zIndex: 1 }}>
+                      {i + 1}
+                    </td>
+                    <td className="fw-semibold" style={{ wordBreak: "break-word" }}>{c.name}</td>
+                    <td style={{ wordBreak: "break-word" }}>{c.mobile || "-"}</td>
+                    <td style={{ wordBreak: "break-word" }}>{c.mail || "-"}</td>
+                    <td>{c.city_name || "-"}</td>
+                    <td>{c.state_name || "-"}</td>
+                    <td>{c.customerType || "-"}</td>
+                    <td style={{ position: "sticky", right: 0, backgroundColor: "white", zIndex: 1 }}>
+                      <button
+                        className="btn btn-outline-primary btn-sm"
+                        onClick={() => handleEdit(c)}
+                        disabled={loading}
+                      >
+                        Edit
+                      </button>
                     </td>
                   </tr>
-                ) : (
-                  filteredCustomers.map((c, i) => (
-                    <tr key={c.customerid}>
-                      <td className="text-muted" style={{ position: 'sticky', left: 0, backgroundColor: 'white', zIndex: 1 }}>{i + 1}</td>
-                      <td className="fw-semibold" style={{ wordBreak: 'break-word' }}>{c.name}</td>
-                      <td style={{ wordBreak: 'break-word' }}>{c.mobile || "-"}</td>
-                      <td style={{ wordBreak: 'break-word' }}>{c.mail || "-"}</td>
-                      <td>{c.city_name || "-"}</td>
-                      <td>{c.state_name || "-"}</td>
-                      <td style={{ position: 'sticky', right: 0, backgroundColor: 'white', zIndex: 1 }}>
-                        <button
-                          className="btn btn-outline-primary btn-sm"
-                          onClick={() => handleEdit(c)}
-                          disabled={loading}
-                        >
-                          Edit
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
+
   );
 }
+
+export default Customers;

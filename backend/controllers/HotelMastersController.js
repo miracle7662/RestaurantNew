@@ -35,14 +35,15 @@ exports.getHotelMasters = (req, res) => {
 exports.getHotelMastersById = (req, res) => {
     const { id } = req.params;
     const msthotelmasters = db.prepare(`
-        SELECT 
-            H.hotelid, H.hotel_name, H.marketid, H.short_name, H.phone, H.email, 
+        SELECT
+            H.hotelid, H.hotel_name, H.marketid, H.short_name, H.phone, H.email,
             H.fssai_no, H.trn_gstno, H.panno, H.website, H.address, H.stateid, H.cityid,
-            H.hoteltypeid, H.Masteruserid, H.status, H.created_by_id, H.created_date, 
-            H.updated_by_id, H.updated_date, M.market_name, C.city_name 
-        FROM msthotelmasters H 
-        LEFT JOIN mstmarkets M ON M.marketid = H.marketid 
-        LEFT JOIN mstcitymaster C ON C.cityid = H.cityid 
+            H.hoteltypeid, H.Masteruserid, H.status, H.created_by_id, H.created_date,
+            H.updated_by_id, H.updated_date, M.market_name, C.city_name, S.state_name
+        FROM msthotelmasters H
+        LEFT JOIN mstmarkets M ON M.marketid = H.marketid
+        LEFT JOIN mstcitymaster C ON C.cityid = H.cityid
+        LEFT JOIN mststatemaster S ON S.stateid = H.stateid
         WHERE H.hotelid = ?`).get(id);
     
     if (msthotelmasters) {

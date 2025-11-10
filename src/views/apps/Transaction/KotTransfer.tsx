@@ -622,4 +622,4 @@ const KotTransfer = ({ onCancel }: KotTransferProps) => {
   );
 };
 
-export default KotTransfer;
+export default KotTransfer; 
