@@ -1204,11 +1204,15 @@ const Order = () => {
     const igstPer = Number(taxRates.igst) || 0;
     const cessPer = Number(taxRates.cess) || 0;
 
-   if (reverseQtyMode && reverseQtyItems.length > 0) {
+ if (reverseQtyMode && reverseQtyItems.length > 0) {
   const { cgst, sgst, igst, cess } = taxRates;
 
-  const baseAmount = reverseQtyItems.reduce(
-    (sum, item) => sum + (Number(item.price) * Number(item.qty)),
+  // ✅ Your 'items' state already reflects the current (active) quantities.
+  // So just calculate based on 'items', not reverseQtyItems.
+  const activeItems = items.filter(item => item.qty > 0);
+
+  const baseAmount = activeItems.reduce(
+    (sum, item) => sum + Number(item.price) * Number(item.qty),
     0
   );
 
@@ -1228,10 +1232,10 @@ const Order = () => {
     grandTotal
   });
 
-  // ✅ Force UI update for total immediately
-  console.log("Reverse Mode Total:", grandTotal);
+  console.log("✅ Active Items Total (After Reverse):", grandTotal);
   return;
 }
+
 
     // Correctly calculate subtotal based on active (non-reversed) items
     const activeItems = items.filter(item => !item.isReverse);
