@@ -368,6 +368,8 @@ CREATE TABLE IF NOT EXISTS msttablemanagement (
     aadharNo TEXT,
     birthday TEXT,
     anniversary TEXT,
+    customerType TEXT,
+    status INTEGER DEFAULT 1,
     createWallet INTEGER DEFAULT 0,
     created_by_id INTEGER,
     created_date DATETIME,
