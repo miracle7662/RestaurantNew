@@ -194,22 +194,25 @@ export const fetchStates = async (
 }
 
 export const fetchCities = async (
+  stateId: number,
   setCityItems: (data: CityItem[]) => void,
   setCityId: (id: number) => void,
   currentCityId?: number,
 ) => {
   try {
-    const res = await fetch('http://localhost:3001/api/cities')
-    const data: CityItem[] = await res.json()
-    setCityItems(data)
+    const res = await fetch(`http://localhost:3001/api/cities/${stateId}`);
+    const data: CityItem[] = await res.json();
+    setCityItems(data);
+
     if (data.length > 0 && !currentCityId) {
-      setCityId(data[0].cityid)
+      setCityId(data[0].cityid);
     }
   } catch (err) {
-    toast.error('Failed to fetch cities')
-    console.error('Fetch cities error:', err)
+    toast.error('Failed to fetch cities');
+    console.error('Fetch cities error:', err);
   }
-}
+};
+
 
 export const fetchMarkets = async (
   setMarkets: (data: MarketItem[]) => void,

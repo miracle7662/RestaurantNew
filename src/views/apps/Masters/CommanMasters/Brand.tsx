@@ -17,6 +17,7 @@ import {
   MarketItem,
   StateItem,
   HotelTypeItem,
+  fetchCities,
 } from '../../../../utils/commonfunction';
 import { useAuthContext } from '@/common';
 
@@ -85,26 +86,26 @@ const RegisterUserModal: React.FC<RegisterUserModalProps> = ({ show, onHide, bra
 
   const fetchHotelData = async () => {
     if (!brand) return;
-    
+
     console.log('Brand object:', brand);
     console.log('Brand.hotelid:', brand.hotelid);
     console.log('Brand.hotelid:', brand.hotelid);
-    
+
     setFetchingHotelData(true);
     try {
       // The backend returns 'Hotelid' (uppercase), so we should use that
       const hotelid = brand.hotelid || brand.hotelid;
       console.log('Using hotel ID:', hotelid);
-      
+
       if (!hotelid) {
         console.error('No hotel ID found in brand object');
         toast.error('No hotel ID found');
         return;
       }
-      
+
       const res = await fetch(`http://localhost:3001/api/HotelMasters/${hotelid}`);
       console.log('Response status:', res.status);
-      
+
       if (res.ok) {
         const data = await res.json();
         console.log('Fetched hotel data:', data);
@@ -337,7 +338,7 @@ const BrandList: React.FC = () => {
   const fetchHotelMasters = useCallback(async () => {
     try {
       setLoading(true);
-      
+
       // Build query parameters based on user role
       const params = new URLSearchParams();
       if (user?.role_level) {
@@ -346,10 +347,10 @@ const BrandList: React.FC = () => {
       if (user?.role_level === 'hotel_admin' && user?.hotelid) {
         params.append('hotelid', user.hotelid.toString());
       }
-      
+
       const url = `http://localhost:3001/api/HotelMasters${params.toString() ? `?${params.toString()}` : ''}`;
       console.log('Fetching hotels with URL:', url);
-      
+
       const res = await fetch(url);
       const data = await res.json();
       console.log('Fetched HotelMasters:', data); // Debug log to inspect backend data
@@ -442,7 +443,7 @@ const BrandList: React.FC = () => {
             >
               <i className="fi fi-rr-edit"></i>
             </button>
-            
+
             {/* SuperAdmin only buttons */}
             {user?.role_level === 'superadmin' && (
               <>
@@ -553,20 +554,20 @@ const BrandList: React.FC = () => {
     }
   };
 
-    const handleSearch = useCallback(
-      debounce((value: string) => {
-        table.setGlobalFilter(value);
-      }, 300),
-      [table]
-    );
-    const onSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSearch = useCallback(
+    debounce((value: string) => {
+      table.setGlobalFilter(value);
+    }, 300),
+    [table]
+  );
+  const onSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSearchTerm(value);
     handleSearch(value);
   };
 
 
-   const getPaginationItems = () => {
+  const getPaginationItems = () => {
     const items = [];
     const maxPagesToShow = 5;
     const pageIndex = table.getState().pagination.pageIndex;
@@ -593,8 +594,8 @@ const BrandList: React.FC = () => {
   };
 
 
-  
-return (
+
+  return (
     <>
       <TitleHelmet title="Brand List" />
       <Card className="m-1">
@@ -702,9 +703,9 @@ return (
       <BannerManagementModal show={showBannerModal} onHide={() => setShowBannerModal(false)} brandId={selectedBrand?.id || ''} />
       <SettingsModal show={showSettingsModal} onHide={() => setShowSettingsModal(false)} brandId={selectedBrand?.id || ''} />
       <DigitalOrderModal show={showDigitalOrderModal} onHide={() => setShowDigitalOrderModal(false)} brandId={selectedBrand?.id || ''} />
-      <UserManagementModal 
-        show={showUserManagementModal} 
-        onHide={() => setShowUserManagementModal(false)} 
+      <UserManagementModal
+        show={showUserManagementModal}
+        onHide={() => setShowUserManagementModal(false)}
         brand={selectedBrand}
         onSuccess={fetchHotelMasters}
       />
@@ -749,6 +750,9 @@ const AddHotelMastersModal: React.FC<AddHotelMastersModalProps> = ({ show, onHid
   const [hoteltype, setHoteltype] = useState<HotelTypeItem[]>([]);
   const [hoteltypeid, setHoteltypeid] = useState<number | null>(null);
 
+  const [cities, setCities] = useState<{ cityid: number; city_name: string }[]>([]);
+  const [cityid, setCityId] = useState<number | null>(null);
+
 
 
   // Fetch states and markets when modal opens
@@ -759,6 +763,16 @@ const AddHotelMastersModal: React.FC<AddHotelMastersModalProps> = ({ show, onHid
       fetchHotelType(setHoteltype, setHoteltypeid, hoteltypeid ?? undefined);
     }
   }, [show]);
+
+  // Fetch cities when state changes
+  useEffect(() => {
+    if (stateid) {
+      fetchCities(stateid, setCities, setCityId, cityid ?? undefined);
+    } else {
+      setCities([]);
+      setCityId(null);
+    }
+  }, [stateid]);
 
 
 
@@ -822,7 +836,7 @@ const AddHotelMastersModal: React.FC<AddHotelMastersModalProps> = ({ show, onHid
 
   if (!show) return null;
 
- return (
+  return (
     <div
       className="modal"
       style={{
@@ -882,7 +896,7 @@ const AddHotelMastersModal: React.FC<AddHotelMastersModalProps> = ({ show, onHid
                 const value = e.target.value;
                 setHoteltypeid(value === '' ? null : Number(value));
               }}
-             
+
             >
               <option value="">Select a hotel type</option>
               {hoteltype.map((hoteltype) => (
@@ -928,6 +942,7 @@ const AddHotelMastersModal: React.FC<AddHotelMastersModalProps> = ({ show, onHid
                   </option>
                 ))}
               </select>
+
             </div>
             <div className="mb-3">
               <label className="form-label">Phone</label>
@@ -990,7 +1005,7 @@ const AddHotelMastersModal: React.FC<AddHotelMastersModalProps> = ({ show, onHid
           </div>
           <div className="col-md-6 ps-3">
             <div className="mb-3">
-              <label className = "form-label">
+              <label className="form-label">
                 Short Name <span style={{ color: 'red' }}>*</span>
               </label>
               <input
@@ -1002,6 +1017,26 @@ const AddHotelMastersModal: React.FC<AddHotelMastersModalProps> = ({ show, onHid
                 disabled={loading}
               />
             </div>
+            <div className="mb-3">
+              <label className="form-label">
+                City Name <span style={{ color: 'red' }}>*</span>
+              </label>
+              <select
+                className="form-control"
+                value={cityid ?? ''}
+                onChange={(e) => setCityId(e.target.value === '' ? null : Number(e.target.value))}
+                disabled={!stateid || loading}
+              >
+                <option value="">Select a city</option>
+                {cities.map((city) => (
+                  <option key={city.cityid} value={city.cityid}>
+                    {city.city_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+
             <div className="mb-3">
               <label className="form-label">Address</label>
               <textarea
@@ -1037,7 +1072,7 @@ const AddHotelMastersModal: React.FC<AddHotelMastersModalProps> = ({ show, onHid
 
               />
             </div>
-           
+
             <div className="mb-3">
               <label className="form-label">Image</label>
               <div className="input-group">
@@ -1105,6 +1140,8 @@ const EditHotelMastersModal: React.FC<EditHotelMastersModalProps> = ({ show, onH
   const [status, setStatus] = useState('active'); // Default to 'Active'
   const [markets, setMarkets] = useState<MarketItem[]>([]);
   const [states, setStates] = useState<StateItem[]>([]);
+  const [cities, setCities] = useState<{ cityid: number; city_name: string }[]>([]);
+  const [cityid, setCityId] = useState<number | null>(null);
   const [hoteltype, setHoteltype] = useState<HotelTypeItem[]>([]);
   const [hoteltypeid, setHoteltypeid] = useState<number | null>(null);
 
@@ -1119,7 +1156,7 @@ const EditHotelMastersModal: React.FC<EditHotelMastersModalProps> = ({ show, onH
       setHotelName(HotelMasters.hotel_name || '');
       setShortName(HotelMasters.short_name || '');
       setMarketid(Number(HotelMasters.marketid) || 0); // or undefined, depending on useState default
-      setHotelid(HotelMasters.hotelid ||  '');
+      setHotelid(HotelMasters.hotelid || '');
       setPhone(HotelMasters.phone || '');
       setEmail(HotelMasters.email || '');
       setFssaiNo(HotelMasters.fssai_no || '');
@@ -1142,8 +1179,20 @@ const EditHotelMastersModal: React.FC<EditHotelMastersModalProps> = ({ show, onH
       fetchMarkets(setMarkets, setMarketid, marketid ?? undefined);
       fetchStates(setStates, setStateId, stateid ?? undefined);
       fetchHotelType(setHoteltype, setHoteltypeid, hoteltypeid ?? undefined);
+      
     }
   }, [show]);
+
+   // Fetch cities when state changes
+  useEffect(() => {
+    if (stateid) {
+      fetchCities(stateid, setCities, setCityId, cityid ?? undefined);
+    } else {
+      setCities([]);
+      setCityId(null);
+    }
+  }, [stateid]);
+
 
 
   const handleEdit = async () => {
@@ -1351,6 +1400,8 @@ const EditHotelMastersModal: React.FC<EditHotelMastersModalProps> = ({ show, onH
                 ))}
               </select>
             </div>
+
+
             <div className="mb-3">
               <label className="form-label">Phone</label>
               <input
@@ -1423,6 +1474,25 @@ const EditHotelMastersModal: React.FC<EditHotelMastersModalProps> = ({ show, onH
                 placeholder="ENTER SHORT NAME"
                 disabled={loading}
               />
+            </div>
+
+            <div className="mb-3">
+              <label className="form-label">
+                City Name <span style={{ color: 'red' }}>*</span>
+              </label>
+              <select
+                className="form-control"
+                value={cityid ?? ''}
+                onChange={(e) => setCityId(e.target.value === '' ? null : Number(e.target.value))}
+                disabled={!stateid || loading}
+              >
+                <option value="">Select a city</option>
+                {cities.map((city) => (
+                  <option key={city.cityid} value={city.cityid}>
+                    {city.city_name}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="mb-3">
               <label className="form-label">Address</label>
@@ -1916,7 +1986,7 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({ show, onHide,
   // Fetch users for this brand
   const fetchUsers = async () => {
     if (!brand) return;
-    
+
     try {
       setLoading(true);
       const res = await fetch(`http://localhost:3001/api/users?brand_id=${brand.hotelid || brand.hotelid}`);
@@ -1968,7 +2038,7 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({ show, onHide,
         </div>
 
         <div className="mb-3">
-          <button 
+          <button
             className="btn btn-success"
             onClick={() => setShowAddUserModal(true)}
           >

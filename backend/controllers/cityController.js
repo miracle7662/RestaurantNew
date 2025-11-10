@@ -30,3 +30,10 @@ exports.deleteCity = (req, res) => {
     stmt.run(id);
     res.json({ message: 'Deleted' });
 }; 
+
+// controllers/cityController.js
+exports.getCitiesByState = (req, res) => {
+  const { stateId } = req.params;
+  const cities = db.prepare('SELECT * FROM mstcitymaster WHERE stateId = ?').all(stateId);
+  res.json(cities);
+};
