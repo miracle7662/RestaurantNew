@@ -1319,9 +1319,10 @@ const Order = () => {
   };
 
   const handleBackToTables = () => {
+    setActiveTab('Dine-in'); // Switch back to the Dine-in tab
     setShowPendingOrdersView(false);
     setShowOrderDetails(false);
-    setActiveNavTab('ALL');
+    setActiveNavTab('ALL'); // Show all department tables
   };
 
 
