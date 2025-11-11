@@ -892,6 +892,7 @@ const Order = () => {
     setReverseQtyMode(false); // Turn off reverse mode on table change
     setIsGroupedView(true); // Reset to grouped view on table change
     setSelectedTable(null);
+    setShowOrderDetails(true);
     setItems([]); // Reset items for the new table
     setCurrentKOTNo(null); // Reset KOT number for the new table
     setCurrentKOTNos([]); // Reset multiple KOT numbers for the new table
@@ -966,6 +967,7 @@ const Order = () => {
     if (['Pickup', 'Delivery', 'Quick Bill', 'Order/KOT', 'Billing'].includes(tab)) {
       setSelectedTable(null);
       setItems([]);
+      setShowOrderDetails(true);
        // Reset all relevant states for a new order
       setCurrentTxnId(null);
       setPersistentTxnId(null);
@@ -1415,9 +1417,16 @@ const Order = () => {
       // 4. Update items in the UI to reflect their 'billed' state
       setItems(prevItems => prevItems.map(item => ({ ...item, isNew: false, isBilled: 1, originalQty: item.qty })));
 
-      // 5. Refresh the page to reflect all changes
-      window.location.reload();
+      // 5. For Dine-in and Quick Bill, refresh the page to clear the state.
+      // For Pickup/Delivery, keep the order on screen to proceed to settlement.
+      if (activeTab === 'Dine-in' || activeTab === 'Quick Bill') { 
+        setShowOrderDetails(false); // Hide the order panel
+        setSelectedTable(null); // Deselect the table
+      } else {
+        setBillActionState('printOrSettle'); // Ensure it's ready for settlement
+      }
       // 5. Refresh the table list to show the new 'billed' status (red color)
+
 
       fetchTableManagement();
     } catch (error: any) {
@@ -2482,6 +2491,7 @@ if (e.key === "F8" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
       setPaymentAmounts({});
       setSelectedPaymentModes([]);
       setIsMixedPayment(false);
+      setTip(0); // Reset tip amount
       setShowSettlementModal(false);
       setBillActionState('initial');
       if (selectedTable) {
