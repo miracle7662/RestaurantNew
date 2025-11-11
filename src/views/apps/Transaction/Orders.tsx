@@ -962,11 +962,11 @@ const Order = () => {
     setActiveNavTab('ALL'); // Reset main nav tab to avoid conflicts
     setShowPendingOrdersView(false); // Reset pending orders view
     setShowBillingPage(false); // Reset billing page view by default
-  
+
     if (['Pickup', 'Delivery', 'Quick Bill', 'Order/KOT', 'Billing'].includes(tab)) {
       setSelectedTable(null);
       setItems([]);
-      // Reset all relevant states for a new order
+       // Reset all relevant states for a new order
       setCurrentTxnId(null);
       setPersistentTxnId(null);
       setTxnNo(null);
@@ -983,6 +983,7 @@ const Order = () => {
         setShowOrderDetails(false); // Don't show order details for billing tab
         fetchAllBills();
       } else if (tab === 'Quick Bill') {
+        // This is for the right-side panel tab. We want to show the order entry form.
         setActiveNavTab('Dine-in'); // Reset nav tab to prevent showing history table
       }
     } else {
