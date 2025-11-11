@@ -1050,87 +1050,36 @@ const Order = () => {
       return;
     }
 
-    // 🧩 Validate for Pickup/Delivery/Quick Bill
-    if (['Pickup', 'Delivery', 'Quick Bill'].includes(activeTab)) {
-      if (!persistentTxnId || !item.txnDetailId) {
-        toast.error("Cannot reverse item: Missing transaction or item ID.");
-        return;
-      }
-
-      try {
-        const payload = {
-          txnId: persistentTxnId,
-          tableId: persistentTableId,
-          reversedItems: [
-            {
-              txnDetailId: item.txnDetailId,
-              qty: 1, // Always reverse one item per F8 press
-            },
-          ],
-          userId: user?.id || null,
-          reversalReason: 'Single Item Reverse via F8',
-        };
-
-        console.log("🔄 Sending Reverse Payload:", payload);
-
-        const response = await fetch('http://localhost:3001/api/TAxnTrnbill/create-reverse-kot', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-
-        const result = await response.json();
-
-        if (!result.success) {
-          throw new Error(result.message || 'Failed to save reversal to backend.');
-        }
-
-        // ✅ Force show Save Reverse button even if state updates quickly
-        if (reverseQtyMode) {
-          console.log("✅ Reverse mode active → showing Save Reverse button");
-          setShowSaveReverseButton(true);
-        } else {
-          console.warn("⚠ Reverse mode not active — showing Save Reverse button anyway");
-          setShowSaveReverseButton(true);
-        }
-
-        // ✅ Notify user before UI refresh
-        toast.success(`Reversed 1 qty of "${item.name}"`);
-
-        // ✅ Refresh view after successful reversal
-        if (activeTab === 'Quick Bill' && persistentTxnId) {
-          await handleLoadQuickBill({ TxnID: persistentTxnId });
-        } else if (activeTab === 'Pickup' || activeTab === 'Delivery') {
-          // Also update the local state to show the save button
-          setReverseQtyItems(prev => {
-            const existing = prev.find(ri => ri.txnDetailId === item.txnDetailId);
-            if (existing) return prev.map(ri => ri.txnDetailId === item.txnDetailId ? { ...ri, qty: ri.qty + 1 } : ri);
-            return [...prev, { ...item, qty: 1, isReverse: true }];
-          });
-          setShowSaveReverseButton(true);
-          fetchPendingOrders(activeTab.toLowerCase() as 'pickup' | 'delivery');
-        }
-
-      } catch (error: any) {
-        console.error("❌ Reverse Error:", error);
-        toast.error(error.message || 'Failed to process reverse item.');
-        return;
-      }
-    } else {
-      // This block handles Dine-in and other scenarios
-      if (reverseQtyMode) {
-        setReverseQtyItems(prev => {
-          const existing = prev.find(ri => ri.txnDetailId === item.txnDetailId);
-          if (existing) return prev.map(ri => ri.txnDetailId === item.txnDetailId ? { ...ri, qty: ri.qty + 1 } : ri);
-          return [...prev, { ...item, qty: 1, isReverse: true }];
-        });
-        setShowSaveReverseButton(true);
-      }
-    }
-
     // 🧩 Dine-in billed order refresh
     if (item.isBilled === 1 && selectedTableId) {
       refreshItemsForTable(selectedTableId);
+    }
+
+    // This block now handles all scenarios (Dine-in, Pickup, Delivery)
+    if (reverseQtyMode) {
+      setItems(currentItems => {
+        const itemIndex = currentItems.findIndex(i => i.txnDetailId === item.txnDetailId);
+        if (itemIndex > -1) {
+          const updatedItems = [...currentItems];
+          const currentItem = updatedItems[itemIndex];
+          if (currentItem.qty > 0) {
+            updatedItems[itemIndex] = { ...currentItem, qty: currentItem.qty - 1 };
+          }
+          return updatedItems;
+        }
+        return currentItems;
+      });
+
+      setReverseQtyItems(prev => {
+        const existing = prev.find(ri => ri.txnDetailId === item.txnDetailId);
+        if (existing) {
+          return prev.map(ri =>
+            ri.txnDetailId === item.txnDetailId ? { ...ri, qty: ri.qty + 1 } : ri
+          );
+        }
+        return [...prev, { ...item, qty: 1, isReverse: true }];
+      });
+      setShowSaveReverseButton(true);
     }
 
   } catch (error) {
