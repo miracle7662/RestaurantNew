@@ -1898,21 +1898,27 @@ const Order = () => {
       if (result.success) {
         toast.success('Reverse KOT processed successfully.');
 
-        // ✅ Auto-refresh pickup/delivery cards to show updated quantities
-        if (['Pickup', 'Delivery', 'Quick Bill'].includes(activeTab)) {
-          fetchPendingOrders(activeTab.toLowerCase() as 'pickup' | 'delivery');
-        }
-
         // Open print preview for the reverse KOT
         const printWindow = window.open('', '_blank');
         if (printWindow) {
           const contentToPrint = document.getElementById('kot-preview');
           if (contentToPrint) {
-            printWindow.document.write(contentToPrint.innerHTML);
+            printWindow.document.write(`
+              <!DOCTYPE html>
+              <html>
+                <head><title>Reverse KOT</title></head>
+                <body>${contentToPrint.innerHTML}</body>
+              </html>
+            `);
             printWindow.document.close();
             printWindow.focus();
             printWindow.print();
           }
+        }
+
+        // ✅ If the reversal was from Pickup or Delivery, refresh and show that view.
+        if (activeTab === 'Pickup' || activeTab === 'Delivery') {
+          handlePendingOrderTabClick(activeTab.toLowerCase() as 'pickup' | 'delivery');
         }
 
         // For both partial and full reversals, reset the UI state and refresh tables.
