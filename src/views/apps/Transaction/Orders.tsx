@@ -1689,6 +1689,7 @@ const Order = () => {
           // For Quick Bill, refresh its history view.
           fetchQuickBillData();
           setActiveNavTab('Quick Bill'); // Show the history list
+          setShowOrderDetails(false); // Hide the right panel to show the history
         } else if (focusMode) {
           // For Dine-in with Focus Mode ON
           setSelectedTable(''); // Clear table in details view
