@@ -1896,6 +1896,11 @@ const Order = () => {
       if (result.success) {
         toast.success('Reverse KOT processed successfully.');
 
+        // ✅ Auto-refresh pickup/delivery cards to show updated quantities
+        if (['Pickup', 'Delivery', 'Quick Bill'].includes(activeTab)) {
+          fetchPendingOrders(activeTab.toLowerCase() as 'pickup' | 'delivery');
+        }
+
         // Open print preview for the reverse KOT
         const printWindow = window.open('', '_blank');
         if (printWindow) {

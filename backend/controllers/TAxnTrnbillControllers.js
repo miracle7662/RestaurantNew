@@ -2152,7 +2152,6 @@ exports.getPendingOrders = async (req, res) => {
 
     // Filter by table_name which will be 'Pickup' or 'Delivery'
     if (type === 'pickup' || type === 'delivery') {
-      // Case-insensitive comparison
       whereClauses.push('LOWER(b.table_name) = LOWER(?)');
       params.push(type);
     }
@@ -2167,7 +2166,8 @@ exports.getPendingOrders = async (req, res) => {
           DISTINCT json_object(
             'TXnDetailID', d.TXnDetailID,
             'ItemID', d.ItemID,
-            'Qty', d.Qty,
+            -- ✅ Show remaining quantity after reversal
+            'Qty', (d.Qty - COALESCE(d.RevQty, 0)),
             'RuntimeRate', d.RuntimeRate,
             'item_name', m.item_name
           )
@@ -2183,29 +2183,38 @@ exports.getPendingOrders = async (req, res) => {
     const rows = db.prepare(sql).all(...params);
 
     const orders = rows.map(r => ({
-      id: r.TxnID, // Add the transaction ID
+      id: r.TxnID,
       txnId: r.TxnID,
-      kotNo: r.TxnNo, // This is the Bill No.
-      outletid: r.outletid, // Pass outletid to frontend
-      KOTNo: r.KOTNo, // This is the actual KOT No.
+      kotNo: r.TxnNo,
+      outletid: r.outletid,
+      KOTNo: r.KOTNo,
       customer: {
         name: r.CustomerName || '',
         mobile: r.MobileNo || ''
       },
-      items: r._details ? JSON.parse(`[${r._details}]`).filter(d => d).map((d) => ({
-        name: d.item_name || '',
-        qty: d.Qty || 0,
-        price: d.RuntimeRate || 0,
-        ItemID: d.ItemID, // Ensure ItemID is passed
-        TXnDetailID: d.TXnDetailID // Ensure TXnDetailID is passed
-      })) : [],
+      items: r._details
+        ? JSON.parse(`[${r._details}]`)
+            .filter(d => d && d.Qty > 0) // ✅ Hide fully reversed items
+            .map(d => ({
+              name: d.item_name || '',
+              qty: d.Qty || 0,
+              price: d.RuntimeRate || 0,
+              ItemID: d.ItemID,
+              TXnDetailID: d.TXnDetailID
+            }))
+        : [],
       total: r.Amount || 0,
-      type: r.table_name, // 'pickup' or 'delivery'
+      type: r.table_name
     }));
 
     res.json(ok('Fetched pending orders', orders));
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to fetch pending orders', data: null, error: error.message });
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch pending orders',
+      data: null,
+      error: error.message
+    });
   }
 };
 
