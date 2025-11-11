@@ -123,6 +123,9 @@ const Order = () => {
   const [TxnNo, setTxnNo] = useState<string | null>(null); // New state for displaying Bill No  
 
   // New state for F8 password modal on billed tables
+  const [showPrintBoth, setShowPrintBoth] = useState(false);
+
+
   const [showF8PasswordModal, setShowF8PasswordModal] = useState<boolean>(false);
   const [f8PasswordError, setF8PasswordError] = useState<string>('');
   const [f8PasswordLoading, setF8PasswordLoading] = useState<boolean>(false);
@@ -978,6 +981,7 @@ const Order = () => {
       setReverseQtyMode(false);
       setReverseQtyItems([]);
       setShowSaveReverseButton(false);
+      setShowPrintBoth(false);
 
       setShowOrderDetails(true);
       if (tab === 'Billing') {
@@ -986,6 +990,7 @@ const Order = () => {
         fetchAllBills();
       } else if (tab === 'Quick Bill') {
         // This is for the right-side panel tab. We want to show the order entry form.
+        setShowPrintBoth(items.some(item => item.isNew));
         setActiveNavTab('Dine-in'); // Reset nav tab to prevent showing history table
       }
     } else {
@@ -995,6 +1000,16 @@ const Order = () => {
       }
     }
   };
+
+  useEffect(() => {
+    const hasNewItems = items.some(item => item.isNew);
+    if (activeTab === 'Quick Bill' && hasNewItems) {
+      setShowPrintBoth(true);
+    } else {
+      setShowPrintBoth(false);
+
+    }
+   }, [activeTab, items]);
 
   const handleCountryCodeClick = () => {
     setShowCountryOptions(!showCountryOptions);
@@ -1437,6 +1452,31 @@ const Order = () => {
     }
   };
 
+ const handlePrintKotAndBill = async () => {
+  try {
+    setLoading(true);
+
+    // 1️⃣ First: Save and Print KOT (this already returns nothing)
+    await handlePrintAndSaveKOT(); 
+
+    // 2️⃣ Second: Print the Bill (it uses currentTxnId internally)
+    await handlePrintBill();       
+
+    toast.success("KOT and Bill printed successfully!");
+
+    // 3️⃣ Final UI cleanup
+    setShowPrintBoth(false);
+    setItems([]);
+    setCurrentTxnId(null);
+    setTxnNo(null);
+    window.location.reload(); // Refresh to clear state and table color updates
+  } catch (error: any) {
+    toast.error(error.message || "Failed to print KOT and Bill");
+  } finally {
+    setLoading(false);
+  }
+};
+
   const handlePrintAndSaveKOT = async () => {
     try {
       const newItemsToKOT = items.filter(item => item.isNew);
@@ -1744,92 +1784,7 @@ const Order = () => {
     }
   };
 
-  // const handlePrintKOTAndBill = async () => {
-  //   if (items.length === 0) {
-  //     toast.error('No items to process.');
-  //     return;
-  //   }
-
-  //   setLoading(true);
-  //   try {
-  //     // --- Step 1: Call Print KOT logic ---
-  //     const newItemsToKOT = items.filter(item => item.isNew);
-  //     if (newItemsToKOT.length === 0) {
-  //       toast.error('No new items to save as KOT.');
-  //       setLoading(false);
-  //       return;
-  //     }
-
-  //     // --- Step 1.5: Calculate totals and taxes ---
-  //     const subtotal = newItemsToKOT.reduce((sum, item) => sum + item.price * item.qty, 0);
-  //     const finalDiscount = discount; // Use the discount from state
-  //     const cgstAmt = (subtotal * taxRates.cgst) / 100;
-  //     const sgstAmt = (subtotal * taxRates.sgst) / 100;
-  //     const igstAmt = (subtotal * taxRates.igst) / 100;
-  //     const cessAmt = (subtotal * taxRates.cess) / 100;
-  //     const grandTotal = subtotal - finalDiscount + cgstAmt + sgstAmt + igstAmt + cessAmt;
-  //     const finalRoundOff = Math.round(grandTotal) - grandTotal;
-      
-  //     // Resolve department ID for Quick Bill
-  //     const quickBillDept = departments.find(d => d.outletid === (selectedOutletId || Number(user?.outletid)));
-  //     const departmentId = quickBillDept ? quickBillDept.departmentid : null;
-
-  //     const kotPayload = {
-  //       txnId: currentTxnId || 0,
-  //       tableId: null, // Quick Bill does not have a tableId
-  //       table_name: 'Quick Bill',
-  //       items: newItemsToKOT.map(i => ({
-  //         ItemID: i.id,
-  //         Qty: i.qty,
-  //         RuntimeRate: i.price,
-  //         CGST: taxRates.cgst,
-  //         SGST: taxRates.sgst,
-  //         IGST: taxRates.igst,
-  //         CESS: taxRates.cess,
-  //         outletid: selectedOutletId || Number(user?.outletid),
-  //         HotelID: user?.hotelid,
-  //       })),
-  //       outletid: selectedOutletId || Number(user?.outletid),
-  //       userId: user?.id,
-  //       hotelId: user?.hotelid,
-  //       Order_Type: 'Quick Bill',
-  //       departmentId: departmentId, // ✅ Department ID
-  //       GrossAmt: subtotal,
-  //       Discount: finalDiscount,
-  //       CGST: cgstAmt,
-  //       SGST: sgstAmt,
-  //       CESS: cessAmt,
-  //       RoundOFF: finalRoundOff,
-  //       Amount: grandTotal,
-  //     };
-
-  //     const kotResponse = await createKOT(kotPayload);
-  //     if (!kotResponse?.success || !kotResponse.data?.TxnID) {
-  //       throw new Error(kotResponse?.message || 'Failed to save KOT.');
-  //     }
-
-  //     const newTxnId = kotResponse.data.TxnID;
-
-  //     // --- Step 2: Immediately call Final Bill Save logic ---
-  //     const printResponse = await fetch(`http://localhost:3001/api/TAxnTrnbill/${newTxnId}/mark-billed`, {
-  //       method: 'PUT',
-  //       headers: { 'Content-Type': 'application/json' },
-  //       body: JSON.stringify({ outletId: selectedOutletId || Number(user?.outletid) }),
-  //     });
-
-  //     const printResult = await printResponse.json();
-  //     if (!printResult.success) {
-  //       throw new Error(printResult.message || 'Failed to mark bill as printed.');
-  //     }
-
-  //     toast.success('KOT + Bill printed successfully!');
-  //     window.location.reload(); // Refresh to clear state and show updated table statuses
-  //   } catch (error: any) {
-  //     toast.error(error.message || 'An error occurred during the process.');
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
+  
 
  const handlePrintAndSettle = async () => {
   if (items.length === 0) {
@@ -4376,6 +4331,15 @@ if (e.key === "F8" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
                       <div className="d-flex align-items-center gap-2">
                         {hasModifications ? (
                           // Case 1: There are new items or reverse KOT items. Show only KOT button.
+                          activeTab === 'Quick Bill' && showPrintBoth ? (
+                            <Button
+                              variant="primary"
+                              onClick={handlePrintKotAndBill}
+                              style={{ display: "flex", alignItems: "center", gap: "5px" }}
+                            >
+                              <i className="fas fa-print"></i> Print KOT & Bill
+                            </Button>
+                          ) :
                           <button
                             className="btn btn-dark rounded btn-sm"
                             onClick={handlePrintAndSaveKOT}
