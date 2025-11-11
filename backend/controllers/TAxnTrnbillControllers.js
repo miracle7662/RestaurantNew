@@ -2534,34 +2534,5 @@ exports.saveFullReverse = async (req, res) => {
 /* -------------------------------------------------------------------------- */
 /* 22) reverseItem → Reverse quantity for a single item                       */
 /* -------------------------------------------------------------------------- */
-exports.reverseItem = async (req, res) => {
-  try {
-    const { TxnID, TXnDetailID, RevQty } = req.body;
-
-    if (!TxnID || !TXnDetailID) {
-      return res.status(400).json({ success: false, message: 'TxnID and TXnDetailID are required.' });
-    }
-
-
-    const detail = db.prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? AND TXnDetailID = ?').get(TxnID, TXnDetailID);
-
-    if (!detail) {
-      return res.status(404).json({ success: false, message: 'Item not found in this transaction detail.' });
-    }
-
-    const newRevQty = (Number(detail.RevQty) || 0) + Number(RevQty || 1);
-
-    db.prepare(`
-      UPDATE TAxnTrnbilldetails
-      SET RevQty = ?, KOTUsedDate = ?
-      WHERE TXnDetailID = ?
-    `).run(newRevQty, new Date().toISOString(), detail.TXnDetailID);
-
-    res.json({ success: true, message: 'Item reversed successfully' });
-  } catch (err) {
-    console.error('Error in reverseItem:', err);
-    res.status(500).json({ success: false, message: 'Reverse failed', error: err.message });
-  }
-};
 
 module.exports = exports;
