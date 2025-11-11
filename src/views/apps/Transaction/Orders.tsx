@@ -2047,7 +2047,7 @@ const Order = () => {
 
         // 3. Update the state to show the bill in the right panel
         setActiveTab('Quick Bill');
-        setShowOrderDetails(true); // Show the right-side billing panel
+        // setShowOrderDetails(true); // Keep the quick bill list visible
         setItems(fetchedItems);
         setCurrentTxnId(fullBill.TxnID);
         setTxnNo(fullBill.TxnNo);
