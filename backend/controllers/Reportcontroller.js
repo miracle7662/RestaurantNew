@@ -53,7 +53,7 @@ const getReportData = (req, res) => {
           t.NCName,
           (
             SELECT GROUP_CONCAT(s.PaymentType || ':' || s.Amount)
-            FROM TrnSettlement s
+            FROM (SELECT DISTINCT PaymentType, Amount FROM TrnSettlement) s
             WHERE s.OrderNo = t.TxnNo AND s.isSettled = 1
           ) as Settlements,
           t.isSetteled,

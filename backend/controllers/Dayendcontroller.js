@@ -307,30 +307,37 @@ const saveDayEnd = async (req, res) => {
     // ✅ NEW LOGIC for lock_datetime
     // ==============================
 // Check current conditions
-    const isMidnight = indiaTime.getHours() === 0 && indiaTime.getMinutes() === 0;
-    let isDayEndPending = false;
+  
+const today = new Date(indiaTime.toISOString().split('T')[0]); // yyyy-mm-dd
+let lock_datetime;
 
-    if (last) {
-      const lastCurr = new Date(last.curr_date);
-      const today = new Date(indiaTime.toISOString().split('T')[0]);
-      isDayEndPending = lastCurr < today;
-    }
-
-    let lock_datetime;
+if (last) {
+    const lastDayEnd = new Date(last.curr_date);
+    const isDayEndPending = lastDayEnd < today;
+    const isAfterMidnight = indiaTime.getHours() < 6; // 00:00–05:59
 
     if (isDayEndPending) {
-      // 1️⃣ User has not done DayEnd yet → show today's 23:59
-      lock_datetime = `${curr_date} 23:59:00`;
-    } else if (isMidnight) {
-       // 2️⃣ System time is 12:00 AM → show previous day 23:59
-      const prev = new Date(indiaTime);
-      prev.setDate(prev.getDate() - 1);
-      const prevDate = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}-${String(prev.getDate()).padStart(2, '0')}`;
-      lock_datetime = `${prevDate} 23:59:00`;
-    } else { 
-      // Otherwise → current system time
-      lock_datetime = formattedIndiaTime;
+        // Pending DayEnd → lock at 23:59 of next business day
+        const nextDay = new Date(lastDayEnd);
+        nextDay.setDate(nextDay.getDate() + 1);
+        lock_datetime = `${nextDay.getFullYear()}-${String(nextDay.getMonth() + 1).padStart(2,'0')}-${String(nextDay.getDate()).padStart(2,'0')} 23:59:00`;
+    } else if (isAfterMidnight) {
+        // After midnight → lock at 23:59 of previous day
+        const prevDay = new Date(today);
+        prevDay.setDate(prevDay.getDate() - 1);
+        lock_datetime = `${prevDay.getFullYear()}-${String(prevDay.getMonth() + 1).padStart(2,'0')}-${String(prevDay.getDate()).padStart(2,'0')} 23:59:00`;
+    } else {
+        // Normal → current system time
+        lock_datetime = indiaTime.toISOString().replace('T', ' ').slice(0, 19);
     }
+} else {
+    // First ever DayEnd → current system time
+    lock_datetime = indiaTime.toISOString().replace('T', ' ').slice(0, 19);
+}
+
+console.log("Lock DateTime selected:", lock_datetime);
+
+console.log("Lock DateTime selected:", lock_datetime);
 
     console.log("Lock DateTime selected:", lock_datetime);
 

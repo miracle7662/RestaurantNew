@@ -32,7 +32,7 @@ const getHandoverData = (req, res) => {
           (
             SELECT GROUP_CONCAT(s.PaymentType || ':' || s.Amount)
             FROM TrnSettlement s
-            WHERE s.OrderNo = t.TxnNo AND s.isSettled = 1
+            WHERE s.OrderNo = t.TxnNo AND s.isSettled = 1 
           ) as Settlements,
           t.isSetteled,
           t.isBilled,
