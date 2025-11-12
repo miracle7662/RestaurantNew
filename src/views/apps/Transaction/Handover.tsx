@@ -89,7 +89,7 @@ const HandoverPage = () => {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [activeTab, setActiveTab] = useState("summary");
-  const [handoverTo, setHandoverTo] = useState("");
+  const [handoverToUserId, setHandoverToUserId] = useState("");
   const [handoverBy, setHandoverBy] = useState(user?.username || "");
   const [orders, setOrders] = useState<Order[]>([]);
   const [handoverUsers, setHandoverUsers] = useState<HandoverUser[]>([]);
@@ -284,14 +284,38 @@ const HandoverPage = () => {
     setShowDetailsModal(true);
   };
 
- 
 
-  const handleSaveHandover = () => {
-    if (!handoverTo) {
+
+  const handleSaveHandover = async () => {
+    if (!handoverToUserId) {
       alert("Please select who you are handing over to.");
       return;
     }
-    alert(`Handover saved successfully! Handed over to ${handoverTo}`);
+
+    try {
+      const response = await fetch('http://localhost:3001/api/handover/save', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ 
+          handoverToUserId: parseInt(handoverToUserId),
+          handoverByUserId: user?.id 
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        alert('Handover completed successfully!');
+        navigate('/apps/Orders'); // Or wherever you want to redirect after handover
+      } else {
+        throw new Error(data.message || 'Failed to complete handover');
+      }
+    } catch (error) {
+      console.error('Error during handover:', error);
+      alert(`An error occurred during handover: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   };
 
   const handleClose = () => {
@@ -320,7 +344,7 @@ const HandoverPage = () => {
       expected: totalCash, // totalCash from sales is the expected amount
       difference: countedCashTotal - totalCash,
       reason: reason,
-      handoverTo: handoverTo,
+      handoverTo: handoverToUserId,
       handoverBy: handoverBy,
       // In a real app, you'd get the current user's ID
       userId: 1,
@@ -1020,14 +1044,14 @@ const HandoverPage = () => {
                     <div className="d-flex align-items-center gap-2">
                       <span className="fw-semibold text-secondary small">To:</span>
                       <Form.Select
-                        value={handoverTo}
-                        onChange={(e) => setHandoverTo(e.target.value)}
+                        value={handoverToUserId}
+                        onChange={(e) => setHandoverToUserId(e.target.value)}
                         size="sm"
                         style={{ width: "140px" }}
                       >
                         <option value="">Select User</option>
                         {handoverUsers.map((hu) => (
-                          <option key={hu.userid} value={hu.full_name}>
+                          <option key={hu.userid} value={hu.userid}>
                             {hu.full_name} ({hu.username})
                           </option>
                         ))}

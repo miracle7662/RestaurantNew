@@ -224,13 +224,34 @@ const saveCashDenomination = (req, res) => {
   }
 };
 
+const saveHandover = (req, res) => {
+  const { handoverToUserId, handoverByUserId } = req.body;
+  // const handoverByUserId = req.user.userid; // Assuming user is available from auth middleware
 
+  if (!handoverToUserId || !handoverByUserId) {
+    return res.status(400).json({ success: false, message: 'Missing user IDs for handover.' });
+  }
 
+  try {
+    // Update HandOverEmpID for all unsettled but billed/settled transactions
+    const stmt = db.prepare(`
+      UPDATE TAxnTrnbill
+      SET HandOverEmpID = ?
+      WHERE isSetteled = 1 AND HandOverEmpID IS NULL
+    `);
+
+    const info = stmt.run(handoverToUserId);
+
+    res.json({ success: true, message: `Handover successful. ${info.changes} bills updated.` });
+  } catch (error) {
+    console.error('Error saving handover:', error);
+    res.status(500).json({ success: false, message: 'Failed to save handover data.' });
+  }
+};
 
 
 module.exports = {
   getHandoverData,
   saveCashDenomination,
- 
-  
+  saveHandover,
 };
