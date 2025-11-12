@@ -1372,6 +1372,9 @@ const Order = () => {
       const printResponse = await fetch(`http://localhost:3001/api/TAxnTrnbill/${currentTxnId}/mark-billed`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          outletId: selectedOutletId || Number(user?.outletid),
+        }),
       });
 
       const printResult = await printResponse.json();
