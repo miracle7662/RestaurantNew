@@ -802,13 +802,14 @@ exports.createKOT = async (req, res) => {
 
       let existingBill = null;
         // Search for an existing bill by TableID (for Dine-in) or by TxnID (for Pickup/Delivery)
+      // ✅ Modified to find billed but unsettled bills as well
       if (payloadTxnId) { // This check is now first
         // For Pickup/Delivery or subsequent KOTs for Dine-in, find the bill by its TxnID
-        existingBill = db.prepare('SELECT TxnID, DiscPer, Discount, DiscountType, isNCKOT FROM TAxnTrnbill WHERE TxnID = ?').get(payloadTxnId);
+        existingBill = db.prepare('SELECT TxnID, DiscPer, Discount, DiscountType, isNCKOT, isBilled FROM TAxnTrnbill WHERE TxnID = ?').get(payloadTxnId);
       } else if (TableID && TableID > 0) {
      
         existingBill = db.prepare(`
-          SELECT TxnID, DiscPer, Discount, DiscountType, isNCKOT FROM TAxnTrnbill
+          SELECT TxnID, DiscPer, Discount, DiscountType, isNCKOT, isBilled FROM TAxnTrnbill
           WHERE TableID = ? AND isCancelled = 0 AND isSetteled = 0 ORDER BY TxnID DESC LIMIT 1
         `).get(Number(TableID));
       }
@@ -817,6 +818,10 @@ exports.createKOT = async (req, res) => {
         txnId = existingBill.TxnID;
         console.log(`Using existing unbilled transaction. TxnID: ${txnId} for TableID: ${TableID}`);
 
+        // ✅ If the existing bill was already billed, reset its status to allow for re-billing.
+        if (existingBill.isBilled === 1) {
+          db.prepare('UPDATE TAxnTrnbill SET isBilled = 0 WHERE TxnID = ?').run(txnId);
+        }
         // Always update the bill header with the latest information, including table_name.
         // Use new discount/NC info if provided, otherwise fall back to existing values.
         db.prepare(`

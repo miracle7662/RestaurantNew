@@ -70,6 +70,16 @@ interface Order {
   qrcode?: number;
 }
 
+interface HandoverUser {
+  userid: number;
+  full_name: string;
+  username: string;
+  role_level: string;
+  status: number;
+  outletid?: number;
+  // Add other fields as needed
+}
+
 const HandoverPage = () => {
   const { user } = useAuthContext();
   const navigate = useNavigate();
@@ -82,6 +92,7 @@ const HandoverPage = () => {
   const [handoverTo, setHandoverTo] = useState("");
   const [handoverBy, setHandoverBy] = useState(user?.username || "");
   const [orders, setOrders] = useState<Order[]>([]);
+  const [handoverUsers, setHandoverUsers] = useState<HandoverUser[]>([]);
   const [, setLoading] = useState(true);
   const [, setError] = useState<string | null>(null);
   const [showCashModal, setShowCashModal] = useState(false);
@@ -122,8 +133,41 @@ const HandoverPage = () => {
       }
     };
 
+    const fetchHandoverUsers = async () => {
+      try {
+        // Assuming API endpoint for fetching outlet users (based on provided controller)
+        // Adjust the URL and params as per your routing (e.g., /api/outlet-users)
+        const params = new URLSearchParams({
+          currentUserId: user?.userid?.toString() || '',
+          roleLevel: user?.role_level || '',
+          hotelid: user?.hotelid?.toString() || '',
+        });
+        const response = await fetch(`http://localhost:3001/api/outlet-users?${params}`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch handover users');
+        }
+        const data = await response.json();
+        console.log('Fetched handover users data:', data); // Debug log
+        let filteredUsers = (data || []).filter((u: HandoverUser) => 
+          u.role_level === 'outlet_user' && u.status === 0 && u.userid !== user?.userid
+        );
+        // If current user is outlet_user, filter by same outlet
+        if (user?.role_level === 'outlet_user' && user?.outletid) {
+          filteredUsers = filteredUsers.filter((u: HandoverUser) => u.outletid === user.outletid);
+        }
+        console.log('Filtered handover users:', filteredUsers); // Debug log
+        setHandoverUsers(filteredUsers);
+      } catch (err) {
+        console.error('Error fetching handover users:', err);
+        setHandoverUsers([]); // Fallback to empty array
+      }
+    };
+
     fetchHandoverData();
-  }, []);
+    if (user?.hotelid) {
+      fetchHandoverUsers();
+    }
+  }, [user]);
 
   useEffect(() => {
     if (!passwordVerified) {
@@ -972,7 +1016,7 @@ const HandoverPage = () => {
                       />
                     </div>
 
-                    {/* To */}
+                    {/* To - Now populated with fetched users */}
                     <div className="d-flex align-items-center gap-2">
                       <span className="fw-semibold text-secondary small">To:</span>
                       <Form.Select
@@ -981,10 +1025,12 @@ const HandoverPage = () => {
                         size="sm"
                         style={{ width: "140px" }}
                       >
-                        <option value="">Select</option>
-                        <option value="Shift A">Shift A</option>
-                        <option value="Shift B">Shift B</option>
-                        <option value="Manager">Manager</option>
+                        <option value="">Select User</option>
+                        {handoverUsers.map((hu) => (
+                          <option key={hu.userid} value={hu.full_name}>
+                            {hu.full_name} ({hu.username})
+                          </option>
+                        ))}
                       </Form.Select>
                     </div>
 
