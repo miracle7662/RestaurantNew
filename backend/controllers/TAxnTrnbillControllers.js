@@ -668,7 +668,7 @@ exports.settleBill = async (req, res) => {
 
       db.prepare(`
         UPDATE TAxnTrnbill 
-        SET isSetteled = 1, isBilled = 1, BilledDate = CURRENT_TIMESTAMP, orderNo = TxnNo
+        SET isSetteled = 1, isBilled = 1, BilledDate = CURRENT_TIMESTAMP, orderNo = COALESCE(orderNo, TxnNo)
         WHERE TxnID = ?
       `).run(Number(id))
 
@@ -2151,8 +2151,8 @@ exports.applyDiscountToBill = async (req, res) => {
 /* -------------------------------------------------------------------------- */
 exports.getPendingOrders = async (req, res) => {
   try {
-    const { type } = req.query; // Changed from req.params to req.query to match frontend call
-    let whereClauses = ['b.isCancelled = 0', 'b.isBilled = 0', 'b.isSetteled = 0'];
+    const { type } = req.query;
+    let whereClauses = ['b.isCancelled = 0', 'b.isSetteled = 0'];
     const params = [];
 
     // Filter by table_name which will be 'Pickup' or 'Delivery'

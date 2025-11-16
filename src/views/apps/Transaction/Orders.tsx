@@ -2452,6 +2452,12 @@ if (e.key === "F8" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
       setTip(0); // Reset tip amount
       setShowSettlementModal(false);
       setBillActionState('initial');
+
+      // If the settled order was a Pickup or Delivery, go back to the Dine-in table view.
+      if (activeTab === 'Pickup' || activeTab === 'Delivery') {
+        handleBackToTables();
+      }
+
       if (selectedTable) {
         const tableToUpdate = tableItems.find(t => t.table_name === selectedTable);
         if (tableToUpdate) {
