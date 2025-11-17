@@ -120,7 +120,7 @@ const Order = () => {
   
   const [currentKOTNos, setCurrentKOTNos] = useState<number[]>([]);
   const [currentTxnId, setCurrentTxnId] = useState<number | null>(null);
-  const [TxnNo, setTxnNo] = useState<string | null>(null); // New state for displaying Bill No  
+  const [orderNo, setOrderNo] = useState<string | null>(null); // New state for displaying Bill No  
 
   // New state for F8 password modal on billed tables
   const [showPrintBoth, setShowPrintBoth] = useState(false);
@@ -259,7 +259,7 @@ const Order = () => {
           setItems(fetchedItems);
           setPersistentTxnId(header.TxnID);
           setPersistentTableId(tableIdNum);
-          setTxnNo(header.TxnNo); // Set TxnNo from the fetched bill header
+          setOrderNo(header.TxnNo); // Set TxnNo from the fetched bill header
           setCurrentTxnId(header.TxnID);
           setCurrentKOTNo(header.KOTNo); // A billed order might have a KOT no.
           setCurrentKOTNos(
@@ -336,7 +336,7 @@ const Order = () => {
 
         // Also set TxnNo if it exists on the unbilled transaction
         if (unbilledItemsRes.data.items.length > 0 && unbilledItemsRes.data.items[0].txnId) {
-          setTxnNo(unbilledItemsRes.data.items[0].TxnNo || null);
+          setOrderNo(unbilledItemsRes.data.items[0].TxnNo || null);
         }
 
         if (unbilledItemsRes.data.items.length > 0 && unbilledItemsRes.data.items[0].txnId) {
@@ -356,7 +356,7 @@ const Order = () => {
         setReversedItems([]);
         setCurrentKOTNo(null);
         setCurrentKOTNos([]);
-        setTxnNo(null);
+        setOrderNo(null);
         setCurrentTxnId(null);
         // Do NOT clear persistent IDs here, as they are needed for reversal
         // setPersistentTxnId(null);
@@ -374,8 +374,8 @@ const Order = () => {
         setItems([]);
         setReversedItems([]);
         setCurrentKOTNo(null);
-        setCurrentKOTNos([]);
-        setTxnNo(null);
+        setCurrentKOTNos([]); 
+        setOrderNo(null);
         setCurrentTxnId(null);
         // Do NOT clear persistent IDs here, as they are needed for reversal
         // setPersistentTxnId(null);
@@ -385,7 +385,7 @@ const Order = () => {
       console.error('Error fetching/refetching items for table:', error);
       setItems([]);
       setReversedItems([]);
-      setTxnNo(null);
+      setOrderNo(null);
       // Do NOT clear persistent IDs on error if we are in reverse mode
       setCurrentKOTNo(null);
       setCurrentKOTNos([]);
@@ -1324,27 +1324,40 @@ const Order = () => {
   }, [selectedOutletId]);
 
   const getKOTLabel = () => {
+    const kot = currentKOTNo ? currentKOTNo.toString() : "";
+    const ord = orderNo ? orderNo.toString() : "";
+  
     switch (activeTab) {
+  
       case 'Dine-in': {
         const kotNumbers = currentKOTNos.length > 0
-          ? [...currentKOTNos].sort((a, b) => a - b).join(', ')
-          : currentKOTNo ? currentKOTNo.toString() : '';
-        return `KOT ${kotNumbers} ${selectedTable ? ` - Table ${selectedTable}` : ''}`;
+          ? [...currentKOTNos].sort((a, b) => a - b).join(', ').trim()
+          : kot;
+  
+        return `KOT ${kotNumbers} ${
+          selectedTable ? ` - Table ${selectedTable}` : ''
+        }`;
       }
+  
       case 'Pickup':
-        return 'Pickup Order';
+        return `Pickup – KOT: ${kot} | Order No: ${ord}`;
+  
       case 'Delivery':
-        return 'Delivery Order';
+        return `Delivery – KOT: ${kot} | Order No: ${ord}`;
+  
       case 'Quick Bill':
-        return 'Quick Bill';
+        return `Quick Bill – KOT: ${kot} | Order No: ${ord}`;
+  
       case 'Order/KOT':
         return 'Order/KOT';
+  
       case 'Billing':
-        return 'Billing';
+        return `Billing – KOT: ${kot} | Order No: ${ord}`;
+  
       default:
         return 'KOT 1';
     }
-  };
+  };  
 
   const handleBackToTables = () => {
     setActiveTab('Dine-in'); // Switch back to the Dine-in tab
@@ -1391,7 +1404,7 @@ const Order = () => {
 
       // Set the TxnNo from the API response to update the UI for printing
       if (printResult.data && printResult.data.TxnNo) {
-        setTxnNo(printResult.data.TxnNo);
+        setOrderNo(printResult.data.TxnNo);
       }
 
       // 2. Print the bill preview from the existing data
@@ -1471,7 +1484,7 @@ const Order = () => {
     setShowPrintBoth(false);
     setItems([]);
     setCurrentTxnId(null);
-    setTxnNo(null);
+    setOrderNo(null);
     window.location.reload(); // Refresh to clear state and table color updates
   } catch (error: any) {
     toast.error(error.message || "Failed to print KOT and Bill");
@@ -1662,25 +1675,26 @@ const Order = () => {
         toast.success('KOT saved successfully!');
  
         // Update TxnNo and TxnID from the response
-        if (resp.data) {
-          setTxnNo(resp.data.TxnNo);
-          setCurrentTxnId(resp.data.TxnID);
+        if (resp?.data) {
+          const { orderNo, TxnID, kotNo } = resp.data;
+          setOrderNo(orderNo ?? null);
+          setCurrentTxnId(TxnID ?? null);
+          setCurrentKOTNo(kotNo ?? null);
+          setCurrentKOTNos(kotNo ? [kotNo] : []);
         }
 
-        // For Dine-in, clear everything to ready the panel for the next table.
-        // For Pickup/Delivery, keep the items and transaction details loaded.
-        if (activeTab === 'Dine-in') {
+        // For Dine-in, clear items and numbers to ready the panel for the next table.
+        if (activeTab === 'Dine-in') { // This block is now specific to Dine-in
           setItems([]);
+          setOrderNo(null);
           setCurrentTxnId(null);
+          setCurrentKOTNo(null);
+          setCurrentKOTNos([]);
+        } else {
+          // For Pickup/Delivery/QuickBill, just clear the new items list.
+          // The KOT/Order numbers remain for the next step (Billing/Settlement).
+          setItems(items.filter(item => !item.isNew));
         }
-
-        // Clear items after KOT save to reset the panel
-        setItems([]);
-        // Also clear the KOT/Transaction numbers to fully reset the panel
-        setTxnNo(null);
-        setCurrentTxnId(null);
-        setCurrentKOTNo(null);
-        setCurrentKOTNos([]);
 
         // Clear reverse items after successful save and deactivate Reverse Mode
         if (reverseItemsToKOT.length > 0) {
@@ -2034,7 +2048,7 @@ const Order = () => {
         // setShowOrderDetails(true); // Keep the quick bill list visible
         setItems(fetchedItems);
         setCurrentTxnId(fullBill.TxnID);
-        setTxnNo(fullBill.TxnNo);
+        setOrderNo(fullBill.TxnNo);
         setBillActionState('printOrSettle'); // The bill is already created
       }
     } catch (error: any) {
@@ -2103,7 +2117,7 @@ const Order = () => {
             setSelectedTable(null);
             setShowOrderDetails(false);
             setCurrentTxnId(null);
-            setTxnNo(null);
+            setOrderNo(null);
             setCurrentKOTNo(null);
             setCurrentKOTNos([]);
           } else {
@@ -2410,8 +2424,8 @@ if (e.key === "F8" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
         return {
           PaymentTypeID: paymentModeDetails?.paymenttypeid,
           PaymentType: modeName,
-          Amount: parseFloat(paymentAmounts[modeName]) || 0,
-          OrderNo: TxnNo,
+          Amount: parseFloat(paymentAmounts[modeName]) || 0, 
+          OrderNo: orderNo,
           HotelID: user?.hotelid,
           Name: user?.name, // Cashier/User name
         };
@@ -2471,8 +2485,8 @@ if (e.key === "F8" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
       fetchTableManagement(); // Refresh table statuses
       setCurrentKOTNo(null);
       setShowPendingOrdersView(false); // Hide pending view after successful settlement
-      setCurrentKOTNos([]);
-      setTxnNo(null);
+      setCurrentKOTNos([]); 
+      setOrderNo(null);
 
     } catch (error: any) {
       console.error('Error settling bill:', error);
@@ -2598,7 +2612,9 @@ if (e.key === "F8" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
     // 3. Load the order's data into the state
     setCurrentTxnId(order.id);
      setPersistentTxnId(order.id); // Set the persistent ID for F8 functionality
-    setTxnNo(order.kotNo);
+    setOrderNo(order.kotNo);
+
+    setCurrentKOTNo(order.kotNo); // Set KOT number when loading a pending order
     setCustomerName(order.customer.name);
     setMobileNumber(order.customer.mobile);
     setSelectedOutletId(order.outletid); // Set the outlet ID from the order
@@ -2617,7 +2633,7 @@ if (e.key === "F8" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
   const handlePrintPendingOrder = async (order: any) => {
     // 1. Load the order data into the state, similar to handlePendingMakePayment
     setCurrentTxnId(order.id);
-    setTxnNo(order.kotNo || `Order-${order.id}`);
+    setOrderNo(order.kotNo || `Order-${order.id}`);
     const orderItems = order.items.map((i: any) => ({ ...i, isBilled: 0, isNew: false }));
     setItems(orderItems);
     setSelectedOutletId(order.outletid);
@@ -2645,7 +2661,7 @@ if (e.key === "F8" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
 
   const handlePendingMakePayment = (order: any) => {
     setCurrentTxnId(order.id);
-    setTxnNo(order.kotNo || `Order-${order.id}`);
+    setOrderNo(order.kotNo || `Order-${order.id}`);
     setItems(order.items.map((i: any) => ({ ...i, isBilled: 0, isNew: false }))); // Treat items as existing
     setTaxCalc(prev => ({ ...prev, grandTotal: order.total, subtotal: order.total })); // Simplified for now
     setDiscount(0); // Reset discount
@@ -3010,10 +3026,10 @@ if (e.key === "F8" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
             gap: '10px',
             marginBottom: '10px',
             fontSize: '9pt',
-            textAlign: 'center'
+            textAlign: 'center' 
           }}>
             <div><strong>Date</strong><br />{new Date().toLocaleDateString('en-GB')}</div>
-            <div><strong>Bill No.</strong><br />{(formData as any).bill_prefix || ''}{TxnNo || ''}</div>
+            <div><strong>Bill No.</strong><br />{(formData as any).bill_prefix || ''}{orderNo || ''}</div>
             <div><strong>Table No.</strong><br />{selectedTable || '4'}</div>
             <div><strong>Time</strong><br />{new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</div>
           </div>
@@ -4890,4 +4906,4 @@ const ReversedItemsDisplay = ({ items }: { items: ReversedMenuItem[] }) => {
 };
 
 export default Order;
- 
+                  
