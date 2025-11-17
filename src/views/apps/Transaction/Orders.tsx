@@ -79,7 +79,7 @@ const Order = () => {
   const [selectedCountryCode, setSelectedCountryCode] = useState<string>('+91');
   const [showCountryOptions, setShowCountryOptions] = useState<boolean>(false);
   const [showNewCustomerForm, setShowNewCustomerForm] = useState<boolean>(false);
-  const [searchTable, ] = useState<string>('');
+  const [searchTable,] = useState<string>('');
   const [, setIsTableInvalid] = useState<boolean>(false);
   const itemListRef = useRef<HTMLDivElement>(null);
   const [invalidTable, setInvalidTable] = useState<string>('');
@@ -95,7 +95,7 @@ const Order = () => {
   const [departments, setDepartments] = useState<DepartmentItem[]>([]);
   const [tableSearchInput, setTableSearchInput] = useState<string>('');
   const tableSearchInputRef = useRef<HTMLInputElement>(null);
-  const [selectedTableId, ] = useState<number | null>(null);
+  const [selectedTableId,] = useState<number | null>(null);
   const [mobileNumber, setMobileNumber] = useState<string>('');
   const [customerName, setCustomerName] = useState<string>('');
   const [taxRates, setTaxRates] = useState<{ cgst: number; sgst: number; igst: number; cess: number }>({ cgst: 0, sgst: 0, igst: 0, cess: 0 });
@@ -117,7 +117,7 @@ const Order = () => {
   const [roundOffEnabled, setRoundOffEnabled] = useState<boolean>(false);
   const [roundOffTo, setRoundOffTo] = useState<number>(1); // Default to 1
   const [roundOffValue, setRoundOffValue] = useState<number>(0); // To store the calculated round-off value
-  
+
   const [currentKOTNos, setCurrentKOTNos] = useState<number[]>([]);
   const [currentTxnId, setCurrentTxnId] = useState<number | null>(null);
   const [orderNo, setOrderNo] = useState<string | null>(null); // New state for displaying Bill No  
@@ -374,7 +374,7 @@ const Order = () => {
         setItems([]);
         setReversedItems([]);
         setCurrentKOTNo(null);
-        setCurrentKOTNos([]); 
+        setCurrentKOTNos([]);
         setOrderNo(null);
         setCurrentTxnId(null);
         // Do NOT clear persistent IDs here, as they are needed for reversal
@@ -971,10 +971,10 @@ const Order = () => {
       setSelectedTable(null);
       setItems([]);
       setShowOrderDetails(true);
-       // Reset all relevant states for a new order
+      // Reset all relevant states for a new order
       setCurrentTxnId(null);
       setPersistentTxnId(null);
-     
+
       setCurrentKOTNo(null);
       setCurrentKOTNos([]);
       setDiscount(0);
@@ -1011,7 +1011,7 @@ const Order = () => {
       setShowPrintBoth(false);
 
     }
-   }, [activeTab, items]);
+  }, [activeTab, items]);
 
   const handleCountryCodeClick = () => {
     setShowCountryOptions(!showCountryOptions);
@@ -1066,57 +1066,57 @@ const Order = () => {
     });
   };
 
- const handleReverseQty = async (item: MenuItem) => {
-  try {
-    // 🧩 Check reverse mode for billed items
-    if (item.isBilled === 1 && !reverseQtyMode) {
-      toast.error('Reverse quantity mode must be activated for billed items.');
-      return;
-    }
+  const handleReverseQty = async (item: MenuItem) => {
+    try {
+      // 🧩 Check reverse mode for billed items
+      if (item.isBilled === 1 && !reverseQtyMode) {
+        toast.error('Reverse quantity mode must be activated for billed items.');
+        return;
+      }
 
-    // 🧩 Prevent reversing all items
-    if (item.isBilled === 1 && items.length === 1 && items[0].qty === 1) {
-      toast.error("At least one item must remain. You cannot reverse all items.");
-      return;
-    }
+      // 🧩 Prevent reversing all items
+      if (item.isBilled === 1 && items.length === 1 && items[0].qty === 1) {
+        toast.error("At least one item must remain. You cannot reverse all items.");
+        return;
+      }
 
-    // 🧩 Dine-in billed order refresh
-    if (item.isBilled === 1 && selectedTableId) {
-      refreshItemsForTable(selectedTableId);
-    }
+      // 🧩 Dine-in billed order refresh
+      if (item.isBilled === 1 && selectedTableId) {
+        refreshItemsForTable(selectedTableId);
+      }
 
-    // This block now handles all scenarios (Dine-in, Pickup, Delivery)
-    if (reverseQtyMode) {
-      setItems(currentItems => {
-        const itemIndex = currentItems.findIndex(i => i.txnDetailId === item.txnDetailId);
-        if (itemIndex > -1) {
-          const updatedItems = [...currentItems];
-          const currentItem = updatedItems[itemIndex];
-          if (currentItem.qty > 0) {
-            updatedItems[itemIndex] = { ...currentItem, qty: currentItem.qty - 1 };
+      // This block now handles all scenarios (Dine-in, Pickup, Delivery)
+      if (reverseQtyMode) {
+        setItems(currentItems => {
+          const itemIndex = currentItems.findIndex(i => i.txnDetailId === item.txnDetailId);
+          if (itemIndex > -1) {
+            const updatedItems = [...currentItems];
+            const currentItem = updatedItems[itemIndex];
+            if (currentItem.qty > 0) {
+              updatedItems[itemIndex] = { ...currentItem, qty: currentItem.qty - 1 };
+            }
+            return updatedItems;
           }
-          return updatedItems;
-        }
-        return currentItems;
-      });
+          return currentItems;
+        });
 
-      setReverseQtyItems(prev => {
-        const existing = prev.find(ri => ri.txnDetailId === item.txnDetailId);
-        if (existing) {
-          return prev.map(ri =>
-            ri.txnDetailId === item.txnDetailId ? { ...ri, qty: ri.qty + 1 } : ri
-          );
-        }
-        return [...prev, { ...item, qty: 1, isReverse: true }];
-      });
-      setShowSaveReverseButton(true);
+        setReverseQtyItems(prev => {
+          const existing = prev.find(ri => ri.txnDetailId === item.txnDetailId);
+          if (existing) {
+            return prev.map(ri =>
+              ri.txnDetailId === item.txnDetailId ? { ...ri, qty: ri.qty + 1 } : ri
+            );
+          }
+          return [...prev, { ...item, qty: 1, isReverse: true }];
+        });
+        setShowSaveReverseButton(true);
+      }
+
+    } catch (error) {
+      console.error('❌ Error processing reverse quantity:', error);
+      toast.error('Error processing reverse quantity');
     }
-
-  } catch (error) {
-    console.error('❌ Error processing reverse quantity:', error);
-    toast.error('Error processing reverse quantity');
-  }
-};
+  };
 
 
   useEffect(() => {
@@ -1169,37 +1169,37 @@ const Order = () => {
     const igstPer = Number(taxRates.igst) || 0;
     const cessPer = Number(taxRates.cess) || 0;
 
- if (reverseQtyMode && reverseQtyItems.length > 0) {
-  const { cgst, sgst, igst, cess } = taxRates;
+    if (reverseQtyMode && reverseQtyItems.length > 0) {
+      const { cgst, sgst, igst, cess } = taxRates;
 
-  // ✅ Your 'items' state already reflects the current (active) quantities.
-  // So just calculate based on 'items', not reverseQtyItems.
-  const activeItems = items.filter(item => item.qty > 0);
+      // ✅ Your 'items' state already reflects the current (active) quantities.
+      // So just calculate based on 'items', not reverseQtyItems.
+      const activeItems = items.filter(item => item.qty > 0);
 
-  const baseAmount = activeItems.reduce(
-    (sum, item) => sum + Number(item.price) * Number(item.qty),
-    0
-  );
+      const baseAmount = activeItems.reduce(
+        (sum, item) => sum + Number(item.price) * Number(item.qty),
+        0
+      );
 
-  const cgstAmt = (baseAmount * cgst) / 100;
-  const sgstAmt = (baseAmount * sgst) / 100;
-  const igstAmt = (baseAmount * igst) / 100;
-  const cessAmt = (baseAmount * cess) / 100;
+      const cgstAmt = (baseAmount * cgst) / 100;
+      const sgstAmt = (baseAmount * sgst) / 100;
+      const igstAmt = (baseAmount * igst) / 100;
+      const cessAmt = (baseAmount * cess) / 100;
 
-  const grandTotal = baseAmount + cgstAmt + sgstAmt + igstAmt + cessAmt;
+      const grandTotal = baseAmount + cgstAmt + sgstAmt + igstAmt + cessAmt;
 
-  setTaxCalc({
-    subtotal: baseAmount,
-    cgstAmt,
-    sgstAmt,
-    igstAmt,
-    cessAmt,
-    grandTotal
-  });
+      setTaxCalc({
+        subtotal: baseAmount,
+        cgstAmt,
+        sgstAmt,
+        igstAmt,
+        cessAmt,
+        grandTotal
+      });
 
-  console.log("✅ Active Items Total (After Reverse):", grandTotal);
-  return;
-}
+      console.log("✅ Active Items Total (After Reverse):", grandTotal);
+      return;
+    }
 
 
     // Correctly calculate subtotal based on active (non-reversed) items
@@ -1283,7 +1283,7 @@ const Order = () => {
                 (settings as any).includeTaxInInvoice;
               setIncludeTaxInInvoice(Number(incFlag) === 1 ? 1 : 0);
 
-                 // Debug console for tax mode
+              // Debug console for tax mode
               console.log("Include Tax in Invoice:", Number(incFlag) === 1 ? "Inclusive" : "Exclusive");
             } else {
               setReverseQtyConfig('PasswordRequired'); // Default to password required
@@ -1328,38 +1328,37 @@ const Order = () => {
   const getKOTLabel = () => {
     const kot = currentKOTNo ? currentKOTNo.toString() : "";
     const ord = orderNo ? orderNo.toString() : "";
-  
+
     switch (activeTab) {
-  
+
       case 'Dine-in': {
         const kotNumbers = currentKOTNos.length > 0
           ? [...currentKOTNos].sort((a, b) => a - b).join(', ').trim()
           : kot;
-  
-        return `KOT ${kotNumbers} ${
-          selectedTable ? ` - Table ${selectedTable}` : ''
-        }`;
+
+        return `KOT ${kotNumbers} ${selectedTable ? ` - Table ${selectedTable}` : ''
+          }`;
       }
-  
+
       case 'Pickup':
         return `Pickup – KOT: ${kot} | Order No: ${ord}`;
-  
+
       case 'Delivery':
         return `Delivery – KOT: ${kot} | Order No: ${ord}`;
-  
+
       case 'Quick Bill':
         return `Quick Bill – KOT: ${kot} | Order No: ${ord}`;
-  
+
       case 'Order/KOT':
         return 'Order/KOT';
-  
+
       case 'Billing':
         return `Billing – KOT: ${kot} | Order No: ${ord}`;
-  
+
       default:
         return 'KOT 1';
     }
-  };  
+  };
 
   const handleBackToTables = () => {
     setActiveTab('Dine-in'); // Switch back to the Dine-in tab
@@ -1452,7 +1451,7 @@ const Order = () => {
 
       // 5. For Dine-in and Quick Bill, refresh the page to clear the state.
       // For Pickup/Delivery, keep the order on screen to proceed to settlement.
-      if (activeTab === 'Dine-in' || activeTab === 'Quick Bill') { 
+      if (activeTab === 'Dine-in' || activeTab === 'Quick Bill') {
         setShowOrderDetails(false); // Hide the order panel
         setSelectedTable(null); // Deselect the table
       } else {
@@ -1470,30 +1469,30 @@ const Order = () => {
     }
   };
 
- const handlePrintKotAndBill = async () => {
-  try {
-    setLoading(true);
+  const handlePrintKotAndBill = async () => {
+    try {
+      setLoading(true);
 
-    // 1️⃣ First: Save and Print KOT (this already returns nothing)
-    await handlePrintAndSaveKOT(); 
+      // 1️⃣ First: Save and Print KOT (this already returns nothing)
+      await handlePrintAndSaveKOT();
 
-    // 2️⃣ Second: Print the Bill (it uses currentTxnId internally)
-    await handlePrintBill();       
+      // 2️⃣ Second: Print the Bill (it uses currentTxnId internally)
+      await handlePrintBill();
 
-    toast.success("KOT and Bill printed successfully!");
+      toast.success("KOT and Bill printed successfully!");
 
-    // 3️⃣ Final UI cleanup
-    setShowPrintBoth(false);
-    setItems([]);
-    setCurrentTxnId(null);
-    setOrderNo(null);
-    window.location.reload(); // Refresh to clear state and table color updates
-  } catch (error: any) {
-    toast.error(error.message || "Failed to print KOT and Bill");
-  } finally {
-    setLoading(false);
-  }
-};
+      // 3️⃣ Final UI cleanup
+      setShowPrintBoth(false);
+      setItems([]);
+      setCurrentTxnId(null);
+      setOrderNo(null);
+      window.location.reload(); // Refresh to clear state and table color updates
+    } catch (error: any) {
+      toast.error(error.message || "Failed to print KOT and Bill");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handlePrintAndSaveKOT = async () => {
     try {
@@ -1520,7 +1519,7 @@ const Order = () => {
         .find((t: any) => t && t.table_name && selectedTable && t.table_name.toLowerCase() === selectedTable.toLowerCase())
         || (Array.isArray(tableItems) ? tableItems.find((t: any) => t && t.table_name && selectedTable && t.table_name.toLowerCase() === selectedTable.toLowerCase()) : undefined);
 
-        
+
       let resolvedTableId = selectedTableRecord ? Number((selectedTableRecord as any).tableid || (selectedTableRecord as any).tablemanagementid) : null;
       let resolvedDeptId = selectedTableRecord ? Number((selectedTableRecord as any).departmentid) || selectedDeptId : undefined;
       let resolvedOutletId = selectedTableRecord?.outletid ? Number(selectedTableRecord.outletid) : (selectedOutletId || Number(user?.outletid) || null);
@@ -1678,7 +1677,7 @@ const Order = () => {
         console.log("KOT SAVE RESPONSE: ", resp.data);
 
         toast.success('KOT saved successfully!');
- 
+
         // Update TxnNo and TxnID from the response
         if (resp?.data) {
           const { orderNo, TxnID, kotNo } = resp.data;
@@ -1686,10 +1685,10 @@ const Order = () => {
           setCurrentTxnId(TxnID ?? null);
           // Robustly set KOT number, checking for different possible casings
           const receivedKotNo = resp.data.kotNo ??
-                                resp.data.KOTNo ??
-                                resp.data.kotno ??
-                                resp.data.kot_no ??
-                                null;
+            resp.data.KOTNo ??
+            resp.data.kotno ??
+            resp.data.kot_no ??
+            null;
           setCurrentKOTNo(receivedKotNo);
           setCurrentKOTNos(receivedKotNo ? [receivedKotNo] : []);
         }
@@ -1702,7 +1701,7 @@ const Order = () => {
           setCurrentKOTNo(null);
           setCurrentKOTNos([]);
         }
-        
+
         // Clear reverse items after successful save and deactivate Reverse Mode
         if (reverseItemsToKOT.length > 0) {
           setReverseQtyItems([]);
@@ -1808,68 +1807,68 @@ const Order = () => {
     }
   };
 
-  
 
- const handlePrintAndSettle = async () => {
-  if (items.length === 0) {
-    toast.error('No items to process.');
-    return;
-  }
 
-  if (!currentTxnId) {
-    toast.error('Cannot proceed. No transaction ID found.');
-    return;
-  }
+  const handlePrintAndSettle = async () => {
+    if (items.length === 0) {
+      toast.error('No items to process.');
+      return;
+    }
 
-  setLoading(true);
-  try {
-    // ✅ Step 1: Print bill first and mark as billed
-    const printResponse = await fetch(
-      `http://localhost:3001/api/TAxnTrnbill/${currentTxnId}/mark-billed`,
-      {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          outletId: selectedOutletId || Number(user?.outletid),
-        }),
+    if (!currentTxnId) {
+      toast.error('Cannot proceed. No transaction ID found.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // ✅ Step 1: Print bill first and mark as billed
+      const printResponse = await fetch(
+        `http://localhost:3001/api/TAxnTrnbill/${currentTxnId}/mark-billed`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            outletId: selectedOutletId || Number(user?.outletid),
+          }),
+        }
+      );
+
+      const printResult = await printResponse.json();
+
+      if (!printResult.success) {
+        throw new Error(printResult.message || 'Failed to mark bill as printed.');
       }
-    );
 
-    const printResult = await printResponse.json();
+      toast.success('Bill marked as printed!');
 
-    if (!printResult.success) {
-      throw new Error(printResult.message || 'Failed to mark bill as printed.');
-    }
-
-    toast.success('Bill marked as printed!');
-
-    // ✅ Step 2: Print the bill visually
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      const contentToPrint = document.getElementById('bill-preview');
-      if (contentToPrint) {
-        printWindow.document.write(contentToPrint.innerHTML);
-        printWindow.document.close();
-        printWindow.focus();
-        await new Promise((resolve) => setTimeout(resolve, 500)); // short delay
-        printWindow.print();
+      // ✅ Step 2: Print the bill visually
+      const printWindow = window.open('', '_blank');
+      if (printWindow) {
+        const contentToPrint = document.getElementById('bill-preview');
+        if (contentToPrint) {
+          printWindow.document.write(contentToPrint.innerHTML);
+          printWindow.document.close();
+          printWindow.focus();
+          await new Promise((resolve) => setTimeout(resolve, 500)); // short delay
+          printWindow.print();
+        }
       }
-    }
 
-    // ✅ Step 3: After print completes → fetch payment modes and open settlement modal
-    if (selectedOutletId) {
-      await fetchPaymentModesForOutlet(selectedOutletId);
-    }
+      // ✅ Step 3: After print completes → fetch payment modes and open settlement modal
+      if (selectedOutletId) {
+        await fetchPaymentModesForOutlet(selectedOutletId);
+      }
 
-    setShowSettlementModal(true); // open settlement modal immediately after print
-  } catch (error: any) {
-    toast.error(
-      error.message || 'An error occurred during the print & settle process.'
-    );
-  } finally {
-    setLoading(false);
-  }
-};
+      setShowSettlementModal(true); // open settlement modal immediately after print
+    } catch (error: any) {
+      toast.error(
+        error.message || 'An error occurred during the print & settle process.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSaveReverse = async () => {
     if (!persistentTxnId) {
@@ -2172,25 +2171,25 @@ const Order = () => {
       }
 
       // 🔹 Keyboard event listener for F8 Reverse Mode
-if (e.key === "F8" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
-  e.preventDefault();
+      if (e.key === "F8" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
+        e.preventDefault();
 
-  // ✅ If Dine-in tab → Table must be selected
-  if (activeTab === "Dine-in" && !selectedTable) {
-    toast.error("Please select a table first.");
-    return;
-  }
+        // ✅ If Dine-in tab → Table must be selected
+        if (activeTab === "Dine-in" && !selectedTable) {
+          toast.error("Please select a table first.");
+          return;
+        }
 
-  // ✅ If Pickup / Delivery / QuickBill → Order must exist (TxnID required)
-  if (
-    (activeTab === "Pickup" ||
-      activeTab === "Delivery" ||
-      activeTab === "Quick Bill") &&
-    !persistentTxnId
-  ) {
-    toast.error("No active order found to reverse!");
-    return;
-  }
+        // ✅ If Pickup / Delivery / QuickBill → Order must exist (TxnID required)
+        if (
+          (activeTab === "Pickup" ||
+            activeTab === "Delivery" ||
+            activeTab === "Quick Bill") &&
+          !persistentTxnId
+        ) {
+          toast.error("No active order found to reverse!");
+          return;
+        }
 
         // Check if there are any items on the table
         if (items.length === 0) {
@@ -2258,7 +2257,7 @@ if (e.key === "F8" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
       if (e.ctrlKey && e.key === 'F9') {
         e.preventDefault();
         if (items.length === 0) {
-          
+
           toast.error("No items to reverse.");
           return;
         }
@@ -2431,7 +2430,7 @@ if (e.key === "F8" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
         return {
           PaymentTypeID: paymentModeDetails?.paymenttypeid,
           PaymentType: modeName,
-          Amount: parseFloat(paymentAmounts[modeName]) || 0, 
+          Amount: parseFloat(paymentAmounts[modeName]) || 0,
           OrderNo: orderNo,
           HotelID: user?.hotelid,
           Name: user?.name, // Cashier/User name
@@ -2492,7 +2491,7 @@ if (e.key === "F8" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
       fetchTableManagement(); // Refresh table statuses
       setCurrentKOTNo(null);
       setShowPendingOrdersView(false); // Hide pending view after successful settlement
-      setCurrentKOTNos([]); 
+      setCurrentKOTNos([]);
       setOrderNo(null);
 
     } catch (error: any) {
@@ -2605,7 +2604,7 @@ if (e.key === "F8" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
     }
   };
 
- 
+
 
   const handleLoadPendingOrder = (order: any) => {
     // 1. Hide the pending orders list and show the main order details panel
@@ -2633,7 +2632,7 @@ if (e.key === "F8" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
       ...item,
       id: item.ItemID, // Ensure 'id' is mapped for other functions
       txnDetailId: item.TXnDetailID, // Correctly map the detail ID
-      isNew: false, 
+      isNew: false,
       isBilled: 0
     }));
     setItems(existingItems);
@@ -3035,7 +3034,7 @@ if (e.key === "F8" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
             gap: '10px',
             marginBottom: '10px',
             fontSize: '9pt',
-            textAlign: 'center' 
+            textAlign: 'center'
           }}>
             <div><strong>Date</strong><br />{new Date().toLocaleDateString('en-GB')}</div>
             <div><strong>Bill No.</strong><br />{(formData as any).bill_prefix || ''}{orderNo || ''}</div>
@@ -3730,16 +3729,16 @@ background: darkgreen;
                   <Row md={2} lg={3} xl={3} className="g-3">
                     {pendingOrders.map(order => (
                       <Col key={order.id}>
-                        <Card 
+                        <Card
                           className="order-card h-100"
                           onClick={() => handleLoadPendingOrder(order)}
                           style={{ cursor: 'pointer' }}
                         >
                           <Card.Header className="order-card-header">
                             <div>
-                              <strong>KOT:</strong> {order.KOTNo || order.kotNo || order.kot_no || '—'} | 
+                              <strong>KOT:</strong> {order.KOTNo || order.kotNo || order.kot_no || '—'} |
                               <strong> Order No:</strong> {order.TxnNo || order.orderNo || order.order_no || '—'}
-                              <br/>
+                              <br />
                               <div style={{ fontSize: '20px' }}>
                                 <strong style={{ color: '#FFFDE7' }}>{order.customer.name || ''}</strong>
                                 <br />
@@ -3754,48 +3753,48 @@ background: darkgreen;
                             <div className="order-card-items mb-3">
                               <ul className="list-unstyled">
                                 {order.items.map((item: any, index: number) => (
-                                <li
-  key={index}
-  className="border-bottom pb-1 mb-1"
-  style={{ paddingBottom: "8px" }}
->
-  <div className="d-flex justify-content-between align-items-center">
+                                  <li
+                                    key={index}
+                                    className="border-bottom pb-1 mb-1"
+                                    style={{ paddingBottom: "8px" }}
+                                  >
+                                    <div className="d-flex justify-content-between align-items-center">
 
-    {/* Item Name */}
-    <span style={{ flex: 1 }}>{item.name}</span>
+                                      {/* Item Name */}
+                                      <span style={{ flex: 1 }}>{item.name}</span>
 
-    {/* Quantity */}
-    <span style={{ flex: 0.3, textAlign: "center" }}>
-      {item.qty}
-    </span>
+                                      {/* Quantity */}
+                                      <span style={{ flex: 0.3, textAlign: "center" }}>
+                                        {item.qty}
+                                      </span>
 
-    {/* TOTAL + ORIGINAL PRICE */}
-    <div 
-      className="d-flex flex-column text-end" 
-      style={{ flex: 0.6, lineHeight: "16px" }}
-    >
-      <span 
-        style={{ 
-          fontSize: "16px", 
-          fontWeight: "600", 
-          color: "#4b5563" 
-        }}
-      >
-        {(item.qty * item.price).toFixed(2)}
-      </span>
+                                      {/* TOTAL + ORIGINAL PRICE */}
+                                      <div
+                                        className="d-flex flex-column text-end"
+                                        style={{ flex: 0.6, lineHeight: "16px" }}
+                                      >
+                                        <span
+                                          style={{
+                                            fontSize: "16px",
+                                            fontWeight: "600",
+                                            color: "#4b5563"
+                                          }}
+                                        >
+                                          {(item.qty * item.price).toFixed(2)}
+                                        </span>
 
-      <small 
-        style={{ 
-          fontSize: "12px", 
-          color: "#6b7280" 
-        }}
-      >
-        ({item.price.toFixed(2)})
-      </small>
-    </div>
+                                        <small
+                                          style={{
+                                            fontSize: "12px",
+                                            color: "#6b7280"
+                                          }}
+                                        >
+                                          ({item.price.toFixed(2)})
+                                        </small>
+                                      </div>
 
-  </div>
-</li>
+                                    </div>
+                                  </li>
 
 
                                 ))}
@@ -4122,7 +4121,7 @@ background: darkgreen;
                       fontSize: "0.875rem",
 
                       padding: "0.25rem 0.5rem",
-                      
+
                     }}
                   />
                 </div>
@@ -4138,7 +4137,7 @@ background: darkgreen;
                       height: "28px",
                       fontSize: "0.875rem",
                       padding: "0.25rem 0.5rem",
-                     
+
                     }}
                   />
                   <button
@@ -4386,7 +4385,7 @@ background: darkgreen;
             </div>
             <div className="billing-panel-footer mt-auto flex-shrink-0" style={{ backgroundColor: 'white', position: 'sticky', bottom: 0 }}>
               <div className="p-2">
-                <div className="bg-white border rounded p-2">                  
+                <div className="bg-white border rounded p-2">
                   {showSaveReverseButton && reverseQtyItems.length > 0 && (
                     <Button
                       variant="danger"
@@ -4425,13 +4424,13 @@ background: darkgreen;
                               <i className="fas fa-print"></i> Print KOT & Bill
                             </Button>
                           ) :
-                          <button
-                            className="btn btn-dark rounded btn-sm"
-                            onClick={handlePrintAndSaveKOT}
-                            disabled={reverseQtyMode}
-                          >
-                            🖨️ KOT (F9)
-                          </button>
+                            <button
+                              className="btn btn-dark rounded btn-sm"
+                              onClick={handlePrintAndSaveKOT}
+                              disabled={reverseQtyMode}
+                            >
+                              🖨️ KOT (F9)
+                            </button>
                         ) : (
                           // Case 2: No new items. Show other buttons based on state.
                           <>
@@ -4486,7 +4485,7 @@ background: darkgreen;
                       <span
                         className="fw-bold"
                         style={{ fontSize: '22px' }}
-                      > 
+                      >
                         ₹{Number(taxCalc.grandTotal || 0).toFixed(2)}
                       </span>
                     </div>
@@ -4714,7 +4713,7 @@ background: darkgreen;
               {/* Bill Summary */}
               <div className="p-4 mb-4 bg-white rounded shadow-sm text-center">
                 <h6 className="text-secondary mb-2">Total Amount Due</h6>
-                <div className="fw-bold display-5 text-dark" id="settlement-grand-total"> 
+                <div className="fw-bold display-5 text-dark" id="settlement-grand-total">
                   ₹{taxCalc.grandTotal.toFixed(2)}
                 </div>
               </div>
@@ -4797,13 +4796,13 @@ background: darkgreen;
               {/* Payment Summary */}
               <div className="mt-4 p-3 bg-white rounded shadow-sm">
                 <div className="d-flex justify-content-around fw-bold fs-5">
-                  <div> 
+                  <div>
                     <span>Total Paid: </span>
                     <span className="text-primary" id="settlement-total-paid">{(Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0) + (tip || 0)).toFixed(2)}</span>
                   </div>
                   <div>
                     <span>Balance Due: </span>
-                    <span 
+                    <span
                       className={
                         (taxCalc.grandTotal - (Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0) + (tip || 0))) === 0 ? "text-success" : "text-danger"
                       }
@@ -4894,7 +4893,7 @@ background: darkgreen;
         </div>
       </div>
     </div>
-  
+
   );
 };
 
@@ -4914,7 +4913,7 @@ const ReversedItemsDisplay = ({ items }: { items: ReversedMenuItem[] }) => {
           borderBottom: '1px solid #dee2e6',
         }}
       >
-       
+
       </div>
       {items.map((item, index) => (
         <div
@@ -4932,7 +4931,7 @@ const ReversedItemsDisplay = ({ items }: { items: ReversedMenuItem[] }) => {
           <span style={{ textAlign: 'left' }}>
             {item.name}
             <span className="badge bg-danger fw-bold ms-1" title={`KOT: ${item.kotNo}`}>
-               {item.qty > 0 ? item.qty : ''}
+              {item.qty > 0 ? item.qty : ''}
             </span>
 
           </span>
@@ -4966,4 +4965,4 @@ const ReversedItemsDisplay = ({ items }: { items: ReversedMenuItem[] }) => {
 };
 
 export default Order;
-                  
+
