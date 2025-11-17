@@ -2165,6 +2165,8 @@ exports.getPendingOrders = async (req, res) => {
       SELECT
         b.*,
         b.CustomerName,
+        b.orderNo,
+        (SELECT MAX(d2.KOTNo) FROM TAxnTrnbilldetails d2 WHERE d2.TxnID = b.TxnID) as KOTNo,
         b.outletid,
         b.MobileNo,
         GROUP_CONCAT(
@@ -2190,9 +2192,9 @@ exports.getPendingOrders = async (req, res) => {
     const orders = rows.map(r => ({
       id: r.TxnID,
       txnId: r.TxnID,
-      kotNo: r.TxnNo,
+      kotNo: r.KOTNo,
+      orderNo: r.orderNo,
       outletid: r.outletid,
-      KOTNo: r.KOTNo,
       customer: {
         name: r.CustomerName || '',
         mobile: r.MobileNo || ''

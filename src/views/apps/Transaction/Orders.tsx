@@ -2611,19 +2611,21 @@ if (e.key === "F8" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
 
   const handleLoadPendingOrder = (order: any) => {
     // 1. Hide the pending orders list and show the main order details panel
-    setShowPendingOrdersView(false);
-    setShowOrderDetails(true);
+    setShowPendingOrdersView(false); // Hide the list view
+    setShowOrderDetails(true); // Show the order details panel
 
     // 2. Set the active tab to match the order type
     const orderType = order.type.charAt(0).toUpperCase() + order.type.slice(1);
     setActiveTab(orderType);
+    setActiveNavTab(orderType); // Set the nav tab to update the header correctly
 
     // 3. Load the order's data into the state
-    setCurrentTxnId(order.id);
-     setPersistentTxnId(order.id); // Set the persistent ID for F8 functionality
-    setOrderNo(order.kotNo);
+    setCurrentTxnId(order.id); // Set the transaction ID
+    setPersistentTxnId(order.id); // Set the persistent ID for F8 functionality
+    setOrderNo(order.TxnNo ?? order.orderNo ?? order.OrderNo ?? null); // Set Order No
 
-    setCurrentKOTNo(order.kotNo); // Set KOT number when loading a pending order
+    setCurrentKOTNo(order.KOTNo ?? order.kotNo ?? null); // Set KOT number
+    setCurrentKOTNos(order.KOTNo ? [order.KOTNo] : (order.kotNo ? [order.kotNo] : [])); // Set KOT numbers array
     setCustomerName(order.customer.name);
     setMobileNumber(order.customer.mobile);
     setSelectedOutletId(order.outletid); // Set the outlet ID from the order
@@ -3737,11 +3739,17 @@ if (e.key === "F8" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
                         >
                           <Card.Header className="order-card-header">
                             <div>
+                              <strong>KOT:</strong> {order.KOTNo || order.kotNo || order.kot_no || '—'}
+                              <br />
+                              <strong>Order No:</strong> {order.TxnNo || order.orderNo || order.order_no || '—'}
+                              <br />
                               <strong>Customer:</strong> {order.customer.name || ''}
                               <br />
                               <strong>Mobile:</strong> {order.customer.mobile || 'N/A'}
                             </div>
                           </Card.Header>
+
+
                           <Card.Body className="d-flex flex-column">
                             <div className="order-card-items mb-3">
                               <ul className="list-unstyled">
