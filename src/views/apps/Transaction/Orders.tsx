@@ -2766,10 +2766,8 @@ const Order = () => {
       marginBottom: '8px',
       fontSize: '9pt'
     }}>
-      <div style={{ fontWeight: 'bold', fontSize: '11pt' }}>
-        {getKOTLabel() || 'KITCHEN ORDER TICKET'}
-      </div>
-     
+      <div><strong>KOT No:</strong> {currentKOTNo}</div>
+      <div><strong>Table:</strong> {selectedTable || activeTab}</div>
 
       <div><strong>Date:</strong> {new Date().toLocaleDateString('en-GB')}</div>
       <div><strong>Time:</strong> {new Date().toLocaleTimeString('en-GB')}</div>
