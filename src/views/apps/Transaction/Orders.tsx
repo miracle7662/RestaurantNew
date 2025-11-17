@@ -2867,6 +2867,105 @@ const Order = () => {
       })}
 
     <hr style={{ border: 'none', borderTop: '1px dashed #000', margin: '8px 0' }} />
+    {/* ================= REVERSE QTY BLOCK ================= */}
+{reverseQtyMode && reverseQtyItems.length > 0 && (
+  <>
+    <div
+      style={{
+        textAlign: "center",
+        fontWeight: "bold",
+        color: "#dc3545",
+        marginBottom: "10px",
+        padding: "5px",
+        backgroundColor: "#f8d7da",
+        border: "1px solid #f5c6cb",
+        borderRadius: "4px",
+        fontSize: "9pt",
+      }}
+    >
+      REVERSE QUANTITY ITEMS
+    </div>
+
+    {/* Reverse Qty Items List */}
+    {reverseQtyItems.map((item, index) => (
+      <div
+        key={`reverse-${item.txnDetailId}-${index}`}
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 35px 45px 55px",
+          gap: "5px",
+          paddingBottom: "4px",
+          marginBottom: "4px",
+          backgroundColor: "#fff3cd",
+          border: "1px solid #ffeaa7",
+          borderRadius: "4px",
+          padding: "6px",
+          fontSize: "9pt",
+        }}
+      >
+        {/* Item Name */}
+        <div>
+          {item.name}
+          {formData.modifier_default_option && item.modifier && (
+            <div style={{ fontSize: "7pt", color: "#666" }}>{item.modifier}</div>
+          )}
+        </div>
+
+        {/* Reverse Qty */}
+        <div style={{ textAlign: "center", color: "#dc3545", fontWeight: "bold" }}>
+          -{item.qty}
+        </div>
+
+        {/* Rate */}
+        <div style={{ textAlign: "right" }}>{item.price.toFixed(2)}</div>
+
+        {/* Amount */}
+        {formData.show_item_price && (
+          <div
+            style={{ textAlign: "right", color: "#dc3545", fontWeight: "bold" }}
+          >
+            -{(item.price * item.qty).toFixed(2)}
+          </div>
+        )}
+      </div>
+    ))}
+
+    {/* Reverse Qty Total */}
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        fontWeight: "bold",
+        marginTop: "8px",
+        marginBottom: "8px",
+        fontSize: "10pt",
+      }}
+    >
+      <div style={{ color: "#dc3545" }}>
+        Total Reverse Qty:{" "}
+        {reverseQtyItems.reduce((sum, item) => sum + item.qty, 0)}
+      </div>
+
+      {formData.show_item_price && (
+        <div style={{ color: "#dc3545" }}>
+          -₹
+          {reverseQtyItems
+            .reduce((sum, item) => sum + item.price * item.qty, 0)
+            .toFixed(2)}
+        </div>
+      )}
+    </div>
+
+    <hr
+      style={{
+        border: "none",
+        borderTop: "1px dashed #000",
+        margin: "10px 0",
+      }}
+    />
+  </>
+)}
+
 
 
     {/* ================= TOTALS ================= */}
