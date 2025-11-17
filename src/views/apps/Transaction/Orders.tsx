@@ -3734,17 +3734,19 @@ background: darkgreen;
                           onClick={() => handleLoadPendingOrder(order)}
                           style={{ cursor: 'pointer' }}
                         >
-                          <Card.Header className="order-card-header">
-                            <div>
-                              <strong>KOT:</strong> {order.KOTNo || order.kotNo || order.kot_no || '—'} |
-                              <strong> Order No:</strong> {order.TxnNo || order.orderNo || order.order_no || '—'}
+                          <Card.Header className="order-card-header d-flex flex-column">
+                            <div className="d-flex justify-content-between align-items-center w-100">
+                              <span style={{ fontSize: '1.1rem' }}>
+                                <strong>Order:</strong> {order.TxnNo || order.orderNo || order.order_no || '—'}
+                              </span>
+                              <span>
+                                <strong>KOT:</strong> {order.KOTNo || order.kotNo || order.kot_no || '—'}
+                              </span>
+                            </div>
+                            <div style={{ fontSize: '20px', marginTop: '5px' }}>
+                              <strong style={{ color: '#FFFDE7' }}>{order.customer.name || ''}</strong>
                               <br />
-                              <div style={{ fontSize: '20px' }}>
-                                <strong style={{ color: '#FFFDE7' }}>{order.customer.name || ''}</strong>
-                                <br />
-                                <strong style={{ color: '#FFFDE7' }}>{order.customer.mobile || 'N/A'}</strong>
-                              </div>
-
+                              <strong style={{ color: '#FFFDE7' }}>{order.customer.mobile || 'N/A'}</strong>
                             </div>
                           </Card.Header>
 
@@ -4965,4 +4967,3 @@ const ReversedItemsDisplay = ({ items }: { items: ReversedMenuItem[] }) => {
 };
 
 export default Order;
-
