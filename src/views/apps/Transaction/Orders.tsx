@@ -3671,7 +3671,7 @@ if (e.key === "F8" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
         border-color: #2196f3;
       }
       .order-card-header {
-background: linear-gradient(135deg, #a39ad4 0%, #8cb0e6 100%);
+background: darkgreen;
         color: white;
         border-bottom: none;
         border-radius: 10px 10px 0 0;
@@ -3741,10 +3741,10 @@ background: linear-gradient(135deg, #a39ad4 0%, #8cb0e6 100%);
                               <strong> Order No:</strong> {order.TxnNo || order.orderNo || order.order_no || '—'}
                               <br/>
                               <div style={{ fontSize: '20px' }}>
-  <strong>{order.customer.name || ''}</strong>
-  <br />
-  <strong>{order.customer.mobile || 'N/A'}</strong>
-</div>
+                                <strong style={{ color: '#FFFDE7' }}>{order.customer.name || ''}</strong>
+                                <br />
+                                <strong style={{ color: '#FFFDE7' }}>{order.customer.mobile || 'N/A'}</strong>
+                              </div>
 
                             </div>
                           </Card.Header>
@@ -3754,23 +3754,49 @@ background: linear-gradient(135deg, #a39ad4 0%, #8cb0e6 100%);
                             <div className="order-card-items mb-3">
                               <ul className="list-unstyled">
                                 {order.items.map((item: any, index: number) => (
-                                 <li
+                                <li
   key={index}
   className="border-bottom pb-1 mb-1"
   style={{ paddingBottom: "8px" }}
 >
-  <div className="d-flex justify-content-between">
-    <span>{item.name}</span>
-    <span>{item.qty} × {item.price.toFixed(2)}</span>
-  </div>
+  <div className="d-flex justify-content-between align-items-center">
 
-  {/* Correct Total Price */}
-  <div className="d-flex justify-content-end">
-    <small style={{ fontSize: "13px", color: "#444" }}>
-      ₹{(item.qty * item.price).toFixed(2)}
-    </small>
+    {/* Item Name */}
+    <span style={{ flex: 1 }}>{item.name}</span>
+
+    {/* Quantity */}
+    <span style={{ flex: 0.3, textAlign: "center" }}>
+      {item.qty}
+    </span>
+
+    {/* TOTAL + ORIGINAL PRICE */}
+    <div 
+      className="d-flex flex-column text-end" 
+      style={{ flex: 0.6, lineHeight: "16px" }}
+    >
+      <span 
+        style={{ 
+          fontSize: "16px", 
+          fontWeight: "600", 
+          color: "#4b5563" 
+        }}
+      >
+        {(item.qty * item.price).toFixed(2)}
+      </span>
+
+      <small 
+        style={{ 
+          fontSize: "12px", 
+          color: "#6b7280" 
+        }}
+      >
+        ({item.price.toFixed(2)})
+      </small>
+    </div>
+
   </div>
 </li>
+
 
                                 ))}
                               </ul>
