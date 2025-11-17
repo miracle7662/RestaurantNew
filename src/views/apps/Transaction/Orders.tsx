@@ -2725,9 +2725,8 @@ const Order = () => {
 
     {/* ================= KOT HEADER ================= */}
     <div style={{ textAlign: 'center', marginBottom: '8px' }}>
-      <div style={{ fontWeight: 'bold', fontSize: '11pt' }}>
-        {getKOTLabel() || 'KITCHEN ORDER TICKET'}
-      </div>
+      
+      <div><strong>Order Type:</strong> {activeTab}</div>
       {formData.show_new_order_tag && formData.new_order_tag_label && (
         <div style={{
           backgroundColor: '#007bff',
@@ -2767,13 +2766,15 @@ const Order = () => {
       marginBottom: '8px',
       fontSize: '9pt'
     }}>
-      <div><strong>KOT No:</strong> {currentKOTNo}</div>
-      <div><strong>Table:</strong> {selectedTable || activeTab}</div>
+      <div style={{ fontWeight: 'bold', fontSize: '11pt' }}>
+        {getKOTLabel() || 'KITCHEN ORDER TICKET'}
+      </div>
+     
 
       <div><strong>Date:</strong> {new Date().toLocaleDateString('en-GB')}</div>
       <div><strong>Time:</strong> {new Date().toLocaleTimeString('en-GB')}</div>
 
-      <div><strong>Order Type:</strong> {activeTab}</div>
+      
       <div><strong>Tax:</strong> {includeTaxInInvoice === 1 ? 'Inclusive' : 'Exclusive'}</div>
     </div>
 
@@ -2948,7 +2949,7 @@ const Order = () => {
 
       {formData.show_item_price && (
         <div style={{ color: "#dc3545" }}>
-          -₹
+          ₹
           {reverseQtyItems
             .reduce((sum, item) => sum + item.price * item.qty, 0)
             .toFixed(2)}
