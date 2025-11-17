@@ -974,7 +974,9 @@ const Order = () => {
        // Reset all relevant states for a new order
       setCurrentTxnId(null);
       setPersistentTxnId(null);
-      setTxnNo(null);
+     
+      setCurrentKOTNo(null);
+      setCurrentKOTNos([]);
       setDiscount(0);
       setDiscountInputValue(0);
       setDiscountType(1);
@@ -1692,19 +1694,15 @@ const Order = () => {
           setCurrentKOTNos(receivedKotNo ? [receivedKotNo] : []);
         }
 
-        // For Dine-in, clear items and numbers to ready the panel for the next table.
-        if (activeTab === 'Dine-in') { // This block is now specific to Dine-in
+        // For Dine-in, Pickup, Delivery, and Quick Bill, clear items and numbers to ready the panel for the next order.
+        if (['Dine-in', 'Pickup', 'Delivery', 'Quick Bill'].includes(activeTab)) {
           setItems([]);
           setOrderNo(null);
           setCurrentTxnId(null);
           setCurrentKOTNo(null);
           setCurrentKOTNos([]);
-        } else {
-          // For Pickup/Delivery/QuickBill, just clear the new items list.
-          // The KOT/Order numbers remain for the next step (Billing/Settlement).
-          setItems(items.filter(item => !item.isNew));
         }
-
+        
         // Clear reverse items after successful save and deactivate Reverse Mode
         if (reverseItemsToKOT.length > 0) {
           setReverseQtyItems([]);
