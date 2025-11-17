@@ -3737,8 +3737,21 @@ background: darkgreen;
                           <Card.Header className="order-card-header d-flex flex-column">
                             <div className="d-flex justify-content-between align-items-center w-100">
                               <span style={{ fontSize: '1.1rem' }}>
-                                <strong>Order:</strong> {order.TxnNo || order.orderNo || order.order_no || '—'}
+                                <strong style={{ color: '#f5e8e8ff' }}>Order:</strong>
+
+                                <span
+                                  style={{
+                                    backgroundColor: '#efe7e7ff',
+                                    color: '#f51c40ff',
+                                    padding: '2px 6px',
+                                    borderRadius: '6px',
+                                    marginLeft: '6px'
+                                  }}
+                                >
+                                  {order.TxnNo || order.orderNo || order.order_no || '—'}
+                                </span>
                               </span>
+
                               <span>
                                 <strong>KOT:</strong> {order.KOTNo || order.kotNo || order.kot_no || '—'}
                               </span>
