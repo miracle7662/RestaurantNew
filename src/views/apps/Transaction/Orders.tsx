@@ -3737,10 +3737,9 @@ if (e.key === "F8" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
                         >
                           <Card.Header className="order-card-header">
                             <div>
-                              <strong>KOT:</strong> {order.KOTNo || order.kotNo || order.kot_no || '—'}
-                              <br />
-                              <strong>Order No:</strong> {order.TxnNo || order.orderNo || order.order_no || '—'}
-                              <br />
+                              <strong>KOT:</strong> {order.KOTNo || order.kotNo || order.kot_no || '—'} | 
+                              <strong> Order No:</strong> {order.TxnNo || order.orderNo || order.order_no || '—'}
+                              <br/>
                               <strong>Customer:</strong> {order.customer.name || ''}
                               <br />
                               <strong>Mobile:</strong> {order.customer.mobile || 'N/A'}
