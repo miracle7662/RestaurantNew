@@ -1672,6 +1672,9 @@ const Order = () => {
       console.log('Sending payload to createKOT:', JSON.stringify(kotPayload, null, 2));
       const resp = await createKOT(kotPayload);
       if (resp?.success) {
+        // Debugging: Log the entire data response to check field names
+        console.log("KOT SAVE RESPONSE: ", resp.data);
+
         toast.success('KOT saved successfully!');
  
         // Update TxnNo and TxnID from the response
@@ -1679,8 +1682,14 @@ const Order = () => {
           const { orderNo, TxnID, kotNo } = resp.data;
           setOrderNo(orderNo ?? null);
           setCurrentTxnId(TxnID ?? null);
-          setCurrentKOTNo(kotNo ?? null);
-          setCurrentKOTNos(kotNo ? [kotNo] : []);
+          // Robustly set KOT number, checking for different possible casings
+          const receivedKotNo = resp.data.kotNo ??
+                                resp.data.KOTNo ??
+                                resp.data.kotno ??
+                                resp.data.kot_no ??
+                                null;
+          setCurrentKOTNo(receivedKotNo);
+          setCurrentKOTNos(receivedKotNo ? [receivedKotNo] : []);
         }
 
         // For Dine-in, clear items and numbers to ready the panel for the next table.
