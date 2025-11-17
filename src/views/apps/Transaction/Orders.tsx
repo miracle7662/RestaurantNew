@@ -3671,7 +3671,7 @@ if (e.key === "F8" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
         border-color: #2196f3;
       }
       .order-card-header {
-        background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
+background: linear-gradient(135deg, #a39ad4 0%, #8cb0e6 100%);
         color: white;
         border-bottom: none;
         border-radius: 10px 10px 0 0;
@@ -3740,9 +3740,12 @@ if (e.key === "F8" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
                               <strong>KOT:</strong> {order.KOTNo || order.kotNo || order.kot_no || '—'} | 
                               <strong> Order No:</strong> {order.TxnNo || order.orderNo || order.order_no || '—'}
                               <br/>
-                              <strong>Customer:</strong> {order.customer.name || ''}
-                              <br />
-                              <strong>Mobile:</strong> {order.customer.mobile || 'N/A'}
+                              <div style={{ fontSize: '20px' }}>
+  <strong>{order.customer.name || ''}</strong>
+  <br />
+  <strong>{order.customer.mobile || 'N/A'}</strong>
+</div>
+
                             </div>
                           </Card.Header>
 
@@ -3751,10 +3754,24 @@ if (e.key === "F8" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
                             <div className="order-card-items mb-3">
                               <ul className="list-unstyled">
                                 {order.items.map((item: any, index: number) => (
-                                  <li key={index} className="d-flex justify-content-between border-bottom pb-1 mb-1">
-                                    <span>{item.name}</span>
-                                    <span>{item.qty} @ {item.price.toFixed(2)}</span>
-                                  </li>
+                                 <li
+  key={index}
+  className="border-bottom pb-1 mb-1"
+  style={{ paddingBottom: "8px" }}
+>
+  <div className="d-flex justify-content-between">
+    <span>{item.name}</span>
+    <span>{item.qty} × {item.price.toFixed(2)}</span>
+  </div>
+
+  {/* Correct Total Price */}
+  <div className="d-flex justify-content-end">
+    <small style={{ fontSize: "13px", color: "#444" }}>
+      ₹{(item.qty * item.price).toFixed(2)}
+    </small>
+  </div>
+</li>
+
                                 ))}
                               </ul>
                             </div>
@@ -4077,7 +4094,9 @@ if (e.key === "F8" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
                       width: "150px",
                       height: "28px",
                       fontSize: "0.875rem",
+
                       padding: "0.25rem 0.5rem",
+                      
                     }}
                   />
                 </div>
@@ -4093,6 +4112,7 @@ if (e.key === "F8" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
                       height: "28px",
                       fontSize: "0.875rem",
                       padding: "0.25rem 0.5rem",
+                     
                     }}
                   />
                   <button
