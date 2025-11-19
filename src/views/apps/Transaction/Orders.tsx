@@ -1476,20 +1476,24 @@ const fetchBillPreviewSettings = async (outletId: number) => {
         setOrderNo(printResult.data.TxnNo);
       }
 
-      // 2. Print the bill preview from the existing data
-      const printWindow = window.open('', '_blank');
-      if (printWindow) {
-        const contentToPrint = document.getElementById('bill-preview');
-        if (contentToPrint) {
-          printWindow.document.write(contentToPrint.innerHTML);
-          printWindow.document.close();
-          printWindow.focus();
-          // Use a small timeout to ensure the TxnNo is rendered before printing
-          setTimeout(() => {
-            printWindow.print();
-          }, 100);
-        }
-      }
+      // 2. Silently print the bill using Electron's IPC
+      // Use a small timeout to ensure the UI (especially the new Bill No) has rendered before grabbing the HTML
+    setTimeout(() => {
+  const billHTML = document.getElementById("bill-preview")?.innerHTML;
+
+  if (!billHTML) {
+    toast.error("Bill preview content not found for printing.");
+    return;
+  }
+
+  // If Electron is available → Silent print
+  if (window?.electron?.ipcRenderer) {
+    window.electron.ipcRenderer.invoke("PRINT_BILL", billHTML);
+  }
+
+  // If Electron NOT available → Don't show error message
+  // Just skip printing silently
+}, 100);
 
 
       // 3. Update table status after discount and print

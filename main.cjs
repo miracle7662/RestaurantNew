@@ -1,9 +1,6 @@
-const electron = require('electron');
-const app = electron.app;
-const BrowserWindow = electron.BrowserWindow;
+const { app, BrowserWindow, Menu, ipcMain } = require('electron');
 const path = require('path');
 const url = require('url');
-const Menu = electron.Menu;
 
 let mainWindow;
 
@@ -12,19 +9,20 @@ function createWindow() {
         width: 1200,
         height: 800,
         webPreferences: {
+            preload: path.join(__dirname, "preload.js"),
             nodeIntegration: false,
             contextIsolation: true,
             enableRemoteModule: false,
-            webSecurity: false, // Allow CORS for development
+            webSecurity: false,
             allowRunningInsecureContent: true,
         },
     });
 
-    // Load the app
+    // Load React app
     mainWindow.loadURL('http://localhost:5173');
     mainWindow.webContents.openDevTools();
 
-    // Handle CORS
+    // CORS Handling for API requests
     mainWindow.webContents.session.webRequest.onBeforeSendHeaders((details, callback) => {
         details.requestHeaders['Origin'] = 'http://localhost:5173';
         callback({ requestHeaders: details.requestHeaders });
@@ -35,7 +33,7 @@ function createWindow() {
     });
 }
 
-app.on('ready', function() {
+app.on('ready', function () {
     createWindow();
     const template = [];
     const menu = Menu.buildFromTemplate(template);
@@ -48,8 +46,33 @@ app.on('window-all-closed', () => {
     }
 });
 
-// Handle certificate errors
+// Ignore SSL certificate errors (development)
 app.on('certificate-error', (event, webContents, url, error, certificate, callback) => {
     event.preventDefault();
     callback(true);
+});
+
+/* ----------------------------------------
+   🔥 SILENT DIRECT PRINT (NO PREVIEW)
+-----------------------------------------*/
+ipcMain.handle("PRINT_BILL", async (event, htmlContent) => {
+    const printWindow = new BrowserWindow({
+        show: false,
+        webPreferences: { offscreen: true }
+    });
+
+    await printWindow.loadURL(
+        `data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`
+    );
+
+    printWindow.webContents.print(
+        {
+            silent: true,
+            printBackground: true,
+            deviceName: ""   // Use default printer
+        },
+        () => {
+            printWindow.close();
+        }
+    );
 });
