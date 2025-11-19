@@ -1052,6 +1052,7 @@ const fetchBillPreviewSettings = async (outletId: number) => {
       // Reset all relevant states for a new order
       setCurrentTxnId(null);
       setPersistentTxnId(null);
+      setOrderNo(null);
 
       setCurrentKOTNo(null);
       setCurrentKOTNos([]);
