@@ -2475,6 +2475,102 @@ exports.getBillPreviewSettings = (req, res) => {
   }
 };
 
+exports.getBillPrintSettings = (req, res) => {
+  try {
+    const { outletid } = req.params;
+
+    if (!outletid || isNaN(outletid)) {
+      return res.status(400).json({ error: 'Valid outlet ID is required' });
+    }
+
+    const settings = db
+      .prepare('SELECT * FROM mstbills_print_settings WHERE outletid = ?')
+      .get(outletid);
+
+    if (!settings) {
+      return res.status(404).json({ error: 'Bill print settings not found' });
+    }
+
+    // Convert all 0/1 fields → boolean
+    const bool = (v) => !!Number(v);
+
+    const response = {
+      billprintsetting_id: settings.billprintsetting_id,
+      outletid: settings.outletid,
+
+      bill_title_dine_in: bool(settings.bill_title_dine_in),
+      bill_title_pickup: bool(settings.bill_title_pickup),
+      bill_title_delivery: bool(settings.bill_title_delivery),
+      bill_title_quick_bill: bool(settings.bill_title_quick_bill),
+      mask_order_id: bool(settings.mask_order_id),
+      modifier_default_option_bill: bool(settings.modifier_default_option_bill),
+      print_bill_both_languages: bool(settings.print_bill_both_languages),
+      show_alt_item_title_bill: bool(settings.show_alt_item_title_bill),
+      show_alt_name_bill: bool(settings.show_alt_name_bill),
+      show_bill_amount_words: bool(settings.show_bill_amount_words),
+      show_bill_no_bill: bool(settings.show_bill_no_bill),
+      show_bill_number_prefix_bill: bool(settings.show_bill_number_prefix_bill),
+      show_bill_print_count: bool(settings.show_bill_print_count),
+      show_brand_name_bill: bool(settings.show_brand_name_bill),
+      show_captain_bill: bool(settings.show_captain_bill),
+      show_covers_bill: bool(settings.show_covers_bill),
+      show_custom_qr_codes_bill: bool(settings.show_custom_qr_codes_bill),
+      show_customer_gst_bill: bool(settings.show_customer_gst_bill),
+      show_customer_bill: bool(settings.show_customer_bill),
+      show_customer_paid_amount: bool(settings.show_customer_paid_amount),
+      show_date_bill: bool(settings.show_date_bill),
+      show_default_payment: bool(settings.show_default_payment),
+      show_discount_reason_bill: bool(settings.show_discount_reason_bill),
+      show_due_amount_bill: bool(settings.show_due_amount_bill),
+      show_ebill_invoice_qrcode: bool(settings.show_ebill_invoice_qrcode),
+      show_item_hsn_code_bill: bool(settings.show_item_hsn_code_bill),
+      show_item_level_charges_separately: bool(settings.show_item_level_charges_separately),
+      show_item_note_bill: bool(settings.show_item_note_bill),
+      show_items_sequence_bill: bool(settings.show_items_sequence_bill),
+      show_kot_number_bill: bool(settings.show_kot_number_bill),
+      show_logo_bill: bool(settings.show_logo_bill),
+      show_order_id_bill: bool(settings.show_order_id_bill),
+      show_order_no_bill: bool(settings.show_order_no_bill),
+      show_order_note_bill: bool(settings.show_order_note_bill),
+
+      order_type_dine_in: bool(settings.order_type_dine_in),
+      order_type_pickup: bool(settings.order_type_pickup),
+      order_type_delivery: bool(settings.order_type_delivery),
+      order_type_quick_bill: bool(settings.order_type_quick_bill),
+
+      show_outlet_name_bill: bool(settings.show_outlet_name_bill),
+
+      payment_mode_dine_in: bool(settings.payment_mode_dine_in),
+      payment_mode_pickup: bool(settings.payment_mode_pickup),
+      payment_mode_delivery: bool(settings.payment_mode_delivery),
+      payment_mode_quick_bill: bool(settings.payment_mode_quick_bill),
+
+      table_name_dine_in: bool(settings.table_name_dine_in),
+      table_name_pickup: bool(settings.table_name_pickup),
+      table_name_delivery: bool(settings.table_name_delivery),
+      table_name_quick_bill: bool(settings.table_name_quick_bill),
+
+      show_tax_charge_bill: bool(settings.show_tax_charge_bill),
+      show_username_bill: bool(settings.show_username_bill),
+      show_waiter_bill: bool(settings.show_waiter_bill),
+      show_zatca_invoice_qr: bool(settings.show_zatca_invoice_qr),
+      show_customer_address_pickup_bill: bool(settings.show_customer_address_pickup_bill),
+      show_order_placed_time: bool(settings.show_order_placed_time),
+
+      hide_item_quantity_column: bool(settings.hide_item_quantity_column),
+      hide_item_rate_column: bool(settings.hide_item_rate_column),
+      hide_item_total_column: bool(settings.hide_item_total_column),
+      hide_total_without_tax: bool(settings.hide_total_without_tax),
+    };
+
+    res.json(response);
+  } catch (error) {
+    console.error('Error fetching bill print settings:', error);
+    res.status(500).json({ error: 'Failed to fetch bill print settings' });
+  }
+};
+
+
 // Get KOT Print Settings by outletid
 exports.getKotPrintSettings = (req, res) => {
   try {

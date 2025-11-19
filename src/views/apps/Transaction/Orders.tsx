@@ -740,35 +740,103 @@ const Order = () => {
     }
   };
 
-  const fetchBillPreviewSettings = async (outletId: number) => {
-    try {
-      const res = await fetch(`http://localhost:3001/api/outlets/bill-preview-settings/${outletId}`, {
-        headers: { 'Content-Type': 'application/json' },
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        if (data) {
-          setFormData(prevFormData => ({
-            ...prevFormData,
-            outlet_name: data.outlet_name ?? (prevFormData as any).outlet_name,
-            email: data.email ?? (prevFormData as any).email,
-            website: data.website ?? (prevFormData as any).website,
-            show_phone_on_bill: data.show_phone_on_bill ?? (prevFormData as any).show_phone_on_bill,
-            note: data.note ?? (prevFormData as any).note,
-            footer_note: data.footer_note ?? (prevFormData as any).footer_note,
-            field1: data.field1 ?? (prevFormData as any).field1,
-            field2: data.field2 ?? (prevFormData as any).field2,
-            field3: data.field3 ?? (prevFormData as any).field3,
-            field4: data.field4 ?? (prevFormData as any).field4,
-            fssai_no: data.fssai_no ?? (prevFormData as any).fssai_no,
-          }));
-        }
-      }
-    } catch (err) {
-      console.error('Error fetching bill preview settings:', err);
-    }
-  };
+const fetchBillPreviewSettings = async (outletId: number) => {
+  try {
+    const [previewRes, printRes] = await Promise.all([
+      fetch(`http://localhost:3001/api/outlets/bill-preview-settings/${outletId}`),
+      fetch(`http://localhost:3001/api/outlets/bill-print-settings/${outletId}`)
+    ]);
+    const preview = previewRes.ok ? await previewRes.json() : {};
+    const print = printRes.ok ? await printRes.json() : {};
+    setFormData(prev => ({
+      ...prev,
+      // -----------------------
+      // BILL PREVIEW SETTINGS
+      // -----------------------
+      outlet_name: preview.outlet_name ?? prev.outlet_name,
+      email: preview.email ?? prev.email,
+      website: preview.website ?? prev.website,
+      show_phone_on_bill: preview.show_phone_on_bill ?? prev.show_phone_on_bill,
+      note: preview.note ?? prev.note,
+      footer_note: preview.footer_note ?? prev.footer_note,
+      field1: preview.field1 ?? prev.field1,
+      field2: preview.field2 ?? prev.field2,
+      field3: preview.field3 ?? prev.field3,
+      field4: preview.field4 ?? prev.field4,
+      fssai_no: preview.fssai_no ?? prev.fssai_no,
+      bar_bill_prefix: preview.bar_bill_prefix ?? prev.bar_bill_prefix,
+      secondary_bill_prefix: preview.secondary_bill_prefix ?? prev.secondary_bill_prefix,
+      bill_prefix: preview.bill_prefix ?? prev.bill_prefix,
+      upi_id: preview.upi_id ?? prev.upi_id,
+      show_upi_qr: preview.show_upi_qr ?? prev.show_upi_qr,
+      enabled_bar_section: preview.enabled_bar_section ?? prev.enabled_bar_section,
+      enabled_secondary_section: preview.enabled_secondary_section ?? prev.enabled_secondary_section,
+      enabled_upi_section: preview.enabled_upi_section ?? prev.enabled_upi_section,
+      // -----------------------
+      // BILL PRINT SETTINGS (all 43 toggles)
+      // -----------------------
+      bill_title_dine_in: print.bill_title_dine_in ?? prev.bill_title_dine_in,
+      bill_title_pickup: print.bill_title_pickup ?? prev.bill_title_pickup,
+      bill_title_delivery: print.bill_title_delivery ?? prev.bill_title_delivery,
+      bill_title_quick_bill: print.bill_title_quick_bill ?? prev.bill_title_quick_bill,
+      mask_order_id: print.mask_order_id ?? prev.mask_order_id,
+      modifier_default_option_bill: print.modifier_default_option_bill ?? prev.modifier_default_option_bill,
+      print_bill_both_languages: print.print_bill_both_languages ?? prev.print_bill_both_languages,
+      show_alt_item_title_bill: print.show_alt_item_title_bill ?? prev.show_alt_item_title_bill,
+      show_alt_name_bill: print.show_alt_name_bill ?? prev.show_alt_name_bill,
+      show_bill_amount_words: print.show_bill_amount_words ?? prev.show_bill_amount_words,
+      show_bill_no_bill: print.show_bill_no_bill ?? prev.show_bill_no_bill,
+      show_bill_number_prefix_bill: print.show_bill_number_prefix_bill ?? prev.show_bill_number_prefix_bill,
+      show_bill_print_count: print.show_bill_print_count ?? prev.show_bill_print_count,
+      show_brand_name_bill: print.show_brand_name_bill ?? prev.show_brand_name_bill,
+      show_captain_bill: print.show_captain_bill ?? prev.show_captain_bill,
+      show_covers_bill: print.show_covers_bill ?? prev.show_covers_bill,
+      show_custom_qr_codes_bill: print.show_custom_qr_codes_bill ?? prev.show_custom_qr_codes_bill,
+      show_customer_gst_bill: print.show_customer_gst_bill ?? prev.show_customer_gst_bill,
+      show_customer_bill: print.show_customer_bill ?? prev.show_customer_bill,
+      show_customer_paid_amount: print.show_customer_paid_amount ?? prev.show_customer_paid_amount,
+      show_date_bill: print.show_date_bill ?? prev.show_date_bill,
+      show_default_payment: print.show_default_payment ?? prev.show_default_payment,
+      show_discount_reason_bill: print.show_discount_reason_bill ?? prev.show_discount_reason_bill,
+      show_due_amount_bill: print.show_due_amount_bill ?? prev.show_due_amount_bill,
+      show_ebill_invoice_qrcode: print.show_ebill_invoice_qrcode ?? prev.show_ebill_invoice_qrcode,
+      show_item_hsn_code_bill: print.show_item_hsn_code_bill ?? prev.show_item_hsn_code_bill,
+      show_item_level_charges_separately: print.show_item_level_charges_separately ?? prev.show_item_level_charges_separately,
+      show_item_note_bill: print.show_item_note_bill ?? prev.show_item_note_bill,
+      show_items_sequence_bill: print.show_items_sequence_bill ?? prev.show_items_sequence_bill,
+      show_kot_number_bill: print.show_kot_number_bill ?? prev.show_kot_number_bill,
+      show_logo_bill: print.show_logo_bill ?? prev.show_logo_bill,
+      show_order_id_bill: print.show_order_id_bill ?? prev.show_order_id_bill,
+      show_order_no_bill: print.show_order_no_bill ?? prev.show_order_no_bill,
+      show_order_note_bill: print.show_order_note_bill ?? prev.show_order_note_bill,
+      order_type_dine_in: print.order_type_dine_in ?? prev.order_type_dine_in,
+      order_type_pickup: print.order_type_pickup ?? prev.order_type_pickup,
+      order_type_delivery: print.order_type_delivery ?? prev.order_type_delivery,
+      order_type_quick_bill: print.order_type_quick_bill ?? prev.order_type_quick_bill,
+      show_outlet_name_bill: print.show_outlet_name_bill ?? prev.show_outlet_name_bill,
+      payment_mode_dine_in: print.payment_mode_dine_in ?? prev.payment_mode_dine_in,
+      payment_mode_pickup: print.payment_mode_pickup ?? prev.payment_mode_pickup,
+      payment_mode_delivery: print.payment_mode_delivery ?? prev.payment_mode_delivery,
+      payment_mode_quick_bill: print.payment_mode_quick_bill ?? prev.payment_mode_quick_bill,
+      table_name_dine_in: print.table_name_dine_in ?? prev.table_name_dine_in,
+      table_name_pickup: print.table_name_pickup ?? prev.table_name_pickup,
+      table_name_delivery: print.table_name_delivery ?? prev.table_name_delivery,
+      table_name_quick_bill: print.table_name_quick_bill ?? prev.table_name_quick_bill,
+      show_tax_charge_bill: print.show_tax_charge_bill ?? prev.show_tax_charge_bill,
+      show_username_bill: print.show_username_bill ?? prev.show_username_bill,
+      show_waiter_bill: print.show_waiter_bill ?? prev.show_waiter_bill,
+      show_zatca_invoice_qr: print.show_zatca_invoice_qr ?? prev.show_zatca_invoice_qr,
+      show_customer_address_pickup_bill: print.show_customer_address_pickup_bill ?? prev.show_customer_address_pickup_bill,
+      show_order_placed_time: print.show_order_placed_time ?? prev.show_order_placed_time,
+      hide_item_quantity_column: print.hide_item_quantity_column ?? prev.hide_item_quantity_column,
+      hide_item_rate_column: print.hide_item_rate_column ?? prev.hide_item_rate_column,
+      hide_item_total_column: print.hide_item_total_column ?? prev.hide_item_total_column,
+      hide_total_without_tax: print.hide_total_without_tax ?? prev.hide_total_without_tax,
+    }));
+  } catch (err) {
+    console.error("Error fetching bill settings:", err);
+  }
+};
 
 
   const fetchOutletsData = async () => {
@@ -3012,152 +3080,158 @@ const Order = () => {
           color: '#000'
         }}>
 
-          {/* ================= HEADER ================= */}
+          {/* ================= HEADER (with conditional rendering) ================= */}
           <div style={{ textAlign: 'center', marginBottom: '10px' }}>
-
-            <div style={{ fontWeight: 'bold', fontSize: '12pt', marginBottom: '5px' }}>
-              {user?.outlet_name || (formData as any).outlet_name || 'RESTAURANT'}
-            </div>
-
-            <div style={{ fontSize: '8pt' }}>
-              {user?.outlet_address || (formData as any).address || ''}
-            </div>
-
-            {(formData as any).email && (
-              <div style={{ fontSize: '8pt' }}>Email: {(formData as any).email}</div>
+            {formData.show_logo_bill && (
+              <div style={{ fontWeight: 'bold', fontSize: '12pt', marginBottom: '5px' }}>
+                {formData.show_brand_name_bill ? (user?.hotel_name || 'BRAND NAME') : ''}
+              </div>
             )}
-
-            {(formData as any).website && (
-              <div style={{ fontSize: '8pt' }}>Website: {(formData as any).website}</div>
+            {formData.show_outlet_name_bill && (
+              <div style={{ fontWeight: 'bold', fontSize: '12pt', marginBottom: '5px' }}>
+                {user?.outlet_name || formData.outlet_name || 'RESTAURANT'}
+              </div>
             )}
-
-            {(formData as any).show_phone_on_bill && (
-              <div style={{ fontSize: '8pt' }}>Phone: {(formData as any).show_phone_on_bill}</div>
-            )}
-
-            {(formData as any).fssai_no && (
-              <div style={{ fontSize: '8pt' }}>FSSAI: {(formData as any).fssai_no}</div>
-            )}
-
-            {(formData as any).show_upi_qr && (formData as any).upi_id && (
-              <div style={{ fontSize: '8pt' }}>UPI ID: {(formData as any).upi_id}</div>
-            )}
-
-            {(formData as any).field1 && <div style={{ fontSize: '8pt' }}>{(formData as any).field1}</div>}
-            {(formData as any).field2 && <div style={{ fontSize: '8pt' }}>{(formData as any).field2}</div>}
-            {(formData as any).field3 && <div style={{ fontSize: '8pt' }}>{(formData as any).field3}</div>}
-            {(formData as any).field4 && <div style={{ fontSize: '8pt' }}>{(formData as any).field4}</div>}
+            <div style={{ fontSize: '8pt' }}>{user?.outlet_address || ''}</div>
+            {formData.email && <div style={{ fontSize: '8pt' }}>Email: {formData.email}</div>}
+            {formData.website && <div style={{ fontSize: '8pt' }}>Website: {formData.website}</div>}
+            {formData.show_phone_on_bill && <div style={{ fontSize: '8pt' }}>Phone: {user?.outlet_phone}</div>}
+            {formData.fssai_no && <div style={{ fontSize: '8pt' }}>FSSAI: {formData.fssai_no}</div>}
+            {formData.field1 && <div style={{ fontSize: '8pt' }}>{formData.field1}</div>}
+            {formData.field2 && <div style={{ fontSize: '8pt' }}>{formData.field2}</div>}
+            {formData.field3 && <div style={{ fontSize: '8pt' }}>{formData.field3}</div>}
+            {formData.field4 && <div style={{ fontSize: '8pt' }}>{formData.field4}</div>}
           </div>
 
           <hr style={{ border: 'none', borderTop: '1px dashed #000', margin: '5px 0' }} />
 
-
-          {/* ============ BILL INFO (UPDATED) ============ */}
+          {/* ============ BILL INFO (with conditional rendering) ============ */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: '1fr 1fr 1fr 1.3fr',
+            gridTemplateColumns: 'repeat(4, 1fr)',
             gap: '8px',
             marginBottom: '10px',
             fontSize: '9pt',
-            textAlign: 'center'
           }}>
-
-            <div>
-              <strong>KOT No</strong><br />
-              {currentKOTNos?.length > 0 ? currentKOTNos.join(", ") : currentKOTNo || '—'}
-            </div>
-
-            <div>
-              <strong>Bill No</strong><br />
-              {(formData as any).bill_prefix || ''}{orderNo || ''}
-            </div>
-
-            <div>
-              <strong>Table</strong><br />
-              {selectedTable || '—'}
-            </div>
-
-            <div>
-              <strong>Date & Time</strong><br />
-              {new Date().toLocaleDateString('en-GB')} /
-              {new Date().toLocaleTimeString('en-US', {
-                hour: '2-digit',
-                minute: '2-digit'
-              })}
-            </div>
-
+            {formData.show_kot_number_bill && <div><strong>KOT No:</strong><br />{currentKOTNos?.length > 0 ? currentKOTNos.join(", ") : (currentKOTNo || '—')}</div>}
+            {formData.show_bill_no_bill && <div><strong>Bill No:</strong><br />{formData.show_bill_number_prefix_bill ? (formData.dine_in_kot_no || '') : ''}{orderNo || ''}</div>}
+            {formData.show_order_id_bill && <div><strong>Order ID:</strong><br />{formData.mask_order_id ? '****' : (currentTxnId || '—')}</div>}
+            {((activeTab === 'Dine-in' && formData.table_name_dine_in) ||
+              (activeTab === 'Pickup' && formData.table_name_pickup) ||
+              (activeTab === 'Delivery' && formData.table_name_delivery) ||
+              (activeTab === 'Quick Bill' && formData.table_name_quick_bill)) &&
+              <div><strong>Table:</strong><br />{selectedTable || '—'}</div>
+            }
+            {formData.show_date_bill && <div><strong>Date:</strong><br />{new Date().toLocaleDateString('en-GB')}</div>}
+            {formData.show_order_placed_time && <div><strong>Time:</strong><br />{new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</div>}
+            {formData.show_waiter_bill && <div><strong>Waiter:</strong><br />{user?.name || 'N/A'}</div>}
+            {formData.show_captain_bill && <div><strong>Captain:</strong><br />{user?.name || 'N/A'}</div>}
+            {formData.show_covers_bill && <div><strong>Covers:</strong><br />N/A</div>}
+            {formData.show_bill_print_count && <div><strong>Print Count:</strong><br />1</div>}
           </div>
+
+          {formData.show_customer_bill && (
+            <>
+              <hr style={{ border: 'none', borderTop: '1px dashed #000', margin: '5px 0' }} />
+              <div style={{ fontSize: '9pt', marginBottom: '8px' }}>
+                <div><strong>Customer:</strong> {customerName || 'Guest'}</div>
+                <div><strong>Mobile:</strong> {mobileNumber || 'N/A'}</div>
+                {formData.show_customer_gst_bill && <div><strong>GSTIN:</strong> N/A</div>}
+                {activeTab === 'Pickup' && formData.show_customer_address_pickup_bill && <div><strong>Address:</strong> N/A</div>}
+              </div>
+            </>
+          )}
+
+          {((activeTab === 'Dine-in' && formData.order_type_dine_in) ||
+            (activeTab === 'Pickup' && formData.order_type_pickup) ||
+            (activeTab === 'Delivery' && formData.order_type_delivery) ||
+            (activeTab === 'Quick Bill' && formData.order_type_quick_bill)) &&
+            (
+              <>
+                <hr style={{ border: 'none', borderTop: '1px dashed #000', margin: '5px 0' }} />
+                <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '10pt', marginBottom: '5px' }}>
+                  {activeTab === 'Dine-in' && formData.bill_title_dine_in && 'Dine-In Bill'}
+                  {activeTab === 'Pickup' && formData.bill_title_pickup && 'Pickup Bill'}
+                  {activeTab === 'Delivery' && formData.bill_title_delivery && 'Delivery Bill'}
+                  {activeTab === 'Quick Bill' && formData.bill_title_quick_bill && 'Quick Bill'}
+                </div>
+              </>
+            )
+          }
 
           <hr style={{ border: 'none', borderTop: '1px dashed #000', margin: '5px 0' }} />
 
-
-          {/* ============ ITEMS TABLE (UPDATED FORMAT) ============ */}
+          {/* ============ ITEMS TABLE (with conditional rendering) ============ */}
           <div style={{ marginBottom: '10px' }}>
             <div style={{
               display: 'grid',
-              gridTemplateColumns: '2fr 30px 40px 50px',
+              gridTemplateColumns: `${formData.print_bill_both_languages ? '3fr' : '2fr'} ${!formData.hide_item_quantity_column ? '30px' : ''} ${!formData.hide_item_rate_column ? '40px' : ''} ${!formData.hide_item_total_column ? '50px' : ''}`,
               gap: '5px',
               fontWeight: 'bold',
               borderBottom: '1px solid #000',
               paddingBottom: '2px',
               marginBottom: '5px',
               fontSize: '9pt'
-            }}>
-              <div>Description</div>
-              <div style={{ textAlign: 'right' }}>Qty</div>
-              <div style={{ textAlign: 'right' }}>Rate</div>
-              <div style={{ textAlign: 'right' }}>Amount</div>
+          }}
+          >
+              <div>{formData.show_alt_item_title_bill && formData.print_bill_both_languages ? 'Item/항목' : 'Description'}</div>
+            {!formData.hide_item_quantity_column && <div style={{ textAlign: 'right' }}>Qty</div>}
+            {!formData.hide_item_rate_column && <div style={{ textAlign: 'right' }}>Rate</div>}
+            {!formData.hide_item_total_column && <div style={{ textAlign: 'right' }}>Amount</div>}
             </div>
 
             {Object.values(
               items.reduce((acc: any, item: any) => {
-                if (!acc[item.name]) acc[item.name] = { ...item, qty: 0 };
-                acc[item.name].qty += item.qty;
+              const key = formData.show_items_sequence_bill ? `${item.id}-${item.price}` : String(item.id);
+                if (!acc[key]) acc[key] = { ...item, qty: 0 };
+                acc[key].qty += item.qty;
                 return acc;
               }, {})
             ).map((item: any, index: number) => (
               <div key={index} style={{
                 display: 'grid',
-                gridTemplateColumns: '2fr 30px 40px 50px',
+              gridTemplateColumns: `${formData.print_bill_both_languages ? '3fr' : '2fr'} ${!formData.hide_item_quantity_column ? '30px' : ''} ${!formData.hide_item_rate_column ? '40px' : ''} ${!formData.hide_item_total_column ? '50px' : ''}`.trim().replace(/ +/g, ' '),
                 gap: '5px',
                 padding: '2px 0',
                 fontSize: '9pt'
-              }}>
-                <div>{item.name}</div>
-                <div style={{ textAlign: 'right' }}>{item.qty}</div>
-                <div style={{ textAlign: 'right' }}>{item.price.toFixed(2)}</div>
-                <div style={{ textAlign: 'right' }}>{(item.qty * item.price).toFixed(2)}</div>
+            }}
+            >
+                <div>
+                  {item.name}
+                  {formData.print_bill_both_languages && formData.show_alt_name_bill && item.alternativeItem && ` / ${item.alternativeItem}`}
+                  {formData.show_item_note_bill && item.note && <div style={{ fontSize: '8pt', color: '#6c757d' }}>{item.note}</div>}
+                  {formData.modifier_default_option_bill && item.modifier && <div style={{ fontSize: '8pt', color: '#6c757d' }}>{item.modifier.join(', ')}</div>}
+                  {formData.show_item_hsn_code_bill && <div>HSN: {item.hsn || 'N/A'}</div>}
+                </div>
+                {!formData.hide_item_quantity_column && <div style={{ textAlign: 'right' }}>{item.qty}</div>}
+                {!formData.hide_item_rate_column && <div style={{ textAlign: 'right' }}>{item.price.toFixed(2)}</div>}
+                {!formData.hide_item_total_column && <div style={{ textAlign: 'right' }}>{(item.qty * item.price).toFixed(2)}</div>}
               </div>
             ))}
           </div>
 
           <hr style={{ border: 'none', borderTop: '1px dashed #000', margin: '5px 0' }} />
 
-
-          {/* ================= TOTALS ================= */}
-          <div style={{ textAlign: 'right', fontSize: '9pt', marginBottom: '5px' }}>
+          {/* ================= TOTALS (with conditional rendering) ================= */}
+          <div style={{ textAlign: 'right', fontSize: '9pt', marginBottom: '5px' }} >
+            {!formData.hide_total_without_tax && <div>Subtotal: ₹{taxCalc.subtotal.toFixed(2)}</div>}
             {discount > 0 && (
-              <div>Discount: -₹{discount.toFixed(2)}</div>
+              <>
+                <div>Discount: -₹{discount.toFixed(2)}</div>
+                {formData.show_discount_reason_bill && reason && <div style={{ fontSize: '8pt' }}>({reason})</div>}
+              </>
             )}
-
-            <div><strong>Taxable Value:</strong> ₹{(taxCalc.subtotal - discount).toFixed(2)}</div>
-
-            {taxCalc.cgstAmt > 0 && (
-              <div>CGST @{taxRates.cgst}%: ₹{taxCalc.cgstAmt.toFixed(2)}</div>
+            {formData.show_tax_charge_bill && (
+              <>
+                <div><strong>Taxable Value:</strong> ₹{(taxCalc.subtotal - discount).toFixed(2)}</div>
+                {taxCalc.cgstAmt > 0 && <div>CGST @{taxRates.cgst}%: ₹{taxCalc.cgstAmt.toFixed(2)}</div>}
+                {taxCalc.sgstAmt > 0 && <div>SGST @{taxRates.sgst}%: ₹{taxCalc.sgstAmt.toFixed(2)}</div>}
+                {taxCalc.igstAmt > 0 && <div>IGST @{taxRates.igst}%: ₹{taxCalc.igstAmt.toFixed(2)}</div>}
+              </>
             )}
-
-            {taxCalc.sgstAmt > 0 && (
-              <div>SGST @{taxRates.sgst}%: ₹{taxCalc.sgstAmt.toFixed(2)}</div>
-            )}
-
-            {taxCalc.igstAmt > 0 && (
-              <div>IGST @{taxRates.igst}%: ₹{taxCalc.igstAmt.toFixed(2)}</div>
-            )}
-
             {roundOffEnabled && roundOffValue !== 0 && (
               <div>Round Off: {roundOffValue > 0 ? '+' : ''}₹{roundOffValue.toFixed(2)}</div>
             )}
-
             <div style={{
               fontWeight: 'bold',
               fontSize: '10pt',
@@ -3166,18 +3240,36 @@ const Order = () => {
             }}>
               GRAND TOTAL: ₹{taxCalc.grandTotal.toFixed(2)}
             </div>
+            {formData.show_bill_amount_words && <div>In Words: {/* TODO: Function to convert number to words needed */}</div>}
+            {formData.show_customer_paid_amount && <div>Paid: ₹{taxCalc.grandTotal.toFixed(2)}</div>}
+            {formData.show_due_amount_bill && <div>Due: ₹0.00</div>}
           </div>
 
-          {/* Note */}
-          {(formData as any).note && (
-            <div style={{ textAlign: 'center', fontSize: '8pt', marginTop: '5px' }}>
-              {(formData as any).note}
-            </div>
+          {formData.show_order_note_bill && formData.note && (
+            <div style={{ textAlign: 'center', fontSize: '8pt', marginTop: '5px' }}>{formData.note}</div>
           )}
 
-          {/* Footer */}
+          {((activeTab === 'Dine-in' && formData.payment_mode_dine_in) ||
+            (activeTab === 'Pickup' && formData.payment_mode_pickup) ||
+            (activeTab === 'Delivery' && formData.payment_mode_delivery) ||
+            (activeTab === 'Quick Bill' && formData.payment_mode_quick_bill)) &&
+            formData.show_default_payment && (
+              <>
+                <hr style={{ border: 'none', borderTop: '1px dashed #000', margin: '5px 0' }} />
+                <div style={{ textAlign: 'center', fontSize: '9pt' }}>Payment Mode: {selectedPaymentModes.join(', ') || 'Cash'}</div>
+              </>
+            )
+          }
+
+          {/* QR Codes */}
+          {formData.show_custom_qr_codes_bill && <div>{/* Custom QR Code Image */}</div>}
+          {formData.show_ebill_invoice_qrcode && <div>{/* E-bill QR Code Image */}</div>}
+          {formData.show_zatca_invoice_qr && <div>{/* ZATCA QR Code Image */}</div>}
+
+          <hr style={{ border: 'none', borderTop: '1px dashed #000', margin: '5px 0' }} />
+
           <div style={{ textAlign: 'center', fontSize: '8pt', marginTop: '10px' }}>
-            {(formData as any).footer_note || 'STAY SAFE, STAY HEALTHY'}
+            {formData.footer_note || 'STAY SAFE, STAY HEALTHY'}
           </div>
 
         </div>

@@ -33,6 +33,10 @@ router.get('/settings/:outletid',  outletController.getOutletBillingSettings);
 
 // GET bill preview settings
 router.get('/bill-preview-settings/:outletid', outletController.getBillPreviewSettings);
+router.get('/bill-print-settings/:outletid', outletController.getBillPrintSettings);
+
+
+
 
 // PUT update bill preview settings
 router.put('/bill-preview-settings/:outletid', outletController.updateBillPreviewSettings);
