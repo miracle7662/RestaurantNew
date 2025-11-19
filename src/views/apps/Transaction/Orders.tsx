@@ -196,6 +196,7 @@ const Order = () => {
   const [pendingType, setPendingType] = useState<'pickup' | 'delivery' | null>(null);
   const [pendingOrders, setPendingOrders] = useState<any[]>([]);
   const [loadingPending, setLoadingPending] = useState<boolean>(false);
+  const [printTrigger, setPrintTrigger] = useState<number>(0);
   const [errorPending, setErrorPending] = useState<string | null>(null);
 
   // States for Pending Order Form
@@ -2355,6 +2356,15 @@ const fetchBillPreviewSettings = async (outletId: number) => {
   }, [departments, selectedOutletId, items, selectedTable]);
 
   useEffect(() => {
+    if (printTrigger > 0 && items.length > 0) {
+      handlePrintBill();
+      // Reset the trigger to prevent re-printing on other item changes
+      setPrintTrigger(0);
+    }
+  }, [printTrigger, items]);
+
+
+  useEffect(() => {
     if (activeTab === 'Dine-in' && !showOrderDetails && tableSearchInputRef.current) {
       tableSearchInputRef.current.focus();
     }
@@ -2716,17 +2726,31 @@ const fetchBillPreviewSettings = async (outletId: number) => {
   };
 
   const handlePrintPendingOrder = async (order: any) => {
-    // 1. Load the order data into the state, similar to handlePendingMakePayment
+    // 1. Load the full order data into the state, similar to handleLoadPendingOrder
+    const orderType = order.type.charAt(0).toUpperCase() + order.type.slice(1);
+    setActiveTab(orderType);
+    setActiveNavTab(orderType);
+
     setCurrentTxnId(order.id);
-    setOrderNo(order.kotNo || `Order-${order.id}`);
-    const orderItems = order.items.map((i: any) => ({ ...i, isBilled: 0, isNew: false }));
-    setItems(orderItems);
+    setPersistentTxnId(order.id);
+    setOrderNo(order.TxnNo ?? order.orderNo ?? null);
+    setCurrentKOTNo(order.KOTNo ?? order.kotNo ?? null);
+    setCurrentKOTNos(order.KOTNo ? [order.KOTNo] : (order.kotNo ? [order.kotNo] : []));
+    setCustomerName(order.customer.name);
+    setMobileNumber(order.customer.mobile);
     setSelectedOutletId(order.outletid);
 
-    // 2. Use a timeout to ensure state is updated before printing
-    setTimeout(() => {
-      handlePrintBill();
-    }, 100); // A small delay is usually sufficient
+    const existingItems = order.items.map((item: any) => ({
+      ...item,
+      id: item.ItemID,
+      txnDetailId: item.TXnDetailID,
+      isNew: false,
+      isBilled: 0, // Mark as unbilled for printing
+    }));
+    setItems(existingItems);
+
+    // 2. Trigger the print action. The useEffect will handle the rest.
+    setPrintTrigger(c => c + 1);
   };
 
   const fetchPaymentModesForOutlet = async (outletId: number) => {
