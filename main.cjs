@@ -1,6 +1,9 @@
-const { app, BrowserWindow, Menu, ipcMain } = require('electron');
+const electron = require('electron');
+const app = electron.app;
+const BrowserWindow = electron.BrowserWindow;
 const path = require('path');
 const url = require('url');
+const Menu = electron.Menu;
 
 let mainWindow;
 
@@ -9,20 +12,19 @@ function createWindow() {
         width: 1200,
         height: 800,
         webPreferences: {
-            preload: path.join(__dirname, "preload.js"),
             nodeIntegration: false,
             contextIsolation: true,
             enableRemoteModule: false,
-            webSecurity: false,
+            webSecurity: false, // Allow CORS for development
             allowRunningInsecureContent: true,
         },
     });
 
-    // Load React app
+    // Load the app
     mainWindow.loadURL('http://localhost:5173');
     mainWindow.webContents.openDevTools();
 
-    // CORS Handling for API requests
+    // Handle CORS
     mainWindow.webContents.session.webRequest.onBeforeSendHeaders((details, callback) => {
         details.requestHeaders['Origin'] = 'http://localhost:5173';
         callback({ requestHeaders: details.requestHeaders });
@@ -33,7 +35,7 @@ function createWindow() {
     });
 }
 
-app.on('ready', function () {
+app.on('ready', function() {
     createWindow();
     const template = [];
     const menu = Menu.buildFromTemplate(template);
@@ -46,35 +48,8 @@ app.on('window-all-closed', () => {
     }
 });
 
-// Ignore SSL certificate errors (development)
+// Handle certificate errors
 app.on('certificate-error', (event, webContents, url, error, certificate, callback) => {
     event.preventDefault();
     callback(true);
-});
-
-/* ----------------------------------------
-   🔥 SILENT DIRECT PRINT (NO PREVIEW)
------------------------------------------*/
-ipcMain.handle("PRINT_BILL", async (event, htmlContent) => {
-     console.log("PRINT_BILL called!");
-    console.log("HTML length:", htmlContent?.length);
-    const printWindow = new BrowserWindow({
-        show: false,
-        webPreferences: { offscreen: true }
-    });
-
-    await printWindow.loadURL(
-        `data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`
-    );
-
-    printWindow.webContents.print(
-        {
-            silent: true,
-            printBackground: true,
-            deviceName: "EPSON TM-T82X Receipt"   // Use default printer
-        },
-        () => {
-            printWindow.close();
-        }
-    );
 });

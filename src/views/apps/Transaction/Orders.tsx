@@ -495,6 +495,15 @@ const Order = () => {
     field3: '',
     field4: '',
     fssai_no: '',
+    bar_bill_prefix: '',
+    secondary_bill_prefix: '',
+    bill_prefix: '',
+    upi_id: '',
+    show_upi_qr: false,
+    enabled_bar_section: false,
+    enabled_secondary_section: false,
+    enabled_bill_section: false,
+    enabled_upi_section: false,
 
   });
 
@@ -891,18 +900,6 @@ const fetchBillPreviewSettings = async (outletId: number) => {
     };
     fetchData();
   }, [user?.id, user?.hotelid, user?.outletid, user?.role_level]);
-
-  // ✅ [FIX] Step 1: Add useEffect to detect Electron environment on component mount
-  useEffect(() => {
-    console.log("Checking for Electron environment...");
-    if (window.electron && window.electron.ipcRenderer) {
-      console.log("✅ Success: Electron environment detected. ipcRenderer is available.");
-    } else {
-      console.error("❌ Error: Not running in Electron or preload.js is not working correctly.");
-      console.log("window.electron:", window.electron);
-    }
-  }, []);
-
 
   // Set default outlet ID based on logged-in user
   useEffect(() => {
@@ -1488,24 +1485,20 @@ const fetchBillPreviewSettings = async (outletId: number) => {
         setOrderNo(printResult.data.TxnNo);
       }
 
-      // 2. Silently print the bill using Electron's IPC
-      // Use a small timeout to ensure the UI (especially the new Bill No) has rendered before grabbing the HTML
-    setTimeout(() => {
-  const billHTML = document.getElementById("bill-preview")?.innerHTML;
-
-  if (!billHTML) {
-    toast.error("Bill preview content not found for printing.");
-    return;
-  }
-
-  // If Electron is available → Silent print
-  if (window?.electron?.ipcRenderer) {
-    window.electron.ipcRenderer.invoke("PRINT_BILL", billHTML);
-  }
-
-  // If Electron NOT available → Don't show error message
-  // Just skip printing silently
-}, 100);
+      // 2. Print the bill preview from the existing data
+      const printWindow = window.open('', '_blank');
+      if (printWindow) {
+        const contentToPrint = document.getElementById('bill-preview');
+        if (contentToPrint) {
+          printWindow.document.write(contentToPrint.innerHTML);
+          printWindow.document.close();
+          printWindow.focus();
+          // Use a small timeout to ensure the TxnNo is rendered before printing
+          setTimeout(() => {
+            printWindow.print();
+          }, 100);
+        }
+      }
 
 
       // 3. Update table status after discount and print
@@ -5128,4 +5121,3 @@ const ReversedItemsDisplay = ({ items }: { items: ReversedMenuItem[] }) => {
 };
 
 export default Order;
- 
