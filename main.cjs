@@ -56,6 +56,8 @@ app.on('certificate-error', (event, webContents, url, error, certificate, callba
    🔥 SILENT DIRECT PRINT (NO PREVIEW)
 -----------------------------------------*/
 ipcMain.handle("PRINT_BILL", async (event, htmlContent) => {
+     console.log("PRINT_BILL called!");
+    console.log("HTML length:", htmlContent?.length);
     const printWindow = new BrowserWindow({
         show: false,
         webPreferences: { offscreen: true }
@@ -69,7 +71,7 @@ ipcMain.handle("PRINT_BILL", async (event, htmlContent) => {
         {
             silent: true,
             printBackground: true,
-            deviceName: ""   // Use default printer
+            deviceName: "EPSON TM-T82X Receipt"   // Use default printer
         },
         () => {
             printWindow.close();

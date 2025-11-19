@@ -892,6 +892,18 @@ const fetchBillPreviewSettings = async (outletId: number) => {
     fetchData();
   }, [user?.id, user?.hotelid, user?.outletid, user?.role_level]);
 
+  // ✅ [FIX] Step 1: Add useEffect to detect Electron environment on component mount
+  useEffect(() => {
+    console.log("Checking for Electron environment...");
+    if (window.electron && window.electron.ipcRenderer) {
+      console.log("✅ Success: Electron environment detected. ipcRenderer is available.");
+    } else {
+      console.error("❌ Error: Not running in Electron or preload.js is not working correctly.");
+      console.log("window.electron:", window.electron);
+    }
+  }, []);
+
+
   // Set default outlet ID based on logged-in user
   useEffect(() => {
     if (user?.outletid && !selectedOutletId) {
@@ -5116,3 +5128,4 @@ const ReversedItemsDisplay = ({ items }: { items: ReversedMenuItem[] }) => {
 };
 
 export default Order;
+ 
