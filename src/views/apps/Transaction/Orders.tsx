@@ -1539,6 +1539,7 @@ const fetchBillPreviewSettings = async (outletId: number) => {
 
 
       fetchTableManagement();
+      window.location.reload();
     } catch (error: any) {
       console.error('Error printing bill:', error);
       toast.error(error.message || 'An error occurred while printing the bill.');
