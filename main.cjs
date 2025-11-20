@@ -5,6 +5,8 @@ const path = require('path');
 const url = require('url');
 const Menu = electron.Menu;
 
+const ipcMain = electron.ipcMain;
+
 let mainWindow;
 
 function createWindow() {
@@ -15,6 +17,7 @@ function createWindow() {
             nodeIntegration: false,
             contextIsolation: true,
             enableRemoteModule: false,
+            preload: path.join(__dirname, 'preload.js'),
             webSecurity: false, // Allow CORS for development
             allowRunningInsecureContent: true,
         },
@@ -32,6 +35,11 @@ function createWindow() {
 
     mainWindow.on('closed', () => {
         mainWindow = null;
+    });
+
+    // IPC handlers
+    ipcMain.handle('get-installed-printers', async () => {
+        return await mainWindow.webContents.getPrintersAsync();
     });
 }
 

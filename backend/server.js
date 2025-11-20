@@ -44,6 +44,8 @@ const settlementRoutes = require('./routes/settlementRoutes');
 const WarehouseRoutes= require('./routes/WarehouseRoutes');
 const ReportRoutes = require('./routes/ReportRoutes');
 
+const settingsRoutes = require("./routes/settingsRoutes");
+
 
 
 
@@ -92,6 +94,8 @@ app.use('/api/TAxnTrnbill', TAxnTrnbillRoutes);
 app.use('/api/settlements', settlementRoutes);
 app.use('/api/warehouse', WarehouseRoutes); // Register warehouse routes
 app.use('/api/reports', ReportRoutes); // Register report routes
+app.use("/api/settings", settingsRoutes);
+
 
 // ✅ Add a health check endpoint
 app.get('/api/health', (req, res) => {
