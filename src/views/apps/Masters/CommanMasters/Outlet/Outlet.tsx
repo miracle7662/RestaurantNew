@@ -6,6 +6,7 @@ import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import AddOutlet from './AddOutlet';
 import ModifyOutletSettingsModal from './ModifyoutletSettings'; // Import the modal component
+import PrintSetting from './PrintSetting';
 import outletService, { OutletData } from '@/common/api/outlet';
 import masterDataService, { Country, Timezone, TimeOption } from '@/common/api/masterData';
 import { useAuthContext } from '@/common';
@@ -60,6 +61,7 @@ const OutletList: React.FC = () => {
   const [modalType, setModalType] = useState('');
   const [selectedOutlet, setSelectedOutlet] = useState<OutletData | null>(null);
   const [showAddOutlet, setShowAddOutlet] = useState(false);
+  const [showPrintSetting, setShowPrintSetting] = useState(false);
 
   const [outlets, setOutlets] = useState<OutletData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -255,6 +257,11 @@ const OutletList: React.FC = () => {
       return;
     }
 
+    if (type === 'Print Settings' && outlet) {
+      setShowPrintSetting(true);
+      return;
+    }
+
     if (outlet && type === 'Edit Item') {
       loadOutletDataIntoForm(outlet);
     } else {
@@ -311,6 +318,11 @@ const OutletList: React.FC = () => {
 
   const handleBackToOutletList = () => {
     setShowAddOutlet(false);
+    setSelectedOutlet(null);
+  };
+
+  const handleBackFromPrintSetting = () => {
+    setShowPrintSetting(false);
     setSelectedOutlet(null);
   };
 
@@ -552,6 +564,14 @@ const OutletList: React.FC = () => {
           >
             <i className="fi fi-rr-settings"></i>
           </button>
+              <button
+  className="btn btn-sm btn-primary"
+  title="Print Settings"
+  onClick={() => handleShowModal('Print Settings', row.original)}
+  style={{ marginRight: '5px' }}
+>
+  <i className="fi fi-rr-print"></i>
+</button>
           <button
             className="btn btn-sm btn-secondary"
             title="Download QR Code"
@@ -632,7 +652,9 @@ const OutletList: React.FC = () => {
   return (
     <div className="m-1">
       <ToastContainer />
-      {!showAddOutlet ? (
+      {showPrintSetting ? (
+        <PrintSetting selectedOutlet={selectedOutlet} onBack={handleBackFromPrintSetting} />
+      ) : !showAddOutlet ? (
         <Card className="m-1">
           <div className="d-flex justify-content-between align-items-center p-3 border-bottom">
             <h4 className="mb-0">Outlet List</h4>
@@ -751,19 +773,6 @@ const OutletList: React.FC = () => {
               />
               <p className="mt-2">Scan this QR code for outlet access.</p>
               <div className="mt-4">
-                <div className="input-group mb-3">
-                  <input
-                    type="text"
-                    className="form-control"
-                    value={`https://ordertmbill.com/outlet/${selectedOutlet.outletid}`}
-                    readOnly
-                  />
-                  <Button
-                    variant="dark"
-                  >
-                    Copy Link
-                  </Button>
-                </div>
                 <div className="d-flex justify-content-center gap-3">
                   <Button
                     variant="secondary"
