@@ -6,7 +6,6 @@ import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import AddOutlet from './AddOutlet';
 import ModifyOutletSettingsModal from './ModifyoutletSettings'; // Import the modal component
-import PrintSetting from './PrintSetting';
 import outletService, { OutletData } from '@/common/api/outlet';
 import masterDataService, { Country, Timezone, TimeOption } from '@/common/api/masterData';
 import { useAuthContext } from '@/common';
@@ -61,8 +60,7 @@ const OutletList: React.FC = () => {
   const [modalType, setModalType] = useState('');
   const [selectedOutlet, setSelectedOutlet] = useState<OutletData | null>(null);
   const [showAddOutlet, setShowAddOutlet] = useState(false);
-  const [showPrintSetting, setShowPrintSetting] = useState(false);
-
+ 
   const [outlets, setOutlets] = useState<OutletData[]>([]);
   const [loading, setLoading] = useState(true);
   const [brands, setBrands] = useState<Array<{ hotelid: number; hotel_name: string }>>([]);
@@ -257,10 +255,7 @@ const OutletList: React.FC = () => {
       return;
     }
 
-    if (type === 'Print Settings' && outlet) {
-      setShowPrintSetting(true);
-      return;
-    }
+ 
 
     if (outlet && type === 'Edit Item') {
       loadOutletDataIntoForm(outlet);
@@ -559,14 +554,6 @@ const OutletList: React.FC = () => {
           >
             <i className="fi fi-rr-settings"></i>
           </button>
-              <button
-  className="btn btn-sm btn-primary"
-  title="Print Settings"
-  onClick={() => handleShowModal('Print Settings', row.original)}
-  style={{ marginRight: '5px' }}
->
-  <i className="fi fi-rr-print"></i>
-</button>
           <button
             className="btn btn-sm btn-secondary"
             title="Download QR Code"
@@ -1302,13 +1289,6 @@ const OutletList: React.FC = () => {
         onHide={handleCloseSettingsModal}
         selectedOutlet={selectedOutlet}
         handleUpdate={handleUpdate}
-      />
-
-      {/* Add PrintSetting Modal */}
-      <PrintSetting
-        show={showPrintSetting}
-        onHide={() => setShowPrintSetting(false)}
-        selectedOutlet={selectedOutlet}
       />
     </div>
   );
