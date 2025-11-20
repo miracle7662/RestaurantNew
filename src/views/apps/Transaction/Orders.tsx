@@ -1973,6 +1973,11 @@ const fetchBillPreviewSettings = async (outletId: number) => {
       // 6. Refresh table list
       fetchTableManagement();
 
+      // 7. If the settled order was a Pickup or Delivery, go back to the Dine-in table view.
+      if (activeTab === 'Pickup' || activeTab === 'Delivery') {
+        handleBackToTables();
+      }
+
     } catch (error: any) {
       toast.error(
         error.message || 'An error occurred during the print & settle process.'
@@ -2594,10 +2599,6 @@ const fetchBillPreviewSettings = async (outletId: number) => {
       setShowSettlementModal(false);
       setBillActionState('initial');
 
-      // If the settled order was a Pickup or Delivery, go back to the Dine-in table view.
-      if (activeTab === 'Pickup' || activeTab === 'Delivery') {
-        handleBackToTables();
-      }
 
       if (selectedTable) {
         const tableToUpdate = tableItems.find(t => t.table_name === selectedTable);
@@ -2614,6 +2615,11 @@ const fetchBillPreviewSettings = async (outletId: number) => {
       setShowPendingOrdersView(false); // Hide pending view after successful settlement
       setCurrentKOTNos([]);
       setOrderNo(null);
+
+      // If the settled order was a Pickup or Delivery, go back to the Dine-in table view.
+      if (activeTab === 'Pickup' || activeTab === 'Delivery') {
+        handleBackToTables();
+      }
 
     } catch (error: any) {
       console.error('Error settling bill:', error);
