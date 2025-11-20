@@ -1890,39 +1890,21 @@ const fetchBillPreviewSettings = async (outletId: number) => {
 
 
   const handlePrintAndSettle = async () => {
-    if (items.length === 0) {
-      toast.error('No items to process.');
-      return;
-    }
-
-    if (!currentTxnId) {
-      toast.error('Cannot proceed. No transaction ID found.');
-      return;
-    }
+    if (items.length === 0) { toast.error('No items to process.'); return; }
+    if (!currentTxnId) { toast.error('Cannot proceed. No transaction ID found.'); return; }
 
     setLoading(true);
     try {
-      // ✅ Step 1: Print bill first and mark as billed
-      const printResponse = await fetch(
-        `http://localhost:3001/api/TAxnTrnbill/${currentTxnId}/mark-billed`,
-        {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            outletId: selectedOutletId || Number(user?.outletid),
-          }),
-        }
-      );
+      // 1. Mark as Billed
+      const billedRes = await fetch(`http://localhost:3001/api/TAxnTrnbill/${currentTxnId}/mark-billed`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ outletId: selectedOutletId || Number(user?.outletid) }),
+      });
+      const billedData = await billedRes.json();
+      if (!billedData.success) throw new Error(billedData.message || 'Failed to mark as billed.');
 
-      const printResult = await printResponse.json();
-
-      if (!printResult.success) {
-        throw new Error(printResult.message || 'Failed to mark bill as printed.');
-      }
-
-      toast.success('Bill marked as printed!');
-
-      // ✅ Step 2: Print the bill visually
+      // 2. Print Bill
       const printWindow = window.open('', '_blank');
       if (printWindow) {
         const contentToPrint = document.getElementById('bill-preview');
@@ -1930,17 +1912,67 @@ const fetchBillPreviewSettings = async (outletId: number) => {
           printWindow.document.write(contentToPrint.innerHTML);
           printWindow.document.close();
           printWindow.focus();
-          await new Promise((resolve) => setTimeout(resolve, 500)); // short delay
+          await new Promise(res => setTimeout(res, 500));
           printWindow.print();
         }
       }
 
-      // ✅ Step 3: After print completes → fetch payment modes and open settlement modal
-      if (selectedOutletId) {
-        await fetchPaymentModesForOutlet(selectedOutletId);
+      // 3. Settle Bill (assuming Cash)
+      const cashMode = outletPaymentModes.find(pm => pm.mode_name.toLowerCase() === 'cash');
+      const settlementsPayload = [{
+        PaymentTypeID: cashMode?.paymenttypeid,
+        PaymentType: 'Cash',
+        Amount: taxCalc.grandTotal,
+        OrderNo: orderNo,
+        HotelID: user?.hotelid,
+        Name: user?.name,
+      }];
+
+      const settleRes = await fetch(`http://localhost:3001/api/TAxnTrnbill/${currentTxnId}/settle`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ settlements: settlementsPayload }),
+      });
+      const settleData = await settleRes.json();
+      if (!settleData.success) throw new Error(settleData.message || 'Failed to settle bill.');
+
+      toast.success('Bill Printed & Settled Successfully!');
+
+      // 4. Update Table Status to Vacant
+      if (selectedTable) {
+        const tableToUpdate = tableItems.find(t => t.table_name === selectedTable);
+        if (tableToUpdate) {
+          await fetch(`http://localhost:3001/api/tablemanagement/${tableToUpdate.tablemanagementid}/status`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 0 }), // 0 for Vacant
+          });
+        }
       }
 
-      setShowSettlementModal(true); // open settlement modal immediately after print
+      // 5. Reset UI
+      setItems([]);
+      setReversedItems([]);
+      setSelectedTable(null);
+      setShowOrderDetails(false);
+      setPaymentAmounts({});
+      setSelectedPaymentModes([]);
+      setIsMixedPayment(false);
+      setTip(0);
+      setShowSettlementModal(false);
+      setBillActionState('initial');
+      setMobileNumber('');
+      setCustomerName('');
+      setDiscount(0);
+      setDiscountInputValue(0);
+      setRoundOffValue(0);
+      setCurrentKOTNo(null);
+      setCurrentKOTNos([]);
+      setOrderNo(null);
+
+      // 6. Refresh table list
+      fetchTableManagement();
+
     } catch (error: any) {
       toast.error(
         error.message || 'An error occurred during the print & settle process.'
