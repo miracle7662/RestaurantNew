@@ -552,7 +552,7 @@ const OutletList: React.FC = () => {
             style={{ marginRight: '5px' }}
           >
             <i className="fi fi-rr-settings"></i>
-          </button>           
+          </button>
           <button
             className="btn btn-sm btn-secondary"
             title="Download QR Code"
@@ -1282,7 +1282,13 @@ const OutletList: React.FC = () => {
         </Modal.Footer>
       </Modal>
 
-     
+      {/* Add ModifyOutletSettingsModal */}
+      <ModifyOutletSettingsModal
+        show={showSettingsModal}
+        onHide={handleCloseSettingsModal}
+        selectedOutlet={selectedOutlet}
+        handleUpdate={handleUpdate}
+      />
     </div>
   );
 };
