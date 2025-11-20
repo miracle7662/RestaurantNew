@@ -321,11 +321,6 @@ const OutletList: React.FC = () => {
     setSelectedOutlet(null);
   };
 
-  const handleBackFromPrintSetting = () => {
-    setShowPrintSetting(false);
-    setSelectedOutlet(null);
-  };
-
   const handleDeleteOutlet = async (outletId: number) => {
     const res = await Swal.fire({
       title: 'Are you sure?',
@@ -652,9 +647,7 @@ const OutletList: React.FC = () => {
   return (
     <div className="m-1">
       <ToastContainer />
-      {showPrintSetting ? (
-        <PrintSetting selectedOutlet={selectedOutlet} onBack={handleBackFromPrintSetting} />
-      ) : !showAddOutlet ? (
+      {!showAddOutlet ? (
         <Card className="m-1">
           <div className="d-flex justify-content-between align-items-center p-3 border-bottom">
             <h4 className="mb-0">Outlet List</h4>
@@ -1309,6 +1302,13 @@ const OutletList: React.FC = () => {
         onHide={handleCloseSettingsModal}
         selectedOutlet={selectedOutlet}
         handleUpdate={handleUpdate}
+      />
+
+      {/* Add PrintSetting Modal */}
+      <PrintSetting
+        show={showPrintSetting}
+        onHide={() => setShowPrintSetting(false)}
+        selectedOutlet={selectedOutlet}
       />
     </div>
   );
