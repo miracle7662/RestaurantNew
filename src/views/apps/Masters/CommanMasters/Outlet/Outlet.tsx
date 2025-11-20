@@ -60,7 +60,6 @@ const OutletList: React.FC = () => {
   const [modalType, setModalType] = useState('');
   const [selectedOutlet, setSelectedOutlet] = useState<OutletData | null>(null);
   const [showAddOutlet, setShowAddOutlet] = useState(false);
- 
   const [outlets, setOutlets] = useState<OutletData[]>([]);
   const [loading, setLoading] = useState(true);
   const [brands, setBrands] = useState<Array<{ hotelid: number; hotel_name: string }>>([]);
@@ -553,7 +552,7 @@ const OutletList: React.FC = () => {
             style={{ marginRight: '5px' }}
           >
             <i className="fi fi-rr-settings"></i>
-          </button>
+          </button>           
           <button
             className="btn btn-sm btn-secondary"
             title="Download QR Code"
@@ -1283,13 +1282,7 @@ const OutletList: React.FC = () => {
         </Modal.Footer>
       </Modal>
 
-      {/* Add ModifyOutletSettingsModal */}
-      <ModifyOutletSettingsModal
-        show={showSettingsModal}
-        onHide={handleCloseSettingsModal}
-        selectedOutlet={selectedOutlet}
-        handleUpdate={handleUpdate}
-      />
+     
     </div>
   );
 };
