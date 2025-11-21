@@ -12,8 +12,6 @@ import OrderDetails from "./OrderDetails";
 import F8PasswordModal from "@/components/F8PasswordModal";
 import KotTransfer from "./KotTransfer";
 
-
-
 interface MenuItem {
   id: number;
   name: string;
@@ -210,6 +208,9 @@ const Order = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10); // You can make this configurable
 
+
+
+
   // Function to apply rounding
   const applyRoundOff = (amount: number, roundTo: number) => {
     if (roundTo <= 0) return { roundedAmount: amount, roundOffValue: 0 };
@@ -395,6 +396,30 @@ const Order = () => {
       setBillActionState('initial'); // Reset on error
     }
   }, [setItems, setReversedItems, setCurrentKOTNo, setCurrentKOTNos, setCurrentTxnId]);
+
+
+ const fetchKOTPrinter = async (): Promise<string | null> => {
+  try {
+    const outletId = selectedOutletId || user?.outletid;
+
+const res = await fetch(
+  `http://localhost:3001/api/settings/kot-printer-settings/${outletId}`
+);
+
+
+    if (!res.ok) return null;
+
+    const data = await res.json();
+    console.log("Fetched KOT printer:", data?.printer_name);
+
+    return data?.printer_name || null;
+  } catch (err) {
+    console.error("Failed to fetch KOT printer:", err);
+    return null;
+  }
+};
+
+
   // KOT Preview formData state
   const [formData, setFormData] = useState({
     customer_on_kot_dine_in: false,
@@ -1801,49 +1826,48 @@ const fetchBillPreviewSettings = async (outletId: number) => {
           );
         }
 
-        // Open print preview with KOT content
-        const printWindow = window.open('', '_blank');
-        if (printWindow) {
-          const contentToPrint = document.getElementById('kot-preview');
-          if (contentToPrint) {
-            printWindow.document.write(`
-              <!DOCTYPE html>
-              <html>
-                <head>
-                  <title>KOT Print</title>
-                  <style>
-                    body { font-family: Arial, sans-serif; margin: 20px; }
-                    .text-center { text-align: center; }
-                    .fw-bold { font-weight: bold; }
-                    .mb-3 { margin-bottom: 1rem; }
-                    .small { font-size: 0.875rem; }
-                    .text-muted { color: #6c757d; }
-                    .d-block { display: block; }
-                    .row { display: flex; flex-wrap: wrap; margin: 0 -15px; }
-                    .col-6 { flex: 0 0 50%; max-width: 50%; padding: 0 15px; }
-                    .col-1 { flex: 0 0 8.333333%; max-width: 8.333333%; padding: 0 15px; }
-                    .col-4 { flex: 0 0 33.333333%; max-width: 33.333333%; padding: 0 15px; }
-                    .col-2 { flex: 0 0 16.666667%; max-width: 16.666667%; padding: 0 15px; }
-                    .col-3 { flex: 0 0 25%; max-width: 25%; padding: 0 15px; }
-                    .text-end { text-align: right; }
-                    .pb-1 { padding-bottom: 0.25rem; }
-                    .mb-2 { margin-bottom: 0.5rem; }
-                    .mb-1 { margin-bottom: 0.25rem; }
-                    .border-bottom { border-bottom: 1px solid #dee2e6; }
-                    .text-black { color: #000; }
-                    @media print { body { margin: 0; } }
-                  </style>
-                </head>
-                <body>
-                  ${contentToPrint.innerHTML}
-                </body>
-              </html>
-            `);
-            printWindow.document.close();
-            printWindow.focus();
-            printWindow.print();
-          }
-        }
+// 1️⃣ Fetch printer from settings
+const printer_name = await fetchKOTPrinter();
+
+if (!printer_name) {
+  toast.error("No KOT printer configured.");
+  console.error("KOT Printer not found in settings.");
+  return;
+}
+
+// 2️⃣ Get KOT HTML content
+const contentElem = document.getElementById("kot-preview");
+if (!contentElem) {
+  toast.error("KOT Preview element missing.");
+  return;
+}
+
+const kotHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    body { font-family: Arial; font-size: 14px; }
+  </style>
+</head>
+<body>
+  ${contentElem.innerHTML}
+</body>
+</html>
+`;
+
+// 3️⃣ Send directly to printer via Electron API
+try {
+  await window.electronAPI.printDirect(kotHtml, printer_name);
+  console.log("KOT Printed Successfully!");
+  toast.success("KOT Printed Successfully!");
+} catch (err) {
+  console.error("Failed to print KOT:", err);
+  toast.error("Failed to print KOT. Check printer settings.");
+}
+
+
 
         // After printing, decide what to do based on focusMode
         if (activeTab === 'Pickup' || activeTab === 'Delivery') {

@@ -11,7 +11,7 @@ router.post("/mst-printers", settingsController.createMstPrinter);
 // -------------------------
 // KOT PRINTER SETTINGS
 // -------------------------
-router.get("/kot-printer-settings", settingsController.getKotPrinterSettings);
+router.get("/kot-printer-settings/:id", settingsController.getKotPrinterSettings);
 router.post("/kot-printer-settings", settingsController.createKotPrinterSetting);
 
 // -------------------------
