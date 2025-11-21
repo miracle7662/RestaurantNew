@@ -5,6 +5,7 @@ const path = require('path');
 const url = require('url');
 const Menu = electron.Menu;
 
+
 const ipcMain = electron.ipcMain;
 
 let mainWindow;
