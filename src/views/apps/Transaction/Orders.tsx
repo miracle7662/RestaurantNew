@@ -1871,6 +1871,8 @@ try {
 
 
 
+
+
         // After printing, decide what to do based on focusMode
         if (activeTab === 'Pickup' || activeTab === 'Delivery') {
           // For these tabs, refresh the pending orders list and show it.
