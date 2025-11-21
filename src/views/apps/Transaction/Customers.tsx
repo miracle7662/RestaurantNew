@@ -3,9 +3,9 @@ import { toast } from "react-hot-toast";
 import { useAuthContext } from "@/common";
 
 import {
-  fetchStates,
+ 
   StateItem,
-  fetchCities,
+ 
   CityItem,
 } from "../../../utils/commonfunction";
 
@@ -176,8 +176,8 @@ function Customers() {
   const [loading, setLoading] = useState<boolean>(false);
   const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [states, setStates] = useState<StateItem[]>([]);
-  const [cities, setCities] = useState<CityItem[]>([]);
+  const [states, ] = useState<StateItem[]>([]);
+  const [cities, ] = useState<CityItem[]>([]);
   const [stateid, setStateId] = useState<number | null>(null);
   const [cityid, setCityId] = useState<number | null>(null);
   const { user } = useAuthContext();

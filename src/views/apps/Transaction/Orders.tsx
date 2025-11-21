@@ -1786,7 +1786,7 @@ const fetchBillPreviewSettings = async (outletId: number) => {
 
         // Update TxnNo and TxnID from the response
         if (resp?.data) {
-          const { orderNo, TxnID, kotNo } = resp.data;
+          const { orderNo, TxnID,  } = resp.data;
           setOrderNo(orderNo ?? null);
           setCurrentTxnId(TxnID ?? null);
           // Robustly set KOT number, checking for different possible casings

@@ -106,20 +106,17 @@ function SettingsPage() {
   // State for all printer settings
   const [kotPrinters, setKotPrinters] = useState<KotPrinterSetting[]>([]);
   const [billPrinters, setBillPrinters] = useState<BillPrinterSetting[]>([]);
-  const [labelPrinters, setLabelPrinters] = useState<LabelPrinterSetting[]>([]);
-  const [reportPrinters, setReportPrinters] = useState<ReportPrinterSetting[]>([]);
+  const [, setLabelPrinters] = useState<LabelPrinterSetting[]>([]);
+  const [, setReportPrinters] = useState<ReportPrinterSetting[]>([]);
   const [departmentPrinters, setDepartmentPrinters] = useState<DepartmentWisePrinter[]>([]);
   const [tableWiseKot, setTableWiseKot] = useState<TableWiseKot[]>([]);
   const [tableWiseBill, setTableWiseBill] = useState<TableWiseBill[]>([]);
   const [categoryPrinters, setCategoryPrinters] = useState<CategoryWisePrinter[]>([]);
-  const [kdsUsers, setKdsUsers] = useState<KDSUser[]>([]);
+  const [, setKdsUsers] = useState<KDSUser[]>([]);
   const [loading, setLoading] = useState(false);
-  const [editingKotId, setEditingKotId] = useState<number | null>(null);
-  const [editingBillId, setEditingBillId] = useState<number | null>(null);
-  const [editingDepartmentId, setEditingDepartmentId] = useState<number | null>(null);
-  const [editingTableKotId, setEditingTableKotId] = useState<number | null>(null);
-  const [editingTableBillId, setEditingTableBillId] = useState<number | null>(null);
-  const [editingCategoryId, setEditingCategoryId] = useState<number | null>(null);
+  const [, setEditingKotId] = useState<number | null>(null);
+  const [, setEditingBillId] = useState<number | null>(null);
+ 
 
   useEffect(() => {
     const fetchPrinters = async () => {
