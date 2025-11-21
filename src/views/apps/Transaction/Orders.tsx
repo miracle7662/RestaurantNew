@@ -1826,7 +1826,7 @@ const fetchBillPreviewSettings = async (outletId: number) => {
           );
         }
 
-// 1️⃣ Fetch printer from settings
+      // 1️⃣ Fetch printer from settings
 const printer_name = await fetchKOTPrinter();
 
 if (!printer_name) {
@@ -1857,11 +1857,27 @@ const kotHtml = `
 </html>
 `;
 
-// 3️⃣ Send directly to printer via Electron API
+// 3️⃣ Send directly to printer via Electron API (with type-safe fallback)
 try {
-  await window.electronAPI.printDirect(kotHtml, printer_name);
-  console.log("KOT Printed Successfully!");
-  toast.success("KOT Printed Successfully!");
+  const printerAPI: any = (window as any).electronAPI;
+  if (printerAPI && typeof printerAPI.printDirect === 'function') {
+    await printerAPI.printDirect(kotHtml, printer_name);
+    console.log("KOT Printed Successfully via Electron API!");
+    toast.success("KOT Printed Successfully!");
+  } else {
+    // Fallback: open a new window and use browser print if Electron API isn't available
+    console.warn("printDirect not available on window.electronAPI, falling back to browser print.");
+    const printWin = window.open('', '_blank');
+    if (printWin) {
+      printWin.document.write(kotHtml);
+      printWin.document.close();
+      printWin.focus();
+      setTimeout(() => printWin.print(), 100);
+      toast.success("KOT sent to browser print preview.");
+    } else {
+      toast.error("Failed to open print window.");
+    }
+  }
 } catch (err) {
   console.error("Failed to print KOT:", err);
   toast.error("Failed to print KOT. Check printer settings.");
