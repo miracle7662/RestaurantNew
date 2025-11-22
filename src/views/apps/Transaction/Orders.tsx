@@ -398,26 +398,26 @@ const Order = () => {
   }, [setItems, setReversedItems, setCurrentKOTNo, setCurrentKOTNos, setCurrentTxnId]);
 
 
- const fetchKOTPrinter = async (): Promise<string | null> => {
-  try {
-    const outletId = selectedOutletId || user?.outletid;
+  const fetchKOTPrinter = async (): Promise<string | null> => {
+    try {
+      const outletId = selectedOutletId || user?.outletid;
 
-const res = await fetch(
-  `http://localhost:3001/api/settings/kot-printer-settings/${outletId}`
-);
+      const res = await fetch(
+        `http://localhost:3001/api/settings/kot-printer-settings/${outletId}`
+      );
 
 
-    if (!res.ok) return null;
+      if (!res.ok) return null;
 
-    const data = await res.json();
-    console.log("Fetched KOT printer:", data?.printer_name);
+      const data = await res.json();
+      console.log("Fetched KOT printer:", data?.printer_name);
 
-    return data?.printer_name || null;
-  } catch (err) {
-    console.error("Failed to fetch KOT printer:", err);
-    return null;
-  }
-};
+      return data?.printer_name || null;
+    } catch (err) {
+      console.error("Failed to fetch KOT printer:", err);
+      return null;
+    }
+  };
 
 
   // KOT Preview formData state
@@ -776,103 +776,103 @@ const res = await fetch(
     }
   };
 
-const fetchBillPreviewSettings = async (outletId: number) => {
-  try {
-    const [previewRes, printRes] = await Promise.all([
-      fetch(`http://localhost:3001/api/outlets/bill-preview-settings/${outletId}`),
-      fetch(`http://localhost:3001/api/outlets/bill-print-settings/${outletId}`)
-    ]);
-    const preview = previewRes.ok ? await previewRes.json() : {};
-    const print = printRes.ok ? await printRes.json() : {};
-    setFormData(prev => ({
-      ...prev,
-      // -----------------------
-      // BILL PREVIEW SETTINGS
-      // -----------------------
-      outlet_name: preview.outlet_name ?? prev.outlet_name,
-      email: preview.email ?? prev.email,
-      website: preview.website ?? prev.website,
-      show_phone_on_bill: preview.show_phone_on_bill ?? prev.show_phone_on_bill,
-      note: preview.note ?? prev.note,
-      footer_note: preview.footer_note ?? prev.footer_note,
-      field1: preview.field1 ?? prev.field1,
-      field2: preview.field2 ?? prev.field2,
-      field3: preview.field3 ?? prev.field3,
-      field4: preview.field4 ?? prev.field4,
-      fssai_no: preview.fssai_no ?? prev.fssai_no,
-      bar_bill_prefix: preview.bar_bill_prefix ?? prev.bar_bill_prefix,
-      secondary_bill_prefix: preview.secondary_bill_prefix ?? prev.secondary_bill_prefix,
-      bill_prefix: preview.bill_prefix ?? prev.bill_prefix,
-      upi_id: preview.upi_id ?? prev.upi_id,
-      show_upi_qr: preview.show_upi_qr ?? prev.show_upi_qr,
-      enabled_bar_section: preview.enabled_bar_section ?? prev.enabled_bar_section,
-      enabled_secondary_section: preview.enabled_secondary_section ?? prev.enabled_secondary_section,
-      enabled_upi_section: preview.enabled_upi_section ?? prev.enabled_upi_section,
-      // -----------------------
-      // BILL PRINT SETTINGS (all 43 toggles)
-      // -----------------------
-      bill_title_dine_in: print.bill_title_dine_in ?? prev.bill_title_dine_in,
-      bill_title_pickup: print.bill_title_pickup ?? prev.bill_title_pickup,
-      bill_title_delivery: print.bill_title_delivery ?? prev.bill_title_delivery,
-      bill_title_quick_bill: print.bill_title_quick_bill ?? prev.bill_title_quick_bill,
-      mask_order_id: print.mask_order_id ?? prev.mask_order_id,
-      modifier_default_option_bill: print.modifier_default_option_bill ?? prev.modifier_default_option_bill,
-      print_bill_both_languages: print.print_bill_both_languages ?? prev.print_bill_both_languages,
-      show_alt_item_title_bill: print.show_alt_item_title_bill ?? prev.show_alt_item_title_bill,
-      show_alt_name_bill: print.show_alt_name_bill ?? prev.show_alt_name_bill,
-      show_bill_amount_words: print.show_bill_amount_words ?? prev.show_bill_amount_words,
-      show_bill_no_bill: print.show_bill_no_bill ?? prev.show_bill_no_bill,
-      show_bill_number_prefix_bill: print.show_bill_number_prefix_bill ?? prev.show_bill_number_prefix_bill,
-      show_bill_print_count: print.show_bill_print_count ?? prev.show_bill_print_count,
-      show_brand_name_bill: print.show_brand_name_bill ?? prev.show_brand_name_bill,
-      show_captain_bill: print.show_captain_bill ?? prev.show_captain_bill,
-      show_covers_bill: print.show_covers_bill ?? prev.show_covers_bill,
-      show_custom_qr_codes_bill: print.show_custom_qr_codes_bill ?? prev.show_custom_qr_codes_bill,
-      show_customer_gst_bill: print.show_customer_gst_bill ?? prev.show_customer_gst_bill,
-      show_customer_bill: print.show_customer_bill ?? prev.show_customer_bill,
-      show_customer_paid_amount: print.show_customer_paid_amount ?? prev.show_customer_paid_amount,
-      show_date_bill: print.show_date_bill ?? prev.show_date_bill,
-      show_default_payment: print.show_default_payment ?? prev.show_default_payment,
-      show_discount_reason_bill: print.show_discount_reason_bill ?? prev.show_discount_reason_bill,
-      show_due_amount_bill: print.show_due_amount_bill ?? prev.show_due_amount_bill,
-      show_ebill_invoice_qrcode: print.show_ebill_invoice_qrcode ?? prev.show_ebill_invoice_qrcode,
-      show_item_hsn_code_bill: print.show_item_hsn_code_bill ?? prev.show_item_hsn_code_bill,
-      show_item_level_charges_separately: print.show_item_level_charges_separately ?? prev.show_item_level_charges_separately,
-      show_item_note_bill: print.show_item_note_bill ?? prev.show_item_note_bill,
-      show_items_sequence_bill: print.show_items_sequence_bill ?? prev.show_items_sequence_bill,
-      show_kot_number_bill: print.show_kot_number_bill ?? prev.show_kot_number_bill,
-      show_logo_bill: print.show_logo_bill ?? prev.show_logo_bill,
-      show_order_id_bill: print.show_order_id_bill ?? prev.show_order_id_bill,
-      show_order_no_bill: print.show_order_no_bill ?? prev.show_order_no_bill,
-      show_order_note_bill: print.show_order_note_bill ?? prev.show_order_note_bill,
-      order_type_dine_in: print.order_type_dine_in ?? prev.order_type_dine_in,
-      order_type_pickup: print.order_type_pickup ?? prev.order_type_pickup,
-      order_type_delivery: print.order_type_delivery ?? prev.order_type_delivery,
-      order_type_quick_bill: print.order_type_quick_bill ?? prev.order_type_quick_bill,
-      show_outlet_name_bill: print.show_outlet_name_bill ?? prev.show_outlet_name_bill,
-      payment_mode_dine_in: print.payment_mode_dine_in ?? prev.payment_mode_dine_in,
-      payment_mode_pickup: print.payment_mode_pickup ?? prev.payment_mode_pickup,
-      payment_mode_delivery: print.payment_mode_delivery ?? prev.payment_mode_delivery,
-      payment_mode_quick_bill: print.payment_mode_quick_bill ?? prev.payment_mode_quick_bill,
-      table_name_dine_in: print.table_name_dine_in ?? prev.table_name_dine_in,
-      table_name_pickup: print.table_name_pickup ?? prev.table_name_pickup,
-      table_name_delivery: print.table_name_delivery ?? prev.table_name_delivery,
-      table_name_quick_bill: print.table_name_quick_bill ?? prev.table_name_quick_bill,
-      show_tax_charge_bill: print.show_tax_charge_bill ?? prev.show_tax_charge_bill,
-      show_username_bill: print.show_username_bill ?? prev.show_username_bill,
-      show_waiter_bill: print.show_waiter_bill ?? prev.show_waiter_bill,
-      show_zatca_invoice_qr: print.show_zatca_invoice_qr ?? prev.show_zatca_invoice_qr,
-      show_customer_address_pickup_bill: print.show_customer_address_pickup_bill ?? prev.show_customer_address_pickup_bill,
-      show_order_placed_time: print.show_order_placed_time ?? prev.show_order_placed_time,
-      hide_item_quantity_column: print.hide_item_quantity_column ?? prev.hide_item_quantity_column,
-      hide_item_rate_column: print.hide_item_rate_column ?? prev.hide_item_rate_column,
-      hide_item_total_column: print.hide_item_total_column ?? prev.hide_item_total_column,
-      hide_total_without_tax: print.hide_total_without_tax ?? prev.hide_total_without_tax,
-    }));
-  } catch (err) {
-    console.error("Error fetching bill settings:", err);
-  }
-};
+  const fetchBillPreviewSettings = async (outletId: number) => {
+    try {
+      const [previewRes, printRes] = await Promise.all([
+        fetch(`http://localhost:3001/api/outlets/bill-preview-settings/${outletId}`),
+        fetch(`http://localhost:3001/api/outlets/bill-print-settings/${outletId}`)
+      ]);
+      const preview = previewRes.ok ? await previewRes.json() : {};
+      const print = printRes.ok ? await printRes.json() : {};
+      setFormData(prev => ({
+        ...prev,
+        // -----------------------
+        // BILL PREVIEW SETTINGS
+        // -----------------------
+        outlet_name: preview.outlet_name ?? prev.outlet_name,
+        email: preview.email ?? prev.email,
+        website: preview.website ?? prev.website,
+        show_phone_on_bill: preview.show_phone_on_bill ?? prev.show_phone_on_bill,
+        note: preview.note ?? prev.note,
+        footer_note: preview.footer_note ?? prev.footer_note,
+        field1: preview.field1 ?? prev.field1,
+        field2: preview.field2 ?? prev.field2,
+        field3: preview.field3 ?? prev.field3,
+        field4: preview.field4 ?? prev.field4,
+        fssai_no: preview.fssai_no ?? prev.fssai_no,
+        bar_bill_prefix: preview.bar_bill_prefix ?? prev.bar_bill_prefix,
+        secondary_bill_prefix: preview.secondary_bill_prefix ?? prev.secondary_bill_prefix,
+        bill_prefix: preview.bill_prefix ?? prev.bill_prefix,
+        upi_id: preview.upi_id ?? prev.upi_id,
+        show_upi_qr: preview.show_upi_qr ?? prev.show_upi_qr,
+        enabled_bar_section: preview.enabled_bar_section ?? prev.enabled_bar_section,
+        enabled_secondary_section: preview.enabled_secondary_section ?? prev.enabled_secondary_section,
+        enabled_upi_section: preview.enabled_upi_section ?? prev.enabled_upi_section,
+        // -----------------------
+        // BILL PRINT SETTINGS (all 43 toggles)
+        // -----------------------
+        bill_title_dine_in: print.bill_title_dine_in ?? prev.bill_title_dine_in,
+        bill_title_pickup: print.bill_title_pickup ?? prev.bill_title_pickup,
+        bill_title_delivery: print.bill_title_delivery ?? prev.bill_title_delivery,
+        bill_title_quick_bill: print.bill_title_quick_bill ?? prev.bill_title_quick_bill,
+        mask_order_id: print.mask_order_id ?? prev.mask_order_id,
+        modifier_default_option_bill: print.modifier_default_option_bill ?? prev.modifier_default_option_bill,
+        print_bill_both_languages: print.print_bill_both_languages ?? prev.print_bill_both_languages,
+        show_alt_item_title_bill: print.show_alt_item_title_bill ?? prev.show_alt_item_title_bill,
+        show_alt_name_bill: print.show_alt_name_bill ?? prev.show_alt_name_bill,
+        show_bill_amount_words: print.show_bill_amount_words ?? prev.show_bill_amount_words,
+        show_bill_no_bill: print.show_bill_no_bill ?? prev.show_bill_no_bill,
+        show_bill_number_prefix_bill: print.show_bill_number_prefix_bill ?? prev.show_bill_number_prefix_bill,
+        show_bill_print_count: print.show_bill_print_count ?? prev.show_bill_print_count,
+        show_brand_name_bill: print.show_brand_name_bill ?? prev.show_brand_name_bill,
+        show_captain_bill: print.show_captain_bill ?? prev.show_captain_bill,
+        show_covers_bill: print.show_covers_bill ?? prev.show_covers_bill,
+        show_custom_qr_codes_bill: print.show_custom_qr_codes_bill ?? prev.show_custom_qr_codes_bill,
+        show_customer_gst_bill: print.show_customer_gst_bill ?? prev.show_customer_gst_bill,
+        show_customer_bill: print.show_customer_bill ?? prev.show_customer_bill,
+        show_customer_paid_amount: print.show_customer_paid_amount ?? prev.show_customer_paid_amount,
+        show_date_bill: print.show_date_bill ?? prev.show_date_bill,
+        show_default_payment: print.show_default_payment ?? prev.show_default_payment,
+        show_discount_reason_bill: print.show_discount_reason_bill ?? prev.show_discount_reason_bill,
+        show_due_amount_bill: print.show_due_amount_bill ?? prev.show_due_amount_bill,
+        show_ebill_invoice_qrcode: print.show_ebill_invoice_qrcode ?? prev.show_ebill_invoice_qrcode,
+        show_item_hsn_code_bill: print.show_item_hsn_code_bill ?? prev.show_item_hsn_code_bill,
+        show_item_level_charges_separately: print.show_item_level_charges_separately ?? prev.show_item_level_charges_separately,
+        show_item_note_bill: print.show_item_note_bill ?? prev.show_item_note_bill,
+        show_items_sequence_bill: print.show_items_sequence_bill ?? prev.show_items_sequence_bill,
+        show_kot_number_bill: print.show_kot_number_bill ?? prev.show_kot_number_bill,
+        show_logo_bill: print.show_logo_bill ?? prev.show_logo_bill,
+        show_order_id_bill: print.show_order_id_bill ?? prev.show_order_id_bill,
+        show_order_no_bill: print.show_order_no_bill ?? prev.show_order_no_bill,
+        show_order_note_bill: print.show_order_note_bill ?? prev.show_order_note_bill,
+        order_type_dine_in: print.order_type_dine_in ?? prev.order_type_dine_in,
+        order_type_pickup: print.order_type_pickup ?? prev.order_type_pickup,
+        order_type_delivery: print.order_type_delivery ?? prev.order_type_delivery,
+        order_type_quick_bill: print.order_type_quick_bill ?? prev.order_type_quick_bill,
+        show_outlet_name_bill: print.show_outlet_name_bill ?? prev.show_outlet_name_bill,
+        payment_mode_dine_in: print.payment_mode_dine_in ?? prev.payment_mode_dine_in,
+        payment_mode_pickup: print.payment_mode_pickup ?? prev.payment_mode_pickup,
+        payment_mode_delivery: print.payment_mode_delivery ?? prev.payment_mode_delivery,
+        payment_mode_quick_bill: print.payment_mode_quick_bill ?? prev.payment_mode_quick_bill,
+        table_name_dine_in: print.table_name_dine_in ?? prev.table_name_dine_in,
+        table_name_pickup: print.table_name_pickup ?? prev.table_name_pickup,
+        table_name_delivery: print.table_name_delivery ?? prev.table_name_delivery,
+        table_name_quick_bill: print.table_name_quick_bill ?? prev.table_name_quick_bill,
+        show_tax_charge_bill: print.show_tax_charge_bill ?? prev.show_tax_charge_bill,
+        show_username_bill: print.show_username_bill ?? prev.show_username_bill,
+        show_waiter_bill: print.show_waiter_bill ?? prev.show_waiter_bill,
+        show_zatca_invoice_qr: print.show_zatca_invoice_qr ?? prev.show_zatca_invoice_qr,
+        show_customer_address_pickup_bill: print.show_customer_address_pickup_bill ?? prev.show_customer_address_pickup_bill,
+        show_order_placed_time: print.show_order_placed_time ?? prev.show_order_placed_time,
+        hide_item_quantity_column: print.hide_item_quantity_column ?? prev.hide_item_quantity_column,
+        hide_item_rate_column: print.hide_item_rate_column ?? prev.hide_item_rate_column,
+        hide_item_total_column: print.hide_item_total_column ?? prev.hide_item_total_column,
+        hide_total_without_tax: print.hide_total_without_tax ?? prev.hide_total_without_tax,
+      }));
+    } catch (err) {
+      console.error("Error fetching bill settings:", err);
+    }
+  };
 
 
   const fetchOutletsData = async () => {
@@ -1786,7 +1786,7 @@ const fetchBillPreviewSettings = async (outletId: number) => {
 
         // Update TxnNo and TxnID from the response
         if (resp?.data) {
-          const { orderNo, TxnID,  } = resp.data;
+          const { orderNo, TxnID, } = resp.data;
           setOrderNo(orderNo ?? null);
           setCurrentTxnId(TxnID ?? null);
           // Robustly set KOT number, checking for different possible casings
@@ -1826,43 +1826,43 @@ const fetchBillPreviewSettings = async (outletId: number) => {
           );
         }
 
-// 1️⃣ Fetch printer from settings
-const printer_name = await fetchKOTPrinter();
+        // 1️⃣ Fetch printer from settings
+        const printer_name = await fetchKOTPrinter();
 
-if (!printer_name) {
-  toast.error("No KOT printer configured.");
-  return;
-}
+        if (!printer_name) {
+          toast.error("No KOT printer configured.");
+          return;
+        }
 
-// 🔍 Match DB printer with system printers
-const systemPrinters = await (window.electronAPI as any).getInstalledPrinters();
-console.log("System Printers:", systemPrinters);
+        // 🔍 Match DB printer with system printers
+        const systemPrinters = await (window.electronAPI as any).getInstalledPrinters();
+        console.log("System Printers:", systemPrinters);
 
-const matchedPrinter = systemPrinters.find(
-  (p) =>
-    typeof p === "string" &&
-    printer_name &&
-    p.toLowerCase().includes(printer_name.toLowerCase())
-);
+        const matchedPrinter = systemPrinters.find(
+          (p) =>
+            typeof p === "string" &&
+            printer_name &&
+            p.toLowerCase().includes(printer_name.toLowerCase())
+        );
 
-console.log("Matched Printer:", matchedPrinter);
+        console.log("Matched Printer:", matchedPrinter);
 
-if (!matchedPrinter) {
-  toast.error(`Printer "${printer_name}" not found on this system.`);
-  return;
-}
+        if (!matchedPrinter) {
+          toast.error(`Printer "${printer_name}" not found on this system.`);
+          return;
+        }
 
-const finalPrinterName = matchedPrinter.name;
+        const finalPrinterName = matchedPrinter.name;
 
-// Now prepare HTML
-const contentElem = document.getElementById("kot-preview");
-if (!contentElem) {
-  toast.error("KOT Preview element missing.");
-  return;
-}
+        // Now prepare HTML
+        const contentElem = document.getElementById("kot-preview");
+        if (!contentElem) {
+          toast.error("KOT Preview element missing.");
+          return;
+        }
 
-// Inject the full thermal-printer-friendly CSS directly into the HTML string
-const kotpreview = `
+        // Inject the full thermal-printer-friendly CSS directly into the HTML string
+        const kotpreview = `
 <!DOCTYPE html>
 <html>
 <head>
@@ -1941,15 +1941,15 @@ const kotpreview = `
 `;
 
 
-// Print
-try {
-  await (window.electronAPI as any).directPrint(kotpreview, finalPrinterName);
+        // Print
+        try {
+          await (window.electronAPI as any).directPrint(kotpreview, finalPrinterName);
 
-  toast.success("KOT Printed Successfully!");
-} catch (err) {
-  toast.error("Failed to print KOT.");
-  console.error("Print error:", err);
-}
+          toast.success("KOT Printed Successfully!");
+        } catch (err) {
+          toast.error("Failed to print KOT.");
+          console.error("Print error:", err);
+        }
 
 
 
@@ -2961,310 +2961,310 @@ try {
   return (
     <div className="container-fluid p-0 m-0 fade-in" style={{ height: '100vh' }}>
       {/* Hidden KOT Preview for Printing */}
-     <div id="kot-preview" style={{ display: 'none' }}>
-  <div style={{
-    width: '80mm',
-    margin: '0 auto',
-    fontFamily: 'Courier New, monospace',
-    fontSize: '10pt',
-    lineHeight: '1.2',
-    padding: '10px',
-    color: '#000'
-  }}>
-
-    {/* ================= STORE INFO ================= */}
-    {formData.show_store_name && (
-      <div style={{ textAlign: 'center', marginBottom: '10px' }}>
-        <div style={{ fontWeight: 'bold', fontSize: '12pt' }}>
-          {user?.outlet_name || 'Restaurant Name'}
-        </div>
-        <div style={{ fontSize: '8pt' }}>
-          {user?.outlet_address || 'Kolhapur Road Kolhapur 416416'}
-        </div>
-        {user?.outlet_email && (
-          <div style={{ fontSize: '8pt' }}>{user.outlet_email}</div>
-        )}
-      </div>
-    )}
-
-    <hr style={{ border: 'none', borderTop: '1px dashed #000', margin: '8px 0' }} />
-
-
-    {/* ================= KOT HEADER ================= */}
-    <div style={{ textAlign: 'center', marginBottom: '8px' }}>
-      
-      <div><strong>Order Type:</strong> {activeTab}</div>
-      {formData.show_new_order_tag && formData.new_order_tag_label && (
+      <div id="kot-preview" style={{ display: 'none' }}>
         <div style={{
-          backgroundColor: '#007bff',
-          color: '#fff',
-          display: 'inline-block',
-          padding: '1px 5px',
-          borderRadius: '4px',
-          fontSize: '8pt',
-          marginTop: '3px'
+          width: '80mm',
+          margin: '0 auto',
+          fontFamily: 'Courier New, monospace',
+          fontSize: '10pt',
+          lineHeight: '1.2',
+          padding: '10px',
+          color: '#000'
         }}>
-          {formData.new_order_tag_label}
-        </div>
-      )}
 
-      {formData.show_running_order_tag && formData.running_order_tag_label && (
-        <div style={{
-          backgroundColor: '#6c757d',
-          color: '#fff',
-          display: 'inline-block',
-          padding: '1px 5px',
-          borderRadius: '4px',
-          fontSize: '8pt',
-          marginTop: '3px'
-        }}>
-          {formData.running_order_tag_label}
-        </div>
-      )}
-    </div>
+          {/* ================= STORE INFO ================= */}
+          {formData.show_store_name && (
+            <div style={{ textAlign: 'center', marginBottom: '10px' }}>
+              <div style={{ fontWeight: 'bold', fontSize: '12pt' }}>
+                {user?.outlet_name || 'Restaurant Name'}
+              </div>
+              <div style={{ fontSize: '8pt' }}>
+                {user?.outlet_address || 'Kolhapur Road Kolhapur 416416'}
+              </div>
+              {user?.outlet_email && (
+                <div style={{ fontSize: '8pt' }}>{user.outlet_email}</div>
+              )}
+            </div>
+          )}
 
-    <hr style={{ border: 'none', borderTop: '1px dashed #000', margin: '8px 0' }} />
+          <hr style={{ border: 'none', borderTop: '1px dashed #000', margin: '8px 0' }} />
 
 
-    {/* ================= BASIC DETAILS ================= */}
-    <div style={{
-      display: 'grid',
-      gridTemplateColumns: '1fr 1fr',
-      marginBottom: '8px',
-      fontSize: '9pt'
-    }}>
-      <div><strong>KOT No:</strong> {currentKOTNo}</div>
-      <div><strong>Table:</strong> {selectedTable || activeTab}</div>
+          {/* ================= KOT HEADER ================= */}
+          <div style={{ textAlign: 'center', marginBottom: '8px' }}>
 
-      <div><strong>Date:</strong> {new Date().toLocaleDateString('en-GB')}</div>
-      <div><strong>Time:</strong> {new Date().toLocaleTimeString('en-GB')}</div>
+            <div><strong>Order Type:</strong> {activeTab}</div>
+            {formData.show_new_order_tag && formData.new_order_tag_label && (
+              <div style={{
+                backgroundColor: '#007bff',
+                color: '#fff',
+                display: 'inline-block',
+                padding: '1px 5px',
+                borderRadius: '4px',
+                fontSize: '8pt',
+                marginTop: '3px'
+              }}>
+                {formData.new_order_tag_label}
+              </div>
+            )}
 
-      
-      <div><strong>Tax:</strong> {includeTaxInInvoice === 1 ? 'Inclusive' : 'Exclusive'}</div>
-    </div>
-
-    {formData.show_waiter && (
-      <div style={{ fontSize: '9pt', marginBottom: '6px' }}>
-        <strong>Waiter:</strong> {user?.name || 'N/A'}
-      </div>
-    )}
-
-    <hr style={{ border: 'none', borderTop: '1px dashed #000', margin: '8px 0' }} />
-
-
-    {/* ================= CUSTOMER DETAILS ================= */}
-    {(formData.customer_on_kot_dine_in ||
-      formData.customer_on_kot_quick_bill ||
-      formData.customer_on_kot_pickup ||
-      formData.customer_on_kot_delivery) &&
-      formData.customer_kot_display_option !== 'DISABLED' && (
-        <>
-          <div style={{ fontSize: '9pt', marginBottom: '8px' }}>
-            <strong>Customer:</strong> {customerName || 'Guest'}
-            {formData.customer_kot_display_option === 'NAME_AND_MOBILE' && mobileNumber && (
-              <div><strong>Mobile:</strong> {mobileNumber}</div>
+            {formData.show_running_order_tag && formData.running_order_tag_label && (
+              <div style={{
+                backgroundColor: '#6c757d',
+                color: '#fff',
+                display: 'inline-block',
+                padding: '1px 5px',
+                borderRadius: '4px',
+                fontSize: '8pt',
+                marginTop: '3px'
+              }}>
+                {formData.running_order_tag_label}
+              </div>
             )}
           </div>
 
           <hr style={{ border: 'none', borderTop: '1px dashed #000', margin: '8px 0' }} />
-        </>
-      )}
 
 
-    {/* ================= ITEM HEADER ================= */}
-    <div
-      style={{
-        display: 'grid',
-        gridTemplateColumns: '1fr 35px 45px 55px',
-        fontWeight: 'bold',
-        borderBottom: '1px solid #000',
-        paddingBottom: '4px',
-        marginBottom: '5px'
-      }}
-    >
-      <div>Item</div>
-      <div style={{ textAlign: 'center' }}>Qty</div>
-      <div style={{ textAlign: 'right' }}>Rate</div>
-      {formData.show_item_price && (
-        <div style={{ textAlign: 'right' }}>Amt</div>
-      )}
-    </div>
+          {/* ================= BASIC DETAILS ================= */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            marginBottom: '8px',
+            fontSize: '9pt'
+          }}>
+            <div><strong>KOT No:</strong> {currentKOTNo}</div>
+            <div><strong>Table:</strong> {selectedTable || activeTab}</div>
 
-    {/* ================= ITEMS ================= */}
-    {items
-      .filter(item => item.isNew)
-      .map((item, i) => {
-        const kotQty = item.originalQty
-          ? Math.max(0, item.qty - item.originalQty)
-          : item.qty;
+            <div><strong>Date:</strong> {new Date().toLocaleDateString('en-GB')}</div>
+            <div><strong>Time:</strong> {new Date().toLocaleTimeString('en-GB')}</div>
 
-        if (kotQty <= 0) return null;
 
-        return (
+            <div><strong>Tax:</strong> {includeTaxInInvoice === 1 ? 'Inclusive' : 'Exclusive'}</div>
+          </div>
+
+          {formData.show_waiter && (
+            <div style={{ fontSize: '9pt', marginBottom: '6px' }}>
+              <strong>Waiter:</strong> {user?.name || 'N/A'}
+            </div>
+          )}
+
+          <hr style={{ border: 'none', borderTop: '1px dashed #000', margin: '8px 0' }} />
+
+
+          {/* ================= CUSTOMER DETAILS ================= */}
+          {(formData.customer_on_kot_dine_in ||
+            formData.customer_on_kot_quick_bill ||
+            formData.customer_on_kot_pickup ||
+            formData.customer_on_kot_delivery) &&
+            formData.customer_kot_display_option !== 'DISABLED' && (
+              <>
+                <div style={{ fontSize: '9pt', marginBottom: '8px' }}>
+                  <strong>Customer:</strong> {customerName || 'Guest'}
+                  {formData.customer_kot_display_option === 'NAME_AND_MOBILE' && mobileNumber && (
+                    <div><strong>Mobile:</strong> {mobileNumber}</div>
+                  )}
+                </div>
+
+                <hr style={{ border: 'none', borderTop: '1px dashed #000', margin: '8px 0' }} />
+              </>
+            )}
+
+
+          {/* ================= ITEM HEADER ================= */}
           <div
-            key={i}
             style={{
               display: 'grid',
               gridTemplateColumns: '1fr 35px 45px 55px',
-              paddingBottom: '3px',
-              marginBottom: '3px',
-              fontSize: '9pt'
+              fontWeight: 'bold',
+              borderBottom: '1px solid #000',
+              paddingBottom: '4px',
+              marginBottom: '5px'
             }}
           >
-            <div>
-              {item.name}
-              {formData.modifier_default_option && item.modifier && (
-                <div style={{ fontSize: '7pt', color: '#777' }}>
-                  {item.modifier}
-                </div>
-              )}
-            </div>
-
-            <div style={{ textAlign: 'center' }}>{kotQty}</div>
-            <div style={{ textAlign: 'right' }}>{item.price.toFixed(2)}</div>
-
+            <div>Item</div>
+            <div style={{ textAlign: 'center' }}>Qty</div>
+            <div style={{ textAlign: 'right' }}>Rate</div>
             {formData.show_item_price && (
-              <div style={{ textAlign: 'right' }}>
-                {(item.price * kotQty).toFixed(2)}
-              </div>
+              <div style={{ textAlign: 'right' }}>Amt</div>
             )}
           </div>
-        );
-      })}
 
-    <hr style={{ border: 'none', borderTop: '1px dashed #000', margin: '8px 0' }} />
-    {/* ================= REVERSE QTY BLOCK ================= */}
-{reverseQtyMode && reverseQtyItems.length > 0 && (
-  <>
-    <div
-      style={{
-        textAlign: "center",
-        fontWeight: "bold",
-        color: "#dc3545",
-        marginBottom: "10px",
-        padding: "5px",
-        backgroundColor: "#f8d7da",
-        border: "1px solid #f5c6cb",
-        borderRadius: "4px",
-        fontSize: "9pt",
-      }}
-    >
-      REVERSE QUANTITY ITEMS
-    </div>
+          {/* ================= ITEMS ================= */}
+          {items
+            .filter(item => item.isNew)
+            .map((item, i) => {
+              const kotQty = item.originalQty
+                ? Math.max(0, item.qty - item.originalQty)
+                : item.qty;
 
-    {/* Reverse Qty Items List */}
-    {reverseQtyItems.map((item, index) => (
-      <div
-        key={`reverse-${item.txnDetailId}-${index}`}
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 35px 45px 55px",
-          gap: "5px",
-          paddingBottom: "4px",
-          marginBottom: "4px",
-          backgroundColor: "#fff3cd",
-          border: "1px solid #ffeaa7",
-          borderRadius: "4px",
-          padding: "6px",
-          fontSize: "9pt",
-        }}
-      >
-        {/* Item Name */}
-        <div>
-          {item.name}
-          {formData.modifier_default_option && item.modifier && (
-            <div style={{ fontSize: "7pt", color: "#666" }}>{item.modifier}</div>
+              if (kotQty <= 0) return null;
+
+              return (
+                <div
+                  key={i}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 35px 45px 55px',
+                    paddingBottom: '3px',
+                    marginBottom: '3px',
+                    fontSize: '9pt'
+                  }}
+                >
+                  <div>
+                    {item.name}
+                    {formData.modifier_default_option && item.modifier && (
+                      <div style={{ fontSize: '7pt', color: '#777' }}>
+                        {item.modifier}
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ textAlign: 'center' }}>{kotQty}</div>
+                  <div style={{ textAlign: 'right' }}>{item.price.toFixed(2)}</div>
+
+                  {formData.show_item_price && (
+                    <div style={{ textAlign: 'right' }}>
+                      {(item.price * kotQty).toFixed(2)}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+          <hr style={{ border: 'none', borderTop: '1px dashed #000', margin: '8px 0' }} />
+          {/* ================= REVERSE QTY BLOCK ================= */}
+          {reverseQtyMode && reverseQtyItems.length > 0 && (
+            <>
+              <div
+                style={{
+                  textAlign: "center",
+                  fontWeight: "bold",
+                  color: "#dc3545",
+                  marginBottom: "10px",
+                  padding: "5px",
+                  backgroundColor: "#f8d7da",
+                  border: "1px solid #f5c6cb",
+                  borderRadius: "4px",
+                  fontSize: "9pt",
+                }}
+              >
+                REVERSE QUANTITY ITEMS
+              </div>
+
+              {/* Reverse Qty Items List */}
+              {reverseQtyItems.map((item, index) => (
+                <div
+                  key={`reverse-${item.txnDetailId}-${index}`}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 35px 45px 55px",
+                    gap: "5px",
+                    paddingBottom: "4px",
+                    marginBottom: "4px",
+                    backgroundColor: "#fff3cd",
+                    border: "1px solid #ffeaa7",
+                    borderRadius: "4px",
+                    padding: "6px",
+                    fontSize: "9pt",
+                  }}
+                >
+                  {/* Item Name */}
+                  <div>
+                    {item.name}
+                    {formData.modifier_default_option && item.modifier && (
+                      <div style={{ fontSize: "7pt", color: "#666" }}>{item.modifier}</div>
+                    )}
+                  </div>
+
+                  {/* Reverse Qty */}
+                  <div style={{ textAlign: "center", color: "#dc3545", fontWeight: "bold" }}>
+                    -{item.qty}
+                  </div>
+
+                  {/* Rate */}
+                  <div style={{ textAlign: "right" }}>{item.price.toFixed(2)}</div>
+
+                  {/* Amount */}
+                  {formData.show_item_price && (
+                    <div
+                      style={{ textAlign: "right", color: "#dc3545", fontWeight: "bold" }}
+                    >
+                      -{(item.price * item.qty).toFixed(2)}
+                    </div>
+                  )}
+                </div>
+              ))}
+
+              {/* Reverse Qty Total */}
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  fontWeight: "bold",
+                  marginTop: "8px",
+                  marginBottom: "8px",
+                  fontSize: "10pt",
+                }}
+              >
+                <div style={{ color: "#dc3545" }}>
+                  Total Reverse Qty:{" "}
+                  {reverseQtyItems.reduce((sum, item) => sum + item.qty, 0)}
+                </div>
+
+                {formData.show_item_price && (
+                  <div style={{ color: "#dc3545" }}>
+                    ₹
+                    {reverseQtyItems
+                      .reduce((sum, item) => sum + item.price * item.qty, 0)
+                      .toFixed(2)}
+                  </div>
+                )}
+              </div>
+
+              <hr
+                style={{
+                  border: "none",
+                  borderTop: "1px dashed #000",
+                  margin: "10px 0",
+                }}
+              />
+            </>
           )}
-        </div>
 
-        {/* Reverse Qty */}
-        <div style={{ textAlign: "center", color: "#dc3545", fontWeight: "bold" }}>
-          -{item.qty}
-        </div>
 
-        {/* Rate */}
-        <div style={{ textAlign: "right" }}>{item.price.toFixed(2)}</div>
 
-        {/* Amount */}
-        {formData.show_item_price && (
-          <div
-            style={{ textAlign: "right", color: "#dc3545", fontWeight: "bold" }}
-          >
-            -{(item.price * item.qty).toFixed(2)}
+          {/* ================= TOTALS ================= */}
+          {(() => {
+            const kotItems = items.filter(x => x.isNew);
+            const totalQty = kotItems.reduce((a, b) => a + (b.originalQty ? b.qty - b.originalQty : b.qty), 0);
+            const totalAmt = kotItems.reduce((a, b) => a + (b.price * (b.originalQty ? b.qty - b.originalQty : b.qty)), 0);
+
+            return (
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '10pt' }}>
+                <div>Total Qty: {totalQty}</div>
+                {formData.show_item_price && <div>Total: ₹{totalAmt.toFixed(2)}</div>}
+              </div>
+            );
+          })()}
+
+          <hr style={{ border: 'none', borderTop: '1px dashed #000', margin: '8px 0' }} />
+
+
+          {/* ================= FOOTER ================= */}
+          <div style={{
+            textAlign: 'center',
+            marginTop: '10px',
+            fontSize: '9pt',
+            color: '#666'
+          }}>
+            THANK YOU
+            <br />
+            Please prepare the order
           </div>
-        )}
-      </div>
-    ))}
 
-    {/* Reverse Qty Total */}
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        fontWeight: "bold",
-        marginTop: "8px",
-        marginBottom: "8px",
-        fontSize: "10pt",
-      }}
-    >
-      <div style={{ color: "#dc3545" }}>
-        Total Reverse Qty:{" "}
-        {reverseQtyItems.reduce((sum, item) => sum + item.qty, 0)}
-      </div>
-
-      {formData.show_item_price && (
-        <div style={{ color: "#dc3545" }}>
-          ₹
-          {reverseQtyItems
-            .reduce((sum, item) => sum + item.price * item.qty, 0)
-            .toFixed(2)}
         </div>
-      )}
-    </div>
-
-    <hr
-      style={{
-        border: "none",
-        borderTop: "1px dashed #000",
-        margin: "10px 0",
-      }}
-    />
-  </>
-)}
-
-
-
-    {/* ================= TOTALS ================= */}
-    {(() => {
-      const kotItems = items.filter(x => x.isNew);
-      const totalQty = kotItems.reduce((a, b) => a + (b.originalQty ? b.qty - b.originalQty : b.qty), 0);
-      const totalAmt = kotItems.reduce((a, b) => a + (b.price * (b.originalQty ? b.qty - b.originalQty : b.qty)), 0);
-
-      return (
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '10pt' }}>
-          <div>Total Qty: {totalQty}</div>
-          {formData.show_item_price && <div>Total: ₹{totalAmt.toFixed(2)}</div>}
-        </div>
-      );
-    })()}
-
-    <hr style={{ border: 'none', borderTop: '1px dashed #000', margin: '8px 0' }} />
-
-
-    {/* ================= FOOTER ================= */}
-    <div style={{
-      textAlign: 'center',
-      marginTop: '10px',
-      fontSize: '9pt',
-      color: '#666'
-    }}>
-      THANK YOU  
-      <br />
-      Please prepare the order
-    </div>
-
-  </div>
-</div>
+      </div>
 
 
       {/* Bill Preview Section (for printing) */}
@@ -3371,17 +3371,17 @@ try {
               paddingBottom: '2px',
               marginBottom: '5px',
               fontSize: '9pt'
-          }}
-          >
+            }}
+            >
               <div>{formData.show_alt_item_title_bill && formData.print_bill_both_languages ? 'Item/항목' : 'Description'}</div>
-            {!formData.hide_item_quantity_column && <div style={{ textAlign: 'right' }}>Qty</div>}
-            {!formData.hide_item_rate_column && <div style={{ textAlign: 'right' }}>Rate</div>}
-            {!formData.hide_item_total_column && <div style={{ textAlign: 'right' }}>Amount</div>}
+              {!formData.hide_item_quantity_column && <div style={{ textAlign: 'right' }}>Qty</div>}
+              {!formData.hide_item_rate_column && <div style={{ textAlign: 'right' }}>Rate</div>}
+              {!formData.hide_item_total_column && <div style={{ textAlign: 'right' }}>Amount</div>}
             </div>
 
             {Object.values(
               items.reduce((acc: any, item: any) => {
-              const key = formData.show_items_sequence_bill ? `${item.id}-${item.price}` : String(item.id);
+                const key = formData.show_items_sequence_bill ? `${item.id}-${item.price}` : String(item.id);
                 if (!acc[key]) acc[key] = { ...item, qty: 0 };
                 acc[key].qty += item.qty;
                 return acc;
@@ -3389,12 +3389,12 @@ try {
             ).map((item: any, index: number) => (
               <div key={index} style={{
                 display: 'grid',
-              gridTemplateColumns: `${formData.print_bill_both_languages ? '3fr' : '2fr'} ${!formData.hide_item_quantity_column ? '30px' : ''} ${!formData.hide_item_rate_column ? '40px' : ''} ${!formData.hide_item_total_column ? '50px' : ''}`.trim().replace(/ +/g, ' '),
+                gridTemplateColumns: `${formData.print_bill_both_languages ? '3fr' : '2fr'} ${!formData.hide_item_quantity_column ? '30px' : ''} ${!formData.hide_item_rate_column ? '40px' : ''} ${!formData.hide_item_total_column ? '50px' : ''}`.trim().replace(/ +/g, ' '),
                 gap: '5px',
                 padding: '2px 0',
                 fontSize: '9pt'
-            }}
-            >
+              }}
+              >
                 <div>
                   {item.name}
                   {formData.print_bill_both_languages && formData.show_alt_name_bill && item.alternativeItem && ` / ${item.alternativeItem}`}
