@@ -1856,7 +1856,6 @@ const finalPrinterName = matchedPrinter.name;
 
 // Now prepare HTML
 const contentElem = document.getElementById("kot-preview");
-console.log("Content Element:", contentElem);
 if (!contentElem) {
   toast.error("KOT Preview element missing.");
   return;
@@ -1864,9 +1863,81 @@ if (!contentElem) {
 
 // Inject the full thermal-printer-friendly CSS directly into the HTML string
 const kotpreview = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>KOT</title>
+  <style>
+    @page {
+      size: 302px auto; 
+      margin: 0;
+    }
 
+    html, body {
+      width: 302px !important;
+      min-width: 302px !important;
+      margin: 0;
+      padding: 0;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      line-height: 1.3;
+      color: #000;
+      box-sizing: border-box;
+    }
+
+    /* CONTENT WRAPPER */
+    #kot-preview-content {
+      width: 302px !important;
+      min-width: 302px !important;
+      margin: 0 auto;
+      padding: 10px;
+      box-sizing: border-box;
+    }
+
+    .center { text-align: center; }
+    .right { text-align: right; }
+    .bold { font-weight: bold; }
+    .text-large { font-size: 14px; }
+    .text-small { font-size: 10px; }
+    .text-smaller { font-size: 9px; }
+    .separator { border: none; border-top: 1px dashed #000; margin: 5px 0; }
+
+    .item-table { width: 100%; border-collapse: collapse; }
+    .item-table th, .item-table td { padding: 2px 0; vertical-align: top; }
+    .item-table .col-item { width: 55%; }
+    .item-table .col-qty { width: 15%; text-align: center; }
+    .item-table .col-rate, .item-table .col-amt { width: 15%; text-align: right; }
+    .item-table thead th { border-bottom: 1px solid #000; padding-bottom: 4px; }
+
+    .totals-table { width: 100%; }
+    .totals-table td { padding: 1px 0; }
+
+    .tag { display: inline-block; padding: 1px 5px; border-radius: 4px; font-size: 9px; margin-top: 3px; }
+    .tag-new { background-color: #333; color: #fff; }
+    .tag-running { background-color: #666; color: #fff; }
+
+    .reverse-header {
+      text-align: center;
+      font-weight: bold;
+      color: #000;
+      margin: 5px 0;
+      padding: 3px;
+      background-color: #ccc;
+      border: 1px solid #000;
+      font-size: 11px;
+    }
+
+    .reverse-item td { color: #000; }
+    .reverse-item .reverse-qty, .reverse-item .reverse-amt { font-weight: bold; }
+  </style>
+</head>
+<body>
+  <div id="kot-preview-content">
     ${contentElem.innerHTML}
- 
+  </div>
+</body>
+</html>
 `;
 
 
@@ -3014,15 +3085,6 @@ try {
         const kotQty = item.originalQty
           ? Math.max(0, item.qty - item.originalQty)
           : item.qty;
-
-
-      console.log('KOT ROW:', {
-      name: item.name,
-      qty: item.qty,
-      originalQty: item.originalQty,
-      kotQty,
-      isNew: item.isNew,
-    });
 
         if (kotQty <= 0) return null;
 
