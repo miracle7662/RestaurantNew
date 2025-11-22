@@ -2948,8 +2948,16 @@ try {
   }
   return (
     <div className="container-fluid p-0 m-0 fade-in" style={{ height: '100vh' }}>
-      {/* Hidden KOT Preview for Printing */}
-     <div id="kot-preview" style={{ display: 'none' }}>
+      {/* Hidden KOT Preview for Printing */}<div
+  id="kot-preview"
+  style={{
+    position: 'absolute',
+    left: '-9999px',
+    top: '0',
+    visibility: 'hidden',
+    width: '302px'
+  }}
+>
   <div style={{
     width: '80mm',
     margin: '0 auto',
