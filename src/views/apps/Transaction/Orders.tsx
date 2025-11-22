@@ -1831,41 +1831,107 @@ const printer_name = await fetchKOTPrinter();
 
 if (!printer_name) {
   toast.error("No KOT printer configured.");
-  console.error("KOT Printer not found in settings.");
   return;
 }
 
-// 2️⃣ Get KOT HTML content
+// 🔍 Match DB printer with system printers
+const systemPrinters = await (window.electronAPI as any).getInstalledPrinters();
+console.log("System Printers:", systemPrinters);
+
+const matchedPrinter = systemPrinters.find(
+  (p: any) =>
+    p &&
+    p.name &&
+    printer_name &&
+    p.name.toLowerCase().includes(printer_name.toLowerCase())
+);
+
+
+if (!matchedPrinter) {
+  toast.error(`Printer "${printer_name}" not found on this system.`);
+  return;
+}
+
+const finalPrinterName = matchedPrinter.name;
+
+// Now prepare HTML
 const contentElem = document.getElementById("kot-preview");
 if (!contentElem) {
   toast.error("KOT Preview element missing.");
   return;
 }
 
-const kotHtml = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8" />
-  <style>
-    body { font-family: Arial; font-size: 14px; }
-  </style>
-</head>
-<body>
-  ${contentElem.innerHTML}
-</body>
-</html>
+// Inject the full thermal-printer-friendly CSS directly into the HTML string
+const kotpreview = `
+  <!DOCTYPE html>
+  <html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>KOT</title>
+    <style>
+      @page {
+        size: 80mm auto; /* Defines page size for the printer */
+        margin: 0; /* No margins */
+      }
+      html, body {
+        width: 80mm; /* Explicitly set width for html and body */
+        margin: 0;
+        padding: 0; /* Remove default padding */
+        font-family: 'Courier New', monospace;
+        font-size: 12px;
+        line-height: 1.3;
+        color: #000;
+        box-sizing: border-box;
+      }
+      .center { text-align: center; }
+      .right { text-align: right; }
+      .bold { font-weight: bold; }
+      .text-large { font-size: 14px; }
+      .text-small { font-size: 10px; }
+      .text-smaller { font-size: 9px; }
+      .separator { border: none; border-top: 1px dashed #000; margin: 5px 0; }
+      .item-table { width: 100%; border-collapse: collapse; }
+      .item-table th, .item-table td { padding: 2px 0; vertical-align: top; }
+      .item-table .col-item { width: 55%; }
+      .item-table .col-qty { width: 15%; text-align: center; }
+      .item-table .col-rate, .item-table .col-amt { width: 15%; text-align: right; }
+      .item-table thead th { border-bottom: 1px solid #000; padding-bottom: 4px; }
+      .totals-table { width: 100%; }
+      .totals-table td { padding: 1px 0; }
+      .tag { display: inline-block; padding: 1px 5px; border-radius: 4px; font-size: 9px; margin-top: 3px; }
+      .tag-new { background-color: #333; color: #fff; }
+      .tag-running { background-color: #666; color: #fff; }
+      .reverse-header { text-align: center; font-weight: bold; color: #000; margin: 5px 0; padding: 3px; background-color: #ccc; border: 1px solid #000; font-size: 11px; }
+      .reverse-item td { color: #000; }
+      .reverse-item .reverse-qty, .reverse-item .reverse-amt { font-weight: bold; }
+      /* Ensure the main content div also respects the width */
+      #kot-preview-content {
+        width: 80mm;
+        margin: 0 auto;
+        padding: 10px; /* Adjust as needed */
+        box-sizing: border-box;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Wrap the content in a div with an ID to apply specific styles if needed -->
+    <div id="kot-preview-content">
+      ${contentElem.innerHTML}
+    </div>
+  </body>
+  </html>
 `;
 
-// 3️⃣ Send directly to printer via Electron API
+// Print
 try {
-  await window.electronAPI.printDirect(kotHtml, printer_name);
-  console.log("KOT Printed Successfully!");
+  await (window.electronAPI as any).directPrint(kotpreview, finalPrinterName);
+
   toast.success("KOT Printed Successfully!");
 } catch (err) {
-  console.error("Failed to print KOT:", err);
-  toast.error("Failed to print KOT. Check printer settings.");
+  toast.error("Failed to print KOT.");
+  console.error("Print error:", err);
 }
+
 
 
 
@@ -5152,64 +5218,43 @@ const ReversedItemsDisplay = ({ items }: { items: ReversedMenuItem[] }) => {
   }
 
   return (
-    <>
-      <div
-        className="text-center fw-bold p-1"
-        style={{
-          backgroundColor: '#f8d7da',
-          color: '#b71c1c',
-          borderTop: '1px solid #dee2e6',
-          borderBottom: '1px solid #dee2e6',
-        }}
-      >
-
-      </div>
-      {items.map((item, index) => (
-        <div
-          key={`reversed-item-${item.reversalLogId || index}`}
-          className="border-bottom" // Use reversalLogId for a unique key
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '2fr 1fr 1fr',
-            padding: '0.25rem',
-            alignItems: 'center',
-            backgroundColor: '#f8d7da', // Light red
-            color: '#721c24', // Darker red
-          }}
-        >
-          <span style={{ textAlign: 'left' }}>
-            {item.name}
-            <span className="badge bg-danger fw-bold ms-1" title={`KOT: ${item.kotNo}`}>
-              {item.qty > 0 ? item.qty : ''}
-            </span>
-
-          </span>
-          <div className="text-center d-flex justify-content-center align-items-center gap-2">
-            <button
-              className="btn btn-danger btn-sm"
-              style={{ padding: '0 5px', lineHeight: '1' }}
-              disabled={true}
-            >
-              −
-            </button>
-            <input
-              type="number"
-              value={item.qty}
-              readOnly={true}
-              className="border rounded text-center no-spinner"
-              style={{ width: '40px', height: '16px', fontSize: '0.75rem', padding: '0' }}
-              min="0"
-              max="999"
-            />
-            <button className="btn btn-success btn-sm" style={{ padding: '0 5px', lineHeight: '1' }} disabled={true}>+</button>
-          </div>
-          <div className="text-center">
-            <div>-{(item.price * item.qty).toFixed(2)}</div>
-            <div style={{ fontSize: '0.75rem', color: '#6c757d', width: '50px', height: '16px', margin: '0 auto' }}>({item.price.toFixed(2)})</div>
-          </div>
-        </div>
-      ))}
-    </>
+    <div style={{ marginTop: '5px' }}>
+      <div className="reverse-header">REVERSE QUANTITY ITEMS</div>
+      <table className="item-table">
+        <tbody>
+          {items.map((item, index) => (
+            <tr key={`reversed-item-${item.reversalLogId || index}`} className="reverse-item">
+              <td className="col-item">
+                {item.name}
+                {item.modifier && (
+                  <div className="text-smaller" style={{ color: '#555' }}>
+                    {Array.isArray(item.modifier) ? item.modifier.join(', ') : item.modifier}
+                  </div>
+                )}
+              </td>
+              <td className="col-qty reverse-qty">-{item.qty}</td>
+              <td className="col-rate">{item.price.toFixed(2)}</td>
+              <td className="col-amt reverse-amt">-{(item.price * item.qty).toFixed(2)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <table className="totals-table" style={{ marginTop: '5px' }}>
+        <tbody>
+          <tr>
+            <td className="bold" style={{ color: '#000' }}>
+              Total Reverse Qty: {items.reduce((sum, item) => sum + item.qty, 0)}
+            </td>
+            <td className="bold right" style={{ color: '#000' }}>
+              ₹-
+              {items
+                .reduce((sum, item) => sum + item.price * item.qty, 0)
+                .toFixed(2)}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   );
 };
 

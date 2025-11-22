@@ -59,44 +59,32 @@ function createWindow() {
   });
 
   // Direct KOT Printing (silent)
-ipcMain.handle("print-direct", async (event, { htmlContent, printerName }) => {
-    try {
-        let printWindow = new BrowserWindow({
-            show: false,
-            webPreferences: {
-                nodeIntegration: false,
-                contextIsolation: true
-            }
-        });
+ipcMain.handle("direct-print", async (event, { html, printerName }) => {
+  return new Promise((resolve, reject) => {
+    const win = new BrowserWindow({
+      show: false,
+      webPreferences: { offscreen: true }
+    });
 
-        // Load HTML into invisible window
-        printWindow.loadURL(
-            "data:text/html;charset=utf-8," +
-            encodeURIComponent(htmlContent)
+    win.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(html));
+
+    win.webContents.on("did-finish-load", () => {
+      setTimeout(() => {
+        win.webContents.print(
+          {
+            silent: true,
+            printBackground: true,
+            deviceName: printerName,
+          },
+          (success, fail) => {
+            win.destroy();
+            if (success) resolve(true);
+            else reject(fail);
+          }
         );
-
-        // Wait for HTML to load, then print silently
-        printWindow.webContents.on("did-finish-load", () => {
-            printWindow.webContents.print(
-                {
-                    silent: true,
-                    printBackground: true,
-                    deviceName: printerName, // ← IMPORTANT
-                },
-                (success, failureReason) => {
-                    if (!success) {
-                        console.error("Print failed:", failureReason);
-                    }
-                    printWindow.close();
-                }
-            );
-        });
-
-        return true;
-    } catch (err) {
-        console.error("Direct print error:", err);
-        return false;
-    }
+      }, 150);
+    });
+  });
 });
 /* ------------------------------------------------------ */
 
