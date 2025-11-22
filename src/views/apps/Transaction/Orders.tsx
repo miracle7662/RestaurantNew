@@ -2943,6 +2943,18 @@ try {
     fetchPendingOrders(type);
   };
 
+  const handlePreviewBill = () => {
+    const previewWindow = window.open('', '_blank');
+    if (previewWindow) {
+      const contentToPrint = document.getElementById('bill-preview');
+      if (contentToPrint) {
+        previewWindow.document.write('<html><head><title>Bill Preview</title></head><body>' + contentToPrint.innerHTML + '</body></html>');
+        previewWindow.document.close();
+        previewWindow.focus();
+      }
+    }
+  };
+
   if (showKotTransfer) {
     return <KotTransfer onCancel={() => setShowKotTransfer(false)} />;
   }
@@ -4525,6 +4537,15 @@ background: darkgreen;
                     </svg>
                   </Button>
 
+                  <Button
+                    variant="info"
+                    className="rounded-circle d-flex justify-content-center align-items-center ms-2"
+                    style={{ width: '30px', height: '30px', padding: '0', zIndex: 1005 }}
+                    onClick={handlePreviewBill}
+                    title="Preview Bill"
+                  >
+                    <i className="mdi mdi-eye-outline"></i>
+                  </Button>
                   {showOptions && (
                     <>
                       <div
