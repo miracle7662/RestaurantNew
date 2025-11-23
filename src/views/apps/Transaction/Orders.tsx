@@ -3266,7 +3266,6 @@ const Order = () => {
       {/* Bill Preview Section (for printing) */}
       <div id="bill-preview" style={{ display: 'none' }}>
         <div style={{
-          width: '80mm',
           margin: '0 auto',
           fontFamily: 'Courier New, monospace',
           fontSize: '10pt',
@@ -3644,6 +3643,13 @@ const Order = () => {
               display: none;
             }
           }
+        .receipt-preview-modal .modal-content {
+            width: 320px; /* Approx 80mm */
+            margin: 0 auto;
+        }
+        .receipt-preview-modal .modal-body {
+            padding: 0;
+        }
         `}
       </style>
       <div className="main-container d-flex flex-column flex-md-row ">
