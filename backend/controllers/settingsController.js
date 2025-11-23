@@ -37,6 +37,18 @@ exports.getKotPrinterSettings = async (req, res) => {
   }
 };
 
+/**
+ * Get all KOT printer settings without id parameter
+ */
+exports.getAllKotPrinterSettings = async (req, res) => {
+  try {
+    const rows = await getAll("SELECT * FROM kot_printer_settings");
+    res.json(rows);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+};
+
 
 
 

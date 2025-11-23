@@ -4,11 +4,12 @@ const settingsController = require("../controllers/settingsController");
 
 
 
-// -------------------------
-// KOT PRINTER SETTINGS
-// -------------------------
-router.get("/kot-printer-settings/:id", settingsController.getKotPrinterSettings);
-router.post("/kot-printer-settings", settingsController.createKotPrinterSetting);
+ // -------------------------
+ // KOT PRINTER SETTINGS
+ // -------------------------
+ router.get("/kot-printer-settings/:id", settingsController.getKotPrinterSettings);
+ router.get("/kot-printer-settings", settingsController.getAllKotPrinterSettings);
+ router.post("/kot-printer-settings", settingsController.createKotPrinterSetting);
 
 // -------------------------
 // BILL PRINTER SETTINGS
