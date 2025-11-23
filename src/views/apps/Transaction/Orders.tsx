@@ -196,6 +196,9 @@ const Order = () => {
   const [pendingOrders, setPendingOrders] = useState<any[]>([]);
   const [loadingPending, setLoadingPending] = useState<boolean>(false);
   const [printTrigger, setPrintTrigger] = useState<number>(0);
+
+  // New state for the Bill Preview Modal
+  const [showBillPreviewModal, setShowBillPreviewModal] = useState<boolean>(false);
   const [errorPending, setErrorPending] = useState<string | null>(null);
 
   // States for Pending Order Form
@@ -1837,11 +1840,12 @@ const Order = () => {
         console.log("System Printers:", systemPrinters);
 
         const matchedPrinter = systemPrinters.find(
-          (p) =>
-            typeof p === "string" &&
+          (p: string) =>
             printer_name &&
+            typeof p === "string" &&
             p.toLowerCase().includes(printer_name.toLowerCase())
         );
+
 
         console.log("Matched Printer:", matchedPrinter);
 
@@ -2942,15 +2946,8 @@ const Order = () => {
   };
 
   const handlePreviewBill = () => {
-    const previewWindow = window.open('', '_blank');
-    if (previewWindow) {
-      const contentToPrint = document.getElementById('bill-preview');
-      if (contentToPrint) {
-        previewWindow.document.write('<html><head><title>Bill Preview</title></head><body>' + contentToPrint.innerHTML + '</body></html>');
-        previewWindow.document.close();
-        previewWindow.focus();
-      }
-    }
+    // Open the new modal instead of a new window
+    setShowBillPreviewModal(true);
   };
 
   if (showKotTransfer) {
@@ -2959,6 +2956,7 @@ const Order = () => {
   return (
     <div className="container-fluid p-0 m-0 fade-in" style={{ height: '100vh' }}>
       {/* Hidden KOT Preview for Printing */}
+
       <div id="kot-preview" style={{ display: 'none' }}>
         <div style={{
           width: '80mm',
@@ -4538,12 +4536,27 @@ background: darkgreen;
                   <Button
                     variant="info"
                     className="rounded-circle d-flex justify-content-center align-items-center ms-2"
-                    style={{ width: '30px', height: '30px', padding: '0', zIndex: 1005 }}
+                    style={{ width: "30px", height: "30px", padding: "0", zIndex: 1005 }}
                     onClick={handlePreviewBill}
                     title="Preview Bill"
                   >
-                    <i className="mdi mdi-eye-outline"></i>
+                    <svg
+                      width="15"
+                      height="15"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d="M12 5C7 5 3 8.5 2 12c1 3.5 5 7 10 7s9-3.5 10-7c-1-3.5-5-7-10-7zm0 10a3 3 0 1 1 0-6 3 3 0 0 1 0 6z"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
                   </Button>
+
                   {showOptions && (
                     <>
                       <div
@@ -5034,6 +5047,20 @@ background: darkgreen;
             </Modal.Footer>
           </Modal>
 
+          {/* Bill Preview Modal */}
+          <Modal
+            show={showBillPreviewModal}
+            onHide={() => setShowBillPreviewModal(false)}
+            centered
+            dialogClassName="receipt-preview-modal"
+          >
+            <Modal.Header closeButton>
+              <Modal.Title>Bill Preview</Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+              <div dangerouslySetInnerHTML={{ __html: document.getElementById('bill-preview')?.innerHTML || '' }} />
+            </Modal.Body>
+          </Modal>
           {/* Settlement Modal */}
 
           {/* Main Settlement Modal */}
