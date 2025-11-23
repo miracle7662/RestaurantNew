@@ -14,31 +14,7 @@ const getAll = (query, params = []) => {
   return stmt.all(params);
 };
 
-// ------------------------------------------
-// 1️⃣ MST Printers
-// ------------------------------------------
 
-exports.getMstPrinters = async (req, res) => {
-  try {
-    const rows = getAll('SELECT * FROM mst_printers');
-    res.json(rows);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-};
-
-exports.createMstPrinter = async (req, res) => {
-  try {
-    const { printer_name, size, source } = req.body;
-    await runQuery(
-      'INSERT INTO mst_printers (printer_name, size, source) VALUES (?, ?, ?)',
-      [printer_name, size, source]
-    );
-    res.json({ msg: 'Printer added' });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-};
 
 // ------------------------------------------
 // 2️⃣ KOT Printer Settings

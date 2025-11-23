@@ -2,11 +2,7 @@ const express = require("express");
 const router = express.Router();
 const settingsController = require("../controllers/settingsController");
 
-// -------------------------
-// MST PRINTERS
-// -------------------------
-router.get("/mst-printers", settingsController.getMstPrinters);
-router.post("/mst-printers", settingsController.createMstPrinter);
+
 
 // -------------------------
 // KOT PRINTER SETTINGS

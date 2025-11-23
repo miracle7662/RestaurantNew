@@ -7,9 +7,7 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 
-interface PrinterInfo {
-  name: string;
-}
+
 
 interface KotPrinterSetting {
   id: number;
@@ -94,14 +92,17 @@ interface KDSUser {
 declare global {
   interface Window {
     electronAPI: {
-      getInstalledPrinters: () => Promise<PrinterInfo[]>;
+      getInstalledPrinters: () => Promise<string[]>;
     };
   }
 }
 
 function SettingsPage() {
   const [activeTab, setActiveTab] = useState("general");
-  const [printers, setPrinters] = useState<PrinterInfo[]>([]);
+  const [selectedPrinter, setSelectedPrinter] = useState("");
+
+  const [printers, setPrinters] = useState<string[]>([]);
+
 
   // State for all printer settings
   const [kotPrinters, setKotPrinters] = useState<KotPrinterSetting[]>([]);
@@ -116,12 +117,13 @@ function SettingsPage() {
   const [loading, setLoading] = useState(false);
   const [, setEditingKotId] = useState<number | null>(null);
   const [, setEditingBillId] = useState<number | null>(null);
- 
+
 
   useEffect(() => {
     const fetchPrinters = async () => {
       try {
         const printerList = await window.electronAPI.getInstalledPrinters();
+        console.log('Printers fetched from system:', printerList);
         setPrinters(printerList);
       } catch (error) {
         console.error('Failed to fetch printers:', error);
@@ -264,13 +266,14 @@ function SettingsPage() {
   const PrinterSelector = () => (
     <select className="form-select">
       <option>Select Printer</option>
-      {printers.map((printer, index) => (
-        <option key={index} value={printer.name}>
-          {printer.name}
+      {printers.map((printer: string, index: number) => (
+        <option key={index} value={printer}>
+          {printer}
         </option>
       ))}
     </select>
   );
+
 
   const ActionButtons = () => (
     <div className="d-flex gap-1">
@@ -503,7 +506,7 @@ function SettingsPage() {
       {/* CONTENT AREA */}
       <div className="card shadow-lg border-0 rounded">
         <div className="card-body" style={{ minHeight: "80vh" }}>
-          
+
 
           {/* PRINTER TAB */}
           {activeTab === "printer" && (
@@ -514,14 +517,22 @@ function SettingsPage() {
                 <div className="row g-3">
                   <div className="col-md-3">
                     <label className="form-label">Printer</label>
-                    <select className="form-select" id="kot-printer">
-                      <option>Select Printer</option>
-                      {printers.map((printer, index) => (
-                        <option key={index} value={printer.name}>
-                          {printer.name}
+                    <select
+                      className="form-select"
+                      id="bill-printer"
+                      value={selectedPrinter}
+                      onChange={(e) => setSelectedPrinter(e.target.value)}
+                    >
+                      <option value="">Select Printer</option>
+
+                      {printers.map((p: string, index: number) => (
+                        <option key={index} value={p}>
+                          {p}
                         </option>
                       ))}
                     </select>
+
+
                   </div>
                   <div className="col-md-3">
                     <label className="form-label">Source</label>
@@ -573,11 +584,17 @@ function SettingsPage() {
                 <div className="row g-3">
                   <div className="col-md-3">
                     <label className="form-label">Printer</label>
-                    <select className="form-select" id="bill-printer">
-                      <option>Select Printer</option>
-                      {printers.map((printer, index) => (
-                        <option key={index} value={printer.name}>
-                          {printer.name}
+                    <select
+                      className="form-select"
+                      id="bill-printer"
+                      value={selectedPrinter}
+                      onChange={(e) => setSelectedPrinter(e.target.value)}
+                    >
+                      <option value="">Select Printer</option>
+
+                      {printers.map((p: string, index: number) => (
+                        <option key={index} value={p}>
+                          {p}
                         </option>
                       ))}
                     </select>
@@ -727,8 +744,8 @@ function SettingsPage() {
                 <PrinterTable
                   data={departmentPrinters}
                   columns={['Printer Name', 'Source', 'Order Type', 'Department', 'Size', 'Copies']}
-                  onEdit={() => {}}
-                  onDelete={(id) => {}}
+                  onEdit={() => { }}
+                  onDelete={(id) => { }}
                 />
               </PrinterSection>
 
@@ -776,8 +793,8 @@ function SettingsPage() {
                 <PrinterTable
                   data={tableWiseKot}
                   columns={['Table No', 'Printer Name', 'Size', 'Source', 'Copies']}
-                  onEdit={() => {}}
-                  onDelete={(id) => {}}
+                  onEdit={() => { }}
+                  onDelete={(id) => { }}
                 />
               </PrinterSection>
 
@@ -824,8 +841,8 @@ function SettingsPage() {
                 <PrinterTable
                   data={tableWiseBill}
                   columns={['Table No', 'Printer Name', 'Size', 'Source', 'Copies']}
-                  onEdit={() => {}}
-                  onDelete={(id) => {}}
+                  onEdit={() => { }}
+                  onDelete={(id) => { }}
                 />
               </PrinterSection>
 
@@ -881,8 +898,8 @@ function SettingsPage() {
                 <PrinterTable
                   data={categoryPrinters}
                   columns={['Printer Name', 'Order Type', 'Source', 'Category', 'Size', 'Copies']}
-                  onEdit={() => {}}
-                  onDelete={(id) => {}}
+                  onEdit={() => { }}
+                  onDelete={(id) => { }}
                 />
               </PrinterSection>
 
@@ -992,10 +1009,10 @@ function SettingsPage() {
             </div>
           )}
 
-       
-       
 
-       
+
+
+
 
         </div>
       </div>
