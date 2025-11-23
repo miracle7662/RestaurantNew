@@ -398,12 +398,10 @@ const Order = () => {
   }, [setItems, setReversedItems, setCurrentKOTNo, setCurrentKOTNos, setCurrentTxnId]);
 
 
-  const fetchKOTPrinter = async (): Promise<string | null> => {
+  const fetchKOTPrinter = async (outletId?: number | null): Promise<string | null> => {
     try {
-      const outletId = selectedOutletId || user?.outletid;
-
       const res = await fetch(
-        `http://localhost:3001/api/settings/kot-printer-settings/${outletId}`
+        `http://localhost:3001/api/settings/kot-printer-settings/${outletId || selectedOutletId || user?.outletid}`
       );
 
 
@@ -1827,7 +1825,7 @@ const Order = () => {
         }
 
         // 1️⃣ Fetch printer from settings
-        const printer_name = await fetchKOTPrinter();
+        const printer_name = await fetchKOTPrinter(resolvedOutletId);
 
         if (!printer_name) {
           toast.error("No KOT printer configured.");
