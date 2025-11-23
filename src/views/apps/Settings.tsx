@@ -100,6 +100,8 @@ declare global {
 function SettingsPage() {
   const [activeTab, setActiveTab] = useState("general");
   const [selectedPrinter, setSelectedPrinter] = useState("");
+  const [selectedKotPrinter, setSelectedKotPrinter] = useState("");
+  const [selectedBillPrinter, setSelectedBillPrinter] = useState("");
 
   const [printers, setPrinters] = useState<string[]>([]);
 
@@ -517,20 +519,20 @@ function SettingsPage() {
                 <div className="row g-3">
                   <div className="col-md-3">
                     <label className="form-label">Printer</label>
-                    <select
-                      className="form-select"
-                      id="bill-printer"
-                      value={selectedPrinter}
-                      onChange={(e) => setSelectedPrinter(e.target.value)}
-                    >
-                      <option value="">Select Printer</option>
+                      <select
+                        className="form-select"
+                        id="kot-printer"
+                        value={selectedKotPrinter}
+                        onChange={(e) => setSelectedKotPrinter(e.target.value)}
+                      >
+                        <option value="">Select Printer</option>
 
-                      {printers.map((p: string, index: number) => (
-                        <option key={index} value={p}>
-                          {p}
-                        </option>
-                      ))}
-                    </select>
+                        {printers.map((p: string, index: number) => (
+                          <option key={index} value={p}>
+                            {p}
+                          </option>
+                        ))}
+                      </select>
 
 
                   </div>
@@ -584,20 +586,20 @@ function SettingsPage() {
                 <div className="row g-3">
                   <div className="col-md-3">
                     <label className="form-label">Printer</label>
-                    <select
-                      className="form-select"
-                      id="bill-printer"
-                      value={selectedPrinter}
-                      onChange={(e) => setSelectedPrinter(e.target.value)}
-                    >
-                      <option value="">Select Printer</option>
+                      <select
+                        className="form-select"
+                        id="bill-printer"
+                        value={selectedBillPrinter}
+                        onChange={(e) => setSelectedBillPrinter(e.target.value)}
+                      >
+                        <option value="">Select Printer</option>
 
-                      {printers.map((p: string, index: number) => (
-                        <option key={index} value={p}>
-                          {p}
-                        </option>
-                      ))}
-                    </select>
+                        {printers.map((p: string, index: number) => (
+                          <option key={index} value={p}>
+                            {p}
+                          </option>
+                        ))}
+                      </select>
                   </div>
                   <div className="col-md-3">
                     <label className="form-label">Source</label>
