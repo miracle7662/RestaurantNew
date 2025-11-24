@@ -201,6 +201,8 @@ const Order = () => {
   const [showBillPreviewModal, setShowBillPreviewModal] = useState<boolean>(false);
   const [errorPending, setErrorPending] = useState<string | null>(null);
 
+  const [printItems, setPrintItems] = useState<MenuItem[]>([]);
+  const [isPrintMode, setIsPrintMode] = useState(false);
   // States for Pending Order Form
 
   const [showBillingPage, setShowBillingPage] = useState<boolean>(false);
@@ -1857,6 +1859,10 @@ const Order = () => {
         const finalPrinterName = matchedPrinter.name;
 
         // Now prepare HTML
+        setPrintItems(items.filter(item => item.isNew));
+
+        setIsPrintMode(true);
+
         const contentElem = document.getElementById("kot-preview");
         if (!contentElem) {
           toast.error("KOT Preview element missing.");
@@ -1957,8 +1963,7 @@ const Order = () => {
 
 
 
-
-
+        setIsPrintMode(false);
 
         // After printing, decide what to do based on focusMode
         if (activeTab === 'Pickup' || activeTab === 'Delivery') {
@@ -2957,7 +2962,7 @@ const Order = () => {
     <div className="container-fluid p-0 m-0 fade-in" style={{ height: '100vh' }}>
       {/* Hidden KOT Preview for Printing */}
 
-      <div id="kot-preview" style={{ display: 'none' }}>
+      <div id="kot-preview" >
         <div style={{
           width: '80mm',
           margin: '0 auto',
@@ -3086,47 +3091,45 @@ const Order = () => {
             )}
           </div>
 
+    
           {/* ================= ITEMS ================= */}
-          {items
-            .filter(item => item.isNew)
-            .map((item, i) => {
-              const kotQty = item.originalQty
-                ? Math.max(0, item.qty - item.originalQty)
-                : item.qty;
+{(printItems.length > 0 ? printItems : items.filter(i => i.isNew))  
+  .map((item, i) => {
 
-              if (kotQty <= 0) return null;
+    const kotQty = item.originalQty
+      ? Math.max(0, item.qty - item.originalQty)
+      : item.qty;
 
-              return (
-                <div
-                  key={i}
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: '1fr 35px 45px 55px',
-                    paddingBottom: '3px',
-                    marginBottom: '3px',
-                    fontSize: '9pt'
-                  }}
-                >
-                  <div>
-                    {item.name}
-                    {formData.modifier_default_option && item.modifier && (
-                      <div style={{ fontSize: '7pt', color: '#777' }}>
-                        {item.modifier}
-                      </div>
-                    )}
-                  </div>
+    const displayQty = kotQty > 0 ? kotQty : item.qty;
 
-                  <div style={{ textAlign: 'center' }}>{kotQty}</div>
-                  <div style={{ textAlign: 'right' }}>{item.price.toFixed(2)}</div>
+    return (
+      <div
+        key={i}
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 35px 45px 55px',
+          paddingBottom: '3px',
+          marginBottom: '3px',
+          fontSize: '9pt'
+        }}
+      >
+        <div>{item.name}</div>
+        <div style={{ textAlign: 'center' }}>{displayQty}</div>
+        <div style={{ textAlign: 'right' }}>{item.price.toFixed(2)}</div>
+        <div style={{ textAlign: 'right' }}>
+          {(item.price * displayQty).toFixed(2)}
+        </div>
+      </div>
+    );
+  })}
 
-                  {formData.show_item_price && (
-                    <div style={{ textAlign: 'right' }}>
-                      {(item.price * kotQty).toFixed(2)}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+
+
+
+
+
+
+
 
           <hr style={{ border: 'none', borderTop: '1px dashed #000', margin: '8px 0' }} />
           {/* ================= REVERSE QTY BLOCK ================= */}
