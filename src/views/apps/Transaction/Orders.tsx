@@ -3041,7 +3041,6 @@ const Order = () => {
             <div><strong>Time:</strong> {new Date().toLocaleTimeString('en-GB')}</div>
 
 
-            <div><strong>Tax:</strong> {includeTaxInInvoice === 1 ? 'Inclusive' : 'Exclusive'}</div>
           </div>
 
           {formData.show_waiter && (
@@ -3091,37 +3090,37 @@ const Order = () => {
             )}
           </div>
 
-    
+
           {/* ================= ITEMS ================= */}
-{(printItems.length > 0 ? printItems : items.filter(i => i.isNew))  
-  .map((item, i) => {
+          {(printItems.length > 0 ? printItems : items.filter(i => i.isNew))
+            .map((item, i) => {
 
-    const kotQty = item.originalQty
-      ? Math.max(0, item.qty - item.originalQty)
-      : item.qty;
+              const kotQty = item.originalQty
+                ? Math.max(0, item.qty - item.originalQty)
+                : item.qty;
 
-    const displayQty = kotQty > 0 ? kotQty : item.qty;
+              const displayQty = kotQty > 0 ? kotQty : item.qty;
 
-    return (
-      <div
-        key={i}
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 35px 45px 55px',
-          paddingBottom: '3px',
-          marginBottom: '3px',
-          fontSize: '9pt'
-        }}
-      >
-        <div>{item.name}</div>
-        <div style={{ textAlign: 'center' }}>{displayQty}</div>
-        <div style={{ textAlign: 'right' }}>{item.price.toFixed(2)}</div>
-        <div style={{ textAlign: 'right' }}>
-          {(item.price * displayQty).toFixed(2)}
-        </div>
-      </div>
-    );
-  })}
+              return (
+                <div
+                  key={i}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 35px 45px 55px',
+                    paddingBottom: '3px',
+                    marginBottom: '3px',
+                    fontSize: '9pt'
+                  }}
+                >
+                  <div>{item.name}</div>
+                  <div style={{ textAlign: 'center' }}>{displayQty}</div>
+                  <div style={{ textAlign: 'right' }}>{item.price.toFixed(2)}</div>
+                  <div style={{ textAlign: 'right' }}>
+                    {(item.price * displayQty).toFixed(2)}
+                  </div>
+                </div>
+              );
+            })}
 
 
 
