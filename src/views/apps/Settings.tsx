@@ -99,7 +99,7 @@ declare global {
 
 function SettingsPage() {
   const [activeTab, setActiveTab] = useState("general");
-  const [selectedPrinter, setSelectedPrinter] = useState("");
+  // const [selectedPrinter, setSelectedPrinter] = useState("");
   const [selectedKotPrinter, setSelectedKotPrinter] = useState("");
   const [selectedBillPrinter, setSelectedBillPrinter] = useState("");
 
@@ -277,16 +277,16 @@ function SettingsPage() {
   );
 
 
-  const ActionButtons = () => (
-    <div className="d-flex gap-1">
-      <button className="btn btn-sm btn-outline-primary">
-        <i className="bi bi-pencil"></i> Edit
-      </button>
-      <button className="btn btn-sm btn-outline-danger">
-        <i className="bi bi-trash"></i> Delete
-      </button>
-    </div>
-  );
+  // const ActionButtons = () => (
+  //   <div className="d-flex gap-1">
+  //     <button className="btn btn-sm btn-outline-primary">
+  //       <i className="bi bi-pencil"></i> Edit
+  //     </button>
+  //     <button className="btn btn-sm btn-outline-danger">
+  //       <i className="bi bi-trash"></i> Delete
+  //     </button>
+  //   </div>
+  // );
 
   // KOT Printer handlers
   const handleAddKotPrinter = async () => {

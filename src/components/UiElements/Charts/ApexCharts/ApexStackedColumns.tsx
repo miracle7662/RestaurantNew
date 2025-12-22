@@ -129,7 +129,7 @@ const ApexStackedColumns: React.FC<ApexStackedColumnsProps> = () => {
         width: 10,
         height: 10,
         radius: 25,
-      },
+      }as any,
       itemMargin: {
         horizontal: 15,
         vertical: 5,

@@ -202,7 +202,7 @@ const Order = () => {
   const [errorPending, setErrorPending] = useState<string | null>(null);
 
   const [printItems, setPrintItems] = useState<MenuItem[]>([]);
-  const [isPrintMode, setIsPrintMode] = useState(false);
+  const [, setIsPrintMode] = useState(false);
   // States for Pending Order Form
 
   const [showBillingPage, setShowBillingPage] = useState<boolean>(false);
@@ -2962,7 +2962,7 @@ const Order = () => {
     <div className="container-fluid p-0 m-0 fade-in" style={{ height: '100vh' }}>
       {/* Hidden KOT Preview for Printing */}
 
-      <div id="kot-preview" >
+      <div id="kot-preview" style={{ display: 'none' }} >
         <div style={{
           width: '80mm',
           margin: '0 auto',
