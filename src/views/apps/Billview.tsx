@@ -43,6 +43,14 @@ const ModernBill = () => {
 
   console.log('Table ID:', tableId);
 
+  const [waiter, setWaiter] = useState('ASD');
+  const [pax, setPax] = useState(1);
+  const [kotNo, setKotNo] = useState('26');
+  const [tableNo, setTableNo] = useState(tableId || '1');
+  const [defaultKot, setDefaultKot] = useState(34); // last / system KOT
+const [editableKot, setEditableKot] = useState(34); // user editable
+
+
   const inputRefs = useRef<(HTMLInputElement | null)[][]>([]);
 
   // Mock data for item lookup
@@ -334,8 +342,9 @@ const ModernBill = () => {
 
         .info-card {
           border: 1px solid #ced4da;
+          border-radius: 0.5rem;
           transition: all 0.3s ease;
-          background: #eef7ff; /* Faint blue background */
+          background: #f8f9fa; /* Soft light background */
         }
 
         .info-card:hover {
@@ -343,8 +352,18 @@ const ModernBill = () => {
           transform: translateY(-2px);
         }
 
+        .info-card .form-control {
+          background-color:  ;
+          border: none;
+        }
+
+        .table-no-card {
+          background: #e3f2fd; /* Light blue background to highlight */
+          border: 2px solid #2196f3;
+        }
+
         .total-card {
-          background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+          background: #28a745; /* Solid green background */
           border: none;
           color: white;
         }
@@ -446,11 +465,25 @@ const ModernBill = () => {
 
           {/* Card Layout for Header Information */}
           <Row className="g-2 mb-2">
-            <Col md={3}>
+            <Col md={2}>
+              <Card className="h-100 text-center table-no-card">
+                <Card.Body className="py-1">
+                  <Card.Title className="small text-muted mb-0 fw-bold">Table No</Card.Title>
+                  <Card.Text className="fw-bold mb-0 fs-4 text-dark">{tableNo}</Card.Text>
+                </Card.Body>
+              </Card>
+            </Col>
+            <Col md={2}>
               <Card className="h-100 text-center info-card">
                 <Card.Body className="py-1">
                   <Card.Title className="small text-muted mb-0 fw-bold">Waiter</Card.Title>
-                  <Card.Text className="fw-bold mb-0">ASD</Card.Text>
+                  <Form.Control
+                    type="text"
+                    value={waiter}
+                    onChange={(e) => setWaiter(e.target.value)}
+                    className="form-control-sm text-center fw-bold "
+                    list="waiters"
+                  />
                 </Card.Body>
               </Card>
             </Col>
@@ -458,19 +491,43 @@ const ModernBill = () => {
               <Card className="h-100 text-center info-card">
                 <Card.Body className="py-1">
                   <Card.Title className="small text-muted mb-0 fw-bold">PAX</Card.Title>
-                  <Card.Text className="fw-bold mb-0">1</Card.Text>
+                  <Form.Control
+                    type="number"
+                    value={pax}
+                    onChange={(e) => setPax(Number(e.target.value))}
+                    className="form-control-sm text-center fw-bold"
+                  />
                 </Card.Body>
               </Card>
             </Col>
             <Col md={2}>
-              <Card className="h-100 text-center info-card">
-                <Card.Body className="py-1">
-                  <Card.Title className="small text-muted mb-0 fw-bold">KOT No</Card.Title>
-                  <Card.Text className="fw-bold mb-0">26</Card.Text>
-                </Card.Body>
-              </Card>
+              <Card className="h-100 info-card">
+  <Card.Body className="py-2 px-2 text-center">
+
+    <div className="small fw-bold text-muted mb-1">KOT No.</div>
+
+    <div className="d-flex border rounded bg-light overflow-hidden" style={{ height: 30 }}>
+
+      {/* LEFT – Default (50%, NOT editable) */}
+      <div className="w-50 d-flex align-items-center justify-content-center fw-bold text-dark border-end">
+        {defaultKot}
+      </div>
+
+      {/* RIGHT – Editable (50%) */}
+      <Form.Control
+        type="text"
+        value={editableKot.toString()}
+        onChange={(e) => setEditableKot(Number(e.target.value))}
+        className="w-50 text-center fw-bold text-primary border-0 rounded-0 bg-transparent shadow-none"
+      />
+
+    </div>
+
+  </Card.Body>
+</Card>
+
             </Col>
-            <Col md={3}>
+            <Col md={2}>
               <Card className="h-100 text-center info-card">
                 <Card.Body className="py-1">
                   <Card.Title className="small text-muted mb-0 fw-bold">Date</Card.Title>
@@ -481,12 +538,21 @@ const ModernBill = () => {
             <Col md={2}>
               <Card className="h-100 text-center total-card">
                 <Card.Body className="py-1">
-                  <Card.Title className="small text-white mb-0 fw-bold">Total</Card.Title>                  
-                  <Card.Text className="fw-bold text-white mb-0 ">₹{finalAmount.toFixed(2)}</Card.Text>
+                  <Card.Title className="small text-white mb-0 fw-bold">Total</Card.Title>
+                  <Card.Text className="fw-bold text-white mb-0 fs-5">₹{finalAmount.toFixed(2)}</Card.Text>
                 </Card.Body>
               </Card>
             </Col>
           </Row>
+
+          {/* Datalist for Waiters */}
+          <datalist id="waiters">
+            <option value="ASD" />
+            <option value="John" />
+            <option value="Mary" />
+            <option value="David" />
+            <option value="Sarah" />
+          </datalist>
         </div>
       </div>
 
@@ -506,10 +572,10 @@ const ModernBill = () => {
               <Table responsive bordered className="modern-table">
                 <thead>
                   <tr className="table-primary">
-                    <th>No</th>
-                    <th>Item Name</th>
+                    <th style={{ width: '80px' }}>No</th>
+                    <th style={{ width: '400px' }}>Item Name</th>
                     <th className="text-center">Qty</th>
-                    <th className="text-end">Rate</th>
+                    <th className="text-end" style={{ width: '200px' }}>Rate</th>
                     <th className="text-end">Total</th>
                     <th className="text-center">MkotNo/Time</th>
                     <th>Special Instructions</th>

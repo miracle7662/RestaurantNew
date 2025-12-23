@@ -1,8 +1,4 @@
-# Table Grid Layout Optimization
+# TODO: Adjust Bill Table Column Widths
 
-## Tasks
-- [x] Modify TableCard component to remove aspectRatio and set fixed height
-- [x] Update CSS Grid to use smaller minmax for better table fit
-- [x] Ensure responsive layout for desktop and tablet
-- [x] Test layout on different screen sizes
-- [x] Verify professional POS-style appearance
+- [x] Set "Item Name" column width to 200px in Billview.tsx table header
+- [x] Set "Rate" column width to 80px in Billview.tsx table header
