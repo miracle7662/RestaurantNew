@@ -1,4 +1,6 @@
-# TODO: Adjust Bill Table Column Widths
+# TODO: Make Item Name Search Case-Insensitive
 
-- [x] Set "Item Name" column width to 200px in Billview.tsx table header
-- [x] Set "Rate" column width to 80px in Billview.tsx table header
+## Tasks
+- [x] Modify handleItemChange function in Billview.tsx to use toLowerCase() for case-insensitive search on item_name and short_name.
+- [ ] Update the datalist for itemNames to include options for short_name as well, to allow searching by short names.
+- [ ] Test the changes to ensure search works with lowercase letters.

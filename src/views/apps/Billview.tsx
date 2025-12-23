@@ -1,4 +1,4 @@
-import  { useEffect, useState, useRef, KeyboardEvent } from 'react';
+import { useEffect, useState, useRef, KeyboardEvent } from 'react';
 import { Row, Col, Card, Table, Badge, Button, Form } from 'react-bootstrap';
 import axios from 'axios';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -20,6 +20,7 @@ interface MenuItem {
   restitemid: number;
   item_no: string;
   item_name: string;
+  short_name: string;
   price: number;
 }
 
@@ -48,7 +49,7 @@ const ModernBill = () => {
   const [kotNo, setKotNo] = useState('26');
   const [tableNo, setTableNo] = useState(tableId || '1');
   const [defaultKot, setDefaultKot] = useState(34); // last / system KOT
-const [editableKot, setEditableKot] = useState(34); // user editable
+  const [editableKot, setEditableKot] = useState(34); // user editable
 
 
   const inputRefs = useRef<(HTMLInputElement | null)[][]>([]);
@@ -102,7 +103,7 @@ const [editableKot, setEditableKot] = useState(34); // user editable
 
     // Add event listener for Escape key
     const handleEscapeKey = (event: Event) => {
-       const keyboardEvent = event as unknown as KeyboardEvent;
+      const keyboardEvent = event as unknown as KeyboardEvent;
 
       if (keyboardEvent.key === 'Escape') {
         navigate('/apps/Tableview');
@@ -164,6 +165,20 @@ const [editableKot, setEditableKot] = useState(34); // user editable
         currentItem.rate = found.price;
       } else {
         currentItem.itemName = "";
+        currentItem.rate = 0;
+      }
+    } else if (field === 'itemName') {
+      // Parse the value to extract item name if it includes code
+      const parsedValue = (value as string).includes(' (') ? (value as string).split(' (')[0] : value as string;
+      // When item name is selected or typed, find the item and auto-fill itemNo and rate (case-insensitive)
+      const found = menuItems.find(i => i.item_name.toLowerCase() === parsedValue.toLowerCase() || i.short_name.toLowerCase() === parsedValue.toLowerCase());
+      if (found) {
+        currentItem.itemName = found.item_name; // Always show the full item name
+        currentItem.itemNo = found.item_no.toString();
+        currentItem.rate = found.price;
+      } else {
+        currentItem.itemName = parsedValue; // Keep what was typed if no match
+        currentItem.itemNo = "";
         currentItem.rate = 0;
       }
     } else {
@@ -341,10 +356,10 @@ const [editableKot, setEditableKot] = useState(34); // user editable
         }
 
         .info-card {
-          border: 1px solid #ced4da;
+          border: 1px solid  #dbdbe7ff;
           border-radius: 0.5rem;
           transition: all 0.3s ease;
-          background: #f8f9fa; /* Soft light background */
+          background: #e3f2fd; /* Soft light background */
         }
 
         .info-card:hover {
@@ -353,14 +368,11 @@ const [editableKot, setEditableKot] = useState(34); // user editable
         }
 
         .info-card .form-control {
-          background-color:  ;
+          background-color: #e3f2fd ;
           border: none;
         }
 
-        .table-no-card {
-          background: #e3f2fd; /* Light blue background to highlight */
-          border: 2px solid #2196f3;
-        }
+      
 
         .total-card {
           background: #28a745; /* Solid green background */
@@ -455,7 +467,7 @@ const [editableKot, setEditableKot] = useState(34); // user editable
 
       {/* Header */}
       <div className="full-screen-header">
-        <div className="container-fluid py-1 px-2">
+        <div className="container-fluid  px-2">
           <div className="d-flex justify-content-between align-items-center mb-1">
             <h2 className="text-primary mb-0">BILL</h2>
             <span className="text-muted small">
@@ -464,85 +476,81 @@ const [editableKot, setEditableKot] = useState(34); // user editable
           </div>
 
           {/* Card Layout for Header Information */}
-          <Row className="g-2 mb-2">
-            <Col md={2}>
-              <Card className="h-100 text-center table-no-card">
-                <Card.Body className="py-1">
-                  <Card.Title className="small text-muted mb-0 fw-bold">Table No</Card.Title>
-                  <Card.Text className="fw-bold mb-0 fs-4 text-dark">{tableNo}</Card.Text>
+          <Row className="g-1 mb-1">
+            <Col md={1}>
+              <Card className=" text-center info-card">
+                <Card.Body className="py-2 px-2 text-center">
+                  <Card.Title className="text-muted mb-0 fw-bold" style={{ fontSize: '0.75rem' }}>Table No</Card.Title>
+                  <Card.Text className="fw-bold mb-0 fs-5 text-dark">{tableNo}</Card.Text>
                 </Card.Body>
               </Card>
             </Col>
             <Col md={2}>
-              <Card className="h-100 text-center info-card">
-                <Card.Body className="py-1">
-                  <Card.Title className="small text-muted mb-0 fw-bold">Waiter</Card.Title>
+              <Card className=" text-center info-card">
+                <Card.Body className="py-2 px-2 text-center">
+                  <Card.Title className="text-muted mb-0 fw-bold" style={{ fontSize: '0.75rem' }}>Waiter</Card.Title>
                   <Form.Control
                     type="text"
                     value={waiter}
                     onChange={(e) => setWaiter(e.target.value)}
-                    className="form-control-sm text-center fw-bold "
+                    className="form-control-xs text-center fw-bold "
                     list="waiters"
                   />
                 </Card.Body>
               </Card>
             </Col>
-            <Col md={2}>
-              <Card className="h-100 text-center info-card">
-                <Card.Body className="py-1">
-                  <Card.Title className="small text-muted mb-0 fw-bold">PAX</Card.Title>
+            <Col md={1}>
+              <Card className=" text-center info-card">
+                <Card.Body className="py-2 px-2 text-center">
+                  <Card.Title className="text-muted mb-0 fw-bold" style={{ fontSize: '0.75rem' }}>PAX</Card.Title>
                   <Form.Control
                     type="number"
                     value={pax}
                     onChange={(e) => setPax(Number(e.target.value))}
-                    className="form-control-sm text-center fw-bold"
+                    className="form-control-xs text-center fw-bold"
                   />
                 </Card.Body>
               </Card>
             </Col>
             <Col md={2}>
-              <Card className="h-100 info-card">
-  <Card.Body className="py-2 px-2 text-center">
+              <Card className=" info-card">
+                <Card.Body className="py-2 px-2 text-center">
 
-    <div className="small fw-bold text-muted mb-1">KOT No.</div>
+                  <div className="small fw-bold text-muted mb-1">KOT No.</div>
 
-    <div className="d-flex border rounded bg-light overflow-hidden" style={{ height: 30 }}>
+                  <div className="d-flex border rounded bg-light overflow-hidden" style={{ height: 30 }}>
 
-      {/* LEFT – Default (50%, NOT editable) */}
-      <div className="w-50 d-flex align-items-center justify-content-center fw-bold text-dark border-end">
-        {defaultKot}
-      </div>
+                    {/* LEFT – Default (50%, NOT editable) */}
+                    <div className="w-50 d-flex align-items-center justify-content-center fw-bold text-dark border-end">
+                      {defaultKot}
+                    </div>
 
-      {/* RIGHT – Editable (50%) */}
-      <Form.Control
-        type="text"
-        value={editableKot.toString()}
-        onChange={(e) => setEditableKot(Number(e.target.value))}
-        className="w-50 text-center fw-bold text-primary border-0 rounded-0 bg-transparent shadow-none"
-      />
+                    {/* RIGHT – Editable (50%) */}
+                    <Form.Control
+                      type="text"
+                      value={editableKot.toString()}
+                      onChange={(e) => setEditableKot(Number(e.target.value))}
+                      className="w-50 text-center fw-bold text-primary border-0 rounded-0 bg-transparent shadow-none"
+                    />
 
-    </div>
+                  </div>
 
-  </Card.Body>
-</Card>
-
-            </Col>
-            <Col md={2}>
-              <Card className="h-100 text-center info-card">
-                <Card.Body className="py-1">
-                  <Card.Title className="small text-muted mb-0 fw-bold">Date</Card.Title>
-                  <Card.Text className="fw-bold mb-0">19-10</Card.Text>
                 </Card.Body>
               </Card>
+
             </Col>
-            <Col md={2}>
-              <Card className="h-100 text-center total-card">
-                <Card.Body className="py-1">
-                  <Card.Title className="small text-white mb-0 fw-bold">Total</Card.Title>
-                  <Card.Text className="fw-bold text-white mb-0 fs-5">₹{finalAmount.toFixed(2)}</Card.Text>
-                </Card.Body>
-              </Card>
-            </Col>
+            <Col md={2} className="ms-auto">
+  <Card className=" text-center total-card">
+    <Card.Body className="py-1">
+      <Card.Title className="py-2 px-2 text-center">
+        Total
+      </Card.Title>
+      <Card.Text className="fw-bold text-white mb-0 fs-5">
+        ₹{finalAmount.toFixed(2)}
+      </Card.Text>
+    </Card.Body>
+  </Card>
+</Col>
           </Row>
 
           {/* Datalist for Waiters */}
@@ -553,15 +561,27 @@ const [editableKot, setEditableKot] = useState(34); // user editable
             <option value="David" />
             <option value="Sarah" />
           </datalist>
+
+          {/* Datalist for Item Names */}
+          <datalist id="itemNames">
+            {menuItems.map(item => (
+              <>
+                <option key={`${item.restitemid}-full`} value={`${item.item_name} (${item.item_no})`} />
+                <option key={`${item.restitemid}-short`} value={`${item.short_name} (${item.item_no})`} />
+              </>
+            ))}
+          </datalist>
+
+          {/* Datalist for Item Codes */}
+          <datalist id="itemNos">
+            {menuItems.map(item => (
+              <option key={item.restitemid} value={item.item_no.toString()} />
+            ))}
+          </datalist>
         </div>
       </div>
 
-      {/* Toolbar - Empty for now, similar to Tableview structure */}
-      <div className="full-screen-toolbar" style={{ top: `${headerHeight}px` }}>
-        <div className="container-fluid py-1 px-2">
-          {/* Add toolbar content if needed, otherwise keep minimal */}
-        </div>
-      </div>
+     
 
       {/* Main Content */}
       <div className="full-screen-content" style={{ top: `${headerHeight + toolbarHeight}px` }}>
@@ -595,9 +615,19 @@ const [editableKot, setEditableKot] = useState(34); // user editable
                           onChange={(e) => handleItemChange(index, 'itemNo', e.target.value)}
                           onKeyDown={handleKeyPress(index, 'itemNo')}
                           className="form-control-sm"
+
                         />
                       </td>
-                      <td>{item.itemName}</td>
+                      <td>
+                        <Form.Control
+                          type="text"
+                          value={item.itemName}
+                          onChange={(e) => handleItemChange(index, 'itemName', e.target.value)}
+                          onKeyDown={handleKeyPress(index, 'itemName')}
+                          className="form-control-sm"
+                          list="itemNames"
+                        />
+                      </td>
                       <td className="text-center">
                         <Form.Control
                           ref={(el) => {
@@ -681,18 +711,18 @@ const [editableKot, setEditableKot] = useState(34); // user editable
           {/* Footer with Function Keys */}
           <Card className="footer-card">
             <Card.Body className="py-1">
-             <div className="d-flex justify-content-between align-items-center px-2 py-1">
-  <Button variant="outline-primary" size="sm" className="function-btn">KOT Tr (F2)</Button>
-  <Button variant="outline-primary" size="sm" className="function-btn">N C KOT (ctrl + F9)</Button>
-  <Button variant="outline-primary" size="sm" className="function-btn">Rev Bill (F5)</Button>
-  <Button variant="outline-primary" size="sm" className="function-btn">TBL Tr (F7)</Button>
-  <Button variant="outline-primary" size="sm" className="function-btn">New Bill (F6)</Button>
-  <Button variant="outline-primary" size="sm" className="function-btn">Rev KOT (F8)</Button>
-  <Button variant="outline-primary" size="sm" className="function-btn">K O T (F9)</Button>
-  <Button variant="outline-primary" size="sm" className="function-btn">Print (F10)</Button>
-  <Button variant="outline-primary" size="sm" className="function-btn">Settle (F11)</Button>
-  <Button variant="outline-primary" size="sm" className="function-btn">Exit (Esc)</Button>
-</div>
+              <div className="d-flex justify-content-between align-items-center px-2 py-1">
+                <Button variant="outline-primary" size="sm" className="function-btn">KOT Tr (F2)</Button>
+                <Button variant="outline-primary" size="sm" className="function-btn">N C KOT (ctrl + F9)</Button>
+                <Button variant="outline-primary" size="sm" className="function-btn">Rev Bill (F5)</Button>
+                <Button variant="outline-primary" size="sm" className="function-btn">TBL Tr (F7)</Button>
+                <Button variant="outline-primary" size="sm" className="function-btn">New Bill (F6)</Button>
+                <Button variant="outline-primary" size="sm" className="function-btn">Rev KOT (F8)</Button>
+                <Button variant="outline-primary" size="sm" className="function-btn">K O T (F9)</Button>
+                <Button variant="outline-primary" size="sm" className="function-btn">Print (F10)</Button>
+                <Button variant="outline-primary" size="sm" className="function-btn">Settle (F11)</Button>
+                <Button variant="outline-primary" size="sm" className="function-btn">Exit (Esc)</Button>
+              </div>
             </Card.Body>
           </Card>
         </div>
