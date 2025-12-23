@@ -280,7 +280,7 @@ export default function App() {
           gap: 8px;
           margin-bottom: 20px;
         }
-        .full-screen-toolbar input[placeholder="Table No"] {
+          .full-screen-toolbar input[placeholder="Table No"] {
           height: 40px;
           border: 2px solid #007bff;
           background-color: #e7f3ff;
@@ -312,11 +312,11 @@ export default function App() {
                 <input
                   type="number"
                   className="form-control form-control-sm"
-                  placeholder="TableNo"
+                  placeholder="Table No"
                   value={tableInput}
                   onChange={e => setTableInput(e.target.value)}
                   onKeyDown={handleTableInputEnter}
-                  style={{width: '90px',fontWeight: 'bold',fontSize:'16px'}}
+                  style={{width: '90px', fontWeight: 'bold',fontSize:'16px'}}
                 />
                 <select
                   className="form-select form-select-sm"

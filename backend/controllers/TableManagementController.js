@@ -126,7 +126,7 @@ exports.updateTableStatus = (req, res) => {
   }
 };
 
-// Get all tables with their associated outlet names, filtered by hotelid
+// Get all tables with their associated outlet names and department, filtered by hotelid
 exports.getAllTablesWithOutlets = (req, res) => {
   try {
     const { hotelid } = req.query;
@@ -135,18 +135,20 @@ exports.getAllTablesWithOutlets = (req, res) => {
     }
 
     const query = `
-      SELECT 
-        t.tableid, 
-        t.table_name, 
-        CASE t.status 
-          WHEN 1 THEN 'running' 
-          WHEN 2 THEN 'printed' 
+      SELECT
+        t.tableid,
+        t.table_name,
+        CASE t.status
+          WHEN 1 THEN 'running'
+          WHEN 2 THEN 'printed'
           WHEN 3 THEN 'paid'
           WHEN 4 THEN 'running-kot'
-          ELSE 'available' 
+          ELSE 'available'
         END as status,
         t.outletid,
-        o.outlet_name
+        o.outlet_name,
+        t.departmentid,
+        t.department_name
       FROM msttablemanagement t
       LEFT JOIN mst_outlets o ON t.outletid = o.outletid
       WHERE t.hotelid = ?
