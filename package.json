@@ -169,8 +169,8 @@
     "webpack-dev-server": "^5.2.2"
   },
   "build": {
-    "appId": "com.miracle.restaurant",
-    "productName": "Miracle Reastaurant",
+    "appId": "com.miracle.restaurant.app",
+    "productName": "Miracle Restaurant",
     "directories": {
       "output": "dist"
     },
@@ -187,10 +187,10 @@
         "to": "backend"
       }
     ],
-  "asarUnpack": [
-  "backend/node_modules/better-sqlite3/**/*"
+    "asarUnpack": [
+  "backend/**",
+  "**/better-sqlite3/**/*"
 ],
-
     "win": {
       "target": "nsis",
       "icon": "build/icon.ico"
@@ -203,8 +203,6 @@
       "installerIcon": "build/icon.ico",
       "uninstallerIcon": "build/icon.ico",
       "installerHeaderIcon": "build/icon.ico",
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
       "shortcutName": "Miracle Restaurant"
     }
   }

@@ -258,8 +258,6 @@ export default function App() {
           right: 0;
           z-index: 1049;
           background: white;
-          border-bottom: 1px solid #dee2e6;
-        }
         .full-screen-content {
           position: fixed;
           top: 120px;
@@ -311,7 +309,7 @@ export default function App() {
                   value={tableInput}
                   onChange={e => setTableInput(e.target.value)}
                   onKeyDown={handleTableInputEnter}
-                  style={{width: '100px'}}
+                  style={{width: '90px',}}
                 />
                 <select
                   className="form-select form-select-sm"
@@ -329,22 +327,8 @@ export default function App() {
               </div>
             </div>
 
-            <div className="col">
+            <div className="col d-flex justify-content-end">
               <Legend />
-            </div>
-
-            <div className="col-auto">
-              <div className="d-flex gap-2 align-items-center">
-                <small className="text-muted">Floor Plan</small>
-                <select
-                  className="form-select form-select-sm"
-                  style={{ width: 'auto' }}
-                  value={selectedLayout}
-                  onChange={(e) => setSelectedLayout(e.target.value)}
-                >
-                  <option>Default Layout</option>
-                </select>
-              </div>
             </div>
           </div>
         </div>

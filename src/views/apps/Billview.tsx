@@ -97,7 +97,7 @@ const ModernBill = () => {
        const keyboardEvent = event as unknown as KeyboardEvent;
 
       if (keyboardEvent.key === 'Escape') {
-        navigate('/');
+        navigate('/apps/Tableview');
       }
     };
 
@@ -478,7 +478,7 @@ const ModernBill = () => {
               <Card className="h-100 text-center total-card">
                 <Card.Body className="py-1">
                   <Card.Title className="small text-white mb-0 fw-bold">Total</Card.Title>                  
-                  <Card.Text className="fw-bold text-white mb-0">₹{finalAmount.toFixed(2)}</Card.Text>
+                  <Card.Text className="fw-bold text-white mb-0 ">₹{finalAmount.toFixed(2)}</Card.Text>
                 </Card.Body>
               </Card>
             </Col>
@@ -594,7 +594,7 @@ const ModernBill = () => {
               </thead>
               <tbody>
                 <tr>
-                  <td>N C KDT</td>
+                  <td>0.00</td>
                   <td className="text-end">{grossAmount.toFixed(2)}</td>
                   <td className="text-end">0.00</td>
                   <td className="text-center">0.00</td>
@@ -613,6 +613,7 @@ const ModernBill = () => {
             <Card.Body className="py-1">
               <div className="d-flex flex-wrap justify-content-center gap-1">
                 <Button variant="outline-primary" size="sm" className="function-btn">KOT Tr (F2)</Button>
+                <Button variant="outline-primary" size="sm" className="function-btn">N C KOT (ctrl + F9)</Button>
                 <Button variant="outline-primary" size="sm" className="function-btn">Rev Bill (F5)</Button>
                 <Button variant="outline-primary" size="sm" className="function-btn">TBL Tr (F7)</Button>
                 <Button variant="outline-primary" size="sm" className="function-btn">New Bill (F6)</Button>

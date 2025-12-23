@@ -17,6 +17,8 @@ const ThemeRoutes = (props: IRoutesProps) => {
   const Layout =
     settings.layout.type === ThemeSettings.layout.type.vertical ? VerticalLayout : HorizontalLayout
   const { isAuthenticated } = useAuthContext()
+
+  const fullPageRoutes = ['/apps/Tableview', '/apps/Billview']
   return (
     <React.Fragment>
       <Routes>
@@ -42,6 +44,8 @@ const ThemeRoutes = (props: IRoutesProps) => {
                       search: 'next=' + route.path,
                     }}
                   />
+                ) : route.path && fullPageRoutes.includes(route.path) ? (
+                  route.element
                 ) : (
                   <Layout {...props}>{route.element}</Layout>
                 )

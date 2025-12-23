@@ -4,7 +4,7 @@ import { Route, RouteProps } from 'react-router-dom'
 // PrivateRoute
 import PrivateRoute from './PrivateRoute'
 //import ItemGroup from '@/components/Apps/ItemGroup/itemGroup'
-import Billing from '@/views/pages/account-settings/Billing'
+
 import Customers from '@/views/apps/Transaction/Customers'
 import Settlement from '@/views/apps/Transaction/Settlement'
 import Handover from '@/views/apps/Transaction/Handover'
@@ -41,12 +41,10 @@ const Analytics = React.lazy(() => import('./../views/dashboards/Analytics'))
 const CRM = React.lazy(() => import('./../views/dashboards/CRM'))
 
 // Apps
-const Chat = React.lazy(() => import('./../views/apps/Chat'))
-const Email = React.lazy(() => import('./../views/apps/Email'))
+
 const Invoice = React.lazy(() => import('./../views/apps/Invoice'))
-const Kanban = React.lazy(() => import('./../views/apps/Kanban'))
+
 const Contact = React.lazy(() => import('./../views/apps/Contact'))
-const Calendar = React.lazy(() => import('./../views/apps/Calendar'))
 const Tableview = React.lazy(() => import('../views/apps/Tableview'))
 const Billview = React.lazy(() => import('../views/apps/Billview'))
 const Settings = React.lazy(() => import('../views/apps/Settings'))
@@ -103,65 +101,6 @@ const TableDepartment = React.lazy(() => import('../views/apps/Masters/Restauran
 
 
 
-// Base UI
-const Accordions = React.lazy(() => import('./../views/uielements/base/Accordions'))
-const Avatars = React.lazy(() => import('./../views/uielements/base/Avatars'))
-const Buttons = React.lazy(() => import('./../views/uielements/base/Buttons'))
-const Cards = React.lazy(() => import('./../views/uielements/base/Cards'))
-const Carousels = React.lazy(() => import('./../views/uielements/base/Carousels'))
-const Dropdowns = React.lazy(() => import('./../views/uielements/base/Dropdowns'))
-const Modals = React.lazy(() => import('./../views/uielements/base/Modals'))
-const NavTabs = React.lazy(() => import('./../views/uielements/base/NavTabs'))
-const Toasts = React.lazy(() => import('./../views/uielements/base/Toasts'))
-const Miscellaneous = React.lazy(() => import('./../views/uielements/base/Miscellaneous'))
-
-// Icons
-const Flaticon = React.lazy(() => import('./../views/uielements/icons/Flaticon'))
-const Feather = React.lazy(() => import('./../views/uielements/icons/Feather'))
-const Bootstrap = React.lazy(() => import('./../views/uielements/icons/Bootstrap'))
-const BoxIcons = React.lazy(() => import('./../views/uielements/icons/BoxIcons'))
-const FontAwesome = React.lazy(() => import('./../views/uielements/icons/FontAwesome'))
-const Lucide = React.lazy(() => import('./../views/uielements/icons/Lucide'))
-const Tabler = React.lazy(() => import('./../views/uielements/icons/Tabler'))
-const Weather = React.lazy(() => import('./../views/uielements/icons/Weather'))
-
-// Tables
-const BootstapTable = React.lazy(() => import('./../views/uielements/tables/BootstapTable'))
-const ReactTable = React.lazy(() => import('./../views/uielements/tables/ReactTable'))
-
-// Charts
-const ApexCharts = React.lazy(() => import('./../views/uielements/charts/ApexCharts'))
-const ChartJs = React.lazy(() => import('./../views/uielements/charts/ChartJs'))
-const Recharts = React.lazy(() => import('./../views/uielements/charts/Recharts'))
-const Progressbar = React.lazy(() => import('./../views/uielements/charts/Progressbar'))
-
-// Forms
-const AdvRadio = React.lazy(() => import('./../views/uielements/forms/AdvRadio'))
-const AdvCheckbox = React.lazy(() => import('./../views/uielements/forms/AdvCheckbox'))
-const AdvSwitch = React.lazy(() => import('./../views/uielements/forms/AdvSwitch'))
-const Elements = React.lazy(() => import('./../views/uielements/forms/Elements'))
-const Validation = React.lazy(() => import('./../views/uielements/forms/Validation'))
-const InputMask = React.lazy(() => import('./../views/uielements/forms/InputMask'))
-const NoUiSlider = React.lazy(() => import('./../views/uielements/forms/NoUiSlider'))
-
-// Editors
-const EditorQuill = React.lazy(() => import('./../views/uielements/editors/EditorQuill'))
-const EditorTinyMCE = React.lazy(() => import('./../views/uielements/editors/EditorTinyMCE'))
-
-// Pickers
-const Flatpickr = React.lazy(() => import('./../views/uielements/pickers/Flatpickr'))
-const DaterangePicker = React.lazy(() => import('./../views/uielements/pickers/DaterangePicker'))
-
-// Maps
-const VectorMaps = React.lazy(() => import('./../views/uielements/maps/VectorMaps'))
-
-// Extended
-const ReactSelect = React.lazy(() => import('./../views/uielements/extended/ReactSelect'))
-const SweetAlert2 = React.lazy(() => import('./../views/uielements/extended/SweetAlert2'))
-const ReactSlick = React.lazy(() => import('./../views/uielements/extended/ReactSlick'))
-const Dropzone = React.lazy(() => import('./../views/uielements/extended/Dropzone'))
-const HotToast = React.lazy(() => import('./../views/uielements/extended/HotToast'))
-const Toastify = React.lazy(() => import('./../views/uielements/extended/Toastify'))
 
 // User Profile
 const Overview = React.lazy(() => import('../views/pages/user-profile/Overview'))
@@ -171,21 +110,7 @@ const Contacts = React.lazy(() => import('../views/pages/user-profile/Contacts')
 const Projects = React.lazy(() => import('../views/pages/user-profile/Projects'))
 const Gallery = React.lazy(() => import('../views/pages/user-profile/Gallery'))
 
-// Account Settings
-const Account = React.lazy(() => import('../views/pages/account-settings/Account'))
-const Security = React.lazy(() => import('../views/pages/account-settings/Security'))
-const Notifications = React.lazy(() => import('../views/pages/account-settings/Notifications'))
 
-const Integrations = React.lazy(() => import('../views/pages/account-settings/Integrations'))
-
-// Other Pages
-const StarterPage = React.lazy(() => import('../views/pages/other-pages/StarterPage'))
-const FAQs = React.lazy(() => import('../views/pages/other-pages/FAQs'))
-const Pricing = React.lazy(() => import('../views/pages/other-pages/Pricing'))
-const AboutUs = React.lazy(() => import('../views/pages/other-pages/AboutUs'))
-const ContactUs = React.lazy(() => import('../views/pages/other-pages/ContactUs'))
-const PrivacyPolicy = React.lazy(() => import('../views/pages/other-pages/PrivacyPolicy'))
-const TermsServices = React.lazy(() => import('../views/pages/other-pages/TermsServices'))
 
 // Auth {{Minimal}}
 const Login = React.lazy(() => import('../views/auth/minimal/Login'))
@@ -250,12 +175,7 @@ const ForgotPasswordModern = React.lazy(() => import('../views/auth/modern/Forgo
 const TwoFactorOTPModern = React.lazy(() => import('../views/auth/modern/TwoFactorOTPModern'))
 const LockScreenModern = React.lazy(() => import('../views/auth/modern/LockScreenModern'))
 
-// Error
-const NotFound = React.lazy(() => import('../views/error/NotFound'))
-const ServerError = React.lazy(() => import('../views/error/ServerError'))
-const NotAuthorized = React.lazy(() => import('../views/error/NotAuthorized'))
-const CommingSoon = React.lazy(() => import('../views/error/CommingSoon'))
-const UnderMaintenance = React.lazy(() => import('../views/error/UnderMaintenance'))
+
 
 // Email Templates
 const EmailTemplateConfirmAccount = React.lazy(
@@ -321,18 +241,8 @@ const appsRoutes: RoutesProps = {
   path: '/apps',
   name: 'Apps',
   children: [
-    {
-      path: '/apps/chat',
-      name: 'Chat',
-      element: <Chat />,
-      route: PrivateRoute,
-    },
-    {
-      path: '/apps/email',
-      name: 'Email',
-      element: <Email />,
-      route: PrivateRoute,
-    },
+   
+   
     {
       path: '/apps/contact',
       name: 'Contact',
@@ -345,18 +255,8 @@ const appsRoutes: RoutesProps = {
       element: <Invoice />,
       route: PrivateRoute,
     },
-    {
-      path: '/apps/kanban',
-      name: 'Kanban',
-      element: <Kanban />,
-      route: PrivateRoute,
-    },
-    {
-      path: '/apps/calendar',
-      name: 'Calendar',
-      element: <Calendar />,
-      route: PrivateRoute,
-    },
+   
+   
     {
       path: '/apps/Orders',
       name: 'Orders',
@@ -533,12 +433,7 @@ const appsRoutes: RoutesProps = {
       route: PrivateRoute,
     },
 
-    {
-      path: '/apps/Billing',
-      name: 'Billing',
-      element: <Billing />,
-      route: PrivateRoute,
-    },
+   
 
     {
       path: '/apps/OutletMenu',
@@ -821,326 +716,6 @@ const appsRoutes: RoutesProps = {
 
 
 // Components
-const componentsRoutes: RoutesProps = {
-  path: '/components',
-  name: 'Components',
-  header: 'UI Elements',
-  children: [
-    {
-      path: '/components/base',
-      name: 'Base UI',
-      children: [
-        {
-          path: '/components/base/accordions',
-          name: 'Accordions',
-          element: <Accordions />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/components/base/avatars',
-          name: 'Avatars',
-          element: <Avatars />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/components/base/buttons',
-          name: 'Buttons',
-          element: <Buttons />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/components/base/cards',
-          name: 'Cards',
-          element: <Cards />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/components/base/carousel',
-          name: 'Carousels',
-          element: <Carousels />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/components/base/dropdowns',
-          name: 'Dropdowns',
-          element: <Dropdowns />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/components/base/modals',
-          name: 'Modals',
-          element: <Modals />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/components/base/navtabs',
-          name: 'NavTabs',
-          element: <NavTabs />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/components/base/toasts',
-          name: 'Toasts',
-          element: <Toasts />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/components/base/miscellaneous',
-          name: 'Miscellaneous',
-          element: <Miscellaneous />,
-          route: PrivateRoute,
-        },
-      ],
-    },
-    {
-      path: '/components/icons',
-      name: 'Icons',
-      children: [
-        {
-          path: '/components/icons/flaticon',
-          name: 'Flaticon',
-          element: <Flaticon />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/components/icons/feather',
-          name: 'Feather',
-          element: <Feather />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/components/icons/bootstrap',
-          name: 'Bootstrap',
-          element: <Bootstrap />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/components/icons/boxicons',
-          name: 'BoxIcons',
-          element: <BoxIcons />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/components/icons/fontawesome',
-          name: 'FontAwesome',
-          element: <FontAwesome />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/components/icons/lucide',
-          name: 'Lucide',
-          element: <Lucide />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/components/icons/tabler',
-          name: 'Tabler',
-          element: <Tabler />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/components/icons/weather',
-          name: 'Weather',
-          element: <Weather />,
-          route: PrivateRoute,
-        },
-
-
-
-
-
-
-
-      ],
-    },
-    {
-      path: '/components/tables',
-      name: 'Tables',
-      children: [
-        {
-          path: '/components/tables/bootstap-table',
-          name: 'Bootstap',
-          element: <BootstapTable />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/components/tables/react-table',
-          name: 'ReactTable',
-          element: <ReactTable />,
-          route: PrivateRoute,
-        },
-      ],
-    },
-    {
-      path: '/components/charts',
-      name: 'Charts',
-      children: [
-        {
-          path: '/components/charts/apexcharts',
-          name: 'ApexCharts',
-          element: <ApexCharts />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/components/charts/chartjs',
-          name: 'ChartJS',
-          element: <ChartJs />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/components/charts/recharts',
-          name: 'Recharts',
-          element: <Recharts />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/components/charts/progressbar',
-          name: 'Progressbar',
-          element: <Progressbar />,
-          route: PrivateRoute,
-        },
-      ],
-    },
-    {
-      path: '/components/forms',
-      name: 'Forms',
-      children: [
-        {
-          path: '/components/forms/adv-radio',
-          name: 'Radios',
-          element: <AdvRadio />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/components/forms/adv-checkbox',
-          name: 'Checkboxs',
-          element: <AdvCheckbox />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/components/forms/adv-switch',
-          name: 'Switchs',
-          element: <AdvSwitch />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/components/forms/elements',
-          name: 'Elements',
-          element: <Elements />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/components/forms/validation',
-          name: 'Validation',
-          element: <Validation />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/components/forms/inputmask',
-          name: 'InputMask',
-          element: <InputMask />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/components/forms/nouislider',
-          name: 'noUiSlider',
-          element: <NoUiSlider />,
-          route: PrivateRoute,
-        },
-      ],
-    },
-    {
-      path: '/components/editors',
-      name: 'Editors',
-      children: [
-        {
-          path: '/components/editors/quill',
-          name: 'Quill',
-          element: <EditorQuill />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/components/editors/tinymce',
-          name: 'TinyMCE',
-          element: <EditorTinyMCE />,
-          route: PrivateRoute,
-        },
-      ],
-    },
-    {
-      path: '/components/pickers',
-      name: 'Pickers',
-      children: [
-        {
-          path: '/components/pickers/flatpickr',
-          name: 'Flatpickr',
-          element: <Flatpickr />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/components/pickers/daterangepicker',
-          name: 'Daterange',
-          element: <DaterangePicker />,
-          route: PrivateRoute,
-        },
-      ],
-    },
-    {
-      path: '/components/maps',
-      name: 'Maps',
-      children: [
-        {
-          path: '/components/maps/vector-maps',
-          name: 'Vector Maps',
-          element: <VectorMaps />,
-          route: PrivateRoute,
-        },
-      ],
-    },
-    {
-      path: '/components/extended',
-      name: 'Extended',
-      children: [
-        {
-          path: '/components/extended/select2',
-          name: 'React2',
-          element: <ReactSelect />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/components/extended/sweetalert2',
-          name: 'SweetAlert2',
-          element: <SweetAlert2 />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/components/extended/react-slick',
-          name: 'React Slick',
-          element: <ReactSlick />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/components/extended/dropzone',
-          name: 'Dropzone',
-          element: <Dropzone />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/components/extended/hottoast',
-          name: 'HotToast',
-          element: <HotToast />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/components/extended/toastify',
-          name: 'Toastify',
-          element: <Toastify />,
-          route: PrivateRoute,
-        },
-      ],
-    },
-  ],
-}
 
 // Pages
 const pagesRoutes = {
@@ -1190,90 +765,8 @@ const pagesRoutes = {
         },
       ],
     },
-    {
-      path: '/pages/account-settings',
-      name: 'Account Settings',
-      children: [
-        {
-          path: '/account-settings/account',
-          name: 'Account',
-          element: <Account />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/account-settings/security',
-          name: 'Security',
-          element: <Security />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/account-settings/notifications',
-          name: 'Notifications',
-          element: <Notifications />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/account-settings/billing',
-          name: 'Plan & Billing',
-          element: <Billing />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/account-settings/integrations',
-          name: 'Integrations',
-          element: <Integrations />,
-          route: PrivateRoute,
-        },
-      ],
-    },
-    {
-      path: '/pages/other-pages',
-      name: 'Other Pages',
-      children: [
-        {
-          path: '/other-pages/starter',
-          name: 'Starter',
-          element: <StarterPage />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/other-pages/faqs',
-          name: 'FAQs',
-          element: <FAQs />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/other-pages/pricing',
-          name: 'Pricing',
-          element: <Pricing />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/other-pages/about-us',
-          name: 'About Us',
-          element: <AboutUs />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/other-pages/contact-us',
-          name: 'Contact Us',
-          element: <ContactUs />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/other-pages/privacy-policy',
-          name: 'Privacy & Policy',
-          element: <PrivacyPolicy />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/other-pages/terms-services',
-          name: 'Terms of Services',
-          element: <TermsServices />,
-          route: PrivateRoute,
-        },
-      ],
-    },
+  
+   
   ],
 }
 
@@ -1541,44 +1034,7 @@ const authRoutes: RoutesProps[] = [
 ]
 
 // Error
-const errorRoutes: RoutesProps[] = [
-  {
-    path: '*',
-    name: 'Not Found',
-    element: <NotFound />,
-    route: Route,
-  },
-  {
-    path: '/error-pages/server-error',
-    name: 'Server Error',
-    element: <ServerError />,
-    route: Route,
-  },
-  {
-    path: '/error-pages/not-authorized',
-    name: 'Not Authorized',
-    element: <NotAuthorized />,
-    route: Route,
-  },
-  {
-    path: '/access-denied',
-    name: 'Access Denied',
-    element: <NotAuthorized />,
-    route: Route,
-  },
-  {
-    path: '/error-pages/comming-soon',
-    name: 'Comming Soon',
-    element: <CommingSoon />,
-    route: Route,
-  },
-  {
-    path: '/error-pages/under-maintenance',
-    name: 'Under Maintenance',
-    element: <UnderMaintenance />,
-    route: Route,
-  },
-]
+
 
 // Email Templates
 const emailRoutes: RoutesProps[] = [
@@ -1651,8 +1107,8 @@ const flattenRoutes = (routes: RoutesProps[]) => {
 }
 
 // All routes
-const authProtectedRoutes = [dashboardRoutes, appsRoutes, pagesRoutes, componentsRoutes]
-const publicRoutes = [...authRoutes, ...errorRoutes, ...emailRoutes, ...docsRoutes]
+const authProtectedRoutes = [dashboardRoutes, appsRoutes, pagesRoutes]
+const publicRoutes = [...authRoutes, ... emailRoutes, ...docsRoutes]
 
 const authProtectedFlattenRoutes = flattenRoutes([...authProtectedRoutes])
 const publicProtectedFlattenRoutes = flattenRoutes([...publicRoutes])
