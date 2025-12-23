@@ -258,6 +258,8 @@ export default function App() {
           right: 0;
           z-index: 1049;
           background: white;
+          border-bottom: 1px solid #dee2e6;
+        }
         .full-screen-content {
           position: fixed;
           top: 120px;
