@@ -1,7 +1,8 @@
-import { useEffect, useState, useRef, KeyboardEvent } from 'react';
+import React, { useEffect, useState, useRef, KeyboardEvent } from 'react';
 import { Row, Col, Card, Table, Badge, Button, Form } from 'react-bootstrap';
 import axios from 'axios';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuthContext } from '@/common';
 
 interface BillItem {
   itemNo: string;
@@ -41,15 +42,20 @@ const ModernBill = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const tableId = location.state?.tableId;
+  const tableName = location.state?.tableName;
+  const { user } = useAuthContext();
 
   console.log('Table ID:', tableId);
+  console.log('Table Name:', tableName);
 
   const [waiter, setWaiter] = useState('ASD');
   const [pax, setPax] = useState(1);
   const [kotNo, setKotNo] = useState('26');
-  const [tableNo, setTableNo] = useState(tableId || '1');
+  const [tableNo, setTableNo] = useState(tableName || 'Loading...');
   const [defaultKot, setDefaultKot] = useState(34); // last / system KOT
   const [editableKot, setEditableKot] = useState(34); // user editable
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
 
   const inputRefs = useRef<(HTMLInputElement | null)[][]>([]);
@@ -61,8 +67,11 @@ const ModernBill = () => {
     // 1. Fetch menu items from the API when the component mounts
     const fetchMenuItems = async () => {
       try {
+        if (!user || !user.hotelid) {
+          throw new Error('User not authenticated or hotel ID missing');
+        }
         const response = await axios.get('/api/menu'); // Assuming your API endpoint is /api/menu
-        setMenuItems(response.data);
+        setMenuItems(response.data.data || response.data);
       } catch (error) {
         console.error('Failed to fetch menu items:', error);
       }
@@ -127,6 +136,74 @@ const ModernBill = () => {
       document.removeEventListener('keydown', handleEscapeKey);
     };
   }, [navigate]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fetch table data when tableId is present
+  useEffect(() => {
+    const fetchTableData = async () => {
+      if (!tableId || !user || !user.hotelid) return;
+
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await axios.get(`/api/TAxnTrnbill/unbilled-items/${tableId}`);
+        if (response.status !== 200) {
+          throw new Error(`Server responded with status ${response.status}`);
+        }
+        const data = response.data?.data || response.data;
+        if (!data) {
+          throw new Error('No data received from server');
+        }
+
+        // Map items to BillItem interface
+        const mappedItems: BillItem[] = data.items.map((item: any) => ({
+          itemNo: item.itemId.toString(),
+          itemName: item.itemName,
+          qty: item.netQty,
+          rate: item.price,
+          total: item.netQty * item.price,
+          cgst: (item.netQty * item.price) * 0.025,
+          sgst: (item.netQty * item.price) * 0.025,
+          igst: 0,
+          mkotNo: item.kotNo.toString(),
+          specialInstructions: ''
+        }));
+
+        // If no items, keep empty row
+        if (mappedItems.length === 0) {
+          mappedItems.push({ itemNo: '', itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' });
+        }
+
+        setBillItems(mappedItems);
+
+        // Update header fields from data.header and data.kotNo if available
+        console.log('API Response Header:', data.header);
+        if (data.header) {
+          setWaiter(data.header.waiter || 'ASD');
+          setPax(data.header.pax || 1);
+          if (data.header.table_name) {
+            setTableNo(data.header.table_name);
+          }
+        }
+        setKotNo(data.kotNo || '26');
+        setDefaultKot(data.kotNo || 34);
+        setEditableKot(data.kotNo || 34);
+
+        // Calculate totals
+        calculateTotals(mappedItems);
+      } catch (err: any) {
+        if (err.response) {
+          setError(`Server responded with status ${err.response.status}: ${err.response.statusText}`);
+        } else {
+          setError(err.message || 'Failed to fetch table data');
+        }
+        console.error('Error fetching table data:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTableData();
+  }, [tableId, user]);
 
   const calculateTotals = (items: BillItem[]) => {
     const updatedItems = items.map(item => {
@@ -484,9 +561,9 @@ const ModernBill = () => {
           {/* Card Layout for Header Information */}
           <Row className="g-1 mb-1">
             <Col md={1}>
-              <Card className=" text-center info-card">
+              <Card className=" text-center info-card"> 
                 <Card.Body className="py-2 px-2 text-center">
-                  <Card.Title className="text-muted mb-0 fw-bold" style={{ fontSize: '0.75rem' }}>Table No</Card.Title>
+                  <Card.Title className="text-muted mb-0 fw-bold" style={{ fontSize: '0.75rem' }}>Table Name</Card.Title>
                   <Card.Text className="fw-bold mb-0 fs-5 text-dark">{tableNo}</Card.Text>
                 </Card.Body>
               </Card>
@@ -546,17 +623,17 @@ const ModernBill = () => {
 
             </Col>
             <Col md={2} className="ms-auto">
-  <Card className=" text-center total-card">
-    <Card.Body className="py-1">
-      <Card.Title className="py-2 px-2 text-center">
-        Total
-      </Card.Title>
-      <Card.Text className="fw-bold text-white mb-0 fs-5">
-        ₹{finalAmount.toFixed(2)}
-      </Card.Text>
-    </Card.Body>
-  </Card>
-</Col>
+              <Card className=" text-center total-card">
+                <Card.Body className="py-1">
+                  <Card.Title className="py-2 px-2 text-center">
+                    Total
+                  </Card.Title>
+                  <Card.Text className="fw-bold text-white mb-0 fs-5">
+                    ₹{finalAmount.toFixed(2)}
+                  </Card.Text>
+                </Card.Body>
+              </Card>
+            </Col>
           </Row>
 
           {/* Datalist for Waiters */}
@@ -571,10 +648,10 @@ const ModernBill = () => {
           {/* Datalist for Item Names */}
           <datalist id="itemNames">
             {menuItems.map(item => (
-              <>
-                <option key={`${item.restitemid}-full`} value={`${item.item_name} (${item.item_no})`} />
-                <option key={`${item.restitemid}-short`} value={`${item.short_name} (${item.item_no})`} />
-              </>
+              <React.Fragment key={item.restitemid}>
+                <option value={`${item.item_name} (${item.item_no})`} />
+                <option value={`${item.short_name} (${item.item_no})`} />
+              </React.Fragment>
             ))}
           </datalist>
 
@@ -587,158 +664,168 @@ const ModernBill = () => {
         </div>
       </div>
 
-     
+
 
       {/* Main Content */}
       <div className="full-screen-content" style={{ top: `${headerHeight + toolbarHeight}px` }}>
         <div className="content-wrapper">
           <div className="modern-bill">
-            {/* Items Table */}
-            <div className="items-table">
+            {loading ? (
+              <div className="d-flex justify-content-center align-items-center h-100">
+                <div className="spinner-border text-primary" role="status">
+                  <span className="visually-hidden">Loading...</span>
+                </div>
+              </div>
+            ) : error ? (
+              <div className="alert alert-danger m-3">
+                <strong>Error:</strong> {error}
+              </div>
+            ) : (
+              <div className="items-table">
+                <Table responsive bordered className="modern-table">
+                  <thead>
+                    <tr className="table-primary">
+                      <th style={{ width: '80px' }}>No</th>
+                      <th style={{ width: '400px' }}>Item Name</th>
+                      <th className="text-center">Qty</th>
+                      <th className="text-end" style={{ width: '200px' }}>Rate</th>
+                      <th className="text-end">Total</th>
+                      <th className="text-center">MkotNo/Time</th>
+                      <th>Special Instructions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {billItems.map((item, index) => (
+                      <tr key={index}>
+                        <td>
+                          <Form.Control
+                            ref={(el) => {
+                              if (!inputRefs.current[index]) inputRefs.current[index] = [];
+                              inputRefs.current[index][0] = el;
+                            }}
+                            type="text"
+                            value={item.itemNo}
+                            onChange={(e) => handleItemChange(index, 'itemNo', e.target.value)}
+                            onKeyDown={handleKeyPress(index, 'itemNo')}
+                            className="form-control-sm"
+                          />
+                        </td>
+                        <td>
+                          <Form.Control
+                            ref={(el) => {
+                              if (!inputRefs.current[index]) inputRefs.current[index] = [];
+                              inputRefs.current[index][2] = el;
+                            }}
+                            type="text"
+                            value={item.itemName}
+                            onChange={(e) => handleItemChange(index, 'itemName', e.target.value)}
+                            onKeyDown={handleKeyPress(index, 'itemName')}
+                            className="form-control-sm"
+                            list="itemNames"
+                          />
+                        </td>
+                        <td className="text-center">
+                          <Form.Control
+                            ref={(el) => {
+                              if (!inputRefs.current[index]) inputRefs.current[index] = [];
+                              inputRefs.current[index][1] = el;
+                            }}
+                            type="number"
+                            value={item.qty}
+                            onChange={(e) => handleItemChange(index, 'qty', Number(e.target.value))}
+                            onKeyDown={handleKeyPress(index, 'qty')}
+                            className="form-control-sm text-center"
+                            style={{ width: '60px', margin: 'auto' }}
+                          />
+                        </td>
+                        <td className="text-end">
+                          <Form.Control
+                            type="number"
+                            value={item.rate}
+                            onChange={(e) => handleItemChange(index, 'rate', Number(e.target.value))}
+                            onKeyDown={handleKeyPress(index, 'rate')}
+                            className="form-control-sm text-end"
+                          />
+                        </td>
+                        <td className="text-end">{item.total.toFixed(2)}</td>
+                        <td className="text-center">
+                          {item.mkotNo && <Badge bg="secondary">{item.mkotNo}</Badge>}
+                        </td>
+                        <td>
+                          <Form.Control
+                            type="text"
+                            value={item.specialInstructions}
+                            onChange={(e) => handleItemChange(index, 'specialInstructions', e.target.value)}
+                            onKeyDown={handleKeyPress(index, 'specialInstructions')}
+                            className="form-control-sm"
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </Table>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Bottom Bar for Summary and Footer */}
+        <div className="bottom-bar">
+          <div className="bottom-content">
+            {/* Summary Section */}
+            <div className="summary-section mb-1">
               <Table responsive bordered className="modern-table">
                 <thead>
-                  <tr className="table-primary">
-                    <th style={{ width: '80px' }}>No</th>
-                    <th style={{ width: '400px' }}>Item Name</th>
-                    <th className="text-center">Qty</th>
-                    <th className="text-end" style={{ width: '200px' }}>Rate</th>
-                    <th className="text-end">Total</th>
-                    <th className="text-center">MkotNo/Time</th>
-                    <th>Special Instructions</th>
+                  <tr>
+                    <th>Discount (#3)</th>
+                    <th className="text-end">Gross Amt</th>
+                    <th className="text-end">Rev KOT(+)</th>
+                    <th className="text-center">Disc(+)</th>
+                    <th className="text-end">CGST (+)</th>
+                    <th className="text-end">SGST (+)</th>
+                    <th className="text-end">R. Off (+)</th>
+                    <th className="text-center">Ser Chg (+)</th>
+                    <th className="text-end">Final Amount</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {billItems.map((item, index) => (
-                    <tr key={index}>
-                      <td>
-                        <Form.Control
-                          ref={(el) => {
-                            if (!inputRefs.current[index]) inputRefs.current[index] = [];
-                            inputRefs.current[index][0] = el;
-                          }}
-                          type="text"
-                          value={item.itemNo}
-                          onChange={(e) => handleItemChange(index, 'itemNo', e.target.value)}
-                          onKeyDown={handleKeyPress(index, 'itemNo')}
-                          className="form-control-sm"
-
-                        />
-                      </td>
-                      <td>
-                        <Form.Control
-                          ref={(el) => {
-                            if (!inputRefs.current[index]) inputRefs.current[index] = [];
-                            inputRefs.current[index][2] = el;
-                          }}
-                          type="text"
-                          value={item.itemName}
-                          onChange={(e) => handleItemChange(index, 'itemName', e.target.value)}
-                          onKeyDown={handleKeyPress(index, 'itemName')}
-                          className="form-control-sm"
-                          list="itemNames"
-                        />
-                      </td>
-                      <td className="text-center">
-                        <Form.Control
-                          ref={(el) => {
-                            if (!inputRefs.current[index]) inputRefs.current[index] = [];
-                            inputRefs.current[index][1] = el;
-                          }}
-                          type="number"
-                          value={item.qty}
-                          onChange={(e) => handleItemChange(index, 'qty', Number(e.target.value))}
-                          onKeyDown={handleKeyPress(index, 'qty')}
-                          className="form-control-sm text-center"
-                          style={{ width: '60px', margin: 'auto' }}
-                        />
-                      </td>
-                      <td className="text-end">
-                        <Form.Control
-                          type="number"
-                          value={item.rate}
-                          onChange={(e) => handleItemChange(index, 'rate', Number(e.target.value))}
-                          onKeyDown={handleKeyPress(index, 'rate')}
-                          className="form-control-sm text-end"
-                        />
-                      </td>
-                      <td className="text-end">{item.total.toFixed(2)}</td>
-                      <td className="text-center">
-                        {item.mkotNo && <Badge bg="secondary">{item.mkotNo}</Badge>}
-                      </td>
-                      <td>
-                        <Form.Control
-                          type="text"
-                          value={item.specialInstructions}
-                          onChange={(e) => handleItemChange(index, 'specialInstructions', e.target.value)}
-                          onKeyDown={handleKeyPress(index, 'specialInstructions')}
-                          className="form-control-sm"
-                        />
-                      </td>
-                    </tr>
-                  ))}
+                  <tr>
+                    <td>0.00</td>
+                    <td className="text-end">{grossAmount.toFixed(2)}</td>
+                    <td className="text-end">0.00</td>
+                    <td className="text-center">0.00</td>
+                    <td className="text-end">{totalCgst.toFixed(2)}</td>
+                    <td className="text-end">{totalSgst.toFixed(2)}</td>
+                    <td className="text-end">{roundOff.toFixed(2)}</td>
+                    <td className="text-center">0</td>
+                    <td className="text-end fw-bold text-success">{finalAmount.toFixed(2)}</td>
+                  </tr>
                 </tbody>
               </Table>
             </div>
-          </div>
-        </div>
-      </div>
 
-      {/* Bottom Bar for Summary and Footer */}
-      <div className="bottom-bar">
-        <div className="bottom-content">
-          {/* Summary Section */}
-          <div className="summary-section mb-1">
-            <Table responsive bordered className="modern-table">
-              <thead>
-                <tr>
-                  <th>Discount (#3)</th>
-                  <th className="text-end">Gross Amt</th>
-                  <th className="text-end">Rev KOT(+)</th>
-                  <th className="text-center">Disc(+)</th>
-                  <th className="text-end">CGST (+)</th>
-                  <th className="text-end">SGST (+)</th>
-                  <th className="text-end">R. Off (+)</th>
-                  <th className="text-center">Ser Chg (+)</th>
-                  <th className="text-end">Final Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>0.00</td>
-                  <td className="text-end">{grossAmount.toFixed(2)}</td>
-                  <td className="text-end">0.00</td>
-                  <td className="text-center">0.00</td>
-                  <td className="text-end">{totalCgst.toFixed(2)}</td>
-                  <td className="text-end">{totalSgst.toFixed(2)}</td>
-                  <td className="text-end">{roundOff.toFixed(2)}</td>
-                  <td className="text-center">0</td>
-                  <td className="text-end fw-bold text-success">{finalAmount.toFixed(2)}</td>
-                </tr>
-              </tbody>
-            </Table>
+            {/* Footer with Function Keys */}
+            <Card className="footer-card">
+              <Card.Body className="py-1">
+                <div className="d-flex justify-content-between align-items-center px-2 py-1">
+                  <Button variant="outline-primary" size="sm" className="function-btn">KOT Tr (F2)</Button>
+                  <Button variant="outline-primary" size="sm" className="function-btn">N C KOT (ctrl + F9)</Button>
+                  <Button variant="outline-primary" size="sm" className="function-btn">Rev Bill (F5)</Button>
+                  <Button variant="outline-primary" size="sm" className="function-btn">TBL Tr (F7)</Button>
+                  <Button variant="outline-primary" size="sm" className="function-btn">New Bill (F6)</Button>
+                  <Button variant="outline-primary" size="sm" className="function-btn">Rev KOT (F8)</Button>
+                  <Button variant="outline-primary" size="sm" className="function-btn">K O T (F9)</Button>
+                  <Button variant="outline-primary" size="sm" className="function-btn">Print (F10)</Button>
+                  <Button variant="outline-primary" size="sm" className="function-btn">Settle (F11)</Button>
+                  <Button variant="outline-primary" size="sm" className="function-btn">Exit (Esc)</Button>
+                </div>
+              </Card.Body>
+            </Card>
           </div>
-
-          {/* Footer with Function Keys */}
-          <Card className="footer-card">
-            <Card.Body className="py-1">
-              <div className="d-flex justify-content-between align-items-center px-2 py-1">
-                <Button variant="outline-primary" size="sm" className="function-btn">KOT Tr (F2)</Button>
-                <Button variant="outline-primary" size="sm" className="function-btn">N C KOT (ctrl + F9)</Button>
-                <Button variant="outline-primary" size="sm" className="function-btn">Rev Bill (F5)</Button>
-                <Button variant="outline-primary" size="sm" className="function-btn">TBL Tr (F7)</Button>
-                <Button variant="outline-primary" size="sm" className="function-btn">New Bill (F6)</Button>
-                <Button variant="outline-primary" size="sm" className="function-btn">Rev KOT (F8)</Button>
-                <Button variant="outline-primary" size="sm" className="function-btn">K O T (F9)</Button>
-                <Button variant="outline-primary" size="sm" className="function-btn">Print (F10)</Button>
-                <Button variant="outline-primary" size="sm" className="function-btn">Settle (F11)</Button>
-                <Button variant="outline-primary" size="sm" className="function-btn">Exit (Esc)</Button>
-              </div>
-            </Card.Body>
-          </Card>
         </div>
       </div>
     </div>
   );
 };
 
-export default ModernBill;
+      export default ModernBill;

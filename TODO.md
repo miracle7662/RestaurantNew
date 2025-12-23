@@ -1,6 +1,9 @@
-# TODO: Make Item Name Search Case-Insensitive
+# TODO: Implement Table Click Data Fetch
 
 ## Tasks
-- [x] Modify handleItemChange function in Billview.tsx to use toLowerCase() for case-insensitive search on item_name and short_name.
-- [ ] Update the datalist for itemNames to include options for short_name as well, to allow searching by short names.
-- [ ] Test the changes to ensure search works with lowercase letters.
+- [ ] Add API fetch in Billview.tsx for unbilled items when tableId is present
+- [ ] Map fetched data to BillItem interface
+- [ ] Update header fields (waiter, pax, kotNo) from fetched header
+- [ ] Calculate totals from fetched items
+- [ ] Handle loading and error states
+- [ ] Test the functionality

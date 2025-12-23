@@ -187,7 +187,7 @@ export default function App() {
   };
 
   const handleTableClick = (table: Table) => {
-    navigate('/apps/Billview', { state: { tableId: table.id } });
+    navigate('/apps/Billview', { state: { tableId: table.id, tableName: table.name } });
   };
 
   const handleTableInputEnter = (e: React.KeyboardEvent<HTMLInputElement>) => {
