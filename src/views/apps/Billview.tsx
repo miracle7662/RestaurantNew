@@ -354,19 +354,23 @@ const ModernBill = () => {
           background: #f8f9fa;
         }
 
-        .function-btn {
-          border-radius: 15px;
-          font-size: 0.75rem;
-          padding: 4px 12px;
-          min-width: 80px;
-          background: #e3f2fd;
-          border: 1px solid #2196f3;
-          color: #1976d2;
-        }
+       .function-btn {
+  border-radius: 20px;              /* thoda zyada rounded, jaise screenshot */
+  font-size: 0.99rem;               /* perfect size */
+  padding: 6px 22px;                /* vertical thoda zyada, horizontal balanced */
+  min-width: 95px;                  /* sab buttons almost same width */
+  background: #e3f2fd;
+  border: 1.6px solid #2196f3;      /* thodi bold border */
+  color: #1976d2;
+  font-weight: 800;
+  white-space: nowrap;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1); /* subtle shadow for depth */
+}
 
-        .function-btn:hover {
-          background: #bbdefb;
-        }
+.function-btn:hover {
+  background: #bbdefb;
+  transform: translateY(-1px);
+}
 
         .bill-header h2 {
           font-weight: 700;
@@ -611,18 +615,18 @@ const ModernBill = () => {
           {/* Footer with Function Keys */}
           <Card className="footer-card">
             <Card.Body className="py-1">
-              <div className="d-flex flex-wrap justify-content-center gap-1">
-                <Button variant="outline-primary" size="sm" className="function-btn">KOT Tr (F2)</Button>
-                <Button variant="outline-primary" size="sm" className="function-btn">N C KOT (ctrl + F9)</Button>
-                <Button variant="outline-primary" size="sm" className="function-btn">Rev Bill (F5)</Button>
-                <Button variant="outline-primary" size="sm" className="function-btn">TBL Tr (F7)</Button>
-                <Button variant="outline-primary" size="sm" className="function-btn">New Bill (F6)</Button>
-                <Button variant="outline-primary" size="sm" className="function-btn">Rev KOT (F8)</Button>
-                <Button variant="outline-primary" size="sm" className="function-btn">K O T (F9)</Button>
-                <Button variant="outline-primary" size="sm" className="function-btn">Print (F10)</Button>
-                <Button variant="outline-primary" size="sm" className="function-btn">Settle (F11)</Button>
-                <Button variant="outline-primary" size="sm" className="function-btn">Exit (Esc)</Button>
-              </div>
+             <div className="d-flex justify-content-between align-items-center px-2 py-1">
+  <Button variant="outline-primary" size="sm" className="function-btn">KOT Tr (F2)</Button>
+  <Button variant="outline-primary" size="sm" className="function-btn">N C KOT (ctrl + F9)</Button>
+  <Button variant="outline-primary" size="sm" className="function-btn">Rev Bill (F5)</Button>
+  <Button variant="outline-primary" size="sm" className="function-btn">TBL Tr (F7)</Button>
+  <Button variant="outline-primary" size="sm" className="function-btn">New Bill (F6)</Button>
+  <Button variant="outline-primary" size="sm" className="function-btn">Rev KOT (F8)</Button>
+  <Button variant="outline-primary" size="sm" className="function-btn">K O T (F9)</Button>
+  <Button variant="outline-primary" size="sm" className="function-btn">Print (F10)</Button>
+  <Button variant="outline-primary" size="sm" className="function-btn">Settle (F11)</Button>
+  <Button variant="outline-primary" size="sm" className="function-btn">Exit (Esc)</Button>
+</div>
             </Card.Body>
           </Card>
         </div>
