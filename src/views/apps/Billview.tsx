@@ -438,22 +438,67 @@ const ModernBill = () => {
           border: 1px solid #ced4da;
         }
 
-        .info-card {
-          border: 1px solid  #dbdbe7ff;
-          border-radius: 0.5rem;
-          transition: all 0.3s ease;
-          background: #e3f2fd; /* Soft light background */
-        }
+       .info-card {
+  border: 1px solid #dbdbe7ff;
+  border-radius: 0.5rem;
+  transition: all 0.3s ease;
 
-        .info-card:hover {
-          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-          transform: translateY(-2px);
-        }
+  /* 🔥 Unified card look */
+  background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+ color: #ffffff;
+}
 
-        .info-card .form-control {
-          background-color: #e3f2fd ;
-          border: none;
-        }
+.info-card:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  transform: translateY(-2px);
+}
+
+/* Label text */
+.info-card .text-muted {
+  color: rgba(255,255,255,0.8) !important;
+  font-weight: 700;
+}
+
+/* Value text */
+.info-card .fw-bold {
+  color: #ffffff !important;
+}
+
+/* Inputs */
+.info-card .form-control {
+  background: transparent;
+  border: none;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.info-card .form-control:focus {
+  box-shadow: none;
+  background: transparent;
+  color: #ffffff;
+}
+
+/* Placeholder */
+.info-card .form-control::placeholder {
+  color: rgba(255,255,255,0.6);
+}
+
+/* Datalist arrow styling */
+.info-card input::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  cursor: pointer;
+  opacity: 0.8;
+}
+
+/* Autofill fix */
+.info-card input:-webkit-autofill,
+.info-card input:-webkit-autofill:hover, 
+.info-card input:-webkit-autofill:focus, 
+.info-card input:-webkit-autofill:active{
+    -webkit-box-shadow: 0 0 0 30px linear-gradient(135deg, #2563eb 0%, #1e40af 100%); inset !important;
+    -webkit-text-fill-color: white !important;
+    transition: background-color 5000s ease-in-out 0s;
+}
 
       
 
@@ -559,78 +604,68 @@ const ModernBill = () => {
           </div>
 
           {/* Card Layout for Header Information */}
-          <Row className="g-1 mb-1">
+          <Row className="g-2 mb-2">
             <Col md={1}>
-              <Card className=" text-center info-card"> 
-                <Card.Body className="py-2 px-2 text-center">
-                  <Card.Title className="text-muted mb-0 fw-bold" style={{ fontSize: '0.75rem' }}>Table Name</Card.Title>
-                  <Card.Text className="fw-bold mb-0 fs-5 text-dark">{tableNo}</Card.Text>
+              <Card className="text-center info-card h-100 border-0 shadow-sm">
+                <Card.Body className="d-flex flex-column justify-content-center py-2 px-2">
+                  <div className="text-muted text-uppercase fw-bold small mb-1" style={{ fontSize: '0.7rem', letterSpacing: '0.5px' }}>Table No</div>
+                  <div className="fw-bold text-dark fs-5 text-truncate" title={tableNo}>{tableNo}</div>
                 </Card.Body>
               </Card>
             </Col>
             <Col md={2}>
-              <Card className=" text-center info-card">
-                <Card.Body className="py-2 px-2 text-center">
-                  <Card.Title className="text-muted mb-0 fw-bold" style={{ fontSize: '0.75rem' }}>Waiter</Card.Title>
+              <Card className="text-center info-card h-100 border-0 shadow-sm">
+                <Card.Body className="d-flex flex-column justify-content-center py-2 px-2">
+                  <div className="text-muted text-uppercase fw-bold small mb-1" style={{ fontSize: '0.7rem', letterSpacing: '0.5px' }}>Waiter</div>
                   <Form.Control
                     type="text"
                     value={waiter}
                     onChange={(e) => setWaiter(e.target.value)}
-                    className="form-control-xs text-center fw-bold "
+                    className="form-control-sm text-center fw-bold fs-5 p-0 bg-transparent shadow-none text-white"
                     list="waiters"
                   />
                 </Card.Body>
               </Card>
             </Col>
             <Col md={1}>
-              <Card className=" text-center info-card">
-                <Card.Body className="py-2 px-2 text-center">
-                  <Card.Title className="text-muted mb-0 fw-bold" style={{ fontSize: '0.75rem' }}>PAX</Card.Title>
+              <Card className="text-center info-card h-100 border-0 shadow-sm">
+                <Card.Body className="d-flex flex-column justify-content-center py-2 px-2">
+                  <div className="text-muted text-uppercase fw-bold small mb-1" style={{ fontSize: '0.7rem', letterSpacing: '0.5px' }}>PAX</div>
                   <Form.Control
                     type="number"
                     value={pax}
                     onChange={(e) => setPax(Number(e.target.value))}
-                    className="form-control-xs text-center fw-bold"
+                    className="form-control-sm text-center fw-bold fs-5 p-0 bg-transparent shadow-none"
                   />
                 </Card.Body>
               </Card>
             </Col>
             <Col md={2}>
-              <Card className=" info-card">
-                <Card.Body className="py-2 px-2 text-center">
-
-                  <div className="small fw-bold text-muted mb-1">KOT No.</div>
-
-                  <div className="d-flex border rounded bg-light overflow-hidden" style={{ height: 30 }}>
-
-                    {/* LEFT – Default (50%, NOT editable) */}
-                    <div className="w-50 d-flex align-items-center justify-content-center fw-bold text-dark border-end">
+              <Card className="info-card h-100 border-0 shadow-sm" >
+                <Card.Body className="d-flex flex-column justify-content-center py-2 px-2 text-center">
+                  <div className="text-muted text-uppercase fw-bold small mb-1" style={{ fontSize: '0.7rem', letterSpacing: '0.5px' }}>KOT No.</div>
+                  <div className="d-flex align-items-center justify-content-center mx-auto" style={{ height: '34px', maxWidth: '160px' }}>
+                    <div className="px-3 border-end fw-bold text-white-50 h-100 d-flex align-items-center" style={{ borderColor: 'rgba(255,255,255,0.3)' }}>
                       {defaultKot}
                     </div>
-
-                    {/* RIGHT – Editable (50%) */}
                     <Form.Control
                       type="text"
                       value={editableKot.toString()}
                       onChange={(e) => setEditableKot(Number(e.target.value))}
-                      className="w-50 text-center fw-bold text-primary border-0 rounded-0 bg-transparent shadow-none"
+                      className="text-center fw-bold text-white border-0 shadow-none h-100 m-0 bg-transparent"
+                      style={{ width: '80px' }}
                     />
-
                   </div>
-
                 </Card.Body>
               </Card>
-
             </Col>
             <Col md={2} className="ms-auto">
-              <Card className=" text-center total-card">
-                <Card.Body className="py-1">
-                  <Card.Title className="py-2 px-2 text-center">
-                    Total
-                  </Card.Title>
-                  <Card.Text className="fw-bold text-white mb-0 fs-5">
+              <Card className="text-center total-card h-100 border-0 shadow-sm">
+                <Card.Body className="d-flex flex-column justify-content-center py-2 px-3">
+                  <div className="text-white-50 text-uppercase fw-bold small mb-0" style={{ fontSize: '0.7rem', letterSpacing: '0.5px' }}>Total Amount</div>
+                  <div className="fw-bold text-white fs-4">
                     ₹{finalAmount.toFixed(2)}
-                  </Card.Text>
+                  </div>
                 </Card.Body>
               </Card>
             </Col>
