@@ -192,6 +192,12 @@ const ModernBill = () => {
   const handleKeyPress = (index: number, field: keyof BillItem) => (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       if (field === 'itemNo') {
+        // Focus itemName field of the same row
+        const itemNameRef = inputRefs.current[index]?.[2];
+        if (itemNameRef) {
+          itemNameRef.focus();
+        }
+      } else if (field === 'itemName') {
         // Focus and select qty field of the same row
         const qtyRef = inputRefs.current[index]?.[1];
         if (qtyRef) {
@@ -620,6 +626,10 @@ const ModernBill = () => {
                       </td>
                       <td>
                         <Form.Control
+                          ref={(el) => {
+                            if (!inputRefs.current[index]) inputRefs.current[index] = [];
+                            inputRefs.current[index][2] = el;
+                          }}
                           type="text"
                           value={item.itemName}
                           onChange={(e) => handleItemChange(index, 'itemName', e.target.value)}
