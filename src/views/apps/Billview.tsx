@@ -1061,7 +1061,7 @@ const ModernBill = () => {
             <Card className="footer-card">
               <Card.Body className="py-1">
                 <div className="d-flex justify-content-between align-items-center px-2 py-1">
-                  <Button onClick={() => saveKOT(false, false)} variant="outline-primary" size="sm" className="function-btn">KOT Tr (F2)</Button>
+                  <Button onClick={() => navigate('/apps/KotTransfer')} variant="outline-primary" size="sm" className="function-btn">KOT Tr (F2)</Button>
                   <Button onClick={() => saveKOT(true, false)} variant="outline-primary" size="sm" className="function-btn">N C KOT (ctrl + F9)</Button>
                   <Button onClick={() => setShowReverseBillModal(true)} variant="outline-primary" size="sm" className="function-btn">Rev Bill (F5)</Button>
                   <Button onClick={() => setShowTransferModal(true)} variant="outline-primary" size="sm" className="function-btn">TBL Tr (F7)</Button>
