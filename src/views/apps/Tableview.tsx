@@ -192,21 +192,12 @@ export default function App() {
 
   const handleTableInputEnter = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
-      const num = parseInt(tableInput);
-      if (!isNaN(num) && selectedDepartmentId !== 'all') {
-        const tables = tablesByDepartment[selectedDepartmentId] || [];
-        const table = tables.find(t => t.id === num);
+      const input = tableInput.trim();
+      if (input) {
+        const tables = selectedDepartmentId === 'all' ? allTables : tablesByDepartment[selectedDepartmentId] || [];
+        const table = tables.find(t => t.name === input);
         if (table) {
-          // Scroll to section first
-          const department = departments.find(d => d.departmentid === selectedDepartmentId);
-          const section = document.querySelector(`#department-section-${department?.departmentid}`);
-          section?.scrollIntoView({ behavior: 'smooth' });
-          // Then to table
-          setTimeout(() => {
-            const tableId = `table-${table.id}-department-${selectedDepartmentId}`;
-            const card = document.getElementById(tableId);
-            card?.scrollIntoView({ behavior: 'smooth' });
-          }, 500);
+          navigate('/apps/Billview', { state: { tableId: table.id, tableName: table.name } });
         }
       }
       setTableInput('');
