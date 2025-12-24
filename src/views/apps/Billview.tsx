@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, KeyboardEvent } from 'react';
-import { Row, Col, Card, Table, Badge, Button, Form } from 'react-bootstrap';
+import { Row, Col, Card, Table, Badge, Button, Form, Modal, Alert } from 'react-bootstrap';
 import axios from 'axios';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthContext } from '@/common';
@@ -23,6 +23,11 @@ interface MenuItem {
   item_name: string;
   short_name: string;
   price: number;
+}
+
+interface Table {
+  id: number;
+  name: string;
 }
 
 const ModernBill = () => {
@@ -56,6 +61,27 @@ const ModernBill = () => {
   const [editableKot, setEditableKot] = useState(34); // user editable
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [txnId, setTxnId] = useState<number | null>(null);
+
+  // Modal states
+  const [showSettleModal, setShowSettleModal] = useState(false);
+  const [showReverseBillModal, setShowReverseBillModal] = useState(false);
+  const [showReverseKOTModal, setShowReverseKOTModal] = useState(false);
+  const [showTransferModal, setShowTransferModal] = useState(false);
+
+  // Settle modal data
+  const [settlements, setSettlements] = useState([{ PaymentTypeID: 1, PaymentType: 'Cash', Amount: 0, OrderNo: 0, HotelID: user?.hotelid || 1, Name: 'Cash' }]);
+
+  // Reverse Bill modal data
+  const [reversePassword, setReversePassword] = useState('');
+
+  // Reverse KOT modal data
+  const [reverseQty, setReverseQty] = useState(1);
+  const [reverseReason, setReverseReason] = useState('');
+
+  // Transfer modal data
+  const [availableTables, setAvailableTables] = useState<Table[]>([]);
+  const [selectedTable, setSelectedTable] = useState<Table | null>(null);
 
 
   const inputRefs = useRef<(HTMLInputElement | null)[][]>([]);
@@ -178,6 +204,7 @@ const ModernBill = () => {
         // Update header fields from data.header and data.kotNo if available
         console.log('API Response Header:', data.header);
         if (data.header) {
+          setTxnId(data.header.TxnID);
           setWaiter(data.header.waiter || 'ASD');
           setPax(data.header.pax || 1);
           if (data.header.table_name) {
@@ -247,8 +274,8 @@ const ModernBill = () => {
     } else if (field === 'itemName') {
       // Parse the value to extract item name if it includes code
       const parsedValue = (value as string).includes(' (') ? (value as string).split(' (')[0] : value as string;
-      // When item name is selected or typed, find the item and auto-fill itemNo and rate (case-insensitive)
-      const found = menuItems.find(i => i.item_name.toLowerCase() === parsedValue.toLowerCase() || i.short_name.toLowerCase() === parsedValue.toLowerCase());
+      // When item name is selected or typed, find the item by short_name and auto-fill itemNo and rate (case-insensitive)
+      const found = menuItems.find(i => i.short_name.toLowerCase() === parsedValue.toLowerCase());
       if (found) {
         currentItem.itemName = found.item_name; // Always show the full item name
         currentItem.itemNo = found.item_no.toString();
@@ -296,6 +323,185 @@ const ModernBill = () => {
       // No action for rate and specialInstructions
     }
   };
+
+  // Button handlers
+  const saveKOT = async (isNoCharge: boolean = false, print: boolean = false) => {
+    try {
+      const validItems = billItems.filter(item => item.itemNo && item.itemName && item.qty > 0);
+      if (validItems.length === 0) {
+        alert('No valid items to save');
+        return;
+      }
+
+      const payload = {
+        outletid: user.outletid || user.hotelid, // Assuming outletid is available or same as hotelid
+        tableId: tableId,
+        table_name: tableName,
+        userId: user.id,
+        hotelId: user.hotelid,
+        NCName: isNoCharge ? 'NC' : null,
+        NCPurpose: isNoCharge ? 'No Charge' : null,
+        DiscPer: 0,
+        Discount: 0,
+        DiscountType: 0,
+        CustomerName: '',
+        MobileNo: '',
+        Order_Type: 'Dine-in',
+        txnId: txnId || undefined, // For existing bills
+        items: validItems.map(item => ({
+          ItemID: parseInt(item.itemNo),
+          Qty: item.qty,
+          RuntimeRate: item.rate,
+          CGST: item.total > 0 ? (item.cgst / item.total) * 100 : 0,
+          SGST: item.total > 0 ? (item.sgst / item.total) * 100 : 0,
+          IGST: 0,
+          CESS: 0,
+          Discount_Amount: 0,
+          isNCKOT: isNoCharge,
+          DeptID: 1, // Default department ID
+          SpecialInst: item.specialInstructions || null
+        }))
+      };
+
+      const response = await axios.post('/api/TAxnTrnbill/kot', payload);
+      alert('KOT saved successfully');
+
+      // If print is requested, call print after save
+      if (print) {
+        await printBill();
+      }
+    } catch (error) {
+      console.error('Error saving KOT:', error);
+      alert('Error saving KOT');
+    }
+  };
+
+  const reverseBill = async () => {
+    if (!txnId) return;
+    try {
+      await axios.post(`/api/TAxnTrnbill/${txnId}/reverse`);
+      alert('Bill reversed successfully');
+      navigate('/apps/Tableview');
+    } catch (error) {
+      console.error('Error reversing bill:', error);
+      alert('Error reversing bill');
+    }
+  };
+
+  const reverseKOT = async () => {
+    if (!txnId) return;
+    try {
+      await axios.post('/api/TAxnTrnbill/create-reverse-kot', {
+        txnId,
+        qty: reverseQty,
+        reason: reverseReason
+      });
+      alert('KOT reversed successfully');
+      setShowReverseKOTModal(false);
+    } catch (error) {
+      console.error('Error reversing KOT:', error);
+      alert('Error reversing KOT');
+    }
+  };
+
+  const printBill = async () => {
+    if (!txnId) return;
+    try {
+      await axios.put(`/api/TAxnTrnbill/${txnId}/print`);
+      alert('Bill printed successfully');
+    } catch (error) {
+      console.error('Error printing bill:', error);
+      alert('Error printing bill');
+    }
+  };
+
+  const settleBill = async () => {
+    if (!txnId) return;
+    try {
+      await axios.post(`/api/TAxnTrnbill/${txnId}/settle`, {
+        settlements
+      });
+      alert('Bill settled successfully');
+      navigate('/apps/Tableview');
+    } catch (error) {
+      console.error('Error settling bill:', error);
+      alert('Error settling bill');
+    }
+  };
+
+  const transferTable = async () => {
+    if (!txnId || !selectedTable) return;
+    try {
+      await axios.post('/api/TAxnTrnbill/kot', {
+        txnId,
+        tableId: selectedTable.id,
+        table_name: selectedTable.name,
+        items: []
+      });
+      alert('Table transferred successfully');
+      setShowTransferModal(false);
+      navigate('/apps/Tableview');
+    } catch (error) {
+      console.error('Error transferring table:', error);
+      alert('Error transferring table');
+    }
+  };
+
+  const resetBillState = () => {
+    setBillItems([{ itemNo: '', itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' }]);
+    setTxnId(null);
+    setWaiter('ASD');
+    setPax(1);
+    setKotNo('26');
+    setTableNo('Loading...');
+    setDefaultKot(34);
+    setEditableKot(34);
+    calculateTotals([{ itemNo: '', itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' }]);
+  };
+
+  const exitWithoutSave = () => {
+    navigate('/apps/Tableview');
+  };
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (event: Event) => {
+      const keyboardEvent = event as KeyboardEvent;
+      if (keyboardEvent.key === 'F2') {
+        keyboardEvent.preventDefault();
+        saveKOT(false, false);
+      } else if (keyboardEvent.key === 'F5') {
+        keyboardEvent.preventDefault();
+        setShowReverseBillModal(true);
+      } else if (keyboardEvent.key === 'F6') {
+        keyboardEvent.preventDefault();
+        resetBillState();
+      } else if (keyboardEvent.key === 'F7') {
+        keyboardEvent.preventDefault();
+        setShowTransferModal(true);
+      } else if (keyboardEvent.key === 'F8') {
+        keyboardEvent.preventDefault();
+        setShowReverseKOTModal(true);
+      } else if (keyboardEvent.key === 'F9') {
+        if (keyboardEvent.ctrlKey) {
+          keyboardEvent.preventDefault();
+          saveKOT(true, false);
+        } else {
+          keyboardEvent.preventDefault();
+          saveKOT(false, true);
+        }
+      } else if (keyboardEvent.key === 'F10') {
+        keyboardEvent.preventDefault();
+        printBill();
+      } else if (keyboardEvent.key === 'F11') {
+        keyboardEvent.preventDefault();
+        setShowSettleModal(true);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [txnId, reverseQty, reverseReason, settlements, selectedTable]);
 
   return (
     <div
@@ -439,13 +645,13 @@ const ModernBill = () => {
         }
 
        .info-card {
-  border: 1px solid #dbdbe7ff;
+  border: 1px solid #252526ff;
   border-radius: 0.5rem;
   transition: all 0.3s ease;
 
   /* 🔥 Unified card look */
-  background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
- color: #ffffff;
+ background: ;
+ color: #080808ff;
 }
 
 .info-card:hover {
@@ -455,13 +661,13 @@ const ModernBill = () => {
 
 /* Label text */
 .info-card .text-muted {
-  color: rgba(255,255,255,0.8) !important;
+  color: rgba(17, 17, 17, 0.8) !important;
   font-weight: 700;
 }
 
 /* Value text */
 .info-card .fw-bold {
-  color: #ffffff !important;
+  color: #111010ff !important;
 }
 
 /* Inputs */
@@ -659,6 +865,17 @@ const ModernBill = () => {
                 </Card.Body>
               </Card>
             </Col>
+            <Col md={2}>
+              <Card className="text-center info-card h-100 border-0 shadow-sm">
+                <Card.Body className="d-flex flex-column justify-content-center py-2 px-2">
+                  <div className="text-muted text-uppercase fw-bold small mb-1" style={{ fontSize: '0.7rem', letterSpacing: '0.5px' }}>Date</div>
+                  <div className="fw-bold text-dark fs-5">
+                    {new Date().toLocaleDateString()}
+                  </div>
+
+                </Card.Body>
+              </Card>
+            </Col>
             <Col md={2} className="ms-auto">
               <Card className="text-center total-card h-100 border-0 shadow-sm">
                 <Card.Body className="d-flex flex-column justify-content-center py-2 px-3">
@@ -683,10 +900,7 @@ const ModernBill = () => {
           {/* Datalist for Item Names */}
           <datalist id="itemNames">
             {menuItems.map(item => (
-              <React.Fragment key={item.restitemid}>
-                <option value={`${item.item_name} (${item.item_no})`} />
-                <option value={`${item.short_name} (${item.item_no})`} />
-              </React.Fragment>
+              <option key={item.restitemid} value={item.item_name} />
             ))}
           </datalist>
 
@@ -743,6 +957,7 @@ const ModernBill = () => {
                             onChange={(e) => handleItemChange(index, 'itemNo', e.target.value)}
                             onKeyDown={handleKeyPress(index, 'itemNo')}
                             className="form-control-sm"
+                            style={{ width: '100%', border: 'none', background: 'transparent', padding: '0', outline: 'none' }}
                           />
                         </td>
                         <td>
@@ -757,6 +972,7 @@ const ModernBill = () => {
                             onKeyDown={handleKeyPress(index, 'itemName')}
                             className="form-control-sm"
                             list="itemNames"
+                            style={{ width: '100%', border: 'none', background: 'transparent', padding: '0', outline: 'none' }}
                           />
                         </td>
                         <td className="text-center">
@@ -770,7 +986,7 @@ const ModernBill = () => {
                             onChange={(e) => handleItemChange(index, 'qty', Number(e.target.value))}
                             onKeyDown={handleKeyPress(index, 'qty')}
                             className="form-control-sm text-center"
-                            style={{ width: '60px', margin: 'auto' }}
+                            style={{ width: '100%', border: 'none', background: 'transparent', padding: '0', outline: 'none' }}
                           />
                         </td>
                         <td className="text-end">
@@ -780,6 +996,7 @@ const ModernBill = () => {
                             onChange={(e) => handleItemChange(index, 'rate', Number(e.target.value))}
                             onKeyDown={handleKeyPress(index, 'rate')}
                             className="form-control-sm text-end"
+                            style={{ width: '100%', border: 'none', background: 'transparent', padding: '0', outline: 'none' }}
                           />
                         </td>
                         <td className="text-end">{item.total.toFixed(2)}</td>
@@ -793,6 +1010,7 @@ const ModernBill = () => {
                             onChange={(e) => handleItemChange(index, 'specialInstructions', e.target.value)}
                             onKeyDown={handleKeyPress(index, 'specialInstructions')}
                             className="form-control-sm"
+                            style={{ width: '100%', border: 'none', background: 'transparent', padding: '0', outline: 'none' }}
                           />
                         </td>
                       </tr>
@@ -843,22 +1061,24 @@ const ModernBill = () => {
             <Card className="footer-card">
               <Card.Body className="py-1">
                 <div className="d-flex justify-content-between align-items-center px-2 py-1">
-                  <Button variant="outline-primary" size="sm" className="function-btn">KOT Tr (F2)</Button>
-                  <Button variant="outline-primary" size="sm" className="function-btn">N C KOT (ctrl + F9)</Button>
-                  <Button variant="outline-primary" size="sm" className="function-btn">Rev Bill (F5)</Button>
-                  <Button variant="outline-primary" size="sm" className="function-btn">TBL Tr (F7)</Button>
-                  <Button variant="outline-primary" size="sm" className="function-btn">New Bill (F6)</Button>
-                  <Button variant="outline-primary" size="sm" className="function-btn">Rev KOT (F8)</Button>
-                  <Button variant="outline-primary" size="sm" className="function-btn">K O T (F9)</Button>
-                  <Button variant="outline-primary" size="sm" className="function-btn">Print (F10)</Button>
-                  <Button variant="outline-primary" size="sm" className="function-btn">Settle (F11)</Button>
-                  <Button variant="outline-primary" size="sm" className="function-btn">Exit (Esc)</Button>
+                  <Button onClick={() => saveKOT(false, false)} variant="outline-primary" size="sm" className="function-btn">KOT Tr (F2)</Button>
+                  <Button onClick={() => saveKOT(true, false)} variant="outline-primary" size="sm" className="function-btn">N C KOT (ctrl + F9)</Button>
+                  <Button onClick={() => setShowReverseBillModal(true)} variant="outline-primary" size="sm" className="function-btn">Rev Bill (F5)</Button>
+                  <Button onClick={() => setShowTransferModal(true)} variant="outline-primary" size="sm" className="function-btn">TBL Tr (F7)</Button>
+                  <Button onClick={resetBillState} variant="outline-primary" size="sm" className="function-btn">New Bill (F6)</Button>
+                  <Button onClick={() => setShowReverseKOTModal(true)} variant="outline-primary" size="sm" className="function-btn">Rev KOT (F8)</Button>
+                  <Button onClick={() => saveKOT(false, true)} variant="outline-primary" size="sm" className="function-btn">K O T (F9)</Button>
+                  <Button onClick={printBill} variant="outline-primary" size="sm" className="function-btn">Print (F10)</Button>
+                  <Button onClick={() => setShowSettleModal(true)} variant="outline-primary" size="sm" className="function-btn">Settle (F11)</Button>
+                  <Button onClick={exitWithoutSave} variant="outline-primary" size="sm" className="function-btn">Exit (Esc)</Button>
                 </div>
               </Card.Body>
             </Card>
           </div>
         </div>
       </div>
+
+
     </div>
   );
 };

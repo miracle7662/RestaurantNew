@@ -305,7 +305,7 @@ export default function App() {
 
       {/* Toolbar */}
       <div className="full-screen-toolbar">
-        <div className="container-fluid py-3 px-3">
+        <div className="container-fluid  ">
           <div className="row align-items-center">
             <div className="col-auto">
               <div className="d-flex gap-2">
@@ -316,13 +316,13 @@ export default function App() {
                   value={tableInput}
                   onChange={e => setTableInput(e.target.value)}
                   onKeyDown={handleTableInputEnter}
-                  style={{width: '90px', fontWeight: 'bold',fontSize:'16px'}}
+                  style={{width: '130px', fontWeight: 'bold',fontSize:'25px',height:'60px'}}
                 />
                 <select
                   className="form-select form-select-sm"
                   value={selectedDepartmentId}
                   onChange={e => setSelectedDepartmentId(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-                  style={{width: '120px'}}
+                  style={{width: '290px', fontWeight: 'bold',fontSize:'20px'}}
                 >
                   <option value="all">All Departments</option>
                   {departments.map(department => (
