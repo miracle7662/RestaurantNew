@@ -65,7 +65,7 @@ const ModernBill = () => {
   const [billNo, setBillNo] = useState<number | null>(null);
 
   // Modal states
-  const [showSettleModal, setShowSettleModal] = useState(false);
+  const [showSettlementModal, setShowSettlementModal] = useState(false);
   const [showReverseBillModal, setShowReverseBillModal] = useState(false);
   const [showReverseKOTModal, setShowReverseKOTModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
@@ -73,8 +73,14 @@ const ModernBill = () => {
   const [ncName, setNcName] = useState('');
   const [ncPurpose, setNcPurpose] = useState('');
 
-  // Settle modal data
-  const [settlements, setSettlements] = useState([{ PaymentTypeID: 1, PaymentType: 'Cash', Amount: 0, OrderNo: 0, HotelID: user?.hotelid || 1, Name: 'Cash' }]);
+  // Settlement modal states
+  const [isMixedPayment, setIsMixedPayment] = useState(false);
+  const [selectedPaymentModes, setSelectedPaymentModes] = useState<string[]>([]);
+  const [paymentAmounts, setPaymentAmounts] = useState<{ [key: string]: string }>({});
+  const [tip, setTip] = useState<number>(0);
+  const [outletPaymentModes, setOutletPaymentModes] = useState<any[]>([]);
+  const [taxCalc, setTaxCalc] = useState({ grandTotal: 0 });
+  const [settlements, setSettlements] = useState([{ PaymentType: 'Cash', Amount: finalAmount }]);
 
   // Reverse Bill modal data
   const [reversePassword, setReversePassword] = useState('');
@@ -107,7 +113,23 @@ const ModernBill = () => {
       }
     };
     fetchMenuItems();
+
+    // Fetch outlet payment modes
+    const fetchPaymentModes = async () => {
+      try {
+        if (!user || !user.outletid) {
+          throw new Error('User not authenticated or outlet ID missing');
+        }
+        const response = await axios.get(`/api/payment-modes/by-outlet?outletid=${user.outletid}`);
+        setOutletPaymentModes(response.data.data || response.data);
+      } catch (error) {
+        console.error('Failed to fetch payment modes:', error);
+      }
+    };
+    fetchPaymentModes();
+
     calculateTotals(billItems);
+    setTaxCalc({ grandTotal: finalAmount });
 
     // Remove padding or margin from layout containers
     const mainContent = document.querySelector('main.main-content') as HTMLElement;
@@ -514,6 +536,52 @@ const ModernBill = () => {
     navigate('/apps/Tableview');
   };
 
+  // Settlement modal handlers
+  const handlePaymentModeClick = (mode: any) => {
+    if (isMixedPayment) {
+      // For mixed payment, toggle selection
+      if (selectedPaymentModes.includes(mode.mode_name)) {
+        setSelectedPaymentModes(selectedPaymentModes.filter(m => m !== mode.mode_name));
+        const newAmounts = { ...paymentAmounts };
+        delete newAmounts[mode.mode_name];
+        setPaymentAmounts(newAmounts);
+      } else {
+        setSelectedPaymentModes([...selectedPaymentModes, mode.mode_name]);
+        setPaymentAmounts({ ...paymentAmounts, [mode.mode_name]: '' });
+      }
+    } else {
+      // For single payment, select only this mode and set amount to grand total
+      setSelectedPaymentModes([mode.mode_name]);
+      setPaymentAmounts({ [mode.mode_name]: taxCalc.grandTotal.toString() });
+    }
+  };
+
+  const handlePaymentAmountChange = (modeName: string, value: string) => {
+    setPaymentAmounts({ ...paymentAmounts, [modeName]: value });
+  };
+
+  const handleSettleAndPrint = async () => {
+    // Prepare settlements data
+    const settlementsData = selectedPaymentModes.map(mode => ({
+      PaymentType: mode,
+      Amount: parseFloat(paymentAmounts[mode] || '0')
+    }));
+
+    // Include tip if any
+    if (tip > 0) {
+      settlementsData.push({
+        PaymentType: 'Tip',
+        Amount: tip
+      });
+    }
+
+    setSettlements(settlementsData);
+
+    // Call the existing settleBill function
+    await settleBill();
+    setShowSettlementModal(false);
+  };
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (event: Event) => {
@@ -546,13 +614,13 @@ const ModernBill = () => {
         printBill();
       } else if (keyboardEvent.key === 'F11') {
         keyboardEvent.preventDefault();
-        setShowSettleModal(true);
+        setShowSettlementModal(true);
       }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [txnId, reverseQty, reverseReason, settlements, selectedTable]);
+  }, [txnId, reverseQty, reverseReason, selectedTable]);
 
   return (
     <React.Fragment>
@@ -1121,7 +1189,7 @@ const ModernBill = () => {
                   <Button onClick={() => setShowReverseKOTModal(true)} variant="outline-primary" size="sm" className="function-btn">Rev KOT (F8)</Button>
                   <Button onClick={() => saveKOT(false, true)} variant="outline-primary" size="sm" className="function-btn">K O T (F9)</Button>
                   <Button onClick={printBill} variant="outline-primary" size="sm" className="function-btn">Print (F10)</Button>
-                  <Button onClick={() => setShowSettleModal(true)} variant="outline-primary" size="sm" className="function-btn">Settle (F11)</Button>
+                  <Button onClick={() => setShowSettlementModal(true)} variant="outline-primary" size="sm" className="function-btn">Settle (F11)</Button>
                   <Button onClick={exitWithoutSave} variant="outline-primary" size="sm" className="function-btn">Exit (Esc)</Button>
                 </div>
               </Card.Body>
@@ -1169,38 +1237,164 @@ const ModernBill = () => {
     </Modal>
 
     {/* Settle Modal */}
-    <Modal show={showSettleModal} onHide={() => setShowSettleModal(false)}>
-      <Modal.Header closeButton>
-        <Modal.Title>Settle Bill</Modal.Title>
+    <Modal
+      show={showSettlementModal}
+      onHide={() => setShowSettlementModal(false)}
+      centered
+      onShow={() => {
+        // When the modal is shown, check if it's for single payment
+        if (!isMixedPayment) {
+          // Find the 'Cash' payment mode
+          const cashMode = outletPaymentModes.find(
+            (mode) => mode.mode_name.toLowerCase() === 'cash'
+          );
+          if (cashMode) {
+            // Automatically select 'Cash' and set the amount
+            handlePaymentModeClick(cashMode);
+          }
+        }
+      }}
+      size="lg"
+    >
+      {/* Header */}
+      <Modal.Header closeButton className="border-0">
+        <Modal.Title className="fw-bold text-dark">Payment Mode</Modal.Title>
       </Modal.Header>
-      <Modal.Body>
-        <Form.Group className="mb-3">
-          <Form.Label>Payment Type</Form.Label>
-          <Form.Select
-            value={settlements[0].PaymentType}
-            onChange={(e) => setSettlements([{ ...settlements[0], PaymentType: e.target.value }])}
-          >
-            <option value="Cash">Cash</option>
-            <option value="Card">Card</option>
-            <option value="UPI">UPI</option>
-          </Form.Select>
-        </Form.Group>
-        <Form.Group className="mb-3">
-          <Form.Label>Amount</Form.Label>
+
+      {/* Body */}
+      <Modal.Body className="bg-light">
+        {/* Bill Summary */}
+        <div className="p-4 mb-4 bg-white rounded shadow-sm text-center">
+          <h6 className="text-secondary mb-2">Total Amount Due</h6>
+          <div className="fw-bold display-5 text-dark" id="settlement-grand-total">
+            ₹{taxCalc.grandTotal.toFixed(2)}
+          </div>
+        </div>
+
+        {/* Mixed Payment Toggle */}
+        <div className="d-flex justify-content-end mb-3">
+          <Form.Check
+            type="switch"
+            id="mixed-payment-switch"
+            label="Mixed Payment"
+            checked={isMixedPayment}
+            onChange={(e) => {
+              setIsMixedPayment(e.target.checked);
+              setSelectedPaymentModes([]);
+              setPaymentAmounts({});
+            }}
+          />
+        </div>
+
+        {/* Payment Modes */}
+        <Row xs={1} md={2} className="g-3">
+          {outletPaymentModes.map((mode) => (
+            <Col key={mode.id}>
+              <Card
+                onClick={() => handlePaymentModeClick(mode)}
+                className={`text-center h-100 shadow-sm border-0 ${selectedPaymentModes.includes(mode.mode_name)
+                  ? "border border-primary"
+                  : ""
+                  }`}
+                style={{
+                  cursor: "pointer",
+                  transition: "transform 0.2s ease, box-shadow 0.2s ease",
+                }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.transform = "translateY(-4px)")
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.transform = "translateY(0)")
+                }
+              >
+                <Card.Body>
+                  <Card.Title className="fw-semibold">
+                    {mode.mode_name}
+                  </Card.Title>
+
+                  {/* Amount Input */}
+                  {selectedPaymentModes.includes(mode.mode_name) && (
+                    <Form.Control
+                      type="number"
+                      placeholder="0.00"
+                      value={paymentAmounts[mode.mode_name] || ""}
+                      onChange={(e) =>
+                        handlePaymentAmountChange(mode.mode_name, e.target.value)
+                      }
+                      onClick={(e) => e.stopPropagation()}
+                      autoFocus={isMixedPayment}
+                      readOnly={!isMixedPayment}
+                      className="mt-2 text-center"
+                    />
+                  )}
+                </Card.Body>
+              </Card>
+            </Col>
+          ))}
+        </Row>
+
+        {/* Tip Input */}
+        <div className="mb-3 p-3 bg-white rounded shadow-sm">
+          <Form.Label className="fw-semibold text-dark mb-2">Optional Tip</Form.Label>
           <Form.Control
             type="number"
-            value={settlements[0].Amount}
-            onChange={(e) => setSettlements([{ ...settlements[0], Amount: Number(e.target.value) }])}
-            placeholder="Enter amount"
+            placeholder="0.00"
+            value={tip || ""}
+            onChange={(e) => setTip(parseFloat(e.target.value) || 0)}
+            className="text-center"
+            step="0.01"
           />
-        </Form.Group>
+        </div>
+
+        {/* Payment Summary */}
+        <div className="mt-4 p-3 bg-white rounded shadow-sm">
+          <div className="d-flex justify-content-around fw-bold fs-5">
+            <div>
+              <span>Total Paid: </span>
+              <span className="text-primary" id="settlement-total-paid">{(Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0) + (tip || 0)).toFixed(2)}</span>
+            </div>
+            <div>
+              <span>Balance Due: </span>
+              <span
+                className={
+                  (taxCalc.grandTotal - (Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0) + (tip || 0))) === 0 ? "text-success" : "text-danger"
+                }
+              >
+                {(taxCalc.grandTotal - (Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0) + (tip || 0))).toFixed(2)}
+              </span>
+            </div>
+          </div>
+
+          {/* Validation Messages */}
+          {(taxCalc.grandTotal - (Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0) + (tip || 0))) !== 0 && (
+            <div className="text-danger mt-2 text-center small">
+              Total paid amount + tip must match the grand total.
+            </div>
+          )}
+          {(taxCalc.grandTotal - (Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0) + (tip || 0))) === 0 && (Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0) + (tip || 0)) > 0 && (
+            <div className="text-success mt-2 text-center small">
+              ✅ Payment amount + tip matches. Ready to settle.
+            </div>
+          )}
+        </div>
       </Modal.Body>
-      <Modal.Footer>
-        <Button variant="secondary" onClick={() => setShowSettleModal(false)}>
-          Cancel
+
+      {/* Footer */}
+      <Modal.Footer className="border-0 justify-content-between">
+        <Button
+          variant="outline-secondary"
+          onClick={() => setShowSettlementModal(false)}
+          className="px-4"
+        >
+          Back
         </Button>
-        <Button variant="primary" onClick={() => { settleBill(); setShowSettleModal(false); }}>
-          Settle Bill
+        <Button
+          variant="success"
+          onClick={handleSettleAndPrint}
+          disabled={(taxCalc.grandTotal - (Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0) + (tip || 0))) !== 0 || (Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0) + (tip || 0)) === 0}
+          className="px-4"
+        >
+          Settle & Print
         </Button>
       </Modal.Footer>
     </Modal>
