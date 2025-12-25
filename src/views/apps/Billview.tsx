@@ -62,12 +62,16 @@ const ModernBill = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [txnId, setTxnId] = useState<number | null>(null);
+  const [billNo, setBillNo] = useState<number | null>(null);
 
   // Modal states
   const [showSettleModal, setShowSettleModal] = useState(false);
   const [showReverseBillModal, setShowReverseBillModal] = useState(false);
   const [showReverseKOTModal, setShowReverseKOTModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
+  const [showNCKOTModal, setShowNCKOTModal] = useState(false);
+  const [ncName, setNcName] = useState('');
+  const [ncPurpose, setNcPurpose] = useState('');
 
   // Settle modal data
   const [settlements, setSettlements] = useState([{ PaymentTypeID: 1, PaymentType: 'Cash', Amount: 0, OrderNo: 0, HotelID: user?.hotelid || 1, Name: 'Cash' }]);
@@ -325,8 +329,13 @@ const ModernBill = () => {
   };
 
   // Button handlers
-  const saveKOT = async (isNoCharge: boolean = false, print: boolean = false) => {
+  const saveKOT = async (isNoCharge: boolean = false, print: boolean = false, ncName?: string, ncPurpose?: string) => {
     try {
+      if (!user) {
+        alert('User not authenticated. Cannot save KOT.');
+        return;
+      }
+
       const validItems = billItems.filter(item => item.itemNo && item.itemName && item.qty > 0);
       if (validItems.length === 0) {
         alert('No valid items to save');
@@ -339,8 +348,8 @@ const ModernBill = () => {
         table_name: tableName,
         userId: user.id,
         hotelId: user.hotelid,
-        NCName: isNoCharge ? 'NC' : null,
-        NCPurpose: isNoCharge ? 'No Charge' : null,
+        NCName: isNoCharge ? (ncName || 'NC') : null,
+        NCPurpose: isNoCharge ? (ncPurpose || 'No Charge') : null,
         DiscPer: 0,
         Discount: 0,
         DiscountType: 0,
@@ -368,12 +377,19 @@ const ModernBill = () => {
 
       // If print is requested, call print after save
       if (print) {
-        await printBill();
+        await printKOT(response.data.data.KOTNo);
       }
     } catch (error) {
       console.error('Error saving KOT:', error);
       alert('Error saving KOT');
     }
+  };
+
+  const handleSaveNCKOT = () => {
+    saveKOT(true, false, ncName, ncPurpose);
+    setShowNCKOTModal(false);
+    setNcName('');
+    setNcPurpose('');
   };
 
   const reverseBill = async () => {
@@ -404,21 +420,56 @@ const ModernBill = () => {
     }
   };
 
+  const printKOT = async (kotNo: number) => {
+    try {
+      const response = await axios.get(`/api/kot/print/${kotNo}`);
+      alert('KOT printed successfully');
+      // Handle print data if needed
+      console.log('KOT Print Data:', response.data);
+    } catch (error) {
+      console.error('Error printing KOT:', error);
+      alert('Error printing KOT');
+    }
+  };
+
   const printBill = async () => {
     if (!txnId) return;
     try {
-      await axios.put(`/api/TAxnTrnbill/${txnId}/print`);
+      const response = await axios.get(`/api/bill/print/${txnId}`);
       alert('Bill printed successfully');
+      // Handle print data if needed
+      console.log('Bill Print Data:', response.data);
     } catch (error) {
       console.error('Error printing bill:', error);
       alert('Error printing bill');
     }
   };
 
+  const generateBill = async () => {
+    if (!txnId) return;
+    try {
+      const response = await axios.post('/api/bill/generate', {
+        txnId
+      });
+      setBillNo(response.data.data.BillNo);
+      alert('Bill generated successfully');
+      return response.data.data.BillNo;
+    } catch (error) {
+      console.error('Error generating bill:', error);
+      alert('Error generating bill');
+      throw error;
+    }
+  };
+
   const settleBill = async () => {
     if (!txnId) return;
     try {
-      await axios.post(`/api/TAxnTrnbill/${txnId}/settle`, {
+      // First generate the bill
+      const billNo = await generateBill();
+
+      // Then settle the bill
+      await axios.post('/api/bill/settle', {
+        billNo,
         settlements
       });
       alert('Bill settled successfully');
@@ -466,7 +517,7 @@ const ModernBill = () => {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (event: Event) => {
-      const keyboardEvent = event as KeyboardEvent;
+      const keyboardEvent = event as unknown as KeyboardEvent;
       if (keyboardEvent.key === 'F2') {
         keyboardEvent.preventDefault();
         saveKOT(false, false);
@@ -504,6 +555,7 @@ const ModernBill = () => {
   }, [txnId, reverseQty, reverseReason, settlements, selectedTable]);
 
   return (
+    <React.Fragment>
     <div
       className="d-flex flex-column w-100"
       style={{
@@ -589,7 +641,7 @@ const ModernBill = () => {
           background: white;
           border-top: 1px solid #ced4da;
           z-index: 1050;
-          overflow-y: auto;
+          overflow-y: hidden;
           display: flex;
           flex-direction: column;
         }
@@ -650,7 +702,7 @@ const ModernBill = () => {
   transition: all 0.3s ease;
 
   /* 🔥 Unified card look */
- background: ;
+ background:white ;
  color: #080808ff;
 }
 
@@ -1062,7 +1114,7 @@ const ModernBill = () => {
               <Card.Body className="py-1">
                 <div className="d-flex justify-content-between align-items-center px-2 py-1">
                   <Button onClick={() => navigate('/apps/KotTransfer')} variant="outline-primary" size="sm" className="function-btn">KOT Tr (F2)</Button>
-                  <Button onClick={() => saveKOT(true, false)} variant="outline-primary" size="sm" className="function-btn">N C KOT (ctrl + F9)</Button>
+                  <Button onClick={() => setShowNCKOTModal(true)} variant="outline-primary" size="sm" className="function-btn">N C KOT (ctrl + F9)</Button>
                   <Button onClick={() => setShowReverseBillModal(true)} variant="outline-primary" size="sm" className="function-btn">Rev Bill (F5)</Button>
                   <Button onClick={() => setShowTransferModal(true)} variant="outline-primary" size="sm" className="function-btn">TBL Tr (F7)</Button>
                   <Button onClick={resetBillState} variant="outline-primary" size="sm" className="function-btn">New Bill (F6)</Button>
@@ -1080,6 +1132,79 @@ const ModernBill = () => {
 
 
     </div>
+
+    {/* NC KOT Modal */}
+    <Modal show={showNCKOTModal} onHide={() => setShowNCKOTModal(false)}>
+      <Modal.Header closeButton>
+        <Modal.Title>No Charge KOT</Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        <Form.Group className="mb-3">
+          <Form.Label>NC Name</Form.Label>
+          <Form.Control
+            type="text"
+            value={ncName}
+            onChange={(e) => setNcName(e.target.value)}
+            placeholder="Enter NC Name"
+          />
+        </Form.Group>
+        <Form.Group className="mb-3">
+          <Form.Label>NC Purpose</Form.Label>
+          <Form.Control
+            type="text"
+            value={ncPurpose}
+            onChange={(e) => setNcPurpose(e.target.value)}
+            placeholder="Enter NC Purpose"
+          />
+        </Form.Group>
+      </Modal.Body>
+      <Modal.Footer>
+        <Button variant="secondary" onClick={() => setShowNCKOTModal(false)}>
+          Cancel
+        </Button>
+        <Button variant="primary" onClick={handleSaveNCKOT}>
+          Save NC KOT
+        </Button>
+      </Modal.Footer>
+    </Modal>
+
+    {/* Settle Modal */}
+    <Modal show={showSettleModal} onHide={() => setShowSettleModal(false)}>
+      <Modal.Header closeButton>
+        <Modal.Title>Settle Bill</Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        <Form.Group className="mb-3">
+          <Form.Label>Payment Type</Form.Label>
+          <Form.Select
+            value={settlements[0].PaymentType}
+            onChange={(e) => setSettlements([{ ...settlements[0], PaymentType: e.target.value }])}
+          >
+            <option value="Cash">Cash</option>
+            <option value="Card">Card</option>
+            <option value="UPI">UPI</option>
+          </Form.Select>
+        </Form.Group>
+        <Form.Group className="mb-3">
+          <Form.Label>Amount</Form.Label>
+          <Form.Control
+            type="number"
+            value={settlements[0].Amount}
+            onChange={(e) => setSettlements([{ ...settlements[0], Amount: Number(e.target.value) }])}
+            placeholder="Enter amount"
+          />
+        </Form.Group>
+      </Modal.Body>
+      <Modal.Footer>
+        <Button variant="secondary" onClick={() => setShowSettleModal(false)}>
+          Cancel
+        </Button>
+        <Button variant="primary" onClick={() => { settleBill(); setShowSettleModal(false); }}>
+          Settle Bill
+        </Button>
+      </Modal.Footer>
+    </Modal>
+    </React.Fragment>
   );
 };
 
