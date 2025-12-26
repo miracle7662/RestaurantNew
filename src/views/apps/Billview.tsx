@@ -233,10 +233,8 @@ const ModernBill = () => {
 
         // Map items to BillItem interface
         const mappedItems: BillItem[] = data.items.map((item: any) => {
-          const itemId = Number(item.itemId || item.ItemID);
-          const menuItem = menuItems.find(m => m.restitemid === itemId);
           return {
-            itemNo: menuItem ? menuItem.item_no.toString() : (item.itemId || item.ItemID || '').toString(),
+            itemNo: (item.itemId || item.ItemID || '').toString(),
             itemName: item.itemName || item.ItemName || item.item_name || '',
             qty: item.netQty || item.Qty || 0,
             rate: item.price || item.Price || item.Rate || 0,
@@ -282,7 +280,7 @@ const ModernBill = () => {
       } finally {
         setLoading(false);
       }
-    }, [tableId, user, menuItems]);
+    }, [tableId, user]);
 
   useEffect(() => {
     fetchTableData();
@@ -305,9 +303,21 @@ const ModernBill = () => {
         currentItem.rate = 0;
       }
     } else if (field === 'itemName') {
+      currentItem.itemName = value as string;
       // Parse the value to extract item name if it includes code
       const parsedValue = (value as string).includes(' (') ? (value as string).split(' (')[0] : value as string;
       // When item name is selected or typed, find the item by item_name and auto-fill itemNo and rate (case-insensitive)
+      if (parsedValue.trim() === "") {
+        currentItem.itemNo = "";
+        currentItem.rate = 0;
+      } else {
+        const found = menuItems.find(i => i.item_name.toLowerCase() === parsedValue.toLowerCase());
+        if (found) {
+          currentItem.itemNo = found.restitemid.toString(); // Set to restitemid for backend
+          currentItem.rate = found.price;
+        }
+        // else, leave itemNo and rate as is
+      }
     } else {
       (currentItem[field] as any) = value;
     }
@@ -344,6 +354,12 @@ const ModernBill = () => {
         }, 0);
       }
       // No action for rate and specialInstructions
+    } else if (e.key === 'Backspace' && field === 'itemName' && (e.target as HTMLInputElement).value.trim() === '' && index < billItems.length - 1) {
+      // Remove the row if backspace is pressed on empty itemName field and it's not the last row
+      const updated = billItems.filter((_, i) => i !== index);
+      setBillItems(updated);
+      calculateTotals(updated);
+      e.preventDefault();
     }
   };
 
@@ -523,8 +539,7 @@ const ModernBill = () => {
       alert('Error transferring table');
     }
   };
-
-  const resetBillState = () => {
+   const resetBillState = () => {
     setBillItems([{ itemNo: '', itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' }]);
     setTxnId(null);
     setWaiter('ASD');
@@ -535,6 +550,7 @@ const ModernBill = () => {
     setEditableKot(null);
     calculateTotals([{ itemNo: '', itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' }]);
   };
+
 
   const exitWithoutSave = () => {
     navigate('/apps/Tableview');
