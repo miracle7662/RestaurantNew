@@ -4,6 +4,7 @@ import axios from 'axios';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthContext } from '@/common';
 import KotTransfer from './Transaction/KotTransfer';
+import CustomerModal from './Transaction/Customers';
 
 interface BillItem {
   itemCode: string;
@@ -96,6 +97,12 @@ const ModernBill = () => {
   const [availableTables, setAvailableTables] = useState<Table[]>([]);
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
 
+  const [customerMobile, setCustomerMobile] = useState('');
+  const [customerName, setCustomerName] = useState('');
+  const [showCustomerModal, setShowCustomerModal] = useState(false);
+
+  // Handle customer modal
+  const handleCloseCustomerModal = () => setShowCustomerModal(false);
 
   const inputRefs = useRef<(HTMLInputElement | null)[][]>([]);
 
@@ -564,6 +571,8 @@ const ModernBill = () => {
     setTableNo('Loading...');
     setDefaultKot(null);
     setEditableKot(null);
+    setCustomerMobile('');
+    setCustomerName('');
     calculateTotals([{ itemCode: '', itemId: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' }]);
   };
 
@@ -1002,7 +1011,7 @@ const ModernBill = () => {
                 </Card.Body>
               </Card>
             </Col>
-            <Col md={2}>
+            <Col md={1}>
               <Card className="info-card h-100 border-0 shadow-sm" >
                 <Card.Body className="d-flex flex-column justify-content-center py-2 px-2 text-center">
                   <div className="text-muted text-uppercase fw-bold small mb-1" style={{ fontSize: '0.7rem', letterSpacing: '0.5px' }}>KOT No.</div>
@@ -1029,6 +1038,25 @@ const ModernBill = () => {
                     {new Date().toLocaleDateString()}
                   </div>
 
+                </Card.Body>
+              </Card>
+            </Col>
+            <Col md={2}>
+              <Card className="info-card h-100 border-0 shadow-sm">
+                <Card.Body className="d-flex flex-column justify-content-center py-2 px-2">
+                  <div className="text-muted text-uppercase fw-bold small mb-1" style={{ fontSize: '0.7rem', letterSpacing: '0.5px' }}>Customer</div>
+                  <div className="d-flex align-items-center gap-1">
+                    <Form.Control
+                      type="text"
+                      placeholder="Mobile"
+                      value={customerMobile}
+                      onChange={(e) => setCustomerMobile(e.target.value)}
+                      className="form-control-sm"
+                      style={{ flex: 1 }}
+                    />
+                    <div className="fw-bold text-dark small" style={{ flex: 1 }}>{customerName || 'Name'}</div>
+                    <Button variant="outline-primary" size="sm" onClick={() => setShowCustomerModal(true)}>+</Button>
+                  </div>
                 </Card.Body>
               </Card>
             </Col>
@@ -1462,6 +1490,17 @@ const ModernBill = () => {
         </Button>
       </Modal.Footer>
     </Modal>
+
+    {/* Customer Modal */}
+    <Modal show={showCustomerModal} onHide={handleCloseCustomerModal} size="xl" centered>
+      <Modal.Header closeButton>
+        <Modal.Title>Customer Management</Modal.Title>
+      </Modal.Header>
+      <Modal.Body style={{ padding: '0px', maxHeight: '780px', overflowY: 'auto' }}>
+        <CustomerModal />
+      </Modal.Body>
+    </Modal>
+
     </React.Fragment>
   );
 };
