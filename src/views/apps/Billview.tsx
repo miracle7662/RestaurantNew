@@ -363,39 +363,42 @@ const ModernBill = () => {
         return;
       }
 
-      const validItems = billItems.filter(item => item.itemNo && item.itemName && item.qty > 0 && !item.mkotNo);
+      if (!tableId) {
+        alert("Table not selected properly");
+        return;
+      }
+
+      const validItems = billItems.filter(
+        item =>
+          Number(item.itemNo) > 0 &&
+          item.qty > 0 &&
+          !item.mkotNo
+      );
       if (validItems.length === 0) {
         alert('No new items to save');
         return;
       }
 
       const payload = {
-        outletid: user.outletid || user.hotelid, // Assuming outletid is available or same as hotelid
-        tableId: tableId,
+        outletid: user.outletid,
+        tableId,
         table_name: tableName,
         userId: user.id,
         hotelId: user.hotelid,
         KOTNo: editableKot,
-        NCName: isNoCharge ? (ncName || 'NC') : null,
-        NCPurpose: isNoCharge ? (ncPurpose || 'No Charge') : null,
-        DiscPer: 0,
-        Discount: 0,
-        DiscountType: 0,
-        CustomerName: '',
-        MobileNo: '',
         Order_Type: 'Dine-in',
-        txnId: txnId || undefined, // For existing bills
+        ...(txnId ? { txnId } : {}),
         items: validItems.map(item => ({
-          ItemID: parseInt(item.itemNo),
+          ItemID: Number(item.itemNo),
           Qty: item.qty,
           RuntimeRate: item.rate,
-          CGST: item.total > 0 ? (item.cgst / item.total) * 100 : 0,
-          SGST: item.total > 0 ? (item.sgst / item.total) * 100 : 0,
+          CGST: 2.5,
+          SGST: 2.5,
           IGST: 0,
           CESS: 0,
           Discount_Amount: 0,
           isNCKOT: isNoCharge,
-          DeptID: 1, // Default department ID
+          DeptID: 1,
           SpecialInst: item.specialInstructions || null
         }))
       };
