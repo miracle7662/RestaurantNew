@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, KeyboardEvent } from 'react';
+import React, { useEffect, useState, useRef, KeyboardEvent, useCallback } from 'react';
 import { Row, Col, Card, Table, Badge, Button, Form, Modal, Alert } from 'react-bootstrap';
 import axios from 'axios';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -101,6 +101,31 @@ const ModernBill = () => {
   // Mock data for item lookup
   // This is now replaced by the menuItems state fetched from the API
 
+  const calculateTotals = (items: BillItem[]) => {
+    const updatedItems = items.map(item => {
+      const total = item.qty * item.rate;
+      const cgst = total * 0.025; // 2.5% CGST
+      const sgst = total * 0.025; // 2.5% SGST
+      return { ...item, total, cgst, sgst, igst: 0 };
+    });
+
+    const gross = updatedItems.reduce((sum, item) => sum + item.total, 0);
+    const cgstTotal = updatedItems.reduce((sum, item) => sum + item.cgst, 0);
+    const sgstTotal = updatedItems.reduce((sum, item) => sum + item.sgst, 0);
+
+    const totalBeforeRoundOff = gross + cgstTotal + sgstTotal;
+    const roundedFinalAmount = Math.round(totalBeforeRoundOff);
+    const ro = roundedFinalAmount - totalBeforeRoundOff;
+
+    setGrossAmount(gross);
+    setTotalCgst(cgstTotal);
+    setTotalSgst(sgstTotal);
+  setFinalAmount(roundedFinalAmount);
+  setRoundOff(ro);
+  setBillItems(updatedItems);
+  setTaxCalc({ grandTotal: roundedFinalAmount });
+};
+
   useEffect(() => {
     // 1. Fetch menu items from the API when the component mounts
     const fetchMenuItems = async () => {
@@ -131,7 +156,6 @@ const ModernBill = () => {
     fetchPaymentModes();
 
     calculateTotals(billItems);
-    setTaxCalc({ grandTotal: finalAmount });
 
     // Remove padding or margin from layout containers
     const mainContent = document.querySelector('main.main-content') as HTMLElement;
@@ -192,9 +216,8 @@ const ModernBill = () => {
   }, [navigate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch table data when tableId is present
-  useEffect(() => {
-    const fetchTableData = async () => {
-      if (!tableId || !user || !user.hotelid) return;
+  const fetchTableData = useCallback(async () => {
+      if (!tableId || !user || !user.hotelid || !menuItems || menuItems.length === 0) return;
 
       setLoading(true);
       setError(null);
@@ -209,18 +232,22 @@ const ModernBill = () => {
         }
 
         // Map items to BillItem interface
-        const mappedItems: BillItem[] = data.items.map((item: any) => ({
-          itemNo: item.itemId.toString(),
-          itemName: item.itemName,
-          qty: item.netQty,
-          rate: item.price,
-          total: item.netQty * item.price,
-          cgst: (item.netQty * item.price) * 0.025,
-          sgst: (item.netQty * item.price) * 0.025,
-          igst: 0,
-          mkotNo: item.kotNo.toString(),
-          specialInstructions: ''
-        }));
+        const mappedItems: BillItem[] = data.items.map((item: any) => {
+          const itemId = Number(item.itemId || item.ItemID);
+          const menuItem = menuItems.find(m => m.restitemid === itemId);
+          return {
+            itemNo: menuItem ? menuItem.item_no.toString() : (item.itemId || item.ItemID || '').toString(),
+            itemName: item.itemName || item.ItemName || item.item_name || '',
+            qty: item.netQty || item.Qty || 0,
+            rate: item.price || item.Price || item.Rate || 0,
+            total: (item.netQty || item.Qty || 0) * (item.price || item.Price || item.Rate || 0),
+            cgst: ((item.netQty || item.Qty || 0) * (item.price || item.Price || item.Rate || 0)) * 0.025,
+            sgst: ((item.netQty || item.Qty || 0) * (item.price || item.Price || item.Rate || 0)) * 0.025,
+            igst: 0,
+            mkotNo: item.kotNo ? item.kotNo.toString() : (item.KOTNo ? item.KOTNo.toString() : ''),
+            specialInstructions: item.specialInstructions || item.SpecialInst || ''
+          };
+        });
 
         // Always add a blank row at the end for new item entry
         mappedItems.push({ itemNo: '', itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' });
@@ -253,34 +280,11 @@ const ModernBill = () => {
       } finally {
         setLoading(false);
       }
-    };
+    }, [tableId, user, menuItems]);
 
+  useEffect(() => {
     fetchTableData();
-  }, [tableId, user]);
-
-  const calculateTotals = (items: BillItem[]) => {
-    const updatedItems = items.map(item => {
-      const total = item.qty * item.rate;
-      const cgst = total * 0.025; // 2.5% CGST
-      const sgst = total * 0.025; // 2.5% SGST
-      return { ...item, total, cgst, sgst, igst: 0 };
-    });
-
-    const gross = updatedItems.reduce((sum, item) => sum + item.total, 0);
-    const cgstTotal = updatedItems.reduce((sum, item) => sum + item.cgst, 0);
-    const sgstTotal = updatedItems.reduce((sum, item) => sum + item.sgst, 0);
-
-    const totalBeforeRoundOff = gross + cgstTotal + sgstTotal;
-    const roundedFinalAmount = Math.round(totalBeforeRoundOff);
-    const ro = roundedFinalAmount - totalBeforeRoundOff;
-
-    setGrossAmount(gross);
-    setTotalCgst(cgstTotal);
-    setTotalSgst(sgstTotal);
-    setFinalAmount(roundedFinalAmount);
-    setRoundOff(ro);
-    setBillItems(updatedItems);
-  };
+  }, [fetchTableData]);
 
   const handleItemChange = (index: number, field: keyof BillItem, value: string | number) => {
     const updated = [...billItems];
@@ -293,6 +297,7 @@ const ModernBill = () => {
       if (found) {
         currentItem.itemName = found.item_name;
         currentItem.rate = found.price;
+        currentItem.itemNo = found.restitemid.toString(); // Set to restitemid for backend
       } else {
         currentItem.itemName = "";
         currentItem.rate = 0;
@@ -304,7 +309,7 @@ const ModernBill = () => {
       const found = menuItems.find(i => i.short_name.toLowerCase() === parsedValue.toLowerCase());
       if (found) {
         currentItem.itemName = found.item_name; // Always show the full item name
-        currentItem.itemNo = found.item_no.toString();
+        currentItem.itemNo = found.restitemid.toString(); // Set to restitemid for backend
         currentItem.rate = found.price;
       } else {
         currentItem.itemName = parsedValue; // Keep what was typed if no match
@@ -358,9 +363,9 @@ const ModernBill = () => {
         return;
       }
 
-      const validItems = billItems.filter(item => item.itemNo && item.itemName && item.qty > 0);
+      const validItems = billItems.filter(item => item.itemNo && item.itemName && item.qty > 0 && !item.mkotNo);
       if (validItems.length === 0) {
-        alert('No valid items to save');
+        alert('No new items to save');
         return;
       }
 
@@ -370,6 +375,7 @@ const ModernBill = () => {
         table_name: tableName,
         userId: user.id,
         hotelId: user.hotelid,
+        KOTNo: editableKot,
         NCName: isNoCharge ? (ncName || 'NC') : null,
         NCPurpose: isNoCharge ? (ncPurpose || 'No Charge') : null,
         DiscPer: 0,
@@ -397,9 +403,12 @@ const ModernBill = () => {
       const response = await axios.post('/api/TAxnTrnbill/kot', payload);
       alert('KOT saved successfully');
 
+      // Refresh data
+      await fetchTableData();
+
       // If print is requested, call print after save
       if (print) {
-        await printKOT(response.data.data.KOTNo);
+        await printKOT(response.data.data?.KOTNo || editableKot);
       }
     } catch (error) {
       console.error('Error saving KOT:', error);
