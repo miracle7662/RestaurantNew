@@ -298,16 +298,14 @@ const ModernBill = () => {
         currentItem.rate = 0;
       }
     } else if (field === 'itemName') {
-      // Parse the value to extract item name if it includes code
-      const parsedValue = (value as string).includes(' (') ? (value as string).split(' (')[0] : value as string;
-      // When item name is selected or typed, find the item by short_name and auto-fill itemNo and rate (case-insensitive)
-      const found = menuItems.find(i => i.short_name.toLowerCase() === parsedValue.toLowerCase());
+      // When item name is selected or typed, find the item by item_name and auto-fill itemNo and rate (case-insensitive)
+      const found = menuItems.find(i => i.item_name.toLowerCase() === (value as string).toLowerCase());
       if (found) {
         currentItem.itemName = found.item_name; // Always show the full item name
         currentItem.itemNo = found.item_no.toString();
         currentItem.rate = found.price;
       } else {
-        currentItem.itemName = parsedValue; // Keep what was typed if no match
+        currentItem.itemName = value as string; // Keep what was typed if no match
         currentItem.itemNo = "";
         currentItem.rate = 0;
       }
