@@ -1,0 +1,2 @@
+- [ ] Fix resetBillState() to remove hardcoded KOT values
+- [ ] Fix fetchTableData() guard to remove menuItems dependency

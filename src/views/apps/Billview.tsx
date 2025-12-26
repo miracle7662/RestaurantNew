@@ -56,10 +56,10 @@ const ModernBill = () => {
 
   const [waiter, setWaiter] = useState('ASD');
   const [pax, setPax] = useState(1);
-  const [kotNo, setKotNo] = useState('26');
+  const [kotNo, setKotNo] = useState('');
   const [tableNo, setTableNo] = useState(tableName || 'Loading...');
-  const [defaultKot, setDefaultKot] = useState(34); // last / system KOT
-  const [editableKot, setEditableKot] = useState(34); // user editable
+  const [defaultKot, setDefaultKot] = useState<number | null>(null); // last / system KOT
+  const [editableKot, setEditableKot] = useState<number | null>(null); // user editable
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [txnId, setTxnId] = useState<number | null>(null);
@@ -217,7 +217,7 @@ const ModernBill = () => {
 
   // Fetch table data when tableId is present
   const fetchTableData = useCallback(async () => {
-      if (!tableId || !user || !user.hotelid || !menuItems || menuItems.length === 0) return;
+      if (!tableId || !user || !user.hotelid) return;
 
       setLoading(true);
       setError(null);
@@ -264,9 +264,11 @@ const ModernBill = () => {
             setTableNo(data.header.table_name);
           }
         }
-        setKotNo(data.kotNo || '26');
-        setDefaultKot(data.kotNo || 34);
-        setEditableKot(data.kotNo || 34);
+        if (data.kotNo !== null && data.kotNo !== undefined) {
+          setKotNo(String(data.kotNo));
+          setDefaultKot(Number(data.kotNo));
+          setEditableKot(Number(data.kotNo));
+        }
 
         // Calculate totals
         calculateTotals(mappedItems);
@@ -305,17 +307,7 @@ const ModernBill = () => {
     } else if (field === 'itemName') {
       // Parse the value to extract item name if it includes code
       const parsedValue = (value as string).includes(' (') ? (value as string).split(' (')[0] : value as string;
-      // When item name is selected or typed, find the item by short_name and auto-fill itemNo and rate (case-insensitive)
-      const found = menuItems.find(i => i.short_name.toLowerCase() === parsedValue.toLowerCase());
-      if (found) {
-        currentItem.itemName = found.item_name; // Always show the full item name
-        currentItem.itemNo = found.restitemid.toString(); // Set to restitemid for backend
-        currentItem.rate = found.price;
-      } else {
-        currentItem.itemName = parsedValue; // Keep what was typed if no match
-        currentItem.itemNo = "";
-        currentItem.rate = 0;
-      }
+      // When item name is selected or typed, find the item by item_name and auto-fill itemNo and rate (case-insensitive)
     } else {
       (currentItem[field] as any) = value;
     }
@@ -537,10 +529,10 @@ const ModernBill = () => {
     setTxnId(null);
     setWaiter('ASD');
     setPax(1);
-    setKotNo('26');
+    setKotNo('');
     setTableNo('Loading...');
-    setDefaultKot(34);
-    setEditableKot(34);
+    setDefaultKot(null);
+    setEditableKot(null);
     calculateTotals([{ itemNo: '', itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' }]);
   };
 
@@ -984,11 +976,11 @@ const ModernBill = () => {
                   <div className="text-muted text-uppercase fw-bold small mb-1" style={{ fontSize: '0.7rem', letterSpacing: '0.5px' }}>KOT No.</div>
                   <div className="d-flex align-items-center justify-content-center mx-auto" style={{ height: '34px', maxWidth: '160px' }}>
                     <div className="px-3 border-end fw-bold text-white-50 h-100 d-flex align-items-center" style={{ borderColor: 'rgba(255,255,255,0.3)' }}>
-                      {defaultKot}
+                      {defaultKot ?? 'N/A'}
                     </div>
                     <Form.Control
                       type="text"
-                      value={editableKot.toString()}
+                      value={editableKot !== null ? editableKot.toString() : ''}
                       onChange={(e) => setEditableKot(Number(e.target.value))}
                       className="text-center fw-bold text-white border-0 shadow-none h-100 m-0 bg-transparent"
                       style={{ width: '80px' }}
