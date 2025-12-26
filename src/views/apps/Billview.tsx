@@ -6,7 +6,8 @@ import { useAuthContext } from '@/common';
 import KotTransfer from './Transaction/KotTransfer';
 
 interface BillItem {
-  itemNo: string;
+  itemCode: string;
+  itemId: number;
   itemName: string;
   qty: number;
   rate: number;
@@ -35,7 +36,7 @@ const ModernBill = () => {
   const [headerHeight, setHeaderHeight] = useState(0);
   const [toolbarHeight, setToolbarHeight] = useState(0);
 
-  const [billItems, setBillItems] = useState<BillItem[]>([{ itemNo: '', itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' }]);
+  const [billItems, setBillItems] = useState<BillItem[]>([{ itemCode: '', itemId: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' }]);
 
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
 
@@ -120,11 +121,11 @@ const ModernBill = () => {
     setGrossAmount(gross);
     setTotalCgst(cgstTotal);
     setTotalSgst(sgstTotal);
-  setFinalAmount(roundedFinalAmount);
-  setRoundOff(ro);
-  setBillItems(updatedItems);
-  setTaxCalc({ grandTotal: roundedFinalAmount });
-};
+    setFinalAmount(roundedFinalAmount);
+    setRoundOff(ro);
+    setBillItems(updatedItems);
+    setTaxCalc({ grandTotal: roundedFinalAmount });
+  };
 
   useEffect(() => {
     // 1. Fetch menu items from the API when the component mounts
@@ -234,7 +235,8 @@ const ModernBill = () => {
         // Map items to BillItem interface
         const mappedItems: BillItem[] = data.items.map((item: any) => {
           return {
-            itemNo: (item.itemId || item.ItemID || '').toString(),
+            itemCode: (item.itemId || item.ItemID || '').toString(),
+            itemId: item.itemId || item.ItemID || 0,
             itemName: item.itemName || item.ItemName || item.item_name || '',
             qty: item.netQty || item.Qty || 0,
             rate: item.price || item.Price || item.Rate || 0,
@@ -248,7 +250,7 @@ const ModernBill = () => {
         });
 
         // Always add a blank row at the end for new item entry
-        mappedItems.push({ itemNo: '', itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' });
+        mappedItems.push({ itemCode: '', itemId: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' });
 
         setBillItems(mappedItems);
 
@@ -264,8 +266,8 @@ const ModernBill = () => {
         }
         if (data.kotNo !== null && data.kotNo !== undefined) {
           setKotNo(String(data.kotNo));
-          setDefaultKot(Number(data.kotNo));
-          setEditableKot(Number(data.kotNo));
+          // setDefaultKot(Number(data.kotNo)); // Removed to prevent showing 1
+          // setEditableKot(Number(data.kotNo)); // Removed to allow manual typing
         }
 
         // Calculate totals
@@ -290,33 +292,36 @@ const ModernBill = () => {
     const updated = [...billItems];
     const currentItem = { ...updated[index] };
 
-    if (field === 'itemNo') {
-      currentItem.itemNo = value as string;
+    if (field === 'itemCode') {
+      currentItem.itemCode = value as string;
       // 2. When item code is typed, find the item in the fetched menu list
       const found = menuItems.find(i => i.item_no.toString() === value);
       if (found) {
         currentItem.itemName = found.item_name;
         currentItem.rate = found.price;
-        currentItem.itemNo = found.restitemid.toString(); // Set to restitemid for backend
+        currentItem.itemId = found.restitemid;
       } else {
         currentItem.itemName = "";
         currentItem.rate = 0;
+        currentItem.itemId = 0;
       }
     } else if (field === 'itemName') {
       currentItem.itemName = value as string;
       // Parse the value to extract item name if it includes code
       const parsedValue = (value as string).includes(' (') ? (value as string).split(' (')[0] : value as string;
-      // When item name is selected or typed, find the item by item_name and auto-fill itemNo and rate (case-insensitive)
+      // When item name is selected or typed, find the item by item_name and auto-fill itemCode and rate (case-insensitive)
       if (parsedValue.trim() === "") {
-        currentItem.itemNo = "";
+        currentItem.itemCode = "";
+        currentItem.itemId = 0;
         currentItem.rate = 0;
       } else {
         const found = menuItems.find(i => i.item_name.toLowerCase() === parsedValue.toLowerCase());
         if (found) {
-          currentItem.itemNo = found.restitemid.toString(); // Set to restitemid for backend
+          currentItem.itemCode = found.item_no.toString(); // Keep as item_no for display
+          currentItem.itemId = found.restitemid;
           currentItem.rate = found.price;
         }
-        // else, leave itemNo and rate as is
+        // else, leave itemCode and rate as is
       }
     } else {
       (currentItem[field] as any) = value;
@@ -328,7 +333,7 @@ const ModernBill = () => {
 
   const handleKeyPress = (index: number, field: keyof BillItem) => (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
-      if (field === 'itemNo') {
+      if (field === 'itemCode') {
         // Focus itemName field of the same row
         const itemNameRef = inputRefs.current[index]?.[2];
         if (itemNameRef) {
@@ -342,14 +347,14 @@ const ModernBill = () => {
           qtyRef.select();
         }
       } else if (field === 'qty') {
-        // Add new row and focus itemNo of the new row
-        const newBillItems = [...billItems, { itemNo: "", itemName: "", qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' }];
+        // Add new row and focus itemCode of the new row
+        const newBillItems = [...billItems, { itemCode: "", itemId: 0, itemName: "", qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' }];
         setBillItems(newBillItems);
-        // Focus the new itemNo after state update
+        // Focus the new itemCode after state update
         setTimeout(() => {
-          const newItemNoRef = inputRefs.current[newBillItems.length - 1]?.[0];
-          if (newItemNoRef) {
-            newItemNoRef.focus();
+          const newItemCodeRef = inputRefs.current[newBillItems.length - 1]?.[0];
+          if (newItemCodeRef) {
+            newItemCodeRef.focus();
           }
         }, 0);
       }
@@ -378,12 +383,17 @@ const ModernBill = () => {
 
       const validItems = billItems.filter(
         item =>
-          Number(item.itemNo) > 0 &&
+          item.itemId > 0 &&
           item.qty > 0 &&
           !item.mkotNo
       );
       if (validItems.length === 0) {
-        alert('No new items to save');
+        if (print && editableKot) {
+          await printKOT(editableKot);
+          alert('KOT printed successfully');
+        } else {
+          alert('No new items to save');
+        }
         return;
       }
 
@@ -393,12 +403,12 @@ const ModernBill = () => {
         table_name: tableName,
         userId: user.id,
         hotelId: user.hotelid,
-        KOTNo: editableKot,
+        KOTNo: editableKot, // Use editableKot if set, else null for backend to generate
         Order_Type: 'Dine-in',
         ...(txnId ? { txnId } : {}),
         ...(isNoCharge ? { NCName: ncName, NCPurpose: ncPurpose } : {}),
         items: validItems.map(item => ({
-          ItemID: Number(item.itemNo),
+          ItemID: item.itemId,
           Qty: item.qty,
           RuntimeRate: item.rate,
           CGST: 2.5,
@@ -411,6 +421,10 @@ const ModernBill = () => {
           SpecialInst: item.specialInstructions || null
         }))
       };
+
+      console.log('KOT Save Payload:', payload);
+      console.log('Valid Items:', validItems);
+      console.log('Txn ID:', txnId);
 
       const response = await axios.post('/api/TAxnTrnbill/kot', payload);
       alert('KOT saved successfully');
@@ -555,8 +569,8 @@ const ModernBill = () => {
       alert('Error transferring table');
     }
   };
-   const resetBillState = () => {
-    setBillItems([{ itemNo: '', itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' }]);
+  const resetBillState = () => {
+    setBillItems([{ itemCode: '', itemId: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' }]);
     setTxnId(null);
     setWaiter('ASD');
     setPax(1);
@@ -564,7 +578,7 @@ const ModernBill = () => {
     setTableNo('Loading...');
     setDefaultKot(null);
     setEditableKot(null);
-    calculateTotals([{ itemNo: '', itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' }]);
+    calculateTotals([{ itemCode: '', itemId: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' }]);
   };
 
 
@@ -1090,7 +1104,7 @@ const ModernBill = () => {
                 <Table responsive bordered className="modern-table">
                   <thead>
                     <tr className="table-primary">
-                      <th style={{ width: '80px' }}>No</th>
+                      <th style={{ width: '80px' }}>Item Code</th>
                       <th style={{ width: '400px' }}>Item Name</th>
                       <th className="text-center">Qty</th>
                       <th className="text-end" style={{ width: '200px' }}>Rate</th>
@@ -1109,9 +1123,9 @@ const ModernBill = () => {
                               inputRefs.current[index][0] = el;
                             }}
                             type="text"
-                            value={item.itemNo}
-                            onChange={(e) => handleItemChange(index, 'itemNo', e.target.value)}
-                            onKeyDown={handleKeyPress(index, 'itemNo')}
+                            value={item.itemCode}
+                            onChange={(e) => handleItemChange(index, 'itemCode', e.target.value)}
+                            onKeyDown={handleKeyPress(index, 'itemCode')}
                             className="form-control-sm"
                             style={{ width: '100%', border: 'none', background: 'transparent', padding: '0', outline: 'none' }}
                           />
