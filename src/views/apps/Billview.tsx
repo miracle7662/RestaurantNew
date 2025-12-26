@@ -396,6 +396,7 @@ const ModernBill = () => {
         KOTNo: editableKot,
         Order_Type: 'Dine-in',
         ...(txnId ? { txnId } : {}),
+        ...(isNoCharge ? { NCName: ncName, NCPurpose: ncPurpose } : {}),
         items: validItems.map(item => ({
           ItemID: Number(item.itemNo),
           Qty: item.qty,
@@ -435,14 +436,29 @@ const ModernBill = () => {
   };
 
   const reverseBill = async () => {
-    if (!txnId) return;
+    if (!txnId) {
+      alert('No bill to reverse');
+      return;
+    }
+
     try {
-      await axios.post(`/api/TAxnTrnbill/${txnId}/reverse`);
+      await axios.post('/api/TAxnTrnbill/reverse', {
+        TxnID: txnId,
+        OutletID: user.outletid,
+        HotelID: user.hotelid,
+        UserID: user.id
+      });
+
       alert('Bill reversed successfully');
+
+      // ✅ reset UI state
+      resetBillState();
+
+      // ✅ go back to table view
       navigate('/apps/Tableview');
     } catch (error) {
-      console.error('Error reversing bill:', error);
-      alert('Error reversing bill');
+      console.error('Reverse bill error:', error);
+      alert('Failed to reverse bill');
     }
   };
 
@@ -477,7 +493,7 @@ const ModernBill = () => {
   const printBill = async () => {
     if (!txnId) return;
     try {
-      const response = await axios.get(`/api/bill/print/${txnId}`);
+      const response = await axios.put(`/api/TAxnTrnbill/${txnId}/print`);
       alert('Bill printed successfully');
       // Handle print data if needed
       console.log('Bill Print Data:', response.data);
@@ -1427,6 +1443,24 @@ const ModernBill = () => {
       <Modal.Body>
         <KotTransfer onCancel={() => setShowKotTransferModal(false)} />
       </Modal.Body>
+    </Modal>
+
+    {/* Reverse Bill Modal */}
+    <Modal show={showReverseBillModal} onHide={() => setShowReverseBillModal(false)} centered>
+      <Modal.Header closeButton>
+        <Modal.Title>Reverse Bill</Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        <p>Are you sure you want to reverse this bill? This action cannot be undone.</p>
+      </Modal.Body>
+      <Modal.Footer>
+        <Button variant="secondary" onClick={() => setShowReverseBillModal(false)}>
+          Cancel
+        </Button>
+        <Button variant="danger" onClick={reverseBill}>
+          Confirm Reverse Bill
+        </Button>
+      </Modal.Footer>
     </Modal>
     </React.Fragment>
   );
