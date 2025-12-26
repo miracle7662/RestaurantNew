@@ -222,10 +222,8 @@ const ModernBill = () => {
           specialInstructions: ''
         }));
 
-        // If no items, keep empty row
-        if (mappedItems.length === 0) {
-          mappedItems.push({ itemNo: '', itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' });
-        }
+        // Always add a blank row at the end for new item entry
+        mappedItems.push({ itemNo: '', itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' });
 
         setBillItems(mappedItems);
 
