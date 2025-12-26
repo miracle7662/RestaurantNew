@@ -3,6 +3,7 @@ import { Row, Col, Card, Table, Badge, Button, Form, Modal, Alert } from 'react-
 import axios from 'axios';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthContext } from '@/common';
+import KotTransfer from './Transaction/KotTransfer';
 
 interface BillItem {
   itemNo: string;
@@ -70,6 +71,7 @@ const ModernBill = () => {
   const [showReverseKOTModal, setShowReverseKOTModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [showNCKOTModal, setShowNCKOTModal] = useState(false);
+  const [showKotTransferModal, setShowKotTransferModal] = useState(false);
   const [ncName, setNcName] = useState('');
   const [ncPurpose, setNcPurpose] = useState('');
 
@@ -298,14 +300,16 @@ const ModernBill = () => {
         currentItem.rate = 0;
       }
     } else if (field === 'itemName') {
-      // When item name is selected or typed, find the item by item_name and auto-fill itemNo and rate (case-insensitive)
-      const found = menuItems.find(i => i.item_name.toLowerCase() === (value as string).toLowerCase());
+      // Parse the value to extract item name if it includes code
+      const parsedValue = (value as string).includes(' (') ? (value as string).split(' (')[0] : value as string;
+      // When item name is selected or typed, find the item by short_name and auto-fill itemNo and rate (case-insensitive)
+      const found = menuItems.find(i => i.short_name.toLowerCase() === parsedValue.toLowerCase());
       if (found) {
         currentItem.itemName = found.item_name; // Always show the full item name
         currentItem.itemNo = found.item_no.toString();
         currentItem.rate = found.price;
       } else {
-        currentItem.itemName = value as string; // Keep what was typed if no match
+        currentItem.itemName = parsedValue; // Keep what was typed if no match
         currentItem.itemNo = "";
         currentItem.rate = 0;
       }
@@ -586,7 +590,7 @@ const ModernBill = () => {
       const keyboardEvent = event as unknown as KeyboardEvent;
       if (keyboardEvent.key === 'F2') {
         keyboardEvent.preventDefault();
-        saveKOT(false, false);
+        setShowKotTransferModal(true);
       } else if (keyboardEvent.key === 'F5') {
         keyboardEvent.preventDefault();
         setShowReverseBillModal(true);
@@ -1179,10 +1183,10 @@ const ModernBill = () => {
             <Card className="footer-card">
               <Card.Body className="py-1">
                 <div className="d-flex justify-content-between align-items-center px-2 py-1">
-                  <Button onClick={() => navigate('/apps/KotTransfer')} variant="outline-primary" size="sm" className="function-btn">KOT Tr (F2)</Button>
+                  <Button onClick={() => setShowKotTransferModal(true)} variant="outline-primary" size="sm" className="function-btn">KOT Tr (F2)</Button>
                   <Button onClick={() => setShowNCKOTModal(true)} variant="outline-primary" size="sm" className="function-btn">N C KOT (ctrl + F9)</Button>
                   <Button onClick={() => setShowReverseBillModal(true)} variant="outline-primary" size="sm" className="function-btn">Rev Bill (F5)</Button>
-                  <Button onClick={() => setShowTransferModal(true)} variant="outline-primary" size="sm" className="function-btn">TBL Tr (F7)</Button>
+                  <Button onClick={() => setShowKotTransferModal(true)} variant="outline-primary" size="sm" className="function-btn">TBL Tr (F7)</Button>
                   <Button onClick={resetBillState} variant="outline-primary" size="sm" className="function-btn">New Bill (F6)</Button>
                   <Button onClick={() => setShowReverseKOTModal(true)} variant="outline-primary" size="sm" className="function-btn">Rev KOT (F8)</Button>
                   <Button onClick={() => saveKOT(false, true)} variant="outline-primary" size="sm" className="function-btn">K O T (F9)</Button>
@@ -1395,6 +1399,16 @@ const ModernBill = () => {
           Settle & Print
         </Button>
       </Modal.Footer>
+    </Modal>
+
+    {/* KOT Transfer Modal */}
+    <Modal show={showKotTransferModal} onHide={() => setShowKotTransferModal(false)} size="xl" centered>
+      <Modal.Header closeButton>
+        <Modal.Title>KOT Transfer</Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        <KotTransfer onCancel={() => setShowKotTransferModal(false)} />
+      </Modal.Body>
     </Modal>
     </React.Fragment>
   );
