@@ -121,11 +121,11 @@ const ModernBill = () => {
     setGrossAmount(gross);
     setTotalCgst(cgstTotal);
     setTotalSgst(sgstTotal);
-    setFinalAmount(roundedFinalAmount);
-    setRoundOff(ro);
-    setBillItems(updatedItems);
-    setTaxCalc({ grandTotal: roundedFinalAmount });
-  };
+  setFinalAmount(roundedFinalAmount);
+  setRoundOff(ro);
+  setBillItems(updatedItems);
+  setTaxCalc({ grandTotal: roundedFinalAmount });
+};
 
   useEffect(() => {
     // 1. Fetch menu items from the API when the component mounts
@@ -310,20 +310,6 @@ const ModernBill = () => {
       // Parse the value to extract item name if it includes code
       const parsedValue = (value as string).includes(' (') ? (value as string).split(' (')[0] : value as string;
       // When item name is selected or typed, find the item by item_name and auto-fill itemCode and rate (case-insensitive)
-      if (parsedValue.trim() === "") {
-        currentItem.itemCode = "";
-        currentItem.itemId = 0;
-        currentItem.rate = 0;
-      } else {
-        const found = menuItems.find(i => i.item_name.toLowerCase() === parsedValue.toLowerCase());
-        if (found) {
-          currentItem.itemCode = found.item_no.toString(); // Keep as item_no for display
-          currentItem.itemId = found.restitemid;
-          currentItem.rate = found.price;
-        }
-        // else, leave itemCode and rate as is
-      }
-    } else {
       (currentItem[field] as any) = value;
     }
 
