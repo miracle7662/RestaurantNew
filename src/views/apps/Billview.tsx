@@ -120,6 +120,32 @@ const ModernBill = () => {
   const inputRefs = useRef<(HTMLInputElement | null)[][]>([]);
   const kotInputRef = useRef<HTMLInputElement | null>(null);
 
+  // Navigable columns: 0: Item Code, 1: Qty, 2: Item Name, 3: Rate, 4: Special Instructions
+  const navigableColumns = [0, 1, 2, 3, 4];
+
+  const handleArrowNavigation = (currentRow: number, currentCol: number, direction: 'up' | 'down' | 'left' | 'right') => {
+    let newRow = currentRow;
+    let newCol = currentCol;
+
+    if (direction === 'right') {
+      newCol = (currentCol + 1) % navigableColumns.length;
+      if (newCol === 0) newRow = (currentRow + 1) % billItems.length;
+    } else if (direction === 'left') {
+      newCol = currentCol === 0 ? navigableColumns.length - 1 : currentCol - 1;
+      if (currentCol === 0) newRow = currentRow === 0 ? billItems.length - 1 : currentRow - 1;
+    } else if (direction === 'down') {
+      newRow = (currentRow + 1) % billItems.length;
+    } else if (direction === 'up') {
+      newRow = currentRow === 0 ? billItems.length - 1 : currentRow - 1;
+    }
+
+    const targetInput = inputRefs.current[newRow]?.[newCol];
+    if (targetInput) {
+      targetInput.focus();
+      targetInput.select();
+    }
+  };
+
   // Mock data for item lookup
   // This is now replaced by the menuItems state fetched from the API
 
@@ -1319,7 +1345,13 @@ const ModernBill = () => {
                             type="text"
                             value={item.itemCode}
                             onChange={(e) => handleItemChange(index, 'itemCode', e.target.value)}
-                            onKeyDown={handleKeyPress(index, 'itemCode')}
+                            onKeyDown={(e) => {
+                              handleKeyPress(index, 'itemCode')(e);
+                              if (e.key.startsWith('Arrow')) {
+                                handleArrowNavigation(index, 0, e.key.slice(5).toLowerCase() as 'up' | 'down' | 'left' | 'right');
+                                e.preventDefault();
+                              }
+                            }}
                             className="form-control-sm"
                             style={{ width: '100%', border: 'none', background: 'transparent', padding: '0', outline: 'none' }}
                           />
@@ -1333,7 +1365,13 @@ const ModernBill = () => {
                             type="text"
                             value={item.itemName}
                             onChange={(e) => handleItemChange(index, 'itemName', e.target.value)}
-                            onKeyDown={handleKeyPress(index, 'itemName')}
+                            onKeyDown={(e) => {
+                              handleKeyPress(index, 'itemName')(e);
+                              if (e.key.startsWith('Arrow')) {
+                                handleArrowNavigation(index, 2, e.key.slice(5).toLowerCase() as 'up' | 'down' | 'left' | 'right');
+                                e.preventDefault();
+                              }
+                            }}
                             className="form-control-sm"
                             list="itemNames"
                             style={{ width: '100%', border: 'none', background: 'transparent', padding: '0', outline: 'none' }}
@@ -1348,7 +1386,13 @@ const ModernBill = () => {
                             type="number"
                             value={item.qty}
                             onChange={(e) => handleItemChange(index, 'qty', Number(e.target.value))}
-                            onKeyDown={handleKeyPress(index, 'qty')}
+                            onKeyDown={(e) => {
+                              handleKeyPress(index, 'qty')(e);
+                              if (e.key.startsWith('Arrow')) {
+                                handleArrowNavigation(index, 1, e.key.slice(5).toLowerCase() as 'up' | 'down' | 'left' | 'right');
+                                e.preventDefault();
+                              }
+                            }}
                             className="form-control-sm text-center"
                             style={{ width: '100%', border: 'none', background: 'transparent', padding: '0', outline: 'none' }}
                           />
@@ -1358,7 +1402,13 @@ const ModernBill = () => {
                             type="number"
                             value={item.rate}
                             onChange={(e) => handleItemChange(index, 'rate', Number(e.target.value))}
-                            onKeyDown={handleKeyPress(index, 'rate')}
+                            onKeyDown={(e) => {
+                              handleKeyPress(index, 'rate')(e);
+                              if (e.key.startsWith('Arrow')) {
+                                handleArrowNavigation(index, 3, e.key.slice(5).toLowerCase() as 'up' | 'down' | 'left' | 'right');
+                                e.preventDefault();
+                              }
+                            }}
                             className="form-control-sm text-end"
                             style={{ width: '100%', border: 'none', background: 'transparent', padding: '0', outline: 'none' }}
                           />
@@ -1372,7 +1422,13 @@ const ModernBill = () => {
                             type="text"
                             value={item.specialInstructions}
                             onChange={(e) => handleItemChange(index, 'specialInstructions', e.target.value)}
-                            onKeyDown={handleKeyPress(index, 'specialInstructions')}
+                            onKeyDown={(e) => {
+                              handleKeyPress(index, 'specialInstructions')(e);
+                              if (e.key.startsWith('Arrow')) {
+                                handleArrowNavigation(index, 4, e.key.slice(5).toLowerCase() as 'up' | 'down' | 'left' | 'right');
+                                e.preventDefault();
+                              }
+                            }}
                             className="form-control-sm"
                             style={{ width: '100%', border: 'none', background: 'transparent', padding: '0', outline: 'none' }}
                           />
