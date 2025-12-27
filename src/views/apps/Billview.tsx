@@ -107,6 +107,7 @@ const ModernBill = () => {
   const handleCloseCustomerModal = () => setShowCustomerModal(false);
 
   const inputRefs = useRef<(HTMLInputElement | null)[][]>([]);
+  const kotInputRef = useRef<HTMLInputElement | null>(null);
 
   // Mock data for item lookup
   // This is now replaced by the menuItems state fetched from the API
@@ -344,10 +345,11 @@ const ModernBill = () => {
   const handleKeyPress = (index: number, field: keyof BillItem) => (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       if (field === 'itemCode') {
-        // Focus itemName field of the same row
-        const itemNameRef = inputRefs.current[index]?.[2];
-        if (itemNameRef) {
-          itemNameRef.focus();
+        // Focus and select qty field of the same row
+        const qtyRef = inputRefs.current[index]?.[1];
+        if (qtyRef) {
+          qtyRef.focus();
+          qtyRef.select();
         }
       } else if (field === 'itemName') {
         // Focus and select qty field of the same row
@@ -826,6 +828,10 @@ const ModernBill = () => {
           border: 1px solid #ced4da;
         }
 
+        .modern-table input[type="text"]:focus {
+          background: transparent !important;
+          box-shadow: none !important;
+
        .info-card {
   border: 1px solid #252526ff;
   border-radius: 0.5rem;
@@ -1122,7 +1128,16 @@ const ModernBill = () => {
         <input
           type="text"
           value={editableKot || ''}
-          onChange={(e) => setEditableKot(e.target.value)}
+          onChange={(e) => setEditableKot(e.target.value ? Number(e.target.value) : null)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              const firstQtyRef = inputRefs.current[0]?.[1];
+              if (firstQtyRef) {
+                firstQtyRef.focus();
+                firstQtyRef.select();
+              }
+            }
+          }}
           className="border-0 fw-bold text-center bg-transparent"
           style={{ width: '60px', color: '#333' }}
           placeholder=""
@@ -1208,14 +1223,14 @@ const ModernBill = () => {
                   <thead>
                     <tr className="table-primary">
                       <th style={{ width: '80px' }}>Item Code</th>
-                      <th style={{ width: '400px' }}>Item Name</th>
+                      <th style={{ width: '400px' }}>Item Name</th >
                       <th className="text-center" style={{ width: '100px' }}>Qty</th>
                       <th className="text-end" style={{ width: '100px' }}>Rate</th>
                       <th className="text-end" style={{ width: '150px' }}>Total</th>
                       <th className="text-center">MkotNo/Time</th>
                       <th>Special Instructions</th>
                     </tr>
-                  </thead>
+                  </thead >
                   <tbody>
                     {billItems.map((item, index) => (
                       <tr key={index}>
