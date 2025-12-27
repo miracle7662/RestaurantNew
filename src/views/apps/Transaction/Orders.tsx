@@ -2959,10 +2959,11 @@ const Order = () => {
     return <KotTransfer onCancel={() => setShowKotTransfer(false)} />;
   }
   return (
-    <div className="container-fluid p-0 m-0 fade-in" style={{ height: '100vh' }}>
+    <div className="container-fluid p-0 m-0 fade-in   ,
+         " style={{ height: '100vh'             }}>
       {/* Hidden KOT Preview for Printing */}
 
-      <div id="kot-preview" >
+      <div id="kot-preview "style={{ display: 'none' }}  >
         <div style={{
           width: '80mm',
           margin: '0 auto',
@@ -2970,7 +2971,7 @@ const Order = () => {
           fontSize: '10pt',
           lineHeight: '1.2',
           padding: '10px',
-          color: '#000'
+        
         }}>
 
           {/* ================= STORE INFO ================= */}
