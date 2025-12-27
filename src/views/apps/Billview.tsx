@@ -316,10 +316,23 @@ const ModernBill = () => {
       }
     } else if (field === 'itemName') {
       currentItem.itemName = value as string;
-      // Parse the value to extract item name if it includes code
+      // Parse the value to extract item name if it includes code or short name
       const parsedValue = (value as string).includes(' (') ? (value as string).split(' (')[0] : value as string;
-      // When item name is selected or typed, find the item by item_name and auto-fill itemCode and rate (case-insensitive)
-      (currentItem[field] as any) = value;
+      // When item name is selected or typed, find the item by item_name or short_name (case-insensitive) and auto-fill itemCode and rate
+      const found = menuItems.find(i =>
+        i.item_name.toLowerCase() === parsedValue.toLowerCase() ||
+        i.short_name?.toLowerCase() === parsedValue.toLowerCase()
+      );
+      if (found) {
+        currentItem.itemCode = found.item_no.toString();
+        currentItem.rate = found.price;
+        currentItem.itemId = found.restitemid;
+        currentItem.itemName = found.item_name; // Ensure we set the full item name
+      } else {
+        currentItem.itemCode = "";
+        currentItem.rate = 0;
+        currentItem.itemId = 0;
+      }
     } else {
       (currentItem[field] as any) = value;
     }
@@ -1160,7 +1173,7 @@ const ModernBill = () => {
           {/* Datalist for Item Names */}
           <datalist id="itemNames">
             {menuItems.map(item => (
-              <option key={item.restitemid} value={item.item_name} />
+              <option key={item.restitemid} value={item.short_name ? `${item.item_name} (${item.short_name})` : item.item_name} />
             ))}
           </datalist>
 
