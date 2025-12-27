@@ -195,7 +195,7 @@ export default function App() {
   };
 
   const handleTableClick = (table: Table) => {
-    navigate('/apps/Billview', { state: { tableId: table.id, tableName: table.name } });
+    navigate('/apps/Billview', { state: { tableId: table.id, tableName: table.name, outletId: table.outletid } });
   };
 
   const handleTableInputEnter = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -205,7 +205,7 @@ export default function App() {
         const tables = selectedDepartmentId === 'all' ? allTables : tablesByDepartment[selectedDepartmentId] || [];
         const table = tables.find(t => t.name === input);
         if (table) {
-          navigate('/apps/Billview', { state: { tableId: table.id, tableName: table.name } });
+          navigate('/apps/Billview', { state: { tableId: table.id, tableName: table.name, outletId: table.outletid } });
         }
       }
       setTableInput('');

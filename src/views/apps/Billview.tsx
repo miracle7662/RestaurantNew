@@ -31,6 +31,12 @@ interface MenuItem {
 interface Table {
   id: number;
   name: string;
+  outletid: number;
+}
+
+interface Outlet {
+  id: number;
+  name: string;
 }
 
 const ModernBill = () => {
@@ -51,6 +57,7 @@ const ModernBill = () => {
   const location = useLocation();
   const tableId = location.state?.tableId;
   const tableName = location.state?.tableName;
+  const outletIdFromState = location.state?.outletId;
   const { user } = useAuthContext();
 
   console.log('Table ID:', tableId);
@@ -101,6 +108,10 @@ const ModernBill = () => {
   const [customerName, setCustomerName] = useState('');
   const [showCustomerModal, setShowCustomerModal] = useState(false);
 
+  // Outlet selection states
+  const [outlets, setOutlets] = useState<Outlet[]>([]);
+  const [selectedOutletId, setSelectedOutletId] = useState<number | null>(outletIdFromState || user?.outletid || null);
+
   // Search functionality states
 
   // Handle customer modal
@@ -137,6 +148,36 @@ const ModernBill = () => {
   setTaxCalc({ grandTotal: roundedFinalAmount });
 };
 
+  // Fetch outlets
+  useEffect(() => {
+    const fetchOutlets = async () => {
+      try {
+        if (!user || !user.hotelid) {
+          throw new Error('User not authenticated or hotel ID missing');
+        }
+        const response = await axios.get(`/api/outlets/by-hotel?hotelid=${user.hotelid}`);
+        setOutlets(response.data.data || response.data);
+      } catch (error) {
+        console.error('Failed to fetch outlets:', error);
+      }
+    };
+    fetchOutlets();
+  }, [user]);
+
+  // Fetch payment modes based on selected outlet
+  useEffect(() => {
+    const fetchPaymentModes = async () => {
+      try {
+        if (!selectedOutletId) return;
+        const response = await axios.get(`/api/payment-modes/by-outlet?outletid=${selectedOutletId}`);
+        setOutletPaymentModes(response.data.data || response.data);
+      } catch (error) {
+        console.error('Failed to fetch payment modes:', error);
+      }
+    };
+    fetchPaymentModes();
+  }, [selectedOutletId]);
+
   useEffect(() => {
     // 1. Fetch menu items from the API when the component mounts
     const fetchMenuItems = async () => {
@@ -151,20 +192,6 @@ const ModernBill = () => {
       }
     };
     fetchMenuItems();
-
-    // Fetch outlet payment modes
-    const fetchPaymentModes = async () => {
-      try {
-        if (!user || !user.outletid) {
-          throw new Error('User not authenticated or outlet ID missing');
-        }
-        const response = await axios.get(`/api/payment-modes/by-outlet?outletid=${user.outletid}`);
-        setOutletPaymentModes(response.data.data || response.data);
-      } catch (error) {
-        console.error('Failed to fetch payment modes:', error);
-      }
-    };
-    fetchPaymentModes();
 
     calculateTotals(billItems);
 
@@ -276,8 +303,8 @@ const ModernBill = () => {
         }
         if (data.kotNo !== null && data.kotNo !== undefined) {
           setKotNo(String(data.kotNo));
-          // setDefaultKot(Number(data.kotNo)); // Removed to prevent showing 1
-          // setEditableKot(Number(data.kotNo)); // Removed to allow manual typing
+           setDefaultKot(Number(data.kotNo)); // Removed to prevent showing 1
+          setEditableKot(Number(data.kotNo)); // Removed to allow manual typing
         }
 
         // Calculate totals
@@ -384,9 +411,22 @@ const ModernBill = () => {
 
   // Button handlers
   const saveKOT = async (isNoCharge: boolean = false, print: boolean = false, ncName?: string, ncPurpose?: string) => {
+    console.log("🚀 saveKOT called");
+    console.log("🖨️ Print enabled:", print);
     try {
       if (!user) {
         alert('User not authenticated. Cannot save KOT.');
+        return;
+      }
+
+      // ✅ outletId MUST come from department context
+      const outletId = selectedOutletId; // same variable used to load departments
+
+      console.log("🏷️ OutletId (from department context):", outletId);
+
+      if (!outletId) {
+        console.error("❌ Outlet ID missing, cannot save KOT");
+        alert("Outlet not resolved. Please reselect outlet.");
         return;
       }
 
@@ -412,7 +452,7 @@ const ModernBill = () => {
       }
 
       const payload = {
-        outletid: user.outletid,
+        outletid: outletId,
         tableId,
         table_name: tableName,
         userId: user.id,
@@ -436,16 +476,35 @@ const ModernBill = () => {
         }))
       };
 
-      console.log('KOT Save Payload:', payload);
-      console.log('Valid Items:', validItems);
-      console.log('Txn ID:', txnId);
+      console.log("📤 KOT Payload being sent:", payload);
 
       const response = await axios.post('/api/TAxnTrnbill/kot', payload);
+
+      console.log("📥 RAW KOT API RESPONSE:", response);
+      console.log("📥 response.data:", response?.data);
+      console.log("📥 response.data.data:", response?.data?.data);
+
+      const kotNo =
+        response.data?.data?.KOTNo ??
+        response.data?.data?.kotNo ??
+        response.data?.KOTNo ??
+        response.data?.kotNo ??
+        null;
+
+      console.log("🔢 Extracted KOT No:", kotNo);
+
       alert('KOT saved successfully');
 
       // If print is requested, print
       if (print) {
-        await printKOT(response.data.data?.KOTNo || editableKot);
+        console.log("🖨️ Print requested");
+      }
+
+      if (print && kotNo) {
+        console.log("✅ Printing KOT with number:", kotNo);
+        await printKOT(kotNo);
+      } else if (print && !kotNo) {
+        console.error("❌ Print blocked: KOT No not generated");
       }
 
       // Navigate to table view page after saving KOT
