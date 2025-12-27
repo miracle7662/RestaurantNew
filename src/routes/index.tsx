@@ -6,7 +6,7 @@ import PrivateRoute from './PrivateRoute'
 //import ItemGroup from '@/components/Apps/ItemGroup/itemGroup'
 
 import Customers from '@/views/apps/Transaction/Customers'
-import Settlement from '@/views/apps/Transaction/Settlement'
+import Settlement from '@/views/apps/Transaction/Settelment'
 import Handover from '@/views/apps/Transaction/Handover'
 import DayEnd from '../views/apps/Transaction/DayEnd'
 const KotTransfer = React.lazy(() => import('../views/apps/Transaction/KotTransfer'))

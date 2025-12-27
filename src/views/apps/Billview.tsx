@@ -1,12 +1,14 @@
-import React, { useEffect, useState, useRef, KeyboardEvent } from 'react';
+import React, { useEffect, useState, useRef, KeyboardEvent, useCallback } from 'react';
 import { Row, Col, Card, Table, Badge, Button, Form, Modal, Alert } from 'react-bootstrap';
 import axios from 'axios';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthContext } from '@/common';
 import KotTransfer from './Transaction/KotTransfer';
+import CustomerModal from './Transaction/Customers';
 
 interface BillItem {
-  itemNo: string;
+  itemCode: string;
+  itemId: number;
   itemName: string;
   qty: number;
   rate: number;
@@ -35,7 +37,7 @@ const ModernBill = () => {
   const [headerHeight, setHeaderHeight] = useState(0);
   const [toolbarHeight, setToolbarHeight] = useState(0);
 
-  const [billItems, setBillItems] = useState<BillItem[]>([{ itemNo: '', itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' }]);
+  const [billItems, setBillItems] = useState<BillItem[]>([{ itemCode: '', itemId: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' }]);
 
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
 
@@ -56,10 +58,10 @@ const ModernBill = () => {
 
   const [waiter, setWaiter] = useState('ASD');
   const [pax, setPax] = useState(1);
-  const [kotNo, setKotNo] = useState('26');
+  const [kotNo, setKotNo] = useState('');
   const [tableNo, setTableNo] = useState(tableName || 'Loading...');
-  const [defaultKot, setDefaultKot] = useState(34); // last / system KOT
-  const [editableKot, setEditableKot] = useState(34); // user editable
+  const [defaultKot, setDefaultKot] = useState<number | null>(null); // last / system KOT
+  const [editableKot, setEditableKot] = useState<number | null>(null); // user editable
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [txnId, setTxnId] = useState<number | null>(null);
@@ -95,11 +97,44 @@ const ModernBill = () => {
   const [availableTables, setAvailableTables] = useState<Table[]>([]);
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
 
+  const [customerMobile, setCustomerMobile] = useState('');
+  const [customerName, setCustomerName] = useState('');
+  const [showCustomerModal, setShowCustomerModal] = useState(false);
+
+  // Search functionality states
+
+  // Handle customer modal
+  const handleCloseCustomerModal = () => setShowCustomerModal(false);
 
   const inputRefs = useRef<(HTMLInputElement | null)[][]>([]);
 
   // Mock data for item lookup
   // This is now replaced by the menuItems state fetched from the API
+
+  const calculateTotals = (items: BillItem[]) => {
+    const updatedItems = items.map(item => {
+      const total = item.qty * item.rate;
+      const cgst = total * 0.025; // 2.5% CGST
+      const sgst = total * 0.025; // 2.5% SGST
+      return { ...item, total, cgst, sgst, igst: 0 };
+    });
+
+    const gross = updatedItems.reduce((sum, item) => sum + item.total, 0);
+    const cgstTotal = updatedItems.reduce((sum, item) => sum + item.cgst, 0);
+    const sgstTotal = updatedItems.reduce((sum, item) => sum + item.sgst, 0);
+
+    const totalBeforeRoundOff = gross + cgstTotal + sgstTotal;
+    const roundedFinalAmount = Math.round(totalBeforeRoundOff);
+    const ro = roundedFinalAmount - totalBeforeRoundOff;
+
+    setGrossAmount(gross);
+    setTotalCgst(cgstTotal);
+    setTotalSgst(sgstTotal);
+  setFinalAmount(roundedFinalAmount);
+  setRoundOff(ro);
+  setBillItems(updatedItems);
+  setTaxCalc({ grandTotal: roundedFinalAmount });
+};
 
   useEffect(() => {
     // 1. Fetch menu items from the API when the component mounts
@@ -131,7 +166,6 @@ const ModernBill = () => {
     fetchPaymentModes();
 
     calculateTotals(billItems);
-    setTaxCalc({ grandTotal: finalAmount });
 
     // Remove padding or margin from layout containers
     const mainContent = document.querySelector('main.main-content') as HTMLElement;
@@ -192,8 +226,7 @@ const ModernBill = () => {
   }, [navigate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch table data when tableId is present
-  useEffect(() => {
-    const fetchTableData = async () => {
+  const fetchTableData = useCallback(async () => {
       if (!tableId || !user || !user.hotelid) return;
 
       setLoading(true);
@@ -209,21 +242,24 @@ const ModernBill = () => {
         }
 
         // Map items to BillItem interface
-        const mappedItems: BillItem[] = data.items.map((item: any) => ({
-          itemNo: item.itemId.toString(),
-          itemName: item.itemName,
-          qty: item.netQty,
-          rate: item.price,
-          total: item.netQty * item.price,
-          cgst: (item.netQty * item.price) * 0.025,
-          sgst: (item.netQty * item.price) * 0.025,
-          igst: 0,
-          mkotNo: item.kotNo.toString(),
-          specialInstructions: ''
-        }));
+        const mappedItems: BillItem[] = data.items.map((item: any) => {
+          return {
+            itemCode: (item.itemId || item.ItemID || '').toString(),
+            itemId: item.itemId || item.ItemID || 0,
+            itemName: item.itemName || item.ItemName || item.item_name || '',
+            qty: item.netQty || item.Qty || 0,
+            rate: item.price || item.Price || item.Rate || 0,
+            total: (item.netQty || item.Qty || 0) * (item.price || item.Price || item.Rate || 0),
+            cgst: ((item.netQty || item.Qty || 0) * (item.price || item.Price || item.Rate || 0)) * 0.025,
+            sgst: ((item.netQty || item.Qty || 0) * (item.price || item.Price || item.Rate || 0)) * 0.025,
+            igst: 0,
+            mkotNo: item.kotNo ? item.kotNo.toString() : (item.KOTNo ? item.KOTNo.toString() : ''),
+            specialInstructions: item.specialInstructions || item.SpecialInst || ''
+          };
+        });
 
         // Always add a blank row at the end for new item entry
-        mappedItems.push({ itemNo: '', itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' });
+        mappedItems.push({ itemCode: '', itemId: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' });
 
         setBillItems(mappedItems);
 
@@ -237,9 +273,11 @@ const ModernBill = () => {
             setTableNo(data.header.table_name);
           }
         }
-        setKotNo(data.kotNo || '26');
-        setDefaultKot(data.kotNo || 34);
-        setEditableKot(data.kotNo || 34);
+        if (data.kotNo !== null && data.kotNo !== undefined) {
+          setKotNo(String(data.kotNo));
+          // setDefaultKot(Number(data.kotNo)); // Removed to prevent showing 1
+          // setEditableKot(Number(data.kotNo)); // Removed to allow manual typing
+        }
 
         // Calculate totals
         calculateTotals(mappedItems);
@@ -253,64 +291,35 @@ const ModernBill = () => {
       } finally {
         setLoading(false);
       }
-    };
+    }, [tableId, user]);
 
+  useEffect(() => {
     fetchTableData();
-  }, [tableId, user]);
-
-  const calculateTotals = (items: BillItem[]) => {
-    const updatedItems = items.map(item => {
-      const total = item.qty * item.rate;
-      const cgst = total * 0.025; // 2.5% CGST
-      const sgst = total * 0.025; // 2.5% SGST
-      return { ...item, total, cgst, sgst, igst: 0 };
-    });
-
-    const gross = updatedItems.reduce((sum, item) => sum + item.total, 0);
-    const cgstTotal = updatedItems.reduce((sum, item) => sum + item.cgst, 0);
-    const sgstTotal = updatedItems.reduce((sum, item) => sum + item.sgst, 0);
-
-    const totalBeforeRoundOff = gross + cgstTotal + sgstTotal;
-    const roundedFinalAmount = Math.round(totalBeforeRoundOff);
-    const ro = roundedFinalAmount - totalBeforeRoundOff;
-
-    setGrossAmount(gross);
-    setTotalCgst(cgstTotal);
-    setTotalSgst(sgstTotal);
-    setFinalAmount(roundedFinalAmount);
-    setRoundOff(ro);
-    setBillItems(updatedItems);
-  };
+  }, [fetchTableData]);
 
   const handleItemChange = (index: number, field: keyof BillItem, value: string | number) => {
     const updated = [...billItems];
     const currentItem = { ...updated[index] };
 
-    if (field === 'itemNo') {
-      currentItem.itemNo = value as string;
+    if (field === 'itemCode') {
+      currentItem.itemCode = value as string;
       // 2. When item code is typed, find the item in the fetched menu list
       const found = menuItems.find(i => i.item_no.toString() === value);
       if (found) {
         currentItem.itemName = found.item_name;
         currentItem.rate = found.price;
+        currentItem.itemId = found.restitemid;
       } else {
         currentItem.itemName = "";
         currentItem.rate = 0;
+        currentItem.itemId = 0;
       }
     } else if (field === 'itemName') {
+      currentItem.itemName = value as string;
       // Parse the value to extract item name if it includes code
       const parsedValue = (value as string).includes(' (') ? (value as string).split(' (')[0] : value as string;
-      // When item name is selected or typed, find the item by short_name and auto-fill itemNo and rate (case-insensitive)
-      const found = menuItems.find(i => i.short_name.toLowerCase() === parsedValue.toLowerCase());
-      if (found) {
-        currentItem.itemName = found.item_name; // Always show the full item name
-        currentItem.itemNo = found.item_no.toString();
-        currentItem.rate = found.price;
-      } else {
-        currentItem.itemName = parsedValue; // Keep what was typed if no match
-        currentItem.itemNo = "";
-        currentItem.rate = 0;
-      }
+      // When item name is selected or typed, find the item by item_name and auto-fill itemCode and rate (case-insensitive)
+      (currentItem[field] as any) = value;
     } else {
       (currentItem[field] as any) = value;
     }
@@ -321,7 +330,7 @@ const ModernBill = () => {
 
   const handleKeyPress = (index: number, field: keyof BillItem) => (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
-      if (field === 'itemNo') {
+      if (field === 'itemCode') {
         // Focus itemName field of the same row
         const itemNameRef = inputRefs.current[index]?.[2];
         if (itemNameRef) {
@@ -335,18 +344,24 @@ const ModernBill = () => {
           qtyRef.select();
         }
       } else if (field === 'qty') {
-        // Add new row and focus itemNo of the new row
-        const newBillItems = [...billItems, { itemNo: "", itemName: "", qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' }];
+        // Add new row and focus itemCode of the new row
+        const newBillItems = [...billItems, { itemCode: "", itemId: 0, itemName: "", qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' }];
         setBillItems(newBillItems);
-        // Focus the new itemNo after state update
+        // Focus the new itemCode after state update
         setTimeout(() => {
-          const newItemNoRef = inputRefs.current[newBillItems.length - 1]?.[0];
-          if (newItemNoRef) {
-            newItemNoRef.focus();
+          const newItemCodeRef = inputRefs.current[newBillItems.length - 1]?.[0];
+          if (newItemCodeRef) {
+            newItemCodeRef.focus();
           }
         }, 0);
       }
       // No action for rate and specialInstructions
+    } else if (e.key === 'Backspace' && field === 'itemName' && (e.target as HTMLInputElement).value.trim() === '' && index < billItems.length - 1) {
+      // Remove the row if backspace is pressed on empty itemName field and it's not the last row
+      const updated = billItems.filter((_, i) => i !== index);
+      setBillItems(updated);
+      calculateTotals(updated);
+      e.preventDefault();
     }
   };
 
@@ -358,48 +373,65 @@ const ModernBill = () => {
         return;
       }
 
-      const validItems = billItems.filter(item => item.itemNo && item.itemName && item.qty > 0);
+      if (!tableId) {
+        alert("Table not selected properly");
+        return;
+      }
+
+      const validItems = billItems.filter(
+        item =>
+          item.itemId > 0 &&
+          item.qty > 0 &&
+          !item.mkotNo
+      );
       if (validItems.length === 0) {
-        alert('No valid items to save');
+        if (print && editableKot) {
+          await printKOT(editableKot);
+          alert('KOT printed successfully');
+        } else {
+          alert('No new items to save');
+        }
         return;
       }
 
       const payload = {
-        outletid: user.outletid || user.hotelid, // Assuming outletid is available or same as hotelid
-        tableId: tableId,
+        outletid: user.outletid,
+        tableId,
         table_name: tableName,
         userId: user.id,
         hotelId: user.hotelid,
-        NCName: isNoCharge ? (ncName || 'NC') : null,
-        NCPurpose: isNoCharge ? (ncPurpose || 'No Charge') : null,
-        DiscPer: 0,
-        Discount: 0,
-        DiscountType: 0,
-        CustomerName: '',
-        MobileNo: '',
+        KOTNo: editableKot, // Use editableKot if set, else null for backend to generate
         Order_Type: 'Dine-in',
-        txnId: txnId || undefined, // For existing bills
+        ...(txnId ? { txnId } : {}),
+        ...(isNoCharge ? { NCName: ncName, NCPurpose: ncPurpose } : {}),
         items: validItems.map(item => ({
-          ItemID: parseInt(item.itemNo),
+          ItemID: item.itemId,
           Qty: item.qty,
           RuntimeRate: item.rate,
-          CGST: item.total > 0 ? (item.cgst / item.total) * 100 : 0,
-          SGST: item.total > 0 ? (item.sgst / item.total) * 100 : 0,
+          CGST: 2.5,
+          SGST: 2.5,
           IGST: 0,
           CESS: 0,
           Discount_Amount: 0,
           isNCKOT: isNoCharge,
-          DeptID: 1, // Default department ID
+          DeptID: 1,
           SpecialInst: item.specialInstructions || null
         }))
       };
 
+      console.log('KOT Save Payload:', payload);
+      console.log('Valid Items:', validItems);
+      console.log('Txn ID:', txnId);
+
       const response = await axios.post('/api/TAxnTrnbill/kot', payload);
       alert('KOT saved successfully');
 
+      // Refresh data
+      await fetchTableData();
+
       // If print is requested, call print after save
       if (print) {
-        await printKOT(response.data.data.KOTNo);
+        await printKOT(response.data.data?.KOTNo || editableKot);
       }
     } catch (error) {
       console.error('Error saving KOT:', error);
@@ -415,14 +447,29 @@ const ModernBill = () => {
   };
 
   const reverseBill = async () => {
-    if (!txnId) return;
+    if (!txnId) {
+      alert('No bill to reverse');
+      return;
+    }
+
     try {
-      await axios.post(`/api/TAxnTrnbill/${txnId}/reverse`);
+      await axios.post('/api/TAxnTrnbill/reverse', {
+        TxnID: txnId,
+        OutletID: user.outletid,
+        HotelID: user.hotelid,
+        UserID: user.id
+      });
+
       alert('Bill reversed successfully');
+
+      // ✅ reset UI state
+      resetBillState();
+
+      // ✅ go back to table view
       navigate('/apps/Tableview');
     } catch (error) {
-      console.error('Error reversing bill:', error);
-      alert('Error reversing bill');
+      console.error('Reverse bill error:', error);
+      alert('Failed to reverse bill');
     }
   };
 
@@ -457,7 +504,7 @@ const ModernBill = () => {
   const printBill = async () => {
     if (!txnId) return;
     try {
-      const response = await axios.get(`/api/bill/print/${txnId}`);
+      const response = await axios.put(`/api/TAxnTrnbill/${txnId}/print`);
       alert('Bill printed successfully');
       // Handle print data if needed
       console.log('Bill Print Data:', response.data);
@@ -519,18 +566,20 @@ const ModernBill = () => {
       alert('Error transferring table');
     }
   };
-
   const resetBillState = () => {
-    setBillItems([{ itemNo: '', itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' }]);
+    setBillItems([{ itemCode: '', itemId: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' }]);
     setTxnId(null);
     setWaiter('ASD');
     setPax(1);
-    setKotNo('26');
+    setKotNo('');
     setTableNo('Loading...');
-    setDefaultKot(34);
-    setEditableKot(34);
-    calculateTotals([{ itemNo: '', itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' }]);
+    setDefaultKot(null);
+    setEditableKot(null);
+    setCustomerMobile('');
+    setCustomerName('');
+    calculateTotals([{ itemCode: '', itemId: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' }]);
   };
+
 
   const exitWithoutSave = () => {
     navigate('/apps/Tableview');
@@ -774,41 +823,119 @@ const ModernBill = () => {
  color: #080808ff;
 }
 
-.info-card:hover {
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  transform: translateY(-2px);
+/* Modern minimal styling */
+.info-box {
+  background: #ffffff;
+  border: 1px solid #e0e0e0 !important;
+  border-radius: 6px;
+  transition: all 0.2s ease;
 }
 
-/* Label text */
-.info-card .text-muted {
-  color: rgba(17, 17, 17, 0.8) !important;
-  font-weight: 700;
+/* Base styling for all info boxes */
+.info-box {
+  background: #ffffff;
+  border: 1px solid #d1d5db !important;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  min-height: 90px;
 }
 
-/* Value text */
-.info-card .fw-bold {
-  color: #111010ff !important;
+.info-box:hover {
+  border-color: #6b7280 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-/* Inputs */
-.info-card .form-control {
-  background: transparent;
+/* KOT No. special styling */
+.info-box .bg-light {
+  background-color: #f9fafb !important;
+  border: 1px solid #d1d5db !important;
+}
+
+/* Input fields styling */
+.info-box input {
   border: none;
-  color: #ffffff;
-  font-weight: 700;
-}
-
-.info-card .form-control:focus {
-  box-shadow: none;
+  outline: none;
   background: transparent;
-  color: #ffffff;
+  color: #333;
+  font-weight: 600;
+  letter-spacing: 0.5px;
 }
 
-/* Placeholder */
-.info-card .form-control::placeholder {
-  color: rgba(255,255,255,0.6);
+.info-box input:focus {
+  background: rgba(59, 130, 246, 0.05);
 }
 
+.info-box input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+.info-box input[type="number"]::-webkit-outer-spin-button,
+.info-box input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Total Amount box */
+.total-box {
+  border: none !important;
+  box-shadow: none !important;
+  min-height: 90px;
+}
+
+.total-box .text-white-50 {
+  opacity: 0.8;
+  letter-spacing: 0.5px;
+}
+
+.total-box .text-white {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* Text styling */
+.text-uppercase {
+  letter-spacing: 0.5px;
+  font-size: 0.75rem;
+}
+
+.fw-bold.fs-4 {
+  font-size: 1.75rem !important;
+  line-height: 1.2;
+}
+
+.fw-bold.fs-5 {
+  font-size: 1.25rem !important;
+  line-height: 1.2;
+}
+
+.fw-bold.fs-3 {
+  font-size: 1.875rem !important;
+  line-height: 1.2;
+}
+
+/* Ensure all content is properly centered */
+.d-flex.flex-column.justify-content-center {
+  min-height: 100%;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .info-box, .total-box {
+    margin-bottom: 10px;
+    min-height: 80px;
+  }
+  
+  .fw-bold.fs-4 {
+    font-size: 1.5rem !important;
+  }
+  
+  .fw-bold.fs-5 {
+    font-size: 1.125rem !important;
+  }
+  
+  .fw-bold.fs-3 {
+    font-size: 1.5rem !important;
+  }
+}
 /* Datalist arrow styling */
 .info-card input::-webkit-calendar-picker-indicator {
   filter: invert(1);
@@ -930,84 +1057,97 @@ const ModernBill = () => {
           </div>
 
           {/* Card Layout for Header Information */}
-          <Row className="g-2 mb-2">
-            <Col md={1}>
-              <Card className="text-center info-card h-100 border-0 shadow-sm">
-                <Card.Body className="d-flex flex-column justify-content-center py-2 px-2">
-                  <div className="text-muted text-uppercase fw-bold small mb-1" style={{ fontSize: '0.7rem', letterSpacing: '0.5px' }}>Table No</div>
-                  <div className="fw-bold text-dark fs-5 text-truncate" title={tableNo}>{tableNo}</div>
-                </Card.Body>
-              </Card>
-            </Col>
-            <Col md={2}>
-              <Card className="text-center info-card h-100 border-0 shadow-sm">
-                <Card.Body className="d-flex flex-column justify-content-center py-2 px-2">
-                  <div className="text-muted text-uppercase fw-bold small mb-1" style={{ fontSize: '0.7rem', letterSpacing: '0.5px' }}>Waiter</div>
-                  <Form.Control
-                    type="text"
-                    value={waiter}
-                    onChange={(e) => setWaiter(e.target.value)}
-                    className="form-control-sm text-center fw-bold fs-5 p-0 bg-transparent shadow-none text-white"
-                    list="waiters"
-                  />
-                </Card.Body>
-              </Card>
-            </Col>
-            <Col md={1}>
-              <Card className="text-center info-card h-100 border-0 shadow-sm">
-                <Card.Body className="d-flex flex-column justify-content-center py-2 px-2">
-                  <div className="text-muted text-uppercase fw-bold small mb-1" style={{ fontSize: '0.7rem', letterSpacing: '0.5px' }}>PAX</div>
-                  <Form.Control
-                    type="number"
-                    value={pax}
-                    onChange={(e) => setPax(Number(e.target.value))}
-                    className="form-control-sm text-center fw-bold fs-5 p-0 bg-transparent shadow-none"
-                  />
-                </Card.Body>
-              </Card>
-            </Col>
-            <Col md={2}>
-              <Card className="info-card h-100 border-0 shadow-sm" >
-                <Card.Body className="d-flex flex-column justify-content-center py-2 px-2 text-center">
-                  <div className="text-muted text-uppercase fw-bold small mb-1" style={{ fontSize: '0.7rem', letterSpacing: '0.5px' }}>KOT No.</div>
-                  <div className="d-flex align-items-center justify-content-center mx-auto" style={{ height: '34px', maxWidth: '160px' }}>
-                    <div className="px-3 border-end fw-bold text-white-50 h-100 d-flex align-items-center" style={{ borderColor: 'rgba(255,255,255,0.3)' }}>
-                      {defaultKot}
-                    </div>
-                    <Form.Control
-                      type="text"
-                      value={editableKot.toString()}
-                      onChange={(e) => setEditableKot(Number(e.target.value))}
-                      className="text-center fw-bold text-white border-0 shadow-none h-100 m-0 bg-transparent"
-                      style={{ width: '80px' }}
-                    />
-                  </div>
-                </Card.Body>
-              </Card>
-            </Col>
-            <Col md={2}>
-              <Card className="text-center info-card h-100 border-0 shadow-sm">
-                <Card.Body className="d-flex flex-column justify-content-center py-2 px-2">
-                  <div className="text-muted text-uppercase fw-bold small mb-1" style={{ fontSize: '0.7rem', letterSpacing: '0.5px' }}>Date</div>
-                  <div className="fw-bold text-dark fs-5">
-                    {new Date().toLocaleDateString()}
-                  </div>
+      <Row className="mb-3 g-2 align-items-stretch">
+  {/* Table No - Left aligned */}
+  <Col md={1}>
+    <div className="info-box p-2 h-100 border rounded text-center d-flex flex-column justify-content-center">
+      <div className="text-uppercase text-secondary small mb-1 fw-semibold">Table No</div>
+      <div className="fw-bold fs-4" style={{ color: '#333' }}>{tableNo || '--'}</div>
+    </div>
+  </Col>
+  
+  {/* Waiter - Centered */}
+  <Col md={2}>
+    <div className="info-box p-2 h-100 border rounded text-center d-flex flex-column justify-content-center">
+      <div className="text-uppercase text-secondary small mb-1 fw-semibold">Waiter</div>
+      <input
+        type="text"
+        value={waiter}
+        onChange={(e) => setWaiter(e.target.value)}
+        className="w-100 border-0 fw-bold fs-5 p-0 bg-transparent text-center"
+        placeholder="Name"
+        list="waiters"
+        style={{ color: '#333' }}
+      />
+    </div>
+  </Col>
 
-                </Card.Body>
-              </Card>
-            </Col>
-            <Col md={2} className="ms-auto">
-              <Card className="text-center total-card h-100 border-0 shadow-sm">
-                <Card.Body className="d-flex flex-column justify-content-center py-2 px-3">
-                  <div className="text-white-50 text-uppercase fw-bold small mb-0" style={{ fontSize: '0.7rem', letterSpacing: '0.5px' }}>Total Amount</div>
-                  <div className="fw-bold text-white fs-4">
-                    ₹{finalAmount.toFixed(2)}
-                  </div>
-                </Card.Body>
-              </Card>
-            </Col>
-          </Row>
+   {/* PAX - Centered */}
+  <Col md={1}>
+    <div className="info-box p-2 h-100 border rounded text-center d-flex flex-column justify-content-center">
+      <div className="text-uppercase text-secondary small mb-1 fw-semibold">PAX</div>
+      <input
+        type="number"
+        value={pax}
+        onChange={(e) => setPax(Number(e.target.value))}
+        className="w-100 border-0 fw-bold fs-5 p-0 bg-transparent text-center"
+        style={{ color: '#343434ff' }}
+        placeholder="0"
+        min="1"
+      />
+    </div>
+  </Col>
+  
+  {/* KOT No - Split display like image */}
+  <Col md={2}>
+    <div className="info-box p-2 h-100 border rounded text-center d-flex flex-column justify-content-center">
+      <div className="text-uppercase text-secondary small mb-1 fw-semibold">KOT No.</div>
+      <div className="d-flex align-items-center justify-content-center border rounded bg-light mx-auto" style={{ maxWidth: '140px' }}>
+        <div className="fw-bold fs-5 px-2 py-1" style={{ color: '#333', borderRight: '1px solid #dee2e6', minWidth: '60px' }}>
+          {defaultKot || '--'}
+        </div>
+        <input
+          type="text"
+          value={editableKot || ''}
+          onChange={(e) => setEditableKot(e.target.value)}
+          className="border-0 fw-bold text-center bg-transparent"
+          style={{ width: '60px', color: '#333' }}
+          placeholder=""
+        />
+      </div>
+    </div>
+  </Col>
+  
+  {/* Date - Centered */}
+  <Col md={2}>
+    <div className="info-box p-2 h-100 border rounded text-center d-flex flex-column justify-content-center">
+      <div className="text-uppercase text-secondary small mb-1 fw-semibold">Date</div>
+      <div className="fw-bold fs-5" style={{ color: '#333' }}>
+        {new Date().toLocaleDateString('en-GB', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric'
+        })}
+      </div>
+    </div>
+  </Col>
+  
+ 
+  
+  {/* Total Amount - Centered with black background */}
+  <Col md={2} className="ms-auto">
+  <div className="p-2 h-100 d-flex flex-column justify-content-center text-center
+                  bg-success rounded text-white">
+    <div className="text-uppercase text-white-50 small mb-1 fw-semibold">
+      Total Amount
+    </div>
+    <div className="fw-bold fs-3">
+      ₹{finalAmount.toFixed(2)}
+    </div>
+  </div>
+</Col>
 
+</Row>
           {/* Datalist for Waiters */}
           <datalist id="waiters">
             <option value="ASD" />
@@ -1036,7 +1176,7 @@ const ModernBill = () => {
 
 
       {/* Main Content */}
-      <div className="full-screen-content" style={{ top: `${headerHeight + toolbarHeight}px` }}>
+      <div className="full-screen-content px-2" style={{ top: `${headerHeight + toolbarHeight}px` }}>
         <div className="content-wrapper">
           <div className="modern-bill">
             {loading ? (
@@ -1054,11 +1194,11 @@ const ModernBill = () => {
                 <Table responsive bordered className="modern-table">
                   <thead>
                     <tr className="table-primary">
-                      <th style={{ width: '80px' }}>No</th>
+                      <th style={{ width: '80px' }}>Item Code</th>
                       <th style={{ width: '400px' }}>Item Name</th>
-                      <th className="text-center">Qty</th>
-                      <th className="text-end" style={{ width: '200px' }}>Rate</th>
-                      <th className="text-end">Total</th>
+                      <th className="text-center" style={{ width: '100px' }}>Qty</th>
+                      <th className="text-end" style={{ width: '100px' }}>Rate</th>
+                      <th className="text-end" style={{ width: '150px' }}>Total</th>
                       <th className="text-center">MkotNo/Time</th>
                       <th>Special Instructions</th>
                     </tr>
@@ -1066,21 +1206,21 @@ const ModernBill = () => {
                   <tbody>
                     {billItems.map((item, index) => (
                       <tr key={index}>
-                        <td>
+                        <td style={{ width: '80px' }}>
                           <Form.Control
                             ref={(el) => {
                               if (!inputRefs.current[index]) inputRefs.current[index] = [];
                               inputRefs.current[index][0] = el;
                             }}
                             type="text"
-                            value={item.itemNo}
-                            onChange={(e) => handleItemChange(index, 'itemNo', e.target.value)}
-                            onKeyDown={handleKeyPress(index, 'itemNo')}
+                            value={item.itemCode}
+                            onChange={(e) => handleItemChange(index, 'itemCode', e.target.value)}
+                            onKeyDown={handleKeyPress(index, 'itemCode')}
                             className="form-control-sm"
                             style={{ width: '100%', border: 'none', background: 'transparent', padding: '0', outline: 'none' }}
                           />
                         </td>
-                        <td>
+                        <td style={{ width: '400px' }}>
                           <Form.Control
                             ref={(el) => {
                               if (!inputRefs.current[index]) inputRefs.current[index] = [];
@@ -1095,7 +1235,7 @@ const ModernBill = () => {
                             style={{ width: '100%', border: 'none', background: 'transparent', padding: '0', outline: 'none' }}
                           />
                         </td>
-                        <td className="text-center">
+                        <td className="text-center" style={{ width: '100px' }}>
                           <Form.Control
                             ref={(el) => {
                               if (!inputRefs.current[index]) inputRefs.current[index] = [];
@@ -1109,7 +1249,7 @@ const ModernBill = () => {
                             style={{ width: '100%', border: 'none', background: 'transparent', padding: '0', outline: 'none' }}
                           />
                         </td>
-                        <td className="text-end">
+                        <td className="text-end" style={{ width: '100px' }}>
                           <Form.Control
                             type="number"
                             value={item.rate}
@@ -1119,7 +1259,7 @@ const ModernBill = () => {
                             style={{ width: '100%', border: 'none', background: 'transparent', padding: '0', outline: 'none' }}
                           />
                         </td>
-                        <td className="text-end">{item.total.toFixed(2)}</td>
+                        <td className="text-end" style={{ width: '100px' }}>{item.total.toFixed(2)}</td>
                         <td className="text-center">
                           {item.mkotNo && <Badge bg="secondary">{item.mkotNo}</Badge>}
                         </td>
@@ -1408,6 +1548,35 @@ const ModernBill = () => {
         <KotTransfer onCancel={() => setShowKotTransferModal(false)} />
       </Modal.Body>
     </Modal>
+
+    {/* Reverse Bill Modal */}
+    <Modal show={showReverseBillModal} onHide={() => setShowReverseBillModal(false)} centered>
+      <Modal.Header closeButton>
+        <Modal.Title>Reverse Bill</Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        <p>Are you sure you want to reverse this bill? This action cannot be undone.</p>
+      </Modal.Body>
+      <Modal.Footer>
+        <Button variant="secondary" onClick={() => setShowReverseBillModal(false)}>
+          Cancel
+        </Button>
+        <Button variant="danger" onClick={reverseBill}>
+          Confirm Reverse Bill
+        </Button>
+      </Modal.Footer>
+    </Modal>
+
+    {/* Customer Modal */}
+    <Modal show={showCustomerModal} onHide={handleCloseCustomerModal} size="xl" centered>
+      <Modal.Header closeButton>
+        <Modal.Title>Customer Management</Modal.Title>
+      </Modal.Header>
+      <Modal.Body style={{ padding: '0px', maxHeight: '780px', overflowY: 'auto' }}>
+        <CustomerModal />
+      </Modal.Body>
+    </Modal>
+
     </React.Fragment>
   );
 };
