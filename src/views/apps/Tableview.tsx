@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { useAuthContext } from '@/common';
 import { useNavigate } from 'react-router-dom';
@@ -98,6 +98,7 @@ export default function App() {
   const [tableInput, setTableInput] = useState('');
   const { user } = useAuthContext();
   const navigate = useNavigate();
+  const tableInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const fetchTables = async () => {
@@ -167,6 +168,13 @@ export default function App() {
       document.removeEventListener('keydown', handleEscapeKey);
     };
   }, [user, navigate]);
+
+  // Focus the table input field when the component mounts
+  useEffect(() => {
+    if (tableInputRef.current) {
+      tableInputRef.current.focus();
+    }
+  }, []);
 
   // Group tables by their departmentid
   const tablesByDepartment = allTables.reduce((acc, table) => {
@@ -301,6 +309,7 @@ export default function App() {
             <div className="col-auto">
               <div className="d-flex gap-2">
                 <input
+                  ref={tableInputRef}
                   type="number"
                   className="form-control form-control-sm"
                   placeholder="Table No"

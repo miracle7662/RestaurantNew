@@ -359,16 +359,18 @@ const ModernBill = () => {
           qtyRef.select();
         }
       } else if (field === 'qty') {
-        // Add new row and focus itemCode of the new row
-        const newBillItems = [...billItems, { itemCode: "", itemId: 0, itemName: "", qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' }];
-        setBillItems(newBillItems);
-        // Focus the new itemCode after state update
-        setTimeout(() => {
-          const newItemCodeRef = inputRefs.current[newBillItems.length - 1]?.[0];
-          if (newItemCodeRef) {
-            newItemCodeRef.focus();
-          }
-        }, 0);
+        // Only add new row if current item has data (itemId > 0 or itemName not empty)
+        if (billItems[index].itemId > 0 || billItems[index].itemName.trim() !== '') {
+          const newBillItems = [...billItems, { itemCode: "", itemId: 0, itemName: "", qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' }];
+          setBillItems(newBillItems);
+          // Focus the new itemCode after state update
+          setTimeout(() => {
+            const newItemCodeRef = inputRefs.current[newBillItems.length - 1]?.[0];
+            if (newItemCodeRef) {
+              newItemCodeRef.focus();
+            }
+          }, 0);
+        }
       }
       // No action for rate and specialInstructions
     } else if (e.key === 'Backspace' && field === 'itemName' && (e.target as HTMLInputElement).value.trim() === '' && index < billItems.length - 1) {
@@ -441,13 +443,13 @@ const ModernBill = () => {
       const response = await axios.post('/api/TAxnTrnbill/kot', payload);
       alert('KOT saved successfully');
 
-      // Refresh data
-      await fetchTableData();
-
-      // If print is requested, call print after save
+      // If print is requested, print
       if (print) {
         await printKOT(response.data.data?.KOTNo || editableKot);
       }
+
+      // Navigate to table view page after saving KOT
+      navigate('/apps/Tableview');
     } catch (error) {
       console.error('Error saving KOT:', error);
       alert('Error saving KOT');
