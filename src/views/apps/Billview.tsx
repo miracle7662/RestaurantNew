@@ -325,6 +325,18 @@ const ModernBill = () => {
     fetchTableData();
   }, [fetchTableData]);
 
+  // Focus on the blank row's item code input when the page opens or billItems change
+  useEffect(() => {
+    if (billItems.length > 0) {
+      setTimeout(() => {
+        const blankRowItemCodeInput = inputRefs.current[billItems.length - 1]?.[0];
+        if (blankRowItemCodeInput) {
+          blankRowItemCodeInput.focus();
+        }
+      }, 100);
+    }
+  }, [billItems]);
+
   const handleItemChange = (index: number, field: keyof BillItem, value: string | number) => {
     const updated = [...billItems];
     const currentItem = { ...updated[index] };
