@@ -384,12 +384,15 @@ const ModernBill = () => {
   const handleKeyPress = (index: number, field: keyof BillItem) => (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       if (field === 'itemCode') {
-        // Focus and select qty field of the same row
-        const qtyRef = inputRefs.current[index]?.[1];
-        if (qtyRef) {
-          qtyRef.focus();
-          qtyRef.select();
+        // Only move focus to qty if itemCode has been typed
+        if (billItems[index].itemCode.trim() !== '') {
+          const qtyRef = inputRefs.current[index]?.[1];
+          if (qtyRef) {
+            qtyRef.focus();
+            qtyRef.select();
+          }
         }
+        // If itemCode is empty, do nothing - stay in the field
       } else if (field === 'itemName') {
         // Focus and select qty field of the same row
         const qtyRef = inputRefs.current[index]?.[1];
