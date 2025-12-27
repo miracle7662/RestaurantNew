@@ -1,14 +1,12 @@
-import React, { useEffect, useState, useRef, KeyboardEvent, useCallback } from 'react';
+import React, { useEffect, useState, useRef, KeyboardEvent } from 'react';
 import { Row, Col, Card, Table, Badge, Button, Form, Modal, Alert } from 'react-bootstrap';
 import axios from 'axios';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthContext } from '@/common';
 import KotTransfer from './Transaction/KotTransfer';
-import CustomerModal from './Transaction/Customers';
 
 interface BillItem {
-  itemCode: string;
-  itemId: number;
+  itemNo: string;
   itemName: string;
   qty: number;
   rate: number;
@@ -37,7 +35,7 @@ const ModernBill = () => {
   const [headerHeight, setHeaderHeight] = useState(0);
   const [toolbarHeight, setToolbarHeight] = useState(0);
 
-  const [billItems, setBillItems] = useState<BillItem[]>([{ itemCode: '', itemId: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' }]);
+  const [billItems, setBillItems] = useState<BillItem[]>([{ itemNo: '', itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' }]);
 
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
 
@@ -58,10 +56,10 @@ const ModernBill = () => {
 
   const [waiter, setWaiter] = useState('ASD');
   const [pax, setPax] = useState(1);
-  const [kotNo, setKotNo] = useState('');
+  const [kotNo, setKotNo] = useState('26');
   const [tableNo, setTableNo] = useState(tableName || 'Loading...');
-  const [defaultKot, setDefaultKot] = useState<number | null>(null); // last / system KOT
-  const [editableKot, setEditableKot] = useState<number | null>(null); // user editable
+  const [defaultKot, setDefaultKot] = useState(34); // last / system KOT
+  const [editableKot, setEditableKot] = useState(34); // user editable
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [txnId, setTxnId] = useState<number | null>(null);
@@ -97,42 +95,11 @@ const ModernBill = () => {
   const [availableTables, setAvailableTables] = useState<Table[]>([]);
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
 
-  const [customerMobile, setCustomerMobile] = useState('');
-  const [customerName, setCustomerName] = useState('');
-  const [showCustomerModal, setShowCustomerModal] = useState(false);
-
-  // Handle customer modal
-  const handleCloseCustomerModal = () => setShowCustomerModal(false);
 
   const inputRefs = useRef<(HTMLInputElement | null)[][]>([]);
 
   // Mock data for item lookup
   // This is now replaced by the menuItems state fetched from the API
-
-  const calculateTotals = (items: BillItem[]) => {
-    const updatedItems = items.map(item => {
-      const total = item.qty * item.rate;
-      const cgst = total * 0.025; // 2.5% CGST
-      const sgst = total * 0.025; // 2.5% SGST
-      return { ...item, total, cgst, sgst, igst: 0 };
-    });
-
-    const gross = updatedItems.reduce((sum, item) => sum + item.total, 0);
-    const cgstTotal = updatedItems.reduce((sum, item) => sum + item.cgst, 0);
-    const sgstTotal = updatedItems.reduce((sum, item) => sum + item.sgst, 0);
-
-    const totalBeforeRoundOff = gross + cgstTotal + sgstTotal;
-    const roundedFinalAmount = Math.round(totalBeforeRoundOff);
-    const ro = roundedFinalAmount - totalBeforeRoundOff;
-
-    setGrossAmount(gross);
-    setTotalCgst(cgstTotal);
-    setTotalSgst(sgstTotal);
-  setFinalAmount(roundedFinalAmount);
-  setRoundOff(ro);
-  setBillItems(updatedItems);
-  setTaxCalc({ grandTotal: roundedFinalAmount });
-};
 
   useEffect(() => {
     // 1. Fetch menu items from the API when the component mounts
@@ -164,6 +131,7 @@ const ModernBill = () => {
     fetchPaymentModes();
 
     calculateTotals(billItems);
+    setTaxCalc({ grandTotal: finalAmount });
 
     // Remove padding or margin from layout containers
     const mainContent = document.querySelector('main.main-content') as HTMLElement;
@@ -224,7 +192,8 @@ const ModernBill = () => {
   }, [navigate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch table data when tableId is present
-  const fetchTableData = useCallback(async () => {
+  useEffect(() => {
+    const fetchTableData = async () => {
       if (!tableId || !user || !user.hotelid) return;
 
       setLoading(true);
@@ -240,24 +209,21 @@ const ModernBill = () => {
         }
 
         // Map items to BillItem interface
-        const mappedItems: BillItem[] = data.items.map((item: any) => {
-          return {
-            itemCode: (item.itemId || item.ItemID || '').toString(),
-            itemId: item.itemId || item.ItemID || 0,
-            itemName: item.itemName || item.ItemName || item.item_name || '',
-            qty: item.netQty || item.Qty || 0,
-            rate: item.price || item.Price || item.Rate || 0,
-            total: (item.netQty || item.Qty || 0) * (item.price || item.Price || item.Rate || 0),
-            cgst: ((item.netQty || item.Qty || 0) * (item.price || item.Price || item.Rate || 0)) * 0.025,
-            sgst: ((item.netQty || item.Qty || 0) * (item.price || item.Price || item.Rate || 0)) * 0.025,
-            igst: 0,
-            mkotNo: item.kotNo ? item.kotNo.toString() : (item.KOTNo ? item.KOTNo.toString() : ''),
-            specialInstructions: item.specialInstructions || item.SpecialInst || ''
-          };
-        });
+        const mappedItems: BillItem[] = data.items.map((item: any) => ({
+          itemNo: item.itemId.toString(),
+          itemName: item.itemName,
+          qty: item.netQty,
+          rate: item.price,
+          total: item.netQty * item.price,
+          cgst: (item.netQty * item.price) * 0.025,
+          sgst: (item.netQty * item.price) * 0.025,
+          igst: 0,
+          mkotNo: item.kotNo.toString(),
+          specialInstructions: ''
+        }));
 
         // Always add a blank row at the end for new item entry
-        mappedItems.push({ itemCode: '', itemId: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' });
+        mappedItems.push({ itemNo: '', itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' });
 
         setBillItems(mappedItems);
 
@@ -271,11 +237,9 @@ const ModernBill = () => {
             setTableNo(data.header.table_name);
           }
         }
-        if (data.kotNo !== null && data.kotNo !== undefined) {
-          setKotNo(String(data.kotNo));
-          // setDefaultKot(Number(data.kotNo)); // Removed to prevent showing 1
-          // setEditableKot(Number(data.kotNo)); // Removed to allow manual typing
-        }
+        setKotNo(data.kotNo || '26');
+        setDefaultKot(data.kotNo || 34);
+        setEditableKot(data.kotNo || 34);
 
         // Calculate totals
         calculateTotals(mappedItems);
@@ -289,34 +253,65 @@ const ModernBill = () => {
       } finally {
         setLoading(false);
       }
-    }, [tableId, user]);
+    };
 
-  useEffect(() => {
     fetchTableData();
-  }, [fetchTableData]);
+  }, [tableId, user]);
+
+  const calculateTotals = (items: BillItem[]) => {
+    const updatedItems = items.map(item => {
+      const total = item.qty * item.rate;
+      const cgst = total * 0.025; // 2.5% CGST
+      const sgst = total * 0.025; // 2.5% SGST
+      return { ...item, total, cgst, sgst, igst: 0 };
+    });
+
+    const gross = updatedItems.reduce((sum, item) => sum + item.total, 0);
+    const cgstTotal = updatedItems.reduce((sum, item) => sum + item.cgst, 0);
+    const sgstTotal = updatedItems.reduce((sum, item) => sum + item.sgst, 0);
+
+    const totalBeforeRoundOff = gross + cgstTotal + sgstTotal;
+    const roundedFinalAmount = Math.round(totalBeforeRoundOff);
+    const ro = roundedFinalAmount - totalBeforeRoundOff;
+
+    setGrossAmount(gross);
+    setTotalCgst(cgstTotal);
+    setTotalSgst(sgstTotal);
+    setFinalAmount(roundedFinalAmount);
+    setRoundOff(ro);
+    setBillItems(updatedItems);
+  };
 
   const handleItemChange = (index: number, field: keyof BillItem, value: string | number) => {
     const updated = [...billItems];
     const currentItem = { ...updated[index] };
 
-    if (field === 'itemCode') {
-      currentItem.itemCode = value as string;
+    if (field === 'itemNo') {
+      currentItem.itemNo = value as string;
       // 2. When item code is typed, find the item in the fetched menu list
       const found = menuItems.find(i => i.item_no.toString() === value);
       if (found) {
         currentItem.itemName = found.item_name;
         currentItem.rate = found.price;
-        currentItem.itemId = found.restitemid;
       } else {
         currentItem.itemName = "";
         currentItem.rate = 0;
-        currentItem.itemId = 0;
       }
     } else if (field === 'itemName') {
-      currentItem.itemName = value as string;
       // Parse the value to extract item name if it includes code
       const parsedValue = (value as string).includes(' (') ? (value as string).split(' (')[0] : value as string;
-      // When item name is selected or typed, find the item by item_name and auto-fill itemCode and rate (case-insensitive)
+      // When item name is selected or typed, find the item by short_name and auto-fill itemNo and rate (case-insensitive)
+      const found = menuItems.find(i => i.short_name.toLowerCase() === parsedValue.toLowerCase());
+      if (found) {
+        currentItem.itemName = found.item_name; // Always show the full item name
+        currentItem.itemNo = found.item_no.toString();
+        currentItem.rate = found.price;
+      } else {
+        currentItem.itemName = parsedValue; // Keep what was typed if no match
+        currentItem.itemNo = "";
+        currentItem.rate = 0;
+      }
+    } else {
       (currentItem[field] as any) = value;
     }
 
@@ -326,7 +321,7 @@ const ModernBill = () => {
 
   const handleKeyPress = (index: number, field: keyof BillItem) => (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
-      if (field === 'itemCode') {
+      if (field === 'itemNo') {
         // Focus itemName field of the same row
         const itemNameRef = inputRefs.current[index]?.[2];
         if (itemNameRef) {
@@ -340,24 +335,18 @@ const ModernBill = () => {
           qtyRef.select();
         }
       } else if (field === 'qty') {
-        // Add new row and focus itemCode of the new row
-        const newBillItems = [...billItems, { itemCode: "", itemId: 0, itemName: "", qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' }];
+        // Add new row and focus itemNo of the new row
+        const newBillItems = [...billItems, { itemNo: "", itemName: "", qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' }];
         setBillItems(newBillItems);
-        // Focus the new itemCode after state update
+        // Focus the new itemNo after state update
         setTimeout(() => {
-          const newItemCodeRef = inputRefs.current[newBillItems.length - 1]?.[0];
-          if (newItemCodeRef) {
-            newItemCodeRef.focus();
+          const newItemNoRef = inputRefs.current[newBillItems.length - 1]?.[0];
+          if (newItemNoRef) {
+            newItemNoRef.focus();
           }
         }, 0);
       }
       // No action for rate and specialInstructions
-    } else if (e.key === 'Backspace' && field === 'itemName' && (e.target as HTMLInputElement).value.trim() === '' && index < billItems.length - 1) {
-      // Remove the row if backspace is pressed on empty itemName field and it's not the last row
-      const updated = billItems.filter((_, i) => i !== index);
-      setBillItems(updated);
-      calculateTotals(updated);
-      e.preventDefault();
     }
   };
 
@@ -369,65 +358,48 @@ const ModernBill = () => {
         return;
       }
 
-      if (!tableId) {
-        alert("Table not selected properly");
-        return;
-      }
-
-      const validItems = billItems.filter(
-        item =>
-          item.itemId > 0 &&
-          item.qty > 0 &&
-          !item.mkotNo
-      );
+      const validItems = billItems.filter(item => item.itemNo && item.itemName && item.qty > 0);
       if (validItems.length === 0) {
-        if (print && editableKot) {
-          await printKOT(editableKot);
-          alert('KOT printed successfully');
-        } else {
-          alert('No new items to save');
-        }
+        alert('No valid items to save');
         return;
       }
 
       const payload = {
-        outletid: user.outletid,
-        tableId,
+        outletid: user.outletid || user.hotelid, // Assuming outletid is available or same as hotelid
+        tableId: tableId,
         table_name: tableName,
         userId: user.id,
         hotelId: user.hotelid,
-        KOTNo: editableKot, // Use editableKot if set, else null for backend to generate
+        NCName: isNoCharge ? (ncName || 'NC') : null,
+        NCPurpose: isNoCharge ? (ncPurpose || 'No Charge') : null,
+        DiscPer: 0,
+        Discount: 0,
+        DiscountType: 0,
+        CustomerName: '',
+        MobileNo: '',
         Order_Type: 'Dine-in',
-        ...(txnId ? { txnId } : {}),
-        ...(isNoCharge ? { NCName: ncName, NCPurpose: ncPurpose } : {}),
+        txnId: txnId || undefined, // For existing bills
         items: validItems.map(item => ({
-          ItemID: item.itemId,
+          ItemID: parseInt(item.itemNo),
           Qty: item.qty,
           RuntimeRate: item.rate,
-          CGST: 2.5,
-          SGST: 2.5,
+          CGST: item.total > 0 ? (item.cgst / item.total) * 100 : 0,
+          SGST: item.total > 0 ? (item.sgst / item.total) * 100 : 0,
           IGST: 0,
           CESS: 0,
           Discount_Amount: 0,
           isNCKOT: isNoCharge,
-          DeptID: 1,
+          DeptID: 1, // Default department ID
           SpecialInst: item.specialInstructions || null
         }))
       };
 
-      console.log('KOT Save Payload:', payload);
-      console.log('Valid Items:', validItems);
-      console.log('Txn ID:', txnId);
-
       const response = await axios.post('/api/TAxnTrnbill/kot', payload);
       alert('KOT saved successfully');
 
-      // Refresh data
-      await fetchTableData();
-
       // If print is requested, call print after save
       if (print) {
-        await printKOT(response.data.data?.KOTNo || editableKot);
+        await printKOT(response.data.data.KOTNo);
       }
     } catch (error) {
       console.error('Error saving KOT:', error);
@@ -443,29 +415,14 @@ const ModernBill = () => {
   };
 
   const reverseBill = async () => {
-    if (!txnId) {
-      alert('No bill to reverse');
-      return;
-    }
-
+    if (!txnId) return;
     try {
-      await axios.post('/api/TAxnTrnbill/reverse', {
-        TxnID: txnId,
-        OutletID: user.outletid,
-        HotelID: user.hotelid,
-        UserID: user.id
-      });
-
+      await axios.post(`/api/TAxnTrnbill/${txnId}/reverse`);
       alert('Bill reversed successfully');
-
-      // ✅ reset UI state
-      resetBillState();
-
-      // ✅ go back to table view
       navigate('/apps/Tableview');
     } catch (error) {
-      console.error('Reverse bill error:', error);
-      alert('Failed to reverse bill');
+      console.error('Error reversing bill:', error);
+      alert('Error reversing bill');
     }
   };
 
@@ -500,7 +457,7 @@ const ModernBill = () => {
   const printBill = async () => {
     if (!txnId) return;
     try {
-      const response = await axios.put(`/api/TAxnTrnbill/${txnId}/print`);
+      const response = await axios.get(`/api/bill/print/${txnId}`);
       alert('Bill printed successfully');
       // Handle print data if needed
       console.log('Bill Print Data:', response.data);
@@ -562,20 +519,18 @@ const ModernBill = () => {
       alert('Error transferring table');
     }
   };
+
   const resetBillState = () => {
-    setBillItems([{ itemCode: '', itemId: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' }]);
+    setBillItems([{ itemNo: '', itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' }]);
     setTxnId(null);
     setWaiter('ASD');
     setPax(1);
-    setKotNo('');
+    setKotNo('26');
     setTableNo('Loading...');
-    setDefaultKot(null);
-    setEditableKot(null);
-    setCustomerMobile('');
-    setCustomerName('');
-    calculateTotals([{ itemCode: '', itemId: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' }]);
+    setDefaultKot(34);
+    setEditableKot(34);
+    calculateTotals([{ itemNo: '', itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' }]);
   };
-
 
   const exitWithoutSave = () => {
     navigate('/apps/Tableview');
@@ -1011,17 +966,17 @@ const ModernBill = () => {
                 </Card.Body>
               </Card>
             </Col>
-            <Col md={1}>
+            <Col md={2}>
               <Card className="info-card h-100 border-0 shadow-sm" >
                 <Card.Body className="d-flex flex-column justify-content-center py-2 px-2 text-center">
                   <div className="text-muted text-uppercase fw-bold small mb-1" style={{ fontSize: '0.7rem', letterSpacing: '0.5px' }}>KOT No.</div>
                   <div className="d-flex align-items-center justify-content-center mx-auto" style={{ height: '34px', maxWidth: '160px' }}>
                     <div className="px-3 border-end fw-bold text-white-50 h-100 d-flex align-items-center" style={{ borderColor: 'rgba(255,255,255,0.3)' }}>
-                      {defaultKot ?? 'N/A'}
+                      {defaultKot}
                     </div>
                     <Form.Control
                       type="text"
-                      value={editableKot !== null ? editableKot.toString() : ''}
+                      value={editableKot.toString()}
                       onChange={(e) => setEditableKot(Number(e.target.value))}
                       className="text-center fw-bold text-white border-0 shadow-none h-100 m-0 bg-transparent"
                       style={{ width: '80px' }}
@@ -1038,25 +993,6 @@ const ModernBill = () => {
                     {new Date().toLocaleDateString()}
                   </div>
 
-                </Card.Body>
-              </Card>
-            </Col>
-            <Col md={2}>
-              <Card className="info-card h-100 border-0 shadow-sm">
-                <Card.Body className="d-flex flex-column justify-content-center py-2 px-2">
-                  <div className="text-muted text-uppercase fw-bold small mb-1" style={{ fontSize: '0.7rem', letterSpacing: '0.5px' }}>Customer</div>
-                  <div className="d-flex align-items-center gap-1">
-                    <Form.Control
-                      type="text"
-                      placeholder="Mobile"
-                      value={customerMobile}
-                      onChange={(e) => setCustomerMobile(e.target.value)}
-                      className="form-control-sm"
-                      style={{ flex: 1 }}
-                    />
-                    <div className="fw-bold text-dark small" style={{ flex: 1 }}>{customerName || 'Name'}</div>
-                    <Button variant="outline-primary" size="sm" onClick={() => setShowCustomerModal(true)}>+</Button>
-                  </div>
                 </Card.Body>
               </Card>
             </Col>
@@ -1118,7 +1054,7 @@ const ModernBill = () => {
                 <Table responsive bordered className="modern-table">
                   <thead>
                     <tr className="table-primary">
-                      <th style={{ width: '80px' }}>Item Code</th>
+                      <th style={{ width: '80px' }}>No</th>
                       <th style={{ width: '400px' }}>Item Name</th>
                       <th className="text-center">Qty</th>
                       <th className="text-end" style={{ width: '200px' }}>Rate</th>
@@ -1137,9 +1073,9 @@ const ModernBill = () => {
                               inputRefs.current[index][0] = el;
                             }}
                             type="text"
-                            value={item.itemCode}
-                            onChange={(e) => handleItemChange(index, 'itemCode', e.target.value)}
-                            onKeyDown={handleKeyPress(index, 'itemCode')}
+                            value={item.itemNo}
+                            onChange={(e) => handleItemChange(index, 'itemNo', e.target.value)}
+                            onKeyDown={handleKeyPress(index, 'itemNo')}
                             className="form-control-sm"
                             style={{ width: '100%', border: 'none', background: 'transparent', padding: '0', outline: 'none' }}
                           />
@@ -1472,35 +1408,6 @@ const ModernBill = () => {
         <KotTransfer onCancel={() => setShowKotTransferModal(false)} />
       </Modal.Body>
     </Modal>
-
-    {/* Reverse Bill Modal */}
-    <Modal show={showReverseBillModal} onHide={() => setShowReverseBillModal(false)} centered>
-      <Modal.Header closeButton>
-        <Modal.Title>Reverse Bill</Modal.Title>
-      </Modal.Header>
-      <Modal.Body>
-        <p>Are you sure you want to reverse this bill? This action cannot be undone.</p>
-      </Modal.Body>
-      <Modal.Footer>
-        <Button variant="secondary" onClick={() => setShowReverseBillModal(false)}>
-          Cancel
-        </Button>
-        <Button variant="danger" onClick={reverseBill}>
-          Confirm Reverse Bill
-        </Button>
-      </Modal.Footer>
-    </Modal>
-
-    {/* Customer Modal */}
-    <Modal show={showCustomerModal} onHide={handleCloseCustomerModal} size="xl" centered>
-      <Modal.Header closeButton>
-        <Modal.Title>Customer Management</Modal.Title>
-      </Modal.Header>
-      <Modal.Body style={{ padding: '0px', maxHeight: '780px', overflowY: 'auto' }}>
-        <CustomerModal />
-      </Modal.Body>
-    </Modal>
-
     </React.Fragment>
   );
 };

@@ -132,7 +132,7 @@ const ReverseKOT: React.FC<Props> = ({ user, tableId, tableName }) => {
               onChange={() => toggleItem(item.id)}
             />
             <span>{item.name}</span>
-            <span>Qty: {item.qty}</span>
+            <span>Qty: {item.qty}</span>a
           </div>
         ))}
       </div>
