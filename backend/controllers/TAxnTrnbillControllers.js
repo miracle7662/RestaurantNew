@@ -1770,12 +1770,12 @@ exports.getLatestBilledBillForTable = async (req, res) => {
       return res.status(400).json({ success: false, message: 'tableId is required', data: null });
     }
 
-    // Step 1: Fetch the latest transaction for the table (billed or unbilled, unsettled)
+    // Step 1: Fetch the latest billed and unsettled transaction for the table
     const bill = db.prepare(`
-      SELECT *
-      FROM TAxnTrnbill
-      WHERE TableID = ? AND isCancelled = 0 AND isSetteled = 0
-      ORDER BY TxnID DESC
+      SELECT * 
+      FROM TAxnTrnbill 
+      WHERE TableID = ? AND isBilled = 1 AND isSetteled = 0 AND isreversebill = 0
+      ORDER BY TxnID DESC 
       LIMIT 1
     `).get(Number(tableId));
 

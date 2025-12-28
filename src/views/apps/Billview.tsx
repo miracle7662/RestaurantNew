@@ -286,7 +286,7 @@ const ModernBill = () => {
       setLoading(true);
       setError(null);
       try {
-        const response = await axios.get(`/api/TAxnTrnbill/billed-bill/by-table/${tableId}`);
+         const response = await axios.get(`/api/TAxnTrnbill/billed-bill/by-table/${tableId}`);
         if (!response || response.status !== 200) {
           throw new Error(`Server responded with status ${response?.status || 'unknown'}`);
         }
@@ -294,12 +294,11 @@ const ModernBill = () => {
         if (!data) {
           throw new Error('No data received from server');
         }
-
-        // Ensure details is always an array
+ // Ensure details is always an array
         const details = Array.isArray(data.details) ? data.details : [];
-
         // Map items to BillItem interface
         const mappedItems: BillItem[] = details.map((item: any) => {
+
           return {
             itemCode: (item.itemId || item.ItemID || '').toString(),
             itemId: item.itemId || item.ItemID || 0,
@@ -330,17 +329,22 @@ const ModernBill = () => {
             setTableNo(data.table_name);
           }
         }
+        if (data.kotNo !== null && data.kotNo !== undefined) {
+          setKotNo(String(data.kotNo));
+           setDefaultKot(Number(data.kotNo)); // Removed to prevent showing 1
+          setEditableKot(Number(data.kotNo)); // Removed to allow manual typing
+        }
 
-        // Calculate latest KOT No from details
-        const latestKotNo = details.reduce((max, item) => {
-          const kot = item.KOTNo || item.kotNo || 0;
-          return Math.max(max, Number(kot));
-        }, 0);
+    // Calculate latest KOT No from details
+        const latestKotNo = details.reduce((max: number, item: any) => {
+  const kot = item.KOTNo || item.kotNo || 0;
+  return Math.max(max, Number(kot));
+}, 0);
         if (latestKotNo > 0) {
           setKotNo(String(latestKotNo));
           setDefaultKot(latestKotNo);
           setEditableKot(latestKotNo);
-        }
+             }
 
         // Calculate totals
         calculateTotals(mappedItems);
@@ -417,7 +421,7 @@ const ModernBill = () => {
     calculateTotals(updated);
   };
 
-  const handleKeyPress = (index: number, field: keyof BillItem) => (e: KeyboardEvent<any>) => {
+ const handleKeyPress = (index: number, field: keyof BillItem) => (e: KeyboardEvent<any>) => {
     if (e.key === "Enter") {
       if (field === 'itemCode') {
         // Only move focus to qty if itemCode has been typed
