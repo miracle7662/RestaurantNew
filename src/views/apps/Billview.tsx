@@ -320,20 +320,26 @@ const ModernBill = () => {
 
         setBillItems(mappedItems);
 
-        // Update header fields from data.header and data.kotNo if available
-        console.log('API Response Header:', data.header);
-        if (data.header) {
-          setTxnId(data.header.TxnID);
-          setWaiter(data.header.waiter || 'ASD');
-          setPax(data.header.pax || 1);
-          if (data.header.table_name) {
-            setTableNo(data.header.table_name);
+        // Update header fields from data
+        console.log('API Response Header:', data);
+        if (data) {
+          setTxnId(data.TxnID);
+          setWaiter(data.Steward || 'ASD');
+          setPax(data.PAX || 1);
+          if (data.table_name) {
+            setTableNo(data.table_name);
           }
         }
-        if (data.kotNo !== null && data.kotNo !== undefined) {
-          setKotNo(String(data.kotNo));
-           setDefaultKot(Number(data.kotNo)); // Removed to prevent showing 1
-          setEditableKot(Number(data.kotNo)); // Removed to allow manual typing
+
+        // Calculate latest KOT No from details
+        const latestKotNo = details.reduce((max, item) => {
+          const kot = item.KOTNo || item.kotNo || 0;
+          return Math.max(max, Number(kot));
+        }, 0);
+        if (latestKotNo > 0) {
+          setKotNo(String(latestKotNo));
+          setDefaultKot(latestKotNo);
+          setEditableKot(latestKotNo);
         }
 
         // Calculate totals
