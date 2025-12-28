@@ -286,17 +286,20 @@ const ModernBill = () => {
       setLoading(true);
       setError(null);
       try {
-        const response = await axios.get(`/api/TAxnTrnbill/unbilled-items/${tableId}`);
-        if (response.status !== 200) {
-          throw new Error(`Server responded with status ${response.status}`);
+        const response = await axios.get(`/api/TAxnTrnbill/billed-bill/by-table/${tableId}`);
+        if (!response || response.status !== 200) {
+          throw new Error(`Server responded with status ${response?.status || 'unknown'}`);
         }
         const data = response.data?.data || response.data;
         if (!data) {
           throw new Error('No data received from server');
         }
 
+        // Ensure details is always an array
+        const details = Array.isArray(data.details) ? data.details : [];
+
         // Map items to BillItem interface
-        const mappedItems: BillItem[] = data.items.map((item: any) => {
+        const mappedItems: BillItem[] = details.map((item: any) => {
           return {
             itemCode: (item.itemId || item.ItemID || '').toString(),
             itemId: item.itemId || item.ItemID || 0,
@@ -336,6 +339,7 @@ const ModernBill = () => {
         // Calculate totals
         calculateTotals(mappedItems);
       } catch (err: any) {
+        setBillItems([]);
         if (err.response) {
           setError(`Server responded with status ${err.response.status}: ${err.response.statusText}`);
         } else {
@@ -407,7 +411,7 @@ const ModernBill = () => {
     calculateTotals(updated);
   };
 
-  const handleKeyPress = (index: number, field: keyof BillItem) => (e: KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyPress = (index: number, field: keyof BillItem) => (e: KeyboardEvent<any>) => {
     if (e.key === "Enter") {
       if (field === 'itemCode') {
         // Only move focus to qty if itemCode has been typed
