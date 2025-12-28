@@ -335,21 +335,9 @@ const ModernBill = () => {
           setEditableKot(Number(data.kotNo)); // Removed to allow manual typing
         }
 
-    // Calculate latest KOT No from details
-        const latestKotNo = details.reduce((max: number, item: any) => {
-  const kot = item.KOTNo || item.kotNo || 0;
-  return Math.max(max, Number(kot));
-}, 0);
-        if (latestKotNo > 0) {
-          setKotNo(String(latestKotNo));
-          setDefaultKot(latestKotNo);
-          setEditableKot(latestKotNo);
-             }
-
         // Calculate totals
         calculateTotals(mappedItems);
       } catch (err: any) {
-        setBillItems([]);
         if (err.response) {
           setError(`Server responded with status ${err.response.status}: ${err.response.statusText}`);
         } else {
