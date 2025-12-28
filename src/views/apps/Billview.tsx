@@ -281,73 +281,65 @@ const ModernBill = () => {
 
   // Fetch table data when tableId is present
   const fetchTableData = useCallback(async () => {
-      if (!tableId || !user || !user.hotelid) return;
+    if (!tableId || !user || !user.hotelid || !user.outletid) return;
 
-      setLoading(true);
-      setError(null);
-      try {
-         const response = await axios.get(`/api/TAxnTrnbill/billed-bill/by-table/${tableId}`);
-        if (!response || response.status !== 200) {
-          throw new Error(`Server responded with status ${response?.status || 'unknown'}`);
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await axios.get('/api/TAxnTrnbill', {
+        params: {
+          TableID: tableId,
+          HotelID: user.hotelid,
+          OutletID: user.outletid
         }
-        const data = response.data?.data || response.data;
-        if (!data) {
-          throw new Error('No data received from server');
+      });
+
+      const data = res.data;
+      if (!Array.isArray(data)) return;
+
+      // Map items to BillItem interface
+      const mappedItems: BillItem[] = data.map((item: any) => ({
+        itemCode: (item.itemId || item.ItemID || '').toString(),
+        itemId: item.itemId || item.ItemID || 0,
+        itemName: item.itemName || item.ItemName || item.item_name || '',
+        qty: item.netQty || item.Qty || 0,
+        rate: item.price || item.Price || item.Rate || 0,
+        total: (item.netQty || item.Qty || 0) * (item.price || item.Price || item.Rate || 0),
+        cgst: ((item.netQty || item.Qty || 0) * (item.price || item.Price || item.Rate || 0)) * 0.025,
+        sgst: ((item.netQty || item.Qty || 0) * (item.price || item.Price || item.Rate || 0)) * 0.025,
+        igst: 0,
+        mkotNo: item.kotNo ? item.kotNo.toString() : (item.KOTNo ? item.KOTNo.toString() : ''),
+        specialInstructions: item.specialInstructions || item.SpecialInst || ''
+      }));
+
+      // Always add a blank row at the end for new item entry
+      mappedItems.push({ itemCode: '', itemId: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' });
+
+      setBillItems(mappedItems);
+
+      if (data.length > 0) {
+        setTxnId(data[0].TxnID);
+        setWaiter(data[0].Steward || 'ASD');
+        setPax(data[0].PAX || 1);
+        if (data[0].table_name) {
+          setTableNo(data[0].table_name);
         }
- // Ensure details is always an array
-        const details = Array.isArray(data.details) ? data.details : [];
-        // Map items to BillItem interface
-        const mappedItems: BillItem[] = details.map((item: any) => {
-
-          return {
-            itemCode: (item.itemId || item.ItemID || '').toString(),
-            itemId: item.itemId || item.ItemID || 0,
-            itemName: item.itemName || item.ItemName || item.item_name || '',
-            qty: item.netQty || item.Qty || 0,
-            rate: item.price || item.Price || item.Rate || 0,
-            total: (item.netQty || item.Qty || 0) * (item.price || item.Price || item.Rate || 0),
-            cgst: ((item.netQty || item.Qty || 0) * (item.price || item.Price || item.Rate || 0)) * 0.025,
-            sgst: ((item.netQty || item.Qty || 0) * (item.price || item.Price || item.Rate || 0)) * 0.025,
-            igst: 0,
-            mkotNo: item.kotNo ? item.kotNo.toString() : (item.KOTNo ? item.KOTNo.toString() : ''),
-            specialInstructions: item.specialInstructions || item.SpecialInst || ''
-          };
-        });
-
-        // Always add a blank row at the end for new item entry
-        mappedItems.push({ itemCode: '', itemId: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' });
-
-        setBillItems(mappedItems);
-
-        // Update header fields from data
-        console.log('API Response Header:', data);
-        if (data) {
-          setTxnId(data.TxnID);
-          setWaiter(data.Steward || 'ASD');
-          setPax(data.PAX || 1);
-          if (data.table_name) {
-            setTableNo(data.table_name);
-          }
+        if (data[0].kotNo !== null && data[0].kotNo !== undefined) {
+          setKotNo(String(data[0].kotNo));
+          setDefaultKot(Number(data[0].kotNo));
+          setEditableKot(Number(data[0].kotNo));
         }
-        if (data.kotNo !== null && data.kotNo !== undefined) {
-          setKotNo(String(data.kotNo));
-           setDefaultKot(Number(data.kotNo)); // Removed to prevent showing 1
-          setEditableKot(Number(data.kotNo)); // Removed to allow manual typing
-        }
-
-        // Calculate totals
-        calculateTotals(mappedItems);
-      } catch (err: any) {
-        if (err.response) {
-          setError(`Server responded with status ${err.response.status}: ${err.response.statusText}`);
-        } else {
-          setError(err.message || 'Failed to fetch table data');
-        }
-        console.error('Error fetching table data:', err);
-      } finally {
-        setLoading(false);
       }
-    }, [tableId, user]);
+
+      // Calculate totals
+      calculateTotals(mappedItems);
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || 'Failed to fetch table data');
+    } finally {
+      setLoading(false);
+    }
+  }, [tableId, user]);
 
   useEffect(() => {
     fetchTableData();
@@ -537,6 +529,9 @@ const ModernBill = () => {
       console.log("🔢 Extracted KOT No:", kotNo);
 
       alert('KOT saved successfully');
+
+      // Fetch updated table data after KOT save
+      await fetchTableData();
 
       // If print is requested, print
       if (print) {
@@ -935,6 +930,7 @@ const ModernBill = () => {
         .modern-table input[type="text"]:focus {
           background: transparent !important;
           box-shadow: none !important;
+        }
 
        .info-card {
   border: 1px solid #252526ff;
