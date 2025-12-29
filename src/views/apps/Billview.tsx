@@ -190,16 +190,7 @@ const ModernBill = () => {
 
 
 
-  const printBill = async () => {
-    if (!txnId) return;
-    try {
-      const billNo = await generateBill();
-      alert('Bill printed successfully');
-    } catch (error) {
-      console.error('Error printing bill:', error);
-      alert('Error printing bill');
-    }
-  };
+ 
 
   // Navigable columns: 0: Item Code, 1: Qty, 2: Item Name, 3: Rate, 4: Special Instructions
   const navigableColumns = [0, 1, 2, 3, 4];
@@ -567,6 +558,11 @@ const ModernBill = () => {
 
       console.log("🔢 Extracted KOT No:", kotNo);
 
+      // Update txnId from the response
+      if (response.data?.data?.TxnID) {
+        setTxnId(response.data.data.TxnID);
+      }
+
       alert('KOT saved successfully');
 
       // If print is requested, print
@@ -651,7 +647,20 @@ const ModernBill = () => {
     }
   };
 
-
+const printBill = async () => {
+    if (!txnId) return;
+    try {
+      const response = await axios.put(`/api/TAxnTrnbill/${txnId}/print`);
+      alert('Bill printed successfully');
+      // Handle print data if needed
+      console.log('Bill Print Data:', response.data);
+      // After printing, fetch the latest bill data
+      await fetchTableData();
+    } catch (error) {
+      console.error('Error printing bill:', error);
+      alert('Error printing bill');
+    }
+  };
  
   const generateBill = async () => {
     if (!txnId) return;
