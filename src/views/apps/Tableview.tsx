@@ -26,8 +26,8 @@ interface Department {
 const TableCard: React.FC<{ table: Table; onClick: () => void }> = ({ table, onClick }) => {
   const getStatusClass = (status: TableStatus): string => {
     switch (status) {
-      case 'running': return 'bg-primary';
-      case 'printed': return 'bg-success';
+      case 'running': return 'bg-success';
+      case 'printed': return 'bg-danger';
       case 'paid': return 'bg-white';
       case 'running-kot': return 'bg-warning-orange';
       case 'occupied': return 'bg-primary'; // Map 'occupied' to 'running' style

@@ -8,7 +8,6 @@ function ok(message, data) {
 function toBool(value) {
   return value ? 1 : 0
 }
-
 function generateTxnNo(outletid) {
   // 1. Fetch bill_prefix from settings
   const settings = db.prepare('SELECT bill_prefix FROM mstbill_preview_settings WHERE outletid = ?').get(outletid);
@@ -2571,5 +2570,30 @@ exports.saveFullReverse = async (req, res) => {
 /* -------------------------------------------------------------------------- */
 /* 22) reverseItem → Reverse quantity for a single item                       */
 /* -------------------------------------------------------------------------- */
+
+/* -------------------------------------------------------------------------- */
+/* 23) getGlobalKOTNumber → fetch the next global KOT number for an outlet    */
+/* -------------------------------------------------------------------------- */
+exports.getGlobalKOTNumber = async (req, res) => {
+  try {
+    const { outletid } = req.query;
+
+    if (!outletid) {
+      return res.status(400).json({ success: false, message: 'outletid is required', data: null });
+    }
+
+    const result = db.prepare(`
+      SELECT MAX(KOTNo) as maxKOT
+      FROM TAxnTrnbilldetails
+      WHERE outletid = ?
+    `).get(Number(outletid));
+
+    const nextKOT = (result?.maxKOT || 0) + 1;
+
+    res.json(ok('Fetched next global KOT number', { nextKOT }));
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to fetch global KOT number', data: null, error: error.message });
+  }
+};
 
 module.exports = exports;

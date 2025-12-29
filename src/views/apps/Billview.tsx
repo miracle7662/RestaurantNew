@@ -120,6 +120,87 @@ const ModernBill = () => {
   const inputRefs = useRef<(HTMLInputElement | null)[][]>([]);
   const kotInputRef = useRef<HTMLInputElement | null>(null);
 
+  // Fetch table data when tableId is present
+  const fetchTableData = useCallback(async () => {
+      if (!tableId || !user || !user.hotelid) return;
+
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await axios.get(`/api/TAxnTrnbill/unbilled-items/${tableId}`);
+        if (response.status !== 200) {
+          throw new Error(`Server responded with status ${response.status}`);
+        }
+        const data = response.data?.data || response.data;
+        if (!data) {
+          throw new Error('No data received from server');
+        }
+
+        // Map items to BillItem interface
+        const mappedItems: BillItem[] = data.items.map((item: any) => {
+          return {
+            itemCode: (item.itemId || item.ItemID || '').toString(),
+            itemId: item.itemId || item.ItemID || 0,
+            itemName: item.itemName || item.ItemName || item.item_name || '',
+            qty: item.netQty || item.Qty || 0,
+            rate: item.price || item.Price || item.Rate || 0,
+            total: (item.netQty || item.Qty || 0) * (item.price || item.Price || item.Rate || 0),
+            cgst: ((item.netQty || item.Qty || 0) * (item.price || item.Price || item.Rate || 0)) * 0.025,
+            sgst: ((item.netQty || item.Qty || 0) * (item.price || item.Price || item.Rate || 0)) * 0.025,
+            igst: 0,
+            mkotNo: item.kotNo ? item.kotNo.toString() : (item.KOTNo ? item.KOTNo.toString() : ''),
+            specialInstructions: item.specialInstructions || item.SpecialInst || ''
+          };
+        });
+
+        // Always add a blank row at the end for new item entry
+        mappedItems.push({ itemCode: '', itemId: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' });
+
+        setBillItems(mappedItems);
+
+        // Update header fields from data.header and data.kotNo if available
+        console.log('API Response Header:', data.header);
+        if (data.header) {
+          setTxnId(data.header.TxnID);
+          setWaiter(data.header.waiter || 'ASD');
+          setPax(data.header.pax || 1);
+          if (data.header.table_name) {
+            setTableNo(data.header.table_name);
+          }
+        }
+        if (data.kotNo !== null && data.kotNo !== undefined) {
+          setKotNo(String(data.kotNo));
+           setDefaultKot(Number(data.kotNo) + 1); // Show maxKOT + 1
+          setEditableKot(Number(data.kotNo) + 1); // Allow editing from maxKOT + 1
+        }
+
+        // Calculate totals
+        calculateTotals(mappedItems);
+      } catch (err: any) {
+        if (err.response) {
+          setError(`Server responded with status ${err.response.status}: ${err.response.statusText}`);
+        } else {
+          setError(err.message || 'Failed to fetch table data');
+        }
+        console.error('Error fetching table data:', err);
+      } finally {
+        setLoading(false);
+      }
+    }, [tableId, user]);
+
+
+
+  const printBill = async () => {
+    if (!txnId) return;
+    try {
+      const billNo = await generateBill();
+      alert('Bill printed successfully');
+    } catch (error) {
+      console.error('Error printing bill:', error);
+      alert('Error printing bill');
+    }
+  };
+
   // Navigable columns: 0: Item Code, 1: Qty, 2: Item Name, 3: Rate, 4: Special Instructions
   const navigableColumns = [0, 1, 2, 3, 4];
 
@@ -204,6 +285,22 @@ const ModernBill = () => {
     fetchPaymentModes();
   }, [selectedOutletId]);
 
+  // Fetch global KOT number based on selected outlet
+  useEffect(() => {
+    const fetchGlobalKOT = async () => {
+      try {
+        if (!selectedOutletId) return;
+        const response = await axios.get(`/api/TAxnTrnbill/global-kot-number?outletid=${selectedOutletId}`);
+        const nextKOT = response.data.data.nextKOT;
+        setDefaultKot(nextKOT);
+        setEditableKot(nextKOT);
+      } catch (error) {
+        console.error('Failed to fetch global KOT number:', error);
+      }
+    };
+    fetchGlobalKOT();
+  }, [selectedOutletId]);
+
   useEffect(() => {
     // 1. Fetch menu items from the API when the component mounts
     const fetchMenuItems = async () => {
@@ -279,71 +376,7 @@ const ModernBill = () => {
     };
   }, [navigate]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Fetch table data when tableId is present
-  const fetchTableData = useCallback(async () => {
-    if (!tableId || !user || !user.hotelid || !user.outletid) return;
 
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await axios.get('/api/TAxnTrnbill', {
-        params: {
-          TableID: tableId,
-          HotelID: user.hotelid,
-          OutletID: user.outletid
-        }
-      });
-
-      const data = res.data;
-      if (!Array.isArray(data)) return;
-
-      // Map items to BillItem interface
-      const mappedItems: BillItem[] = data.map((item: any) => ({
-        itemCode: (item.itemId || item.ItemID || '').toString(),
-        itemId: item.itemId || item.ItemID || 0,
-        itemName: item.itemName || item.ItemName || item.item_name || '',
-        qty: item.netQty || item.Qty || 0,
-        rate: item.price || item.Price || item.Rate || 0,
-        total: (item.netQty || item.Qty || 0) * (item.price || item.Price || item.Rate || 0),
-        cgst: ((item.netQty || item.Qty || 0) * (item.price || item.Price || item.Rate || 0)) * 0.025,
-        sgst: ((item.netQty || item.Qty || 0) * (item.price || item.Price || item.Rate || 0)) * 0.025,
-        igst: 0,
-        mkotNo: item.kotNo ? item.kotNo.toString() : (item.KOTNo ? item.KOTNo.toString() : ''),
-        specialInstructions: item.specialInstructions || item.SpecialInst || ''
-      }));
-
-      // Always add a blank row at the end for new item entry
-      mappedItems.push({ itemCode: '', itemId: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' });
-
-      setBillItems(mappedItems);
-
-      if (data.length > 0) {
-        setTxnId(data[0].TxnID);
-        setWaiter(data[0].Steward || 'ASD');
-        setPax(data[0].PAX || 1);
-        if (data[0].table_name) {
-          setTableNo(data[0].table_name);
-        }
-        if (data[0].kotNo !== null && data[0].kotNo !== undefined) {
-          setKotNo(String(data[0].kotNo));
-          setDefaultKot(Number(data[0].kotNo));
-          setEditableKot(Number(data[0].kotNo));
-        }
-      }
-
-      // Calculate totals
-      calculateTotals(mappedItems);
-    } catch (err: any) {
-      console.error(err);
-      setError(err.message || 'Failed to fetch table data');
-    } finally {
-      setLoading(false);
-    }
-  }, [tableId, user]);
-
-  useEffect(() => {
-    fetchTableData();
-  }, [fetchTableData]);
 
   // Focus on the blank row's item code input when the page opens or billItems change
   useEffect(() => {
@@ -401,7 +434,7 @@ const ModernBill = () => {
     calculateTotals(updated);
   };
 
- const handleKeyPress = (index: number, field: keyof BillItem) => (e: KeyboardEvent<any>) => {
+   const handleKeyPress = (index: number, field: keyof BillItem) => (e: KeyboardEvent<any>) => {
     if (e.key === "Enter") {
       if (field === 'itemCode') {
         // Only move focus to qty if itemCode has been typed
@@ -530,9 +563,6 @@ const ModernBill = () => {
 
       alert('KOT saved successfully');
 
-      // Fetch updated table data after KOT save
-      await fetchTableData();
-
       // If print is requested, print
       if (print) {
         console.log("🖨️ Print requested");
@@ -615,19 +645,8 @@ const ModernBill = () => {
     }
   };
 
-  const printBill = async () => {
-    if (!txnId) return;
-    try {
-      const response = await axios.put(`/api/TAxnTrnbill/${txnId}/print`);
-      alert('Bill printed successfully');
-      // Handle print data if needed
-      console.log('Bill Print Data:', response.data);
-    } catch (error) {
-      console.error('Error printing bill:', error);
-      alert('Error printing bill');
-    }
-  };
 
+ 
   const generateBill = async () => {
     if (!txnId) return;
     try {
@@ -1181,7 +1200,7 @@ const ModernBill = () => {
   <Col md={1}>
     <div className="info-box p-2 h-100 border rounded text-center d-flex flex-column justify-content-center">
       <div className="text-uppercase text-secondary small mb-1 fw-semibold">Table No</div>
-      <div className="fw-bold fs-4" style={{ color: '#333' }}>{tableNo || '--'}</div>
+      <div className="fw-bold fs-4" style={{ color: '#333', cursor: 'pointer' }} onClick={fetchTableData}>{tableNo || '--'}</div>
     </div>
   </Col>
   
@@ -1217,34 +1236,52 @@ const ModernBill = () => {
     </div>
   </Col>
   
-  {/* KOT No - Split display like image */}
-  <Col md={2}>
-    <div className="info-box p-2 h-100 border rounded text-center d-flex flex-column justify-content-center">
-      <div className="text-uppercase text-secondary small mb-1 fw-semibold">KOT No.</div>
-      <div className="d-flex align-items-center justify-content-center border rounded bg-light mx-auto" style={{ maxWidth: '140px' }}>
-        <div className="fw-bold fs-5 px-2 py-1" style={{ color: '#333', borderRight: '1px solid #dee2e6', minWidth: '60px' }}>
-          {defaultKot || '--'}
-        </div>
-        <input
-          type="text"
-          value={editableKot || ''}
-          onChange={(e) => setEditableKot(e.target.value ? Number(e.target.value) : null)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              const firstQtyRef = inputRefs.current[0]?.[1];
-              if (firstQtyRef) {
-                firstQtyRef.focus();
-                firstQtyRef.select();
-              }
-            }
-          }}
-          className="border-0 fw-bold text-center bg-transparent"
-          style={{ width: '60px', color: '#333' }}
-          placeholder=""
-        />
-      </div>
+  {/* KOT No - Editable input */}
+<Col md={2}>
+  <div className="info-box p-2 h-100 border rounded text-center d-flex flex-column justify-content-center">
+    <div className="text-uppercase text-secondary small mb-1 fw-semibold">
+      KOT No.
     </div>
-  </Col>
+
+    <div
+      className="d-flex align-items-center justify-content-center border rounded bg-light mx-auto"
+      style={{ maxWidth: '140px' }}
+    >
+      {/* DEFAULT KOT (LEFT) */}
+      <div
+        className="fw-bold fs-5 px-2 py-1"
+        style={{
+          color: '#333',
+          borderRight: '1px solid #dee2e6',
+          minWidth: '60px'
+        }}
+      >
+        {defaultKot || '--'}
+      </div>
+
+      {/* EDITABLE KOT (RIGHT) */}
+      <input
+        type="number"
+        value={editableKot || ''}
+        onChange={(e) =>
+          setEditableKot(e.target.value ? Number(e.target.value) : null)
+        }
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            const firstQtyRef = inputRefs.current[0]?.[1];
+            if (firstQtyRef) {
+              firstQtyRef.focus();
+              firstQtyRef.select();
+            }
+          }
+        }}
+        className="border-0 fw-bold text-center bg-transparent"
+        style={{ width: '60px', color: '#333' }}
+      />
+    </div>
+  </div>
+</Col>
+
   
   {/* Date - Centered */}
   <Col md={2}>
