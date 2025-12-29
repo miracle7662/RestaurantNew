@@ -188,6 +188,74 @@ const ModernBill = () => {
       }
     }, [tableId, user]);
 
+  // Fetch billed items for the table
+  const fetchBilledItems = useCallback(async () => {
+      if (!tableId || !user || !user.hotelid) return;
+
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await axios.get(`/api/TAxnTrnbill/billed-bill/by-table/${tableId}`);
+        if (response.status !== 200) {
+          throw new Error(`Server responded with status ${response.status}`);
+        }
+        const data = response.data?.data || response.data;
+        if (!data) {
+          throw new Error('No data received from server');
+        }
+
+        // Map items to BillItem interface (assuming similar structure)
+        const items = data.items || [];
+        const mappedItems: BillItem[] = items.map((item: any) => {
+          return {
+            itemCode: (item.itemId || item.ItemID || '').toString(),
+            itemId: item.itemId || item.ItemID || 0,
+            itemName: item.itemName || item.ItemName || item.item_name || '',
+            qty: item.netQty || item.Qty || 0,
+            rate: item.price || item.Price || item.Rate || 0,
+            total: (item.netQty || item.Qty || 0) * (item.price || item.Price || item.Rate || 0),
+            cgst: ((item.netQty || item.Qty || 0) * (item.price || item.Price || item.Rate || 0)) * 0.025,
+            sgst: ((item.netQty || item.Qty || 0) * (item.price || item.Price || item.Rate || 0)) * 0.025,
+            igst: 0,
+            mkotNo: item.kotNo ? item.kotNo.toString() : (item.KOTNo ? item.KOTNo.toString() : ''),
+            specialInstructions: item.specialInstructions || item.SpecialInst || ''
+          };
+        });
+
+        // For billed items, do not add a blank row as editing is not allowed
+        setBillItems(mappedItems);
+
+        // Update header fields from data.header if available
+        console.log('Billed API Response Header:', data.header);
+        if (data.header && Object.keys(data.header).length > 0) {
+          setTxnId(data.header.TxnID);
+          setWaiter(data.header.waiter || 'ASD');
+          setPax(data.header.pax || 1);
+          if (data.header.table_name) {
+            setTableNo(data.header.table_name);
+          }
+        } else {
+          // Handle missing or empty header by resetting to defaults
+          setTxnId(null);
+          setWaiter('ASD');
+          setPax(1);
+          setTableNo(tableName || 'Loading...');
+        }
+
+        // Calculate totals
+        calculateTotals(mappedItems);
+      } catch (err: any) {
+        if (err.response) {
+          setError(`Server responded with status ${err.response.status}: ${err.response.statusText}`);
+        } else {
+          setError(err.message || 'Failed to fetch billed data');
+        }
+        console.error('Error fetching billed data:', err);
+      } finally {
+        setLoading(false);
+      }
+    }, [tableId, user]);
+
 
 
  
@@ -237,9 +305,9 @@ const ModernBill = () => {
     const roundedFinalAmount = Math.round(totalBeforeRoundOff);
     const ro = roundedFinalAmount - totalBeforeRoundOff;
 
-    setGrossAmount(gross);
-    setTotalCgst(cgstTotal);
-    setTotalSgst(sgstTotal);
+  setGrossAmount(gross);
+  setTotalCgst(cgstTotal);
+  setTotalSgst(sgstTotal);
   setFinalAmount(roundedFinalAmount);
   setRoundOff(ro);
   setBillItems(updatedItems);
@@ -654,8 +722,8 @@ const printBill = async () => {
       alert('Bill printed successfully');
       // Handle print data if needed
       console.log('Bill Print Data:', response.data);
-      // After printing, fetch the latest bill data
-      await fetchTableData();
+      // After printing, fetch the billed items
+      await fetchBilledItems();
     } catch (error) {
       console.error('Error printing bill:', error);
       alert('Error printing bill');
