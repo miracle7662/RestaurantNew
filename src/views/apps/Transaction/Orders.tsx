@@ -2774,43 +2774,52 @@ const Order = () => {
     setShowTaxModal(false);
   };
 
-  const handleSaveNCKOT = async () => {
-    if (!currentTxnId) {
-      toast.error('No active transaction found. Please save a KOT first.');
-      return;
-    }
-    if (!ncName || !ncPurpose) {
-      toast.error('NC Name and Purpose are required.');
-      return;
-    }
+ const handleSaveNCKOT = async () => {
+  if (!currentTxnId) {
+    toast.error('No active transaction found. Please save a KOT first.');
+    return;
+  }
+  if (!ncName || !ncPurpose) {
+    toast.error('NC Name and Purpose are required.');
+    return;
+  }
 
-    setLoading(true);
-    try {
-      const response = await fetch(`http://localhost:3001/api/TAxnTrnbill/${currentTxnId}/apply-nckot`, {
+  setLoading(true);
+  try {
+    const response = await fetch(
+      `http://localhost:3001/api/TAxnTrnbill/${currentTxnId}/apply-nckot`,
+      {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ NCName: ncName, NCPurpose: ncPurpose }),
-      });
-
-      const result = await response.json();
-      if (result.success) {
-        toast.success('NCKOT applied successfully to all items.');
-        // Clear UI similar to Print & Save KOT
-        setItems([]);
-        setSelectedTable(null);
-        setShowOrderDetails(false);
-        setShowNCKOTModal(false);
-      } else {
-        throw new Error(result.message || 'Failed to apply NCKOT.');
       }
-    } catch (error: any) {
-      toast.error(error.message || 'An error occurred while applying NCKOT.');
-    } finally {
-      setLoading(false);
-      setNcName('');
-      setNcPurpose('');
+    );
+
+    const result = await response.json();
+
+    if (result.success) {
+      toast.success('NCKOT applied successfully to all items.');
+
+      // ✅ 1️⃣ TABLE KO VACANT KARO (FRONTEND)
+      await fetchTableManagement();
+
+      // ✅ 2️⃣ UI CLEAR (already correct)
+      setItems([]);
+      setSelectedTable(null);
+      setShowOrderDetails(false);
+      setShowNCKOTModal(false);
+    } else {
+      throw new Error(result.message || 'Failed to apply NCKOT.');
     }
-  };
+  } catch (error: any) {
+    toast.error(error.message || 'An error occurred while applying NCKOT.');
+  } finally {
+    setLoading(false);
+    setNcName('');
+    setNcPurpose('');
+  }
+};
+
 
   const handleCloseAuthModal = () => {
     setShowAuthModal(false);

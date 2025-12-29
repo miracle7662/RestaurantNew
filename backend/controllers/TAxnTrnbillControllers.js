@@ -2029,28 +2029,28 @@ exports.applyNCKOT = async (req, res) => {
       // Update the bill header
       db.prepare(`
         UPDATE TAxnTrnbill
-        SET isNCKOT = 1, NCName = ?, NCPurpose = ? , issetteled  = 1
-        WHERE TxnID = ? 
+        SET isNCKOT = 1, NCName = ?, NCPurpose = ?, isSetteled = 1
+        WHERE TxnID = ?
       `).run(NCName, NCPurpose, Number(id));
-      
-
-      
-
-      
 
       // Update all associated detail items
       db.prepare('UPDATE TAxnTrnbilldetails SET isNCKOT = 1 WHERE TxnID = ?').run(Number(id));
 
-       db.prepare(`
-        UPDATE msttablemanagement
-        SET Status = 0
-        WHERE TableID = ?
-      `).run(bill.TableID);
+      // Show the UPDATE statement for table status
+      console.log(`UPDATE msttablemanagement SET Status = 0 WHERE TableID = ${bill.TableID}`);
 
+      if (bill.TableID) {
+        db.prepare(`
+          UPDATE msttablemanagement
+          SET status = 0
+          WHERE tableid = ?
+        `).run(bill.TableID);
+      }
     });
     
 
 
+    tx();
     res.json(ok('NCKOT applied to the entire bill successfully.'));
   } catch (error) {
     console.error('Error in applyNCKOT:', error);
