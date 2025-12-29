@@ -302,6 +302,12 @@ const ModernBill = () => {
   }, [selectedOutletId]);
 
   useEffect(() => {
+    if (tableId) {
+      fetchTableData();
+    }
+  }, [tableId, fetchTableData]);
+
+  useEffect(() => {
     // 1. Fetch menu items from the API when the component mounts
     const fetchMenuItems = async () => {
       try {
