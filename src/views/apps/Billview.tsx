@@ -9,6 +9,7 @@ import CustomerModal from './Transaction/Customers';
 interface BillItem {
   itemCode: string;
   itemId: number;
+  item_no: number;
   itemName: string;
   qty: number;
   rate: number;
@@ -43,7 +44,7 @@ const ModernBill = () => {
   const [headerHeight, setHeaderHeight] = useState(0);
   const [toolbarHeight, setToolbarHeight] = useState(0);
 
-  const [billItems, setBillItems] = useState<BillItem[]>([{ itemCode: '', itemId: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' }]);
+  const [billItems, setBillItems] = useState<BillItem[]>([{ itemCode: '', itemId: 0, item_no: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' }]);
 
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
 
@@ -139,8 +140,9 @@ const ModernBill = () => {
         // Map items to BillItem interface
         const mappedItems: BillItem[] = data.items.map((item: any) => {
           return {
-            itemCode: (item.itemId || item.ItemID || '').toString(),
-            itemId: item.itemId || item.ItemID || 0,
+            itemCode: (item.item_no || item.item_no || '').toString(),
+            // itemId: item.itemId || item.ItemID || 0,
+            item_no: item.item_no || item.ItemNo || '',
             itemName: item.itemName || item.ItemName || item.item_name || '',
             qty: item.netQty || item.Qty || 0,
             rate: item.price || item.Price || item.Rate || 0,
@@ -154,7 +156,7 @@ const ModernBill = () => {
         });
 
         // Always add a blank row at the end for new item entry
-        mappedItems.push({ itemCode: '', itemId: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' });
+        mappedItems.push({ itemCode: '',  itemId: 0, item_no: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' });
 
         setBillItems(mappedItems);
 
@@ -189,72 +191,7 @@ const ModernBill = () => {
     }, [tableId, user]);
 
   // Fetch billed items for the table
-  const fetchBilledItems = useCallback(async () => {
-      if (!tableId || !user || !user.hotelid) return;
 
-      setLoading(true);
-      setError(null);
-      try {
-        const response = await axios.get(`/api/TAxnTrnbill/billed-bill/by-table/${tableId}`);
-        if (response.status !== 200) {
-          throw new Error(`Server responded with status ${response.status}`);
-        }
-        const data = response.data?.data || response.data;
-        if (!data) {
-          throw new Error('No data received from server');
-        }
-
-        // Map items to BillItem interface (assuming similar structure)
-        const items = data.items || [];
-        const mappedItems: BillItem[] = items.map((item: any) => {
-          return {
-            itemCode: (item.itemId || item.ItemID || '').toString(),
-            itemId: item.itemId || item.ItemID || 0,
-            itemName: item.itemName || item.ItemName || item.item_name || '',
-            qty: item.netQty || item.Qty || 0,
-            rate: item.price || item.Price || item.Rate || 0,
-            total: (item.netQty || item.Qty || 0) * (item.price || item.Price || item.Rate || 0),
-            cgst: ((item.netQty || item.Qty || 0) * (item.price || item.Price || item.Rate || 0)) * 0.025,
-            sgst: ((item.netQty || item.Qty || 0) * (item.price || item.Price || item.Rate || 0)) * 0.025,
-            igst: 0,
-            mkotNo: item.kotNo ? item.kotNo.toString() : (item.KOTNo ? item.KOTNo.toString() : ''),
-            specialInstructions: item.specialInstructions || item.SpecialInst || ''
-          };
-        });
-
-        // For billed items, do not add a blank row as editing is not allowed
-        setBillItems(mappedItems);
-
-        // Update header fields from data.header if available
-        console.log('Billed API Response Header:', data.header);
-        if (data.header && Object.keys(data.header).length > 0) {
-          setTxnId(data.header.TxnID);
-          setWaiter(data.header.waiter || 'ASD');
-          setPax(data.header.pax || 1);
-          if (data.header.table_name) {
-            setTableNo(data.header.table_name);
-          }
-        } else {
-          // Handle missing or empty header by resetting to defaults
-          setTxnId(null);
-          setWaiter('ASD');
-          setPax(1);
-          setTableNo(tableName || 'Loading...');
-        }
-
-        // Calculate totals
-        calculateTotals(mappedItems);
-      } catch (err: any) {
-        if (err.response) {
-          setError(`Server responded with status ${err.response.status}: ${err.response.statusText}`);
-        } else {
-          setError(err.message || 'Failed to fetch billed data');
-        }
-        console.error('Error fetching billed data:', err);
-      } finally {
-        setLoading(false);
-      }
-    }, [tableId, user]);
 
 
 
@@ -521,7 +458,7 @@ const ModernBill = () => {
       } else if (field === 'qty') {
         // Only add new row if current item has data (itemId > 0 or itemName not empty)
         if (billItems[index].itemId > 0 || billItems[index].itemName.trim() !== '') {
-          const newBillItems = [...billItems, { itemCode: "", itemId: 0, itemName: "", qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' }];
+          const newBillItems = [...billItems, { itemCode: "", itemId: 0, item_no: 0, itemName: "", qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' }];
           setBillItems(newBillItems);
           // Focus the new itemCode after state update
           setTimeout(() => {
@@ -723,7 +660,6 @@ const printBill = async () => {
       // Handle print data if needed
       console.log('Bill Print Data:', response.data);
       // After printing, fetch the billed items
-      await fetchBilledItems();
     } catch (error) {
       console.error('Error printing bill:', error);
       alert('Error printing bill');
@@ -783,7 +719,7 @@ const printBill = async () => {
     }
   };
   const resetBillState = () => {
-    setBillItems([{ itemCode: '', itemId: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' }]);
+    setBillItems([{ itemCode: '', item_no: 0, itemId: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' }]);
     setTxnId(null);
     setWaiter('ASD');
     setPax(1);
@@ -793,7 +729,7 @@ const printBill = async () => {
     setEditableKot(null);
     setCustomerMobile('');
     setCustomerName('');
-    calculateTotals([{ itemCode: '', itemId: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' }]);
+    calculateTotals([{ itemCode: '', item_no: 0, itemId: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' }]);
   };
 
 
@@ -1000,8 +936,8 @@ const printBill = async () => {
         }
 
         .modern-table {
-          font-size: 0.9rem;
-          margin-bottom: 0;          
+          font-size: 1.1rem;
+          margin-bottom: 0;
         }
 
         .modern-table th {
@@ -1021,8 +957,13 @@ const printBill = async () => {
         }
 
         .modern-table td, .modern-table th {
-          padding: 0.5rem;
-          vertical-align: middle;          
+          padding: 0.25rem;
+          vertical-align: middle;
+        }
+          form-control-sm1 {
+          font-size: 1.1rem;
+          font-weight: 600;
+          fount-style: bold;
         }
 
         .modern-table.table-bordered td, .modern-table.table-bordered th {
@@ -1214,6 +1155,7 @@ const printBill = async () => {
           flex: 1;
           overflow-y: auto;
           height: 100%;
+          
         }
 
         .summary-section .modern-table thead tr {
@@ -1222,6 +1164,7 @@ const printBill = async () => {
 
         .summary-section .modern-table tbody tr {
           background: white;
+          fount-size: 70px;
         }
 
         .summary-section .modern-table td {
@@ -1242,15 +1185,20 @@ const printBill = async () => {
           justify-content: space-between;
         }
 
+   
         @media (max-width: 768px) {
           .modern-table {
             font-size: 0.8rem;
           }
 
           .modern-table td, .modern-table th {
-            padding: 0.4rem;
+            padding: 0.1rem;
           }
-
+             .modern-table tr, .modern-table th {
+            padding: 0.1rem;
+            height: 10px;
+          }
+           
           .function-btn {
             font-size: 0.7rem;
             padding: 3px 8px;
@@ -1332,11 +1280,11 @@ const printBill = async () => {
     >
       {/* DEFAULT KOT (LEFT) */}
       <div
-        className="fw-bold fs-5 px-2 py-1"
+        className="fw-bold fs-5 px-2 py-1 "
         style={{
           color: '#333',
           borderRight: '1px solid #dee2e6',
-          minWidth: '60px'
+          minWidth: '150px'
         }}
       >
         {defaultKot || '--'}
@@ -1359,7 +1307,7 @@ const printBill = async () => {
           }
         }}
         className="border-0 fw-bold text-center bg-transparent"
-        style={{ width: '60px', color: '#333' }}
+        style={{ width: '150px', color: '#333' }}
       />
     </div>
   </div>
@@ -1442,7 +1390,7 @@ const printBill = async () => {
                 <Table responsive bordered className="modern-table">
                   <thead>
                     <tr className="table-primary">
-                      <th style={{ width: '80px' }}>Item Code</th>
+                      <th style={{ width: '80px' }}> Code</th>
                       <th style={{ width: '400px' }}>Item Name</th >
                       <th className="text-center" style={{ width: '100px' }}>Qty</th>
                       <th className="text-end" style={{ width: '100px' }}>Rate</th>
@@ -1454,7 +1402,7 @@ const printBill = async () => {
                   <tbody>
                     {billItems.map((item, index) => (
                       <tr key={index}>
-                        <td style={{ width: '80px' }}>
+                        <td style={{ width: '80px'  }}>
                           <Form.Control
                             ref={(el) => {
                               if (!inputRefs.current[index]) inputRefs.current[index] = [];
@@ -1470,8 +1418,8 @@ const printBill = async () => {
                                 e.preventDefault();
                               }
                             }}
-                            className="form-control-sm"
-                            style={{ width: '100%', border: 'none', background: 'transparent', padding: '0', outline: 'none' }}
+                            className="form-control"
+                            style={{ width: '100%', border: 'none', fontSize: '16px',  background: 'transparent', padding: '0', outline: 'none' }}
                           />
                         </td>
                         <td style={{ width: '400px' }}>
@@ -1490,9 +1438,9 @@ const printBill = async () => {
                                 e.preventDefault();
                               }
                             }}
-                            className="form-control-sm"
+                            className="form-control-sm1"
                             list="itemNames"
-                            style={{ width: '100%', border: 'none', background: 'transparent', padding: '0', outline: 'none' }}
+                            style={{ width: '100%',  border: 'none', fontSize: '16px', background: 'transparent', padding: '0', outline: 'none' }}
                           />
                         </td>
                         <td className="text-center" style={{ width: '100px' }}>
@@ -1511,8 +1459,8 @@ const printBill = async () => {
                                 e.preventDefault();
                               }
                             }}
-                            className="form-control-sm text-center"
-                            style={{ width: '100%', border: 'none', background: 'transparent', padding: '0', outline: 'none' }}
+                            className="form-control-sm1 text-center"
+                            style={{ width: '100%', border: 'none', background: 'transparent',  fontSize: '16px',padding: '0', outline: 'none' }}
                           />
                         </td>
                         <td className="text-end" style={{ width: '100px' }}>
@@ -1527,8 +1475,8 @@ const printBill = async () => {
                                 e.preventDefault();
                               }
                             }}
-                            className="form-control-sm text-end"
-                            style={{ width: '100%', border: 'none', background: 'transparent', padding: '0', outline: 'none' }}
+                            className="form-control-sm1 text-end"
+                            style={{ width: '100%', fontSize: '16px', border: 'none', background: 'transparent', padding: '0', outline: 'none' }}
                           />
                         </td>
                         <td className="text-end" style={{ width: '100px' }}>{item.total.toFixed(2)}</td>
@@ -1547,8 +1495,8 @@ const printBill = async () => {
                                 e.preventDefault();
                               }
                             }}
-                            className="form-control-sm"
-                            style={{ width: '100%', border: 'none', background: 'transparent', padding: '0', outline: 'none' }}
+                            className="form-control-sm1"
+                            style={{ width: '100%', fontSize: '18px', border: 'none',   background: 'transparent', padding: '0', outline: 'none' }}
                           />
                         </td>
                       </tr>

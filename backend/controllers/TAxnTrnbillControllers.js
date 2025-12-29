@@ -1289,7 +1289,7 @@ exports.getUnbilledItemsByTable = async (req, res) => {
     const bill = db.prepare(`
       SELECT TxnID
       FROM TAxnTrnbill
-      WHERE TableID = ? AND isBilled = 0 AND isCancelled = 0 AND isSetteled = 0
+      WHERE TableID = ?  AND isCancelled = 0 AND isSetteled = 0
     `).get(Number(tableId));
 
     let kotNo = null;
@@ -1322,7 +1322,7 @@ exports.getUnbilledItemsByTable = async (req, res) => {
       LEFT JOIN msttablemanagement t ON d.TableID = t.tableid
       JOIN TAxnTrnbill b ON d.TxnID = b.TxnID
       LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
-      WHERE b.TableID = ? AND b.isBilled = 0 AND d.isCancelled = 0 AND (d.Qty - COALESCE(d.RevQty, 0)) > 0
+      WHERE b.TableID = ? AND d.isCancelled = 0 AND (d.Qty - COALESCE(d.RevQty, 0)) > 0
     `).all(Number(tableId));
 
   // Fetch reversed items from the log for this transaction
@@ -1331,6 +1331,7 @@ exports.getUnbilledItemsByTable = async (req, res) => {
       SELECT
         l.ReversalID as reversalLogId,
         l.ItemID,
+        d.item_no,
         COALESCE(m.item_name, 'Unknown Item') AS ItemName,
         l.ReversedQty as reversedQty,
         d.RuntimeRate as price,
