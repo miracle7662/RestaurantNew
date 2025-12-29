@@ -172,8 +172,6 @@ const ModernBill = () => {
         }
         if (data.kotNo !== null && data.kotNo !== undefined) {
           setKotNo(String(data.kotNo));
-           setDefaultKot(Number(data.kotNo) + 1); // Show maxKOT + 1
-          setEditableKot(Number(data.kotNo) + 1); // Allow editing from maxKOT + 1
         }
 
         // Calculate totals
@@ -1280,11 +1278,11 @@ const printBill = async () => {
     >
       {/* DEFAULT KOT (LEFT) */}
       <div
-        className="fw-bold fs-5 px-2 py-1 "
+        className="fw-bold fs-5 px-2 py-1"
         style={{
           color: '#333',
           borderRight: '1px solid #dee2e6',
-          minWidth: '150px'
+          minWidth: '100px'
         }}
       >
         {defaultKot || '--'}
@@ -1307,7 +1305,7 @@ const printBill = async () => {
           }
         }}
         className="border-0 fw-bold text-center bg-transparent"
-        style={{ width: '150px', color: '#333' }}
+        style={{ width: '100px', color: '#333' }}
       />
     </div>
   </div>
