@@ -1,6 +1,6 @@
 import Copyright from '@/components/Misc/Copyright'
 import { Stack } from 'react-bootstrap'
-import { Link } from 'react-router-dom'
+
 
 const Footer = () => {
   return (
@@ -12,9 +12,9 @@ const Footer = () => {
           gap={3}
           className="ms-auto d-none d-sm-flex"
           style={{ lineHeight: 'normal' }}>
-          <Link to="../docs/index.html">Documentation</Link>
+          {/* <Link to="../docs/index.html">Documentation</Link>
           <Link to="../docs/changelog.html">Changelog</Link>
-          <Link to="../docs/support.html">Support</Link>
+          <Link to="../docs/support.html">Support</Link> */}
         </Stack>
       </Stack>
     </footer>

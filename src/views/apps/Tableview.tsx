@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { useAuthContext } from '@/common';
 import { useNavigate } from 'react-router-dom';
@@ -13,21 +13,21 @@ interface Table {
   hasCustomer?: boolean;
   hasView?: boolean;
   outletid?: number;
+  departmentid?: number;
+  department_name?: string;
 }
 
-
-
-interface Outlet {
-  outletid: number;
-  outlet_name: string;
+interface Department {
+  departmentid: number;
+  department_name: string;
 }
 
 // Table Card Component
 const TableCard: React.FC<{ table: Table; onClick: () => void }> = ({ table, onClick }) => {
   const getStatusClass = (status: TableStatus): string => {
     switch (status) {
-      case 'running': return 'bg-primary';
-      case 'printed': return 'bg-success';
+      case 'running': return 'bg-success';
+      case 'printed': return 'bg-danger';
       case 'paid': return 'bg-white';
       case 'running-kot': return 'bg-warning-orange';
       case 'occupied': return 'bg-primary'; // Map 'occupied' to 'running' style
@@ -41,18 +41,16 @@ const TableCard: React.FC<{ table: Table; onClick: () => void }> = ({ table, onC
     <div
       className={`${getStatusClass(table.status)} cursor-pointer table-card d-flex align-items-center justify-content-center`}
       style={{
-        width: '100%',
-        height: '100%',
-        minWidth: '80px',
-        minHeight: '80px',
-        borderRadius: '8px',
+        width: '100px',
+        height: '70px',
+        borderRadius: '6px',
         cursor: 'pointer',
         border: '1px solid #ddd',
-        aspectRatio: '1 / 1'
+        padding: '4px'
       }}
       onClick={onClick}
     >
-      <span className="text-dark fw-bold" style={{ fontSize: '14px' }}>{table.name}</span>
+      <span className="text-dark fw-bold" style={{ fontSize: '13px', lineHeight: '1.2' }}>{table.name}</span>
     </div>
   );
 };
@@ -92,14 +90,15 @@ const Legend: React.FC = () => {
 // Main App Component
 export default function App() {
   const [selectedLayout, setSelectedLayout] = useState('Default Layout');
-  const [selectedOutletId, setSelectedOutletId] = useState<number | 'all'>('all');
-  const [outlets, setOutlets] = useState<Outlet[]>([]);
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState<number | 'all'>('all');
+  const [departments, setDepartments] = useState<Department[]>([]);
   const [allTables, setAllTables] = useState<Table[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [tableInput, setTableInput] = useState('');
   const { user } = useAuthContext();
   const navigate = useNavigate();
+  const tableInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const fetchTables = async () => {
@@ -119,6 +118,8 @@ export default function App() {
           name: t.table_name,
           status: t.status, // 'occupied', 'available', 'reserved'
           outletid: t.outletid,
+          departmentid: t.departmentid,
+          department_name: t.department_name,
           // You might need to add logic for hasCustomer and hasView based on bill status
         }));
         setAllTables(mappedTables);
@@ -127,19 +128,18 @@ export default function App() {
       }
     };
 
-    const fetchOutlets = async () => {
+    const fetchDepartments = async () => {
       try {
         if (!user) {
           throw new Error('User not authenticated');
         }
-        const params = new URLSearchParams({ role_level: user.role_level, hotelid: String(user.hotelid) });
-        const response = await fetch(`http://localhost:3001/api/outlets?${params.toString()}`);
+        const response = await fetch(`http://localhost:3001/api/table-department`);
 
         if (!response.ok) {
-          throw new Error('Failed to fetch outlets');
+          throw new Error('Failed to fetch departments');
         }
         const data = await response.json();
-        setOutlets(data);
+        setDepartments(data.data || data);
       } catch (err: any) {
         setError(err.message);
       }
@@ -148,7 +148,7 @@ export default function App() {
     const fetchData = async () => {
       setLoading(true);
       setError(null);
-      await Promise.all([fetchTables(), fetchOutlets()]);
+      await Promise.all([fetchTables(), fetchDepartments()]);
       setLoading(false);
     };
 
@@ -169,45 +169,43 @@ export default function App() {
     };
   }, [user, navigate]);
 
-  // Group tables by their outletid
-  const tablesByOutlet = allTables.reduce((acc, table) => {
-    if (table.outletid) {
-      if (!acc[table.outletid]) {
-        acc[table.outletid] = [];
+  // Focus the table input field when the component mounts
+  useEffect(() => {
+    if (tableInputRef.current) {
+      tableInputRef.current.focus();
+    }
+  }, []);
+
+  // Group tables by their departmentid
+  const tablesByDepartment = allTables.reduce((acc, table) => {
+    if (table.departmentid) {
+      if (!acc[table.departmentid]) {
+        acc[table.departmentid] = [];
       }
-      acc[table.outletid].push(table);
+      acc[table.departmentid].push(table);
     }
     return acc;
   }, {} as Record<number, Table[]>);
 
-  // Filter outlets to show based on dropdown selection
-  const displayedOutlets = selectedOutletId === 'all' ? outlets : outlets.filter(o => o.outletid === selectedOutletId);
+  // Filter departments to show based on dropdown selection
+  const displayedDepartments = selectedDepartmentId === 'all' ? departments : departments.filter(d => d.departmentid === selectedDepartmentId);
 
   const handleRefresh = () => {
     window.location.reload();
   };
 
   const handleTableClick = (table: Table) => {
-    navigate('/apps/Billview', { state: { tableId: table.id } });
+    navigate('/apps/Billview', { state: { tableId: table.id, tableName: table.name, outletId: table.outletid } });
   };
 
   const handleTableInputEnter = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
-      const num = parseInt(tableInput);
-      if (!isNaN(num) && selectedOutletId !== 'all') {
-        const tables = tablesByOutlet[selectedOutletId] || [];
-        const table = tables.find(t => t.id === num);
+      const input = tableInput.trim();
+      if (input) {
+        const tables = selectedDepartmentId === 'all' ? allTables : tablesByDepartment[selectedDepartmentId] || [];
+        const table = tables.find(t => t.name === input);
         if (table) {
-          // Scroll to section first
-          const outlet = outlets.find(o => o.outletid === selectedOutletId);
-          const section = document.querySelector(`#outlet-section-${outlet?.outletid}`);
-          section?.scrollIntoView({ behavior: 'smooth' });
-          // Then to table
-          setTimeout(() => {
-            const tableId = `table-${table.id}-outlet-${selectedOutletId}`;
-            const card = document.getElementById(tableId);
-            card?.scrollIntoView({ behavior: 'smooth' });
-          }, 500);
+          navigate('/apps/Billview', { state: { tableId: table.id, tableName: table.name, outletId: table.outletid } });
         }
       }
       setTableInput('');
@@ -276,10 +274,16 @@ export default function App() {
         }
         .table-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
-          gap: 8px;
+          grid-template-columns: repeat(auto-fill, 100px);
+          gap: 10px;
           margin-bottom: 20px;
+          justify-content: start;
         }
+          .full-screen-toolbar input[placeholder="Table No"] {
+          height: 40px;
+          border: 2px solid #007bff;
+          background-color: #e7f3ff;
+          box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
       `}</style>
 
       {/* Header */}
@@ -300,51 +304,38 @@ export default function App() {
 
       {/* Toolbar */}
       <div className="full-screen-toolbar">
-        <div className="container-fluid py-3 px-3">
+        <div className="container-fluid  ">
           <div className="row align-items-center">
             <div className="col-auto">
               <div className="d-flex gap-2">
                 <input
+                  ref={tableInputRef}
                   type="number"
                   className="form-control form-control-sm"
                   placeholder="Table No"
                   value={tableInput}
                   onChange={e => setTableInput(e.target.value)}
                   onKeyDown={handleTableInputEnter}
-                  style={{width: '100px'}}
+                  style={{width: '130px', fontWeight: 'bold',fontSize:'25px',height:'60px'}}
                 />
                 <select
                   className="form-select form-select-sm"
-                  value={selectedOutletId}
-                  onChange={e => setSelectedOutletId(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-                  style={{width: '120px'}}
+                  value={selectedDepartmentId}
+                  onChange={e => setSelectedDepartmentId(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+                  style={{width: '290px', fontWeight: 'bold',fontSize:'20px'}}
                 >
-                  <option value="all">All Outlets</option>
-                  {outlets.map(outlet => (
-                    <option key={outlet.outletid} value={outlet.outletid}>
-                      {outlet.outlet_name}
+                  <option value="all">All Departments</option>
+                  {departments.map(department => (
+                    <option key={department.departmentid} value={department.departmentid}>
+                      {department.department_name}
                     </option>
                   ))}
                 </select>
               </div>
             </div>
 
-            <div className="col">
+            <div className="col d-flex justify-content-end">
               <Legend />
-            </div>
-
-            <div className="col-auto">
-              <div className="d-flex gap-2 align-items-center">
-                <small className="text-muted">Floor Plan</small>
-                <select
-                  className="form-select form-select-sm"
-                  style={{ width: 'auto' }}
-                  value={selectedLayout}
-                  onChange={(e) => setSelectedLayout(e.target.value)}
-                >
-                  <option>Default Layout</option>
-                </select>
-              </div>
             </div>
           </div>
         </div>
@@ -358,20 +349,20 @@ export default function App() {
           <div className="alert alert-danger m-3">{error}</div>
         ) : (
           <div className="p-3">
-            {displayedOutlets.map(outlet => {
-              const tablesForOutlet = (tablesByOutlet[outlet.outletid] || []).sort((a, b) => parseInt(a.name) - parseInt(b.name));
+            {displayedDepartments.map(department => {
+              const tablesForDepartment = (tablesByDepartment[department.departmentid] || []).sort((a, b) => parseInt(a.name) - parseInt(b.name));
               return (
-                <div key={outlet.outletid} id={`outlet-section-${outlet.outletid}`} className="mb-4">
-                  <h6 className="fw-semibold mb-3 pb-2 border-bottom">{outlet.outlet_name}</h6>
-                  {tablesForOutlet.length > 0 ? (
+                <div key={department.departmentid} id={`department-section-${department.departmentid}`} className="mb-4">
+                  <h6 className="fw-semibold mb-3 pb-2 border-bottom">{department.department_name}</h6>
+                  {tablesForDepartment.length > 0 ? (
                     <div className="table-grid">
-                      {tablesForOutlet.map((table) => (
-                        <div key={table.id} id={`table-${table.id}-outlet-${outlet.outletid}`} className="table-card-wrapper">
+                      {tablesForDepartment.map((table) => (
+                        <div key={table.id} id={`table-${table.id}-department-${department.departmentid}`} className="table-card-wrapper">
                           <TableCard table={table} onClick={() => handleTableClick(table)} />
                         </div>
                       ))}
                     </div>
-                  ) : (<p className="text-muted">No tables found for this outlet.</p>)}
+                  ) : (<p className="text-muted">No tables found for this department.</p>)}
                 </div>
               );
             })}

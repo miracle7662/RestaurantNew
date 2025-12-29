@@ -8,7 +8,6 @@ function ok(message, data) {
 function toBool(value) {
   return value ? 1 : 0
 }
-
 function generateTxnNo(outletid) {
   // 1. Fetch bill_prefix from settings
   const settings = db.prepare('SELECT bill_prefix FROM mstbill_preview_settings WHERE outletid = ?').get(outletid);
@@ -309,8 +308,8 @@ exports.createBill = async (req, res) => {
             CESS, CESS_AMOUNT, Discount_Amount, Qty, KOTNo, AutoKOT, ManualKOT, SpecialInst,
             isKOTGenerate, isSetteled, isNCKOT, isCancelled,
             DeptID, HotelID, RuntimeRate, RevQty, KOTUsedDate,
-            isBilled
-          ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            isBilled, item_no, item_name
+          ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         `)
 
         const billDiscountType = Number(DiscountType) || 0
@@ -375,8 +374,9 @@ exports.createBill = async (req, res) => {
             rate,
             Number(d.RevQty) || 0,
             d.KOTUsedDate || new Date().toISOString(), // KOTUsedDate
-            0 // isBilled default to 0
-            
+            0, // isBilled default to 0
+            d.item_no ?? null,
+            d.item_name || null
           )
         }
       }
@@ -882,13 +882,17 @@ exports.createKOT = async (req, res) => {
         INSERT INTO TAxnTrnbilldetails (
           TxnID, outletid, ItemID, TableID, table_name, Qty, RuntimeRate, DeptID, HotelID,
           isKOTGenerate, AutoKOT, KOTUsedDate, isBilled, isCancelled, isSetteled, isNCKOT,
-          CGST, CGST_AMOUNT, SGST, SGST_AMOUNT, IGST, IGST_AMOUNT, CESS, CESS_AMOUNT, Discount_Amount, KOTNo
+          CGST, CGST_AMOUNT, SGST, SGST_AMOUNT, IGST, IGST_AMOUNT, CESS, CESS_AMOUNT, Discount_Amount, KOTNo,
+          item_no, item_name
         ) VALUES (
           @TxnID, @outletid, @ItemID, @TableID, @table_name, @Qty, @RuntimeRate, @DeptID, @HotelID,
           1, 1, datetime('now'), 0, 0, 0, @isNCKOT,
-          @CGST, @CGST_AMOUNT, @SGST, @SGST_AMOUNT, @IGST, @IGST_AMOUNT, @CESS, @CESS_AMOUNT, @Discount_Amount, @KOTNo
+          @CGST, @CGST_AMOUNT, @SGST, @SGST_AMOUNT, @IGST, @IGST_AMOUNT, @CESS, @CESS_AMOUNT, @Discount_Amount, @KOTNo,
+          @item_no, @item_name
         )
       `);
+
+      const getItemStmt = db.prepare('SELECT item_no FROM mstrestmenu WHERE restitemid = ?');
 
       for (const item of details) {
         const qty = Number(item.Qty) || 0;
@@ -918,6 +922,12 @@ exports.createKOT = async (req, res) => {
           itemDiscountAmount = finalDiscount;
         }
 
+        let itemNo = item.item_no;
+        if (!itemNo && item.ItemID) {
+             const menuData = getItemStmt.get(item.ItemID);
+             if (menuData) itemNo = menuData.item_no;
+        }
+
         insertDetailStmt.run({
             TxnID: txnId,
             outletid: outletid,
@@ -938,7 +948,9 @@ exports.createKOT = async (req, res) => {
             CESS: cessPer,
             CESS_AMOUNT: cessAmt,
             Discount_Amount: itemDiscountAmount,
-            KOTNo: kotNo
+            KOTNo: kotNo,
+            item_no: itemNo,
+            item_name: item.item_name
         });
       }
 
@@ -1009,13 +1021,18 @@ exports.createKOT = async (req, res) => {
     const { txnId, kotNo } = trx;
     const header = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(txnId); // Fetch header
     const items = db.prepare(`
-      SELECT d.*, m.item_name as ItemName
+      SELECT d.*, m.item_name as ItemName, m.item_no as MenuItemNo
       FROM TAxnTrnbilldetails d 
       LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
       WHERE d.TxnID = ? AND d.isCancelled = 0 ORDER BY d.TXnDetailID
     `).all(txnId); // Fetch details with item_name
 
-    res.json(ok('KOT processed successfully', { ...header, details: items, KOTNo: kotNo }));
+    const mappedItems = items.map(i => ({
+      ...i,
+      item_no: i.item_no || i.MenuItemNo
+    }));
+
+    res.json(ok('KOT processed successfully', { ...header, details: mappedItems, KOTNo: kotNo }));
 
   } catch (error) {
     console.error('Error in createKOT:', error);
@@ -1272,7 +1289,7 @@ exports.getUnbilledItemsByTable = async (req, res) => {
     const bill = db.prepare(`
       SELECT TxnID
       FROM TAxnTrnbill
-      WHERE TableID = ? AND isBilled = 0 AND isCancelled = 0 AND isSetteled = 0
+      WHERE TableID = ?  AND isCancelled = 0 AND isSetteled = 0
     `).get(Number(tableId));
 
     let kotNo = null;
@@ -1292,18 +1309,20 @@ exports.getUnbilledItemsByTable = async (req, res) => {
         b.TxnID,
         d.TXnDetailID,
         d.ItemID,
+        d.item_no,
         COALESCE(m.item_name, 'Unknown Item') AS ItemName,
         COALESCE(t.table_name, 'N/A') as tableName,
         d.Qty,
         COALESCE(d.RevQty, 0) as RevQty,
         (d.Qty - COALESCE(d.RevQty, 0)) as NetQty,
         d.RuntimeRate as price,
-        d.KOTNo
+        d.KOTNo,
+        m.item_no as MenuItemNo
       FROM TAxnTrnbilldetails d
       LEFT JOIN msttablemanagement t ON d.TableID = t.tableid
       JOIN TAxnTrnbill b ON d.TxnID = b.TxnID
       LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
-      WHERE b.TableID = ? AND b.isBilled = 0 AND d.isCancelled = 0 AND (d.Qty - COALESCE(d.RevQty, 0)) > 0
+      WHERE b.TableID = ? AND d.isCancelled = 0 AND (d.Qty - COALESCE(d.RevQty, 0)) > 0
     `).all(Number(tableId));
 
   // Fetch reversed items from the log for this transaction
@@ -1312,6 +1331,7 @@ exports.getUnbilledItemsByTable = async (req, res) => {
       SELECT
         l.ReversalID as reversalLogId,
         l.ItemID,
+        d.item_no,
         COALESCE(m.item_name, 'Unknown Item') AS ItemName,
         l.ReversedQty as reversedQty,
         d.RuntimeRate as price,
@@ -1340,6 +1360,7 @@ exports.getUnbilledItemsByTable = async (req, res) => {
       txnDetailId: r.TXnDetailID,
       itemId: r.ItemID,
       itemName: r.ItemName,
+      item_no: r.item_no || r.MenuItemNo,
       tableName: r.tableName,
       qty: r.Qty,
       revQty: r.RevQty,
@@ -2550,5 +2571,30 @@ exports.saveFullReverse = async (req, res) => {
 /* -------------------------------------------------------------------------- */
 /* 22) reverseItem → Reverse quantity for a single item                       */
 /* -------------------------------------------------------------------------- */
+
+/* -------------------------------------------------------------------------- */
+/* 23) getGlobalKOTNumber → fetch the next global KOT number for an outlet    */
+/* -------------------------------------------------------------------------- */
+exports.getGlobalKOTNumber = async (req, res) => {
+  try {
+    const { outletid } = req.query;
+
+    if (!outletid) {
+      return res.status(400).json({ success: false, message: 'outletid is required', data: null });
+    }
+
+    const result = db.prepare(`
+      SELECT MAX(KOTNo) as maxKOT
+      FROM TAxnTrnbilldetails
+      WHERE outletid = ?
+    `).get(Number(outletid));
+
+    const nextKOT = (result?.maxKOT || 0) + 1;
+
+    res.json(ok('Fetched next global KOT number', { nextKOT }));
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to fetch global KOT number', data: null, error: error.message });
+  }
+};
 
 module.exports = exports;

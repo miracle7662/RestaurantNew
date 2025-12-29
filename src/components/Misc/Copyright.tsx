@@ -11,8 +11,8 @@ const Copyright = () => {
         </div>
         <span className="vr mx-2 bg-secondary bg-opacity-25"></span>
         <span>
-          Made with <span className="fs-12">❤️</span>{' '}
-          <Link to="mailto:wrapcoders@gmail.com">Window</Link>
+          Developed By<span className="fs-12">❤️</span>{' '}
+          <Link to="mailto:miracleinfo.sales@gmail.com">Miracle Infotech 9021167662</Link>
         </span>
       </Stack>
     </>

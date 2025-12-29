@@ -52,8 +52,8 @@ const getReportData = (req, res) => {
           t.NCPurpose,
           t.NCName,
           (
-            SELECT GROUP_CONCAT(s.PaymentType || ':' || s.Amount)
-            FROM (SELECT DISTINCT PaymentType, Amount FROM TrnSettlement) s
+            SELECT GROUP_CONCAT(DISTINCT s.PaymentType || ':' || s.Amount)
+            FROM TrnSettlement s
             WHERE s.OrderNo = t.TxnNo AND s.isSettled = 1
           ) as Settlements,
           t.isSetteled,

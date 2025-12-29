@@ -28,3 +28,9 @@ declare module '*.mp4' {
   export default src;
 }
 
+interface Window {
+  electronAPI: {
+    getInstalledPrinters: () => Promise<Array<{ name: string; displayName: string }>>;
+    directPrint: (html: string, printerName: string) => Promise<void>;
+  };
+}

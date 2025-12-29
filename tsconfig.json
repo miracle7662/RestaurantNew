@@ -21,6 +21,6 @@
       "@/*": ["src/*"]
     }
   },
-  "include": ["src", "../Lodging/src/components/Apps/Blockmaster"],
+  "include": ["src"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

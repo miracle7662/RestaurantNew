@@ -25,6 +25,7 @@ interface MenuItem {
   isNew?: boolean; // Added to track new items not yet sent to KOT
   alternativeItem?: string;
   modifier?: string[];
+  item_no?: string;
   originalQty?: number; // To track the original quantity from database
   kotNo?: number;
   txnDetailId?: number;
@@ -202,7 +203,7 @@ const Order = () => {
   const [errorPending, setErrorPending] = useState<string | null>(null);
 
   const [printItems, setPrintItems] = useState<MenuItem[]>([]);
-  const [isPrintMode, setIsPrintMode] = useState(false);
+  const [, setIsPrintMode] = useState(false);
   // States for Pending Order Form
 
   const [showBillingPage, setShowBillingPage] = useState<boolean>(false);
@@ -251,6 +252,7 @@ const Order = () => {
           const fetchedItems: MenuItem[] = details.map((item: any) => ({
             id: item.ItemID,
             txnDetailId: item.TXnDetailID,
+            item_no: item.item_no,
             name: item.ItemName || 'Unknown Item',
             price: item.RuntimeRate,
             qty: (Number(item.Qty) || 0) - (Number(item.RevQty) || 0), // Calculate net quantity
@@ -313,6 +315,7 @@ const Order = () => {
         const fetchedItems: MenuItem[] = unbilledItemsRes.data.items.map((item: any) => ({
           id: item.itemId,
           txnDetailId: item.txnDetailId,
+          item_no: item.item_no,
           name: item.itemName,
           price: item.price,
           qty: item.netQty,
@@ -1711,6 +1714,8 @@ const Order = () => {
         const cessAmt = (lineSubtotal * cessPer) / 100; // This tax calculation is for bill, not KOT. KOT only needs item and quantity.
         return {
           ItemID: i.id,
+          item_no: i.item_no,
+          item_name: i.name,
           Qty: qtyDelta,
           RuntimeRate: i.price,
           TableID: resolvedTableId || undefined,
@@ -1734,6 +1739,8 @@ const Order = () => {
 
       const reverseKotItemsPayload = reverseItemsToKOT.map(i => ({
         ItemID: i.id,
+        item_no: i.item_no,
+        item_name: i.name,
         Qty: -i.qty, // Negative quantity for reversal
         RuntimeRate: i.price,
         TableID: resolvedTableId || undefined,
@@ -2124,7 +2131,7 @@ const Order = () => {
         body: JSON.stringify({
           txnId: persistentTxnId,
           tableId: persistentTableId,
-          reversedItems: reverseQtyItems,
+          reversedItems: reverseQtyItems.map(item => ({ ...item, item_no: item.item_no, item_name: item.name })),
           userId: user?.id,
           reversalReason: 'Full Reverse from UI' // You can add a specific reason here if needed
         }),
@@ -2959,11 +2966,10 @@ const Order = () => {
     return <KotTransfer onCancel={() => setShowKotTransfer(false)} />;
   }
   return (
-    <div className="container-fluid p-0 m-0 fade-in   ,
-         " style={{ height: '100vh'             }}>
+    <div className="container-fluid p-0 m-0 fade-in" style={{ height: '100vh' }}>
       {/* Hidden KOT Preview for Printing */}
 
-      <div id="kot-preview "style={{ display: 'none' }}  >
+      <div id="kot-preview" style={{ display: 'none' }} >
         <div style={{
           width: '80mm',
           margin: '0 auto',
@@ -2971,7 +2977,7 @@ const Order = () => {
           fontSize: '10pt',
           lineHeight: '1.2',
           padding: '10px',
-        
+          color: '#000'
         }}>
 
           {/* ================= STORE INFO ================= */}

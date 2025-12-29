@@ -79,6 +79,33 @@ exports.getOutlets = (req, res) => {
     res.status(500).json({ message: 'Internal server error', error: error.message });
   }
 };
+
+exports.getOutletsByHotel = (req, res) => {
+  try {
+    const { hotelid } = req.query;
+
+    if (!hotelid) {
+      return res.status(400).json({ message: 'Hotel ID is required' });
+    }
+
+    const query = `
+      SELECT DISTINCT o.*,
+             b.hotel_name as brand_name
+      FROM mst_outlets o
+      LEFT JOIN msthotelmasters b ON o.hotelid = b.hotelid
+      WHERE o.hotelid = ?
+      ORDER BY o.outlet_name
+    `;
+
+    const outlets = db.prepare(query).all(hotelid);
+    console.log('Found outlets for hotel:', hotelid, outlets);
+
+    res.json(outlets);
+  } catch (error) {
+    console.error('Error fetching outlets by hotel:', error);
+    res.status(500).json({ message: 'Internal server error', error: error.message });
+  }
+};
 exports.addOutlet = (req, res) => {
   try {
     const {

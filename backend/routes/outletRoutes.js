@@ -7,6 +7,9 @@ router.get('/brands', outletController.getBrands);
 // Get all outlets
 router.get('/', outletController.getOutlets);
 
+// Get outlets by hotel
+router.get('/by-hotel', outletController.getOutletsByHotel);
+
 // Get outlet by ID
 router.get('/:id', outletController.getOutletById);
 

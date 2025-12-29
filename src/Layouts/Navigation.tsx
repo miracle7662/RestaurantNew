@@ -1,6 +1,6 @@
 import { getMenuItems } from '@/common'
 import Logo from '@/components/Common/Logo'
-import MenuCard from '@/components/Common/MenuCard'
+
 import { Link } from 'react-router-dom'
 import SimpleBar from 'simplebar-react'
 import AppMenu from './Menu'
@@ -29,7 +29,7 @@ const Navigation = () => {
           {/* Sidemenu */}
           <SideBarContent />
           {/* Sidemenu Card */}
-          <MenuCard />
+          
         </SimpleBar>
       </aside>
     </>
