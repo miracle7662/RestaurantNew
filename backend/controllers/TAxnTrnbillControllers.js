@@ -1289,7 +1289,7 @@ exports.getUnbilledItemsByTable = async (req, res) => {
     const bill = db.prepare(`
       SELECT TxnID
       FROM TAxnTrnbill
-      WHERE TableID = ?  AND isCancelled = 0 AND isSetteled = 0
+      WHERE TableID = ? AND isBilled = 0  AND isCancelled = 0 AND isSetteled = 0
     `).get(Number(tableId));
 
     let kotNo = null;
@@ -1322,7 +1322,7 @@ exports.getUnbilledItemsByTable = async (req, res) => {
       LEFT JOIN msttablemanagement t ON d.TableID = t.tableid
       JOIN TAxnTrnbill b ON d.TxnID = b.TxnID
       LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
-      WHERE b.TableID = ? AND d.isCancelled = 0 AND (d.Qty - COALESCE(d.RevQty, 0)) > 0
+      WHERE b.TableID = ? AND b.isBilled = 0 AND b.isNCKOT = 0 AND  d.isCancelled = 0 AND (d.Qty - COALESCE(d.RevQty, 0)) > 0
     `).all(Number(tableId));
 
   // Fetch reversed items from the log for this transaction
@@ -2029,15 +2029,27 @@ exports.applyNCKOT = async (req, res) => {
       // Update the bill header
       db.prepare(`
         UPDATE TAxnTrnbill
-        SET isNCKOT = 1, NCName = ?, NCPurpose = ?
-        WHERE TxnID = ?
+        SET isNCKOT = 1, NCName = ?, NCPurpose = ? , issetteled  = 1
+        WHERE TxnID = ? 
       `).run(NCName, NCPurpose, Number(id));
+      
+
+      
+
+      
 
       // Update all associated detail items
       db.prepare('UPDATE TAxnTrnbilldetails SET isNCKOT = 1 WHERE TxnID = ?').run(Number(id));
-    });
 
-    tx();
+       db.prepare(`
+        UPDATE msttablemanagement
+        SET Status = 0
+        WHERE TableID = ?
+      `).run(bill.TableID);
+
+    });
+    
+
 
     res.json(ok('NCKOT applied to the entire bill successfully.'));
   } catch (error) {
