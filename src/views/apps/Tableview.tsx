@@ -441,7 +441,7 @@ export default function App() {
          
           <Button variant="primary" onClick={() => {
             if (selectedTable) {
-              navigate('/apps/Billview', { state: { tableId: selectedTable.id, tableName: selectedTable.name, outletId: selectedTable.outletid, openSettlement: true } });
+              navigate('/apps/Billview', { state: { tableId: selectedTable.id, tableName: selectedTable.name, outletId: selectedTable.outletid, openSettlement: true, txnId: selectedTable.txnId } });
             }
             setShowModal(false);
           }}>

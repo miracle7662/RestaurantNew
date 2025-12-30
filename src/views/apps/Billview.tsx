@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef, KeyboardEvent, useCallback } from 'react';
 import { Row, Col, Card, Table, Badge, Button, Form, Modal, Alert } from 'react-bootstrap';
 import axios from 'axios';
+import { toast } from 'react-hot-toast';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthContext } from '@/common';
 import KotTransfer from './Transaction/KotTransfer';
@@ -79,11 +80,12 @@ const ModernBill = () => {
   const [editableKot, setEditableKot] = useState<number | null>(null); // user editable
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [txnId, setTxnId] = useState<number | null>(txnIdFromState || null);
+  const [currentTxnId, setCurrentTxnId] = useState<number | null>(null);
   const [billNo, setBillNo] = useState<number | null>(null);
   const [billData, setBillData] = useState<any>(null);
   const [headerData, setHeaderData] = useState<any>(null);
   const [isBillPrinted, setIsBillPrinted] = useState(false);
+  const [isSettled, setIsSettled] = useState(false);
 
   const [discount, setDiscount] = useState(0);
   const [discountInputValue, setDiscountInputValue] = useState(0);
@@ -101,9 +103,9 @@ const ModernBill = () => {
 
   // Fetch bill details
   const fetchBillDetails = async () => {
-    if (!txnId) return;
+    if (!currentTxnId) return;
     try {
-      const response = await axios.get(`/api/TAxnTrnbill/${txnId}`);
+      const response = await axios.get(`/api/TAxnTrnbill/${currentTxnId}`);
       const data = response.data;
       setBillData(data);
       setIsBillPrinted(data.isPrinted || false);
@@ -132,7 +134,7 @@ const ModernBill = () => {
 
         // Update header fields
         if (data.header) {
-          setTxnId(data.header.TxnID);
+          setCurrentTxnId(data.header.TxnID);
           setWaiter(data.header.waiter || 'ASD');
           setPax(data.header.pax || 1);
           if (data.header.table_name) {
@@ -181,6 +183,7 @@ const ModernBill = () => {
   const [customerMobile, setCustomerMobile] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [showCustomerModal, setShowCustomerModal] = useState(false);
+  
 
   // Outlet selection states
   const [outlets, setOutlets] = useState<Outlet[]>([]);
@@ -244,7 +247,9 @@ const ModernBill = () => {
         // Update header fields from data.header and data.kotNo if available
         console.log('API Response Header:', data.header);
         if (data.header) {
-          setTxnId(data.header.TxnID);
+          if (!currentTxnId) {
+            setCurrentTxnId(data.header.TxnID);
+          }
           setWaiter(data.header.waiter || 'ASD');
           setPax(data.header.pax || 1);
           if (data.header.table_name) {
@@ -401,6 +406,16 @@ const ModernBill = () => {
     }
   }, [tableId, fetchTableData]);
 
+  // Set currentTxnId and billNo from location state if available
+  useEffect(() => {
+    if (txnIdFromState) {
+      setCurrentTxnId(txnIdFromState);
+    }
+    if (billNoFromState) {
+      setBillNo(billNoFromState);
+    }
+  }, [txnIdFromState, billNoFromState]);
+
   // Check for openSettlement flag and open settlement modal
   useEffect(() => {
     if (location.state?.openSettlement) {
@@ -410,10 +425,10 @@ const ModernBill = () => {
 
   // Fetch bill details if txnId is present but billData is not
   useEffect(() => {
-    if (txnId && !billData) {
+    if (currentTxnId && !billData) {
       fetchBillDetails();
     }
-  }, [txnId, billData]);
+  }, [currentTxnId, billData]);
 
   useEffect(() => {
     // 1. Fetch menu items from the API when the component mounts
@@ -641,7 +656,7 @@ const ModernBill = () => {
         hotelId: user.hotelid,
         KOTNo: editableKot, // Use editableKot if set, else null for backend to generate
         Order_Type: 'Dine-in',
-        ...(txnId ? { txnId } : {}),
+        ...(currentTxnId ? { currentTxnId  } : {}),
         ...(isNoCharge ? { NCName: ncName, NCPurpose: ncPurpose } : {}),
         items: validItems.map(item => ({
           ItemID: item.itemId,
@@ -677,7 +692,7 @@ const ModernBill = () => {
 
       // Update txnId from the response
       if (response.data?.data?.TxnID) {
-        setTxnId(response.data.data.TxnID);
+        setCurrentTxnId(response.data.data.TxnID);
       }
 
       alert('KOT saved successfully');
@@ -710,14 +725,14 @@ const ModernBill = () => {
   };
 
   const reverseBill = async () => {
-    if (!txnId) {
+    if (!currentTxnId) {
       alert('No bill to reverse');
       return;
     }
 
     try {
       await axios.post('/api/TAxnTrnbill/reverse', {
-        TxnID: txnId,
+        TxnID: currentTxnId,
         OutletID: user.outletid,
         HotelID: user.hotelid,
         UserID: user.id
@@ -737,10 +752,10 @@ const ModernBill = () => {
   };
 
   const reverseKOT = async () => {
-    if (!txnId) return;
+    if (!currentTxnId) return;
     try {
       await axios.post('/api/TAxnTrnbill/create-reverse-kot', {
-        txnId,
+        TxnID: currentTxnId,
         qty: reverseQty,
         reason: reverseReason
       });
@@ -765,9 +780,9 @@ const ModernBill = () => {
   };
 
 const printBill = async () => {
-    if (!txnId) return;
+    if (!currentTxnId) return;
     try {
-      const response = await axios.put(`/api/TAxnTrnbill/${txnId}/print`);
+      const response = await axios.put(`/api/TAxnTrnbill/${currentTxnId}/print`);
       alert('Bill printed successfully');
       // Handle print data if needed
       console.log('Bill Print Data:', response.data);
@@ -782,10 +797,10 @@ const printBill = async () => {
   };
  
   const generateBill = async () => {
-    if (!txnId) return;
+    if (!currentTxnId) return;
     try {
       const response = await axios.post('/api/bill/generate', {
-        txnId
+        currentTxnId
       });
       setBillNo(response.data.data.BillNo);
       alert('Bill generated successfully');
@@ -805,10 +820,10 @@ const printBill = async () => {
   //     if (!billNo) {
 
   const transferTable = async () => {
-    if (!txnId || !selectedTable) return;
+    if (!currentTxnId || !selectedTable) return;
     try {
       await axios.post('/api/TAxnTrnbill/kot', {
-        txnId,
+        currentTxnId,
         tableId: selectedTable.id,
         table_name: selectedTable.name,
         items: []
@@ -823,7 +838,7 @@ const printBill = async () => {
   };
   const resetBillState = () => {
     setBillItems([{ itemCode: '', item_no: 0, itemId: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' }]);
-    setTxnId(null);
+    setCurrentTxnId(null);
     setWaiter('ASD');
     setPax(1);
     setKotNo('');
@@ -832,6 +847,7 @@ const printBill = async () => {
     setEditableKot(null);
     setCustomerMobile('');
     setCustomerName('');
+    setIsSettled(false);
     calculateTotals([{ itemCode: '', item_no: 0, itemId: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' }]);
   };
 
@@ -881,12 +897,12 @@ const printBill = async () => {
     const totalPaid = Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0) + (tip || 0);
     const settlementBalance = taxCalc.grandTotal - totalPaid;
 
-    if (!txnId) {
-      alert('Cannot settle bill. No transaction ID found.');
+    if (!currentTxnId) {
+      toast.error('Cannot settle bill. No transaction ID found.');
       return;
     }
     if (settlementBalance !== 0 || totalPaid === 0) { // Now this check will work
-      alert('Payment amount does not match the total due.');
+      toast.error('Payment amount does not match the total due.');
       return;
     }
 
@@ -906,15 +922,19 @@ const printBill = async () => {
       });
 
       // 2. Call the settlement endpoint
-      const response = await axios.post(`/api/TAxnTrnbill/${txnId}/settle`, {
-        settlements: settlementsPayload
+      const response = await fetch(`http://localhost:3001/api/TAxnTrnbill/${currentTxnId}/settle`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ settlements: settlementsPayload }),
       });
 
-      if (!response.data.success) {
-        throw new Error(response.data.message || 'Failed to settle bill.');
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.message || 'Failed to settle bill.');
       }
 
-      alert('Settlement successful and bill printed!');
+      toast.success('Settlement successful and bill printed!');
 
       // Clear customer fields after successful settlement
       setCustomerMobile('');
@@ -937,11 +957,14 @@ const printBill = async () => {
       setShowSettlementModal(false);
       setBillActionState('initial');
 
+
       if (selectedTable) {
         const tableToUpdate = tableItems.find(t => t.table_name === selectedTable.name);
         if (tableToUpdate) {
-          await axios.post(`/api/tablemanagement/${tableToUpdate.tablemanagementid}/status`, {
-            status: 0 // 0 for Vacant
+          await fetch(`http://localhost:3001/api/tablemanagement/${tableToUpdate.tablemanagementid}/status`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 0 }), // 0 for Vacant
           });
         }
       }
@@ -958,7 +981,7 @@ const printBill = async () => {
 
     } catch (error: any) {
       console.error('Error settling bill:', error);
-      alert(error.message || 'An error occurred during settlement.');
+      toast.error(error.message || 'An error occurred during settlement.');
     } finally {
       setLoading(false);
     }
@@ -996,13 +1019,17 @@ const printBill = async () => {
         printBill();
       } else if (keyboardEvent.key === 'F11') {
         keyboardEvent.preventDefault();
+        if (!currentTxnId) {
+          alert('No transaction ID available. Please save the KOT first.');
+          return;
+        }
         setShowSettlementModal(true);
       }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [txnId, reverseQty, reverseReason, selectedTable]);
+  }, [currentTxnId, reverseQty, reverseReason, selectedTable]);
 
   return (
     <React.Fragment>
@@ -1736,7 +1763,13 @@ const printBill = async () => {
                   <Button onClick={() => setShowReverseKOTModal(true)} variant="outline-primary" size="sm" className="function-btn">Rev KOT (F8)</Button>
                   <Button onClick={() => saveKOT(false, true)} variant="outline-primary" size="sm" className="function-btn">K O T (F9)</Button>
                   <Button onClick={printBill} variant="outline-primary" size="sm" className="function-btn">Print (F10)</Button>
-                  <Button onClick={() => setShowSettlementModal(true)} variant="outline-primary" size="sm" className="function-btn">Settle (F11)</Button>
+                  <Button onClick={() => {
+                    if (!currentTxnId) {
+                      alert('No transaction ID available. Please save the KOT first.');
+                      return;
+                    }
+                    setShowSettlementModal(true);
+                  }} variant="outline-primary" size="sm" className="function-btn">Settle (F11)</Button>
                   <Button onClick={exitWithoutSave} variant="outline-primary" size="sm" className="function-btn">Exit (Esc)</Button>
                 </div>
               </Card.Body>

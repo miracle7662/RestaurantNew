@@ -178,7 +178,7 @@ exports.createBill = async (req, res) => {
 
     console.log('Details array length:', details.length);
     if (details.length > 0) {
-      console.log('First detail item:', JSON.stringify(details[0], null, 2));
+      console.log('First detail itemCannot settle bill. No transaction ID found.', JSON.stringify(details[0], null, 2));
     }
 
     console.log('NCName:', NCName);
