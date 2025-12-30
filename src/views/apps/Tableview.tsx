@@ -102,29 +102,70 @@ export default function App() {
 
   useEffect(() => {
     const fetchTables = async () => {
+      setLoading(true);
       try {
         if (!user || !user.hotelid) {
-          throw new Error('User not authenticated or hotel ID missing');
+          setError('User not authenticated or hotel ID missing');
+          setAllTables([]);
+          setLoading(false);
+          return;
         }
-        const params = new URLSearchParams({ hotelid: String(user.hotelid) });
-        const response = await fetch(`http://localhost:3001/api/tablemanagement/with-outlets?${params.toString()}`);
+        const res = await fetch('http://localhost:3001/api/tablemanagement', {
+          headers: { 'Content-Type': 'application/json' },
+        });
+        if (res.ok) {
+          const response = await res.json();
+          console.log('Raw tableItems data:', JSON.stringify(response, null, 2));
+          const filteredData = response.data.filter((t: any) => t.hotelid === user.hotelid);
+          if (response.success && Array.isArray(filteredData)) {
+            const formattedData = await Promise.all(
+              filteredData.map(async (item: any) => {
+                let status = Number(item.status);
 
-        if (!response.ok) {
-          throw new Error('Failed to fetch tables');
+                // Fetch bill status for each table from backend
+                const res = await fetch(`http://localhost:3001/api/TAxnTrnbill/bill-status/${item.tableid}`);
+                const data = await res.json();
+
+                if (data.success && data.data) {
+                  const { isBilled, isSetteled } = data.data;
+
+                  if (isBilled === 1 && isSetteled !== 1) status = 2; // 🔴 red when billed but not settled
+                  if (isSetteled === 1) status = 0; // ⚪ vacant when settled
+                }
+
+                let statusString: TableStatus;
+                switch (status) {
+                  case 0: statusString = 'available'; break;
+                  case 1: statusString = 'running'; break;
+                  case 2: statusString = 'printed'; break;
+                  case 3: statusString = 'paid'; break;
+                  case 4: statusString = 'running-kot'; break;
+                  default: statusString = 'available'; break;
+                }
+
+                return { id: item.tableid, name: item.table_name, status: statusString, outletid: item.outletid, departmentid: item.departmentid, department_name: item.department_name };
+              })
+            );
+
+            setAllTables(formattedData);
+            setError('');
+          } else if (response.success && filteredData.length === 0) {
+            setError('No tables found in TableManagement API.');
+            setAllTables([]);
+          } else {
+            setError(response.message || 'Invalid data format received from TableManagement API.');
+            setAllTables([]);
+          }
+        } else {
+          setError(`Failed to fetch tables: ${res.status} ${res.statusText}`);
+          setAllTables([]);
         }
-        const data = await response.json();
-        const mappedTables: Table[] = data.map((t: any) => ({
-          id: t.tableid,
-          name: t.table_name,
-          status: t.status, // 'occupied', 'available', 'reserved'
-          outletid: t.outletid,
-          departmentid: t.departmentid,
-          department_name: t.department_name,
-          // You might need to add logic for hasCustomer and hasView based on bill status
-        }));
-        setAllTables(mappedTables);
-      } catch (err: any) {
-        setError(err.message);
+      } catch (err) {
+        console.error('Table fetch error:', err);
+        setError('Failed to fetch tables. Please check the API endpoint.');
+        setAllTables([]);
+      } finally {
+        setLoading(false);
       }
     };
 
