@@ -381,24 +381,12 @@ const ModernBill = () => {
     fetchGlobalKOT();
   }, [selectedOutletId]);
 
-  // Fetch tax details based on selected outlet
+  // Tax rates are set to default values (2.5% for CGST and SGST)
+  // Removed API call to /api/tax-details as endpoint returns 404
   useEffect(() => {
-    const fetchTaxDetails = async () => {
-      if (!selectedOutletId) return;
-
-      try {
-        const response = await axios.get(`/api/tax-details?outletid=${selectedOutletId}`);
-        setTaxDetails(response.data);
-        setCgstRate(response.data.cgst_rate || 2.5);
-        setSgstRate(response.data.sgst_rate || 2.5);
-        console.log('Tax details:', response.data);
-      } catch (error) {
-        console.error('Error fetching tax details:', error);
-      }
-    };
-
-    fetchTaxDetails();
-  }, [selectedOutletId]);
+    setCgstRate(2.5);
+    setSgstRate(2.5);
+  }, []);
 
   useEffect(() => {
     if (tableId) {
@@ -853,7 +841,7 @@ const printBill = async () => {
 
   const fetchTableManagement = async () => {
     try {
-      const response = await axios.get(`/api/tables/${tableId}`);
+      const response = await axios.get(`/api/tablemanagement`);
       setTableItems(response.data);
     } catch (error) {
       console.error('Error fetching table management:', error);
@@ -968,7 +956,7 @@ const printBill = async () => {
           });
         }
       }
-      fetchTableManagement(); // Refresh table statuses
+
       setCurrentKOTNo(null);
       setShowPendingOrdersView(false); // Hide pending view after successful settlement
       setCurrentKOTNos([]);
@@ -984,6 +972,19 @@ const printBill = async () => {
       toast.error(error.message || 'An error occurred during settlement.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePrintAndSettle = async () => {
+    try {
+      // First, print the bill
+      await printBill();
+
+      // Then, open the settlement modal
+      setShowSettlementModal(true);
+    } catch (error) {
+      console.error('Error in print and settle:', error);
+      toast.error('Failed to print bill. Settlement not initiated.');
     }
   };
 
