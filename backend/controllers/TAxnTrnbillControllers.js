@@ -1322,7 +1322,7 @@ exports.getUnbilledItemsByTable = async (req, res) => {
       LEFT JOIN msttablemanagement t ON d.TableID = t.tableid
       JOIN TAxnTrnbill b ON d.TxnID = b.TxnID
       LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
-      WHERE b.TableID = ? AND b.isBilled = 0 AND b.isNCKOT = 0 AND  d.isCancelled = 0 AND (d.Qty - COALESCE(d.RevQty, 0)) > 0
+      WHERE b.TableID = ? AND b.isBilled in (1,0)   AND b.issetteled = 0 AND b.isNCKOT = 0 AND  d.isCancelled = 0 AND (d.Qty - COALESCE(d.RevQty, 0)) > 0
     `).all(Number(tableId));
 
   // Fetch reversed items from the log for this transaction

@@ -74,6 +74,20 @@ const ModernBill = () => {
   const [error, setError] = useState<string | null>(null);
   const [txnId, setTxnId] = useState<number | null>(null);
   const [billNo, setBillNo] = useState<number | null>(null);
+  const [billData, setBillData] = useState<any>(null);
+  const [isBillPrinted, setIsBillPrinted] = useState(false);
+
+  // Fetch bill details
+  const fetchBillDetails = async () => {
+    if (!txnId) return;
+    try {
+      const response = await axios.get(`/api/TAxnTrnbill/${txnId}`);
+      setBillData(response.data);
+      setIsBillPrinted(response.data.isPrinted || false);
+    } catch (error) {
+      console.error('Error fetching bill details:', error);
+    }
+  };
 
   // Modal states
   const [showSettlementModal, setShowSettlementModal] = useState(false);
@@ -657,7 +671,10 @@ const printBill = async () => {
       alert('Bill printed successfully');
       // Handle print data if needed
       console.log('Bill Print Data:', response.data);
-      // After printing, fetch the billed items
+      // Immediately update print status to true
+      setIsBillPrinted(true);
+      // After printing, fetch bill details to confirm and update any other data
+      await fetchBillDetails();
     } catch (error) {
       console.error('Error printing bill:', error);
       alert('Error printing bill');
@@ -1217,7 +1234,7 @@ const printBill = async () => {
       <div className="full-screen-header">
         <div className="container-fluid  px-2">
           <div className="d-flex justify-content-between align-items-center mb-1">
-            <h2 className="text-primary mb-0">BILL</h2>
+            <h2 className="text-primary mb-0">BILL {isBillPrinted && <Badge bg="success" className="ms-2">Printed</Badge>}</h2>
             <span className="text-muted small">
               Group Item (Ctrl+G)(For Special Instructions - Press F4)
             </span>
