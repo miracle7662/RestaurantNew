@@ -16,6 +16,7 @@ interface Table {
   outletid?: number;
   departmentid?: number;
   department_name?: string;
+  txnId?: number | null;
 }
 
 interface Department {
@@ -131,8 +132,10 @@ export default function App() {
                 const res = await fetch(`http://localhost:3001/api/TAxnTrnbill/bill-status/${item.tableid}`);
                 const data = await res.json();
 
+                let txnId: number | null = null;
                 if (data.success && data.data) {
-                  const { isBilled, isSetteled } = data.data;
+                  const { isBilled, isSetteled, TxnID } = data.data;
+                  txnId = TxnID || null;
 
                   if (isBilled === 1 && isSetteled !== 1) status = 2; // 🔴 red when billed but not settled
                   if (isSetteled === 1) status = 0; // ⚪ vacant when settled
@@ -148,7 +151,7 @@ export default function App() {
                   default: statusString = 'available'; break;
                 }
 
-                return { id: item.tableid, name: item.table_name, status: statusString, outletid: item.outletid, departmentid: item.departmentid, department_name: item.department_name };
+                return { id: item.tableid, name: item.table_name, status: statusString, outletid: item.outletid, departmentid: item.departmentid, department_name: item.department_name, txnId };
               })
             );
 
@@ -241,12 +244,12 @@ export default function App() {
   };
 
   const handleTableClick = (table: Table) => {
-    if (table.status === 'printed') {
-      setSelectedTable(table);
-      setShowModal(true);
-    } else {
-      navigate('/apps/Billview', { state: { tableId: table.id, tableName: table.name, outletId: table.outletid } });
-    }
+          if (table.status === 'printed') {
+            setSelectedTable(table);
+            setShowModal(true);
+          } else {
+            navigate('/apps/Billview', { state: { tableId: table.id, tableName: table.name, outletId: table.outletid, txnId: table.txnId } });
+          }
   };
 
   const handleTableInputEnter = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -260,7 +263,7 @@ export default function App() {
             setSelectedTable(table);
             setShowModal(true);
           } else {
-            navigate('/apps/Billview', { state: { tableId: table.id, tableName: table.name, outletId: table.outletid } });
+            navigate('/apps/Billview', { state: { tableId: table.id, tableName: table.name, outletId: table.outletid, txnId: table.txnId } });
           }
         }
       }
@@ -446,7 +449,7 @@ export default function App() {
           </Button>
            <Button variant="secondary" onClick={() => {
             if (selectedTable) {
-              navigate('/apps/Billview', { state: { tableId: selectedTable.id, tableName: selectedTable.name, outletId: selectedTable.outletid } });
+              navigate('/apps/Billview', { state: { tableId: selectedTable.id, tableName: selectedTable.name, outletId: selectedTable.outletid, txnId: selectedTable.txnId } });
             }
             setShowModal(false);
           }}>
