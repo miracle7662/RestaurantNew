@@ -243,33 +243,135 @@ export default function App() {
     window.location.reload();
   };
 
-  const handleTableClick = (table: Table) => {
-          if (table.status === 'printed') {
-            setSelectedTable(table);
-            setShowModal(true);
-          } else {
-            navigate('/apps/Billview', { state: { tableId: table.id, tableName: table.name, outletId: table.outletid, txnId: table.txnId } });
-          }
-  };
+  const handleTableClick = async (table: Table) => {
+    try {
+      const res = await fetch(
+        `http://localhost:3001/api/TAxnTrnbill/bill-status/${table.id}`
+      );
+      const data = await res.json();
 
-  const handleTableInputEnter = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      const input = tableInput.trim();
-      if (input) {
-        const tables = selectedDepartmentId === 'all' ? allTables : tablesByDepartment[selectedDepartmentId] || [];
-        const table = tables.find(t => t.name === input);
-        if (table) {
-          if (table.status === 'printed') {
-            setSelectedTable(table);
-            setShowModal(true);
-          } else {
-            navigate('/apps/Billview', { state: { tableId: table.id, tableName: table.name, outletId: table.outletid, txnId: table.txnId } });
-          }
-        }
+      const latestTxnId = data?.data?.TxnID ?? null;
+      const { isBilled, isSetteled } = data?.data || {};
+
+      // Determine latest status based on backend data
+      let latestStatus: TableStatus = 'available';
+      if (isBilled === 1 && isSetteled !== 1) {
+        latestStatus = 'printed';
+      } else if (isSetteled === 1) {
+        latestStatus = 'available';
+      } else {
+        // Use existing logic or default
+        latestStatus = table.status;
       }
-      setTableInput('');
+
+      if (latestStatus === 'printed') {
+        const updatedTable = {
+          ...table,
+          txnId: latestTxnId
+        };
+        setSelectedTable(updatedTable);
+        setAllTables(prev => prev.map(t => t.id === table.id ? updatedTable : t));
+        setShowModal(true);
+      } else {
+        if (!latestTxnId) {
+          navigate(`/apps/Billview?tableId=${table.id}&tableName=${encodeURIComponent(table.name)}&outletId=${table.outletid}&isNewBill=true`);
+          return;
+        }
+        navigate(`/apps/Billview?tableId=${table.id}&tableName=${encodeURIComponent(table.name)}&outletId=${table.outletid}&txnId=${latestTxnId}`);
+      }
+
+    } catch (error) {
+      console.error('Error fetching bill status:', error);
+
+      // fallback
+      if (!table.txnId) {
+        navigate('/apps/Billview', {
+          state: {
+            tableId: table.id,
+            tableName: table.name,
+            outletId: table.outletid,
+            isNewBill: true
+          }
+        });
+        return;
+      }
+      navigate('/apps/Billview', {
+        state: {
+          tableId: table.id,
+          tableName: table.name,
+          outletId: table.outletid,
+          txnId: table.txnId ?? null
+        }
+      });
     }
   };
+
+ const handleTableInputEnter = async (e: React.KeyboardEvent<HTMLInputElement>) => {
+  if (e.key !== 'Enter') return;
+
+  const input = tableInput.trim();
+  if (!input) return;
+
+  const tables =
+    selectedDepartmentId === 'all'
+      ? allTables
+      : tablesByDepartment[selectedDepartmentId] || [];
+
+  const table = tables.find(t => t.name === input);
+  if (!table) {
+    setTableInput('');
+    return;
+  }
+
+  try {
+    // 🔥 ALWAYS fetch latest bill status
+    const res = await fetch(
+      `http://localhost:3001/api/TAxnTrnbill/bill-status/${table.id}`
+    );
+    const data = await res.json();
+
+    const latestTxnId = data?.data?.TxnID ?? null;
+
+    const updatedTable = {
+      ...table,
+      txnId: latestTxnId
+    };
+
+    // 🔥 SAME FLOW as mouse click
+    if (!latestTxnId) {
+      navigate(`/apps/Billview?tableId=${updatedTable.id}&tableName=${encodeURIComponent(updatedTable.name)}&outletId=${updatedTable.outletid}&isNewBill=true`);
+      return;
+    }
+    navigate(`/apps/Billview?tableId=${updatedTable.id}&tableName=${encodeURIComponent(updatedTable.name)}&outletId=${updatedTable.outletid}&txnId=${updatedTable.txnId}`);
+
+  } catch (error) {
+    console.error('Error fetching bill status:', error);
+
+    // fallback
+    if (!table.txnId) {
+      navigate('/apps/Billview', {
+        state: {
+          tableId: table.id,
+          tableName: table.name,
+          outletId: table.outletid,
+          isNewBill: true
+        }
+      });
+      return;
+    }
+    navigate('/apps/Billview', {
+      state: {
+        tableId: table.id,
+        tableName: table.name,
+        outletId: table.outletid,
+        txnId: table.txnId ?? null
+      }
+    });
+  } finally {
+    setTableInput('');
+  }
+};
+
 
   return (
     <div className="d-flex flex-column" style={{ height: '100vh', minHeight: '100vh' }}>
@@ -441,7 +543,11 @@ export default function App() {
          
           <Button variant="primary" onClick={() => {
             if (selectedTable) {
-              navigate('/apps/Billview', { state: { tableId: selectedTable.id, tableName: selectedTable.name, outletId: selectedTable.outletid, openSettlement: true, txnId: selectedTable.txnId } });
+              if (!selectedTable.txnId) {
+                navigate(`/apps/Billview?tableId=${selectedTable.id}&tableName=${encodeURIComponent(selectedTable.name)}&outletId=${selectedTable.outletid}&openSettlement=true&isNewBill=true`);
+              } else {
+                navigate(`/apps/Billview?tableId=${selectedTable.id}&tableName=${encodeURIComponent(selectedTable.name)}&outletId=${selectedTable.outletid}&openSettlement=true&txnId=${selectedTable.txnId}`);
+              }
             }
             setShowModal(false);
           }}>
@@ -449,11 +555,15 @@ export default function App() {
           </Button>
            <Button variant="secondary" onClick={() => {
             if (selectedTable) {
-              navigate('/apps/Billview', { state: { tableId: selectedTable.id, tableName: selectedTable.name, outletId: selectedTable.outletid, txnId: selectedTable.txnId } });
+              if (!selectedTable.txnId) {
+                navigate(`/apps/Billview?tableId=${selectedTable.id}&tableName=${encodeURIComponent(selectedTable.name)}&outletId=${selectedTable.outletid}&isNewBill=true`);
+              } else {
+                navigate(`/apps/Billview?tableId=${selectedTable.id}&tableName=${encodeURIComponent(selectedTable.name)}&outletId=${selectedTable.outletid}&txnId=${selectedTable.txnId}`);
+              }
             }
             setShowModal(false);
           }}>
-            No 
+            No
           </Button>
         </Modal.Footer>
       </Modal>
