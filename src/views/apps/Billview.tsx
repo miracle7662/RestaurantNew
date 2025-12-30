@@ -315,6 +315,13 @@ const ModernBill = () => {
     }
   }, [tableId, fetchTableData]);
 
+  // Check for openSettlement flag and open settlement modal
+  useEffect(() => {
+    if (location.state?.openSettlement) {
+      setShowSettlementModal(true);
+    }
+  }, [location.state]);
+
   useEffect(() => {
     // 1. Fetch menu items from the API when the component mounts
     const fetchMenuItems = async () => {

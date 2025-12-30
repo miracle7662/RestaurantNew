@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { useAuthContext } from '@/common';
 import { useNavigate } from 'react-router-dom';
+import { Modal, Button } from 'react-bootstrap';
 
 // Types
 type TableStatus = 'blank' | 'running' | 'printed' | 'paid' | 'running-kot' | 'occupied' | 'available' | 'reserved';
@@ -96,9 +97,13 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [tableInput, setTableInput] = useState('');
+  const [showModal, setShowModal] = useState(false);
+  const [selectedTable, setSelectedTable] = useState<Table | null>(null);
   const { user } = useAuthContext();
   const navigate = useNavigate();
   const tableInputRef = useRef<HTMLInputElement>(null);
+
+  
 
   useEffect(() => {
     const fetchTables = async () => {
@@ -236,7 +241,12 @@ export default function App() {
   };
 
   const handleTableClick = (table: Table) => {
-    navigate('/apps/Billview', { state: { tableId: table.id, tableName: table.name, outletId: table.outletid } });
+    if (table.status === 'printed') {
+      setSelectedTable(table);
+      setShowModal(true);
+    } else {
+      navigate('/apps/Billview', { state: { tableId: table.id, tableName: table.name, outletId: table.outletid } });
+    }
   };
 
   const handleTableInputEnter = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -246,7 +256,12 @@ export default function App() {
         const tables = selectedDepartmentId === 'all' ? allTables : tablesByDepartment[selectedDepartmentId] || [];
         const table = tables.find(t => t.name === input);
         if (table) {
-          navigate('/apps/Billview', { state: { tableId: table.id, tableName: table.name, outletId: table.outletid } });
+          if (table.status === 'printed') {
+            setSelectedTable(table);
+            setShowModal(true);
+          } else {
+            navigate('/apps/Billview', { state: { tableId: table.id, tableName: table.name, outletId: table.outletid } });
+          }
         }
       }
       setTableInput('');
@@ -410,6 +425,35 @@ export default function App() {
           </div>
         )}
       </div>
+
+      {/* Modal */}
+      <Modal show={showModal} onHide={() => setShowModal(false)} centered size="sm">
+        <Modal.Header closeButton>
+          <Modal.Title>Next Process</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p>Do you want to directly settle Table {selectedTable?.name}?</p>
+        </Modal.Body>
+        <Modal.Footer>
+         
+          <Button variant="primary" onClick={() => {
+            if (selectedTable) {
+              navigate('/apps/Billview', { state: { tableId: selectedTable.id, tableName: selectedTable.name, outletId: selectedTable.outletid, openSettlement: true } });
+            }
+            setShowModal(false);
+          }}>
+            Yes -
+          </Button>
+           <Button variant="secondary" onClick={() => {
+            if (selectedTable) {
+              navigate('/apps/Billview', { state: { tableId: selectedTable.id, tableName: selectedTable.name, outletId: selectedTable.outletid } });
+            }
+            setShowModal(false);
+          }}>
+            No 
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </div>
   );
 }
