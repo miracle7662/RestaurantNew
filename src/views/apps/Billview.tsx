@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef, KeyboardEvent, useCallback } from '
 import { Row, Col, Card, Table, Badge, Button, Form, Modal, Alert } from 'react-bootstrap';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
-import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthContext } from '@/common';
 import KotTransfer from './Transaction/KotTransfer';
 import CustomerModal from './Transaction/Customers';
@@ -62,12 +62,11 @@ const ModernBill = () => {
 
   const navigate = useNavigate();
   const location = useLocation();
-  const [searchParams] = useSearchParams();
-  const tableId = searchParams.get('tableId') ? Number(searchParams.get('tableId')) : null;
-  const tableName = searchParams.get('tableName') || null;
-  const outletIdFromState = searchParams.get('outletId') ? Number(searchParams.get('outletId')) : null;
-  const txnIdFromState = searchParams.get('txnId') ? Number(searchParams.get('txnId')) : null;
-  const billNoFromState = searchParams.get('billNo') ? Number(searchParams.get('billNo')) : null;
+  const tableId = location.state?.tableId;
+  const tableName = location.state?.tableName;
+  const outletIdFromState = location.state?.outletId;
+  const txnIdFromState = location.state?.txnId;
+  const billNoFromState = location.state?.billNo;
   const { user } = useAuthContext();
 
   console.log('Table ID:', tableId);
@@ -407,10 +406,10 @@ const ModernBill = () => {
 
   // Check for openSettlement flag and open settlement modal
   useEffect(() => {
-    if (searchParams.get('openSettlement') === 'true') {
+    if (location.state?.openSettlement) {
       setShowSettlementModal(true);
     }
-  }, [searchParams]);
+  }, [location.state]);
 
   // Fetch bill details if txnId is present but billData is not
   useEffect(() => {
@@ -881,118 +880,100 @@ const printBill = async () => {
     setPaymentAmounts({ ...paymentAmounts, [modeName]: value });
   };
 
- const handleSettleAndPrint = async () => {
-  const totalPaid =
-    Object.values(paymentAmounts).reduce(
-      (acc, val) => acc + (parseFloat(val) || 0),
-      0
-    ) + (tip || 0);
+  const handleSettleAndPrint = async () => {
+    // Define these variables before using them
+    const totalPaid = Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0) + (tip || 0);
+    const settlementBalance = taxCalc.grandTotal - totalPaid;
 
-  const settlementBalance = taxCalc.grandTotal - totalPaid;
-
-  if (settlementBalance !== 0 || totalPaid === 0) {
-    toast.error('Payment amount does not match the total due.');
-    return;
-  }
-
-  setLoading(true);
-
-  try {
-    // 🔐 Always fetch TxnID fresh (Orders.tsx style)
-    const res = await fetch(
-      `http://localhost:3001/api/TAxnTrnbill/bill-status/${tableId}`
-    );
-    const data = await res.json();
-
-    if (!data?.data?.TxnID) {
-      toast.error('Cannot settle bill. Transaction not found.');
+    if (!currentTxnId) {
+      toast.error('Cannot settle bill. No transaction ID found.');
+      return;
+    }
+    if (settlementBalance !== 0 || totalPaid === 0) { // Now this check will work
+      toast.error('Payment amount does not match the total due.');
       return;
     }
 
-    const txnId = data.data.TxnID;
-    setCurrentTxnId(txnId);
+    setLoading(true);
+    try {
+      // 1. Construct the settlements payload
+      const settlementsPayload = selectedPaymentModes.map(modeName => {
+        const paymentModeDetails = outletPaymentModes.find(pm => pm.mode_name === modeName);
+        return {
+          PaymentTypeID: paymentModeDetails?.paymenttypeid,
+          PaymentType: modeName,
+          Amount: parseFloat(paymentAmounts[modeName]) || 0,
+          OrderNo: orderNo,
+          HotelID: user?.hotelid,
+          Name: user?.name, // Cashier/User name
+        };
+      });
 
-    const settlementsPayload = selectedPaymentModes.map(modeName => {
-      const paymentModeDetails = outletPaymentModes.find(
-        pm => pm.mode_name === modeName
-      );
-
-      return {
-        PaymentTypeID: paymentModeDetails?.paymenttypeid,
-        PaymentType: modeName,
-        Amount: parseFloat(paymentAmounts[modeName]) || 0,
-        OrderNo: orderNo,
-        HotelID: user?.hotelid,
-        Name: user?.name,
-      };
-    });
-
-    const response = await fetch(
-      `http://localhost:3001/api/TAxnTrnbill/${txnId}/settle`,
-      {
+      // 2. Call the settlement endpoint
+      const response = await fetch(`http://localhost:3001/api/TAxnTrnbill/${currentTxnId}/settle`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ settlements: settlementsPayload }),
+      });
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.message || 'Failed to settle bill.');
       }
-    );
 
-    const result = await response.json();
+      toast.success('Settlement successful and bill printed!');
 
-    if (!result.success) {
-      throw new Error(result.message || 'Failed to settle bill.');
-    }
+      // Clear customer fields after successful settlement
+      setCustomerMobile('');
+      setCustomerName('');
 
-    toast.success('Settlement successful');
+      // Reset discount and round-off fields
+      setDiscount(0);
+      setDiscountInputValue(0);
+      setRoundOffValue(0);
 
-    // reset UI
-    setCustomerMobile('');
-    setCustomerName('');
-    setDiscount(0);
-    setDiscountInputValue(0);
-    setRoundOffValue(0);
-    setBillItems([]);
-    setReversedItems([]);
-    setSelectedTable(null);
-    setShowOrderDetails(false);
-    setPaymentAmounts({});
-    setSelectedPaymentModes([]);
-    setIsMixedPayment(false);
-    setTip(0);
-    setShowSettlementModal(false);
-    setBillActionState('initial');
+      // 3. Reset UI states for the next order
+      setBillItems([]);
+      setReversedItems([]);
+      setSelectedTable(null);
+      setShowOrderDetails(false);
+      setPaymentAmounts({});
+      setSelectedPaymentModes([]);
+      setIsMixedPayment(false);
+      setTip(0); // Reset tip amount
+      setShowSettlementModal(false);
+      setBillActionState('initial');
 
-    // vacate table
-    if (selectedTable) {
-      const tableToUpdate = tableItems.find(
-        t => t.table_name === selectedTable.name
-      );
 
-      if (tableToUpdate) {
-        await fetch(
-          `http://localhost:3001/api/tablemanagement/${tableToUpdate.tablemanagementid}/status`,
-          {
+      if (selectedTable) {
+        const tableToUpdate = tableItems.find(t => t.table_name === selectedTable.name);
+        if (tableToUpdate) {
+          await fetch(`http://localhost:3001/api/tablemanagement/${tableToUpdate.tablemanagementid}/status`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ status: 0 }),
-          }
-        );
+            body: JSON.stringify({ status: 0 }), // 0 for Vacant
+          });
+        }
       }
+
+      setCurrentKOTNo(null);
+      setShowPendingOrdersView(false); // Hide pending view after successful settlement
+      setCurrentKOTNos([]);
+      setOrderNo(null);
+
+      // If the settled order was a Pickup or Delivery, go back to the Dine-in table view.
+      if (activeTab === 'Pickup' || activeTab === 'Delivery') {
+        handleBackToTables();
+      }
+
+    } catch (error: any) {
+      console.error('Error settling bill:', error);
+      toast.error(error.message || 'An error occurred during settlement.');
+    } finally {
+      setLoading(false);
     }
-
-    setCurrentTxnId(null);
-    setCurrentKOTNo(null);
-    setCurrentKOTNos([]);
-    setOrderNo(null);
-    setShowPendingOrdersView(false);
-
-  } catch (error: any) {
-    console.error('Settlement error', error);
-    toast.error(error.message || 'Settlement failed');
-  } finally {
-    setLoading(false);
-  }
-};
-
+  };
 
   const handlePrintAndSettle = async () => {
     try {

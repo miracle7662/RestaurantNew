@@ -2520,14 +2520,14 @@ exports.getBillStatusByTable = async (req, res) => {
   try {
     const { tableId } = req.params;
     const bill = db.prepare(`
-      SELECT isBilled, isSetteled, TxnID
+      SELECT isBilled, isSetteled
       FROM TAxnTrnbill
-      WHERE TableID = ?
+      WHERE TableID = ? 
       ORDER BY TxnID DESC LIMIT 1
     `).get(Number(tableId));
 
     if (!bill) {
-      return res.json({ success: true, data: { isBilled: 0, isSetteled: 0, TxnID: null } });
+      return res.json({ success: true, data: { isBilled: 0, isSetteled: 0 } });
     }
 
     res.json({ success: true, data: bill });
