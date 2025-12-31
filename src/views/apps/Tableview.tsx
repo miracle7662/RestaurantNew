@@ -17,6 +17,7 @@ interface Table {
   departmentid?: number;
   department_name?: string;
   txnId?: number | null;
+  TxnNo?: string | null;
 }
 
 interface Department {
@@ -248,7 +249,7 @@ export default function App() {
             setSelectedTable(table);
             setShowModal(true);
           } else {
-            navigate('/apps/Billview', { state: { tableId: table.id, tableName: table.name, outletId: table.outletid, txnId: table.txnId } });
+            navigate('/apps/Billview', { state: { tableId: table.id, tableName: table.name, outletId: table.outletid } });
           }
   };
 
@@ -263,7 +264,7 @@ export default function App() {
             setSelectedTable(table);
             setShowModal(true);
           } else {
-            navigate('/apps/Billview', { state: { tableId: table.id, tableName: table.name, outletId: table.outletid, txnId: table.txnId } });
+            navigate('/apps/Billview', { state: { tableId: table.id, tableName: table.name, outletId: table.outletid } });
           }
         }
       }
@@ -435,7 +436,7 @@ export default function App() {
           <Modal.Title>Next Process</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <p>Do you want to directly settle Table {selectedTable?.name}?</p>
+          <p>Do you want to directly settle Table {selectedTable?.name}? {selectedTable?.txnId}? {selectedTable?.TxnNo}?</p>
         </Modal.Body>
         <Modal.Footer>
          

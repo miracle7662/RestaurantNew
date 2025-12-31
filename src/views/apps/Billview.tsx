@@ -394,22 +394,36 @@ const ModernBill = () => {
     }
   }, [tableId, fetchTableData]);
 
-  // Set currentTxnId and billNo from location state if available
+  // Fetch fresh txnId from backend for the table
+  const fetchFreshTxnId = useCallback(async () => {
+    if (!tableId) return;
+    try {
+      const response = await axios.get(`/api/TAxnTrnbill/bill-status/${tableId}`);
+      const data = response.data;
+      if (data.success && data.data) {
+        const { TxnID } = data.data;
+        setCurrentTxnId(TxnID);
+      }
+    } catch (error) {
+      console.error('Error fetching fresh txnId:', error);
+    }
+  }, [tableId]);
+
   useEffect(() => {
-    if (txnIdFromState) {
-      setCurrentTxnId(txnIdFromState);
+    if (tableId) {
+      fetchFreshTxnId();
     }
     if (billNoFromState) {
       setBillNo(billNoFromState);
     }
-  }, [txnIdFromState, billNoFromState]);
+  }, [tableId, billNoFromState, fetchFreshTxnId]);
 
   // Check for openSettlement flag and open settlement modal
   useEffect(() => {
-    if (location.state?.openSettlement) {
+    if (location.state?.openSettlement && currentTxnId != null) {
       setShowSettlementModal(true);
     }
-  }, [location.state]);
+  }, [location.state, currentTxnId]);
 
   // Fetch bill details if txnId is present but billData is not
   useEffect(() => {
@@ -885,10 +899,6 @@ const printBill = async () => {
     const totalPaid = Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0) + (tip || 0);
     const settlementBalance = taxCalc.grandTotal - totalPaid;
 
-    if (!currentTxnId) {
-      toast.error('Cannot settle bill. No transaction ID found.');
-      return;
-    }
     if (settlementBalance !== 0 || totalPaid === 0) { // Now this check will work
       toast.error('Payment amount does not match the total due.');
       return;
