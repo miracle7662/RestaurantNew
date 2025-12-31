@@ -395,28 +395,14 @@ const ModernBill = () => {
   }, [tableId, fetchTableData]);
 
   // Fetch fresh txnId from backend for the table
-  const fetchFreshTxnId = useCallback(async () => {
-    if (!tableId) return;
-    try {
-      const response = await axios.get(`/api/TAxnTrnbill/bill-status/${tableId}`);
-      const data = response.data;
-      if (data.success && data.data) {
-        const { TxnID } = data.data;
-        setCurrentTxnId(TxnID);
-      }
-    } catch (error) {
-      console.error('Error fetching fresh txnId:', error);
-    }
-  }, [tableId]);
 
+
+  // Set currentTxnId from state if provided
   useEffect(() => {
-    if (tableId) {
-      fetchFreshTxnId();
+    if (txnIdFromState && !currentTxnId) {
+      setCurrentTxnId(txnIdFromState);
     }
-    if (billNoFromState) {
-      setBillNo(billNoFromState);
-    }
-  }, [tableId, billNoFromState, fetchFreshTxnId]);
+  }, [txnIdFromState, currentTxnId]);
 
   // Check for openSettlement flag and open settlement modal
   useEffect(() => {
@@ -782,7 +768,10 @@ const ModernBill = () => {
   };
 
 const printBill = async () => {
-    if (!currentTxnId) return;
+    if (!currentTxnId) {
+      alert('No transaction ID available. Please save the KOT first.');
+      return;
+    }
     try {
       const response = await axios.put(`/api/TAxnTrnbill/${currentTxnId}/print`);
       alert('Bill printed successfully');
