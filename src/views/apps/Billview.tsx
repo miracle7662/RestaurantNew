@@ -45,6 +45,20 @@ interface TableManagement {
   tablemanagementid: number;
 }
 
+interface FetchedItem {
+  id: number;
+  txnDetailId: number;
+  item_no: string;
+  name: string;
+  price: number;
+  qty: number;
+  revQty: number;
+  isNCKOT: boolean;
+  isNew: boolean;
+  originalQty: number;
+  kotNo: number;
+}
+
 const ModernBill = () => {
   const [headerHeight, setHeaderHeight] = useState(0);
   const [toolbarHeight, setToolbarHeight] = useState(0);
@@ -85,16 +99,17 @@ const ModernBill = () => {
   const [isBillPrinted, setIsBillPrinted] = useState(false);
 
   const [discount, setDiscount] = useState(0);
+  const [discountType, setDiscountType] = useState(1);
   const [discountInputValue, setDiscountInputValue] = useState(0);
   const [roundOffValue, setRoundOffValue] = useState(0);
-  const [items, setItems] = useState([]);
-  const [reversedItems, setReversedItems] = useState([]);
+  const [items, setItems] = useState<any[]>([]);
+  const [reversedItems, setReversedItems] = useState<any[]>([]);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
   const [billActionState, setBillActionState] = useState('initial');
   const [tableItems, setTableItems] = useState([] as TableManagement[]);
   const [currentKOTNo, setCurrentKOTNo] = useState(null);
   const [showPendingOrdersView, setShowPendingOrdersView] = useState(false);
-  const [currentKOTNos, setCurrentKOTNos] = useState([]);
+  const [currentKOTNos, setCurrentKOTNos] = useState<number[]>([]);
   const [orderNo, setOrderNo] = useState(billNo);
   const [activeTab, setActiveTab] = useState('Dine-in');
 
@@ -164,14 +179,113 @@ const ModernBill = () => {
   const inputRefs = useRef<(HTMLInputElement | null)[][]>([]);
   const kotInputRef = useRef<HTMLInputElement | null>(null);
 
+  // Load bill for table: try billed first, then unbilled
+  const loadBillForTable = async (tableIdNum: number) => {
+    setLoading(true);
+    setError(null);
+    try {
+      // STEP 1: try billed bill first
+      const billedBillRes = await axios.get(
+        `/api/TAxnTrnbill/billed-bill/by-table/${tableIdNum}`
+      );
+      if (billedBillRes.status === 200) {
+        const billedBillData = billedBillRes.data;
+        if (billedBillData.success && billedBillData.data) {
+          const { details, ...header } = billedBillData.data;
+          const fetchedItems: FetchedItem[] = details
+            .map((item: any) => ({
+              id: item.ItemID,
+              txnDetailId: item.TXnDetailID,
+              item_no: item.item_no,
+              name: item.ItemName || 'Unknown Item',
+              price: item.RuntimeRate,
+              qty: (Number(item.Qty) || 0) - (Number(item.RevQty) || 0),
+              revQty: Number(item.RevQty) || 0,
+              isNCKOT: item.isNCKOT,
+              isNew: false,
+              originalQty: item.Qty,
+              kotNo: item.KOTNo,
+            }))
+            .filter((item: FetchedItem) => item.qty > 0);
+
+          // Map to billItems
+          const mappedItems: BillItem[] = fetchedItems.map((item: any) => {
+            const total = item.qty * item.price;
+            const cgst = total * (cgstRate / 100);
+            const sgst = total * (sgstRate / 100);
+            return {
+              itemCode: item.item_no.toString(),
+              itemId: item.id,
+              item_no: item.item_no,
+              itemName: item.name,
+              qty: item.qty,
+              rate: item.price,
+              total,
+              cgst,
+              sgst,
+              igst: 0,
+              mkotNo: item.kotNo ? item.kotNo.toString() : '',
+              specialInstructions: ''
+            };
+          });
+          // Add blank row
+          mappedItems.push({ itemCode: '', itemId: 0, item_no: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' });
+
+          setBillItems(mappedItems);
+          setTxnId(header.TxnID);
+          setOrderNo(header.TxnNo);
+          setWaiter(header.waiter || 'ASD');
+          setPax(header.pax || 1);
+          setTableNo(header.table_name || tableName);
+          setCurrentKOTNos(
+            Array.from(new Set(fetchedItems.map((i: FetchedItem) => i.kotNo))).sort((a: number, b: number) => a - b)
+          );
+          setBillActionState('printOrSettle');
+          // restore discount
+          if (header.Discount || header.DiscPer) {
+            setDiscount(header.Discount || 0);
+            setDiscountInputValue(
+              header.DiscountType === 1 ? header.DiscPer : header.Discount || 0
+            );
+            setDiscountType(header.DiscountType ?? 1);
+          } else {
+            setDiscount(0);
+            setDiscountInputValue(0);
+          }
+          setReversedItems(
+            (billedBillData.data.reversedItems || []).map((item: any) => ({
+              ...item,
+              name: item.ItemName || 'Unknown Item',
+              id: item.ItemID,
+              price: item.RuntimeRate || 0,
+              qty: Math.abs(item.Qty) || 1,
+              isReversed: true,
+              status: 'Reversed',
+              kotNo: item.KOTNo,
+            }))
+          );
+          calculateTotals(mappedItems);
+          setLoading(false);
+          return;
+        }
+      }
+      // STEP 2: fallback to unbilled API
+      loadUnbilledItems(tableIdNum);
+    } catch (err) {
+      console.error('Error loading bill for table:', err);
+      setError('Failed to load bill data');
+      setLoading(false);
+    }
+  };
+
   // Fetch table data when tableId is present
-  const fetchTableData = useCallback(async () => {
-      if (!tableId || !user || !user.hotelid) return;
+  const loadUnbilledItems = useCallback(async (tableIdNum: number) => {
+      if (!tableIdNum || !user || !user.hotelid) return;
 
       setLoading(true);
       setError(null);
       try {
-        const response = await axios.get(`/api/TAxnTrnbill/unbilled-items/${tableId}`);
+        const response = await axios.get(`/api/TAxnTrnbill/unbilled-items/${tableIdNum}`);
         if (response.status !== 200) {
           throw new Error(`Server responded with status ${response.status}`);
         }
@@ -229,7 +343,7 @@ const ModernBill = () => {
       } finally {
         setLoading(false);
       }
-    }, [tableId, user]);
+    }, [user]);
 
   // Fetch billed items for the table
 
@@ -359,9 +473,9 @@ const ModernBill = () => {
 
   useEffect(() => {
     if (tableId) {
-      fetchTableData();
+      loadBillForTable(tableId);
     }
-  }, [tableId, fetchTableData]);
+  }, [tableId]);
 
   // Check for openSettlement flag and open settlement modal
   useEffect(() => {
@@ -1382,7 +1496,7 @@ const printBill = async () => {
   <Col md={1}>
     <div className="info-box p-2 h-100 border rounded text-center d-flex flex-column justify-content-center">
       <div className="text-uppercase text-secondary small mb-1 fw-semibold">Table No</div>
-      <div className="fw-bold fs-4" style={{ color: '#333', cursor: 'pointer' }} onClick={fetchTableData}>{tableNo || '--'}</div>
+      <div className="fw-bold fs-4" style={{ color: '#333' }}>{tableNo || '--'}</div>
     </div>
   </Col>
   
