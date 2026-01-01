@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useRef, KeyboardEvent, useCallback } from 'react';
 import { Row, Col, Card, Table, Badge, Button, Form, Modal, Alert } from 'react-bootstrap';
 import axios from 'axios';
-import { toast } from 'react-hot-toast';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthContext } from '@/common';
 import KotTransfer from './Transaction/KotTransfer';
@@ -80,12 +79,10 @@ const ModernBill = () => {
   const [editableKot, setEditableKot] = useState<number | null>(null); // user editable
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [currentTxnId, setCurrentTxnId] = useState<number | null>(null);
+  const [txnId, setTxnId] = useState<number | null>(null);
   const [billNo, setBillNo] = useState<number | null>(null);
   const [billData, setBillData] = useState<any>(null);
-  const [headerData, setHeaderData] = useState<any>(null);
   const [isBillPrinted, setIsBillPrinted] = useState(false);
-  const [isSettled, setIsSettled] = useState(false);
 
   const [discount, setDiscount] = useState(0);
   const [discountInputValue, setDiscountInputValue] = useState(0);
@@ -103,48 +100,11 @@ const ModernBill = () => {
 
   // Fetch bill details
   const fetchBillDetails = async () => {
-    if (!currentTxnId) return;
+    if (!txnId) return;
     try {
-      const response = await axios.get(`/api/TAxnTrnbill/${currentTxnId}`);
-      const data = response.data;
-      setBillData(data);
-      setIsBillPrinted(data.isPrinted || false);
-
-      // Populate bill items from bill data
-      if (data.items) {
-        const mappedItems: BillItem[] = data.items.map((item: any) => ({
-          itemCode: (item.item_no || item.item_no || '').toString(),
-          itemId: item.itemId || item.ItemID || 0,
-          item_no: item.item_no || item.ItemNo || '',
-          itemName: item.itemName || item.ItemName || item.item_name || '',
-          qty: item.netQty || item.Qty || 0,
-          rate: item.price || item.Price || item.Rate || 0,
-          total: (item.netQty || item.Qty || 0) * (item.price || item.Price || item.Rate || 0),
-          cgst: ((item.netQty || item.Qty || 0) * (item.price || item.Price || item.Rate || 0)) * 0.025,
-          sgst: ((item.netQty || item.Qty || 0) * (item.price || item.Price || item.Rate || 0)) * 0.025,
-          igst: 0,
-          mkotNo: item.kotNo ? item.kotNo.toString() : (item.KOTNo ? item.KOTNo.toString() : ''),
-          specialInstructions: item.specialInstructions || item.SpecialInst || ''
-        }));
-
-        // Always add a blank row at the end for new item entry
-        mappedItems.push({ itemCode: '', itemId: 0, item_no: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' });
-
-        setBillItems(mappedItems);
-
-        // Update header fields
-        if (data.header) {
-          setCurrentTxnId(data.header.TxnID);
-          setWaiter(data.header.waiter || 'ASD');
-          setPax(data.header.pax || 1);
-          if (data.header.table_name) {
-            setTableNo(data.header.table_name);
-          }
-        }
-
-        // Calculate totals
-        calculateTotals(mappedItems);
-      }
+      const response = await axios.get(`/api/TAxnTrnbill/${txnId}`);
+      setBillData(response.data);
+      setIsBillPrinted(response.data.isPrinted || false);
     } catch (error) {
       console.error('Error fetching bill details:', error);
     }
@@ -183,7 +143,6 @@ const ModernBill = () => {
   const [customerMobile, setCustomerMobile] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [showCustomerModal, setShowCustomerModal] = useState(false);
-  
 
   // Outlet selection states
   const [outlets, setOutlets] = useState<Outlet[]>([]);
@@ -247,9 +206,7 @@ const ModernBill = () => {
         // Update header fields from data.header and data.kotNo if available
         console.log('API Response Header:', data.header);
         if (data.header) {
-          if (!currentTxnId) {
-            setCurrentTxnId(data.header.TxnID);
-          }
+          setTxnId(data.header.TxnID);
           setWaiter(data.header.waiter || 'ASD');
           setPax(data.header.pax || 1);
           if (data.header.table_name) {
@@ -381,12 +338,24 @@ const ModernBill = () => {
     fetchGlobalKOT();
   }, [selectedOutletId]);
 
-  // Tax rates are set to default values (2.5% for CGST and SGST)
-  // Removed API call to /api/tax-details as endpoint returns 404
+  // Fetch tax details based on selected outlet
   useEffect(() => {
-    setCgstRate(2.5);
-    setSgstRate(2.5);
-  }, []);
+    const fetchTaxDetails = async () => {
+      if (!selectedOutletId) return;
+
+      try {
+        const response = await axios.get(`/api/tax-details?outletid=${selectedOutletId}`);
+        setTaxDetails(response.data);
+        setCgstRate(response.data.cgst_rate || 2.5);
+        setSgstRate(response.data.sgst_rate || 2.5);
+        console.log('Tax details:', response.data);
+      } catch (error) {
+        console.error('Error fetching tax details:', error);
+      }
+    };
+
+    fetchTaxDetails();
+  }, [selectedOutletId]);
 
   useEffect(() => {
     if (tableId) {
@@ -394,29 +363,12 @@ const ModernBill = () => {
     }
   }, [tableId, fetchTableData]);
 
-  // Fetch fresh txnId from backend for the table
-
-
-  // Set currentTxnId from state if provided
-  useEffect(() => {
-    if (txnIdFromState && !currentTxnId) {
-      setCurrentTxnId(txnIdFromState);
-    }
-  }, [txnIdFromState, currentTxnId]);
-
   // Check for openSettlement flag and open settlement modal
   useEffect(() => {
-    if (location.state?.openSettlement && currentTxnId != null) {
+    if (location.state?.openSettlement) {
       setShowSettlementModal(true);
     }
-  }, [location.state, currentTxnId]);
-
-  // Fetch bill details if txnId is present but billData is not
-  useEffect(() => {
-    if (currentTxnId && !billData) {
-      fetchBillDetails();
-    }
-  }, [currentTxnId, billData]);
+  }, [location.state]);
 
   useEffect(() => {
     // 1. Fetch menu items from the API when the component mounts
@@ -644,7 +596,7 @@ const ModernBill = () => {
         hotelId: user.hotelid,
         KOTNo: editableKot, // Use editableKot if set, else null for backend to generate
         Order_Type: 'Dine-in',
-        ...(currentTxnId ? { currentTxnId  } : {}),
+        ...(txnId ? { txnId } : {}),
         ...(isNoCharge ? { NCName: ncName, NCPurpose: ncPurpose } : {}),
         items: validItems.map(item => ({
           ItemID: item.itemId,
@@ -680,7 +632,7 @@ const ModernBill = () => {
 
       // Update txnId from the response
       if (response.data?.data?.TxnID) {
-        setCurrentTxnId(response.data.data.TxnID);
+        setTxnId(response.data.data.TxnID);
       }
 
       alert('KOT saved successfully');
@@ -713,14 +665,14 @@ const ModernBill = () => {
   };
 
   const reverseBill = async () => {
-    if (!currentTxnId) {
+    if (!txnId) {
       alert('No bill to reverse');
       return;
     }
 
     try {
       await axios.post('/api/TAxnTrnbill/reverse', {
-        TxnID: currentTxnId,
+        TxnID: txnId,
         OutletID: user.outletid,
         HotelID: user.hotelid,
         UserID: user.id
@@ -740,10 +692,10 @@ const ModernBill = () => {
   };
 
   const reverseKOT = async () => {
-    if (!currentTxnId) return;
+    if (!txnId) return;
     try {
       await axios.post('/api/TAxnTrnbill/create-reverse-kot', {
-        TxnID: currentTxnId,
+        txnId,
         qty: reverseQty,
         reason: reverseReason
       });
@@ -768,12 +720,9 @@ const ModernBill = () => {
   };
 
 const printBill = async () => {
-    if (!currentTxnId) {
-      alert('No transaction ID available. Please save the KOT first.');
-      return;
-    }
+    if (!txnId) return;
     try {
-      const response = await axios.put(`/api/TAxnTrnbill/${currentTxnId}/print`);
+      const response = await axios.put(`/api/TAxnTrnbill/${txnId}/print`);
       alert('Bill printed successfully');
       // Handle print data if needed
       console.log('Bill Print Data:', response.data);
@@ -788,10 +737,10 @@ const printBill = async () => {
   };
  
   const generateBill = async () => {
-    if (!currentTxnId) return;
+    if (!txnId) return;
     try {
       const response = await axios.post('/api/bill/generate', {
-        currentTxnId
+        txnId
       });
       setBillNo(response.data.data.BillNo);
       alert('Bill generated successfully');
@@ -803,18 +752,33 @@ const printBill = async () => {
     }
   };
 
-  // Deprecated: Do not use settleBill. Use handleSettleAndPrint instead.
-  // const settleBill = async () => {
-  //   try {
-  //     // First generate the bill
-  //     const billNo = await generateBill();
-  //     if (!billNo) {
+  const settleBill = async () => {
+   
+    try {
+      // First generate the bill
+      const billNo = await generateBill();
+      if (!billNo) {
+        alert('Bill generation failed. Cannot proceed with settlement.');
+        return;
+      }
+
+      // Then settle the bill using the backend settleBill endpoint
+      await axios.post(`/api/TAxnTrnbill/${txnId}/settle`, {
+        settlements
+      });
+      alert('Bill settled successfully');
+      navigate('/apps/Tableview');
+    } catch (error) {
+      console.error('Error settling bill:', error);
+      alert('Error settling bill');
+    }
+  };
 
   const transferTable = async () => {
-    if (!currentTxnId || !selectedTable) return;
+    if (!txnId || !selectedTable) return;
     try {
       await axios.post('/api/TAxnTrnbill/kot', {
-        currentTxnId,
+        txnId,
         tableId: selectedTable.id,
         table_name: selectedTable.name,
         items: []
@@ -829,7 +793,7 @@ const printBill = async () => {
   };
   const resetBillState = () => {
     setBillItems([{ itemCode: '', item_no: 0, itemId: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' }]);
-    setCurrentTxnId(null);
+    setTxnId(null);
     setWaiter('ASD');
     setPax(1);
     setKotNo('');
@@ -838,13 +802,12 @@ const printBill = async () => {
     setEditableKot(null);
     setCustomerMobile('');
     setCustomerName('');
-    setIsSettled(false);
     calculateTotals([{ itemCode: '', item_no: 0, itemId: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' }]);
   };
 
   const fetchTableManagement = async () => {
     try {
-      const response = await axios.get(`/api/tablemanagement`);
+      const response = await axios.get(`/api/tables/${tableId}`);
       setTableItems(response.data);
     } catch (error) {
       console.error('Error fetching table management:', error);
@@ -888,8 +851,12 @@ const printBill = async () => {
     const totalPaid = Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0) + (tip || 0);
     const settlementBalance = taxCalc.grandTotal - totalPaid;
 
+    if (!txnId) {
+      alert('Cannot settle bill. No transaction ID found.');
+      return;
+    }
     if (settlementBalance !== 0 || totalPaid === 0) { // Now this check will work
-      toast.error('Payment amount does not match the total due.');
+      alert('Payment amount does not match the total due.');
       return;
     }
 
@@ -909,19 +876,15 @@ const printBill = async () => {
       });
 
       // 2. Call the settlement endpoint
-      const response = await fetch(`http://localhost:3001/api/TAxnTrnbill/${currentTxnId}/settle`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ settlements: settlementsPayload }),
+      const response = await axios.post(`/api/TAxnTrnbill/${txnId}/settle`, {
+        settlements: settlementsPayload
       });
 
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.message || 'Failed to settle bill.');
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to settle bill.');
       }
 
-      toast.success('Settlement successful and bill printed!');
+      alert('Settlement successful and bill printed!');
 
       // Clear customer fields after successful settlement
       setCustomerMobile('');
@@ -944,18 +907,15 @@ const printBill = async () => {
       setShowSettlementModal(false);
       setBillActionState('initial');
 
-
       if (selectedTable) {
         const tableToUpdate = tableItems.find(t => t.table_name === selectedTable.name);
         if (tableToUpdate) {
-          await fetch(`http://localhost:3001/api/tablemanagement/${tableToUpdate.tablemanagementid}/status`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ status: 0 }), // 0 for Vacant
+          await axios.post(`/api/tablemanagement/${tableToUpdate.tablemanagementid}/status`, {
+            status: 0 // 0 for Vacant
           });
         }
       }
-
+      fetchTableManagement(); // Refresh table statuses
       setCurrentKOTNo(null);
       setShowPendingOrdersView(false); // Hide pending view after successful settlement
       setCurrentKOTNos([]);
@@ -968,22 +928,9 @@ const printBill = async () => {
 
     } catch (error: any) {
       console.error('Error settling bill:', error);
-      toast.error(error.message || 'An error occurred during settlement.');
+      alert(error.message || 'An error occurred during settlement.');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handlePrintAndSettle = async () => {
-    try {
-      // First, print the bill
-      await printBill();
-
-      // Then, open the settlement modal
-      setShowSettlementModal(true);
-    } catch (error) {
-      console.error('Error in print and settle:', error);
-      toast.error('Failed to print bill. Settlement not initiated.');
     }
   };
 
@@ -1019,17 +966,13 @@ const printBill = async () => {
         printBill();
       } else if (keyboardEvent.key === 'F11') {
         keyboardEvent.preventDefault();
-        if (!currentTxnId) {
-          alert('No transaction ID available. Please save the KOT first.');
-          return;
-        }
         setShowSettlementModal(true);
       }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [currentTxnId, reverseQty, reverseReason, selectedTable]);
+  }, [txnId, reverseQty, reverseReason, selectedTable]);
 
   return (
     <React.Fragment>
@@ -1763,13 +1706,7 @@ const printBill = async () => {
                   <Button onClick={() => setShowReverseKOTModal(true)} variant="outline-primary" size="sm" className="function-btn">Rev KOT (F8)</Button>
                   <Button onClick={() => saveKOT(false, true)} variant="outline-primary" size="sm" className="function-btn">K O T (F9)</Button>
                   <Button onClick={printBill} variant="outline-primary" size="sm" className="function-btn">Print (F10)</Button>
-                  <Button onClick={() => {
-                    if (!currentTxnId) {
-                      alert('No transaction ID available. Please save the KOT first.');
-                      return;
-                    }
-                    setShowSettlementModal(true);
-                  }} variant="outline-primary" size="sm" className="function-btn">Settle (F11)</Button>
+                  <Button onClick={() => setShowSettlementModal(true)} variant="outline-primary" size="sm" className="function-btn">Settle (F11)</Button>
                   <Button onClick={exitWithoutSave} variant="outline-primary" size="sm" className="function-btn">Exit (Esc)</Button>
                 </div>
               </Card.Body>
