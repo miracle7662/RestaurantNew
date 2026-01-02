@@ -1774,7 +1774,7 @@ const ModernBill = () => {
           </div>
         </div>
 
-       
+
 
         {/* Main Content */}
         <div className="full-screen-content px-2" style={{ top: `${headerHeight + toolbarHeight}px` }}>
@@ -1824,6 +1824,7 @@ const ModernBill = () => {
                                 }
                               }}
                               className="form-control"
+                            
                               style={{ width: '100%', border: 'none', fontSize: '16px', background: 'transparent', padding: '0', outline: 'none' }}
                             />
                           </td>
@@ -1845,7 +1846,7 @@ const ModernBill = () => {
                               }}
                               className="form-control-sm1"
                               list="itemNames"
-                              disabled={isGrouped}
+                             
                               style={{ width: '100%', border: 'none', fontSize: '16px', background: 'transparent', padding: '0', outline: 'none' }}
                             />
                           </td>
@@ -1866,7 +1867,7 @@ const ModernBill = () => {
                                 }
                               }}
                               className="form-control-sm1 text-center"
-                             
+                            
                               style={{ width: '100%', border: 'none', background: 'transparent', fontSize: '16px', padding: '0', outline: 'none' }}
                             />
                           </td>
@@ -1883,7 +1884,7 @@ const ModernBill = () => {
                                 }
                               }}
                               className="form-control-sm1 text-end"
-                              
+                            
                               style={{ width: '100%', fontSize: '16px', border: 'none', background: 'transparent', padding: '0', outline: 'none' }}
                             />
                           </td>
@@ -1913,7 +1914,7 @@ const ModernBill = () => {
                                 }
                               }}
                               className="form-control-sm1"
-                             
+                              
                               style={{ width: '100%', fontSize: '18px', border: 'none', background: 'transparent', padding: '0', outline: 'none' }}
                             />
                           </td>
