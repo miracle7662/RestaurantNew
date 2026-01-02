@@ -1824,7 +1824,6 @@ const ModernBill = () => {
                                 }
                               }}
                               className="form-control"
-                            
                               style={{ width: '100%', border: 'none', fontSize: '16px', background: 'transparent', padding: '0', outline: 'none' }}
                             />
                           </td>
@@ -1846,7 +1845,6 @@ const ModernBill = () => {
                               }}
                               className="form-control-sm1"
                               list="itemNames"
-                             
                               style={{ width: '100%', border: 'none', fontSize: '16px', background: 'transparent', padding: '0', outline: 'none' }}
                             />
                           </td>
@@ -1867,7 +1865,6 @@ const ModernBill = () => {
                                 }
                               }}
                               className="form-control-sm1 text-center"
-                            
                               style={{ width: '100%', border: 'none', background: 'transparent', fontSize: '16px', padding: '0', outline: 'none' }}
                             />
                           </td>
@@ -1884,7 +1881,6 @@ const ModernBill = () => {
                                 }
                               }}
                               className="form-control-sm1 text-end"
-                            
                               style={{ width: '100%', fontSize: '16px', border: 'none', background: 'transparent', padding: '0', outline: 'none' }}
                             />
                           </td>
