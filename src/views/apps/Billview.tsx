@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useRef, KeyboardEvent, useCallback } from 'react';
-import { Row, Col, Card, Table, Badge, Button, Form, Modal, Alert } from 'react-bootstrap';
+import React, { useEffect, useState, useRef, KeyboardEvent, useCallback, useMemo } from 'react';
+import { Row, Col, Card, Table, Badge, Button, Form, Modal } from 'react-bootstrap';
 import axios from 'axios';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthContext } from '@/common';
@@ -21,6 +21,7 @@ interface BillItem {
   cess: number;
   mkotNo: string;
   specialInstructions: string;
+  itemgroupid: number;
 }
 
 interface MenuItem {
@@ -29,6 +30,17 @@ interface MenuItem {
   item_name: string;
   short_name: string;
   price: number;
+  itemgroupid?: number;
+}
+
+interface ItemGroup {
+  itemgroupid: number;
+  group_name: string;
+}
+
+interface DisplayedItem extends BillItem {
+  type?: 'header' | 'item';
+  groupName?: string;
 }
 
 interface Table {
@@ -65,13 +77,15 @@ const ModernBill = () => {
   const [headerHeight, setHeaderHeight] = useState(0);
   const [toolbarHeight, setToolbarHeight] = useState(0);
 
-  const [billItems, setBillItems] = useState<BillItem[]>([{ itemCode: '', itemId: 0, item_no: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '' }]);
+  const [billItems, setBillItems] = useState<BillItem[]>([{ itemCode: '', itemgroupid : 0, itemId: 0, item_no: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '' }]);
 
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
 
   const [grossAmount, setGrossAmount] = useState(0);
   const [totalCgst, setTotalCgst] = useState(0);
   const [totalSgst, setTotalSgst] = useState(0);
+  const [totalIgst, setTotalIgst] = useState(0);
+  const [totalCess, setTotalCess] = useState(0);
   const [roundOff, setRoundOff] = useState(0);
   const [finalAmount, setFinalAmount] = useState(0);
 
@@ -114,6 +128,112 @@ const ModernBill = () => {
   const [currentKOTNos, setCurrentKOTNos] = useState<number[]>([]);
   const [orderNo, setOrderNo] = useState(billNo);
   const [activeTab, setActiveTab] = useState('Dine-in');
+
+  const [isGrouped, setIsGrouped] = useState(false);
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+
+  // Tax rates states
+  const [cgstRate, setCgstRate] = useState(2.5);
+  const [sgstRate, setSgstRate] = useState(2.5);
+  const [igstRate, setIgstRate] = useState(0);
+  const [cessRate, setCessRate] = useState(0);
+  const [includeTaxInInvoice, setIncludeTaxInInvoice] = useState(false);
+
+  // Compute displayed items based on grouping
+  const displayedItems = useMemo(() => {
+    if (!isGrouped) {
+      return billItems;
+    }
+
+    const grouped = billItems.reduce((acc, item) => {
+      if (item.itemName && item.qty > 0) {
+        const key = item.itemName;
+        if (!acc[key]) {
+          acc[key] = {
+            itemCode: item.itemCode,
+            itemgroupid: item.itemgroupid,  
+            itemId: item.itemId,
+            item_no: item.item_no,
+            itemName: item.itemName,
+            qty: 0,
+            rate: item.rate,
+            total: 0,
+            cgst: 0,
+            sgst: 0,
+            igst: 0,
+            cess: 0,
+            mkotNo: '',
+            specialInstructions: ''
+          };
+        }
+        acc[key].qty += item.qty;
+        acc[key].total = acc[key].qty * acc[key].rate;
+        if (!includeTaxInInvoice) {
+          acc[key].cgst = acc[key].total * (cgstRate / 100);
+          acc[key].sgst = acc[key].total * (sgstRate / 100);
+          acc[key].igst = acc[key].total * (igstRate / 100);
+          acc[key].cess = acc[key].total * (cessRate / 100);
+        }
+
+        // Collect and sort MKotNo
+        if (item.mkotNo) {
+          const existing = acc[key].mkotNo ? acc[key].mkotNo.split('|') : [];
+          if (!existing.includes(item.mkotNo)) {
+            existing.push(item.mkotNo);
+          }
+          acc[key].mkotNo = existing.sort((a, b) => parseInt(a) - parseInt(b)).join('|');
+        }
+
+        // Use first specialInstructions
+        if (!acc[key].specialInstructions && item.specialInstructions) {
+          acc[key].specialInstructions = item.specialInstructions;
+        }
+      }
+      return acc;
+    }, {} as Record<string, BillItem>);
+
+    const result = Object.values(grouped);
+    // Add blank row for new entries
+    result.push({ itemCode: '',  itemgroupid: 0,  itemId: 0, item_no: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '' });
+    return result;
+  }, [billItems, isGrouped, cgstRate, sgstRate, igstRate, cessRate, includeTaxInInvoice]);
+
+  // Calculate totals based on displayed items
+  useEffect(() => {
+    const updatedItems = displayedItems.map(item => {
+      const total = item.qty * item.rate;
+      let cgst = 0;
+      let sgst = 0;
+      let igst = 0;
+      let cess = 0;
+      if (!includeTaxInInvoice) {
+        cgst = total * (cgstRate / 100);
+        sgst = total * (sgstRate / 100);
+        igst = total * (igstRate / 100);
+        cess = total * (cessRate / 100);
+      }
+      return { ...item, total, cgst, sgst, igst, cess };
+    });
+
+    const gross = updatedItems.reduce((sum, item) => sum + item.total, 0);
+    const cgstTotal = updatedItems.reduce((sum, item) => sum + item.cgst, 0);
+    const sgstTotal = updatedItems.reduce((sum, item) => sum + item.sgst, 0);
+    const igstTotal = updatedItems.reduce((sum, item) => sum + item.igst, 0);
+    const cessTotal = updatedItems.reduce((sum, item) => sum + item.cess, 0);
+
+    const totalBeforeRoundOff = gross + cgstTotal + sgstTotal + igstTotal + cessTotal;
+    const roundedFinalAmount = Math.round(totalBeforeRoundOff);
+    const ro = roundedFinalAmount - totalBeforeRoundOff;
+
+    setGrossAmount(gross);
+    setTotalCgst(cgstTotal);
+    setTotalSgst(sgstTotal);
+    setTotalIgst(igstTotal);
+    setTotalCess(cessTotal);
+    setFinalAmount(roundedFinalAmount);
+    setRoundOff(ro);
+    setTaxCalc({ grandTotal: roundedFinalAmount });
+  }, [displayedItems, cgstRate, sgstRate, igstRate, cessRate, includeTaxInInvoice]);
 
   // Fetch bill details
   const fetchBillDetails = async () => {
@@ -169,17 +289,6 @@ const ModernBill = () => {
   // Tax details state
   const [taxDetails, setTaxDetails] = useState<any>(null);
 
-  // Tax rates states
-  const [cgstRate, setCgstRate] = useState(2.5);
-  const [sgstRate, setSgstRate] = useState(2.5);
-  const [igstRate, setIgstRate] = useState(0);
-  const [cessRate, setCessRate] = useState(0);
-  const [includeTaxInInvoice, setIncludeTaxInInvoice] = useState(false);
-  const [totalIgst, setTotalIgst] = useState(0);
-  const [totalCess, setTotalCess] = useState(0);
-  const [discountAmount, setDiscountAmount] = useState(0);
-
-  // Search functionality states
 
   // Handle customer modal
   const handleCloseCustomerModal = () => setShowCustomerModal(false);
@@ -224,6 +333,7 @@ const ModernBill = () => {
               const sgst = total * (sgstRate / 100);
               return {
                 itemCode: item.item_no.toString(),
+                itemgroupid: item.id,
                 itemId: item.id,
                 item_no: item.item_no,
                 itemName: item.name,
@@ -239,7 +349,7 @@ const ModernBill = () => {
               };
             });
             // Add blank row
-            mappedItems.push({ itemCode: '', itemId: 0, item_no: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '' });
+            mappedItems.push({ itemCode: '',  itemgroupid: 0, itemId: 0, item_no: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '' });
 
             setBillItems(mappedItems);
             setTxnId(header.TxnID);
@@ -327,7 +437,7 @@ const ModernBill = () => {
         });
 
         // Always add a blank row at the end for new item entry
-        mappedItems.push({ itemCode: '',  itemId: 0, item_no: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '' });
+        mappedItems.push({ itemCode: '',  itemgroupid: 0,itemId: 0, item_no: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '' });
 
         setBillItems(mappedItems);
 
@@ -668,10 +778,10 @@ const ModernBill = () => {
       } else if (field === 'qty') {
         // Only add new row if current item has data (itemId > 0 or itemName not empty)
         if (billItems[index].itemId > 0 || billItems[index].itemName.trim() !== '') {
-          const newBillItems = [...billItems, { itemCode: "", itemId: 0, item_no: 0, itemName: "", qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '' }];
+          const newBillItems = [...billItems, { itemCode: "", itemgroupid : 0, itemId: 0, item_no: 0, itemName: "", qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '' }];
           setBillItems(newBillItems);
           // Focus the new itemCode after state update
-          setTimeout(() => {
+          setTimeout(() => { 
             const newItemCodeRef = inputRefs.current[newBillItems.length - 1]?.[0];
             if (newItemCodeRef) {
               newItemCodeRef.focus();
@@ -932,7 +1042,7 @@ const printBill = async () => {
     }
   };
   const resetBillState = () => {
-    setBillItems([{ itemCode: '', item_no: 0, itemId: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '' }]);
+    setBillItems([{ itemCode: '', itemgroupid: 0,item_no: 0, itemId: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '' }]);
     setTxnId(null);
     setWaiter('ASD');
     setPax(1);
@@ -942,7 +1052,7 @@ const printBill = async () => {
     setEditableKot(null);
     setCustomerMobile('');
     setCustomerName('');
-    calculateTotals([{ itemCode: '', item_no: 0, itemId: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '' }]);
+    calculateTotals([{ itemCode: '', itemgroupid: 0,   item_no: 0, itemId: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '' }]);
   };
 
   const fetchTableManagement = async () => {
@@ -1079,6 +1189,14 @@ const printBill = async () => {
       if (keyboardEvent.key === 'F2') {
         keyboardEvent.preventDefault();
         setShowKotTransferModal(true);
+      } else if (keyboardEvent.key === 'F4') {
+        keyboardEvent.preventDefault();
+        // Focus on special instructions of the first item or current row
+        const firstSpecialInstRef = inputRefs.current[0]?.[4];
+        if (firstSpecialInstRef) {
+          firstSpecialInstRef.focus();
+          firstSpecialInstRef.select();
+        }
       } else if (keyboardEvent.key === 'F5') {
         keyboardEvent.preventDefault();
         setShowReverseBillModal(true);
@@ -1094,18 +1212,21 @@ const printBill = async () => {
       } else if (keyboardEvent.key === 'F9') {
         keyboardEvent.preventDefault();
         saveKOT(false, true);
-      }  else if (keyboardEvent.key === 'F10') {
+      } else if (keyboardEvent.key === 'F10') {
         keyboardEvent.preventDefault();
         printBill();
       } else if (keyboardEvent.key === 'F11') {
         keyboardEvent.preventDefault();
         setShowSettlementModal(true);
+      } else if (keyboardEvent.key === 'g' && keyboardEvent.ctrlKey) {
+        keyboardEvent.preventDefault();
+        setIsGrouped(!isGrouped);
       }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [txnId, reverseQty, reverseReason, selectedTable, saveKOT]);
+  }, [txnId, reverseQty, reverseReason, selectedTable, saveKOT, isGrouped]);
 
   return (
     <React.Fragment>
@@ -1684,7 +1805,7 @@ const printBill = async () => {
                     </tr>
                   </thead >
                   <tbody>
-                    {billItems.map((item, index) => (
+                    {displayedItems.map((item, index) => (
                       <tr key={index}>
                         <td style={{ width: '80px'  }}>
                           <Form.Control
@@ -1703,6 +1824,7 @@ const printBill = async () => {
                               }
                             }}
                             className="form-control"
+                            disabled={isGrouped}
                             style={{ width: '100%', border: 'none', fontSize: '16px',  background: 'transparent', padding: '0', outline: 'none' }}
                           />
                         </td>
@@ -1724,6 +1846,7 @@ const printBill = async () => {
                             }}
                             className="form-control-sm1"
                             list="itemNames"
+                            disabled={isGrouped}
                             style={{ width: '100%',  border: 'none', fontSize: '16px', background: 'transparent', padding: '0', outline: 'none' }}
                           />
                         </td>
@@ -1744,6 +1867,7 @@ const printBill = async () => {
                               }
                             }}
                             className="form-control-sm1 text-center"
+                            disabled={isGrouped}
                             style={{ width: '100%', border: 'none', background: 'transparent',  fontSize: '16px',padding: '0', outline: 'none' }}
                           />
                         </td>
@@ -1760,6 +1884,7 @@ const printBill = async () => {
                               }
                             }}
                             className="form-control-sm1 text-end"
+                            disabled={isGrouped}
                             style={{ width: '100%', fontSize: '16px', border: 'none', background: 'transparent', padding: '0', outline: 'none' }}
                           />
                         </td>
@@ -1780,6 +1905,7 @@ const printBill = async () => {
                               }
                             }}
                             className="form-control-sm1"
+                            disabled={isGrouped}
                             style={{ width: '100%', fontSize: '18px', border: 'none',   background: 'transparent', padding: '0', outline: 'none' }}
                           />
                         </td>
