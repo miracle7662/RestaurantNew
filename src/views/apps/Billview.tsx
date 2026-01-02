@@ -1092,14 +1092,9 @@ const printBill = async () => {
         keyboardEvent.preventDefault();
         setShowReverseKOTModal(true);
       } else if (keyboardEvent.key === 'F9') {
-        if (keyboardEvent.ctrlKey) {
-          keyboardEvent.preventDefault();
-          saveKOT(true, false);
-        } else {
-          keyboardEvent.preventDefault();
-          saveKOT(false, true);
-        }
-      } else if (keyboardEvent.key === 'F10') {
+        keyboardEvent.preventDefault();
+        saveKOT(false, true);
+      }  else if (keyboardEvent.key === 'F10') {
         keyboardEvent.preventDefault();
         printBill();
       } else if (keyboardEvent.key === 'F11') {
@@ -1110,7 +1105,7 @@ const printBill = async () => {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [txnId, reverseQty, reverseReason, selectedTable]);
+  }, [txnId, reverseQty, reverseReason, selectedTable, saveKOT]);
 
   return (
     <React.Fragment>

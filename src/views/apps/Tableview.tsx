@@ -226,6 +226,29 @@ export default function App() {
     }
   }, []);
 
+  // Handle keyboard events for modal
+  useEffect(() => {
+    if (!showModal || !selectedTable) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Enter') {
+        // Yes action
+        navigate('/apps/Billview', { state: { tableId: selectedTable.id, tableName: selectedTable.name, outletId: selectedTable.outletid, openSettlement: true, txnId: selectedTable.txnId } });
+        setShowModal(false);
+      } else if (event.key === 'n' || event.key === 'N') {
+        // No action
+        navigate('/apps/Billview', { state: { tableId: selectedTable.id, tableName: selectedTable.name, outletId: selectedTable.outletid, txnId: selectedTable.txnId } });
+        setShowModal(false);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showModal, selectedTable, navigate]);
+
   // Group tables by their departmentid
   const tablesByDepartment = allTables.reduce((acc, table) => {
     if (table.departmentid) {
