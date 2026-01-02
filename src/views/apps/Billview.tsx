@@ -18,6 +18,7 @@ interface BillItem {
   cgst: number;
   sgst: number;
   igst: number;
+  cess: number;
   mkotNo: string;
   specialInstructions: string;
 }
@@ -64,7 +65,7 @@ const ModernBill = () => {
   const [headerHeight, setHeaderHeight] = useState(0);
   const [toolbarHeight, setToolbarHeight] = useState(0);
 
-  const [billItems, setBillItems] = useState<BillItem[]>([{ itemCode: '', itemId: 0, item_no: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' }]);
+  const [billItems, setBillItems] = useState<BillItem[]>([{ itemCode: '', itemId: 0, item_no: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '' }]);
 
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
 
@@ -171,6 +172,12 @@ const ModernBill = () => {
   // Tax rates states
   const [cgstRate, setCgstRate] = useState(2.5);
   const [sgstRate, setSgstRate] = useState(2.5);
+  const [igstRate, setIgstRate] = useState(0);
+  const [cessRate, setCessRate] = useState(0);
+  const [includeTaxInInvoice, setIncludeTaxInInvoice] = useState(false);
+  const [totalIgst, setTotalIgst] = useState(0);
+  const [totalCess, setTotalCess] = useState(0);
+  const [discountAmount, setDiscountAmount] = useState(0);
 
   // Search functionality states
 
@@ -226,12 +233,13 @@ const ModernBill = () => {
                 cgst,
                 sgst,
                 igst: 0,
+                cess: 0,
                 mkotNo: item.kotNo ? item.kotNo.toString() : '',
                 specialInstructions: ''
               };
             });
             // Add blank row
-            mappedItems.push({ itemCode: '', itemId: 0, item_no: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' });
+            mappedItems.push({ itemCode: '', itemId: 0, item_no: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '' });
 
             setBillItems(mappedItems);
             setTxnId(header.TxnID);
@@ -312,13 +320,14 @@ const ModernBill = () => {
             cgst: ((item.netQty || item.Qty || 0) * (item.price || item.Price || item.Rate || 0)) * 0.025,
             sgst: ((item.netQty || item.Qty || 0) * (item.price || item.Price || item.Rate || 0)) * 0.025,
             igst: 0,
+            cess: 0,
             mkotNo: item.kotNo ? item.kotNo.toString() : (item.KOTNo ? item.KOTNo.toString() : ''),
             specialInstructions: item.specialInstructions || item.SpecialInst || ''
           };
         });
 
         // Always add a blank row at the end for new item entry
-        mappedItems.push({ itemCode: '',  itemId: 0, item_no: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' });
+        mappedItems.push({ itemCode: '',  itemId: 0, item_no: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '' });
 
         setBillItems(mappedItems);
 
@@ -389,27 +398,39 @@ const ModernBill = () => {
   const calculateTotals = (items: BillItem[]) => {
     const updatedItems = items.map(item => {
       const total = item.qty * item.rate;
-      const cgst = total * (cgstRate / 100); // Dynamic CGST
-      const sgst = total * (sgstRate / 100); // Dynamic SGST
-      return { ...item, total, cgst, sgst, igst: 0 };
+      let cgst = 0;
+      let sgst = 0;
+      let igst = 0;
+      let cess = 0;
+      if (!includeTaxInInvoice) {
+        cgst = total * (cgstRate / 100);
+        sgst = total * (sgstRate / 100);
+        igst = total * (igstRate / 100);
+        cess = total * (cessRate / 100);
+      }
+      return { ...item, total, cgst, sgst, igst, cess };
     });
 
     const gross = updatedItems.reduce((sum, item) => sum + item.total, 0);
     const cgstTotal = updatedItems.reduce((sum, item) => sum + item.cgst, 0);
     const sgstTotal = updatedItems.reduce((sum, item) => sum + item.sgst, 0);
+    const igstTotal = updatedItems.reduce((sum, item) => sum + item.igst, 0);
+    const cessTotal = updatedItems.reduce((sum, item) => sum + item.cess, 0);
 
-    const totalBeforeRoundOff = gross + cgstTotal + sgstTotal;
+    const totalBeforeRoundOff = gross + cgstTotal + sgstTotal + igstTotal + cessTotal;
     const roundedFinalAmount = Math.round(totalBeforeRoundOff);
     const ro = roundedFinalAmount - totalBeforeRoundOff;
 
-  setGrossAmount(gross);
-  setTotalCgst(cgstTotal);
-  setTotalSgst(sgstTotal);
-  setFinalAmount(roundedFinalAmount);
-  setRoundOff(ro);
-  setBillItems(updatedItems);
-  setTaxCalc({ grandTotal: roundedFinalAmount });
-};
+    setGrossAmount(gross);
+    setTotalCgst(cgstTotal);
+    setTotalSgst(sgstTotal);
+    setTotalIgst(igstTotal);
+    setTotalCess(cessTotal);
+    setFinalAmount(roundedFinalAmount);
+    setRoundOff(ro);
+    setBillItems(updatedItems);
+    setTaxCalc({ grandTotal: roundedFinalAmount });
+  };
 
   // Fetch outlets
   useEffect(() => {
@@ -467,6 +488,9 @@ const ModernBill = () => {
         setTaxDetails(response.data);
         setCgstRate(response.data.cgst_rate || 2.5);
         setSgstRate(response.data.sgst_rate || 2.5);
+        setIgstRate(response.data.igst_rate || 0);
+        setCessRate(response.data.cess_rate || 0);
+        setIncludeTaxInInvoice(response.data.include_tax_in_invoice || false);
         console.log('Tax details:', response.data);
       } catch (error) {
         console.error('Error fetching tax details:', error);
@@ -644,7 +668,7 @@ const ModernBill = () => {
       } else if (field === 'qty') {
         // Only add new row if current item has data (itemId > 0 or itemName not empty)
         if (billItems[index].itemId > 0 || billItems[index].itemName.trim() !== '') {
-          const newBillItems = [...billItems, { itemCode: "", itemId: 0, item_no: 0, itemName: "", qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' }];
+          const newBillItems = [...billItems, { itemCode: "", itemId: 0, item_no: 0, itemName: "", qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '' }];
           setBillItems(newBillItems);
           // Focus the new itemCode after state update
           setTimeout(() => {
@@ -908,7 +932,7 @@ const printBill = async () => {
     }
   };
   const resetBillState = () => {
-    setBillItems([{ itemCode: '', item_no: 0, itemId: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' }]);
+    setBillItems([{ itemCode: '', item_no: 0, itemId: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '' }]);
     setTxnId(null);
     setWaiter('ASD');
     setPax(1);
@@ -918,7 +942,7 @@ const printBill = async () => {
     setEditableKot(null);
     setCustomerMobile('');
     setCustomerName('');
-    calculateTotals([{ itemCode: '', item_no: 0, itemId: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, mkotNo: '', specialInstructions: '' }]);
+    calculateTotals([{ itemCode: '', item_no: 0, itemId: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '' }]);
   };
 
   const fetchTableManagement = async () => {
@@ -1787,6 +1811,8 @@ const printBill = async () => {
                     <th className="text-center">Disc(+)</th>
                     <th className="text-end">CGST (+)</th>
                     <th className="text-end">SGST (+)</th>
+                    <th className="text-end">IGST (+)</th>
+                    <th className="text-end">CESS (+)</th>
                     <th className="text-end">R. Off (+)</th>
                     <th className="text-center">Ser Chg (+)</th>
                     <th className="text-end">Final Amount</th>
@@ -1800,6 +1826,8 @@ const printBill = async () => {
                     <td className="text-center">0.00</td>
                     <td className="text-end">{totalCgst.toFixed(2)}</td>
                     <td className="text-end">{totalSgst.toFixed(2)}</td>
+                    <td className="text-end">{totalIgst.toFixed(2)}</td>
+                    <td className="text-end">{totalCess.toFixed(2)}</td>
                     <td className="text-end">{roundOff.toFixed(2)}</td>
                     <td className="text-center">0</td>
                     <td className="text-end fw-bold text-success">{finalAmount.toFixed(2)}</td>
