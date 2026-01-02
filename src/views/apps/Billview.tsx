@@ -5,6 +5,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthContext } from '@/common';
 import KotTransfer from './Transaction/KotTransfer';
 import CustomerModal from './Transaction/Customers';
+import F8PasswordModal from '../../components/F8PasswordModal';
 import toast, { Toaster } from 'react-hot-toast';
 
 interface BillItem {
@@ -280,6 +281,91 @@ const ModernBill = () => {
   const [customerMobile, setCustomerMobile] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [showCustomerModal, setShowCustomerModal] = useState(false);
+  const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
+  const [f8Error, setF8Error] = useState<string | null>(null);
+
+  const [showF9BilledPasswordModal, setShowF9BilledPasswordModal] = useState(false);
+  const [f9BilledPasswordError, setF9BilledPasswordError] = useState('');
+  const [f9BilledPasswordLoading, setF9BilledPasswordLoading] = useState(false);
+
+  const handleF9PasswordSubmit = async (password: string) => {
+    if (!(user as any)?.token) {
+      toast.error("Authentication token not found. Please log in again.");
+      return;
+    }
+
+    setF9BilledPasswordLoading(true);
+    setF9BilledPasswordError('');
+    try {
+      const response = await fetch('http://localhost:3001/api/auth/verify-creator-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${(user as any).token}`
+        },
+        body: JSON.stringify({ password })
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        // Password verified, now call the bill reversal endpoint
+        if (!txnId) {
+          setF9BilledPasswordError("Transaction ID not found. Cannot reverse bill.");
+          return;
+        }
+
+        try {
+          const reverseResponse = await fetch(`http://localhost:3001/api/TAxnTrnbill/${txnId}/reverse`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${(user as any).token}`
+            },
+            body: JSON.stringify({ userId: user.id }) // Pass admin's ID for logging
+          });
+
+          const reverseData = await reverseResponse.json();
+
+          if (reverseResponse.ok && reverseData.success) {
+            toast.success('Bill reversed successfully!');
+            setShowF9BilledPasswordModal(false);
+
+            // ✅ Optimistically update the table status in the UI
+            if (tableName) {
+              setTableItems(prevTables =>
+                prevTables.map(table =>
+                  table.table_name === tableName ? { ...table, status: 0 } : table
+                )
+              );
+            }
+
+            // ✅ Clear current UI states
+            resetBillState();
+            setItems([]);
+            setReversedItems([]);
+            setSelectedTable(null);
+            setShowOrderDetails(false);
+            setCurrentKOTNo(null);
+            setCurrentKOTNos([]);
+            setOrderNo(null);
+            
+            navigate('/apps/Tableview');
+          } else {
+            setF9BilledPasswordError(reverseData.message || 'Failed to reverse the bill.');
+          }
+        } catch (reverseError) {
+          setF9BilledPasswordError('An error occurred while reversing the bill.');
+        }
+      } else {
+        setF9BilledPasswordError(data.message || 'Invalid password');
+      }
+    } catch (error) {
+      setF9BilledPasswordError('An error occurred. Please try again.');
+    } finally {
+      setF9BilledPasswordLoading(false);
+    }
+  };
 
   // Outlet selection states
   const [outlets, setOutlets] = useState<Outlet[]>([]);
@@ -963,6 +1049,7 @@ const ModernBill = () => {
         setSelectedTable(null);
         setShowOrderDetails(false);
         setShowNCKOTModal(false);
+        navigate('/apps/Tableview');
       } else {
         throw new Error(result.message || 'Failed to apply NCKOT.');
       }
@@ -1998,7 +2085,7 @@ const ModernBill = () => {
                 <Table responsive bordered className="modern-table">
                   <thead>
                     <tr>
-                      <th>Discount (#3)</th>
+                      <th>Discount (F3)</th>
                       <th className="text-end">Gross Amt</th>
                       <th className="text-end">Rev KOT(+)</th>
                       <th className="text-center">Disc(+)</th>
@@ -2273,7 +2360,10 @@ const ModernBill = () => {
           <Button variant="secondary" onClick={() => setShowReverseBillModal(false)}>
             Cancel
           </Button>
-          <Button variant="danger" onClick={reverseBill}>
+          <Button variant="danger" onClick={() => {
+            setShowReverseBillModal(false);
+            setShowF9BilledPasswordModal(true);
+          }}>
             Confirm Reverse Bill
           </Button>
         </Modal.Footer>
@@ -2288,6 +2378,18 @@ const ModernBill = () => {
           <CustomerModal />
         </Modal.Body>
       </Modal>
+
+      <F8PasswordModal
+        show={showF9BilledPasswordModal}
+        onHide={() => {
+          setShowF9BilledPasswordModal(false);
+          setF9BilledPasswordError('');
+        }}
+        onSubmit={handleF9PasswordSubmit}
+        error={f9BilledPasswordError}
+        loading={f9BilledPasswordLoading}
+        title="Admin Password for Reversal"
+      />
 
       <Toaster />
     </React.Fragment>
