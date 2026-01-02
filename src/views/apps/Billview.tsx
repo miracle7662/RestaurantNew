@@ -5,6 +5,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthContext } from '@/common';
 import KotTransfer from './Transaction/KotTransfer';
 import CustomerModal from './Transaction/Customers';
+import toast, { Toaster } from 'react-hot-toast';
 
 interface BillItem {
   itemCode: string;
@@ -670,7 +671,7 @@ const ModernBill = () => {
     console.log("🖨️ Print enabled:", print);
     try {
       if (!user) {
-        alert('User not authenticated. Cannot save KOT.');
+        toast.error('User not authenticated. Cannot save KOT.');
         return;
       }
 
@@ -681,12 +682,12 @@ const ModernBill = () => {
 
       if (!outletId) {
         console.error("❌ Outlet ID missing, cannot save KOT");
-        alert("Outlet not resolved. Please reselect outlet.");
+        toast.error("Outlet not resolved. Please reselect outlet.");
         return;
       }
 
       if (!tableId) {
-        alert("Table not selected properly");
+        toast.error("Table not selected properly");
         return;
       }
 
@@ -699,9 +700,9 @@ const ModernBill = () => {
       if (validItems.length === 0) {
         if (print && editableKot) {
           await printKOT(editableKot);
-          alert('KOT printed successfully');
+          toast.success('KOT printed successfully');
         } else {
-          alert('No new items to save');
+          toast('No new items to save');
         }
         return;
       }
@@ -753,7 +754,7 @@ const ModernBill = () => {
         setTxnId(response.data.data.TxnID);
       }
 
-      alert('KOT saved successfully');
+      toast.success('KOT saved successfully');
 
       // If print is requested, print
       if (print) {
@@ -771,7 +772,7 @@ const ModernBill = () => {
       navigate('/apps/Tableview');
     } catch (error) {
       console.error('Error saving KOT:', error);
-      alert('Error saving KOT');
+      toast.error('Error saving KOT');
     }
   };
 
@@ -796,7 +797,7 @@ const ModernBill = () => {
         UserID: user.id
       });
 
-      alert('Bill reversed successfully');
+      toast.success('Bill reversed successfully');
 
       // ✅ reset UI state
       resetBillState();
@@ -805,7 +806,7 @@ const ModernBill = () => {
       navigate('/apps/Tableview');
     } catch (error) {
       console.error('Reverse bill error:', error);
-      alert('Failed to reverse bill');
+      toast.error('Failed to reverse bill');
     }
   };
 
@@ -817,23 +818,23 @@ const ModernBill = () => {
         qty: reverseQty,
         reason: reverseReason
       });
-      alert('KOT reversed successfully');
+      toast.success('KOT reversed successfully');
       setShowReverseKOTModal(false);
     } catch (error) {
       console.error('Error reversing KOT:', error);
-      alert('Error reversing KOT');
+      toast.error('Error reversing KOT');
     }
   };
 
   const printKOT = async (kotNo: number) => {
     try {
       const response = await axios.get(`/api/kot/print/${kotNo}`);
-      alert('KOT printed successfully');
+      toast.success('KOT printed successfully');
       // Handle print data if needed
       console.log('KOT Print Data:', response.data);
     } catch (error) {
       console.error('Error printing KOT:', error);
-      alert('Error printing KOT');
+      toast.error('Error printing KOT');
     }
   };
 
@@ -841,16 +842,13 @@ const printBill = async () => {
     if (!txnId) return;
     try {
       const response = await axios.put(`/api/TAxnTrnbill/${txnId}/print`);
-      alert('Bill printed successfully');
+      toast.success('Bill printed successfully');
       // Handle print data if needed
       console.log('Bill Print Data:', response.data);
-      // Immediately update print status to true
-      setIsBillPrinted(true);
-      // After printing, fetch bill details to confirm and update any other data
-      await fetchBillDetails();
+      navigate('/apps/Tableview');
     } catch (error) {
       console.error('Error printing bill:', error);
-      alert('Error printing bill');
+      toast.error('Error printing bill');
     }
   };
  
@@ -861,11 +859,11 @@ const printBill = async () => {
         txnId
       });
       setBillNo(response.data.data.BillNo);
-      alert('Bill generated successfully');
+      toast.success('Bill generated successfully');
       return response.data.data.BillNo;
     } catch (error) {
       console.error('Error generating bill:', error);
-      alert('Error generating bill');
+      toast.error('Error generating bill');
       throw error;
     }
   };
@@ -876,7 +874,7 @@ const printBill = async () => {
       // First generate the bill
       const billNo = await generateBill();
       if (!billNo) {
-        alert('Bill generation failed. Cannot proceed with settlement.');
+        toast.error('Bill generation failed. Cannot proceed with settlement.');
         return;
       }
 
@@ -884,11 +882,11 @@ const printBill = async () => {
       await axios.post(`/api/TAxnTrnbill/${txnId}/settle`, {
         settlements
       });
-      alert('Bill settled successfully');
+      toast.success('Bill settled successfully');
       navigate('/apps/Tableview');
     } catch (error) {
       console.error('Error settling bill:', error);
-      alert('Error settling bill');
+      toast.error('Error settling bill');
     }
   };
 
@@ -901,12 +899,12 @@ const printBill = async () => {
         table_name: selectedTable.name,
         items: []
       });
-      alert('Table transferred successfully');
+      toast.success('Table transferred successfully');
       setShowTransferModal(false);
       navigate('/apps/Tableview');
     } catch (error) {
       console.error('Error transferring table:', error);
-      alert('Error transferring table');
+      toast.error('Error transferring table');
     }
   };
   const resetBillState = () => {
@@ -1002,7 +1000,7 @@ const printBill = async () => {
         throw new Error(response.data.message || 'Failed to settle bill.');
       }
 
-      alert('Settlement successful and bill printed!');
+      toast.success('Settlement successful and bill printed!');
 
       // Clear customer fields after successful settlement
       setCustomerMobile('');
@@ -1046,7 +1044,7 @@ const printBill = async () => {
 
     } catch (error: any) {
       console.error('Error settling bill:', error);
-      alert(error.message || 'An error occurred during settlement.');
+      toast.error(error.message || 'An error occurred during settlement.');
     } finally {
       setLoading(false);
     }
@@ -1488,7 +1486,7 @@ const printBill = async () => {
       <div className="full-screen-header">
         <div className="container-fluid  px-2">
           <div className="d-flex justify-content-between align-items-center mb-1">
-            <h2 className="text-primary mb-0">BILL {isBillPrinted && <Badge bg="success" className="ms-2">Printed</Badge>}</h2>
+            <h2 className="text-primary mb-0">BILL</h2>
             <span className="text-muted small">
               Group Item (Ctrl+G)(For Special Instructions - Press F4)
             </span>
@@ -2072,6 +2070,7 @@ const printBill = async () => {
       </Modal.Body>
     </Modal>
 
+    <Toaster />
     </React.Fragment>
   );
 };
