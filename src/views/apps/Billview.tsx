@@ -1037,10 +1037,8 @@ const printBill = async () => {
       setCurrentKOTNos([]);
       setOrderNo(null);
 
-      // If the settled order was a Pickup or Delivery, go back to the Dine-in table view.
-      if (activeTab === 'Pickup' || activeTab === 'Delivery') {
-        handleBackToTables();
-      }
+      // Navigate to tableview page after settling the bill
+      navigate('/apps/Tableview');
 
     } catch (error: any) {
       console.error('Error settling bill:', error);
