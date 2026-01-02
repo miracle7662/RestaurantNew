@@ -5,8 +5,9 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthContext } from '@/common';
 import KotTransfer from './Transaction/KotTransfer';
 import CustomerModal from './Transaction/Customers';
-import F8PasswordModal from '../../components/F8PasswordModal';
 import toast, { Toaster } from 'react-hot-toast';
+import F8PasswordModal from '../../components/F8PasswordModal';
+
 
 interface BillItem {
   itemCode: string;
@@ -281,7 +282,7 @@ const ModernBill = () => {
   const [customerMobile, setCustomerMobile] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [showCustomerModal, setShowCustomerModal] = useState(false);
-  const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
+const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
   const [f8Error, setF8Error] = useState<string | null>(null);
 
   const [showF9BilledPasswordModal, setShowF9BilledPasswordModal] = useState(false);
@@ -1015,7 +1016,7 @@ const ModernBill = () => {
     }
   };
 
-  const handleSaveNCKOT = async () => {
+   const handleSaveNCKOT = async () => {
     if (!txnId) {
       toast.error('No active transaction found. Please save a KOT first.');
       return;
@@ -1049,7 +1050,7 @@ const ModernBill = () => {
         setSelectedTable(null);
         setShowOrderDetails(false);
         setShowNCKOTModal(false);
-        navigate('/apps/Tableview');
+         navigate('/apps/Tableview');
       } else {
         throw new Error(result.message || 'Failed to apply NCKOT.');
       }
@@ -1356,11 +1357,12 @@ const ModernBill = () => {
         setShowReverseKOTModal(true);
       } else if (keyboardEvent.key === 'F9') {
         keyboardEvent.preventDefault();
-        if (keyboardEvent.ctrlKey) {
+         if (keyboardEvent.ctrlKey) {
           setShowNCKOTModal(true);
         } else {
           saveKOT(false, true);
         }
+        saveKOT(false, true);
       } else if (keyboardEvent.key === 'F10') {
         keyboardEvent.preventDefault();
         printBill();
@@ -2360,7 +2362,9 @@ const ModernBill = () => {
           <Button variant="secondary" onClick={() => setShowReverseBillModal(false)}>
             Cancel
           </Button>
-          <Button variant="danger" onClick={() => {
+          
+          
+           <Button variant="danger" onClick={() => {
             setShowReverseBillModal(false);
             setShowF9BilledPasswordModal(true);
           }}>
@@ -2378,8 +2382,7 @@ const ModernBill = () => {
           <CustomerModal />
         </Modal.Body>
       </Modal>
-
-      <F8PasswordModal
+<F8PasswordModal
         show={showF9BilledPasswordModal}
         onHide={() => {
           setShowF9BilledPasswordModal(false);
@@ -2390,7 +2393,6 @@ const ModernBill = () => {
         loading={f9BilledPasswordLoading}
         title="Admin Password for Reversal"
       />
-
       <Toaster />
     </React.Fragment>
   );
