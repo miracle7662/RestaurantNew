@@ -77,7 +77,7 @@ const ModernBill = () => {
   const [headerHeight, setHeaderHeight] = useState(0);
   const [toolbarHeight, setToolbarHeight] = useState(0);
 
-  const [billItems, setBillItems] = useState<BillItem[]>([{ itemCode: '', itemgroupid : 0, itemId: 0, item_no: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '' }]);
+  const [billItems, setBillItems] = useState<BillItem[]>([{ itemCode: '', itemgroupid: 0, itemId: 0, item_no: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '' }]);
 
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
 
@@ -129,7 +129,7 @@ const ModernBill = () => {
   const [orderNo, setOrderNo] = useState(billNo);
   const [activeTab, setActiveTab] = useState('Dine-in');
 
-  const [isGrouped, setIsGrouped] = useState(false);
+  const [isGrouped, setIsGrouped] = useState(true);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
 
   // Tax rates states
@@ -151,7 +151,7 @@ const ModernBill = () => {
         if (!acc[key]) {
           acc[key] = {
             itemCode: item.itemCode,
-            itemgroupid: item.itemgroupid,  
+            itemgroupid: item.itemgroupid,
             itemId: item.itemId,
             item_no: item.item_no,
             itemName: item.itemName,
@@ -194,7 +194,7 @@ const ModernBill = () => {
 
     const result = Object.values(grouped);
     // Add blank row for new entries
-    result.push({ itemCode: '',  itemgroupid: 0,  itemId: 0, item_no: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '' });
+    result.push({ itemCode: '', itemgroupid: 0, itemId: 0, item_no: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '' });
     return result;
   }, [billItems, isGrouped, cgstRate, sgstRate, igstRate, cessRate, includeTaxInInvoice]);
 
@@ -349,7 +349,7 @@ const ModernBill = () => {
               };
             });
             // Add blank row
-            mappedItems.push({ itemCode: '',  itemgroupid: 0, itemId: 0, item_no: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '' });
+            mappedItems.push({ itemCode: '', itemgroupid: 0, itemId: 0, item_no: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '' });
 
             setBillItems(mappedItems);
             setTxnId(header.TxnID);
@@ -403,78 +403,78 @@ const ModernBill = () => {
 
   // Fetch table data when tableId is present
   const loadUnbilledItems = useCallback(async (tableIdNum: number) => {
-      if (!tableIdNum || !user || !user.hotelid) return;
+    if (!tableIdNum || !user || !user.hotelid) return;
 
-      setLoading(true);
-      setError(null);
-      try {
-        const response = await axios.get(`/api/TAxnTrnbill/unbilled-items/${tableIdNum}`);
-        if (response.status !== 200) {
-          throw new Error(`Server responded with status ${response.status}`);
-        }
-        const data = response.data?.data || response.data;
-        if (!data) {
-          throw new Error('No data received from server');
-        }
-
-        // Map items to BillItem interface
-        const mappedItems: BillItem[] = data.items.map((item: any) => {
-          return {
-            itemCode: (item.item_no || item.item_no || '').toString(),
-            // itemId: item.itemId || item.ItemID || 0,
-            item_no: item.item_no || item.ItemNo || '',
-            itemName: item.itemName || item.ItemName || item.item_name || '',
-            qty: item.netQty || item.Qty || 0,
-            rate: item.price || item.Price || item.Rate || 0,
-            total: (item.netQty || item.Qty || 0) * (item.price || item.Price || item.Rate || 0),
-            cgst: ((item.netQty || item.Qty || 0) * (item.price || item.Price || item.Rate || 0)) * 0.025,
-            sgst: ((item.netQty || item.Qty || 0) * (item.price || item.Price || item.Rate || 0)) * 0.025,
-            igst: 0,
-            cess: 0,
-            mkotNo: item.kotNo ? item.kotNo.toString() : (item.KOTNo ? item.KOTNo.toString() : ''),
-            specialInstructions: item.specialInstructions || item.SpecialInst || ''
-          };
-        });
-
-        // Always add a blank row at the end for new item entry
-        mappedItems.push({ itemCode: '',  itemgroupid: 0,itemId: 0, item_no: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '' });
-
-        setBillItems(mappedItems);
-
-        // Update header fields from data.header and data.kotNo if available
-        console.log('API Response Header:', data.header);
-        if (data.header) {
-          setTxnId(data.header.TxnID);
-          setWaiter(data.header.waiter || 'ASD');
-          setPax(data.header.pax || 1);
-          if (data.header.table_name) {
-            setTableNo(data.header.table_name);
-          }
-        }
-        if (data.kotNo !== null && data.kotNo !== undefined) {
-          setKotNo(String(data.kotNo));
-        }
-
-        // Calculate totals
-        calculateTotals(mappedItems);
-      } catch (err: any) {
-        if (err.response) {
-          setError(`Server responded with status ${err.response.status}: ${err.response.statusText}`);
-        } else {
-          setError(err.message || 'Failed to fetch table data');
-        }
-        console.error('Error fetching table data:', err);
-      } finally {
-        setLoading(false);
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await axios.get(`/api/TAxnTrnbill/unbilled-items/${tableIdNum}`);
+      if (response.status !== 200) {
+        throw new Error(`Server responded with status ${response.status}`);
       }
-    }, [user]);
+      const data = response.data?.data || response.data;
+      if (!data) {
+        throw new Error('No data received from server');
+      }
+
+      // Map items to BillItem interface
+      const mappedItems: BillItem[] = data.items.map((item: any) => {
+        return {
+          itemCode: (item.item_no || item.item_no || '').toString(),
+          // itemId: item.itemId || item.ItemID || 0,
+          item_no: item.item_no || item.ItemNo || '',
+          itemName: item.itemName || item.ItemName || item.item_name || '',
+          qty: item.netQty || item.Qty || 0,
+          rate: item.price || item.Price || item.Rate || 0,
+          total: (item.netQty || item.Qty || 0) * (item.price || item.Price || item.Rate || 0),
+          cgst: ((item.netQty || item.Qty || 0) * (item.price || item.Price || item.Rate || 0)) * 0.025,
+          sgst: ((item.netQty || item.Qty || 0) * (item.price || item.Price || item.Rate || 0)) * 0.025,
+          igst: 0,
+          cess: 0,
+          mkotNo: item.kotNo ? item.kotNo.toString() : (item.KOTNo ? item.KOTNo.toString() : ''),
+          specialInstructions: item.specialInstructions || item.SpecialInst || ''
+        };
+      });
+
+      // Always add a blank row at the end for new item entry
+      mappedItems.push({ itemCode: '', itemgroupid: 0, itemId: 0, item_no: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '' });
+
+      setBillItems(mappedItems);
+
+      // Update header fields from data.header and data.kotNo if available
+      console.log('API Response Header:', data.header);
+      if (data.header) {
+        setTxnId(data.header.TxnID);
+        setWaiter(data.header.waiter || 'ASD');
+        setPax(data.header.pax || 1);
+        if (data.header.table_name) {
+          setTableNo(data.header.table_name);
+        }
+      }
+      if (data.kotNo !== null && data.kotNo !== undefined) {
+        setKotNo(String(data.kotNo));
+      }
+
+      // Calculate totals
+      calculateTotals(mappedItems);
+    } catch (err: any) {
+      if (err.response) {
+        setError(`Server responded with status ${err.response.status}: ${err.response.statusText}`);
+      } else {
+        setError(err.message || 'Failed to fetch table data');
+      }
+      console.error('Error fetching table data:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
 
   // Fetch billed items for the table
 
 
 
 
- 
+
 
   // Navigable columns: 0: Item Code, 1: Qty, 2: Item Name, 3: Rate, 4: Special Instructions
   const navigableColumns = [0, 1, 2, 3, 4];
@@ -756,7 +756,7 @@ const ModernBill = () => {
     calculateTotals(updated);
   };
 
-   const handleKeyPress = (index: number, field: keyof BillItem) => (e: KeyboardEvent<any>) => {
+  const handleKeyPress = (index: number, field: keyof BillItem) => (e: KeyboardEvent<any>) => {
     if (e.key === "Enter") {
       if (field === 'itemCode') {
         // Only move focus to qty if itemCode has been typed
@@ -778,10 +778,10 @@ const ModernBill = () => {
       } else if (field === 'qty') {
         // Only add new row if current item has data (itemId > 0 or itemName not empty)
         if (billItems[index].itemId > 0 || billItems[index].itemName.trim() !== '') {
-          const newBillItems = [...billItems, { itemCode: "", itemgroupid : 0, itemId: 0, item_no: 0, itemName: "", qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '' }];
+          const newBillItems = [...billItems, { itemCode: "", itemgroupid: 0, itemId: 0, item_no: 0, itemName: "", qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '' }];
           setBillItems(newBillItems);
           // Focus the new itemCode after state update
-          setTimeout(() => { 
+          setTimeout(() => {
             const newItemCodeRef = inputRefs.current[newBillItems.length - 1]?.[0];
             if (newItemCodeRef) {
               newItemCodeRef.focus();
@@ -972,7 +972,7 @@ const ModernBill = () => {
     }
   };
 
-const printBill = async () => {
+  const printBill = async () => {
     if (!txnId) return;
     try {
       const response = await axios.put(`/api/TAxnTrnbill/${txnId}/print`);
@@ -985,7 +985,7 @@ const printBill = async () => {
       toast.error('Error printing bill');
     }
   };
- 
+
   const generateBill = async () => {
     if (!txnId) return;
     try {
@@ -1003,7 +1003,7 @@ const printBill = async () => {
   };
 
   const settleBill = async () => {
-   
+
     try {
       // First generate the bill
       const billNo = await generateBill();
@@ -1042,7 +1042,7 @@ const printBill = async () => {
     }
   };
   const resetBillState = () => {
-    setBillItems([{ itemCode: '', itemgroupid: 0,item_no: 0, itemId: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '' }]);
+    setBillItems([{ itemCode: '', itemgroupid: 0, item_no: 0, itemId: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '' }]);
     setTxnId(null);
     setWaiter('ASD');
     setPax(1);
@@ -1052,7 +1052,7 @@ const printBill = async () => {
     setEditableKot(null);
     setCustomerMobile('');
     setCustomerName('');
-    calculateTotals([{ itemCode: '', itemgroupid: 0,   item_no: 0, itemId: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '' }]);
+    calculateTotals([{ itemCode: '', itemgroupid: 0, item_no: 0, itemId: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '' }]);
   };
 
   const fetchTableManagement = async () => {
@@ -1230,18 +1230,18 @@ const printBill = async () => {
 
   return (
     <React.Fragment>
-    <div
-      className="d-flex flex-column w-100"
-      style={{
-        height: '100vh',
-        minHeight: '100vh',
-        margin: 0,
-        padding: 0,
-        overflow: 'hidden',
-        background: 'white',
-      }}
-    >
-      <style>{`
+      <div
+        className="d-flex flex-column w-100"
+        style={{
+          height: '100vh',
+          minHeight: '100vh',
+          margin: 0,
+          padding: 0,
+          overflow: 'hidden',
+          background: 'white',
+        }}
+      >
+        <style>{`
         html, body, #root {
           height: 100vh;
           margin: 0;
@@ -1620,604 +1620,613 @@ const printBill = async () => {
         }
       `}</style>
 
-      {/* Header */}
-      <div className="full-screen-header">
-        <div className="container-fluid  px-2">
-          <div className="d-flex justify-content-between align-items-center mb-1">
-            <h2 className="text-primary mb-0">BILL</h2>
-            <span className="text-muted small">
-              Group Item (Ctrl+G)(For Special Instructions - Press F4)
-            </span>
+        {/* Header */}
+        <div className="full-screen-header">
+          <div className="container-fluid  px-2">
+            <div className="d-flex justify-content-between align-items-center mb-1">
+              <h2 className="text-primary mb-0">BILL</h2>
+              <span className="text-muted small">
+                Group Item (Ctrl+G)(For Special Instructions - Press F4)
+              </span>
+            </div>
+
+            {/* Card Layout for Header Information */}
+            <Row className="mb-3 g-2 align-items-stretch">
+              {/* Table No - Left aligned */}
+              <Col md={1}>
+                <div className="info-box p-2 h-100 border rounded text-center d-flex flex-column justify-content-center">
+                  <div className="text-uppercase text-secondary small mb-1 fw-semibold">Table No</div>
+                  <div className="fw-bold fs-4" style={{ color: '#333' }}>{tableNo || '--'}</div>
+                </div>
+              </Col>
+
+              {/* Waiter - Centered */}
+              <Col md={2}>
+                <div className="info-box p-2 h-100 border rounded text-center d-flex flex-column justify-content-center">
+                  <div className="text-uppercase text-secondary small mb-1 fw-semibold">Waiter</div>
+                  <input
+                    type="text"
+                    value={waiter}
+                    onChange={(e) => setWaiter(e.target.value)}
+                    className="w-100 border-0 fw-bold fs-5 p-0 bg-transparent text-center"
+                    placeholder="Name"
+                    list="waiters"
+                    style={{ color: '#333' }}
+                  />
+                </div>
+              </Col>
+
+              {/* PAX - Centered */}
+              <Col md={1}>
+                <div className="info-box p-2 h-100 border rounded text-center d-flex flex-column justify-content-center">
+                  <div className="text-uppercase text-secondary small mb-1 fw-semibold">PAX</div>
+                  <input
+                    type="number"
+                    value={pax}
+                    onChange={(e) => setPax(Number(e.target.value))}
+                    className="w-100 border-0 fw-bold fs-5 p-0 bg-transparent text-center"
+                    style={{ color: '#343434ff' }}
+                    placeholder="0"
+                    min="1"
+                  />
+                </div>
+              </Col>
+
+              {/* KOT No - Editable input */}
+              <Col md={2}>
+                <div className="info-box p-2 h-100 border rounded text-center d-flex flex-column justify-content-center">
+                  <div className="text-uppercase text-secondary small mb-1 fw-semibold">
+                    KOT No.
+                  </div>
+
+                  <div
+                    className="d-flex align-items-center justify-content-center border rounded bg-light mx-auto"
+                    style={{ maxWidth: '140px' }}
+                  >
+                    {/* DEFAULT KOT (LEFT) */}
+                    <div
+                      className="fw-bold fs-5 px-2 py-1"
+                      style={{
+                        color: '#333',
+                        borderRight: '1px solid #dee2e6',
+                        minWidth: '100px'
+                      }}
+                    >
+                      {defaultKot || '--'}
+                    </div>
+
+                    {/* EDITABLE KOT (RIGHT) */}
+                    <input
+                      type="number"
+                      value={editableKot || ''}
+                      onChange={(e) =>
+                        setEditableKot(e.target.value ? Number(e.target.value) : null)
+                      }
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          const firstQtyRef = inputRefs.current[0]?.[1];
+                          if (firstQtyRef) {
+                            firstQtyRef.focus();
+                            firstQtyRef.select();
+                          }
+                        }
+                      }}
+                      className="border-0 fw-bold text-center bg-transparent"
+                      style={{ width: '100px', color: '#333' }}
+                    />
+                  </div>
+                </div>
+              </Col>
+
+
+              {/* Date - Centered */}
+              <Col md={2}>
+                <div className="info-box p-2 h-100 border rounded text-center d-flex flex-column justify-content-center">
+                  <div className="text-uppercase text-secondary small mb-1 fw-semibold">Date</div>
+                  <div className="fw-bold fs-5" style={{ color: '#333' }}>
+                    {new Date().toLocaleDateString('en-GB', {
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric'
+                    })}
+                  </div>
+                </div>
+              </Col>
+
+
+
+              {/* Total Amount - Centered with black background */}
+              <Col md={2} className="ms-auto">
+                <div className="p-2 h-100 d-flex flex-column justify-content-center text-center
+                  bg-success rounded text-white">
+                  <div className="text-uppercase text-white-50 small mb-1 fw-semibold">
+                    Total Amount
+                  </div>
+                  <div className="fw-bold fs-3">
+                    ₹{finalAmount.toFixed(2)}
+                  </div>
+                </div>
+              </Col>
+
+            </Row>
+            {/* Datalist for Waiters */}
+            <datalist id="waiters">
+              <option value="ASD" />
+              <option value="John" />
+              <option value="Mary" />
+              <option value="David" />
+              <option value="Sarah" />
+            </datalist>
+
+            {/* Datalist for Item Names */}
+            <datalist id="itemNames">
+              {menuItems.map(item => (
+                <option key={item.restitemid} value={item.short_name ? `${item.item_name} (${item.short_name})` : item.item_name} />
+              ))}
+            </datalist>
+
+            {/* Datalist for Item Codes */}
+            <datalist id="itemNos">
+              {menuItems.map(item => (
+                <option key={item.restitemid} value={item.item_no.toString()} />
+              ))}
+            </datalist>
+          </div>
+        </div>
+
+
+
+        {/* Main Content */}
+        <div className="full-screen-content px-2" style={{ top: `${headerHeight + toolbarHeight}px` }}>
+          <div className="content-wrapper">
+            <div className="modern-bill">
+              {loading ? (
+                <div className="d-flex justify-content-center align-items-center h-100">
+                  <div className="spinner-border text-primary" role="status">
+                    <span className="visually-hidden">Loading...</span>
+                  </div>
+                </div>
+              ) : error ? (
+                <div className="alert alert-danger m-3">
+                  <strong>Error:</strong> {error}
+                </div>
+              ) : (
+                <div className="items-table">
+                  <Table responsive bordered className="modern-table">
+                    <thead>
+                      <tr className="table-primary">
+                        <th style={{ width: '80px' }}> Code</th>
+                        <th style={{ width: '400px' }}>Item Name</th >
+                        <th className="text-center" style={{ width: '100px' }}>Qty</th>
+                        <th className="text-end" style={{ width: '100px' }}>Rate</th>
+                        <th className="text-end" style={{ width: '150px' }}>Total</th>
+                        <th className="text-center">MkotNo/Time</th>
+                        <th>Special Instructions</th>
+                      </tr>
+                    </thead >
+                    <tbody>
+                      {displayedItems.map((item, index) => (
+                        <tr key={index}>
+                          <td style={{ width: '80px' }}>
+                            <Form.Control
+                              ref={(el) => {
+                                if (!inputRefs.current[index]) inputRefs.current[index] = [];
+                                inputRefs.current[index][0] = el;
+                              }}
+                              type="text"
+                              value={item.itemCode}
+                              onChange={(e) => handleItemChange(index, 'itemCode', e.target.value)}
+                              onKeyDown={(e) => {
+                                handleKeyPress(index, 'itemCode')(e);
+                                if (e.key.startsWith('Arrow')) {
+                                  handleArrowNavigation(index, 0, e.key.slice(5).toLowerCase() as 'up' | 'down' | 'left' | 'right');
+                                  e.preventDefault();
+                                }
+                              }}
+                              className="form-control"
+                              disabled={isGrouped}
+                              style={{ width: '100%', border: 'none', fontSize: '16px', background: 'transparent', padding: '0', outline: 'none' }}
+                            />
+                          </td>
+                          <td style={{ width: '400px' }}>
+                            <Form.Control
+                              ref={(el) => {
+                                if (!inputRefs.current[index]) inputRefs.current[index] = [];
+                                inputRefs.current[index][2] = el;
+                              }}
+                              type="text"
+                              value={item.itemName}
+                              onChange={(e) => handleItemChange(index, 'itemName', e.target.value)}
+                              onKeyDown={(e) => {
+                                handleKeyPress(index, 'itemName')(e);
+                                if (e.key.startsWith('Arrow')) {
+                                  handleArrowNavigation(index, 2, e.key.slice(5).toLowerCase() as 'up' | 'down' | 'left' | 'right');
+                                  e.preventDefault();
+                                }
+                              }}
+                              className="form-control-sm1"
+                              list="itemNames"
+                              disabled={isGrouped}
+                              style={{ width: '100%', border: 'none', fontSize: '16px', background: 'transparent', padding: '0', outline: 'none' }}
+                            />
+                          </td>
+                          <td className="text-center" style={{ width: '100px' }}>
+                            <Form.Control
+                              ref={(el) => {
+                                if (!inputRefs.current[index]) inputRefs.current[index] = [];
+                                inputRefs.current[index][1] = el;
+                              }}
+                              type="number"
+                              value={item.qty}
+                              onChange={(e) => handleItemChange(index, 'qty', Number(e.target.value))}
+                              onKeyDown={(e) => {
+                                handleKeyPress(index, 'qty')(e);
+                                if (e.key.startsWith('Arrow')) {
+                                  handleArrowNavigation(index, 1, e.key.slice(5).toLowerCase() as 'up' | 'down' | 'left' | 'right');
+                                  e.preventDefault();
+                                }
+                              }}
+                              className="form-control-sm1 text-center"
+                              disabled={isGrouped}
+                              style={{ width: '100%', border: 'none', background: 'transparent', fontSize: '16px', padding: '0', outline: 'none' }}
+                            />
+                          </td>
+                          <td className="text-end" style={{ width: '100px' }}>
+                            <Form.Control
+                              type="number"
+                              value={item.rate}
+                              onChange={(e) => handleItemChange(index, 'rate', Number(e.target.value))}
+                              onKeyDown={(e) => {
+                                handleKeyPress(index, 'rate')(e);
+                                if (e.key.startsWith('Arrow')) {
+                                  handleArrowNavigation(index, 3, e.key.slice(5).toLowerCase() as 'up' | 'down' | 'left' | 'right');
+                                  e.preventDefault();
+                                }
+                              }}
+                              className="form-control-sm1 text-end"
+                              disabled={isGrouped}
+                              style={{ width: '100%', fontSize: '16px', border: 'none', background: 'transparent', padding: '0', outline: 'none' }}
+                            />
+                          </td>
+                          <td className="text-end" style={{ width: '100px' }}>{item.total.toFixed(2)}</td>
+                          <td className="text-center">
+                            {item.mkotNo && (
+                              <div className="d-flex justify-content-center gap-1 flex-wrap">
+                                {item.mkotNo.split('|').map((kot: string, index: number) => (
+                                  <Badge bg="secondary" key={index}>
+                                    {kot}
+                                  </Badge>
+                                ))}
+                              </div>
+                            )}
+                          </td>
+
+                          <td>
+                            <Form.Control
+                              type="text"
+                              value={item.specialInstructions}
+                              onChange={(e) => handleItemChange(index, 'specialInstructions', e.target.value)}
+                              onKeyDown={(e) => {
+                                handleKeyPress(index, 'specialInstructions')(e);
+                                if (e.key.startsWith('Arrow')) {
+                                  handleArrowNavigation(index, 4, e.key.slice(5).toLowerCase() as 'up' | 'down' | 'left' | 'right');
+                                  e.preventDefault();
+                                }
+                              }}
+                              className="form-control-sm1"
+                              disabled={isGrouped}
+                              style={{ width: '100%', fontSize: '18px', border: 'none', background: 'transparent', padding: '0', outline: 'none' }}
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* Card Layout for Header Information */}
-      <Row className="mb-3 g-2 align-items-stretch">
-  {/* Table No - Left aligned */}
-  <Col md={1}>
-    <div className="info-box p-2 h-100 border rounded text-center d-flex flex-column justify-content-center">
-      <div className="text-uppercase text-secondary small mb-1 fw-semibold">Table No</div>
-      <div className="fw-bold fs-4" style={{ color: '#333' }}>{tableNo || '--'}</div>
-    </div>
-  </Col>
-  
-  {/* Waiter - Centered */}
-  <Col md={2}>
-    <div className="info-box p-2 h-100 border rounded text-center d-flex flex-column justify-content-center">
-      <div className="text-uppercase text-secondary small mb-1 fw-semibold">Waiter</div>
-      <input
-        type="text"
-        value={waiter}
-        onChange={(e) => setWaiter(e.target.value)}
-        className="w-100 border-0 fw-bold fs-5 p-0 bg-transparent text-center"
-        placeholder="Name"
-        list="waiters"
-        style={{ color: '#333' }}
-      />
-    </div>
-  </Col>
-
-   {/* PAX - Centered */}
-  <Col md={1}>
-    <div className="info-box p-2 h-100 border rounded text-center d-flex flex-column justify-content-center">
-      <div className="text-uppercase text-secondary small mb-1 fw-semibold">PAX</div>
-      <input
-        type="number"
-        value={pax}
-        onChange={(e) => setPax(Number(e.target.value))}
-        className="w-100 border-0 fw-bold fs-5 p-0 bg-transparent text-center"
-        style={{ color: '#343434ff' }}
-        placeholder="0"
-        min="1"
-      />
-    </div>
-  </Col>
-  
-  {/* KOT No - Editable input */}
-<Col md={2}>
-  <div className="info-box p-2 h-100 border rounded text-center d-flex flex-column justify-content-center">
-    <div className="text-uppercase text-secondary small mb-1 fw-semibold">
-      KOT No.
-    </div>
-
-    <div
-      className="d-flex align-items-center justify-content-center border rounded bg-light mx-auto"
-      style={{ maxWidth: '140px' }}
-    >
-      {/* DEFAULT KOT (LEFT) */}
-      <div
-        className="fw-bold fs-5 px-2 py-1"
-        style={{
-          color: '#333',
-          borderRight: '1px solid #dee2e6',
-          minWidth: '100px'
-        }}
-      >
-        {defaultKot || '--'}
-      </div>
-
-      {/* EDITABLE KOT (RIGHT) */}
-      <input
-        type="number"
-        value={editableKot || ''}
-        onChange={(e) =>
-          setEditableKot(e.target.value ? Number(e.target.value) : null)
-        }
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
-            const firstQtyRef = inputRefs.current[0]?.[1];
-            if (firstQtyRef) {
-              firstQtyRef.focus();
-              firstQtyRef.select();
-            }
-          }
-        }}
-        className="border-0 fw-bold text-center bg-transparent"
-        style={{ width: '100px', color: '#333' }}
-      />
-    </div>
-  </div>
-</Col>
-
-  
-  {/* Date - Centered */}
-  <Col md={2}>
-    <div className="info-box p-2 h-100 border rounded text-center d-flex flex-column justify-content-center">
-      <div className="text-uppercase text-secondary small mb-1 fw-semibold">Date</div>
-      <div className="fw-bold fs-5" style={{ color: '#333' }}>
-        {new Date().toLocaleDateString('en-GB', {
-          day: '2-digit',
-          month: '2-digit',
-          year: 'numeric'
-        })}
-      </div>
-    </div>
-  </Col>
-  
- 
-  
-  {/* Total Amount - Centered with black background */}
-  <Col md={2} className="ms-auto">
-  <div className="p-2 h-100 d-flex flex-column justify-content-center text-center
-                  bg-success rounded text-white">
-    <div className="text-uppercase text-white-50 small mb-1 fw-semibold">
-      Total Amount
-    </div>
-    <div className="fw-bold fs-3">
-      ₹{finalAmount.toFixed(2)}
-    </div>
-  </div>
-</Col>
-
-</Row>
-          {/* Datalist for Waiters */}
-          <datalist id="waiters">
-            <option value="ASD" />
-            <option value="John" />
-            <option value="Mary" />
-            <option value="David" />
-            <option value="Sarah" />
-          </datalist>
-
-          {/* Datalist for Item Names */}
-          <datalist id="itemNames">
-            {menuItems.map(item => (
-              <option key={item.restitemid} value={item.short_name ? `${item.item_name} (${item.short_name})` : item.item_name} />
-            ))}
-          </datalist>
-
-          {/* Datalist for Item Codes */}
-          <datalist id="itemNos">
-            {menuItems.map(item => (
-              <option key={item.restitemid} value={item.item_no.toString()} />
-            ))}
-          </datalist>
-        </div>
-      </div>
-
-
-
-      {/* Main Content */}
-      <div className="full-screen-content px-2" style={{ top: `${headerHeight + toolbarHeight}px` }}>
-        <div className="content-wrapper">
-          <div className="modern-bill">
-            {loading ? (
-              <div className="d-flex justify-content-center align-items-center h-100">
-                <div className="spinner-border text-primary" role="status">
-                  <span className="visually-hidden">Loading...</span>
-                </div>
-              </div>
-            ) : error ? (
-              <div className="alert alert-danger m-3">
-                <strong>Error:</strong> {error}
-              </div>
-            ) : (
-              <div className="items-table">
+          {/* Bottom Bar for Summary and Footer */}
+          <div className="bottom-bar">
+            <div className="bottom-content">
+              {/* Summary Section */}
+              <div className="summary-section mb-1">
                 <Table responsive bordered className="modern-table">
                   <thead>
-                    <tr className="table-primary">
-                      <th style={{ width: '80px' }}> Code</th>
-                      <th style={{ width: '400px' }}>Item Name</th >
-                      <th className="text-center" style={{ width: '100px' }}>Qty</th>
-                      <th className="text-end" style={{ width: '100px' }}>Rate</th>
-                      <th className="text-end" style={{ width: '150px' }}>Total</th>
-                      <th className="text-center">MkotNo/Time</th>
-                      <th>Special Instructions</th>
+                    <tr>
+                      <th>Discount (#3)</th>
+                      <th className="text-end">Gross Amt</th>
+                      <th className="text-end">Rev KOT(+)</th>
+                      <th className="text-center">Disc(+)</th>
+                      <th className="text-end">CGST (+)</th>
+                      <th className="text-end">SGST (+)</th>
+                      <th className="text-end">IGST (+)</th>
+                      <th className="text-end">CESS (+)</th>
+                      <th className="text-end">R. Off (+)</th>
+                      <th className="text-center">Ser Chg (+)</th>
+                      <th className="text-end">Final Amount</th>
                     </tr>
-                  </thead >
+                  </thead>
                   <tbody>
-                    {displayedItems.map((item, index) => (
-                      <tr key={index}>
-                        <td style={{ width: '80px'  }}>
-                          <Form.Control
-                            ref={(el) => {
-                              if (!inputRefs.current[index]) inputRefs.current[index] = [];
-                              inputRefs.current[index][0] = el;
-                            }}
-                            type="text"
-                            value={item.itemCode}
-                            onChange={(e) => handleItemChange(index, 'itemCode', e.target.value)}
-                            onKeyDown={(e) => {
-                              handleKeyPress(index, 'itemCode')(e);
-                              if (e.key.startsWith('Arrow')) {
-                                handleArrowNavigation(index, 0, e.key.slice(5).toLowerCase() as 'up' | 'down' | 'left' | 'right');
-                                e.preventDefault();
-                              }
-                            }}
-                            className="form-control"
-                            disabled={isGrouped}
-                            style={{ width: '100%', border: 'none', fontSize: '16px',  background: 'transparent', padding: '0', outline: 'none' }}
-                          />
-                        </td>
-                        <td style={{ width: '400px' }}>
-                          <Form.Control
-                            ref={(el) => {
-                              if (!inputRefs.current[index]) inputRefs.current[index] = [];
-                              inputRefs.current[index][2] = el;
-                            }}
-                            type="text"
-                            value={item.itemName}
-                            onChange={(e) => handleItemChange(index, 'itemName', e.target.value)}
-                            onKeyDown={(e) => {
-                              handleKeyPress(index, 'itemName')(e);
-                              if (e.key.startsWith('Arrow')) {
-                                handleArrowNavigation(index, 2, e.key.slice(5).toLowerCase() as 'up' | 'down' | 'left' | 'right');
-                                e.preventDefault();
-                              }
-                            }}
-                            className="form-control-sm1"
-                            list="itemNames"
-                            disabled={isGrouped}
-                            style={{ width: '100%',  border: 'none', fontSize: '16px', background: 'transparent', padding: '0', outline: 'none' }}
-                          />
-                        </td>
-                        <td className="text-center" style={{ width: '100px' }}>
-                          <Form.Control
-                            ref={(el) => {
-                              if (!inputRefs.current[index]) inputRefs.current[index] = [];
-                              inputRefs.current[index][1] = el;
-                            }}
-                            type="number"
-                            value={item.qty}
-                            onChange={(e) => handleItemChange(index, 'qty', Number(e.target.value))}
-                            onKeyDown={(e) => {
-                              handleKeyPress(index, 'qty')(e);
-                              if (e.key.startsWith('Arrow')) {
-                                handleArrowNavigation(index, 1, e.key.slice(5).toLowerCase() as 'up' | 'down' | 'left' | 'right');
-                                e.preventDefault();
-                              }
-                            }}
-                            className="form-control-sm1 text-center"
-                            disabled={isGrouped}
-                            style={{ width: '100%', border: 'none', background: 'transparent',  fontSize: '16px',padding: '0', outline: 'none' }}
-                          />
-                        </td>
-                        <td className="text-end" style={{ width: '100px' }}>
-                          <Form.Control
-                            type="number"
-                            value={item.rate}
-                            onChange={(e) => handleItemChange(index, 'rate', Number(e.target.value))}
-                            onKeyDown={(e) => {
-                              handleKeyPress(index, 'rate')(e);
-                              if (e.key.startsWith('Arrow')) {
-                                handleArrowNavigation(index, 3, e.key.slice(5).toLowerCase() as 'up' | 'down' | 'left' | 'right');
-                                e.preventDefault();
-                              }
-                            }}
-                            className="form-control-sm1 text-end"
-                            disabled={isGrouped}
-                            style={{ width: '100%', fontSize: '16px', border: 'none', background: 'transparent', padding: '0', outline: 'none' }}
-                          />
-                        </td>
-                        <td className="text-end" style={{ width: '100px' }}>{item.total.toFixed(2)}</td>
-                        <td className="text-center">
-                          {item.mkotNo && <Badge bg="secondary">{item.mkotNo}</Badge>}
-                        </td>
-                        <td>
-                          <Form.Control
-                            type="text"
-                            value={item.specialInstructions}
-                            onChange={(e) => handleItemChange(index, 'specialInstructions', e.target.value)}
-                            onKeyDown={(e) => {
-                              handleKeyPress(index, 'specialInstructions')(e);
-                              if (e.key.startsWith('Arrow')) {
-                                handleArrowNavigation(index, 4, e.key.slice(5).toLowerCase() as 'up' | 'down' | 'left' | 'right');
-                                e.preventDefault();
-                              }
-                            }}
-                            className="form-control-sm1"
-                            disabled={isGrouped}
-                            style={{ width: '100%', fontSize: '18px', border: 'none',   background: 'transparent', padding: '0', outline: 'none' }}
-                          />
-                        </td>
-                      </tr>
-                    ))}
+                    <tr>
+                      <td>0.00</td>
+                      <td className="text-end">{grossAmount.toFixed(2)}</td>
+                      <td className="text-end">0.00</td>
+                      <td className="text-center">0.00</td>
+                      <td className="text-end">{totalCgst.toFixed(2)}</td>
+                      <td className="text-end">{totalSgst.toFixed(2)}</td>
+                      <td className="text-end">{totalIgst.toFixed(2)}</td>
+                      <td className="text-end">{totalCess.toFixed(2)}</td>
+                      <td className="text-end">{roundOff.toFixed(2)}</td>
+                      <td className="text-center">0</td>
+                      <td className="text-end fw-bold text-success">{finalAmount.toFixed(2)}</td>
+                    </tr>
                   </tbody>
                 </Table>
               </div>
-            )}
-          </div>
-        </div>
 
-        {/* Bottom Bar for Summary and Footer */}
-        <div className="bottom-bar">
-          <div className="bottom-content">
-            {/* Summary Section */}
-            <div className="summary-section mb-1">
-              <Table responsive bordered className="modern-table">
-                <thead>
-                  <tr>
-                    <th>Discount (#3)</th>
-                    <th className="text-end">Gross Amt</th>
-                    <th className="text-end">Rev KOT(+)</th>
-                    <th className="text-center">Disc(+)</th>
-                    <th className="text-end">CGST (+)</th>
-                    <th className="text-end">SGST (+)</th>
-                    <th className="text-end">IGST (+)</th>
-                    <th className="text-end">CESS (+)</th>
-                    <th className="text-end">R. Off (+)</th>
-                    <th className="text-center">Ser Chg (+)</th>
-                    <th className="text-end">Final Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>0.00</td>
-                    <td className="text-end">{grossAmount.toFixed(2)}</td>
-                    <td className="text-end">0.00</td>
-                    <td className="text-center">0.00</td>
-                    <td className="text-end">{totalCgst.toFixed(2)}</td>
-                    <td className="text-end">{totalSgst.toFixed(2)}</td>
-                    <td className="text-end">{totalIgst.toFixed(2)}</td>
-                    <td className="text-end">{totalCess.toFixed(2)}</td>
-                    <td className="text-end">{roundOff.toFixed(2)}</td>
-                    <td className="text-center">0</td>
-                    <td className="text-end fw-bold text-success">{finalAmount.toFixed(2)}</td>
-                  </tr>
-                </tbody>
-              </Table>
-            </div>
-
-            {/* Footer with Function Keys */}
-            <Card className="footer-card">
-              <Card.Body className="py-1">
-                <div className="d-flex justify-content-between align-items-center px-2 py-1">
-                  <Button onClick={() => setShowKotTransferModal(true)} variant="outline-primary" size="sm" className="function-btn">KOT Tr (F2)</Button>
-                  <Button onClick={() => setShowNCKOTModal(true)} variant="outline-primary" size="sm" className="function-btn">N C KOT (ctrl + F9)</Button>
-                  <Button onClick={() => setShowReverseBillModal(true)} variant="outline-primary" size="sm" className="function-btn">Rev Bill (F5)</Button>
-                  <Button onClick={() => setShowKotTransferModal(true)} variant="outline-primary" size="sm" className="function-btn">TBL Tr (F7)</Button>
-                  <Button onClick={resetBillState} variant="outline-primary" size="sm" className="function-btn">New Bill (F6)</Button>
-                  <Button onClick={() => setShowReverseKOTModal(true)} variant="outline-primary" size="sm" className="function-btn">Rev KOT (F8)</Button>
-                  <Button onClick={() => saveKOT(false, true)} variant="outline-primary" size="sm" className="function-btn">K O T (F9)</Button>
-                  <Button onClick={printBill} variant="outline-primary" size="sm" className="function-btn">Print (F10)</Button>
-                  <Button onClick={() => setShowSettlementModal(true)} variant="outline-primary" size="sm" className="function-btn">Settle (F11)</Button>
-                  <Button onClick={exitWithoutSave} variant="outline-primary" size="sm" className="function-btn">Exit (Esc)</Button>
-                </div>
-              </Card.Body>
-            </Card>
-          </div>
-        </div>
-      </div>
-
-
-    </div>
-
-    {/* NC KOT Modal */}
-    <Modal show={showNCKOTModal} onHide={() => setShowNCKOTModal(false)}>
-      <Modal.Header closeButton>
-        <Modal.Title>No Charge KOT</Modal.Title>
-      </Modal.Header>
-      <Modal.Body>
-        <Form.Group className="mb-3">
-          <Form.Label>NC Name</Form.Label>
-          <Form.Control
-            type="text"
-            value={ncName}
-            onChange={(e) => setNcName(e.target.value)}
-            placeholder="Enter NC Name"
-          />
-        </Form.Group>
-        <Form.Group className="mb-3">
-          <Form.Label>NC Purpose</Form.Label>
-          <Form.Control
-            type="text"
-            value={ncPurpose}
-            onChange={(e) => setNcPurpose(e.target.value)}
-            placeholder="Enter NC Purpose"
-          />
-        </Form.Group>
-      </Modal.Body>
-      <Modal.Footer>
-        <Button variant="secondary" onClick={() => setShowNCKOTModal(false)}>
-          Cancel
-        </Button>
-        <Button variant="primary" onClick={handleSaveNCKOT}>
-          Save NC KOT
-        </Button>
-      </Modal.Footer>
-    </Modal>
-
-    {/* Settle Modal */}
-    <Modal
-      show={showSettlementModal}
-      onHide={() => setShowSettlementModal(false)}
-      centered
-      onShow={() => {
-        // When the modal is shown, check if it's for single payment
-        if (!isMixedPayment) {
-          // Find the 'Cash' payment mode
-          const cashMode = outletPaymentModes.find(
-            (mode) => mode.mode_name.toLowerCase() === 'cash'
-          );
-          if (cashMode) {
-            // Automatically select 'Cash' and set the amount
-            handlePaymentModeClick(cashMode);
-          }
-        }
-      }}
-      size="lg"
-    >
-      {/* Header */}
-      <Modal.Header closeButton className="border-0">
-        <Modal.Title className="fw-bold text-dark">Payment Mode</Modal.Title>
-      </Modal.Header>
-
-      {/* Body */}
-      <Modal.Body className="bg-light">
-        {/* Bill Summary */}
-        <div className="p-4 mb-4 bg-white rounded shadow-sm text-center">
-          <h6 className="text-secondary mb-2">Total Amount Due</h6>
-          <div className="fw-bold display-5 text-dark" id="settlement-grand-total">
-            ₹{taxCalc.grandTotal.toFixed(2)}
-          </div>
-        </div>
-
-        {/* Mixed Payment Toggle */}
-        <div className="d-flex justify-content-end mb-3">
-          <Form.Check
-            type="switch"
-            id="mixed-payment-switch"
-            label="Mixed Payment"
-            checked={isMixedPayment}
-            onChange={(e) => {
-              setIsMixedPayment(e.target.checked);
-              setSelectedPaymentModes([]);
-              setPaymentAmounts({});
-            }}
-          />
-        </div>
-
-        {/* Payment Modes */}
-        <Row xs={1} md={2} className="g-3">
-          {outletPaymentModes.map((mode) => (
-            <Col key={mode.id}>
-              <Card
-                onClick={() => handlePaymentModeClick(mode)}
-                className={`text-center h-100 shadow-sm border-0 ${selectedPaymentModes.includes(mode.mode_name)
-                  ? "border border-primary"
-                  : ""
-                  }`}
-                style={{
-                  cursor: "pointer",
-                  transition: "transform 0.2s ease, box-shadow 0.2s ease",
-                }}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.transform = "translateY(-4px)")
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.transform = "translateY(0)")
-                }
-              >
-                <Card.Body>
-                  <Card.Title className="fw-semibold">
-                    {mode.mode_name}
-                  </Card.Title>
-
-                  {/* Amount Input */}
-                  {selectedPaymentModes.includes(mode.mode_name) && (
-                    <Form.Control
-                      type="number"
-                      placeholder="0.00"
-                      value={paymentAmounts[mode.mode_name] || ""}
-                      onChange={(e) =>
-                        handlePaymentAmountChange(mode.mode_name, e.target.value)
-                      }
-                      onClick={(e) => e.stopPropagation()}
-                      autoFocus={isMixedPayment}
-                      readOnly={!isMixedPayment}
-                      className="mt-2 text-center"
-                    />
-                  )}
+              {/* Footer with Function Keys */}
+              <Card className="footer-card">
+                <Card.Body className="py-1">
+                  <div className="d-flex justify-content-between align-items-center px-2 py-1">
+                    <Button onClick={() => setShowKotTransferModal(true)} variant="outline-primary" size="sm" className="function-btn">KOT Tr (F2)</Button>
+                    <Button onClick={() => setShowNCKOTModal(true)} variant="outline-primary" size="sm" className="function-btn">N C KOT (ctrl + F9)</Button>
+                    <Button onClick={() => setShowReverseBillModal(true)} variant="outline-primary" size="sm" className="function-btn">Rev Bill (F5)</Button>
+                    <Button onClick={() => setShowKotTransferModal(true)} variant="outline-primary" size="sm" className="function-btn">TBL Tr (F7)</Button>
+                    <Button onClick={resetBillState} variant="outline-primary" size="sm" className="function-btn">New Bill (F6)</Button>
+                    <Button onClick={() => setShowReverseKOTModal(true)} variant="outline-primary" size="sm" className="function-btn">Rev KOT (F8)</Button>
+                    <Button onClick={() => saveKOT(false, true)} variant="outline-primary" size="sm" className="function-btn">K O T (F9)</Button>
+                    <Button onClick={printBill} variant="outline-primary" size="sm" className="function-btn">Print (F10)</Button>
+                    <Button onClick={() => setShowSettlementModal(true)} variant="outline-primary" size="sm" className="function-btn">Settle (F11)</Button>
+                    <Button onClick={exitWithoutSave} variant="outline-primary" size="sm" className="function-btn">Exit (Esc)</Button>
+                  </div>
                 </Card.Body>
               </Card>
-            </Col>
-          ))}
-        </Row>
-
-        {/* Tip Input */}
-        <div className="mb-3 p-3 bg-white rounded shadow-sm">
-          <Form.Label className="fw-semibold text-dark mb-2">Optional Tip</Form.Label>
-          <Form.Control
-            type="number"
-            placeholder="0.00"
-            value={tip || ""}
-            onChange={(e) => setTip(parseFloat(e.target.value) || 0)}
-            className="text-center"
-            step="0.01"
-          />
+            </div>
+          </div>
         </div>
 
-        {/* Payment Summary */}
-        <div className="mt-4 p-3 bg-white rounded shadow-sm">
-          <div className="d-flex justify-content-around fw-bold fs-5">
-            <div>
-              <span>Total Paid: </span>
-              <span className="text-primary" id="settlement-total-paid">{(Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0) + (tip || 0)).toFixed(2)}</span>
-            </div>
-            <div>
-              <span>Balance Due: </span>
-              <span
-                className={
-                  (taxCalc.grandTotal - (Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0) + (tip || 0))) === 0 ? "text-success" : "text-danger"
-                }
-              >
-                {(taxCalc.grandTotal - (Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0) + (tip || 0))).toFixed(2)}
-              </span>
+
+      </div>
+
+      {/* NC KOT Modal */}
+      <Modal show={showNCKOTModal} onHide={() => setShowNCKOTModal(false)}>
+        <Modal.Header closeButton>
+          <Modal.Title>No Charge KOT</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form.Group className="mb-3">
+            <Form.Label>NC Name</Form.Label>
+            <Form.Control
+              type="text"
+              value={ncName}
+              onChange={(e) => setNcName(e.target.value)}
+              placeholder="Enter NC Name"
+            />
+          </Form.Group>
+          <Form.Group className="mb-3">
+            <Form.Label>NC Purpose</Form.Label>
+            <Form.Control
+              type="text"
+              value={ncPurpose}
+              onChange={(e) => setNcPurpose(e.target.value)}
+              placeholder="Enter NC Purpose"
+            />
+          </Form.Group>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowNCKOTModal(false)}>
+            Cancel
+          </Button>
+          <Button variant="primary" onClick={handleSaveNCKOT}>
+            Save NC KOT
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Settle Modal */}
+      <Modal
+        show={showSettlementModal}
+        onHide={() => setShowSettlementModal(false)}
+        centered
+        onShow={() => {
+          // When the modal is shown, check if it's for single payment
+          if (!isMixedPayment) {
+            // Find the 'Cash' payment mode
+            const cashMode = outletPaymentModes.find(
+              (mode) => mode.mode_name.toLowerCase() === 'cash'
+            );
+            if (cashMode) {
+              // Automatically select 'Cash' and set the amount
+              handlePaymentModeClick(cashMode);
+            }
+          }
+        }}
+        size="lg"
+      >
+        {/* Header */}
+        <Modal.Header closeButton className="border-0">
+          <Modal.Title className="fw-bold text-dark">Payment Mode</Modal.Title>
+        </Modal.Header>
+
+        {/* Body */}
+        <Modal.Body className="bg-light">
+          {/* Bill Summary */}
+          <div className="p-4 mb-4 bg-white rounded shadow-sm text-center">
+            <h6 className="text-secondary mb-2">Total Amount Due</h6>
+            <div className="fw-bold display-5 text-dark" id="settlement-grand-total">
+              ₹{taxCalc.grandTotal.toFixed(2)}
             </div>
           </div>
 
-          {/* Validation Messages */}
-          {(taxCalc.grandTotal - (Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0) + (tip || 0))) !== 0 && (
-            <div className="text-danger mt-2 text-center small">
-              Total paid amount + tip must match the grand total.
+          {/* Mixed Payment Toggle */}
+          <div className="d-flex justify-content-end mb-3">
+            <Form.Check
+              type="switch"
+              id="mixed-payment-switch"
+              label="Mixed Payment"
+              checked={isMixedPayment}
+              onChange={(e) => {
+                setIsMixedPayment(e.target.checked);
+                setSelectedPaymentModes([]);
+                setPaymentAmounts({});
+              }}
+            />
+          </div>
+
+          {/* Payment Modes */}
+          <Row xs={1} md={2} className="g-3">
+            {outletPaymentModes.map((mode) => (
+              <Col key={mode.id}>
+                <Card
+                  onClick={() => handlePaymentModeClick(mode)}
+                  className={`text-center h-100 shadow-sm border-0 ${selectedPaymentModes.includes(mode.mode_name)
+                    ? "border border-primary"
+                    : ""
+                    }`}
+                  style={{
+                    cursor: "pointer",
+                    transition: "transform 0.2s ease, box-shadow 0.2s ease",
+                  }}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.transform = "translateY(-4px)")
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.transform = "translateY(0)")
+                  }
+                >
+                  <Card.Body>
+                    <Card.Title className="fw-semibold">
+                      {mode.mode_name}
+                    </Card.Title>
+
+                    {/* Amount Input */}
+                    {selectedPaymentModes.includes(mode.mode_name) && (
+                      <Form.Control
+                        type="number"
+                        placeholder="0.00"
+                        value={paymentAmounts[mode.mode_name] || ""}
+                        onChange={(e) =>
+                          handlePaymentAmountChange(mode.mode_name, e.target.value)
+                        }
+                        onClick={(e) => e.stopPropagation()}
+                        autoFocus={isMixedPayment}
+                        readOnly={!isMixedPayment}
+                        className="mt-2 text-center"
+                      />
+                    )}
+                  </Card.Body>
+                </Card>
+              </Col>
+            ))}
+          </Row>
+
+          {/* Tip Input */}
+          <div className="mb-3 p-3 bg-white rounded shadow-sm">
+            <Form.Label className="fw-semibold text-dark mb-2">Optional Tip</Form.Label>
+            <Form.Control
+              type="number"
+              placeholder="0.00"
+              value={tip || ""}
+              onChange={(e) => setTip(parseFloat(e.target.value) || 0)}
+              className="text-center"
+              step="0.01"
+            />
+          </div>
+
+          {/* Payment Summary */}
+          <div className="mt-4 p-3 bg-white rounded shadow-sm">
+            <div className="d-flex justify-content-around fw-bold fs-5">
+              <div>
+                <span>Total Paid: </span>
+                <span className="text-primary" id="settlement-total-paid">{(Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0) + (tip || 0)).toFixed(2)}</span>
+              </div>
+              <div>
+                <span>Balance Due: </span>
+                <span
+                  className={
+                    (taxCalc.grandTotal - (Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0) + (tip || 0))) === 0 ? "text-success" : "text-danger"
+                  }
+                >
+                  {(taxCalc.grandTotal - (Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0) + (tip || 0))).toFixed(2)}
+                </span>
+              </div>
             </div>
-          )}
-          {(taxCalc.grandTotal - (Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0) + (tip || 0))) === 0 && (Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0) + (tip || 0)) > 0 && (
-            <div className="text-success mt-2 text-center small">
-              ✅ Payment amount + tip matches. Ready to settle.
-            </div>
-          )}
-        </div>
-      </Modal.Body>
 
-      {/* Footer */}
-      <Modal.Footer className="border-0 justify-content-between">
-        <Button
-          variant="outline-secondary"
-          onClick={() => setShowSettlementModal(false)}
-          className="px-4"
-        >
-          Back
-        </Button>
-        <Button
-          variant="success"
-          onClick={handleSettleAndPrint}
-          disabled={(taxCalc.grandTotal - (Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0) + (tip || 0))) !== 0 || (Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0) + (tip || 0)) === 0}
-          className="px-4"
-        >
-          Settle & Print
-        </Button>
-      </Modal.Footer>
-    </Modal>
+            {/* Validation Messages */}
+            {(taxCalc.grandTotal - (Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0) + (tip || 0))) !== 0 && (
+              <div className="text-danger mt-2 text-center small">
+                Total paid amount + tip must match the grand total.
+              </div>
+            )}
+            {(taxCalc.grandTotal - (Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0) + (tip || 0))) === 0 && (Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0) + (tip || 0)) > 0 && (
+              <div className="text-success mt-2 text-center small">
+                ✅ Payment amount + tip matches. Ready to settle.
+              </div>
+            )}
+          </div>
+        </Modal.Body>
 
-    {/* KOT Transfer Modal */}
-    <Modal show={showKotTransferModal} onHide={() => setShowKotTransferModal(false)} size="xl" centered>
-      <Modal.Header closeButton>
-        <Modal.Title>KOT Transfer</Modal.Title>
-      </Modal.Header>
-      <Modal.Body>
-        <KotTransfer onCancel={() => setShowKotTransferModal(false)} />
-      </Modal.Body>
-    </Modal>
+        {/* Footer */}
+        <Modal.Footer className="border-0 justify-content-between">
+          <Button
+            variant="outline-secondary"
+            onClick={() => setShowSettlementModal(false)}
+            className="px-4"
+          >
+            Back
+          </Button>
+          <Button
+            variant="success"
+            onClick={handleSettleAndPrint}
+            disabled={(taxCalc.grandTotal - (Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0) + (tip || 0))) !== 0 || (Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0) + (tip || 0)) === 0}
+            className="px-4"
+          >
+            Settle & Print
+          </Button>
+        </Modal.Footer>
+      </Modal>
 
-    {/* Reverse Bill Modal */}
-    <Modal show={showReverseBillModal} onHide={() => setShowReverseBillModal(false)} centered>
-      <Modal.Header closeButton>
-        <Modal.Title>Reverse Bill</Modal.Title>
-      </Modal.Header>
-      <Modal.Body>
-        <p>Are you sure you want to reverse this bill? This action cannot be undone.</p>
-      </Modal.Body>
-      <Modal.Footer>
-        <Button variant="secondary" onClick={() => setShowReverseBillModal(false)}>
-          Cancel
-        </Button>
-        <Button variant="danger" onClick={reverseBill}>
-          Confirm Reverse Bill
-        </Button>
-      </Modal.Footer>
-    </Modal>
+      {/* KOT Transfer Modal */}
+      <Modal show={showKotTransferModal} onHide={() => setShowKotTransferModal(false)} size="xl" centered>
+        <Modal.Header closeButton>
+          <Modal.Title>KOT Transfer</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <KotTransfer onCancel={() => setShowKotTransferModal(false)} />
+        </Modal.Body>
+      </Modal>
 
-    {/* Customer Modal */}
-    <Modal show={showCustomerModal} onHide={handleCloseCustomerModal} size="xl" centered>
-      <Modal.Header closeButton>
-        <Modal.Title>Customer Management</Modal.Title>
-      </Modal.Header>
-      <Modal.Body style={{ padding: '0px', maxHeight: '780px', overflowY: 'auto' }}>
-        <CustomerModal />
-      </Modal.Body>
-    </Modal>
+      {/* Reverse Bill Modal */}
+      <Modal show={showReverseBillModal} onHide={() => setShowReverseBillModal(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Reverse Bill</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p>Are you sure you want to reverse this bill? This action cannot be undone.</p>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowReverseBillModal(false)}>
+            Cancel
+          </Button>
+          <Button variant="danger" onClick={reverseBill}>
+            Confirm Reverse Bill
+          </Button>
+        </Modal.Footer>
+      </Modal>
 
-    <Toaster />
+      {/* Customer Modal */}
+      <Modal show={showCustomerModal} onHide={handleCloseCustomerModal} size="xl" centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Customer Management</Modal.Title>
+        </Modal.Header>
+        <Modal.Body style={{ padding: '0px', maxHeight: '780px', overflowY: 'auto' }}>
+          <CustomerModal />
+        </Modal.Body>
+      </Modal>
+
+      <Toaster />
     </React.Fragment>
   );
 };
