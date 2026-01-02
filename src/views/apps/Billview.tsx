@@ -480,19 +480,20 @@ const ModernBill = () => {
   const navigableColumns = [0, 1, 2, 3, 4];
 
   const handleArrowNavigation = (currentRow: number, currentCol: number, direction: 'up' | 'down' | 'left' | 'right') => {
+    const totalRows = isGrouped ? displayedItems.length : billItems.length;
     let newRow = currentRow;
     let newCol = currentCol;
 
     if (direction === 'right') {
       newCol = (currentCol + 1) % navigableColumns.length;
-      if (newCol === 0) newRow = (currentRow + 1) % billItems.length;
+      if (newCol === 0) newRow = (currentRow + 1) % totalRows;
     } else if (direction === 'left') {
       newCol = currentCol === 0 ? navigableColumns.length - 1 : currentCol - 1;
-      if (currentCol === 0) newRow = currentRow === 0 ? billItems.length - 1 : currentRow - 1;
+      if (currentCol === 0) newRow = currentRow === 0 ? totalRows - 1 : currentRow - 1;
     } else if (direction === 'down') {
-      newRow = (currentRow + 1) % billItems.length;
+      newRow = (currentRow + 1) % totalRows;
     } else if (direction === 'up') {
-      newRow = currentRow === 0 ? billItems.length - 1 : currentRow - 1;
+      newRow = currentRow === 0 ? totalRows - 1 : currentRow - 1;
     }
 
     const targetInput = inputRefs.current[newRow]?.[newCol];
@@ -713,8 +714,17 @@ const ModernBill = () => {
   }, [billItems]);
 
   const handleItemChange = (index: number, field: keyof BillItem, value: string | number) => {
+    let dataIndex = index;
+    if (isGrouped) {
+      if (index === displayedItems.length - 1) {
+        dataIndex = billItems.length - 1;
+      } else {
+        return;
+      }
+    }
+
     const updated = [...billItems];
-    const currentItem = { ...updated[index] };
+    const currentItem = { ...updated[dataIndex] };
 
     if (field === 'itemCode') {
       currentItem.itemCode = value as string;
@@ -752,15 +762,22 @@ const ModernBill = () => {
       (currentItem[field] as any) = value;
     }
 
-    updated[index] = currentItem;
+    updated[dataIndex] = currentItem;
     calculateTotals(updated);
   };
 
   const handleKeyPress = (index: number, field: keyof BillItem) => (e: KeyboardEvent<any>) => {
+    let dataIndex = index;
+    if (isGrouped) {
+      if (index === displayedItems.length - 1) {
+        dataIndex = billItems.length - 1;
+      }
+    }
+
     if (e.key === "Enter") {
       if (field === 'itemCode') {
         // Only move focus to qty if itemCode has been typed
-        if (billItems[index].itemCode.trim() !== '') {
+        if (billItems[dataIndex].itemCode.trim() !== '') {
           const qtyRef = inputRefs.current[index]?.[1];
           if (qtyRef) {
             qtyRef.focus();
@@ -777,12 +794,13 @@ const ModernBill = () => {
         }
       } else if (field === 'qty') {
         // Only add new row if current item has data (itemId > 0 or itemName not empty)
-        if (billItems[index].itemId > 0 || billItems[index].itemName.trim() !== '') {
+        if (billItems[dataIndex].itemId > 0 || billItems[dataIndex].itemName.trim() !== '') {
           const newBillItems = [...billItems, { itemCode: "", itemgroupid: 0, itemId: 0, item_no: 0, itemName: "", qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '' }];
           setBillItems(newBillItems);
           // Focus the new itemCode after state update
           setTimeout(() => {
-            const newItemCodeRef = inputRefs.current[newBillItems.length - 1]?.[0];
+            const focusIndex = isGrouped ? displayedItems.length : newBillItems.length - 1;
+            const newItemCodeRef = inputRefs.current[focusIndex]?.[0];
             if (newItemCodeRef) {
               newItemCodeRef.focus();
             }
@@ -790,8 +808,9 @@ const ModernBill = () => {
         }
       }
       // No action for rate and specialInstructions
-    } else if (e.key === 'Backspace' && field === 'itemName' && (e.target as HTMLInputElement).value.trim() === '' && index < billItems.length - 1) {
+    } else if (e.key === 'Backspace' && field === 'itemName' && (e.target as HTMLInputElement).value.trim() === '' && index < (isGrouped ? displayedItems.length : billItems.length) - 1) {
       // Remove the row if backspace is pressed on empty itemName field and it's not the last row
+      if (isGrouped) return;
       const updated = billItems.filter((_, i) => i !== index);
       setBillItems(updated);
       calculateTotals(updated);
@@ -1815,6 +1834,7 @@ const ModernBill = () => {
                               }}
                               type="text"
                               value={item.itemCode}
+                              readOnly={isGrouped && index !== displayedItems.length - 1}
                               onChange={(e) => handleItemChange(index, 'itemCode', e.target.value)}
                               onKeyDown={(e) => {
                                 handleKeyPress(index, 'itemCode')(e);
@@ -1835,6 +1855,7 @@ const ModernBill = () => {
                               }}
                               type="text"
                               value={item.itemName}
+                              readOnly={isGrouped && index !== displayedItems.length - 1}
                               onChange={(e) => handleItemChange(index, 'itemName', e.target.value)}
                               onKeyDown={(e) => {
                                 handleKeyPress(index, 'itemName')(e);
@@ -1856,6 +1877,7 @@ const ModernBill = () => {
                               }}
                               type="number"
                               value={item.qty}
+                              readOnly={isGrouped && index !== displayedItems.length - 1}
                               onChange={(e) => handleItemChange(index, 'qty', Number(e.target.value))}
                               onKeyDown={(e) => {
                                 handleKeyPress(index, 'qty')(e);
@@ -1872,6 +1894,7 @@ const ModernBill = () => {
                             <Form.Control
                               type="number"
                               value={item.rate}
+                              readOnly={isGrouped && index !== displayedItems.length - 1}
                               onChange={(e) => handleItemChange(index, 'rate', Number(e.target.value))}
                               onKeyDown={(e) => {
                                 handleKeyPress(index, 'rate')(e);
@@ -1901,6 +1924,7 @@ const ModernBill = () => {
                             <Form.Control
                               type="text"
                               value={item.specialInstructions}
+                              readOnly={isGrouped && index !== displayedItems.length - 1}
                               onChange={(e) => handleItemChange(index, 'specialInstructions', e.target.value)}
                               onKeyDown={(e) => {
                                 handleKeyPress(index, 'specialInstructions')(e);
