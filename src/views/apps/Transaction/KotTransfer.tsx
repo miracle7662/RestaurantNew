@@ -46,6 +46,9 @@ const KotTransfer = ({ onCancel }: KotTransferProps) => {
   const [selectedDepartment, setSelectedDepartment] = useState('');
   const [proposedTable, setProposedTable] = useState('');
   const [proposedDepartment, setProposedDepartment] = useState('');
+  const [availableKOTs, setAvailableKOTs] = useState<number[]>([]);
+  const [selectedKOT, setSelectedKOT] = useState<number | null>(null);
+  const [allItems, setAllItems] = useState<Item[]>([]);
 
   const [transferType, setTransferType] = useState<"table" | "kot">("table");
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -126,7 +129,12 @@ const KotTransfer = ({ onCancel }: KotTransferProps) => {
       }));
 
       if (type === 'selected') {
-        setSelectedItems(mappedItems);
+        setAllItems(mappedItems);
+        // Extract unique KOTs and sort them
+        const uniqueKOTs = [...new Set(mappedItems.map(item => item.kot))].sort((a, b) => a - b);
+        setAvailableKOTs(uniqueKOTs);
+        // Reset selected KOT
+        setSelectedKOT(null);
       } else {
         setProposedItems(mappedItems);
       }
@@ -134,6 +142,23 @@ const KotTransfer = ({ onCancel }: KotTransferProps) => {
       console.error(`Error fetching items for table ${tableId}:`, error);
     }
   };
+
+  // Function to update selectedItems based on selectedKOT and transferType
+  const updateSelectedItems = () => {
+    if (transferType === "table") {
+      setSelectedItems(allItems);
+    } else if (selectedKOT !== null) {
+      const filteredItems = allItems.filter(item => item.kot === selectedKOT);
+      setSelectedItems(filteredItems);
+    } else {
+      setSelectedItems([]);
+    }
+  };
+
+  // useEffect to update selectedItems when dependencies change
+  useEffect(() => {
+    updateSelectedItems();
+  }, [allItems, selectedKOT, transferType]);
 
   const sourceTable = tables.find(t => t.id === selectedTableId?.toString());
   const sourcePax = sourceTable?.pax || 0;
@@ -164,8 +189,11 @@ const KotTransfer = ({ onCancel }: KotTransferProps) => {
   const handleTransferTypeChange = (type: "table" | "kot") => {
     setTransferType(type);
     if (type === "table") {
+      setSelectedKOT(-1); // Special value for "All KOTs"
       const updated = selectedItems.map(item => ({ ...item, selected: true }));
       setSelectedItems(updated);
+    } else {
+      setSelectedKOT(null); // Reset KOT selection for KOT mode
     }
   };
 
@@ -311,7 +339,23 @@ const KotTransfer = ({ onCancel }: KotTransferProps) => {
                 <Col xs={4}>
                   <Form.Group>
                     <Form.Label className="fw-semibold" style={{ fontSize: "0.9rem", marginBottom: "4px" }}>KOT</Form.Label>
-                    <Form.Control value={sourceKOT} readOnly style={{ fontSize: "0.9rem" }} />
+                    <Form.Select
+                      value={selectedKOT === -1 ? "all" : selectedKOT || ""}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (value === "all") {
+                          setSelectedKOT(-1);
+                        } else {
+                          setSelectedKOT(Number(value));
+                        }
+                      }}
+                      style={{ fontSize: "0.9rem" }}
+                    >
+                      <option value="all">All KOTs</option>
+                      {availableKOTs.map(kot => (
+                        <option key={kot} value={kot}>{kot}</option>
+                      ))}
+                    </Form.Select>
                   </Form.Group>
                 </Col>
                 <Col xs={4}>
@@ -507,7 +551,7 @@ const KotTransfer = ({ onCancel }: KotTransferProps) => {
                         className="fw-bold me-2"
                         style={{ fontSize: "0.9rem" }}
                       >
-                        {tables.filter(t => t.id !== selectedTableId?.toString()).map(t => (
+                        {tables.filter(t => t.status === 'available').map(t => (
                           <option key={t.id} value={t.id}>{t.name}</option>
                         ))}
                       </Form.Select>
