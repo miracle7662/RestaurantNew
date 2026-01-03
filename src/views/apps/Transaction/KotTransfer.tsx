@@ -6,9 +6,10 @@ import { useAuthContext } from "@/common";
 interface KotTransferProps {
   onCancel?: () => void;
   transferSource?: "table" | "kot";
+  sourceTableId?: number | null;
 }
 
-const KotTransfer = ({ onCancel, transferSource = "table" }: KotTransferProps) => {
+const KotTransfer = ({ onCancel, transferSource = "table", sourceTableId }: KotTransferProps) => {
   const { user } = useAuthContext();
 
   // Type definitions
@@ -102,7 +103,10 @@ const KotTransfer = ({ onCancel, transferSource = "table" }: KotTransferProps) =
           }));
           setTables(mappedTables);
 
-          const defaultTable = mappedTables.find(t => t.status === 'occupied') || mappedTables[0];
+          const defaultTable =
+            mappedTables.find(t => Number(t.id) === sourceTableId) ||
+            mappedTables.find(t => t.status === 'occupied') ||
+            mappedTables[0];
           setSelectedTableId(Number(defaultTable.id));
           setSelectedTable(defaultTable.name);
           setSelectedDepartment(defaultTable.department);
@@ -126,7 +130,7 @@ const KotTransfer = ({ onCancel, transferSource = "table" }: KotTransferProps) =
     };
 
     fetchInitialData();
-  }, [user]);
+  }, [user, sourceTableId]);
 
   const fetchItemsForTable = async (tableId: number, type: 'selected' | 'proposed') => {
     try {

@@ -2244,6 +2244,7 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
                   <div className="d-flex justify-content-between align-items-center px-2 py-1">
                     <Button onClick={() => { setTransferSource("kot"); setShowKotTransferModal(true); }} variant="outline-primary" size="sm" className="function-btn">KOT Tr (F2)</Button>
                     <Button onClick={() => setShowNCKOTModal(true)} variant="outline-primary" size="sm" className="function-btn">N C KOT (ctrl + F9)</Button>
+                    {/* <Button onClick={() => setShowCustomerModal(true)} variant="outline-primary" size="sm" className="function-btn">Customer (F1)</Button> */}
                     <Button onClick={() => setShowReverseBillModal(true)} variant="outline-primary" size="sm" className="function-btn">Rev Bill (F5)</Button>
                     <Button onClick={() => { setTransferSource("table"); setShowKotTransferModal(true); }} variant="outline-primary" size="sm" className="function-btn">TBL Tr (F7)</Button>
                     <Button onClick={resetBillState} variant="outline-primary" size="sm" className="function-btn">New Bill (F6)</Button>
@@ -2512,7 +2513,7 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
           <Modal.Title>KOT Transfer</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <KotTransfer transferSource={transferSource} onCancel={() => setShowKotTransferModal(false)} />
+          <KotTransfer transferSource={transferSource} sourceTableId={tableId} onCancel={() => setShowKotTransferModal(false)} />
         </Modal.Body>
       </Modal>
 
