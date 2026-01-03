@@ -359,11 +359,11 @@ const KotTransfer = ({ onCancel }: KotTransferProps) => {
         >
           <tr>
             <th style={{ width: "60px" }}></th>
-            <th>Media</th>
-            <th>KOT No.</th>
-            <th>Item</th>
-            <th>Qty</th>
-            <th>Price</th>
+            <th style={{ width: "70px" }}>Media</th>
+            <th style={{ width: "80px" }}>KOT No.</th>
+            <th style={{ width: "130px" }}>Item</th>
+            <th style={{ width: "60px" }}>Qty</th>
+            <th style={{ width: "80px" }}>Price</th>
           </tr>
         </thead>
         <tbody style={{ fontSize: "0.85rem" }}>
