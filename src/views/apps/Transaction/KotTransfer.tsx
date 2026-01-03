@@ -165,10 +165,12 @@ const KotTransfer = ({ onCancel, transferSource = "table", sourceTableId }: KotT
   // Function to update selectedItems based on selectedKOT and transferMode
   const updateSelectedItems = () => {
     if (transferMode === "table") {
-      setSelectedItems(allItems);
-    } else if (selectedKOT !== null) {
-      const filteredItems = allItems.filter(item => item.kot === selectedKOT);
+      setSelectedItems(allItems.map(item => ({ ...item, selected: true })));
+    } else if (selectedKOT !== null && selectedKOT !== -1) {
+      const filteredItems = allItems.filter(item => item.kot === selectedKOT).map(item => ({ ...item, selected: true }));
       setSelectedItems(filteredItems);
+    } else if (selectedKOT === -1) {
+      setSelectedItems(allItems.map(item => ({ ...item, selected: true })));
     } else {
       setSelectedItems([]);
     }
