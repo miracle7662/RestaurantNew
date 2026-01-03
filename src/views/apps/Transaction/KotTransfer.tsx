@@ -1,8 +1,6 @@
 import  { useState, useEffect } from "react";
 import { Card, Row, Col, Form, Button, Table, Badge, Alert, Modal } from "react-bootstrap";
-import { fetchOutletsForDropdown } from "@/utils/commonfunction";
 import { getUnbilledItemsByTable } from "@/common/api/orders";
-import { OutletData } from "@/common/api/outlet";
 import { useAuthContext } from "@/common";
 
 interface KotTransferProps {
@@ -23,30 +21,49 @@ const KotTransfer = ({ onCancel }: KotTransferProps) => {
     selected?: boolean;
   }
 
+  interface Department {
+    departmentid: number;
+    department_name: string;
+  }
+
   interface TableData {
     id: string;
     name: string;
     status: 'occupied' | 'available' | 'reserved';
-    outlet: string;
+    department: string;
     pax?: number;
   }
 
   // State management
   const [, setLoading] = useState(true);
-  const [outlets, setOutlets] = useState<OutletData[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
   const [tables, setTables] = useState<TableData[]>([]);
   const [selectedItems, setSelectedItems] = useState<Item[]>([]);
   const [proposedItems, setProposedItems] = useState<Item[]>([]);
   const [selectedTableId, setSelectedTableId] = useState<number | null>(null);
   const [proposedTableId, setProposedTableId] = useState<number | null>(null);
   const [selectedTable, setSelectedTable] = useState('');
-  const [selectedOutlet, setSelectedOutlet] = useState('');
+  const [selectedDepartment, setSelectedDepartment] = useState('');
   const [proposedTable, setProposedTable] = useState('');
-  const [, setProposedOutlet] = useState('');
+  const [proposedDepartment, setProposedDepartment] = useState('');
 
   const [transferType, setTransferType] = useState<"table" | "kot">("table");
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [currentDate] = useState(new Date().toLocaleDateString('en-GB'));
+
+  const fetchDepartments = async () => {
+    try {
+      const response = await fetch('http://localhost:3001/api/table-department');
+      const data = await response.json();
+      if (data.success) {
+        setDepartments(data.data);
+      } else {
+        console.error('Failed to fetch departments');
+      }
+    } catch (error) {
+      console.error('Error fetching departments:', error);
+    }
+  };
 
   // Fetch data on mount
   useEffect(() => {
@@ -54,13 +71,7 @@ const KotTransfer = ({ onCancel }: KotTransferProps) => {
       if (!user) return;
 
       try {
-        const [outletsData] = await Promise.all([
-          new Promise<OutletData[]>((resolve) => {
-            fetchOutletsForDropdown(user, resolve, () => {});
-          }),
-        ]);
-
-        setOutlets(outletsData);
+        await fetchDepartments();
 
         // Fetch tables from the correct endpoint
         const tablesResponse = await fetch('http://localhost:3001/api/tablemanagement');
@@ -70,7 +81,7 @@ const KotTransfer = ({ onCancel }: KotTransferProps) => {
             id: table.tableid.toString(),
             name: table.table_name,
             status: table.status === 1 ? 'occupied' : table.status === 2 ? 'reserved' : 'available',
-            outlet: table.outlet_name || 'Unknown',
+            department: table.department_name || 'Unknown',
             pax: table.pax || 0
           }));
           setTables(mappedTables);
@@ -78,7 +89,7 @@ const KotTransfer = ({ onCancel }: KotTransferProps) => {
           const defaultTable = mappedTables.find(t => t.status === 'occupied') || mappedTables[0];
           setSelectedTableId(Number(defaultTable.id));
           setSelectedTable(defaultTable.name);
-          setSelectedOutlet(defaultTable.outlet);
+          setSelectedDepartment(defaultTable.department);
           await fetchItemsForTable(Number(defaultTable.id), 'selected');
         }
 
@@ -86,10 +97,10 @@ const KotTransfer = ({ onCancel }: KotTransferProps) => {
           if (availableTable) {
             setProposedTableId(Number(availableTable.tableid));
             setProposedTable(availableTable.table_name);
-            setProposedOutlet(availableTable.outlet_name || 'Unknown');
+            setProposedDepartment(availableTable.department_name || 'Unknown');
             await fetchItemsForTable(Number(availableTable.tableid), 'proposed');
           }
-        
+
 
       } catch (error) {
         console.error('Error fetching initial data:', error);
@@ -163,7 +174,7 @@ const KotTransfer = ({ onCancel }: KotTransferProps) => {
     setSelectedTableId(numericTableId);
     const srcTable = tables.find(t => t.id === tableId);
     setSelectedTable(srcTable?.name || '');
-    setSelectedOutlet(srcTable?.outlet || '');
+    setSelectedDepartment(srcTable?.department || '');
     await fetchItemsForTable(numericTableId, 'selected');
   };
 
@@ -173,7 +184,7 @@ const KotTransfer = ({ onCancel }: KotTransferProps) => {
 
     const destTable = tables.find(t => t.id === tableId);
     setProposedTable(destTable?.name || '');
-    setProposedOutlet(destTable?.outlet || '');
+    setProposedDepartment(destTable?.department || '');
     await fetchItemsForTable(numericTableId, 'proposed');
   };
 
@@ -289,10 +300,10 @@ const KotTransfer = ({ onCancel }: KotTransferProps) => {
                 </Col>
                 <Col xs={6}>
                   <Form.Group>
-                    <Form.Label className="fw-semibold" style={{ fontSize: "0.9rem", marginBottom: "4px" }}>Outlet</Form.Label>
-                    <Form.Select value={selectedOutlet} onChange={(e) => setSelectedOutlet(e.target.value)} style={{ fontSize: "0.9rem" }}>
-                      {outlets.map(outlet => (
-                        <option key={outlet.outletid} value={outlet.outlet_name}>{outlet.outlet_name}</option>
+                    <Form.Label className="fw-semibold" style={{ fontSize: "0.9rem", marginBottom: "4px" }}>Department</Form.Label>
+                    <Form.Select value={selectedDepartment} onChange={(e) => setSelectedDepartment(e.target.value)} style={{ fontSize: "0.9rem" }}>
+                      {departments.map(dept => (
+                        <option key={dept.departmentid} value={dept.department_name}>{dept.department_name}</option>
                       ))}
                     </Form.Select>
                   </Form.Group>
@@ -475,10 +486,10 @@ const KotTransfer = ({ onCancel }: KotTransferProps) => {
               <Row className="mb-2 g-2">
                 <Col xs={6}>
                   <Form.Group>
-                    <Form.Label className="fw-semibold" style={{ fontSize: "0.9rem", marginBottom: "4px" }}>Outlet</Form.Label>
-                    <Form.Select value={selectedOutlet} onChange={(e) => setSelectedOutlet(e.target.value)} style={{ fontSize: "0.9rem" }}>
-                      {outlets.map(outlet => (
-                        <option key={outlet.outletid} value={outlet.outlet_name}>{outlet.outlet_name}</option>
+                    <Form.Label className="fw-semibold" style={{ fontSize: "0.9rem", marginBottom: "4px" }}>Department</Form.Label>
+                    <Form.Select value={proposedDepartment} onChange={(e) => setProposedDepartment(e.target.value)} style={{ fontSize: "0.9rem" }}>
+                      {departments.map(dept => (
+                        <option key={dept.departmentid} value={dept.department_name}>{dept.department_name}</option>
                       ))}
                     </Form.Select>
                   </Form.Group>
