@@ -25,6 +25,7 @@ interface BillItem {
   specialInstructions: string;
   itemgroupid: number;
   isBilled?: number;
+  txnDetailId?: number;
 }
 
 interface MenuItem {
@@ -118,7 +119,7 @@ const ModernBill = () => {
   const [isBillPrinted, setIsBillPrinted] = useState(false);
 
   const [discount, setDiscount] = useState(0);
-  const [discountType, setDiscountType] = useState(1);
+  const [DiscountType, setDiscountType] = useState(1);
   const [discountInputValue, setDiscountInputValue] = useState(0);
   const [roundOffValue, setRoundOffValue] = useState(0);
   const [items, setItems] = useState<any[]>([]);
@@ -224,7 +225,7 @@ const ModernBill = () => {
     const igstTotal = updatedItems.reduce((sum, item) => sum + item.igst, 0);
     const cessTotal = updatedItems.reduce((sum, item) => sum + item.cess, 0);
 
-    const totalBeforeRoundOff = gross + cgstTotal + sgstTotal + igstTotal + cessTotal;
+    const totalBeforeRoundOff = gross + cgstTotal + sgstTotal + igstTotal + cessTotal - discount;
     const roundedFinalAmount = Math.round(totalBeforeRoundOff);
     const ro = roundedFinalAmount - totalBeforeRoundOff;
 
@@ -235,7 +236,7 @@ const ModernBill = () => {
     setTotalCess(cessTotal);
     setFinalAmount(roundedFinalAmount);
     setRoundOff(ro);
-    setTaxCalc({ grandTotal: roundedFinalAmount });
+    setTaxCalc({ grandTotal: roundedFinalAmount, subtotal: gross });
   }, [displayedItems, cgstRate, sgstRate, igstRate, cessRate, includeTaxInInvoice]);
 
   // Fetch bill details
@@ -266,7 +267,7 @@ const ModernBill = () => {
   const [paymentAmounts, setPaymentAmounts] = useState<{ [key: string]: string }>({});
   const [tip, setTip] = useState<number>(0);
   const [outletPaymentModes, setOutletPaymentModes] = useState<any[]>([]);
-  const [taxCalc, setTaxCalc] = useState({ grandTotal: 0 });
+  const [taxCalc, setTaxCalc] = useState({ grandTotal: 0, subtotal: 0 });
   const [settlements, setSettlements] = useState([{ PaymentType: 'Cash', Amount: finalAmount }]);
 
   // Reverse Bill modal data
@@ -289,6 +290,16 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
   const [showF9BilledPasswordModal, setShowF9BilledPasswordModal] = useState(false);
   const [f9BilledPasswordError, setF9BilledPasswordError] = useState('');
   const [f9BilledPasswordLoading, setF9BilledPasswordLoading] = useState(false);
+
+  const [showDiscountModal, setShowDiscountModal] = useState(false);
+  const [discountReason, setDiscountReason] = useState('');
+  const [givenBy, setGivenBy] = useState('');
+  const [reason, setReason] = useState('');
+  const [DiscPer, setDiscPer] = useState(0);
+
+  const handleDiscountKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') setShowDiscountModal(false);
+  };
 
   const handleF9PasswordSubmit = async (password: string) => {
     if (!(user as any)?.token) {
@@ -434,7 +445,8 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
                 cess: 0,
                 mkotNo: item.kotNo ? item.kotNo.toString() : '',
                 specialInstructions: '',
-                isBilled: 1
+                isBilled: 1,
+                txnDetailId: item.txnDetailId
               };
             });
             // Add blank row
@@ -510,7 +522,8 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
       const mappedItems: BillItem[] = data.items.map((item: any) => {
         return {
           itemCode: (item.item_no || item.item_no || '').toString(),
-          // itemId: item.itemId || item.ItemID || 0,
+          itemId: item.itemId || item.ItemID || 0,
+          itemgroupid: item.itemgroupid || 0,
           item_no: item.item_no || item.ItemNo || '',
           itemName: item.itemName || item.ItemName || item.item_name || '',
           qty: item.netQty || item.Qty || 0,
@@ -522,7 +535,8 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
           cess: 0,
           mkotNo: item.kotNo ? item.kotNo.toString() : (item.KOTNo ? item.KOTNo.toString() : ''),
           specialInstructions: item.specialInstructions || item.SpecialInst || '',
-          isBilled: 0
+          isBilled: 0,
+          txnDetailId: item.txnDetailId
         };
       });
 
@@ -630,7 +644,7 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
     setFinalAmount(roundedFinalAmount);
     setRoundOff(ro);
     setBillItems(updatedItems);
-    setTaxCalc({ grandTotal: roundedFinalAmount });
+    setTaxCalc({ grandTotal: roundedFinalAmount, subtotal: gross });
   };
 
   // Fetch outlets
@@ -1245,6 +1259,92 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
     setPaymentAmounts({ ...paymentAmounts, [modeName]: value });
   };
 
+   const handleApplyDiscount = async () => {
+      if (!txnId) {
+        toast.error("Please save the KOT before applying a discount.");
+        return;
+      }
+
+      let appliedDiscount = 0;
+      let appliedDiscPer = 0;
+
+      if (DiscountType === 1) { // Percentage
+        if (discountInputValue < 0.5 || discountInputValue > 100 || isNaN(discountInputValue)) {
+          toast.error('Discount percentage must be between 0.5% and 100%');
+          return;
+        }
+        const discountThreshold = 20; // Configurable threshold
+        if (discountInputValue > discountThreshold && user?.role_level !== 'superadmin' && user?.role_level !== 'hotel_admin') {
+          toast.error('Discount > 20% requires manager approval');
+          return;
+        }
+        appliedDiscPer = discountInputValue;
+        appliedDiscount = (grossAmount * discountInputValue) / 100;
+      } else { // Amount
+        if (discountInputValue <= 0 || discountInputValue > grossAmount || isNaN(discountInputValue)) {
+          toast.error(`Discount amount must be > 0 and <= subtotal (${grossAmount.toFixed(2)})`);
+          return;
+        }
+        appliedDiscPer = 0;
+        appliedDiscount = discountInputValue;
+      }
+
+      setLoading(true);
+      setDiscount(appliedDiscount); // Ensure the discount state is updated
+      try {
+        const payload = {
+          discount: appliedDiscount,
+          discPer: appliedDiscPer,
+          discountType: DiscountType,
+          tableId: tableId,
+          items: billItems.filter(item => item.itemId > 0).map(item => ({ ...item, price: item.rate })), // Send current items to recalculate on backend
+        };
+
+        const response = await fetch(`http://localhost:3001/api/TAxnTrnbill/${txnId}/discount`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        const result = await response.json();
+
+        if (!result.success) {
+          throw new Error(result.message || 'Failed to apply discount.');
+        }
+
+        toast.success('Discount applied successfully!');
+        setShowDiscountModal(false);
+        // Instead of clearing the table, just refresh its data to show the discount.
+        // If the table was billed, applying a discount should make it 'occupied' (green) again.
+        const wasBilled = items.some(item => item.isBilled === 1);
+        if (wasBilled && selectedTable) {
+          const tableToUpdate = tableItems.find(t => t.table_name === selectedTable.name);
+          if (tableToUpdate) {
+            // Optimistically update UI to green
+            setTableItems(prevTables =>
+              prevTables.map(table =>
+                table.table_name === selectedTable.name ? { ...table, status: 1 } : table
+              )
+            );
+            // The backend now handles setting isBilled=0, so a refresh will show correct state.
+            if (selectedTable?.id) {
+              await loadBillForTable(selectedTable.id);
+            }
+          }
+        }
+
+        if (selectedTable?.id) {
+          await loadBillForTable(selectedTable.id);
+        }
+
+      } catch (error: any) {
+        toast.error(error.message || 'An error occurred while applying the discount.');
+      } finally {
+        setLoading(false);
+        setReason('');
+      }
+    };
+
   const handleSettleAndPrint = async () => {
     // Define these variables before using them
     const totalPaid = Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0) + (tip || 0);
@@ -1338,6 +1438,9 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
       if (keyboardEvent.key === 'F2') {
         keyboardEvent.preventDefault();
         setShowKotTransferModal(true);
+      } else if (keyboardEvent.key === 'F3') {
+        keyboardEvent.preventDefault();
+        setShowDiscountModal(true);
       } else if (keyboardEvent.key === 'F4') {
         keyboardEvent.preventDefault();
         // Focus on special instructions of the first item or current row
@@ -2105,7 +2208,7 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
                   </thead>
                   <tbody>
                     <tr>
-                      <td>0.00</td>
+                      <td>{discount.toFixed(2)}</td>
                       <td className="text-end">{grossAmount.toFixed(2)}</td>
                       <td className="text-end">0.00</td>
                       <td className="text-center">0.00</td>
@@ -2179,6 +2282,52 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
           </Button>
         </Modal.Footer>
       </Modal>
+
+        <Modal show={showDiscountModal} onHide={() => setShowDiscountModal(false)} centered onShow={() => {
+            if (DiscountType === 1) {
+              setDiscountInputValue(DiscPer);
+            } else {
+              setDiscountInputValue(discount);
+            }
+            const discountInput = document.getElementById('discountInput') as HTMLInputElement; if (discountInput) discountInput.focus();
+          }}>
+            <Modal.Header closeButton><Modal.Title>Apply Discount</Modal.Title></Modal.Header>
+            <Modal.Body>
+              <div className="mb-3">
+                <label className="form-label">Discount Type</label>
+                <select className="form-control" value={DiscountType} onChange={(e) => setDiscountType(Number(e.target.value))}>
+                  <option value={1}>Percentage</option>
+                  <option value={0}>Amount</option>
+                </select>
+              </div>
+              <div className="mb-3">
+                <label htmlFor="discountInput" className="form-label">{DiscountType === 1 ? 'Discount Percentage (0.5% - 100%)' : 'Discount Amount'}</label>
+                <input
+                  type="number"
+                  id="discountInput"
+                  className="form-control"
+                  value={discountInputValue}
+                  onChange={(e) => setDiscountInputValue(parseFloat(e.target.value) || 0)}
+                  onKeyDown={handleDiscountKeyDown}
+                  step={DiscountType === 1 ? "0.5" : "0.01"}
+                  min={DiscountType === 1 ? "0.5" : "0"}
+                  max={DiscountType === 1 ? "100" : ""}
+                />
+              </div>
+              <div className="mb-3">
+                <label htmlFor="givenBy" className="form-label">Given By</label>
+                <input type="text" id="givenBy" className="form-control" value={givenBy} readOnly={user?.role_level !== 'admin'} onChange={(e) => setGivenBy(e.target.value)} />
+              </div>
+              <div className="mb-3">
+                <label htmlFor="reason" className="form-label">Reason (Optional)</label>
+                <textarea id="reason" className="form-control" value={reason} onChange={(e) => setReason(e.target.value)} />
+              </div>
+            </Modal.Body>
+            <Modal.Footer>
+              <Button variant="secondary" onClick={() => setShowDiscountModal(false)}>Cancel</Button>
+              <Button variant="primary" onClick={handleApplyDiscount}>Apply</Button>
+            </Modal.Footer>
+          </Modal>
 
       {/* Settle Modal */}
       <Modal

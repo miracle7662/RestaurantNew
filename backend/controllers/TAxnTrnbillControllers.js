@@ -1317,7 +1317,8 @@ exports.getUnbilledItemsByTable = async (req, res) => {
         (d.Qty - COALESCE(d.RevQty, 0)) as NetQty,
         d.RuntimeRate as price,
         d.KOTNo,
-        m.item_no as MenuItemNo
+        m.item_no as MenuItemNo,
+        m.item_group_id
       FROM TAxnTrnbilldetails d
       LEFT JOIN msttablemanagement t ON d.TableID = t.tableid
       JOIN TAxnTrnbill b ON d.TxnID = b.TxnID
@@ -1368,6 +1369,7 @@ exports.getUnbilledItemsByTable = async (req, res) => {
       price: r.price,
       isNew: r.KOTNo === kotNo,
       kotNo: r.KOTNo,
+      itemgroupid: r.item_group_id,
     }));
    
 
@@ -1785,7 +1787,7 @@ exports.getLatestBilledBillForTable = async (req, res) => {
 
     // Step 2: Load all items (billed and unbilled) associated with that transaction
     const allDetailsForBill = db.prepare(`
-      SELECT d.*, m.item_name as ItemName
+      SELECT d.*, m.item_name as ItemName, m.item_no, m.item_group_id
       FROM TAxnTrnbilldetails d
       LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
       WHERE d.TxnID = ? AND d.isCancelled = 0
@@ -2123,7 +2125,7 @@ exports.applyDiscountToBill = async (req, res) => {
       let totalGross = 0, totalCgst = 0, totalSgst = 0, totalIgst = 0, totalCess = 0;
 
       for (const d of allDetails) {
-          totalGross += (Number(d.Qty) || 0) * (Number(d.RuntimeRate) || 0);
+          totalGross += ((Number(d.Qty) || 0) - (Number(d.RevQty) || 0)) * (Number(d.RuntimeRate) || 0);
       }
 
       const firstDetail = allDetails[0] || {};
