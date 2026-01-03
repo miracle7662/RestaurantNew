@@ -48,6 +48,7 @@ const KotTransfer = ({ onCancel }: KotTransferProps) => {
   const [proposedDepartment, setProposedDepartment] = useState('');
   const [availableKOTs, setAvailableKOTs] = useState<number[]>([]);
   const [selectedKOT, setSelectedKOT] = useState<number | null>(null);
+  const [latestKOT, setLatestKOT] = useState<number | null>(null);
   const [allItems, setAllItems] = useState<Item[]>([]);
 
   const [transferType, setTransferType] = useState<"table" | "kot">("table");
@@ -133,8 +134,10 @@ const KotTransfer = ({ onCancel }: KotTransferProps) => {
         // Extract unique KOTs and sort them
         const uniqueKOTs = [...new Set(mappedItems.map(item => item.kot))].sort((a, b) => a - b);
         setAvailableKOTs(uniqueKOTs);
-        // Reset selected KOT
-        setSelectedKOT(null);
+        // Set latest KOT
+        const latest = uniqueKOTs.length > 0 ? Math.max(...uniqueKOTs) : null;
+        setLatestKOT(latest);
+        setSelectedKOT(latest);
       } else {
         setProposedItems(mappedItems);
       }
@@ -551,7 +554,7 @@ const KotTransfer = ({ onCancel }: KotTransferProps) => {
                         className="fw-bold me-2"
                         style={{ fontSize: "0.9rem" }}
                       >
-                        {tables.filter(t => t.status === 'available').map(t => (
+                        {tables.map(t => (
                           <option key={t.id} value={t.id}>{t.name}</option>
                         ))}
                       </Form.Select>
