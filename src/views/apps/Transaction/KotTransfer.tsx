@@ -234,7 +234,7 @@ const KotTransfer = ({ onCancel }: KotTransferProps) => {
   const destKOT = proposedItems.length > 0 ? proposedItems[0].kot : 0;
 
   return (
-    <Card className="border-0 shadow" style={{ maxWidth: "100%" }}>
+    <Card className="border-0 shadow" style={{ maxWidth: "100%",backgroundColor: "#f1f3f5" }}>
       <Card.Body className="p-3">
         {/* Header */}
         <div className="d-flex justify-content-between align-items-center mb-2 p-2 bg-white rounded shadow-sm" style={{ minHeight: "60px" }}>
@@ -262,13 +262,7 @@ const KotTransfer = ({ onCancel }: KotTransferProps) => {
         </Badge>
       </div>
 
-      {/* Transfer Type Indicator */}
-      <Alert variant="info" className="d-flex align-items-center justify-content-between mb-2 py-2">
-        <div>
-          <span className="fw-bold me-2">Transfer Mode:</span>
-          {transferType === "table" ? "📋 Table Transfer" : "🧾 KOT Transfer"}
-        </div>
-      </Alert>
+     
 
         {/* Content Section */}
         <Row className="g-2 justify-content-center" style={{ padding: "10px 0" }}>
