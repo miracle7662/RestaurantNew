@@ -384,7 +384,7 @@ const KotTransfer = ({ onCancel }: KotTransferProps) => {
               </td>
               <td>{row.media}</td>
               <td>{row.kot}</td>
-              <td>{row.item}</td>
+               <td style={{ wordWrap: 'break-word', whiteSpace: 'normal' }}>{row.item}</td>
               <td className="text-center">{row.qty}</td>
               <td className="text-end">₹{row.price?.toFixed(2)}</td>
             </tr>
@@ -550,7 +550,7 @@ const KotTransfer = ({ onCancel }: KotTransferProps) => {
                       <tr key={row.id}>
                         <td>{row.media}</td>
                         <td>{row.kot}</td>
-                        <td>{row.item}</td>
+                         <td style={{ wordWrap: 'break-word', whiteSpace: 'normal' }}>{row.item}</td>
                         <td className="text-center">{row.qty}</td>
                         <td className="text-end">₹{row.price?.toFixed(2)}</td>
                       </tr>
