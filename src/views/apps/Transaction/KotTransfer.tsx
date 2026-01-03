@@ -5,9 +5,10 @@ import { useAuthContext } from "@/common";
 
 interface KotTransferProps {
   onCancel?: () => void;
+  transferSource?: "table" | "kot";
 }
 
-const KotTransfer = ({ onCancel }: KotTransferProps) => {
+const KotTransfer = ({ onCancel, transferSource = "table" }: KotTransferProps) => {
   const { user } = useAuthContext();
 
   // Type definitions
@@ -32,6 +33,7 @@ const KotTransfer = ({ onCancel }: KotTransferProps) => {
     status: 'occupied' | 'available' | 'reserved';
     department: string;
     pax?: number;
+    isbilled?: number;
   }
 
   // State management
@@ -51,7 +53,7 @@ const KotTransfer = ({ onCancel }: KotTransferProps) => {
   const [latestKOT, setLatestKOT] = useState<number | null>(null);
   const [allItems, setAllItems] = useState<Item[]>([]);
 
-  const [transferType, setTransferType] = useState<"table" | "kot">("table");
+  const [transferMode, setTransferMode] = useState<"table" | "kot">(transferSource);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [currentDate] = useState(new Date().toLocaleDateString('en-GB'));
 
@@ -86,7 +88,8 @@ const KotTransfer = ({ onCancel }: KotTransferProps) => {
             name: table.table_name,
             status: table.status === 1 ? 'occupied' : table.status === 2 ? 'reserved' : 'available',
             department: table.department_name || 'Unknown',
-            pax: table.pax || 0
+            pax: table.pax || 0,
+            isbilled: table.isbilled || 0
           }));
           setTables(mappedTables);
 
@@ -146,9 +149,9 @@ const KotTransfer = ({ onCancel }: KotTransferProps) => {
     }
   };
 
-  // Function to update selectedItems based on selectedKOT and transferType
+  // Function to update selectedItems based on selectedKOT and transferMode
   const updateSelectedItems = () => {
-    if (transferType === "table") {
+    if (transferMode === "table") {
       setSelectedItems(allItems);
     } else if (selectedKOT !== null) {
       const filteredItems = allItems.filter(item => item.kot === selectedKOT);
@@ -161,7 +164,7 @@ const KotTransfer = ({ onCancel }: KotTransferProps) => {
   // useEffect to update selectedItems when dependencies change
   useEffect(() => {
     updateSelectedItems();
-  }, [allItems, selectedKOT, transferType]);
+  }, [allItems, selectedKOT, transferMode]);
 
   const sourceTable = tables.find(t => t.id === selectedTableId?.toString());
   const sourcePax = sourceTable?.pax || 0;
@@ -177,7 +180,7 @@ const KotTransfer = ({ onCancel }: KotTransferProps) => {
 
   const selectedCount = selectedItems.filter(item => item.selected).length;
   const totalItemsCount = selectedItems.length;
-  const isTableMode = transferType === "table";
+  const isTableMode = transferMode === "table";
   const effectiveSelectedCount = isTableMode ? totalItemsCount : selectedCount;
   const effectiveSelectedAmount = isTableMode ? selectedItems.reduce((sum, item) => sum + (item.price * item.qty), 0) : totalSelectedAmount;
 
@@ -190,13 +193,13 @@ const KotTransfer = ({ onCancel }: KotTransferProps) => {
 
 
   const handleTransferTypeChange = (type: "table" | "kot") => {
-    setTransferType(type);
+    setTransferMode(type);
     if (type === "table") {
       setSelectedKOT(-1); // Special value for "All KOTs"
       const updated = selectedItems.map(item => ({ ...item, selected: true }));
       setSelectedItems(updated);
     } else {
-      setSelectedKOT(null); // Reset KOT selection for KOT mode
+      setSelectedKOT(latestKOT); // Set to latest KOT for KOT mode
     }
   };
 
@@ -281,15 +284,15 @@ const KotTransfer = ({ onCancel }: KotTransferProps) => {
         {/* Header */}
         <div className="d-flex justify-content-between align-items-center mb-2 p-2 bg-white rounded shadow-sm" style={{ minHeight: "60px" }}>
         <div className="d-flex gap-2">
-          <Button 
-            variant={transferType === "table" ? "primary" : "outline-primary"} 
+          <Button
+            variant={transferMode === "table" ? "primary" : "outline-primary"}
             onClick={() => handleTransferTypeChange("table")}
             style={{ fontWeight: 600, padding: "8px 20px", fontSize: "0.9rem" }}
           >
             Selected Table (All KOTs)
           </Button>
-          <Button 
-            variant={transferType === "kot" ? "primary" : "outline-primary"}
+          <Button
+            variant={transferMode === "kot" ? "primary" : "outline-primary"}
             onClick={() => handleTransferTypeChange("kot")}
             style={{ fontWeight: 600, padding: "8px 20px", fontSize: "0.9rem" }}
           >
@@ -297,7 +300,7 @@ const KotTransfer = ({ onCancel }: KotTransferProps) => {
           </Button>
         </div>
         <h2 className="fw-bold text-secondary m-0" style={{ fontSize: "1.5rem" }}>
-          {transferType === "table" ? "TRANSFER TABLE" : "TRANSFER KOT'S"}
+          {transferMode === "table" ? "TRANSFER TABLE" : "TRANSFER KOT'S"}
         </h2>
         <Badge bg="primary" style={{ fontSize: "0.9rem", padding: "8px 16px" }}>
           {effectiveSelectedCount} item{effectiveSelectedCount !== 1 ? 's' : ''} selected
@@ -554,9 +557,11 @@ const KotTransfer = ({ onCancel }: KotTransferProps) => {
                         className="fw-bold me-2"
                         style={{ fontSize: "0.9rem" }}
                       >
-                        {tables.map(t => (
-                          <option key={t.id} value={t.id}>{t.name}</option>
-                        ))}
+                        {tables
+                          .filter(t => (t.status === 'available' || t.status === 'occupied') && t.isbilled !== 1)
+                          .map(t => (
+                            <option key={t.id} value={t.id}>{t.name}</option>
+                          ))}
                       </Form.Select>
                     </div>
                   </Form.Group>

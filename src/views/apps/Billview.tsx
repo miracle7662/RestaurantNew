@@ -258,6 +258,8 @@ const ModernBill = () => {
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [showNCKOTModal, setShowNCKOTModal] = useState(false);
   const [showKotTransferModal, setShowKotTransferModal] = useState(false);
+  const [transferMode, setTransferMode] = useState<"kot" | "table">("table");
+  const [transferSource, setTransferSource] = useState<"kot" | "table">("table");
   const [ncName, setNcName] = useState('');
   const [ncPurpose, setNcPurpose] = useState('');
 
@@ -1447,6 +1449,7 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
       const keyboardEvent = event as unknown as KeyboardEvent;
       if (keyboardEvent.key === 'F2') {
         keyboardEvent.preventDefault();
+        setTransferSource("kot");
         setShowKotTransferModal(true);
       } else if (keyboardEvent.key === 'F3') {
         keyboardEvent.preventDefault();
@@ -1467,7 +1470,8 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
         resetBillState();
       } else if (keyboardEvent.key === 'F7') {
         keyboardEvent.preventDefault();
-        setShowTransferModal(true);
+        setTransferSource("table");
+        setShowKotTransferModal(true);
       } else if (keyboardEvent.key === 'F8') {
         keyboardEvent.preventDefault();
         setShowReverseKOTModal(true);
@@ -2238,10 +2242,10 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
               <Card className="footer-card">
                 <Card.Body className="py-1">
                   <div className="d-flex justify-content-between align-items-center px-2 py-1">
-                    <Button onClick={() => setShowKotTransferModal(true)} variant="outline-primary" size="sm" className="function-btn">KOT Tr (F2)</Button>
+                    <Button onClick={() => { setTransferSource("kot"); setShowKotTransferModal(true); }} variant="outline-primary" size="sm" className="function-btn">KOT Tr (F2)</Button>
                     <Button onClick={() => setShowNCKOTModal(true)} variant="outline-primary" size="sm" className="function-btn">N C KOT (ctrl + F9)</Button>
                     <Button onClick={() => setShowReverseBillModal(true)} variant="outline-primary" size="sm" className="function-btn">Rev Bill (F5)</Button>
-                    <Button onClick={() => setShowKotTransferModal(true)} variant="outline-primary" size="sm" className="function-btn">TBL Tr (F7)</Button>
+                    <Button onClick={() => { setTransferSource("table"); setShowKotTransferModal(true); }} variant="outline-primary" size="sm" className="function-btn">TBL Tr (F7)</Button>
                     <Button onClick={resetBillState} variant="outline-primary" size="sm" className="function-btn">New Bill (F6)</Button>
                     <Button onClick={() => setShowReverseKOTModal(true)} variant="outline-primary" size="sm" className="function-btn">Rev KOT (F8)</Button>
                     <Button onClick={() => saveKOT(false, true)} variant="outline-primary" size="sm" className="function-btn">K O T (F9)</Button>
@@ -2508,7 +2512,7 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
           <Modal.Title>KOT Transfer</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <KotTransfer onCancel={() => setShowKotTransferModal(false)} />
+          <KotTransfer transferSource={transferSource} onCancel={() => setShowKotTransferModal(false)} />
         </Modal.Body>
       </Modal>
 
