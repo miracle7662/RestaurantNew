@@ -119,7 +119,7 @@ const TableManagement: React.FC = () => {
           const formattedData = data.data.map((item: any) => ({
             ...item,
             status: Number(item.status),
-            department_name: item.department_name || 'Unknown Department', // Ensure department_name is included
+            department_name: item.department_name || '', // Ensure department_name is included
           }));
           setTableItems(formattedData);
           setFilteredTableItems(formattedData);
@@ -202,7 +202,7 @@ const TableManagement: React.FC = () => {
         cell: (info) => {
           const departmentId = Number(info.row.original.departmentid);
           const department = departments.find((dept) => dept.departmentid === departmentId);
-          return <span>{department ? department.department_name : info.row.original.department_name || 'Unknown Department'}</span>;
+          return <span>{department ? department.department_name : info.row.original.department_name || ''}</span>;
         },
       },
       {

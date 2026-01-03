@@ -3,7 +3,13 @@ const db = require("../config/db"); // SQLite connection
 // Get all table records with search and pagination
 exports.getAllTables = (req, res) => {
   try {
-    const sql = "SELECT * FROM msttablemanagement";
+    const sql = `
+      SELECT
+        t.*,
+        d.department_name
+      FROM msttablemanagement t
+      LEFT JOIN msttable_department d ON t.departmentid = d.departmentid
+    `;
     const rows = db.prepare(sql).all();
 
     res.json({

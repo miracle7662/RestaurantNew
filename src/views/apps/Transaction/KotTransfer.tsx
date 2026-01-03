@@ -97,7 +97,7 @@ const KotTransfer = ({ onCancel, transferSource = "table", sourceTableId }: KotT
             id: table.tableid.toString(),
             name: table.table_name,
             status: table.status === 1 ? 'occupied' : table.status === 2 ? 'reserved' : 'available',
-            department: table.department_name || 'Unknown',
+            department: table.department_name || '',
             pax: table.pax || 0,
             isbilled: table.isbilled || 0
           }));
@@ -117,7 +117,7 @@ const KotTransfer = ({ onCancel, transferSource = "table", sourceTableId }: KotT
           if (availableTable) {
             setProposedTableId(Number(availableTable.tableid));
             setProposedTable(availableTable.table_name);
-            setProposedDepartment(availableTable.department_name || 'Unknown');
+            setProposedDepartment(availableTable.department_name || '');
             await fetchItemsForTable(Number(availableTable.tableid), 'proposed');
           }
 
@@ -350,11 +350,12 @@ const KotTransfer = ({ onCancel, transferSource = "table", sourceTableId }: KotT
                 <Col xs={6}>
                   <Form.Group>
                     <Form.Label className="fw-semibold" style={{ fontSize: "0.9rem", marginBottom: "4px" }}>Department</Form.Label>
-                    <Form.Select value={selectedDepartment} onChange={(e) => setSelectedDepartment(e.target.value)} style={{ fontSize: "0.9rem" }}>
-                      {departments.map(dept => (
-                        <option key={dept.departmentid} value={dept.department_name}>{dept.department_name}</option>
-                      ))}
-                    </Form.Select>
+                    <Form.Control
+                      value={selectedDepartment}
+                      readOnly
+                      className="fw-bold"
+                      style={{ fontSize: "0.9rem", backgroundColor: "#e9ecef" }}
+                    />
                   </Form.Group>
                 </Col>
                 <Col xs={4}>
@@ -552,11 +553,12 @@ const KotTransfer = ({ onCancel, transferSource = "table", sourceTableId }: KotT
                 <Col xs={6}>
                   <Form.Group>
                     <Form.Label className="fw-semibold" style={{ fontSize: "0.9rem", marginBottom: "4px" }}>Department</Form.Label>
-                    <Form.Select value={proposedDepartment} onChange={(e) => setProposedDepartment(e.target.value)} style={{ fontSize: "0.9rem" }}>
-                      {departments.map(dept => (
-                        <option key={dept.departmentid} value={dept.department_name}>{dept.department_name}</option>
-                      ))}
-                    </Form.Select>
+                    <Form.Control
+                      value={proposedDepartment}
+                      readOnly
+                      className="fw-bold"
+                      style={{ fontSize: "0.9rem", backgroundColor: "#e9ecef" }}
+                    />
                   </Form.Group>
                 </Col>
                 <Col xs={6}>
