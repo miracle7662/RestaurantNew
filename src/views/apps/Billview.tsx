@@ -712,13 +712,13 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
   }, [location.state]);
 
   useEffect(() => {
-    // 1. Fetch menu items from the API when the component mounts
+    // 1. Fetch menu items from the API when selectedOutletId is available
     const fetchMenuItems = async () => {
       try {
-        if (!user || !user.hotelid) {
-          throw new Error('User not authenticated or hotel ID missing');
+        if (!user || !user.hotelid || !selectedOutletId) {
+          return; // Wait for outlet to be selected
         }
-        const response = await axios.get('/api/menu'); // Assuming your API endpoint is /api/menu
+        const response = await axios.get(`/api/menu?outletid=${selectedOutletId}`);
         setMenuItems(response.data.data || response.data);
       } catch (error) {
         console.error('Failed to fetch menu items:', error);
