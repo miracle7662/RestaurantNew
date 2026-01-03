@@ -24,6 +24,7 @@ interface BillItem {
   mkotNo: string;
   specialInstructions: string;
   itemgroupid: number;
+  isBilled?: number;
 }
 
 interface MenuItem {
@@ -432,7 +433,8 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
                 igst: 0,
                 cess: 0,
                 mkotNo: item.kotNo ? item.kotNo.toString() : '',
-                specialInstructions: ''
+                specialInstructions: '',
+                isBilled: 1
               };
             });
             // Add blank row
@@ -519,7 +521,8 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
           igst: 0,
           cess: 0,
           mkotNo: item.kotNo ? item.kotNo.toString() : (item.KOTNo ? item.KOTNo.toString() : ''),
-          specialInstructions: item.specialInstructions || item.SpecialInst || ''
+          specialInstructions: item.specialInstructions || item.SpecialInst || '',
+          isBilled: 0
         };
       });
 
@@ -2365,8 +2368,14 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
           
           
            <Button variant="danger" onClick={() => {
-            setShowReverseBillModal(false);
-            setShowF9BilledPasswordModal(true);
+            const hasBilledItems = billItems.some(item => item.isBilled === 1);
+
+            if (hasBilledItems) {
+              setShowReverseBillModal(false);
+              setShowF9BilledPasswordModal(true);
+            } else {
+              toast.error("F9 (Bill Reversal) is only available for billed orders.");
+            }
           }}>
             Confirm Reverse Bill
           </Button>
