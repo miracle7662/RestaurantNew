@@ -237,7 +237,7 @@ const ModernBill = () => {
     setFinalAmount(roundedFinalAmount);
     setRoundOff(ro);
     setTaxCalc({ grandTotal: roundedFinalAmount, subtotal: gross });
-  }, [displayedItems, cgstRate, sgstRate, igstRate, cessRate, includeTaxInInvoice]);
+  }, [displayedItems, cgstRate, sgstRate, igstRate, cessRate, includeTaxInInvoice, discount]);
 
   // Fetch bill details
   const fetchBillDetails = async () => {
@@ -553,6 +553,16 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
         setPax(data.header.pax || 1);
         if (data.header.table_name) {
           setTableNo(data.header.table_name);
+        }
+        if (data.header.Discount || data.header.DiscPer) {
+          setDiscount(data.header.Discount || 0);
+          setDiscountInputValue(
+            data.header.DiscountType === 1 ? data.header.DiscPer : data.header.Discount || 0
+          );
+          setDiscountType(data.header.DiscountType ?? 1);
+        } else {
+          setDiscount(0);
+          setDiscountInputValue(0);
         }
       }
       if (data.kotNo !== null && data.kotNo !== undefined) {
@@ -1333,8 +1343,8 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
           }
         }
 
-        if (selectedTable?.id) {
-          await loadBillForTable(selectedTable.id);
+        if (tableId) {
+          await loadBillForTable(tableId);
         }
 
       } catch (error: any) {
