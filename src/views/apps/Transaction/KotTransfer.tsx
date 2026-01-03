@@ -57,6 +57,15 @@ const KotTransfer = ({ onCancel, transferSource = "table" }: KotTransferProps) =
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [currentDate] = useState(new Date().toLocaleDateString('en-GB'));
 
+  useEffect(() => {
+    setTransferMode(transferSource);
+    if (transferSource === "table") {
+      setSelectedKOT(-1);
+    } else if (transferSource === "kot") {
+      setSelectedKOT(latestKOT);
+    }
+  }, [transferSource, latestKOT]);
+
   const fetchDepartments = async () => {
     try {
       const response = await fetch('http://localhost:3001/api/table-department');
@@ -288,6 +297,7 @@ const KotTransfer = ({ onCancel, transferSource = "table" }: KotTransferProps) =
             variant={transferMode === "table" ? "primary" : "outline-primary"}
             onClick={() => handleTransferTypeChange("table")}
             style={{ fontWeight: 600, padding: "8px 20px", fontSize: "0.9rem" }}
+            disabled={transferSource === "kot"}
           >
             Selected Table (All KOTs)
           </Button>
@@ -295,6 +305,7 @@ const KotTransfer = ({ onCancel, transferSource = "table" }: KotTransferProps) =
             variant={transferMode === "kot" ? "primary" : "outline-primary"}
             onClick={() => handleTransferTypeChange("kot")}
             style={{ fontWeight: 600, padding: "8px 20px", fontSize: "0.9rem" }}
+            disabled={transferSource === "table"}
           >
             Selected KOT Only
           </Button>
