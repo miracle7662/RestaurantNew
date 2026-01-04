@@ -299,7 +299,7 @@ const handleSave = async () => {
       sourceTableId: selectedTableId,
       proposedTableId,
       targetTableName: proposedTable, // ✅ ADD THIS
-      billDate: dayjs().format('YYYY-MM-DD'), // ✅ ADD THIS (or business date)
+      billDate: billDate, // ✅ ADD THIS (or business date)
       selectedItems: proposedItems.map(item => ({
         txnDetailId: item.txnDetailId
       })),
