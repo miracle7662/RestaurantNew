@@ -2587,7 +2587,115 @@ exports.saveFullReverse = async (req, res) => {
 /* -------------------------------------------------------------------------- */
 
 /* -------------------------------------------------------------------------- */
-/* 23) getGlobalKOTNumber → fetch the next global KOT number for an outlet    */
+/* 23) transferKOT → Transfer KOT/items between tables                        */
+/* -------------------------------------------------------------------------- */
+exports.transferKOT = async (req, res) => {
+  try {
+    console.log('🔥 transferKOT HIT');
+    console.log('Payload:', req.body);
+
+    const {
+      sourceTableId,
+      proposedTableId,
+      targetTableName,
+      billDate,
+      selectedItems
+    } = req.body;
+
+    if (
+      !sourceTableId ||
+      !proposedTableId ||
+      !billDate ||
+      !Array.isArray(selectedItems) ||
+      selectedItems.length === 0
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required fields'
+      });
+    }
+
+    const txnIds = selectedItems
+      .map(i => i.txnDetailId)
+      .filter(Boolean);
+
+    if (txnIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No valid txnDetailId'
+      });
+    }
+
+    const placeholders = txnIds.map(() => '?').join(',');
+
+    // 1️⃣ UPDATE
+    const updateSql = `
+      UPDATE TAxnTrnbilldetails
+      SET 
+        TableID = ?,
+        table_name = ?
+      WHERE txnDetailId IN (${placeholders})
+        AND TableID = ?
+        AND bill_date = ?
+    `;
+
+    const updateStmt = db.prepare(updateSql);
+
+    const updateResult = updateStmt.run(
+      proposedTableId,
+      targetTableName,
+      ...txnIds,
+      sourceTableId,
+      billDate
+    );
+
+    console.log('✅ Rows Updated:', updateResult.changes);
+
+    if (updateResult.changes === 0) {
+      return res.json({
+        success: false,
+        message: 'No rows updated (check date / table / items)'
+      });
+    }
+
+    // 2️⃣ FETCH UPDATED DATA
+    const selectSql = `
+      SELECT *
+      FROM TAxnTrnbilldetails
+      WHERE txnDetailId IN (${placeholders})
+        AND TableID = ?
+        AND bill_date = ?
+    `;
+
+    const selectStmt = db.prepare(selectSql);
+
+    const updatedRows = selectStmt.all(
+      ...txnIds,
+      proposedTableId,
+      billDate
+    );
+
+    return res.json({
+      success: true,
+      message: 'KOT transferred successfully',
+      updatedCount: updateResult.changes,
+      data: updatedRows
+    });
+
+  } catch (err) {
+    console.error('❌ transferKOT ERROR:', err);
+    return res.status(500).json({
+      success: false,
+      message: err.message
+    });
+  }
+};
+
+
+
+
+/* -------------------------------------------------------------------------- */
+/* 24) getGlobalKOTNumber → fetch the next global KOT number for an outlet    */
 /* -------------------------------------------------------------------------- */
 exports.getGlobalKOTNumber = async (req, res) => {
   try {

@@ -47,8 +47,10 @@ router.post('/reverse-qty', controller.handleF8KeyPress); // Legacy F8 handler
 router.post('/reverse-quantity', controller.reverseQuantity); // Simple reverse quantity for one item
 router.post('/create-reverse-kot', controller.createReverseKOT); // Process and print a reverse KOT
 // router.post('/reverse-item', controller.reverseItem); // Reverse a single item's quantity
+// --- KOT Transfer ---
+router.put('/transfer-kot', controller.transferKOT); // Transfer KOT/items between tables
 // --- Bill Reversal (F9) ---
-router.post('/save-full-reverse', controller.saveFullReverse);
+router.put('/save-full-reverse', controller.saveFullReverse);
 router.post('/:id/reverse', controller.reverseBill); // Mark a bill as reversed
 
 module.exports = router;

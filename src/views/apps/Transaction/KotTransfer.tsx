@@ -5,16 +5,18 @@ import { useAuthContext } from "@/common";
 
 interface KotTransferProps {
   onCancel?: () => void;
+  onSuccess?: () => void;
   transferSource?: "table" | "kot";
   sourceTableId?: number | null;
 }
 
-const KotTransfer = ({ onCancel, transferSource = "table", sourceTableId }: KotTransferProps) => {
+const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTableId }: KotTransferProps) => {
   const { user } = useAuthContext();
 
   // Type definitions
   interface Item {
     id: number;
+    txnDetailId: number;
     media: string;
     kot: number;
     item: string;
@@ -137,6 +139,7 @@ const KotTransfer = ({ onCancel, transferSource = "table", sourceTableId }: KotT
       const response = await getUnbilledItemsByTable(tableId);
       const mappedItems: Item[] = response.data.items.map((item: any, index: number) => ({
         id: item.id || index,
+        txnDetailId: item.txnDetailId || item.id || index,
         media: item.tableName || 'Unknown',
         kot: item.kotNo || 0,
         item: item.itemName,
@@ -198,6 +201,7 @@ const KotTransfer = ({ onCancel, transferSource = "table", sourceTableId }: KotT
   const isTableMode = transferMode === "table";
   const effectiveSelectedCount = isTableMode ? totalItemsCount : selectedCount;
   const effectiveSelectedAmount = isTableMode ? selectedItems.reduce((sum, item) => sum + (item.price * item.qty), 0) : totalSelectedAmount;
+const billDate = new Date().toISOString().split('T')[0];
 
   const handleCheck = (index: number) => {
     if (isTableMode) return;
@@ -255,13 +259,13 @@ const KotTransfer = ({ onCancel, transferSource = "table", sourceTableId }: KotT
       const remainingItems = selectedItems.filter(item => !item.selected);
       setSelectedItems(remainingItems);
     }
-    
+
     if (isTableMode) {
       setProposedItems(itemsToTransfer);
     } else {
       setProposedItems([...proposedItems, ...itemsToTransfer]);
     }
-    
+
     setTables(prevTables =>
       prevTables.map(t => {
         if (t.id === selectedTableId?.toString() && selectedItems.length === 0) {
@@ -273,10 +277,77 @@ const KotTransfer = ({ onCancel, transferSource = "table", sourceTableId }: KotT
         return t;
       })
     );
-    
+
     setShowConfirmModal(false);
     alert(`Successfully transferred ${itemsToTransfer.length} item${itemsToTransfer.length !== 1 ? 's' : ''} to Table ${proposedTable}`);
   };
+
+
+const handleSave = async () => {
+  if (!selectedTableId || !proposedTableId) {
+    alert('Please select source and target tables');
+    return;
+  }
+
+  if (proposedItems.length === 0) {
+    alert('No items transferred to save.');
+    return;
+  }
+
+  try {
+    const payload = {
+      sourceTableId: selectedTableId,
+      proposedTableId,
+      targetTableName: proposedTable, // ✅ ADD THIS
+      billDate: dayjs().format('YYYY-MM-DD'), // ✅ ADD THIS (or business date)
+      selectedItems: proposedItems.map(item => ({
+        txnDetailId: item.txnDetailId
+      })),
+      transferMode,
+      userId: user?.id || user?.userid
+    };
+
+    console.log('SAVE PAYLOAD:', payload);
+
+    const response = await fetch(
+      'http://localhost:3001/api/TAxnTrnbill/transfer-kot',
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }
+    );
+
+    const data = await response.json();
+
+    if (!data.success) {
+      alert(data.message || 'Transfer failed');
+      return;
+    }
+
+    alert('KOT transfer saved successfully!');
+
+    // 🔄 USE UPDATED DATA FROM BACKEND (BEST)
+    if (data.data) {
+      setProposedItems(data.data);
+    }
+
+    // Optional refresh
+    await fetchItemsForTable(selectedTableId, 'selected');
+    await fetchItemsForTable(proposedTableId, 'proposed');
+
+    // ♻ Reset selection
+    setSelectedItems([]);
+
+    if (onSuccess) onSuccess();
+
+  } catch (error) {
+    console.error('Error saving transfer:', error);
+    alert('An error occurred while saving the transfer.');
+  }
+};
+
+
 
   const getTableStatusBadge = (status: string) => {
     const variants = {
@@ -657,7 +728,7 @@ const KotTransfer = ({ onCancel, transferSource = "table", sourceTableId }: KotT
 
         {/* Action Buttons */}
         <div className="d-flex justify-content-end gap-3 mt-2">
-          <Button variant="success" size="lg" className="px-4 fw-bold" style={{ fontSize: "1rem", padding: "10px 30px" }}>
+          <Button variant="success" size="lg" className="px-4 fw-bold" onClick={handleSave} style={{ fontSize: "1rem", padding: "10px 30px" }}>
             💾 Save (F9)
           </Button>
           <Button variant="danger" size="lg" className="px-4 fw-bold" onClick={onCancel} style={{ fontSize: "1rem", padding: "10px 30px" }}>
