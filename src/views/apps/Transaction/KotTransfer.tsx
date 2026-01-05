@@ -16,7 +16,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
   // Type definitions
   interface Item {
     id: number;
-    TXnDetailID: number;
+    txnDetailId: number;
     media: string;
     kot: number;
     item: string;
@@ -321,7 +321,7 @@ const handleSave = async () => {
       targetTableName: proposedTable,
       billDate,
       selectedItems: proposedItems.map(item => ({
-        txnDetailId: item.TXnDetailID
+        txnDetailId: item.  txnDetailId   // ✅ correct key
       })),
       transferMode,
       userId: user?.id || user?.userid
@@ -349,22 +349,23 @@ const handleSave = async () => {
       `KOT transfer saved successfully!\nItems moved: ${result.data.detailUpdated}`
     );
 
-    /* 🔄 ALWAYS RE-FETCH (BEST PRACTICE) */
+    // 🔄 Re-fetch data to sync UI
     await fetchItemsForTable(selectedTableId, 'selected');
     await fetchItemsForTable(proposedTableId, 'proposed');
-    await fetchTables(); // Refresh table statuses
+    await fetchTables();
 
-    /* ♻ Reset UI state */
+    // ♻ Reset UI state
     setSelectedItems([]);
     setProposedItems([]);
 
-    if (onSuccess) onSuccess();
+    onSuccess?.();
 
   } catch (error) {
     console.error('Error saving transfer:', error);
     alert('An error occurred while saving the transfer.');
   }
 };
+
 
 
 

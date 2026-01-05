@@ -2589,57 +2589,71 @@ exports.saveFullReverse = async (req, res) => {
 /* -------------------------------------------------------------------------- */
 /* 23) transferKOT → Transfer KOT/items between tables                        */
 /* -------------------------------------------------------------------------- */
-exports.transferKOT = async (req, res) => {
-  try {
-    console.log('🔥 transferKOT HIT');
-    console.log('Payload:', req.body);
+exports.transferKOT = (req, res) => {
+  const {
+    sourceTableId,
+    proposedTableId,
+    targetTableName,
+    selectedItems,
+    userId
+  } = req.body;
 
-    const { proposedTableId, selectedItems } = req.body;
+  if (!selectedItems || selectedItems.length === 0) {
+    return res.json({ success: false, message: 'No items selected' });
+  }
 
-    if (!proposedTableId || !Array.isArray(selectedItems) || selectedItems.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'proposedTableId and selectedItems required'
-      });
-    }
+  const trx = db.transaction(() => {
 
-    const itemIds = selectedItems
-      .map(i => i.txnDetailId)
-      .filter(Boolean);
-
-    if (itemIds.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'No valid txnDetailId'
-      });
-    }
-
-    const placeholders = itemIds.map(() => '?').join(',');
-
-    const stmt = db.prepare(`
-     UPDATE TAxnTrnbilldetails
-SET 
-  TableID = :targetTableId,
-  table_name = :targetTableName
-WHERE kotno IN (:kotList)
-  AND TableID = :sourceTableId
- 
+    // 1️⃣ Move selected items
+    const updateDetail = db.prepare(`
+      UPDATE TAxnTrnbilldetails
+      SET TableID = ?, table_name = ?
+      WHERE TXnDetailID = ?
     `);
 
-    const result = stmt.run(proposedTableId, ...itemIds);
-
-    console.log('✅ Rows Updated:', result.changes);
-
-    return res.json({
-      success: true,
-      updatedCount: result.changes
+    selectedItems.forEach(it => {
+      updateDetail.run(proposedTableId, targetTableName, it.txnDetailId);
     });
 
-  } catch (err) {
-    console.error('❌ transferKOT ERROR:', err);
-    return res.status(500).json({ success: false, message: err.message });
-  }
+    // 2️⃣ Update bill header
+    db.prepare(`
+      UPDATE TAxnTrnbill
+      SET TableID = ?, table_name = ?, isTrnsfered = 1
+      WHERE TableID = ? AND isSetteled = 0
+    `).run(proposedTableId, targetTableName, sourceTableId);
+
+    // 3️⃣ Mark target table occupied
+    db.prepare(`
+      UPDATE msttablemanagement
+      SET status = 1
+      WHERE tableid = ?
+    `).run(proposedTableId);
+
+    // 4️⃣ Check remaining items on source table
+    const remaining = db.prepare(`
+      SELECT COUNT(*) as cnt
+      FROM TAxnTrnbilldetails
+      WHERE TableID = ? AND isCancelled = 0 AND isSetteled = 0
+    `).get(sourceTableId);
+
+    if (remaining.cnt === 0) {
+      db.prepare(`
+        UPDATE msttablemanagement
+        SET status = 0
+        WHERE tableid = ?
+      `).run(sourceTableId);
+    }
+  });
+
+  trx();
+
+  res.json({
+    success: true,
+    message: 'KOT transferred successfully',
+    data: { detailUpdated: selectedItems.length }
+  });
 };
+
 
 
 
