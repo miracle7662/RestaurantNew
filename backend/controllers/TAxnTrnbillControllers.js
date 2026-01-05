@@ -2594,65 +2594,207 @@ exports.transferKOT = (req, res) => {
     sourceTableId,
     proposedTableId,
     targetTableName,
-    selectedItems,
-    userId
+    selectedItems
   } = req.body;
 
   if (!selectedItems || selectedItems.length === 0) {
     return res.json({ success: false, message: 'No items selected' });
   }
 
-  const trx = db.transaction(() => {
+  try {
+    const trx = db.transaction(() => {
 
-    // 1️⃣ Move selected items
-    const updateDetail = db.prepare(`
-      UPDATE TAxnTrnbilldetails
-      SET TableID = ?, table_name = ?
-      WHERE TXnDetailID = ?
-    `);
+      /* ------------------------------------
+         1️⃣ GET SOURCE KOT COUNT
+      ------------------------------------ */
+      const kotCountRow = db.prepare(`
+        SELECT COUNT(DISTINCT KOTNo) AS kotCount
+        FROM TAxnTrnbilldetails
+        WHERE TableID = ? AND isCancelled = 0
+      `).get(sourceTableId);
 
-    selectedItems.forEach(it => {
-      updateDetail.run(proposedTableId, targetTableName, it.txnDetailId);
-    });
+      const sourceKotCount = kotCountRow.kotCount;
 
-    // 2️⃣ Update bill header
-    db.prepare(`
-      UPDATE TAxnTrnbill
-      SET TableID = ?, table_name = ?, isTrnsfered = 1
-      WHERE TableID = ? AND isSetteled = 0
-    `).run(proposedTableId, targetTableName, sourceTableId);
+      /* ------------------------------------
+         2️⃣ GET TARGET TABLE STATUS
+      ------------------------------------ */
+      const targetStatusRow = db.prepare(`
+        SELECT status
+        FROM msttablemanagement
+        WHERE tableid = ?
+      `).get(proposedTableId);
 
-    // 3️⃣ Mark target table occupied
+      const targetStatus = targetStatusRow.status; // 0 = vacant, 1 = occupied
+
+      /* ------------------------------------
+         3️⃣ GET SELECTED KOT NO
+      ------------------------------------ */
+      const kotRow = db.prepare(`
+        SELECT KOTNo
+        FROM TAxnTrnbilldetails
+        WHERE TXnDetailID = ?
+      `).get(selectedItems[0].txnDetailId);
+
+      const selectedKotNo = kotRow.KOTNo;
+
+      /* =========================================================
+         CASE-1 : SOURCE HAS ONLY ONE KOT → MOVE BILL
+      ========================================================= */
+      if (sourceKotCount === 1) {
+
+        // Move bill header
+        db.prepare(`
+          UPDATE TAxnTrnbill
+          SET TableID = ?, table_name = ?
+          WHERE TableID = ? AND isSetteled = 0
+        `).run(proposedTableId, targetTableName, sourceTableId);
+
+        // Move bill details
+        db.prepare(`
+          UPDATE TAxnTrnbilldetails
+          SET TableID = ?, table_name = ?
+          WHERE TableID = ?
+        `).run(proposedTableId, targetTableName, sourceTableId);
+
+        // Update table status
+        db.prepare(`UPDATE msttablemanagement SET status = 0 WHERE tableid = ?`)
+          .run(sourceTableId);
+
+        db.prepare(`UPDATE msttablemanagement SET status = 1 WHERE tableid = ?`)
+          .run(proposedTableId);
+
+        return;
+      }
+
+    /* =========================================================
+   CASE-2 : MULTIPLE KOT + TARGET OCCUPIED → MERGE KOT
+========================================================= */
+if (sourceKotCount > 1 && targetStatus === 1) {
+
+  // 1️⃣ Get target bill (MANDATORY)
+  const targetBill = db.prepare(`
+    SELECT TxnID
+    FROM TAxnTrnbill
+    WHERE TableID = ? AND isSetteled = 0
+  `).get(proposedTableId);
+
+  if (!targetBill) {
+    throw new Error('Target occupied table has no open bill');
+  }
+
+  const targetTxnId = targetBill.TxnID;
+
+  // 2️⃣ MOVE SELECTED ITEMS ONLY (KEY FIX 🔥)
+  const moveDetail = db.prepare(`
+    UPDATE TAxnTrnbilldetails
+    SET TxnID = ?,
+        TableID = ?,
+        table_name = ?
+    WHERE TXnDetailID = ?
+  `);
+
+  selectedItems.forEach(it => {
+    moveDetail.run(
+      targetTxnId,
+      proposedTableId,
+      targetTableName,
+      it.txnDetailId
+    );
+  });
+
+  // 3️⃣ Mark target bill as transferred (optional but good)
+  db.prepare(`
+    UPDATE TAxnTrnbill
+    SET isTrnsfered = 1
+    WHERE TxnID = ?
+  `).run(targetTxnId);
+
+  // 4️⃣ Source table status check
+  const remaining = db.prepare(`
+    SELECT COUNT(*) AS cnt
+    FROM TAxnTrnbilldetails
+    WHERE TableID = ? AND isCancelled = 0
+  `).get(sourceTableId);
+
+  if (remaining.cnt === 0) {
     db.prepare(`
       UPDATE msttablemanagement
-      SET status = 1
+      SET status = 0
       WHERE tableid = ?
-    `).run(proposedTableId);
+    `).run(sourceTableId);
+  }
 
-    // 4️⃣ Check remaining items on source table
-    const remaining = db.prepare(`
-      SELECT COUNT(*) as cnt
-      FROM TAxnTrnbilldetails
-      WHERE TableID = ? AND isCancelled = 0 AND isSetteled = 0
-    `).get(sourceTableId);
+  return;
+}
 
-    if (remaining.cnt === 0) {
-      db.prepare(`
-        UPDATE msttablemanagement
-        SET status = 0
-        WHERE tableid = ?
-      `).run(sourceTableId);
-    }
-  });
 
-  trx();
+      /* =========================================================
+         CASE-3 : MULTIPLE KOT + TARGET VACANT → NEW BILL
+      ========================================================= */
+      if (sourceKotCount > 1 && targetStatus === 0) {
 
-  res.json({
-    success: true,
-    message: 'KOT transferred successfully',
-    data: { detailUpdated: selectedItems.length }
-  });
+        // Create new bill
+        const insertBill = db.prepare(`
+          INSERT INTO TAxnTrnbill (
+            TableID,
+            table_name,
+            PrevTableID,
+            isSetteled,
+            isBilled,
+            isTrnsfered,
+            TxnDatetime
+          ) VALUES (?, ?, ?, 0, 0, 1, CURRENT_TIMESTAMP)
+        `);
+
+        const billResult = insertBill.run(
+          proposedTableId,
+          targetTableName,
+          sourceTableId
+        );
+
+        const newTxnId = billResult.lastInsertRowid;
+
+        // Move selected KOT into new bill
+        db.prepare(`
+          UPDATE TAxnTrnbilldetails
+          SET TxnID = ?, TableID = ?, table_name = ?
+          WHERE TableID = ?
+            AND KOTNo = ?
+        `).run(
+          newTxnId,
+          proposedTableId,
+          targetTableName,
+          sourceTableId,
+          selectedKotNo
+        );
+
+        // Mark target table occupied
+        db.prepare(`
+          UPDATE msttablemanagement SET status = 1 WHERE tableid = ?
+        `).run(proposedTableId);
+
+        return;
+      }
+
+    });
+
+    trx();
+
+    res.json({
+      success: true,
+      message: 'KOT transfer completed successfully'
+    });
+
+  } catch (err) {
+    console.error('KOT Transfer Error:', err);
+    res.status(500).json({
+      success: false,
+      message: 'KOT transfer failed',
+      error: err.message
+    });
+  }
 };
+
 
 
 

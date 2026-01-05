@@ -1482,7 +1482,7 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
         } else {
           saveKOT(false, true);
         }
-        saveKOT(false, true);
+       
       } else if (keyboardEvent.key === 'F10') {
         keyboardEvent.preventDefault();
         printBill();
