@@ -2788,8 +2788,17 @@ if (sourceKotCount > 1 && targetStatus === 1) {
     // 🔴 SOURCE BILL FULLY MERGED → CLOSE IT
     db.prepare(`
       UPDATE TAxnTrnbill
-      SET isTrnsfered = 1
-      WHERE TxnID = ?
+SET
+  isSetteled = 1,
+  isTrnsfered = 1,
+  Amount = 0,
+  GrossAmt = 0,
+  CGST = 0,
+  SGST = 0,
+  IGST = 0,
+  CESS = 0
+WHERE TxnID = ?
+
     `).run(sourceTxnId);
 
     // Mark source table vacant
@@ -2855,22 +2864,48 @@ if (sourceKotCount > 1 && targetStatus === 0) {
     WHERE tableid = ?
   `).run(proposedTableId);
 
-  // 🔁 Recalculate NEW bill totals
+  // 4️⃣ Recalculate NEW bill totals
   recalculateBillTotals(newTxnId);
 
-  // 🔁 Recalculate SOURCE bill totals
-  const sourceBill = db.prepare(`
-    SELECT DISTINCT TxnID
+  // 5️⃣ Check remaining items in SOURCE bill
+  const sourceRemaining = db.prepare(`
+    SELECT TxnID, COUNT(*) AS cnt
     FROM TAxnTrnbilldetails
     WHERE TableID = ? AND isCancelled = 0
   `).get(sourceTableId);
 
-  if (sourceBill?.TxnID) {
-    recalculateBillTotals(sourceBill.TxnID);
+  if (!sourceRemaining || sourceRemaining.cnt === 0) {
+
+    // 🔴 Source table EMPTY → CLOSE SOURCE BILL
+    db.prepare(`
+      UPDATE TAxnTrnbill
+      SET
+        isSetteled = 1,
+        isTrnsfered = 1,
+        Amount = 0,
+        GrossAmt = 0,
+        CGST = 0,
+        SGST = 0,
+        IGST = 0,
+        CESS = 0
+      WHERE TableID = ? AND isSetteled = 0
+    `).run(sourceTableId);
+
+    // Mark source table vacant
+    db.prepare(`
+      UPDATE msttablemanagement
+      SET status = 0
+      WHERE tableid = ?
+    `).run(sourceTableId);
+
+  } else {
+    // 🟡 Source still has items → recalc remaining bill
+    recalculateBillTotals(sourceRemaining.TxnID);
   }
 
   return;
 }
+
 
 
     });
