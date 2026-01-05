@@ -16,7 +16,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
   // Type definitions
   interface Item {
     id: number;
-    txnDetailId: number;
+    TXnDetailID: number;
     media: string;
     kot: number;
     item: string;
@@ -80,6 +80,26 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
       }
     } catch (error) {
       console.error('Error fetching departments:', error);
+    }
+  };
+
+  const fetchTables = async () => {
+    try {
+      const tablesResponse = await fetch('http://localhost:3001/api/tablemanagement');
+      const tablesData = await tablesResponse.json();
+      if (tablesData.success && Array.isArray(tablesData.data)) {
+        const mappedTables: TableData[] = tablesData.data.map((table: any) => ({
+          id: table.tableid.toString(),
+          name: table.table_name,
+          status: table.status === 1 ? 'occupied' : table.status === 2 ? 'reserved' : 'available',
+          department: table.department_name || '',
+          pax: table.pax || 0,
+          isbilled: table.isbilled || 0
+        }));
+        setTables(mappedTables);
+      }
+    } catch (error) {
+      console.error('Error fetching tables:', error);
     }
   };
 
@@ -298,10 +318,10 @@ const handleSave = async () => {
     const payload = {
       sourceTableId: selectedTableId,
       proposedTableId,
-      targetTableName: proposedTable, // ✅ ADD THIS
-      billDate: billDate, // ✅ ADD THIS (or business date)
+      targetTableName: proposedTable,
+      billDate,
       selectedItems: proposedItems.map(item => ({
-        txnDetailId: item.txnDetailId
+        txnDetailId: item.TXnDetailID
       })),
       transferMode,
       userId: user?.id || user?.userid
@@ -318,26 +338,25 @@ const handleSave = async () => {
       }
     );
 
-    const data = await response.json();
+    const result = await response.json();
 
-    if (!data.success) {
-      alert(data.message || 'Transfer failed');
+    if (!result.success) {
+      alert(result.message || 'Transfer failed');
       return;
     }
 
-    alert('KOT transfer saved successfully!');
+    alert(
+      `KOT transfer saved successfully!\nItems moved: ${result.data.detailUpdated}`
+    );
 
-    // 🔄 USE UPDATED DATA FROM BACKEND (BEST)
-    if (data.data) {
-      setProposedItems(data.data);
-    }
-
-    // Optional refresh
+    /* 🔄 ALWAYS RE-FETCH (BEST PRACTICE) */
     await fetchItemsForTable(selectedTableId, 'selected');
     await fetchItemsForTable(proposedTableId, 'proposed');
+    await fetchTables(); // Refresh table statuses
 
-    // ♻ Reset selection
+    /* ♻ Reset UI state */
     setSelectedItems([]);
+    setProposedItems([]);
 
     if (onSuccess) onSuccess();
 

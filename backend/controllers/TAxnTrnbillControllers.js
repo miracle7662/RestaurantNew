@@ -2594,103 +2594,52 @@ exports.transferKOT = async (req, res) => {
     console.log('🔥 transferKOT HIT');
     console.log('Payload:', req.body);
 
-    const {
-      sourceTableId,
-      proposedTableId,
-      targetTableName,
-      billDate,
-      selectedItems
-    } = req.body;
+    const { proposedTableId, selectedItems } = req.body;
 
-    if (
-      !sourceTableId ||
-      !proposedTableId ||
-      !billDate ||
-      !Array.isArray(selectedItems) ||
-      selectedItems.length === 0
-    ) {
+    if (!proposedTableId || !Array.isArray(selectedItems) || selectedItems.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Missing required fields'
+        message: 'proposedTableId and selectedItems required'
       });
     }
 
-    const txnIds = selectedItems
+    const itemIds = selectedItems
       .map(i => i.txnDetailId)
       .filter(Boolean);
 
-    if (txnIds.length === 0) {
+    if (itemIds.length === 0) {
       return res.status(400).json({
         success: false,
         message: 'No valid txnDetailId'
       });
     }
 
-    const placeholders = txnIds.map(() => '?').join(',');
+    const placeholders = itemIds.map(() => '?').join(',');
 
-    // 1️⃣ UPDATE
-    const updateSql = `
-      UPDATE TAxnTrnbilldetails
-      SET 
-        TableID = ?,
-        table_name = ?
-      WHERE txnDetailId IN (${placeholders})
-        AND TableID = ?
-        AND bill_date = ?
-    `;
+    const stmt = db.prepare(`
+     UPDATE TAxnTrnbilldetails
+SET 
+  TableID = :targetTableId,
+  table_name = :targetTableName
+WHERE kotno IN (:kotList)
+  AND TableID = :sourceTableId
+ 
+    `);
 
-    const updateStmt = db.prepare(updateSql);
+    const result = stmt.run(proposedTableId, ...itemIds);
 
-    const updateResult = updateStmt.run(
-      proposedTableId,
-      targetTableName,
-      ...txnIds,
-      sourceTableId,
-      billDate
-    );
-
-    console.log('✅ Rows Updated:', updateResult.changes);
-
-    if (updateResult.changes === 0) {
-      return res.json({
-        success: false,
-        message: 'No rows updated (check date / table / items)'
-      });
-    }
-
-    // 2️⃣ FETCH UPDATED DATA
-    const selectSql = `
-      SELECT *
-      FROM TAxnTrnbilldetails
-      WHERE txnDetailId IN (${placeholders})
-        AND TableID = ?
-        AND bill_date = ?
-    `;
-
-    const selectStmt = db.prepare(selectSql);
-
-    const updatedRows = selectStmt.all(
-      ...txnIds,
-      proposedTableId,
-      billDate
-    );
+    console.log('✅ Rows Updated:', result.changes);
 
     return res.json({
       success: true,
-      message: 'KOT transferred successfully',
-      updatedCount: updateResult.changes,
-      data: updatedRows
+      updatedCount: result.changes
     });
 
   } catch (err) {
     console.error('❌ transferKOT ERROR:', err);
-    return res.status(500).json({
-      success: false,
-      message: err.message
-    });
+    return res.status(500).json({ success: false, message: err.message });
   }
 };
-
 
 
 
