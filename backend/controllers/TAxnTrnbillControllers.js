@@ -178,7 +178,7 @@ exports.createBill = async (req, res) => {
 
     console.log('Details array length:', details.length);
     if (details.length > 0) {
-      console.log('First detail itemCannot settle bill. No transaction ID found.', JSON.stringify(details[0], null, 2));
+      console.log('First detail item:', JSON.stringify(details[0], null, 2));
     }
 
     console.log('NCName:', NCName);
@@ -2602,6 +2602,64 @@ exports.transferKOT = (req, res) => {
   }
 
   try {
+    const recalculateBillTotals = (txnId) => {
+      const billHeader = db.prepare('SELECT Discount, outletid FROM TAxnTrnbill WHERE TxnID = ?').get(txnId);
+      const allDetails = db.prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? AND isCancelled = 0').all(txnId);
+      const outletSettings = db.prepare('SELECT include_tax_in_invoice FROM mstoutlet_settings WHERE outletid = ?').get(billHeader.outletid);
+      const includeTaxInInvoice = outletSettings ? outletSettings.include_tax_in_invoice : 0;
+
+      let totalGross = 0;
+      for (const d of allDetails) {
+        const qty = Number(d.Qty) || 0;
+        const rate = Number(d.RuntimeRate) || 0;
+        totalGross += qty * rate;
+      }
+
+      let totalCgst = 0, totalSgst = 0, totalIgst = 0, totalCess = 0;
+      const discountAmount = Number(billHeader.Discount) || 0;
+
+      const firstDetail = allDetails[0] || {};
+      const cgstPer = Number(firstDetail.CGST) || 0;
+      const sgstPer = Number(firstDetail.SGST) || 0;
+      const igstPer = Number(firstDetail.IGST) || 0;
+      const cessPer = Number(firstDetail.CESS) || 0;
+
+      let totalBeforeRoundOff = 0;
+
+      if (includeTaxInInvoice === 1) {
+        const combinedPer = cgstPer + sgstPer + igstPer + cessPer;
+        const preTaxBase = combinedPer > 0 ? totalGross / (1 + combinedPer / 100) : totalGross;
+        const newTaxableValue = preTaxBase - discountAmount;
+        totalCgst = (newTaxableValue * cgstPer) / 100;
+        totalSgst = (newTaxableValue * sgstPer) / 100;
+        totalIgst = (newTaxableValue * igstPer) / 100;
+        totalCess = (newTaxableValue * cessPer) / 100;
+        totalBeforeRoundOff = newTaxableValue + totalCgst + totalSgst + totalIgst + totalCess;
+      } else {
+        const taxableValue = totalGross - discountAmount;
+        totalCgst = (taxableValue * cgstPer) / 100;
+        totalSgst = (taxableValue * sgstPer) / 100;
+        totalIgst = (taxableValue * igstPer) / 100;
+        totalCess = (taxableValue * cessPer) / 100;
+        totalBeforeRoundOff = taxableValue + totalCgst + totalSgst + totalIgst + totalCess;
+      }
+
+      const { bill_round_off, bill_round_off_to } = db.prepare('SELECT bill_round_off, bill_round_off_to FROM mstoutlet_settings WHERE outletid = ?').get(billHeader.outletid) || {};
+      let finalAmount = totalBeforeRoundOff;
+      let finalRoundOff = 0;
+
+      if (bill_round_off && bill_round_off_to > 0) {
+        finalAmount = Math.round(totalBeforeRoundOff / bill_round_off_to) * bill_round_off_to;
+        finalRoundOff = finalAmount - totalBeforeRoundOff;
+      }
+
+      db.prepare(`
+        UPDATE TAxnTrnbill
+        SET GrossAmt = ?, CGST = ?, SGST = ?, IGST = ?, CESS = ?, Amount = ?, RoundOFF = ?
+        WHERE TxnID = ?
+      `).run(totalGross, totalCgst, totalSgst, totalIgst, totalCess, finalAmount, finalRoundOff, txnId);
+    };
+
     const trx = db.transaction(() => {
 
       /* ------------------------------------
@@ -2666,12 +2724,12 @@ exports.transferKOT = (req, res) => {
         return;
       }
 
-    /* =========================================================
-   CASE-2 : MULTIPLE KOT + TARGET OCCUPIED → MERGE KOT
+   /* =========================================================
+   CASE-2 : MULTIPLE KOT + TARGET OCCUPIED → MERGE BILL
 ========================================================= */
 if (sourceKotCount > 1 && targetStatus === 1) {
 
-  // 1️⃣ Get target bill (MANDATORY)
+  // 1️⃣ Get TARGET bill
   const targetBill = db.prepare(`
     SELECT TxnID
     FROM TAxnTrnbill
@@ -2684,7 +2742,20 @@ if (sourceKotCount > 1 && targetStatus === 1) {
 
   const targetTxnId = targetBill.TxnID;
 
-  // 2️⃣ MOVE SELECTED ITEMS ONLY (KEY FIX 🔥)
+  // 2️⃣ Get SOURCE bill
+  const sourceBill = db.prepare(`
+    SELECT TxnID
+    FROM TAxnTrnbill
+    WHERE TableID = ? AND isSetteled = 0
+  `).get(sourceTableId);
+
+  if (!sourceBill) {
+    throw new Error('Source bill not found');
+  }
+
+  const sourceTxnId = sourceBill.TxnID;
+
+  // 3️⃣ MOVE SELECTED ITEMS (DETAIL LEVEL)
   const moveDetail = db.prepare(`
     UPDATE TAxnTrnbilldetails
     SET TxnID = ?,
@@ -2702,79 +2773,105 @@ if (sourceKotCount > 1 && targetStatus === 1) {
     );
   });
 
-  // 3️⃣ Mark target bill as transferred (optional but good)
-  db.prepare(`
-    UPDATE TAxnTrnbill
-    SET isTrnsfered = 1
-    WHERE TxnID = ?
-  `).run(targetTxnId);
+  // 4️⃣ RECALCULATE TARGET BILL (MERGED AMOUNT)
+  recalculateBillTotals(targetTxnId);
 
-  // 4️⃣ Source table status check
+  // 5️⃣ CHECK REMAINING ITEMS IN SOURCE
   const remaining = db.prepare(`
     SELECT COUNT(*) AS cnt
     FROM TAxnTrnbilldetails
-    WHERE TableID = ? AND isCancelled = 0
-  `).get(sourceTableId);
+    WHERE TxnID = ? AND isCancelled = 0
+  `).get(sourceTxnId);
 
   if (remaining.cnt === 0) {
+
+    // 🔴 SOURCE BILL FULLY MERGED → CLOSE IT
+    db.prepare(`
+      UPDATE TAxnTrnbill
+      SET isTrnsfered = 1
+      WHERE TxnID = ?
+    `).run(sourceTxnId);
+
+    // Mark source table vacant
     db.prepare(`
       UPDATE msttablemanagement
       SET status = 0
       WHERE tableid = ?
     `).run(sourceTableId);
+
+  } else {
+
+    // 🟡 SOURCE BILL STILL HAS ITEMS → RECALCULATE
+    recalculateBillTotals(sourceTxnId);
   }
 
   return;
 }
 
+/* =========================================================
+   CASE-3 : MULTIPLE KOT + TARGET VACANT → NEW BILL
+========================================================= */
+if (sourceKotCount > 1 && targetStatus === 0) {
 
-      /* =========================================================
-         CASE-3 : MULTIPLE KOT + TARGET VACANT → NEW BILL
-      ========================================================= */
-      if (sourceKotCount > 1 && targetStatus === 0) {
+  // 1️⃣ Create new bill
+  const insertBill = db.prepare(`
+    INSERT INTO TAxnTrnbill (
+      TableID,
+      table_name,
+      PrevTableID,
+      isSetteled,
+      isBilled,
+      isTrnsfered,
+      TxnDatetime
+    ) VALUES (?, ?, ?, 0, 0, 1, CURRENT_TIMESTAMP)
+  `);
 
-        // Create new bill
-        const insertBill = db.prepare(`
-          INSERT INTO TAxnTrnbill (
-            TableID,
-            table_name,
-            PrevTableID,
-            isSetteled,
-            isBilled,
-            isTrnsfered,
-            TxnDatetime
-          ) VALUES (?, ?, ?, 0, 0, 1, CURRENT_TIMESTAMP)
-        `);
+  const billResult = insertBill.run(
+    proposedTableId,
+    targetTableName,
+    sourceTableId
+  );
 
-        const billResult = insertBill.run(
-          proposedTableId,
-          targetTableName,
-          sourceTableId
-        );
+  const newTxnId = billResult.lastInsertRowid;
 
-        const newTxnId = billResult.lastInsertRowid;
+  // 2️⃣ Move selected KOT items into new bill
+  db.prepare(`
+    UPDATE TAxnTrnbilldetails
+    SET TxnID = ?, TableID = ?, table_name = ?
+    WHERE TableID = ?
+      AND KOTNo = ?
+  `).run(
+    newTxnId,
+    proposedTableId,
+    targetTableName,
+    sourceTableId,
+    selectedKotNo
+  );
 
-        // Move selected KOT into new bill
-        db.prepare(`
-          UPDATE TAxnTrnbilldetails
-          SET TxnID = ?, TableID = ?, table_name = ?
-          WHERE TableID = ?
-            AND KOTNo = ?
-        `).run(
-          newTxnId,
-          proposedTableId,
-          targetTableName,
-          sourceTableId,
-          selectedKotNo
-        );
+  // 3️⃣ Mark target table occupied
+  db.prepare(`
+    UPDATE msttablemanagement
+    SET status = 1
+    WHERE tableid = ?
+  `).run(proposedTableId);
 
-        // Mark target table occupied
-        db.prepare(`
-          UPDATE msttablemanagement SET status = 1 WHERE tableid = ?
-        `).run(proposedTableId);
+  // 🔁 Recalculate NEW bill totals
+  recalculateBillTotals(newTxnId);
 
-        return;
-      }
+  // 🔁 Recalculate SOURCE bill totals
+  const sourceBill = db.prepare(`
+    SELECT DISTINCT TxnID
+    FROM TAxnTrnbilldetails
+    WHERE TableID = ? AND isCancelled = 0
+  `).get(sourceTableId);
+
+  if (sourceBill?.TxnID) {
+    recalculateBillTotals(sourceBill.TxnID);
+  }
+
+  return;
+}
+
 
     });
 

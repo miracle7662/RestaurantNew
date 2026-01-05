@@ -125,6 +125,8 @@ const ModernBill = () => {
   const [items, setItems] = useState<any[]>([]);
   const [reversedItems, setReversedItems] = useState<any[]>([]);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
+  const [showReverseItemsModal, setShowReverseItemsModal] = useState(false);
+  const [itemsToReverse, setItemsToReverse] = useState<{ [key: number]: number }>({});
   const [billActionState, setBillActionState] = useState('initial');
   const [tableItems, setTableItems] = useState([] as TableManagement[]);
   const [currentKOTNo, setCurrentKOTNo] = useState(null);
