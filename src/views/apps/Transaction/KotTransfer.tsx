@@ -18,6 +18,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
     id: number;
     txnDetailId: number;
     media: string;
+    kotNo?: number;
     kot: number;
     item: string;
     qty: number;
@@ -315,13 +316,15 @@ const handleSave = async () => {
   }
 
   try {
-    const payload = {
+  const payload = {
       sourceTableId: selectedTableId,
       proposedTableId,
       targetTableName: proposedTable,
       billDate,
+       KOTNo: proposedItems[0]?.kot,
+
       selectedItems: proposedItems.map(item => ({
-        txnDetailId: item.  txnDetailId   // ✅ correct key
+        txnDetailId: item.txnDetailId
       })),
       transferMode,
       userId: user?.id || user?.userid
@@ -340,21 +343,20 @@ const handleSave = async () => {
 
     const result = await response.json();
 
+    // ✅ backend contract respected
     if (!result.success) {
       alert(result.message || 'Transfer failed');
       return;
     }
 
-    alert(
-      `KOT transfer saved successfully!\nItems moved: ${result.data.detailUpdated}`
-    );
+    alert(result.message || 'KOT transfer saved successfully');
 
-    // 🔄 Re-fetch data to sync UI
+    // 🔄 Sync UI
     await fetchItemsForTable(selectedTableId, 'selected');
     await fetchItemsForTable(proposedTableId, 'proposed');
     await fetchTables();
 
-    // ♻ Reset UI state
+    // ♻ Reset state
     setSelectedItems([]);
     setProposedItems([]);
 
@@ -365,6 +367,7 @@ const handleSave = async () => {
     alert('An error occurred while saving the transfer.');
   }
 };
+
 
 
 

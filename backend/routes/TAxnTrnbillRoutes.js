@@ -26,6 +26,9 @@ router.get('/:id/linked-pending-items', controller.getLinkedPendingItems); // Ge
 // --- Day End ---
 router.post('/save', controller.saveDayEnd); // Save day end report
 
+// --- KOT Transfer ---
+router.put('/transfer-kot', controller.transferKOT); // Transfer KOT/items between tables
+
 // --- Specific Bill Actions (by TxnID) ---
 router.get('/:id', controller.getBillById); // Get a single bill by its TxnID
 router.put('/:id', controller.updateBill); // Generic update for a bill
@@ -47,8 +50,6 @@ router.post('/reverse-qty', controller.handleF8KeyPress); // Legacy F8 handler
 router.post('/reverse-quantity', controller.reverseQuantity); // Simple reverse quantity for one item
 router.post('/create-reverse-kot', controller.createReverseKOT); // Process and print a reverse KOT
 // router.post('/reverse-item', controller.reverseItem); // Reverse a single item's quantity
-// --- KOT Transfer ---
-router.put('/transfer-kot', controller.transferKOT); // Transfer KOT/items between tables
 // --- Bill Reversal (F9) ---
 router.put('/save-full-reverse', controller.saveFullReverse);
 router.post('/:id/reverse', controller.reverseBill); // Mark a bill as reversed
