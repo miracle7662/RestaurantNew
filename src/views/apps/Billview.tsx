@@ -7,6 +7,7 @@ import KotTransfer from './Transaction/KotTransfer';
 import CustomerModal from './Transaction/Customers';
 import toast, { Toaster } from 'react-hot-toast';
 import F8PasswordModal from '../../components/F8PasswordModal';
+import ReverseKotModal from './ReverseKotModal';
 
 
 interface BillItem {
@@ -312,6 +313,8 @@ const ModernBill = () => {
   const [reversePassword, setReversePassword] = useState('');
 
   // Reverse KOT modal data
+  const [showReverseKot, setShowReverseKot] = useState(false);
+  const [revKotNo, setRevKotNo] = useState(21);
   const [reverseQty, setReverseQty] = useState(1);
   const [reverseReason, setReverseReason] = useState('');
 
@@ -1133,6 +1136,28 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
     }
   };
 
+  const handleReverseKotSave = async (items: any[]) => {
+    const payload = {
+      tableId: tableId,
+      outletid: selectedOutletId,
+      revKotNo,
+      items: items.filter((i: any) => i.reversedQty > 0 || i.cancelQty > 0)
+    };
+
+    try {
+      await axios.post('/api/kot/reverse', payload);
+
+      setShowReverseKot(false);
+      if (tableId) {
+        loadBillForTable(tableId);
+      }
+      toast.success('Reverse KOT saved successfully');
+    } catch (error) {
+      console.error('Error saving reverse KOT:', error);
+      toast.error('Error saving reverse KOT');
+    }
+  };
+
   const reverseBill = async () => {
     if (!txnId) {
       alert('No bill to reverse');
@@ -1523,7 +1548,7 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
         setShowKotTransferModal(true);
       } else if (keyboardEvent.key === 'F8') {
         keyboardEvent.preventDefault();
-        setShowReverseKOTModal(true);
+        setShowReverseKot(true);
       } else if (keyboardEvent.key === 'F9') {
         keyboardEvent.preventDefault();
          if (keyboardEvent.ctrlKey) {
@@ -2293,7 +2318,7 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
                     <Button onClick={() => setShowReverseBillModal(true)} variant="outline-primary" size="sm" className="function-btn">Rev Bill (F5)</Button>
                     <Button onClick={() => { setTransferSource("table"); setShowKotTransferModal(true); }} variant="outline-primary" size="sm" className="function-btn">TBL Tr (F7)</Button>
                     <Button onClick={resetBillState} variant="outline-primary" size="sm" className="function-btn">New Bill (F6)</Button>
-                    <Button onClick={() => setShowReverseKOTModal(true)} variant="outline-primary" size="sm" className="function-btn">Rev KOT (F8)</Button>
+                    <Button onClick={() => setShowReverseKot(true)} variant="outline-primary" size="sm" className="function-btn">Rev KOT (F8)</Button>
                     <Button onClick={() => saveKOT(false, true)} variant="outline-primary" size="sm" className="function-btn">K O T (F9)</Button>
                     <Button onClick={printBill} variant="outline-primary" size="sm" className="function-btn">Print (F10)</Button>
                     <Button onClick={() => setShowSettlementModal(true)} variant="outline-primary" size="sm" className="function-btn">Settle (F11)</Button>
@@ -2611,6 +2636,19 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
         loading={f9BilledPasswordLoading}
         title="Admin Password for Reversal"
       />
+
+      <ReverseKotModal
+        show={showReverseKot}
+        revKotNo={revKotNo}
+        kotItems={billItems}
+        tableNo={tableNo}
+        waiter={waiter}
+        pax={pax}
+        date={new Date().toLocaleDateString('en-GB')}
+        onClose={() => setShowReverseKot(false)}
+        onSave={handleReverseKotSave}
+      />
+      
       <Toaster />
     </React.Fragment>
   );
