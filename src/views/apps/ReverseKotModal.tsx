@@ -142,7 +142,15 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
                                 <td>{row.amount.toFixed(2)}</td>
 
                                 <td>
-                                    <Badge bg="secondary">{row.kotNo}</Badge>
+                                    {row.mkotNo && (
+                                        <div className="d-flex justify-content-center gap-1 flex-wrap">
+                                            {row.mkotNo.split('|').map((kot: string, index: number) => (
+                                                <Badge bg="secondary" key={index}>
+                                                    {kot}
+                                                </Badge>
+                                            ))}
+                                        </div>
+                                    )}
                                 </td>
 
                                 <td>

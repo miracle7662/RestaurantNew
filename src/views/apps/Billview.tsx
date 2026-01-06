@@ -288,6 +288,13 @@ const ModernBill = () => {
     }
   };
 
+  // Load bill details for the current table
+  const loadBillDetails = async () => {
+    if (tableId) {
+      await loadBillForTable(tableId);
+    }
+  };
+
   // Modal states
   const [showSettlementModal, setShowSettlementModal] = useState(false);
   const [showReverseBillModal, setShowReverseBillModal] = useState(false);
@@ -1137,26 +1144,47 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
   };
 
   const handleReverseKotSave = async (items: any[]) => {
-    const payload = {
-      tableId: tableId,
-      outletid: selectedOutletId,
-      revKotNo,
-      items: items.filter((i: any) => i.reversedQty > 0 || i.cancelQty > 0)
-    };
+  const filteredItems = items.filter(
+    i => i.reversedQty > 0 || i.cancelQty > 0
+  );
 
-    try {
-      await axios.post('/api/kot/reverse', payload);
+  if (filteredItems.length === 0) {
+    alert('No items selected for reverse');
+    return;
+  }
 
-      setShowReverseKot(false);
-      if (tableId) {
-        loadBillForTable(tableId);
-      }
-      toast.success('Reverse KOT saved successfully');
-    } catch (error) {
-      console.error('Error saving reverse KOT:', error);
-      toast.error('Error saving reverse KOT');
-    }
+  const payload = {
+    revKotNo,
+    tableNo,
+    waiter,
+    pax,
+    date: billData,
+    items: filteredItems.map(i => ({
+      itemId: i.itemId,
+      qty: i.reversedQty,
+      cancelQty: i.cancelQty,
+      rate: i.rate,
+      amount: i.amount,
+      reason: i.reason,
+      mkotNo: i.mkotNo
+    }))
   };
+
+  await fetch(
+    'http://localhost:3001/api/kot/save-reverse-kot',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }
+  );
+
+  setShowReverseKot(false);
+
+  // ✅ refresh bill like order.tsx
+  loadBillDetails();
+};
+
 
   const reverseBill = async () => {
     if (!txnId) {
