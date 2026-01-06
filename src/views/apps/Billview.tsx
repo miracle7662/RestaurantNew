@@ -148,7 +148,7 @@ const ModernBill = () => {
   const [includeTaxInInvoice, setIncludeTaxInInvoice] = useState(false);
 
   // Compute displayed items based on grouping``
-  const displayedItems = useMemo(() => {
+  const displayedItems: DisplayedItem[] = useMemo(() => {
   if (!isGrouped) {
   const hasBlankRow = billItems.some(
     item => !item.itemName && item.itemId === 0
@@ -181,13 +181,11 @@ const ModernBill = () => {
 }
 
 
-    // Group only billed items (isBilled === 1)
-    const billedItems = billItems.filter(item => item.isBilled === 1);
-    const unbilledItems = billItems.filter(item => item.isBilled !== 1);
-
-    const grouped = billedItems.reduce((acc, item) => {
+    // Group all items with itemName and qty > 0
+    const itemsToGroup = billItems.filter(item => item.itemName && item.qty > 0);
+    const grouped = itemsToGroup.reduce((acc, item) => {
       if (item.itemName && item.qty > 0) {
-        const key = item.itemName;
+        const key = `${item.itemName}-${item.mkotNo}`;
         if (!acc[key]) {
           acc[key] = {
             itemCode: item.itemCode,
@@ -205,7 +203,7 @@ const ModernBill = () => {
             mkotNo: '',
             specialInstructions: '',
             isEditable: true,
-            originalIndex: billItems.findIndex(i => i.itemName === key )
+            originalIndex: billItems.findIndex(i => i.itemName === item.itemName && i.mkotNo === item.mkotNo)
           };
         }
         acc[key].qty += item.qty;
@@ -235,10 +233,8 @@ const ModernBill = () => {
     }, {} as Record<string, DisplayedItem>);
 
     const result = Object.values(grouped);
-    // Append unbilled items as separate rows
-    // result.push(...unbilledItems.map(item => ({ ...item, isEditable: true, originalIndex: billItems.indexOf(item) })));
     // Add blank row for new entries
-    // result.push({ itemCode: '', itemgroupid: 0, itemId: 0, item_no: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '', isEditable: true });
+    result.push({ itemCode: '', itemgroupid: 0, itemId: 0, item_no: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '', isEditable: true });
     return result;
   }, [billItems, isGrouped, cgstRate, sgstRate, igstRate, cessRate, includeTaxInInvoice]);
 
