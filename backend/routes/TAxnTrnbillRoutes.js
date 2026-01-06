@@ -28,6 +28,7 @@ router.post('/save', controller.saveDayEnd); // Save day end report
 
 // --- KOT Transfer ---
 router.put('/transfer-kot', controller.transferKOT); // Transfer KOT/items between tables
+router.put('/transfer-table', controller.transferTable); // Transfer entire table between tables
 
 // --- Specific Bill Actions (by TxnID) ---
 router.get('/:id', controller.getBillById); // Get a single bill by its TxnID

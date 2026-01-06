@@ -1285,11 +1285,11 @@ exports.getUnbilledItemsByTable = async (req, res) => {
   try {
     const { tableId } = req.params;
     
-    // Find the single unbilled bill for the table
+    // Find the single unbilled or billed but unsettled bill for the table
     const bill = db.prepare(`
       SELECT TxnID
       FROM TAxnTrnbill
-      WHERE TableID = ? AND isBilled = 0  AND isCancelled = 0 AND isSetteled = 0
+      WHERE TableID = ? AND isBilled in (0,1) AND isCancelled = 0 AND isSetteled = 0
     `).get(Number(tableId));
 
     let kotNo = null;

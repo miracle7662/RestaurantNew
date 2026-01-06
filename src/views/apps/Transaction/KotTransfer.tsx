@@ -316,24 +316,37 @@ const handleSave = async () => {
   }
 
   try {
-  const payload = {
-      sourceTableId: selectedTableId,
-      proposedTableId,
-      targetTableName: proposedTable,
-      billDate,
-       KOTNo: proposedItems[0]?.kot,
+    let payload;
+    let endpoint;
 
-      selectedItems: proposedItems.map(item => ({
-        txnDetailId: item.txnDetailId
-      })),
-      transferMode,
-      userId: user?.id || user?.userid
-    };
+    if (transferMode === "table") {
+      // For table transfer, use simpler payload
+      payload = {
+        sourceTableId: selectedTableId,
+        targetTableId: proposedTableId
+      };
+      endpoint = 'transfer-table';
+    } else {
+      // For KOT transfer, use detailed payload
+      payload = {
+        sourceTableId: selectedTableId,
+        proposedTableId,
+        targetTableName: proposedTable,
+        billDate,
+        KOTNo: proposedItems[0]?.kot,
+        selectedItems: proposedItems.map(item => ({
+          txnDetailId: item.txnDetailId
+        })),
+        transferMode,
+        userId: user?.id || user?.userid
+      };
+      endpoint = 'transfer-kot';
+    }
 
     console.log('SAVE PAYLOAD:', payload);
 
     const response = await fetch(
-      'http://localhost:3001/api/TAxnTrnbill/transfer-kot',
+      `http://localhost:3001/api/TAxnTrnbill/${endpoint}`,
       {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -349,7 +362,7 @@ const handleSave = async () => {
       return;
     }
 
-    alert(result.message || 'KOT transfer saved successfully');
+    alert(result.message || `${transferMode === "table" ? "Table" : "KOT"} transfer saved successfully`);
 
     // 🔄 Sync UI
     await fetchItemsForTable(selectedTableId, 'selected');
