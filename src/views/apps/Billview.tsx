@@ -45,6 +45,8 @@ interface ItemGroup {
 interface DisplayedItem extends BillItem {
   type?: 'header' | 'item';
   groupName?: string;
+  isEditable?: boolean;
+  originalIndex?: number;
 }
 
 interface Table {
@@ -135,7 +137,7 @@ const ModernBill = () => {
   const [orderNo, setOrderNo] = useState(billNo);
   const [activeTab, setActiveTab] = useState('Dine-in');
 
-  const [isGrouped, setIsGrouped] = useState(true);
+  const [isGrouped, setIsGrouped] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
 
   // Tax rates states
@@ -145,13 +147,45 @@ const ModernBill = () => {
   const [cessRate, setCessRate] = useState(0);
   const [includeTaxInInvoice, setIncludeTaxInInvoice] = useState(false);
 
-  // Compute displayed items based on grouping
+  // Compute displayed items based on grouping``
   const displayedItems = useMemo(() => {
-    if (!isGrouped) {
-      return billItems;
-    }
+  if (!isGrouped) {
+  const hasBlankRow = billItems.some(
+    item => !item.itemName && item.itemId === 0
+  );
 
-    const grouped = billItems.reduce((acc, item) => {
+  const mappedItems = billItems.map(item => ({
+    ...item,
+    isEditable: item.isBilled !== 1
+  }));
+
+  return hasBlankRow
+    ? mappedItems
+    : mappedItems.concat({
+        itemCode: '',
+        itemgroupid: 0,
+        itemId: 0,
+        item_no: 0,
+        itemName: '',
+        qty: 1,
+        rate: 0,
+        total: 0,
+        cgst: 0,
+        sgst: 0,
+        igst: 0,
+        cess: 0,
+        mkotNo: '',
+        specialInstructions: '',
+        isEditable: true
+      });
+}
+
+
+    // Group only billed items (isBilled === 1)
+    const billedItems = billItems.filter(item => item.isBilled === 1);
+    const unbilledItems = billItems.filter(item => item.isBilled !== 1);
+
+    const grouped = billedItems.reduce((acc, item) => {
       if (item.itemName && item.qty > 0) {
         const key = item.itemName;
         if (!acc[key]) {
@@ -169,7 +203,9 @@ const ModernBill = () => {
             igst: 0,
             cess: 0,
             mkotNo: '',
-            specialInstructions: ''
+            specialInstructions: '',
+            isEditable: true,
+            originalIndex: billItems.findIndex(i => i.itemName === key )
           };
         }
         acc[key].qty += item.qty;
@@ -196,11 +232,13 @@ const ModernBill = () => {
         }
       }
       return acc;
-    }, {} as Record<string, BillItem>);
+    }, {} as Record<string, DisplayedItem>);
 
     const result = Object.values(grouped);
+    // Append unbilled items as separate rows
+    // result.push(...unbilledItems.map(item => ({ ...item, isEditable: true, originalIndex: billItems.indexOf(item) })));
     // Add blank row for new entries
-    result.push({ itemCode: '', itemgroupid: 0, itemId: 0, item_no: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '' });
+    // result.push({ itemCode: '', itemgroupid: 0, itemId: 0, item_no: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '', isEditable: true });
     return result;
   }, [billItems, isGrouped, cgstRate, sgstRate, igstRate, cessRate, includeTaxInInvoice]);
 
@@ -453,8 +491,8 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
                 txnDetailId: item.txnDetailId
               };
             });
-            // Add blank row
-            mappedItems.push({ itemCode: '', itemgroupid: 0, itemId: 0, item_no: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '' });
+            // // Add blank row
+            // mappedItems.push({ itemCode: '', itemgroupid: 0, itemId: 0, item_no: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '' });
 
             setBillItems(mappedItems);
             setTxnId(header.TxnID);
@@ -832,15 +870,12 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
   }, [billItems]);
 
   const handleItemChange = (index: number, field: keyof BillItem, value: string | number) => {
+    const item = displayedItems[index];
+    if (!item.isEditable) return;
     let dataIndex = index;
     if (isGrouped) {
-      if (index === displayedItems.length - 1) {
-        dataIndex = billItems.length - 1;
-      } else {
-        return;
-      }
+      dataIndex = billItems.length - 1;
     }
-
     const updated = [...billItems];
     const currentItem = { ...updated[dataIndex] };
 
@@ -2104,7 +2139,7 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
                               }}
                               type="text"
                               value={item.itemCode}
-                              readOnly={isGrouped && index !== displayedItems.length - 1}
+                                  readOnly={isGrouped && index !== displayedItems.length - 1}
                               onChange={(e) => handleItemChange(index, 'itemCode', e.target.value)}
                               onKeyDown={(e) => {
                                 handleKeyPress(index, 'itemCode')(e);
@@ -2125,7 +2160,6 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
                               }}
                               type="text"
                               value={item.itemName}
-                              readOnly={isGrouped && index !== displayedItems.length - 1}
                               onChange={(e) => handleItemChange(index, 'itemName', e.target.value)}
                               onKeyDown={(e) => {
                                 handleKeyPress(index, 'itemName')(e);
@@ -2147,7 +2181,6 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
                               }}
                               type="number"
                               value={item.qty}
-                              readOnly={isGrouped && index !== displayedItems.length - 1}
                               onChange={(e) => handleItemChange(index, 'qty', Number(e.target.value))}
                               onKeyDown={(e) => {
                                 handleKeyPress(index, 'qty')(e);
@@ -2164,7 +2197,6 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
                             <Form.Control
                               type="number"
                               value={item.rate}
-                              readOnly={isGrouped && index !== displayedItems.length - 1}
                               onChange={(e) => handleItemChange(index, 'rate', Number(e.target.value))}
                               onKeyDown={(e) => {
                                 handleKeyPress(index, 'rate')(e);
@@ -2194,7 +2226,6 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
                             <Form.Control
                               type="text"
                               value={item.specialInstructions}
-                              readOnly={isGrouped && index !== displayedItems.length - 1}
                               onChange={(e) => handleItemChange(index, 'specialInstructions', e.target.value)}
                               onKeyDown={(e) => {
                                 handleKeyPress(index, 'specialInstructions')(e);

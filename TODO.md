@@ -1,7 +1,12 @@
-# TODO: Add Table Transfer Function
+# TODO: Modify displayedItems in Billview.tsx
 
-## Steps to Complete
-- [x] Add the `transferTable` function to `backend/controllers/TAxnTrnbillControllers.js` after the `transferKOT` function
-- [x] Implement logic to transfer all items from source table to target table, handling vacant/occupied target cases
-- [x] Update module.exports to include the new `transferTable` function
-- [x] Test the implementation for correctness
+## Tasks
+- [x] Modify displayedItems logic to group only billed items (isBilled === 1) and append unbilled items separately
+- [x] Update table rendering to make billed items read-only and keep unbilled items editable
+- [x] Adjust handleItemChange to allow editing only unbilled items and blank row
+- [ ] Update handleKeyPress and handleArrowNavigation for new logic
+- [ ] Ensure saving logic handles unbilled items correctly
+- [ ] Add originalIndex to DisplayedItem interface and set in displayedItems
+- [ ] Fix dataIndex calculation in handleItemChange using originalIndex
+- [ ] Update handleKeyPress for row removal in grouped mode
+- [ ] Add readOnly to all inputs based on isEditable
