@@ -1542,7 +1542,7 @@ const Order = () => {
           // If discount applied, set green (status=1), else red (status=2)
           const newStatus = 2; // Always set to 2 (billed/red) on printing
 
-          await fetch(`http://localhost:3001/api/tablemanagement/${tableToUpdate.tablemanagementid}/status`, {
+          await fetch(`http://localhost:3001/api/tablemanagement/${tableToUpdate.tableid}/status`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ status: newStatus }),

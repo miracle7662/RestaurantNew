@@ -998,6 +998,7 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
           CESS: 0,
           Discount_Amount: 0,
           isNCKOT: isNoCharge,
+          isbilled: print ? 1 : 0,
           DeptID: 1,
           SpecialInst: item.specialInstructions || null
         }))
@@ -1029,7 +1030,7 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
 
       // Set table status to occupied (green)
       try {
-        await axios.post(`/api/tablemanagement/${tableId}/status`, { status: 1 });
+        await axios.put(`/api/tablemanagement/${tableId}/status`, { status: 1 });
       } catch (error) {
         console.error('Error updating table status:', error);
       }
