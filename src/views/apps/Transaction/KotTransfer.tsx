@@ -38,6 +38,8 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
     department: string;
     pax?: number;
     isbilled?: number;
+    outletid?: number;
+    outlet_name?: string;
   }
 
   // State management
@@ -95,7 +97,9 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
           status: table.status === 1 ? 'occupied' : table.status === 2 ? 'reserved' : 'available',
           department: table.department_name || '',
           pax: table.pax || 0,
-          isbilled: table.isbilled || 0
+          isbilled: table.isbilled || 0,
+          outletid: table.outletid,
+          outlet_name: table.outlet_name
         }));
         setTables(mappedTables);
       }
@@ -122,7 +126,9 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
             status: table.status === 1 ? 'occupied' : table.status === 2 ? 'reserved' : 'available',
             department: table.department_name || '',
             pax: table.pax || 0,
-            isbilled: table.isbilled || 0
+            isbilled: table.isbilled || 0,
+            outletid: table.outletid,
+            outlet_name: table.outlet_name
           }));
           setTables(mappedTables);
 
@@ -224,6 +230,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
   const effectiveSelectedAmount = isTableMode ? selectedItems.reduce((sum, item) => sum + (item.price * item.qty), 0) : totalSelectedAmount;
 const billDate = new Date().toISOString().split('T')[0];
 
+
   const handleCheck = (index: number) => {
     if (isTableMode) return;
     const updated = [...selectedItems];
@@ -316,6 +323,9 @@ const handleSave = async () => {
   }
 
   try {
+    const proposedTableData = tables.find(t => t.id === proposedTableId?.toString());
+    const tableOutletId = proposedTableData?.outletid;
+
     let payload;
     let endpoint;
 
@@ -323,7 +333,9 @@ const handleSave = async () => {
       // For table transfer, use simpler payload
       payload = {
         sourceTableId: selectedTableId,
-        targetTableId: proposedTableId
+        targetTableId: proposedTableId,
+        hotelid: user?.hotelid || user?.hotelId,
+        outletid: tableOutletId || user?.outletid || user?.outletId
       };
       endpoint = 'transfer-table';
     } else {
@@ -338,7 +350,9 @@ const handleSave = async () => {
           txnDetailId: item.txnDetailId
         })),
         transferMode,
-        userId: user?.id || user?.userid
+        userId: user?.id || user?.userid,
+        hotelid: user?.hotelid || user?.hotelId,
+        outletid: tableOutletId || user?.outletid || user?.outletId
       };
       endpoint = 'transfer-kot';
     }

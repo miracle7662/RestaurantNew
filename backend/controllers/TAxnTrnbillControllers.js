@@ -2594,7 +2594,8 @@ exports.transferKOT = (req, res) => {
     sourceTableId,
     proposedTableId,
     targetTableName,
-    selectedItems
+    selectedItems,
+    outletid
   } = req.body;
 
   if (!selectedItems || selectedItems.length === 0) {
@@ -2681,12 +2682,14 @@ exports.transferKOT = (req, res) => {
 
       /* ---------- SOURCE BILL ---------- */
       const sourceBill = db.prepare(`
-        SELECT TxnID FROM TAxnTrnbill
+        SELECT TxnID, outletid, HotelID FROM TAxnTrnbill
         WHERE TableID = ? AND isSetteled = 0
       `).get(sourceTableId);
 
       if (!sourceBill) throw new Error('Source bill not found');
       const sourceTxnId = sourceBill.TxnID;
+      const sourceOutletId = sourceBill.outletid;
+      const sourceHotelId = sourceBill.HotelID;
 
       /* ---------- TARGET STATUS ---------- */
       const targetRow = db.prepare(`
@@ -2777,10 +2780,10 @@ exports.transferKOT = (req, res) => {
       if (targetStatus === 0 && kotCount > 1) {
         const newBill = db.prepare(`
           INSERT INTO TAxnTrnbill (
-            TableID, table_name, PrevTableID,
+            TableID, table_name, PrevTableID, outletid, HotelID,
             isSetteled, isBilled, isTrnsfered, TxnDatetime
           )
-          SELECT ?, ?, ?, 0, 0, 1, CURRENT_TIMESTAMP
+          SELECT ?, ?, ?, outletid, HotelID, 0, 0, 1, CURRENT_TIMESTAMP
           FROM TAxnTrnbill WHERE TxnID=?
         `).run(proposedTableId, targetTableName, sourceTableId, sourceTxnId);
 

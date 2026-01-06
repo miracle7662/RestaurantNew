@@ -6,9 +6,11 @@ exports.getAllTables = (req, res) => {
     const sql = `
       SELECT
         t.*,
-        d.department_name
+        d.department_name,
+        o.outlet_name
       FROM msttablemanagement t
       LEFT JOIN msttable_department d ON t.departmentid = d.departmentid
+      LEFT JOIN mst_outlets o ON t.outletid = o.outletid
     `;
     const rows = db.prepare(sql).all();
 
