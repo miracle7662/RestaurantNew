@@ -1027,6 +1027,13 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
 
       toast.success('KOT saved successfully');
 
+      // Set table status to occupied (green)
+      try {
+        await axios.post(`/api/tablemanagement/${tableId}/status`, { status: 1 });
+      } catch (error) {
+        console.error('Error updating table status:', error);
+      }
+
       // If print is requested, print
       if (print) {
         console.log("🖨️ Print requested");
@@ -1156,6 +1163,14 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
       toast.success('Bill printed successfully');
       // Handle print data if needed
       console.log('Bill Print Data:', response.data);
+
+      // Set table status to occupied (green)
+      try {
+        await axios.post(`/api/tablemanagement/${tableId}/status`, { status: 1 });
+      } catch (error) {
+        console.error('Error updating table status:', error);
+      }
+
       navigate('/apps/Tableview');
     } catch (error) {
       console.error('Error printing bill:', error);

@@ -34,7 +34,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
   interface TableData {
     id: string;
     name: string;
-    status: 'running' | 'printed' | 'paid' | 'running-kot' | 'available';
+    status: 'Occupied' | 'printed' | 'paid' | 'running-kot' | 'available';
     department: string;
     pax?: number;
     isbilled?: number;
@@ -94,7 +94,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
         const mappedTables: TableData[] = tablesData.data.map((table: any) => ({
           id: table.tableid.toString(),
           name: table.table_name,
-          status: table.status === 1 ? 'running' : table.status === 2 ? 'printed' : table.status === 3 ? 'paid' : table.status === 4 ? 'running-kot' : 'available',
+          status: table.status === 1 ? 'Occupied' : table.status === 2 ? 'printed' : table.status === 3 ? 'paid' : table.status === 4 ? 'running-kot' : 'available',
           department: table.department_name || '',
           pax: table.pax || 0,
           isbilled: table.isbilled || 0,
@@ -123,7 +123,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
           const mappedTables: TableData[] = tablesData.data.map((table: any) => ({
             id: table.tableid.toString(),
             name: table.table_name,
-            status: table.status === 1 ? 'running' : table.status === 2 ? 'printed' : table.status === 3 ? 'paid' : table.status === 4 ? 'running-kot' : 'available',
+            status: table.status === 1 ? 'Occupied' : table.status === 2 ? 'printed' : table.status === 3 ? 'paid' : table.status === 4 ? 'running-kot' : 'available',
             department: table.department_name || '',
             pax: table.pax || 0,
             isbilled: table.isbilled || 0,
@@ -134,7 +134,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
 
           const defaultTable =
             mappedTables.find(t => Number(t.id) === sourceTableId) ||
-            mappedTables.find(t => t.status === 'running') ||
+            mappedTables.find(t => t.status === 'Occupied') ||
             mappedTables[0];
           setSelectedTableId(Number(defaultTable.id));
           setSelectedTable(defaultTable.name);
@@ -298,9 +298,6 @@ const billDate = new Date().toISOString().split('T')[0];
       prevTables.map(t => {
         if (t.id === selectedTableId?.toString() && selectedItems.length === 0) {
           return { ...t, status: "available" as const };
-        }
-        if (t.id === proposedTableId?.toString()) {
-          return { ...t, status: "running" as const };
         }
         return t;
       })
