@@ -1,20 +1,7 @@
-# TODO: Implement Save KOT Transfer
+# TODO: Add Table Transfer Function
 
-## Backend Implementation
-- [ ] Add transfer-kot route in TAxnTrnbillRoutes.js
-- [ ] Implement transferKOT controller in TAxnTrnbillControllers.js
-  - [ ] Handle item transfer logic
-  - [ ] Update table statuses
-  - [ ] Handle bill creation/merging
-
-## Frontend Implementation
-- [ ] Implement Save button in KotTransfer.tsx
-  - [ ] Call transfer API
-  - [ ] Handle success/error responses
-  - [ ] Refresh Billview on success
-
-## Testing
-- [ ] Test table transfer mode
-- [ ] Test KOT transfer mode
-- [ ] Verify table status updates
-- [ ] Verify Billview refresh
+## Steps to Complete
+- [x] Add the `transferTable` function to `backend/controllers/TAxnTrnbillControllers.js` after the `transferKOT` function
+- [x] Implement logic to transfer all items from source table to target table, handling vacant/occupied target cases
+- [x] Update module.exports to include the new `transferTable` function
+- [x] Test the implementation for correctness
