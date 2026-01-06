@@ -134,7 +134,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
 
           const defaultTable =
             mappedTables.find(t => Number(t.id) === sourceTableId) ||
-            mappedTables.find(t => t.status === 'occupied') ||
+            mappedTables.find(t => t.status === 'running') ||
             mappedTables[0];
           setSelectedTableId(Number(defaultTable.id));
           setSelectedTable(defaultTable.name);
@@ -300,7 +300,7 @@ const billDate = new Date().toISOString().split('T')[0];
           return { ...t, status: "available" as const };
         }
         if (t.id === proposedTableId?.toString()) {
-          return { ...t, status: "occupied" as const };
+          return { ...t, status: "running" as const };
         }
         return t;
       })
@@ -700,7 +700,7 @@ const handleSave = async () => {
                         style={{ fontSize: "0.9rem" }}
                       >
                         {tables
-                          .filter(t => (t.status === 'available' || t.status === 'occupied') && t.isbilled !== 1)
+                          .filter(t => t.status !== 'printed' && t.isbilled !== 1)
                           .map(t => (
                             <option key={t.id} value={t.id}>{t.name}</option>
                           ))}
