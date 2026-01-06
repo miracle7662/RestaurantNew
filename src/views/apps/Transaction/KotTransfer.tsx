@@ -34,7 +34,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
   interface TableData {
     id: string;
     name: string;
-    status: 'occupied' | 'available' | 'reserved';
+    status: 'running' | 'printed' | 'paid' | 'running-kot' | 'available';
     department: string;
     pax?: number;
     isbilled?: number;
@@ -94,7 +94,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
         const mappedTables: TableData[] = tablesData.data.map((table: any) => ({
           id: table.tableid.toString(),
           name: table.table_name,
-          status: table.status === 1 ? 'occupied' : table.status === 2 ? 'reserved' : 'available',
+          status: table.status === 1 ? 'running' : table.status === 2 ? 'printed' : table.status === 3 ? 'paid' : table.status === 4 ? 'running-kot' : 'available',
           department: table.department_name || '',
           pax: table.pax || 0,
           isbilled: table.isbilled || 0,
@@ -123,7 +123,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
           const mappedTables: TableData[] = tablesData.data.map((table: any) => ({
             id: table.tableid.toString(),
             name: table.table_name,
-            status: table.status === 1 ? 'occupied' : table.status === 2 ? 'reserved' : 'available',
+            status: table.status === 1 ? 'running' : table.status === 2 ? 'printed' : table.status === 3 ? 'paid' : table.status === 4 ? 'running-kot' : 'available',
             department: table.department_name || '',
             pax: table.pax || 0,
             isbilled: table.isbilled || 0,
@@ -401,11 +401,13 @@ const handleSave = async () => {
 
   const getTableStatusBadge = (status: string) => {
     const variants = {
-      occupied: "danger",
-      available: "success",
-      reserved: "warning"
+      running: "danger",
+      printed: "warning",
+      paid: "success",
+      "running-kot": "info",
+      available: "secondary"
     } as const;
-    const variant = variants[status as keyof typeof variants];
+    const variant = variants[status as keyof typeof variants] || "secondary";
     return <Badge bg={variant}>{status.toUpperCase()}</Badge>;
   };
 
