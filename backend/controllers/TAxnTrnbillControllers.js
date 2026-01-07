@@ -2806,6 +2806,24 @@ exports.transferKOT = (req, res) => {
 
     trx();
 
+    // Check and clean up source table if no active items
+    const hasActiveItems = db.prepare(`
+      SELECT COUNT(*) as count
+      FROM TAxnTrnbill b
+      JOIN TAxnTrnbilldetails d ON b.TxnID = d.TxnID
+      WHERE b.TableID = ? AND b.isSetteled = 0 AND b.isCancelled = 0 AND d.isSetteled = 0 AND d.isCancelled = 0 AND (d.Qty - COALESCE(d.RevQty, 0)) > 0
+    `).get(sourceTableId).count > 0;
+
+    if (!hasActiveItems) {
+      db.prepare(`UPDATE msttablemanagement SET status = 0 WHERE tableid = ?`).run(sourceTableId);
+      // Delete all unsettled bills for the table
+      const unsettledTxnIds = db.prepare(`SELECT TxnID FROM TAxnTrnbill WHERE TableID = ? AND isSetteled = 0`).all(sourceTableId);
+      for (const { TxnID } of unsettledTxnIds) {
+        db.prepare('DELETE FROM TAxnTrnbilldetails WHERE TxnID = ?').run(TxnID);
+        db.prepare('DELETE FROM TAxnTrnbill WHERE TxnID = ?').run(TxnID);
+      }
+    }
+
     res.json({ success: true, message: 'KOT transfer completed successfully' });
 
   } catch (err) {
