@@ -632,9 +632,13 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
                 qty: Math.abs(item.Qty) || 1,
                 isReversed: true,
                 status: 'Reversed',
-                kotNo: item.KOTNo,
+                kotNo: item.RevKOTNo,
               }))
             );
+            // Compute max RevKOTNo from details
+            const reversedDetails = details.filter((d: any) => d.RevQty > 0);
+            const maxRevKotNo = reversedDetails.length > 0 ? Math.max(...reversedDetails.map((d: any) => d.RevKOTNo || 0)) : 0;
+            setRevKotNo(maxRevKotNo);
             calculateTotals(mappedItems);
             setLoading(false);
             return;
@@ -1285,7 +1289,8 @@ const handleReverseKotSave = async (reverseItemsFromModal: any[]) => {
         body: JSON.stringify({
           txnId,
           tableId,
-          kotNo: kotNo ? parseInt(kotNo) : undefined,
+            kotType: 'REVERSE',   // ✅ MUST
+            isReverseKot: 1,      // ✅ MUST
           reversedItems: reverseItemsFromModal.map(item => ({
             txnDetailId: item.txnDetailId, // Add txnDetailId for database update
             item_no: item.item_no,
