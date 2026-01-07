@@ -7,8 +7,10 @@ import {
     Table,
     Button,
     Badge,
-    Form
+    Form,
+    Spinner
 } from 'react-bootstrap';
+import { toast } from 'react-toastify';
 
 const KOT_COLORS = ['#E8F5E9', '#FFF3E0'];
 
@@ -23,27 +25,32 @@ const getRowColor = (kotNo: string | number | null | undefined) => {
 interface ReverseKotModalProps {
     show: boolean;
     onClose: () => void;
+    onSave: (data: any) => void;  // Callback to notify parent after save
     kotItems: any[];
     revKotNo: number;
-    tableNo: number;
+    tableNo: number | string;
     waiter: string;
     pax: number;
     date: string;
-    onSave: (items: any[]) => void;
+    persistentTxnId: number|null;
+    persistentTableId: number;
 }
 
 const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
     show,
     onClose,
+    onSave,
     kotItems,
     revKotNo,
     tableNo,
     waiter,
     pax,
     date,
-    onSave
+    persistentTxnId,
+    persistentTableId
 }) => {
     const [items, setItems] = useState<any[]>([]);
+    const [loading, setLoading] = useState(false);
 
     useEffect(() => {
         setItems(
@@ -65,7 +72,7 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
         const updated = [...items];
         updated[idx][field] = value;
 
-        // ✅ Amount calculated ONLY from cancelQty
+        // Amount calculated ONLY from cancelQty
         updated[idx].amount = updated[idx].cancelQty * updated[idx].rate;
 
         setItems(updated);
@@ -75,6 +82,55 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
         (sum, item) => sum + (item.amount || 0),
         0
     );
+
+   const handleReverseKotSave = async (items: any[]) => {
+  const filteredItems = items.filter(
+    i => i.reversedQty > 0 || i.cancelQty > 0
+  );
+
+  if (filteredItems.length === 0) {
+    toast.error('No items selected for reverse');
+    return;
+  }
+
+  const payload = {
+    txnId: persistentTxnId,
+    tableId: persistentTableId,
+    reversedItems: filteredItems.map(i => ({
+      item_no: i.itemId,
+      item_name: i.itemName,
+      qty: i.reversedQty + i.cancelQty
+    })),
+    userId: 1 // ya logged-in user id
+  };
+
+  try {
+    const response = await fetch(
+      'http://localhost:3001/api/TAxnTrnbill/create-reverse-kot',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }
+    );
+
+    const result = await response.json();
+
+    if (!result.success) {
+      throw new Error(result.message || 'Reverse KOT failed');
+    }
+
+    toast.success('Reverse KOT saved successfully');
+
+    onSave(result.data);
+    onClose();
+
+  } catch (error) {
+    console.error('Error saving reverse KOT:', error);
+    toast.error('Failed to save reverse KOT');
+  }
+};
+
 
     return (
         <Modal show={show} onHide={onClose} size="xl" backdrop="static">
@@ -241,8 +297,19 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
 
                 {/* ===== FOOTER ===== */}
                 <div className="d-flex justify-content-end gap-2 mt-3">
-                    <Button variant="primary" onClick={() => onSave(items)}>
-                        Save
+                    <Button
+                        variant="primary"
+                        onClick={() => {
+                            setLoading(true);
+                            handleReverseKotSave(items).finally(() => setLoading(false));
+                        }}
+                        disabled={loading}
+                    >
+                        {loading ? (
+                            <Spinner as="span" animation="border" size="sm" />
+                        ) : (
+                            'Save'
+                        )}
                     </Button>
                     <Button variant="secondary" onClick={onClose}>
                         Cancel

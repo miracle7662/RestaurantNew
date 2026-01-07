@@ -1260,7 +1260,7 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
   
 
   await fetch(
-    'http://localhost:3001/api/kot/save-reverse-kot',
+    'http://localhost:3001/api/TAxnTrnbill/create-reverse-kot',
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -2771,6 +2771,8 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
         date={new Date().toLocaleDateString('en-GB')}
         onClose={() => setShowReverseKot(false)}
         onSave={handleReverseKotSave}
+        persistentTxnId={txnId}
+        persistentTableId={tableId}
       />
       
       <Toaster />
