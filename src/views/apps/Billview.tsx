@@ -46,6 +46,7 @@ interface BillItem {
   txnDetailId?: number;
   isFetched?: boolean;
   revQty?: number;
+  RevKOT ?: number;
 }
 
 interface MenuItem {
@@ -357,7 +358,7 @@ const ModernBill = () => {
     const igstTotal = updatedItems.reduce((sum, item) => sum + item.igst, 0);
     const cessTotal = updatedItems.reduce((sum, item) => sum + item.cess, 0);
 
-    const totalBeforeRoundOff = gross + cgstTotal + sgstTotal + igstTotal + cessTotal - discount;
+    const totalBeforeRoundOff = gross + cgstTotal + sgstTotal + igstTotal + cessTotal - discount - totalRevKotAmount;
     const roundedFinalAmount = Math.round(totalBeforeRoundOff);
     const ro = roundedFinalAmount - totalBeforeRoundOff;
 
@@ -416,7 +417,7 @@ const ModernBill = () => {
 
   // Reverse KOT modal data
   const [showReverseKot, setShowReverseKot] = useState(false);
-  const [revKotNo, setRevKotNo] = useState(21);
+  const [revKotNo, setRevKotNo] = useState(0);
   const [reverseQty, setReverseQty] = useState(1);
   const [reverseReason, setReverseReason] = useState('');
 
@@ -559,18 +560,19 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
                 item_no: item.item_no,
                 name: item.ItemName || 'Unknown Item',
                 price: item.RuntimeRate,
-                qty: (Number(item.Qty) || 0) - (Number(item.RevQty) || 0),
+                qty: Number(item.Qty) || 0,
                 revQty: Number(item.RevQty) || 0,
                 isNCKOT: item.isNCKOT,
                 isNew: false,
                 originalQty: item.Qty,
                 kotNo: item.KOTNo,
               }))
-              .filter((item: FetchedItem) => item.qty > 0);
+              .filter((item: FetchedItem) => (item.qty - item.revQty) > 0);
 
             // Map to billItems
             const mappedItems: BillItem[] = fetchedItems.map((item: any) => {
-              const total = item.qty * item.price;
+              const netQty = item.qty - item.revQty;
+              const total = netQty * item.price;
               const cgst = total * (cgstRate / 100);
               const sgst = total * (sgstRate / 100);
               return {
@@ -579,7 +581,7 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
                 itemId: item.id,
                 item_no: item.item_no,
                 itemName: item.name,
-                qty: item.qty,
+                qty: netQty,
                 rate: item.price,
                 total,
                 cgst,
@@ -603,6 +605,9 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
             setWaiter(header.waiter || 'ASD');
             setPax(header.pax || 1);
             setTableNo(header.table_name || tableName);
+            if (header.RevKOT) {
+              setRevKotNo(header.RevKOT);
+            }
             setCurrentKOTNos(
               Array.from(new Set(fetchedItems.map((i: FetchedItem) => i.kotNo))).sort((a: number, b: number) => a - b)
             );
@@ -727,6 +732,9 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
         } else {
           setDiscount(0);
           setDiscountInputValue(0);
+        }
+        if (data.header.RevKOT) {
+          setRevKotNo(data.header.RevKOT);
         }
       }
       if (data.kotNo !== null && data.kotNo !== undefined) {

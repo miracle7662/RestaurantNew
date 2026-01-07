@@ -206,7 +206,7 @@ useEffect(() => {
                             {items.map((row, idx) => (
                                 <tr key={idx} style={{ backgroundColor: getRowColor(row.mkotNo) }}>
                                     <td>{row.itemName}</td>
-                                    <td>{row.qty}</td>
+                                  <td>{row.qty + row.reversedQty}</td>
 
                                     <td>
                                         <Form.Control
