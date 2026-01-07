@@ -172,6 +172,8 @@ const ModernBill = () => {
   const [groupBy, setGroupBy] = useState<'none' | 'item' | 'group' | 'kot'>('group');
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
 
+  const isGrouped = groupBy !== 'none';
+
   // Tax rates states
   const [cgstRate, setCgstRate] = useState(2.5);
   const [sgstRate, setSgstRate] = useState(2.5);
@@ -1638,7 +1640,7 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
         setShowSettlementModal(true);
       } else if (keyboardEvent.key === 'g' && keyboardEvent.ctrlKey) {
         keyboardEvent.preventDefault();
-        setIsGrouped(!isGrouped);
+        setGroupBy(groupBy === 'none' ? 'group' : 'none');
       }
     };
 
