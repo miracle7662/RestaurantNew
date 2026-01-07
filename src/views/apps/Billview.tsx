@@ -27,6 +27,7 @@ interface BillItem {
   itemgroupid: number;
   isBilled?: number;
   txnDetailId?: number;
+  isFetched?: boolean;
 }
 
 interface MenuItem {
@@ -49,6 +50,36 @@ interface DisplayedItem extends BillItem {
   isEditable?: boolean;
   originalIndex?: number;
 }
+
+const groupExistingItems = (items: BillItem[], cgstRate: number, sgstRate: number, igstRate: number, cessRate: number, includeTaxInInvoice: boolean): BillItem[] => {
+  const grouped = items.reduce((acc, item) => {
+    const key = item.itemId || item.itemName;
+    if (!acc[key]) {
+      acc[key] = { ...item };
+    } else {
+      acc[key].qty += item.qty;
+      acc[key].total = acc[key].qty * acc[key].rate;
+      if (!includeTaxInInvoice) {
+        acc[key].cgst = acc[key].total * (cgstRate / 100);
+        acc[key].sgst = acc[key].total * (sgstRate / 100);
+        acc[key].igst = acc[key].total * (igstRate / 100);
+        acc[key].cess = acc[key].total * (cessRate / 100);
+      }
+      if (item.mkotNo) {
+        const existing = acc[key].mkotNo ? acc[key].mkotNo.split('|') : [];
+        if (!existing.includes(item.mkotNo)) {
+          existing.push(item.mkotNo);
+        }
+        acc[key].mkotNo = existing.sort((a, b) => parseInt(a) - parseInt(b)).join('|');
+      }
+      if (!acc[key].specialInstructions && item.specialInstructions) {
+        acc[key].specialInstructions = item.specialInstructions;
+      }
+    }
+    return acc;
+  }, {} as Record<string | number, BillItem>);
+  return Object.values(grouped);
+};
 
 interface Table {
   id: number;
@@ -84,7 +115,7 @@ const ModernBill = () => {
   const [headerHeight, setHeaderHeight] = useState(0);
   const [toolbarHeight, setToolbarHeight] = useState(0);
 
-  const [billItems, setBillItems] = useState<BillItem[]>([{ itemCode: '', itemgroupid: 0, itemId: 0, item_no: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '' }]);
+  const [billItems, setBillItems] = useState<BillItem[]>([{ itemCode: '', itemgroupid: 0, itemId: 0, item_no: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '', isFetched: false }]);
 
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
 
@@ -138,7 +169,7 @@ const ModernBill = () => {
   const [orderNo, setOrderNo] = useState(billNo);
   const [activeTab, setActiveTab] = useState('Dine-in');
 
-  const [isGrouped, setIsGrouped] = useState(false);
+  const [groupBy, setGroupBy] = useState<'none' | 'item' | 'group' | 'kot'>('group');
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
 
   // Tax rates states
@@ -148,52 +179,63 @@ const ModernBill = () => {
   const [cessRate, setCessRate] = useState(0);
   const [includeTaxInInvoice, setIncludeTaxInInvoice] = useState(false);
 
-  // Compute displayed items based on grouping``
+  // Compute displayed items based on grouping
   const displayedItems: DisplayedItem[] = useMemo(() => {
-  if (!isGrouped) {
-  const hasBlankRow = billItems.some(
-    item => !item.itemName && item.itemId === 0
-  );
+    if (groupBy === 'none') {
+      const hasBlankRow = billItems.some(
+        item => !item.itemName && item.itemId === 0
+      );
 
-  const mappedItems = billItems.map(item => ({
-    ...item,
-    isEditable: item.isBilled !== 1
-  }));
+      const mappedItems = billItems.map(item => ({
+        ...item,
+        isEditable: item.isBilled !== 1
+      }));
 
-  return hasBlankRow
-    ? mappedItems
-    : mappedItems.concat({
-        itemCode: '',
-        itemgroupid: 0,
-        itemId: 0,
-        item_no: 0,
-        itemName: '',
-        qty: 1,
-        rate: 0,
-        total: 0,
-        cgst: 0,
-        sgst: 0,
-        igst: 0,
-        cess: 0,
-        mkotNo: '',
-        specialInstructions: '',
-        isEditable: true
-      });
-}
+      return hasBlankRow
+        ? mappedItems
+        : mappedItems.concat({
+            itemCode: '',
+            itemgroupid: 0,
+            itemId: 0,
+            item_no: 0,
+            itemName: '',
+            qty: 1,
+            rate: 0,
+            total: 0,
+            cgst: 0,
+            sgst: 0,
+            igst: 0,
+            cess: 0,
+            mkotNo: '',
+            specialInstructions: '',
+            isEditable: true,
+            isFetched: false
+          });
+    } else {
+      let groupKey: (item: BillItem) => string;
+      let groupName: (key: string) => string;
 
+      if (groupBy === 'item') {
+        groupKey = (item) => item.itemName;
+        groupName = (key) => key;
+      } else if (groupBy === 'group') {
+        groupKey = (item) => item.itemgroupid.toString();
+        groupName = (key) => "Group " + key;
+      } else if (groupBy === 'kot') {
+        groupKey = (item) => item.mkotNo || '';
+        groupName = (key) => key ? "KOT " + key : "No KOT";
+      }
 
-    // Group all items with itemName and qty > 0
-    const itemsToGroup = billItems.filter(item => item.itemName && item.qty > 0);
-    const grouped = itemsToGroup.reduce((acc, item) => {
-      if (item.itemName && item.qty > 0) {
-        const key = `${item.itemName}-${item.mkotNo}`;
+      const itemsToGroup = billItems.filter(item => item.itemName && item.qty > 0);
+      const grouped = itemsToGroup.reduce((acc, item) => {
+        const key = groupKey(item);
         if (!acc[key]) {
           acc[key] = {
             itemCode: item.itemCode,
             itemgroupid: item.itemgroupid,
             itemId: item.itemId,
             item_no: item.item_no,
-            itemName: item.itemName,
+            itemName: groupName(key),
             qty: 0,
             rate: item.rate,
             total: 0,
@@ -203,8 +245,9 @@ const ModernBill = () => {
             cess: 0,
             mkotNo: '',
             specialInstructions: '',
-            isEditable: true,
-            originalIndex: billItems.findIndex(i => i.itemName === item.itemName && i.mkotNo === item.mkotNo)
+            isEditable: false,
+            originalIndex: billItems.findIndex(i => groupKey(i) === key),
+            isFetched: true
           };
         }
         acc[key].qty += item.qty;
@@ -229,15 +272,15 @@ const ModernBill = () => {
         if (!acc[key].specialInstructions && item.specialInstructions) {
           acc[key].specialInstructions = item.specialInstructions;
         }
-      }
-      return acc;
-    }, {} as Record<string, DisplayedItem>);
+        return acc;
+      }, {} as Record<string, DisplayedItem>);
 
-    const result = Object.values(grouped);
-    // Add blank row for new entries
-    result.push({ itemCode: '', itemgroupid: 0, itemId: 0, item_no: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '', isEditable: true });
-    return result;
-  }, [billItems, isGrouped, cgstRate, sgstRate, igstRate, cessRate, includeTaxInInvoice]);
+      const result = Object.values(grouped);
+      // Add blank row for new entries
+      result.push({ itemCode: '', itemgroupid: 0, itemId: 0, item_no: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '', isEditable: true, isFetched: false });
+      return result;
+    }
+  }, [billItems, groupBy, cgstRate, sgstRate, igstRate, cessRate, includeTaxInInvoice]);
 
   // Calculate totals based on displayed items
   useEffect(() => {
@@ -494,7 +537,8 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
                 mkotNo: item.kotNo ? item.kotNo.toString() : '',
                 specialInstructions: '',
                 isBilled: 1,
-                txnDetailId: item.txnDetailId
+                txnDetailId: item.txnDetailId,
+                isFetched: true
               };
             });
             // // Add blank row
@@ -584,12 +628,13 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
           mkotNo: item.kotNo ? item.kotNo.toString() : (item.KOTNo ? item.KOTNo.toString() : ''),
           specialInstructions: item.specialInstructions || item.SpecialInst || '',
           isBilled: 0,
-          txnDetailId: item.txnDetailId
+          txnDetailId: item.txnDetailId,
+          isFetched: true
         };
       });
 
       // Always add a blank row at the end for new item entry
-      mappedItems.push({ itemCode: '', itemgroupid: 0, itemId: 0, item_no: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '' });
+      mappedItems.push({ itemCode: '', itemgroupid: 0, itemId: 0, item_no: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '', isFetched: false });
 
       setBillItems(mappedItems);
 
@@ -954,7 +999,7 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
       } else if (field === 'qty') {
         // Only add new row if current item has data (itemId > 0 or itemName not empty)
         if (billItems[dataIndex].itemId > 0 || billItems[dataIndex].itemName.trim() !== '') {
-          const newBillItems = [...billItems, { itemCode: "", itemgroupid: 0, itemId: 0, item_no: 0, itemName: "", qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '' }];
+          const newBillItems = [...billItems, { itemCode: "", itemgroupid: 0, itemId: 0, item_no: 0, itemName: "", qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '', isFetched: false }];
           setBillItems(newBillItems);
           // Focus the new itemCode after state update
           setTimeout(() => {
@@ -1322,7 +1367,7 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
     }
   };
   const resetBillState = () => {
-    setBillItems([{ itemCode: '', itemgroupid: 0, item_no: 0, itemId: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '' }]);
+    setBillItems([{ itemCode: '', itemgroupid: 0, item_no: 0, itemId: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '', isFetched: false }]);
     setTxnId(null);
     setWaiter('ASD');
     setPax(1);
