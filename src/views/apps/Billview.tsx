@@ -172,6 +172,7 @@ const ModernBill = () => {
   const [txnId, setTxnId] = useState<number | null>(null);
   const [billNo, setBillNo] = useState<number | null>(null);
   const [billData, setBillData] = useState<any>(null);
+  const [billHeader, setBillHeader] = useState<any>({});
   const [isBillPrinted, setIsBillPrinted] = useState(false);
 
   const [discount, setDiscount] = useState(0);
@@ -553,6 +554,7 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
           const billedBillData = billedBillRes.data;
           if (billedBillData.success && billedBillData.data) {
             const { details, ...header } = billedBillData.data;
+            setBillHeader(header);
             const fetchedItems: FetchedItem[] = details
               .map((item: any) => ({
                 id: item.ItemID,
@@ -1310,6 +1312,11 @@ const handleReverseKotSave = async (reverseItemsFromModal: any[]) => {
     }
 
     toast.success(`Reverse KOT ${result.data?.reverseKotNo || ''} saved`);
+
+    // Update revKotNo in state
+    if (result.data?.reverseKotNo) {
+      setRevKotNo(result.data.reverseKotNo);
+    }
 
     // Update table status to occupied (1)
     try {
