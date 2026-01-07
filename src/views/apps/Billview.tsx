@@ -1229,50 +1229,59 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
     }
   };
 
-  const handleReverseKotSave = async (items: any[]) => {
-  const filteredItems = items.filter(
-    i => i.reversedQty > 0 || i.cancelQty > 0
-  );
-
-  if (filteredItems.length === 0) {
-    alert('No items selected for reverse');
+const handleReverseKotSave = async (reverseItemsFromModal: any[]) => {
+  if (!txnId || !tableId) {
+    toast.error('Transaction or table not found');
     return;
   }
 
-  const payload = {
-    revKotNo,
-    tableNo,
-    waiter,
-    pax,
-    date: billData,
-    items: filteredItems.map(i => ({
-      itemId: i.itemId,
-      qty: i.reversedQty,
-      cancelQty: i.cancelQty,
-      rate: i.rate,
-      amount: i.amount,
-      reason: i.reason,
-      mkotNo: i.mkotNo
-    }))
-  };
+  if (!reverseItemsFromModal || reverseItemsFromModal.length === 0) {
+    toast.error('No items selected for reverse');
+    return;
+  }
 
+  try {
+    const response = await fetch(
+      'http://localhost:3001/api/TAxnTrnbill/create-reverse-kot',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          txnId,
+          tableId,
+          kotNo: kotNo ? parseInt(kotNo) : undefined,
+          reversedItems: reverseItemsFromModal.map(item => ({
+            item_no: item.item_no,
+            item_name: item.itemName,
+            qty: item.cancelQty,     // ✅ modal ka cancelQty
+            price: item.rate
+          })),
+          userId: user?.id,
+          reversalReason: 'Reverse from Billview'
+        })
+      }
+    );
 
-  
-
-  await fetch(
-    'http://localhost:3001/api/TAxnTrnbill/create-reverse-kot',
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.message || 'Reverse KOT failed');
     }
-  );
 
-  setShowReverseKot(false);
+    toast.success(`Reverse KOT ${result.data?.reverseKotNo || ''} saved`);
 
-  // ✅ refresh bill like order.tsx
-  loadBillDetails();
+    await loadBillDetails();
+    await fetchTableManagement();
+
+  } catch (err: any) {
+    console.error(err);
+    toast.error(err.message || 'Reverse failed');
+  }
 };
+
+
+
+
+
 
 
   const reverseBill = async () => {

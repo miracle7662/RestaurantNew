@@ -70,7 +70,7 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
         value: number
     ) => {
         const updated = [...items];
-        updated[idx][field] = value;
+        updated[idx][field] = Number(value);
 
         // Amount calculated ONLY from cancelQty
         updated[idx].amount = updated[idx].cancelQty * updated[idx].rate;
@@ -83,9 +83,9 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
         0
     );
 
-   const handleReverseKotSave = async (items: any[]) => {
+   const handleReverseKotSave = (items: any[]) => {
   const filteredItems = items.filter(
-    i => i.reversedQty > 0 || i.cancelQty > 0
+    i => Number(i.reversedQty) > 0 || Number(i.cancelQty) > 0
   );
 
   if (filteredItems.length === 0) {
@@ -93,42 +93,8 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
     return;
   }
 
-  const payload = {
-    txnId: persistentTxnId,
-    tableId: persistentTableId,
-    reversedItems: filteredItems.map(i => ({
-      item_no: i.itemId,
-      item_name: i.itemName,
-      qty: i.reversedQty + i.cancelQty
-    })),
-    userId: 1 // ya logged-in user id
-  };
-
-  try {
-    const response = await fetch(
-      'http://localhost:3001/api/TAxnTrnbill/create-reverse-kot',
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      }
-    );
-
-    const result = await response.json();
-
-    if (!result.success) {
-      throw new Error(result.message || 'Reverse KOT failed');
-    }
-
-    toast.success('Reverse KOT saved successfully');
-
-    onSave(result.data);
-    onClose();
-
-  } catch (error) {
-    console.error('Error saving reverse KOT:', error);
-    toast.error('Failed to save reverse KOT');
-  }
+  onSave(filteredItems);
+  onClose();
 };
 
 
@@ -299,17 +265,9 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
                 <div className="d-flex justify-content-end gap-2 mt-3">
                     <Button
                         variant="primary"
-                        onClick={() => {
-                            setLoading(true);
-                            handleReverseKotSave(items).finally(() => setLoading(false));
-                        }}
-                        disabled={loading}
+                        onClick={() => handleReverseKotSave(items)}
                     >
-                        {loading ? (
-                            <Spinner as="span" animation="border" size="sm" />
-                        ) : (
-                            'Save'
-                        )}
+                        Save
                     </Button>
                     <Button variant="secondary" onClick={onClose}>
                         Cancel
