@@ -1,3 +1,4 @@
 - [x] Update filter in handleReverseKotSave to use Number() for reversedQty and cancelQty
 - [x] Update updateQty function to ensure field is set as Number(value)
 - [x] Test the reverse KOT functionality
+- [x] Add onKeyDown handler for Enter key in cancel and reason columns to trigger save

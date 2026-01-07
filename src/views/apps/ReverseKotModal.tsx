@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
     Modal,
     Row,
@@ -25,14 +25,14 @@ const getRowColor = (kotNo: string | number | null | undefined) => {
 interface ReverseKotModalProps {
     show: boolean;
     onClose: () => void;
-    onSave: (data: any) => void;  // Callback to notify parent after save
+    onSave: (data: any) => void;
     kotItems: any[];
     revKotNo: number;
     tableNo: number | string;
     waiter: string;
     pax: number;
     date: string;
-    persistentTxnId: number|null;
+    persistentTxnId: number | null;
     persistentTableId: number;
 }
 
@@ -52,17 +52,30 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
     const [items, setItems] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
 
-    useEffect(() => {
-        setItems(
-            kotItems.map(item => ({
-                ...item,
-                reversedQty: 0,
-                cancelQty: 0,
-                reason: '',
-                amount: 0
-            }))
-        );
-    }, [kotItems]);
+    // Refs for navigation
+    const cancelRefs = useRef<(HTMLInputElement | null)[]>([]);
+    const reasonRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+useEffect(() => {
+  const initialized = kotItems.map(item => {
+    const rev = Number(item.revQty ?? item.RevQty ?? 0);
+    const rate = Number(item.rate ?? item.RuntimeRate ?? 0);
+
+    return {
+      ...item,
+      reversedQty: rev,     // ✅ DB se fetch
+      cancelQty: 0,         // user yahan type karega
+      reason: '',
+      amount: rev * rate   // ✅ already reversed amount
+    };
+  });
+
+  setItems(initialized);
+
+  // Initialize refs arrays
+  cancelRefs.current = new Array(initialized.length).fill(null);
+  reasonRefs.current = new Array(initialized.length).fill(null);
+}, [kotItems]);
 
     const updateQty = (
         idx: number,
@@ -71,11 +84,38 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
     ) => {
         const updated = [...items];
         updated[idx][field] = Number(value);
-
-        // Amount calculated ONLY from cancelQty
         updated[idx].amount = updated[idx].cancelQty * updated[idx].rate;
-
         setItems(updated);
+    };
+
+    // Focus next row's Cancel input
+    const focusNextCancel = (currentIdx: number) => {
+        const nextIdx = currentIdx + 1;
+        if (nextIdx < items.length) {
+            cancelRefs.current[nextIdx]?.focus();
+            cancelRefs.current[nextIdx]?.select(); // Optional: selects text for quick overwrite
+        }
+        // Last row → do nothing (you can add Save focus here later if wanted)
+    };
+
+    const handleCancelKeyDown = (idx: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            reasonRefs.current[idx]?.focus();
+            reasonRefs.current[idx]?.select();
+        }
+    };
+
+    const handleReasonKeyDown = (idx: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            if (idx === items.length - 1) {
+                // Last row: trigger save
+                handleReverseKotSave();
+            } else {
+                focusNextCancel(idx);
+            }
+        }
     };
 
     const totalReversedAmount = items.reduce(
@@ -83,20 +123,19 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
         0
     );
 
-   const handleReverseKotSave = (items: any[]) => {
-  const filteredItems = items.filter(
-    i => Number(i.reversedQty) > 0 || Number(i.cancelQty) > 0
-  );
+    const handleReverseKotSave = () => {
+        const filteredItems = items.filter(
+            i => Number(i.reversedQty) > 0 || Number(i.cancelQty) > 0
+        );
 
-  if (filteredItems.length === 0) {
-    toast.error('No items selected for reverse');
-    return;
-  }
+        if (filteredItems.length === 0) {
+            toast.error('No items selected for reverse');
+            return;
+        }
 
-  onSave(filteredItems);
-  onClose();
-};
-
+        onSave(filteredItems);
+        onClose();
+    };
 
     return (
         <Modal show={show} onHide={onClose} size="xl" backdrop="static">
@@ -117,51 +156,55 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
                 {/* ===== INFO ===== */}
                 <Row className="g-2 mb-3 text-center">
                     {[
-                        { label: 'TABLE NO', value: tableNo },
+                        { label: '', value: tableNo, highlight: true },
                         { label: 'REV KOT NO', value: revKotNo },
                         { label: 'WAITER', value: waiter },
                         { label: 'PAX', value: pax },
                         { label: 'DATE', value: date }
                     ].map((info, idx) => (
                         <Col key={idx}>
-                            <Card className="py-2">
+                            <Card
+                                className="py-2"
+                                style={{
+                                    backgroundColor: info.highlight ? '#e3f2fd' : '#f8f9fa',
+                                    border: info.highlight ? '1px solid #90caf9' : '1px solid #dee2e6',
+                                    borderRadius: '10px'
+                                }}
+                            >
                                 <div className="text-muted small">{info.label}</div>
-                                <div className="fw-bold">{info.value}</div>
+                                <div
+                                    className="fw-bold"
+                                    style={{
+                                        fontSize: info.highlight ? '1.6rem' : '1rem',
+                                        color: info.highlight ? '#0d6efd' : '#212529'
+                                    }}
+                                >
+                                    {info.value}
+                                </div>
                             </Card>
                         </Col>
                     ))}
                 </Row>
 
-                {/* ===== TABLE (SCROLL ONLY) ===== */}
-                <div
-                    style={{
-                        flex: 1,
-                        overflowY: 'auto',
-                        border: '1px solid #dee2e6'
-                    }}
-                >
+                {/* ===== TABLE ===== */}
+                <div style={{ flex: 1, overflowY: 'auto', border: '1px solid #dee2e6' }}>
                     <Table bordered hover size="sm" className="mb-0">
-                        <thead className="table-light sticky-top">
+                        <thead className="sticky-top" style={{ backgroundColor: '#dc3545' }}>
                             <tr>
-                                <th>Item Name</th>
-                                <th>Actual</th>
-                                <th>Reversed</th>
-                                <th>Cancel</th>
-                                <th>Rate</th>
-                                <th>Total</th>
-                                <th>KOT</th>
-                                <th>Reason</th>
+                                <th className="text-white">Item Name</th>
+                                <th className="text-white">Actual</th>
+                                <th className="text-white">Reversed</th>
+                                <th className="text-white">Cancel</th>
+                                <th className="text-white">Rate</th>
+                                <th className="text-white">Total</th>
+                                <th className="text-white">KOT</th>
+                                <th className="text-white">Reason</th>
                             </tr>
                         </thead>
 
                         <tbody>
                             {items.map((row, idx) => (
-                                <tr
-                                    key={idx}
-                                    style={{
-                                        backgroundColor: getRowColor(row.mkotNo)
-                                    }}
-                                >
+                                <tr key={idx} style={{ backgroundColor: getRowColor(row.mkotNo) }}>
                                     <td>{row.itemName}</td>
                                     <td>{row.qty}</td>
 
@@ -172,13 +215,10 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
                                             min={0}
                                             max={row.qty}
                                             value={row.reversedQty}
-                                            onChange={e =>
-                                                updateQty(
-                                                    idx,
-                                                    'reversedQty',
-                                                    +e.target.value
-                                                )
-                                            }
+                                            readOnly
+                                            tabIndex={-1}
+                                            className="bg-light"
+                                            style={{ cursor: 'not-allowed' }}
                                         />
                                     </td>
 
@@ -189,13 +229,9 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
                                             min={0}
                                             max={row.qty}
                                             value={row.cancelQty}
-                                            onChange={e =>
-                                                updateQty(
-                                                    idx,
-                                                    'cancelQty',
-                                                    +e.target.value
-                                                )
-                                            }
+                                            onChange={e => updateQty(idx, 'cancelQty', +e.target.value)}
+                                            onKeyDown={e => handleCancelKeyDown(idx, e)}
+                                            ref={el => { cancelRefs.current[idx] = el; }}
                                         />
                                     </td>
 
@@ -205,18 +241,9 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
                                     <td>
                                         {row.mkotNo && (
                                             <div className="d-flex flex-wrap gap-1 justify-content-center">
-                                                {row.mkotNo
-                                                    .split('|')
-                                                    .map(
-                                                        (kot: string, i: number) => (
-                                                            <Badge
-                                                                key={i}
-                                                                bg="secondary"
-                                                            >
-                                                                {kot}
-                                                            </Badge>
-                                                        )
-                                                    )}
+                                                {row.mkotNo.split('|').map((kot: string, i: number) => (
+                                                    <Badge key={i} bg="secondary">{kot}</Badge>
+                                                ))}
                                             </div>
                                         )}
                                     </td>
@@ -227,10 +254,11 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
                                             value={row.reason}
                                             onChange={e => {
                                                 const updated = [...items];
-                                                updated[idx].reason =
-                                                    e.target.value;
+                                                updated[idx].reason = e.target.value;
                                                 setItems(updated);
                                             }}
+                                            onKeyDown={e => handleReasonKeyDown(idx, e)}
+                                            ref={el => { reasonRefs.current[idx] = el; }}
                                         />
                                     </td>
                                 </tr>
@@ -249,24 +277,15 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
                             size="sm"
                             value={totalReversedAmount.toFixed(2)}
                             disabled
-                            style={{
-                                width: '120px',
-                                textAlign: 'right',
-                                fontWeight: 'bold'
-                            }}
+                            style={{ width: '120px', textAlign: 'right', fontWeight: 'bold' }}
                         />
                     </Col>
-                    <Col xs="auto" className="fw-bold">
-                        Rs.
-                    </Col>
+                    <Col xs="auto" className="fw-bold">Rs.</Col>
                 </Row>
 
                 {/* ===== FOOTER ===== */}
                 <div className="d-flex justify-content-end gap-2 mt-3">
-                    <Button
-                        variant="primary"
-                        onClick={() => handleReverseKotSave(items)}
-                    >
+                    <Button variant="primary" onClick={() => handleReverseKotSave(items)}>
                         Save
                     </Button>
                     <Button variant="secondary" onClick={onClose}>

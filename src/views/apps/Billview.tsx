@@ -45,6 +45,7 @@ interface BillItem {
   isBilled?: number;
   txnDetailId?: number;
   isFetched?: boolean;
+  revQty?: number;
 }
 
 interface MenuItem {
@@ -141,8 +142,11 @@ const ModernBill = () => {
   const [totalSgst, setTotalSgst] = useState(0);
   const [totalIgst, setTotalIgst] = useState(0);
   const [totalCess, setTotalCess] = useState(0);
+  const [totalRevQty, setTotalRevQty] = useState(0);
   const [roundOff, setRoundOff] = useState(0);
   const [finalAmount, setFinalAmount] = useState(0);
+
+  const [total, setTotal] = useState(0);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -581,7 +585,8 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
                 specialInstructions: '',
                 isBilled: 1,
                 txnDetailId: item.txnDetailId,
-                isFetched: true
+                isFetched: true,
+                revQty: item.revQty
               };
             });
             // // Add blank row
