@@ -191,7 +191,7 @@ const ModernBill = () => {
 
       const mappedItems = billItems.map(item => ({
         ...item,
-        isEditable: item.isBilled !== 1,
+        isEditable: !item.isFetched,
         originalIndex: billItems.indexOf(item)
       }));
 
@@ -2260,7 +2260,7 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
                               }}
                               type="text"
                               value={item.itemCode}
-                                  readOnly={isGrouped && index !== displayedItems.length - 1}
+                              disabled={!item.isEditable}
                               onChange={(e) => handleItemChange(index, 'itemCode', e.target.value)}
                               onKeyDown={(e) => {
                                 handleKeyPress(index, 'itemCode')(e);
@@ -2281,6 +2281,7 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
                               }}
                               type="text"
                               value={item.itemName}
+                              disabled={!item.isEditable}
                               onChange={(e) => handleItemChange(index, 'itemName', e.target.value)}
                               onKeyDown={(e) => {
                                 handleKeyPress(index, 'itemName')(e);
@@ -2302,6 +2303,7 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
                               }}
                               type="number"
                               value={item.qty}
+                              disabled={!item.isEditable}
                               onChange={(e) => handleItemChange(index, 'qty', Number(e.target.value))}
                               onKeyDown={(e) => {
                                 handleKeyPress(index, 'qty')(e);
@@ -2318,6 +2320,7 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
                             <Form.Control
                               type="number"
                               value={item.rate}
+                              disabled={!item.isEditable}
                               onChange={(e) => handleItemChange(index, 'rate', Number(e.target.value))}
                               onKeyDown={(e) => {
                                 handleKeyPress(index, 'rate')(e);
@@ -2347,6 +2350,7 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
                             <Form.Control
                               type="text"
                               value={item.specialInstructions}
+                              disabled={!item.isEditable}
                               onChange={(e) => handleItemChange(index, 'specialInstructions', e.target.value)}
                               onKeyDown={(e) => {
                                 handleKeyPress(index, 'specialInstructions')(e);
