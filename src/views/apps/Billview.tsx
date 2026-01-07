@@ -179,6 +179,11 @@ const ModernBill = () => {
   const [roundOffValue, setRoundOffValue] = useState(0);
   const [items, setItems] = useState<any[]>([]);
   const [reversedItems, setReversedItems] = useState<any[]>([]);
+
+  const totalRevKotAmount = useMemo(() => {
+    return reversedItems.reduce((acc, item) => acc + ((item.qty || 0) * (item.price || 0)), 0);
+  }, [reversedItems]);
+
   const [showOrderDetails, setShowOrderDetails] = useState(false);
   const [showReverseItemsModal, setShowReverseItemsModal] = useState(false);
   const [itemsToReverse, setItemsToReverse] = useState<{ [key: number]: number }>({});
@@ -700,6 +705,8 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
             kotNo: item.KOTNo,
           }))
         );
+      } else {
+        setReversedItems([]);
       }
 
       // Update header fields from data.header and data.kotNo if available
@@ -1290,6 +1297,13 @@ const handleReverseKotSave = async (reverseItemsFromModal: any[]) => {
     }
 
     toast.success(`Reverse KOT ${result.data?.reverseKotNo || ''} saved`);
+
+    // Update table status to occupied (1)
+    try {
+      await axios.put(`/api/tablemanagement/${tableId}/status`, { status: 1 });
+    } catch (error) {
+      console.error('Error updating table status:', error);
+    }
 
     await loadBillDetails();
     await fetchTableManagement();
@@ -2449,7 +2463,7 @@ const handleReverseKotSave = async (reverseItemsFromModal: any[]) => {
                     <tr>
                       <td>{discount.toFixed(2)}</td>
                       <td className="text-end">{grossAmount.toFixed(2)}</td>
-                      <td className="text-end">0.00</td>
+                      <td className="text-end">{totalRevKotAmount.toFixed(2)}</td>
                       <td className="text-center">0.00</td>
                       <td className="text-end">{totalCgst.toFixed(2)}</td>
                       <td className="text-end">{totalSgst.toFixed(2)}</td>
