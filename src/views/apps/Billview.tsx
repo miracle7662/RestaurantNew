@@ -9,6 +9,23 @@ import toast, { Toaster } from 'react-hot-toast';
 import F8PasswordModal from '../../components/F8PasswordModal';
 import ReverseKotModal from './ReverseKotModal';
 
+const KOT_COLORS = [
+ 
+  '#E8F5E9', // Green 50
+  '#FFF3E0', // Orange 50
+ 
+];
+
+const getRowColor = (kotNo: string | number | null | undefined) => {
+  if (!kotNo) return '#ffffff';
+  const s = String(kotNo);
+  const firstKot = s.split('|')[0];
+  const num = parseInt(firstKot.replace(/\D/g, ''), 10);
+  
+  if (isNaN(num) || num === 0) return '#ffffff';
+  
+  return KOT_COLORS[num % KOT_COLORS.length];
+};
 
 interface BillItem {
   itemCode: string;
@@ -2250,8 +2267,10 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
                       </tr>
                     </thead >
                     <tbody>
-                      {displayedItems.map((item, index) => (
-                        <tr key={index}>
+                      {displayedItems.map((item, index) => {
+                        const effectiveKotNo = item.mkotNo || (!item.isFetched ? editableKot : '');
+                        return (
+                        <tr key={index} style={{ backgroundColor: getRowColor(effectiveKotNo) }}>
                           <td style={{ width: '80px' }}>
                             <Form.Control
                               ref={(el) => {
@@ -2365,7 +2384,8 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
                             />
                           </td>
                         </tr>
-                      ))}
+                      );
+                      })}
                     </tbody>
                   </Table>
                 </div>
