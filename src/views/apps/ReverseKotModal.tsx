@@ -75,9 +75,10 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
                 <Row className="g-2 mb-3 text-center">
                     {[
                         { label: 'TABLE NO', value: tableNo },
+                        { label: 'REV KOT NO', value: revKotNo },
                         { label: 'WAITER', value: waiter },
                         { label: 'PAX', value: pax },
-                        { label: 'REV KOT NO', value: revKotNo },
+                        
                         { label: 'DATE', value: date }
                     ].map((i, idx) => (
                         <Col key={idx}>
