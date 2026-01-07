@@ -2166,10 +2166,15 @@ exports.applyDiscountToBill = async (req, res) => {
 
       // 4. Update the bill header with all correct values in one go
       db.prepare(/*sql*/ `
-        UPDATE TAxnTrnbill 
+        UPDATE TAxnTrnbill
         SET Amount = ?, Discount = ?, DiscPer = ?, DiscountType = ?, CGST = ?, SGST = ?, IGST = ?, CESS = ?, RoundOFF = ?, isBilled = 0
         WHERE TxnID = ?
       `).run(finalAmount, finalDiscount, finalDiscPer, finalDiscountType, totalCgst, totalSgst, totalIgst, totalCess, finalRoundOff, Number(id));
+
+      // If the bill was previously billed (printed), set table status to occupied (1)
+      if (bill.isBilled === 1 && bill.TableID) {
+        db.prepare('UPDATE msttablemanagement SET status = 1 WHERE tableid = ?').run(bill.TableID);
+      }
     });
 
     trx();
