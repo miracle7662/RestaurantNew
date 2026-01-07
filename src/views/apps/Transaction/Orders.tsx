@@ -2070,7 +2070,7 @@ const Order = () => {
       if (selectedTable) {
         const tableToUpdate = tableItems.find(t => t.table_name === selectedTable);
         if (tableToUpdate) {
-          await fetch(`http://localhost:3001/api/tablemanagement/${tableToUpdate.tablemanagementid}/status`, {
+          await fetch(`http://localhost:3001/api/tablemanagement/${tableToUpdate.tableid}/status`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ status: 0 }), // 0 for Vacant
@@ -2731,7 +2731,7 @@ const Order = () => {
       if (selectedTable) {
         const tableToUpdate = tableItems.find(t => t.table_name === selectedTable);
         if (tableToUpdate) {
-          await fetch(`http://localhost:3001/api/tablemanagement/${tableToUpdate.tablemanagementid}/status`, {
+          await fetch(`http://localhost:3001/api/tablemanagement/${tableToUpdate.tableid}/status`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ status: 0 }), // 0 for Vacant
