@@ -171,6 +171,7 @@ const ModernBill = () => {
 
   const [groupBy, setGroupBy] = useState<'none' | 'item' | 'group' | 'kot'>('group');
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  const [itemGroups, setItemGroups] = useState<ItemGroup[]>([]);
 
   const isGrouped = groupBy !== 'none';
 
@@ -190,7 +191,8 @@ const ModernBill = () => {
 
       const mappedItems = billItems.map(item => ({
         ...item,
-        isEditable: item.isBilled !== 1
+        isEditable: item.isBilled !== 1,
+        originalIndex: billItems.indexOf(item)
       }));
 
       return hasBlankRow
@@ -211,24 +213,32 @@ const ModernBill = () => {
             mkotNo: '',
             specialInstructions: '',
             isEditable: true,
-            isFetched: false
+            isFetched: false,
+            originalIndex: billItems.length
           });
     } else {
       let groupKey: (item: BillItem) => string;
-      let groupName: (key: string) => string;
+      let groupName: (key: string, item: BillItem) => string;
 
       if (groupBy === 'item') {
         groupKey = (item) => item.itemName;
-        groupName = (key) => key;
+        groupName = (key, item) => item.itemName;
       } else if (groupBy === 'group') {
-        groupKey = (item) => item.itemgroupid.toString();
-        groupName = (key) => "Group " + key;
+        groupKey = (item) => (item.itemId ? item.itemId.toString() : item.itemName);
+        groupName = (key, item) => item.itemName;
       } else if (groupBy === 'kot') {
         groupKey = (item) => item.mkotNo || '';
-        groupName = (key) => key ? "KOT " + key : "No KOT";
+        groupName = (key, item) => key ? "KOT " + key : "No KOT";
       }
 
-      const itemsToGroup = billItems.filter(item => item.itemName && item.qty > 0);
+      // Exclude the last item (input row) from grouping so it stays editable
+      const itemsWithIndex = billItems.map((item, index) => ({ ...item, originalIndex: index }));
+      const inputItem = itemsWithIndex[itemsWithIndex.length - 1];
+      const itemsToProcess = itemsWithIndex.slice(0, -1);
+
+      const itemsToGroup = itemsToProcess.filter(item => item.isFetched && item.itemId > 0 && item.qty > 0);
+      const itemsToFlat = itemsToProcess.filter(item => !item.isFetched);
+
       const grouped = itemsToGroup.reduce((acc, item) => {
         const key = groupKey(item);
         if (!acc[key]) {
@@ -237,7 +247,7 @@ const ModernBill = () => {
             itemgroupid: item.itemgroupid,
             itemId: item.itemId,
             item_no: item.item_no,
-            itemName: groupName(key),
+            itemName: groupName(key, item),
             qty: 0,
             rate: item.rate,
             total: 0,
@@ -248,7 +258,7 @@ const ModernBill = () => {
             mkotNo: '',
             specialInstructions: '',
             isEditable: false,
-            originalIndex: billItems.findIndex(i => groupKey(i) === key),
+            originalIndex: item.originalIndex,
             isFetched: true
           };
         }
@@ -278,8 +288,22 @@ const ModernBill = () => {
       }, {} as Record<string, DisplayedItem>);
 
       const result = Object.values(grouped);
-      // Add blank row for new entries
-      result.push({ itemCode: '', itemgroupid: 0, itemId: 0, item_no: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '', isEditable: true, isFetched: false });
+
+      // Add non-grouped (new) items
+      itemsToFlat.forEach(item => {
+        result.push({ ...item, isEditable: true });
+      });
+
+      // Add the input item (last item of billItems)
+      if (inputItem) {
+        result.push({
+          ...inputItem,
+          isEditable: true,
+          isFetched: false
+        });
+      } else {
+        result.push({ itemCode: '', itemgroupid: 0, itemId: 0, item_no: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '', isEditable: true, isFetched: false, originalIndex: 0 });
+      }
       return result;
     }
   }, [billItems, groupBy, cgstRate, sgstRate, igstRate, cessRate, includeTaxInInvoice]);
@@ -925,11 +949,13 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
   const handleItemChange = (index: number, field: keyof BillItem, value: string | number) => {
     const item = displayedItems[index];
     if (!item.isEditable) return;
-    let dataIndex = index;
-    if (isGrouped) {
-      dataIndex = billItems.length - 1;
-    }
+
+    const dataIndex = item.originalIndex ?? billItems.length;
+
     const updated = [...billItems];
+    if (!updated[dataIndex]) {
+      updated[dataIndex] = { itemCode: '', itemgroupid: 0, itemId: 0, item_no: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '', isFetched: false };
+    }
     const currentItem = { ...updated[dataIndex] };
 
     if (field === 'itemCode') {
@@ -973,12 +999,8 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
   };
 
   const handleKeyPress = (index: number, field: keyof BillItem) => (e: KeyboardEvent<any>) => {
-    let dataIndex = index;
-    if (isGrouped) {
-      if (index === displayedItems.length - 1) {
-        dataIndex = billItems.length - 1;
-      }
-    }
+    const item = displayedItems[index];
+    const dataIndex = item.originalIndex ?? billItems.length;
 
     if (e.key === "Enter") {
       if (field === 'itemCode') {
