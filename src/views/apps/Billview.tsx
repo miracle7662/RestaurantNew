@@ -677,7 +677,8 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
           specialInstructions: item.specialInstructions || item.SpecialInst || '',
           isBilled: 0,
           txnDetailId: item.txnDetailId,
-          isFetched: true
+          isFetched: true,
+          revQty: item.revQty || item.RevQty || 0
         };
       });
 
@@ -685,6 +686,21 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
       mappedItems.push({ itemCode: '', itemgroupid: 0, itemId: 0, item_no: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '', isFetched: false });
 
       setBillItems(mappedItems);
+
+      if (data.reversedItems) {
+        setReversedItems(
+          (data.reversedItems || []).map((item: any) => ({
+            ...item,
+            name: item.ItemName || 'Unknown Item',
+            id: item.ItemID,
+            price: item.RuntimeRate || 0,
+            qty: Math.abs(item.Qty) || 1,
+            isReversed: true,
+            status: 'Reversed',
+            kotNo: item.KOTNo,
+          }))
+        );
+      }
 
       // Update header fields from data.header and data.kotNo if available
       console.log('API Response Header:', data.header);
