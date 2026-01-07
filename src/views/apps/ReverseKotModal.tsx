@@ -98,7 +98,7 @@ useEffect(() => {
         // Last row → do nothing (you can add Save focus here later if wanted)
     };
 
-    const handleCancelKeyDown = (idx: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    const handleCancelKeyDown = (idx: number, e: React.KeyboardEvent<HTMLElement>) => {
         if (e.key === 'Enter') {
             e.preventDefault();
             reasonRefs.current[idx]?.focus();
@@ -106,7 +106,7 @@ useEffect(() => {
         }
     };
 
-    const handleReasonKeyDown = (idx: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    const handleReasonKeyDown = (idx: number, e: React.KeyboardEvent<HTMLElement>) => {
         if (e.key === 'Enter') {
             e.preventDefault();
             if (idx === items.length - 1) {
@@ -285,7 +285,7 @@ useEffect(() => {
 
                 {/* ===== FOOTER ===== */}
                 <div className="d-flex justify-content-end gap-2 mt-3">
-                    <Button variant="primary" onClick={() => handleReverseKotSave(items)}>
+                    <Button variant="primary" onClick={handleReverseKotSave}>
                         Save
                     </Button>
                     <Button variant="secondary" onClick={onClose}>
