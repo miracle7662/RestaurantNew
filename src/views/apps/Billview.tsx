@@ -451,8 +451,29 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
   const [reason, setReason] = useState('');
   const [DiscPer, setDiscPer] = useState(0);
 
-  const handleDiscountKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') setShowDiscountModal(false);
+  const handleDiscountModalKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      setShowDiscountModal(false);
+      return;
+    }
+
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const target = e.target as HTMLElement;
+
+      if (target === discountTypeRef.current) {
+        discountInputRef.current?.focus();
+        discountInputRef.current?.select();
+      } else if (target === discountInputRef.current) {
+        givenByRef.current?.focus();
+        givenByRef.current?.select();
+      } else if (target === givenByRef.current) {
+        reasonRef.current?.focus();
+        reasonRef.current?.select();
+      } else if (target === reasonRef.current) {
+        handleApplyDiscount();
+      }
+    }
   };
 
   const handleF9PasswordSubmit = async (password: string) => {
@@ -548,6 +569,12 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
 
   const inputRefs = useRef<(HTMLInputElement | null)[][]>([]);
   const kotInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Discount Modal Refs
+  const discountTypeRef = useRef<HTMLSelectElement>(null);
+  const discountInputRef = useRef<HTMLInputElement>(null);
+  const givenByRef = useRef<HTMLInputElement>(null);
+  const reasonRef = useRef<HTMLTextAreaElement>(null);
 
   // Load bill for table: try billed first, then unbilled
   const loadBillForTable = async (tableIdNum: number) => {
@@ -2642,13 +2669,15 @@ const handleReverseKotSave = async (reverseItemsFromModal: any[]) => {
             } else {
               setDiscountInputValue(discount);
             }
-            const discountInput = document.getElementById('discountInput') as HTMLInputElement; if (discountInput) discountInput.focus();
+            setTimeout(() => {
+              discountTypeRef.current?.focus();
+            }, 100);
           }}>
             <Modal.Header closeButton><Modal.Title>Apply Discount</Modal.Title></Modal.Header>
-            <Modal.Body>
+            <Modal.Body onKeyDown={handleDiscountModalKeyDown}>
               <div className="mb-3">
                 <label className="form-label">Discount Type</label>
-                <select className="form-control" value={DiscountType} onChange={(e) => setDiscountType(Number(e.target.value))}>
+                <select ref={discountTypeRef} id="discountTypeSelect" className="form-control" value={DiscountType} onChange={(e) => setDiscountType(Number(e.target.value))}>
                   <option value={1}>Percentage</option>
                   <option value={0}>Amount</option>
                 </select>
@@ -2656,12 +2685,12 @@ const handleReverseKotSave = async (reverseItemsFromModal: any[]) => {
               <div className="mb-3">
                 <label htmlFor="discountInput" className="form-label">{DiscountType === 1 ? 'Discount Percentage (0% - 100%)' : 'Discount Amount'}</label>
                 <input
+                  ref={discountInputRef}
                   type="number"
                   id="discountInput"
                   className="form-control"
                   value={discountInputValue}
                   onChange={(e) => setDiscountInputValue(parseFloat(e.target.value) || 0)}
-                  onKeyDown={handleDiscountKeyDown}
                   step={DiscountType === 1 ? "0.5" : "0.01"}
                   min={DiscountType === 1 ? "0.5" : "0"}
                   max={DiscountType === 1 ? "100" : ""}
@@ -2669,11 +2698,11 @@ const handleReverseKotSave = async (reverseItemsFromModal: any[]) => {
               </div>
               <div className="mb-3">
                 <label htmlFor="givenBy" className="form-label">Given By</label>
-                <input type="text" id="givenBy" className="form-control" value={givenBy} readOnly={user?.role_level !== 'admin'} onChange={(e) => setGivenBy(e.target.value)} />
+                <input ref={givenByRef} type="text" id="givenBy" className="form-control" value={givenBy} readOnly={user?.role_level !== 'admin'} onChange={(e) => setGivenBy(e.target.value)} />
               </div>
               <div className="mb-3">
                 <label htmlFor="reason" className="form-label">Reason (Optional)</label>
-                <textarea id="reason" className="form-control" value={reason} onChange={(e) => setReason(e.target.value)} />
+                <textarea ref={reasonRef} id="reason" className="form-control" value={reason} onChange={(e) => setReason(e.target.value)} />
               </div>
             </Modal.Body>
             <Modal.Footer>

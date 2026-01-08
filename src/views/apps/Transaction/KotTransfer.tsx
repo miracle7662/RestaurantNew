@@ -1,4 +1,4 @@
-import  { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Card, Row, Col, Form, Button, Table, Badge, Alert, Modal } from "react-bootstrap";
 import { getUnbilledItemsByTable } from "@/common/api/orders";
 import { useAuthContext } from "@/common";
@@ -143,12 +143,12 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
         }
 
         const availableTable = tablesData.data.find((t: any) => t.status === 0); // 0 for available
-          if (availableTable) {
-            setProposedTableId(Number(availableTable.tableid));
-            setProposedTable(availableTable.table_name);
-            setProposedDepartment(availableTable.department_name || '');
-            await fetchItemsForTable(Number(availableTable.tableid), 'proposed');
-          }
+        if (availableTable) {
+          setProposedTableId(Number(availableTable.tableid));
+          setProposedTable(availableTable.table_name);
+          setProposedDepartment(availableTable.department_name || '');
+          await fetchItemsForTable(Number(availableTable.tableid), 'proposed');
+        }
 
 
       } catch (error) {
@@ -228,7 +228,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
   const isTableMode = transferMode === "table";
   const effectiveSelectedCount = isTableMode ? totalItemsCount : selectedCount;
   const effectiveSelectedAmount = isTableMode ? selectedItems.reduce((sum, item) => sum + (item.price * item.qty), 0) : totalSelectedAmount;
-const billDate = new Date().toISOString().split('T')[0];
+  const billDate = new Date().toISOString().split('T')[0];
 
 
   const handleCheck = (index: number) => {
@@ -308,89 +308,89 @@ const billDate = new Date().toISOString().split('T')[0];
   };
 
 
-const handleSave = async () => {
-  if (!selectedTableId || !proposedTableId) {
-    alert('Please select source and target tables');
-    return;
-  }
-
-  if (proposedItems.length === 0) {
-    alert('No items transferred to save.');
-    return;
-  }
-
-  try {
-    const proposedTableData = tables.find(t => t.id === proposedTableId?.toString());
-    const tableOutletId = proposedTableData?.outletid;
-
-    let payload;
-    let endpoint;
-
-    if (transferMode === "table") {
-      // For table transfer, use simpler payload
-      payload = {
-        sourceTableId: selectedTableId,
-        targetTableId: proposedTableId,
-        hotelid: user?.hotelid || user?.hotelId,
-        outletid: tableOutletId || user?.outletid || user?.outletId
-      };
-      endpoint = 'transfer-table';
-    } else {
-      // For KOT transfer, use detailed payload
-      payload = {
-        sourceTableId: selectedTableId,
-        proposedTableId,
-        targetTableName: proposedTable,
-        billDate,
-        KOTNo: proposedItems[0]?.kot,
-        selectedItems: proposedItems.map(item => ({
-          txnDetailId: item.txnDetailId
-        })),
-        transferMode,
-        userId: user?.id || user?.userid,
-        hotelid: user?.hotelid || user?.hotelId,
-        outletid: tableOutletId || user?.outletid || user?.outletId
-      };
-      endpoint = 'transfer-kot';
-    }
-
-    console.log('SAVE PAYLOAD:', payload);
-
-    const response = await fetch(
-      `http://localhost:3001/api/TAxnTrnbill/${endpoint}`,
-      {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      }
-    );
-
-    const result = await response.json();
-
-    // ✅ backend contract respected
-    if (!result.success) {
-      alert(result.message || 'Transfer failed');
+  const handleSave = async () => {
+    if (!selectedTableId || !proposedTableId) {
+      alert('Please select source and target tables');
       return;
     }
 
-    alert(result.message || `${transferMode === "table" ? "Table" : "KOT"} transfer saved successfully`);
+    if (proposedItems.length === 0) {
+      alert('No items transferred to save.');
+      return;
+    }
 
-    // 🔄 Sync UI
-    await fetchItemsForTable(selectedTableId, 'selected');
-    await fetchItemsForTable(proposedTableId, 'proposed');
-    await fetchTables();
+    try {
+      const proposedTableData = tables.find(t => t.id === proposedTableId?.toString());
+      const tableOutletId = proposedTableData?.outletid;
 
-    // ♻ Reset state
-    setSelectedItems([]);
-    setProposedItems([]);
+      let payload;
+      let endpoint;
 
-    onSuccess?.();
+      if (transferMode === "table") {
+        // For table transfer, use simpler payload
+        payload = {
+          sourceTableId: selectedTableId,
+          targetTableId: proposedTableId,
+          hotelid: user?.hotelid || user?.hotelId,
+          outletid: tableOutletId || user?.outletid || user?.outletId
+        };
+        endpoint = 'transfer-table';
+      } else {
+        // For KOT transfer, use detailed payload
+        payload = {
+          sourceTableId: selectedTableId,
+          proposedTableId,
+          targetTableName: proposedTable,
+          billDate,
+          KOTNo: proposedItems[0]?.kot,
+          selectedItems: proposedItems.map(item => ({
+            txnDetailId: item.txnDetailId
+          })),
+          transferMode,
+          userId: user?.id || user?.userid,
+          hotelid: user?.hotelid || user?.hotelId,
+          outletid: tableOutletId || user?.outletid || user?.outletId
+        };
+        endpoint = 'transfer-kot';
+      }
 
-  } catch (error) {
-    console.error('Error saving transfer:', error);
-    alert('An error occurred while saving the transfer.');
-  }
-};
+      console.log('SAVE PAYLOAD:', payload);
+
+      const response = await fetch(
+        `http://localhost:3001/api/TAxnTrnbill/${endpoint}`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        }
+      );
+
+      const result = await response.json();
+
+      // ✅ backend contract respected
+      if (!result.success) {
+        alert(result.message || 'Transfer failed');
+        return;
+      }
+
+      alert(result.message || `${transferMode === "table" ? "Table" : "KOT"} transfer saved successfully`);
+
+      // 🔄 Sync UI
+      await fetchItemsForTable(selectedTableId, 'selected');
+      await fetchItemsForTable(proposedTableId, 'proposed');
+      await fetchTables();
+
+      // ♻ Reset state
+      setSelectedItems([]);
+      setProposedItems([]);
+
+      onSuccess?.();
+
+    } catch (error) {
+      console.error('Error saving transfer:', error);
+      alert('An error occurred while saving the transfer.');
+    }
+  };
 
 
 
@@ -414,366 +414,380 @@ const handleSave = async () => {
   const destKOT = proposedItems.length > 0 ? proposedItems[0].kot : 0;
 
   return (
-    <Card className="border-0 shadow" style={{ maxWidth: "100%",backgroundColor: "#f1f3f5" }}>
-      <Card.Body className="p-3">
+    <Card className="border-0 shadow" style={{ maxWidth: "100%", backgroundColor: "#f1f3f5" }}>
+      <Card.Body className="p-1">
         {/* Header */}
         <div className="d-flex justify-content-between align-items-center mb-2 p-2 bg-white rounded shadow-sm" style={{ minHeight: "60px" }}>
-        <div className="d-flex gap-2">
-          <Button
-            variant={transferMode === "table" ? "primary" : "outline-primary"}
-            onClick={() => handleTransferTypeChange("table")}
-            style={{ fontWeight: 600, padding: "8px 20px", fontSize: "0.9rem" }}
-            disabled={transferSource === "kot"}
-          >
-            Selected Table (All KOTs)
-          </Button>
-          <Button
-            variant={transferMode === "kot" ? "primary" : "outline-primary"}
-            onClick={() => handleTransferTypeChange("kot")}
-            style={{ fontWeight: 600, padding: "8px 20px", fontSize: "0.9rem" }}
-            disabled={transferSource === "table"}
-          >
-            Selected KOT Only
-          </Button>
+          <div className="d-flex gap-2">
+            <Button
+              variant={transferMode === "table" ? "primary" : "outline-primary"}
+              onClick={() => handleTransferTypeChange("table")}
+              style={{ fontWeight: 600, padding: "8px 20px", fontSize: "0.9rem" }}
+              disabled={transferSource === "kot"}
+            >
+              TRANSFER TABLE
+            </Button>
+            <Button
+              variant={transferMode === "kot" ? "primary" : "outline-primary"}
+              onClick={() => handleTransferTypeChange("kot")}
+              style={{ fontWeight: 600, padding: "8px 20px", fontSize: "0.9rem" }}
+              disabled={transferSource === "table"}
+            >
+              TRANSFER KOT'S
+            </Button>
+          </div>
+          <h2 className="fw-bold text-secondary m-0" style={{ fontSize: "1.5rem" }}>
+            {transferMode === "table" ? "Selected Table (All KOTs)" : "Selected KOT Only"}
+          </h2>
+          <Badge bg="primary" style={{ fontSize: "0.9rem", padding: "8px 16px" }}>
+            {effectiveSelectedCount} item{effectiveSelectedCount !== 1 ? 's' : ''} selected
+          </Badge>
         </div>
-        <h2 className="fw-bold text-secondary m-0" style={{ fontSize: "1.5rem" }}>
-          {transferMode === "table" ? "TRANSFER TABLE" : "TRANSFER KOT'S"}
-        </h2>
-        <Badge bg="primary" style={{ fontSize: "0.9rem", padding: "8px 16px" }}>
-          {effectiveSelectedCount} item{effectiveSelectedCount !== 1 ? 's' : ''} selected
-        </Badge>
-      </div>
 
-     
+
 
         {/* Content Section */}
-        <Row className="g-2 justify-content-center" style={{ padding: "10px 0" }}>
-        {/* Source Table Section */}
-        <Col md={5} className="d-flex justify-content-center">
-          <Card className="border-0 shadow" style={{ backgroundColor: "#f8f9fa", height: "500px" }}>
-           
-            <Card.Body className="p-3 d-flex flex-column" style={{ height: "100%" }}>
-              <Row className="mb-2 g-2">
-                <Col xs={6}>
-                  <Form.Group>
-                    <Form.Label className="fw-semibold" style={{ fontSize: "0.9rem", marginBottom: "4px" }}>Table</Form.Label>
-                    <Form.Select
-                      value={selectedTableId || ''}
-                      onChange={(e) => handleSelectedTableChange(e.target.value)}
-                      className="fw-bold"
-                      style={{ fontSize: "0.9rem" }}
-                    >
-                      {tables.map(t => (
-                        <option key={t.id} value={t.id}>{t.name}</option>
-                      ))}
-                    </Form.Select>
-                  </Form.Group>
-                </Col>
-                <Col xs={6}>
-                  <Form.Group>
-                    <Form.Label className="fw-semibold" style={{ fontSize: "0.9rem", marginBottom: "4px" }}>Department</Form.Label>
-                    <Form.Control
-                      value={selectedDepartment}
-                      readOnly
-                      className="fw-bold"
-                      style={{ fontSize: "0.9rem", backgroundColor: "#e9ecef" }}
-                    />
-                  </Form.Group>
-                </Col>
-                <Col xs={4}>
-                  <Form.Group>
-                    <Form.Label className="fw-semibold" style={{ fontSize: "0.9rem", marginBottom: "4px" }}>KOT</Form.Label>
-                    <Form.Select
-                      value={selectedKOT === -1 ? "all" : selectedKOT || ""}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        if (value === "all") {
-                          setSelectedKOT(-1);
-                        } else {
-                          setSelectedKOT(Number(value));
-                        }
-                      }}
-                      style={{ fontSize: "0.9rem" }}
-                    >
-                      <option value="all">All KOTs</option>
-                      {availableKOTs.map(kot => (
-                        <option key={kot} value={kot}>{kot}</option>
-                      ))}
-                    </Form.Select>
-                  </Form.Group>
-                </Col>
-                <Col xs={4}>
-                  <Form.Group>
-                    <Form.Label className="fw-semibold" style={{ fontSize: "0.9rem", marginBottom: "4px" }}>Pax</Form.Label>
-                    <Form.Control value={sourcePax} readOnly style={{ fontSize: "0.9rem" }} />
-                  </Form.Group>
-                </Col>
-                <Col xs={4}>
-                  <Form.Group>
-                    <Form.Label className="fw-semibold" style={{ fontSize: "0.9rem", marginBottom: "4px" }}>Date</Form.Label>
-                    <Form.Control value={currentDate} readOnly style={{ fontSize: "0.9rem" }} />
-                  </Form.Group>
-                </Col>
-              </Row>
+        <Row className=" justify-content-center" >
+          {/* Source Table Section */}
+          <Col md={5} className="d-flex justify-content-center">
+            <Card className="border-0 shadow" style={{ backgroundColor: "#f8f9fa", height: "550px" }}>
 
-              {/* Item Selection - Only for KOT mode */}
-              {!isTableMode ? (
-  <>
-    <div className="d-flex justify-content-between align-items-center mb-2">
-      <Badge bg="primary" style={{ fontSize: "0.85rem" }}>
-        {selectedCount} selected
-      </Badge>
-    </div>
-
-    <div
-      className="table-responsive"
-      style={{
-        maxHeight: "250px",
-        border: "2px solid #e9ecef",
-        borderRadius: "8px",
-        overflowY: "auto",
-      }}
-    >
-      <Table
-        bordered
-        hover
-        size="sm"
-        className="mb-0"
-        style={{ tableLayout: "fixed", width: "100%" }}
-      >
-        <thead
-          className="table-light text-center sticky-top"
-          style={{ fontSize: "0.85rem" }}
-        >
-          <tr>
-            <th style={{ width: "60px" }}></th>
-            <th style={{ width: "70px" }}>Media</th>
-            <th style={{ width: "80px" }}>KOT No.</th>
-            <th style={{ width: "130px" }}>Item</th>
-            <th style={{ width: "60px" }}>Qty</th>
-            <th style={{ width: "80px" }}>Price</th>
-          </tr>
-        </thead>
-        <tbody style={{ fontSize: "0.85rem" }}>
-          {selectedItems.map((row, i) => (
-            <tr
-              key={row.id}
-              className={row.selected ? "table-primary" : ""}
-              style={{ cursor: "pointer" }}
-              onClick={() => handleCheck(i)}
-            >
-              <td className="text-center align-middle">
-                <Form.Check
-                  type="checkbox"
-                  checked={row.selected}
-                  onChange={() => handleCheck(i)}
-                  style={{ cursor: "pointer" }}
-                />
-              </td>
-              <td>{row.media}</td>
-              <td>{row.kot}</td>
-               <td style={{ wordWrap: 'break-word', whiteSpace: 'normal' }}>{row.item}</td>
-              <td className="text-center">{row.qty}</td>
-              <td className="text-end">₹{row.price?.toFixed(2)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </Table>
-    </div>
-                </>
-              ) : (
-                <Alert variant="warning" className="mb-2" style={{ fontSize: "0.9rem" }}>
-                  <h6 className="mb-1 fw-bold">Entire Table Transfer</h6>
-                  <p className="mb-1">All {totalItemsCount} items from KOT {sourceKOT}</p>
-                  <div className="fw-bold text-primary">Total: ₹{effectiveSelectedAmount.toFixed(2)}</div>
-                </Alert>
-              )}
-
-              <div className="d-flex gap-3 mt-2 mb-2" style={{ fontSize: "0.9rem" }}>
-                <Form.Check type="checkbox" label="Fixed Items" />
-                <Form.Check type="checkbox" label="Transferred Tables' / KOT's Item" />
-              </div>
-
-              <div className="d-flex justify-content-around border-top pt-2">
-                <div className="text-center">
-                  <small className="text-muted d-block" style={{ fontSize: "0.75rem" }}>Total Amount</small>
-                  <h5 className="text-danger mb-0" style={{ fontSize: "1.2rem" }}>₹{effectiveSelectedAmount.toFixed(2)}</h5>
-                </div>
-                <div className="text-center">
-                  <small className="text-muted d-block" style={{ fontSize: "0.75rem" }}>Selected Items</small>
-                  <h5 className="text-dark mb-0" style={{ fontSize: "1.2rem" }}>{effectiveSelectedCount}</h5>
-                </div>
-                <div className="text-center">
-                  <small className="text-muted d-block" style={{ fontSize: "0.75rem" }}>Variance</small>
-                  <h5 className="text-dark mb-0" style={{ fontSize: "1.2rem" }}>₹{variance.toFixed(2)}</h5>
-                </div>
-              </div>
-            </Card.Body>
-          </Card>
-        </Col>
-
-        {/* Transfer Buttons */}
-        <Col md={1} className="d-flex flex-column justify-content-center align-items-center px-2" style={{ gap: "15px" }}>
-          <Button 
-            size="lg"
-            onClick={handleTransfer}
-            disabled={!isTableMode && selectedCount === 0}
-            style={{
-              width: "60px",
-              height: "60px",
-              borderRadius: "12px",
-              fontSize: "1.5rem",
-              background: "#8a7ffb",
-              border: "none",
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "center",
-              alignItems: "center",
-              color: "white",
-              fontWeight: "bold",
-              gap: "2px"
-            }}
-          >
-            <span style={{ fontSize: "1.5rem" }}>{'>>'}</span>
-            <div style={{ fontSize: "0.75rem" }}>F7</div>
-          </Button>
-          <Button 
-            size="lg"
-            variant="secondary"
-            disabled={proposedItems.length === 0}
-            onClick={() => {
-              setSelectedItems([...selectedItems, ...proposedItems]);
-              setProposedItems([]);
-            }}
-            style={{
-              width: "60px",
-              height: "60px",
-              borderRadius: "12px",
-              fontSize: "1.5rem",
-              background: "#28a745",
-              border: "none",
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "center",
-              alignItems: "center",
-              color: "white",
-              fontWeight: "bold",
-              gap: "2px"
-            }}
-          >
-            <span style={{ fontSize: "1.5rem" }}>{'<<'}</span>
-            <div style={{ fontSize: "0.75rem" }}>F8</div>
-          </Button>
-        </Col>
-
-        {/* Destination Table Section */}
-        <Col md={5} className="pe-0 d-flex justify-content-center">
-          <Card className="border-0 shadow" style={{ backgroundColor: "#f8f9fa", height: "500px" }}>
-           
-            <Card.Body className="p-3">
-              <Row className="mb-2 g-2">
-                <Col xs={6}>
-                  <Form.Group>
-                    <Form.Label className="fw-semibold" style={{ fontSize: "0.9rem", marginBottom: "4px" }}>Department</Form.Label>
-                    <Form.Control
-                      value={proposedDepartment}
-                      readOnly
-                      className="fw-bold"
-                      style={{ fontSize: "0.9rem", backgroundColor: "#e9ecef" }}
-                    />
-                  </Form.Group>
-                </Col>
-                <Col xs={6}>
-                  <Form.Group>
-                    <Form.Label className="fw-semibold d-flex justify-content-between align-items-center" style={{ fontSize: "0.9rem", marginBottom: "4px" }}>
-                      Table
-                      {destStatus && getTableStatusBadge(destStatus)}
-                    </Form.Label>
-                    <div className="d-flex">
+              <Card.Body className="p-2 d-flex flex-column" style={{ height: "100%" }}>
+                <Row className="mb-2 g-2">
+                  <Col xs={6}>
+                    <Form.Group>
+                      <Form.Label className="fw-semibold" style={{ fontSize: "0.9rem", marginBottom: "4px" }}>Table</Form.Label>
                       <Form.Select
-                        value={proposedTableId || ''}
-                        onChange={(e) => handleProposedTableChange(e.target.value)}
-                        className="fw-bold me-2"
+                        value={selectedTableId || ''}
+                        disabled              // 🔒 read-only
+                        className="fw-bold"
+                        style={{
+                          fontSize: "0.9rem",
+                          backgroundColor: "#e9ecef",
+                          cursor: "not-allowed",
+                        }}
+                      >
+                        {tables.map(t => (
+                          <option key={t.id} value={t.id}>
+                            {t.name}
+                          </option>
+                        ))}
+                      </Form.Select>
+
+                    </Form.Group>
+                  </Col>
+                  <Col xs={6}>
+                    <Form.Group>
+                      <Form.Label className="fw-semibold" style={{ fontSize: "0.9rem", marginBottom: "4px" }}>Department</Form.Label>
+                      <Form.Control
+                        value={selectedDepartment}
+                        readOnly
+                        className="fw-bold"
+                        style={{ fontSize: "0.9rem", backgroundColor: "#e9ecef" }}
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col xs={4}>
+                    <Form.Group>
+                      <Form.Label className="fw-semibold" style={{ fontSize: "0.9rem", marginBottom: "4px" }}>KOT</Form.Label>
+                      <Form.Select
+                        value={selectedKOT === -1 ? "all" : selectedKOT || ""}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === "all") {
+                            setSelectedKOT(-1);
+                          } else {
+                            setSelectedKOT(Number(value));
+                          }
+                        }}
                         style={{ fontSize: "0.9rem" }}
                       >
-                        {tables
-                          .filter(t => t.status !== 'printed' && t.isbilled !== 1)
-                          .map(t => (
-                            <option key={t.id} value={t.id}>{t.name}</option>
-                          ))}
+                        <option value="all">All KOTs</option>
+                        {availableKOTs.map(kot => (
+                          <option key={kot} value={kot}>{kot}</option>
+                        ))}
                       </Form.Select>
+                    </Form.Group>
+                  </Col>
+                  <Col xs={4}>
+                    <Form.Group>
+                      <Form.Label className="fw-semibold" style={{ fontSize: "0.9rem", marginBottom: "4px" }}>Pax</Form.Label>
+                      <Form.Control value={sourcePax} readOnly style={{ fontSize: "0.9rem" }} />
+                    </Form.Group>
+                  </Col>
+                  <Col xs={4}>
+                    <Form.Group>
+                      <Form.Label className="fw-semibold" style={{ fontSize: "0.9rem", marginBottom: "4px" }}>Date</Form.Label>
+                      <Form.Control value={currentDate} readOnly style={{ fontSize: "0.9rem" }} />
+                    </Form.Group>
+                  </Col>
+                </Row>
+
+                {/* Item Selection - Only for KOT mode */}
+                {!isTableMode ? (
+                  <>
+                    <div className="d-flex justify-content-between align-items-center mb-2">
+                      <Badge bg="primary" style={{ fontSize: "0.85rem" }}>
+                        {selectedCount} selected
+                      </Badge>
                     </div>
-                  </Form.Group>
-                </Col>
-                <Col xs={4}>
-                  <Form.Group>
-                    <Form.Label className="fw-semibold" style={{ fontSize: "0.9rem", marginBottom: "4px" }}>Date</Form.Label>
-                    <Form.Control value={currentDate} readOnly style={{ fontSize: "0.9rem" }} />
-                  </Form.Group>
-                </Col>
-                <Col xs={4}>
-                  <Form.Group>
-                    <Form.Label className="fw-semibold" style={{ fontSize: "0.9rem", marginBottom: "4px" }}>Pax</Form.Label>
-                    <Form.Control value={destPax} readOnly style={{ fontSize: "0.9rem" }} />
-                  </Form.Group>
-                </Col>
-                <Col xs={4}>
-                  <Form.Group>
-                    <Form.Label className="fw-semibold" style={{ fontSize: "0.9rem", marginBottom: "4px" }}>KOT</Form.Label>
-                    <Form.Control value={destKOT} readOnly style={{ fontSize: "0.9rem" }} />
-                  </Form.Group>
-                </Col>
-              </Row>
 
-              <div style={{ maxHeight: "250px", overflowY: "auto", border: "2px solid #e9ecef", borderRadius: "8px" }}>
-                <Table bordered hover size="sm" className="mb-0">
-                  <thead className="table-light text-center sticky-top" style={{ fontSize: "0.85rem" }}>
-                    <tr>
-                      <th>Media</th>
-                      <th>KOT No.</th>
-                      <th>Item</th>
-                      <th>Qty</th>
-                      <th>Price</th>
-                    </tr>
-                  </thead>
-                  <tbody style={{ fontSize: "0.85rem" }}>
-                    {proposedItems.length > 0 ? proposedItems.map((row) => (
-                      <tr key={row.id}>
-                        <td>{row.media}</td>
-                        <td>{row.kot}</td>
-                         <td style={{ wordWrap: 'break-word', whiteSpace: 'normal' }}>{row.item}</td>
-                        <td className="text-center">{row.qty}</td>
-                        <td className="text-end">₹{row.price?.toFixed(2)}</td>
-                      </tr>
-                    )) : (
+                    <div
+                      className="table-responsive"
+                      style={{
+                        maxHeight: "250px",
+                        border: "2px solid #e9ecef",
+                        borderRadius: "8px",
+                        overflowY: "auto",
+                      }}
+                    >
+                      <Table
+                        bordered
+                        hover
+                        size="sm"
+                        className="mb-0"
+                        style={{ tableLayout: "fixed", width: "100%" }}
+                      >
+                        <thead
+                          className="table-light text-center sticky-top"
+                          style={{ fontSize: "0.85rem" }}
+                        >
+                          <tr>
+
+                            <th style={{ width: "70px" }}>Table</th>
+                            <th style={{ width: "80px" }}>KOT No.</th>
+                            <th style={{ width: "130px" }}>Item</th>
+                            <th style={{ width: "60px" }}>Qty</th>
+                            <th style={{ width: "80px" }}>Price</th>
+                          </tr>
+                        </thead>
+                        <tbody style={{ fontSize: "0.85rem" }}>
+                          {selectedItems.map((row, i) => (
+                            <tr
+                              key={row.id}
+                              className={row.selected ? "table-primary" : ""}
+                              style={{ cursor: "pointer" }}
+                              onClick={() => handleCheck(i)}
+                            >
+
+                              <td>{row.media}</td>
+                              <td>{row.kot}</td>
+                              <td style={{ wordWrap: 'break-word', whiteSpace: 'normal' }}>{row.item}</td>
+                              <td className="text-center">{row.qty}</td>
+                              <td className="text-end">₹{row.price?.toFixed(2)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </Table>
+                    </div>
+                  </>
+                ) : (
+                  <Alert variant="warning" className="mb-2" style={{ fontSize: "0.9rem" }}>
+                    <h6 className="mb-1 fw-bold">Entire Table Transfer</h6>
+                    <p className="mb-1">All {totalItemsCount} items from KOT {sourceKOT}</p>
+                    <div className="fw-bold text-primary">Total: ₹{effectiveSelectedAmount.toFixed(2)}</div>
+                  </Alert>
+                )}
+
+                <div className="d-flex gap-3 mt-2 mb-2" style={{ fontSize: "0.9rem" }}>
+                  <Form.Check type="checkbox" label="Fixed Items" />
+                  <Form.Check type="checkbox" label="Transferred Tables' / KOT's Item" />
+                </div>
+
+                <div className="d-flex justify-content-around border-top pt-2">
+                  <div className="text-center">
+                    <small className="text-muted d-block" style={{ fontSize: "0.75rem" }}>Total Amount</small>
+                    <h5 className="text-danger mb-0" style={{ fontSize: "1.2rem" }}>₹{effectiveSelectedAmount.toFixed(2)}</h5>
+                  </div>
+                  <div className="text-center">
+                    <small className="text-muted d-block" style={{ fontSize: "0.75rem" }}>Selected Items</small>
+                    <h5 className="text-dark mb-0" style={{ fontSize: "1.2rem" }}>{effectiveSelectedCount}</h5>
+                  </div>
+                  <div className="text-center">
+                    <small className="text-muted d-block" style={{ fontSize: "0.75rem" }}>Variance</small>
+                    <h5 className="text-dark mb-0" style={{ fontSize: "1.2rem" }}>₹{variance.toFixed(2)}</h5>
+                  </div>
+                </div>
+              </Card.Body>
+            </Card>
+          </Col>
+
+          {/* Transfer Buttons */}
+          <Col md={1} className="d-flex flex-column justify-content-center align-items-center px-2" style={{ gap: "15px" }}>
+            <Button
+              size="lg"
+              onClick={handleTransfer}
+              disabled={!isTableMode && selectedCount === 0}
+              style={{
+                width: "60px",
+                height: "60px",
+                borderRadius: "12px",
+                fontSize: "1.5rem",
+                background: "#8a7ffb",
+                border: "none",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "center",
+                alignItems: "center",
+                color: "white",
+                fontWeight: "bold",
+                gap: "2px"
+              }}
+            >
+              <span style={{ fontSize: "1.5rem" }}>{'>>'}</span>
+              <div style={{ fontSize: "0.75rem" }}>F7</div>
+            </Button>
+            <Button
+              size="lg"
+              variant="secondary"
+              disabled={proposedItems.length === 0}
+              onClick={() => {
+                setSelectedItems([...selectedItems, ...proposedItems]);
+                setProposedItems([]);
+              }}
+              style={{
+                width: "60px",
+                height: "60px",
+                borderRadius: "12px",
+                fontSize: "1.5rem",
+                background: "#28a745",
+                border: "none",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "center",
+                alignItems: "center",
+                color: "white",
+                fontWeight: "bold",
+                gap: "2px"
+              }}
+            >
+              <span style={{ fontSize: "1.5rem" }}>{'<<'}</span>
+              <div style={{ fontSize: "0.75rem" }}>F8</div>
+            </Button>
+          </Col>
+
+          {/* Destination Table Section */}
+          <Col md={5} className="pe-0 d-flex justify-content-center">
+            <Card className="border-0 shadow" style={{ backgroundColor: "#f8f9fa", height: "550px" }}>
+
+              <Card.Body className="p-2">
+                <Row className="mb-2 g-2">
+                  <Col xs={6}>
+                    <Form.Group>
+                      <Form.Label
+                        className="fw-semibold"
+                        style={{ fontSize: "0.9rem", marginBottom: "4px" }}
+                      >
+                        Department
+                      </Form.Label>
+
+                      <Form.Select
+                        value={proposedDepartment}
+                        onChange={(e) => setProposedDepartment(e.target.value)}
+                        style={{ fontSize: "0.9rem" }}
+                      >
+                        <option value="">Select Department</option>
+
+                        {departments.map((dept) => (
+                          <option key={dept.departmentid} value={dept.department_name}>
+                            {dept.department_name}
+                          </option>
+                        ))}
+                      </Form.Select>
+                    </Form.Group>
+
+                  </Col>
+                  <Col xs={6}>
+                    <Form.Group>
+                      <Form.Label className="fw-semibold d-flex justify-content-between align-items-center" style={{ fontSize: "0.9rem", marginBottom: "4px" }}>
+                        Table
+                        {destStatus && getTableStatusBadge(destStatus)}
+                      </Form.Label>
+                      <div className="d-flex">
+                        <Form.Select
+                          value={proposedTableId || ''}
+                          onChange={(e) => handleProposedTableChange(e.target.value)}
+                          className="fw-bold me-2"
+                          style={{ fontSize: "0.9rem" }}
+                        >
+                          {tables
+                            .filter(t => t.status !== 'printed' && t.isbilled !== 1)
+                            .map(t => (
+                              <option key={t.id} value={t.id}>{t.name}</option>
+                            ))}
+                        </Form.Select>
+                      </div>
+                    </Form.Group>
+                  </Col>
+                  <Col xs={4}>
+                    <Form.Group>
+                      <Form.Label className="fw-semibold" style={{ fontSize: "0.9rem", marginBottom: "4px" }}>Date</Form.Label>
+                      <Form.Control value={currentDate} readOnly style={{ fontSize: "0.9rem" }} />
+                    </Form.Group>
+                  </Col>
+                  <Col xs={4}>
+                    <Form.Group>
+                      <Form.Label className="fw-semibold" style={{ fontSize: "0.9rem", marginBottom: "4px" }}>Pax</Form.Label>
+                      <Form.Control value={destPax} readOnly style={{ fontSize: "0.9rem" }} />
+                    </Form.Group>
+                  </Col>
+                  <Col xs={4}>
+                    <Form.Group>
+                      <Form.Label className="fw-semibold" style={{ fontSize: "0.9rem", marginBottom: "4px" }}>KOT</Form.Label>
+                      <Form.Control value={destKOT} readOnly style={{ fontSize: "0.9rem" }} />
+                    </Form.Group>
+                  </Col>
+                </Row>
+
+                <div style={{ maxHeight: "250px", overflowY: "auto", border: "2px solid #e9ecef", borderRadius: "8px" }}>
+                  <Table bordered hover size="sm" className="mb-0">
+                    <thead className="table-light text-center sticky-top" style={{ fontSize: "0.85rem" }}>
                       <tr>
-                        <td colSpan={5} className="text-center text-muted py-5">No items</td>
+                        <th>Table</th>
+                        <th>KOT No.</th>
+                        <th>Item</th>
+                        <th>Qty</th>
+                        <th>Price</th>
                       </tr>
-                    )}
-                  </tbody>
-                </Table>
-              </div>
+                    </thead>
+                    <tbody style={{ fontSize: "0.85rem" }}>
+                      {proposedItems.length > 0 ? proposedItems.map((row) => (
+                        <tr key={row.id}>
+                          <td>{row.media}</td>
+                          <td>{row.kot}</td>
+                          <td style={{ wordWrap: 'break-word', whiteSpace: 'normal' }}>{row.item}</td>
+                          <td className="text-center">{row.qty}</td>
+                          <td className="text-end">₹{row.price?.toFixed(2)}</td>
+                        </tr>
+                      )) : (
+                        <tr>
+                          <td colSpan={5} className="text-center text-muted py-5">No items</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </Table>
+                </div>
 
-              <div style={{ height: "20px" }}></div>
+                <div style={{ height: "20px" }}></div>
 
-              <div className="d-flex justify-content-around border-top pt-2">
-                <div className="text-center">
-                  <small className="text-muted d-block" style={{ fontSize: "0.75rem" }}>Total Amount</small>
-                  <h5 className="text-success mb-0" style={{ fontSize: "1.2rem" }}>₹{totalProposedAmount.toFixed(2)}</h5>
+                <div className="d-flex justify-content-around border-top pt-2">
+                  <div className="text-center">
+                    <small className="text-muted d-block" style={{ fontSize: "0.75rem" }}>Total Amount</small>
+                    <h5 className="text-success mb-0" style={{ fontSize: "1.2rem" }}>₹{totalProposedAmount.toFixed(2)}</h5>
+                  </div>
+                  <div className="text-center">
+                    <small className="text-muted d-block" style={{ fontSize: "0.75rem" }}>Variance</small>
+                    <h5 className={`mb-0 ${variance >= 0 ? 'text-success' : 'text-warning'}`} style={{ fontSize: "1.2rem" }}>₹{variance.toFixed(2)}</h5>
+                  </div>
+                  <div className="text-center">
+                    <small className="text-muted d-block" style={{ fontSize: "0.75rem" }}>Change Amount</small>
+                    <h5 className="text-success mb-0" style={{ fontSize: "1.2rem" }}>₹{change.toFixed(2)}</h5>
+                  </div>
                 </div>
-                <div className="text-center">
-                  <small className="text-muted d-block" style={{ fontSize: "0.75rem" }}>Variance</small>
-                  <h5 className={`mb-0 ${variance >= 0 ? 'text-success' : 'text-warning'}`} style={{ fontSize: "1.2rem" }}>₹{variance.toFixed(2)}</h5>
-                </div>
-                <div className="text-center">
-                  <small className="text-muted d-block" style={{ fontSize: "0.75rem" }}>Change Amount</small>
-                  <h5 className="text-success mb-0" style={{ fontSize: "1.2rem" }}>₹{change.toFixed(2)}</h5>
-                </div>
-              </div>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
+              </Card.Body>
+            </Card>
+          </Col>
+        </Row>
 
         {/* Action Buttons */}
         <div className="d-flex justify-content-end gap-3 mt-2">
