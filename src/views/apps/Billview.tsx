@@ -1970,11 +1970,12 @@ const handleReverseKotSave = async (reverseItemsFromModal: any[]) => {
           padding: 0.25rem;
           vertical-align: middle;
         }
-          form-control-sm1 {
-          font-size: 1.1rem;
-          font-weight: 600;
-          fount-style: bold;
-        }
+        .form-control-sm1 {
+  font-size: 1.1rem;
+  font-weight: 600;   /* semi-bold */
+}
+  
+
 
         .modern-table.table-bordered td, .modern-table.table-bordered th {
           border: 1px solid #ced4da;

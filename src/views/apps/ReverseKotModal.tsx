@@ -73,6 +73,12 @@ useEffect(() => {
   setItems(initialized);
 }, [kotItems]);
 
+useEffect(() => {
+  if (show && cancelRefs.current[0]) {
+    cancelRefs.current[0].focus();
+  }
+}, [show]);
+
     const updateQty = (
         idx: number,
         field: 'reversedQty' | 'cancelQty',
