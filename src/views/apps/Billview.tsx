@@ -1549,8 +1549,8 @@ const handleReverseKotSave = async (reverseItemsFromModal: any[]) => {
       let appliedDiscPer = 0;
 
       if (DiscountType === 1) { // Percentage
-        if (discountInputValue < 0.5 || discountInputValue > 100 || isNaN(discountInputValue)) {
-          toast.error('Discount percentage must be between 0.5% and 100%');
+        if (discountInputValue < 0 || discountInputValue > 100 || isNaN(discountInputValue)) {
+          toast.error('Discount percentage must be between 0% and 100%');
           return;
         }
         const discountThreshold = 20; // Configurable threshold
@@ -2541,7 +2541,7 @@ const handleReverseKotSave = async (reverseItemsFromModal: any[]) => {
                     <Button disabled={disableAll} onClick={() => { setTransferSource("kot"); setShowKotTransferModal(true); }} variant="outline-primary" size="sm" className="function-btn">KOT Tr (F2)</Button>
                     <Button disabled={disableAll} onClick={() => setShowNCKOTModal(true)} variant="outline-primary" size="sm" className="function-btn">N C KOT (ctrl + F9)</Button>
                     {/* <Button onClick={() => setShowCustomerModal(true)} variant="outline-primary" size="sm" className="function-btn">Customer (F1)</Button> */}
-                    <Button disabled={disableAll} onClick={() => setShowReverseBillModal(true)} variant="outline-primary" size="sm" className="function-btn">Rev Bill (F5)</Button>
+                    <Button disabled={!isBillPrintedState} onClick={() => setShowReverseBillModal(true)} variant="outline-primary" size="sm" className="function-btn">Rev Bill (F5)</Button>
                     <Button disabled={disableAll} onClick={() => { setTransferSource("table"); setShowKotTransferModal(true); }} variant="outline-primary" size="sm" className="function-btn">TBL Tr (F7)</Button>
                     <Button onClick={resetBillState} variant="outline-primary" size="sm" className="function-btn">New Bill (F6)</Button>
                     <Button disabled={disableAll} onClick={() => setShowReverseKot(true)} variant="outline-primary" size="sm" className="function-btn">Rev KOT (F8)</Button>
@@ -2612,7 +2612,7 @@ const handleReverseKotSave = async (reverseItemsFromModal: any[]) => {
                 </select>
               </div>
               <div className="mb-3">
-                <label htmlFor="discountInput" className="form-label">{DiscountType === 1 ? 'Discount Percentage (0.5% - 100%)' : 'Discount Amount'}</label>
+                <label htmlFor="discountInput" className="form-label">{DiscountType === 1 ? 'Discount Percentage (0% - 100%)' : 'Discount Amount'}</label>
                 <input
                   type="number"
                   id="discountInput"
