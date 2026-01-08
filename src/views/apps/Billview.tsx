@@ -1327,6 +1327,9 @@ const handleReverseKotSave = async (reverseItemsFromModal: any[]) => {
     await loadBillDetails();
     await fetchTableManagement();
 
+    // Navigate to tableview page after saving reverse KOT
+    navigate('/apps/Tableview');
+
   } catch (err: any) {
     console.error(err);
     toast.error(err.message || 'Reverse failed');
@@ -1603,6 +1606,9 @@ const handleReverseKotSave = async (reverseItemsFromModal: any[]) => {
         if (tableId) {
           await loadBillForTable(tableId);
         }
+
+        // Navigate to tableview page after applying discount
+        navigate('/apps/Tableview');
 
       } catch (error: any) {
         toast.error(error.message || 'An error occurred while applying the discount.');
