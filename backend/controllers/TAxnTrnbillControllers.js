@@ -1349,7 +1349,7 @@ exports.getUnbilledItemsByTable = async (req, res) => {
     : [];
         // Fetch discount from the latest unbilled bill for the table
     const latestBillHeader = db.prepare(`
-      SELECT TxnID, Discount,RevKOT, DiscPer, DiscountType
+      SELECT TxnID, GrossAmt, RevKOT, Discount, DiscPer, DiscountType, CGST, SGST, IGST, CESS, RoundOFF, Amount 
       FROM TAxnTrnbill
       WHERE TableID = ? AND isBilled = 0 AND isCancelled = 0
       ORDER BY TxnID DESC

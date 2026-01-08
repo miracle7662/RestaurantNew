@@ -145,6 +145,12 @@ const ModernBill = () => {
   const [totalCess, setTotalCess] = useState(0);
   const [totalRevQty, setTotalRevQty] = useState(0);
   const [roundOff, setRoundOff] = useState(0);
+  const [cgst, setCgst] = useState<number>(0);
+  const [sgst, setSgst] = useState<number>(0);
+  const [igst, setIgst] = useState<number>(0);
+  const [cess, setCess] = useState<number>(0);
+
+const [grandTotal, setGrandTotal] = useState<number>(0);
   const [finalAmount, setFinalAmount] = useState(0);
 
   const [total, setTotal] = useState(0);
@@ -660,110 +666,145 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
     }
   };
 
-  // Fetch table data when tableId is present
-  const loadUnbilledItems = useCallback(async (tableIdNum: number) => {
-    if (!tableIdNum || !user || !user.hotelid) return;
+ // Fetch table data when tableId is present
+const loadUnbilledItems = useCallback(async (tableIdNum: number) => {
+  if (!tableIdNum || !user || !user.hotelid) return;
 
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await axios.get(`/api/TAxnTrnbill/unbilled-items/${tableIdNum}`);
-      if (response.status !== 200) {
-        throw new Error(`Server responded with status ${response.status}`);
-      }
-      const data = response.data?.data || response.data;
-      if (!data) {
-        throw new Error('No data received from server');
-      }
-
-      // Map items to BillItem interface
-      const mappedItems: BillItem[] = data.items.map((item: any) => {
-        return {
-          itemCode: (item.item_no || item.item_no || '').toString(),
-          itemId: item.itemId || item.ItemID || 0,
-          itemgroupid: item.itemgroupid || 0,
-          item_no: item.item_no || item.ItemNo || '',
-          itemName: item.itemName || item.ItemName || item.item_name || '',
-          qty: item.netQty || item.Qty || 0,
-          rate: item.price || item.Price || item.Rate || 0,
-          total: (item.netQty || item.Qty || 0) * (item.price || item.Price || item.Rate || 0),
-          cgst: ((item.netQty || item.Qty || 0) * (item.price || item.Price || item.Rate || 0)) * 0.025,
-          sgst: ((item.netQty || item.Qty || 0) * (item.price || item.Price || item.Rate || 0)) * 0.025,
-          igst: 0,
-          cess: 0,
-          mkotNo: item.kotNo ? item.kotNo.toString() : (item.KOTNo ? item.KOTNo.toString() : ''),
-          specialInstructions: item.specialInstructions || item.SpecialInst || '',
-          isBilled: 0,
-          txnDetailId: item.txnDetailId,
-          isFetched: true,
-          revQty: item.revQty || item.RevQty || 0
-        };
-      });
-
-      // Always add a blank row at the end for new item entry
-      mappedItems.push({ itemCode: '', itemgroupid: 0, itemId: 0, item_no: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '', isFetched: false });
-
-      setBillItems(mappedItems);
-
-      if (data.reversedItems) {
-        setReversedItems(
-          (data.reversedItems || []).map((item: any) => ({
-            ...item,
-            name: item.ItemName || 'Unknown Item',
-            id: item.ItemID,
-            price: item.RuntimeRate || 0,
-            qty: Math.abs(item.Qty) || 1,
-            isReversed: true,
-            status: 'Reversed',
-            kotNo: item.KOTNo,
-          }))
-        );
-      } else {
-        setReversedItems([]);
-      }
-
-      // Update header fields from data.header and data.kotNo if available
-      console.log('API Response Header:', data.header);
-      if (data.header) {
-        setTxnId(data.header.TxnID);
-        setWaiter(data.header.waiter || 'ASD');
-        setPax(data.header.pax || 1);
-        if (data.header.table_name) {
-          setTableNo(data.header.table_name);
-        }
-        if (data.header.Discount || data.header.DiscPer) {
-          setDiscount(data.header.Discount || 0);
-          setDiscPer(data.header.DiscPer || 0);
-          setDiscountInputValue(
-            data.header.DiscountType === 1 ? data.header.DiscPer : data.header.Discount || 0
-          );
-          setDiscountType(data.header.DiscountType ?? 1);
-        } else {
-          setDiscount(0);
-          setDiscPer(0);
-        }       
-        if (data.header.RevKOT) {
-          setRevKOT(data.header.RevKOT);
-        }
-      }
-      if (data.kotNo !== null && data.kotNo !== undefined) {
-        setKotNo(String(data.kotNo));
-      }
-
-      // Calculate totals
-      calculateTotals(mappedItems);
-    } catch (err: any) {
-      if (err.response) {
-        setError(`Server responded with status ${err.response.status}: ${err.response.statusText}`);
-      } else {
-        setError(err.message || 'Failed to fetch table data');
-      }
-      console.error('Error fetching table data:', err);
-    } finally {
-      setLoading(false);
+  setLoading(true);
+  setError(null);
+  try {
+    const response = await axios.get(`/api/TAxnTrnbill/unbilled-items/${tableIdNum}`);
+    if (response.status !== 200) {
+      throw new Error(`Server responded with status ${response.status}`);
     }
-  }, [user]);
+    const data = response.data?.data || response.data;
+    if (!data) {
+      throw new Error('No data received from server');
+    }
 
+    // Map items to BillItem interface
+    const mappedItems: BillItem[] = data.items.map((item: any) => {
+      const qty = item.netQty || item.Qty || 0;
+      const rate = item.price || item.Price || item.Rate || 0;
+      const total = qty * rate;
+
+      return {
+        itemCode: (item.item_no || item.ItemNo || '').toString(),
+        itemId: item.itemId || item.ItemID || 0,
+        itemgroupid: item.itemgroupid || 0,
+        item_no: item.item_no || item.ItemNo || '',
+        itemName: item.itemName || item.ItemName || item.item_name || '',
+        qty: qty,
+        rate: rate,
+        total: total,
+
+        // New tax fields - use from API if available, otherwise calculate fallback
+        cgst: item.cgst ?? (total * 0.025),           // 2.5% default fallback
+        sgst: item.sgst ?? (total * 0.025),           // 2.5% default fallback
+        igst: item.igst ?? 0,
+        cess: item.cess ?? 0,
+
+        mkotNo: item.kotNo ? item.kotNo.toString() : (item.KOTNo ? item.KOTNo.toString() : ''),
+        specialInstructions: item.specialInstructions || item.SpecialInst || '',
+        isBilled: 0,
+        txnDetailId: item.txnDetailId,
+        isFetched: true,
+        revQty: item.revQty || item.RevQty || 0
+      };
+    });
+
+    // Always add a blank row at the end for new item entry
+    mappedItems.push({
+      itemCode: '',
+      itemgroupid: 0,
+      itemId: 0,
+      item_no: 0,
+      itemName: '',
+      qty: 1,
+      rate: 0,
+      total: 0,
+      cgst: 0,
+      sgst: 0,
+      igst: 0,
+      cess: 0,
+      mkotNo: '',
+      specialInstructions: '',
+      isFetched: false
+    });
+
+    setBillItems(mappedItems);
+
+    if (data.reversedItems) {
+      setReversedItems(
+        (data.reversedItems || []).map((item: any) => ({
+          ...item,
+          name: item.ItemName || 'Unknown Item',
+          id: item.ItemID,
+          price: item.RuntimeRate || 0,
+          qty: Math.abs(item.Qty) || 1,
+          isReversed: true,
+          status: 'Reversed',
+          kotNo: item.KOTNo,
+        }))
+      );
+    } else {
+      setReversedItems([]);
+    }
+
+    // Update header fields from data.header and data.kotNo if available
+    console.log('API Response Header:', data.header);
+    if (data.header) {
+      setTxnId(data.header.TxnID);
+      setWaiter(data.header.waiter || 'ASD');
+      setPax(data.header.pax || 1);
+      if (data.header.table_name) {
+        setTableNo(data.header.table_name);
+      }
+
+      // Discount handling
+      if (data.header.Discount || data.header.DiscPer) {
+        setDiscount(data.header.Discount || 0);
+        setDiscPer(data.header.DiscPer || 0);
+        setDiscountInputValue(
+          data.header.DiscountType === 1 ? data.header.DiscPer : data.header.Discount || 0
+        );
+        setDiscountType(data.header.DiscountType ?? 1);
+      } else {
+        setDiscount(0);
+        setDiscPer(0);
+      }
+
+      if (data.header.RevKOT) {
+        setRevKOT(data.header.RevKOT);
+      }
+
+      // ── NEW TAX & TOTAL FIELDS ──
+      setCgst?.(data.header.CGST || data.header.cgst || 0);
+      setSgst?.(data.header.SGST || data.header.sgst || 0);
+      setIgst?.(data.header.IGST || data.header.igst || 0);
+      setCess?.(data.header.CESS || data.header.cess || 0);
+      setRoundOff?.(data.header.RoundOFF || data.header.roundOff || data.header.roundoff || 0);
+      setGrandTotal?.(data.header.Amount || data.header.amount || data.header.grandTotal || 0);
+    }
+
+    if (data.kotNo !== null && data.kotNo !== undefined) {
+      setKotNo(String(data.kotNo));
+    }
+
+    // Calculate totals (now should also consider new tax fields if your function supports it)
+    calculateTotals(mappedItems);
+
+  } catch (err: any) {
+    if (err.response) {
+      setError(`Server responded with status ${err.response.status}: ${err.response.statusText}`);
+    } else {
+      setError(err.message || 'Failed to fetch table data');
+    }
+    console.error('Error fetching table data:', err);
+  } finally {
+    setLoading(false);
+  }
+}, [user]);
   // Fetch billed items for the table
 
 
@@ -2522,10 +2563,10 @@ const handleReverseKotSave = async (reverseItemsFromModal: any[]) => {
                       <td className="text-end">{grossAmount.toFixed(2)}</td>
                       <td className="text-end">{RevKOT.toFixed(2)}</td>
                    <td>{discount.toFixed(2)}</td>
-                      <td className="text-end">{totalCgst.toFixed(2)}</td>
-                      <td className="text-end">{totalSgst.toFixed(2)}</td>
-                      <td className="text-end">{totalIgst.toFixed(2)}</td>
-                      <td className="text-end">{totalCess.toFixed(2)}</td>
+                      <td className="text-end">{cgst.toFixed(2)}</td>
+                      <td className="text-end">{sgst.toFixed(2)}</td>
+                      <td className="text-end">{igst.toFixed(2)}</td>
+                      <td className="text-end">{cess.toFixed(2)}</td>
                       <td className="text-end">{roundOff.toFixed(2)}</td>
                       <td className="text-center">0</td>
                       <td className="text-end fw-bold text-success">{finalAmount.toFixed(2)}</td>
