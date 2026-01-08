@@ -177,13 +177,14 @@ const ModernBill = () => {
   const [discount, setDiscount] = useState(0);
   const [DiscountType, setDiscountType] = useState(1);
   const [discountInputValue, setDiscountInputValue] = useState(0);
+  const [RevKOT, setRevKOT] = useState(0);
   const [roundOffValue, setRoundOffValue] = useState(0);
   const [items, setItems] = useState<any[]>([]);
   const [reversedItems, setReversedItems] = useState<any[]>([]);
 
-  const totalRevKotAmount = useMemo(() => {
-    return reversedItems.reduce((acc, item) => acc + ((item.qty || 0) * (item.price || 0)), 0);
-  }, [reversedItems]);
+  // const totalRevKotAmount = useMemo(() => {
+  //   return reversedItems.reduce((acc, item) => acc + ((item.qty || 0) * (item.price || 0)), 0);
+  // }, [reversedItems]);
 
   const [showOrderDetails, setShowOrderDetails] = useState(false);
   const [showReverseItemsModal, setShowReverseItemsModal] = useState(false);
@@ -358,7 +359,7 @@ const ModernBill = () => {
     const igstTotal = updatedItems.reduce((sum, item) => sum + item.igst, 0);
     const cessTotal = updatedItems.reduce((sum, item) => sum + item.cess, 0);
 
-    const totalBeforeRoundOff = gross + cgstTotal + sgstTotal + igstTotal + cessTotal - discount - totalRevKotAmount;
+    const totalBeforeRoundOff = gross + cgstTotal + sgstTotal + igstTotal + cessTotal - discount;
     const roundedFinalAmount = Math.round(totalBeforeRoundOff);
     const ro = roundedFinalAmount - totalBeforeRoundOff;
 
@@ -418,6 +419,7 @@ const ModernBill = () => {
   // Reverse KOT modal data
   const [showReverseKot, setShowReverseKot] = useState(false);
   const [revKotNo, setRevKotNo] = useState(0);
+  // const [RevKOT, setRevKOT] = useState(0);
   const [reverseQty, setReverseQty] = useState(1);
   const [reverseReason, setReverseReason] = useState('');
 
@@ -729,16 +731,17 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
         }
         if (data.header.Discount || data.header.DiscPer) {
           setDiscount(data.header.Discount || 0);
+          setDiscPer(data.header.DiscPer || 0);
           setDiscountInputValue(
             data.header.DiscountType === 1 ? data.header.DiscPer : data.header.Discount || 0
           );
           setDiscountType(data.header.DiscountType ?? 1);
         } else {
           setDiscount(0);
-          setDiscountInputValue(0);
-        }
+          setDiscPer(0);
+        }       
         if (data.header.RevKOT) {
-          setRevKotNo(data.header.RevKOT);
+          setRevKOT(data.header.RevKOT);
         }
       }
       if (data.kotNo !== null && data.kotNo !== undefined) {
@@ -1316,6 +1319,11 @@ const handleReverseKotSave = async (reverseItemsFromModal: any[]) => {
     }
 
     toast.success(`Reverse KOT ${result.data?.reverseKotNo || ''} saved`);
+
+    // Update revKotNo state immediately
+    if (result.data?.reverseKotNo) {
+      setRevKotNo(result.data.reverseKotNo);
+    }
 
     // Update table status to occupied (1)
     try {
@@ -2508,10 +2516,10 @@ const handleReverseKotSave = async (reverseItemsFromModal: any[]) => {
                   </thead>
                   <tbody>
                     <tr>
-                      <td>{discount.toFixed(2)}</td>
+                      <td>{DiscPer.toFixed(2)}</td>
                       <td className="text-end">{grossAmount.toFixed(2)}</td>
-                      <td className="text-end">{totalRevKotAmount.toFixed(2)}</td>
-                      <td className="text-center">0.00</td>
+                      <td className="text-end">{RevKOT.toFixed(2)}</td>
+                   <td>{discount.toFixed(2)}</td>
                       <td className="text-end">{totalCgst.toFixed(2)}</td>
                       <td className="text-end">{totalSgst.toFixed(2)}</td>
                       <td className="text-end">{totalIgst.toFixed(2)}</td>
