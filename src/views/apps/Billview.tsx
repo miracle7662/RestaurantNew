@@ -359,7 +359,8 @@ const ModernBill = () => {
     const igstTotal = updatedItems.reduce((sum, item) => sum + item.igst, 0);
     const cessTotal = updatedItems.reduce((sum, item) => sum + item.cess, 0);
 
-    const totalBeforeRoundOff = gross + cgstTotal + sgstTotal + igstTotal + cessTotal - discount;
+    const discountAmount = DiscountType === 1 ? (gross * discountInputValue) / 100 : discountInputValue;
+    const totalBeforeRoundOff = gross + cgstTotal + sgstTotal + igstTotal + cessTotal - discountAmount;
     const roundedFinalAmount = Math.round(totalBeforeRoundOff);
     const ro = roundedFinalAmount - totalBeforeRoundOff;
 
@@ -370,8 +371,9 @@ const ModernBill = () => {
     setTotalCess(cessTotal);
     setFinalAmount(roundedFinalAmount);
     setRoundOff(ro);
+    setDiscount(discountAmount);
     setTaxCalc({ grandTotal: roundedFinalAmount, subtotal: gross });
-  }, [displayedItems, cgstRate, sgstRate, igstRate, cessRate, includeTaxInInvoice, discount]);
+  }, [displayedItems, cgstRate, sgstRate, igstRate, cessRate, includeTaxInInvoice, discountInputValue, DiscountType]);
 
   // Fetch bill details
   const fetchBillDetails = async () => {
