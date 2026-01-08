@@ -45,7 +45,7 @@ interface BillItem {
   isBilled?: number;
   txnDetailId?: number;
   isFetched?: boolean;
-  revQty?: number;
+  reversedQty?: number;
   RevKOT ?: number;
 }
 
@@ -1760,6 +1760,28 @@ const handleReverseKotSave = async (reverseItemsFromModal: any[]) => {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [txnId, reverseQty, reverseReason, selectedTable, saveKOT, isGrouped]);
 
+  // 🧠 DERIVED STATES (IMPORTANT)
+  const hasItems = billItems.some(i => i.itemId > 0);
+
+  const hasNewItems = billItems.some(
+    i => i.itemId > 0 && !i.mkotNo && !i.isBilled
+  );
+
+  const hasOnlyExistingItems = hasItems && !hasNewItems;
+
+  const isBillPrintedState = billItems.some(i => i.isBilled === 1);
+
+  // 🔘 BUTTON ENABLE FLAGS
+  const disableAll = !hasItems;
+
+  const enableKOT = !disableAll && hasNewItems && !isBillPrintedState;
+
+  const disableKOT = !enableKOT;
+
+  const disableSettlement = disableAll || hasNewItems || !isBillPrintedState;
+
+  const disablePrint = disableAll || isBillPrintedState || hasNewItems;
+
   return (
     <React.Fragment>
       <div
@@ -2506,16 +2528,16 @@ const handleReverseKotSave = async (reverseItemsFromModal: any[]) => {
               <Card className="footer-card">
                 <Card.Body className="py-1">
                   <div className="d-flex justify-content-between align-items-center px-2 py-1">
-                    <Button onClick={() => { setTransferSource("kot"); setShowKotTransferModal(true); }} variant="outline-primary" size="sm" className="function-btn">KOT Tr (F2)</Button>
-                    <Button onClick={() => setShowNCKOTModal(true)} variant="outline-primary" size="sm" className="function-btn">N C KOT (ctrl + F9)</Button>
+                    <Button disabled={disableAll} onClick={() => { setTransferSource("kot"); setShowKotTransferModal(true); }} variant="outline-primary" size="sm" className="function-btn">KOT Tr (F2)</Button>
+                    <Button disabled={disableAll} onClick={() => setShowNCKOTModal(true)} variant="outline-primary" size="sm" className="function-btn">N C KOT (ctrl + F9)</Button>
                     {/* <Button onClick={() => setShowCustomerModal(true)} variant="outline-primary" size="sm" className="function-btn">Customer (F1)</Button> */}
-                    <Button onClick={() => setShowReverseBillModal(true)} variant="outline-primary" size="sm" className="function-btn">Rev Bill (F5)</Button>
-                    <Button onClick={() => { setTransferSource("table"); setShowKotTransferModal(true); }} variant="outline-primary" size="sm" className="function-btn">TBL Tr (F7)</Button>
+                    <Button disabled={disableAll} onClick={() => setShowReverseBillModal(true)} variant="outline-primary" size="sm" className="function-btn">Rev Bill (F5)</Button>
+                    <Button disabled={disableAll} onClick={() => { setTransferSource("table"); setShowKotTransferModal(true); }} variant="outline-primary" size="sm" className="function-btn">TBL Tr (F7)</Button>
                     <Button onClick={resetBillState} variant="outline-primary" size="sm" className="function-btn">New Bill (F6)</Button>
-                    <Button onClick={() => setShowReverseKot(true)} variant="outline-primary" size="sm" className="function-btn">Rev KOT (F8)</Button>
-                    <Button onClick={() => saveKOT(false, true)} variant="outline-primary" size="sm" className="function-btn">K O T (F9)</Button>
-                    <Button onClick={printBill} variant="outline-primary" size="sm" className="function-btn">Print (F10)</Button>
-                    <Button onClick={() => setShowSettlementModal(true)} variant="outline-primary" size="sm" className="function-btn">Settle (F11)</Button>
+                    <Button disabled={disableAll} onClick={() => setShowReverseKot(true)} variant="outline-primary" size="sm" className="function-btn">Rev KOT (F8)</Button>
+                    <Button disabled={disableKOT} onClick={() => saveKOT(false, true)} variant="outline-primary" size="sm" className="function-btn">K O T (F9)</Button>
+                    <Button disabled={disablePrint} onClick={printBill} variant="outline-primary" size="sm" className="function-btn">Print (F10)</Button>
+                    <Button disabled={disableSettlement} onClick={() => setShowSettlementModal(true)} variant="outline-primary" size="sm" className="function-btn">Settle (F11)</Button>
                     <Button onClick={exitWithoutSave} variant="outline-primary" size="sm" className="function-btn">Exit (Esc)</Button>
                   </div>
                 </Card.Body>

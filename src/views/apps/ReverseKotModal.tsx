@@ -66,15 +66,11 @@ useEffect(() => {
       reversedQty: rev,     // ✅ DB se fetch
       cancelQty: 0,         // user yahan type karega
       reason: '',
+      rate: rate,           // ✅ Add rate to the item object
       amount: rev * rate   // ✅ already reversed amount
     };
   });
-
   setItems(initialized);
-
-  // Initialize refs arrays
-  cancelRefs.current = new Array(initialized.length).fill(null);
-  reasonRefs.current = new Array(initialized.length).fill(null);
 }, [kotItems]);
 
     const updateQty = (
@@ -84,7 +80,14 @@ useEffect(() => {
     ) => {
         const updated = [...items];
         updated[idx][field] = Number(value);
-        updated[idx].amount = updated[idx].cancelQty * updated[idx].rate;
+
+        // ✅ FINAL AMOUNT = reversed + cancel
+        const totalQty =
+            Number(updated[idx].reversedQty || 0) +
+            Number(updated[idx].cancelQty || 0);
+
+        updated[idx].amount = totalQty * Number(updated[idx].rate || 0);
+
         setItems(updated);
     };
 
@@ -132,6 +135,8 @@ useEffect(() => {
             toast.error('No items selected for reverse');
             return;
         }
+
+        console.log('Modal sending:', filteredItems);
 
         onSave(filteredItems);
         onClose();
