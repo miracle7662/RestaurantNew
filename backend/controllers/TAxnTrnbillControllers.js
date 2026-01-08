@@ -94,6 +94,7 @@ exports.getAllBills = async (req, res) => {
             'Discount_Amount', d.Discount_Amount,
             'AutoKOT', d.AutoKOT,
             'ManualKOT', d.ManualKOT,
+            'RevKOT', d.RevKOT,
             'SpecialInst', d.SpecialInst,
             'isKOTGenerate', d.isKOTGenerate,
             'isSetteled', d.isSetteled,

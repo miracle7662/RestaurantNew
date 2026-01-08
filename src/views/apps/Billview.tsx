@@ -1153,6 +1153,12 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
         hotelId: user.hotelid,
         KOTNo: editableKot, // Use editableKot if set, else null for backend to generate
         Order_Type: 'Dine-in',
+        discount: discount,
+        discPer: discountInputValue,
+        discountType: DiscountType,
+        Discount: discount,
+        DiscPer: DiscountType === 1 ? discountInputValue : 0,
+        DiscountType: DiscountType,
         ...(txnId ? { txnId } : {}),
         ...(isNoCharge ? { NCName: ncName, NCPurpose: ncPurpose } : {}),
         items: validItems.map(item => ({
