@@ -452,19 +452,23 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
           </Badge>
         </div>
 
+ 
 
 
         {/* Content Section */}
-        <Row className=" justify-content-center" >
+        <Row className=" p-1 justify" >
           {/* Source Table Section */}
-          <Col md={5} className="d-flex justify-content-center">
+          <Col md={5} className="d-flex justify-content-center col md-6 col-md-5  flex: 0 0 auto;
+        width: 47.66666667%;">
             <Card className="border-0 shadow" style={{ backgroundColor: "#f8f9fa", height: "550px" }}>
 
-              <Card.Body className="p-2 d-flex flex-column" style={{ height: "100%" }}>
+              <Card.Body className="p-2 d-flex flex-column" style={{ height: "100%"}}>
                 <Row className="mb-2 g-2">
                   <Col xs={6}>
                     <Form.Group>
-                      <Form.Label className="fw-semibold" style={{ fontSize: "0.9rem", marginBottom: "4px" }}>Table</Form.Label>
+                      <Form.Label className="fw-semibold"
+                      
+                      style={{ fontSize: "0.9rem", marginBottom: "4px" }}>Table</Form.Label>
                       <Form.Select
                         value={selectedTableId || ''}
                         disabled              // 🔒 read-only
