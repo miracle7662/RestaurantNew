@@ -692,8 +692,25 @@ const handleNCKOTKeyDown = (e: React.KeyboardEvent) => {
                 revQty: item.revQty
               };
             });
-            // // Add blank row
-            // mappedItems.push({ itemCode: '', itemgroupid: 0, itemId: 0, item_no: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '' });
+
+            // Add blank row for new item entry
+            mappedItems.push({
+              itemCode: '',
+              itemgroupid: 0,
+              itemId: 0,
+              item_no: 0,
+              itemName: '',
+              qty: 1,
+              rate: 0,
+              total: 0,
+              cgst: 0,
+              sgst: 0,
+              igst: 0,
+              cess: 0,
+              mkotNo: '',
+              specialInstructions: '',
+              isFetched: false
+            });
 
             setBillItems(mappedItems);
             setTxnId(header.TxnID);
@@ -1130,6 +1147,7 @@ const loadUnbilledItems = useCallback(async (tableIdNum: number) => {
         const blankRowItemCodeInput = inputRefs.current[billItems.length - 1]?.[0];
         if (blankRowItemCodeInput) {
           blankRowItemCodeInput.focus();
+          
         }
       }, 100);
     }
@@ -2550,7 +2568,7 @@ useEffect(() => {
                                 }
                               }}
                               className="form-control"
-                              style={{ width: '100%', border: 'none', fontSize: '16px', background: 'transparent', padding: '0', outline: 'none' }}
+                              style={{ width: '100%',  fontSize: '16px', background: 'transparent', padding: '0' }}
                             />
                           </td>
                           <td style={{ width: '400px' }}>
@@ -2572,7 +2590,7 @@ useEffect(() => {
                               }}
                               className="form-control-sm1"
                               list="itemNames"
-                              style={{ width: '100%', border: 'none', fontSize: '16px', background: 'transparent', padding: '0', outline: 'none' }}
+                              style={{ width: '100%',  fontSize: '16px', background: 'transparent', padding: '0', outline: 'none' }}
                             />
                           </td>
                           <td className="text-center" style={{ width: '100px' }}>
@@ -2593,7 +2611,7 @@ useEffect(() => {
                                 }
                               }}
                               className="form-control-sm1 text-center"
-                              style={{ width: '100%', border: 'none', background: 'transparent', fontSize: '16px', padding: '0', outline: 'none' }}
+                              style={{ width: '100%',  background: 'transparent', fontSize: '16px', padding: '0', outline: 'none' }}
                             />
                           </td>
                           <td className="text-end" style={{ width: '100px' }}>
@@ -2610,7 +2628,7 @@ useEffect(() => {
                                 }
                               }}
                               className="form-control-sm1 text-end"
-                              style={{ width: '100%', fontSize: '16px', border: 'none', background: 'transparent', padding: '0', outline: 'none' }}
+                              style={{ width: '100%', fontSize: '16px', background: 'transparent', padding: '0', outline: 'none' }}
                             />
                           </td>
                           <td className="text-end" style={{ width: '100px' }}>{item.total.toFixed(2)}</td>
@@ -2641,7 +2659,7 @@ useEffect(() => {
                               }}
                               className="form-control-sm1"
                               
-                              style={{ width: '100%', fontSize: '18px', border: 'none', background: 'transparent', padding: '0', outline: 'none' }}
+                              style={{ width: '100%', fontSize: '18px',  background: 'transparent', padding: '0', outline: 'none' }}
                             />
                           </td>
                         </tr>
