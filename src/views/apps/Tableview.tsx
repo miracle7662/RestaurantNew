@@ -101,6 +101,9 @@ export default function App() {
   const [tableInput, setTableInput] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
+  const [focusedButton, setFocusedButton] = useState<'yes' | 'no'>('yes');
+  const yesButtonRef = useRef<HTMLButtonElement>(null);
+  const noButtonRef = useRef<HTMLButtonElement>(null);
   const { user } = useAuthContext();
   const navigate = useNavigate();
   const tableInputRef = useRef<HTMLInputElement>(null);
@@ -231,9 +234,18 @@ export default function App() {
     if (!showModal || !selectedTable) return;
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Enter') {
-        // Yes action
-        navigate('/apps/Billview', { state: { tableId: selectedTable.id, tableName: selectedTable.name, outletId: selectedTable.outletid, openSettlement: true, txnId: selectedTable.txnId } });
+      if (event.key === 'ArrowLeft') {
+        setFocusedButton('yes');
+        yesButtonRef.current?.focus();
+      } else if (event.key === 'ArrowRight') {
+        setFocusedButton('no');
+        noButtonRef.current?.focus();
+      } else if (event.key === 'Enter') {
+        if (focusedButton === 'yes') {
+          navigate('/apps/Billview', { state: { tableId: selectedTable.id, tableName: selectedTable.name, outletId: selectedTable.outletid, openSettlement: true, txnId: selectedTable.txnId } });
+        } else {
+          navigate('/apps/Billview', { state: { tableId: selectedTable.id, tableName: selectedTable.name, outletId: selectedTable.outletid, txnId: selectedTable.txnId } });
+        }
         setShowModal(false);
       } else if (event.key === 'n' || event.key === 'N') {
         // No action
@@ -247,7 +259,14 @@ export default function App() {
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [showModal, selectedTable, navigate]);
+  }, [showModal, selectedTable, navigate, focusedButton]);
+
+  // Focus the yes button when modal opens
+  useEffect(() => {
+    if (showModal && yesButtonRef.current) {
+      yesButtonRef.current.focus();
+    }
+  }, [showModal]);
 
   // Group tables by their departmentid
   const tablesByDepartment = allTables.reduce((acc, table) => {
@@ -459,11 +478,15 @@ export default function App() {
           <Modal.Title>Next Process</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <p>Do you want to directly settle Table {selectedTable?.name}? {selectedTable?.txnId}? {selectedTable?.TxnNo}?</p>
+           <p className="mt-2">
+    Select <strong>Yes</strong> to proceed directly to settlement.
+    <br />
+    Select <strong>No</strong> to open the bill for review.
+  </p>
         </Modal.Body>
         <Modal.Footer>
-         
-          <Button variant="primary" onClick={() => {
+
+          <Button ref={yesButtonRef} variant="primary" onClick={() => {
             if (selectedTable) {
               navigate('/apps/Billview', { state: { tableId: selectedTable.id, tableName: selectedTable.name, outletId: selectedTable.outletid, openSettlement: true, txnId: selectedTable.txnId } });
             }
@@ -471,13 +494,13 @@ export default function App() {
           }}>
             Yes -
           </Button>
-           <Button variant="secondary" onClick={() => {
+           <Button ref={noButtonRef} variant="secondary" onClick={() => {
             if (selectedTable) {
               navigate('/apps/Billview', { state: { tableId: selectedTable.id, tableName: selectedTable.name, outletId: selectedTable.outletid, txnId: selectedTable.txnId } });
             }
             setShowModal(false);
           }}>
-            No 
+            No
           </Button>
         </Modal.Footer>
       </Modal>

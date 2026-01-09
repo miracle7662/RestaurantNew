@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, KeyboardEvent, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { Row, Col, Card, Table, Badge, Button, Form, Modal } from 'react-bootstrap';
 import axios from 'axios';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -1096,7 +1096,7 @@ const loadUnbilledItems = useCallback(async (tableIdNum: number) => {
 
     // Add event listener for Escape key
     const handleEscapeKey = (event: Event) => {
-      const keyboardEvent = event as unknown as KeyboardEvent;
+        const keyboardEvent = event as unknown as KeyboardEvent;
 
       if (keyboardEvent.key === 'Escape') {
         navigate('/apps/Tableview');
@@ -1187,7 +1187,7 @@ const loadUnbilledItems = useCallback(async (tableIdNum: number) => {
     calculateTotals(updated);
   };
 
-  const handleKeyPress = (index: number, field: keyof BillItem) => (e: KeyboardEvent<any>) => {
+  const handleKeyPress = (index: number, field: keyof BillItem) => (e: React.KeyboardEvent<any>) => {
     const item = displayedItems[index];
     const dataIndex = item.originalIndex ?? billItems.length;
 
@@ -2347,7 +2347,7 @@ useEffect(() => {
         <div className="full-screen-header">
           <div className="container-fluid  px-2">
             <div className="d-flex justify-content-between align-items-center mb-1">
-              <h2 className="text-primary mb-0">BILL</h2>
+                <h2 className="text-primary mb-0">BILL</h2>
               <span className="text-muted small">
                 Group Item (Ctrl+G)(For Special Instructions - Press F4)
               </span>
