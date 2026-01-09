@@ -686,7 +686,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
                           <tr>
 
                             <th style={{ width: "70px" }}>Table</th>
-                            <th style={{ width: "80px" }}>KOT No.</th>
+                            <th style={{ width: "90px" }}>KOT No.</th>
                             <th style={{ width: "130px" }}>Item</th>
                             <th style={{ width: "60px" }}>Qty</th>
                             <th style={{ width: "80px" }}>Price</th>
@@ -742,9 +742,9 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
                         >
                           <tr>
 
-                            <th style={{ width: "70px" }}>Table</th>
-                            <th style={{ width: "80px" }}>KOT No.</th>
-                            <th style={{ width: "130px" }}>Item</th>
+                            <th style={{ width: "50px" }}>Table</th>
+                            <th style={{ width: "50px" }}>KOT No.</th>
+                            <th style={{ width: "150px" }}>Item</th>
                             <th style={{ width: "60px" }}>Qty</th>
                             <th style={{ width: "80px" }}>Price</th>
                           </tr>
