@@ -666,7 +666,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
                     <div
                       className="table-responsive"
                       style={{
-                        maxHeight: "250px",
+                        height: "300px",
                         border: "2px solid #e9ecef",
                         borderRadius: "8px",
                         overflowY: "auto",
@@ -692,7 +692,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
                             <th style={{ width: "80px" }}>Price</th>
                           </tr>
                         </thead>
-                        <tbody style={{ fontSize: "0.85rem" }}>
+                        <tbody style={{ fontSize: "0.85rem", minHeight: "350px" }}>
                           {selectedItems.map((row, i) => (
                             <tr
                               key={row.id}
@@ -723,7 +723,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
                     <div
                       className="table-responsive"
                       style={{
-                        maxHeight: "250px",
+                        height: "400px",
                         border: "2px solid #e9ecef",
                         borderRadius: "8px",
                         overflowY: "auto",
@@ -749,7 +749,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
                             <th style={{ width: "80px" }}>Price</th>
                           </tr>
                         </thead>
-                        <tbody style={{ fontSize: "0.85rem" }}>
+                        <tbody style={{ fontSize: "0.85rem", minHeight: "350px" }}>
                           {selectedItems.map((row, i) => (
                             <tr
                               key={row.id}
@@ -770,7 +770,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
                 )}
 
                
-
+<div style={{ height: "20px" }}></div>
                 <div className="d-flex justify-content-around border-top pt-2">
                   <div className="text-center">
                     <small className="text-muted d-block" style={{ fontSize: "0.75rem" }}>Total Amount</small>
@@ -918,18 +918,18 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
                   </Col>
                 </Row>
 
-                <div style={{ maxHeight: "250px", overflowY: "auto", border: "2px solid #e9ecef", borderRadius: "8px" }}>
+                <div style={{ height: "300px", overflowY: "auto", border: "2px solid #e9ecef", borderRadius: "8px" }}>
                   <Table bordered hover size="sm" className="mb-0">
                     <thead className="table-light text-center sticky-top" style={{ fontSize: "0.85rem" }}>
                       <tr>
                         <th>Table</th>
-                        <th>KOT No.</th>
+                        <th>KOTNo</th>
                         <th>Item</th>
                         <th>Qty</th>
                         <th>Price</th>
                       </tr>
                     </thead>
-                    <tbody style={{ fontSize: "0.85rem" }}>
+                    <tbody style={{ fontSize: "0.85rem", minHeight: "350px" }}>
                       {proposedItems.length > 0 ? proposedItems.map((row) => (
                         <tr key={row.id}>
                           <td>{row.media}</td>
