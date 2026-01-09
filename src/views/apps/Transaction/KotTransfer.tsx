@@ -278,10 +278,35 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
   };
 
   const handleTransfer = () => {
-    if (!isTableMode && effectiveSelectedCount === 0) {
-      alert("Please select at least one item to transfer!");
+    if (selectedItems.length === 0) {
+      alert("No items available to transfer!");
       return;
     }
+
+    // Transfer the first item
+    const firstItem = selectedItems[0];
+    const transferredItem = { ...firstItem, selected: false, media: proposedTable };
+
+    // Update selectedItems to remove the first item
+    const remainingItems = selectedItems.slice(1);
+    setSelectedItems(remainingItems);
+
+    // Add to proposedItems
+    setProposedItems(prev => [...prev, transferredItem]);
+
+    // Update table status if no items left
+    if (remainingItems.length === 0) {
+      setTables(prevTables =>
+        prevTables.map(t => {
+          if (t.id === selectedTableId?.toString()) {
+            return { ...t, status: "available" as const };
+          }
+          return t;
+        })
+      );
+    }
+
+    // Open the modal to show transferred item
     setShowConfirmModal(true);
   };
 
