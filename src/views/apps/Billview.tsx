@@ -445,6 +445,10 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
   const [f9BilledPasswordError, setF9BilledPasswordError] = useState('');
   const [f9BilledPasswordLoading, setF9BilledPasswordLoading] = useState(false);
 
+  const [showF8RevKotPasswordModal, setShowF8RevKotPasswordModal] = useState(false);
+  const [f8RevKotPasswordError, setF8RevKotPasswordError] = useState('');
+  const [f8RevKotPasswordLoading, setF8RevKotPasswordLoading] = useState(false);
+
   const [showDiscountModal, setShowDiscountModal] = useState(false);
   const [discountReason, setDiscountReason] = useState('');
   const [givenBy, setGivenBy] = useState('');
@@ -574,6 +578,39 @@ const handleNCKOTKeyDown = (e: React.KeyboardEvent) => {
       setF9BilledPasswordError('An error occurred. Please try again.');
     } finally {
       setF9BilledPasswordLoading(false);
+    }
+  };
+
+  const handleF8RevKotPasswordSubmit = async (password: string) => {
+    if (!(user as any)?.token) {
+      toast.error("Authentication token not found. Please log in again.");
+      return;
+    }
+
+    setF8RevKotPasswordLoading(true);
+    setF8RevKotPasswordError('');
+    try {
+      const response = await fetch('http://localhost:3001/api/auth/verify-creator-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${(user as any).token}`
+        },
+        body: JSON.stringify({ password })
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        setShowF8RevKotPasswordModal(false);
+        setShowReverseKot(true);
+      } else {
+        setF8RevKotPasswordError(data.message || 'Invalid password');
+      }
+    } catch (error) {
+      setF8RevKotPasswordError('An error occurred. Please try again.');
+    } finally {
+      setF8RevKotPasswordLoading(false);
     }
   };
 
@@ -1804,6 +1841,25 @@ const handleReverseKotSave = async (reverseItemsFromModal: any[]) => {
     }
   };
 
+  // 🧠 DERIVED STATES (IMPORTANT)
+  const hasItems = billItems.some(i => i.itemId > 0);
+
+  const hasNewItems = billItems.some(
+    i => i.itemId > 0 && !i.mkotNo && !i.isBilled
+  );
+
+  const hasOnlyExistingItems = hasItems && !hasNewItems;
+
+  const isBillPrintedState = billItems.some(i => i.isBilled === 1);
+
+  const handleF8Action = useCallback(() => {
+    if (isBillPrintedState) {
+        setShowF8RevKotPasswordModal(true);
+    } else {
+        setShowReverseKot(true);
+    }
+  }, [isBillPrintedState]);
+
 useEffect(() => {
   const handleKeyDown = (event: KeyboardEvent) => {
 
@@ -1842,7 +1898,7 @@ useEffect(() => {
 
         case 'F8': // ✅ Reverse KOT
           event.preventDefault();
-          setShowReverseKot(true);
+          handleF8Action();
           return;
 
         case 'F9':
@@ -1881,20 +1937,7 @@ useEffect(() => {
   document.addEventListener('keydown', handleKeyDown);
   return () => document.removeEventListener('keydown', handleKeyDown);
 
- 
-}, [saveKOT, resetBillState, groupBy]);
-
-
-  // 🧠 DERIVED STATES (IMPORTANT)
-  const hasItems = billItems.some(i => i.itemId > 0);
-
-  const hasNewItems = billItems.some(
-    i => i.itemId > 0 && !i.mkotNo && !i.isBilled
-  );
-
-  const hasOnlyExistingItems = hasItems && !hasNewItems;
-
-  const isBillPrintedState = billItems.some(i => i.isBilled === 1);
+ }, [saveKOT, resetBillState, groupBy, handleF8Action]);
 
   // 🔘 BUTTON ENABLE FLAGS
   const disableAll = !hasItems;
@@ -2660,7 +2703,7 @@ useEffect(() => {
                     <Button disabled={!isBillPrintedState} onClick={() => setShowReverseBillModal(true)} variant="outline-primary" size="sm" className="function-btn">Rev Bill (F5)</Button>
                     <Button disabled={disableAll} onClick={() => { setTransferSource("table"); setShowKotTransferModal(true); }} variant="outline-primary" size="sm" className="function-btn">TBL Tr (F7)</Button>
                     <Button onClick={resetBillState} variant="outline-primary" size="sm" className="function-btn">New Bill (F6)</Button>
-                    <Button disabled={disableAll} onClick={() => setShowReverseKot(true)} variant="outline-primary" size="sm" className="function-btn">Rev KOT (F8)</Button>
+                    <Button disabled={disableAll} onClick={handleF8Action} variant="outline-primary" size="sm" className="function-btn">Rev KOT (F8)</Button>
                     <Button disabled={disableKOT} onClick={() => saveKOT(false, true)} variant="outline-primary" size="sm" className="function-btn">K O T (F9)</Button>
                     <Button disabled={disablePrint} onClick={printBill} variant="outline-primary" size="sm" className="function-btn">Print (F10)</Button>
                     <Button disabled={disableSettlement} onClick={() => setShowSettlementModal(true)} variant="outline-primary" size="sm" className="function-btn">Settle (F11)</Button>
@@ -2998,6 +3041,18 @@ useEffect(() => {
         error={f9BilledPasswordError}
         loading={f9BilledPasswordLoading}
         title="Admin Password for Reversal"
+      />
+
+      <F8PasswordModal
+        show={showF8RevKotPasswordModal}
+        onHide={() => {
+          setShowF8RevKotPasswordModal(false);
+          setF8RevKotPasswordError('');
+        }}
+        onSubmit={handleF8RevKotPasswordSubmit}
+        error={f8RevKotPasswordError}
+        loading={f8RevKotPasswordLoading}
+        title="Admin Password for Reverse KOT"
       />
 
       <ReverseKotModal

@@ -374,6 +374,8 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
       } else if (event.key === 'Enter') {
         if (selectedOption === 'no') {
           handleSave();
+        } else if (selectedOption === 'yes') {
+          confirmTransfer();
         }
         setShowConfirmModal(false);
       } else if (event.key === 'Escape') {
@@ -393,10 +395,24 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
     if (isTableMode) {
       itemsToTransfer = selectedItems.map(item => ({ ...item, selected: false, media: proposedTable }));
       setSelectedItems([]);
+      setAllItems([]); // Clear all items for table transfer
     } else {
       itemsToTransfer = selectedItems.filter(item => item.selected).map(item => ({ ...item, selected: false, media: proposedTable }));
       const remainingItems = selectedItems.filter(item => !item.selected);
       setSelectedItems(remainingItems);
+      // Update allItems to remove transferred items
+      const updatedAllItems = allItems.filter(item => !itemsToTransfer.some(transferred => transferred.id === item.id));
+      setAllItems(updatedAllItems);
+
+      // Recalculate available KOTs and latest KOT
+      const uniqueKOTs = [...new Set(updatedAllItems.map(item => item.kot))].sort((a, b) => a - b);
+      setAvailableKOTs(uniqueKOTs);
+      const latest = uniqueKOTs.length > 0 ? Math.max(...uniqueKOTs) : null;
+      setLatestKOT(latest);
+      // If current selectedKOT has no remaining items, switch to latest
+      if (selectedKOT && !uniqueKOTs.includes(selectedKOT)) {
+        setSelectedKOT(latest);
+      }
     }
 
     if (isTableMode) {
@@ -984,7 +1000,10 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
           </Button>
           <Button
             variant={selectedOption === 'yes' ? 'primary' : 'secondary'}
-            onClick={() => setShowConfirmModal(false)}
+            onClick={() => {
+              confirmTransfer();
+              setShowConfirmModal(false);
+            }}
           >
             Yes
           </Button>
