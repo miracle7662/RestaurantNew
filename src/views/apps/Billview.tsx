@@ -1782,61 +1782,85 @@ const handleReverseKotSave = async (reverseItemsFromModal: any[]) => {
     }
   };
 
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (event: Event) => {
-      const keyboardEvent = event as unknown as KeyboardEvent;
-      if (keyboardEvent.key === 'F2') {
-        keyboardEvent.preventDefault();
-        setTransferSource("kot");
-        setShowKotTransferModal(true);
-      } else if (keyboardEvent.key === 'F3') {
-        keyboardEvent.preventDefault();
-        setShowDiscountModal(true);
-      } else if (keyboardEvent.key === 'F4') {
-        keyboardEvent.preventDefault();
-        // Focus on special instructions of the first item or current row
-        const firstSpecialInstRef = inputRefs.current[0]?.[4];
-        if (firstSpecialInstRef) {
-          firstSpecialInstRef.focus();
-          firstSpecialInstRef.select();
-        }
-      } else if (keyboardEvent.key === 'F5') {
-        keyboardEvent.preventDefault();
-        setShowReverseBillModal(true);
-      } else if (keyboardEvent.key === 'F6') {
-        keyboardEvent.preventDefault();
-        resetBillState();
-      } else if (keyboardEvent.key === 'F7') {
-        keyboardEvent.preventDefault();
-        setTransferSource("table");
-        setShowKotTransferModal(true);
-      } else if (keyboardEvent.key === 'F8') {
-        keyboardEvent.preventDefault();
-        setShowReverseKot(true);
-      } else if (keyboardEvent.key === 'F9') {
-        keyboardEvent.preventDefault();
-         if (keyboardEvent.ctrlKey) {
-          setShowNCKOTModal(true);
-        } else {
-          saveKOT(false, true);
-        }
-       
-      } else if (keyboardEvent.key === 'F10') {
-        keyboardEvent.preventDefault();
-        printBill();
-      } else if (keyboardEvent.key === 'F11') {
-        keyboardEvent.preventDefault();
-        setShowSettlementModal(true);
-      } else if (keyboardEvent.key === 'g' && keyboardEvent.ctrlKey) {
-        keyboardEvent.preventDefault();
-        setGroupBy(groupBy === 'none' ? 'group' : 'none');
-      }
-    };
+useEffect(() => {
+  const handleKeyDown = (event: KeyboardEvent) => {
 
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [txnId, reverseQty, reverseReason, selectedTable, saveKOT, isGrouped]);
+    /* -------- F KEYS (NO CTRL) -------- */
+    if (!event.ctrlKey) {
+
+      switch (event.key) {
+        case 'F2':
+          event.preventDefault();
+          setTransferSource('kot');
+          setShowKotTransferModal(true);
+          return;
+
+        case 'F3':
+          event.preventDefault();
+          setShowDiscountModal(true);
+          return;
+
+       
+
+        case 'F5':
+          event.preventDefault();
+          setShowReverseBillModal(true);
+          return;
+
+        case 'F6':
+          event.preventDefault();
+          resetBillState();
+          return;
+
+        case 'F7':
+          event.preventDefault();
+          setTransferSource('table');
+          setShowKotTransferModal(true);
+          return;
+
+        case 'F8': // ✅ Reverse KOT
+          event.preventDefault();
+          setShowReverseKot(true);
+          return;
+
+        case 'F9':
+          event.preventDefault();
+          saveKOT(false, true);
+          return;
+
+        case 'F10':
+          event.preventDefault();
+          printBill();
+          return;
+
+        case 'F11':
+          event.preventDefault();
+          setShowSettlementModal(true);
+          return;
+      }
+    }
+
+    /* -------- CTRL SHORTCUTS -------- */
+    if (event.ctrlKey) {
+
+      if (event.key === 'F9') {
+        event.preventDefault();
+        setShowNCKOTModal(true);
+        return;
+      }
+
+      if (event.key.toLowerCase() === 'g') {
+        event.preventDefault();
+        setGroupBy(prev => (prev === 'none' ? 'group' : 'none'));
+        return;
+      }
+    }
+  };
+
+  document.addEventListener('keydown', handleKeyDown);
+  return () => document.removeEventListener('keydown', handleKeyDown);
+}, [saveKOT, resetBillState, groupBy]);
+
 
   // 🧠 DERIVED STATES (IMPORTANT)
   const hasItems = billItems.some(i => i.itemId > 0);

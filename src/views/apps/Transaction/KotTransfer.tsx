@@ -311,6 +311,31 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
     setShowConfirmModal(true);
   };
 
+  const handleReverseTransfer = () => {
+    setSelectedItems([...selectedItems, ...proposedItems]);
+    setProposedItems([]);
+  };
+
+  // Add keyboard event listeners for F7 and F8
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'F7') {
+        event.preventDefault();
+        handleTransfer();
+      } if (event.key === 'F8' && event.ctrlKey) {
+  event.preventDefault();
+  handleReverseTransfer();
+}
+
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [selectedItems, proposedItems, isTableMode, selectedCount]);
+
   const confirmTransfer = () => {
     let itemsToTransfer: Item[];
     if (isTableMode) {
