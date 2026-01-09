@@ -692,7 +692,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
                             <th style={{ width: "80px" }}>Price</th>
                           </tr>
                         </thead>
-                        <tbody style={{ fontSize: "0.85rem", minHeight: "350px" }}>
+                         <tbody style={{ fontSize: "0.85rem", minHeight: "350px" }}>
                           {selectedItems.map((row, i) => (
                             <tr
                               key={row.id}
@@ -723,7 +723,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
                     <div
                       className="table-responsive"
                       style={{
-                        height: "400px",
+                         height: "400px",
                         border: "2px solid #e9ecef",
                         borderRadius: "8px",
                         overflowY: "auto",
@@ -743,13 +743,13 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
                           <tr>
 
                             <th style={{ width: "50px" }}>Table</th>
-                            <th style={{ width: "50px" }}>KOT No.</th>
+                            <th style={{ width: "50px" }}>KOTNo.</th>
                             <th style={{ width: "150px" }}>Item</th>
                             <th style={{ width: "60px" }}>Qty</th>
                             <th style={{ width: "80px" }}>Price</th>
                           </tr>
                         </thead>
-                        <tbody style={{ fontSize: "0.85rem", minHeight: "350px" }}>
+                         <tbody style={{ fontSize: "0.85rem", minHeight: "350px" }}>
                           {selectedItems.map((row, i) => (
                             <tr
                               key={row.id}
@@ -769,8 +769,9 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
                   </>
                 )}
 
-               
-<div style={{ height: "20px" }}></div>
+               <div style={{ height: "20px" }}></div>
+
+
                 <div className="d-flex justify-content-around border-top pt-2">
                   <div className="text-center">
                     <small className="text-muted d-block" style={{ fontSize: "0.75rem" }}>Total Amount</small>
@@ -923,7 +924,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
                     <thead className="table-light text-center sticky-top" style={{ fontSize: "0.85rem" }}>
                       <tr>
                         <th>Table</th>
-                        <th>KOTNo</th>
+                        <th>KOTNo.</th>
                         <th>Item</th>
                         <th>Qty</th>
                         <th>Price</th>
