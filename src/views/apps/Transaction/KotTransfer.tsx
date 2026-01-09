@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Card, Row, Col, Form, Button, Table, Badge, Alert, Modal } from "react-bootstrap";
 import { getUnbilledItemsByTable } from "@/common/api/orders";
 import { useAuthContext } from "@/common";
+import { toast } from 'react-hot-toast';
 
 interface KotTransferProps {
   onCancel?: () => void;
@@ -279,7 +280,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
 
   const handleTransfer = () => {
     if (selectedItems.length === 0) {
-      alert("No items available to transfer!");
+      toast.error("No items available to transfer!");
       return;
     }
 
@@ -337,18 +338,18 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
     );
 
     setShowConfirmModal(false);
-    alert(`Successfully transferred ${itemsToTransfer.length} item${itemsToTransfer.length !== 1 ? 's' : ''} to Table ${proposedTable}`);
+    toast.success(`Successfully transferred ${itemsToTransfer.length} item${itemsToTransfer.length !== 1 ? 's' : ''} to Table ${proposedTable}`);
   };
 
 
   const handleSave = async () => {
     if (!selectedTableId || !proposedTableId) {
-      alert('Please select source and target tables');
+      toast.error('Please select source and target tables');
       return;
     }
 
     if (proposedItems.length === 0) {
-      alert('No items transferred to save.');
+      toast.error('No items transferred to save.');
       return;
     }
 
@@ -402,11 +403,11 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
 
       // ✅ backend contract respected
       if (!result.success) {
-        alert(result.message || 'Transfer failed');
+        toast.error(result.message || 'Transfer failed');
         return;
       }
 
-      alert(result.message || `${transferMode === "table" ? "Table" : "KOT"} transfer saved successfully`);
+      toast.success(result.message || `${transferMode === "table" ? "Table" : "KOT"} transfer saved successfully`);
 
       // 🔄 Sync UI
       await fetchItemsForTable(selectedTableId, 'selected');
