@@ -1869,6 +1869,7 @@ const handleReverseKotSave = async (reverseItemsFromModal: any[]) => {
   const hasOnlyExistingItems = hasItems && !hasNewItems;
 
   const isBillPrintedState = billItems.some(i => i.isBilled === 1);
+  
 
   const handleF8Action = useCallback(() => {
     if (isBillPrintedState) {
@@ -1885,21 +1886,23 @@ useEffect(() => {
     if (!event.ctrlKey) {
 
       switch (event.key) {
+
         case 'F2':
           event.preventDefault();
+          if (!hasItems) return;
           setTransferSource('kot');
           setShowKotTransferModal(true);
           return;
 
         case 'F3':
           event.preventDefault();
+          if (!hasItems) return;
           setShowDiscountModal(true);
           return;
 
-       
-
-        case 'F5':
+        case 'F5': // 🔒 Reverse Bill (only if isBilled = 1)
           event.preventDefault();
+          if (disableReverseBill) return;
           setShowReverseBillModal(true);
           return;
 
@@ -1910,27 +1913,32 @@ useEffect(() => {
 
         case 'F7':
           event.preventDefault();
+          if (!hasItems) return;
           setTransferSource('table');
           setShowKotTransferModal(true);
           return;
 
-        case 'F8': // ✅ Reverse KOT
+        case 'F8': // ✅ Reverse KOT (password if billed)
           event.preventDefault();
+          if (!hasItems) return;
           handleF8Action();
           return;
 
-        case 'F9':
+        case 'F9': // 🔒 KOT (only new items)
           event.preventDefault();
+          if (disableKOT) return;
           saveKOT(false, true);
           return;
 
-        case 'F10':
+        case 'F10': // 🔒 Print
           event.preventDefault();
+          if (disablePrint) return;
           printBill();
           return;
 
-        case 'F11':
+        case 'F11': // 🔒 Settlement
           event.preventDefault();
+          if (disableSettlement) return;
           setShowSettlementModal(true);
           return;
       }
@@ -1941,6 +1949,7 @@ useEffect(() => {
 
       if (event.key === 'F9') {
         event.preventDefault();
+        if (!hasItems) return;
         setShowNCKOTModal(true);
         return;
       }
@@ -1952,12 +1961,24 @@ useEffect(() => {
       }
     }
   };
+
   document.addEventListener('keydown', handleKeyDown);
   return () => document.removeEventListener('keydown', handleKeyDown);
 
- }, [saveKOT, resetBillState, groupBy, handleF8Action]);
+}, [
+  saveKOT,
+  resetBillState,
+  handleF8Action,
+  hasItems,
+  hasNewItems,
+  isBillPrintedState,
+  
+ 
+]);
 
   // 🔘 BUTTON ENABLE FLAGS
+  const disableReverseBill = !isBillPrintedState;
+
   const disableAll = !hasItems;
 
   const enableKOT = !disableAll && hasNewItems && !isBillPrintedState;
@@ -2836,8 +2857,9 @@ useEffect(() => {
               </div>
             </Modal.Body>
             <Modal.Footer>
+               <Button variant="primary" onClick={handleApplyDiscount}>Apply</Button>
               <Button variant="secondary" onClick={() => setShowDiscountModal(false)}>Cancel</Button>
-              <Button variant="primary" onClick={handleApplyDiscount}>Apply</Button>
+             
             </Modal.Footer>
           </Modal>
 

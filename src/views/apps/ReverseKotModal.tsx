@@ -142,9 +142,9 @@ useEffect(() => {
             return;
         }
 
-        console.log('Modal sending:', filteredItems);
+        console.log('Modal sending:', { items: filteredItems });
 
-        onSave(filteredItems);
+        onSave({ items: filteredItems });
         onClose();
     };
 
