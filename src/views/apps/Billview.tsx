@@ -476,6 +476,28 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
     }
   };
 
+  const ncNameRef = React.useRef<HTMLInputElement>(null);
+const ncPurposeRef = React.useRef<HTMLInputElement>(null);
+
+// =====================
+// KEYBOARD HANDLER
+// =====================
+const handleNCKOTKeyDown = (e: React.KeyboardEvent) => {
+  if (e.key !== 'Enter') return;
+
+  e.preventDefault();
+
+  if (document.activeElement === ncNameRef.current) {
+    ncPurposeRef.current?.focus();
+    ncPurposeRef.current?.select();
+    return;
+  }
+
+  if (document.activeElement === ncPurposeRef.current) {
+    handleSaveNCKOT();
+  }
+};
+
   const handleF9PasswordSubmit = async (password: string) => {
     if (!(user as any)?.token) {
       toast.error("Authentication token not found. Please log in again.");
@@ -1856,9 +1878,10 @@ useEffect(() => {
       }
     }
   };
-
   document.addEventListener('keydown', handleKeyDown);
   return () => document.removeEventListener('keydown', handleKeyDown);
+
+ 
 }, [saveKOT, resetBillState, groupBy]);
 
 
@@ -2653,39 +2676,58 @@ useEffect(() => {
       </div>
 
       {/* NC KOT Modal */}
-      <Modal show={showNCKOTModal} onHide={() => setShowNCKOTModal(false)}>
-        <Modal.Header closeButton>
-          <Modal.Title>No Charge KOT</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <Form.Group className="mb-3">
-            <Form.Label>NC Name</Form.Label>
-            <Form.Control
-              type="text"
-              value={ncName}
-              onChange={(e) => setNcName(e.target.value)}
-              placeholder="Enter NC Name"
-            />
-          </Form.Group>
-          <Form.Group className="mb-3">
-            <Form.Label>NC Purpose</Form.Label>
-            <Form.Control
-              type="text"
-              value={ncPurpose}
-              onChange={(e) => setNcPurpose(e.target.value)}
-              placeholder="Enter NC Purpose"
-            />
-          </Form.Group>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowNCKOTModal(false)}>
-            Cancel
-          </Button>
-          <Button variant="primary" onClick={handleSaveNCKOT}>
-            Save NC KOT
-          </Button>
-        </Modal.Footer>
-      </Modal>
+    {/* NC KOT Modal */}
+<Modal
+  show={showNCKOTModal}
+  onHide={() => setShowNCKOTModal(false)}
+  centered
+  onShow={() => {
+    setTimeout(() => ncNameRef.current?.focus(), 100);
+  }}
+>
+  <Modal.Header closeButton>
+    <Modal.Title>No Charge KOT</Modal.Title>
+  </Modal.Header>
+
+  <Modal.Body>
+    {/* 🔹 Keyboard wrapper */}
+    <div onKeyDown={handleNCKOTKeyDown}>
+      
+      <Form.Group className="mb-3">
+        <Form.Label>NC Name</Form.Label>
+        <Form.Control
+          ref={ncNameRef}
+          type="text"
+          value={ncName}
+          onChange={(e) => setNcName(e.target.value)}
+          placeholder="Enter NC Name"
+        />
+      </Form.Group>
+
+      <Form.Group className="mb-3">
+        <Form.Label>NC Purpose</Form.Label>
+        <Form.Control
+          ref={ncPurposeRef}
+          type="text"
+          value={ncPurpose}
+          onChange={(e) => setNcPurpose(e.target.value)}
+          placeholder="Enter NC Purpose"
+        />
+      </Form.Group>
+
+    </div>
+  </Modal.Body>
+
+  <Modal.Footer>
+    <Button variant="secondary" onClick={() => setShowNCKOTModal(false)}>
+      Cancel
+    </Button>
+    <Button variant="primary" onClick={handleSaveNCKOT}>
+      Save NC KOT
+    </Button>
+  </Modal.Footer>
+</Modal>
+
 
         <Modal show={showDiscountModal} onHide={() => setShowDiscountModal(false)} centered onShow={() => {
             if (DiscountType === 1) {

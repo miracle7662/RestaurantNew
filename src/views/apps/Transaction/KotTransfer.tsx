@@ -63,6 +63,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
 
   const [transferMode, setTransferMode] = useState<"table" | "kot">(transferSource);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [selectedOption, setSelectedOption] = useState<'no' | 'yes'>('no');
   const [currentDate] = useState(new Date().toLocaleDateString('en-GB'));
 
   useEffect(() => {
@@ -284,30 +285,26 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
       return;
     }
 
-    // Transfer the first item
-    const firstItem = selectedItems[0];
-    const transferredItem = { ...firstItem, selected: false, media: proposedTable };
+    // Transfer all selected items
+    const itemsToTransfer = selectedItems.map(item => ({ ...item, selected: false, media: proposedTable }));
 
-    // Update selectedItems to remove the first item
-    const remainingItems = selectedItems.slice(1);
-    setSelectedItems(remainingItems);
+    // Update selectedItems to clear them
+    setSelectedItems([]);
 
     // Add to proposedItems
-    setProposedItems(prev => [...prev, transferredItem]);
+    setProposedItems(prev => [...prev, ...itemsToTransfer]);
 
-    // Update table status if no items left
-    if (remainingItems.length === 0) {
-      setTables(prevTables =>
-        prevTables.map(t => {
-          if (t.id === selectedTableId?.toString()) {
-            return { ...t, status: "available" as const };
-          }
-          return t;
-        })
-      );
-    }
+    // Update table status since all items are transferred
+    setTables(prevTables =>
+      prevTables.map(t => {
+        if (t.id === selectedTableId?.toString()) {
+          return { ...t, status: "available" as const };
+        }
+        return t;
+      })
+    );
 
-    // Open the modal to show transferred item
+    // Open the modal to confirm save
     setShowConfirmModal(true);
   };
 
@@ -335,6 +332,32 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [selectedItems, proposedItems, isTableMode, selectedCount]);
+
+  // Keyboard navigation for modal
+  useEffect(() => {
+    if (!showConfirmModal) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+        setSelectedOption('no');
+      } else if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+        setSelectedOption('yes');
+      } else if (event.key === 'Enter') {
+        if (selectedOption === 'no') {
+          handleSave();
+        }
+        setShowConfirmModal(false);
+      } else if (event.key === 'Escape') {
+        setShowConfirmModal(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showConfirmModal, selectedOption]);
 
   const confirmTransfer = () => {
     let itemsToTransfer: Item[];
@@ -817,6 +840,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
                           ref={proposedTableRef}
                           value={proposedTableId || ''}
                           onChange={(e) => handleProposedTableChange(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleTransfer(); } }}
                           className="fw-bold me-2"
                           style={{ fontSize: "0.9rem" }}
                         >
@@ -913,16 +937,26 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
       {/* Confirmation Modal */}
       <Modal show={showConfirmModal} onHide={() => setShowConfirmModal(false)} centered>
         <Modal.Header closeButton>
-          <Modal.Title>Confirm Transfer</Modal.Title>
+          <Modal.Title>Save Transfer?</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <p>Are you sure you want to transfer items?</p>
+          <p>Do you want to save the transfer?</p>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowConfirmModal(false)} autoFocus>
+          <Button
+            variant={selectedOption === 'no' ? 'primary' : 'secondary'}
+            onClick={() => {
+              handleSave();
+              setShowConfirmModal(false);
+            }}
+            autoFocus={selectedOption === 'no'}
+          >
             No
           </Button>
-          <Button variant="primary" onClick={confirmTransfer}>
+          <Button
+            variant={selectedOption === 'yes' ? 'primary' : 'secondary'}
+            onClick={() => setShowConfirmModal(false)}
+          >
             Yes
           </Button>
         </Modal.Footer>
