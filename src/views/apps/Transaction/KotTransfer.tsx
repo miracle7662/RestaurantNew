@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, Row, Col, Form, Button, Table, Badge, Alert, Modal } from "react-bootstrap";
 import { getUnbilledItemsByTable } from "@/common/api/orders";
 import { useAuthContext } from "@/common";
@@ -12,6 +12,7 @@ interface KotTransferProps {
 
 const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTableId }: KotTransferProps) => {
   const { user } = useAuthContext();
+  const proposedTableRef = useRef<HTMLSelectElement>(null);
 
   // Type definitions
   interface Item {
@@ -160,6 +161,13 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
 
     fetchInitialData();
   }, [user, sourceTableId]);
+
+  // Focus on right side table select after tables are loaded
+  useEffect(() => {
+    if (tables.length > 0 && proposedTableRef.current) {
+      proposedTableRef.current.focus();
+    }
+  }, [tables]);
 
   const fetchItemsForTable = async (tableId: number, type: 'selected' | 'proposed') => {
     try {
@@ -582,17 +590,63 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
                     </div>
                   </>
                 ) : (
-                  <Alert variant="warning" className="mb-2" style={{ fontSize: "0.9rem" }}>
-                    <h6 className="mb-1 fw-bold">Entire Table Transfer</h6>
-                    <p className="mb-1">All {totalItemsCount} items from KOT {sourceKOT}</p>
-                    <div className="fw-bold text-primary">Total: ₹{effectiveSelectedAmount.toFixed(2)}</div>
-                  </Alert>
+                  <>
+                    <div className="d-flex justify-content-between align-items-center mb-2">
+                      <Badge bg="primary" style={{ fontSize: "0.85rem" }}>
+                        {selectedCount} selected
+                      </Badge>
+                    </div>
+
+                    <div
+                      className="table-responsive"
+                      style={{
+                        maxHeight: "250px",
+                        border: "2px solid #e9ecef",
+                        borderRadius: "8px",
+                        overflowY: "auto",
+                      }}
+                    >
+                      <Table
+                        bordered
+                        hover
+                        size="sm"
+                        className="mb-0"
+                        style={{ tableLayout: "fixed", width: "100%" }}
+                      >
+                        <thead
+                          className="table-light text-center sticky-top"
+                          style={{ fontSize: "0.85rem" }}
+                        >
+                          <tr>
+
+                            <th style={{ width: "70px" }}>Table</th>
+                            <th style={{ width: "80px" }}>KOT No.</th>
+                            <th style={{ width: "130px" }}>Item</th>
+                            <th style={{ width: "60px" }}>Qty</th>
+                            <th style={{ width: "80px" }}>Price</th>
+                          </tr>
+                        </thead>
+                        <tbody style={{ fontSize: "0.85rem" }}>
+                          {selectedItems.map((row, i) => (
+                            <tr
+                              key={row.id}
+                              className="table-primary"
+                            >
+
+                              <td>{row.media}</td>
+                              <td>{row.kot}</td>
+                              <td style={{ wordWrap: 'break-word', whiteSpace: 'normal' }}>{row.item}</td>
+                              <td className="text-center">{row.qty}</td>
+                              <td className="text-end">₹{row.price?.toFixed(2)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </Table>
+                    </div>
+                  </>
                 )}
 
-                <div className="d-flex gap-3 mt-2 mb-2" style={{ fontSize: "0.9rem" }}>
-                  <Form.Check type="checkbox" label="Fixed Items" />
-                  <Form.Check type="checkbox" label="Transferred Tables' / KOT's Item" />
-                </div>
+               
 
                 <div className="d-flex justify-content-around border-top pt-2">
                   <div className="text-center">
@@ -705,6 +759,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
                       </Form.Label>
                       <div className="d-flex">
                         <Form.Select
+                          ref={proposedTableRef}
                           value={proposedTableId || ''}
                           onChange={(e) => handleProposedTableChange(e.target.value)}
                           className="fw-bold me-2"
@@ -803,28 +858,17 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
       {/* Confirmation Modal */}
       <Modal show={showConfirmModal} onHide={() => setShowConfirmModal(false)} centered>
         <Modal.Header closeButton>
-          <Modal.Title>Confirm {isTableMode ? "Table" : "KOT"} Transfer</Modal.Title>
+          <Modal.Title>Confirm Transfer</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <p>Are you sure you want to transfer {effectiveSelectedCount} item{effectiveSelectedCount !== 1 ? 's' : ''} from Table {selectedTable} to Table {proposedTable}?</p>
-          <Alert variant="warning">
-            <strong>Total Amount:</strong> ₹{effectiveSelectedAmount.toFixed(2)}
-          </Alert>
-          {!isTableMode && (
-            <ul>
-              {selectedItems.filter(item => item.selected).map(item => (
-                <li key={item.id}>{item.item} (₹{item.price?.toFixed(2)})</li>
-              ))}
-            </ul>
-          )}
-          {isTableMode && <p className="text-muted">This will move the entire bill.</p>}
+          <p>Are you sure you want to transfer items?</p>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowConfirmModal(false)}>
-            Cancel
+          <Button variant="secondary" onClick={() => setShowConfirmModal(false)} autoFocus>
+            No
           </Button>
           <Button variant="primary" onClick={confirmTransfer}>
-            Confirm Transfer
+            Yes
           </Button>
         </Modal.Footer>
       </Modal>
