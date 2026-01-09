@@ -64,6 +64,8 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
   const [transferMode, setTransferMode] = useState<"table" | "kot">(transferSource);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [selectedOption, setSelectedOption] = useState<'no' | 'yes'>('no');
+  const [transferDone, setTransferDone] = useState(false);
+  const [waitingForEnter, setWaitingForEnter] = useState(false);
   const [currentDate] = useState(new Date().toLocaleDateString('en-GB'));
 
   useEffect(() => {
@@ -170,6 +172,33 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
       proposedTableRef.current.focus();
     }
   }, [tables]);
+
+  // Handle transfer done - wait for Enter key
+  useEffect(() => {
+    if (transferDone) {
+      setWaitingForEnter(true);
+      setTransferDone(false);
+    }
+  }, [transferDone]);
+
+  // Listen for Enter key when waiting for confirmation
+  useEffect(() => {
+    if (!waitingForEnter) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        setShowConfirmModal(true);
+        setWaitingForEnter(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [waitingForEnter]);
 
   const fetchItemsForTable = async (tableId: number, type: 'selected' | 'proposed') => {
     try {
@@ -304,8 +333,8 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
       })
     );
 
-    // Open the modal to confirm save
-    setShowConfirmModal(true);
+    // Set transfer done flag
+    setTransferDone(true);
   };
 
   const handleReverseTransfer = () => {
