@@ -1147,7 +1147,7 @@ const loadUnbilledItems = useCallback(async (tableIdNum: number) => {
         const blankRowItemCodeInput = inputRefs.current[billItems.length - 1]?.[0];
         if (blankRowItemCodeInput) {
           blankRowItemCodeInput.focus();
-          
+          blankRowItemCodeInput.select();
         }
       }, 100);
     }
@@ -2365,11 +2365,14 @@ useEffect(() => {
         <div className="full-screen-header">
           <div className="container-fluid  px-2">
             <div className="d-flex justify-content-between align-items-center mb-1">
-                <h2 className="text-primary mb-0">BILL</h2>
-              <span className="text-muted small">
-                Group Item (Ctrl+G)(For Special Instructions - Press F4)
-              </span>
-            </div>
+  <h2 className="text-primary mb-0">BILL</h2>
+
+  <span className="badge bg-light text-dark border">
+    Group Items: <strong>Ctrl + G</strong> &nbsp;|&nbsp;
+    Special Instructions: <strong>F4</strong>
+  </span>
+</div>
+
 
             {/* Card Layout for Header Information */}
             <Row className="mb-3 g-2 align-items-stretch">
