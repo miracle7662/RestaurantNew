@@ -1578,7 +1578,8 @@ const handleReverseKotSave = async (reverseItemsFromModal: any[]) => {
     if (!txnId) return;
     try {
       const response = await axios.post('/api/bill/generate', {
-        txnId
+        txnId,
+        pax
       });
       setBillNo(response.data.data.BillNo);
       toast.success('Bill generated successfully');
@@ -2746,7 +2747,7 @@ useEffect(() => {
   <Button disabled={disableAll || isBillPrintedState} onClick={() => { setTransferSource("table"); setShowKotTransferModal(true); }} variant="outline-primary" size="sm" className="function-btn">TBL Tr (F7)</Button>
                     <Button onClick={resetBillState} variant="outline-primary" size="sm" className="function-btn">New Bill (F6)</Button>
   <Button disabled={disableAll  } onClick={handleF8Action} variant="outline-primary" size="sm" className="function-btn">Rev KOT (F8)</Button>
-                    <Button disabled={disableKOT} onClick={() => saveKOT(false, true)} variant="outline-primary" size="sm" className="function-btn">K O T (F9)</Button>
+                    <Button disabled={disableKOT}  onClick={() => saveKOT(false, true)} variant="outline-primary" size="sm" className="function-btn">K O T (F9)</Button>
                     <Button disabled={disableAll } onClick={printBill} variant="outline-primary" size="sm" className="function-btn">Print (F10)</Button>
                     <Button disabled={disableSettlement} onClick={() => setShowSettlementModal(true)} variant="outline-primary" size="sm" className="function-btn">Settle (F11)</Button>
                     <Button onClick={exitWithoutSave} variant="outline-primary" size="sm" className="function-btn">Exit (Esc)</Button>

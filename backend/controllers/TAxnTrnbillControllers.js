@@ -175,6 +175,9 @@ exports.createBill = async (req, res) => {
       details = []
     } = req.body
 
+    // Normalize PAX field to handle both 'PAX' and 'pax' from frontend
+    const normalizedPAX = PAX || req.body.pax;
+
     const isHeaderNCKOT = details.some(item => toBool(item.isNCKOT));
 
     console.log('Details array length:', details.length);

@@ -4,6 +4,22 @@ import { getUnbilledItemsByTable } from "@/common/api/orders";
 import { useAuthContext } from "@/common";
 import { toast } from 'react-hot-toast';
 
+const KOT_COLORS = [
+  '#E8F5E9', // Green 50
+  '#FFF3E0', // Orange 50
+];
+
+const getRowColor = (kotNo: string | number | null | undefined) => {
+  if (!kotNo) return '#ffffff';
+  const s = String(kotNo);
+  const firstKot = s.split('|')[0];
+  const num = parseInt(firstKot.replace(/\D/g, ''), 10);
+
+  if (isNaN(num) || num === 0) return '#ffffff';
+
+  return KOT_COLORS[num % KOT_COLORS.length];
+};
+
 interface KotTransferProps {
   onCancel?: () => void;
   onSuccess?: () => void;
@@ -67,6 +83,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
   const [transferDone, setTransferDone] = useState(false);
   const [waitingForEnter, setWaitingForEnter] = useState(false);
   const [currentDate] = useState(new Date().toLocaleDateString('en-GB'));
+  const [proposedPax, setProposedPax] = useState<number>(0);
 
   useEffect(() => {
     setTransferMode(transferSource);
@@ -305,6 +322,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
     const destTable = tables.find(t => t.id === tableId);
     setProposedTable(destTable?.name || '');
     setProposedDepartment(destTable?.department || '');
+    setProposedPax(destTable?.pax || 0);
     await fetchItemsForTable(numericTableId, 'proposed');
   };
 
@@ -657,11 +675,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
                 {/* Item Selection - Only for KOT mode */}
                 {!isTableMode ? (
                   <>
-                    <div className="d-flex justify-content-between align-items-center mb-2">
-                      <Badge bg="primary" style={{ fontSize: "0.85rem" }}>
-                        {selectedCount} selected
-                      </Badge>
-                    </div>
+                  
 
                     <div
                       className="table-responsive"
@@ -697,7 +711,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
                             <tr
                               key={row.id}
                               className={row.selected ? "table-primary" : ""}
-                              style={{ cursor: "pointer" }}
+                              style={{ cursor: "pointer", backgroundColor: getRowColor(row.kot) }}
                               onClick={() => handleCheck(i)}
                             >
 
@@ -714,11 +728,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
                   </>
                 ) : (
                   <>
-                    <div className="d-flex justify-content-between align-items-center mb-2">
-                      <Badge bg="primary" style={{ fontSize: "0.85rem" }}>
-                        {selectedCount} selected
-                      </Badge>
-                    </div>
+                   
 
                     <div
                       className="table-responsive"
@@ -743,7 +753,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
                           <tr>
 
                             <th style={{ width: "50px" }}>Table</th>
-                            <th style={{ width: "50px" }}>KOTNo.</th>
+                            <th style={{ width: "50px" }}>KOT</th>
                             <th style={{ width: "150px" }}>Item</th>
                             <th style={{ width: "60px" }}>Qty</th>
                             <th style={{ width: "80px" }}>Price</th>
@@ -908,7 +918,12 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
                   <Col xs={4}>
                     <Form.Group>
                       <Form.Label className="fw-semibold" style={{ fontSize: "0.9rem", marginBottom: "4px" }}>Pax</Form.Label>
-                      <Form.Control value={destPax} readOnly style={{ fontSize: "0.9rem" }} />
+                      <Form.Control
+                        type="number"
+                        value={proposedPax}
+                        onChange={(e) => setProposedPax(Number(e.target.value))}
+                        style={{ fontSize: "0.9rem" }}
+                      />
                     </Form.Group>
                   </Col>
                   <Col xs={4}>
@@ -932,7 +947,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
                     </thead>
                     <tbody style={{ fontSize: "0.85rem", minHeight: "350px" }}>
                       {proposedItems.length > 0 ? proposedItems.map((row) => (
-                        <tr key={row.id}>
+                        <tr key={row.id} style={{ backgroundColor: getRowColor(row.kot) }}>
                           <td>{row.media}</td>
                           <td>{row.kot}</td>
                           <td style={{ wordWrap: 'break-word', whiteSpace: 'normal' }}>{row.item}</td>
