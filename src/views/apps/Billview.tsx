@@ -10,12 +10,9 @@ import F8PasswordModal from '../../components/F8PasswordModal';
 import ReverseKotModal from './ReverseKotModal';
 
 const KOT_COLORS = [
-
   '#E8F5E9', // Green 50
   '#FFF3E0', // Orange 50
-
 ];
-
 const getRowColor = (kotNo: string | number | null | undefined) => {
   if (!kotNo) return '#ffffff';
   const s = String(kotNo);
@@ -133,11 +130,8 @@ interface FetchedItem {
 const ModernBill = () => {
   const [headerHeight, setHeaderHeight] = useState(0);
   const [toolbarHeight, setToolbarHeight] = useState(0);
-
   const [billItems, setBillItems] = useState<BillItem[]>([{ itemCode: '', itemgroupid: 0, itemId: 0, item_no: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '', isFetched: false }]);
-
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
-
   const [grossAmount, setGrossAmount] = useState(0);
   const [totalCgst, setTotalCgst] = useState(0);
   const [totalSgst, setTotalSgst] = useState(0);
@@ -149,12 +143,9 @@ const ModernBill = () => {
   const [sgst, setSgst] = useState<number>(0);
   const [igst, setIgst] = useState<number>(0);
   const [cess, setCess] = useState<number>(0);
-
   const [grandTotal, setGrandTotal] = useState<number>(0);
   const [finalAmount, setFinalAmount] = useState(0);
-
   const [total, setTotal] = useState(0);
-
   const navigate = useNavigate();
   const location = useLocation();
   const tableId = location.state?.tableId;
@@ -193,8 +184,6 @@ const ModernBill = () => {
   // }, [reversedItems]);
 
   const [showOrderDetails, setShowOrderDetails] = useState(false);
-  const [showReverseItemsModal, setShowReverseItemsModal] = useState(false);
-  const [itemsToReverse, setItemsToReverse] = useState<{ [key: number]: number }>({});
   const [billActionState, setBillActionState] = useState('initial');
   const [tableItems, setTableItems] = useState([] as TableManagement[]);
   const [currentKOTNo, setCurrentKOTNo] = useState(null);
@@ -202,7 +191,6 @@ const ModernBill = () => {
   const [currentKOTNos, setCurrentKOTNos] = useState<number[]>([]);
   const [orderNo, setOrderNo] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('Dine-in');
-
   const [groupBy, setGroupBy] = useState<'none' | 'item' | 'group' | 'kot'>('group');
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [itemGroups, setItemGroups] = useState<ItemGroup[]>([]);
@@ -369,7 +357,6 @@ const ModernBill = () => {
     const totalBeforeRoundOff = gross + cgstTotal + sgstTotal + igstTotal + cessTotal - discountAmount;
     const roundedFinalAmount = Math.round(totalBeforeRoundOff);
     const ro = roundedFinalAmount - totalBeforeRoundOff;
-
     setGrossAmount(gross);
     setTotalCgst(cgstTotal);
     setTotalSgst(sgstTotal);
@@ -456,19 +443,13 @@ const ModernBill = () => {
   const [customerName, setCustomerName] = useState('');
   const [customerId, setCustomerId] = useState<number | null>(null);
   const [showCustomerModal, setShowCustomerModal] = useState(false);
-  const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
-  const [f8Error, setF8Error] = useState<string | null>(null);
-
   const [showF9BilledPasswordModal, setShowF9BilledPasswordModal] = useState(false);
   const [f9BilledPasswordError, setF9BilledPasswordError] = useState('');
   const [f9BilledPasswordLoading, setF9BilledPasswordLoading] = useState(false);
-
   const [showF8RevKotPasswordModal, setShowF8RevKotPasswordModal] = useState(false);
   const [f8RevKotPasswordError, setF8RevKotPasswordError] = useState('');
   const [f8RevKotPasswordLoading, setF8RevKotPasswordLoading] = useState(false);
-
   const [showDiscountModal, setShowDiscountModal] = useState(false);
-  const [discountReason, setDiscountReason] = useState('');
   const [givenBy, setGivenBy] = useState('');
   const [reason, setReason] = useState('');
   const [DiscPer, setDiscPer] = useState(0);
@@ -698,18 +679,13 @@ const ModernBill = () => {
   // Outlet selection states
   const [outlets, setOutlets] = useState<Outlet[]>([]);
   const [selectedOutletId, setSelectedOutletId] = useState<number | null>(outletIdFromState || user?.outletid || null);
-  const [selectedDeptId, setSelectedDeptId] = useState<number | null>(null);
-
   // Tax details state
   const [taxDetails, setTaxDetails] = useState<any>(null);
 
-
   // Handle customer modal
   const handleCloseCustomerModal = () => setShowCustomerModal(false);
-
   const inputRefs = useRef<(HTMLInputElement | null)[][]>([]);
   const kotInputRef = useRef<HTMLInputElement | null>(null);
-
   // Discount Modal Refs
   const discountTypeRef = useRef<HTMLSelectElement>(null);
   const discountInputRef = useRef<HTMLInputElement>(null);
@@ -995,12 +971,6 @@ const ModernBill = () => {
     }
   }, [user]);
   // Fetch billed items for the table
-
-
-
-
-
-
   // Navigable columns: 0: Item Code, 1: Qty, 2: Item Name, 3: Rate, 4: Special Instructions
   const navigableColumns = [0, 1, 2, 3, 4];
 
@@ -1595,56 +1565,6 @@ const ModernBill = () => {
       toast.error(err.message || 'Reverse failed');
     }
   };
-
-
-
-
-
-
-
-  const reverseBill = async () => {
-    if (!txnId) {
-      alert('No bill to reverse');
-      return;
-    }
-
-    try {
-      await axios.post('/api/TAxnTrnbill/reverse', {
-        TxnID: txnId,
-        OutletID: user.outletid,
-        HotelID: user.hotelid,
-        UserID: user.id
-      });
-
-      toast.success('Bill reversed successfully');
-
-      // ✅ reset UI state
-      resetBillState();
-
-      // ✅ go back to table view
-      navigate('/apps/Tableview');
-    } catch (error) {
-      console.error('Reverse bill error:', error);
-      toast.error('Failed to reverse bill');
-    }
-  };
-
-  const reverseKOT = async () => {
-    if (!txnId) return;
-    try {
-      await axios.post('/api/TAxnTrnbill/create-reverse-kot', {
-        txnId,
-        qty: reverseQty,
-        reason: reverseReason
-      });
-      toast.success('KOT reversed successfully');
-      setShowReverseKOTModal(false);
-    } catch (error) {
-      console.error('Error reversing KOT:', error);
-      toast.error('Error reversing KOT');
-    }
-  };
-
  const printKOT = async (kotNo: number) => {
     try {
       const response = await axios.post(`/api/kot/print/${kotNo}`, {
@@ -1716,47 +1636,6 @@ const generateBill = async () => {
     throw error;
   }
 };
-
-
-  const settleBill = async () => {
-
-    try {
-      // First generate the bill
-      const billNo = await generateBill();
-      if (!billNo) {
-        toast.error('Bill generation failed. Cannot proceed with settlement.');
-        return;
-      }
-
-      // Then settle the bill using the backend settleBill endpoint
-      await axios.post(`/api/TAxnTrnbill/${txnId}/settle`, {
-        settlements
-      });
-      toast.success('Bill settled successfully');
-      navigate('/apps/Tableview');
-    } catch (error) {
-      console.error('Error settling bill:', error);
-      toast.error('Error settling bill');
-    }
-  };
-
-  const transferTable = async () => {
-    if (!txnId || !selectedTable) return;
-    try {
-      await axios.post('/api/TAxnTrnbill/kot', {
-        txnId,
-        tableId: selectedTable.id,
-        table_name: selectedTable.name,
-        items: []
-      });
-      toast.success('Table transferred successfully');
-      setShowTransferModal(false);
-      navigate('/apps/Tableview');
-    } catch (error) {
-      console.error('Error transferring table:', error);
-      toast.error('Error transferring table');
-    }
-  };
   const resetBillState = () => {
     setBillItems([{ itemCode: '', itemgroupid: 0, item_no: 0, itemId: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '', isFetched: false }]);
     setTxnId(null);
@@ -2292,9 +2171,6 @@ const generateBill = async () => {
   font-size: 1.1rem;
   font-weight: 600;   /* semi-bold */
 }
-  
-
-
         .modern-table.table-bordered td, .modern-table.table-bordered th {
           border: 1px solid #ced4da;
         }
@@ -2443,9 +2319,6 @@ const generateBill = async () => {
     -webkit-text-fill-color: white !important;
     transition: background-color 5000s ease-in-out 0s;
 }
-
-      
-
         .total-card {
           background: #28a745; /* Solid green background */
           border: none;
@@ -2736,9 +2609,6 @@ const generateBill = async () => {
             </datalist>
           </div>
         </div>
-
-
-
         {/* Main Content */}
         <div className="full-screen-content px-2" style={{ top: `${headerHeight + toolbarHeight}px` }}>
           <div className="content-wrapper">
@@ -3085,14 +2955,11 @@ const generateBill = async () => {
         <Modal.Header closeButton className="border-0">
           <Modal.Title className="fw-bold text-dark">Payment Mode</Modal.Title>
         </Modal.Header>
-
         {/* Body */}
         <Modal.Body className="p-0">
           <Row className="g-0">
-
             {/* ================= LEFT PANEL : PAYMENT MODES ================= */}
             <Col md={4} className="border-end bg-dark text-white p-3">
-
               {/* MIXED PAYMENT SWITCH – TOP */}
               <div className="mb-3 p-3 rounded bg-black">
                 <Form.Check
@@ -3107,9 +2974,7 @@ const generateBill = async () => {
                   }}
                 />
               </div>
-
               <h6 className="fw-bold mb-3">PAYMENT MODES</h6>
-
               {/* PAYMENT MODES LIST */}
               {outletPaymentModes.map((mode, index) => {
                 const isKeyboardActive = index === activePaymentIndex;
@@ -3138,10 +3003,7 @@ const generateBill = async () => {
                   </div>
                 );
               })}
-
             </Col>
-
-
             {/* ================= RIGHT PANEL : PAYMENT PROCESS ================= */}
             <Col md={8} className="p-4 bg-light">
 
@@ -3159,7 +3021,6 @@ const generateBill = async () => {
                   Select a payment mode to continue
                 </div>
               )}
-
               {selectedPaymentModes.map((modeName) => (
                 <Card key={modeName} className="mb-3 shadow-sm">
                   <Card.Body>
@@ -3180,7 +3041,6 @@ const generateBill = async () => {
                   </Card.Body>
                 </Card>
               ))}
-
               {/* TIP */}
               <Card className="shadow-sm">
                 <Card.Body>
@@ -3193,11 +3053,9 @@ const generateBill = async () => {
                   />
                 </Card.Body>
               </Card>
-
               {/* PAYMENT SUMMARY */}
               <div className="mt-4 p-3 border rounded bg-white">
                 <Row className="text-center">
-
                   {/* RECEIVED */}
                   <Col>
                     <div className="text-muted">Received</div>
@@ -3205,7 +3063,6 @@ const generateBill = async () => {
                       ₹{totalReceived.toFixed(2)}
                     </div>
                   </Col>
-
                   {/* BALANCE / REFUND */}
                   <Col>
                     {balanceAmount > 0 ? (
@@ -3231,16 +3088,11 @@ const generateBill = async () => {
                       </>
                     )}
                   </Col>
-
                 </Row>
               </div>
-
-
             </Col>
           </Row>
         </Modal.Body>
-
-
         {/* Footer */}
         <Modal.Footer className="border-0 justify-content-between">
           <Button
@@ -3260,7 +3112,6 @@ const generateBill = async () => {
           </Button>
         </Modal.Footer>
       </Modal>
-
       {/* KOT Transfer Modal */}
       <Modal show={showKotTransferModal} onHide={() => setShowKotTransferModal(false)} size="xl" centered>
         <Modal.Header closeButton>
@@ -3270,7 +3121,6 @@ const generateBill = async () => {
           <KotTransfer transferSource={transferSource} sourceTableId={tableId} onCancel={() => setShowKotTransferModal(false)} />
         </Modal.Body>
       </Modal>
-
       {/* Reverse Bill Modal */}
       <Modal show={showReverseBillModal} onHide={() => setShowReverseBillModal(false)} centered>
         <Modal.Header closeButton>
@@ -3283,8 +3133,6 @@ const generateBill = async () => {
           <Button variant="secondary" onClick={() => setShowReverseBillModal(false)}>
             Cancel
           </Button>
-
-
           <Button variant="danger" onClick={() => {
             const hasBilledItems = billItems.some(item => item.isBilled === 1);
 
@@ -3299,7 +3147,6 @@ const generateBill = async () => {
           </Button>
         </Modal.Footer>
       </Modal>
-
       {/* Customer Modal */}
       <Modal show={showCustomerModal} onHide={handleCloseCustomerModal} size="xl" centered>
         <Modal.Header closeButton>
@@ -3320,7 +3167,6 @@ const generateBill = async () => {
         loading={f9BilledPasswordLoading}
         title="Admin Password for Reversal"
       />
-
       <F8PasswordModal
         show={showF8RevKotPasswordModal}
         onHide={() => {
@@ -3332,7 +3178,6 @@ const generateBill = async () => {
         loading={f8RevKotPasswordLoading}
         title="Admin Password for Reverse KOT"
       />
-
       <ReverseKotModal
         show={showReverseKot}
         revKotNo={revKotNo}
@@ -3346,7 +3191,6 @@ const generateBill = async () => {
         persistentTxnId={txnId}
         persistentTableId={tableId}
       />
-
       <Toaster />
     </React.Fragment>
   );
