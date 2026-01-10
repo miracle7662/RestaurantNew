@@ -10,10 +10,10 @@ import F8PasswordModal from '../../components/F8PasswordModal';
 import ReverseKotModal from './ReverseKotModal';
 
 const KOT_COLORS = [
- 
+
   '#E8F5E9', // Green 50
   '#FFF3E0', // Orange 50
- 
+
 ];
 
 const getRowColor = (kotNo: string | number | null | undefined) => {
@@ -21,9 +21,9 @@ const getRowColor = (kotNo: string | number | null | undefined) => {
   const s = String(kotNo);
   const firstKot = s.split('|')[0];
   const num = parseInt(firstKot.replace(/\D/g, ''), 10);
-  
+
   if (isNaN(num) || num === 0) return '#ffffff';
-  
+
   return KOT_COLORS[num % KOT_COLORS.length];
 };
 
@@ -46,7 +46,7 @@ interface BillItem {
   txnDetailId?: number;
   isFetched?: boolean;
   reversedQty?: number;
-  RevKOT ?: number;
+  RevKOT?: number;
 }
 
 interface MenuItem {
@@ -150,7 +150,7 @@ const ModernBill = () => {
   const [igst, setIgst] = useState<number>(0);
   const [cess, setCess] = useState<number>(0);
 
-const [grandTotal, setGrandTotal] = useState<number>(0);
+  const [grandTotal, setGrandTotal] = useState<number>(0);
   const [finalAmount, setFinalAmount] = useState(0);
 
   const [total, setTotal] = useState(0);
@@ -232,24 +232,24 @@ const [grandTotal, setGrandTotal] = useState<number>(0);
       return hasBlankRow
         ? mappedItems
         : mappedItems.concat({
-            itemCode: '',
-            itemgroupid: 0,
-            itemId: 0,
-            item_no: 0,
-            itemName: '',
-            qty: 1,
-            rate: 0,
-            total: 0,
-            cgst: 0,
-            sgst: 0,
-            igst: 0,
-            cess: 0,
-            mkotNo: '',
-            specialInstructions: '',
-            isEditable: true,
-            isFetched: false,
-            originalIndex: billItems.length
-          });
+          itemCode: '',
+          itemgroupid: 0,
+          itemId: 0,
+          item_no: 0,
+          itemName: '',
+          qty: 1,
+          rate: 0,
+          total: 0,
+          cgst: 0,
+          sgst: 0,
+          igst: 0,
+          cess: 0,
+          mkotNo: '',
+          specialInstructions: '',
+          isEditable: true,
+          isFetched: false,
+          originalIndex: billItems.length
+        });
     } else {
       let groupKey: (item: BillItem) => string;
       let groupName: (key: string, item: BillItem) => string;
@@ -420,6 +420,20 @@ const [grandTotal, setGrandTotal] = useState<number>(0);
   const [outletPaymentModes, setOutletPaymentModes] = useState<any[]>([]);
   const [taxCalc, setTaxCalc] = useState({ grandTotal: 0, subtotal: 0 });
   const [settlements, setSettlements] = useState([{ PaymentType: 'Cash', Amount: finalAmount }]);
+  const [activePaymentIndex, setActivePaymentIndex] = useState(0);
+
+
+  const totalPaid =
+    Object.values(paymentAmounts).reduce(
+      (acc, val) => acc + (parseFloat(val) || 0),
+      0
+    ) + (tip || 0);
+
+  const balanceAmount = taxCalc.grandTotal - totalPaid;
+  const changeAmount = totalPaid > taxCalc.grandTotal
+    ? totalPaid - taxCalc.grandTotal
+    : 0;
+
 
   // Reverse Bill modal data
   const [reversePassword, setReversePassword] = useState('');
@@ -438,7 +452,7 @@ const [grandTotal, setGrandTotal] = useState<number>(0);
   const [customerNo, setCustomerNo] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [showCustomerModal, setShowCustomerModal] = useState(false);
-const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
+  const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
   const [f8Error, setF8Error] = useState<string | null>(null);
 
   const [showF9BilledPasswordModal, setShowF9BilledPasswordModal] = useState(false);
@@ -481,26 +495,60 @@ const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
   };
 
   const ncNameRef = React.useRef<HTMLInputElement>(null);
-const ncPurposeRef = React.useRef<HTMLInputElement>(null);
+  const ncPurposeRef = React.useRef<HTMLInputElement>(null);
 
-// =====================
-// KEYBOARD HANDLER
-// =====================
-const handleNCKOTKeyDown = (e: React.KeyboardEvent) => {
-  if (e.key !== 'Enter') return;
+  // =====================
+  // KEYBOARD HANDLER
+  // =====================
+  const handleNCKOTKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key !== 'Enter') return;
 
-  e.preventDefault();
+    e.preventDefault();
 
-  if (document.activeElement === ncNameRef.current) {
-    ncPurposeRef.current?.focus();
-    ncPurposeRef.current?.select();
-    return;
-  }
+    if (document.activeElement === ncNameRef.current) {
+      ncPurposeRef.current?.focus();
+      ncPurposeRef.current?.select();
+      return;
+    }
 
-  if (document.activeElement === ncPurposeRef.current) {
-    handleSaveNCKOT();
-  }
-};
+    if (document.activeElement === ncPurposeRef.current) {
+      handleSaveNCKOT();
+    }
+  };
+
+  useEffect(() => {
+    if (!showSettlementModal) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!outletPaymentModes.length) return;
+
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setActivePaymentIndex((prev) =>
+          prev < outletPaymentModes.length - 1 ? prev + 1 : 0
+        );
+      }
+
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setActivePaymentIndex((prev) =>
+          prev > 0 ? prev - 1 : outletPaymentModes.length - 1
+        );
+      }
+
+      if (e.key === "Enter") {
+        e.preventDefault();
+        const selectedMode = outletPaymentModes[activePaymentIndex];
+        if (selectedMode) {
+          handlePaymentModeClick(selectedMode);
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [showSettlementModal, activePaymentIndex, outletPaymentModes]);
+
 
   const handleCustomerNoChange = async (value: string) => {
     setCustomerNo(value);
@@ -587,7 +635,7 @@ const handleNCKOTKeyDown = (e: React.KeyboardEvent) => {
             setCurrentKOTNo(null);
             setCurrentKOTNos([]);
             setOrderNo(null);
-            
+
             navigate('/apps/Tableview');
           } else {
             setF9BilledPasswordError(reverseData.message || 'Failed to reverse the bill.');
@@ -793,145 +841,145 @@ const handleNCKOTKeyDown = (e: React.KeyboardEvent) => {
     }
   };
 
- // Fetch table data when tableId is present
-const loadUnbilledItems = useCallback(async (tableIdNum: number) => {
-  if (!tableIdNum || !user || !user.hotelid) return;
+  // Fetch table data when tableId is present
+  const loadUnbilledItems = useCallback(async (tableIdNum: number) => {
+    if (!tableIdNum || !user || !user.hotelid) return;
 
-  setLoading(true);
-  setError(null);
-  try {
-    const response = await axios.get(`/api/TAxnTrnbill/unbilled-items/${tableIdNum}`);
-    if (response.status !== 200) {
-      throw new Error(`Server responded with status ${response.status}`);
-    }
-    const data = response.data?.data || response.data;
-    if (!data) {
-      throw new Error('No data received from server');
-    }
-
-    // Map items to BillItem interface
-    const mappedItems: BillItem[] = data.items.map((item: any) => {
-      const qty = item.netQty || item.Qty || 0;
-      const rate = item.price || item.Price || item.Rate || 0;
-      const total = qty * rate;
-
-      return {
-        itemCode: (item.item_no || item.ItemNo || '').toString(),
-        itemId: item.itemId || item.ItemID || 0,
-        itemgroupid: item.itemgroupid || 0,
-        item_no: item.item_no || item.ItemNo || '',
-        itemName: item.itemName || item.ItemName || item.item_name || '',
-        qty: qty,
-        rate: rate,
-        total: total,
-
-        // New tax fields - use from API if available, otherwise calculate fallback
-        cgst: item.cgst ?? (total * 0.025),           // 2.5% default fallback
-        sgst: item.sgst ?? (total * 0.025),           // 2.5% default fallback
-        igst: item.igst ?? 0,
-        cess: item.cess ?? 0,
-
-        mkotNo: item.kotNo ? item.kotNo.toString() : (item.KOTNo ? item.KOTNo.toString() : ''),
-        specialInstructions: item.specialInstructions || item.SpecialInst || '',
-        isBilled: 0,
-        txnDetailId: item.txnDetailId,
-        isFetched: true,
-        revQty: item.revQty || item.RevQty || 0
-      };
-    });
-
-    // Always add a blank row at the end for new item entry
-    mappedItems.push({
-      itemCode: '',
-      itemgroupid: 0,
-      itemId: 0,
-      item_no: 0,
-      itemName: '',
-      qty: 1,
-      rate: 0,
-      total: 0,
-      cgst: 0,
-      sgst: 0,
-      igst: 0,
-      cess: 0,
-      mkotNo: '',
-      specialInstructions: '',
-      isFetched: false
-    });
-
-    setBillItems(mappedItems);
-
-    if (data.reversedItems) {
-      setReversedItems(
-        (data.reversedItems || []).map((item: any) => ({
-          ...item,
-          name: item.ItemName || 'Unknown Item',
-          id: item.ItemID,
-          price: item.RuntimeRate || 0,
-          qty: Math.abs(item.Qty) || 1,
-          isReversed: true,
-          status: 'Reversed',
-          kotNo: item.KOTNo,
-        }))
-      );
-    } else {
-      setReversedItems([]);
-    }
-
-    // Update header fields from data.header and data.kotNo if available
-    console.log('API Response Header:', data.header);
-    if (data.header) {
-      setTxnId(data.header.TxnID);
-      setWaiter(data.header.waiter || 'ASD');
-      setPax(data.header.pax || data.header.PAX || 1);
-      if (data.header.table_name) {
-        setTableNo(data.header.table_name);
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await axios.get(`/api/TAxnTrnbill/unbilled-items/${tableIdNum}`);
+      if (response.status !== 200) {
+        throw new Error(`Server responded with status ${response.status}`);
+      }
+      const data = response.data?.data || response.data;
+      if (!data) {
+        throw new Error('No data received from server');
       }
 
-      // Discount handling
-      if (data.header.Discount || data.header.DiscPer) {
-        setDiscount(data.header.Discount || 0);
-        setDiscPer(data.header.DiscPer || 0);
-        setDiscountInputValue(
-          data.header.DiscountType === 1 ? data.header.DiscPer : data.header.Discount || 0
+      // Map items to BillItem interface
+      const mappedItems: BillItem[] = data.items.map((item: any) => {
+        const qty = item.netQty || item.Qty || 0;
+        const rate = item.price || item.Price || item.Rate || 0;
+        const total = qty * rate;
+
+        return {
+          itemCode: (item.item_no || item.ItemNo || '').toString(),
+          itemId: item.itemId || item.ItemID || 0,
+          itemgroupid: item.itemgroupid || 0,
+          item_no: item.item_no || item.ItemNo || '',
+          itemName: item.itemName || item.ItemName || item.item_name || '',
+          qty: qty,
+          rate: rate,
+          total: total,
+
+          // New tax fields - use from API if available, otherwise calculate fallback
+          cgst: item.cgst ?? (total * 0.025),           // 2.5% default fallback
+          sgst: item.sgst ?? (total * 0.025),           // 2.5% default fallback
+          igst: item.igst ?? 0,
+          cess: item.cess ?? 0,
+
+          mkotNo: item.kotNo ? item.kotNo.toString() : (item.KOTNo ? item.KOTNo.toString() : ''),
+          specialInstructions: item.specialInstructions || item.SpecialInst || '',
+          isBilled: 0,
+          txnDetailId: item.txnDetailId,
+          isFetched: true,
+          revQty: item.revQty || item.RevQty || 0
+        };
+      });
+
+      // Always add a blank row at the end for new item entry
+      mappedItems.push({
+        itemCode: '',
+        itemgroupid: 0,
+        itemId: 0,
+        item_no: 0,
+        itemName: '',
+        qty: 1,
+        rate: 0,
+        total: 0,
+        cgst: 0,
+        sgst: 0,
+        igst: 0,
+        cess: 0,
+        mkotNo: '',
+        specialInstructions: '',
+        isFetched: false
+      });
+
+      setBillItems(mappedItems);
+
+      if (data.reversedItems) {
+        setReversedItems(
+          (data.reversedItems || []).map((item: any) => ({
+            ...item,
+            name: item.ItemName || 'Unknown Item',
+            id: item.ItemID,
+            price: item.RuntimeRate || 0,
+            qty: Math.abs(item.Qty) || 1,
+            isReversed: true,
+            status: 'Reversed',
+            kotNo: item.KOTNo,
+          }))
         );
-        setDiscountType(data.header.DiscountType ?? 1);
       } else {
-        setDiscount(0);
-        setDiscPer(0);
+        setReversedItems([]);
       }
 
-      if (data.header.RevKOT) {
-        setRevKOT(data.header.RevKOT);
+      // Update header fields from data.header and data.kotNo if available
+      console.log('API Response Header:', data.header);
+      if (data.header) {
+        setTxnId(data.header.TxnID);
+        setWaiter(data.header.waiter || 'ASD');
+        setPax(data.header.pax || data.header.PAX || 1);
+        if (data.header.table_name) {
+          setTableNo(data.header.table_name);
+        }
+
+        // Discount handling
+        if (data.header.Discount || data.header.DiscPer) {
+          setDiscount(data.header.Discount || 0);
+          setDiscPer(data.header.DiscPer || 0);
+          setDiscountInputValue(
+            data.header.DiscountType === 1 ? data.header.DiscPer : data.header.Discount || 0
+          );
+          setDiscountType(data.header.DiscountType ?? 1);
+        } else {
+          setDiscount(0);
+          setDiscPer(0);
+        }
+
+        if (data.header.RevKOT) {
+          setRevKOT(data.header.RevKOT);
+        }
+
+        // ── NEW TAX & TOTAL FIELDS ──
+        setCgst?.(data.header.CGST || data.header.cgst || 0);
+        setSgst?.(data.header.SGST || data.header.sgst || 0);
+        setIgst?.(data.header.IGST || data.header.igst || 0);
+        setCess?.(data.header.CESS || data.header.cess || 0);
+        setRoundOff?.(data.header.RoundOFF || data.header.roundOff || data.header.roundoff || 0);
+        setGrandTotal?.(data.header.Amount || data.header.amount || data.header.grandTotal || 0);
       }
 
-      // ── NEW TAX & TOTAL FIELDS ──
-      setCgst?.(data.header.CGST || data.header.cgst || 0);
-      setSgst?.(data.header.SGST || data.header.sgst || 0);
-      setIgst?.(data.header.IGST || data.header.igst || 0);
-      setCess?.(data.header.CESS || data.header.cess || 0);
-      setRoundOff?.(data.header.RoundOFF || data.header.roundOff || data.header.roundoff || 0);
-      setGrandTotal?.(data.header.Amount || data.header.amount || data.header.grandTotal || 0);
-    }
+      if (data.kotNo !== null && data.kotNo !== undefined) {
+        setKotNo(String(data.kotNo));
+      }
 
-    if (data.kotNo !== null && data.kotNo !== undefined) {
-      setKotNo(String(data.kotNo));
-    }
+      // Calculate totals (now should also consider new tax fields if your function supports it)
+      calculateTotals(mappedItems);
 
-    // Calculate totals (now should also consider new tax fields if your function supports it)
-    calculateTotals(mappedItems);
-
-  } catch (err: any) {
-    if (err.response) {
-      setError(`Server responded with status ${err.response.status}: ${err.response.statusText}`);
-    } else {
-      setError(err.message || 'Failed to fetch table data');
+    } catch (err: any) {
+      if (err.response) {
+        setError(`Server responded with status ${err.response.status}: ${err.response.statusText}`);
+      } else {
+        setError(err.message || 'Failed to fetch table data');
+      }
+      console.error('Error fetching table data:', err);
+    } finally {
+      setLoading(false);
     }
-    console.error('Error fetching table data:', err);
-  } finally {
-    setLoading(false);
-  }
-}, [user]);
+  }, [user]);
   // Fetch billed items for the table
 
 
@@ -1137,7 +1185,7 @@ const loadUnbilledItems = useCallback(async (tableIdNum: number) => {
 
     // Add event listener for Escape key
     const handleEscapeKey = (event: Event) => {
-        const keyboardEvent = event as unknown as KeyboardEvent;
+      const keyboardEvent = event as unknown as KeyboardEvent;
 
       if (keyboardEvent.key === 'Escape') {
         navigate('/apps/Tableview');
@@ -1403,7 +1451,7 @@ const loadUnbilledItems = useCallback(async (tableIdNum: number) => {
     }
   };
 
-   const handleSaveNCKOT = async () => {
+  const handleSaveNCKOT = async () => {
     if (!txnId) {
       toast.error('No active transaction found. Please save a KOT first.');
       return;
@@ -1437,7 +1485,7 @@ const loadUnbilledItems = useCallback(async (tableIdNum: number) => {
         setSelectedTable(null);
         setShowOrderDetails(false);
         setShowNCKOTModal(false);
-         navigate('/apps/Tableview');
+        navigate('/apps/Tableview');
       } else {
         throw new Error(result.message || 'Failed to apply NCKOT.');
       }
@@ -1450,71 +1498,71 @@ const loadUnbilledItems = useCallback(async (tableIdNum: number) => {
     }
   };
 
-const handleReverseKotSave = async (reverseItemsFromModal: any[]) => {
-  if (!txnId || !tableId) {
-    toast.error('Transaction or table not found');
-    return;
-  }
+  const handleReverseKotSave = async (reverseItemsFromModal: any[]) => {
+    if (!txnId || !tableId) {
+      toast.error('Transaction or table not found');
+      return;
+    }
 
-  if (!reverseItemsFromModal || reverseItemsFromModal.length === 0) {
-    toast.error('No items selected for reverse');
-    return;
-  }
+    if (!reverseItemsFromModal || reverseItemsFromModal.length === 0) {
+      toast.error('No items selected for reverse');
+      return;
+    }
 
-  try {
-    const response = await fetch(
-      'http://localhost:3001/api/TAxnTrnbill/create-reverse-kot',
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          txnId,
-          tableId,
+    try {
+      const response = await fetch(
+        'http://localhost:3001/api/TAxnTrnbill/create-reverse-kot',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            txnId,
+            tableId,
             kotType: 'REVERSE',   // ✅ MUST
             isReverseKot: 1,      // ✅ MUST
-          reversedItems: reverseItemsFromModal.map(item => ({
-            txnDetailId: item.txnDetailId, // Add txnDetailId for database update
-            item_no: item.item_no,
-            item_name: item.itemName,
-            qty: item.cancelQty,     // ✅ modal ka cancelQty
-            price: item.rate
-          })),
-          userId: user?.id,
-          reversalReason: 'Reverse from Billview'
-        })
+            reversedItems: reverseItemsFromModal.map(item => ({
+              txnDetailId: item.txnDetailId, // Add txnDetailId for database update
+              item_no: item.item_no,
+              item_name: item.itemName,
+              qty: item.cancelQty,     // ✅ modal ka cancelQty
+              price: item.rate
+            })),
+            userId: user?.id,
+            reversalReason: 'Reverse from Billview'
+          })
+        }
+      );
+
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(result.message || 'Reverse KOT failed');
       }
-    );
 
-    const result = await response.json();
-    if (!result.success) {
-      throw new Error(result.message || 'Reverse KOT failed');
+      toast.success(`Reverse KOT ${result.data?.reverseKotNo || ''} saved`);
+
+      // Update revKotNo state immediately
+      if (result.data?.reverseKotNo) {
+        setRevKotNo(result.data.reverseKotNo);
+      }
+
+      // Update table status to occupied (1)
+      try {
+        await axios.put(`/api/tablemanagement/${tableId}/status`, { status: 1 });
+      } catch (error) {
+        console.error('Error updating table status:', error);
+      }
+
+      await loadBillDetails();
+      await fetchTableManagement();
+
+      // Navigate to tableview page after saving reverse KOT
+      navigate('/apps/Tableview');
+
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || 'Reverse failed');
     }
-
-    toast.success(`Reverse KOT ${result.data?.reverseKotNo || ''} saved`);
-
-    // Update revKotNo state immediately
-    if (result.data?.reverseKotNo) {
-      setRevKotNo(result.data.reverseKotNo);
-    }
-
-    // Update table status to occupied (1)
-    try {
-      await axios.put(`/api/tablemanagement/${tableId}/status`, { status: 1 });
-    } catch (error) {
-      console.error('Error updating table status:', error);
-    }
-
-    await loadBillDetails();
-    await fetchTableManagement();
-
-    // Navigate to tableview page after saving reverse KOT
-    navigate('/apps/Tableview');
-
-  } catch (err: any) {
-    console.error(err);
-    toast.error(err.message || 'Reverse failed');
-  }
-};
+  };
 
 
 
@@ -1710,94 +1758,94 @@ const handleReverseKotSave = async (reverseItemsFromModal: any[]) => {
     setPaymentAmounts({ ...paymentAmounts, [modeName]: value });
   };
 
-   const handleApplyDiscount = async () => {
-      if (!txnId) {
-        toast.error("Please save the KOT before applying a discount.");
+  const handleApplyDiscount = async () => {
+    if (!txnId) {
+      toast.error("Please save the KOT before applying a discount.");
+      return;
+    }
+
+    let appliedDiscount = 0;
+    let appliedDiscPer = 0;
+
+    if (DiscountType === 1) { // Percentage
+      if (discountInputValue < 0 || discountInputValue > 100 || isNaN(discountInputValue)) {
+        toast.error('Discount percentage must be between 0% and 100%');
         return;
       }
+      const discountThreshold = 20; // Configurable threshold
+      if (discountInputValue > discountThreshold && user?.role_level !== 'superadmin' && user?.role_level !== 'hotel_admin') {
+        toast.error('Discount > 20% requires manager approval');
+        return;
+      }
+      appliedDiscPer = discountInputValue;
+      appliedDiscount = (grossAmount * discountInputValue) / 100;
+    } else { // Amount
+      if (discountInputValue <= 0 || discountInputValue > grossAmount || isNaN(discountInputValue)) {
+        toast.error(`Discount amount must be > 0 and <= subtotal (${grossAmount.toFixed(2)})`);
+        return;
+      }
+      appliedDiscPer = 0;
+      appliedDiscount = discountInputValue;
+    }
 
-      let appliedDiscount = 0;
-      let appliedDiscPer = 0;
+    setLoading(true);
+    setDiscount(appliedDiscount); // Ensure the discount state is updated
+    try {
+      const payload = {
+        discount: appliedDiscount,
+        discPer: appliedDiscPer,
+        discountType: DiscountType,
+        tableId: tableId,
+        items: billItems.filter(item => item.itemId > 0).map(item => ({ ...item, price: item.rate })), // Send current items to recalculate on backend
+      };
 
-      if (DiscountType === 1) { // Percentage
-        if (discountInputValue < 0 || discountInputValue > 100 || isNaN(discountInputValue)) {
-          toast.error('Discount percentage must be between 0% and 100%');
-          return;
-        }
-        const discountThreshold = 20; // Configurable threshold
-        if (discountInputValue > discountThreshold && user?.role_level !== 'superadmin' && user?.role_level !== 'hotel_admin') {
-          toast.error('Discount > 20% requires manager approval');
-          return;
-        }
-        appliedDiscPer = discountInputValue;
-        appliedDiscount = (grossAmount * discountInputValue) / 100;
-      } else { // Amount
-        if (discountInputValue <= 0 || discountInputValue > grossAmount || isNaN(discountInputValue)) {
-          toast.error(`Discount amount must be > 0 and <= subtotal (${grossAmount.toFixed(2)})`);
-          return;
-        }
-        appliedDiscPer = 0;
-        appliedDiscount = discountInputValue;
+      const response = await fetch(`http://localhost:3001/api/TAxnTrnbill/${txnId}/discount`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.message || 'Failed to apply discount.');
       }
 
-      setLoading(true);
-      setDiscount(appliedDiscount); // Ensure the discount state is updated
-      try {
-        const payload = {
-          discount: appliedDiscount,
-          discPer: appliedDiscPer,
-          discountType: DiscountType,
-          tableId: tableId,
-          items: billItems.filter(item => item.itemId > 0).map(item => ({ ...item, price: item.rate })), // Send current items to recalculate on backend
-        };
-
-        const response = await fetch(`http://localhost:3001/api/TAxnTrnbill/${txnId}/discount`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-
-        const result = await response.json();
-
-        if (!result.success) {
-          throw new Error(result.message || 'Failed to apply discount.');
-        }
-
-        toast.success('Discount applied successfully!');
-        setShowDiscountModal(false);
-        // Instead of clearing the table, just refresh its data to show the discount.
-        // If the table was billed, applying a discount should make it 'occupied' (green) again.
-        const wasBilled = items.some(item => item.isBilled === 1);
-        if (wasBilled && selectedTable) {
-          const tableToUpdate = tableItems.find(t => t.table_name === selectedTable.name);
-          if (tableToUpdate) {
-            // Optimistically update UI to green
-            setTableItems(prevTables =>
-              prevTables.map(table =>
-                table.table_name === selectedTable.name ? { ...table, status: 1 } : table
-              )
-            );
-            // The backend now handles setting isBilled=0, so a refresh will show correct state.
-            if (selectedTable?.id) {
-              await loadBillForTable(selectedTable.id);
-            }
+      toast.success('Discount applied successfully!');
+      setShowDiscountModal(false);
+      // Instead of clearing the table, just refresh its data to show the discount.
+      // If the table was billed, applying a discount should make it 'occupied' (green) again.
+      const wasBilled = items.some(item => item.isBilled === 1);
+      if (wasBilled && selectedTable) {
+        const tableToUpdate = tableItems.find(t => t.table_name === selectedTable.name);
+        if (tableToUpdate) {
+          // Optimistically update UI to green
+          setTableItems(prevTables =>
+            prevTables.map(table =>
+              table.table_name === selectedTable.name ? { ...table, status: 1 } : table
+            )
+          );
+          // The backend now handles setting isBilled=0, so a refresh will show correct state.
+          if (selectedTable?.id) {
+            await loadBillForTable(selectedTable.id);
           }
         }
-
-        if (tableId) {
-          await loadBillForTable(tableId);
-        }
-
-        // Navigate to tableview page after applying discount
-        navigate('/apps/Tableview');
-
-      } catch (error: any) {
-        toast.error(error.message || 'An error occurred while applying the discount.');
-      } finally {
-        setLoading(false);
-        setReason('');
       }
-    };
+
+      if (tableId) {
+        await loadBillForTable(tableId);
+      }
+
+      // Navigate to tableview page after applying discount
+      navigate('/apps/Tableview');
+
+    } catch (error: any) {
+      toast.error(error.message || 'An error occurred while applying the discount.');
+    } finally {
+      setLoading(false);
+      setReason('');
+    }
+  };
 
   const handleSettleAndPrint = async () => {
     // Define these variables before using them
@@ -1895,112 +1943,112 @@ const handleReverseKotSave = async (reverseItemsFromModal: any[]) => {
   const hasOnlyExistingItems = hasItems && !hasNewItems;
 
   const isBillPrintedState = billItems.some(i => i.isBilled === 1);
-  
+
 
   const handleF8Action = useCallback(() => {
     if (isBillPrintedState) {
-        setShowF8RevKotPasswordModal(true);
+      setShowF8RevKotPasswordModal(true);
     } else {
-        setShowReverseKot(true);
+      setShowReverseKot(true);
     }
   }, [isBillPrintedState]);
 
-useEffect(() => {
-  const handleKeyDown = (event: KeyboardEvent) => {
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
 
-    /* -------- F KEYS (NO CTRL) -------- */
-    if (!event.ctrlKey) {
+      /* -------- F KEYS (NO CTRL) -------- */
+      if (!event.ctrlKey) {
 
-      switch (event.key) {
+        switch (event.key) {
 
-        case 'F2':
-          event.preventDefault();
-          if (!hasItems || isBillPrintedState) return;
-          setTransferSource('kot');
-          setShowKotTransferModal(true);
-          return;
+          case 'F2':
+            event.preventDefault();
+            if (!hasItems || isBillPrintedState) return;
+            setTransferSource('kot');
+            setShowKotTransferModal(true);
+            return;
 
-        case 'F3':
+          case 'F3':
+            event.preventDefault();
+            if (!hasItems) return;
+            setShowDiscountModal(true);
+            return;
+
+          case 'F5': // 🔒 Reverse Bill (only if isBilled = 1)
+            event.preventDefault();
+            if (disableReverseBill) return;
+            setShowReverseBillModal(true);
+            return;
+
+          case 'F6':
+            event.preventDefault();
+            resetBillState();
+            return;
+
+          case 'F7':
+            event.preventDefault();
+            if (!hasItems || isBillPrintedState) return;
+            setTransferSource('table');
+            setShowKotTransferModal(true);
+            return;
+
+          case 'F8': // ✅ Reverse KOT (password if billed)
+            event.preventDefault();
+            if (!hasItems) return;
+            handleF8Action();
+            return;
+
+          case 'F9': // 🔒 KOT (only new items)
+            event.preventDefault();
+            if (disableKOT) return;
+            saveKOT(false, true);
+            return;
+
+          case 'F10': // 🔒 Print
+            event.preventDefault();
+            if (disablePrint) return;
+            printBill();
+            return;
+
+          case 'F11': // 🔒 Settlement
+            event.preventDefault();
+            if (disableSettlement) return;
+            setShowSettlementModal(true);
+            return;
+        }
+      }
+
+      /* -------- CTRL SHORTCUTS -------- */
+      if (event.ctrlKey) {
+
+        if (event.key === 'F9') {
           event.preventDefault();
           if (!hasItems) return;
-          setShowDiscountModal(true);
+          setShowNCKOTModal(true);
           return;
+        }
 
-        case 'F5': // 🔒 Reverse Bill (only if isBilled = 1)
+        if (event.key.toLowerCase() === 'g') {
           event.preventDefault();
-          if (disableReverseBill) return;
-          setShowReverseBillModal(true);
+          setGroupBy(prev => (prev === 'none' ? 'group' : 'none'));
           return;
-
-        case 'F6':
-          event.preventDefault();
-          resetBillState();
-          return;
-
-        case 'F7':
-          event.preventDefault();
-          if (!hasItems || isBillPrintedState) return;
-          setTransferSource('table');
-          setShowKotTransferModal(true);
-          return;
-
-        case 'F8': // ✅ Reverse KOT (password if billed)
-          event.preventDefault();
-          if (!hasItems ) return;
-          handleF8Action();
-          return;
-
-        case 'F9': // 🔒 KOT (only new items)
-          event.preventDefault();
-          if (disableKOT) return;
-          saveKOT(false, true);
-          return;
-
-        case 'F10': // 🔒 Print
-          event.preventDefault();
-          if (disablePrint) return;
-          printBill();
-          return;
-
-        case 'F11': // 🔒 Settlement
-          event.preventDefault();
-          if (disableSettlement) return;
-          setShowSettlementModal(true);
-          return;
+        }
       }
-    }
+    };
 
-    /* -------- CTRL SHORTCUTS -------- */
-    if (event.ctrlKey) {
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
 
-      if (event.key === 'F9') {
-        event.preventDefault();
-        if (!hasItems) return;
-        setShowNCKOTModal(true);
-        return;
-      }
+  }, [
+    saveKOT,
+    resetBillState,
+    handleF8Action,
+    hasItems,
+    hasNewItems,
+    isBillPrintedState,
 
-      if (event.key.toLowerCase() === 'g') {
-        event.preventDefault();
-        setGroupBy(prev => (prev === 'none' ? 'group' : 'none'));
-        return;
-      }
-    }
-  };
 
-  document.addEventListener('keydown', handleKeyDown);
-  return () => document.removeEventListener('keydown', handleKeyDown);
-
-}, [
-  saveKOT,
-  resetBillState,
-  handleF8Action,
-  hasItems,
-  hasNewItems,
-  isBillPrintedState,
-  
- 
-]);
+  ]);
 
   // 🔘 BUTTON ENABLE FLAGS
   const disableReverseBill = !isBillPrintedState;
@@ -2412,13 +2460,13 @@ useEffect(() => {
         <div className="full-screen-header">
           <div className="container-fluid  px-2">
             <div className="d-flex justify-content-between align-items-center mb-1">
-  <h2 className="text-primary mb-0">BILL</h2>
+              <h2 className="text-primary mb-0">BILL</h2>
 
-  <span className="badge bg-light text-dark border">
-    Group Items: <strong>Ctrl + G</strong> &nbsp;|&nbsp;
-    Special Instructions: <strong>F4</strong>
-  </span>
-</div>
+              <span className="badge bg-light text-dark border">
+                Group Items: <strong>Ctrl + G</strong> &nbsp;|&nbsp;
+                Special Instructions: <strong>F4</strong>
+              </span>
+            </div>
 
 
             {/* Card Layout for Header Information */}
@@ -2527,7 +2575,7 @@ useEffect(() => {
               {/* MO No / Name */}
               <Col md={2}>
                 <div className="info-box p-2 h-100 border rounded d-flex flex-column justify-content-center">
-                  
+
 
                   {/* Customer No */}
                   <input
@@ -2635,121 +2683,121 @@ useEffect(() => {
                       {displayedItems.map((item, index) => {
                         const effectiveKotNo = item.mkotNo || (!item.isFetched ? editableKot : '');
                         return (
-                        <tr key={index} style={{ backgroundColor: getRowColor(effectiveKotNo) }}>
-                          <td style={{ width: '80px' }}>
-                            <Form.Control
-                              ref={(el) => {
-                                if (!inputRefs.current[index]) inputRefs.current[index] = [];
-                                inputRefs.current[index][0] = el;
-                              }}
-                              type="text"
-                              value={item.itemCode}
-                              disabled={!item.isEditable}
-                              onChange={(e) => handleItemChange(index, 'itemCode', e.target.value)}
-                              onKeyDown={(e) => {
-                                handleKeyPress(index, 'itemCode')(e);
-                                if (e.key.startsWith('Arrow')) {
-                                  handleArrowNavigation(index, 0, e.key.slice(5).toLowerCase() as 'up' | 'down' | 'left' | 'right');
-                                  e.preventDefault();
-                                }
-                              }}
-                              className="form-control"
-                              style={{ width: '100%',  fontSize: '16px', background: 'transparent', padding: '0' }}
-                            />
-                          </td>
-                          <td style={{ width: '400px' }}>
-                            <Form.Control
-                              ref={(el) => {
-                                if (!inputRefs.current[index]) inputRefs.current[index] = [];
-                                inputRefs.current[index][2] = el;
-                              }}
-                              type="text"
-                              value={item.itemName}
-                              disabled={!item.isEditable}
-                              onChange={(e) => handleItemChange(index, 'itemName', e.target.value)}
-                              onKeyDown={(e) => {
-                                handleKeyPress(index, 'itemName')(e);
-                                if (e.key.startsWith('Arrow')) {
-                                  handleArrowNavigation(index, 2, e.key.slice(5).toLowerCase() as 'up' | 'down' | 'left' | 'right');
-                                  e.preventDefault();
-                                }
-                              }}
-                              className="form-control-sm1"
-                              list="itemNames"
-                              style={{ width: '100%',  fontSize: '16px', background: 'transparent', padding: '0', outline: 'none' }}
-                            />
-                          </td>
-                          <td className="text-center" style={{ width: '100px' }}>
-                            <Form.Control
-                              ref={(el) => {
-                                if (!inputRefs.current[index]) inputRefs.current[index] = [];
-                                inputRefs.current[index][1] = el;
-                              }}
-                              type="number"
-                              value={item.qty}
-                              disabled={!item.isEditable}
-                              onChange={(e) => handleItemChange(index, 'qty', Number(e.target.value))}
-                              onKeyDown={(e) => {
-                                handleKeyPress(index, 'qty')(e);
-                                if (e.key.startsWith('Arrow')) {
-                                  handleArrowNavigation(index, 1, e.key.slice(5).toLowerCase() as 'up' | 'down' | 'left' | 'right');
-                                  e.preventDefault();
-                                }
-                              }}
-                              className="form-control-sm1 text-center"
-                              style={{ width: '100%',  background: 'transparent', fontSize: '16px', padding: '0', outline: 'none' }}
-                            />
-                          </td>
-                          <td className="text-end" style={{ width: '100px' }}>
-                            <Form.Control
-                              type="number"
-                              value={item.rate}
-                              disabled={!item.isEditable}
-                              onChange={(e) => handleItemChange(index, 'rate', Number(e.target.value))}
-                              onKeyDown={(e) => {
-                                handleKeyPress(index, 'rate')(e);
-                                if (e.key.startsWith('Arrow')) {
-                                  handleArrowNavigation(index, 3, e.key.slice(5).toLowerCase() as 'up' | 'down' | 'left' | 'right');
-                                  e.preventDefault();
-                                }
-                              }}
-                              className="form-control-sm1 text-end"
-                              style={{ width: '100%', fontSize: '16px', background: 'transparent', padding: '0', outline: 'none' }}
-                            />
-                          </td>
-                          <td className="text-end" style={{ width: '100px' }}>{item.total.toFixed(2)}</td>
-                          <td className="text-center">
-                            {item.mkotNo && (
-                              <div className="d-flex justify-content-center gap-1 flex-wrap">
-                                {item.mkotNo.split('|').map((kot: string, index: number) => (
-                                  <Badge bg="secondary" key={index}>
-                                    {kot}
-                                  </Badge>
-                                ))}
-                              </div>
-                            )}
-                          </td>
+                          <tr key={index} style={{ backgroundColor: getRowColor(effectiveKotNo) }}>
+                            <td style={{ width: '80px' }}>
+                              <Form.Control
+                                ref={(el) => {
+                                  if (!inputRefs.current[index]) inputRefs.current[index] = [];
+                                  inputRefs.current[index][0] = el;
+                                }}
+                                type="text"
+                                value={item.itemCode}
+                                disabled={!item.isEditable}
+                                onChange={(e) => handleItemChange(index, 'itemCode', e.target.value)}
+                                onKeyDown={(e) => {
+                                  handleKeyPress(index, 'itemCode')(e);
+                                  if (e.key.startsWith('Arrow')) {
+                                    handleArrowNavigation(index, 0, e.key.slice(5).toLowerCase() as 'up' | 'down' | 'left' | 'right');
+                                    e.preventDefault();
+                                  }
+                                }}
+                                className="form-control"
+                                style={{ width: '100%', fontSize: '16px', background: 'transparent', padding: '0' }}
+                              />
+                            </td>
+                            <td style={{ width: '400px' }}>
+                              <Form.Control
+                                ref={(el) => {
+                                  if (!inputRefs.current[index]) inputRefs.current[index] = [];
+                                  inputRefs.current[index][2] = el;
+                                }}
+                                type="text"
+                                value={item.itemName}
+                                disabled={!item.isEditable}
+                                onChange={(e) => handleItemChange(index, 'itemName', e.target.value)}
+                                onKeyDown={(e) => {
+                                  handleKeyPress(index, 'itemName')(e);
+                                  if (e.key.startsWith('Arrow')) {
+                                    handleArrowNavigation(index, 2, e.key.slice(5).toLowerCase() as 'up' | 'down' | 'left' | 'right');
+                                    e.preventDefault();
+                                  }
+                                }}
+                                className="form-control-sm1"
+                                list="itemNames"
+                                style={{ width: '100%', fontSize: '16px', background: 'transparent', padding: '0', outline: 'none' }}
+                              />
+                            </td>
+                            <td className="text-center" style={{ width: '100px' }}>
+                              <Form.Control
+                                ref={(el) => {
+                                  if (!inputRefs.current[index]) inputRefs.current[index] = [];
+                                  inputRefs.current[index][1] = el;
+                                }}
+                                type="number"
+                                value={item.qty}
+                                disabled={!item.isEditable}
+                                onChange={(e) => handleItemChange(index, 'qty', Number(e.target.value))}
+                                onKeyDown={(e) => {
+                                  handleKeyPress(index, 'qty')(e);
+                                  if (e.key.startsWith('Arrow')) {
+                                    handleArrowNavigation(index, 1, e.key.slice(5).toLowerCase() as 'up' | 'down' | 'left' | 'right');
+                                    e.preventDefault();
+                                  }
+                                }}
+                                className="form-control-sm1 text-center"
+                                style={{ width: '100%', background: 'transparent', fontSize: '16px', padding: '0', outline: 'none' }}
+                              />
+                            </td>
+                            <td className="text-end" style={{ width: '100px' }}>
+                              <Form.Control
+                                type="number"
+                                value={item.rate}
+                                disabled={!item.isEditable}
+                                onChange={(e) => handleItemChange(index, 'rate', Number(e.target.value))}
+                                onKeyDown={(e) => {
+                                  handleKeyPress(index, 'rate')(e);
+                                  if (e.key.startsWith('Arrow')) {
+                                    handleArrowNavigation(index, 3, e.key.slice(5).toLowerCase() as 'up' | 'down' | 'left' | 'right');
+                                    e.preventDefault();
+                                  }
+                                }}
+                                className="form-control-sm1 text-end"
+                                style={{ width: '100%', fontSize: '16px', background: 'transparent', padding: '0', outline: 'none' }}
+                              />
+                            </td>
+                            <td className="text-end" style={{ width: '100px' }}>{item.total.toFixed(2)}</td>
+                            <td className="text-center">
+                              {item.mkotNo && (
+                                <div className="d-flex justify-content-center gap-1 flex-wrap">
+                                  {item.mkotNo.split('|').map((kot: string, index: number) => (
+                                    <Badge bg="secondary" key={index}>
+                                      {kot}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              )}
+                            </td>
 
-                          <td>
-                            <Form.Control
-                              type="text"
-                              value={item.specialInstructions}
-                              disabled={!item.isEditable}
-                              onChange={(e) => handleItemChange(index, 'specialInstructions', e.target.value)}
-                              onKeyDown={(e) => {
-                                handleKeyPress(index, 'specialInstructions')(e);
-                                if (e.key.startsWith('Arrow')) {
-                                  handleArrowNavigation(index, 4, e.key.slice(5).toLowerCase() as 'up' | 'down' | 'left' | 'right');
-                                  e.preventDefault();
-                                }
-                              }}
-                              className="form-control-sm1"
-                              
-                              style={{ width: '100%', fontSize: '18px',  background: 'transparent', padding: '0', outline: 'none' }}
-                            />
-                          </td>
-                        </tr>
-                      );
+                            <td>
+                              <Form.Control
+                                type="text"
+                                value={item.specialInstructions}
+                                disabled={!item.isEditable}
+                                onChange={(e) => handleItemChange(index, 'specialInstructions', e.target.value)}
+                                onKeyDown={(e) => {
+                                  handleKeyPress(index, 'specialInstructions')(e);
+                                  if (e.key.startsWith('Arrow')) {
+                                    handleArrowNavigation(index, 4, e.key.slice(5).toLowerCase() as 'up' | 'down' | 'left' | 'right');
+                                    e.preventDefault();
+                                  }
+                                }}
+                                className="form-control-sm1"
+
+                                style={{ width: '100%', fontSize: '18px', background: 'transparent', padding: '0', outline: 'none' }}
+                              />
+                            </td>
+                          </tr>
+                        );
                       })}
                     </tbody>
                   </Table>
@@ -2784,7 +2832,7 @@ useEffect(() => {
                       <td>{DiscPer.toFixed(2)}</td>
                       <td className="text-end">{grossAmount.toFixed(2)}</td>
                       <td className="text-end">{RevKOT.toFixed(2)}</td>
-                   <td>{discount.toFixed(2)}</td>
+                      <td>{discount.toFixed(2)}</td>
                       <td className="text-end">{cgst.toFixed(2)}</td>
                       <td className="text-end">{sgst.toFixed(2)}</td>
                       <td className="text-end">{igst.toFixed(2)}</td>
@@ -2801,15 +2849,15 @@ useEffect(() => {
               <Card className="footer-card">
                 <Card.Body className="py-1">
                   <div className="d-flex justify-content-between align-items-center px-2 py-1">
-  <Button disabled={disableAll || isBillPrintedState} onClick={() => { setTransferSource("kot"); setShowKotTransferModal(true); }} variant="outline-primary" size="sm" className="function-btn">KOT Tr (F2)</Button>
-  <Button disabled={disableAll || isBillPrintedState} onClick={() => setShowNCKOTModal(true)} variant="outline-primary" size="sm" className="function-btn">N C KOT (ctrl + F9)</Button>
+                    <Button disabled={disableAll || isBillPrintedState} onClick={() => { setTransferSource("kot"); setShowKotTransferModal(true); }} variant="outline-primary" size="sm" className="function-btn">KOT Tr (F2)</Button>
+                    <Button disabled={disableAll || isBillPrintedState} onClick={() => setShowNCKOTModal(true)} variant="outline-primary" size="sm" className="function-btn">N C KOT (ctrl + F9)</Button>
                     {/* <Button onClick={() => setShowCustomerModal(true)} variant="outline-primary" size="sm" className="function-btn">Customer (F1)</Button> */}
                     <Button disabled={!isBillPrintedState} onClick={() => setShowReverseBillModal(true)} variant="outline-primary" size="sm" className="function-btn">Rev Bill (F5)</Button>
-  <Button disabled={disableAll || isBillPrintedState} onClick={() => { setTransferSource("table"); setShowKotTransferModal(true); }} variant="outline-primary" size="sm" className="function-btn">TBL Tr (F7)</Button>
+                    <Button disabled={disableAll || isBillPrintedState} onClick={() => { setTransferSource("table"); setShowKotTransferModal(true); }} variant="outline-primary" size="sm" className="function-btn">TBL Tr (F7)</Button>
                     <Button onClick={resetBillState} variant="outline-primary" size="sm" className="function-btn">New Bill (F6)</Button>
-  <Button disabled={disableAll  } onClick={handleF8Action} variant="outline-primary" size="sm" className="function-btn">Rev KOT (F8)</Button>
-                    <Button disabled={disableKOT}  onClick={() => saveKOT(false, true)} variant="outline-primary" size="sm" className="function-btn">K O T (F9)</Button>
-                    <Button disabled={disableAll } onClick={printBill} variant="outline-primary" size="sm" className="function-btn">Print (F10)</Button>
+                    <Button disabled={disableAll} onClick={handleF8Action} variant="outline-primary" size="sm" className="function-btn">Rev KOT (F8)</Button>
+                    <Button disabled={disableKOT} onClick={() => saveKOT(false, true)} variant="outline-primary" size="sm" className="function-btn">K O T (F9)</Button>
+                    <Button disabled={disableAll} onClick={printBill} variant="outline-primary" size="sm" className="function-btn">Print (F10)</Button>
                     <Button disabled={disableSettlement} onClick={() => setShowSettlementModal(true)} variant="outline-primary" size="sm" className="function-btn">Settle (F11)</Button>
                     <Button onClick={exitWithoutSave} variant="outline-primary" size="sm" className="function-btn">Exit (Esc)</Button>
                   </div>
@@ -2823,107 +2871,107 @@ useEffect(() => {
       </div>
 
       {/* NC KOT Modal */}
-    {/* NC KOT Modal */}
-<Modal
-  show={showNCKOTModal}
-  onHide={() => setShowNCKOTModal(false)}
-  centered
-  onShow={() => {
-    setTimeout(() => ncNameRef.current?.focus(), 100);
-  }}
->
-  <Modal.Header closeButton>
-    <Modal.Title>No Charge KOT</Modal.Title>
-  </Modal.Header>
+      {/* NC KOT Modal */}
+      <Modal
+        show={showNCKOTModal}
+        onHide={() => setShowNCKOTModal(false)}
+        centered
+        onShow={() => {
+          setTimeout(() => ncNameRef.current?.focus(), 100);
+        }}
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>No Charge KOT</Modal.Title>
+        </Modal.Header>
 
-  <Modal.Body>
-    {/* 🔹 Keyboard wrapper */}
-    <div onKeyDown={handleNCKOTKeyDown}>
-      
-      <Form.Group className="mb-3">
-        <Form.Label>NC Name</Form.Label>
-        <Form.Control
-          ref={ncNameRef}
-          type="text"
-          value={ncName}
-          onChange={(e) => setNcName(e.target.value)}
-          placeholder="Enter NC Name"
-        />
-      </Form.Group>
+        <Modal.Body>
+          {/* 🔹 Keyboard wrapper */}
+          <div onKeyDown={handleNCKOTKeyDown}>
 
-      <Form.Group className="mb-3">
-        <Form.Label>NC Purpose</Form.Label>
-        <Form.Control
-          ref={ncPurposeRef}
-          type="text"
-          value={ncPurpose}
-          onChange={(e) => setNcPurpose(e.target.value)}
-          placeholder="Enter NC Purpose"
-        />
-      </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>NC Name</Form.Label>
+              <Form.Control
+                ref={ncNameRef}
+                type="text"
+                value={ncName}
+                onChange={(e) => setNcName(e.target.value)}
+                placeholder="Enter NC Name"
+              />
+            </Form.Group>
 
-    </div>
-  </Modal.Body>
+            <Form.Group className="mb-3">
+              <Form.Label>NC Purpose</Form.Label>
+              <Form.Control
+                ref={ncPurposeRef}
+                type="text"
+                value={ncPurpose}
+                onChange={(e) => setNcPurpose(e.target.value)}
+                placeholder="Enter NC Purpose"
+              />
+            </Form.Group>
 
-  <Modal.Footer>
-    <Button variant="secondary" onClick={() => setShowNCKOTModal(false)}>
-      Cancel
-    </Button>
-    <Button variant="primary" onClick={handleSaveNCKOT}>
-      Save NC KOT
-    </Button>
-  </Modal.Footer>
-</Modal>
+          </div>
+        </Modal.Body>
+
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowNCKOTModal(false)}>
+            Cancel
+          </Button>
+          <Button variant="primary" onClick={handleSaveNCKOT}>
+            Save NC KOT
+          </Button>
+        </Modal.Footer>
+      </Modal>
 
 
-        <Modal show={showDiscountModal} onHide={() => setShowDiscountModal(false)} centered onShow={() => {
-            if (DiscountType === 1) {
-              setDiscountInputValue(DiscPer);
-            } else {
-              setDiscountInputValue(discount);
-            }
-            setTimeout(() => {
-              discountTypeRef.current?.focus();
-            }, 100);
-          }}>
-            <Modal.Header closeButton><Modal.Title>Apply Discount</Modal.Title></Modal.Header>
-            <Modal.Body onKeyDown={handleDiscountModalKeyDown}>
-              <div className="mb-3">
-                <label className="form-label">Discount Type</label>
-                <select ref={discountTypeRef} id="discountTypeSelect" className="form-control" value={DiscountType} onChange={(e) => setDiscountType(Number(e.target.value))}>
-                  <option value={1}>Percentage</option>
-                  <option value={0}>Amount</option>
-                </select>
-              </div>
-              <div className="mb-3">
-                <label htmlFor="discountInput" className="form-label">{DiscountType === 1 ? 'Discount Percentage (0% - 100%)' : 'Discount Amount'}</label>
-                <input
-                  ref={discountInputRef}
-                  type="number"
-                  id="discountInput"
-                  className="form-control"
-                  value={discountInputValue}
-                  onChange={(e) => setDiscountInputValue(parseFloat(e.target.value) || 0)}
-                  step={DiscountType === 1 ? "0.5" : "0.01"}
-                  min={DiscountType === 1 ? "0.5" : "0"}
-                  max={DiscountType === 1 ? "100" : ""}
-                />
-              </div>
-              <div className="mb-3">
-                <label htmlFor="givenBy" className="form-label">Given By</label>
-                <input ref={givenByRef} type="text" id="givenBy" className="form-control" value={givenBy} readOnly={user?.role_level !== 'admin'} onChange={(e) => setGivenBy(e.target.value)} />
-              </div>
-              <div className="mb-3">
-                <label htmlFor="reason" className="form-label">Reason (Optional)</label>
-                <textarea ref={reasonRef} id="reason" className="form-control" value={reason} onChange={(e) => setReason(e.target.value)} />
-              </div>
-            </Modal.Body>
-            <Modal.Footer>
-               <Button variant="primary" onClick={handleApplyDiscount}>Apply</Button>
-              <Button variant="secondary" onClick={() => setShowDiscountModal(false)}>Cancel</Button>
-             
-            </Modal.Footer>
-          </Modal>
+      <Modal show={showDiscountModal} onHide={() => setShowDiscountModal(false)} centered onShow={() => {
+        if (DiscountType === 1) {
+          setDiscountInputValue(DiscPer);
+        } else {
+          setDiscountInputValue(discount);
+        }
+        setTimeout(() => {
+          discountTypeRef.current?.focus();
+        }, 100);
+      }}>
+        <Modal.Header closeButton><Modal.Title>Apply Discount</Modal.Title></Modal.Header>
+        <Modal.Body onKeyDown={handleDiscountModalKeyDown}>
+          <div className="mb-3">
+            <label className="form-label">Discount Type</label>
+            <select ref={discountTypeRef} id="discountTypeSelect" className="form-control" value={DiscountType} onChange={(e) => setDiscountType(Number(e.target.value))}>
+              <option value={1}>Percentage</option>
+              <option value={0}>Amount</option>
+            </select>
+          </div>
+          <div className="mb-3">
+            <label htmlFor="discountInput" className="form-label">{DiscountType === 1 ? 'Discount Percentage (0% - 100%)' : 'Discount Amount'}</label>
+            <input
+              ref={discountInputRef}
+              type="number"
+              id="discountInput"
+              className="form-control"
+              value={discountInputValue}
+              onChange={(e) => setDiscountInputValue(parseFloat(e.target.value) || 0)}
+              step={DiscountType === 1 ? "0.5" : "0.01"}
+              min={DiscountType === 1 ? "0.5" : "0"}
+              max={DiscountType === 1 ? "100" : ""}
+            />
+          </div>
+          <div className="mb-3">
+            <label htmlFor="givenBy" className="form-label">Given By</label>
+            <input ref={givenByRef} type="text" id="givenBy" className="form-control" value={givenBy} readOnly={user?.role_level !== 'admin'} onChange={(e) => setGivenBy(e.target.value)} />
+          </div>
+          <div className="mb-3">
+            <label htmlFor="reason" className="form-label">Reason (Optional)</label>
+            <textarea ref={reasonRef} id="reason" className="form-control" value={reason} onChange={(e) => setReason(e.target.value)} />
+          </div>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="primary" onClick={handleApplyDiscount}>Apply</Button>
+          <Button variant="secondary" onClick={() => setShowDiscountModal(false)}>Cancel</Button>
+
+        </Modal.Footer>
+      </Modal>
 
       {/* Settle Modal */}
       <Modal
@@ -2951,122 +2999,159 @@ useEffect(() => {
         </Modal.Header>
 
         {/* Body */}
-        <Modal.Body className="bg-light">
-          {/* Bill Summary */}
-          <div className="p-4 mb-4 bg-white rounded shadow-sm text-center">
-            <h6 className="text-secondary mb-2">Total Amount Due</h6>
-            <div className="fw-bold display-5 text-dark" id="settlement-grand-total">
-              ₹{taxCalc.grandTotal.toFixed(2)}
-            </div>
-          </div>
+        <Modal.Body className="p-0">
+          <Row className="g-0">
 
-          {/* Mixed Payment Toggle */}
-          <div className="d-flex justify-content-end mb-3">
-            <Form.Check
-              type="switch"
-              id="mixed-payment-switch"
-              label="Mixed Payment"
-              checked={isMixedPayment}
-              onChange={(e) => {
-                setIsMixedPayment(e.target.checked);
-                setSelectedPaymentModes([]);
-                setPaymentAmounts({});
-              }}
-            />
-          </div>
+            {/* ================= LEFT PANEL : PAYMENT MODES ================= */}
+            <Col md={4} className="border-end bg-dark text-white p-3">
 
-          {/* Payment Modes */}
-          <Row xs={1} md={2} className="g-3">
-            {outletPaymentModes.map((mode) => (
-              <Col key={mode.id}>
-                <Card
-                  onClick={() => handlePaymentModeClick(mode)}
-                  className={`text-center h-100 shadow-sm border-0 ${selectedPaymentModes.includes(mode.mode_name)
-                    ? "border border-primary"
-                    : ""
-                    }`}
-                  style={{
-                    cursor: "pointer",
-                    transition: "transform 0.2s ease, box-shadow 0.2s ease",
+              {/* MIXED PAYMENT SWITCH – TOP */}
+              <div className="mb-3 p-3 rounded bg-black">
+                <Form.Check
+                  type="switch"
+                  id="mixed-payment-switch"
+                  label="Enable Mixed Payment"
+                  checked={isMixedPayment}
+                  onChange={(e) => {
+                    setIsMixedPayment(e.target.checked);
+                    setSelectedPaymentModes([]);
+                    setPaymentAmounts({});
                   }}
-                  onMouseEnter={(e) =>
-                    (e.currentTarget.style.transform = "translateY(-4px)")
-                  }
-                  onMouseLeave={(e) =>
-                    (e.currentTarget.style.transform = "translateY(0)")
-                  }
-                >
-                  <Card.Body>
-                    <Card.Title className="fw-semibold">
-                      {mode.mode_name}
-                    </Card.Title>
+                />
+              </div>
 
-                    {/* Amount Input */}
-                    {selectedPaymentModes.includes(mode.mode_name) && (
+              <h6 className="fw-bold mb-3">PAYMENT MODES</h6>
+
+              {/* PAYMENT MODES LIST */}
+              {outletPaymentModes.map((mode, index) => {
+                const isKeyboardActive = index === activePaymentIndex;
+                const isSelected = selectedPaymentModes.includes(mode.mode_name);
+
+                return (
+                  <div
+                    key={mode.id}
+                    onClick={() => {
+                      setActivePaymentIndex(index);
+                      handlePaymentModeClick(mode);
+                    }}
+                    className={`d-flex align-items-center justify-content-between p-3 mb-2 rounded
+          ${isSelected ? "bg-primary" : isKeyboardActive ? "bg-info" : "bg-secondary"}
+        `}
+                    style={{
+                      cursor: "pointer",
+                      outline: isKeyboardActive ? "2px solid #fff" : "none",
+                    }}
+                  >
+                    <span className="fw-semibold">{mode.mode_name}</span>
+
+                    {isKeyboardActive && (
+                      <span className="badge bg-dark">↵ Enter</span>
+                    )}
+                  </div>
+                );
+              })}
+
+            </Col>
+
+
+            {/* ================= RIGHT PANEL : PAYMENT PROCESS ================= */}
+            <Col md={8} className="p-4 bg-light">
+
+              {/* BILL SUMMARY */}
+              <div className="text-center mb-4">
+                <div className="text-muted">Total Payable</div>
+                <div className="display-6 fw-bold">
+                  ₹{taxCalc.grandTotal.toFixed(2)}
+                </div>
+              </div>
+
+              {/* SELECTED PAYMENT MODE DETAILS */}
+              {selectedPaymentModes.length === 0 && (
+                <div className="text-center text-muted mt-5">
+                  Select a payment mode to continue
+                </div>
+              )}
+
+              {selectedPaymentModes.map((modeName) => (
+                <Card key={modeName} className="mb-3 shadow-sm">
+                  <Card.Body>
+                    <h6 className="fw-bold mb-3">{modeName} Payment</h6>
+
+                    <Form.Group>
+                      <Form.Label>Amount</Form.Label>
                       <Form.Control
                         type="number"
                         placeholder="0.00"
-                        value={paymentAmounts[mode.mode_name] || ""}
+                        value={paymentAmounts[modeName] || ""}
                         onChange={(e) =>
-                          handlePaymentAmountChange(mode.mode_name, e.target.value)
+                          handlePaymentAmountChange(modeName, e.target.value)
                         }
-                        onClick={(e) => e.stopPropagation()}
-                        autoFocus={isMixedPayment}
-                        readOnly={!isMixedPayment}
-                        className="mt-2 text-center"
+                        readOnly={!isMixedPayment && selectedPaymentModes.length === 1}
                       />
-                    )}
+                    </Form.Group>
                   </Card.Body>
                 </Card>
-              </Col>
-            ))}
+              ))}
+
+              {/* TIP */}
+              <Card className="shadow-sm">
+                <Card.Body>
+                  <Form.Label className="fw-semibold">Optional Tip</Form.Label>
+                  <Form.Control
+                    type="number"
+                    placeholder="0.00"
+                    value={tip || ""}
+                    onChange={(e) => setTip(parseFloat(e.target.value) || 0)}
+                  />
+                </Card.Body>
+              </Card>
+
+              {/* PAYMENT SUMMARY */}
+              <div className="mt-4 p-3 border rounded bg-white">
+                <Row className="text-center">
+
+                  {/* PAID */}
+                  <Col>
+                    <div className="text-muted">Paid</div>
+                    <div className="fw-bold text-primary">
+                      ₹{totalPaid.toFixed(2)}
+                    </div>
+                  </Col>
+
+                  {/* BALANCE / CHANGE */}
+                  <Col>
+                    {balanceAmount > 0 ? (
+                      <>
+                        <div className="text-muted">Balance Due</div>
+                        <div className="fw-bold text-danger">
+                          ₹{balanceAmount.toFixed(2)}
+                        </div>
+                      </>
+                    ) : balanceAmount === 0 ? (
+                      <>
+                        <div className="text-muted">Balance</div>
+                        <div className="fw-bold text-success">
+                          ₹0.00
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="text-muted">Change Return</div>
+                        <div className="fw-bold text-success">
+                          ₹{changeAmount.toFixed(2)}
+                        </div>
+                      </>
+                    )}
+                  </Col>
+
+                </Row>
+              </div>
+
+
+            </Col>
           </Row>
-
-          {/* Tip Input */}
-          <div className="mb-3 p-3 bg-white rounded shadow-sm">
-            <Form.Label className="fw-semibold text-dark mb-2">Optional Tip</Form.Label>
-            <Form.Control
-              type="number"
-              placeholder="0.00"
-              value={tip || ""}
-              onChange={(e) => setTip(parseFloat(e.target.value) || 0)}
-              className="text-center"
-              step="0.01"
-            />
-          </div>
-
-          {/* Payment Summary */}
-          <div className="mt-4 p-3 bg-white rounded shadow-sm">
-            <div className="d-flex justify-content-around fw-bold fs-5">
-              <div>
-                <span>Total Paid: </span>
-                <span className="text-primary" id="settlement-total-paid">{(Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0) + (tip || 0)).toFixed(2)}</span>
-              </div>
-              <div>
-                <span>Balance Due: </span>
-                <span
-                  className={
-                    (taxCalc.grandTotal - (Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0) + (tip || 0))) === 0 ? "text-success" : "text-danger"
-                  }
-                >
-                  {(taxCalc.grandTotal - (Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0) + (tip || 0))).toFixed(2)}
-                </span>
-              </div>
-            </div>
-
-            {/* Validation Messages */}
-            {(taxCalc.grandTotal - (Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0) + (tip || 0))) !== 0 && (
-              <div className="text-danger mt-2 text-center small">
-                Total paid amount + tip must match the grand total.
-              </div>
-            )}
-            {(taxCalc.grandTotal - (Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0) + (tip || 0))) === 0 && (Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0) + (tip || 0)) > 0 && (
-              <div className="text-success mt-2 text-center small">
-                ✅ Payment amount + tip matches. Ready to settle.
-              </div>
-            )}
-          </div>
         </Modal.Body>
+
 
         {/* Footer */}
         <Modal.Footer className="border-0 justify-content-between">
@@ -3110,9 +3195,9 @@ useEffect(() => {
           <Button variant="secondary" onClick={() => setShowReverseBillModal(false)}>
             Cancel
           </Button>
-          
-          
-           <Button variant="danger" onClick={() => {
+
+
+          <Button variant="danger" onClick={() => {
             const hasBilledItems = billItems.some(item => item.isBilled === 1);
 
             if (hasBilledItems) {
@@ -3136,7 +3221,7 @@ useEffect(() => {
           <CustomerModal />
         </Modal.Body>
       </Modal>
-<F8PasswordModal
+      <F8PasswordModal
         show={showF9BilledPasswordModal}
         onHide={() => {
           setShowF9BilledPasswordModal(false);
@@ -3173,7 +3258,7 @@ useEffect(() => {
         persistentTxnId={txnId}
         persistentTableId={tableId}
       />
-      
+
       <Toaster />
     </React.Fragment>
   );
