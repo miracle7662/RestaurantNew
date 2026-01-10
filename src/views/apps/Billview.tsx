@@ -423,17 +423,20 @@ const ModernBill = () => {
   const [activePaymentIndex, setActivePaymentIndex] = useState(0);
 
 
-  const totalPaid =
-    Object.values(paymentAmounts).reduce(
-      (acc, val) => acc + (parseFloat(val) || 0),
-      0
-    ) + (tip || 0);
+  const totalReceived = Object.values(paymentAmounts).reduce(
+    (acc, val) => acc + (parseFloat(val) || 0),
+    0
+  ) + (tip || 0);
 
-  const balanceAmount = taxCalc.grandTotal - totalPaid;
-  const changeAmount = totalPaid > taxCalc.grandTotal
-    ? totalPaid - taxCalc.grandTotal
+  const refundAmount =
+    totalReceived > taxCalc.grandTotal
+      ? totalReceived - taxCalc.grandTotal
     : 0;
 
+  const balanceAmount =
+    totalReceived < taxCalc.grandTotal
+      ? taxCalc.grandTotal - totalReceived
+      : 0;
 
   // Reverse Bill modal data
   const [reversePassword, setReversePassword] = useState('');
@@ -1884,27 +1887,58 @@ const generateBill = async () => {
 
   const handleSettleAndPrint = async () => {
     // Define these variables before using them
-    const totalPaid = Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0) + (tip || 0);
-    const settlementBalance = taxCalc.grandTotal - totalPaid;
 
     if (!txnId) {
       alert('Cannot settle bill. No transaction ID found.');
       return;
     }
-    if (settlementBalance !== 0 || totalPaid === 0) { // Now this check will work
-      alert('Payment amount does not match the total due.');
+    if (totalReceived < taxCalc.grandTotal || totalReceived === 0) { // Now this check will work
+      alert('Payment amount is less than the total due.');
+      return;
+    }
+    if (selectedPaymentModes.length === 0) {
+      toast.error('Please select at least one payment mode.');
       return;
     }
 
     setLoading(true);
     try {
       // 1. Construct the settlements payload
-      const settlementsPayload = selectedPaymentModes.map(modeName => {
+      // Sort modes so Cash is last, to attribute refund/change to Cash
+      const sortedModes = [...selectedPaymentModes].sort((a, b) => {
+        if (a.toLowerCase() === 'cash') return 1;
+        if (b.toLowerCase() === 'cash') return -1;
+        return 0;
+      });
+
+      let remainingToSettle = taxCalc.grandTotal;
+
+      const settlementsPayload = sortedModes.map(modeName => {
         const paymentModeDetails = outletPaymentModes.find(pm => pm.mode_name === modeName);
+        const received = parseFloat(paymentAmounts[modeName] || '0');
+
+        let amountToSettle = 0;
+        if (remainingToSettle > 0) {
+          if (received >= remainingToSettle) {
+            amountToSettle = remainingToSettle;
+            remainingToSettle = 0;
+          } else {
+            amountToSettle = received;
+            remainingToSettle -= received;
+          }
+        }
+
+        // Ensure precision
+        amountToSettle = parseFloat(amountToSettle.toFixed(2));
+        const refund = parseFloat((received - amountToSettle).toFixed(2));
+
         return {
           PaymentTypeID: paymentModeDetails?.paymenttypeid,
+          payment_type: modeName,
           PaymentType: modeName,
-          Amount: parseFloat(paymentAmounts[modeName]) || 0,
+          received_amount: received,
+          refund_amount: refund,
+          Amount: amountToSettle,
           OrderNo: orderNo,
           HotelID: user?.hotelid,
           Name: user?.name, // Cashier/User name
@@ -1913,6 +1947,9 @@ const generateBill = async () => {
 
       // 2. Call the settlement endpoint
       const response = await axios.post(`/api/TAxnTrnbill/${txnId}/settle`, {
+        bill_amount: taxCalc.grandTotal,
+        total_received: totalReceived,
+        total_refund: refundAmount,
         settlements: settlementsPayload
       });
 
@@ -3145,15 +3182,15 @@ const generateBill = async () => {
               <div className="mt-4 p-3 border rounded bg-white">
                 <Row className="text-center">
 
-                  {/* PAID */}
+                  {/* RECEIVED */}
                   <Col>
-                    <div className="text-muted">Paid</div>
+                    <div className="text-muted">Received</div>
                     <div className="fw-bold text-primary">
-                      ₹{totalPaid.toFixed(2)}
+                      ₹{totalReceived.toFixed(2)}
                     </div>
                   </Col>
 
-                  {/* BALANCE / CHANGE */}
+                  {/* BALANCE / REFUND */}
                   <Col>
                     {balanceAmount > 0 ? (
                       <>
@@ -3162,18 +3199,18 @@ const generateBill = async () => {
                           ₹{balanceAmount.toFixed(2)}
                         </div>
                       </>
-                    ) : balanceAmount === 0 ? (
+                    ) : refundAmount > 0 ? (
                       <>
-                        <div className="text-muted">Balance</div>
+                        <div className="text-muted">Refund</div>
                         <div className="fw-bold text-success">
-                          ₹0.00
+                          ₹{refundAmount.toFixed(2)}
                         </div>
                       </>
                     ) : (
                       <>
-                        <div className="text-muted">Change Return</div>
+                        <div className="text-muted">Balance</div>
                         <div className="fw-bold text-success">
-                          ₹{changeAmount.toFixed(2)}
+                          ₹0.00
                         </div>
                       </>
                     )}
@@ -3200,7 +3237,7 @@ const generateBill = async () => {
           <Button
             variant="success"
             onClick={handleSettleAndPrint}
-            disabled={(taxCalc.grandTotal - (Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0) + (tip || 0))) !== 0 || (Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0) + (tip || 0)) === 0}
+            disabled={totalReceived === 0 || totalReceived < taxCalc.grandTotal}
             className="px-4"
           >
             Settle & Print

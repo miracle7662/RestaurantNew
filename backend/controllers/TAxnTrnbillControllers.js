@@ -808,7 +808,9 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           bill.UserId,
           bill.CustomerName,
           bill.MobileNo,
-          1,
+          Number(s.received_amount) || 0, // Receive
+          Number(s.refund_amount) || 0, // Refund
+          1, // isSettled
         )
       }
 
