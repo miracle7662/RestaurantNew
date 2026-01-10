@@ -1625,34 +1625,43 @@ const ModernBill = () => {
     }
   };
 
-  const printBill = async () => {
-    if (!txnId) return;
-    try {
-      const response = await axios.put(`/api/TAxnTrnbill/${txnId}/print`);
+ const printBill = async () => {
+  if (!txnId) return;
 
-      if (response.data?.data?.TxnNo) {
-        setOrderNo(response.data.data.TxnNo);
-      }
+  try {
+    // 1️⃣ Call mark-billed API to generate TxnNo
+    const response = await axios.put(`/api/TAxnTrnbill/${txnId}/mark-billed`, {
+      outletId: selectedOutletId || Number(user?.outletid)
+    });
 
-      toast.success('Bill printed successfully');
-      // Handle print data if needed
-      console.log('Bill Print Data:', response.data);
-
-      // Set table status to occupied (green)
-      try {
-        await axios.post(`/api/tablemanagement/${tableId}/status`, { status: 1 });
-      } catch (error) {
-        console.error('Error updating table status:', error);
-      }
-
-      setTimeout(() => {
-        navigate('/apps/Tableview');
-      }, 100);
-    } catch (error) {
-      console.error('Error printing bill:', error);
-      toast.error('Error printing bill');
+    const txnNo = response.data?.data?.TxnNo;
+    if (!txnNo) {
+      toast.error('TxnNo not generated');
+      return;
     }
-  };
+
+    // 2️⃣ TxnNo state me set karo
+    setOrderNo(txnNo);
+
+    // 3️⃣ PRINT JSX CONTENT
+   
+
+    toast.success('Bill printed successfully');
+
+    // 4️⃣ Table status update
+    await axios.post(`/api/tablemanagement/${tableId}/status`, { status: 1 });
+
+    // 5️⃣ Redirect AFTER PRINT
+    setTimeout(() => {
+      navigate('/apps/Tableview');
+    }, 500);
+
+  } catch (error) {
+    console.error('Error printing bill:', error);
+    toast.error('Error printing bill');
+  }
+};
+
 
 const generateBill = async () => {
   if (!txnId) return;
@@ -1661,9 +1670,10 @@ const generateBill = async () => {
       txnId,
       pax
     });
-    setBillNo(response.data.data.BillNo);
-    setOrderNo(response.data.data.BillNo);
+
+    setBillNo(response.data.data.BillNo); // ✅ only bill no
     toast.success('Bill generated successfully');
+
     return response.data.data.BillNo;
   } catch (error) {
     console.error('Error generating bill:', error);
@@ -1671,6 +1681,7 @@ const generateBill = async () => {
     throw error;
   }
 };
+
 
   const settleBill = async () => {
 
