@@ -435,7 +435,7 @@ const [grandTotal, setGrandTotal] = useState<number>(0);
   const [availableTables, setAvailableTables] = useState<Table[]>([]);
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
 
-  const [customerMobile, setCustomerMobile] = useState('');
+  const [customerNo, setCustomerNo] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [showCustomerModal, setShowCustomerModal] = useState(false);
 const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
@@ -501,6 +501,30 @@ const handleNCKOTKeyDown = (e: React.KeyboardEvent) => {
     handleSaveNCKOT();
   }
 };
+
+  const handleCustomerNoChange = async (value: string) => {
+    setCustomerNo(value);
+
+    if (!value) {
+      setCustomerName('');
+      return;
+    }
+
+    try {
+      const res = await axios.get(`http://localhost:3001/api/customer/by-mobile?mobile=${value}`);
+      if (res.data) {
+        if (res.data.customerid && res.data.name) {
+          setCustomerName(res.data.name);
+        } else if (res.data.success && res.data.data && res.data.data.length > 0) {
+          setCustomerName(res.data.data[0].name);
+        } else {
+          setCustomerName('');
+        }
+      }
+    } catch (err) {
+      setCustomerName('');
+    }
+  };
 
   const handleF9PasswordSubmit = async (password: string) => {
     if (!(user as any)?.token) {
@@ -1640,7 +1664,7 @@ const handleReverseKotSave = async (reverseItemsFromModal: any[]) => {
     setTableNo('Loading...');
     setDefaultKot(null);
     setEditableKot(null);
-    setCustomerMobile('');
+    setCustomerNo('');
     setCustomerName('');
     calculateTotals([{ itemCode: '', itemgroupid: 0, item_no: 0, itemId: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '' }]);
   };
@@ -1816,7 +1840,7 @@ const handleReverseKotSave = async (reverseItemsFromModal: any[]) => {
       toast.success('Settlement successful and bill printed!');
 
       // Clear customer fields after successful settlement
-      setCustomerMobile('');
+      setCustomerNo('');
       setCustomerName('');
 
       // Reset discount and round-off fields
@@ -2496,6 +2520,44 @@ useEffect(() => {
                       month: '2-digit',
                       year: 'numeric'
                     })}
+                  </div>
+                </div>
+              </Col>
+
+              {/* MO No / Name */}
+              <Col md={2}>
+                <div className="info-box p-2 h-100 border rounded d-flex flex-column justify-content-center">
+                  
+
+                  {/* Customer No */}
+                  <input
+                    type="text"
+                    placeholder="MO.no"
+                    value={customerNo}
+                    onChange={(e) => handleCustomerNoChange(e.target.value)}
+                    className="border rounded px-2 py-1 mb-1 text-center"
+                    style={{ fontSize: '13px' }}
+                  />
+
+                  {/* Name + Plus */}
+                  <div className="d-flex align-items-center gap-1">
+                    <input
+                      type="text"
+                      placeholder="Name"
+                      value={customerName}
+                      readOnly
+                      className="border rounded px-2 py-1 flex-grow-1 text-center bg-light"
+                      style={{ fontSize: '13px' }}
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() => setShowCustomerModal(true)}
+                      className="border rounded fw-bold"
+                      style={{ width: '32px', height: '32px', background: '#fff' }}
+                    >
+                      +
+                    </button>
                   </div>
                 </div>
               </Col>

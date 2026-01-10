@@ -25,6 +25,7 @@ interface KotTransferProps {
   onSuccess?: () => void;
   transferSource?: "table" | "kot";
   sourceTableId?: number | null;
+  pax?: number;
 }
 
 const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTableId }: KotTransferProps) => {
