@@ -1438,6 +1438,18 @@ const ModernBill = () => {
         setTxnId(response.data.data.TxnID);
       }
 
+      // Set customer state from response
+      const header = response.data?.data;
+      if (header?.CustomerName) {
+        setCustomerName(header.CustomerName);
+      }
+      if (header?.MobileNo) {
+        setCustomerNo(header.MobileNo);
+      }
+      if (header?.customerid) {
+        setCustomerId(header.customerid);
+      }
+
       toast.success('KOT saved successfully');
 
       // Set table status to occupied (green)
@@ -1458,6 +1470,10 @@ const ModernBill = () => {
       } else if (print && !kotNo) {
         console.error("❌ Print blocked: KOT No not generated");
       }
+
+      // 🔥 AFTER KOT SAVE / PRINT
+     await loadBillForTable(tableId);
+
 
       // Navigate to table view page after saving KOT
       navigate('/apps/Tableview');
