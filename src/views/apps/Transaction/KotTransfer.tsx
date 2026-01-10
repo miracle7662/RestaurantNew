@@ -476,6 +476,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
         payload = {
           sourceTableId: selectedTableId,
           targetTableId: proposedTableId,
+          PAX: proposedPax,
           hotelid: user?.hotelid || user?.hotelId,
           outletid: tableOutletId || user?.outletid || user?.outletId
         };
@@ -492,6 +493,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
             txnDetailId: item.txnDetailId
           })),
           transferMode,
+          PAX: proposedPax,
           userId: user?.id || user?.userid,
           hotelid: user?.hotelid || user?.hotelId,
           outletid: tableOutletId || user?.outletid || user?.outletId

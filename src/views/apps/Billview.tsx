@@ -716,7 +716,7 @@ const handleNCKOTKeyDown = (e: React.KeyboardEvent) => {
             setTxnId(header.TxnID);
             setOrderNo(header.TxnNo);
             setWaiter(header.waiter || 'ASD');
-            setPax(header.pax || 1);
+            setPax(header.pax || header.PAX || 1);
             setTableNo(header.table_name || tableName);
             if (header.RevKOT) {
               setRevKotNo(header.RevKOT);
@@ -859,7 +859,7 @@ const loadUnbilledItems = useCallback(async (tableIdNum: number) => {
     if (data.header) {
       setTxnId(data.header.TxnID);
       setWaiter(data.header.waiter || 'ASD');
-      setPax(data.header.pax || 1);
+      setPax(data.header.pax || data.header.PAX || 1);
       if (data.header.table_name) {
         setTableNo(data.header.table_name);
       }
@@ -1303,6 +1303,7 @@ const loadUnbilledItems = useCallback(async (tableIdNum: number) => {
         hotelId: user.hotelid,
         KOTNo: editableKot, // Use editableKot if set, else null for backend to generate
         Order_Type: 'Dine-in',
+        PAX: pax,
         discount: discount,
         discPer: discountInputValue,
         discountType: DiscountType,
@@ -2498,8 +2499,6 @@ useEffect(() => {
                   </div>
                 </div>
               </Col>
-
-
 
               {/* Total Amount - Centered with black background */}
               <Col md={2} className="ms-auto">

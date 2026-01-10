@@ -175,8 +175,7 @@ exports.createBill = async (req, res) => {
       details = []
     } = req.body
 
-    // Normalize PAX field to handle both 'PAX' and 'pax' from frontend
-    const normalizedPAX = PAX || req.body.pax;
+  
 
     const isHeaderNCKOT = details.some(item => toBool(item.isNCKOT));
 
@@ -236,6 +235,8 @@ exports.createBill = async (req, res) => {
       finalAmount = Math.round(totalBeforeRoundOff / bill_round_off_to) * bill_round_off_to;
       finalRoundOff = finalAmount - totalBeforeRoundOff;
     }
+
+    console.log('Details length:', details.length);
 
     const trx = db.transaction(() => {
       let txnNo = TxnNo;
@@ -783,12 +784,13 @@ exports.createKOT = async (req, res) => {
   try {
     console.log('Received createKOT body:', JSON.stringify(req.body, null, 2));
     // Correctly destructure from the frontend payload which uses camelCase (e.g., tableId, userId)
-    const { outletid, tableId: TableID, table_name, userId: UserId, hotelId: HotelID, NCName, NCPurpose, DiscPer, Discount, DiscountType, CustomerName, MobileNo, Order_Type, items: details = [] } = req.body;
+    const { outletid, tableId: TableID, table_name, userId: UserId, hotelId: HotelID, NCName, NCPurpose, DiscPer, Discount, DiscountType, CustomerName, MobileNo, Order_Type, PAX, items: details = [] } = req.body;
 
     console.log("Received Discount Data for KOT:", { DiscPer, Discount, DiscountType });
 
    
     if (!Array.isArray(details) || details.length === 0) {
+      console.log('Details array is empty or not an array');
       return res.status(400).json({ success: false, message: "details array is required" });
     }
 
@@ -861,12 +863,12 @@ exports.createKOT = async (req, res) => {
 
         const insertHeaderStmt = db.prepare(`
           INSERT INTO TAxnTrnbill (
-            outletid, TxnNo, TableID, table_name, UserId, HotelID, TxnDatetime,
+            outletid, TxnNo, TableID, table_name, PAX, UserId, HotelID, TxnDatetime,
             isBilled, isCancelled, isSetteled, status, AutoKOT, CustomerName, MobileNo, Order_Type, orderNo,
             NCName, NCPurpose, DiscPer, Discount, DiscountType, isNCKOT
-          ) VALUES (?, ?, ?, ?, ?, ?, datetime('now'), 0, 0, 0, 1, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), 0, 0, 0, 1, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
-        const result = insertHeaderStmt.run(headerOutletId, null, Number(TableID), table_name, UserId, HotelID, CustomerName, MobileNo, Order_Type, newOrderNo, NCName || null, NCPurpose || null, finalDiscPer, finalDiscount, finalDiscountType, toBool(isHeaderNCKOT));
+        const result = insertHeaderStmt.run(headerOutletId, null, Number(TableID), table_name, PAX ?? null, UserId, HotelID, CustomerName, MobileNo, Order_Type, newOrderNo, NCName || null, NCPurpose || null, finalDiscPer, finalDiscount, finalDiscountType, toBool(isHeaderNCKOT));
         txnId = result.lastInsertRowid;
         db.prepare('UPDATE msttablemanagement SET status = 1 WHERE tableid = ?').run(Number(TableID));
         console.log(`Created new bill. TxnID: ${txnId}. Updated table ${TableID} status.`);
@@ -1352,7 +1354,7 @@ exports.getUnbilledItemsByTable = async (req, res) => {
     : [];
         // Fetch discount from the latest unbilled bill for the table
     const latestBillHeader = db.prepare(`
-      SELECT TxnID, GrossAmt, RevKOT, Discount, DiscPer, DiscountType, CGST, SGST, IGST, CESS, RoundOFF, Amount 
+      SELECT TxnID, GrossAmt, RevKOT, Discount, DiscPer, DiscountType, CGST, SGST, IGST, CESS, RoundOFF, Amount, PAX
       FROM TAxnTrnbill
       WHERE TableID = ? AND isBilled = 0 AND isCancelled = 0
       ORDER BY TxnID DESC
