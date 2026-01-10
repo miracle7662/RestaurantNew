@@ -710,8 +710,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
                           {selectedItems.map((row, i) => (
                             <tr
                               key={row.id}
-                              className={row.selected ? "table-primary" : ""}
-                              style={{ cursor: "pointer", backgroundColor: getRowColor(row.kot) }}
+                              style={{ cursor: "pointer", backgroundColor: getRowColor(row.kot), fontWeight: row.selected ? 'bold' : 'normal' }}
                               onClick={() => handleCheck(i)}
                             >
 
@@ -763,7 +762,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
                           {selectedItems.map((row, i) => (
                             <tr
                               key={row.id}
-                              className="table-primary"
+                              style={{ backgroundColor: getRowColor(row.kot) }}
                             >
 
                               <td>{row.media}</td>
