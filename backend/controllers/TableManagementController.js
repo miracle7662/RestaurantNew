@@ -7,7 +7,8 @@ exports.getAllTables = (req, res) => {
       SELECT
         t.*,
         d.department_name,
-        o.outlet_name
+        o.outlet_name,
+        (SELECT PAX FROM TAxnTrnbill WHERE TableID = t.tableid AND isBilled = 0 ORDER BY TxnID DESC LIMIT 1) as pax
       FROM msttablemanagement t
       LEFT JOIN msttable_department d ON t.departmentid = d.departmentid
       LEFT JOIN mst_outlets o ON t.outletid = o.outletid
