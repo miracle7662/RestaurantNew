@@ -62,8 +62,8 @@ exports.getSettlements = async (req, res) => {
         b.CustomerName,
         b.MobileNo,
         b.Address,
-        b.UserId as userid,
-        u.full_name as userName
+        b.UserId as userid
+      
       FROM TrnSettlement s
       LEFT JOIN TAxnTrnbill b ON s.OrderNo = b.orderNo AND s.HotelID = b.HotelID
      

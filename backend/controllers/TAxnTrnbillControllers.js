@@ -10,67 +10,72 @@ function toBool(value) {
 }
 function generateTxnNo(outletid) {
   // 1. Fetch bill_prefix from settings
-  const settings = db.prepare('SELECT bill_prefix FROM mstbill_preview_settings WHERE outletid = ?').get(outletid);
-  const billPrefix = settings ? settings.bill_prefix : 'BILL-';
+  const settings = db
+    .prepare('SELECT bill_prefix FROM mstbill_preview_settings WHERE outletid = ?')
+    .get(outletid)
+  const billPrefix = settings ? settings.bill_prefix : 'BILL-'
 
   // 2. Construct a date-based prefix for searching to ensure daily unique sequence
 
-  const prefix = `${billPrefix}`;
-  const prefixLen = prefix.length + 1;
-  const likePattern = prefix + '%';
+  const prefix = `${billPrefix}`
+  const prefixLen = prefix.length + 1
+  const likePattern = prefix + '%'
 
   // 3. Find the maximum sequence number for the current day for the entire outlet
   const maxStmt = db.prepare(`
     SELECT MAX(CAST(SUBSTR(TxnNo, ?) AS INTEGER)) as maxSeq
     FROM TAxnTrnbill
     WHERE outletid = ? AND TxnNo LIKE ?
-  `);
+  `)
 
-  const result = maxStmt.get(prefixLen, outletid, likePattern);
-  const newSeq = (result.maxSeq || 0) + 1;
+  const result = maxStmt.get(prefixLen, outletid, likePattern)
+  const newSeq = (result.maxSeq || 0) + 1
 
   // 4. Construct the final TxnNo, e.g., "BILL-20240521-0001"
-  return `${prefix}${String(newSeq).padStart(4, '0')}`;
+  return `${prefix}${String(newSeq).padStart(4, '0')}`
 }
 
 // Generate a new OrderNo
 function generateOrderNo(outletid) {
   // For simplicity, we'll generate a unique order number across all outlets for now.
   // You could add a prefix based on outlet if needed.
-  const result = db.prepare(`
+  const result = db
+    .prepare(
+      `
     SELECT MAX(CAST(orderNo AS INTEGER)) as maxOrderNo
     FROM TAxnTrnbill
-  `).get();
-  const newOrderNo = (result.maxOrderNo || 0) + 1;
-  return String(newOrderNo).padStart(4, '0');
+  `,
+    )
+    .get()
+  const newOrderNo = (result.maxOrderNo || 0) + 1
+  return String(newOrderNo).padStart(4, '0')
 }
 
 // Convert to India Standard Time (UTC+5:30)
 function toIST(date) {
-  const utc = date.getTime() + (date.getTimezoneOffset() * 60000);
-  const istOffset = 5.5 * 60 * 60000;
-  return new Date(utc + istOffset);
+  const utc = date.getTime() + date.getTimezoneOffset() * 60000
+  const istOffset = 5.5 * 60 * 60000
+  return new Date(utc + istOffset)
 }
-
 
 /* -------------------------------------------------------------------------- */
 /* 1) getAllBills → fetch all bills with details (no settlement)              */
 /* -------------------------------------------------------------------------- */
 exports.getAllBills = async (req, res) => {
   try {
-    const { isBilled, tableId } = req.query; // get filters from query
+    const { isBilled, tableId } = req.query // get filters from query
 
-    let whereClauses = ['b.isCancelled = 0'];
-    const params = [];
+    let whereClauses = ['b.isCancelled = 0']
+    const params = []
 
     if (isBilled !== undefined) {
-      whereClauses.push('b.isBilled = ?');
-      params.push(Number(isBilled));
+      whereClauses.push('b.isBilled = ?')
+      params.push(Number(isBilled))
     }
 
     if (tableId !== undefined) {
-      whereClauses.push('b.TableID = ?');
-      params.push(Number(tableId));
+      whereClauses.push('b.TableID = ?')
+      params.push(Number(tableId))
     }
 
     const sql = `
@@ -114,17 +119,19 @@ exports.getAllBills = async (req, res) => {
       WHERE ${whereClauses.join(' AND ')}
       GROUP BY b.TxnID
       ORDER BY b.TxnDatetime DESC
-    `;
+    `
 
-    const rows = db.prepare(sql).all(...params);
+    const rows = db.prepare(sql).all(...params)
 
-    const data = rows.map(r => ({
+    const data = rows.map((r) => ({
       ...r,
       details: r._details ? JSON.parse(`[${r._details}]`) : [],
     }))
     res.json(ok('Fetched all bills', data))
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to fetch bills', data: null, error: error.message })
+    res
+      .status(500)
+      .json({ success: false, message: 'Failed to fetch bills', data: null, error: error.message })
   }
 }
 
@@ -135,25 +142,36 @@ exports.getBillById = async (req, res) => {
   try {
     const { id } = req.params
     const bill = db.prepare(`SELECT * FROM TAxnTrnbill WHERE TxnID = ?`).get(Number(id))
-    if (!bill) return res.status(404).json({ success: false, message: 'Bill not found', data: null })
+    if (!bill)
+      return res.status(404).json({ success: false, message: 'Bill not found', data: null })
 
-    const details = db.prepare(`
+    const details = db
+      .prepare(
+        `
       SELECT d.*, m.item_name as ItemName
       FROM TAxnTrnbilldetails d
       LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
       WHERE d.TxnID = ? AND d.isCancelled = 0 
       ORDER BY d.TXnDetailID ASC
-    `).all(Number(id))
+    `,
+      )
+      .all(Number(id))
 
-    const settlements = db.prepare(`
+    const settlements = db
+      .prepare(
+        `
       SELECT * FROM TrnSettlement 
       WHERE OrderNo = ? AND HotelID = ?
       ORDER BY SettlementID
-    `).all(bill.orderNo || null, bill.HotelID || null)
+    `,
+      )
+      .all(bill.orderNo || null, bill.HotelID || null)
 
     res.json(ok('Fetched bill', { ...bill, details, settlement: settlements }))
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to fetch bill', data: null, error: error.message })
+    res
+      .status(500)
+      .json({ success: false, message: 'Failed to fetch bill', data: null, error: error.message })
   }
 }
 
@@ -162,86 +180,139 @@ exports.getBillById = async (req, res) => {
 /* -------------------------------------------------------------------------- */
 exports.createBill = async (req, res) => {
   try {
-  console.log('Received createBill body:', JSON.stringify(req.body, null, 2));
-  console.log('Discount fields - DiscPer:', req.body.DiscPer, 'Discount:', req.body.Discount, 'DiscountType:', req.body.DiscountType);
+    console.log('Received createBill body:', JSON.stringify(req.body, null, 2))
+    console.log(
+      'Discount fields - DiscPer:',
+      req.body.DiscPer,
+      'Discount:',
+      req.body.Discount,
+      'DiscountType:',
+      req.body.DiscountType,
+    )
     const {
-      outletid, TxnNo, TableID, Steward, PAX, AutoKOT, ManualKOT, TxnDatetime,
-      GrossAmt, RevKOT, Discount, CGST, SGST, IGST, CESS, RoundOFF, Amount,
-      isHomeDelivery, DriverID, CustomerName, MobileNo, Address, Landmark,
-      orderNo, isPickup, HotelID, GuestID, DiscRefID, DiscPer, DiscountType, UserId, table_name,
-      BatchNo, PrevTableID, PrevDeptId, isTrnsfered, isChangeTrfAmt,
-      ServiceCharge, ServiceCharge_Amount, Extra1, Extra2, Extra3,
-      NCName, NCPurpose,
-      details = []
+      outletid,
+      TxnNo,
+      TableID,
+      Steward,
+      PAX,
+      AutoKOT,
+      ManualKOT,
+      TxnDatetime,
+      GrossAmt,
+      RevKOT,
+      Discount,
+      CGST,
+      SGST,
+      IGST,
+      CESS,
+      RoundOFF,
+      Amount,
+      isHomeDelivery,
+      DriverID,
+      CustomerName,
+      MobileNo,
+      Address,
+      Landmark,
+      orderNo,
+      isPickup,
+      HotelID,
+      GuestID,
+      DiscRefID,
+      DiscPer,
+      DiscountType,
+      UserId,
+      table_name,
+      BatchNo,
+      PrevTableID,
+      PrevDeptId,
+      isTrnsfered,
+      isChangeTrfAmt,
+      ServiceCharge,
+      ServiceCharge_Amount,
+      Extra1,
+      Extra2,
+      Extra3,
+      NCName,
+      NCPurpose,
+      details = [],
     } = req.body
 
-  
+    const isHeaderNCKOT = details.some((item) => toBool(item.isNCKOT))
 
-    const isHeaderNCKOT = details.some(item => toBool(item.isNCKOT));
-
-    console.log('Details array length:', details.length);
+    console.log('Details array length:', details.length)
     if (details.length > 0) {
-      console.log('First detail item:', JSON.stringify(details[0], null, 2));
+      console.log('First detail item:', JSON.stringify(details[0], null, 2))
     }
 
-    console.log('NCName:', NCName);
-    console.log('NCPurpose:', NCPurpose);
+    console.log('NCName:', NCName)
+    console.log('NCPurpose:', NCPurpose)
 
     // Always compute totals from details if provided, to ensure accuracy
-    const isArray = Array.isArray(details) && details.length > 0;
-    let computedGross = 0, computedCgstAmt = 0, computedSgstAmt = 0, computedIgstAmt = 0, computedCessAmt = 0, computedRevKOT = 0;
+    const isArray = Array.isArray(details) && details.length > 0
+    let computedGross = 0,
+      computedCgstAmt = 0,
+      computedSgstAmt = 0,
+      computedIgstAmt = 0,
+      computedCessAmt = 0,
+      computedRevKOT = 0
     if (isArray) {
       for (const d of details) {
-        const qty = Number(d.Qty) || 0;
-        const rate = Number(d.RuntimeRate) || 0;
-        const revQty = Number(d.RevQty) || 0;
-        const lineSubtotal = qty * rate;
-        const cgstPer = Number(d.CGST) || 0;
-        const sgstPer = Number(d.SGST) || 0;
-        const igstPer = Number(d.IGST) || 0;
-        const cessPer = Number(d.CESS) || 0;
-        const cgstAmt = Number(d.CGST_AMOUNT) || (lineSubtotal * cgstPer) / 100;
-        const sgstAmt = Number(d.SGST_AMOUNT) || (lineSubtotal * sgstPer) / 100;
-        const igstAmt = Number(d.IGST_AMOUNT) || (lineSubtotal * igstPer) / 100;
-        const cessAmt = Number(d.CESS_AMOUNT) || (lineSubtotal * cessPer) / 100;
-        computedGross += lineSubtotal;
-        computedCgstAmt += cgstAmt;
-        computedSgstAmt += sgstAmt;
-        computedIgstAmt += igstAmt;
-        computedCessAmt += cessAmt;
-        computedRevKOT += revQty * rate;
+        const qty = Number(d.Qty) || 0
+        const rate = Number(d.RuntimeRate) || 0
+        const revQty = Number(d.RevQty) || 0
+        const lineSubtotal = qty * rate
+        const cgstPer = Number(d.CGST) || 0
+        const sgstPer = Number(d.SGST) || 0
+        const igstPer = Number(d.IGST) || 0
+        const cessPer = Number(d.CESS) || 0
+        const cgstAmt = Number(d.CGST_AMOUNT) || (lineSubtotal * cgstPer) / 100
+        const sgstAmt = Number(d.SGST_AMOUNT) || (lineSubtotal * sgstPer) / 100
+        const igstAmt = Number(d.IGST_AMOUNT) || (lineSubtotal * igstPer) / 100
+        const cessAmt = Number(d.CESS_AMOUNT) || (lineSubtotal * cessPer) / 100
+        computedGross += lineSubtotal
+        computedCgstAmt += cgstAmt
+        computedSgstAmt += sgstAmt
+        computedIgstAmt += igstAmt
+        computedCessAmt += cessAmt
+        computedRevKOT += revQty * rate
       }
     }
 
     // Prioritize backend calculation if details are provided
-    const finalGross = isArray ? computedGross : (Number(GrossAmt) || 0);
-    const finalRevKOT = isArray ? computedRevKOT : (Number(RevKOT) || 0);
-    const finalCgst = isArray ? computedCgstAmt : (Number(CGST) || 0);
-    const finalSgst = isArray ? computedSgstAmt : (Number(SGST) || 0);
-    const finalIgst = isArray ? computedIgstAmt : (Number(IGST) || 0);
-    const finalCess = isArray ? computedCessAmt : (Number(CESS) || 0);
-    const finalDiscount = Number(Discount) || 0;
+    const finalGross = isArray ? computedGross : Number(GrossAmt) || 0
+    const finalRevKOT = isArray ? computedRevKOT : Number(RevKOT) || 0
+    const finalCgst = isArray ? computedCgstAmt : Number(CGST) || 0
+    const finalSgst = isArray ? computedSgstAmt : Number(SGST) || 0
+    const finalIgst = isArray ? computedIgstAmt : Number(IGST) || 0
+    const finalCess = isArray ? computedCessAmt : Number(CESS) || 0
+    const finalDiscount = Number(Discount) || 0
 
     // Recalculate total before rounding
-    let totalBeforeRoundOff = finalGross - finalDiscount + finalCgst + finalSgst + finalIgst + finalCess;
+    let totalBeforeRoundOff =
+      finalGross - finalDiscount + finalCgst + finalSgst + finalIgst + finalCess
 
     // Apply rounding on the backend to ensure consistency
-    const { bill_round_off, bill_round_off_to } = db.prepare('SELECT bill_round_off, bill_round_off_to FROM mstoutlet_settings WHERE outletid = ?').get(outletid) || {};
-    
-    let finalAmount = totalBeforeRoundOff;
-    let finalRoundOff = 0;
+    const { bill_round_off, bill_round_off_to } =
+      db
+        .prepare(
+          'SELECT bill_round_off, bill_round_off_to FROM mstoutlet_settings WHERE outletid = ?',
+        )
+        .get(outletid) || {}
+
+    let finalAmount = totalBeforeRoundOff
+    let finalRoundOff = 0
 
     if (bill_round_off && bill_round_off_to > 0) {
-      finalAmount = Math.round(totalBeforeRoundOff / bill_round_off_to) * bill_round_off_to;
-      finalRoundOff = finalAmount - totalBeforeRoundOff;
+      finalAmount = Math.round(totalBeforeRoundOff / bill_round_off_to) * bill_round_off_to
+      finalRoundOff = finalAmount - totalBeforeRoundOff
     }
 
-    console.log('Details length:', details.length);
+    console.log('Details length:', details.length)
 
     const trx = db.transaction(() => {
-      let txnNo = TxnNo;
+      let txnNo = TxnNo
       if (!txnNo && outletid) {
-        txnNo = generateTxnNo(outletid);
+        txnNo = generateTxnNo(outletid)
       }
 
       const stmt = db.prepare(`
@@ -255,53 +326,53 @@ exports.createBill = async (req, res) => {
         ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
   `)
 
-    const result = stmt.run(
-      outletid ?? null,
-      txnNo || null,
-      TableID ?? null,
-      table_name || null,
-      Steward || null,
-      PAX ?? null,
-      toBool(AutoKOT),
-      toBool(ManualKOT),
-      TxnDatetime || null,
-      finalGross,
-      finalRevKOT,
-      finalDiscount,
-      finalCgst,
-      finalSgst,
-      finalIgst,
-      finalCess,
-      finalRoundOff,
-      finalAmount,
-      toBool(isHomeDelivery),
-      DriverID ?? null,
-      CustomerName || null,
-      MobileNo || null,
-      Address || null,
-      Landmark || null,
-      orderNo || null,
-      toBool(isPickup),
-      HotelID ?? null,
-      GuestID ?? null,
-      DiscRefID ?? null,
-      Number(DiscPer) || 0,
-      Number(DiscountType) || 0,
-      UserId ?? null,
-      BatchNo ?? null,
-      PrevTableID ?? null,
-      PrevDeptId ?? null,
-      toBool(isTrnsfered),
-      toBool(isChangeTrfAmt),
-      Number(ServiceCharge) || 0,
-      Number(ServiceCharge_Amount) || 0,
-      Extra1 || null,
-      Extra2 || null,
-      Extra3 || null,
-      NCName || null,
-      NCPurpose || null,
-      toBool(isHeaderNCKOT)
-    )
+      const result = stmt.run(
+        outletid ?? null,
+        txnNo || null,
+        TableID ?? null,
+        table_name || null,
+        Steward || null,
+        PAX ?? null,
+        toBool(AutoKOT),
+        toBool(ManualKOT),
+        TxnDatetime || null,
+        finalGross,
+        finalRevKOT,
+        finalDiscount,
+        finalCgst,
+        finalSgst,
+        finalIgst,
+        finalCess,
+        finalRoundOff,
+        finalAmount,
+        toBool(isHomeDelivery),
+        DriverID ?? null,
+        CustomerName || null,
+        MobileNo || null,
+        Address || null,
+        Landmark || null,
+        orderNo || null,
+        toBool(isPickup),
+        HotelID ?? null,
+        GuestID ?? null,
+        DiscRefID ?? null,
+        Number(DiscPer) || 0,
+        Number(DiscountType) || 0,
+        UserId ?? null,
+        BatchNo ?? null,
+        PrevTableID ?? null,
+        PrevDeptId ?? null,
+        toBool(isTrnsfered),
+        toBool(isChangeTrfAmt),
+        Number(ServiceCharge) || 0,
+        Number(ServiceCharge_Amount) || 0,
+        Extra1 || null,
+        Extra2 || null,
+        Extra3 || null,
+        NCName || null,
+        NCPurpose || null,
+        toBool(isHeaderNCKOT),
+      )
 
       const txnId = result.lastInsertRowid
 
@@ -335,18 +406,20 @@ exports.createBill = async (req, res) => {
           const cessAmt = Number(d.CESS_AMOUNT) || (lineSubtotal * cessPer) / 100
 
           // Distribute discount proportionally based on the line item's value relative to the total gross amount
-          let itemDiscountAmount = 0;
-          if (finalGross > 0) { // Avoid division by zero
-            if (billDiscountType === 1) { // Percentage discount
+          let itemDiscountAmount = 0
+          if (finalGross > 0) {
+            // Avoid division by zero
+            if (billDiscountType === 1) {
+              // Percentage discount
               // The discount percentage is applied to each item's subtotal
-              itemDiscountAmount = (lineSubtotal * billDiscPer) / 100;
-            } else if (billDiscountType === 0 && billDiscount > 0) { // Fixed amount discount
+              itemDiscountAmount = (lineSubtotal * billDiscPer) / 100
+            } else if (billDiscountType === 0 && billDiscount > 0) {
+              // Fixed amount discount
               // Distribute the fixed discount proportionally
-              const proportion = lineSubtotal / finalGross;
-              itemDiscountAmount = billDiscount * proportion;
+              const proportion = lineSubtotal / finalGross
+              itemDiscountAmount = billDiscount * proportion
             }
           }
-
 
           const isNCKOT = toBool(d.isNCKOT)
 
@@ -381,7 +454,7 @@ exports.createBill = async (req, res) => {
             d.KOTUsedDate || new Date().toISOString(), // KOTUsedDate
             0, // isBilled default to 0
             d.item_no ?? null,
-            d.item_name || null
+            d.item_name || null,
           )
         }
       }
@@ -391,11 +464,15 @@ exports.createBill = async (req, res) => {
 
     const txnId = trx()
     const header = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(txnId)
-    const items = db.prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? ORDER BY TXnDetailID').all(txnId)
+    const items = db
+      .prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? ORDER BY TXnDetailID')
+      .all(txnId)
     res.json(ok('Bill created', { ...header, details: items }))
   } catch (error) {
-    console.error('Error in createBill:', error);
-    res.status(500).json({ success: false, message: 'Failed to create bill', data: null, error: error.message })
+    console.error('Error in createBill:', error)
+    res
+      .status(500)
+      .json({ success: false, message: 'Failed to create bill', data: null, error: error.message })
   }
 }
 
@@ -406,62 +483,109 @@ exports.updateBill = async (req, res) => {
   try {
     const { id } = req.params
     const {
-      outletid, TxnNo, TableID, Steward, PAX, AutoKOT, ManualKOT, TxnDatetime,
-      GrossAmt, RevKOT, Discount, CGST, SGST, IGST, CESS, RoundOFF, Amount,
-      isHomeDelivery, DriverID, CustomerName, MobileNo, Address, Landmark, table_name,
-      orderNo, isPickup, HotelID, GuestID, DiscRefID, DiscPer,DiscountType, UserId,
-      BatchNo, PrevTableID, PrevDeptId, isTrnsfered, isChangeTrfAmt,
-      ServiceCharge, ServiceCharge_Amount, Extra1, Extra2, Extra3,
-      details = []
+      outletid,
+      TxnNo,
+      TableID,
+      Steward,
+      PAX,
+      AutoKOT,
+      ManualKOT,
+      TxnDatetime,
+      GrossAmt,
+      RevKOT,
+      Discount,
+      CGST,
+      SGST,
+      IGST,
+      CESS,
+      RoundOFF,
+      Amount,
+      isHomeDelivery,
+      DriverID,
+      CustomerName,
+      MobileNo,
+      Address,
+      Landmark,
+      table_name,
+      orderNo,
+      isPickup,
+      HotelID,
+      GuestID,
+      DiscRefID,
+      DiscPer,
+      DiscountType,
+      UserId,
+      BatchNo,
+      PrevTableID,
+      PrevDeptId,
+      isTrnsfered,
+      isChangeTrfAmt,
+      ServiceCharge,
+      ServiceCharge_Amount,
+      Extra1,
+      Extra2,
+      Extra3,
+      details = [],
     } = req.body
 
     // Always compute totals from details if provided, to ensure accuracy
-    const isArray = Array.isArray(details) && details.length > 0;
-    let computedGross = 0, computedCgstAmt = 0, computedSgstAmt = 0, computedIgstAmt = 0, computedCessAmt = 0, computedRevKOT = 0;
+    const isArray = Array.isArray(details) && details.length > 0
+    let computedGross = 0,
+      computedCgstAmt = 0,
+      computedSgstAmt = 0,
+      computedIgstAmt = 0,
+      computedCessAmt = 0,
+      computedRevKOT = 0
     if (isArray) {
       for (const d of details) {
-        const qty = Number(d.Qty) || 0;
-        const rate = Number(d.RuntimeRate) || 0;
-        const revQty = Number(d.RevQty) || 0;
-        const lineSubtotal = qty * rate;
-        const cgstPer = Number(d.CGST) || 0;
-        const sgstPer = Number(d.SGST) || 0;
-        const igstPer = Number(d.IGST) || 0;
-        const cessPer = Number(d.CESS) || 0;
-        const cgstAmt = Number(d.CGST_AMOUNT) || (lineSubtotal * cgstPer) / 100;
-        const sgstAmt = Number(d.SGST_AMOUNT) || (lineSubtotal * sgstPer) / 100;
-        const igstAmt = Number(d.IGST_AMOUNT) || (lineSubtotal * igstPer) / 100;
-        const cessAmt = Number(d.CESS_AMOUNT) || (lineSubtotal * cessPer) / 100;
-        computedGross += lineSubtotal;
-        computedCgstAmt += cgstAmt;
-        computedSgstAmt += sgstAmt;
-        computedIgstAmt += igstAmt;
-        computedCessAmt += cessAmt;
-        computedRevKOT += revQty * rate;
+        const qty = Number(d.Qty) || 0
+        const rate = Number(d.RuntimeRate) || 0
+        const revQty = Number(d.RevQty) || 0
+        const lineSubtotal = qty * rate
+        const cgstPer = Number(d.CGST) || 0
+        const sgstPer = Number(d.SGST) || 0
+        const igstPer = Number(d.IGST) || 0
+        const cessPer = Number(d.CESS) || 0
+        const cgstAmt = Number(d.CGST_AMOUNT) || (lineSubtotal * cgstPer) / 100
+        const sgstAmt = Number(d.SGST_AMOUNT) || (lineSubtotal * sgstPer) / 100
+        const igstAmt = Number(d.IGST_AMOUNT) || (lineSubtotal * igstPer) / 100
+        const cessAmt = Number(d.CESS_AMOUNT) || (lineSubtotal * cessPer) / 100
+        computedGross += lineSubtotal
+        computedCgstAmt += cgstAmt
+        computedSgstAmt += sgstAmt
+        computedIgstAmt += igstAmt
+        computedCessAmt += cessAmt
+        computedRevKOT += revQty * rate
       }
     }
 
     // Prioritize backend calculation if details are provided
-    const finalGross = isArray ? computedGross : (Number(GrossAmt) || 0);
-    const finalRevKOT = isArray ? computedRevKOT : (Number(RevKOT) || 0);
-    const finalCgst = isArray ? computedCgstAmt : (Number(CGST) || 0);
-    const finalSgst = isArray ? computedSgstAmt : (Number(SGST) || 0);
-    const finalIgst = isArray ? computedIgstAmt : (Number(IGST) || 0);
-    const finalCess = isArray ? computedCessAmt : (Number(CESS) || 0);
-    const finalDiscount = Number(Discount) || 0;
+    const finalGross = isArray ? computedGross : Number(GrossAmt) || 0
+    const finalRevKOT = isArray ? computedRevKOT : Number(RevKOT) || 0
+    const finalCgst = isArray ? computedCgstAmt : Number(CGST) || 0
+    const finalSgst = isArray ? computedSgstAmt : Number(SGST) || 0
+    const finalIgst = isArray ? computedIgstAmt : Number(IGST) || 0
+    const finalCess = isArray ? computedCessAmt : Number(CESS) || 0
+    const finalDiscount = Number(Discount) || 0
 
     // Recalculate total before rounding
-    let totalBeforeRoundOff = finalGross - finalDiscount + finalCgst + finalSgst + finalIgst + finalCess;
+    let totalBeforeRoundOff =
+      finalGross - finalDiscount + finalCgst + finalSgst + finalIgst + finalCess
 
     // Apply rounding on the backend to ensure consistency
-    const { bill_round_off, bill_round_off_to } = db.prepare('SELECT bill_round_off, bill_round_off_to FROM mstoutlet_settings WHERE outletid = ?').get(outletid) || {};
-    
-    let finalAmount = totalBeforeRoundOff;
-    let finalRoundOff = 0;
+    const { bill_round_off, bill_round_off_to } =
+      db
+        .prepare(
+          'SELECT bill_round_off, bill_round_off_to FROM mstoutlet_settings WHERE outletid = ?',
+        )
+        .get(outletid) || {}
+
+    let finalAmount = totalBeforeRoundOff
+    let finalRoundOff = 0
 
     if (bill_round_off && bill_round_off_to > 0) {
-      finalAmount = Math.round(totalBeforeRoundOff / bill_round_off_to) * bill_round_off_to;
-      finalRoundOff = finalAmount - totalBeforeRoundOff;
+      finalAmount = Math.round(totalBeforeRoundOff / bill_round_off_to) * bill_round_off_to
+      finalRoundOff = finalAmount - totalBeforeRoundOff
     }
 
     const txn = db.transaction(() => {
@@ -519,7 +643,7 @@ exports.updateBill = async (req, res) => {
         Extra1 || null,
         Extra2 || null,
         Extra3 || null,
-        Number(id)
+        Number(id),
       )
 
       db.prepare('DELETE FROM TAxnTrnbilldetails WHERE TxnID = ?').run(Number(id))
@@ -553,15 +677,18 @@ exports.updateBill = async (req, res) => {
           const cessAmt = Number(d.CESS_AMOUNT) || (lineSubtotal * cessPer) / 100
 
           // Distribute discount proportionally based on the line item's value relative to the total gross amount
-          let itemDiscountAmount = 0;
-          if (finalGross > 0) { // Avoid division by zero
-            if (billDiscountType === 1) { // Percentage discount
+          let itemDiscountAmount = 0
+          if (finalGross > 0) {
+            // Avoid division by zero
+            if (billDiscountType === 1) {
+              // Percentage discount
               // The discount percentage is applied to each item's subtotal
-              itemDiscountAmount = (lineSubtotal * billDiscPer) / 100;
-            } else if (billDiscountType === 0 && billDiscount > 0) { // Fixed amount discount
+              itemDiscountAmount = (lineSubtotal * billDiscPer) / 100
+            } else if (billDiscountType === 0 && billDiscount > 0) {
+              // Fixed amount discount
               // Distribute the fixed discount proportionally
-              const proportion = lineSubtotal / finalGross;
-              itemDiscountAmount = billDiscount * proportion;
+              const proportion = lineSubtotal / finalGross
+              itemDiscountAmount = billDiscount * proportion
             }
           }
 
@@ -595,8 +722,7 @@ exports.updateBill = async (req, res) => {
             rate,
             Number(d.RevQty) || 0,
             d.KOTUsedDate || new Date().toISOString(), // KOTUsedDate
-            0 // isBilled default to 0
-           
+            0, // isBilled default to 0
           )
         }
       }
@@ -604,10 +730,14 @@ exports.updateBill = async (req, res) => {
 
     txn()
     const header = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id))
-    const items = db.prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? ORDER BY TXnDetailID').all(Number(id))
+    const items = db
+      .prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? ORDER BY TXnDetailID')
+      .all(Number(id))
     res.json(ok('Bill updated', { ...header, details: items }))
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to update bill', data: null, error: error.message })
+    res
+      .status(500)
+      .json({ success: false, message: 'Failed to update bill', data: null, error: error.message })
   }
 }
 /* -------------------------------------------------------------------------- */
@@ -622,9 +752,15 @@ exports.deleteBill = async (req, res) => {
       return r.changes > 0
     })
     const success = tx()
-    res.json(success ? ok('Bill deleted', { id: Number(id) }) : { success: false, message: 'Bill not found', data: null })
+    res.json(
+      success
+        ? ok('Bill deleted', { id: Number(id) })
+        : { success: false, message: 'Bill not found', data: null },
+    )
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to delete bill', data: null, error: error.message })
+    res
+      .status(500)
+      .json({ success: false, message: 'Failed to delete bill', data: null, error: error.message })
   }
 }
 
@@ -634,75 +770,90 @@ exports.deleteBill = async (req, res) => {
 exports.settleBill = async (req, res) => {
   try {
     // --- Logging for Debugging ---
-    console.log(`[${new Date().toISOString()}] --- settleBill Request Received ---`);
-    console.log('Request Params (ID):', req.params.id);
-    console.log('Request Body (settlements):', JSON.stringify(req.body, null, 2));
+    console.log(`[${new Date().toISOString()}] --- settleBill Request Received ---`)
+    console.log('Request Params (ID):', req.params.id)
+    console.log('Request Body (settlements):', JSON.stringify(req.body, null, 2))
 
     const { id } = req.params
     const { settlements = [] } = req.body
 
     if (!Array.isArray(settlements) || settlements.length === 0) {
-      return res.status(400).json({ success: false, message: 'settlements array is required', data: null })
+      return res
+        .status(400)
+        .json({ success: false, message: 'settlements array is required', data: null })
     }
 
     const bill = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id))
-    if (!bill) return res.status(404).json({ success: false, message: 'Bill not found', data: null })
-    console.log('Found bill:', JSON.stringify(bill, null, 2));
+    if (!bill)
+      return res.status(404).json({ success: false, message: 'Bill not found', data: null })
+    console.log('Found bill:', JSON.stringify(bill, null, 2))
 
     const tx = db.transaction(() => {
       const ins = db.prepare(`
-        INSERT INTO TrnSettlement (
-          PaymentTypeID, PaymentType, Amount, Batch, Name, OrderNo, HotelID, Name2, Name3, isSettled
-        ) VALUES (?,?,?,?,?,?,?,?,?,?)
+INSERT INTO TrnSettlement (PaymentTypeID, PaymentType, Amount, Batch, Name, OrderNo, HotelID, TxnNo, UserId, CustomerName, MobileNo, Receive, Refund, isSettled)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+
       `)
       for (const s of settlements) {
-        console.log('Processing settlement:', JSON.stringify(s, null, 2));
+        console.log('Processing settlement:', JSON.stringify(s, null, 2))
         ins.run(
-          s.PaymentTypeID ?? 1, // Default to 1 (Cash) if not provided
+          s.PaymentTypeID ?? 1,
           s.PaymentType || null,
           Number(s.Amount) || 0,
-          s.Batch || null, // Correctly sets Batch to null if not provided
+          s.Batch || null,
           s.Name || null,
-          s.OrderNo || bill.TxnNo, // Correctly assigns the bill's TxnNo to OrderNo
-          s.HotelID ?? bill.HotelID ?? null,
-          s.Name2 || null,
-          s.Name3 || null,
-          1 // Mark as settled
+          bill.orderNo || bill.TxnNo,
+          bill.HotelID,
+          bill.TxnNo,
+          bill.UserId,
+          bill.CustomerName,
+          bill.MobileNo,
+          1,
         )
       }
 
-      db.prepare(`
+      db.prepare(
+        `
         UPDATE TAxnTrnbill 
         SET isSetteled = 1, isBilled = 1, BilledDate = CURRENT_TIMESTAMP, orderNo = COALESCE(orderNo, TxnNo)
         WHERE TxnID = ?
-      `).run(Number(id))
+      `,
+      ).run(Number(id))
 
       db.prepare(`UPDATE TAxnTrnbilldetails SET isSetteled = 1 WHERE TxnID = ?`).run(Number(id))
 
       // Set table status to vacant (0) after settlement
       if (bill.TableID) {
-        console.log(`Updating table ${bill.TableID} status to vacant.`);
-        db.prepare(`UPDATE msttablemanagement SET status = 0 WHERE tableid = ?`).run(bill.TableID);
+        console.log(`Updating table ${bill.TableID} status to vacant.`)
+        db.prepare(`UPDATE msttablemanagement SET status = 0 WHERE tableid = ?`).run(bill.TableID)
       }
     })
 
-    console.log('Executing database transaction...');
+    console.log('Executing database transaction...')
     tx()
 
     const header = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id))
-    const items = db.prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? ORDER BY TXnDetailID').all(Number(id))
-    const stl = db.prepare(`
+    const items = db
+      .prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? ORDER BY TXnDetailID')
+      .all(Number(id))
+    const stl = db
+      .prepare(
+        `
       SELECT * FROM TrnSettlement 
       WHERE OrderNo = ? AND HotelID = ?
       ORDER BY SettlementID
-    `).all(header.orderNo || null, header.HotelID || null)
+    `,
+      )
+      .all(header.orderNo || null, header.HotelID || null)
 
-    console.log('--- settleBill Success ---');
+    console.log('--- settleBill Success ---')
     res.json(ok('Bill settled', { ...header, details: items, settlement: stl }))
   } catch (error) {
-    console.error('--- ERROR in settleBill ---');
-    console.error(error);
-    res.status(500).json({ success: false, message: 'Failed to settle bill', data: null, error: error.message })
+    console.error('--- ERROR in settleBill ---')
+    console.error(error)
+    res
+      .status(500)
+      .json({ success: false, message: 'Failed to settle bill', data: null, error: error.message })
   }
 }
 
@@ -716,7 +867,8 @@ exports.addItemToBill = async (req, res) => {
     }
 
     const bill = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id))
-    if (!bill) return res.status(404).json({ success: false, message: 'Bill not found', data: null })
+    if (!bill)
+      return res.status(404).json({ success: false, message: 'Bill not found', data: null })
 
     const tx = db.transaction(() => {
       const din = db.prepare(`
@@ -728,23 +880,34 @@ exports.addItemToBill = async (req, res) => {
       for (const it of details) {
         const isNCKOT = toBool(it.isNCKOT)
         din.run(
-          Number(id), it.ItemID ?? null, Number(it.Qty) || 0, Number(it.RuntimeRate) || 0,
-          toBool(it.AutoKOT), toBool(it.ManualKOT), it.SpecialInst || null, it.DeptID ?? null, it.HotelID ?? null,
+          Number(id),
+          it.ItemID ?? null,
+          Number(it.Qty) || 0,
+          Number(it.RuntimeRate) || 0,
+          toBool(it.AutoKOT),
+          toBool(it.ManualKOT),
+          it.SpecialInst || null,
+          it.DeptID ?? null,
+          it.HotelID ?? null,
           0, // isBilled default to 0
           isNCKOT, // isNCKOT as provided or 0
-          isNCKOT ? (it.NCName || null) : null,
-          isNCKOT ? (it.NCPurpose || null) : null
+          isNCKOT ? it.NCName || null : null,
+          isNCKOT ? it.NCPurpose || null : null,
         )
       }
     })
 
     tx()
     const header = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id))
-    const items = db.prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? ORDER BY TXnDetailID').all(Number(id))
+    const items = db
+      .prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? ORDER BY TXnDetailID')
+      .all(Number(id))
 
     res.json({ success: true, message: 'Items added', data: { ...header, details: items } })
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to add items', data: null, error: error.message })
+    res
+      .status(500)
+      .json({ success: false, message: 'Failed to add items', data: null, error: error.message })
   }
 }
 
@@ -756,24 +919,36 @@ exports.updateBillItemsIsBilled = async (req, res) => {
     const { id } = req.params
 
     const bill = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id))
-    if (!bill) return res.status(404).json({ success: false, message: 'Bill not found', data: null })
+    if (!bill)
+      return res.status(404).json({ success: false, message: 'Bill not found', data: null })
 
     const updateStmt = db.prepare('UPDATE TAxnTrnbilldetails SET isBilled = 1 WHERE TxnID = ?')
     updateStmt.run(Number(id))
 
     // Also update the bill header to mark it as billed
-    db.prepare(`
+    db.prepare(
+      `
       UPDATE TAxnTrnbill
       SET isBilled = 1, BilledDate = CURRENT_TIMESTAMP
       WHERE TxnID = ?
-    `).run(Number(id))
+    `,
+    ).run(Number(id))
 
     const header = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id))
-    const items = db.prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? ORDER BY TXnDetailID').all(Number(id))
+    const items = db
+      .prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? ORDER BY TXnDetailID')
+      .all(Number(id))
 
     res.json(ok('Bill items marked as billed', { ...header, details: items }))
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to update bill items isBilled', data: null, error: error.message })
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: 'Failed to update bill items isBilled',
+        data: null,
+        error: error.message,
+      })
   }
 }
 
@@ -782,55 +957,79 @@ exports.updateBillItemsIsBilled = async (req, res) => {
 /* -------------------------------------------------------------------------- */
 exports.createKOT = async (req, res) => {
   try {
-    console.log('Received createKOT body:', JSON.stringify(req.body, null, 2));
+    console.log('Received createKOT body:', JSON.stringify(req.body, null, 2))
     // Correctly destructure from the frontend payload which uses camelCase (e.g., tableId, userId)
-    const { outletid, tableId: TableID, table_name, userId: UserId, hotelId: HotelID, NCName, NCPurpose, DiscPer, Discount, DiscountType, CustomerName, MobileNo, Order_Type, PAX, items: details = [] } = req.body;
+    const {
+      outletid,
+      tableId: TableID,
+      table_name,
+      userId: UserId,
+      hotelId: HotelID,
+      NCName,
+      NCPurpose,
+      DiscPer,
+      Discount,
+      DiscountType,
+      CustomerName,
+      MobileNo,
+      Order_Type,
+      PAX,
+      items: details = [],
+    } = req.body
 
-    console.log("Received Discount Data for KOT:", { DiscPer, Discount, DiscountType });
+    console.log('Received Discount Data for KOT:', { DiscPer, Discount, DiscountType })
 
-   
     if (!Array.isArray(details) || details.length === 0) {
-      console.log('Details array is empty or not an array');
-      return res.status(400).json({ success: false, message: "details array is required" });
+      console.log('Details array is empty or not an array')
+      return res.status(400).json({ success: false, message: 'details array is required' })
     }
 
     const trx = db.transaction(() => {
-      let txnId;
+      let txnId
       // 1. Find or create the bill header for the table
 
-      let finalDiscPer = Number(DiscPer) || 0;
-      let finalDiscount = Number(Discount) || 0;
-      let finalDiscountType = Number(DiscountType) || 0;
-      const isHeaderNCKOT = details.some(item => toBool(item.isNCKOT));
+      let finalDiscPer = Number(DiscPer) || 0
+      let finalDiscount = Number(Discount) || 0
+      let finalDiscountType = Number(DiscountType) || 0
+      const isHeaderNCKOT = details.some((item) => toBool(item.isNCKOT))
 
-       // Use the provided txnId from the payload if it exists
-      const { txnId: payloadTxnId } = req.body;
+      // Use the provided txnId from the payload if it exists
+      const { txnId: payloadTxnId } = req.body
 
-      let existingBill = null;
-        // Search for an existing bill by TableID (for Dine-in) or by TxnID (for Pickup/Delivery)
+      let existingBill = null
+      // Search for an existing bill by TableID (for Dine-in) or by TxnID (for Pickup/Delivery)
       // ✅ Modified to find billed but unsettled bills as well
-      if (payloadTxnId) { // This check is now first
+      if (payloadTxnId) {
+        // This check is now first
         // For Pickup/Delivery or subsequent KOTs for Dine-in, find the bill by its TxnID
-        existingBill = db.prepare('SELECT TxnID, DiscPer, Discount, DiscountType, isNCKOT, isBilled FROM TAxnTrnbill WHERE TxnID = ?').get(payloadTxnId);
+        existingBill = db
+          .prepare(
+            'SELECT TxnID, DiscPer, Discount, DiscountType, isNCKOT, isBilled FROM TAxnTrnbill WHERE TxnID = ?',
+          )
+          .get(payloadTxnId)
       } else if (TableID && TableID > 0) {
-     
-        existingBill = db.prepare(`
+        existingBill = db
+          .prepare(
+            `
           SELECT TxnID, DiscPer, Discount, DiscountType, isNCKOT, isBilled FROM TAxnTrnbill
           WHERE TableID = ? AND isCancelled = 0 AND isSetteled = 0 ORDER BY TxnID DESC LIMIT 1
-        `).get(Number(TableID));
+        `,
+          )
+          .get(Number(TableID))
       }
 
       if (existingBill) {
-        txnId = existingBill.TxnID;
-        console.log(`Using existing unbilled transaction. TxnID: ${txnId} for TableID: ${TableID}`);
+        txnId = existingBill.TxnID
+        console.log(`Using existing unbilled transaction. TxnID: ${txnId} for TableID: ${TableID}`)
 
         // ✅ If the existing bill was already billed, reset its status to allow for re-billing.
         if (existingBill.isBilled === 1) {
-          db.prepare('UPDATE TAxnTrnbill SET isBilled = 0 WHERE TxnID = ?').run(txnId);
+          db.prepare('UPDATE TAxnTrnbill SET isBilled = 0 WHERE TxnID = ?').run(txnId)
         }
         // Always update the bill header with the latest information, including table_name.
         // Use new discount/NC info if provided, otherwise fall back to existing values.
-        db.prepare(`
+        db.prepare(
+          `
             UPDATE TAxnTrnbill 
             SET 
               table_name = ?,
@@ -844,21 +1043,33 @@ exports.createKOT = async (req, res) => {
               CustomerName = COALESCE(?, CustomerName),
               MobileNo = COALESCE(?, MobileNo)
             WHERE TxnID = ?
-        `).run(table_name, finalDiscPer, finalDiscount, finalDiscountType, Order_Type, NCName || null, NCPurpose || null, toBool(isHeaderNCKOT || existingBill.isNCKOT), CustomerName, MobileNo, txnId);
-
+        `,
+        ).run(
+          table_name,
+          finalDiscPer,
+          finalDiscount,
+          finalDiscountType,
+          Order_Type,
+          NCName || null,
+          NCPurpose || null,
+          toBool(isHeaderNCKOT || existingBill.isNCKOT),
+          CustomerName,
+          MobileNo,
+          txnId,
+        )
       } else {
-        console.log(`No existing bill for table ${TableID}. Creating a new one.`);
+        console.log(`No existing bill for table ${TableID}. Creating a new one.`)
         // For Pickup/Delivery, outletid comes from the payload, not a table.
-        const headerOutletId = outletid || (details.length > 0 ? details[0].outletid : null);
-        let txnNo = null;
+        const headerOutletId = outletid || (details.length > 0 ? details[0].outletid : null)
+        let txnNo = null
         if (headerOutletId) {
-          txnNo = generateTxnNo(headerOutletId);
+          txnNo = generateTxnNo(headerOutletId)
         }
         // Generate OrderNo only for Pickup, Delivery, or Quick Bill
-        let newOrderNo = null;
-        const orderTypesToGenerateNo = ['Pickup', 'Delivery', 'Quick Bill'];
+        let newOrderNo = null
+        const orderTypesToGenerateNo = ['Pickup', 'Delivery', 'Quick Bill']
         if (Order_Type && orderTypesToGenerateNo.includes(Order_Type)) {
-          newOrderNo = generateOrderNo(headerOutletId);
+          newOrderNo = generateOrderNo(headerOutletId)
         }
 
         const insertHeaderStmt = db.prepare(`
@@ -867,22 +1078,46 @@ exports.createKOT = async (req, res) => {
             isBilled, isCancelled, isSetteled, status, AutoKOT, CustomerName, MobileNo, Order_Type, orderNo,
             NCName, NCPurpose, DiscPer, Discount, DiscountType, isNCKOT
           ) VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), 0, 0, 0, 1, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `);
-        const result = insertHeaderStmt.run(headerOutletId, null, Number(TableID), table_name, PAX ?? null, UserId, HotelID, CustomerName, MobileNo, Order_Type, newOrderNo, NCName || null, NCPurpose || null, finalDiscPer, finalDiscount, finalDiscountType, toBool(isHeaderNCKOT));
-        txnId = result.lastInsertRowid;
-        db.prepare('UPDATE msttablemanagement SET status = 1 WHERE tableid = ?').run(Number(TableID));
-        console.log(`Created new bill. TxnID: ${txnId}. Updated table ${TableID} status.`);
+        `)
+        const result = insertHeaderStmt.run(
+          headerOutletId,
+          null,
+          Number(TableID),
+          table_name,
+          PAX ?? null,
+          UserId,
+          HotelID,
+          CustomerName,
+          MobileNo,
+          Order_Type,
+          newOrderNo,
+          NCName || null,
+          NCPurpose || null,
+          finalDiscPer,
+          finalDiscount,
+          finalDiscountType,
+          toBool(isHeaderNCKOT),
+        )
+        txnId = result.lastInsertRowid
+        db.prepare('UPDATE msttablemanagement SET status = 1 WHERE tableid = ?').run(
+          Number(TableID),
+        )
+        console.log(`Created new bill. TxnID: ${txnId}. Updated table ${TableID} status.`)
       }
 
       // 2. Generate a new KOT number by finding the max KOT for the current day for that outlet.
-      const maxKOTResult = db.prepare(`
+      const maxKOTResult = db
+        .prepare(
+          `
         SELECT MAX(KOTNo) as maxKOT 
         FROM TAxnTrnbilldetails
         WHERE outletid = ? AND date(KOTUsedDate) = date('now')
-      `).get(outletid);
-      
-      const kotNo = (maxKOTResult?.maxKOT || 0) + 1;
-      console.log(`Generated KOT number: ${kotNo} (maxKOT was ${maxKOTResult?.maxKOT || 0})`);
+      `,
+        )
+        .get(outletid)
+
+      const kotNo = (maxKOTResult?.maxKOT || 0) + 1
+      console.log(`Generated KOT number: ${kotNo} (maxKOT was ${maxKOTResult?.maxKOT || 0})`)
 
       const insertDetailStmt = db.prepare(`
         INSERT INTO TAxnTrnbilldetails (
@@ -896,153 +1131,191 @@ exports.createKOT = async (req, res) => {
           @CGST, @CGST_AMOUNT, @SGST, @SGST_AMOUNT, @IGST, @IGST_AMOUNT, @CESS, @CESS_AMOUNT, @Discount_Amount, @KOTNo,
           @item_no, @item_name
         )
-      `);
+      `)
 
-      const getItemStmt = db.prepare('SELECT item_no FROM mstrestmenu WHERE restitemid = ?');
+      const getItemStmt = db.prepare('SELECT item_no FROM mstrestmenu WHERE restitemid = ?')
 
       for (const item of details) {
-        const qty = Number(item.Qty) || 0;
+        const qty = Number(item.Qty) || 0
 
         // If quantity is negative, it's a reversal for Re-KOT printing.
         // The actual DB update was already handled by the /reverse-quantity endpoint.
         // We skip it here to prevent inserting a new row with a negative quantity.
         if (qty < 0) {
-          continue;
+          continue
         }
-        const rate = Number(item.RuntimeRate) || 0;
-        const lineSubtotal = qty * rate;
-        const cgstPer = Number(item.CGST) || 0;
-        const sgstPer = Number(item.SGST) || 0;
-        const igstPer = Number(item.IGST) || 0;
-        const cessPer = Number(item.CESS) || 0;
-        const cgstAmt = Number(item.CGST_AMOUNT) || (lineSubtotal * cgstPer) / 100;
-        const sgstAmt = Number(item.SGST_AMOUNT) || (lineSubtotal * sgstPer) / 100;
-        const igstAmt = Number(item.IGST_AMOUNT) || (lineSubtotal * igstPer) / 100;
-        const cessAmt = Number(item.CESS_AMOUNT) || (lineSubtotal * cessPer) / 100;
-        const isNCKOT = toBool(item.isNCKOT);
+        const rate = Number(item.RuntimeRate) || 0
+        const lineSubtotal = qty * rate
+        const cgstPer = Number(item.CGST) || 0
+        const sgstPer = Number(item.SGST) || 0
+        const igstPer = Number(item.IGST) || 0
+        const cessPer = Number(item.CESS) || 0
+        const cgstAmt = Number(item.CGST_AMOUNT) || (lineSubtotal * cgstPer) / 100
+        const sgstAmt = Number(item.SGST_AMOUNT) || (lineSubtotal * sgstPer) / 100
+        const igstAmt = Number(item.IGST_AMOUNT) || (lineSubtotal * igstPer) / 100
+        const cessAmt = Number(item.CESS_AMOUNT) || (lineSubtotal * cessPer) / 100
+        const isNCKOT = toBool(item.isNCKOT)
 
-        let itemDiscountAmount = 0;
-        if (finalDiscountType === 1) { // Percentage
-          itemDiscountAmount = (lineSubtotal * finalDiscPer) / 100;
-        } else { // Fixed amount
-          itemDiscountAmount = finalDiscount;
+        let itemDiscountAmount = 0
+        if (finalDiscountType === 1) {
+          // Percentage
+          itemDiscountAmount = (lineSubtotal * finalDiscPer) / 100
+        } else {
+          // Fixed amount
+          itemDiscountAmount = finalDiscount
         }
 
-        let itemNo = item.item_no;
+        let itemNo = item.item_no
         if (!itemNo && item.ItemID) {
-             const menuData = getItemStmt.get(item.ItemID);
-             if (menuData) itemNo = menuData.item_no;
+          const menuData = getItemStmt.get(item.ItemID)
+          if (menuData) itemNo = menuData.item_no
         }
 
         insertDetailStmt.run({
-            TxnID: txnId,
-            outletid: outletid,
-            ItemID: item.ItemID,
-            TableID: TableID,
-            table_name: table_name,
-            Qty: qty,
-            RuntimeRate: rate,
-            DeptID: item.DeptID,
-            HotelID: HotelID,
-            isNCKOT: isNCKOT,
-            CGST: cgstPer,
-            CGST_AMOUNT: cgstAmt,
-            SGST: sgstPer,
-            SGST_AMOUNT: sgstAmt,
-            IGST: igstPer,
-            IGST_AMOUNT: igstAmt,
-            CESS: cessPer,
-            CESS_AMOUNT: cessAmt,
-            Discount_Amount: itemDiscountAmount,
-            KOTNo: kotNo,
-            item_no: itemNo,
-            item_name: item.item_name
-        });
+          TxnID: txnId,
+          outletid: outletid,
+          ItemID: item.ItemID,
+          TableID: TableID,
+          table_name: table_name,
+          Qty: qty,
+          RuntimeRate: rate,
+          DeptID: item.DeptID,
+          HotelID: HotelID,
+          isNCKOT: isNCKOT,
+          CGST: cgstPer,
+          CGST_AMOUNT: cgstAmt,
+          SGST: sgstPer,
+          SGST_AMOUNT: sgstAmt,
+          IGST: igstPer,
+          IGST_AMOUNT: igstAmt,
+          CESS: cessPer,
+          CESS_AMOUNT: cessAmt,
+          Discount_Amount: itemDiscountAmount,
+          KOTNo: kotNo,
+          item_no: itemNo,
+          item_name: item.item_name,
+        })
       }
 
       // Manually recalculate and update bill totals to ensure accuracy,
       // as relying on triggers can be inconsistent.
-      const allDetails = db.prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? AND isCancelled = 0').all(txnId);
-      const billHeader = db.prepare('SELECT RoundOFF, Discount, outletid FROM TAxnTrnbill WHERE TxnID = ?').get(txnId);
-      const outletSettings = db.prepare('SELECT include_tax_in_invoice FROM mstoutlet_settings WHERE outletid = ?').get(billHeader.outletid);
-      const includeTaxInInvoice = outletSettings ? outletSettings.include_tax_in_invoice : 0;
+      const allDetails = db
+        .prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? AND isCancelled = 0')
+        .all(txnId)
+      const billHeader = db
+        .prepare('SELECT RoundOFF, Discount, outletid FROM TAxnTrnbill WHERE TxnID = ?')
+        .get(txnId)
+      const outletSettings = db
+        .prepare('SELECT include_tax_in_invoice FROM mstoutlet_settings WHERE outletid = ?')
+        .get(billHeader.outletid)
+      const includeTaxInInvoice = outletSettings ? outletSettings.include_tax_in_invoice : 0
 
-      let totalGross = 0;
+      let totalGross = 0
       for (const d of allDetails) {
-          const qty = Number(d.Qty) || 0;
-          const rate = Number(d.RuntimeRate) || 0;
-          totalGross += qty * rate;
+        const qty = Number(d.Qty) || 0
+        const rate = Number(d.RuntimeRate) || 0
+        totalGross += qty * rate
       }
-      
-      let totalCgst = 0, totalSgst = 0, totalIgst = 0, totalCess = 0;
-      const discountAmount = Number(billHeader.Discount) || 0;
-      
-      // Use tax percentages from the first item as they are consistent for the bill.
-      const firstDetail = allDetails[0] || {};
-      const cgstPer = Number(firstDetail.CGST) || 0;
-      const sgstPer = Number(firstDetail.SGST) || 0;
-      const igstPer = Number(firstDetail.IGST) || 0;
-      const cessPer = Number(firstDetail.CESS) || 0;
-      
-      let totalBeforeRoundOff = 0;
-      
-      if (includeTaxInInvoice === 1) {
-        const combinedPer = cgstPer + sgstPer + igstPer + cessPer;
-        const preTaxBase = combinedPer > 0 ? totalGross / (1 + combinedPer / 100) : totalGross;
-        const newTaxableValue = preTaxBase - discountAmount;
 
-        totalCgst = (newTaxableValue * cgstPer) / 100;
-        totalSgst = (newTaxableValue * sgstPer) / 100;
-        totalIgst = (newTaxableValue * igstPer) / 100;
-        totalCess = (newTaxableValue * cessPer) / 100;
-        totalBeforeRoundOff = newTaxableValue + totalCgst + totalSgst + totalIgst + totalCess;
+      let totalCgst = 0,
+        totalSgst = 0,
+        totalIgst = 0,
+        totalCess = 0
+      const discountAmount = Number(billHeader.Discount) || 0
+
+      // Use tax percentages from the first item as they are consistent for the bill.
+      const firstDetail = allDetails[0] || {}
+      const cgstPer = Number(firstDetail.CGST) || 0
+      const sgstPer = Number(firstDetail.SGST) || 0
+      const igstPer = Number(firstDetail.IGST) || 0
+      const cessPer = Number(firstDetail.CESS) || 0
+
+      let totalBeforeRoundOff = 0
+
+      if (includeTaxInInvoice === 1) {
+        const combinedPer = cgstPer + sgstPer + igstPer + cessPer
+        const preTaxBase = combinedPer > 0 ? totalGross / (1 + combinedPer / 100) : totalGross
+        const newTaxableValue = preTaxBase - discountAmount
+
+        totalCgst = (newTaxableValue * cgstPer) / 100
+        totalSgst = (newTaxableValue * sgstPer) / 100
+        totalIgst = (newTaxableValue * igstPer) / 100
+        totalCess = (newTaxableValue * cessPer) / 100
+        totalBeforeRoundOff = newTaxableValue + totalCgst + totalSgst + totalIgst + totalCess
       } else {
-        const taxableValue = totalGross - discountAmount;
+        const taxableValue = totalGross - discountAmount
         // Recalculate taxes based on the post-discount taxable value
-        totalCgst = (taxableValue * cgstPer) / 100;
-        totalSgst = (taxableValue * sgstPer) / 100;
-        totalIgst = (taxableValue * igstPer) / 100;
-        totalCess = (taxableValue * cessPer) / 100;
-        totalBeforeRoundOff = taxableValue + totalCgst + totalSgst + totalIgst + totalCess;
+        totalCgst = (taxableValue * cgstPer) / 100
+        totalSgst = (taxableValue * sgstPer) / 100
+        totalIgst = (taxableValue * igstPer) / 100
+        totalCess = (taxableValue * cessPer) / 100
+        totalBeforeRoundOff = taxableValue + totalCgst + totalSgst + totalIgst + totalCess
       }
 
       // Apply rounding on the backend to ensure consistency
-      const { bill_round_off, bill_round_off_to } = db.prepare('SELECT bill_round_off, bill_round_off_to FROM mstoutlet_settings WHERE outletid = ?').get(billHeader.outletid) || {};
-      let finalAmount = totalBeforeRoundOff;
-      let finalRoundOff = 0;
+      const { bill_round_off, bill_round_off_to } =
+        db
+          .prepare(
+            'SELECT bill_round_off, bill_round_off_to FROM mstoutlet_settings WHERE outletid = ?',
+          )
+          .get(billHeader.outletid) || {}
+      let finalAmount = totalBeforeRoundOff
+      let finalRoundOff = 0
 
       if (bill_round_off && bill_round_off_to > 0) {
-        finalAmount = Math.round(totalBeforeRoundOff / bill_round_off_to) * bill_round_off_to;
-        finalRoundOff = finalAmount - totalBeforeRoundOff;
+        finalAmount = Math.round(totalBeforeRoundOff / bill_round_off_to) * bill_round_off_to
+        finalRoundOff = finalAmount - totalBeforeRoundOff
       }
 
-      db.prepare(`
+      db.prepare(
+        `
           UPDATE TAxnTrnbill
           SET GrossAmt = ?, Discount = ?, CGST = ?, SGST = ?, IGST = ?, CESS = ?, Amount = ?, RoundOFF = ?
           WHERE TxnID = ?
-      `).run(totalGross, discountAmount, totalCgst, totalSgst, totalIgst, totalCess, finalAmount, finalRoundOff, txnId);
-      return { txnId, kotNo };
-    })(); // Immediately invoke the transaction
+      `,
+      ).run(
+        totalGross,
+        discountAmount,
+        totalCgst,
+        totalSgst,
+        totalIgst,
+        totalCess,
+        finalAmount,
+        finalRoundOff,
+        txnId,
+      )
+      return { txnId, kotNo }
+    })() // Immediately invoke the transaction
 
-    const { txnId, kotNo } = trx;
-    const header = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(txnId); // Fetch header
-    const items = db.prepare(`
+    const { txnId, kotNo } = trx
+    const header = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(txnId) // Fetch header
+    const items = db
+      .prepare(
+        `
       SELECT d.*, m.item_name as ItemName, m.item_no as MenuItemNo
       FROM TAxnTrnbilldetails d 
       LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
       WHERE d.TxnID = ? AND d.isCancelled = 0 ORDER BY d.TXnDetailID
-    `).all(txnId); // Fetch details with item_name
+    `,
+      )
+      .all(txnId) // Fetch details with item_name
 
-    const mappedItems = items.map(i => ({
+    const mappedItems = items.map((i) => ({
       ...i,
-      item_no: i.item_no || i.MenuItemNo
-    }));
+      item_no: i.item_no || i.MenuItemNo,
+    }))
 
-    res.json(ok('KOT processed successfully', { ...header, details: mappedItems, KOTNo: kotNo }));
-
+    res.json(ok('KOT processed successfully', { ...header, details: mappedItems, KOTNo: kotNo }))
   } catch (error) {
-    console.error('Error in createKOT:', error);
-    res.status(500).json({ success: false, message: 'Failed to create/update KOT', data: null, error: error.message });
+    console.error('Error in createKOT:', error)
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: 'Failed to create/update KOT',
+        data: null,
+        error: error.message,
+      })
   }
 }
 
@@ -1051,54 +1324,62 @@ exports.createKOT = async (req, res) => {
 /* -------------------------------------------------------------------------- */
 exports.createReverseKOT = async (req, res) => {
   try {
-    const { txnId, tableId, reversedItems, userId, reversalReason } = req.body;
+    const { txnId, tableId, reversedItems, userId, reversalReason } = req.body
 
     if (!txnId || !Array.isArray(reversedItems) || reversedItems.length === 0) {
-      return res.status(400).json({ success: false, message: 'Missing transaction ID or items for reversal.' });
+      return res
+        .status(400)
+        .json({ success: false, message: 'Missing transaction ID or items for reversal.' })
     }
 
     // Get outletid from the transaction to generate a daily sequential RevKOTNo
-    const bill = db.prepare('SELECT outletid FROM TAxnTrnbill WHERE TxnID = ?').get(txnId);
+    const bill = db.prepare('SELECT outletid FROM TAxnTrnbill WHERE TxnID = ?').get(txnId)
     if (!bill || !bill.outletid) {
-      return res.status(404).json({ success: false, message: 'Transaction or outlet not found.' });
+      return res.status(404).json({ success: false, message: 'Transaction or outlet not found.' })
     }
-    const outletid = bill.outletid;
+    const outletid = bill.outletid
 
     // Find the maximum existing RevKOTNo for the current day for the outlet to generate a new one
-    const maxRevKOTResult = db.prepare(`
+    const maxRevKOTResult = db
+      .prepare(
+        `
       SELECT MAX(RevKOTNo) as maxRevKOT 
       FROM TAxnTrnbilldetails
       WHERE outletid = ? AND date(KOTUsedDate) = date('now')
-    `).get(outletid);
+    `,
+      )
+      .get(outletid)
 
-    const newRevKOTNo = (maxRevKOTResult?.maxRevKOT || 0) + 1;
-    console.log(`Generated RevKOT number: ${newRevKOTNo} for outlet ${outletid}`);
+    const newRevKOTNo = (maxRevKOTResult?.maxRevKOT || 0) + 1
+    console.log(`Generated RevKOT number: ${newRevKOTNo} for outlet ${outletid}`)
 
     const trx = db.transaction(() => {
       const updateDetailStmt = db.prepare(`
         UPDATE TAxnTrnbilldetails 
         SET RevQty = COALESCE(RevQty, 0) + ?, RevKOTNo = ?, KOTUsedDate = datetime('now')
         WHERE TXnDetailID = ?
-      `);
+      `)
 
       const logReversalStmt = db.prepare(`
         INSERT INTO TAxnTrnReversalLog (
           TxnDetailID, TxnID, KOTNo, ItemID, RevKOTNo, ActualQty, ReversedQty, RemainingQty, 
           IsBeforeBill, IsAfterBill, ReversedByUserID, ReversalReason
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?, ?)
-      `);
+      `)
 
-      let totalReverseAmount = 0;
+      let totalReverseAmount = 0
 
       for (const item of reversedItems) {
-        if (!item.txnDetailId || !item.qty) continue;
+        if (!item.txnDetailId || !item.qty) continue
 
-        const detail = db.prepare('SELECT * FROM TAxnTrnbilldetails WHERE TXnDetailID = ?').get(item.txnDetailId);
+        const detail = db
+          .prepare('SELECT * FROM TAxnTrnbilldetails WHERE TXnDetailID = ?')
+          .get(item.txnDetailId)
         if (detail) {
-          const newRevQty = (detail.RevQty || 0) + item.qty;
-          updateDetailStmt.run(item.qty, newRevKOTNo, item.txnDetailId); // KOTUsedDate is updated here
+          const newRevQty = (detail.RevQty || 0) + item.qty
+          updateDetailStmt.run(item.qty, newRevKOTNo, item.txnDetailId) // KOTUsedDate is updated here
 
-          const remainingQty = detail.Qty - newRevQty;
+          const remainingQty = detail.Qty - newRevQty
           logReversalStmt.run(
             item.txnDetailId,
             detail.TxnID,
@@ -1111,136 +1392,180 @@ exports.createReverseKOT = async (req, res) => {
             detail.isBilled ? 0 : 1, // IsBeforeBill
             detail.isBilled ? 1 : 0, // IsAfterBill
             userId, // ReversedByUserID
-            reversalReason || 'Item Reversed' // ReversalReason
-          );
+            reversalReason || 'Item Reversed', // ReversalReason
+          )
 
-          totalReverseAmount += (Number(detail.RuntimeRate) || 0) * item.qty;
+          totalReverseAmount += (Number(detail.RuntimeRate) || 0) * item.qty
         }
       }
 
       // Update the RevKOT amount on the main bill header
       if (totalReverseAmount > 0) {
-        db.prepare(`
+        db.prepare(
+          `
           UPDATE TAxnTrnbill
           SET RevKOT = COALESCE(RevKOT, 0) + ?
           WHERE TxnID = ?
-        `).run(totalReverseAmount, txnId);
+        `,
+        ).run(totalReverseAmount, txnId)
       }
 
       // --- Recalculate Bill Totals After Reversal ---
-      const allDetails = db.prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? AND isCancelled = 0').all(txnId);
-      const billHeader = db.prepare('SELECT Discount, outletid FROM TAxnTrnbill WHERE TxnID = ?').get(txnId);
-      const outletSettings = db.prepare('SELECT include_tax_in_invoice, bill_round_off, bill_round_off_to FROM mstoutlet_settings WHERE outletid = ?').get(billHeader.outletid);
-      const includeTaxInInvoice = outletSettings ? outletSettings.include_tax_in_invoice : 0;
+      const allDetails = db
+        .prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? AND isCancelled = 0')
+        .all(txnId)
+      const billHeader = db
+        .prepare('SELECT Discount, outletid FROM TAxnTrnbill WHERE TxnID = ?')
+        .get(txnId)
+      const outletSettings = db
+        .prepare(
+          'SELECT include_tax_in_invoice, bill_round_off, bill_round_off_to FROM mstoutlet_settings WHERE outletid = ?',
+        )
+        .get(billHeader.outletid)
+      const includeTaxInInvoice = outletSettings ? outletSettings.include_tax_in_invoice : 0
 
-      let totalGross = 0;
+      let totalGross = 0
       for (const d of allDetails) {
-        const netQty = (Number(d.Qty) || 0) - (Number(d.RevQty) || 0);
-        totalGross += netQty * (Number(d.RuntimeRate) || 0);
+        const netQty = (Number(d.Qty) || 0) - (Number(d.RevQty) || 0)
+        totalGross += netQty * (Number(d.RuntimeRate) || 0)
       }
 
-      let totalCgst = 0, totalSgst = 0, totalIgst = 0, totalCess = 0;
-      const discountAmount = Number(billHeader.Discount) || 0;
+      let totalCgst = 0,
+        totalSgst = 0,
+        totalIgst = 0,
+        totalCess = 0
+      const discountAmount = Number(billHeader.Discount) || 0
 
-      const firstDetail = allDetails[0] || {};
-      const cgstPer = Number(firstDetail.CGST) || 0;
-      const sgstPer = Number(firstDetail.SGST) || 0;
-      const igstPer = Number(firstDetail.IGST) || 0;
-      const cessPer = Number(firstDetail.CESS) || 0;
-      let totalBeforeRoundOff = 0;
+      const firstDetail = allDetails[0] || {}
+      const cgstPer = Number(firstDetail.CGST) || 0
+      const sgstPer = Number(firstDetail.SGST) || 0
+      const igstPer = Number(firstDetail.IGST) || 0
+      const cessPer = Number(firstDetail.CESS) || 0
+      let totalBeforeRoundOff = 0
 
       if (includeTaxInInvoice === 1) {
-        const combinedPer = cgstPer + sgstPer + igstPer + cessPer;
-        const preTaxBase = combinedPer > 0 ? totalGross / (1 + combinedPer / 100) : totalGross;
-        const newTaxableValue = preTaxBase - discountAmount;
-        totalCgst = (newTaxableValue * cgstPer) / 100;
-        totalSgst = (newTaxableValue * sgstPer) / 100;
-        totalIgst = (newTaxableValue * igstPer) / 100;
-        totalCess = (newTaxableValue * cessPer) / 100;
-        totalBeforeRoundOff = newTaxableValue + totalCgst + totalSgst + totalIgst + totalCess;
+        const combinedPer = cgstPer + sgstPer + igstPer + cessPer
+        const preTaxBase = combinedPer > 0 ? totalGross / (1 + combinedPer / 100) : totalGross
+        const newTaxableValue = preTaxBase - discountAmount
+        totalCgst = (newTaxableValue * cgstPer) / 100
+        totalSgst = (newTaxableValue * sgstPer) / 100
+        totalIgst = (newTaxableValue * igstPer) / 100
+        totalCess = (newTaxableValue * cessPer) / 100
+        totalBeforeRoundOff = newTaxableValue + totalCgst + totalSgst + totalIgst + totalCess
       } else {
-        const taxableValue = totalGross - discountAmount;
-        totalCgst = (taxableValue * cgstPer) / 100;
-        totalSgst = (taxableValue * sgstPer) / 100;
-        totalIgst = (taxableValue * igstPer) / 100;
-        totalCess = (taxableValue * cessPer) / 100;
-        totalBeforeRoundOff = taxableValue + totalCgst + totalSgst + totalIgst + totalCess;
+        const taxableValue = totalGross - discountAmount
+        totalCgst = (taxableValue * cgstPer) / 100
+        totalSgst = (taxableValue * sgstPer) / 100
+        totalIgst = (taxableValue * igstPer) / 100
+        totalCess = (taxableValue * cessPer) / 100
+        totalBeforeRoundOff = taxableValue + totalCgst + totalSgst + totalIgst + totalCess
       }
 
-      let finalAmount = totalBeforeRoundOff;
-      let finalRoundOff = 0;
+      let finalAmount = totalBeforeRoundOff
+      let finalRoundOff = 0
       if (outletSettings && outletSettings.bill_round_off && outletSettings.bill_round_off_to > 0) {
-        finalAmount = Math.round(totalBeforeRoundOff / outletSettings.bill_round_off_to) * outletSettings.bill_round_off_to;
-        finalRoundOff = finalAmount - totalBeforeRoundOff;
+        finalAmount =
+          Math.round(totalBeforeRoundOff / outletSettings.bill_round_off_to) *
+          outletSettings.bill_round_off_to
+        finalRoundOff = finalAmount - totalBeforeRoundOff
       }
 
       // After a reversal, the bill is no longer considered fully billed or settled.
       // Reset these flags to allow for re-billing or further modifications.
-      db.prepare(`
+      db.prepare(
+        `
         UPDATE TAxnTrnbill
         SET isBilled = 0, isSetteled = 0
         WHERE TxnID = ?
-      `).run(txnId);
+      `,
+      ).run(txnId)
 
       // Update the bill header with recalculated totals
-      db.prepare(`
+      db.prepare(
+        `
         UPDATE TAxnTrnbill
         SET GrossAmt = ?, CGST = ?, SGST = ?, IGST = ?, CESS = ?, Amount = ?, RoundOFF = ?
         WHERE TxnID = ?
-      `).run(totalGross, totalCgst, totalSgst, totalIgst, totalCess, finalAmount, finalRoundOff, txnId);
+      `,
+      ).run(
+        totalGross,
+        totalCgst,
+        totalSgst,
+        totalIgst,
+        totalCess,
+        finalAmount,
+        finalRoundOff,
+        txnId,
+      )
 
       // Check if all items are now fully reversed and cancel the bill if so
-      const remainingItemsCheck = db.prepare(`
+      const remainingItemsCheck = db
+        .prepare(
+          `
         SELECT SUM(Qty - COALESCE(RevQty, 0)) as netQty
         FROM TAxnTrnbilldetails
         WHERE TxnID = ? AND isCancelled = 0
-      `).get(txnId);
+      `,
+        )
+        .get(txnId)
 
       if (remainingItemsCheck && remainingItemsCheck.netQty <= 0) {
-        db.prepare(`
+        db.prepare(
+          `
           UPDATE TAxnTrnbill
           SET isreversebill = 0, isCancelled = 1, status = 0
           WHERE TxnID = ?
-        `).run(txnId);
+        `,
+        ).run(txnId)
         // Only update table status if a tableId was provided (for Dine-in)
         if (tableId) {
-          db.prepare(`
+          db.prepare(
+            `
             UPDATE msttablemanagement
             SET status = 0
             WHERE tableid = ?
-          `).run(tableId);
+          `,
+          ).run(tableId)
         }
-        return { fullReverse: true }; // Indicate a full reversal
+        return { fullReverse: true } // Indicate a full reversal
       }
-      return { fullReverse: false }; // Indicate a partial reversal
-    });
-    const { fullReverse } = trx(); // Execute transaction and get return value
-    res.json({ success: true, message: fullReverse ? 'Full bill reversed and table cleared successfully.' : 'Reversed items processed successfully.', fullReverse });
+      return { fullReverse: false } // Indicate a partial reversal
+    })
+    const { fullReverse } = trx() // Execute transaction and get return value
+    res.json({
+      success: true,
+      message: fullReverse
+        ? 'Full bill reversed and table cleared successfully.'
+        : 'Reversed items processed successfully.',
+      fullReverse,
+    })
   } catch (error) {
-    console.error('Error in createReverseKOT:', error);
-    res.status(500).json({ success: false, message: 'Failed to process reversed items.', error: error.message });
+    console.error('Error in createReverseKOT:', error)
+    res
+      .status(500)
+      .json({ success: false, message: 'Failed to process reversed items.', error: error.message })
   }
-};
+}
 
 /* -------------------------------------------------------------------------- */
 /* 9) getSavedKOTs → fetch all unbilled KOTs for table, merged                */
 /* -------------------------------------------------------------------------- */
 exports.getSavedKOTs = async (req, res) => {
   try {
-    const { tableId, isBilled } = req.query; // get filters from query
+    const { tableId, isBilled } = req.query // get filters from query
 
-    let whereClauses = ['b.isCancelled = 0'];
-    const params = [];
+    let whereClauses = ['b.isCancelled = 0']
+    const params = []
 
     if (isBilled !== undefined) {
-      whereClauses.push('b.isBilled = ?');
-      params.push(Number(isBilled));
+      whereClauses.push('b.isBilled = ?')
+      params.push(Number(isBilled))
     }
 
     // This makes tableId optional. If provided, it filters.
     if (tableId !== undefined) {
-      whereClauses.push('b.TableID = ?');
-      params.push(Number(tableId));
+      whereClauses.push('b.TableID = ?')
+      params.push(Number(tableId))
     }
 
     // Select only the fields needed for the "Saved KOTs" modal
@@ -1254,33 +1579,51 @@ exports.getSavedKOTs = async (req, res) => {
       FROM TAxnTrnbill b
       WHERE ${whereClauses.join(' AND ')}
       ORDER BY b.TxnDatetime DESC
-    `;
+    `
 
-    const rows = db.prepare(sql).all(...params);
+    const rows = db.prepare(sql).all(...params)
 
-    res.json(ok('Fetched saved KOTs', rows));
+    res.json(ok('Fetched saved KOTs', rows))
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to fetch saved KOTs', data: null, error: error.message })
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: 'Failed to fetch saved KOTs',
+        data: null,
+        error: error.message,
+      })
   }
 }
 
 exports.getLatestKOTForTable = async (req, res) => {
   try {
-    const { tableId } = req.query;
-    if (!tableId) return res.status(400).json({ success: false, message: 'tableId required', data: null })
+    const { tableId } = req.query
+    if (!tableId)
+      return res.status(400).json({ success: false, message: 'tableId required', data: null })
 
-    const bill = db.prepare(`SELECT * FROM TAxnTrnbill WHERE TableID = ? AND isBilled = 0 AND isCancelled = 0 ORDER BY TxnID DESC LIMIT 1`).get(tableId)
+    const bill = db
+      .prepare(
+        `SELECT * FROM TAxnTrnbill WHERE TableID = ? AND isBilled = 0 AND isCancelled = 0 ORDER BY TxnID DESC LIMIT 1`,
+      )
+      .get(tableId)
     if (!bill) return res.status(404).json({ success: false, message: 'No KOT found', data: null })
 
-    const details = db.prepare(`
+    const details = db
+      .prepare(
+        `
       SELECT * FROM TAxnTrnbilldetails 
       WHERE TxnID = ? AND isCancelled = 0 
       ORDER BY TXnDetailID ASC
-    `).all(bill.TxnID)
+    `,
+      )
+      .all(bill.TxnID)
 
     res.json(ok('Latest KOT fetched', { ...bill, details }))
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to fetch KOT', data: null, error: error.message })
+    res
+      .status(500)
+      .json({ success: false, message: 'Failed to fetch KOT', data: null, error: error.message })
   }
 }
 
@@ -1289,28 +1632,38 @@ exports.getLatestKOTForTable = async (req, res) => {
 /* -------------------------------------------------------------------------- */
 exports.getUnbilledItemsByTable = async (req, res) => {
   try {
-    const { tableId } = req.params;
-    
+    const { tableId } = req.params
+
     // Find the single unbilled or billed but unsettled bill for the table
-    const bill = db.prepare(`
+    const bill = db
+      .prepare(
+        `
       SELECT TxnID
       FROM TAxnTrnbill
       WHERE TableID = ? AND isBilled in (0,1) AND isCancelled = 0 AND isSetteled = 0
-    `).get(Number(tableId));
+    `,
+      )
+      .get(Number(tableId))
 
-    let kotNo = null;
+    let kotNo = null
     if (bill) {
-        // Get the latest KOTNo for that bill from the details table
-        const latestKOTDetail = db.prepare(`
+      // Get the latest KOTNo for that bill from the details table
+      const latestKOTDetail = db
+        .prepare(
+          `
             SELECT MAX(KOTNo) as maxKotNo
             FROM TAxnTrnbilldetails
             WHERE TxnID = ?
-        `).get(bill.TxnID);
-        kotNo = latestKOTDetail ? latestKOTDetail.maxKotNo : null;
+        `,
+        )
+        .get(bill.TxnID)
+      kotNo = latestKOTDetail ? latestKOTDetail.maxKotNo : null
     }
 
     // Fetch all unbilled items for the table (not aggregated)
-    const rows = db.prepare(`
+    const rows = db
+      .prepare(
+        `
       SELECT
         b.TxnID,
         d.TXnDetailID,
@@ -1330,11 +1683,15 @@ exports.getUnbilledItemsByTable = async (req, res) => {
       JOIN TAxnTrnbill b ON d.TxnID = b.TxnID
       LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
       WHERE b.TableID = ? AND b.isBilled in (1,0)   AND b.issetteled = 0 AND b.isNCKOT = 0 AND  d.isCancelled = 0 
-      `).all(Number(tableId));
+      `,
+      )
+      .all(Number(tableId))
 
-  // Fetch reversed items from the log for this transaction
+    // Fetch reversed items from the log for this transaction
     const reversedItemsRows = bill
-    ? db.prepare(`
+      ? db
+          .prepare(
+            `
       SELECT
         l.ReversalID as reversalLogId,
         l.ItemID,
@@ -1350,19 +1707,26 @@ exports.getUnbilledItemsByTable = async (req, res) => {
       JOIN TAxnTrnbilldetails d ON l.TxnDetailID = d.TXnDetailID
       LEFT JOIN mstrestmenu m ON l.ItemID = m.restitemid
       WHERE l.TxnID = ?
-    `).all(bill.TxnID)
-    : [];
-        // Fetch discount from the latest unbilled bill for the table
-    const latestBillHeader = db.prepare(`
+    `,
+          )
+          .all(bill.TxnID)
+      : []
+    // Fetch discount from the latest unbilled bill for the table
+    const latestBillHeader =
+      db
+        .prepare(
+          `
       SELECT TxnID, GrossAmt, RevKOT, Discount, DiscPer, DiscountType, CGST, SGST, IGST, CESS, RoundOFF, Amount, PAX
       FROM TAxnTrnbill
       WHERE TableID = ? AND isBilled = 0 AND isCancelled = 0
       ORDER BY TxnID DESC
       LIMIT 1
-    `).get(Number(tableId)) || {};
+    `,
+        )
+        .get(Number(tableId)) || {}
 
     // Map to add isNew flag
-    const items = rows.map(r => ({
+    const items = rows.map((r) => ({
       txnId: r.TxnID,
       txnDetailId: r.TXnDetailID,
       itemId: r.ItemID,
@@ -1376,60 +1740,72 @@ exports.getUnbilledItemsByTable = async (req, res) => {
       isNew: r.KOTNo === kotNo,
       kotNo: r.KOTNo,
       itemgroupid: r.item_group_id,
-    }));
-   
+    }))
 
-    console.log('Unbilled items for tableId', tableId, ':', items);
+    console.log('Unbilled items for tableId', tableId, ':', items)
 
-     res.json({
+    res.json({
       success: true,
       message: 'Fetched unbilled items',
       data: {
         kotNo,
         items,
         reversedItems: reversedItemsRows,
-        header: latestBillHeader
-      }
-    });
+        header: latestBillHeader,
+      },
+    })
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to fetch unbilled items', data: null, error: error.message });
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: 'Failed to fetch unbilled items',
+        data: null,
+        error: error.message,
+      })
   }
-};
+}
 
 /* -------------------------------------------------------------------------- */
 /* F8 Key Press Handler - Reverse Quantity Mode                              */
 /* -------------------------------------------------------------------------- */
 exports.handleF8KeyPress = async (req, res) => {
   try {
-    const { tableId, userId, txnDetailId, approvedByAdminId, reversalReason } = req.body;
+    const { tableId, userId, txnDetailId, approvedByAdminId, reversalReason } = req.body
 
     if (!tableId) {
-      return res.status(400).json({ success: false, message: 'tableId is required', data: null });
+      return res.status(400).json({ success: false, message: 'tableId is required', data: null })
     }
 
     // Note: ReverseQtyMode check is handled in the frontend
     // Backend assumes the request is valid when called
 
     // Get the latest KOT for the table (billed or unbilled)
-    const latestKOT = db.prepare(`
+    const latestKOT = db
+      .prepare(
+        `
       SELECT TxnID, KOTNo
       FROM TAxnTrnbill
       WHERE TableID = ? AND isCancelled = 0
       ORDER BY TxnID DESC
       LIMIT 1
-    `).get(Number(tableId));
+    `,
+      )
+      .get(Number(tableId))
 
     if (!latestKOT) {
       return res.status(404).json({
         success: false,
         message: 'No active KOT found for this table',
-        data: null
-      });
+        data: null,
+      })
     }
 
     // If txnDetailId is provided, handle individual item
     if (txnDetailId) {
-      const item = db.prepare(`
+      const item = db
+        .prepare(
+          `
         SELECT
           d.TXnDetailID,
           d.ItemID,
@@ -1443,77 +1819,101 @@ exports.handleF8KeyPress = async (req, res) => {
         JOIN TAxnTrnbill b ON d.TxnID = b.TxnID
         LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
         WHERE b.TableID = ? AND d.TXnDetailID = ? AND d.isCancelled = 0
-      `).get(Number(tableId), Number(txnDetailId));
+      `,
+        )
+        .get(Number(tableId), Number(txnDetailId))
 
       if (!item) {
         return res.status(404).json({
           success: false,
           message: 'Item not found',
-          data: null
-        });
+          data: null,
+        })
       }
 
-      const currentQty = Number(item.Qty) || 0;
-      const currentRevQty = Number(item.RevQty) || 0;
-      const availableQty = currentQty - currentRevQty;
+      const currentQty = Number(item.Qty) || 0
+      const currentRevQty = Number(item.RevQty) || 0
+      const availableQty = currentQty - currentRevQty
 
       if (availableQty <= 0) {
         return res.status(400).json({
           success: false,
           message: 'No quantity available to reverse for this item',
-          data: null
-        });
+          data: null,
+        })
       }
 
       // Generate new KOT number for reversal
-      const maxRevKOTResult = db.prepare(`
+      const maxRevKOTResult = db
+        .prepare(
+          `
         SELECT MAX(d.RevKOTNo) as maxRevKOT
         FROM TAxnTrnbilldetails d
-      `).get();
-      const newRevKOTNo = (maxRevKOTResult?.maxRevKOT || 0) + 1;
+      `,
+        )
+        .get()
+      const newRevKOTNo = (maxRevKOTResult?.maxRevKOT || 0) + 1
 
       // Update RevQty and KOTNo in database
-      const newRevQty = currentRevQty + 1;
-      const reverseAmount = Number(item.RuntimeRate) || 0;
+      const newRevQty = currentRevQty + 1
+      const reverseAmount = Number(item.RuntimeRate) || 0
 
       // Determine reversal type based on bill status
-      const bill = db.prepare('SELECT isBilled FROM TAxnTrnbill WHERE TxnID = ?').get(item.TxnID);
-      const reverseType = bill && bill.isBilled ? 'AfterBill' : 'BeforeBill';
-      const isBeforeBill = reverseType === 'BeforeBill' ? 1 : 0;
-      const isAfterBill = reverseType === 'AfterBill' ? 1 : 0;
+      const bill = db.prepare('SELECT isBilled FROM TAxnTrnbill WHERE TxnID = ?').get(item.TxnID)
+      const reverseType = bill && bill.isBilled ? 'AfterBill' : 'BeforeBill'
+      const isBeforeBill = reverseType === 'BeforeBill' ? 1 : 0
+      const isAfterBill = reverseType === 'AfterBill' ? 1 : 0
 
       db.transaction(() => {
-        db.prepare(`
+        db.prepare(
+          `
           UPDATE TAxnTrnbilldetails
           SET RevQty = ?, RevKOTNo = ?
           WHERE TXnDetailID = ?
-        `).run(newRevQty, newRevKOTNo, item.TXnDetailID);
+        `,
+        ).run(newRevQty, newRevKOTNo, item.TXnDetailID)
 
-        db.prepare(`
+        db.prepare(
+          `
           UPDATE TAxnTrnbill
           SET RevKOT = COALESCE(RevKOT, 0) + ?
           WHERE TxnID = ?
-        `).run(reverseAmount, item.TxnID);
+        `,
+        ).run(reverseAmount, item.TxnID)
 
         // Log the reversal
-        db.prepare(`
+        db.prepare(
+          `
           INSERT INTO TAxnTrnReversalLog (
             TxnDetailID, TxnID, KOTNo, RevKOTNo, ItemID,
             ActualQty, ReversedQty, RemainingQty, IsBeforeBill, IsAfterBill,
             ReversedByUserID, ApprovedByAdmin, HotelID, ReversalReason
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(
-          item.TXnDetailID, item.TxnID, item.KOTNo, newRevKOTNo, item.ItemID,
-          currentQty, 1, availableQty - 1, isBeforeBill, isAfterBill,
-          userId, approvedByAdminId || null, item.HotelID, reversalReason || null
-        );
+        `,
+        ).run(
+          item.TXnDetailID,
+          item.TxnID,
+          item.KOTNo,
+          newRevKOTNo,
+          item.ItemID,
+          currentQty,
+          1,
+          availableQty - 1,
+          isBeforeBill,
+          isAfterBill,
+          userId,
+          approvedByAdminId || null,
+          item.HotelID,
+          reversalReason || null,
+        )
 
         // Update table status to occupied if it's not already
-        db.prepare(`
+        db.prepare(
+          `
           UPDATE msttablemanagement SET status = 1 WHERE tableid = ? AND status = 0
-        `).run(tableId);
-
-      })();
+        `,
+        ).run(tableId)
+      })()
 
       return res.json({
         success: true,
@@ -1524,13 +1924,15 @@ exports.handleF8KeyPress = async (req, res) => {
           itemName: item.ItemName,
           originalQty: currentQty,
           newRevQty: newRevQty,
-          availableQty: availableQty - 1
-        }
-      });
+          availableQty: availableQty - 1,
+        },
+      })
     }
 
     // Get all unbilled items for the table (original F8 functionality)
-    const unbilledItems = db.prepare(`
+    const unbilledItems = db
+      .prepare(
+        `
       SELECT
         d.TXnDetailID,
         d.TxnID,
@@ -1544,57 +1946,75 @@ exports.handleF8KeyPress = async (req, res) => {
       JOIN TAxnTrnbill b ON d.TxnID = b.TxnID
       LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
       WHERE b.TableID = ? AND b.isBilled = 0 AND d.isCancelled = 0
-    `).all(Number(tableId));
+    `,
+      )
+      .all(Number(tableId))
 
     if (!unbilledItems || unbilledItems.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'No unbilled items found for this table',
-        data: null
-      });
+        data: null,
+      })
     }
 
     // Process reverse quantity for items that have quantity > RevQty
-    const updatedItems = [];
+    const updatedItems = []
     const transaction = db.transaction(() => {
-      let totalReverseAmount = 0;
-      let billTxnId = null;
+      let totalReverseAmount = 0
+      let billTxnId = null
 
       for (const item of unbilledItems) {
-        const currentQty = Number(item.Qty) || 0;
-        const currentRevQty = Number(item.RevQty) || 0;
-        const availableQty = currentQty - currentRevQty;
+        const currentQty = Number(item.Qty) || 0
+        const currentRevQty = Number(item.RevQty) || 0
+        const availableQty = currentQty - currentRevQty
 
         if (availableQty > 0) {
-          const newRevQty = currentRevQty + 1;
-          db.prepare(`
+          const newRevQty = currentRevQty + 1
+          db.prepare(
+            `
             UPDATE TAxnTrnbilldetails
             SET RevQty = ?
             WHERE TXnDetailID = ?
-          `).run(newRevQty, item.TXnDetailID);
+          `,
+          ).run(newRevQty, item.TXnDetailID)
 
-          totalReverseAmount += Number(item.RuntimeRate) || 0;
+          totalReverseAmount += Number(item.RuntimeRate) || 0
           if (!billTxnId) {
-            billTxnId = item.TxnID;
+            billTxnId = item.TxnID
           }
 
           // Log the reversal
-          db.prepare(`
+          db.prepare(
+            `
             INSERT INTO TAxnTrnReversalLog ( 
               TxnDetailID, TxnID, KOTNo, RevKOTNo, ItemID,
               ActualQty, ReversedQty, RemainingQty, IsBeforeBill, IsAfterBill,
               ReversedByUserID, ApprovedByAdmin, HotelID, ReversalReason 
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-          `).run(
-            item.TXnDetailID, item.TxnID, item.KOTNo, null,
-            item.ItemID, currentQty, 1,
-            availableQty - 1, 1, 0,
-            userId, approvedByAdminId || null, item.HotelID, reversalReason || null 
-          );
+          `,
+          ).run(
+            item.TXnDetailID,
+            item.TxnID,
+            item.KOTNo,
+            null,
+            item.ItemID,
+            currentQty,
+            1,
+            availableQty - 1,
+            1,
+            0,
+            userId,
+            approvedByAdminId || null,
+            item.HotelID,
+            reversalReason || null,
+          )
 
-          db.prepare(`
+          db.prepare(
+            `
             UPDATE msttablemanagement SET status = 1 WHERE tableid = ? AND status = 0
-          `).run(tableId);
+          `,
+          ).run(tableId)
 
           updatedItems.push({
             txnDetailId: item.TXnDetailID,
@@ -1602,24 +2022,28 @@ exports.handleF8KeyPress = async (req, res) => {
             itemName: item.ItemName,
             originalQty: currentQty,
             newRevQty: newRevQty,
-            availableQty: availableQty - 1
-          });
+            availableQty: availableQty - 1,
+          })
         }
       }
 
       if (billTxnId && totalReverseAmount > 0) {
-        db.prepare(`
+        db.prepare(
+          `
           UPDATE TAxnTrnbill
           SET RevKOT = COALESCE(RevKOT, 0) + ?
           WHERE TxnID = ?
-        `).run(totalReverseAmount, billTxnId);
+        `,
+        ).run(totalReverseAmount, billTxnId)
       }
-    });
+    })
 
-    transaction();
+    transaction()
 
     // Get updated items after transaction
-    const finalItems = db.prepare(`
+    const finalItems = db
+      .prepare(
+        `
       SELECT
         d.TXnDetailID,
         d.ItemID,
@@ -1632,7 +2056,9 @@ exports.handleF8KeyPress = async (req, res) => {
       JOIN TAxnTrnbill b ON d.TxnID = b.TxnID
       LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
       WHERE b.TableID = ? AND b.isBilled = 0 AND d.isCancelled = 0
-    `).all(Number(tableId));
+    `,
+      )
+      .all(Number(tableId))
 
     res.json({
       success: true,
@@ -1642,112 +2068,135 @@ exports.handleF8KeyPress = async (req, res) => {
         kotNo: latestKOT.KOTNo,
         updatedItems: updatedItems,
         allItems: finalItems,
-        reverseQtyMode: true
-      }
-    });
-
+        reverseQtyMode: true,
+      },
+    })
   } catch (error) {
-    console.error('Error in handleF8KeyPress:', error);
+    console.error('Error in handleF8KeyPress:', error)
     res.status(500).json({
       success: false,
       message: 'Failed to process F8 key press',
       data: null,
-      error: error.message
-    });
+      error: error.message,
+    })
   }
 }
-
 
 // Simple reverse quantity function
 exports.reverseQuantity = async (req, res) => {
   try {
-    const { txnDetailId, userId, approvedByAdminId, reversalReason } = req.body;
+    const { txnDetailId, userId, approvedByAdminId, reversalReason } = req.body
 
     if (!txnDetailId) {
       return res.status(400).json({
         success: false,
         message: 'txnDetailId is required',
-        data: null
-      });
+        data: null,
+      })
     }
 
     if (!userId) {
       return res.status(400).json({
         success: false,
         message: 'userId is required',
-        data: null
-      });
+        data: null,
+      })
     }
 
     // Get current item details
-    const item = db.prepare(`
+    const item = db
+      .prepare(
+        `
       SELECT TXnDetailID, Qty, RevQty, ItemID, TxnID, RuntimeRate, TableID, KOTNo, HotelID
       FROM TAxnTrnbilldetails
       WHERE TXnDetailID = ?
-    `).get(Number(txnDetailId));
+    `,
+      )
+      .get(Number(txnDetailId))
 
     if (!item) {
       return res.status(404).json({
         success: false,
         message: 'Item not found',
-        data: null
-      });
+        data: null,
+      })
     }
 
-    const currentQty = Number(item.Qty) || 0;
-    const currentRevQty = Number(item.RevQty) || 0;
-    const availableQty = currentQty - currentRevQty;
+    const currentQty = Number(item.Qty) || 0
+    const currentRevQty = Number(item.RevQty) || 0
+    const availableQty = currentQty - currentRevQty
 
     if (availableQty <= 0) {
       return res.status(400).json({
         success: false,
         message: 'No quantity available to reverse',
-        data: null
-      });
+        data: null,
+      })
     }
 
     // Generate new KOT number for reversal
-    const maxRevKOTResult = db.prepare(`
+    const maxRevKOTResult = db
+      .prepare(
+        `
       SELECT MAX(d.RevKOTNo) as maxRevKOT
       FROM TAxnTrnbilldetails d
-    `).get();
-    const newRevKOTNo = (maxRevKOTResult?.maxRevKOT || 0) + 1;
+    `,
+      )
+      .get()
+    const newRevKOTNo = (maxRevKOTResult?.maxRevKOT || 0) + 1
 
     // Update RevQty and KOTNo
-    const newRevQty = currentRevQty + 1;
-    const reverseAmount = Number(item.RuntimeRate) || 0;
+    const newRevQty = currentRevQty + 1
+    const reverseAmount = Number(item.RuntimeRate) || 0
 
     db.transaction(() => {
-      db.prepare(`
+      db.prepare(
+        `
         UPDATE TAxnTrnbilldetails
         SET RevQty = ?, RevKOTNo = ?
         WHERE TXnDetailID = ?
-      `).run(newRevQty, newRevKOTNo, item.TXnDetailID);
+      `,
+      ).run(newRevQty, newRevKOTNo, item.TXnDetailID)
 
-      db.prepare(`
+      db.prepare(
+        `
         UPDATE TAxnTrnbill
         SET RevKOT = COALESCE(RevKOT, 0) + ?
         WHERE TxnID = ?
-      `).run(reverseAmount, item.TxnID);
+      `,
+      ).run(reverseAmount, item.TxnID)
 
       // Log the reversal
-      const bill = db.prepare('SELECT isBilled FROM TAxnTrnbill WHERE TxnID = ?').get(item.TxnID);
-      const reverseType = bill && bill.isBilled ? 'AfterBill' : 'BeforeBill';
+      const bill = db.prepare('SELECT isBilled FROM TAxnTrnbill WHERE TxnID = ?').get(item.TxnID)
+      const reverseType = bill && bill.isBilled ? 'AfterBill' : 'BeforeBill'
 
-      const isBeforeBill = reverseType === 'BeforeBill' ? 1 : 0;
-      const isAfterBill = reverseType === 'AfterBill' ? 1 : 0;
+      const isBeforeBill = reverseType === 'BeforeBill' ? 1 : 0
+      const isAfterBill = reverseType === 'AfterBill' ? 1 : 0
 
-      db.prepare(`
+      db.prepare(
+        `
         INSERT INTO TAxnTrnReversalLog ( 
           TxnDetailID, TxnID, KOTNo, RevKOTNo, ItemID, ActualQty, ReversedQty, RemainingQty, 
           IsBeforeBill, IsAfterBill, ReversedByUserID, ApprovedByAdmin, HotelID, ReversalReason 
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        item.TXnDetailID, item.TxnID, item.KOTNo, newRevKOTNo, item.ItemID, currentQty, 1, 
-        availableQty - 1, isBeforeBill, isAfterBill, userId, approvedByAdminId || null, item.HotelID, reversalReason || null
-      );
-
-    })();
+      `,
+      ).run(
+        item.TXnDetailID,
+        item.TxnID,
+        item.KOTNo,
+        newRevKOTNo,
+        item.ItemID,
+        currentQty,
+        1,
+        availableQty - 1,
+        isBeforeBill,
+        isAfterBill,
+        userId,
+        approvedByAdminId || null,
+        item.HotelID,
+        reversalReason || null,
+      )
+    })()
 
     res.json({
       success: true,
@@ -1756,62 +2205,81 @@ exports.reverseQuantity = async (req, res) => {
         txnDetailId: item.TXnDetailID,
         originalQty: currentQty,
         newRevQty: newRevQty,
-        availableQty: availableQty
-      }
-    });
-
+        availableQty: availableQty,
+      },
+    })
   } catch (error) {
-    console.error('Error in reverseQuantity:', error);
+    console.error('Error in reverseQuantity:', error)
     res.status(500).json({
       success: false,
       message: 'Failed to reverse quantity',
       data: null,
-      error: error.message
-    });
+      error: error.message,
+    })
   }
 }
 
 exports.getLatestBilledBillForTable = async (req, res) => {
   try {
-    const { tableId } = req.params;
+    const { tableId } = req.params
     if (!tableId) {
-      return res.status(400).json({ success: false, message: 'tableId is required', data: null });
+      return res.status(400).json({ success: false, message: 'tableId is required', data: null })
     }
 
     // Step 1: Fetch the latest billed and unsettled transaction for the table
-    const bill = db.prepare(`
+    const bill = db
+      .prepare(
+        `
       SELECT * 
       FROM TAxnTrnbill 
       WHERE TableID = ? AND isBilled = 1 AND isSetteled = 0 AND isreversebill = 0
       ORDER BY TxnID DESC 
       LIMIT 1
-    `).get(Number(tableId));
+    `,
+      )
+      .get(Number(tableId))
 
     if (!bill) {
-      return res.status(404).json({ success: false, message: 'No billed and unsettled transaction found for this table.', data: null });
+      return res
+        .status(404)
+        .json({
+          success: false,
+          message: 'No billed and unsettled transaction found for this table.',
+          data: null,
+        })
     }
 
     // Step 2: Load all items (billed and unbilled) associated with that transaction
-    const allDetailsForBill = db.prepare(`
+    const allDetailsForBill = db
+      .prepare(
+        `
       SELECT d.*, m.item_name as ItemName, m.item_no, m.item_group_id
       FROM TAxnTrnbilldetails d
       LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
       WHERE d.TxnID = ? AND d.isCancelled = 0
       ORDER BY d.TXnDetailID ASC
-    `).all(bill.TxnID);
+    `,
+      )
+      .all(bill.TxnID)
 
     // Step 3: Check for any *other* unbilled transactions for the same table that might have been created after the bill was printed.
     // This is a fallback and might not be the primary logic path if new items are added to the *same* bill.
-    const otherUnbilledItems = db.prepare(`
+    const otherUnbilledItems = db
+      .prepare(
+        `
       SELECT d.*, m.item_name as ItemName
       FROM TAxnTrnbilldetails d
       JOIN TAxnTrnbill b ON d.TxnID = b.TxnID
       LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
       WHERE b.TableID = ? AND b.isBilled = 0 AND b.isCancelled = 0 AND d.isCancelled = 0
-    `).all(Number(tableId));
+    `,
+      )
+      .all(Number(tableId))
 
     // Step 4: Fetch reversed items from the log for this specific billed transaction
-    const reversedItemsRows = db.prepare(`
+    const reversedItemsRows = db
+      .prepare(
+        `
       SELECT
         l.ReversalID,
         l.ItemID,
@@ -1824,19 +2292,33 @@ exports.getLatestBilledBillForTable = async (req, res) => {
       JOIN TAxnTrnbilldetails d ON l.TxnDetailID = d.TXnDetailID
       LEFT JOIN mstrestmenu m ON l.ItemID = m.restitemid
       WHERE l.TxnID = ?
-    `).all(bill.TxnID);
+    `,
+      )
+      .all(bill.TxnID)
 
     // Combine the details. The primary details are from the billed transaction.
     // The frontend will handle displaying them correctly.
-    const combinedDetails = [...allDetailsForBill, ...otherUnbilledItems];
+    const combinedDetails = [...allDetailsForBill, ...otherUnbilledItems]
 
     // Respond with the main billed transaction header, all items, and the reversed items
-    res.json(ok('Fetched billed and unbilled items for the table', { ...bill, details: combinedDetails, reversedItems: reversedItemsRows }));
-
+    res.json(
+      ok('Fetched billed and unbilled items for the table', {
+        ...bill,
+        details: combinedDetails,
+        reversedItems: reversedItemsRows,
+      }),
+    )
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to fetch latest billed bill', data: null, error: error.message });
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: 'Failed to fetch latest billed bill',
+        data: null,
+        error: error.message,
+      })
   }
-};
+}
 
 /* -------------------------------------------------------------------------- */
 /* 10) printBill → update isBilled = 1 for all items in a bill when printed  */
@@ -1846,31 +2328,42 @@ exports.printBill = async (req, res) => {
     const { id } = req.params
 
     const bill = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id))
-    if (!bill) return res.status(404).json({ success: false, message: 'Bill not found', data: null })
+    if (!bill)
+      return res.status(404).json({ success: false, message: 'Bill not found', data: null })
 
     // Update isBilled = 1 for all items in the bill
     const updateStmt = db.prepare('UPDATE TAxnTrnbilldetails SET isBilled = 1 WHERE TxnID = ?')
     updateStmt.run(Number(id))
 
     // Also update the bill header to mark it as billed
-    db.prepare(`
+    db.prepare(
+      `
       UPDATE TAxnTrnbill
       SET isBilled = 1, BilledDate = CURRENT_TIMESTAMP
       WHERE TxnID = ?
-    `).run(Number(id))
+    `,
+    ).run(Number(id))
 
     // ✅ Update table status to 'billed' (2)
     if (bill.TableID) {
-      db.prepare('UPDATE msttablemanagement SET status = 2 WHERE tableid = ?').run(bill.TableID);
+      db.prepare('UPDATE msttablemanagement SET status = 2 WHERE tableid = ?').run(bill.TableID)
     }
 
-
     const header = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id))
-    const items = db.prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? ORDER BY TXnDetailID').all(Number(id))
+    const items = db
+      .prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? ORDER BY TXnDetailID')
+      .all(Number(id))
 
     res.json(ok('Bill marked as printed and billed', { ...header, details: items }))
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to mark bill as printed', data: null, error: error.message })
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: 'Failed to mark bill as printed',
+        data: null,
+        error: error.message,
+      })
   }
 }
 
@@ -1897,314 +2390,390 @@ exports.markBillAsBilled = async (req, res) => {
       txnNo = generateTxnNo(outletId)
     }
 
-    db.prepare(`
+    db.prepare(
+      `
       UPDATE TAxnTrnbill
       SET isBilled = 1, BilledDate = CURRENT_TIMESTAMP, TxnNo = ?
       WHERE TxnID = ?
-    `).run(txnNo, Number(id))
+    `,
+    ).run(txnNo, Number(id))
 
-    const header = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id));
-    const items = db.prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? ORDER BY TXnDetailID').all(Number(id));
+    const header = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id))
+    const items = db
+      .prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? ORDER BY TXnDetailID')
+      .all(Number(id))
 
-    res.json(ok('Bill marked as billed', { ...header, details: items }));
+    res.json(ok('Bill marked as billed', { ...header, details: items }))
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to mark bill as billed', data: null, error: error.message });
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: 'Failed to mark bill as billed',
+        data: null,
+        error: error.message,
+      })
   }
-};
+}
 
 /* -------------------------------------------------------------------------- */
 /* generateTxnNo → generate transaction number and create bill record       */
 /* -------------------------------------------------------------------------- */
 exports.generateTxnNo = async (req, res) => {
   try {
-    const { outletid, tableId, userId } = req.body;
+    const { outletid, tableId, userId } = req.body
 
     if (!outletid || !tableId) {
-      return res.status(400).json({ success: false, message: 'outletid and tableId are required', data: null })
+      return res
+        .status(400)
+        .json({ success: false, message: 'outletid and tableId are required', data: null })
     }
 
     const trx = db.transaction(() => {
-      const txnNo = generateTxnNo(outletid);
+      const txnNo = generateTxnNo(outletid)
 
       const insertStmt = db.prepare(`
         INSERT INTO TAxnTrnbill (
           outletid, TxnNo, TableID, UserId, TxnDatetime, isBilled, isCancelled, isSetteled
         ) VALUES (?, ?, ?, ?, datetime('now'), 0, 0, 0)
-      `);
+      `)
 
-      const insertResult = insertStmt.run(outletid, txnNo, tableId, userId);
-      const txnId = insertResult.lastInsertRowid;
+      const insertResult = insertStmt.run(outletid, txnNo, tableId, userId)
+      const txnId = insertResult.lastInsertRowid
 
-      return { txnNo, txnId };
-    });
+      return { txnNo, txnId }
+    })
 
-    const { txnNo, txnId } = trx();
+    const { txnNo, txnId } = trx()
 
-    res.json(ok('TxnNo generated and bill created', { txnNo, txnId }));
+    res.json(ok('TxnNo generated and bill created', { txnNo, txnId }))
   } catch (error) {
-    console.error('Error generating TxnNo:', error);
-    res.status(500).json({ success: false, message: 'Failed to generate TxnNo: ' + error.message, data: null });
+    console.error('Error generating TxnNo:', error)
+    res
+      .status(500)
+      .json({ success: false, message: 'Failed to generate TxnNo: ' + error.message, data: null })
   }
-};
+}
 
 exports.saveDayEnd = async (req, res) => {
   try {
-    const { total_amount, outlet_id, hotel_id, user_id, system_datetime } = req.body;
+    const { total_amount, outlet_id, hotel_id, user_id, system_datetime } = req.body
 
     if (!total_amount || !outlet_id || !hotel_id || !user_id || !system_datetime) {
-      return res.status(400).json({ success: false, message: 'Missing required fields: total_amount, outlet_id, hotel_id, user_id, system_datetime' });
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message:
+            'Missing required fields: total_amount, outlet_id, hotel_id, user_id, system_datetime',
+        })
     }
 
     // Parse system_datetime from request
-    const sysDateTime = new Date(system_datetime);
+    const sysDateTime = new Date(system_datetime)
     if (isNaN(sysDateTime.getTime())) {
-      return res.status(400).json({ success: false, message: 'Invalid system_datetime format' });
+      return res.status(400).json({ success: false, message: 'Invalid system_datetime format' })
     }
 
-    
-
     // Calculate business date based on system_datetime in IST
-    const istDateTime = toIST(sysDateTime);
-    const currentHour = istDateTime.getHours();
-    let dayend_date = new Date(istDateTime);
+    const istDateTime = toIST(sysDateTime)
+    const currentHour = istDateTime.getHours()
+    let dayend_date = new Date(istDateTime)
     if (currentHour < 6) {
-      dayend_date.setDate(dayend_date.getDate() - 1);
+      dayend_date.setDate(dayend_date.getDate() - 1)
     }
 
     // Format date as YYYY-MM-DD for dayend_date
-    const pad = (n) => n.toString().padStart(2, '0');
-    const dayend_dateStr = `${dayend_date.getFullYear()}-${pad(dayend_date.getMonth() + 1)}-${pad(dayend_date.getDate())}`;
+    const pad = (n) => n.toString().padStart(2, '0')
+    const dayend_dateStr = `${dayend_date.getFullYear()}-${pad(dayend_date.getMonth() + 1)}-${pad(dayend_date.getDate())}`
 
     // Prevent duplicate entries
     const exists = db
       .prepare(`SELECT id FROM trn_dayend WHERE dayend_date = ? AND outlet_id = ?`)
-      .get(dayend_dateStr, outlet_id);
+      .get(dayend_dateStr, outlet_id)
     if (exists) {
-      return res.status(400).json({ success: false, message: "Day end has already been completed for this date and outlet." });
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message: 'Day end has already been completed for this date and outlet.',
+        })
     }
 
     // Calculate lock_datetime as business_date + 23:59:00 in IST
-    const lockDateTime = new Date(dayend_dateStr + 'T23:59:00');
-    const lockDateTimeIST = toIST(lockDateTime);
+    const lockDateTime = new Date(dayend_dateStr + 'T23:59:00')
+    const lockDateTimeIST = toIST(lockDateTime)
 
     // Format lock_datetime as YYYY-MM-DDTHH:mm:ss (no Z)
-    const lockDateTimeStr = `${lockDateTimeIST.getFullYear()}-${pad(lockDateTimeIST.getMonth() + 1)}-${pad(lockDateTimeIST.getDate())}T${pad(lockDateTimeIST.getHours())}:${pad(lockDateTimeIST.getMinutes())}:${pad(lockDateTimeIST.getSeconds())}`;
+    const lockDateTimeStr = `${lockDateTimeIST.getFullYear()}-${pad(lockDateTimeIST.getMonth() + 1)}-${pad(lockDateTimeIST.getDate())}T${pad(lockDateTimeIST.getHours())}:${pad(lockDateTimeIST.getMinutes())}:${pad(lockDateTimeIST.getSeconds())}`
 
     // Format system_datetime as YYYY-MM-DDTHH:mm:ss (no Z)
-    const systemDateTimeStr = `${istDateTime.getFullYear()}-${pad(istDateTime.getMonth() + 1)}-${pad(istDateTime.getDate())}T${pad(istDateTime.getHours())}:${pad(istDateTime.getMinutes())}:${pad(istDateTime.getSeconds())}`;
+    const systemDateTimeStr = `${istDateTime.getFullYear()}-${pad(istDateTime.getMonth() + 1)}-${pad(istDateTime.getDate())}T${pad(istDateTime.getHours())}:${pad(istDateTime.getMinutes())}:${pad(istDateTime.getSeconds())}`
 
     // Insert into trn_dayend with system_datetime and lock_datetime in IST format
     const stmt = db.prepare(`
       INSERT INTO trn_dayend (dayend_date, lock_datetime, dayend_total_amt, outlet_id, hotel_id, created_by_id, system_datetime)
       VALUES (?, ?, ?, ?, ?, ?, ?)
-    `);
+    `)
 
     const info = stmt.run(
-     dayend_dateStr, // dayend_date as YYYY-MM-DD IST
+      dayend_dateStr, // dayend_date as YYYY-MM-DD IST
       lockDateTimeStr, // lock_datetime as YYYY-MM-DDTHH:mm:ss IST
       total_amount,
       outlet_id,
       hotel_id,
       user_id,
-      systemDateTimeStr // system_datetime as YYYY-MM-DDTHH:mm:ss IST
-    );
+      systemDateTimeStr, // system_datetime as YYYY-MM-DDTHH:mm:ss IST
+    )
 
-    res.json(ok('Day end saved successfully', { lock_datetime: lockDateTimeStr, id: info.lastInsertRowid }));
+    res.json(
+      ok('Day end saved successfully', {
+        lock_datetime: lockDateTimeStr,
+        id: info.lastInsertRowid,
+      }),
+    )
   } catch (error) {
-    console.error('Error saving day end:', error);
-    res.status(500).json({ success: false, message: 'Failed to save day end', error: error.message });
+    console.error('Error saving day end:', error)
+    res
+      .status(500)
+      .json({ success: false, message: 'Failed to save day end', error: error.message })
   }
-};
+}
 
 /* -------------------------------------------------------------------------- */
 /* 12) applyNCKOT → update isNCKOT = 1 for a bill and all its items         */
 /* -------------------------------------------------------------------------- */
 exports.applyNCKOT = async (req, res) => {
   try {
-    const { id } = req.params;
-    const { NCName, NCPurpose } = req.body;
+    const { id } = req.params
+    const { NCName, NCPurpose } = req.body
 
     if (!NCName || !NCPurpose) {
-      return res.status(400).json({ success: false, message: 'NCName and NCPurpose are required.' });
+      return res.status(400).json({ success: false, message: 'NCName and NCPurpose are required.' })
     }
 
-    const bill = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id));
+    const bill = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id))
     if (!bill) {
-      return res.status(404).json({ success: false, message: 'Bill not found', data: null });
+      return res.status(404).json({ success: false, message: 'Bill not found', data: null })
     }
 
     const tx = db.transaction(() => {
       // Update the bill header
-      db.prepare(`
+      db.prepare(
+        `
         UPDATE TAxnTrnbill
         SET isNCKOT = 1, NCName = ?, NCPurpose = ?, isSetteled = 1
         WHERE TxnID = ?
-      `).run(NCName, NCPurpose, Number(id));
+      `,
+      ).run(NCName, NCPurpose, Number(id))
 
       // Update all associated detail items
-      db.prepare('UPDATE TAxnTrnbilldetails SET isNCKOT = 1 WHERE TxnID = ?').run(Number(id));
+      db.prepare('UPDATE TAxnTrnbilldetails SET isNCKOT = 1 WHERE TxnID = ?').run(Number(id))
 
       // Show the UPDATE statement for table status
-      console.log(`UPDATE msttablemanagement SET Status = 0 WHERE TableID = ${bill.TableID}`);
+      console.log(`UPDATE msttablemanagement SET Status = 0 WHERE TableID = ${bill.TableID}`)
 
       if (bill.TableID) {
-        db.prepare(`
+        db.prepare(
+          `
           UPDATE msttablemanagement
           SET status = 0
           WHERE tableid = ?
-        `).run(bill.TableID);
+        `,
+        ).run(bill.TableID)
       }
-    });
-    
+    })
 
-
-    tx();
-    res.json(ok('NCKOT applied to the entire bill successfully.'));
+    tx()
+    res.json(ok('NCKOT applied to the entire bill successfully.'))
   } catch (error) {
-    console.error('Error in applyNCKOT:', error);
-    res.status(500).json({ success: false, message: 'Failed to apply NCKOT', data: null, error: error.message });
+    console.error('Error in applyNCKOT:', error)
+    res
+      .status(500)
+      .json({ success: false, message: 'Failed to apply NCKOT', data: null, error: error.message })
   }
-};
+}
 
 /* -------------------------------------------------------------------------- */
 /* 13) applyDiscountToBill → update discount on existing bill and its items   */
 /* -------------------------------------------------------------------------- */
 exports.applyDiscountToBill = async (req, res) => {
   try {
-    const { id } = req.params; // This is the TxnID (KOT ID)
-    const { discount, discPer, discountType, tableId, items } = req.body;
+    const { id } = req.params // This is the TxnID (KOT ID)
+    const { discount, discPer, discountType, tableId, items } = req.body
 
     if (!id) {
-      return res.status(400).json({ success: false, message: 'KOT ID (TxnID) is required.' });
+      return res.status(400).json({ success: false, message: 'KOT ID (TxnID) is required.' })
     }
     if (items.length === 0) {
-      return res.status(400).json({ success: false, message: 'No items in the KOT to apply discount to.' });
+      return res
+        .status(400)
+        .json({ success: false, message: 'No items in the KOT to apply discount to.' })
     }
     if (discount === undefined || discPer === undefined || discountType === undefined) {
-      return res.status(400).json({ success: false, message: 'Discount value, percentage, and type are required.' });
+      return res
+        .status(400)
+        .json({ success: false, message: 'Discount value, percentage, and type are required.' })
     }
 
-    const bill = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id));
+    const bill = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id))
     if (!bill) {
-      return res.status(404).json({ success: false, message: 'KOT not found.' });
+      return res.status(404).json({ success: false, message: 'KOT not found.' })
     }
 
-    const finalDiscount = Number(discount) || 0;
-    const finalDiscPer = Number(discPer) || 0;
-    const finalDiscountType = Number(discountType);
+    const finalDiscount = Number(discount) || 0
+    const finalDiscPer = Number(discPer) || 0
+    const finalDiscountType = Number(discountType)
 
     const trx = db.transaction(() => {
-
       // 2. Recalculate and update Discount_Amount for each item in TAxnTrnbilldetails
       const updateDetailStmt = db.prepare(/*sql*/ `
         UPDATE TAxnTrnbilldetails
         SET Discount_Amount = ?
         WHERE TXnDetailID = ?
-      `);
+      `)
 
-      let totalDiscountOnItems = 0;
+      let totalDiscountOnItems = 0
 
       for (const item of items) {
-        const lineSubtotal = (Number(item.qty) || 0) * (Number(item.price) || 0);
-        let itemDiscountAmount = 0;
+        const lineSubtotal = (Number(item.qty) || 0) * (Number(item.price) || 0)
+        let itemDiscountAmount = 0
 
-        if (finalDiscountType === 1) { // Percentage
-           // Use the percentage from the request to calculate discount per item
-          itemDiscountAmount = (lineSubtotal * finalDiscPer) / 100; 
-        } else { // Fixed amount - distribute proportionally
-          const subtotalOfAllItems = items.reduce((sum, i) => sum + (Number(i.qty) || 0) * (Number(i.price) || 0), 0);
+        if (finalDiscountType === 1) {
+          // Percentage
+          // Use the percentage from the request to calculate discount per item
+          itemDiscountAmount = (lineSubtotal * finalDiscPer) / 100
+        } else {
+          // Fixed amount - distribute proportionally
+          const subtotalOfAllItems = items.reduce(
+            (sum, i) => sum + (Number(i.qty) || 0) * (Number(i.price) || 0),
+            0,
+          )
           if (subtotalOfAllItems > 0) {
-            itemDiscountAmount = (lineSubtotal / subtotalOfAllItems) * finalDiscount;
+            itemDiscountAmount = (lineSubtotal / subtotalOfAllItems) * finalDiscount
           }
         }
 
-        updateDetailStmt.run(itemDiscountAmount, item.txnDetailId);
-        totalDiscountOnItems += itemDiscountAmount;
+        updateDetailStmt.run(itemDiscountAmount, item.txnDetailId)
+        totalDiscountOnItems += itemDiscountAmount
       }
 
-      
       // 3. Recalculate the total amount for the bill header based on the new discount
-      const allDetails = db.prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? AND isCancelled = 0').all(Number(id));
-      const outletSettings = db.prepare('SELECT include_tax_in_invoice FROM mstoutlet_settings WHERE outletid = ?').get(bill.outletid);
-      const includeTaxInInvoice = outletSettings ? outletSettings.include_tax_in_invoice : 0;
+      const allDetails = db
+        .prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? AND isCancelled = 0')
+        .all(Number(id))
+      const outletSettings = db
+        .prepare('SELECT include_tax_in_invoice FROM mstoutlet_settings WHERE outletid = ?')
+        .get(bill.outletid)
+      const includeTaxInInvoice = outletSettings ? outletSettings.include_tax_in_invoice : 0
 
-      let totalGross = 0, totalCgst = 0, totalSgst = 0, totalIgst = 0, totalCess = 0;
+      let totalGross = 0,
+        totalCgst = 0,
+        totalSgst = 0,
+        totalIgst = 0,
+        totalCess = 0
 
       for (const d of allDetails) {
-          totalGross += ((Number(d.Qty) || 0) - (Number(d.RevQty) || 0)) * (Number(d.RuntimeRate) || 0);
+        totalGross +=
+          ((Number(d.Qty) || 0) - (Number(d.RevQty) || 0)) * (Number(d.RuntimeRate) || 0)
       }
 
-      const firstDetail = allDetails[0] || {};
-      const cgstPer = Number(firstDetail.CGST) || 0;
-      const sgstPer = Number(firstDetail.SGST) || 0;
-      const igstPer = Number(firstDetail.IGST) || 0;
-      const cessPer = Number(firstDetail.CESS) || 0;
-      let totalBeforeRoundOff = 0;
+      const firstDetail = allDetails[0] || {}
+      const cgstPer = Number(firstDetail.CGST) || 0
+      const sgstPer = Number(firstDetail.SGST) || 0
+      const igstPer = Number(firstDetail.IGST) || 0
+      const cessPer = Number(firstDetail.CESS) || 0
+      let totalBeforeRoundOff = 0
 
       if (includeTaxInInvoice === 1) {
-        const combinedPer = cgstPer + sgstPer + igstPer + cessPer;
-        const preTaxBase = combinedPer > 0 ? totalGross / (1 + combinedPer / 100) : totalGross;
-        const newTaxableValue = preTaxBase - finalDiscount;
+        const combinedPer = cgstPer + sgstPer + igstPer + cessPer
+        const preTaxBase = combinedPer > 0 ? totalGross / (1 + combinedPer / 100) : totalGross
+        const newTaxableValue = preTaxBase - finalDiscount
 
-        totalCgst = (newTaxableValue * cgstPer) / 100;
-        totalSgst = (newTaxableValue * sgstPer) / 100;
-        totalIgst = (newTaxableValue * igstPer) / 100;
-        totalCess = (newTaxableValue * cessPer) / 100;
-        totalBeforeRoundOff = newTaxableValue + totalCgst + totalSgst + totalIgst + totalCess;
+        totalCgst = (newTaxableValue * cgstPer) / 100
+        totalSgst = (newTaxableValue * sgstPer) / 100
+        totalIgst = (newTaxableValue * igstPer) / 100
+        totalCess = (newTaxableValue * cessPer) / 100
+        totalBeforeRoundOff = newTaxableValue + totalCgst + totalSgst + totalIgst + totalCess
       } else {
-        const taxableValue = totalGross - finalDiscount;
-        totalCgst = (taxableValue * cgstPer) / 100;
-        totalSgst = (taxableValue * sgstPer) / 100;
-        totalIgst = (taxableValue * igstPer) / 100;
-        totalCess = (taxableValue * cessPer) / 100;
-        totalBeforeRoundOff = taxableValue + totalCgst + totalSgst + totalIgst + totalCess;
+        const taxableValue = totalGross - finalDiscount
+        totalCgst = (taxableValue * cgstPer) / 100
+        totalSgst = (taxableValue * sgstPer) / 100
+        totalIgst = (taxableValue * igstPer) / 100
+        totalCess = (taxableValue * cessPer) / 100
+        totalBeforeRoundOff = taxableValue + totalCgst + totalSgst + totalIgst + totalCess
       }
 
       // Apply rounding on the backend to ensure consistency
-      const { bill_round_off, bill_round_off_to } = db.prepare('SELECT bill_round_off, bill_round_off_to FROM mstoutlet_settings WHERE outletid = ?').get(bill.outletid) || {};
-      let finalAmount = totalBeforeRoundOff;
-      let finalRoundOff = 0;
+      const { bill_round_off, bill_round_off_to } =
+        db
+          .prepare(
+            'SELECT bill_round_off, bill_round_off_to FROM mstoutlet_settings WHERE outletid = ?',
+          )
+          .get(bill.outletid) || {}
+      let finalAmount = totalBeforeRoundOff
+      let finalRoundOff = 0
 
       if (bill_round_off && bill_round_off_to > 0) {
-        finalAmount = Math.round(totalBeforeRoundOff / bill_round_off_to) * bill_round_off_to;
-        finalRoundOff = finalAmount - totalBeforeRoundOff;
+        finalAmount = Math.round(totalBeforeRoundOff / bill_round_off_to) * bill_round_off_to
+        finalRoundOff = finalAmount - totalBeforeRoundOff
       }
 
       // 4. Update the bill header with all correct values in one go
-      db.prepare(/*sql*/ `
+      db.prepare(
+        /*sql*/ `
         UPDATE TAxnTrnbill
         SET Amount = ?, Discount = ?, DiscPer = ?, DiscountType = ?, CGST = ?, SGST = ?, IGST = ?, CESS = ?, RoundOFF = ?, isBilled = 0
         WHERE TxnID = ?
-      `).run(finalAmount, finalDiscount, finalDiscPer, finalDiscountType, totalCgst, totalSgst, totalIgst, totalCess, finalRoundOff, Number(id));
+      `,
+      ).run(
+        finalAmount,
+        finalDiscount,
+        finalDiscPer,
+        finalDiscountType,
+        totalCgst,
+        totalSgst,
+        totalIgst,
+        totalCess,
+        finalRoundOff,
+        Number(id),
+      )
 
       // If the bill was previously billed (printed), set table status to occupied (1)
       if (bill.isBilled === 1 && bill.TableID) {
-        db.prepare('UPDATE msttablemanagement SET status = 1 WHERE tableid = ?').run(bill.TableID);
+        db.prepare('UPDATE msttablemanagement SET status = 1 WHERE tableid = ?').run(bill.TableID)
       }
-    });
+    })
 
-    trx();
+    trx()
 
-    res.json(ok('Discount applied successfully to the existing KOT.'));
+    res.json(ok('Discount applied successfully to the existing KOT.'))
   } catch (error) {
-    console.error('Error in applyDiscountToBill:', error);
-    res.status(500).json({ success: false, message: 'Failed to apply discount', data: null, error: error.message });
+    console.error('Error in applyDiscountToBill:', error)
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: 'Failed to apply discount',
+        data: null,
+        error: error.message,
+      })
   }
-};
+}
 
 /* -------------------------------------------------------------------------- */
 /* 14) getPendingOrders → fetch pending orders for pickup or delivery        */
 /* -------------------------------------------------------------------------- */
 exports.getPendingOrders = async (req, res) => {
   try {
-    const { type } = req.query;
-    let whereClauses = ['b.isCancelled = 0', 'b.isSetteled = 0'];
-    const params = [];
+    const { type } = req.query
+    let whereClauses = ['b.isCancelled = 0', 'b.isSetteled = 0']
+    const params = []
 
     // Filter by table_name which will be 'Pickup' or 'Delivery'
     if (type === 'pickup' || type === 'delivery') {
-      whereClauses.push('LOWER(b.table_name) = LOWER(?)');
-      params.push(type);
+      whereClauses.push('LOWER(b.table_name) = LOWER(?)')
+      params.push(type)
     }
 
     const sql = `
@@ -2231,11 +2800,11 @@ exports.getPendingOrders = async (req, res) => {
       WHERE ${whereClauses.join(' AND ')}
       GROUP BY b.TxnID, b.TxnNo
       ORDER BY b.TxnDatetime DESC
-    `;
+    `
 
-    const rows = db.prepare(sql).all(...params);
+    const rows = db.prepare(sql).all(...params)
 
-    const orders = rows.map(r => ({
+    const orders = rows.map((r) => ({
       id: r.TxnID,
       txnId: r.TxnID,
       kotNo: r.KOTNo,
@@ -2243,59 +2812,65 @@ exports.getPendingOrders = async (req, res) => {
       outletid: r.outletid,
       customer: {
         name: r.CustomerName || '',
-        mobile: r.MobileNo || ''
+        mobile: r.MobileNo || '',
       },
       items: r._details
         ? JSON.parse(`[${r._details}]`)
-            .filter(d => d && d.Qty > 0) // ✅ Hide fully reversed items
-            .map(d => ({
+            .filter((d) => d && d.Qty > 0) // ✅ Hide fully reversed items
+            .map((d) => ({
               name: d.item_name || '',
               qty: d.Qty || 0,
               price: d.RuntimeRate || 0,
               ItemID: d.ItemID,
-              TXnDetailID: d.TXnDetailID
+              TXnDetailID: d.TXnDetailID,
             }))
         : [],
       total: r.Amount || 0,
-      type: r.table_name
-    }));
+      type: r.table_name,
+    }))
 
-    res.json(ok('Fetched pending orders', orders));
+    res.json(ok('Fetched pending orders', orders))
   } catch (error) {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch pending orders',
       data: null,
-      error: error.message
-    });
+      error: error.message,
+    })
   }
-};
+}
 
 /* -------------------------------------------------------------------------- */
 /* 15) updatePendingOrder → update a pending order with notes and items      */
 /* -------------------------------------------------------------------------- */
 exports.updatePendingOrder = async (req, res) => {
   try {
-    const { id } = req.params;
-    const { notes, items, linkedItems } = req.body;
+    const { id } = req.params
+    const { notes, items, linkedItems } = req.body
 
     if (!id) {
-      return res.status(400).json({ success: false, message: 'Order ID is required', data: null });
+      return res.status(400).json({ success: false, message: 'Order ID is required', data: null })
     }
 
-    const bill = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ? AND isBilled = 0 AND isCancelled = 0').get(Number(id));
+    const bill = db
+      .prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ? AND isBilled = 0 AND isCancelled = 0')
+      .get(Number(id))
     if (!bill) {
-      return res.status(404).json({ success: false, message: 'Pending order not found', data: null });
+      return res
+        .status(404)
+        .json({ success: false, message: 'Pending order not found', data: null })
     }
 
     // Update header with notes (using SpecialInst field or similar)
-    db.prepare(`
+    db.prepare(
+      `
       UPDATE TAxnTrnbill 
       SET SpecialInst = ?, 
           CustomerName = COALESCE(?, CustomerName),
           MobileNo = COALESCE(?, MobileNo)
       WHERE TxnID = ?
-    `).run(notes || null, req.body.CustomerName || null, req.body.MobileNo || null, Number(id));
+    `,
+    ).run(notes || null, req.body.CustomerName || null, req.body.MobileNo || null, Number(id))
 
     // Handle linked items if provided (simple merge or update - assuming linking by updating items)
     if (linkedItems && Array.isArray(linkedItems) && linkedItems.length > 0) {
@@ -2305,101 +2880,122 @@ exports.updatePendingOrder = async (req, res) => {
         INSERT INTO TAxnTrnbilldetails (
           TxnID, ItemID, Qty, RuntimeRate, SpecialInst, isBilled
         ) VALUES (?, ?, ?, ?, ?, 0)
-      `);
+      `)
       for (const item of linkedItems) {
         linkStmt.run(
           Number(id),
           item.ItemID,
           item.Qty || 0,
           item.RuntimeRate || 0,
-          item.SpecialInst || null
-        );
+          item.SpecialInst || null,
+        )
       }
     }
 
     // Delete existing details and insert new items
-    db.prepare('DELETE FROM TAxnTrnbilldetails WHERE TxnID = ?').run(Number(id));
+    db.prepare('DELETE FROM TAxnTrnbilldetails WHERE TxnID = ?').run(Number(id))
 
     if (Array.isArray(items) && items.length > 0) {
       const ins = db.prepare(`
         INSERT INTO TAxnTrnbilldetails (
           TxnID, ItemID, Qty, RuntimeRate, SpecialInst, isBilled
         ) VALUES (?, ?, ?, ?, ?, 0)
-      `);
-      let totalGross = 0;
+      `)
+      let totalGross = 0
       for (const item of items) {
-        const qty = Number(item.Qty) || 0;
-        const rate = Number(item.RuntimeRate) || 0;
-        const lineTotal = qty * rate;
-        totalGross += lineTotal;
-        ins.run(
-          Number(id),
-          item.ItemID,
-          qty,
-          rate,
-          item.SpecialInst || null
-        );
+        const qty = Number(item.Qty) || 0
+        const rate = Number(item.RuntimeRate) || 0
+        const lineTotal = qty * rate
+        totalGross += lineTotal
+        ins.run(Number(id), item.ItemID, qty, rate, item.SpecialInst || null)
       }
       // Update header totals
-      db.prepare('UPDATE TAxnTrnbill SET GrossAmt = ?, Amount = ? WHERE TxnID = ?')
-        .run(totalGross, totalGross, Number(id));
+      db.prepare('UPDATE TAxnTrnbill SET GrossAmt = ?, Amount = ? WHERE TxnID = ?').run(
+        totalGross,
+        totalGross,
+        Number(id),
+      )
     }
 
     // Fetch updated order
-    const header = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id));
-    const details = db.prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? AND isCancelled = 0 ORDER BY TXnDetailID').all(Number(id));
+    const header = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id))
+    const details = db
+      .prepare(
+        'SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? AND isCancelled = 0 ORDER BY TXnDetailID',
+      )
+      .all(Number(id))
 
-    res.json(ok('Pending order updated', { ...header, details }));
+    res.json(ok('Pending order updated', { ...header, details }))
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to update pending order', data: null, error: error.message });
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: 'Failed to update pending order',
+        data: null,
+        error: error.message,
+      })
   }
-};
+}
 
 /* -------------------------------------------------------------------------- */
 /* 16) getLinkedPendingItems → fetch linked pending items for an order       */
 /* -------------------------------------------------------------------------- */
 exports.getLinkedPendingItems = async (req, res) => {
   try {
-    const { id } = req.params; // orderId is TxnID
+    const { id } = req.params // orderId is TxnID
 
     if (!id) {
-      return res.status(400).json({ success: false, message: 'Order ID is required', data: null });
+      return res.status(400).json({ success: false, message: 'Order ID is required', data: null })
     }
 
-    const bill = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ? AND isBilled = 0 AND isCancelled = 0').get(Number(id));
+    const bill = db
+      .prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ? AND isBilled = 0 AND isCancelled = 0')
+      .get(Number(id))
     if (!bill) {
-      return res.status(404).json({ success: false, message: 'Pending order not found', data: null });
+      return res
+        .status(404)
+        .json({ success: false, message: 'Pending order not found', data: null })
     }
 
     // Fetch details for this order (assuming linked means associated items)
     // If there's a separate linking table, query that; here assuming direct details
-    const details = db.prepare(`
+    const details = db
+      .prepare(
+        `
       SELECT d.*, COALESCE(m.item_name, 'Unknown Item') AS ItemName
       FROM TAxnTrnbilldetails d
       LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
       WHERE d.TxnID = ? AND d.isCancelled = 0 AND d.isBilled = 0
       ORDER BY d.TXnDetailID
-    `).all(Number(id));
+    `,
+      )
+      .all(Number(id))
 
     // If linked items are from other orders, this would need adjustment
     // For now, return the order's pending items as "linked"
 
-    res.json(ok('Fetched linked pending items', details));
+    res.json(ok('Fetched linked pending items', details))
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to fetch linked pending items', data: null, error: error.message });
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: 'Failed to fetch linked pending items',
+        data: null,
+        error: error.message,
+      })
   }
-};
+}
 
 /* -------------------------------------------------------------------------- */
 /* 17) getBillsByType → fetch bills by a specific order type (e.g., Quick Bill) */
 /* -------------------------------------------------------------------------- */
 exports.getBillsByType = async (req, res) => {
-  const { type } = req.params;
+  const { type } = req.params
   try {
-    
-
     if (!type) {
-      return res.status(400).json({ success: false, message: 'Order type is required.' });
+      return res.status(400).json({ success: false, message: 'Order type is required.' })
     }
 
     // Use a parameterized query to prevent SQL injection
@@ -2415,20 +3011,27 @@ exports.getBillsByType = async (req, res) => {
       FROM TAxnTrnbill b
       WHERE b.Order_Type = ? AND b.isCancelled = 0
       ORDER BY b.TxnDatetime DESC
-    `;
+    `
 
-    const rows = db.prepare(sql).all(type);
+    const rows = db.prepare(sql).all(type)
 
-    const data = rows.map(r => ({
+    const data = rows.map((r) => ({
       ...r,
       GrandTotal: r.Amount, // Alias Amount to GrandTotal for frontend consistency
-    }));
+    }))
 
-    res.json(ok(`Fetched ${type} bills`, data));
+    res.json(ok(`Fetched ${type} bills`, data))
   } catch (error) {
-    res.status(500).json({ success: false, message: `Failed to fetch ${type} bills`, data: null, error: error.message });
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: `Failed to fetch ${type} bills`,
+        data: null,
+        error: error.message,
+      })
   }
-};
+}
 
 /* -------------------------------------------------------------------------- */
 /* 18) getAllBillsForBillingTab → fetch all bills for the billing tab view    */
@@ -2453,37 +3056,39 @@ exports.getAllBillsForBillingTab = async (req, res) => {
       FROM TAxnTrnbill b
       WHERE b.isCancelled = 0 AND (b.isBilled = 1 OR b.isSetteled = 1)
       ORDER BY b.TxnDatetime DESC
-    `;
+    `
 
-    const rows = db.prepare(sql).all();
+    const rows = db.prepare(sql).all()
 
     // The frontend expects 'data.data', so we wrap it.
-    res.json(ok('Fetched all bills for billing tab', rows));
+    res.json(ok('Fetched all bills for billing tab', rows))
   } catch (error) {
-    res.status(500).json({ 
-      success: false, 
-      message: 'Failed to fetch all bills', 
-      data: null, 
-      error: error.message 
-    });
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch all bills',
+      data: null,
+      error: error.message,
+    })
   }
-};
+}
 
 /* -------------------------------------------------------------------------- */
 /* 19) reverseBill → Mark a bill as reversed (for F9 action)                  */
 /* -------------------------------------------------------------------------- */
 exports.reverseBill = async (req, res) => {
   try {
-    const { id: txnId } = req.params;
+    const { id: txnId } = req.params
 
     if (!txnId) {
-      return res.status(400).json({ success: false, message: 'Transaction ID is required.' });
+      return res.status(400).json({ success: false, message: 'Transaction ID is required.' })
     }
 
     // ✅ Check if bill exists and get its TableID
-    const bill = db.prepare('SELECT TxnID, TableID, Amount FROM TAxnTrnbill WHERE TxnID = ?').get(txnId);
+    const bill = db
+      .prepare('SELECT TxnID, TableID, Amount FROM TAxnTrnbill WHERE TxnID = ?')
+      .get(txnId)
     if (!bill) {
-      return res.status(404).json({ success: false, message: 'Bill not found.' });
+      return res.status(404).json({ success: false, message: 'Bill not found.' })
     }
 
     const trx = db.transaction((txnIdToReverse) => {
@@ -2505,93 +3110,109 @@ exports.reverseBill = async (req, res) => {
           GrossAmt = 0,
           CGST = 0, SGST = 0, IGST = 0, CESS = 0
         WHERE TxnID = ?
-      `);
-      reverseBillStmt.run(bill.Amount, txnIdToReverse);
+      `)
+      reverseBillStmt.run(bill.Amount, txnIdToReverse)
 
       // ✅ If the bill had a table, update its status to vacant (0)
       if (bill.TableID) {
         const updateTableStmt = db.prepare(`
           UPDATE msttablemanagement 
           SET status = 0 
-          WHERE tableid = ?`);
-        updateTableStmt.run(bill.TableID);
+          WHERE tableid = ?`)
+        updateTableStmt.run(bill.TableID)
       }
-    });
+    })
 
-    trx(txnId); // Pass txnId to the transaction
-    res.json({ success: true, message: 'Bill has been reversed successfully.' });
+    trx(txnId) // Pass txnId to the transaction
+    res.json({ success: true, message: 'Bill has been reversed successfully.' })
   } catch (error) {
-    console.error('Error reversing bill:', error);
-    res.status(500).json({ success: false, message: 'Internal server error while reversing the bill.' });
+    console.error('Error reversing bill:', error)
+    res
+      .status(500)
+      .json({ success: false, message: 'Internal server error while reversing the bill.' })
   }
-};
+}
 
 /* -------------------------------------------------------------------------- */
 /* 20) getBillStatusByTable → fetch isBilled/isSetteled for a table          */
 /* -------------------------------------------------------------------------- */
 exports.getBillStatusByTable = async (req, res) => {
   try {
-    const { tableId } = req.params;
-    const bill = db.prepare(`
+    const { tableId } = req.params
+    const bill = db
+      .prepare(
+        `
       SELECT isBilled, isSetteled
       FROM TAxnTrnbill
       WHERE TableID = ? 
       ORDER BY TxnID DESC LIMIT 1
-    `).get(Number(tableId));
+    `,
+      )
+      .get(Number(tableId))
 
     if (!bill) {
-      return res.json({ success: true, data: { isBilled: 0, isSetteled: 0 } });
+      return res.json({ success: true, data: { isBilled: 0, isSetteled: 0 } })
     }
 
-    res.json({ success: true, data: bill });
+    res.json({ success: true, data: bill })
   } catch (error) {
-    console.error('Error fetching bill status:', error);
-    res.status(500).json({ success: false, message: 'Error fetching bill status' });
+    console.error('Error fetching bill status:', error)
+    res.status(500).json({ success: false, message: 'Error fetching bill status' })
   }
-};
+}
 /* -------------------------------------------------------------------------- */
 /* 21) saveFullReverse → Save a full table reversal                           */
 /* -------------------------------------------------------------------------- */
 exports.saveFullReverse = async (req, res) => {
   try {
-    const { txnId, tableId, reversedItems, userId, reversalReason } = req.body;
+    const { txnId, tableId, reversedItems, userId, reversalReason } = req.body
 
     if (!txnId || !Array.isArray(reversedItems) || reversedItems.length === 0) {
-      return res.status(400).json({ success: false, message: 'Missing required data for reversal.' });
+      return res
+        .status(400)
+        .json({ success: false, message: 'Missing required data for reversal.' })
     }
 
     const trx = db.transaction(() => {
       // Mark the bill header as reversed and cancelled
-      db.prepare(`
+      db.prepare(
+        `
         UPDATE TAxnTrnbill
         SET isreversebill = 1, isCancelled = 1, status = 0
         WHERE TxnID = ?
-      `).run(txnId);
+      `,
+      ).run(txnId)
 
       // Mark all detail items as cancelled
-      db.prepare(`
+      db.prepare(
+        `
         UPDATE TAxnTrnbilldetails
         SET isCancelled = 1, RevQty = Qty
         WHERE TxnID = ?
-      `).run(txnId);
+      `,
+      ).run(txnId)
 
       // If a tableId is provided (for Dine-in), update its status to vacant
       if (tableId) {
-        db.prepare(`
+        db.prepare(
+          `
           UPDATE msttablemanagement
           SET status = 0
           WHERE tableid = ?
-        `).run(tableId);
+        `,
+        ).run(tableId)
       }
-    });
+    })
 
-    trx();
-    res.json({ success: true, message: 'Full bill reversed successfully.' });
+    trx()
+    res.json({ success: true, message: 'Full bill reversed successfully.' })
   } catch (error) {
-    console.error('Error in saveFullReverse:', error);
-    res.status(500).json({ success: false, message: 'Failed to process full reversal.', error: error.message });
+    console.error('Error in saveFullReverse:', error)
+    res
+      .status(500)
+      .json({ success: false, message: 'Failed to process full reversal.', error: error.message })
   }
-};
+}
 
 /* -------------------------------------------------------------------------- */
 /* 22) reverseItem → Reverse quantity for a single item                       */
@@ -2601,123 +3222,147 @@ exports.saveFullReverse = async (req, res) => {
 /* 23) transferKOT → Transfer KOT/items between tables (FINAL FIXED VERSION)   */
 /* -------------------------------------------------------------------------- */
 exports.transferKOT = (req, res) => {
-  const {
-    sourceTableId,
-    proposedTableId,
-    targetTableName,
-    selectedItems,
-    outletid
-  } = req.body;
+  const { sourceTableId, proposedTableId, targetTableName, selectedItems, outletid } = req.body
 
   if (!selectedItems || selectedItems.length === 0) {
-    return res.json({ success: false, message: 'No items selected' });
+    return res.json({ success: false, message: 'No items selected' })
   }
 
   if (sourceTableId === proposedTableId) {
-    return res.json({ success: false, message: 'Source and target table cannot be same' });
+    return res.json({ success: false, message: 'Source and target table cannot be same' })
   }
 
   try {
-
     /* ================= BILL RECALC ================= */
     const recalculateBillTotals = (txnId) => {
-      const billHeader = db.prepare(`
+      const billHeader = db
+        .prepare(
+          `
         SELECT Discount, outletid 
         FROM TAxnTrnbill 
         WHERE TxnID = ?
-      `).get(txnId);
-      if (!billHeader) return;
+      `,
+        )
+        .get(txnId)
+      if (!billHeader) return
 
-      const details = db.prepare(`
+      const details = db
+        .prepare(
+          `
         SELECT * FROM TAxnTrnbilldetails
         WHERE TxnID = ? AND isCancelled = 0
-      `).all(txnId);
-      if (details.length === 0) return;
+      `,
+        )
+        .all(txnId)
+      if (details.length === 0) return
 
-      const outlet = db.prepare(`
+      const outlet =
+        db
+          .prepare(
+            `
         SELECT include_tax_in_invoice, bill_round_off, bill_round_off_to
         FROM mstoutlet_settings WHERE outletid = ?
-      `).get(billHeader.outletid) || {};
+      `,
+          )
+          .get(billHeader.outletid) || {}
 
-      let gross = 0, taxable = 0, cgst = 0, sgst = 0, igst = 0, cess = 0;
-      const includeTax = outlet.include_tax_in_invoice || 0;
+      let gross = 0,
+        taxable = 0,
+        cgst = 0,
+        sgst = 0,
+        igst = 0,
+        cess = 0
+      const includeTax = outlet.include_tax_in_invoice || 0
 
       for (const d of details) {
-        const lineGross = (Number(d.Qty) || 0) * (Number(d.RuntimeRate) || 0);
-        gross += lineGross;
+        const lineGross = (Number(d.Qty) || 0) * (Number(d.RuntimeRate) || 0)
+        gross += lineGross
 
-        const cg = Number(d.CGST) || 0;
-        const sg = Number(d.SGST) || 0;
-        const ig = Number(d.IGST) || 0;
-        const ce = Number(d.CESS) || 0;
+        const cg = Number(d.CGST) || 0
+        const sg = Number(d.SGST) || 0
+        const ig = Number(d.IGST) || 0
+        const ce = Number(d.CESS) || 0
 
         if (includeTax === 1) {
-          const per = cg + sg + ig + ce;
-          const base = per > 0 ? lineGross / (1 + per / 100) : lineGross;
-          taxable += base;
-          cgst += base * cg / 100;
-          sgst += base * sg / 100;
-          igst += base * ig / 100;
-          cess += base * ce / 100;
+          const per = cg + sg + ig + ce
+          const base = per > 0 ? lineGross / (1 + per / 100) : lineGross
+          taxable += base
+          cgst += (base * cg) / 100
+          sgst += (base * sg) / 100
+          igst += (base * ig) / 100
+          cess += (base * ce) / 100
         } else {
-          taxable += lineGross;
-          cgst += lineGross * cg / 100;
-          sgst += lineGross * sg / 100;
-          igst += lineGross * ig / 100;
-          cess += lineGross * ce / 100;
+          taxable += lineGross
+          cgst += (lineGross * cg) / 100
+          sgst += (lineGross * sg) / 100
+          igst += (lineGross * ig) / 100
+          cess += (lineGross * ce) / 100
         }
       }
 
-      const discount = Number(billHeader.Discount) || 0;
-      const discountedTaxable = Math.max(0, taxable - discount);
+      const discount = Number(billHeader.Discount) || 0
+      const discountedTaxable = Math.max(0, taxable - discount)
 
-      let amount = discountedTaxable + cgst + sgst + igst + cess;
-      let roundOff = 0;
+      let amount = discountedTaxable + cgst + sgst + igst + cess
+      let roundOff = 0
 
       if (outlet.bill_round_off && outlet.bill_round_off_to > 0) {
-        const rounded =
-          Math.round(amount / outlet.bill_round_off_to) * outlet.bill_round_off_to;
-        roundOff = rounded - amount;
-        amount = rounded;
+        const rounded = Math.round(amount / outlet.bill_round_off_to) * outlet.bill_round_off_to
+        roundOff = rounded - amount
+        amount = rounded
       }
 
-      db.prepare(`
+      db.prepare(
+        `
         UPDATE TAxnTrnbill
         SET GrossAmt=?, CGST=?, SGST=?, IGST=?, CESS=?, Amount=?, RoundOFF=?
         WHERE TxnID=?
-      `).run(gross, cgst, sgst, igst, cess, amount, roundOff, txnId);
-    };
+      `,
+      ).run(gross, cgst, sgst, igst, cess, amount, roundOff, txnId)
+    }
 
     /* ================= TRANSACTION ================= */
     const trx = db.transaction(() => {
-
       /* ---------- SOURCE BILL ---------- */
-      const sourceBill = db.prepare(`
+      const sourceBill = db
+        .prepare(
+          `
         SELECT TxnID, outletid, HotelID FROM TAxnTrnbill
         WHERE TableID = ? AND isSetteled = 0
-      `).get(sourceTableId);
+      `,
+        )
+        .get(sourceTableId)
 
-      if (!sourceBill) throw new Error('Source bill not found');
-      const sourceTxnId = sourceBill.TxnID;
-      const sourceOutletId = sourceBill.outletid;
-      const sourceHotelId = sourceBill.HotelID;
+      if (!sourceBill) throw new Error('Source bill not found')
+      const sourceTxnId = sourceBill.TxnID
+      const sourceOutletId = sourceBill.outletid
+      const sourceHotelId = sourceBill.HotelID
 
       /* ---------- TARGET STATUS ---------- */
-      const targetRow = db.prepare(`
+      const targetRow = db
+        .prepare(
+          `
         SELECT status FROM msttablemanagement WHERE tableid = ?
-      `).get(proposedTableId);
+      `,
+        )
+        .get(proposedTableId)
 
-      if (!targetRow) throw new Error('Target table not found');
-      const targetStatus = targetRow.status; // 0 vacant, 1 occupied
+      if (!targetRow) throw new Error('Target table not found')
+      const targetStatus = targetRow.status // 0 vacant, 1 occupied
 
-      const targetBill = targetStatus === 1
-        ? db.prepare(`
+      const targetBill =
+        targetStatus === 1
+          ? db
+              .prepare(
+                `
             SELECT TxnID FROM TAxnTrnbill
             WHERE TableID = ? AND isSetteled = 0
-          `).get(proposedTableId)
-        : null;
+          `,
+              )
+              .get(proposedTableId)
+          : null
 
-      const ids = selectedItems.map(i => i.txnDetailId);
+      const ids = selectedItems.map((i) => i.txnDetailId)
 
       /* =================================================
          CASE A: TARGET OCCUPIED (Single OR Multiple KOT)
@@ -2725,63 +3370,70 @@ exports.transferKOT = (req, res) => {
          → ALWAYS DELETE SOURCE BILL
       ================================================= */
       if (targetStatus === 1) {
-        if (!targetBill) throw new Error('Target bill not found');
+        if (!targetBill) throw new Error('Target bill not found')
 
         // Move selected/all items to target Txn
-        db.prepare(`
+        db.prepare(
+          `
           UPDATE TAxnTrnbilldetails
           SET TxnID=?, TableID=?, table_name=?
           WHERE TXnDetailID IN (${ids.map(() => '?').join(',')})
-        `).run(
-          targetBill.TxnID,
-          proposedTableId,
-          targetTableName,
-          ...ids
-        );
+        `,
+        ).run(targetBill.TxnID, proposedTableId, targetTableName, ...ids)
 
         // Delete source bill completely
-        db.prepare(`
+        db.prepare(
+          `
           DELETE FROM TAxnTrnbill WHERE TxnID=?
-        `).run(sourceTxnId);
+        `,
+        ).run(sourceTxnId)
 
         // Source table vacant
-        db.prepare(`
+        db.prepare(
+          `
           UPDATE msttablemanagement SET status=0 WHERE tableid=?
-        `).run(sourceTableId);
+        `,
+        ).run(sourceTableId)
 
         // Recalculate target bill only
-        recalculateBillTotals(targetBill.TxnID);
-        return;
+        recalculateBillTotals(targetBill.TxnID)
+        return
       }
 
       /* =================================================
          CASE B: TARGET VACANT + SINGLE KOT
          → MOVE FULL BILL
       ================================================= */
-      const kotCount = db.prepare(`
+      const kotCount = db
+        .prepare(
+          `
         SELECT COUNT(DISTINCT KOTNo) AS cnt
         FROM TAxnTrnbilldetails
         WHERE TxnID = ? AND isCancelled = 0
-      `).get(sourceTxnId).cnt;
+      `,
+        )
+        .get(sourceTxnId).cnt
 
       if (targetStatus === 0 && kotCount === 1) {
-        db.prepare(`
+        db.prepare(
+          `
           UPDATE TAxnTrnbill
           SET TableID=?, table_name=?
           WHERE TxnID=?
-        `).run(proposedTableId, targetTableName, sourceTxnId);
+        `,
+        ).run(proposedTableId, targetTableName, sourceTxnId)
 
-        db.prepare(`
+        db.prepare(
+          `
           UPDATE TAxnTrnbilldetails
           SET TableID=?, table_name=?
           WHERE TxnID=?
-        `).run(proposedTableId, targetTableName, sourceTxnId);
+        `,
+        ).run(proposedTableId, targetTableName, sourceTxnId)
 
-        db.prepare(`UPDATE msttablemanagement SET status=0 WHERE tableid=?`)
-          .run(sourceTableId);
-        db.prepare(`UPDATE msttablemanagement SET status=1 WHERE tableid=?`)
-          .run(proposedTableId);
-        return;
+        db.prepare(`UPDATE msttablemanagement SET status=0 WHERE tableid=?`).run(sourceTableId)
+        db.prepare(`UPDATE msttablemanagement SET status=1 WHERE tableid=?`).run(proposedTableId)
+        return
       }
 
       /* =================================================
@@ -2789,189 +3441,230 @@ exports.transferKOT = (req, res) => {
          → CREATE NEW BILL
       ================================================= */
       if (targetStatus === 0 && kotCount > 1) {
-        const newBill = db.prepare(`
+        const newBill = db
+          .prepare(
+            `
           INSERT INTO TAxnTrnbill (
             TableID, table_name, PrevTableID, outletid, HotelID,
             isSetteled, isBilled, isTrnsfered, TxnDatetime
           )
           SELECT ?, ?, ?, outletid, HotelID, 0, 0, 1, CURRENT_TIMESTAMP
           FROM TAxnTrnbill WHERE TxnID=?
-        `).run(proposedTableId, targetTableName, sourceTableId, sourceTxnId);
+        `,
+          )
+          .run(proposedTableId, targetTableName, sourceTableId, sourceTxnId)
 
-        const newTxnId = newBill.lastInsertRowid;
+        const newTxnId = newBill.lastInsertRowid
 
-        db.prepare(`
+        db.prepare(
+          `
           UPDATE TAxnTrnbilldetails
           SET TxnID=?, TableID=?, table_name=?
           WHERE TXnDetailID IN (${ids.map(() => '?').join(',')})
-        `).run(newTxnId, proposedTableId, targetTableName, ...ids);
+        `,
+        ).run(newTxnId, proposedTableId, targetTableName, ...ids)
 
-        db.prepare(`UPDATE msttablemanagement SET status=1 WHERE tableid=?`)
-          .run(proposedTableId);
+        db.prepare(`UPDATE msttablemanagement SET status=1 WHERE tableid=?`).run(proposedTableId)
 
-        recalculateBillTotals(newTxnId);
-        recalculateBillTotals(sourceTxnId);
-        return;
+        recalculateBillTotals(newTxnId)
+        recalculateBillTotals(sourceTxnId)
+        return
       }
-    });
+    })
 
-    trx();
+    trx()
 
     // Check and clean up source table if no active items
-    const hasActiveItems = db.prepare(`
+    const hasActiveItems =
+      db
+        .prepare(
+          `
       SELECT COUNT(*) as count
       FROM TAxnTrnbill b
       JOIN TAxnTrnbilldetails d ON b.TxnID = d.TxnID
       WHERE b.TableID = ? AND b.isSetteled = 0 AND b.isCancelled = 0 AND d.isSetteled = 0 AND d.isCancelled = 0 AND (d.Qty - COALESCE(d.RevQty, 0)) > 0
-    `).get(sourceTableId).count > 0;
+    `,
+        )
+        .get(sourceTableId).count > 0
 
     if (!hasActiveItems) {
-      db.prepare(`UPDATE msttablemanagement SET status = 0 WHERE tableid = ?`).run(sourceTableId);
+      db.prepare(`UPDATE msttablemanagement SET status = 0 WHERE tableid = ?`).run(sourceTableId)
       // Delete all unsettled bills for the table
-      const unsettledTxnIds = db.prepare(`SELECT TxnID FROM TAxnTrnbill WHERE TableID = ? AND isSetteled = 0`).all(sourceTableId);
+      const unsettledTxnIds = db
+        .prepare(`SELECT TxnID FROM TAxnTrnbill WHERE TableID = ? AND isSetteled = 0`)
+        .all(sourceTableId)
       for (const { TxnID } of unsettledTxnIds) {
-        db.prepare('DELETE FROM TAxnTrnbilldetails WHERE TxnID = ?').run(TxnID);
-        db.prepare('DELETE FROM TAxnTrnbill WHERE TxnID = ?').run(TxnID);
+        db.prepare('DELETE FROM TAxnTrnbilldetails WHERE TxnID = ?').run(TxnID)
+        db.prepare('DELETE FROM TAxnTrnbill WHERE TxnID = ?').run(TxnID)
       }
     }
 
-    res.json({ success: true, message: 'KOT transfer completed successfully' });
-
+    res.json({ success: true, message: 'KOT transfer completed successfully' })
   } catch (err) {
-    console.error('KOT Transfer Error:', err);
+    console.error('KOT Transfer Error:', err)
     res.status(500).json({
       success: false,
       message: 'KOT transfer failed',
-      error: err.message
-    });
+      error: err.message,
+    })
   }
-};
-
-
-
-
-
-
+}
 
 /* -------------------------------------------------------------------------- */
 /* 24) transferTable → Transfer all items from source table to target table  */
 /* -------------------------------------------------------------------------- */
 exports.transferTable = (req, res) => {
-  const { sourceTableId, targetTableId } = req.body;
+  const { sourceTableId, targetTableId } = req.body
 
   if (!sourceTableId || !targetTableId) {
-    return res.json({ success: false, message: 'Source and target table IDs are required' });
+    return res.json({ success: false, message: 'Source and target table IDs are required' })
   }
 
   if (sourceTableId === targetTableId) {
-    return res.json({ success: false, message: 'Source and target table cannot be the same' });
+    return res.json({ success: false, message: 'Source and target table cannot be the same' })
   }
 
   try {
     /* ================= BILL RECALC ================= */
     const recalculateBillTotals = (txnId) => {
-      const billHeader = db.prepare(`
+      const billHeader = db
+        .prepare(
+          `
         SELECT Discount, outletid
         FROM TAxnTrnbill
         WHERE TxnID = ?
-      `).get(txnId);
-      if (!billHeader) return;
+      `,
+        )
+        .get(txnId)
+      if (!billHeader) return
 
-      const details = db.prepare(`
+      const details = db
+        .prepare(
+          `
         SELECT * FROM TAxnTrnbilldetails
         WHERE TxnID = ? AND isCancelled = 0
-      `).all(txnId);
-      if (details.length === 0) return;
+      `,
+        )
+        .all(txnId)
+      if (details.length === 0) return
 
-      const outlet = db.prepare(`
+      const outlet =
+        db
+          .prepare(
+            `
         SELECT include_tax_in_invoice, bill_round_off, bill_round_off_to
         FROM mstoutlet_settings WHERE outletid = ?
-      `).get(billHeader.outletid) || {};
+      `,
+          )
+          .get(billHeader.outletid) || {}
 
-      let gross = 0, taxable = 0, cgst = 0, sgst = 0, igst = 0, cess = 0;
-      const includeTax = outlet.include_tax_in_invoice || 0;
+      let gross = 0,
+        taxable = 0,
+        cgst = 0,
+        sgst = 0,
+        igst = 0,
+        cess = 0
+      const includeTax = outlet.include_tax_in_invoice || 0
 
       for (const d of details) {
-        const lineGross = (Number(d.Qty) || 0) * (Number(d.RuntimeRate) || 0);
-        gross += lineGross;
+        const lineGross = (Number(d.Qty) || 0) * (Number(d.RuntimeRate) || 0)
+        gross += lineGross
 
-        const cg = Number(d.CGST) || 0;
-        const sg = Number(d.SGST) || 0;
-        const ig = Number(d.IGST) || 0;
-        const ce = Number(d.CESS) || 0;
+        const cg = Number(d.CGST) || 0
+        const sg = Number(d.SGST) || 0
+        const ig = Number(d.IGST) || 0
+        const ce = Number(d.CESS) || 0
 
         if (includeTax === 1) {
-          const per = cg + sg + ig + ce;
-          const base = per > 0 ? lineGross / (1 + per / 100) : lineGross;
-          taxable += base;
-          cgst += base * cg / 100;
-          sgst += base * sg / 100;
-          igst += base * ig / 100;
-          cess += base * ce / 100;
+          const per = cg + sg + ig + ce
+          const base = per > 0 ? lineGross / (1 + per / 100) : lineGross
+          taxable += base
+          cgst += (base * cg) / 100
+          sgst += (base * sg) / 100
+          igst += (base * ig) / 100
+          cess += (base * ce) / 100
         } else {
-          taxable += lineGross;
-          cgst += lineGross * cg / 100;
-          sgst += lineGross * sg / 100;
-          igst += lineGross * ig / 100;
-          cess += lineGross * ce / 100;
+          taxable += lineGross
+          cgst += (lineGross * cg) / 100
+          sgst += (lineGross * sg) / 100
+          igst += (lineGross * ig) / 100
+          cess += (lineGross * ce) / 100
         }
       }
 
-      const discount = Number(billHeader.Discount) || 0;
-      const discountedTaxable = Math.max(0, taxable - discount);
+      const discount = Number(billHeader.Discount) || 0
+      const discountedTaxable = Math.max(0, taxable - discount)
 
-      let amount = discountedTaxable + cgst + sgst + igst + cess;
-      let roundOff = 0;
+      let amount = discountedTaxable + cgst + sgst + igst + cess
+      let roundOff = 0
 
       if (outlet.bill_round_off && outlet.bill_round_off_to > 0) {
-        const rounded =
-          Math.round(amount / outlet.bill_round_off_to) * outlet.bill_round_off_to;
-        roundOff = rounded - amount;
-        amount = rounded;
+        const rounded = Math.round(amount / outlet.bill_round_off_to) * outlet.bill_round_off_to
+        roundOff = rounded - amount
+        amount = rounded
       }
 
-      db.prepare(`
+      db.prepare(
+        `
         UPDATE TAxnTrnbill
         SET GrossAmt=?, CGST=?, SGST=?, IGST=?, CESS=?, Amount=?, RoundOFF=?
         WHERE TxnID=?
-      `).run(gross, cgst, sgst, igst, cess, amount, roundOff, txnId);
-    };
+      `,
+      ).run(gross, cgst, sgst, igst, cess, amount, roundOff, txnId)
+    }
 
     /* ================= TRANSACTION ================= */
     const trx = db.transaction(() => {
       /* ---------- SOURCE BILL ---------- */
-      const sourceBill = db.prepare(`
+      const sourceBill = db
+        .prepare(
+          `
         SELECT TxnID FROM TAxnTrnbill
         WHERE TableID = ? AND isSetteled = 0 AND isCancelled = 0
-      `).get(sourceTableId);
+      `,
+        )
+        .get(sourceTableId)
 
-      if (!sourceBill) throw new Error('No active bill found for source table');
-      const sourceTxnId = sourceBill.TxnID;
+      if (!sourceBill) throw new Error('No active bill found for source table')
+      const sourceTxnId = sourceBill.TxnID
 
       /* ---------- TARGET STATUS ---------- */
-      const targetRow = db.prepare(`
+      const targetRow = db
+        .prepare(
+          `
         SELECT status FROM msttablemanagement WHERE tableid = ?
-      `).get(targetTableId);
+      `,
+        )
+        .get(targetTableId)
 
-      if (!targetRow) throw new Error('Target table not found');
-      const targetStatus = targetRow.status; // 0 vacant, 1 occupied
+      if (!targetRow) throw new Error('Target table not found')
+      const targetStatus = targetRow.status // 0 vacant, 1 occupied
 
-      const targetBill = targetStatus === 1
-        ? db.prepare(`
+      const targetBill =
+        targetStatus === 1
+          ? db
+              .prepare(
+                `
             SELECT TxnID FROM TAxnTrnbill
             WHERE TableID = ? AND isSetteled = 0 AND isCancelled = 0
-          `).get(targetTableId)
-        : null;
+          `,
+              )
+              .get(targetTableId)
+          : null
 
       /* ---------- GET ALL ITEMS FROM SOURCE ---------- */
-      const sourceItems = db.prepare(`
+      const sourceItems = db
+        .prepare(
+          `
         SELECT TXnDetailID FROM TAxnTrnbilldetails
         WHERE TxnID = ? AND isCancelled = 0
-      `).all(sourceTxnId);
+      `,
+        )
+        .all(sourceTxnId)
 
-      if (sourceItems.length === 0) throw new Error('No items to transfer from source table');
+      if (sourceItems.length === 0) throw new Error('No items to transfer from source table')
 
-      const ids = sourceItems.map(i => i.TXnDetailID);
+      const ids = sourceItems.map((i) => i.TXnDetailID)
 
       /* =================================================
          CASE A: TARGET OCCUPIED
@@ -2980,28 +3673,34 @@ exports.transferTable = (req, res) => {
          → SET SOURCE TABLE VACANT
       ================================================= */
       if (targetStatus === 1) {
-        if (!targetBill) throw new Error('Target bill not found');
+        if (!targetBill) throw new Error('Target bill not found')
 
         // Move all items to target Txn
-        db.prepare(`
+        db.prepare(
+          `
           UPDATE TAxnTrnbilldetails
           SET TxnID=?, TableID=?
           WHERE TXnDetailID IN (${ids.map(() => '?').join(',')})
-        `).run(targetBill.TxnID, targetTableId, ...ids);
+        `,
+        ).run(targetBill.TxnID, targetTableId, ...ids)
 
         // Delete source bill completely
-        db.prepare(`
+        db.prepare(
+          `
           DELETE FROM TAxnTrnbill WHERE TxnID=?
-        `).run(sourceTxnId);
+        `,
+        ).run(sourceTxnId)
 
         // Source table vacant
-        db.prepare(`
+        db.prepare(
+          `
           UPDATE msttablemanagement SET status=0 WHERE tableid=?
-        `).run(sourceTableId);
+        `,
+        ).run(sourceTableId)
 
         // Recalculate target bill only
-        recalculateBillTotals(targetBill.TxnID);
-        return;
+        recalculateBillTotals(targetBill.TxnID)
+        return
       }
 
       /* =================================================
@@ -3011,73 +3710,91 @@ exports.transferTable = (req, res) => {
       ================================================= */
       if (targetStatus === 0) {
         // Get target table name
-        const targetTableInfo = db.prepare(`
+        const targetTableInfo = db
+          .prepare(
+            `
           SELECT table_name FROM msttablemanagement WHERE tableid = ?
-        `).get(targetTableId);
+        `,
+          )
+          .get(targetTableId)
 
-        if (!targetTableInfo) throw new Error('Target table info not found');
+        if (!targetTableInfo) throw new Error('Target table info not found')
 
         // Update bill header
-        db.prepare(`
+        db.prepare(
+          `
           UPDATE TAxnTrnbill
           SET TableID=?, table_name=?, PrevTableID=?, isTrnsfered=1
           WHERE TxnID=?
-        `).run(targetTableId, targetTableInfo.table_name, sourceTableId, sourceTxnId);
+        `,
+        ).run(targetTableId, targetTableInfo.table_name, sourceTableId, sourceTxnId)
 
         // Update all details
-        db.prepare(`
+        db.prepare(
+          `
           UPDATE TAxnTrnbilldetails
           SET TableID=?, table_name=?
           WHERE TxnID=?
-        `).run(targetTableId, targetTableInfo.table_name, sourceTxnId);
+        `,
+        ).run(targetTableId, targetTableInfo.table_name, sourceTxnId)
 
         // Update table statuses
-        db.prepare(`UPDATE msttablemanagement SET status=0 WHERE tableid=?`).run(sourceTableId);
-        db.prepare(`UPDATE msttablemanagement SET status=1 WHERE tableid=?`).run(targetTableId);
+        db.prepare(`UPDATE msttablemanagement SET status=0 WHERE tableid=?`).run(sourceTableId)
+        db.prepare(`UPDATE msttablemanagement SET status=1 WHERE tableid=?`).run(targetTableId)
 
         // Recalculate bill totals
-        recalculateBillTotals(sourceTxnId);
-        return;
+        recalculateBillTotals(sourceTxnId)
+        return
       }
-    });
+    })
 
-    trx();
+    trx()
 
-    res.json({ success: true, message: 'Table transfer completed successfully' });
-
+    res.json({ success: true, message: 'Table transfer completed successfully' })
   } catch (err) {
-    console.error('Table Transfer Error:', err);
+    console.error('Table Transfer Error:', err)
     res.status(500).json({
       success: false,
       message: 'Table transfer failed',
-      error: err.message
-    });
+      error: err.message,
+    })
   }
-};
+}
 
 /* -------------------------------------------------------------------------- */
 /* 25) getGlobalKOTNumber → fetch the next global KOT number for an outlet    */
 /* -------------------------------------------------------------------------- */
 exports.getGlobalKOTNumber = async (req, res) => {
   try {
-    const { outletid } = req.query;
+    const { outletid } = req.query
 
     if (!outletid) {
-      return res.status(400).json({ success: false, message: 'outletid is required', data: null });
+      return res.status(400).json({ success: false, message: 'outletid is required', data: null })
     }
 
-    const result = db.prepare(`
+    const result = db
+      .prepare(
+        `
       SELECT MAX(KOTNo) as maxKOT
       FROM TAxnTrnbilldetails
       WHERE outletid = ?
-    `).get(Number(outletid));
+    `,
+      )
+      .get(Number(outletid))
 
-    const nextKOT = (result?.maxKOT || 0) + 1;
+    const nextKOT = (result?.maxKOT || 0) + 1
 
-    res.json(ok('Fetched next global KOT number', { nextKOT }));
+    res.json(ok('Fetched next global KOT number', { nextKOT }))
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to fetch global KOT number', data: null, error: error.message });
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: 'Failed to fetch global KOT number',
+        data: null,
+        error: error.message,
+      })
   }
-};
+}
 
-module.exports = exports;
+module.exports = exports

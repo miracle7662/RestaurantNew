@@ -801,6 +801,7 @@ const ModernBill = () => {
             }
             if (header.CustomerName) setCustomerName(header.CustomerName);
             if (header.MobileNo) setCustomerNo(header.MobileNo);
+            if (header.customerid) setCustomerId(header.customerid);
             setCurrentKOTNos(
               Array.from(new Set(fetchedItems.map((i: FetchedItem) => i.kotNo))).sort((a: number, b: number) => a - b)
             );
