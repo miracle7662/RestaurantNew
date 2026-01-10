@@ -66,7 +66,7 @@ exports.getSettlements = async (req, res) => {
         u.full_name as userName
       FROM TrnSettlement s
       LEFT JOIN TAxnTrnbill b ON s.OrderNo = b.orderNo AND s.HotelID = b.HotelID
-      LEFT JOIN mst_users u ON b.UserId = u.userid
+     
       ${whereSql}
       ORDER BY s.InsertDate DESC
       LIMIT ? OFFSET ?

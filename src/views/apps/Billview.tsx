@@ -1,13 +1,13 @@
-import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
-import { Row, Col, Card, Table, Badge, Button, Form, Modal } from "react-bootstrap";
-import axios from "axios";
-import { useNavigate, useLocation } from "react-router-dom";
-import { useAuthContext } from "@/common";
-import KotTransfer from "./Transaction/KotTransfer";
-import CustomerModal from "./Transaction/Customers";
-import toast, { Toaster } from "react-hot-toast";
-import F8PasswordModal from "../../components/F8PasswordModal";
-import ReverseKotModal from "./ReverseKotModal";
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import { Row, Col, Card, Table, Badge, Button, Form, Modal } from 'react-bootstrap';
+import axios from 'axios';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuthContext } from '@/common';
+import KotTransfer from './Transaction/KotTransfer';
+import CustomerModal from './Transaction/Customers';
+import toast, { Toaster } from 'react-hot-toast';
+import F8PasswordModal from '../../components/F8PasswordModal';
+import ReverseKotModal from './ReverseKotModal';
 
 const KOT_COLORS = [
 
@@ -451,6 +451,7 @@ const ModernBill = () => {
 
   const [customerNo, setCustomerNo] = useState('');
   const [customerName, setCustomerName] = useState('');
+  const [customerId, setCustomerId] = useState<number | null>(null);
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [showF8PasswordModal, setShowF8PasswordModal] = useState(false);
   const [f8Error, setF8Error] = useState<string | null>(null);
@@ -555,6 +556,7 @@ const ModernBill = () => {
 
     if (!value) {
       setCustomerName('');
+      setCustomerId(null);
       return;
     }
 
@@ -563,14 +565,18 @@ const ModernBill = () => {
       if (res.data) {
         if (res.data.customerid && res.data.name) {
           setCustomerName(res.data.name);
+          setCustomerId(res.data.customerid);
         } else if (res.data.success && res.data.data && res.data.data.length > 0) {
           setCustomerName(res.data.data[0].name);
+          setCustomerId(res.data.data[0].customerid);
         } else {
           setCustomerName('');
+          setCustomerId(null);
         }
       }
     } catch (err) {
       setCustomerName('');
+      setCustomerId(null);
     }
   };
 
@@ -793,6 +799,8 @@ const ModernBill = () => {
             if (header.RevKOT) {
               setRevKotNo(header.RevKOT);
             }
+            if (header.CustomerName) setCustomerName(header.CustomerName);
+            if (header.MobileNo) setCustomerNo(header.MobileNo);
             setCurrentKOTNos(
               Array.from(new Set(fetchedItems.map((i: FetchedItem) => i.kotNo))).sort((a: number, b: number) => a - b)
             );
@@ -935,6 +943,8 @@ const ModernBill = () => {
         if (data.header.table_name) {
           setTableNo(data.header.table_name);
         }
+        if (data.header.CustomerName) setCustomerName(data.header.CustomerName);
+        if (data.header.MobileNo) setCustomerNo(data.header.MobileNo);
 
         // Discount handling
         if (data.header.Discount || data.header.DiscPer) {
@@ -1376,6 +1386,8 @@ const ModernBill = () => {
         KOTNo: editableKot, // Use editableKot if set, else null for backend to generate
         Order_Type: 'Dine-in',
         PAX: pax,
+        CustomerName: customerName || null,
+        MobileNo: customerNo || null,
         discount: discount,
         discPer: discountInputValue,
         discountType: DiscountType,
@@ -1613,9 +1625,12 @@ const ModernBill = () => {
     }
   };
 
-  const printKOT = async (kotNo: number) => {
+ const printKOT = async (kotNo: number) => {
     try {
-      const response = await axios.get(`/api/kot/print/${kotNo}`);
+      const response = await axios.post(`/api/kot/print/${kotNo}`, {
+        CustomerName: customerName || null,
+  MobileNo: customerNo || null,
+      });
       toast.success('KOT printed successfully');
       // Handle print data if needed
       console.log('KOT Print Data:', response.data);
