@@ -858,17 +858,23 @@ CREATE TABLE IF NOT EXISTS TAxnTrnbilldetails (
 
 CREATE TABLE IF NOT EXISTS TrnSettlement (
     SettlementID INTEGER PRIMARY KEY AUTOINCREMENT,
+    TxnNo TEXT,
+    OrderNo TEXT,
+    userid INTEGER,
     PaymentTypeID INTEGER NOT NULL,
     PaymentType TEXT NOT NULL,
     Amount REAL DEFAULT 0,
     Batch TEXT,
     Name TEXT,
-    OrderNo TEXT,
     HotelID INTEGER,
     InsertDate DATETIME DEFAULT CURRENT_TIMESTAMP,
+    isSettled INTEGER DEFAULT 1,
+    RefferedBy TEXT,
+    CustomerName TEXT,
+    MobileNo TEXT,
+    Address TEXT,
     Name2 TEXT,
-    Name3 TEXT,
-    isSettled INTEGER DEFAULT 1
+    Name3 TEXT
     
 );
 

@@ -56,9 +56,17 @@ exports.getSettlements = async (req, res) => {
     const sql = `
       SELECT s.*, b.TxnNo as BillNo, b.Amount as BillTotal,
         s.PaymentType as PaymentTypes,
-        s.Amount as PaymentAmount
+        s.Amount as PaymentAmount,
+        b.TxnNo as TxnNo,
+        b.orderNo as OrderNo,
+        b.CustomerName,
+        b.MobileNo,
+        b.Address,
+        b.UserId as userid,
+        u.full_name as userName
       FROM TrnSettlement s
-      LEFT JOIN TAxnTrnbill b ON s.OrderNo = b.TxnNo AND s.HotelID = b.HotelID
+      LEFT JOIN TAxnTrnbill b ON s.OrderNo = b.orderNo AND s.HotelID = b.HotelID
+      LEFT JOIN mst_users u ON b.UserId = u.userid
       ${whereSql}
       ORDER BY s.InsertDate DESC
       LIMIT ? OFFSET ?

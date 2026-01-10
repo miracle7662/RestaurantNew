@@ -1,13 +1,13 @@
-import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
-import { Row, Col, Card, Table, Badge, Button, Form, Modal } from 'react-bootstrap';
-import axios from 'axios';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuthContext } from '@/common';
-import KotTransfer from './Transaction/KotTransfer';
-import CustomerModal from './Transaction/Customers';
-import toast, { Toaster } from 'react-hot-toast';
-import F8PasswordModal from '../../components/F8PasswordModal';
-import ReverseKotModal from './ReverseKotModal';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
+import { Row, Col, Card, Table, Badge, Button, Form, Modal } from "react-bootstrap";
+import axios from "axios";
+import { useNavigate, useLocation } from "react-router-dom";
+import { useAuthContext } from "@/common";
+import KotTransfer from "./Transaction/KotTransfer";
+import CustomerModal from "./Transaction/Customers";
+import toast, { Toaster } from "react-hot-toast";
+import F8PasswordModal from "../../components/F8PasswordModal";
+import ReverseKotModal from "./ReverseKotModal";
 
 const KOT_COLORS = [
 
@@ -200,7 +200,7 @@ const ModernBill = () => {
   const [currentKOTNo, setCurrentKOTNo] = useState(null);
   const [showPendingOrdersView, setShowPendingOrdersView] = useState(false);
   const [currentKOTNos, setCurrentKOTNos] = useState<number[]>([]);
-  const [orderNo, setOrderNo] = useState(billNo);
+  const [orderNo, setOrderNo] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('Dine-in');
 
   const [groupBy, setGroupBy] = useState<'none' | 'item' | 'group' | 'kot'>('group');
@@ -1629,6 +1629,11 @@ const ModernBill = () => {
     if (!txnId) return;
     try {
       const response = await axios.put(`/api/TAxnTrnbill/${txnId}/print`);
+
+      if (response.data?.data?.TxnNo) {
+        setOrderNo(response.data.data.TxnNo);
+      }
+
       toast.success('Bill printed successfully');
       // Handle print data if needed
       console.log('Bill Print Data:', response.data);
@@ -1640,29 +1645,32 @@ const ModernBill = () => {
         console.error('Error updating table status:', error);
       }
 
-      navigate('/apps/Tableview');
+      setTimeout(() => {
+        navigate('/apps/Tableview');
+      }, 100);
     } catch (error) {
       console.error('Error printing bill:', error);
       toast.error('Error printing bill');
     }
   };
 
-  const generateBill = async () => {
-    if (!txnId) return;
-    try {
-      const response = await axios.post('/api/bill/generate', {
-        txnId,
-        pax
-      });
-      setBillNo(response.data.data.BillNo);
-      toast.success('Bill generated successfully');
-      return response.data.data.BillNo;
-    } catch (error) {
-      console.error('Error generating bill:', error);
-      toast.error('Error generating bill');
-      throw error;
-    }
-  };
+const generateBill = async () => {
+  if (!txnId) return;
+  try {
+    const response = await axios.post('/api/bill/generate', {
+      txnId,
+      pax
+    });
+    setBillNo(response.data.data.BillNo);
+    setOrderNo(response.data.data.BillNo);
+    toast.success('Bill generated successfully');
+    return response.data.data.BillNo;
+  } catch (error) {
+    console.error('Error generating bill:', error);
+    toast.error('Error generating bill');
+    throw error;
+  }
+};
 
   const settleBill = async () => {
 
