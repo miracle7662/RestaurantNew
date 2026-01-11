@@ -1099,6 +1099,67 @@ CREATE TABLE IF NOT EXISTS mst_printers (
     );
 
 
+    CREATE TABLE IF NOT EXISTS accountnaturemaster (
+    nature_id      INTEGER      PRIMARY KEY AUTOINCREMENT,
+    accountnature TEXT (50)    NOT NULL,
+    status           INTEGER,
+    created_by_id    INTEGER,
+    created_date     DATETIME,
+    updated_by_id    INTEGER,
+    updated_date     DATETIME,
+    companyid INTEGER,
+    yearid INTEGER
+  
+);
+
+ CREATE TABLE IF NOT EXISTS accounttypedetails (
+    AccID        INTEGER       PRIMARY KEY AUTOINCREMENT,
+    AccName      VARCHAR (200) NOT NULL,
+    UnderID      INTEGER,
+    NatureOfC    INTEGER,
+    status           INTEGER,
+    created_by_id    INTEGER,
+    created_date     DATETIME,
+    updated_by_id    INTEGER,
+    updated_date     DATETIME,
+    companyid INTEGER,
+    yearid INTEGER,
+    FOREIGN KEY (
+        NatureOfC
+    )
+    REFERENCES accountnaturemaster (nature_id)
+);
+
+ CREATE TABLE IF NOT EXISTS AccountLedger (
+    LedgerId           INTEGER         PRIMARY KEY AUTOINCREMENT,
+    LedgerNo           INTEGER,
+    Name               TEXT            NOT NULL,
+    MarathiName        TEXT,
+    address            TEXT,
+   stateid               INTEGER,
+    cityid                INTEGER,
+    MobileNo           TEXT,
+    PhoneNo            TEXT,
+    GstNo              TEXT,
+    PanNo              TEXT,
+    OpeningBalance     DECIMAL (12, 2) DEFAULT 0.0,
+    OpeningBalanceDate DATE,
+    AccountTypeId      INTEGER,
+    AccountType        TEXT,
+    Status             INTEGER         DEFAULT 1,
+    createdbyid        INTEGER         DEFAULT 1,
+    createdbydate      DATETIME        DEFAULT CURRENT_TIMESTAMP,
+    updatedbyid        INTEGER,
+    updatedbydate      DATETIME,
+    companyid INTEGER,
+    yearid INTEGER,
+    FOREIGN KEY (
+        AccountTypeId
+    )
+    REFERENCES accounttypedetails (AccID)
+);
+
+
 
 
 

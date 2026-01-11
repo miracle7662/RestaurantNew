@@ -119,6 +119,7 @@
     "reactstrap": "^9.2.3",
     "recharts": "^2.10.3",
     "rsuite": "^5.35.1",
+    "sanscript": "^0.0.2",
     "sass": "^1.69.5",
     "simplebar-react": "^3.2.4",
     "slick-carousel": "^1.8.1",
@@ -188,9 +189,9 @@
       }
     ],
     "asarUnpack": [
-  "backend/**",
-  "**/better-sqlite3/**/*"
-],
+      "backend/**",
+      "**/better-sqlite3/**/*"
+    ],
     "win": {
       "target": "nsis",
       "icon": "build/icon.ico"
