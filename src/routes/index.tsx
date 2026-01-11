@@ -93,6 +93,10 @@ const TableManagement = React.lazy(() => import('../views/apps/Masters/Restauran
 const UnitMaster = React.lazy(() => import('../views/apps/Masters/RestaurantMasters/UnitMaster'))
 const Resttaxmaster = React.lazy(() => import('../views/apps/Masters/RestaurantMasters/Resttaxmaster'))
 const TableDepartment = React.lazy(() => import('../views/apps/Masters/RestaurantMasters/TableDepartment'))
+const AccountNature = React.lazy(() => import('../views/apps/Masters/RestaurantMasters/AccountNature'));
+const AccountType = React.lazy(() => import('../views/apps/Masters/RestaurantMasters/AccountType'));
+const AccountLedger = React.lazy(() => import('../views/apps/Masters/RestaurantMasters/AccountLedger'))
+
 
 
 
@@ -306,116 +310,12 @@ const appsRoutes: RoutesProps = {
     },
 
 
-    {
-      path: '/Reports',
-      name: 'Reports',
-      header: 'Navigation',
-      children: [
-        {
+   {
           path: '/Reports/DailySalesReport',
           name: 'DailySalesReport',
           element: <DailySalesReport />,
           route: PrivateRoute,
         },
-        {
-          path: '/Reports/DailySalesusershift',
-          name: 'DailySalesusershift',
-          element: <DailySalesusershift />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/Reports/MonthlySales',
-          name: 'MonthlySales',
-          element: <MonthlySales />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/Reports/PaymentModeSales',
-          name: 'PaymentModeSales',
-          element: <PaymentModeSales />,
-          route: PrivateRoute,
-        },
-        
-        {
-          path: '/Reports/DayEndReport',
-          name: 'DayEndReport',
-          element: <DayEndReport />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/Reports/HandoverReport',
-          name: 'HandoverReport',
-          element: <HandoverReport />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/Reports/BillReprinted',
-          name: 'BillReprinted',
-          element: <BillReprinted />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/Reports/KotUsedSummary',
-          name: 'KotUsedSummary',
-          element: <KotUsedSummary />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/Reports/BillSummary',
-          name: 'BillSummary',
-          element: <BillSummary />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/Reports/CreditSummary',
-          name: 'CreditSummary',
-          element: <CreditSummary />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/Reports/DiscountSummary',
-          name: 'DiscountSummary',
-          element: <DiscountSummary />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/Reports/ReverseKOTsAndBills',
-          name: 'ReverseKOTsAndBills',
-          element: <ReverseKOTsAndBills />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/Reports/KitchenWiseSalesSummary',
-          name: 'KitchenWiseSalesSummary',
-          element: <KitchenWiseSalesSummary />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/Reports/NCKOTDetails',
-          name: 'NCKOTDetails',
-          element: <NCKOTDetails />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/Reports/APCAPPReport',
-          name: 'APCAPPReport',
-          element: <APCAPPReport />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/Reports/SpecialItems',
-          name: 'SpecialItems',
-          element: <SpecialItems />,
-          route: PrivateRoute,
-        },
-        {
-          path: '/Reports/CashPaidReceivedBetweenDepartments',
-          name: 'CashPaidReceivedBetweenDepartments',
-          element: <CashPaidReceivedBetweenDepartments />,
-          route: PrivateRoute,
-        },
-      ],
-    },
 
 
     
@@ -578,6 +478,26 @@ const appsRoutes: RoutesProps = {
           path: '/masterpages/UserType',
           name: 'User Type',
           element: <UserType />,
+          route: PrivateRoute,
+        },
+
+          {
+          path: '/masterpages/AccountNature',
+          name: 'Account Nature',
+          element: <AccountNature />,
+          route: PrivateRoute,
+        },
+        {
+          path: '/masterpages/AccountType',
+          name: 'Account Type',
+          element: <AccountType />,
+          route: PrivateRoute,
+        },
+        {
+          
+          path: '/masterpages/AccountLedger',
+          name: 'Account Ledger',
+          element: <AccountLedger />,
           route: PrivateRoute,
         },
 

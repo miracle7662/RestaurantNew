@@ -14,7 +14,10 @@ let backendProcess;
 ipcMain.handle("get-installed-printers", async () => {
   if (!mainWindow) return [];
   const printers = await mainWindow.webContents.getPrintersAsync();
-  return printers.map(p => p.name);
+  return printers.map(p => ({
+    name: p.name,
+    displayName: p.displayName || p.name
+  }));
 });
 
 // Direct KOT Printing (silent)

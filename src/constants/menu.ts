@@ -10,10 +10,6 @@ export interface MenuItemTypes {
 }
 
 const MENU_ITEMS: MenuItemTypes[] = [
-
-
-
-
   //Navigation
 
   // Menu 1
@@ -36,7 +32,7 @@ const MENU_ITEMS: MenuItemTypes[] = [
     key: 'Settlement',
     label: 'Settlement',
     url: '/apps/Settlement',
-    icon: "fi fi-rs-sack-dollar",
+    icon: 'fi fi-rs-sack-dollar',
     parentKey: 'apps',
   },
 
@@ -64,8 +60,6 @@ const MENU_ITEMS: MenuItemTypes[] = [
     parentKey: 'apps',
   },
 
-
-  
   {
     key: 'Customers',
     label: 'Customers',
@@ -74,7 +68,6 @@ const MENU_ITEMS: MenuItemTypes[] = [
     parentKey: 'apps',
   },
 
-  
   // {
   //   key: 'Reports',
   //   label: 'Reports',
@@ -83,124 +76,12 @@ const MENU_ITEMS: MenuItemTypes[] = [
   //   parentKey: 'apps',
   // },
 
-
-  
   {
-    key: 'Reports',
-    label: 'Reports',
-    isTitle: false,
-    icon: 'fi fi-rs-mobile',
-    parentKey: 'apps',
-    children: [
-      {
-        key: 'DailySalesReport',
-        label: 'DailySalesReport',
-        url: '/Reports/DailySalesReport',
-        parentKey: 'Reports',
-      },
-      {
-        key: 'DailySalesusershift',
-        label: 'DailySalesusershift',
-        url: '/Reports/DailySalesusershift',
-        parentKey: 'Reports',
-      },
-      {
-        key: 'MonthlySales',
-        label: 'MonthlySales',
-        url: '/Reports/MonthlySales',
-        parentKey: 'Reports',
-      },
-      {
-        key: 'PaymentModeSales',
-        label: 'PaymentModeSales',
-        url: '/Reports/PaymentModeSales',
-        parentKey: 'Reports',
-      },
-      {
-        key: 'KitchenAllocation',
-        label: 'KitchenAllocation',
-        url: '/Reports/KitchenAllocation',
-        parentKey: 'Reports',
-      },
-      {
-        key: 'DayEndReport',
-        label: 'DayEndReport',
-        url: '/Reports/DayEndReport',
-        parentKey: 'Reports',
-      },
-      {
-        key: 'HandoverReport',
-        label: 'HandoverReport',
-        url: '/Reports/HandoverReport',
-        parentKey: 'Reports',
-      },
-      {
-        key: 'BillReprinted',
-        label: 'BillReprinted',
-        url: '/Reports/BillReprinted',
-        parentKey: 'Reports',
-      },
-      {
-        key: 'KotUsedSummary',
-        label: 'KotUsedSummary',
-        url: '/Reports/KotUsedSummary',
-        parentKey: 'Reports',
-      },
-      {
-        key: 'BillSummary',
-        label: 'BillSummary',
-        url: '/Reports/BillSummary',
-        parentKey: 'Reports',
-      },
-      {
-        key: 'CreditSummary',
-        label: 'CreditSummary',
-        url: '/Reports/CreditSummary',
-        parentKey: 'Reports',
-      },
-      {
-        key: 'DiscountSummary',
-        label: 'DiscountSummary',
-        url: '/Reports/DiscountSummary',
-        parentKey: 'Reports',
-      },
-      {
-        key: 'ReverseKOTsAndBills',
-        label: 'ReverseKOTsAndBills',
-        url: '/Reports/ReverseKOTsAndBills',
-        parentKey: 'Reports',
-      },
-      {
-        key: 'KitchenWiseSalesSummary',
-        label: 'KitchenWiseSalesSummary',
-        url: '/Reports/KitchenWiseSalesSummary',
-        parentKey: 'Reports',
-      },
-      {
-        key: 'NCKOTDetails',
-        label: 'NCKOTDetails',
-        url: '/Reports/NCKOTDetails',
-        parentKey: 'Reports',
-      },
-      {
-        key: 'APCAPPReport',
-        label: 'APCAPPReport',
-        url: '/Reports/APCAPPReport',
-        parentKey: 'Reports',
-      },
-      {
-        key: 'SpecialItems',
-        label: 'SpecialItems',
-        url: '/Reports/SpecialItems',
-        parentKey: 'Reports',
-      },
-      {
-        key: 'CashPaidReceivedBetweenDepartments',
-        label: 'CashPaidReceivedBetweenDepartments',
-        url: '/Reports/CashPaidReceivedBetweenDepartments',
-        parentKey: 'Reports',
-      },
-    ],
+    key: 'DailySalesReport',
+    label: 'Report',
+    url: '/Reports/DailySalesReport',
+    icon: 'fi fi-rr-file-chart-line',
+    parentKey: 'Reports',
   },
 
   {
@@ -219,7 +100,6 @@ const MENU_ITEMS: MenuItemTypes[] = [
     parentKey: 'apps',
   },
 
-  
   //Menu 2
 
   {
@@ -228,16 +108,15 @@ const MENU_ITEMS: MenuItemTypes[] = [
     isTitle: true,
   },
 
-    {
-        key: 'Brand',
-        label: 'Brand',
-        url: '/OutletConfigration/Brand',
-        icon: 'fi fi-rr-dashboard ',
-        parentKey: 'OutletConfigration',
-        
-      },
+  {
+    key: 'Brand',
+    label: 'Brand',
+    url: '/OutletConfigration/Brand',
+    icon: 'fi fi-rr-dashboard ',
+    parentKey: 'OutletConfigration',
+  },
 
-       {
+  {
     key: 'Warehouse',
     label: 'Warehouse',
     url: '/apps/Warehouse',
@@ -245,7 +124,7 @@ const MENU_ITEMS: MenuItemTypes[] = [
     parentKey: 'apps',
   },
 
-   {
+  {
     key: 'Tableview',
     label: 'Tableview',
     url: '/apps/Tableview',
@@ -253,7 +132,7 @@ const MENU_ITEMS: MenuItemTypes[] = [
     parentKey: 'apps',
   },
 
-   {
+  {
     key: 'Billview',
     label: 'Billview',
     url: '/apps/Billview',
@@ -261,8 +140,6 @@ const MENU_ITEMS: MenuItemTypes[] = [
     parentKey: 'apps',
   },
 
-
-      
   {
     key: 'HotelAdmin',
     label: 'HotelAdmin',
@@ -281,7 +158,7 @@ const MENU_ITEMS: MenuItemTypes[] = [
         url: '/OutletConfigration/Market',
         parentKey: 'OutletConfigration',
       },
-    
+
       {
         key: 'Outlet',
         label: 'Outlet',
@@ -295,7 +172,6 @@ const MENU_ITEMS: MenuItemTypes[] = [
         url: '/apps/OutletMenu',
         parentKey: 'apps',
       },
-
 
       {
         key: 'OutletDesignation',
@@ -328,7 +204,6 @@ const MENU_ITEMS: MenuItemTypes[] = [
       //   parentKey: 'OutletConfigration',
       // },
 
-     
       // {
       //   key: 'Manage',
       //   label: 'Manage',
@@ -388,7 +263,6 @@ const MENU_ITEMS: MenuItemTypes[] = [
         parentKey: 'apps',
       },
 
-
       {
         key: 'country ',
         label: 'Country',
@@ -416,10 +290,30 @@ const MENU_ITEMS: MenuItemTypes[] = [
         parentKey: 'masterPages',
       },
 
-       {
+      {
         key: 'UserType',
         label: 'User Type ',
         url: '/masterpages/UserType',
+        parentKey: 'masterPages',
+      },
+
+      {
+        key: 'AccountType',
+        label: 'Account Type ',
+        url: '/masterpages/AccountType',
+        parentKey: 'masterPages',
+      },
+
+      {
+        key: 'AccountNature',
+        label: 'Account Nature ',
+        url: '/masterpages/AccountNature',
+        parentKey: 'masterPages',
+      },
+      {
+        key: 'AccountLedger',
+        label: 'Ledger Account',
+        url: '/masterpages/AccountLedger',
         parentKey: 'masterPages',
       },
     ],
@@ -431,14 +325,12 @@ const MENU_ITEMS: MenuItemTypes[] = [
     isTitle: false,
     icon: 'fi fi-rr-dashboard',
     children: [
-
       {
-    key: 'Menu',
-    label: 'Menu',
-    url: '/apps/menu',
-    parentKey: 'apps',
-  },
-
+        key: 'Menu',
+        label: 'Menu',
+        url: '/apps/menu',
+        parentKey: 'apps',
+      },
 
       {
         key: 'ItemGroup',
@@ -458,7 +350,7 @@ const MENU_ITEMS: MenuItemTypes[] = [
         url: '/apps/KitchenCategories',
         parentKey: 'apps',
       },
-       {
+      {
         key: 'KitchenSubCategories',
         label: 'KitchenSubCategories',
         url: '/apps/KitchenSubCategories',
@@ -483,7 +375,6 @@ const MENU_ITEMS: MenuItemTypes[] = [
         url: '/apps/MessageMaster',
         parentKey: 'apps',
       },
-    
     ],
   },
 
@@ -516,8 +407,6 @@ const MENU_ITEMS: MenuItemTypes[] = [
   //   parentKey: 'apps',
   // },
 
-
-
   {
     key: 'invoice',
     label: 'Invoice',
@@ -529,12 +418,10 @@ const MENU_ITEMS: MenuItemTypes[] = [
   // Pages
 
   // Authentication
-  
+
   // Error
- 
+
   // Email Templates
- 
- 
 ]
 export { MENU_ITEMS }
 
@@ -583,7 +470,5 @@ const HORIZONTAL_MENU_ITEMS: MenuItemTypes[] = [
       // },
     ],
   },
- 
- 
 ]
 export { HORIZONTAL_MENU_ITEMS }

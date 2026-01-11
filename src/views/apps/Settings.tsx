@@ -7,8 +7,6 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 
-
-
 interface KotPrinterSetting {
   id: number;
   printer_name: string;
@@ -89,21 +87,13 @@ interface KDSUser {
   updated_at: string;
 }
 
-declare global {
-  interface Window {
-    electronAPI: {
-      getInstalledPrinters: () => Promise<string[]>;
-    };
-  }
-}
-
 function SettingsPage() {
   const [activeTab, setActiveTab] = useState("general");
   // const [selectedPrinter, setSelectedPrinter] = useState("");
   const [selectedKotPrinter, setSelectedKotPrinter] = useState("");
   const [selectedBillPrinter, setSelectedBillPrinter] = useState("");
 
-  const [printers, setPrinters] = useState<string[]>([]);
+  const [printers, setPrinters] = useState<Array<{ name: string; displayName: string }>>([]);
 
 
   // State for all printer settings
@@ -268,9 +258,9 @@ function SettingsPage() {
   const PrinterSelector = () => (
     <select className="form-select">
       <option>Select Printer</option>
-      {printers.map((printer: string, index: number) => (
-        <option key={index} value={printer}>
-          {printer}
+      {printers.map((printer, index: number) => (
+        <option key={index} value={printer.name}>
+          {printer.displayName}
         </option>
       ))}
     </select>
@@ -527,9 +517,9 @@ function SettingsPage() {
                       >
                         <option value="">Select Printer</option>
 
-                        {printers.map((p: string, index: number) => (
-                          <option key={index} value={p}>
-                            {p}
+                        {printers.map((p, index: number) => (
+                          <option key={index} value={p.name}>
+                            {p.displayName}
                           </option>
                         ))}
                       </select>
@@ -594,9 +584,9 @@ function SettingsPage() {
                       >
                         <option value="">Select Printer</option>
 
-                        {printers.map((p: string, index: number) => (
-                          <option key={index} value={p}>
-                            {p}
+                        {printers.map((p, index: number) => (
+                          <option key={index} value={p.name}>
+                            {p.displayName}
                           </option>
                         ))}
                       </select>
@@ -1007,15 +997,8 @@ function SettingsPage() {
                   </table>
                 </div>
               </div>
-
             </div>
           )}
-
-
-
-
-
-
         </div>
       </div>
     </div>

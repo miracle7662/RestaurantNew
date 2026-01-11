@@ -45,7 +45,9 @@ const WarehouseRoutes= require('./routes/WarehouseRoutes');
 const ReportRoutes = require('./routes/ReportRoutes');
 
 const settingsRoutes = require("./routes/settingsRoutes");
-
+const AccountLedgerRoutes = require('./routes/AccountLedgerRoutes');
+const AccountNatureRoutes = require('./routes/AccountNatureRoutes');
+const AccountTypeRoutes = require('./routes/AccountTypeRoutes');  // New import
 
 
 
@@ -95,6 +97,11 @@ app.use('/api/settlements', settlementRoutes);
 app.use('/api/warehouse', WarehouseRoutes); // Register warehouse routes
 app.use('/api/reports', ReportRoutes); // Register report routes
 app.use("/api/settings", settingsRoutes);
+
+app.use('/api/account-ledger', AccountLedgerRoutes);
+app.use('/api/accountnature', AccountNatureRoutes);
+app.use('/api/accounttype', AccountTypeRoutes);  // New route registration
+
 
 
 // ✅ Add a health check endpoint
