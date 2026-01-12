@@ -5334,25 +5334,41 @@ return (
         style={{ minHeight: 28 }}
       >
         {/* LEFT: Item name + qty */}
-        <div className="d-flex align-items-center gap-2 flex-grow-1">
-          <span
-            className="fw-medium text-danger"
-            style={{ fontSize: 14, lineHeight: 1 }}
-          >
-            {item.name}
-          </span>
+       <div className="d-flex align-items-center gap-2 flex-grow-1">
+  {/* 🔴 KOT NO BADGE */}
+  <span
+    className="badge bg-danger"
+    style={{
+      fontSize: 10,
+      padding: '2px 5px',
+      lineHeight: 1
+    }}
+  >
+    KOT {item.kotNo}
+  </span>
 
-          <span
-            className="badge bg-danger"
-            style={{
-              fontSize: 11,
-              padding: '2px 6px',
-              lineHeight: 1
-            }}
-          >
-            {item.qty}
-          </span>
-        </div>
+  
+
+  {/* ITEM NAME */}
+  <span
+    className="fw-medium text-danger"
+    style={{ fontSize: 14, lineHeight: 1 }}
+  >
+    {item.name}
+  </span>
+  {/* 🔴 QTY BADGE */}
+  <span
+    className="badge bg-danger"
+    style={{
+      fontSize: 11,
+      padding: '2px 6px',
+      lineHeight: 1
+    }}
+  >
+    {item.qty}
+  </span>
+</div>
+
 
         {/* RIGHT: Amount */}
         <div
