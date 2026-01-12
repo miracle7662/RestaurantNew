@@ -109,11 +109,7 @@ const AccountLedgerModal: React.FC<AccountLedgerModalProps> = ({ show, onHide, o
   const loadCities = useCallback(async (stateId: string) => {
     try {
       if (stateId) {
-        const params = new URLSearchParams({
-          companyId: session.companyId!.toString(),
-          yearId: session.yearId!.toString(),
-        });
-        const res = await fetch(`http://localhost:3001/api/cities/${stateId}?${params.toString()}`, {
+        const res = await fetch(`http://localhost:3001/api/cities/${stateId}`, {
           headers: {
             'Authorization': `Bearer ${session.token}`,
             'Content-Type': 'application/json',
@@ -133,16 +129,12 @@ const AccountLedgerModal: React.FC<AccountLedgerModalProps> = ({ show, onHide, o
       console.error('Error loading cities:', err);
       toast.error('Failed to load cities');
     }
-  }, [session.companyId, session.token, session.yearId]);
+  }, [session.token]);
 
   // Load account types
   const loadAccountTypes = useCallback(async () => {
     try {
-      const params = new URLSearchParams({
-        companyId: session.companyId!.toString(),
-        yearId: session.yearId!.toString(),
-      });
-      const res = await fetch(`http://localhost:3001/api/accounttype?${params.toString()}`, {
+      const res = await fetch(`http://localhost:3001/api/accounttype`, {
         headers: {
           'Authorization': `Bearer ${session.token}`,
           'Content-Type': 'application/json',
@@ -159,16 +151,12 @@ const AccountLedgerModal: React.FC<AccountLedgerModalProps> = ({ show, onHide, o
       console.error('Error loading account types:', err);
       toast.error('Failed to load account types');
     }
-  }, [session.companyId, session.token, session.yearId]);
+  }, [session.token]);
 
   // Get next ledger number
   const getNextLedgerNo = useCallback(async () => {
     try {
-      const params = new URLSearchParams({
-        companyId: session.companyId!.toString(),
-        yearId: session.yearId!.toString(),
-      });
-      const res = await fetch(`http://localhost:3001/api/account-ledger/next-ledger-no?${params.toString()}`, {
+      const res = await fetch(`http://localhost:3001/api/account-ledger/next-ledger-no`, {
         headers: {
           'Authorization': `Bearer ${session.token}`,
           'Content-Type': 'application/json',
@@ -188,7 +176,7 @@ const AccountLedgerModal: React.FC<AccountLedgerModalProps> = ({ show, onHide, o
       console.error('Error getting next ledger number:', err);
       toast.error('Failed to get next ledger number');
     }
-  }, [session.companyId, session.token, session.yearId]);
+  }, [session.token]);
 
   useEffect(() => {
     if (show) {
@@ -265,20 +253,15 @@ const AccountLedgerModal: React.FC<AccountLedgerModalProps> = ({ show, onHide, o
     try {
       const payload = {
         ...formData,
-        companyId: session.companyId,
-        yearId: session.yearId,
+        hotelId: session.hotelid,
         ...(isEdit
           ? { updatedBy: session.userId }
           : { createdBy: session.userId }),
       };
 
-      const params = new URLSearchParams({
-        companyId: session.companyId!.toString(),
-        yearId: session.yearId!.toString(),
-      });
       const url = isEdit
-        ? `http://localhost:3001/api/account-ledger/${ledger!.LedgerId}?${params.toString()}`
-        : `http://localhost:3001/api/account-ledger?${params.toString()}`;
+        ? `http://localhost:3001/api/account-ledger/${ledger!.LedgerId}`
+        : `http://localhost:3001/api/account-ledger`;
       const method = isEdit ? 'PUT' : 'POST';
 
       const res = await fetch(url, {

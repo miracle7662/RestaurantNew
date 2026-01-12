@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button, Card, Table, Modal, Form, Alert } from 'react-bootstrap';
 import { toast } from 'react-hot-toast';
-import { useAppContext } from '@/common/context/AppContext';
+import { useAuthContext } from '@/common/context/useAuthContext';
 
 // Interfaces
 interface AccountTypeItem {
@@ -10,8 +10,7 @@ interface AccountTypeItem {
   UnderID: number | null;
   NatureOfC: number | null;
   status: number;
-  companyid: number;
-  yearid: number;
+  hotelid: number;
   countryid: number;
   created_by_id: string;
   created_date: string;
@@ -22,8 +21,7 @@ interface AccountTypeItem {
 interface AccountNatureItem {
   nature_id: number;
   accountnature: string;
-  companyid: number;
-  yearid: number;
+  hotelid: number;
 }
 
 interface AccountTypeModalProps {
@@ -37,7 +35,12 @@ interface AccountTypeModalProps {
 
 // Main Component
 const AccountType: React.FC = () => {
-  const { session } = useAppContext();
+  const { user } = useAuthContext();
+  const session = {
+    userId: user?.id,
+    hotelid: user?.hotelid,
+    token: user?.token,
+  };
   const [accountTypes, setAccountTypes] = useState<AccountTypeItem[]>([]);
   const [accountNatures, setAccountNatures] = useState<AccountNatureItem[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
@@ -52,7 +55,7 @@ const AccountType: React.FC = () => {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   // Check if required session data is available
-  const isDisabled = !session.companyId || !session.yearId;
+  const isDisabled = !user?.hotelid;
 
   // Fetch account types
   const fetchAccountTypes = async () => {
@@ -61,11 +64,7 @@ const AccountType: React.FC = () => {
     setLoading(true);
     setError('');
     try {
-      const params = new URLSearchParams({
-        companyId: session.companyId!.toString(),
-        yearId: session.yearId!.toString(),
-      });
-      const res = await fetch(`http://localhost:3001/api/accounttype?${params.toString()}`, {
+      const res = await fetch(`http://localhost:3001/api/accounttype`, {
         headers: {
           'Authorization': `Bearer ${session.token}`,
           'Content-Type': 'application/json',
@@ -93,11 +92,7 @@ const AccountType: React.FC = () => {
     if (isDisabled) return;
 
     try {
-      const params = new URLSearchParams({
-        companyId: session.companyId!.toString(),
-        yearId: session.yearId!.toString(),
-      });
-      const res = await fetch(`http://localhost:3001/api/accountnature?${params.toString()}`, {
+      const res = await fetch(`http://localhost:3001/api/accountnature`, {
         headers: {
           'Authorization': `Bearer ${session.token}`,
           'Content-Type': 'application/json',
@@ -120,7 +115,7 @@ const AccountType: React.FC = () => {
       fetchAccountTypes();
       fetchAccountNatures();
     }
-  }, [session.companyId, session.yearId]);
+  }, [session.hotelid]);
 
   // Log session values when they change
   useEffect(() => {
@@ -130,29 +125,19 @@ const AccountType: React.FC = () => {
       console.warn('Warning: User ID is missing');
     }
 
-    if (session.companyId) {
-      console.log(`Company ID received: ${session.companyId}`);
+    if (session.hotelid) {
+      console.log(`Hotel ID received: ${session.hotelid}`);
     } else {
-      console.warn('Warning: Company ID is missing');
+      console.warn('Warning: Hotel ID is missing');
     }
-
-    if (session.yearId) {
-      console.log(`Year ID received: ${session.yearId}`);
-    } else {
-      console.warn('Warning: Year ID is missing');
-    }
-  }, [session.userId, session.companyId, session.yearId]);
+  }, [session.userId, session.hotelid]);
 
   // Handle delete
   const handleDelete = async (accountType: AccountTypeItem) => {
     if (!window.confirm('Are you sure you want to delete this account type?')) return;
 
     try {
-      const params = new URLSearchParams({
-        companyId: session.companyId!.toString(),
-        yearId: session.yearId!.toString(),
-      });
-      const res = await fetch(`http://localhost:3001/api/accounttype/${accountType.AccID}?${params.toString()}`, {
+      const res = await fetch(`http://localhost:3001/api/accounttype/${accountType.AccID}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${session.token}`,
@@ -427,7 +412,12 @@ const AccountTypeModal: React.FC<AccountTypeModalProps> = ({
   accountNatures,
   accountTypes,
 }) => {
-  const { session } = useAppContext();
+  const { user } = useAuthContext();
+  const session = {
+    userId: user?.id,
+    hotelid: user?.hotelid,
+    token: user?.token,
+  };
   const [formData, setFormData] = useState({
     AccName: '',
     UnderID: null as number | null,
@@ -476,8 +466,7 @@ const AccountTypeModal: React.FC<AccountTypeModalProps> = ({
     try {
       const payload = {
         ...formData,
-        companyid: session.companyId,
-        yearid: session.yearId,
+        hotelid: session.hotelid,
         ...(isEdit
           ? {
               updated_by_id: session.userId,
@@ -489,14 +478,9 @@ const AccountTypeModal: React.FC<AccountTypeModalProps> = ({
             }),
       };
 
-      const params = new URLSearchParams({
-        companyId: session.companyId!.toString(),
-        yearId: session.yearId!.toString(),
-      });
-
       const url = isEdit
-        ? `http://localhost:3001/api/accounttype/${accountType!.AccID}?${params.toString()}`
-        : `http://localhost:3001/api/accounttype?${params.toString()}`;
+        ? `http://localhost:3001/api/accounttype/${accountType!.AccID}`
+        : `http://localhost:3001/api/accounttype`;
 
       const res = await fetch(url, {
         method: isEdit ? 'PUT' : 'POST',

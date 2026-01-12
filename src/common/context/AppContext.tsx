@@ -5,6 +5,7 @@ interface SessionData {
   userId?: string | number;
   companyId?: string | number;
   yearId?: string | number;
+  hotelid?: string | number;
   token?: string;
 }
 
@@ -29,7 +30,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   const [session, setSessionState] = useState<SessionData>({});
 
   // Check if user is authenticated based on session data
-  const isAuthenticated = Boolean(session.userId && session.companyId && session.yearId && session.token);
+  const isAuthenticated = Boolean(session.userId && session.hotelid && session.token);
 
   // Set session data
   const setSession = useCallback((newSession: SessionData) => {

@@ -1107,8 +1107,8 @@ CREATE TABLE IF NOT EXISTS mst_printers (
     created_date     DATETIME,
     updated_by_id    INTEGER,
     updated_date     DATETIME,
-    companyid INTEGER,
-    yearid INTEGER
+    hotelid          INTEGER
+   
   
 );
 
@@ -1122,8 +1122,7 @@ CREATE TABLE IF NOT EXISTS mst_printers (
     created_date     DATETIME,
     updated_by_id    INTEGER,
     updated_date     DATETIME,
-    companyid INTEGER,
-    yearid INTEGER,
+    hotelid           INTEGER,
     FOREIGN KEY (
         NatureOfC
     )
@@ -1151,8 +1150,7 @@ CREATE TABLE IF NOT EXISTS mst_printers (
     createdbydate      DATETIME        DEFAULT CURRENT_TIMESTAMP,
     updatedbyid        INTEGER,
     updatedbydate      DATETIME,
-    companyid INTEGER,
-    yearid INTEGER,
+    hotelid            INTEGER,
     FOREIGN KEY (
         AccountTypeId
     )

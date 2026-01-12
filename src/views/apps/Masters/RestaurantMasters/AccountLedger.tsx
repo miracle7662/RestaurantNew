@@ -86,7 +86,7 @@ const AccountLedger = () => {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   // Check if required session data is available
-  const isDisabled = !session.companyId || !session.yearId;
+  const isDisabled = !session.hotelid;
 
   // Fetch ledger data
   const fetchData = async () => {
@@ -95,11 +95,7 @@ const AccountLedger = () => {
     setLoading(true);
     setError('');
     try {
-      const params = new URLSearchParams({
-        companyId: session.companyId!.toString(),
-        yearId: session.yearId!.toString(),
-      });
-      const res = await fetch(`http://localhost:3001/api/account-ledger/ledger?${params.toString()}`, {
+      const res = await fetch(`http://localhost:3001/api/account-ledger/ledger`, {
         headers: {
           'Authorization': `Bearer ${session.token}`,
           'Content-Type': 'application/json',
@@ -126,18 +122,14 @@ const AccountLedger = () => {
     if (!isDisabled) {
       fetchData();
     }
-  }, [session.companyId, session.yearId]);
+  }, [session.hotelid]);
 
   // Handle delete
   const handleDelete = async (item: ILedger) => {
     if (!window.confirm('Are you sure you want to delete this ledger entry?')) return;
 
     try {
-      const params = new URLSearchParams({
-        companyId: session.companyId!.toString(),
-        yearId: session.yearId!.toString(),
-      });
-      const res = await fetch(`http://localhost:3001/api/account-ledger/${item.LedgerId}?${params.toString()}`, {
+      const res = await fetch(`http://localhost:3001/api/account-ledger/${item.LedgerId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${session.token}`,

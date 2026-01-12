@@ -17,22 +17,6 @@ import Reports from '../views/apps/Transaction/Reports'
 
 // Daily Reports
 import DailySalesReport from '../views/apps/Masters/Reports/DailySalesReport'
-import DailySalesusershift from '../views/apps/Masters/Reports/DailySalesusershift'
-import MonthlySales from '../views/apps/Masters/Reports/MonthlySales'
-import PaymentModeSales from '../views/apps/Masters/Reports/PaymentModeSales'
-import DayEndReport from '../views/apps/Masters/Reports/DayEndReport'
-import HandoverReport from '../views/apps/Masters/Reports/HandoverReport'
-import BillReprinted from '../views/apps/Masters/Reports/BillReprinted'
-import KotUsedSummary from '../views/apps/Masters/Reports/KotUsedSummary'
-import BillSummary from '../views/apps/Masters/Reports/BillSummary'
-import CreditSummary from '../views/apps/Masters/Reports/CreditSummary'
-import DiscountSummary from '../views/apps/Masters/Reports/DiscountSummary'
-import ReverseKOTsAndBills from '../views/apps/Masters/Reports/ReverseKOTsAndBills'
-import KitchenWiseSalesSummary from '../views/apps/Masters/Reports/KitchenWiseSalesSummary'
-import NCKOTDetails from '../views/apps/Masters/Reports/NCKOTDetails'
-import APCAPPReport from '../views/apps/Masters/Reports/APCAPPReport'
-import SpecialItems from '../views/apps/Masters/Reports/SpecialItems'
-import CashPaidReceivedBetweenDepartments from '../views/apps/Masters/Reports/CashPaidReceivedBetweenDepartments'
 
  
 // Dashboards
@@ -481,21 +465,31 @@ const appsRoutes: RoutesProps = {
           route: PrivateRoute,
         },
 
+        
+      ],
+    },
+
+    {
+      path: '/accountingMasters',
+      name: 'AccountingMasters',
+      header: 'Navigation',
+      children: [
+       
           {
-          path: '/masterpages/AccountNature',
+          path: '/accountingMasters/AccountNature',
           name: 'Account Nature',
           element: <AccountNature />,
           route: PrivateRoute,
         },
         {
-          path: '/masterpages/AccountType',
+          path: '/accountingMasters/AccountType',
           name: 'Account Type',
           element: <AccountType />,
           route: PrivateRoute,
         },
         {
           
-          path: '/masterpages/AccountLedger',
+          path: '/accountingMasters/AccountLedger',
           name: 'Account Ledger',
           element: <AccountLedger />,
           route: PrivateRoute,

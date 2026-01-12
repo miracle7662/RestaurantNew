@@ -1,22 +1,23 @@
-# Fix Reverse KOT Fetch Issue
+# TODO for AccountNatureController Modifications
 
-## Information Gathered
-- ReverseKotModal receives `kotItems` as props from Billview.tsx, which is `billItems`.
-- `revKotNo` is hardcoded to 21 in Billview.tsx.
-- Modal shows all billItems, but for reverse KOT, it should show only items from the specific KOT.
-- For billed bills, `revQty` is set from API, showing already reversed quantities.
-- For unbilled, `revQty` is 0.
+- [x] Modify listAccountNatures function: Replace req.companyid with req.hotelid and remove yearid from query
+- [x] Modify getAccountNatureById function: Replace req.companyid with req.hotelid and remove yearid from query
+- [x] Modify createAccountNature function: Update req.body to use hotelid instead of companyid and yearid, adjust INSERT statement
+- [x] Modify updateAccountNature function: Replace req.companyid with req.hotelid, remove yearid from body and queries, update WHERE and SET clauses
+- [x] Modify deleteAccountNature function: Replace req.companyid with req.hotelid and remove yearid from WHERE clause
 
-## Plan
-1. Make `revKotNo` dynamic in Billview.tsx: Set it to `editableKot` or `defaultKot` when opening the modal.
-2. In ReverseKotModal, filter `kotItems` to show only items where `mkotNo` includes the `revKotNo`.
-3. Filter out blank rows (items with itemId <= 0 or qty <= 0).
-4. Test the modal to ensure items are fetched correctly.
+# TODO for AccountLedgerController Modifications
 
-## Dependent Files
-- src/views/apps/Billview.tsx
-- src/views/apps/ReverseKotModal.tsx
-
-## Followup Steps
-- Test the reverse KOT modal after changes.
-- Ensure API returns correct data for billed/unbilled items.
+- [ ] Modify getCustomers function: Replace req.companyid with req.hotelid and remove yearid from query and params
+- [ ] Modify getFarmers function: Replace req.companyid with req.hotelid and remove yearid from query and params
+- [ ] Modify getLedger function: Replace req.companyid with req.hotelid and remove yearid from query and params
+- [ ] Modify createLedger function: Replace req.companyid with req.hotelid, remove yearid from INSERT and account type query
+- [ ] Modify updateLedger function: Replace req.companyid with req.hotelid, remove yearid from UPDATE and ownership check
+- [ ] Modify deleteLedger function: Replace req.companyid with req.hotelid in ownership check
+- [ ] Modify getCashBankLedgers function: Replace req.companyid with req.hotelid and remove yearid from query
+- [ ] Modify getOppBankList function: Replace req.companyid with req.hotelid and remove yearid from query
+- [ ] Modify getCustomerByNo function: Replace req.companyid with req.hotelid and remove yearid from query
+- [ ] Modify getFarmerByNo function: Replace req.companyid with req.hotelid and remove yearid from query
+- [ ] Modify getsodacustomer function: Replace req.companyid with req.hotelid and remove yearid from query
+- [ ] Modify getOutstandingCustomersAndFarmers function: Replace req.companyid with req.hotelid and remove yearid from all subqueries and WHERE clauses
+- [ ] Modify getNextLedgerNo function: Replace req.companyid with req.hotelid and remove yearid from query

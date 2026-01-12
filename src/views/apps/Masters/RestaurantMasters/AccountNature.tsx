@@ -8,8 +8,7 @@ interface AccountNatureItem {
   nature_id: number;
   accountnature: string;
   status: number;
-  companyid: number;
-  yearid: number;
+  hotelid: number;
   countryid: number;
   created_by_id: string;
   created_date: string;
@@ -40,7 +39,7 @@ const AccountNature: React.FC = () => {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   // Check if required session data is available
-  const isDisabled = !session.companyId || !session.yearId;
+  const isDisabled = !session.hotelid;
 
   // Fetch account natures
   const fetchAccountNatures = async () => {
@@ -49,11 +48,7 @@ const AccountNature: React.FC = () => {
     setLoading(true);
     setError('');
     try {
-      const params = new URLSearchParams({
-        companyId: session.companyId!.toString(),
-        yearId: session.yearId!.toString(),
-      });
-      const res = await fetch(`http://localhost:3001/api/accountnature?${params.toString()}`, {
+      const res = await fetch(`http://localhost:3001/api/accountnature`, {
         headers: {
           'Authorization': `Bearer ${session.token}`,
           'Content-Type': 'application/json',
@@ -80,7 +75,7 @@ const AccountNature: React.FC = () => {
     if (!isDisabled) {
       fetchAccountNatures();
     }
-  }, [session.companyId, session.yearId]);
+  }, [session.hotelid]);
 
   // Log session values when they change
   useEffect(() => {
@@ -90,18 +85,12 @@ const AccountNature: React.FC = () => {
       console.warn('Warning: User ID is missing');
     }
 
-    if (session.companyId) {
-      console.log(`Company ID received: ${session.companyId}`);
+    if (session.hotelid) {
+      console.log(`Hotel ID received: ${session.hotelid}`);
     } else {
-      console.warn('Warning: Company ID is missing');
+      console.warn('Warning: Hotel ID is missing');
     }
-
-    if (session.yearId) {
-      console.log(`Year ID received: ${session.yearId}`);
-    } else {
-      console.warn('Warning: Year ID is missing');
-    }
-  }, [session.userId, session.companyId, session.yearId]);
+  }, [session.userId, session.hotelid]);
 
   // Handle delete
   const handleDelete = async (accountNature: AccountNatureItem) => {
@@ -195,7 +184,7 @@ const AccountNature: React.FC = () => {
       <Card className="p-4">
         <Alert variant="warning">
           <h5>Access Restricted</h5>
-          <p>Please select a company and year to access the Account Nature management page.</p>
+          <p>Please select a hotel to access the Account Nature management page.</p>
         </Alert>
       </Card>
     );
@@ -409,8 +398,7 @@ const AccountNatureModal: React.FC<AccountNatureModalProps> = ({
     try {
       const payload = {
         ...formData,
-        companyid: session.companyId,
-        yearid: session.yearId,
+        hotelid: session.hotelid,
         ...(isEdit
           ? {
               updated_by_id: session.userId,
@@ -422,14 +410,9 @@ const AccountNatureModal: React.FC<AccountNatureModalProps> = ({
             }),
       };
 
-      const params = new URLSearchParams({
-        companyId: session.companyId!.toString(),
-        yearId: session.yearId!.toString(),
-      });
-
       const url = isEdit
-        ? `http://localhost:3001/api/accountnature/${accountNature!.nature_id}?${params.toString()}`
-        : `http://localhost:3001/api/accountnature?${params.toString()}`;
+        ? `http://localhost:3001/api/accountnature/${accountNature!.nature_id}`
+        : `http://localhost:3001/api/accountnature`;
 
       const res = await fetch(url, {
         method: isEdit ? 'PUT' : 'POST',

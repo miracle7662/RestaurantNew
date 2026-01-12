@@ -3,16 +3,15 @@ const db = require('../config/db');
 // ================= LIST =================
 exports.listAccountNatures = (req, res) => {
   try {
-    const companyid = req.companyid;
-    const yearid = req.yearid;
+    const hotelid = req.hotelid;
 
     const stmt = db.prepare(`
-      SELECT * 
-      FROM accountnaturemaster 
-      WHERE companyid = ? AND yearid = ?
+      SELECT *
+      FROM accountnaturemaster
+      WHERE hotelid = ?
     `);
 
-    const accountnatures = stmt.all(companyid, yearid);
+    const accountnatures = stmt.all(hotelid);
     res.json(accountnatures);
 
   } catch (error) {
@@ -25,16 +24,15 @@ exports.listAccountNatures = (req, res) => {
 exports.getAccountNatureById = (req, res) => {
   try {
     const { id } = req.params;
-    const companyid = req.companyid;
-    const yearid = req.yearid;
+    const hotelid = req.hotelid;
 
     const stmt = db.prepare(`
       SELECT *
       FROM accountnaturemaster
-      WHERE nature_id = ? AND companyid = ? AND yearid = ?
+      WHERE nature_id = ? AND hotelid = ?
     `);
 
-    const accountnature = stmt.get(id, companyid, yearid);
+    const accountnature = stmt.get(id, hotelid);
 
     if (accountnature) {
       res.json(accountnature);
@@ -51,12 +49,12 @@ exports.getAccountNatureById = (req, res) => {
 // ================= CREATE =================
 exports.createAccountNature = (req, res) => {
   try {
-    const { accountnature, status, created_by_id, created_date, companyid, yearid } = req.body;
+    const { accountnature, status, created_by_id, created_date, hotelid } = req.body;
 
     const stmt = db.prepare(`
-      INSERT INTO accountnaturemaster 
-      (accountnature, status, created_by_id, created_date, companyid, yearid)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO accountnaturemaster
+      (accountnature, status, created_by_id, created_date, hotelid)
+      VALUES (?, ?, ?, ?, ?)
     `);
 
     const result = stmt.run(
@@ -64,8 +62,7 @@ exports.createAccountNature = (req, res) => {
       status,
       created_by_id,
       created_date,
-      companyid,
-      yearid
+      hotelid
     );
 
     res.status(201).json({
@@ -83,14 +80,14 @@ exports.createAccountNature = (req, res) => {
 exports.updateAccountNature = (req, res) => {
   try {
     const { id } = req.params;
-    const { accountnature, status, updated_by_id, updated_date, companyid, yearid } = req.body;
+    const { accountnature, status, updated_by_id, updated_date, hotelid } = req.body;
 
     // Check ownership
     const exists = db.prepare(`
-      SELECT nature_id 
+      SELECT nature_id
       FROM accountnaturemaster
-      WHERE nature_id = ? AND companyid = ?
-    `).get(id, companyid);
+      WHERE nature_id = ? AND hotelid = ?
+    `).get(id, hotelid);
 
     if (!exists) {
       return res.status(404).json({ error: 'Account Nature not found or access denied' });
@@ -98,8 +95,8 @@ exports.updateAccountNature = (req, res) => {
 
     const stmt = db.prepare(`
       UPDATE accountnaturemaster
-      SET accountnature = ?, status = ?, updated_by_id = ?, updated_date = ?, companyid = ?, yearid = ?
-      WHERE nature_id = ? AND companyid = ?
+      SET accountnature = ?, status = ?, updated_by_id = ?, updated_date = ?, hotelid = ?
+      WHERE nature_id = ? AND hotelid = ?
     `);
 
     stmt.run(
@@ -107,10 +104,9 @@ exports.updateAccountNature = (req, res) => {
       status,
       updated_by_id,
       updated_date,
-      companyid,
-      yearid,
+      hotelid,
       id,
-      companyid
+      hotelid
     );
 
     res.json({ message: 'Account Nature updated successfully' });
@@ -125,23 +121,23 @@ exports.updateAccountNature = (req, res) => {
 exports.deleteAccountNature = (req, res) => {
   try {
     const { id } = req.params;
-    const companyid = req.companyid;
+    const hotelid = req.hotelid;
 
     // Validate record
     const exists = db.prepare(`
-      SELECT nature_id 
-      FROM accountnaturemaster 
-      WHERE nature_id = ? AND companyid = ?
-    `).get(id, companyid);
+      SELECT nature_id
+      FROM accountnaturemaster
+      WHERE nature_id = ? AND hotelid = ?
+    `).get(id, hotelid);
 
     if (!exists) {
       return res.status(404).json({ error: 'Account Nature not found or access denied' });
     }
 
     db.prepare(`
-      DELETE FROM accountnaturemaster 
-      WHERE nature_id = ? AND companyid = ?
-    `).run(id, companyid);
+      DELETE FROM accountnaturemaster
+      WHERE nature_id = ? AND hotelid = ?
+    `).run(id, hotelid);
 
     res.json({ message: 'Account Nature deleted successfully' });
 

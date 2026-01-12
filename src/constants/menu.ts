@@ -311,20 +311,20 @@ const MENU_ITEMS: MenuItemTypes[] = [
       {
         key: 'AccountType',
         label: 'Account Type ',
-        url: '/AccountingMasters/AccountType',
+        url: '/accountingMasters/AccountType',
         parentKey: 'masterPages',
       },
 
       {
         key: 'AccountNature',
         label: 'Account Nature ',
-        url: '/AccountingMasters/AccountNature',
+        url: '/accountingMasters/AccountNature',
         parentKey: 'masterPages',
       },
       {
         key: 'AccountLedger',
         label: 'Ledger Account',
-        url: '/AccountingMasters/AccountLedger',
+        url: '/accountingMasters/AccountLedger',
         parentKey: 'masterPages',
       },
     ],

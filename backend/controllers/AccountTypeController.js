@@ -3,16 +3,15 @@ const db = require('../config/db');
 // ================= LIST =================
 exports.listAccountTypes = (req, res) => {
   try {
-    const companyid = req.companyid;
-    const yearid = req.yearid;
+    const hotelid = req.hotelid;
 
     const stmt = db.prepare(`
       SELECT *
       FROM accounttypedetails
-      WHERE companyid = ? AND yearid = ?
+      WHERE hotelid = ?
     `);
 
-    const accountTypes = stmt.all(companyid, yearid);
+    const accountTypes = stmt.all(hotelid);
     res.json(accountTypes);
 
   } catch (error) {
@@ -25,16 +24,15 @@ exports.listAccountTypes = (req, res) => {
 exports.getAccountTypeById = (req, res) => {
   try {
     const { id } = req.params;
-    const companyid = req.companyid;
-    const yearid = req.yearid;
+    const hotelid = req.hotelid;
 
     const stmt = db.prepare(`
       SELECT *
       FROM accounttypedetails
-      WHERE AccID = ? AND companyid = ? AND yearid = ?
+      WHERE AccID = ? AND hotelid = ?
     `);
 
-    const accountType = stmt.get(id, companyid, yearid);
+    const accountType = stmt.get(id, hotelid);
 
     if (accountType) {
       res.json(accountType);
@@ -59,15 +57,15 @@ exports.createAccountType = (req, res) => {
       created_by_id,
       created_date,
       updated_by_id,
-      updated_date,
-      companyid,
-      yearid
+      updated_date
     } = req.body;
 
+    const hotelid = req.hotelid;
+
     const stmt = db.prepare(`
-      INSERT INTO accounttypedetails 
-      (AccName, UnderID, NatureOfC, status, created_by_id, created_date, updated_by_id, updated_date, companyid, yearid)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO accounttypedetails
+      (AccName, UnderID, NatureOfC, status, created_by_id, created_date, updated_by_id, updated_date, hotelid)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const result = stmt.run(
@@ -79,8 +77,7 @@ exports.createAccountType = (req, res) => {
       created_date,
       updated_by_id,
       updated_date,
-      companyid,
-      yearid
+      hotelid
     );
 
     res.status(201).json({
@@ -104,17 +101,17 @@ exports.updateAccountType = (req, res) => {
       NatureOfC,
       status,
       updated_by_id,
-      updated_date,
-      companyid,
-      yearid
+      updated_date
     } = req.body;
+
+    const hotelid = req.hotelid;
 
     // Check ownership
     const exists = db.prepare(`
-      SELECT AccID 
+      SELECT AccID
       FROM accounttypedetails
-      WHERE AccID = ? AND companyid = ?
-    `).get(id, companyid);
+      WHERE AccID = ? AND hotelid = ?
+    `).get(id, hotelid);
 
     if (!exists) {
       return res.status(404).json({ error: 'Account Type not found or access denied' });
@@ -122,8 +119,8 @@ exports.updateAccountType = (req, res) => {
 
     const stmt = db.prepare(`
       UPDATE accounttypedetails
-      SET AccName = ?, UnderID = ?, NatureOfC = ?, status = ?, updated_by_id = ?, updated_date = ?, companyid = ?, yearid = ?
-      WHERE AccID = ? AND companyid = ?
+      SET AccName = ?, UnderID = ?, NatureOfC = ?, status = ?, updated_by_id = ?, updated_date = ?
+      WHERE AccID = ? AND hotelid = ?
     `);
 
     stmt.run(
@@ -133,10 +130,8 @@ exports.updateAccountType = (req, res) => {
       status,
       updated_by_id,
       updated_date,
-      companyid,
-      yearid,
       id,
-      companyid
+      hotelid
     );
 
     res.json({ message: 'Account Type updated successfully' });
@@ -151,23 +146,23 @@ exports.updateAccountType = (req, res) => {
 exports.deleteAccountType = (req, res) => {
   try {
     const { id } = req.params;
-    const companyid = req.companyid;
+    const hotelid = req.hotelid;
 
     // Validate record
     const exists = db.prepare(`
-      SELECT AccID 
-      FROM accounttypedetails 
-      WHERE AccID = ? AND companyid = ?
-    `).get(id, companyid);
+      SELECT AccID
+      FROM accounttypedetails
+      WHERE AccID = ? AND hotelid = ?
+    `).get(id, hotelid);
 
     if (!exists) {
       return res.status(404).json({ error: 'Account Type not found or access denied' });
     }
 
     db.prepare(`
-      DELETE FROM accounttypedetails 
-      WHERE AccID = ? AND companyid = ?
-    `).run(id, companyid);
+      DELETE FROM accounttypedetails
+      WHERE AccID = ? AND hotelid = ?
+    `).run(id, hotelid);
 
     res.json({ message: 'Account Type deleted successfully' });
 
