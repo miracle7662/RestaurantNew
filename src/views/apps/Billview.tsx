@@ -446,7 +446,7 @@ const handlePaymentInputFocus = (focusedModeName: string) => {
   if (!isMixedPayment) return;
 
   const currentValue = Number(paymentAmounts[focusedModeName] ?? 0);
-  
+
   // Don't overwrite if user already entered something meaningful
   if (currentValue > 0) return;
 
@@ -455,17 +455,17 @@ const handlePaymentInputFocus = (focusedModeName: string) => {
   if (remaining > 0) {
     setPaymentAmounts(prev => ({
       ...prev,
-      [focusedModeName]: Number(remaining.toFixed(2))
+      [focusedModeName]: remaining.toFixed(2)
     }));
   }
 };
 
 // Your existing change handler (can stay almost same)
 const handlePaymentAmountChange = (modeName: string, value: string) => {
-  const numValue = value === '' ? 0 : Number(value);
+  const stringValue = value === '' ? '0' : value;
   setPaymentAmounts(prev => ({
     ...prev,
-    [modeName]: numValue
+    [modeName]: stringValue
   }));
 };
 
