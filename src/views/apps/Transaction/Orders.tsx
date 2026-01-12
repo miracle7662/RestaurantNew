@@ -1837,33 +1837,37 @@ const Order = () => {
         }
 
         // 1️⃣ Fetch printer from settings
-        const printer_name = await fetchKOTPrinter(resolvedOutletId);
+    const printer_name = await fetchKOTPrinter(resolvedOutletId);
 
-        if (!printer_name) {
-          toast.error("No KOT printer configured.");
-          return;
-        }
+if (typeof printer_name !== "string" || !printer_name.trim()) {
+  toast.error("No KOT printer configured.");
+  return;
+}
 
-        // 🔍 Match DB printer with system printers
-        const systemPrinters = await (window.electronAPI as any).getInstalledPrinters();
-        console.log("System Printers:", systemPrinters);
+type SystemPrinter = {
+  name: string;
+  displayName?: string;
+};
 
-        const matchedPrinter = systemPrinters.find(
-          (p: string) =>
-            printer_name &&
-            typeof p === "string" &&
-            p.toLowerCase().includes(printer_name.toLowerCase())
-        );
+const systemPrinters: SystemPrinter[] =
+  await window.electronAPI.getInstalledPrinters();
+
+const normalize = (s: string) =>
+  s.toLowerCase().replace(/\s+/g, "").trim();
+
+const matchedPrinter = systemPrinters.find(p =>
+  normalize(p.name).includes(normalize(printer_name))
+);
+
+if (!matchedPrinter) {
+  toast.error(`Printer "${printer_name}" not found on this system.`);
+  return;
+}
+
+const finalPrinterName: string = matchedPrinter.name;
 
 
-        console.log("Matched Printer:", matchedPrinter);
 
-        if (!matchedPrinter) {
-          toast.error(`Printer "${printer_name}" not found on this system.`);
-          return;
-        }
-
-        const finalPrinterName = matchedPrinter.name;
 
         // Now prepare HTML
         setPrintItems(items.filter(item => item.isNew));
@@ -5306,45 +5310,56 @@ const ReversedItemsDisplay = ({ items }: { items: ReversedMenuItem[] }) => {
     return null;
   }
 
-  return (
-    <div style={{ marginTop: '5px' }}>
-      <div className="reverse-header">REVERSE QUANTITY ITEMS</div>
-      <table className="item-table">
-        <tbody>
-          {items.map((item, index) => (
-            <tr key={`reversed-item-${item.reversalLogId || index}`} className="reverse-item">
-              <td className="col-item">
-                {item.name}
-                {item.modifier && (
-                  <div className="text-smaller" style={{ color: '#555' }}>
-                    {Array.isArray(item.modifier) ? item.modifier.join(', ') : item.modifier}
-                  </div>
-                )}
-              </td>
-              <td className="col-qty reverse-qty">-{item.qty}</td>
-              <td className="col-rate">{item.price.toFixed(2)}</td>
-              <td className="col-amt reverse-amt">-{(item.price * item.qty).toFixed(2)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <table className="totals-table" style={{ marginTop: '5px' }}>
-        <tbody>
-          <tr>
-            <td className="bold" style={{ color: '#000' }}>
-              Total Reverse Qty: {items.reduce((sum, item) => sum + item.qty, 0)}
-            </td>
-            <td className="bold right" style={{ color: '#000' }}>
-              ₹-
-              {items
-                .reduce((sum, item) => sum + item.price * item.qty, 0)
-                .toFixed(2)}
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  );
+return (
+  <div
+    className="rounded p-2"
+    style={{ backgroundColor: '#f8dede' }}
+  >
+    {items.map((item, index) => (
+      <div
+        key={index}
+        className="d-flex align-items-center py-0"
+        style={{ minHeight: 28 }}
+      >
+        {/* LEFT: Item name + qty */}
+        <div className="d-flex align-items-center gap-2 flex-grow-1">
+          <span
+            className="fw-medium text-danger"
+            style={{ fontSize: 14, lineHeight: 1 }}
+          >
+            {item.name}
+          </span>
+
+          <span
+            className="badge bg-danger"
+            style={{
+              fontSize: 11,
+              padding: '2px 6px',
+              lineHeight: 1
+            }}
+          >
+            {item.qty}
+          </span>
+        </div>
+
+        {/* RIGHT: Amount */}
+        <div
+          className="text-end"
+          style={{ minWidth: 90, lineHeight: 1 }}
+        >
+          <div className="text-danger fw-bold" style={{ fontSize: 14 }}>
+            -{(item.price * item.qty).toFixed(2)}
+          </div>
+          <div className="text-muted" style={{ fontSize: 11 }}>
+            ({item.price.toFixed(2)})
+          </div>
+        </div>
+      </div>
+    ))}
+  </div>
+);
+
+
 };
 
 export default Order;
