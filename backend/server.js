@@ -4,6 +4,7 @@ const app = express();
 const port = 3001;
 
 const db = require('./config/db.js');
+const { authenticateToken } = require('./middleware/auth');
 const marketsroutes = require('./routes/marketsroutes');
 const countryRoutes = require('./routes/countryRoutes');
 const stateRoutes = require('./routes/stateRoutes');
@@ -98,9 +99,9 @@ app.use('/api/warehouse', WarehouseRoutes); // Register warehouse routes
 app.use('/api/reports', ReportRoutes); // Register report routes
 app.use("/api/settings", settingsRoutes);
 
-app.use('/api/account-ledger', AccountLedgerRoutes);
-app.use('/api/accountnature', AccountNatureRoutes);
-app.use('/api/accounttype', AccountTypeRoutes);  // New route registration
+app.use('/api/account-ledger', authenticateToken, AccountLedgerRoutes);
+app.use('/api/accountnature', authenticateToken, AccountNatureRoutes);
+app.use('/api/accounttype', authenticateToken, AccountTypeRoutes);  // New route registration
 
 
 

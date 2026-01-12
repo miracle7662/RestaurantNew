@@ -98,7 +98,7 @@ const AccountNature: React.FC = () => {
 
     try {
      
-      const res = await fetch(`http://localhost:3001/api/accountnature/${accountNature.nature_id}j`, {
+      const res = await fetch(`http://localhost:3001/api/accountnature/${accountNature.nature_id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${user?.token}`,
