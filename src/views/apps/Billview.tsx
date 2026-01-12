@@ -425,6 +425,25 @@ const ModernBill = () => {
       ? taxCalc.grandTotal - totalReceived
       : 0;
 
+
+      // Remaining to be allocated
+const calculateRemaining = () => {
+  const paid = Object.values(paymentAmounts).reduce(
+    (sum, val) => sum + (parseFloat(val as string) || 0),
+    0
+  );
+  return Math.max(0, taxCalc.grandTotal - paid);
+};
+
+// Remove a payment mode
+const removePaymentMode = (modeName: string) => {
+  setSelectedPaymentModes((prev) => prev.filter((m) => m !== modeName));
+  setPaymentAmounts((prev) => {
+    const updated = { ...prev };
+    delete updated[modeName];
+    return updated;
+  });
+};
   // Reverse Bill modal data
   const [reversePassword, setReversePassword] = useState('');
 
@@ -2414,6 +2433,8 @@ const generateBill = async () => {
           .full-screen-content {
             bottom: 180px;
           }
+
+          
         }
       `}</style>
 
@@ -2932,155 +2953,196 @@ const generateBill = async () => {
       </Modal>
 
 {/* Settle Modal */}
+{/* Settle Modal */}
 <Modal
   show={showSettlementModal}
   onHide={() => setShowSettlementModal(false)}
   centered
+  size="lg"
+  dialogClassName="settlement-modal"
   onShow={() => {
     if (!isMixedPayment) {
-      const cashMode = outletPaymentModes.find(
-        (mode) => mode.mode_name.toLowerCase() === 'cash'
-      );
+      const cashMode = outletPaymentModes.find(m => m.mode_name.toLowerCase() === "cash");
       if (cashMode) {
         handlePaymentModeClick(cashMode);
+        setPaymentAmounts({ [cashMode.mode_name]: taxCalc.grandTotal.toFixed(2) });
       }
     }
   }}
-  size="lg"
 >
-  {/* Header */}
-  <Modal.Header closeButton className="border-0 bg-light">
-    <Modal.Title className="fw-bold text-dark">Payment Mode</Modal.Title>
+  <Modal.Header closeButton className="border-0 pb-0">
+    <Modal.Title className="fw-bold text-dark fs-4">Payment</Modal.Title>
   </Modal.Header>
 
-  {/* Body */}
   <Modal.Body className="p-0">
     <Row className="g-0">
-      {/* ================= LEFT PANEL : PAYMENT MODES ================= */}
-      <Col md={4} className="border-end bg-white shadow-sm p-4">
-        {/* MIXED PAYMENT SWITCH */}
-        <div className="mb-4 p-3 rounded bg-light border">
-          <Form.Check
-            type="switch"
-            id="mixed-payment-switch"
-            label="Enable Mixed Payment"
-            checked={isMixedPayment}
-            onChange={(e) => {
-              setIsMixedPayment(e.target.checked);
-              setSelectedPaymentModes([]);
-              setPaymentAmounts({});
-              if (e.target.checked) {
-                const cashMode = outletPaymentModes.find(m => m.mode_name.toLowerCase() === 'cash');
-                if (cashMode) {
-                  setSelectedPaymentModes(['Cash']);
-                  setPaymentAmounts({ 'Cash': taxCalc.grandTotal.toString() });
+      {/* LEFT - Payment Modes */}
+      <Col md={4} className="bg-white border-end">
+        {/* Mixed Payment Toggle - RED when active */}
+        <div className={`p-4 border-bottom ${isMixedPayment ? 'bg-danger-subtle border-danger border-2' : ''}`}>
+          <div className="d-flex align-items-center gap-3">
+            <Form.Check
+              type="switch"
+              id="mixed-payment-switch"
+              checked={isMixedPayment}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                setIsMixedPayment(checked);
+                setSelectedPaymentModes([]);
+                setPaymentAmounts({});
+
+                if (checked) {
+                  const cashMode = outletPaymentModes.find(m => m.mode_name.toLowerCase() === "cash");
+                  if (cashMode) {
+                    handlePaymentModeClick(cashMode);
+                    setPaymentAmounts({ [cashMode.mode_name]: taxCalc.grandTotal.toFixed(2) });
+                  }
                 }
-              }
-            }}
-          />
+              }}
+            />
+            <div>
+              <strong>Mixed Payment</strong>
+              
+            </div>
+          </div>
         </div>
 
-        <h6 className="fw-bold mb-3 text-secondary">PAYMENT MODES</h6>
+        <div className="p-4">
+          <h6 className="fw-bold text-secondary mb-3 small text-uppercase">Payment Methods</h6>
+          
+          <div className="d-flex flex-column gap-2">
+            {outletPaymentModes.map((mode, index) => {
+              const isSelected = selectedPaymentModes.includes(mode.mode_name);
+              const isActive = index === activePaymentIndex;
 
-        {outletPaymentModes.map((mode, index) => {
-          const isKeyboardActive = index === activePaymentIndex;
-          const isSelected = selectedPaymentModes.includes(mode.mode_name);
+              return (
+                <div
+                  key={mode.id}
+                  onClick={() => {
+                    setActivePaymentIndex(index);
+                    const wasSelected = selectedPaymentModes.includes(mode.mode_name);
+                    
+                    handlePaymentModeClick(mode);
 
-          return (
-            <div
-              key={mode.id}
-              onClick={() => {
-                setActivePaymentIndex(index);
-                handlePaymentModeClick(mode);
-              }}
-              className={`d-flex align-items-center justify-content-between p-3 mb-2 rounded border
-                ${isSelected 
-                  ? "bg-primary text-white border-primary" 
-                  : isKeyboardActive 
-                  ? "bg-info-subtle border-info" 
-                  : "bg-white hover-bg-light"}
-              `}
-              style={{
-                cursor: "pointer",
-                transition: "all 0.15s ease",
-                boxShadow: isSelected ? "0 2px 8px rgba(0,123,255,0.25)" : "none",
-              }}
-            >
-              <span className="fw-semibold">{mode.mode_name}</span>
-
-              {isKeyboardActive && (
-                <span className="badge bg-dark text-white rounded-pill px-2">↵ Enter</span>
-              )}
-            </div>
-          );
-        })}
+                    // Auto-fill remaining when newly selected in mixed mode
+                    if (isMixedPayment && !wasSelected) {
+                      const remaining = calculateRemaining();
+                      if (remaining > 0) {
+                        setPaymentAmounts(prev => ({
+                          ...prev,
+                          [mode.mode_name]: Number(remaining.toFixed(2))
+                        }));
+                      }
+                    }
+                  }}
+                  className={`
+                    d-flex align-items-center justify-content-between 
+                    p-3 rounded border transition-all
+                    ${isSelected 
+                      ? 'border-danger bg-danger-subtle text-danger fw-bold' 
+                      : isActive 
+                        ? 'border-info bg-info-subtle' 
+                        : 'border-light hover-bg-light'}
+                  `}
+                  style={{ cursor: 'pointer', transition: 'all 0.15s ease' }}
+                >
+                  <span>{mode.mode_name}</span>
+                  {isActive && (
+                    <span className="badge bg-dark text-white rounded-pill px-2 py-1 small">
+                      ↵ Enter
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </Col>
 
-      {/* ================= RIGHT PANEL : PAYMENT PROCESS ================= */}
-      <Col md={8} className="p-4 bg-white">
-        {/* BILL SUMMARY */}
+      {/* RIGHT - Payment Details */}
+      <Col md={8} className="bg-light-subtle p-4">
+        {/* Total Due */}
         <div className="text-center mb-5">
-          <div className="text-muted small">Total Payable</div>
+          <div className="text-muted small mb-1">Amount Due</div>
           <div className="display-5 fw-bold text-dark">
             ₹{taxCalc.grandTotal.toFixed(2)}
           </div>
         </div>
 
-        {/* SELECTED PAYMENT MODE DETAILS */}
-        {selectedPaymentModes.length === 0 && (
+        {selectedPaymentModes.length === 0 ? (
           <div className="text-center text-muted py-5">
-            Select a payment mode to continue
+            Select payment method(s) to continue
           </div>
+        ) : (
+          selectedPaymentModes.map(modeName => (
+            <Card key={modeName} className="mb-3 shadow-sm border">
+              <Card.Body className="p-4">
+                <div className="d-flex justify-content-between align-items-center mb-3">
+                  <h6 className="fw-bold text-dark m-0">{modeName}</h6>
+                  {selectedPaymentModes.length > 1 && (
+                    <Button
+                      variant="link"
+                      size="sm"
+                      className="text-danger p-0"
+                      onClick={() => removePaymentMode(modeName)}
+                    >
+                      Remove
+                    </Button>
+                  )}
+                </div>
+
+                <Form.Group>
+                  <Form.Label className="small fw-medium text-muted">
+                    Amount
+                    {isMixedPayment && 
+                     selectedPaymentModes.indexOf(modeName) === selectedPaymentModes.length - 1 && (
+                      <span className="text-info ms-2">(remaining auto-filled)</span>
+                    )}
+                  </Form.Label>
+                  <Form.Control
+                    type="number"
+                    value={paymentAmounts[modeName] ?? ''}
+                    onChange={e => handlePaymentAmountChange(modeName, e.target.value)}
+                    readOnly={!isMixedPayment && selectedPaymentModes.length === 1}
+                    className={`fs-5 fw-bold ${
+                      isMixedPayment && 
+                      selectedPaymentModes.indexOf(modeName) === selectedPaymentModes.length - 1
+                        ? 'border-info bg-info-subtle'
+                        : ''
+                    }`}
+                    step="0.01"
+                    min="0"
+                  />
+                </Form.Group>
+              </Card.Body>
+            </Card>
+          ))
         )}
 
-        {selectedPaymentModes.map((modeName) => (
-          <Card key={modeName} className="mb-3 shadow-sm border-0">
-            <Card.Body className="bg-light rounded">
-              <h6 className="fw-bold mb-3 text-dark">{modeName} Payment</h6>
-
-              <Form.Group>
-                <Form.Label className="text-muted small">Amount</Form.Label>
-                <Form.Control
-                  type="number"
-                  placeholder="0.00"
-                  value={paymentAmounts[modeName] || ""}
-                  onChange={(e) =>
-                    handlePaymentAmountChange(modeName, e.target.value)
-                  }
-                  readOnly={!isMixedPayment && selectedPaymentModes.length === 1}
-                  className="bg-white shadow-sm"
-                />
-              </Form.Group>
-            </Card.Body>
-          </Card>
-        ))}
-
-        {/* TIP */}
-        <Card className="shadow-sm border-0 mb-4">
-          <Card.Body className="bg-light rounded">
-            <Form.Label className="fw-semibold text-dark">Optional Tip</Form.Label>
+        {/* Tip (optional) */}
+        <Card className="mb-4 shadow-sm border">
+          <Card.Body className="p-4">
+            <Form.Label className="small fw-medium text-muted">Optional Tip</Form.Label>
             <Form.Control
               type="number"
               placeholder="0.00"
-              value={tip || ""}
-              onChange={(e) => setTip(parseFloat(e.target.value) || 0)}
-              className="bg-white shadow-sm"
+              value={tip || ''}
+              onChange={e => setTip(Number(e.target.value) || 0)}
+              className="fs-5 fw-bold"
+              step="0.01"
             />
           </Card.Body>
         </Card>
 
-        {/* PAYMENT SUMMARY */}
-        <div className="mt-4 p-4 border rounded bg-light">
-          <Row className="text-center">
-            {/* RECEIVED */}
+        {/* Summary */}
+        <div className="p-4 border rounded bg-white shadow-sm">
+          <Row className="text-center g-0">
             <Col>
               <div className="text-muted small">Received</div>
               <div className="fs-4 fw-bold text-primary">
                 ₹{totalReceived.toFixed(2)}
               </div>
             </Col>
-
-            {/* BALANCE / REFUND */}
             <Col>
               {balanceAmount > 0 ? (
                 <>
@@ -3097,12 +3159,7 @@ const generateBill = async () => {
                   </div>
                 </>
               ) : (
-                <>
-                  <div className="text-muted small">Balance</div>
-                  <div className="fs-4 fw-bold text-success">
-                    ₹0.00
-                  </div>
-                </>
+                <div className="fs-4 fw-bold text-success">₹0.00</div>
               )}
             </Col>
           </Row>
@@ -3111,20 +3168,20 @@ const generateBill = async () => {
     </Row>
   </Modal.Body>
 
-  {/* Footer */}
-  <Modal.Footer className="border-0 bg-light justify-content-between">
+  <Modal.Footer className="border-0 pt-4 px-4 pb-4">
     <Button
       variant="outline-secondary"
       onClick={() => setShowSettlementModal(false)}
-      className="px-5"
+      className="px-4 py-2"
     >
       Back
     </Button>
     <Button
       variant="success"
       onClick={handleSettleAndPrint}
-      disabled={totalReceived === 0 || totalReceived < taxCalc.grandTotal}
-      className="px-5"
+      disabled={totalReceived <= 0 || balanceAmount !== 0}
+      size="lg"
+      className="px-5 fw-bold"
     >
       Settle & Print
     </Button>
