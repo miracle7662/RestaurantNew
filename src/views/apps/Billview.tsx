@@ -426,13 +426,47 @@ const ModernBill = () => {
       : 0;
 
 
-      // Remaining to be allocated
-const calculateRemaining = () => {
-  const paid = Object.values(paymentAmounts).reduce(
-    (sum, val) => sum + (parseFloat(val as string) || 0),
-    0
-  );
-  return Math.max(0, taxCalc.grandTotal - paid);
+// Calculate remaining amount excluding one specific mode
+const calculateRemainingExcluding = (excludeModeName?: string): number => {
+  if (!isMixedPayment) return taxCalc.grandTotal;
+
+  const totalPaidByOthers = selectedPaymentModes
+    .filter(name => name !== excludeModeName)
+    .reduce((sum, name) => sum + (Number(paymentAmounts[name]) || 0), 0);
+
+  const remaining = taxCalc.grandTotal - totalPaidByOthers;
+  // If you want to include tip in calculation:
+  // const remaining = (taxCalc.grandTotal + (tip || 0)) - totalPaidByOthers;
+
+  return Math.max(0, remaining);
+};
+
+// Handle focus on payment input → auto-fill remaining if field is empty/zero
+const handlePaymentInputFocus = (focusedModeName: string) => {
+  if (!isMixedPayment) return;
+
+  const currentValue = Number(paymentAmounts[focusedModeName] ?? 0);
+  
+  // Don't overwrite if user already entered something meaningful
+  if (currentValue > 0) return;
+
+  const remaining = calculateRemainingExcluding(focusedModeName);
+
+  if (remaining > 0) {
+    setPaymentAmounts(prev => ({
+      ...prev,
+      [focusedModeName]: Number(remaining.toFixed(2))
+    }));
+  }
+};
+
+// Your existing change handler (can stay almost same)
+const handlePaymentAmountChange = (modeName: string, value: string) => {
+  const numValue = value === '' ? 0 : Number(value);
+  setPaymentAmounts(prev => ({
+    ...prev,
+    [modeName]: numValue
+  }));
 };
 
 // Remove a payment mode
@@ -1706,9 +1740,7 @@ const generateBill = async () => {
     }
   };
 
-  const handlePaymentAmountChange = (modeName: string, value: string) => {
-    setPaymentAmounts({ ...paymentAmounts, [modeName]: value });
-  };
+  
 
   const handleApplyDiscount = async () => {
     if (!txnId) {
@@ -2433,6 +2465,13 @@ const generateBill = async () => {
           .full-screen-content {
             bottom: 180px;
           }
+            /* Red Switch */
+.form-check-input:checked {
+    background-color: #ff3e50;
+    border-color: #d13b4c;
+}
+
+
 
           
         }
@@ -2953,7 +2992,6 @@ const generateBill = async () => {
       </Modal>
 
 {/* Settle Modal */}
-{/* Settle Modal */}
 <Modal
   show={showSettlementModal}
   onHide={() => setShowSettlementModal(false)}
@@ -2970,20 +3008,27 @@ const generateBill = async () => {
     }
   }}
 >
-  <Modal.Header closeButton className="border-0 pb-0">
-    <Modal.Title className="fw-bold text-dark fs-4">Payment</Modal.Title>
-  </Modal.Header>
+ <Modal.Header closeButton className="border-0 pb-0">
+  <Modal.Title className="fw-bold text-dark fs-4 w-100 text-center">
+    Payment
+  </Modal.Title>
+
+  
+</Modal.Header>
 
   <Modal.Body className="p-0">
     <Row className="g-0">
       {/* LEFT - Payment Modes */}
       <Col md={4} className="bg-white border-end">
-        {/* Mixed Payment Toggle - RED when active */}
-        <div className={`p-4 border-bottom ${isMixedPayment ? 'bg-danger-subtle border-danger border-2' : ''}`}>
+        {/* Mixed Payment Toggle */}
+        <div className={`p-2 border-bottom bg-light ${isMixedPayment ? 'bg-light' : ''}`}>
           <div className="d-flex align-items-center gap-3">
             <Form.Check
               type="switch"
               id="mixed-payment-switch"
+                className="form-check-input:checked" 
+ 
+
               checked={isMixedPayment}
               onChange={(e) => {
                 const checked = e.target.checked;
@@ -3002,12 +3047,12 @@ const generateBill = async () => {
             />
             <div>
               <strong>Mixed Payment</strong>
-              
+             
             </div>
           </div>
         </div>
 
-        <div className="p-4">
+        <div className="p-3">
           <h6 className="fw-bold text-secondary mb-3 small text-uppercase">Payment Methods</h6>
           
           <div className="d-flex flex-column gap-2">
@@ -3024,9 +3069,9 @@ const generateBill = async () => {
                     
                     handlePaymentModeClick(mode);
 
-                    // Auto-fill remaining when newly selected in mixed mode
+                    // Auto-fill on new selection
                     if (isMixedPayment && !wasSelected) {
-                      const remaining = calculateRemaining();
+                      const remaining = calculateRemainingExcluding(mode.mode_name);
                       if (remaining > 0) {
                         setPaymentAmounts(prev => ({
                           ...prev,
@@ -3061,7 +3106,6 @@ const generateBill = async () => {
 
       {/* RIGHT - Payment Details */}
       <Col md={8} className="bg-light-subtle p-4">
-        {/* Total Due */}
         <div className="text-center mb-5">
           <div className="text-muted small mb-1">Amount Due</div>
           <div className="display-5 fw-bold text-dark">
@@ -3103,6 +3147,7 @@ const generateBill = async () => {
                     type="number"
                     value={paymentAmounts[modeName] ?? ''}
                     onChange={e => handlePaymentAmountChange(modeName, e.target.value)}
+                    onFocus={() => handlePaymentInputFocus(modeName)}  // ← NEW: main fix
                     readOnly={!isMixedPayment && selectedPaymentModes.length === 1}
                     className={`fs-5 fw-bold ${
                       isMixedPayment && 
@@ -3119,7 +3164,7 @@ const generateBill = async () => {
           ))
         )}
 
-        {/* Tip (optional) */}
+        {/* Tip */}
         <Card className="mb-4 shadow-sm border">
           <Card.Body className="p-4">
             <Form.Label className="small fw-medium text-muted">Optional Tip</Form.Label>
@@ -3169,11 +3214,7 @@ const generateBill = async () => {
   </Modal.Body>
 
   <Modal.Footer className="border-0 pt-4 px-4 pb-4">
-    <Button
-      variant="outline-secondary"
-      onClick={() => setShowSettlementModal(false)}
-      className="px-4 py-2"
-    >
+    <Button variant="outline-secondary" onClick={() => setShowSettlementModal(false)} className="px-4 py-2">
       Back
     </Button>
     <Button
