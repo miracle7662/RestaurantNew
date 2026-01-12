@@ -2465,13 +2465,6 @@ const generateBill = async () => {
           .full-screen-content {
             bottom: 180px;
           }
-            /* Red Switch */
-.form-check-input:checked {
-    background-color: #ff3e50;
-    border-color: #d13b4c;
-}
-
-
 
           
         }
@@ -3026,9 +3019,6 @@ const generateBill = async () => {
             <Form.Check
               type="switch"
               id="mixed-payment-switch"
-                className="form-check-input:checked" 
- 
-
               checked={isMixedPayment}
               onChange={(e) => {
                 const checked = e.target.checked;

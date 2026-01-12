@@ -297,23 +297,34 @@ const MENU_ITEMS: MenuItemTypes[] = [
         parentKey: 'masterPages',
       },
 
+     
+    ],
+  },
+
+    {
+    key: 'AccountingMasters',
+    label: 'AccountingMasters ',
+    isTitle: false,
+    icon: 'fi fi-rr-dashboard',
+    children: [
+     
       {
         key: 'AccountType',
         label: 'Account Type ',
-        url: '/masterpages/AccountType',
+        url: '/AccountingMasters/AccountType',
         parentKey: 'masterPages',
       },
 
       {
         key: 'AccountNature',
         label: 'Account Nature ',
-        url: '/masterpages/AccountNature',
+        url: '/AccountingMasters/AccountNature',
         parentKey: 'masterPages',
       },
       {
         key: 'AccountLedger',
         label: 'Ledger Account',
-        url: '/masterpages/AccountLedger',
+        url: '/AccountingMasters/AccountLedger',
         parentKey: 'masterPages',
       },
     ],
