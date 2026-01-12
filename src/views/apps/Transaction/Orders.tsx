@@ -3492,7 +3492,7 @@ const finalPrinterName: string = matchedPrinter.name;
 
 
       {errorMessage && (
-        <div className="alert alert-danger text-center" role="alert">
+        <div className="alert alert-danger text-center" role="alert"> 
           {errorMessage}
         </div>
       )}
@@ -3874,100 +3874,113 @@ const finalPrinterName: string = matchedPrinter.name;
                 </div>
               </div>
             )}
-            {showBillingPage && (
-              (() => {
-                // Pagination logic
-                const indexOfLastItem = currentPage * itemsPerPage;
-                const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-                const currentBills = allBills.slice(indexOfFirstItem, indexOfLastItem);
-                const totalPages = Math.ceil(allBills.length / itemsPerPage);
+           {showBillingPage &&
+  (() => {
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    const currentBills = allBills.slice(indexOfFirstItem, indexOfLastItem);
+    const totalPages = Math.ceil(allBills.length / itemsPerPage);
 
-                const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
+    const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
 
-                return (
-                  <div className="d-flex">
-                    {/* Left side content (like Quick Bill layout) */}
-                    <div
-                      className="rounded shadow-sm p-3 mt-0 bg-light"
-                      style={{
-                        width: '100%',
-                        minWidth: '350px',
-                        maxHeight: 'calc(100vh - 120px)',
-                        overflowY: 'auto',
-                      }}
-                    >
-                      <h5 className="mb-3 text-center text-primary fw-semibold">All Bills</h5>
+    const cellStyle: React.CSSProperties = {
+      whiteSpace: 'normal',
+      wordBreak: 'break-word',
+      verticalAlign: 'top',
+    };
 
-                      <Table striped bordered hover responsive size="sm" className="mb-0">
-                        <thead className="table-info sticky-top">
-                          <tr>
-                            <th>Bill No</th>
-                            <th>Order Type</th>
-                            <th>Customer</th>
-                            <th>Mobile</th>
-                            <th>Payment</th>
-                            <th>Total</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {currentBills.length > 0 ? (
-                            currentBills.map((bill) => (
-                              <tr key={bill.TxnID}>
-                                <td>{bill.TxnNo}</td>
-                                <td>{bill.OrderType}</td>
-                                <td>{bill.CustomerName}</td>
-                                <td>{bill.Mobile}</td>
-                                <td>{bill.PaymentMode}</td>
-                                <td>{bill.GrandTotal}</td>
-                              </tr>
-                            ))
-                          ) : (
-                            <tr>
-                              <td colSpan={6} className="text-center text-muted">
-                                No bills found.
-                              </td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </Table>
+    return (
+      <div className="d-flex">
+        <div
+          className="rounded shadow-sm p-3 bg-light"
+          style={{
+            width: '100%',
+            minWidth: '350px',
+            maxHeight: 'calc(100vh - 120px)',
+            overflowY: 'auto',
+          }}
+        >
+          <h5 className="mb-3 text-center text-primary fw-semibold">
+            All Bills
+          </h5>
 
-                      {/* Pagination Controls */}
-                      {totalPages > 1 && (
-                        <div className="d-flex justify-content-between align-items-center mt-2">
-                          <span className="text-muted small">
-                            Page {currentPage} of {totalPages}
-                          </span>
-                          <div>
-                            <Button
-                              variant="outline-primary"
-                              size="sm"
-                              onClick={() => paginate(currentPage - 1)}
-                              disabled={currentPage === 1}
-                              className="me-2"
-                            >
-                              Previous
-                            </Button>
-                            <Button
-                              variant="outline-primary"
-                              size="sm"
-                              onClick={() => paginate(currentPage + 1)}
-                              disabled={currentPage === totalPages}
-                            >
-                              Next
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
+          <Table
+            striped
+            bordered
+            hover
+            responsive
+            size="sm"
+            className="mb-0"
+            style={{ tableLayout: 'fixed' }}   // 👈 IMPORTANT
+          >
+            <thead className="table-info sticky-top">
+              <tr>
+                <th style={{ width: '12%', ...cellStyle }}>Bill No</th>
+                <th style={{ width: '15%', ...cellStyle }}>Order Type</th>
+                <th style={{ width: '20%', ...cellStyle }}>Customer</th>
+                <th style={{ width: '15%', ...cellStyle }}>Mobile</th>
+                <th style={{ width: '18%', ...cellStyle }}>Payment</th>
+                <th style={{ width: '10%', ...cellStyle }}>Total</th>
+              </tr>
+            </thead>
 
-                    {/* Optional right-side space (reserved for future details or actions) */}
-                    <div className="flex-grow-1 ms-3">
-                      {/* You can render selected bill details or summary here later */}
-                    </div>
-                  </div>
-                );
-              })()
-            )}
+            <tbody>
+              {currentBills.length > 0 ? (
+                currentBills.map((bill) => (
+                  <tr key={bill.TxnID}>
+                    <td style={cellStyle}>{bill.TxnNo}</td>
+                    <td style={cellStyle}>{bill.OrderType}</td>
+                    <td style={cellStyle}>{bill.CustomerName}</td>
+                    <td style={cellStyle}>{bill.Mobile}</td>
+                    <td style={cellStyle}>{bill.PaymentMode}</td>
+                    <td style={cellStyle}>{bill.GrandTotal}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={6} className="text-center text-muted">
+                    No bills found.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </Table>
+
+          {totalPages > 1 && (
+            <div className="d-flex justify-content-between align-items-center mt-2">
+              <span className="text-muted small">
+                Page {currentPage} of {totalPages}
+              </span>
+
+              <div>
+                <Button
+                  variant="outline-primary"
+                  size="sm"
+                  onClick={() => paginate(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="me-2"
+                >
+                  Previous
+                </Button>
+
+                <Button
+                  variant="outline-primary"
+                  size="sm"
+                  onClick={() => paginate(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="flex-grow-1 ms-3" />
+      </div>
+    );
+  })()}
+
 
             {activeNavTab === 'Quick Bill' && !showOrderDetails && (
               <div
