@@ -31,8 +31,8 @@ module.exports = {
   // ------------------------------------
   getCustomers: async (req, res) => {
     try {
-      console.log('getCustomers called with hoteid:', req.hoteid);
-      const hoteid = req.hoteid;
+      console.log('getCustomers called with hotelid:', req.hotelid);
+      const hotelid = req.hotelid;
       const date = req.query.date || 'now';
 
       const stmt = db.prepare(`
@@ -55,24 +55,24 @@ module.exports = {
           m.AccountTypeId,
           m.AccountType,
           m.Status,
-          m.hoteid
+          m.hotelid
         FROM AccountLedger m
         INNER JOIN soudaitemsdetails sid
-          ON sid.LedgerNo = m.LedgerNo AND sid.hoteid = m.hoteid
+          ON sid.LedgerNo = m.LedgerNo AND sid.hotelid = m.hotelid
         INNER JOIN soudaheader sh
-          ON sh.SoudaID = sid.SoudaID AND sh.hoteid = sid.hoteid
+          ON sh.SoudaID = sid.SoudaID AND sh.hotelid = sid.hotelid
         LEFT JOIN mststatemaster s
           ON s.stateid = CAST(m.stateid AS INTEGER)
         LEFT JOIN mstcitymaster c
           ON c.cityid = CAST(m.cityid AS INTEGER) AND c.stateId = s.stateid
         WHERE m.AccountType = 'SUNDRY DEBTORS(Customer)' 
-          AND m.hoteid = ? 
+          AND m.hotelid = ? 
           AND DATE(sh.SoudaDate) = DATE(?)
         ORDER BY m.Name DESC
       `);
 
-      console.log('Executing query with params:', hoteid, date);
-      const rows = stmt.all(hoteid, date);
+      console.log('Executing query with params:', hotelid, date);
+      const rows = stmt.all(hotelid, date);
       console.log('Query returned', rows.length, 'rows');
       res.json(rows)
     } catch (error) {
@@ -129,51 +129,57 @@ module.exports = {
   // ------------------------------------
   // 3️⃣ GET LEDGER LIST (ALL)
   // ------------------------------------
-  getLedger: async (req, res) => {
-    try {
-      const hoteid = req.hoteid;
-
-      console.log('getLedger called with hoteid:', hoteid);
-
-      const stmt = db.prepare(`
-        SELECT
-          m.LedgerId,
-          m.LedgerNo,         
-          m.Name,
-          m.MarathiName,
-          m.address,
-          s.state_name AS state,
-          c.city_name AS city,
-          m.stateid,
-          m.cityid,
-          m.MobileNo,
-          m.PhoneNo,
-          m.GstNo,
-          m.PanNo,
-          m.OpeningBalance,
-          m.OpeningBalanceDate,
-          m.AccountTypeId,
-          m.AccountType,
-          m.Status,
-          m.hoteid
-        FROM AccountLedger m
-        LEFT JOIN mststatemaster s
-          ON s.stateid = CAST(m.stateid AS INTEGER)
-        LEFT JOIN mstcitymaster c
-          ON c.cityid = CAST(m.cityid AS INTEGER) AND c.stateId = s.stateid
-        WHERE m.hoteid = ?
-        ORDER BY m.Name DESC
-      `);
-
-      console.log('Executing query with params:', hoteid);
-      const rows = stmt.all(hoteid);
-      console.log('Query returned', rows.length, 'rows');
-      res.json(rows)
-    } catch (error) {
-      console.error('Error in getLedger:', error)
-      res.status(500).json({ error: error.message, stack: error.stack })
+ getLedger: async (req, res) => {
+  try {
+    if (!req.hotelid) {
+      return res.status(400).json({
+        error: 'hotelid missing (auth middleware not applied)'
+      });
     }
-  },
+
+    const hotelid = req.hotelid;
+
+    console.log('getLedger called with hotelid:', hotelid);
+
+    const stmt = db.prepare(`
+      SELECT
+        m.LedgerId,
+        m.LedgerNo,
+        m.Name,
+        m.MarathiName,
+        m.address,
+        s.state_name AS state,
+        c.city_name AS city,
+        m.stateid,
+        m.cityid,
+        m.MobileNo,
+        m.PhoneNo,
+        m.GstNo,
+        m.PanNo,
+        m.OpeningBalance,
+        m.OpeningBalanceDate,
+        m.AccountTypeId,
+        m.AccountType,
+        m.Status,
+        m.hotelid
+      FROM AccountLedger m
+      LEFT JOIN mststatemaster s
+        ON s.stateid = CAST(m.stateid AS INTEGER)
+      LEFT JOIN mstcitymaster c
+        ON c.cityid = CAST(m.cityid AS INTEGER) AND c.stateId = s.stateid
+      WHERE m.hotelid = ?
+      ORDER BY m.Name DESC
+    `);
+
+    const rows = stmt.all(hotelid);
+    res.json(rows);
+
+  } catch (error) {
+    console.error('Error in getLedger:', error);
+    res.status(500).json({ error: error.message });
+  }
+},
+
 
   // ------------------------------------
   // ADD, UPDATE, DELETE — common for all
@@ -193,8 +199,8 @@ module.exports = {
       if ((!accountTypeName || accountTypeName.trim() === '') && data.AccountTypeId) {
         try {
           const row = await db
-            .prepare('SELECT AccName FROM accounttypedetails WHERE AccID = ? AND hoteid = ?')
-            .get(data.AccountTypeId, req.hoteid)
+            .prepare('SELECT AccName FROM accounttypedetails WHERE AccID = ? AND hotelid = ?')
+            .get(data.AccountTypeId, req.hotelid)
           if (row && row.AccName) {
             accountTypeName = row.AccName
           }
@@ -209,7 +215,7 @@ module.exports = {
       const query = `
         INSERT INTO AccountLedger
         (LedgerNo, Name, MarathiName, address, stateid, cityid, MobileNo, PhoneNo, GstNo, PanNo,
-        OpeningBalance, OpeningBalanceDate, AccountTypeId, AccountType, Status, createdbyid, hoteid)
+        OpeningBalance, OpeningBalanceDate, AccountTypeId, AccountType, Status, createdbyid, hotelid)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `
 
@@ -230,7 +236,7 @@ module.exports = {
         accountTypeName,
         1,
         data.createdbyid || req.userid || 1,
-        req.hoteid
+        req.hotelid
       ]
 
       const result = await runQuery(query, params)
@@ -256,8 +262,8 @@ module.exports = {
       if ((!accountTypeName || accountTypeName.trim() === '') && data.AccountTypeId) {
         try {
           const row = await db
-            .prepare('SELECT AccName FROM accounttypedetails WHERE AccID = ? AND hoteid = ?')
-            .get(data.AccountTypeId, req.hoteid)
+            .prepare('SELECT AccName FROM accounttypedetails WHERE AccID = ? AND hotelid = ?')
+            .get(data.AccountTypeId, req.hotelid)
           if (row && row.AccName) {
             accountTypeName = row.AccName
           }
@@ -269,8 +275,8 @@ module.exports = {
       const exists = await db.prepare(`
         SELECT LedgerId
         FROM AccountLedger
-        WHERE LedgerId = ? AND hoteid = ?
-      `).get(id, req.hoteid);
+        WHERE LedgerId = ? AND hotelid = ?
+      `).get(id, req.hotelid);
 
       if (!exists) {
         return res.status(404).json({ error: 'Ledger not found or access denied' });
@@ -280,8 +286,8 @@ module.exports = {
         UPDATE AccountLedger SET
         LedgerNo = ?, Name = ?, MarathiName = ?, address = ?, stateid = ?, cityid = ?,
         MobileNo = ?, PhoneNo = ?, GstNo = ?, PanNo = ?, OpeningBalance = ?, OpeningBalanceDate = ?,
-        AccountTypeId = ?, AccountType = ?, Status = ?, updatedbyid = ?, updatedbydate = CURRENT_TIMESTAMP, hoteid = ?
-        WHERE LedgerId = ? AND hoteid = ?
+        AccountTypeId = ?, AccountType = ?, Status = ?, updatedbyid = ?, updatedbydate = CURRENT_TIMESTAMP, hotelid = ?
+        WHERE LedgerId = ? AND hotelid = ?
       `
 
       const params = [
@@ -301,9 +307,9 @@ module.exports = {
         accountTypeName,
         data.Status !== undefined ? data.Status : 1,
         data.updatedbyid || req.userid || 1,
-        req.hoteid,
+        req.hotelid,
         id,
-        req.hoteid,
+        req.hotelid,
       ]
 
       const result = await runQuery(query, params)
@@ -317,19 +323,19 @@ module.exports = {
   deleteLedger: async (req, res) => {
     try {
       const id = req.params.id
-      const hoteid = req.hoteid;
+      const hotelid = req.hotelid;
 
       const exists = await db.prepare(`
         SELECT LedgerId 
         FROM AccountLedger 
-        WHERE LedgerId = ? AND hoteid = ?
-      `).get(id, hoteid);
+        WHERE LedgerId = ? AND hotelid = ?
+      `).get(id, hotelid);
 
       if (!exists) {
         return res.status(404).json({ error: 'Ledger not found or access denied' });
       }
 
-      await runQuery('DELETE FROM AccountLedger WHERE LedgerId = ? AND hoteid = ?', [id, hoteid])
+      await runQuery('DELETE FROM AccountLedger WHERE LedgerId = ? AND hotelid = ?', [id, hotelid])
       res.json({ success: true })
     } catch (err) {
       res.status(500).json({ error: err.message })
@@ -350,16 +356,16 @@ module.exports = {
 
   getCashBankLedgers: async (req, res) => {
     try {
-      const hoteid = req.hoteid;
+      const hotelid = req.hotelid;
 
       const stmt = db.prepare(`
         SELECT LedgerId, Name 
         FROM AccountLedger 
-        WHERE AccountTypeId IN ('17', '18') AND hoteid = ?
+        WHERE AccountTypeId IN ('17', '18') AND hotelid = ?
         ORDER BY Name DESC
       `)
 
-      const rows = stmt.all(hoteid);
+      const rows = stmt.all(hotelid);
       res.json(rows)
     } catch (error) {
       console.error('Error in getCashBankLedgers:', error)
@@ -373,16 +379,16 @@ module.exports = {
 
   getOppBankList: async (req, res) => {
     try {
-      const hoteid = req.hoteid;
+      const hotelid = req.hotelid;
 
       const stmt = db.prepare(`
         SELECT LedgerId, LedgerNo, Name, AccountType
         FROM AccountLedger
-        WHERE hoteid = ?
+        WHERE hotelid = ?
         ORDER BY Name ASC
       `)
 
-      const rows = stmt.all(hoteid);
+      const rows = stmt.all(hotelid);
       res.json(rows)
     } catch (error) {
       console.error('Error in getOppBankList:', error)
@@ -397,7 +403,7 @@ module.exports = {
   getCustomerByNo: async (req, res) => {
     try {
       const customerNo = req.params.customerNo
-      const hoteid = req.hoteid;
+      const hotelid = req.hotelid;
 
       const stmt = db.prepare(`
         SELECT
@@ -419,17 +425,19 @@ module.exports = {
           m.AccountTypeId,
           m.AccountType,
           m.Status,
-          m.hoteid
+         h.hotelid
         FROM AccountLedger m
+        INNER JOIN msthotelmasters h
+          ON h.hotelid = m.hotelid
         INNER JOIN mststatemaster s
           ON s.stateid = CAST(m.stateid AS INTEGER)
         INNER JOIN mstcitymaster c
           ON c.cityid = CAST(m.cityid AS INTEGER)
         WHERE m.AccountType = 'SUNDRY DEBTORS(Customer)' 
-          AND m.hoteid = ?
+          AND h.hotelid = ?
       `);
 
-      const rows = stmt.all(hoteid);
+      const rows = stmt.all(hotelid);
       if (rows.length > 0) {
         res.json(rows[0])
       } else {
@@ -448,7 +456,7 @@ module.exports = {
   getFarmerByNo: async (req, res) => {
     try {
       const ledgerId = req.params.farmerNo
-      const hoteid = req.hoteid;
+      const hotelid = req.hotelid;
 
       const stmt = db.prepare(`
         SELECT
@@ -470,7 +478,7 @@ module.exports = {
           m.AccountTypeId,
           m.AccountType,
           m.Status,
-          m.hoteid
+          m.hotelid
         FROM AccountLedger m
         INNER JOIN mststatemaster s
           ON s.stateid = CAST(m.stateid AS INTEGER)
@@ -478,10 +486,10 @@ module.exports = {
           ON c.cityid = CAST(m.cityid AS INTEGER)
         WHERE m.LedgerId = ? 
           AND m.AccountType = 'SUNDRY CREDITORS(Supplier)' 
-          AND m.hoteid = ?
+          AND m.hotelid = ?
       `);
 
-      const rows = stmt.all(ledgerId, hoteid);
+      const rows = stmt.all(ledgerId, hotelid);
       if (rows.length > 0) {
         res.json(rows[0])
       } else {
@@ -495,7 +503,7 @@ module.exports = {
 
   getsodacustomer: async (req, res) => {
     try {
-      const hoteid = req.hoteid;
+      const hotelid = req.hotelid;
 
       const stmt = db.prepare(`
         SELECT
@@ -519,18 +527,18 @@ module.exports = {
           m.AccountTypeId,
           m.AccountType,
           m.Status,
-          m.hoteid
+          m.hotelid
         FROM AccountLedger m
         LEFT JOIN mststatemaster s
           ON s.stateid = CAST(m.stateid AS INTEGER)
         LEFT JOIN mstcitymaster c
           ON c.cityid = CAST(m.cityid AS INTEGER) AND c.stateId = s.stateid
         WHERE m.AccountType = 'SUNDRY DEBTORS(Customer)'
-          AND m.hoteid = ?
+          AND m.hotelid = ?
         ORDER BY m.Name DESC
       `);
 
-      const rows = stmt.all(hoteid);
+      const rows = stmt.all(hotelid);
       res.json(rows);
     } catch (error) {
       console.error('Error in getsodacustomer:', error);
@@ -543,7 +551,7 @@ module.exports = {
   // ------------------------------------
   getOutstandingCustomersAndFarmers: async (req, res) => {
     try {
-      const hoteid = req.hoteid;
+      const hotelid = req.hotelid;
       const cutoffDate = req.query.cutoffDate || '2025-12-12';
 
       const stmt = db.prepare(`
@@ -559,7 +567,7 @@ SELECT
                     (SELECT SUM(cb.FinalBillAmount)
                      FROM customerbillheader cb
                      WHERE cb.CustomerID = m.CustomerNo
-                       AND cb.hoteid = ?
+                       AND cb.hotelid = ?
                        AND DATE(cb.custBillDate) <= DATE(?)
                     ), 0
                 )
@@ -568,7 +576,7 @@ SELECT
                      FROM CashBook c
                      WHERE (c.CashBankID = m.LedgerId OR c.OppBankID = m.LedgerId)
                        AND c.TransactionType = 'Payment'
-                       AND c.hoteid = ?
+                       AND c.hotelid = ?
                        AND DATE(c.TransactionDate) <= DATE(?)
                     ), 0
                 )
@@ -577,7 +585,7 @@ SELECT
                      FROM CashBook c
                      WHERE (c.CashBankID = m.LedgerId OR c.OppBankID = m.LedgerId)
                        AND c.TransactionType = 'Receipt'
-                       AND c.hoteid = ?
+                       AND c.hotelid = ?
                        AND DATE(c.TransactionDate) <= DATE(?)
                     ), 0
                 )
@@ -588,7 +596,7 @@ SELECT
                     (SELECT SUM(fb.FinalBillAmount)
                      FROM FarmerBill fb
                      WHERE fb.FarmerID = m.FarmerNo
-                       AND fb.hoteid = ?
+                       AND fb.hotelid = ?
                        AND DATE(fb.farBillDate) <= DATE(?)
                     ), 0
                 )
@@ -597,7 +605,7 @@ SELECT
                      FROM CashBook c
                      WHERE (c.CashBankID = m.LedgerId OR c.OppBankID = m.LedgerId)
                        AND c.TransactionType = 'Receipt'
-                       AND c.hoteid = ?
+                       AND c.hotelid = ?
                        AND DATE(c.TransactionDate) <= DATE(?)
                     ), 0
                 )
@@ -606,7 +614,7 @@ SELECT
                      FROM CashBook c
                      WHERE (c.CashBankID = m.LedgerId OR c.OppBankID = m.LedgerId)
                        AND c.TransactionType = 'Payment'
-                       AND c.hoteid = ?
+                       AND c.hotelid = ?
                        AND DATE(c.TransactionDate) <= DATE(?)
                     ), 0
                 )
@@ -618,12 +626,12 @@ SELECT
         (SELECT MAX(fb.farBillDate)
          FROM FarmerBill fb
          WHERE fb.FarmerID = m.FarmerNo
-           AND fb.hoteid = ?
+           AND fb.hotelid = ?
         ),
         (SELECT MAX(cb.custBillDate)
          FROM customerbillheader cb
          WHERE cb.CustomerID = m.CustomerNo
-           AND cb.hoteid = ?
+           AND cb.hotelid = ?
         )
     ) AS LastBillDate,
 
@@ -633,12 +641,12 @@ SELECT
                 (SELECT MAX(fb.farBillDate)
                  FROM FarmerBill fb
                  WHERE fb.FarmerID = m.FarmerNo
-                   AND fb.hoteid = ?
+                   AND fb.hotelid = ?
                 ),
                 (SELECT MAX(cb.custBillDate)
                  FROM customerbillheader cb
                  WHERE cb.CustomerID = m.CustomerNo
-                   AND cb.hoteid = ?
+                   AND cb.hotelid = ?
                 )
             )
         ),
@@ -646,7 +654,7 @@ SELECT
     ) AS LastBillDaysCount
 
 FROM AccountLedger m
-WHERE m.hoteid = ?
+WHERE m.hotelid = ?
   AND (
         CASE
             WHEN m.AccountType = 'SUNDRY DEBTORS(Customer)' THEN
@@ -655,7 +663,7 @@ WHERE m.hoteid = ?
                     (SELECT SUM(cb.FinalBillAmount)
                      FROM customerbillheader cb
                      WHERE cb.CustomerID = m.LedgerId
-                       AND cb.hoteid = ?
+                       AND cb.hotelid = ?
                        AND DATE(cb.custBillDate) <= DATE(?)
                     ), 0
                 )
@@ -664,7 +672,7 @@ WHERE m.hoteid = ?
                      FROM CashBook c
                      WHERE (c.CashBankID = m.LedgerId OR c.OppBankID = m.LedgerId)
                        AND c.TransactionType = 'Payment'
-                       AND c.hoteid = ?
+                       AND c.hotelid = ?
                        AND DATE(c.TransactionDate) <= DATE(?)
                     ), 0
                 )
@@ -673,7 +681,7 @@ WHERE m.hoteid = ?
                      FROM CashBook c
                      WHERE (c.CashBankID = m.LedgerId OR c.OppBankID = m.LedgerId)
                        AND c.TransactionType = 'Receipt'
-                       AND c.hoteid = ?
+                       AND c.hotelid = ?
                        AND DATE(c.TransactionDate) <= DATE(?)
                     ), 0
                 )
@@ -684,7 +692,7 @@ WHERE m.hoteid = ?
                     (SELECT SUM(fb.FinalBillAmount)
                      FROM FarmerBill fb
                      WHERE fb.FarmerID = m.FarmerNo
-                       AND fb.hoteid = ?
+                       AND fb.hotelid = ?
                        AND DATE(fb.farBillDate) <= DATE(?)
                     ), 0
                 )
@@ -693,7 +701,7 @@ WHERE m.hoteid = ?
                      FROM CashBook c
                      WHERE (c.CashBankID = m.LedgerId OR c.OppBankID = m.LedgerId)
                        AND c.TransactionType = 'Receipt'
-                       AND c.hoteid = ?
+                       AND c.hotelid = ?
                        AND DATE(c.TransactionDate) <= DATE(?)
                     ), 0
                 )
@@ -702,7 +710,7 @@ WHERE m.hoteid = ?
                      FROM CashBook c
                      WHERE (c.CashBankID = m.LedgerId OR c.OppBankID = m.LedgerId)
                        AND c.TransactionType = 'Payment'
-                       AND c.hoteid = ?
+                       AND c.hotelid = ?
                        AND DATE(c.TransactionDate) <= DATE(?)
                     ), 0
                 )
@@ -714,27 +722,27 @@ ORDER BY m.Name DESC
 
       const params = [
         // Balance column subqueries
-        hoteid, cutoffDate, // CustomerBill debtors
-        hoteid, cutoffDate, // CashBook Payment debtors
-        hoteid, cutoffDate, // CashBook Receipt debtors
-        hoteid, cutoffDate, // FarmerBill creditors
-        hoteid, cutoffDate, // CashBook Receipt creditors
-        hoteid, cutoffDate, // CashBook Payment creditors
+        hotelid, cutoffDate, // CustomerBill debtors
+        hotelid, cutoffDate, // CashBook Payment debtors
+        hotelid, cutoffDate, // CashBook Receipt debtors
+        hotelid, cutoffDate, // FarmerBill creditors
+        hotelid, cutoffDate, // CashBook Receipt creditors
+        hotelid, cutoffDate, // CashBook Payment creditors
         // LastBillDate subqueries
-        hoteid, // FarmerBill
-        hoteid, // customerbillheader
+        hotelid, // FarmerBill
+        hotelid, // customerbillheader
         // LastBillDaysCount
         cutoffDate,
-        hoteid, // FarmerBill
-        hoteid, // customerbillheader
+        hotelid, // FarmerBill
+        hotelid, // customerbillheader
         // WHERE clause
-        hoteid, // m.hoteid
-        hoteid, cutoffDate, // Balance subquery 1 debtors customerbill
-        hoteid, cutoffDate, // Balance subquery 2 debtors cashbook payment
-        hoteid, cutoffDate, // Balance subquery 3 debtors cashbook receipt
-        hoteid, cutoffDate, // Balance subquery 4 creditors farmerbill
-        hoteid, cutoffDate, // Balance subquery 5 creditors cashbook receipt
-        hoteid, cutoffDate, // Balance subquery 6 creditors cashbook payment
+        hotelid, // m.hotelid
+        hotelid, cutoffDate, // Balance subquery 1 debtors customerbill
+        hotelid, cutoffDate, // Balance subquery 2 debtors cashbook payment
+        hotelid, cutoffDate, // Balance subquery 3 debtors cashbook receipt
+        hotelid, cutoffDate, // Balance subquery 4 creditors farmerbill
+        hotelid, cutoffDate, // Balance subquery 5 creditors cashbook receipt
+        hotelid, cutoffDate, // Balance subquery 6 creditors cashbook payment
       ];
 
       const rows = stmt.all(...params);
@@ -750,15 +758,15 @@ ORDER BY m.Name DESC
   // ------------------------------------
   getNextLedgerNo: async (req, res) => {
     try {
-      const hoteid = req.hoteid;
+      const hotelid = req.hotelid;
 
       const stmt = db.prepare(`
         SELECT MAX(LedgerNo) as maxLedgerNo
         FROM AccountLedger
-        WHERE hoteid = ?
+        WHERE hotelid = ?
       `);
 
-      const row = stmt.get(hoteid);
+      const row = stmt.get(hotelid);
       const nextLedgerNo = (row.maxLedgerNo || 0) + 1;
 
       res.json({ nextLedgerNo });

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Modal, Form, Button } from 'react-bootstrap';
 import { toast } from 'react-hot-toast';
-import { useAppContext } from '@/common/context/AppContext';
+import { useAuthContext } from '@/common/context/useAuthContext';
 import sanscript from 'sanscript';
 
 // Interfaces
@@ -54,7 +54,7 @@ interface AccountLedgerModalProps {
 
 // Main Modal Component
 const AccountLedgerModal: React.FC<AccountLedgerModalProps> = ({ show, onHide, onSuccess, ledger }) => {
-  const { session } = useAppContext();
+  const { user } = useAuthContext();
   const [formData, setFormData] = useState({
     LedgerNo: '',
     Name: '',
@@ -82,13 +82,10 @@ const AccountLedgerModal: React.FC<AccountLedgerModalProps> = ({ show, onHide, o
   // Load states
   const loadStates = useCallback(async () => {
     try {
-      const params = new URLSearchParams({
-        companyId: session.companyId!.toString(),
-        yearId: session.yearId!.toString(),
-      });
-      const res = await fetch(`http://localhost:3001/api/states?${params.toString()}`, {
+
+      const res = await fetch(`http://localhost:3001/api/states`, {
         headers: {
-          'Authorization': `Bearer ${session.token}`,
+          'Authorization': `Bearer ${user?.token}`,
           'Content-Type': 'application/json',
         },
       });
@@ -103,7 +100,7 @@ const AccountLedgerModal: React.FC<AccountLedgerModalProps> = ({ show, onHide, o
       console.error('Error loading states:', err);
       toast.error('Failed to load states');
     }
-  }, [session.companyId, session.token, session.yearId]);
+  }, [user?.hotelid, user?.token, ]);
 
   // Load cities for selected state
   const loadCities = useCallback(async (stateId: string) => {
@@ -111,7 +108,7 @@ const AccountLedgerModal: React.FC<AccountLedgerModalProps> = ({ show, onHide, o
       if (stateId) {
         const res = await fetch(`http://localhost:3001/api/cities/${stateId}`, {
           headers: {
-            'Authorization': `Bearer ${session.token}`,
+            'Authorization': `Bearer ${user?.token}`,
             'Content-Type': 'application/json',
           },
         });
@@ -129,14 +126,14 @@ const AccountLedgerModal: React.FC<AccountLedgerModalProps> = ({ show, onHide, o
       console.error('Error loading cities:', err);
       toast.error('Failed to load cities');
     }
-  }, [session.token]);
+  }, [user?.token]);
 
   // Load account types
   const loadAccountTypes = useCallback(async () => {
     try {
       const res = await fetch(`http://localhost:3001/api/accounttype`, {
         headers: {
-          'Authorization': `Bearer ${session.token}`,
+          'Authorization': `Bearer ${user.token}`,
           'Content-Type': 'application/json',
         },
       });
@@ -151,14 +148,14 @@ const AccountLedgerModal: React.FC<AccountLedgerModalProps> = ({ show, onHide, o
       console.error('Error loading account types:', err);
       toast.error('Failed to load account types');
     }
-  }, [session.token]);
+  }, [user.token]);
 
   // Get next ledger number
   const getNextLedgerNo = useCallback(async () => {
     try {
       const res = await fetch(`http://localhost:3001/api/account-ledger/next-ledger-no`, {
         headers: {
-          'Authorization': `Bearer ${session.token}`,
+          'Authorization': `Bearer ${user.token}`,
           'Content-Type': 'application/json',
         },
       });
@@ -176,7 +173,7 @@ const AccountLedgerModal: React.FC<AccountLedgerModalProps> = ({ show, onHide, o
       console.error('Error getting next ledger number:', err);
       toast.error('Failed to get next ledger number');
     }
-  }, [session.token]);
+  }, [user.token]);
 
   useEffect(() => {
     if (show) {
@@ -253,10 +250,10 @@ const AccountLedgerModal: React.FC<AccountLedgerModalProps> = ({ show, onHide, o
     try {
       const payload = {
         ...formData,
-        hotelId: session.hotelid,
+        hotelId: user.hotelid,
         ...(isEdit
-          ? { updatedBy: session.userId }
-          : { createdBy: session.userId }),
+          ? { updatedBy: user.userId }
+          : { createdBy: user.userId }),
       };
 
       const url = isEdit
@@ -267,7 +264,7 @@ const AccountLedgerModal: React.FC<AccountLedgerModalProps> = ({ show, onHide, o
       const res = await fetch(url, {
         method,
         headers: {
-          'Authorization': `Bearer ${session.token}`,
+          'Authorization': `Bearer ${user.token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(payload),

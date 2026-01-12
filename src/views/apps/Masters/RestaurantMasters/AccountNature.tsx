@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button, Card, Table, Modal, Form, Alert } from 'react-bootstrap';
 import { toast } from 'react-hot-toast';
-import { useAppContext } from '@/common/context/AppContext';
+import { useAuthContext } from '@/common/context/useAuthContext';
 
 // Interfaces
 interface AccountNatureItem {
@@ -25,7 +25,7 @@ interface AccountNatureModalProps {
 
 // Main Component
 const AccountNature: React.FC = () => {
-  const { session } = useAppContext();
+  const { user } = useAuthContext();
   const [accountNatures, setAccountNatures] = useState<AccountNatureItem[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
@@ -39,7 +39,7 @@ const AccountNature: React.FC = () => {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   // Check if required session data is available
-  const isDisabled = !session.hotelid;
+  const isDisabled = !user?.hotelid;
 
   // Fetch account natures
   const fetchAccountNatures = async () => {
@@ -50,7 +50,7 @@ const AccountNature: React.FC = () => {
     try {
       const res = await fetch(`http://localhost:3001/api/accountnature`, {
         headers: {
-          'Authorization': `Bearer ${session.token}`,
+          'Authorization': `Bearer ${user?.token}`,
           'Content-Type': 'application/json',
         },
       });
@@ -75,36 +75,33 @@ const AccountNature: React.FC = () => {
     if (!isDisabled) {
       fetchAccountNatures();
     }
-  }, [session.hotelid]);
+  }, [user?.hotelid]);
 
   // Log session values when they change
   useEffect(() => {
-    if (session.userId) {
-      console.log(`User ID received: ${session.userId}`);
+    if (user?.id) {
+      console.log(`User ID received: ${user.id}`);
     } else {
       console.warn('Warning: User ID is missing');
     }
 
-    if (session.hotelid) {
-      console.log(`Hotel ID received: ${session.hotelid}`);
+    if (user?.hotelid) {
+      console.log(`Hotel ID received: ${user.hotelid}`);
     } else {
       console.warn('Warning: Hotel ID is missing');
     }
-  }, [session.userId, session.hotelid]);
+  }, [user?.id, user?.hotelid]);
 
   // Handle delete
   const handleDelete = async (accountNature: AccountNatureItem) => {
     if (!window.confirm('Are you sure you want to delete this account nature?')) return;
 
     try {
-      const params = new URLSearchParams({
-        companyId: session.companyId!.toString(),
-        yearId: session.yearId!.toString(),
-      });
-      const res = await fetch(`http://localhost:3001/api/accountnature/${accountNature.nature_id}?${params.toString()}`, {
+     
+      const res = await fetch(`http://localhost:3001/api/accountnature/${accountNature.nature_id}j`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${session.token}`,
+          'Authorization': `Bearer ${user?.token}`,
           'Content-Type': 'application/json',
         },
       });
@@ -355,7 +352,7 @@ const AccountNatureModal: React.FC<AccountNatureModalProps> = ({
   accountNature,
   onSuccess,
 }) => {
-  const { session } = useAppContext();
+  const { user } = useAuthContext();
   const [formData, setFormData] = useState({
     accountnature: '',
     status: 1,
@@ -398,14 +395,14 @@ const AccountNatureModal: React.FC<AccountNatureModalProps> = ({
     try {
       const payload = {
         ...formData,
-        hotelid: session.hotelid,
+        hotelid: user?.hotelid,
         ...(isEdit
           ? {
-              updated_by_id: session.userId,
+              updated_by_id: user?.id,
               updated_date: new Date().toISOString(),
             }
           : {
-              created_by_id: session.userId,
+              created_by_id: user?.id,
               created_date: new Date().toISOString(),
             }),
       };
@@ -417,7 +414,7 @@ const AccountNatureModal: React.FC<AccountNatureModalProps> = ({
       const res = await fetch(url, {
         method: isEdit ? 'PUT' : 'POST',
         headers: {
-          'Authorization': `Bearer ${session.token}`,
+          'Authorization': `Bearer ${user?.token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(payload),

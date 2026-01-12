@@ -28,6 +28,8 @@ declare module '*.mp4' {
   export default src;
 }
 
+declare module 'sanscript';
+
 interface Window {
   electronAPI: {
     getInstalledPrinters: () => Promise<Array<{ name: string; displayName: string }>>;

@@ -5,7 +5,7 @@ import { toast } from 'react-hot-toast';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
-import { useAppContext } from '@/common/context/AppContext';
+import { useAuthContext } from '@/common/context/useAuthContext';
 import AccountLedgerModal from './AccountLedgerModal';
 
 interface ILedger {
@@ -29,8 +29,7 @@ interface ILedger {
   Status: number;
   createdbyid?: number;
   updatedbyid?: number;
-  companyid?: number;
-  yearid?: number;
+  hotelid?: string;
 }
 
 // // Fixed constants for account types matching backend names
@@ -71,7 +70,7 @@ const getNextLedgerNo = (data: ILedger[]): string => {
 };
 
 const AccountLedger = () => {
-  const { session } = useAppContext();
+  const { user } = useAuthContext();
   const [data, setData] = useState<ILedger[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -86,7 +85,7 @@ const AccountLedger = () => {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   // Check if required session data is available
-  const isDisabled = !session.hotelid;
+  const isDisabled = !user?.hotelid;
 
   // Fetch ledger data
   const fetchData = async () => {
@@ -97,7 +96,7 @@ const AccountLedger = () => {
     try {
       const res = await fetch(`http://localhost:3001/api/account-ledger/ledger`, {
         headers: {
-          'Authorization': `Bearer ${session.token}`,
+          'Authorization': `Bearer ${user?.token}`,
           'Content-Type': 'application/json',
         },
       });
@@ -122,7 +121,7 @@ const AccountLedger = () => {
     if (!isDisabled) {
       fetchData();
     }
-  }, [session.hotelid]);
+  }, [user?.hotelid]);
 
   // Handle delete
   const handleDelete = async (item: ILedger) => {
@@ -132,7 +131,7 @@ const AccountLedger = () => {
       const res = await fetch(`http://localhost:3001/api/account-ledger/${item.LedgerId}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${session.token}`,
+          'Authorization': `Bearer ${user?.token}`,
           'Content-Type': 'application/json',
         },
       });
