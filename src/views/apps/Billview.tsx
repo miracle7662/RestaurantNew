@@ -226,7 +226,7 @@ const ModernBill = () => {
         groupKey = (item) => item.itemName;
         groupName = (key, item) => item.itemName;
       } else if (groupBy === 'group') {
-        groupKey = (item) => (item.itemId ? item.itemId.toString() : item.itemName);
+        groupKey = (item) => (item.itemId ? item.itemId.toString() type: item.itemName);
         groupName = (key, item) => item.itemName;
       } else if (groupBy === 'kot') {
         groupKey = (item) => item.mkotNo || '';

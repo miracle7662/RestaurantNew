@@ -11,6 +11,8 @@ import OrderDetails from "./OrderDetails";
 import F8PasswordModal from "@/components/F8PasswordModal";
 import KotTransfer from "./KotTransfer";
 
+// 🔽 YAHAN ADD KARO (component ke bahar)
+
 interface MenuItem {
   id: number;
   name: string;
@@ -168,6 +170,9 @@ const Order = () => {
   const [showTaxModal, setShowTaxModal] = useState<boolean>(false);
   const [showNCKOTModal, setShowNCKOTModal] = useState<boolean>(false);
   const [showKotTransfer, setShowKotTransfer] = useState<boolean>(false);
+ const [showTransferModal, setShowTransferModal] = useState(false);
+const [transferMode, setTransferMode] = useState<"table" | "kot">("table");
+
 
   // KOT Print Settings state
 
@@ -4784,14 +4789,39 @@ background: darkgreen;
 
                         {/* KOT Transfer Button */}
                         <Button
-                          variant="info"
-                          className="rounded-circle p-0 d-flex justify-content-center align-items-center"
-                          style={{ width: '32px', height: '32px' }}
-                          disabled={!sourceTableId || items.length === 0}
-                          onClick={() => {
-                            setShowOptions(false);
-                            setShowKotTransfer(true);
-                          }}
+                         variant="info"
+  className="rounded-circle p-0 d-flex justify-content-center align-items-center"
+  style={{ width: "32px", height: "32px" }}
+  disabled={!sourceTableId || items.length === 0}
+onClick={() => {
+    setShowOptions(false);
+    setTransferMode("table");   // ✅ correct
+    setShowTransferModal(true);
+  }}
+                          title="Table Transfer"
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="20"
+                            height="20"
+                            fill="currentColor"
+                            viewBox="0 0 16 16"
+                          >
+                            <path d="M1 2.5A1.5 1.5 0 0 1 2.5 1h3A1.5 1.5 0 0 1 7 2.5v3A1.5 1.5 0 0 1 5.5 7h-3A1.5 1.5 0 0 1 1 5.5v-3zM2.5 2a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3zm6.5.5A1.5 1.5 0 0 1 10.5 1h3A1.5 1.5 0 0 1 15 2.5v3A1.5 1.5 0 0 1 13.5 7h-3A1.5 1.5 0 0 1 9 5.5v-3zm1.5-.5a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3zM1 10.5A1.5 1.5 0 0 1 2.5 9h3A1.5 1.5 0 0 1 7 10.5v3A1.5 1.5 0 0 1 5.5 15h-3A1.5 1.5 0 0 1 1 13.5v-3zm1.5-.5a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3zm6.5.5A1.5 1.5 0 0 1 10.5 9h3a1.5 1.5 0 0 1 1.5 1.5v3a1.5 1.5 0 0 1-1.5 1.5h-3A1.5 1.5 0 0 1 9 13.5v-3zm1.5-.5a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3z" />
+                          </svg>
+                        </Button>
+
+                         <Button
+                        variant="warning"
+  className="rounded-circle p-0 d-flex justify-content-center align-items-center"
+  style={{ width: "32px", height: "32px" }}
+  disabled={!sourceTableId || items.length === 0}
+ onClick={() => {
+  setShowOptions(false);
+  setTransferMode("kot");
+  setShowTransferModal(true);
+}}
+
                           title="KOT Transfer"
                         >
                           <svg
@@ -5347,22 +5377,35 @@ background: darkgreen;
             </Modal.Footer>
           </Modal>
 
-          <Modal show={showKotTransfer} onHide={() => setShowKotTransfer(false)} size="xl" centered>
-            <Modal.Header closeButton>
-              <Modal.Title>KOT Transfer</Modal.Title>
-            </Modal.Header>
-            <Modal.Body className="p-0">
-              <KotTransfer
-                transferSource="ORDER"
-                sourceTableId={sourceTableId}
-                onCancel={() => setShowKotTransfer(false)}
-                onSuccess={() => {
-                  setShowKotTransfer(false);
-                  if (sourceTableId) refreshItemsForTable(sourceTableId);
-                }}
-              />
-            </Modal.Body>
-          </Modal>
+        <Modal
+  show={showTransferModal}
+  onHide={() => setShowTransferModal(false)}
+  size="xl"
+  centered
+>
+  <Modal.Header closeButton>
+    <Modal.Title>
+      {transferMode === "table" ? "Table Transfer" : "KOT Transfer"}
+    </Modal.Title>
+  </Modal.Header>
+
+  <Modal.Body className="p-0">
+    <KotTransfer
+ 
+  mode={transferMode}       // "table" or "kot"
+  transferSource={transferMode}       // "table" or "kot"
+  sourceTableId={sourceTableId}
+  onCancel={() => setShowTransferModal(false)}
+  onSuccess={() => {
+    setShowTransferModal(false);
+    if (sourceTableId) refreshItemsForTable(sourceTableId);
+  }}
+/>
+
+
+  </Modal.Body>
+</Modal>
+
         </div>
       </div>
     </div>
