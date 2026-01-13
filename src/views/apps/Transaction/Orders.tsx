@@ -250,22 +250,26 @@ const Order = () => {
         const billedBillData = await billedBillRes.json();
         if (billedBillData.success && billedBillData.data) {
           const { details, ...header } = billedBillData.data;
-          const fetchedItems: MenuItem[] = details.map((item: any) => ({
-            id: item.ItemID,
-            txnDetailId: item.TXnDetailID,
-            item_no: item.item_no,
-            name: item.ItemName || 'Unknown Item',
-            price: item.RuntimeRate,
-            qty: (Number(item.Qty) || 0) - (Number(item.RevQty) || 0), // Calculate net quantity
-            isBilled: item.isBilled, // Use the isBilled flag from the item itself
-            revQty: Number(item.RevQty) || 0, // Store revQty
-            isNCKOT: item.isNCKOT,
-            NCName: '',
-            NCPurpose: '',
-            isNew: false, // All items are existing
-            originalQty: item.Qty,
-            kotNo: item.KOTNo, // Use KOTNo from the item detail
-          }));
+          const fetchedItems: MenuItem[] = details.map((item: any) => {
+            const originalQty = Number(item.Qty) || 0;
+            const revQty = Number(item.RevQty) || 0;
+            return {
+              id: item.ItemID,
+              txnDetailId: item.TXnDetailID,
+              item_no: item.item_no,
+              name: item.ItemName || 'Unknown Item',
+              price: item.RuntimeRate,
+              qty: originalQty - revQty,
+              isBilled: item.isBilled,
+              revQty: revQty,
+              isNCKOT: item.isNCKOT,
+              NCName: '',
+              NCPurpose: '',
+              isNew: false,
+              originalQty: originalQty,
+              kotNo: item.KOTNo,
+            };
+          });
 
           setItems(fetchedItems);
           setPersistentTxnId(header.TxnID);
@@ -313,21 +317,24 @@ const Order = () => {
       // Step 2: If no billed bill found (e.g., 404), fetch unbilled items (existing logic)
       const unbilledItemsRes = await getUnbilledItemsByTable(tableIdNum);
       if (unbilledItemsRes.success && unbilledItemsRes.data && Array.isArray(unbilledItemsRes.data.items)) {
-        const fetchedItems: MenuItem[] = unbilledItemsRes.data.items.map((item: any) => ({
-          id: item.itemId,
-          txnDetailId: item.txnDetailId,
-          item_no: item.item_no,
-          name: item.itemName,
-          price: item.price,
-          qty: item.netQty,
-          isBilled: 0,
-          isNCKOT: 0,
-          NCName: '',
-          NCPurpose: '',
-          isNew: false,
-          originalQty: item.netQty,
-          kotNo: item.kotNo,
-        }));
+        const fetchedItems: MenuItem[] = unbilledItemsRes.data.items.map((item: any) => {
+          return {
+            id: item.itemId,
+            txnDetailId: item.txnDetailId,
+            item_no: item.item_no,
+            name: item.itemName,
+            price: item.price,
+            qty: item.netQty,
+            isBilled: 0,
+            isNCKOT: 0,
+            NCName: '',
+            NCPurpose: '',
+            isNew: false,
+            originalQty: item.qty,
+            revQty: item.revQty,
+            kotNo: item.kotNo,
+          };
+        });
         setCurrentKOTNo(unbilledItemsRes.data.kotNo);
 
         setPersistentTxnId(unbilledItemsRes.data.items.length > 0 ? unbilledItemsRes.data.items[0].txnId : null);
@@ -4341,7 +4348,7 @@ background: darkgreen;
                     const displayQty = isGroupedItem ? (item as any).displayQty : item.qty;
                     const isEditable = isGroupedItem ? (item as any).canEdit : !!item.isNew;
                     const isReverseClickable = reverseQtyMode && !isEditable && displayQty > 0;
-                    const isFullyReversed = !isGroupedItem && displayQty === 0;
+                    const isExpanded = !isGroupedView;
 
                     let backgroundColor = 'transparent';
                     if (!isGroupedItem) {
@@ -4367,9 +4374,7 @@ background: darkgreen;
                       backgroundColor = '#fdfdfd';
                     }
 
-                    if (isFullyReversed) {
-                      backgroundColor = '#f8f9fa';
-                    }
+                   
 
                     return (
                       <div
@@ -4383,24 +4388,31 @@ background: darkgreen;
                           fontSize: '0.9rem',
                           minHeight: '40px',
                           borderBottom: '1px solid #eee',
-                          color: isFullyReversed ? '#adb5bd' : 'inherit',
+                          
                         }}
                       >
-                        <span style={{ textAlign: 'left', paddingLeft: '0.5rem',  }}>
-                          {item.name} {isFullyReversed && (
-                            <>
-                              <span style={{ fontSize: '0.75em', fontStyle: 'italic' }}></span>
-                              <span className="text-muted ms-2" style={{ fontSize: '0.8em' }}>
-                                ({item.originalQty} → {displayQty})
-                              </span>
-                            </>
-                          )}
-                          {!isGroupedView && !isFullyReversed && (item as MenuItem).revQty && (item as MenuItem).revQty! > 0 && (
-                            <span className="text-muted ms-2" style={{ fontSize: '0.8em' }}>
-                              (Qty: {(item.qty + ((item as MenuItem).revQty || 0))} | Rev: {(item as MenuItem).revQty})
-                            </span>
-                          )}
-                        </span>
+<span className="item-name">
+  {item.name}
+
+  {(item.revQty ?? 0) > 0 && (
+  {isExpanded && (item.revQty ?? 0) > 0 && (
+    <span className="text-muted ms-2">
+      (
+      <span className="text-success fw-semibold">
+        {item.originalQty ?? item.qty}
+      </span>
+      {" - "}
+      <span className="text-danger fw-semibold">
+        {item.revQty ?? 0}
+      </span>
+      )
+    </span>
+  )}
+</span>
+
+
+
+
                         <div className="text-center d-flex justify-content-center align-items-center gap-2">
                           <button
                             className="btn btn-danger btn-sm"
@@ -4412,7 +4424,7 @@ background: darkgreen;
                                 handleReverseQty(item as MenuItem);
                               }
                             }}
-                            disabled={(!isEditable && !isReverseClickable) || isFullyReversed}
+                            disabled={(!isEditable && !isReverseClickable) }
                           >
                             −
                           </button>
@@ -4432,7 +4444,7 @@ background: darkgreen;
                           <input
                             type="number"
                             value={displayQty}
-                            readOnly={isGroupedItem || !isEditable || isFullyReversed}
+                            readOnly={isGroupedItem || !isEditable }
                             onChange={(e) => {
                               if (isGroupedItem || !isEditable) return;
                               const newQty = parseInt(e.target.value) || 0;
@@ -4457,7 +4469,7 @@ background: darkgreen;
                             className="btn btn-success btn-sm"
                             style={{ padding: '0 5px', lineHeight: '1' }}
                             onClick={() => handleIncreaseQty(item.id)}
-                            disabled={!isEditable || isFullyReversed}
+                            disabled={!isEditable }
                           >
                             +
                           </button>
@@ -5292,8 +5304,6 @@ background: darkgreen;
               </Button>
             </Modal.Footer>
           </Modal>
-
-
           {/* F8PasswordModal */}
 
           <F8PasswordModal
@@ -5360,10 +5370,5 @@ background: darkgreen;
 
   );
 };
-
-
-
-
-
 
 export default Order;
