@@ -207,37 +207,17 @@ const ModernBill = () => {
   // Compute displayed items based on grouping
   const displayedItems: DisplayedItem[] = useMemo(() => {
     if (groupBy === 'none') {
-      const hasBlankRow = billItems.some(
-        item => !item.itemName && item.itemId === 0
-      );
+      // Filter out fetched items with qty <= 0, but keep the input row
+      const filteredItems = billItems.slice(0, -1).filter(item => !(item.isFetched && item.qty <= 0));
+      const inputRow = billItems[billItems.length - 1];
 
-      const mappedItems = billItems.map(item => ({
+      const mappedItems = filteredItems.concat(inputRow).map(item => ({
         ...item,
         isEditable: !item.isFetched,
         originalIndex: billItems.indexOf(item)
       }));
 
-      return hasBlankRow
-        ? mappedItems
-        : mappedItems.concat({
-          itemCode: '',
-          itemgroupid: 0,
-          itemId: 0,
-          item_no: 0,
-          itemName: '',
-          qty: 1,
-          rate: 0,
-          total: 0,
-          cgst: 0,
-          sgst: 0,
-          igst: 0,
-          cess: 0,
-          mkotNo: '',
-          specialInstructions: '',
-          isEditable: true,
-          isFetched: false,
-          originalIndex: billItems.length
-        });
+      return mappedItems;
     } else {
       let groupKey: (item: BillItem) => string;
       let groupName: (key: string, item: BillItem) => string;
@@ -1249,18 +1229,18 @@ const removePaymentMode = (modeName: string) => {
 
 
 
-  // Focus on the blank row's item code input when the page opens or billItems change
+  // Focus on the blank row's item code input when the page opens or displayedItems change
   useEffect(() => {
-    if (billItems.length > 0) {
+    if (!loading && displayedItems.length > 0) {
       setTimeout(() => {
-        const blankRowItemCodeInput = inputRefs.current[billItems.length - 1]?.[0];
+        const blankRowItemCodeInput = inputRefs.current[displayedItems.length - 1]?.[0];
         if (blankRowItemCodeInput) {
           blankRowItemCodeInput.focus();
           blankRowItemCodeInput.select();
         }
-      }, 100);
+      }, 200);
     }
-  }, [billItems]);
+  }, [displayedItems, loading]);
 
   const handleItemChange = (index: number, field: keyof BillItem, value: string | number) => {
     const item = displayedItems[index];

@@ -29,12 +29,14 @@ interface MenuItem {
   kotNo?: number;
   txnDetailId?: number;
   isReverse?: boolean; // Added for reverse quantity items
+  revQty?: number;
 }
 
 interface ReversedMenuItem extends MenuItem {
   isReversed: true;
   reversalLogId: number;
   status: 'Reversed';
+  
 }
 
 interface TableItem {
@@ -4385,7 +4387,19 @@ background: darkgreen;
                         }}
                       >
                         <span style={{ textAlign: 'left', paddingLeft: '0.5rem',  }}>
-                          {item.name} {isFullyReversed && <span style={{ fontSize: '0.75em', fontStyle: 'italic' }}>(Reversed)</span>}
+                          {item.name} {isFullyReversed && (
+                            <>
+                              <span style={{ fontSize: '0.75em', fontStyle: 'italic' }}></span>
+                              <span className="text-muted ms-2" style={{ fontSize: '0.8em' }}>
+                                ({item.originalQty} → {displayQty})
+                              </span>
+                            </>
+                          )}
+                          {!isGroupedView && !isFullyReversed && (item as MenuItem).revQty && (item as MenuItem).revQty! > 0 && (
+                            <span className="text-muted ms-2" style={{ fontSize: '0.8em' }}>
+                              (Qty: {(item.qty + ((item as MenuItem).revQty || 0))} | Rev: {(item as MenuItem).revQty})
+                            </span>
+                          )}
                         </span>
                         <div className="text-center d-flex justify-content-center align-items-center gap-2">
                           <button
@@ -4461,10 +4475,7 @@ background: darkgreen;
                   });
                 })()
               )}
-              {/* Reversed Items Section - Only in Expanded View */}
-              {reversedItems.length > 0 && !isGroupedView && (
-                <ReversedItemsDisplay items={reversedItems} />
-              )}
+             
             </div>
             <div className="billing-panel-footer flex-shrink-0" style={{ backgroundColor: 'white' }}>
               <div className="d-flex flex-column flex-md-row gap-1 p-1">
@@ -5350,77 +5361,9 @@ background: darkgreen;
   );
 };
 
-const ReversedItemsDisplay = ({ items }: { items: ReversedMenuItem[] }) => {
-  if (items.length === 0) {
-    return null;
-  }
-
-return (
-  <div
-    className="rounded p-2"
-    style={{ backgroundColor: '#f8dede' }}
-  >
-    {items.map((item, index) => (
-      <div
-        key={index}
-        className="d-flex align-items-center py-0"
-        style={{ minHeight: 28 }}
-      >
-        {/* LEFT: Item name + qty */}
-       <div className="d-flex align-items-center gap-2 flex-grow-1">
-  {/* 🔴 KOT NO BADGE */}
-  <span
-    className="badge bg-danger"
-    style={{
-      fontSize: 10,
-      padding: '2px 5px',
-      lineHeight: 1
-    }}
-  >
-    KOT {item.kotNo}
-  </span>
-
-  
-
-  {/* ITEM NAME */}
-  <span
-    className="fw-medium text-danger"
-    style={{ fontSize: 14, lineHeight: 1 }}
-  >
-    {item.name}
-  </span>
-  {/* 🔴 QTY BADGE */}
-  <span
-    className="badge bg-danger"
-    style={{
-      fontSize: 11,
-      padding: '2px 6px',
-      lineHeight: 1
-    }}
-  >
-    {item.qty}
-  </span>
-</div>
 
 
-        {/* RIGHT: Amount */}
-        <div
-          className="text-end"
-          style={{ minWidth: 90, lineHeight: 1 }}
-        >
-          <div className="text-danger fw-bold" style={{ fontSize: 14 }}>
-            -{(item.price * item.qty).toFixed(2)}
-          </div>
-          <div className="text-muted" style={{ fontSize: 11 }}>
-            ({item.price.toFixed(2)})
-          </div>
-        </div>
-      </div>
-    ))}
-  </div>
-);
 
 
-};
 
 export default Order;
