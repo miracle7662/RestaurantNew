@@ -263,7 +263,7 @@ const Order = () => {
             isNew: false, // All items are existing
             originalQty: item.Qty,
             kotNo: item.KOTNo, // Use KOTNo from the item detail
-          })).filter((item: any) => item.qty > 0);
+          }));
 
           setItems(fetchedItems);
           setPersistentTxnId(header.TxnID);
@@ -3403,7 +3403,7 @@ const finalPrinterName: string = matchedPrinter.name;
             </div>
 
             {Object.values(
-              items.reduce((acc: any, item: any) => {
+              items.filter(i => i.qty > 0).reduce((acc: any, item: any) => {
                 const key = formData.show_items_sequence_bill ? `${item.id}-${item.price}` : String(item.id);
                 if (!acc[key]) acc[key] = { ...item, qty: 0 };
                 acc[key].qty += item.qty;
@@ -4321,7 +4321,7 @@ background: darkgreen;
                         }
                         return acc;
                       }, {} as Record<string, MenuItem & { displayQty: number; canEdit: boolean; kotNo?: number }>)
-                    )
+                    ).filter(item => item.displayQty > 0)
                     : sortedItems;
 
                   const kotColorMap = new Map<number, string>();
@@ -4339,6 +4339,7 @@ background: darkgreen;
                     const displayQty = isGroupedItem ? (item as any).displayQty : item.qty;
                     const isEditable = isGroupedItem ? (item as any).canEdit : !!item.isNew;
                     const isReverseClickable = reverseQtyMode && !isEditable && displayQty > 0;
+                    const isFullyReversed = !isGroupedItem && displayQty === 0;
 
                     let backgroundColor = 'transparent';
                     if (!isGroupedItem) {
@@ -4364,6 +4365,10 @@ background: darkgreen;
                       backgroundColor = '#fdfdfd';
                     }
 
+                    if (isFullyReversed) {
+                      backgroundColor = '#f8f9fa';
+                    }
+
                     return (
                       <div
                         key={isGroupedItem ? `${item.id}-${item.price}-${index}` : (item.txnDetailId ?? `new-${item.id}-${index}`)}
@@ -4375,10 +4380,13 @@ background: darkgreen;
                           backgroundColor: backgroundColor,
                           fontSize: '0.9rem',
                           minHeight: '40px',
-                          borderBottom: '1px solid #eee'
+                          borderBottom: '1px solid #eee',
+                          color: isFullyReversed ? '#adb5bd' : 'inherit',
                         }}
                       >
-                        <span style={{ textAlign: 'left', paddingLeft: '0.5rem' }}>{item.name}</span>
+                        <span style={{ textAlign: 'left', paddingLeft: '0.5rem',  }}>
+                          {item.name} {isFullyReversed && <span style={{ fontSize: '0.75em', fontStyle: 'italic' }}>(Reversed)</span>}
+                        </span>
                         <div className="text-center d-flex justify-content-center align-items-center gap-2">
                           <button
                             className="btn btn-danger btn-sm"
@@ -4390,7 +4398,7 @@ background: darkgreen;
                                 handleReverseQty(item as MenuItem);
                               }
                             }}
-                            disabled={!isEditable && !isReverseClickable}
+                            disabled={(!isEditable && !isReverseClickable) || isFullyReversed}
                           >
                             −
                           </button>
@@ -4410,7 +4418,7 @@ background: darkgreen;
                           <input
                             type="number"
                             value={displayQty}
-                            readOnly={isGroupedItem || !isEditable}
+                            readOnly={isGroupedItem || !isEditable || isFullyReversed}
                             onChange={(e) => {
                               if (isGroupedItem || !isEditable) return;
                               const newQty = parseInt(e.target.value) || 0;
@@ -4435,7 +4443,7 @@ background: darkgreen;
                             className="btn btn-success btn-sm"
                             style={{ padding: '0 5px', lineHeight: '1' }}
                             onClick={() => handleIncreaseQty(item.id)}
-                            disabled={!isEditable}
+                            disabled={!isEditable || isFullyReversed}
                           >
                             +
                           </button>
