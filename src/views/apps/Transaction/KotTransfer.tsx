@@ -23,7 +23,7 @@ const getRowColor = (kotNo: string | number | null | undefined) => {
 interface KotTransferProps {
   onCancel?: () => void;
   onSuccess?: () => void;
-  transferSource?: "table" | "kot";
+  transferSource?: "table" | "kot" | "ORDER";
   sourceTableId?: number | null;
   pax?: number;
 }
@@ -78,7 +78,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
   const [latestKOT, setLatestKOT] = useState<number | null>(null);
   const [allItems, setAllItems] = useState<Item[]>([]);
 
-  const [transferMode, setTransferMode] = useState<"table" | "kot">(transferSource);
+  const [transferMode, setTransferMode] = useState<"table" | "kot" | "ORDER">(transferSource);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [selectedOption, setSelectedOption] = useState<'no' | 'yes'>('no');
   const [transferDone, setTransferDone] = useState(false);
@@ -88,7 +88,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
 
   useEffect(() => {
     setTransferMode(transferSource);
-    if (transferSource === "table") {
+    if (transferSource === "table" || transferSource === "ORDER") {
       setSelectedKOT(-1);
     } else if (transferSource === "kot") {
       setSelectedKOT(latestKOT);
@@ -251,7 +251,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
 
   // Function to update selectedItems based on selectedKOT and transferMode
   const updateSelectedItems = () => {
-    if (transferMode === "table") {
+    if (transferMode === "table" || transferMode === "ORDER") {
       setSelectedItems(allItems.map(item => ({ ...item, selected: true })));
     } else if (selectedKOT !== null && selectedKOT !== -1) {
       const filteredItems = allItems.filter(item => item.kot === selectedKOT).map(item => ({ ...item, selected: true }));
@@ -282,7 +282,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
 
   const selectedCount = selectedItems.filter(item => item.selected).length;
   const totalItemsCount = selectedItems.length;
-  const isTableMode = transferMode === "table";
+  const isTableMode = transferMode === "table" || transferMode === "ORDER";
   const effectiveSelectedCount = isTableMode ? totalItemsCount : selectedCount;
   const effectiveSelectedAmount = isTableMode ? selectedItems.reduce((sum, item) => sum + (item.price * item.qty), 0) : totalSelectedAmount;
   const billDate = new Date().toISOString().split('T')[0];
@@ -296,9 +296,9 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
   };
 
 
-  const handleTransferTypeChange = (type: "table" | "kot") => {
+  const handleTransferTypeChange = (type: "table" | "kot" | "ORDER") => {
     setTransferMode(type);
-    if (type === "table") {
+    if (type === "table" || type === "ORDER") {
       setSelectedKOT(-1); // Special value for "All KOTs"
       const updated = selectedItems.map(item => ({ ...item, selected: true }));
       setSelectedItems(updated);
@@ -472,7 +472,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
       let payload;
       let endpoint;
 
-      if (transferMode === "table") {
+      if (transferMode === "table" || transferMode === "ORDER") {
         // For table transfer, use simpler payload
         payload = {
           sourceTableId: selectedTableId,
@@ -568,7 +568,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
         <div className="d-flex justify-content-between align-items-center mb-2 p-2 bg-white rounded shadow-sm" style={{ minHeight: "60px" }}>
           <div className="d-flex gap-2">
             <Button
-              variant={transferMode === "table" ? "primary" : "outline-primary"}
+              variant={transferMode === "table" || transferMode === "ORDER" ? "primary" : "outline-primary"}
               onClick={() => handleTransferTypeChange("table")}
               style={{ fontWeight: 600, padding: "8px 20px", fontSize: "0.9rem" }}
               disabled={transferSource === "kot"}
@@ -579,13 +579,13 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
               variant={transferMode === "kot" ? "primary" : "outline-primary"}
               onClick={() => handleTransferTypeChange("kot")}
               style={{ fontWeight: 600, padding: "8px 20px", fontSize: "0.9rem" }}
-              disabled={transferSource === "table"}
+              disabled={transferSource === "table" || transferSource === "ORDER"}
             >
               TRANSFER KOT'S
             </Button>
           </div>
           <h2 className="fw-bold text-secondary m-0" style={{ fontSize: "1.5rem" }}>
-            {transferMode === "table" ? "Selected Table (All KOTs)" : "Selected KOT Only"}
+            {transferMode === "table" || transferMode === "ORDER" ? "Selected Table (All KOTs)" : "Selected KOT Only"}
           </h2>
           <Badge bg="primary" style={{ fontSize: "0.9rem", padding: "8px 16px" }}>
             {effectiveSelectedCount} item{effectiveSelectedCount !== 1 ? 's' : ''} selected

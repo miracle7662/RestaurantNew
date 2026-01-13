@@ -94,7 +94,7 @@ const Order = () => {
   const [departments, setDepartments] = useState<DepartmentItem[]>([]);
   const [tableSearchInput, setTableSearchInput] = useState<string>('');
   const tableSearchInputRef = useRef<HTMLInputElement>(null);
-  const [selectedTableId,] = useState<number | null>(null);
+  const [sourceTableId, setSourceTableId] = useState<number | null>(null);
   const [mobileNumber, setMobileNumber] = useState<string>('');
   const [customerName, setCustomerName] = useState<string>('');
   const [taxRates, setTaxRates] = useState<{ cgst: number; sgst: number; igst: number; cess: number }>({ cgst: 0, sgst: 0, igst: 0, cess: 0 });
@@ -1037,6 +1037,8 @@ const Order = () => {
         const tableIdNum = Number(selectedTableObj.tableid ?? selectedTableObj.tablemanagementid);
         const deptId = Number(selectedTableObj.departmentid) || null;
         const outletId = Number(selectedTableObj.outletid) || (user?.outletid ? Number(user.outletid) : null);
+        setSourceTableId(tableIdNum);
+        console.log("SOURCE TABLE ID:", tableIdNum);
 
         setSelectedDeptId(deptId);
         setSelectedOutletId(outletId);
@@ -1084,6 +1086,7 @@ const Order = () => {
       setCurrentTxnId(null);
       setPersistentTxnId(null);
       setOrderNo(null);
+      setSourceTableId(null);
 
       setCurrentKOTNo(null);
       setCurrentKOTNos([]);
@@ -1191,8 +1194,8 @@ const Order = () => {
       }
 
       // 🧩 Dine-in billed order refresh
-      if (item.isBilled === 1 && selectedTableId) {
-        refreshItemsForTable(selectedTableId);
+      if (item.isBilled === 1 && sourceTableId) {
+        refreshItemsForTable(sourceTableId);
       }
 
       // This block now handles all scenarios (Dine-in, Pickup, Delivery)
@@ -1976,6 +1979,7 @@ const finalPrinterName: string = matchedPrinter.name;
         // IMPORTANT
         setPersistentTxnId(null);
         setPersistentTableId(null);
+        setSourceTableId(null);
 
         // After printing, decide what to do based on focusMode
         if (activeTab === 'Pickup' || activeTab === 'Delivery') {
@@ -2103,6 +2107,7 @@ const finalPrinterName: string = matchedPrinter.name;
       setCurrentKOTNo(null);
       setCurrentKOTNos([]);
       setOrderNo(null);
+      setSourceTableId(null);
 
       // 6. Refresh table list
       fetchTableManagement();
@@ -2178,6 +2183,7 @@ const finalPrinterName: string = matchedPrinter.name;
         setReverseQtyMode(false);
         setShowSaveReverseButton(false);
         setReverseQtyItems([]);
+        setSourceTableId(null);
         fetchTableManagement(); // Refresh table statuses to show green
       } else {
         throw new Error(result.message || 'Failed to process reverse KOT.');
@@ -2233,9 +2239,9 @@ const finalPrinterName: string = matchedPrinter.name;
         setIsSaveReverseDisabled(false);
         setReverseQtyItems([]); // Initialize empty for reversals
         // Refresh items to get latest net qty from backend
-        if (selectedTableId) {
+        if (sourceTableId) {
           try {
-            await refreshItemsForTable(selectedTableId);
+            await refreshItemsForTable(sourceTableId);
           } catch (refreshError) {
             console.error('Error refreshing items after F8 auth:', refreshError);
             toast.error('Failed to refresh items. Please try again.');
@@ -2377,6 +2383,7 @@ const finalPrinterName: string = matchedPrinter.name;
             setOrderNo(null);
             setCurrentKOTNo(null);
             setCurrentKOTNos([]);
+            setSourceTableId(null);
           } else {
             setF9BilledPasswordError(reverseData.message || 'Failed to reverse the bill.');
           }
@@ -2584,7 +2591,7 @@ const finalPrinterName: string = matchedPrinter.name;
         discount: appliedDiscount,
         discPer: appliedDiscPer,
         discountType: DiscountType,
-        tableId: selectedTableId,
+        tableId: sourceTableId,
         items: items, // Send current items to recalculate on backend
       };
 
@@ -2615,14 +2622,14 @@ const finalPrinterName: string = matchedPrinter.name;
             )
           );
           // The backend now handles setting isBilled=0, so a refresh will show correct state.
-          if (selectedTableId) {
-            await refreshItemsForTable(selectedTableId);
+          if (sourceTableId) {
+            await refreshItemsForTable(sourceTableId);
           }
         }
       }
 
-      if (selectedTableId) {
-        await refreshItemsForTable(selectedTableId);
+      if (sourceTableId) {
+        await refreshItemsForTable(sourceTableId);
       }
 
     } catch (error: any) {
@@ -2977,9 +2984,6 @@ const finalPrinterName: string = matchedPrinter.name;
     setShowBillPreviewModal(true);
   };
 
-  if (showKotTransfer) {
-    return <KotTransfer onCancel={() => setShowKotTransfer(false)} />;
-  }
   return (
     <div className="container-fluid p-0 m-0 fade-in" style={{ height: '100vh' }}>
       {/* Hidden KOT Preview for Printing */}
@@ -4753,6 +4757,7 @@ background: darkgreen;
                           variant="info"
                           className="rounded-circle p-0 d-flex justify-content-center align-items-center"
                           style={{ width: '32px', height: '32px' }}
+                          disabled={!sourceTableId || items.length === 0}
                           onClick={() => {
                             setShowOptions(false);
                             setShowKotTransfer(true);
@@ -5312,6 +5317,23 @@ background: darkgreen;
               <Button variant="secondary" onClick={handleCloseAuthModal}>Cancel</Button>
               <Button variant="primary" onClick={handleAuth}>Submit</Button>
             </Modal.Footer>
+          </Modal>
+
+          <Modal show={showKotTransfer} onHide={() => setShowKotTransfer(false)} size="xl" centered>
+            <Modal.Header closeButton>
+              <Modal.Title>KOT Transfer</Modal.Title>
+            </Modal.Header>
+            <Modal.Body className="p-0">
+              <KotTransfer
+                transferSource="ORDER"
+                sourceTableId={sourceTableId}
+                onCancel={() => setShowKotTransfer(false)}
+                onSuccess={() => {
+                  setShowKotTransfer(false);
+                  if (sourceTableId) refreshItemsForTable(sourceTableId);
+                }}
+              />
+            </Modal.Body>
           </Modal>
         </div>
       </div>
