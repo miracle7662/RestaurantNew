@@ -5392,7 +5392,6 @@ onClick={() => {
   <Modal.Body className="p-0">
     <KotTransfer
  
-  mode={transferMode}       // "table" or "kot"
   transferSource={transferMode}       // "table" or "kot"
   sourceTableId={sourceTableId}
   onCancel={() => setShowTransferModal(false)}
