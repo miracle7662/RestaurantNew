@@ -4394,7 +4394,6 @@ background: darkgreen;
 <span className="item-name">
   {item.name}
 
-  {(item.revQty ?? 0) > 0 && (
   {isExpanded && (item.revQty ?? 0) > 0 && (
     <span className="text-muted ms-2">
       (
