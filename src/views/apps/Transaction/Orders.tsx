@@ -1808,22 +1808,6 @@ const Order = () => {
           setCurrentKOTNos(receivedKotNo ? [receivedKotNo] : []);
         }
 
-        // For Dine-in, Pickup, Delivery, and Quick Bill, clear items and numbers to ready the panel for the next order.
-        if (['Dine-in', 'Pickup', 'Delivery', 'Quick Bill'].includes(activeTab)) {
-          setItems([]);
-          setOrderNo(null);
-          setCurrentTxnId(null);
-          setCurrentKOTNo(null);
-          setCurrentKOTNos([]);
-        }
-
-        // Clear reverse items after successful save and deactivate Reverse Mode
-        if (reverseItemsToKOT.length > 0) {
-          setReverseQtyItems([]);
-          setReverseQtyMode(false);
-          setIsGroupedView(true); // Reset to grouped view after deactivating reverse mode
-        }
-
         // Optimistically update the table status to green (1)
         if (selectedTable) {
           setTableItems(prevTables =>
@@ -1975,6 +1959,24 @@ const finalPrinterName: string = matchedPrinter.name;
 
         setIsPrintMode(false);
 
+        // 🔥 HARD RESET after KOT save
+        setItems([]);
+        setPrintItems([]);
+        setReverseQtyItems([]);
+        setReversedItems([]);
+        setReverseQtyMode(false);
+        setIsGroupedView(true);
+
+        setCurrentKOTNo(null);
+        setCurrentKOTNos([]);
+
+        setCurrentTxnId(null);
+        setOrderNo(null);
+
+        // IMPORTANT
+        setPersistentTxnId(null);
+        setPersistentTableId(null);
+
         // After printing, decide what to do based on focusMode
         if (activeTab === 'Pickup' || activeTab === 'Delivery') {
           // For these tabs, refresh the pending orders list and show it.
@@ -1990,6 +1992,7 @@ const finalPrinterName: string = matchedPrinter.name;
           setTriggerFocusInDetails(c => c + 1);
         } else {
           // For Dine-in with Focus Mode OFF
+          // Unselect table so refetch does NOT run
           setSelectedTable(null); // Clear selection
           setShowOrderDetails(false);
         }
