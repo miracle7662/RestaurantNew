@@ -2196,6 +2196,9 @@ const Order = () => {
             });
           }
         }
+
+
+
         // Open print preview for the reverse KOT
         const printWindow = window.open('', '_blank');
         if (printWindow) {
