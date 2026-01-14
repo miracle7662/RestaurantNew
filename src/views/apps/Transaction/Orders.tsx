@@ -2636,27 +2636,30 @@ const Order = () => {
       setShowDiscountModal(false);
       // Instead of clearing the table, just refresh its data to show the discount.
       // If the table was billed, applying a discount should make it 'occupied' (green) again.
-      const wasBilled = items.some(item => item.isBilled === 1);
-      if (wasBilled && selectedTable) {
-        const tableToUpdate = tableItems.find(t => t.table_name === selectedTable);
-        if (tableToUpdate) {
-          // Optimistically update UI to green
-          setTableItems(prevTables =>
-            prevTables.map(table =>
-              table.table_name === selectedTable ? { ...table, status: 1 } : table
-            )
-          );
-          // The backend now handles setting isBilled=0, so a refresh will show correct state.
-          if (sourceTableId) {
-            await refreshItemsForTable(sourceTableId);
-          }
-        }
-      }
+     // keep table green
+if (selectedTable) {
+  setTableItems(prev =>
+    prev.map(t =>
+      t.table_name === selectedTable ? { ...t, status: 1 } : t
+    )
+  );
+}
 
+// clear order UI
+setItems([]);
+setSelectedTable(null);
+setShowOrderDetails(false);
+setCurrentKOTNo(null);
+setCurrentKOTNos([]);
+setSourceTableId(null);
+setDiscount(0);
+setDiscountInputValue(0);
+setDiscountType(1);
+setReverseQtyMode(false);
+setReverseQtyItems([]);
+setShowSaveReverseButton(false);
+setShowPrintBoth(false);
 
-      if (sourceTableId) {
-        await refreshItemsForTable(sourceTableId);
-      }
 
     } catch (error: any) {
       toast.error(error.message || 'An error occurred while applying the discount.');
