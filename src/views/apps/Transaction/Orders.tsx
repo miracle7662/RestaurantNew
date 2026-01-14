@@ -1193,57 +1193,78 @@ const Order = () => {
     });
   };
 
-  const handleReverseQty = async (item: MenuItem) => {
-    try {
-      // 🧩 Check reverse mode for billed items
-      if (item.isBilled === 1 && !reverseQtyMode) {
-        toast.error('Reverse quantity mode must be activated for billed items.');
-        return;
-      }
-
-      // 🧩 Prevent reversing all items
-      if (item.isBilled === 1 && items.length === 1 && items[0].qty === 1) {
-        toast.error("At least one item must remain. You cannot reverse all items.");
-        return;
-      }
-
-      // 🧩 Dine-in billed order refresh
-      if (item.isBilled === 1 && sourceTableId) {
-        refreshItemsForTable(sourceTableId);
-      }
-
-      // This block now handles all scenarios (Dine-in, Pickup, Delivery)
-      if (reverseQtyMode) {
-        setItems(currentItems => {
-          const itemIndex = currentItems.findIndex(i => i.txnDetailId === item.txnDetailId);
-          if (itemIndex > -1) {
-            const updatedItems = [...currentItems];
-            const currentItem = updatedItems[itemIndex];
-            if (currentItem.qty > 0) {
-              updatedItems[itemIndex] = { ...currentItem, qty: currentItem.qty - 1 };
-            }
-            return updatedItems;
-          }
-          return currentItems;
-        });
-
-        setReverseQtyItems(prev => {
-          const existing = prev.find(ri => ri.txnDetailId === item.txnDetailId);
-          if (existing) {
-            return prev.map(ri =>
-              ri.txnDetailId === item.txnDetailId ? { ...ri, qty: ri.qty + 1 } : ri
-            );
-          }
-          return [...prev, { ...item, qty: 1, isReverse: true }];
-        });
-        setShowSaveReverseButton(true);
-      }
-
-    } catch (error) {
-      console.error('❌ Error processing reverse quantity:', error);
-      toast.error('Error processing reverse quantity');
+const handleReverseQty = async (item: MenuItem) => {
+  try {
+    // 🔒 Reverse mode required for billed items
+    if (item.isBilled === 1 && !reverseQtyMode) {
+      toast.error('Reverse quantity mode must be activated for billed items.');
+      return;
     }
-  };
+
+    // 🔒 Prevent full reverse
+    if (
+      item.isBilled === 1 &&
+      item.originalQty !== undefined &&
+      (item.revQty ?? 0) >= item.originalQty
+    ) {
+      toast.error("Cannot reverse full quantity.");
+      return;
+    }
+
+    if (!reverseQtyMode) return;
+
+    // ✅ 1. UPDATE ITEMS (UI STATE)
+    setItems(prev =>
+      prev.map(i => {
+        if (i.txnDetailId !== item.txnDetailId) return i;
+
+        const originalQty = i.originalQty ?? i.qty;
+        const currentRev = i.revQty ?? 0;
+        const newRev = currentRev + 1;
+
+        if (newRev > originalQty) return i;
+
+        return {
+          ...i,
+          revQty: newRev,
+          qty: originalQty - newRev, // 🔥 UI SYNC FIX
+        };
+      })
+    );
+
+    // ✅ 2. UPDATE reverseQtyItems (SAVE KOT payload)
+   setReverseQtyItems(prev => {
+  const existing = prev.find(p => p.txnDetailId === item.txnDetailId);
+
+  if (existing) {
+    return prev.map(p =>
+      p.txnDetailId === item.txnDetailId
+        ? { ...p, revQty: (p.revQty ?? 0) + 1 }
+        : p
+    );
+  }
+
+  // ✅ FULL MenuItem object (Type-safe)
+  return [
+    ...prev,
+    {
+      ...item,          // includes all required fields
+      revQty: 1,
+      qty: 1,            // reverse qty tracker
+      isReverse: true,
+    },
+  ];
+});
+
+
+    setShowSaveReverseButton(true);
+  } catch (error) {
+    console.error('❌ Error processing reverse quantity:', error);
+    toast.error('Error processing reverse quantity');
+  }
+};
+
+
 
 
   useEffect(() => {
