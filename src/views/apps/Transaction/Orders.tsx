@@ -2190,15 +2190,26 @@ const finalPrinterName: string = matchedPrinter.name;
         }
 
         // For both partial and full reversals, reset the UI state and refresh tables.
-        setItems([]);
-        setReversedItems([]);
-        setSelectedTable(null);
-        setShowOrderDetails(false);
-        setReverseQtyMode(false);
-        setShowSaveReverseButton(false);
-        setReverseQtyItems([]);
-        setSourceTableId(null);
-        fetchTableManagement(); // Refresh table statuses to show green
+      // For both partial and full reversals, reset the UI state and refresh tables.
+setItems([]);
+setReversedItems([]);
+setSelectedTable(null);
+setShowOrderDetails(false);
+setReverseQtyMode(false);
+setShowSaveReverseButton(false);
+setReverseQtyItems([]);
+setSourceTableId(null);
+
+// 🔴 MISSING BUT REQUIRED
+setCurrentKOTNo(null);
+setCurrentKOTNos([]);
+
+// 🔴 VERY IMPORTANT (transaction lifecycle reset)
+setPersistentTxnId(null);
+setPersistentTableId(null);
+
+fetchTableManagement();
+
       } else {
         throw new Error(result.message || 'Failed to process reverse KOT.');
       }
@@ -2641,6 +2652,7 @@ const finalPrinterName: string = matchedPrinter.name;
           }
         }
       }
+      
 
       if (sourceTableId) {
         await refreshItemsForTable(sourceTableId);
