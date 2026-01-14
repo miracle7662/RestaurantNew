@@ -1503,7 +1503,7 @@ const removePaymentMode = (modeName: string) => {
         {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ NCName: ncName, NCPurpose: ncPurpose }),
+          body: JSON.stringify({ NCName: ncName, NCPurpose: ncPurpose, userId: user?.id }),
         }
       );
 
@@ -1800,8 +1800,7 @@ const generateBill = async () => {
         await loadBillForTable(tableId);
       }
 
-      // Navigate to tableview page after applying discount
-      navigate('/apps/Tableview');
+     
 
     } catch (error: any) {
       toast.error(error.message || 'An error occurred while applying the discount.');

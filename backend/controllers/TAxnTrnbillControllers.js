@@ -1731,7 +1731,7 @@ exports.getUnbilledItemsByTable = async (req, res) => {
       db
         .prepare(
           `
-      SELECT TxnID, GrossAmt, RevKOT, Discount, DiscPer, DiscountType, CGST, SGST, IGST, CESS, RoundOFF, Amount, PAX
+      SELECT TxnID, GrossAmt, RevKOT, Discount, DiscPer, DiscountType, CGST, SGST, IGST, CESS, RoundOFF, Amount, PAX, CustomerName, MobileNo
       FROM TAxnTrnbill
       WHERE TableID = ? AND isBilled = 0 AND isCancelled = 0
       ORDER BY TxnID DESC
@@ -2388,7 +2388,7 @@ exports.printBill = async (req, res) => {
 exports.markBillAsBilled = async (req, res) => {
   try {
     const { id } = req.params
-    const { outletId } = req.body // ✅ Get outletId from body
+    const { outletId, customerName, mobileNo } = req.body // ✅ Get outletId from body
 
     const bill = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id))
     if (!bill) {
@@ -2408,10 +2408,10 @@ exports.markBillAsBilled = async (req, res) => {
     db.prepare(
       `
       UPDATE TAxnTrnbill
-      SET isBilled = 1, BilledDate = CURRENT_TIMESTAMP, TxnNo = ?
+      SET isBilled = 1, BilledDate = CURRENT_TIMESTAMP, TxnNo = ?, CustomerName = COALESCE(?, CustomerName), MobileNo = COALESCE(?, MobileNo)
       WHERE TxnID = ?
     `,
-    ).run(txnNo, Number(id))
+    ).run(txnNo, customerName || null, mobileNo || null, Number(id))
 
     const header = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id))
     const items = db

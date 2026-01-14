@@ -326,6 +326,9 @@ const resetBillingPanel = () => {
             setDiscount(0);
             setDiscountInputValue(0);
           }
+          // ✅ Restore customer details from billed transaction
+          setCustomerName(header.CustomerName || '');
+          setMobileNumber(header.MobileNo || '');
           // Also fetch and set reversed items for the billed transaction
           const fetchedReversedItems: ReversedMenuItem[] = (billedBillData.data.reversedItems || []).map((item: any) => ({
             ...item,
@@ -421,6 +424,9 @@ const resetBillingPanel = () => {
           setDiscountInputValue(header.DiscountType === 1 ? header.DiscPer : header.Discount || 0);
           setDiscountType(header.DiscountType !== null ? header.DiscountType : 1);
         }
+        // ✅ Restore customer details from unbilled transaction
+        setCustomerName(header.CustomerName || '');
+        setMobileNumber(header.MobileNo || '');
       } else {
         setItems([]);
         setReversedItems([]);
@@ -1553,6 +1559,8 @@ const resetBillingPanel = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           outletId: selectedOutletId || Number(user?.outletid),
+          customerName: customerName || null,
+          mobileNo: mobileNumber || null,
         }),
       });
 
@@ -2032,6 +2040,9 @@ const resetBillingPanel = () => {
         setPersistentTxnId(null);
         setPersistentTableId(null);
         setSourceTableId(null);
+        // ✅ Clear customer details after KOT save
+       setMobileNumber('');
+       setCustomerName('');
 
         // After printing, decide what to do based on focusMode
         if (activeTab === 'Pickup' || activeTab === 'Delivery') {
@@ -2711,19 +2722,7 @@ const resetBillingPanel = () => {
       }
 
       // clear order UI
-      setItems([]);
-      setSelectedTable(null);
-      setShowOrderDetails(false);
-      setCurrentKOTNo(null);
-      setCurrentKOTNos([]);
-      setSourceTableId(null);
-      setDiscount(0);
-      setDiscountInputValue(0);
-      setDiscountType(1);
-      setReverseQtyMode(false);
-      setReverseQtyItems([]);
-      setShowSaveReverseButton(false);
-      setShowPrintBoth(false);
+     
 
 
     } catch (error: any) {
