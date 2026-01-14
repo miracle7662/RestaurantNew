@@ -2188,6 +2188,10 @@ const Order = () => {
         if (activeTab === 'Pickup' || activeTab === 'Delivery') {
           handlePendingOrderTabClick(activeTab.toLowerCase() as 'pickup' | 'delivery');
         }
+        
+        
+
+        
 
         // For both partial and full reversals, reset the UI state and refresh tables.
         // For both partial and full reversals, reset the UI state and refresh tables.
@@ -2199,6 +2203,9 @@ const Order = () => {
         setShowSaveReverseButton(false);
         setReverseQtyItems([]);
         setSourceTableId(null);
+        setDiscount(0);
+        setDiscountInputValue(0);
+        setRoundOffValue(0);
 
         // 🔴 MISSING BUT REQUIRED
         setCurrentKOTNo(null);
@@ -2636,29 +2643,29 @@ const Order = () => {
       setShowDiscountModal(false);
       // Instead of clearing the table, just refresh its data to show the discount.
       // If the table was billed, applying a discount should make it 'occupied' (green) again.
-     // keep table green
-if (selectedTable) {
-  setTableItems(prev =>
-    prev.map(t =>
-      t.table_name === selectedTable ? { ...t, status: 1 } : t
-    )
-  );
-}
+      // keep table green
+      if (selectedTable) {
+        setTableItems(prev =>
+          prev.map(t =>
+            t.table_name === selectedTable ? { ...t, status: 1 } : t
+          )
+        );
+      }
 
-// clear order UI
-setItems([]);
-setSelectedTable(null);
-setShowOrderDetails(false);
-setCurrentKOTNo(null);
-setCurrentKOTNos([]);
-setSourceTableId(null);
-setDiscount(0);
-setDiscountInputValue(0);
-setDiscountType(1);
-setReverseQtyMode(false);
-setReverseQtyItems([]);
-setShowSaveReverseButton(false);
-setShowPrintBoth(false);
+      // clear order UI
+      setItems([]);
+      setSelectedTable(null);
+      setShowOrderDetails(false);
+      setCurrentKOTNo(null);
+      setCurrentKOTNos([]);
+      setSourceTableId(null);
+      setDiscount(0);
+      setDiscountInputValue(0);
+      setDiscountType(1);
+      setReverseQtyMode(false);
+      setReverseQtyItems([]);
+      setShowSaveReverseButton(false);
+      setShowPrintBoth(false);
 
 
     } catch (error: any) {
