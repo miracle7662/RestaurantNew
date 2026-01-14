@@ -5395,10 +5395,16 @@ onClick={() => {
   transferSource={transferMode}       // "table" or "kot"
   sourceTableId={sourceTableId}
   onCancel={() => setShowTransferModal(false)}
-  onSuccess={() => {
-    setShowTransferModal(false);
-    if (sourceTableId) refreshItemsForTable(sourceTableId);
-  }}
+ onSuccess={() => {
+  setShowTransferModal(false);
+
+  if (sourceTableId) {
+    refreshItemsForTable(sourceTableId); // order panel refresh
+  }
+
+  fetchTableManagement(); // ⭐ TABLE STATUS refresh
+}}
+
 />
 
 
