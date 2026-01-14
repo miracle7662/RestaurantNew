@@ -1193,65 +1193,65 @@ const Order = () => {
     });
   };
 
-const handleReverseQty = async (item: MenuItem) => {
-  try {
-    // 🔒 Reverse mode required for billed items
-    if (item.isBilled === 1 && !reverseQtyMode) {
-      toast.error('Reverse quantity mode must be activated for billed items.');
-      return;
+  const handleReverseQty = async (item: MenuItem) => {
+    try {
+      // 🔒 Reverse mode required for billed items
+      if (item.isBilled === 1 && !reverseQtyMode) {
+        toast.error('Reverse quantity mode must be activated for billed items.');
+        return;
+      }
+
+      // 🔒 Prevent full reverse
+      // 🔒 Prevent reversing ALL items for billed orders
+      if (item.isBilled === 1) {
+        const totalRemainingQty = items.reduce((sum, i) => sum + i.qty, 0);
+
+        // Agar abhi sirf 1 qty bachi hai, to reverse mat allow karo
+        if (totalRemainingQty <= 1) {
+          toast.error(
+            "At least one item must remain on the table. You cannot reverse all items."
+          );
+          return;
+        }
+      }
+
+      if (!reverseQtyMode) return;
+
+      // ✅ 1. UPDATE ITEMS (UI STATE)
+      setItems(prev =>
+        prev.map(i => {
+          if (i.txnDetailId !== item.txnDetailId) return i;
+
+          const originalQty = i.originalQty ?? i.qty;
+          const currentRev = i.revQty ?? 0;
+          const newRev = currentRev + 1;
+
+          if (newRev > originalQty) return i;
+
+          return {
+            ...i,
+            revQty: newRev,
+            qty: originalQty - newRev, // 🔥 UI SYNC FIX
+          };
+        })
+      );
+
+      // ✅ 2. UPDATE reverseQtyItems (SAVE KOT payload)
+      setReverseQtyItems(prev => {
+        const existing = prev.find(ri => ri.txnDetailId === item.txnDetailId);
+        if (existing) {
+          return prev.map(ri =>
+            ri.txnDetailId === item.txnDetailId ? { ...ri, qty: ri.qty + 1 } : ri
+          );
+        }
+        return [...prev, { ...item, qty: 1, isReverse: true }];
+      });
+      setShowSaveReverseButton(true);
+    } catch (error) {
+      console.error('❌ Error processing reverse quantity:', error);
+      toast.error('Error processing reverse quantity');
     }
-
-    // 🔒 Prevent full reverse
-   // 🔒 Prevent reversing ALL items for billed orders
-if (item.isBilled === 1) {
-  const totalRemainingQty = items.reduce((sum, i) => sum + i.qty, 0);
-
-  // Agar abhi sirf 1 qty bachi hai, to reverse mat allow karo
-  if (totalRemainingQty <= 1) {
-    toast.error(
-      "At least one item must remain on the table. You cannot reverse all items."
-    );
-    return;
-  }
-}
-
-    if (!reverseQtyMode) return;
-
-    // ✅ 1. UPDATE ITEMS (UI STATE)
-    setItems(prev =>
-      prev.map(i => {
-        if (i.txnDetailId !== item.txnDetailId) return i;
-
-        const originalQty = i.originalQty ?? i.qty;
-        const currentRev = i.revQty ?? 0;
-        const newRev = currentRev + 1;
-
-        if (newRev > originalQty) return i;
-
-        return {
-          ...i,
-          revQty: newRev,
-          qty: originalQty - newRev, // 🔥 UI SYNC FIX
-        };
-      })
-    );
-
-    // ✅ 2. UPDATE reverseQtyItems (SAVE KOT payload)
-   setReverseQtyItems(prev => {
-          const existing = prev.find(ri => ri.txnDetailId === item.txnDetailId);
-          if (existing) {
-            return prev.map(ri =>
-              ri.txnDetailId === item.txnDetailId ? { ...ri, qty: ri.qty + 1 } : ri
-            );
-          }
-          return [...prev, { ...item, qty: 1, isReverse: true }];
-        });
-        setShowSaveReverseButton(true);
-      } catch (error) {
-    console.error('❌ Error processing reverse quantity:', error);
-    toast.error('Error processing reverse quantity');
-  }
-};
+  };
 
 
 
@@ -2176,18 +2176,26 @@ if (item.isBilled === 1) {
       if (result.success) {
         toast.success('Reverse KOT processed successfully.');
 
-         // 2️⃣ Table status update API call (green)
-   if (selectedTable) {
-        const tableToUpdate = tableItems.find(t => t.table_name === selectedTable);
-        if (tableToUpdate) {
-          await fetch(`http://localhost:3001/api/tablemanagement/${tableToUpdate.tableid}/status`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ status: 1 }), // 0 for Vacant
-          });
-        }
-      }
+        // 2️⃣ Table status update API call (green)
+        // 2️⃣ Table status update API call
+        if (selectedTable) {
+          const tableToUpdate = tableItems.find(t => t.table_name === selectedTable);
+          if (tableToUpdate) {
+            // Check if all items in table have qty fully reversed
+            const allReversed = items.every(item => {
+              const revItem = reverseQtyItems.find(r => r.item_no === item.item_no);
+              return revItem ? (item.qty - (revItem.revQty ?? 0)) <= 0 : item.qty <= 0;
+            });
 
+            const newStatus = allReversed ? 0 : 1; // 0 = Vacant, 1 = Running
+
+            await fetch(`http://localhost:3001/api/tablemanagement/${tableToUpdate.tableid}/status`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ status: newStatus }),
+            });
+          }
+        }
         // Open print preview for the reverse KOT
         const printWindow = window.open('', '_blank');
         if (printWindow) {
