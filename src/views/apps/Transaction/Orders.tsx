@@ -1202,14 +1202,18 @@ const handleReverseQty = async (item: MenuItem) => {
     }
 
     // 🔒 Prevent full reverse
-    if (
-      item.isBilled === 1 &&
-      item.originalQty !== undefined &&
-      (item.revQty ?? 0) >= item.originalQty
-    ) {
-      toast.error("Cannot reverse full quantity.");
-      return;
-    }
+   // 🔒 Prevent reversing ALL items for billed orders
+if (item.isBilled === 1) {
+  const totalRemainingQty = items.reduce((sum, i) => sum + i.qty, 0);
+
+  // Agar abhi sirf 1 qty bachi hai, to reverse mat allow karo
+  if (totalRemainingQty <= 1) {
+    toast.error(
+      "At least one item must remain on the table. You cannot reverse all items."
+    );
+    return;
+  }
+}
 
     if (!reverseQtyMode) return;
 
@@ -1234,31 +1238,16 @@ const handleReverseQty = async (item: MenuItem) => {
 
     // ✅ 2. UPDATE reverseQtyItems (SAVE KOT payload)
    setReverseQtyItems(prev => {
-  const existing = prev.find(p => p.txnDetailId === item.txnDetailId);
-
-  if (existing) {
-    return prev.map(p =>
-      p.txnDetailId === item.txnDetailId
-        ? { ...p, revQty: (p.revQty ?? 0) + 1 }
-        : p
-    );
-  }
-
-  // ✅ FULL MenuItem object (Type-safe)
-  return [
-    ...prev,
-    {
-      ...item,          // includes all required fields
-      revQty: 1,
-      qty: 1,            // reverse qty tracker
-      isReverse: true,
-    },
-  ];
-});
-
-
-    setShowSaveReverseButton(true);
-  } catch (error) {
+          const existing = prev.find(ri => ri.txnDetailId === item.txnDetailId);
+          if (existing) {
+            return prev.map(ri =>
+              ri.txnDetailId === item.txnDetailId ? { ...ri, qty: ri.qty + 1 } : ri
+            );
+          }
+          return [...prev, { ...item, qty: 1, isReverse: true }];
+        });
+        setShowSaveReverseButton(true);
+      } catch (error) {
     console.error('❌ Error processing reverse quantity:', error);
     toast.error('Error processing reverse quantity');
   }
