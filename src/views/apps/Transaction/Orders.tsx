@@ -220,6 +220,33 @@ const Order = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10); // You can make this configurable
 
+const resetBillingPanel = () => {
+  setItems([]);
+  setReversedItems([]);
+  setReverseQtyItems([]);
+
+  setOrderNo(null);
+  setCurrentTxnId(null);
+  setPersistentTxnId(null);
+  setPersistentTableId(null);
+
+  setCurrentKOTNo(null);
+  setCurrentKOTNos([]);
+
+  setDiscount(0);
+  setDiscountInputValue(0);
+  setDiscountType(1);
+
+  setReverseQtyMode(false);
+  setShowSaveReverseButton(false);
+  setIsSaveReverseDisabled(false);
+
+  setShowBillPreviewModal(false);
+  setShowSettlementModal(false);
+  setPrintItems([]);
+  // 🔴 TABLE NAME CLEAR
+  setSelectedTable(null);
+};
 
 
 
@@ -1501,6 +1528,7 @@ const Order = () => {
     setActiveTab('Dine-in'); // Switch back to the Dine-in tab
     setShowPendingOrdersView(false);
     setShowOrderDetails(false);
+     resetBillingPanel(); 
     setActiveNavTab('ALL'); // Show all department tables
   };
 
@@ -2194,8 +2222,10 @@ const Order = () => {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ status: newStatus }),
             });
+        
           }
         }
+        
 
 
 
