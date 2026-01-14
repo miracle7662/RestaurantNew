@@ -1356,6 +1356,7 @@ exports.createReverseKOT = async (req, res) => {
     console.log(`Generated RevKOT number: ${newRevKOTNo} for outlet ${outletid}`)
 
     const trx = db.transaction(() => {
+      let isFullReverse = false
       const updateDetailStmt = db.prepare(`
         UPDATE TAxnTrnbilldetails 
         SET RevQty = COALESCE(RevQty, 0) + ?, RevKOTNo = ?, KOTUsedDate = datetime('now')
@@ -1515,7 +1516,7 @@ exports.createReverseKOT = async (req, res) => {
         db.prepare(
           `
           UPDATE TAxnTrnbill
-          SET isreversebill = 0, isCancelled = 1, status = 0
+          SET isreversebill = 0, isCancelled = 1, status = 0, isSetteled = 1
           WHERE TxnID = ?
         `,
         ).run(txnId)
@@ -1529,11 +1530,23 @@ exports.createReverseKOT = async (req, res) => {
           `,
           ).run(tableId)
         }
-        return { fullReverse: true } // Indicate a full reversal
+        isFullReverse = true
       }
-      return { fullReverse: false } // Indicate a partial reversal
+
+      // After a partial reversal, the bill is no longer considered fully billed or settled.
+      // Reset these flags to allow for re-billing or further modifications.
+      if (!isFullReverse) {
+        db.prepare(
+          `
+        UPDATE TAxnTrnbill
+        SET isBilled = 0, isSetteled = 0
+        WHERE TxnID = ?
+      `,
+        ).run(txnId)
+      }
+      return { fullReverse: isFullReverse }
     })
-    const { fullReverse } = trx() // Execute transaction and get return value
+    const { fullReverse } = trx()
     res.json({
       success: true,
       message: fullReverse
