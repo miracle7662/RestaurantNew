@@ -2176,6 +2176,18 @@ if (item.isBilled === 1) {
       if (result.success) {
         toast.success('Reverse KOT processed successfully.');
 
+         // 2️⃣ Table status update API call (green)
+   if (selectedTable) {
+        const tableToUpdate = tableItems.find(t => t.table_name === selectedTable);
+        if (tableToUpdate) {
+          await fetch(`http://localhost:3001/api/tablemanagement/${tableToUpdate.tableid}/status`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 1 }), // 0 for Vacant
+          });
+        }
+      }
+
         // Open print preview for the reverse KOT
         const printWindow = window.open('', '_blank');
         if (printWindow) {
@@ -2198,11 +2210,6 @@ if (item.isBilled === 1) {
         if (activeTab === 'Pickup' || activeTab === 'Delivery') {
           handlePendingOrderTabClick(activeTab.toLowerCase() as 'pickup' | 'delivery');
         }
-        
-        
-
-        
-
         // For both partial and full reversals, reset the UI state and refresh tables.
         // For both partial and full reversals, reset the UI state and refresh tables.
         setItems([]);
