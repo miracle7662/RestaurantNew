@@ -38,7 +38,7 @@ interface ReversedMenuItem extends MenuItem {
   isReversed: true;
   reversalLogId: number;
   status: 'Reversed';
-  
+
 }
 
 interface TableItem {
@@ -170,8 +170,8 @@ const Order = () => {
   const [showTaxModal, setShowTaxModal] = useState<boolean>(false);
   const [showNCKOTModal, setShowNCKOTModal] = useState<boolean>(false);
   const [showKotTransfer, setShowKotTransfer] = useState<boolean>(false);
- const [showTransferModal, setShowTransferModal] = useState(false);
-const [transferMode, setTransferMode] = useState<"table" | "kot">("table");
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [transferMode, setTransferMode] = useState<"table" | "kot">("table");
 
 
   // KOT Print Settings state
@@ -554,7 +554,7 @@ const [transferMode, setTransferMode] = useState<"table" | "kot">("table");
   });
 
   const getTableButtonClass = (table: TableItem, isSelected: boolean) => {
-   
+
     // Use status for coloring: 0=available, 1=occupied/KOT saved, 2=billed/printed
     switch (table.status) {
       case 1: return 'btn-success'; // KOT saved/occupied (green)
@@ -1837,34 +1837,34 @@ const [transferMode, setTransferMode] = useState<"table" | "kot">("table");
         }
 
         // 1️⃣ Fetch printer from settings
-    const printer_name = await fetchKOTPrinter(resolvedOutletId);
+        const printer_name = await fetchKOTPrinter(resolvedOutletId);
 
-if (typeof printer_name !== "string" || !printer_name.trim()) {
-  toast.error("No KOT printer configured.");
-  return;
-}
+        if (typeof printer_name !== "string" || !printer_name.trim()) {
+          toast.error("No KOT printer configured.");
+          return;
+        }
 
-type SystemPrinter = {
-  name: string;
-  displayName?: string;
-};
+        type SystemPrinter = {
+          name: string;
+          displayName?: string;
+        };
 
-const systemPrinters: SystemPrinter[] =
-  await window.electronAPI.getInstalledPrinters();
+        const systemPrinters: SystemPrinter[] =
+          await window.electronAPI.getInstalledPrinters();
 
-const normalize = (s: string) =>
-  s.toLowerCase().replace(/\s+/g, "").trim();
+        const normalize = (s: string) =>
+          s.toLowerCase().replace(/\s+/g, "").trim();
 
-const matchedPrinter = systemPrinters.find(p =>
-  normalize(p.name).includes(normalize(printer_name))
-);
+        const matchedPrinter = systemPrinters.find(p =>
+          normalize(p.name).includes(normalize(printer_name))
+        );
 
-if (!matchedPrinter) {
-  toast.error(`Printer "${printer_name}" not found on this system.`);
-  return;
-}
+        if (!matchedPrinter) {
+          toast.error(`Printer "${printer_name}" not found on this system.`);
+          return;
+        }
 
-const finalPrinterName: string = matchedPrinter.name;
+        const finalPrinterName: string = matchedPrinter.name;
 
 
 
@@ -2190,25 +2190,25 @@ const finalPrinterName: string = matchedPrinter.name;
         }
 
         // For both partial and full reversals, reset the UI state and refresh tables.
-      // For both partial and full reversals, reset the UI state and refresh tables.
-setItems([]);
-setReversedItems([]);
-setSelectedTable(null);
-setShowOrderDetails(false);
-setReverseQtyMode(false);
-setShowSaveReverseButton(false);
-setReverseQtyItems([]);
-setSourceTableId(null);
+        // For both partial and full reversals, reset the UI state and refresh tables.
+        setItems([]);
+        setReversedItems([]);
+        setSelectedTable(null);
+        setShowOrderDetails(false);
+        setReverseQtyMode(false);
+        setShowSaveReverseButton(false);
+        setReverseQtyItems([]);
+        setSourceTableId(null);
 
-// 🔴 MISSING BUT REQUIRED
-setCurrentKOTNo(null);
-setCurrentKOTNos([]);
+        // 🔴 MISSING BUT REQUIRED
+        setCurrentKOTNo(null);
+        setCurrentKOTNos([]);
 
-// 🔴 VERY IMPORTANT (transaction lifecycle reset)
-setPersistentTxnId(null);
-setPersistentTableId(null);
+        // 🔴 VERY IMPORTANT (transaction lifecycle reset)
+        setPersistentTxnId(null);
+        setPersistentTableId(null);
 
-fetchTableManagement();
+        fetchTableManagement();
 
       } else {
         throw new Error(result.message || 'Failed to process reverse KOT.');
@@ -2652,7 +2652,7 @@ fetchTableManagement();
           }
         }
       }
-      
+
 
       if (sourceTableId) {
         await refreshItemsForTable(sourceTableId);
@@ -2813,51 +2813,51 @@ fetchTableManagement();
     setShowTaxModal(false);
   };
 
- const handleSaveNCKOT = async () => {
-  if (!currentTxnId) {
-    toast.error('No active transaction found. Please save a KOT first.');
-    return;
-  }
-  if (!ncName || !ncPurpose) {
-    toast.error('NC Name and Purpose are required.');
-    return;
-  }
-
-  setLoading(true);
-  try {
-    const response = await fetch(
-      `http://localhost:3001/api/TAxnTrnbill/${currentTxnId}/apply-nckot`,
-      {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ NCName: ncName, NCPurpose: ncPurpose }),
-      }
-    );
-
-    const result = await response.json();
-
-    if (result.success) {
-      toast.success('NCKOT applied successfully to all items.');
-
-      // ✅ 1️⃣ TABLE KO VACANT KARO (FRONTEND)
-      await fetchTableManagement();
-
-      // ✅ 2️⃣ UI CLEAR (already correct)
-      setItems([]);
-      setSelectedTable(null);
-      setShowOrderDetails(false);
-      setShowNCKOTModal(false);
-    } else {
-      throw new Error(result.message || 'Failed to apply NCKOT.');
+  const handleSaveNCKOT = async () => {
+    if (!currentTxnId) {
+      toast.error('No active transaction found. Please save a KOT first.');
+      return;
     }
-  } catch (error: any) {
-    toast.error(error.message || 'An error occurred while applying NCKOT.');
-  } finally {
-    setLoading(false);
-    setNcName('');
-    setNcPurpose('');
-  }
-};
+    if (!ncName || !ncPurpose) {
+      toast.error('NC Name and Purpose are required.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch(
+        `http://localhost:3001/api/TAxnTrnbill/${currentTxnId}/apply-nckot`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ NCName: ncName, NCPurpose: ncPurpose }),
+        }
+      );
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast.success('NCKOT applied successfully to all items.');
+
+        // ✅ 1️⃣ TABLE KO VACANT KARO (FRONTEND)
+        await fetchTableManagement();
+
+        // ✅ 2️⃣ UI CLEAR (already correct)
+        setItems([]);
+        setSelectedTable(null);
+        setShowOrderDetails(false);
+        setShowNCKOTModal(false);
+      } else {
+        throw new Error(result.message || 'Failed to apply NCKOT.');
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'An error occurred while applying NCKOT.');
+    } finally {
+      setLoading(false);
+      setNcName('');
+      setNcPurpose('');
+    }
+  };
 
 
   const handleCloseAuthModal = () => {
@@ -3525,7 +3525,7 @@ fetchTableManagement();
 
 
       {errorMessage && (
-        <div className="alert alert-danger text-center" role="alert"> 
+        <div className="alert alert-danger text-center" role="alert">
           {errorMessage}
         </div>
       )}
@@ -3907,112 +3907,112 @@ fetchTableManagement();
                 </div>
               </div>
             )}
-           {showBillingPage &&
-  (() => {
-    const indexOfLastItem = currentPage * itemsPerPage;
-    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-    const currentBills = allBills.slice(indexOfFirstItem, indexOfLastItem);
-    const totalPages = Math.ceil(allBills.length / itemsPerPage);
+            {showBillingPage &&
+              (() => {
+                const indexOfLastItem = currentPage * itemsPerPage;
+                const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+                const currentBills = allBills.slice(indexOfFirstItem, indexOfLastItem);
+                const totalPages = Math.ceil(allBills.length / itemsPerPage);
 
-    const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
+                const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
 
-    const cellStyle: React.CSSProperties = {
-      whiteSpace: 'normal',
-      wordBreak: 'break-word',
-      verticalAlign: 'top',
-    };
+                const cellStyle: React.CSSProperties = {
+                  whiteSpace: 'normal',
+                  wordBreak: 'break-word',
+                  verticalAlign: 'top',
+                };
 
-    return (
-      <div className="d-flex">
-        <div
-          className="rounded shadow-sm p-3 bg-light"
-          style={{
-            width: '100%',
-            minWidth: '350px',
-            maxHeight: 'calc(100vh - 120px)',
-            overflowY: 'auto',
-          }}
-        >
-          <h5 className="mb-3 text-center text-primary fw-semibold">
-            All Bills
-          </h5>
+                return (
+                  <div className="d-flex">
+                    <div
+                      className="rounded shadow-sm p-3 bg-light"
+                      style={{
+                        width: '100%',
+                        minWidth: '350px',
+                        maxHeight: 'calc(100vh - 120px)',
+                        overflowY: 'auto',
+                      }}
+                    >
+                      <h5 className="mb-3 text-center text-primary fw-semibold">
+                        All Bills
+                      </h5>
 
-          <Table
-            striped
-            bordered
-            hover
-            responsive
-            size="sm"
-            className="mb-0"
-            style={{ tableLayout: 'fixed' }}   // 👈 IMPORTANT
-          >
-            <thead className="table-info sticky-top">
-              <tr>
-                <th style={{ width: '12%', ...cellStyle }}>Bill No</th>
-                <th style={{ width: '15%', ...cellStyle }}>Order Type</th>
-                <th style={{ width: '20%', ...cellStyle }}>Customer</th>
-                <th style={{ width: '15%', ...cellStyle }}>Mobile</th>
-                <th style={{ width: '18%', ...cellStyle }}>Payment</th>
-                <th style={{ width: '10%', ...cellStyle }}>Total</th>
-              </tr>
-            </thead>
+                      <Table
+                        striped
+                        bordered
+                        hover
+                        responsive
+                        size="sm"
+                        className="mb-0"
+                        style={{ tableLayout: 'fixed' }}   // 👈 IMPORTANT
+                      >
+                        <thead className="table-info sticky-top">
+                          <tr>
+                            <th style={{ width: '12%', ...cellStyle }}>Bill No</th>
+                            <th style={{ width: '15%', ...cellStyle }}>Order Type</th>
+                            <th style={{ width: '20%', ...cellStyle }}>Customer</th>
+                            <th style={{ width: '15%', ...cellStyle }}>Mobile</th>
+                            <th style={{ width: '18%', ...cellStyle }}>Payment</th>
+                            <th style={{ width: '10%', ...cellStyle }}>Total</th>
+                          </tr>
+                        </thead>
 
-            <tbody>
-              {currentBills.length > 0 ? (
-                currentBills.map((bill) => (
-                  <tr key={bill.TxnID}>
-                    <td style={cellStyle}>{bill.TxnNo}</td>
-                    <td style={cellStyle}>{bill.OrderType}</td>
-                    <td style={cellStyle}>{bill.CustomerName}</td>
-                    <td style={cellStyle}>{bill.Mobile}</td>
-                    <td style={cellStyle}>{bill.PaymentMode}</td>
-                    <td style={cellStyle}>{bill.GrandTotal}</td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={6} className="text-center text-muted">
-                    No bills found.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </Table>
+                        <tbody>
+                          {currentBills.length > 0 ? (
+                            currentBills.map((bill) => (
+                              <tr key={bill.TxnID}>
+                                <td style={cellStyle}>{bill.TxnNo}</td>
+                                <td style={cellStyle}>{bill.OrderType}</td>
+                                <td style={cellStyle}>{bill.CustomerName}</td>
+                                <td style={cellStyle}>{bill.Mobile}</td>
+                                <td style={cellStyle}>{bill.PaymentMode}</td>
+                                <td style={cellStyle}>{bill.GrandTotal}</td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td colSpan={6} className="text-center text-muted">
+                                No bills found.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </Table>
 
-          {totalPages > 1 && (
-            <div className="d-flex justify-content-between align-items-center mt-2">
-              <span className="text-muted small">
-                Page {currentPage} of {totalPages}
-              </span>
+                      {totalPages > 1 && (
+                        <div className="d-flex justify-content-between align-items-center mt-2">
+                          <span className="text-muted small">
+                            Page {currentPage} of {totalPages}
+                          </span>
 
-              <div>
-                <Button
-                  variant="outline-primary"
-                  size="sm"
-                  onClick={() => paginate(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  className="me-2"
-                >
-                  Previous
-                </Button>
+                          <div>
+                            <Button
+                              variant="outline-primary"
+                              size="sm"
+                              onClick={() => paginate(currentPage - 1)}
+                              disabled={currentPage === 1}
+                              className="me-2"
+                            >
+                              Previous
+                            </Button>
 
-                <Button
-                  variant="outline-primary"
-                  size="sm"
-                  onClick={() => paginate(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                >
-                  Next
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
+                            <Button
+                              variant="outline-primary"
+                              size="sm"
+                              onClick={() => paginate(currentPage + 1)}
+                              disabled={currentPage === totalPages}
+                            >
+                              Next
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
 
-        <div className="flex-grow-1 ms-3" />
-      </div>
-    );
-  })()}
+                    <div className="flex-grow-1 ms-3" />
+                  </div>
+                );
+              })()}
 
 
             {activeNavTab === 'Quick Bill' && !showOrderDetails && (
@@ -4391,7 +4391,7 @@ background: darkgreen;
                       backgroundColor = '#fdfdfd';
                     }
 
-                   
+
 
                     return (
                       <div
@@ -4405,26 +4405,26 @@ background: darkgreen;
                           fontSize: '0.9rem',
                           minHeight: '40px',
                           borderBottom: '1px solid #eee',
-                          
+
                         }}
                       >
-<span className="item-name">
-  {item.name}
+                        <span className="item-name">
+                          {item.name}
 
-  {isExpanded && (item.revQty ?? 0) > 0 && (
-    <span className="text-muted ms-2">
-      (
-      <span className="text-success fw-semibold">
-        {item.originalQty ?? item.qty}
-      </span>
-      {" - "}
-      <span className="text-danger fw-semibold">
-        {item.revQty ?? 0}
-      </span>
-      )
-    </span>
-  )}
-</span>
+                          {isExpanded && (item.revQty ?? 0) > 0 && (
+                            <span className="text-muted ms-2">
+                              (
+                              <span className="text-success fw-semibold">
+                                {item.originalQty ?? item.qty}
+                              </span>
+                              {" - "}
+                              <span className="text-danger fw-semibold">
+                                {item.revQty ?? 0}
+                              </span>
+                              )
+                            </span>
+                          )}
+                        </span>
 
 
 
@@ -4440,7 +4440,7 @@ background: darkgreen;
                                 handleReverseQty(item as MenuItem);
                               }
                             }}
-                            disabled={(!isEditable && !isReverseClickable) }
+                            disabled={(!isEditable && !isReverseClickable)}
                           >
                             −
                           </button>
@@ -4460,7 +4460,7 @@ background: darkgreen;
                           <input
                             type="number"
                             value={displayQty}
-                            readOnly={isGroupedItem || !isEditable }
+                            readOnly={isGroupedItem || !isEditable}
                             onChange={(e) => {
                               if (isGroupedItem || !isEditable) return;
                               const newQty = parseInt(e.target.value) || 0;
@@ -4485,7 +4485,7 @@ background: darkgreen;
                             className="btn btn-success btn-sm"
                             style={{ padding: '0 5px', lineHeight: '1' }}
                             onClick={() => handleIncreaseQty(item.id)}
-                            disabled={!isEditable }
+                            disabled={!isEditable}
                           >
                             +
                           </button>
@@ -4503,7 +4503,7 @@ background: darkgreen;
                   });
                 })()
               )}
-             
+
             </div>
             <div className="billing-panel-footer flex-shrink-0" style={{ backgroundColor: 'white' }}>
               <div className="d-flex flex-column flex-md-row gap-1 p-1">
@@ -4801,15 +4801,15 @@ background: darkgreen;
 
                         {/* KOT Transfer Button */}
                         <Button
-                         variant="info"
-  className="rounded-circle p-0 d-flex justify-content-center align-items-center"
-  style={{ width: "32px", height: "32px" }}
-  disabled={!sourceTableId || items.length === 0}
-onClick={() => {
-    setShowOptions(false);
-    setTransferMode("table");   // ✅ correct
-    setShowTransferModal(true);
-  }}
+                          variant="info"
+                          className="rounded-circle p-0 d-flex justify-content-center align-items-center"
+                          style={{ width: "32px", height: "32px" }}
+                          disabled={!sourceTableId || items.length === 0}
+                          onClick={() => {
+                            setShowOptions(false);
+                            setTransferMode("table");   // ✅ correct
+                            setShowTransferModal(true);
+                          }}
                           title="Table Transfer"
                         >
                           <svg
@@ -4823,16 +4823,16 @@ onClick={() => {
                           </svg>
                         </Button>
 
-                         <Button
-                        variant="warning"
-  className="rounded-circle p-0 d-flex justify-content-center align-items-center"
-  style={{ width: "32px", height: "32px" }}
-  disabled={!sourceTableId || items.length === 0}
- onClick={() => {
-  setShowOptions(false);
-  setTransferMode("kot");
-  setShowTransferModal(true);
-}}
+                        <Button
+                          variant="warning"
+                          className="rounded-circle p-0 d-flex justify-content-center align-items-center"
+                          style={{ width: "32px", height: "32px" }}
+                          disabled={!sourceTableId || items.length === 0}
+                          onClick={() => {
+                            setShowOptions(false);
+                            setTransferMode("kot");
+                            setShowTransferModal(true);
+                          }}
 
                           title="KOT Transfer"
                         >
@@ -5389,39 +5389,39 @@ onClick={() => {
             </Modal.Footer>
           </Modal>
 
-        <Modal
-  show={showTransferModal}
-  onHide={() => setShowTransferModal(false)}
-  size="xl"
-  centered
->
-  <Modal.Header closeButton>
-    <Modal.Title>
-      {transferMode === "table" ? "Table Transfer" : "KOT Transfer"}
-    </Modal.Title>
-  </Modal.Header>
+          <Modal
+            show={showTransferModal}
+            onHide={() => setShowTransferModal(false)}
+            size="xl"
+            centered
+          >
+            <Modal.Header closeButton>
+              <Modal.Title>
+                {transferMode === "table" ? "Table Transfer" : "KOT Transfer"}
+              </Modal.Title>
+            </Modal.Header>
 
-  <Modal.Body className="p-0">
-    <KotTransfer
- 
-  transferSource={transferMode}       // "table" or "kot"
-  sourceTableId={sourceTableId}
-  onCancel={() => setShowTransferModal(false)}
- onSuccess={() => {
-  setShowTransferModal(false);
+            <Modal.Body className="p-0">
+              <KotTransfer
 
-  if (sourceTableId) {
-    refreshItemsForTable(sourceTableId); // order panel refresh
-  }
+                transferSource={transferMode}       // "table" or "kot"
+                sourceTableId={sourceTableId}
+                onCancel={() => setShowTransferModal(false)}
+                onSuccess={() => {
+                  setShowTransferModal(false);
 
-  fetchTableManagement(); // ⭐ TABLE STATUS refresh
-}}
+                  if (sourceTableId) {
+                    refreshItemsForTable(sourceTableId); // order panel refresh
+                  }
 
-/>
+                  fetchTableManagement(); // ⭐ TABLE STATUS refresh
+                }}
+
+              />
 
 
-  </Modal.Body>
-</Modal>
+            </Modal.Body>
+          </Modal>
 
         </div>
       </div>
