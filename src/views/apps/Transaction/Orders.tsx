@@ -554,7 +554,7 @@ const [transferMode, setTransferMode] = useState<"table" | "kot">("table");
   });
 
   const getTableButtonClass = (table: TableItem, isSelected: boolean) => {
-    if (isSelected) return 'btn-success';
+   
     // Use status for coloring: 0=available, 1=occupied/KOT saved, 2=billed/printed
     switch (table.status) {
       case 1: return 'btn-success'; // KOT saved/occupied (green)
