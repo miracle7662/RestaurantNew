@@ -958,6 +958,7 @@ const removePaymentMode = (modeName: string) => {
         }
         if (data.header.CustomerName) setCustomerName(data.header.CustomerName);
         if (data.header.MobileNo) setCustomerNo(data.header.MobileNo);
+        if (data.header.customerid) setCustomerId(data.header.customerid);
 
         // Discount handling
         if (data.header.Discount || data.header.DiscPer) {
@@ -3276,6 +3277,7 @@ const generateBill = async () => {
         persistentTxnId={txnId}
         persistentTableId={tableId}
       />
+     
     </React.Fragment>
   );
 };
