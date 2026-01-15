@@ -33,6 +33,8 @@ interface KotTransferProps {
 const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTableId, mode }: KotTransferProps) => {
   const { user } = useAuthContext();
   const proposedTableRef = useRef<HTMLSelectElement>(null);
+  const kotSelectRef = useRef<HTMLSelectElement>(null);
+  const f7ButtonRef = useRef<HTMLButtonElement>(null);
 
   // Type definitions
   interface Item {
@@ -88,6 +90,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
   const [waitingForEnter, setWaitingForEnter] = useState(false);
   const [currentDate] = useState(new Date().toLocaleDateString('en-GB'));
   const [proposedPax, setProposedPax] = useState<number>(0);
+  const [currentFocus, setCurrentFocus] = useState<'table' | 'kot' | 'f7' | 'modal'>('table');
 
   useEffect(() => {
     setTransferMode(effectiveSource);
@@ -191,8 +194,20 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
   useEffect(() => {
     if (tables.length > 0 && proposedTableRef.current) {
       proposedTableRef.current.focus();
+      setCurrentFocus('table');
     }
   }, [tables]);
+
+  // Focus management
+  useEffect(() => {
+    if (currentFocus === 'table' && proposedTableRef.current) {
+      proposedTableRef.current.focus();
+    } else if (currentFocus === 'kot' && kotSelectRef.current) {
+      kotSelectRef.current.focus();
+    } else if (currentFocus === 'f7' && f7ButtonRef.current) {
+      f7ButtonRef.current.focus();
+    }
+  }, [currentFocus]);
 
   // Handle transfer done - wait for Enter key
   useEffect(() => {
@@ -538,6 +553,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
 
     setShowConfirmModal(false);
     toast.success(`Successfully transferred ${itemsToTransfer.length} item${itemsToTransfer.length !== 1 ? 's' : ''} to Table ${proposedTable}`);
+    setCurrentFocus('kot');
   };
 
 
@@ -600,7 +616,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
           {/* Source Table Section */}
           <Col md={5} className="d-flex justify-content-center col md-6 col-md-5  flex: 0 0 auto;
         width: 47.66666667%;">
-            <Card className="border-0 shadow" style={{ backgroundColor: "#f8f9fa", height: "550px" }}>
+            <Card className="border-0 shadow" style={{ backgroundColor: "#f8f9fa", height: "550px", border: currentFocus === 'kot' ? "3px solid #007bff" : "none" }}>
 
               <Card.Body className="p-2 d-flex flex-column" style={{ height: "100%"}}>
                 <Row className="mb-2 g-2">
@@ -643,6 +659,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
                     <Form.Group>
                       <Form.Label className="fw-semibold" style={{ fontSize: "0.9rem", marginBottom: "4px" }}>KOT</Form.Label>
                       <Form.Select
+                        ref={kotSelectRef}
                         value={selectedKOT === -1 ? "all" : selectedKOT || ""}
                         onChange={(e) => {
                           const value = e.target.value;
@@ -652,6 +669,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
                             setSelectedKOT(Number(value));
                           }
                         }}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); setCurrentFocus('f7'); } }}
                         style={{ fontSize: "0.9rem" }}
                       >
                         <option value="all">All KOTs</option>
@@ -805,6 +823,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
           {/* Transfer Buttons */}
           <Col md={1} className="d-flex flex-column justify-content-center align-items-center px-2" style={{ gap: "15px" }}>
             <Button
+              ref={f7ButtonRef}
               size="lg"
               onClick={handleTransfer}
               disabled={!isTableMode && selectedCount === 0}
@@ -813,8 +832,8 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
                 height: "60px",
                 borderRadius: "12px",
                 fontSize: "1.5rem",
-                background: "#8a7ffb",
-                border: "none",
+                background: currentFocus === 'f7' ? "#6a5acd" : "#8a7ffb",
+                border: currentFocus === 'f7' ? "3px solid #4a3bcd" : "none",
                 display: "flex",
                 flexDirection: "column",
                 justifyContent: "center",
@@ -898,7 +917,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
                           ref={proposedTableRef}
                           value={proposedTableId || ''}
                           onChange={(e) => handleProposedTableChange(e.target.value)}
-                          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleTransfer(); } }}
+                          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); setCurrentFocus('kot'); } }}
                           className="fw-bold me-2"
                           style={{ fontSize: "0.9rem" }}
                         >
