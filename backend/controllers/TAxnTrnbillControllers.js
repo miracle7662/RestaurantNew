@@ -974,6 +974,7 @@ exports.createKOT = async (req, res) => {
       DiscountType,
       CustomerName,
       MobileNo,
+      GuestID,
       Order_Type,
       PAX,
       items: details = [],
@@ -1032,18 +1033,19 @@ exports.createKOT = async (req, res) => {
         // Use new discount/NC info if provided, otherwise fall back to existing values.
         db.prepare(
           `
-            UPDATE TAxnTrnbill 
-            SET 
+            UPDATE TAxnTrnbill
+            SET
               table_name = ?,
-              DiscPer = ?, 
-              Discount = ?, 
+              DiscPer = ?,
+              Discount = ?,
               DiscountType = ?,
               Order_Type = ?,
               NCName = ?,
               NCPurpose = ?,
               isNCKOT = ?,
               CustomerName = COALESCE(?, CustomerName),
-              MobileNo = COALESCE(?, MobileNo)
+              MobileNo = COALESCE(?, MobileNo),
+              GuestID = COALESCE(?, GuestID)
             WHERE TxnID = ?
         `,
         ).run(
@@ -1057,6 +1059,7 @@ exports.createKOT = async (req, res) => {
           toBool(isHeaderNCKOT || existingBill.isNCKOT),
           CustomerName,
           MobileNo,
+          GuestID,
           txnId,
         )
       } else {
