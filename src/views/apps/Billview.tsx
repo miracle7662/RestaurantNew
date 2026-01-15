@@ -1989,7 +1989,7 @@ const generateBill = async () => {
           case 'F5': // 🔒 Reverse Bill (only if isBilled = 1)
             event.preventDefault();
             if (disableReverseBill) return;
-            setShowReverseBillModal(true);
+           setShowReverseBillModal(true);
             return;
 
           case 'F6':
@@ -3221,6 +3221,20 @@ const generateBill = async () => {
           <KotTransfer transferSource={transferSource} sourceTableId={tableId} onCancel={() => setShowKotTransferModal(false)} />
         </Modal.Body>
       </Modal>
+      {/* Reverse Bill Confirmation Modal (After Password) */}
+      <Modal show={showReverseBillConfirmationModal} onHide={() => setShowReverseBillConfirmationModal(false)} centered size="sm">
+        <Modal.Header closeButton>
+          <Modal.Title>Confirm Reversal</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p>Password verified. Are you sure you want to reverse this bill?</p>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowReverseBillConfirmationModal(false)}>No</Button>
+          <Button variant="danger" onClick={handleReverseBillConfirmation}>Yes, Reverse Bill</Button>
+        </Modal.Footer>
+      </Modal>
+
       {/* Reverse Bill Modal */}
       <Modal show={showReverseBillModal} onHide={() => setShowReverseBillModal(false)} centered>
         <Modal.Header closeButton>
