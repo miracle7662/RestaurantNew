@@ -11,7 +11,7 @@ import ReverseKotModal from './ReverseKotModal';
 
 const KOT_COLORS = [
   '#E8F5E9', // Green 50
-  '#FFF3E0', // Orange 50
+  '#FFF3E0', // Orange 50 
 ];
 const getRowColor = (kotNo: string | number | null | undefined) => {
   if (!kotNo) return '#ffffff';
@@ -1396,6 +1396,7 @@ const removePaymentMode = (modeName: string) => {
         PAX: pax,
         CustomerName: customerName || null,
         MobileNo: customerNo || null,
+        GuestID: customerId || null,
         discount: discount,
         discPer: discountInputValue,
         discountType: DiscountType,
@@ -1614,13 +1615,16 @@ const removePaymentMode = (modeName: string) => {
     }
   };
 
- const printBill = async () => {
+const printBill = async () => {
   if (!txnId) return;
 
   try {
     // 1️⃣ Call mark-billed API to generate TxnNo
     const response = await axios.put(`/api/TAxnTrnbill/${txnId}/mark-billed`, {
-      outletId: selectedOutletId || Number(user?.outletid)
+      outletId: selectedOutletId || Number(user?.outletid),
+      customerName: customerName || null,
+      mobileNo: customerNo || null,
+       GuestID: customerId || null,
     });
 
     const txnNo = response.data?.data?.TxnNo;

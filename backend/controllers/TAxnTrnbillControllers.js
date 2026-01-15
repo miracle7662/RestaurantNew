@@ -167,7 +167,7 @@ exports.getBillById = async (req, res) => {
       )
       .all(bill.orderNo || null, bill.HotelID || null)
 
-    res.json(ok('Fetched bill', { ...bill, details, settlement: settlements }))
+    res.json(ok('Fetched bill', { ...bill, customerid: bill.GuestID, details, settlement: settlements }))
   } catch (error) {
     res
       .status(500)
@@ -467,7 +467,7 @@ exports.createBill = async (req, res) => {
     const items = db
       .prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? ORDER BY TXnDetailID')
       .all(txnId)
-    res.json(ok('Bill created', { ...header, details: items }))
+    res.json(ok('Bill created', { ...header, customerid: header.GuestID, details: items }))
   } catch (error) {
     console.error('Error in createBill:', error)
     res
@@ -849,7 +849,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       .all(header.orderNo || null, header.HotelID || null)
 
     console.log('--- settleBill Success ---')
-    res.json(ok('Bill settled', { ...header, details: items, settlement: stl }))
+    res.json(ok('Bill settled', { ...header, customerid: header.GuestID, details: items, settlement: stl }))
   } catch (error) {
     console.error('--- ERROR in settleBill ---')
     console.error(error)
@@ -1080,9 +1080,9 @@ exports.createKOT = async (req, res) => {
         const insertHeaderStmt = db.prepare(`
           INSERT INTO TAxnTrnbill (
             outletid, TxnNo, TableID, table_name, PAX, UserId, HotelID, TxnDatetime,
-            isBilled, isCancelled, isSetteled, status, AutoKOT, CustomerName, MobileNo, Order_Type, orderNo,
+            isBilled, isCancelled, isSetteled, status, AutoKOT, CustomerName, MobileNo, GuestID, Order_Type, orderNo,
             NCName, NCPurpose, DiscPer, Discount, DiscountType, isNCKOT
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), 0, 0, 0, 1, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), 0, 0, 0, 1, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `)
         const result = insertHeaderStmt.run(
           headerOutletId,
@@ -1094,6 +1094,7 @@ exports.createKOT = async (req, res) => {
           HotelID,
           CustomerName,
           MobileNo,
+          GuestID,
           Order_Type,
           newOrderNo,
           NCName || null,
@@ -1310,7 +1311,7 @@ exports.createKOT = async (req, res) => {
       item_no: i.item_no || i.MenuItemNo,
     }))
 
-    res.json(ok('KOT processed successfully', { ...header, details: mappedItems, KOTNo: kotNo }))
+    res.json(ok('KOT processed successfully', { ...header, customerid: header.GuestID, details: mappedItems, KOTNo: kotNo }))
   } catch (error) {
     console.error('Error in createKOT:', error)
     res
@@ -2421,7 +2422,7 @@ exports.markBillAsBilled = async (req, res) => {
       .prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? ORDER BY TXnDetailID')
       .all(Number(id))
 
-    res.json(ok('Bill marked as billed', { ...header, details: items }))
+    res.json(ok('Bill marked as billed', { ...header, customerid: header.GuestID, details: items }))
   } catch (error) {
     res
       .status(500)
