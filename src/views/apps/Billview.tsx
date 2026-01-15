@@ -3276,7 +3276,6 @@ const generateBill = async () => {
         persistentTxnId={txnId}
         persistentTableId={tableId}
       />
-      <Toaster />
     </React.Fragment>
   );
 };
