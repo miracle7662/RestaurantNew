@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+ import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { Row, Col, Card, Table, Badge, Button, Form, Modal } from 'react-bootstrap';
 import axios from 'axios';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -196,6 +196,10 @@ const ModernBill = () => {
   const [itemGroups, setItemGroups] = useState<ItemGroup[]>([]);
 
   const isGrouped = groupBy !== 'none';
+
+  const [reverseQtyConfig, setReverseQtyConfig] = useState('PasswordRequired');
+  const [roundOffEnabled, setRoundOffEnabled] = useState(false);
+  const [roundOffTo, setRoundOffTo] = useState(1);
 
   // Tax rates states
   const [cgstRate, setCgstRate] = useState(2.5);
@@ -1151,6 +1155,47 @@ const removePaymentMode = (modeName: string) => {
   }, [selectedOutletId]);
 
   useEffect(() => {
+    if (selectedOutletId) {
+      // Fetch outlet settings for Reverse Qty Mode
+      const fetchReverseQtySetting = async () => {
+        try {
+          const res = await fetch(`http://localhost:3001/api/outlets/outlet-settings/${selectedOutletId}`);
+          if (res.ok) {
+            const settings = await res.json();
+            if (settings) {
+              setReverseQtyConfig(settings.ReverseQtyMode === 1 ? 'PasswordRequired' : 'NoPassword');
+              setRoundOffEnabled(!!settings.bill_round_off);
+              setRoundOffTo(settings.bill_round_off_to || 1);
+
+              // include_tax_in_invoice may be returned with different casing
+              const incFlag =
+                settings.include_tax_in_invoice ??
+                (settings as any).IncludeTaxInInvoice ??
+                (settings as any).includeTaxInInvoice ??
+                (settings as any).includeTaxInInvoice;
+              setIncludeTaxInInvoice(!!Number(incFlag));
+
+              // Debug console for tax mode
+              console.log("Include Tax in Invoice:", Number(incFlag) === 1 ? "Inclusive" : "Exclusive");
+            } else {
+              setReverseQtyConfig('PasswordRequired'); // Default to password required
+              setIncludeTaxInInvoice(false);
+            }
+          } else {
+            setReverseQtyConfig('PasswordRequired'); // Default to password required
+            setIncludeTaxInInvoice(false);
+          }
+        } catch (error) {
+          console.error("Failed to fetch outlet settings for Reverse Qty Mode", error);
+          setReverseQtyConfig('PasswordRequired'); // Default to password required
+          setIncludeTaxInInvoice(false);
+        }
+      };
+      fetchReverseQtySetting();
+    }
+  }, [selectedOutletId]);
+
+  useEffect(() => {
     if (tableId) {
       loadBillForTable(tableId);
     }
@@ -1958,12 +2003,12 @@ const generateBill = async () => {
 
 
   const handleF8Action = useCallback(() => {
-    if (isBillPrintedState) {
+    if (reverseQtyConfig === 'PasswordRequired') {
       setShowF8RevKotPasswordModal(true);
     } else {
       setShowReverseKot(true);
     }
-  }, [isBillPrintedState]);
+  }, [reverseQtyConfig]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
