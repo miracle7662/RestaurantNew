@@ -384,79 +384,6 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
     };
   }, [selectedItems, proposedItems, isTableMode, selectedCount]);
 
-  // Keyboard navigation for modal
-  useEffect(() => {
-    if (!showConfirmModal) return;
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
-        setSelectedOption('no');
-      } else if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
-        setSelectedOption('yes');
-      } else if (event.key === 'Enter') {
-        if (selectedOption === 'no') {
-          handleSave();
-        } else if (selectedOption === 'yes') {
-          confirmTransfer();
-        }
-        setShowConfirmModal(false);
-      } else if (event.key === 'Escape') {
-        setShowConfirmModal(false);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [showConfirmModal, selectedOption]);
-
-  const confirmTransfer = () => {
-    let itemsToTransfer: Item[];
-    if (isTableMode) {
-      itemsToTransfer = selectedItems.map(item => ({ ...item, selected: false, media: proposedTable }));
-      setSelectedItems([]);
-      setAllItems([]); // Clear all items for table transfer
-    } else {
-      itemsToTransfer = selectedItems.filter(item => item.selected).map(item => ({ ...item, selected: false, media: proposedTable }));
-      const remainingItems = selectedItems.filter(item => !item.selected);
-      setSelectedItems(remainingItems);
-      // Update allItems to remove transferred items
-      const updatedAllItems = allItems.filter(item => !itemsToTransfer.some(transferred => transferred.id === item.id));
-      setAllItems(updatedAllItems);
-
-      // Recalculate available KOTs and latest KOT
-      const uniqueKOTs = [...new Set(updatedAllItems.map(item => item.kot))].sort((a, b) => a - b);
-      setAvailableKOTs(uniqueKOTs);
-      const latest = uniqueKOTs.length > 0 ? Math.max(...uniqueKOTs) : null;
-      setLatestKOT(latest);
-      // If current selectedKOT has no remaining items, switch to latest
-      if (selectedKOT && !uniqueKOTs.includes(selectedKOT)) {
-        setSelectedKOT(latest);
-      }
-    }
-
-    if (isTableMode) {
-      setProposedItems(itemsToTransfer);
-    } else {
-      setProposedItems([...proposedItems, ...itemsToTransfer]);
-    }
-
-    setTables(prevTables =>
-      prevTables.map(t => {
-        if (t.id === selectedTableId?.toString() && selectedItems.length === 0) {
-          return { ...t, status: "available" as const };
-        }
-        return t;
-      })
-    );
-
-    setShowConfirmModal(false);
-    toast.success(`Successfully transferred ${itemsToTransfer.length} item${itemsToTransfer.length !== 1 ? 's' : ''} to Table ${proposedTable}`);
-  };
-
-
   const handleSave = async () => {
     if (!selectedTableId || !proposedTableId) {
       toast.error('Please select source and target tables');
@@ -541,6 +468,76 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
       console.error('Error saving transfer:', error);
       alert('An error occurred while saving the transfer.');
     }
+  };
+
+  // Keyboard navigation for modal
+  useEffect(() => {
+    if (!showConfirmModal) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+        setSelectedOption('no');
+      } else if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+        setSelectedOption('yes');
+      } else if (event.key === 'Enter') {
+        if (selectedOption === 'no') {
+          handleSave();
+        } else if (selectedOption === 'yes') {
+          confirmTransfer();
+        }
+        setShowConfirmModal(false);
+      } else if (event.key === 'Escape') {
+        setShowConfirmModal(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showConfirmModal, selectedOption]);
+
+  const confirmTransfer = () => {
+    let itemsToTransfer: Item[];
+    if (isTableMode) {
+      itemsToTransfer = selectedItems.map(item => ({ ...item, selected: false, media: proposedTable }));
+      setSelectedItems([]);
+      setAllItems([]); // Clear all items for table transfer
+    } else {
+      // For KOT mode, transfer all items of the selected KOT
+      itemsToTransfer = allItems.filter(item => item.kot === selectedKOT).map(item => ({ ...item, selected: false, media: proposedTable }));
+      setSelectedItems([]);
+      // Remove the entire transferred KOT from allItems
+      const updatedAllItems = allItems.filter(item => item.kot !== selectedKOT);
+      setAllItems(updatedAllItems);
+
+      // Recalculate available KOTs and latest KOT
+      const uniqueKOTs = [...new Set(updatedAllItems.map(item => item.kot))].sort((a, b) => a - b);
+      setAvailableKOTs(uniqueKOTs);
+      const latest = uniqueKOTs.length > 0 ? Math.max(...uniqueKOTs) : null;
+      setLatestKOT(latest);
+      // Always switch to latest remaining KOT after transferring a KOT
+      setSelectedKOT(latest);
+    }
+
+    if (isTableMode) {
+      setProposedItems(itemsToTransfer);
+    } else {
+      setProposedItems([...proposedItems, ...itemsToTransfer]);
+    }
+
+    setTables(prevTables =>
+      prevTables.map(t => {
+        if (t.id === selectedTableId?.toString() && selectedItems.length === 0) {
+          return { ...t, status: "available" as const };
+        }
+        return t;
+      })
+    );
+
+    setShowConfirmModal(false);
+    toast.success(`Successfully transferred ${itemsToTransfer.length} item${itemsToTransfer.length !== 1 ? 's' : ''} to Table ${proposedTable}`);
   };
 
 
