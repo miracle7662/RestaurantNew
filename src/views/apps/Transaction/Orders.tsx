@@ -4738,7 +4738,7 @@ background: darkgreen;
                         {/* Tax Button */}
                         <Button
                           variant="primary"
-                          className="rounded-circle p-0 d-flex justify-content-center align-items-center"
+                          className="rounded-circle p-0 d-flex justify-content-center align-items-center d-none"
                           style={{ width: '32px', height: '32px' }}
                           onClick={() => {
                             setShowOptions(false);
@@ -4762,6 +4762,7 @@ background: darkgreen;
                           variant="secondary"
                           className="rounded-circle p-0 d-flex justify-content-center align-items-center"
                           style={{ width: '32px', height: '32px' }}
+                          disabled={!sourceTableId || items.length === 0}
                           onClick={() => {
                             setShowOptions(false);
                             setShowNCKOTModal(true);
@@ -4785,6 +4786,7 @@ background: darkgreen;
                           variant="success"
                           className="rounded-circle p-0 d-flex justify-content-center align-items-center"
                           style={{ width: '32px', height: '32px' }}
+                          disabled={!sourceTableId || items.length === 0}
                           onClick={() => {
                             setShowOptions(false);
                             setShowDiscountModal(true);
@@ -4804,7 +4806,7 @@ background: darkgreen;
                         {/* Reverse Qty Mode Button */}
                         <Button
                           variant={reverseQtyMode ? "danger" : "warning"}
-                          className="rounded-circle p-0 d-flex justify-content-center align-items-center"
+                          className="rounded-circle p-0 d-flex justify-content-center align-items-center d-none"
                           style={{ width: '32px', height: '32px' }}
                           onClick={() => {
                             // Always fetch latest ReverseQtyMode from backend on button click
@@ -5467,10 +5469,8 @@ background: darkgreen;
                 {transferMode === "table" ? "Table Transfer" : "KOT Transfer"}
               </Modal.Title>
             </Modal.Header>
-
             <Modal.Body className="p-0">
               <KotTransfer
-
                 transferSource={transferMode}       // "table" or "kot"
                 sourceTableId={sourceTableId}
                 onCancel={() => setShowTransferModal(false)}
@@ -5483,13 +5483,9 @@ background: darkgreen;
 
                   fetchTableManagement(); // ⭐ TABLE STATUS refresh
                 }}
-
               />
-
-
             </Modal.Body>
           </Modal>
-
         </div>
       </div>
     </div>

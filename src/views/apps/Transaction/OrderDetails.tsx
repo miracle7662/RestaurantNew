@@ -450,6 +450,16 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
     }
   };
 
+  const handleTableKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (codeInputRef.current) {
+        codeInputRef.current.focus();
+        codeInputRef.current.select();
+      }
+    }
+  };
+
   const handleQuantityKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && (searchName || searchCode)) {
       e.preventDefault();
@@ -671,6 +681,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
                       placeholder="Table"
                       value={searchTable}
                       onChange={(e) => setSearchTable(e.target.value)}
+                      onKeyDown={handleTableKeyDown}
                       ref={tableInputRef}
                       disabled={reverseQtyMode && isBilled}
                       style={{
