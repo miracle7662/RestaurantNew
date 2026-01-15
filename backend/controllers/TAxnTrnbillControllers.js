@@ -2392,7 +2392,7 @@ exports.printBill = async (req, res) => {
 exports.markBillAsBilled = async (req, res) => {
   try {
     const { id } = req.params
-    const { outletId, customerName, mobileNo } = req.body // ✅ Get outletId from body
+    const { outletId, customerName, mobileNo, GuestID } = req.body // ✅ Get outletId from body
 
     const bill = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id))
     if (!bill) {
@@ -2412,10 +2412,10 @@ exports.markBillAsBilled = async (req, res) => {
     db.prepare(
       `
       UPDATE TAxnTrnbill
-      SET isBilled = 1, BilledDate = CURRENT_TIMESTAMP, TxnNo = ?, CustomerName = COALESCE(?, CustomerName), MobileNo = COALESCE(?, MobileNo)
+      SET isBilled = 1, BilledDate = CURRENT_TIMESTAMP, TxnNo = ?, CustomerName = COALESCE(?, CustomerName), MobileNo = COALESCE(?, MobileNo), GuestID = COALESCE(?, GuestID)
       WHERE TxnID = ?
     `,
-    ).run(txnNo, customerName || null, mobileNo || null, Number(id))
+    ).run(txnNo, customerName || null, mobileNo || null, GuestID || null, Number(id))
 
     const header = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id))
     const items = db

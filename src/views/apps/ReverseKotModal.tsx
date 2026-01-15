@@ -85,7 +85,11 @@ useEffect(() => {
         value: number
     ) => {
         const updated = [...items];
-        updated[idx][field] = Number(value);
+        if (field === 'cancelQty') {
+            updated[idx][field] = Math.min(Number(value), Number(updated[idx].qty || 0));
+        } else {
+            updated[idx][field] = Number(value);
+        }
 
         // ✅ FINAL AMOUNT = reversed + cancel
         const totalQty =

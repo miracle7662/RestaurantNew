@@ -482,6 +482,7 @@ const removePaymentMode = (modeName: string) => {
   const [showF8RevKotPasswordModal, setShowF8RevKotPasswordModal] = useState(false);
   const [f8RevKotPasswordError, setF8RevKotPasswordError] = useState('');
   const [f8RevKotPasswordLoading, setF8RevKotPasswordLoading] = useState(false);
+  const [showReverseBillConfirmationModal, setShowReverseBillConfirmationModal] = useState(false);
   const [showDiscountModal, setShowDiscountModal] = useState(false);
   const [givenBy, setGivenBy] = useState('');
   const [reason, setReason] = useState('');
@@ -542,30 +543,32 @@ const removePaymentMode = (modeName: string) => {
 
       if (e.key === "ArrowDown") {
         e.preventDefault();
-        setActivePaymentIndex((prev) =>
-          prev < outletPaymentModes.length - 1 ? prev + 1 : 0
-        );
+        setActivePaymentIndex((prev) => {
+          const newIndex = prev < outletPaymentModes.length - 1 ? prev + 1 : 0;
+          const selectedMode = outletPaymentModes[newIndex];
+          if (selectedMode) {
+            handlePaymentModeClick(selectedMode);
+          }
+          return newIndex;
+        });
       }
 
       if (e.key === "ArrowUp") {
         e.preventDefault();
-        setActivePaymentIndex((prev) =>
-          prev > 0 ? prev - 1 : outletPaymentModes.length - 1
-        );
-      }
-
-      if (e.key === "Enter") {
-        e.preventDefault();
-        const selectedMode = outletPaymentModes[activePaymentIndex];
-        if (selectedMode) {
-          handlePaymentModeClick(selectedMode);
-        }
+        setActivePaymentIndex((prev) => {
+          const newIndex = prev > 0 ? prev - 1 : outletPaymentModes.length - 1;
+          const selectedMode = outletPaymentModes[newIndex];
+          if (selectedMode) {
+            handlePaymentModeClick(selectedMode);
+          }
+          return newIndex;
+        });
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [showSettlementModal, activePaymentIndex, outletPaymentModes]);
+  }, [showSettlementModal, outletPaymentModes]);
 
 
   const handleCustomerNoChange = async (value: string) => {
@@ -618,54 +621,9 @@ const removePaymentMode = (modeName: string) => {
       const data = await response.json();
 
       if (response.ok && data.success) {
-        // Password verified, now call the bill reversal endpoint
-        if (!txnId) {
-          setF9BilledPasswordError("Transaction ID not found. Cannot reverse bill.");
-          return;
-        }
-
-        try {
-          const reverseResponse = await fetch(`http://localhost:3001/api/TAxnTrnbill/${txnId}/reverse`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${(user as any).token}`
-            },
-            body: JSON.stringify({ userId: user.id }) // Pass admin's ID for logging
-          });
-
-          const reverseData = await reverseResponse.json();
-
-          if (reverseResponse.ok && reverseData.success) {
-            toast.success('Bill reversed successfully!');
-            setShowF9BilledPasswordModal(false);
-
-            // ✅ Optimistically update the table status in the UI
-            if (tableName) {
-              setTableItems(prevTables =>
-                prevTables.map(table =>
-                  table.table_name === tableName ? { ...table, status: 0 } : table
-                )
-              );
-            }
-
-            // ✅ Clear current UI states
-            resetBillState();
-            setItems([]);
-            setReversedItems([]);
-            setSelectedTable(null);
-            setShowOrderDetails(false);
-            setCurrentKOTNo(null);
-            setCurrentKOTNos([]);
-            setOrderNo(null);
-
-            navigate('/apps/Tableview');
-          } else {
-            setF9BilledPasswordError(reverseData.message || 'Failed to reverse the bill.');
-          }
-        } catch (reverseError) {
-          setF9BilledPasswordError('An error occurred while reversing the bill.');
-        }
+        // Password verified, now open confirmation modal
+        setShowF9BilledPasswordModal(false);
+        setShowReverseBillConfirmationModal(true);
       } else {
         setF9BilledPasswordError(data.message || 'Invalid password');
       }
@@ -706,6 +664,58 @@ const removePaymentMode = (modeName: string) => {
       setF8RevKotPasswordError('An error occurred. Please try again.');
     } finally {
       setF8RevKotPasswordLoading(false);
+    }
+  };
+
+  const handleReverseBillConfirmation = async () => {
+    setShowReverseBillConfirmationModal(false);
+
+    // Now call the bill reversal endpoint
+    if (!txnId) {
+      toast.error("Transaction ID not found. Cannot reverse bill.");
+      return;
+    }
+
+    try {
+      const reverseResponse = await fetch(`http://localhost:3001/api/TAxnTrnbill/${txnId}/reverse`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${(user as any).token}`
+        },
+        body: JSON.stringify({ userId: user.id }) // Pass admin's ID for logging
+      });
+
+      const reverseData = await reverseResponse.json();
+
+      if (reverseResponse.ok && reverseData.success) {
+        toast.success('Bill reversed successfully!');
+
+        // Optimistically update the table status in the UI
+        if (tableName) {
+          setTableItems(prevTables =>
+            prevTables.map(table =>
+              table.table_name === tableName ? { ...table, status: 0 } : table
+            )
+          );
+        }
+
+        // Clear current UI states
+        resetBillState();
+        setItems([]);
+        setReversedItems([]);
+        setSelectedTable(null);
+        setShowOrderDetails(false);
+        setCurrentKOTNo(null);
+        setCurrentKOTNos([]);
+        setOrderNo(null);
+
+        navigate('/apps/Tableview');
+      } else {
+        toast.error(reverseData.message || 'Failed to reverse the bill.');
+      }
+    } catch (reverseError) {
+      toast.error('An error occurred while reversing the bill.');
     }
   };
 
@@ -1624,7 +1634,7 @@ const printBill = async () => {
       outletId: selectedOutletId || Number(user?.outletid),
       customerName: customerName || null,
       mobileNo: customerNo || null,
-       GuestID: customerId || null,
+        GuestID: customerId || null, 
     });
 
     const txnNo = response.data?.data?.TxnNo;

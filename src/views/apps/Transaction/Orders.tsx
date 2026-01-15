@@ -101,6 +101,7 @@ const Order = () => {
   const [sourceTableId, setSourceTableId] = useState<number | null>(null);
   const [mobileNumber, setMobileNumber] = useState<string>('');
   const [customerName, setCustomerName] = useState<string>('');
+  const [customerId, setCustomerId] = useState<number | null>(null);
   const [taxRates, setTaxRates] = useState<{ cgst: number; sgst: number; igst: number; cess: number }>({ cgst: 0, sgst: 0, igst: 0, cess: 0 });
   const [taxCalc, setTaxCalc] = useState<{ subtotal: number; cgstAmt: number; sgstAmt: number; igstAmt: number; cessAmt: number; grandTotal: number }>({ subtotal: 0, cgstAmt: 0, sgstAmt: 0, igstAmt: 0, cessAmt: 0, grandTotal: 0 });
   // 0 = exclusive (default), 1 = inclusive
@@ -329,6 +330,7 @@ const resetBillingPanel = () => {
           // ✅ Restore customer details from billed transaction
           setCustomerName(header.CustomerName || '');
           setMobileNumber(header.MobileNo || '');
+          if (header.customerid) setCustomerId(header.customerid);
           // Also fetch and set reversed items for the billed transaction
           const fetchedReversedItems: ReversedMenuItem[] = (billedBillData.data.reversedItems || []).map((item: any) => ({
             ...item,
@@ -427,6 +429,7 @@ const resetBillingPanel = () => {
         // ✅ Restore customer details from unbilled transaction
         setCustomerName(header.CustomerName || '');
         setMobileNumber(header.MobileNo || '');
+        if (header.customerid) setCustomerId(header.customerid);
       } else {
         setItems([]);
         setReversedItems([]);
@@ -664,23 +667,29 @@ const resetBillingPanel = () => {
         console.log('Customer API response:', response);
         if (response.customerid && response.name) {
           setCustomerName(response.name);
+          setCustomerId(response.customerid);
         } else if (response.success && response.data && response.data.length > 0) {
           const customer = response.data[0];
           setCustomerName(customer.name);
+          setCustomerId(customer.customerid);
         } else {
           setCustomerName('');
           console.log('Customer not found');
+          setCustomerId(null);
         }
       } else if (res.status === 404) {
         setCustomerName('');
         console.log('Customer not found (404)');
+        setCustomerId(null);
       } else {
         console.error('Failed to fetch customer:', res.status, res.statusText);
         setCustomerName('');
+        setCustomerId(null);
       }
     } catch (err) {
       console.error('Customer fetch error:', err);
       setCustomerName('');
+      setCustomerId(null);
     }
   };
 
@@ -689,6 +698,7 @@ const resetBillingPanel = () => {
       fetchCustomerByMobile(mobileNumber);
     } else {
       setCustomerName('');
+      setCustomerId(null);
     }
   }, [mobileNumber]);
 
@@ -1561,6 +1571,7 @@ const resetBillingPanel = () => {
           outletId: selectedOutletId || Number(user?.outletid),
           customerName: customerName || null,
           mobileNo: mobileNumber || null,
+          GuestID: customerId || null,
         }),
       });
 
@@ -1575,6 +1586,7 @@ const resetBillingPanel = () => {
       // Clear customer fields after successful print
       setMobileNumber('');
       setCustomerName('');
+      setCustomerId(null);
 
       // Set the TxnNo from the API response to update the UI for printing
       if (printResult.data && printResult.data.TxnNo) {
@@ -1845,6 +1857,7 @@ const resetBillingPanel = () => {
         DiscountType: DiscountType,
         CustomerName: customerName,
         MobileNo: mobileNumber,
+        GuestID: customerId || null,
         Order_Type: activeTab, // Add the active tab as Order_Type
       };
 
@@ -2043,6 +2056,7 @@ const resetBillingPanel = () => {
         // ✅ Clear customer details after KOT save
        setMobileNumber('');
        setCustomerName('');
+       setCustomerId(null);
 
         // After printing, decide what to do based on focusMode
         if (activeTab === 'Pickup' || activeTab === 'Delivery') {
@@ -2815,6 +2829,7 @@ const resetBillingPanel = () => {
       // Clear customer fields after successful settlement
       setMobileNumber('');
       setCustomerName('');
+      setCustomerId(null);
 
       // Reset discount and round-off fields
       setDiscount(0);
@@ -2995,6 +3010,8 @@ const resetBillingPanel = () => {
     setCurrentKOTNos(order.KOTNo ? [order.KOTNo] : (order.kotNo ? [order.kotNo] : [])); // Set KOT numbers array
     setCustomerName(order.customer.name);
     setMobileNumber(order.customer.mobile);
+    if (order.GuestID) setCustomerId(order.GuestID);
+    else if (order.customerid) setCustomerId(order.customerid);
     setSelectedOutletId(order.outletid); // Set the outlet ID from the order
 
     // 4. Map and set the items, marking them as existing (not new)
@@ -3021,6 +3038,8 @@ const resetBillingPanel = () => {
     setCurrentKOTNos(order.KOTNo ? [order.KOTNo] : (order.kotNo ? [order.kotNo] : []));
     setCustomerName(order.customer.name);
     setMobileNumber(order.customer.mobile);
+    if (order.GuestID) setCustomerId(order.GuestID);
+    else if (order.customerid) setCustomerId(order.customerid);
     setSelectedOutletId(order.outletid);
 
     const existingItems = order.items.map((item: any) => ({
