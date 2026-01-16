@@ -26,10 +26,10 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
   show,
   onHide,
   onSettle,
-  grandTotal,
-  subtotal,
+  grandTotal = 0,
+  subtotal = 0,
   loading,
-  outletPaymentModes,
+  outletPaymentModes = [],
   selectedOutletId
 }) => {
   const { user } = useAuthContext();
@@ -346,10 +346,10 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
             <div className="text-center mb-4 pb-3 border-bottom">
               <div className="text-muted small mb-1">Total Amount Due</div>
               <div className="display-4 fw-bold text-dark mb-1">
-                ₹{grandTotal.toFixed(2)}
+                ₹{(grandTotal || 0).toFixed(2)}
               </div>
               <div className="text-muted small">
-                Subtotal: ₹{subtotal.toFixed(2)}
+                Subtotal: ₹{(subtotal || 0).toFixed(2)}
               </div>
             </div>
 
