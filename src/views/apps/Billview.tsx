@@ -1712,24 +1712,6 @@ const printBill = async () => {
 };
 
 
-const generateBill = async () => {
-  if (!txnId) return;
-  try {
-    const response = await axios.post('/api/bill/generate', {
-      txnId,
-      pax
-    });
-
-    setBillNo(response.data.data.BillNo); // ✅ only bill no
-    toast.success('Bill generated successfully');
-
-    return response.data.data.BillNo;
-  } catch (error) {
-    console.error('Error generating bill:', error);
-    toast.error('Error generating bill');
-    throw error;
-  }
-};
   const resetBillState = () => {
     setBillItems([{ itemCode: '', itemgroupid: 0, item_no: 0, itemId: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '', isFetched: false }]);
     setTxnId(null);
