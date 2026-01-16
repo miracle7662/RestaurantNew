@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Row, Col, Card, Form, Button, Badge } from 'react-bootstrap';
 import axios from 'axios';
-import { useAuthContext } from '@/common';
 import toast from 'react-hot-toast';
 
 interface PaymentMode {
@@ -19,7 +18,12 @@ interface SettlementModalProps {
   subtotal: number;
   loading: boolean;
   outletPaymentModes: PaymentMode[];
+
   selectedOutletId?: number;
+  initialSelectedModes?: string[];
+  initialPaymentAmounts?: { [key: string]: string };
+  initialIsMixed?: boolean;
+  initialTip?: number;
 }
 
 const SettlementModal: React.FC<SettlementModalProps> = ({
@@ -30,13 +34,16 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
   subtotal = 0,
   loading,
   outletPaymentModes = [],
-  selectedOutletId
+  selectedOutletId,
+  initialSelectedModes = [],
+  initialPaymentAmounts = {},
+  initialIsMixed = false,
+  initialTip = 0
 }) => {
-  const { user } = useAuthContext();
-  const [isMixedPayment, setIsMixedPayment] = useState(false);
-  const [selectedPaymentModes, setSelectedPaymentModes] = useState<string[]>([]);
-  const [paymentAmounts, setPaymentAmounts] = useState<{ [key: string]: string }>({});
-  const [tip, setTip] = useState<number>(0);
+  const [isMixedPayment, setIsMixedPayment] = useState(initialIsMixed);
+  const [selectedPaymentModes, setSelectedPaymentModes] = useState<string[]>(initialSelectedModes);
+  const [paymentAmounts, setPaymentAmounts] = useState<{ [key: string]: string }>(initialPaymentAmounts);
+  const [tip, setTip] = useState<number>(initialTip);
   const [activePaymentIndex, setActivePaymentIndex] = useState(0);
 
   // Calculate totals
