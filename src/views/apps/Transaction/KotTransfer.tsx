@@ -81,13 +81,13 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
   const [selectedKOT, setSelectedKOT] = useState<number | null>(null);
   const [latestKOT, setLatestKOT] = useState<number | null>(null);
   const [allItems, setAllItems] = useState<Item[]>([]);
+  const [waitingForEnter, setWaitingForEnter] = useState(false);
 
   const effectiveSource = mode || transferSource;
   const [transferMode, setTransferMode] = useState<"table" | "kot" | "ORDER">(effectiveSource);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [selectedOption, setSelectedOption] = useState<'no' | 'yes'>('no');
   const [transferDone, setTransferDone] = useState(false);
-  const [waitingForEnter, setWaitingForEnter] = useState(false);
   const [currentDate] = useState(new Date().toLocaleDateString('en-GB'));
   const [proposedPax, setProposedPax] = useState<number>(0);
   const [currentFocus, setCurrentFocus] = useState<'table' | 'kot' | 'f7' | 'modal'>('table');
@@ -370,8 +370,8 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
       })
     );
 
-    // Set transfer done flag
-    setTransferDone(true);
+    // Open confirmation modal
+    setShowConfirmModal(true);
   };
 
   const handleReverseTransfer = () => {
@@ -1027,10 +1027,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
         <Modal.Footer>
           <Button
             variant={selectedOption === 'no' ? 'primary' : 'secondary'}
-            onClick={() => {
-              handleSave();
-              setShowConfirmModal(false);
-            }}
+            onClick={() => setShowConfirmModal(false)}
             autoFocus={selectedOption === 'no'}
           >
             No
@@ -1038,7 +1035,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
           <Button
             variant={selectedOption === 'yes' ? 'primary' : 'secondary'}
             onClick={() => {
-              confirmTransfer();
+              handleSave();
               setShowConfirmModal(false);
             }}
           >

@@ -10,6 +10,8 @@ import { createKOT, getPendingOrders, getSavedKOTs, getTaxesByOutletAndDepartmen
 import OrderDetails from "./OrderDetails";
 import F8PasswordModal from "@/components/F8PasswordModal";
 import KotTransfer from "./KotTransfer";
+import SettlementModal from "./SettelmentModel";
+
 
 // 🔽 YAHAN ADD KARO (component ke bahar)
 
@@ -5270,169 +5272,20 @@ background: darkgreen;
             </Modal.Body>
           </Modal>
           {/* Settlement Modal */}
-
-          {/* Main Settlement Modal */}
-          <Modal
+          <SettlementModal
             show={showSettlementModal}
             onHide={() => setShowSettlementModal(false)}
-            centered
-            onShow={() => {
-              // When the modal is shown, check if it's for single payment
-              if (!isMixedPayment) {
-                // Find the 'Cash' payment mode
-                const cashMode = outletPaymentModes.find(
-                  (mode) => mode.mode_name.toLowerCase() === 'cash'
-                );
-                if (cashMode) {
-                  // Automatically select 'Cash' and set the amount
-                  handlePaymentModeClick(cashMode);
-                }
-              }
-            }}
-            size="lg"
-          >
-            {/* Header */}
-            <Modal.Header closeButton className="border-0">
-              <Modal.Title className="fw-bold text-dark">Payment Mode</Modal.Title>
-            </Modal.Header>
-
-            {/* Body */}
-            <Modal.Body className="bg-light">
-              {/* Bill Summary */}
-              <div className="p-4 mb-4 bg-white rounded shadow-sm text-center">
-                <h6 className="text-secondary mb-2">Total Amount Due</h6>
-                <div className="fw-bold display-5 text-dark" id="settlement-grand-total">
-                  ₹{taxCalc.grandTotal.toFixed(2)}
-                </div>
-              </div>
-
-              {/* Mixed Payment Toggle */}
-              <div className="d-flex justify-content-end mb-3">
-                <Form.Check
-                  type="switch"
-                  id="mixed-payment-switch"
-                  label="Mixed Payment"
-                  checked={isMixedPayment}
-                  onChange={(e) => {
-                    setIsMixedPayment(e.target.checked);
-                    setSelectedPaymentModes([]);
-                    setPaymentAmounts({});
-                  }}
-                />
-              </div>
-
-              {/* Payment Modes */}
-              <Row xs={1} md={2} className="g-3">
-                {outletPaymentModes.map((mode) => (
-                  <Col key={mode.id}>
-                    <Card
-                      onClick={() => handlePaymentModeClick(mode)}
-                      className={`text-center h-100 shadow-sm border-0 ${selectedPaymentModes.includes(mode.mode_name)
-                        ? "border border-primary"
-                        : ""
-                        }`}
-                      style={{
-                        cursor: "pointer",
-                        transition: "transform 0.2s ease, box-shadow 0.2s ease",
-                      }}
-                      onMouseEnter={(e) =>
-                        (e.currentTarget.style.transform = "translateY(-4px)")
-                      }
-                      onMouseLeave={(e) =>
-                        (e.currentTarget.style.transform = "translateY(0)")
-                      }
-                    >
-                      <Card.Body>
-                        <Card.Title className="fw-semibold">
-                          {mode.mode_name}
-                        </Card.Title>
-
-                        {/* Amount Input */}
-                        {selectedPaymentModes.includes(mode.mode_name) && (
-                          <Form.Control
-                            type="number"
-                            placeholder="0.00"
-                            value={paymentAmounts[mode.mode_name] || ""}
-                            onChange={(e) =>
-                              handlePaymentAmountChange(mode.mode_name, e.target.value)
-                            }
-                            onClick={(e) => e.stopPropagation()}
-                            autoFocus={isMixedPayment}
-                            readOnly={!isMixedPayment}
-                            className="mt-2 text-center"
-                          />
-                        )}
-                      </Card.Body>
-                    </Card>
-                  </Col>
-                ))}
-              </Row>
-
-              {/* Tip Input */}
-              <div className="mb-3 p-3 bg-white rounded shadow-sm">
-                <Form.Label className="fw-semibold text-dark mb-2">Optional Tip</Form.Label>
-                <Form.Control
-                  type="number"
-                  placeholder="0.00"
-                  value={tip || ""}
-                  onChange={(e) => setTip(parseFloat(e.target.value) || 0)}
-                  className="text-center"
-                  step="0.01"
-                />
-              </div>
-
-              {/* Payment Summary */}
-              <div className="mt-4 p-3 bg-white rounded shadow-sm">
-                <div className="d-flex justify-content-around fw-bold fs-5">
-                  <div>
-                    <span>Total Paid: </span>
-                    <span className="text-primary" id="settlement-total-paid">{(Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0) + (tip || 0)).toFixed(2)}</span>
-                  </div>
-                  <div>
-                    <span>Balance Due: </span>
-                    <span
-                      className={
-                        (taxCalc.grandTotal - (Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0) + (tip || 0))) === 0 ? "text-success" : "text-danger"
-                      }
-                    >
-                      {(taxCalc.grandTotal - (Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0) + (tip || 0))).toFixed(2)}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Validation Messages */}
-                {(taxCalc.grandTotal - (Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0) + (tip || 0))) !== 0 && (
-                  <div className="text-danger mt-2 text-center small">
-                    Total paid amount + tip must match the grand total.
-                  </div>
-                )}
-                {(taxCalc.grandTotal - (Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0) + (tip || 0))) === 0 && (Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0) + (tip || 0)) > 0 && (
-                  <div className="text-success mt-2 text-center small">
-                    ✅ Payment amount + tip matches. Ready to settle.
-                  </div>
-                )}
-              </div>
-            </Modal.Body>
-
-            {/* Footer */}
-            <Modal.Footer className="border-0 justify-content-between">
-              <Button
-                variant="outline-secondary"
-                onClick={() => setShowSettlementModal(false)}
-                className="px-4"
-              >
-                Back
-              </Button>
-              <Button
-                variant="success"
-                onClick={handleSettleAndPrint}
-                disabled={(taxCalc.grandTotal - (Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0) + (tip || 0))) !== 0 || (Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0) + (tip || 0)) === 0}
-                className="px-4"
-              >
-                Settle & Print
-              </Button>
-            </Modal.Footer>
-          </Modal>
+            onSettle={handleSettleAndPrint}
+            grandTotal={taxCalc.grandTotal}
+            subtotal={taxCalc.subtotal}
+            loading={loading}
+            outletPaymentModes={outletPaymentModes as any}
+            initialSelectedModes={selectedPaymentModes}
+            initialPaymentAmounts={paymentAmounts}
+            initialIsMixed={isMixedPayment}
+            initialTip={tip}
+          />
+          
           {/* F8PasswordModal */}
 
           <F8PasswordModal
