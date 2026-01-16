@@ -515,6 +515,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
 
   const confirmTransfer = () => {
     let itemsToTransfer: Item[];
+    let uniqueKOTs: number[] = [];
     if (isTableMode) {
       itemsToTransfer = selectedItems.map(item => ({ ...item, selected: false, media: proposedTable }));
       setSelectedItems([]);
@@ -528,7 +529,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
       setAllItems(updatedAllItems);
 
       // Recalculate available KOTs and latest KOT
-      const uniqueKOTs = [...new Set(updatedAllItems.map(item => item.kot))].sort((a, b) => a - b);
+      uniqueKOTs = [...new Set(updatedAllItems.map(item => item.kot))].sort((a, b) => a - b);
       setAvailableKOTs(uniqueKOTs);
       const latest = uniqueKOTs.length > 0 ? Math.max(...uniqueKOTs) : null;
       setLatestKOT(latest);
@@ -553,7 +554,9 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
 
     setShowConfirmModal(false);
     toast.success(`Successfully transferred ${itemsToTransfer.length} item${itemsToTransfer.length !== 1 ? 's' : ''} to Table ${proposedTable}`);
-    setCurrentFocus('kot');
+    if (!isTableMode && uniqueKOTs.length > 0) {
+      setCurrentFocus('kot');
+    }
   };
 
 
