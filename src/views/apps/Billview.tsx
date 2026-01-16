@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+ import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { Row, Col, Card, Table, Badge, Button, Form, Modal } from 'react-bootstrap';
 import axios from 'axios';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -11,7 +11,7 @@ import ReverseKotModal from './ReverseKotModal';
 
 const KOT_COLORS = [
   '#E8F5E9', // Green 50
-  '#FFF3E0', // Orange 50
+  '#FFF3E0', // Orange 50 
 ];
 const getRowColor = (kotNo: string | number | null | undefined) => {
   if (!kotNo) return '#ffffff';
@@ -196,6 +196,10 @@ const ModernBill = () => {
   const [itemGroups, setItemGroups] = useState<ItemGroup[]>([]);
 
   const isGrouped = groupBy !== 'none';
+
+  const [reverseQtyConfig, setReverseQtyConfig] = useState('PasswordRequired');
+  const [roundOffEnabled, setRoundOffEnabled] = useState(false);
+  const [roundOffTo, setRoundOffTo] = useState(1);
 
   // Tax rates states
   const [cgstRate, setCgstRate] = useState(2.5);
@@ -482,6 +486,7 @@ const removePaymentMode = (modeName: string) => {
   const [showF8RevKotPasswordModal, setShowF8RevKotPasswordModal] = useState(false);
   const [f8RevKotPasswordError, setF8RevKotPasswordError] = useState('');
   const [f8RevKotPasswordLoading, setF8RevKotPasswordLoading] = useState(false);
+  const [showReverseBillConfirmationModal, setShowReverseBillConfirmationModal] = useState(false);
   const [showDiscountModal, setShowDiscountModal] = useState(false);
   const [givenBy, setGivenBy] = useState('');
   const [reason, setReason] = useState('');
@@ -542,30 +547,32 @@ const removePaymentMode = (modeName: string) => {
 
       if (e.key === "ArrowDown") {
         e.preventDefault();
-        setActivePaymentIndex((prev) =>
-          prev < outletPaymentModes.length - 1 ? prev + 1 : 0
-        );
+        setActivePaymentIndex((prev) => {
+          const newIndex = prev < outletPaymentModes.length - 1 ? prev + 1 : 0;
+          const selectedMode = outletPaymentModes[newIndex];
+          if (selectedMode) {
+            handlePaymentModeClick(selectedMode);
+          }
+          return newIndex;
+        });
       }
 
       if (e.key === "ArrowUp") {
         e.preventDefault();
-        setActivePaymentIndex((prev) =>
-          prev > 0 ? prev - 1 : outletPaymentModes.length - 1
-        );
-      }
-
-      if (e.key === "Enter") {
-        e.preventDefault();
-        const selectedMode = outletPaymentModes[activePaymentIndex];
-        if (selectedMode) {
-          handlePaymentModeClick(selectedMode);
-        }
+        setActivePaymentIndex((prev) => {
+          const newIndex = prev > 0 ? prev - 1 : outletPaymentModes.length - 1;
+          const selectedMode = outletPaymentModes[newIndex];
+          if (selectedMode) {
+            handlePaymentModeClick(selectedMode);
+          }
+          return newIndex;
+        });
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [showSettlementModal, activePaymentIndex, outletPaymentModes]);
+  }, [showSettlementModal, outletPaymentModes]);
 
 
   const handleCustomerNoChange = async (value: string) => {
@@ -618,54 +625,9 @@ const removePaymentMode = (modeName: string) => {
       const data = await response.json();
 
       if (response.ok && data.success) {
-        // Password verified, now call the bill reversal endpoint
-        if (!txnId) {
-          setF9BilledPasswordError("Transaction ID not found. Cannot reverse bill.");
-          return;
-        }
-
-        try {
-          const reverseResponse = await fetch(`http://localhost:3001/api/TAxnTrnbill/${txnId}/reverse`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${(user as any).token}`
-            },
-            body: JSON.stringify({ userId: user.id }) // Pass admin's ID for logging
-          });
-
-          const reverseData = await reverseResponse.json();
-
-          if (reverseResponse.ok && reverseData.success) {
-            toast.success('Bill reversed successfully!');
-            setShowF9BilledPasswordModal(false);
-
-            // ✅ Optimistically update the table status in the UI
-            if (tableName) {
-              setTableItems(prevTables =>
-                prevTables.map(table =>
-                  table.table_name === tableName ? { ...table, status: 0 } : table
-                )
-              );
-            }
-
-            // ✅ Clear current UI states
-            resetBillState();
-            setItems([]);
-            setReversedItems([]);
-            setSelectedTable(null);
-            setShowOrderDetails(false);
-            setCurrentKOTNo(null);
-            setCurrentKOTNos([]);
-            setOrderNo(null);
-
-            navigate('/apps/Tableview');
-          } else {
-            setF9BilledPasswordError(reverseData.message || 'Failed to reverse the bill.');
-          }
-        } catch (reverseError) {
-          setF9BilledPasswordError('An error occurred while reversing the bill.');
-        }
+        // Password verified, now open confirmation modal
+        setShowF9BilledPasswordModal(false);
+        setShowReverseBillConfirmationModal(true);
       } else {
         setF9BilledPasswordError(data.message || 'Invalid password');
       }
@@ -706,6 +668,58 @@ const removePaymentMode = (modeName: string) => {
       setF8RevKotPasswordError('An error occurred. Please try again.');
     } finally {
       setF8RevKotPasswordLoading(false);
+    }
+  };
+
+  const handleReverseBillConfirmation = async () => {
+    setShowReverseBillConfirmationModal(false);
+
+    // Now call the bill reversal endpoint
+    if (!txnId) {
+      toast.error("Transaction ID not found. Cannot reverse bill.");
+      return;
+    }
+
+    try {
+      const reverseResponse = await fetch(`http://localhost:3001/api/TAxnTrnbill/${txnId}/reverse`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${(user as any).token}`
+        },
+        body: JSON.stringify({ userId: user.id }) // Pass admin's ID for logging
+      });
+
+      const reverseData = await reverseResponse.json();
+
+      if (reverseResponse.ok && reverseData.success) {
+        toast.success('Bill reversed successfully!');
+
+        // Optimistically update the table status in the UI
+        if (tableName) {
+          setTableItems(prevTables =>
+            prevTables.map(table =>
+              table.table_name === tableName ? { ...table, status: 0 } : table
+            )
+          );
+        }
+
+        // Clear current UI states
+        resetBillState();
+        setItems([]);
+        setReversedItems([]);
+        setSelectedTable(null);
+        setShowOrderDetails(false);
+        setCurrentKOTNo(null);
+        setCurrentKOTNos([]);
+        setOrderNo(null);
+
+        navigate('/apps/Tableview');
+      } else {
+        toast.error(reverseData.message || 'Failed to reverse the bill.');
+      }
+    } catch (reverseError) {
+      toast.error('An error occurred while reversing the bill.');
     }
   };
 
@@ -958,6 +972,7 @@ const removePaymentMode = (modeName: string) => {
         }
         if (data.header.CustomerName) setCustomerName(data.header.CustomerName);
         if (data.header.MobileNo) setCustomerNo(data.header.MobileNo);
+        if (data.header.customerid) setCustomerId(data.header.customerid);
 
         // Discount handling
         if (data.header.Discount || data.header.DiscPer) {
@@ -1137,6 +1152,47 @@ const removePaymentMode = (modeName: string) => {
     };
 
     fetchTaxDetails();
+  }, [selectedOutletId]);
+
+  useEffect(() => {
+    if (selectedOutletId) {
+      // Fetch outlet settings for Reverse Qty Mode
+      const fetchReverseQtySetting = async () => {
+        try {
+          const res = await fetch(`http://localhost:3001/api/outlets/outlet-settings/${selectedOutletId}`);
+          if (res.ok) {
+            const settings = await res.json();
+            if (settings) {
+              setReverseQtyConfig(settings.ReverseQtyMode === 1 ? 'PasswordRequired' : 'NoPassword');
+              setRoundOffEnabled(!!settings.bill_round_off);
+              setRoundOffTo(settings.bill_round_off_to || 1);
+
+              // include_tax_in_invoice may be returned with different casing
+              const incFlag =
+                settings.include_tax_in_invoice ??
+                (settings as any).IncludeTaxInInvoice ??
+                (settings as any).includeTaxInInvoice ??
+                (settings as any).includeTaxInInvoice;
+              setIncludeTaxInInvoice(!!Number(incFlag));
+
+              // Debug console for tax mode
+              console.log("Include Tax in Invoice:", Number(incFlag) === 1 ? "Inclusive" : "Exclusive");
+            } else {
+              setReverseQtyConfig('PasswordRequired'); // Default to password required
+              setIncludeTaxInInvoice(false);
+            }
+          } else {
+            setReverseQtyConfig('PasswordRequired'); // Default to password required
+            setIncludeTaxInInvoice(false);
+          }
+        } catch (error) {
+          console.error("Failed to fetch outlet settings for Reverse Qty Mode", error);
+          setReverseQtyConfig('PasswordRequired'); // Default to password required
+          setIncludeTaxInInvoice(false);
+        }
+      };
+      fetchReverseQtySetting();
+    }
   }, [selectedOutletId]);
 
   useEffect(() => {
@@ -1395,6 +1451,7 @@ const removePaymentMode = (modeName: string) => {
         PAX: pax,
         CustomerName: customerName || null,
         MobileNo: customerNo || null,
+        GuestID: customerId || null,
         discount: discount,
         discPer: discountInputValue,
         discountType: DiscountType,
@@ -1503,7 +1560,7 @@ const removePaymentMode = (modeName: string) => {
         {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ NCName: ncName, NCPurpose: ncPurpose }),
+          body: JSON.stringify({ NCName: ncName, NCPurpose: ncPurpose, userId: user?.id }),
         }
       );
 
@@ -1613,13 +1670,16 @@ const removePaymentMode = (modeName: string) => {
     }
   };
 
- const printBill = async () => {
+const printBill = async () => {
   if (!txnId) return;
 
   try {
     // 1️⃣ Call mark-billed API to generate TxnNo
     const response = await axios.put(`/api/TAxnTrnbill/${txnId}/mark-billed`, {
-      outletId: selectedOutletId || Number(user?.outletid)
+      outletId: selectedOutletId || Number(user?.outletid),
+      customerName: customerName || null,
+      mobileNo: customerNo || null,
+        GuestID: customerId || null, 
     });
 
     const txnNo = response.data?.data?.TxnNo;
@@ -1800,8 +1860,7 @@ const generateBill = async () => {
         await loadBillForTable(tableId);
       }
 
-      // Navigate to tableview page after applying discount
-      navigate('/apps/Tableview');
+     
 
     } catch (error: any) {
       toast.error(error.message || 'An error occurred while applying the discount.');
@@ -1944,12 +2003,12 @@ const generateBill = async () => {
 
 
   const handleF8Action = useCallback(() => {
-    if (isBillPrintedState) {
+    if (reverseQtyConfig === 'PasswordRequired') {
       setShowF8RevKotPasswordModal(true);
     } else {
       setShowReverseKot(true);
     }
-  }, [isBillPrintedState]);
+  }, [reverseQtyConfig]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -1975,7 +2034,7 @@ const generateBill = async () => {
           case 'F5': // 🔒 Reverse Bill (only if isBilled = 1)
             event.preventDefault();
             if (disableReverseBill) return;
-            setShowReverseBillModal(true);
+           setShowReverseBillModal(true);
             return;
 
           case 'F6':
@@ -3207,6 +3266,20 @@ const generateBill = async () => {
           <KotTransfer transferSource={transferSource} sourceTableId={tableId} onCancel={() => setShowKotTransferModal(false)} />
         </Modal.Body>
       </Modal>
+      {/* Reverse Bill Confirmation Modal (After Password) */}
+      <Modal show={showReverseBillConfirmationModal} onHide={() => setShowReverseBillConfirmationModal(false)} centered size="sm">
+        <Modal.Header closeButton>
+          <Modal.Title>Confirm Reversal</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p>Password verified. Are you sure you want to reverse this bill?</p>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowReverseBillConfirmationModal(false)}>No</Button>
+          <Button variant="danger" onClick={handleReverseBillConfirmation}>Yes, Reverse Bill</Button>
+        </Modal.Footer>
+      </Modal>
+
       {/* Reverse Bill Modal */}
       <Modal show={showReverseBillModal} onHide={() => setShowReverseBillModal(false)} centered>
         <Modal.Header closeButton>
@@ -3277,7 +3350,7 @@ const generateBill = async () => {
         persistentTxnId={txnId}
         persistentTableId={tableId}
       />
-      <Toaster />
+     
     </React.Fragment>
   );
 };

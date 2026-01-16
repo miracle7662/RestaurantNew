@@ -167,7 +167,7 @@ exports.getBillById = async (req, res) => {
       )
       .all(bill.orderNo || null, bill.HotelID || null)
 
-    res.json(ok('Fetched bill', { ...bill, details, settlement: settlements }))
+    res.json(ok('Fetched bill', { ...bill, customerid: bill.GuestID, details, settlement: settlements }))
   } catch (error) {
     res
       .status(500)
@@ -467,7 +467,7 @@ exports.createBill = async (req, res) => {
     const items = db
       .prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? ORDER BY TXnDetailID')
       .all(txnId)
-    res.json(ok('Bill created', { ...header, details: items }))
+    res.json(ok('Bill created', { ...header, customerid: header.GuestID, details: items }))
   } catch (error) {
     console.error('Error in createBill:', error)
     res
@@ -849,7 +849,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       .all(header.orderNo || null, header.HotelID || null)
 
     console.log('--- settleBill Success ---')
-    res.json(ok('Bill settled', { ...header, details: items, settlement: stl }))
+    res.json(ok('Bill settled', { ...header, customerid: header.GuestID, details: items, settlement: stl }))
   } catch (error) {
     console.error('--- ERROR in settleBill ---')
     console.error(error)
@@ -974,6 +974,7 @@ exports.createKOT = async (req, res) => {
       DiscountType,
       CustomerName,
       MobileNo,
+      GuestID,
       Order_Type,
       PAX,
       items: details = [],
@@ -1032,18 +1033,19 @@ exports.createKOT = async (req, res) => {
         // Use new discount/NC info if provided, otherwise fall back to existing values.
         db.prepare(
           `
-            UPDATE TAxnTrnbill 
-            SET 
+            UPDATE TAxnTrnbill
+            SET
               table_name = ?,
-              DiscPer = ?, 
-              Discount = ?, 
+              DiscPer = ?,
+              Discount = ?,
               DiscountType = ?,
               Order_Type = ?,
               NCName = ?,
               NCPurpose = ?,
               isNCKOT = ?,
               CustomerName = COALESCE(?, CustomerName),
-              MobileNo = COALESCE(?, MobileNo)
+              MobileNo = COALESCE(?, MobileNo),
+              GuestID = COALESCE(?, GuestID)
             WHERE TxnID = ?
         `,
         ).run(
@@ -1057,6 +1059,7 @@ exports.createKOT = async (req, res) => {
           toBool(isHeaderNCKOT || existingBill.isNCKOT),
           CustomerName,
           MobileNo,
+          GuestID,
           txnId,
         )
       } else {
@@ -1077,9 +1080,9 @@ exports.createKOT = async (req, res) => {
         const insertHeaderStmt = db.prepare(`
           INSERT INTO TAxnTrnbill (
             outletid, TxnNo, TableID, table_name, PAX, UserId, HotelID, TxnDatetime,
-            isBilled, isCancelled, isSetteled, status, AutoKOT, CustomerName, MobileNo, Order_Type, orderNo,
+            isBilled, isCancelled, isSetteled, status, AutoKOT, CustomerName, MobileNo, GuestID, Order_Type, orderNo,
             NCName, NCPurpose, DiscPer, Discount, DiscountType, isNCKOT
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), 0, 0, 0, 1, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), 0, 0, 0, 1, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `)
         const result = insertHeaderStmt.run(
           headerOutletId,
@@ -1091,6 +1094,7 @@ exports.createKOT = async (req, res) => {
           HotelID,
           CustomerName,
           MobileNo,
+          GuestID,
           Order_Type,
           newOrderNo,
           NCName || null,
@@ -1307,7 +1311,7 @@ exports.createKOT = async (req, res) => {
       item_no: i.item_no || i.MenuItemNo,
     }))
 
-    res.json(ok('KOT processed successfully', { ...header, details: mappedItems, KOTNo: kotNo }))
+    res.json(ok('KOT processed successfully', { ...header, customerid: header.GuestID, details: mappedItems, KOTNo: kotNo }))
   } catch (error) {
     console.error('Error in createKOT:', error)
     res
@@ -1356,6 +1360,7 @@ exports.createReverseKOT = async (req, res) => {
     console.log(`Generated RevKOT number: ${newRevKOTNo} for outlet ${outletid}`)
 
     const trx = db.transaction(() => {
+      let isFullReverse = false
       const updateDetailStmt = db.prepare(`
         UPDATE TAxnTrnbilldetails 
         SET RevQty = COALESCE(RevQty, 0) + ?, RevKOTNo = ?, KOTUsedDate = datetime('now')
@@ -1515,7 +1520,7 @@ exports.createReverseKOT = async (req, res) => {
         db.prepare(
           `
           UPDATE TAxnTrnbill
-          SET isreversebill = 0, isCancelled = 1, status = 0
+          SET isreversebill = 0, isCancelled = 1, status = 0, isSetteled = 1
           WHERE TxnID = ?
         `,
         ).run(txnId)
@@ -1529,11 +1534,23 @@ exports.createReverseKOT = async (req, res) => {
           `,
           ).run(tableId)
         }
-        return { fullReverse: true } // Indicate a full reversal
+        isFullReverse = true
       }
-      return { fullReverse: false } // Indicate a partial reversal
+
+      // After a partial reversal, the bill is no longer considered fully billed or settled.
+      // Reset these flags to allow for re-billing or further modifications.
+      if (!isFullReverse) {
+        db.prepare(
+          `
+        UPDATE TAxnTrnbill
+        SET isBilled = 0, isSetteled = 0
+        WHERE TxnID = ?
+      `,
+        ).run(txnId)
+      }
+      return { fullReverse: isFullReverse }
     })
-    const { fullReverse } = trx() // Execute transaction and get return value
+    const { fullReverse } = trx()
     res.json({
       success: true,
       message: fullReverse
@@ -1718,7 +1735,7 @@ exports.getUnbilledItemsByTable = async (req, res) => {
       db
         .prepare(
           `
-      SELECT TxnID, GrossAmt, RevKOT, Discount, DiscPer, DiscountType, CGST, SGST, IGST, CESS, RoundOFF, Amount, PAX
+      SELECT TxnID, GrossAmt, RevKOT, Discount, DiscPer, DiscountType, CGST, SGST, IGST, CESS, RoundOFF, Amount, PAX, CustomerName, MobileNo
       FROM TAxnTrnbill
       WHERE TableID = ? AND isBilled = 0 AND isCancelled = 0
       ORDER BY TxnID DESC
@@ -2375,7 +2392,7 @@ exports.printBill = async (req, res) => {
 exports.markBillAsBilled = async (req, res) => {
   try {
     const { id } = req.params
-    const { outletId } = req.body // ✅ Get outletId from body
+    const { outletId, customerName, mobileNo, GuestID } = req.body // ✅ Get outletId from body
 
     const bill = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id))
     if (!bill) {
@@ -2395,17 +2412,17 @@ exports.markBillAsBilled = async (req, res) => {
     db.prepare(
       `
       UPDATE TAxnTrnbill
-      SET isBilled = 1, BilledDate = CURRENT_TIMESTAMP, TxnNo = ?
+      SET isBilled = 1, BilledDate = CURRENT_TIMESTAMP, TxnNo = ?, CustomerName = COALESCE(?, CustomerName), MobileNo = COALESCE(?, MobileNo), GuestID = COALESCE(?, GuestID)
       WHERE TxnID = ?
     `,
-    ).run(txnNo, Number(id))
+    ).run(txnNo, customerName || null, mobileNo || null, GuestID || null, Number(id))
 
     const header = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(Number(id))
     const items = db
       .prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? ORDER BY TXnDetailID')
       .all(Number(id))
 
-    res.json(ok('Bill marked as billed', { ...header, details: items }))
+    res.json(ok('Bill marked as billed', { ...header, customerid: header.GuestID, details: items }))
   } catch (error) {
     res
       .status(500)

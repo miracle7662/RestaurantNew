@@ -11,6 +11,8 @@ import OrderDetails from "./OrderDetails";
 import F8PasswordModal from "@/components/F8PasswordModal";
 import KotTransfer from "./KotTransfer";
 
+// 🔽 YAHAN ADD KARO (component ke bahar)
+
 interface MenuItem {
   id: number;
   name: string;
@@ -36,7 +38,7 @@ interface ReversedMenuItem extends MenuItem {
   isReversed: true;
   reversalLogId: number;
   status: 'Reversed';
-  
+
 }
 
 interface TableItem {
@@ -99,6 +101,7 @@ const Order = () => {
   const [sourceTableId, setSourceTableId] = useState<number | null>(null);
   const [mobileNumber, setMobileNumber] = useState<string>('');
   const [customerName, setCustomerName] = useState<string>('');
+  const [customerId, setCustomerId] = useState<number | null>(null);
   const [taxRates, setTaxRates] = useState<{ cgst: number; sgst: number; igst: number; cess: number }>({ cgst: 0, sgst: 0, igst: 0, cess: 0 });
   const [taxCalc, setTaxCalc] = useState<{ subtotal: number; cgstAmt: number; sgstAmt: number; igstAmt: number; cessAmt: number; grandTotal: number }>({ subtotal: 0, cgstAmt: 0, sgstAmt: 0, igstAmt: 0, cessAmt: 0, grandTotal: 0 });
   // 0 = exclusive (default), 1 = inclusive
@@ -168,6 +171,9 @@ const Order = () => {
   const [showTaxModal, setShowTaxModal] = useState<boolean>(false);
   const [showNCKOTModal, setShowNCKOTModal] = useState<boolean>(false);
   const [showKotTransfer, setShowKotTransfer] = useState<boolean>(false);
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [transferMode, setTransferMode] = useState<"table" | "kot">("table");
+
 
   // KOT Print Settings state
 
@@ -215,6 +221,33 @@ const Order = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10); // You can make this configurable
 
+const resetBillingPanel = () => {
+  setItems([]);
+  setReversedItems([]);
+  setReverseQtyItems([]);
+
+  setOrderNo(null);
+  setCurrentTxnId(null);
+  setPersistentTxnId(null);
+  setPersistentTableId(null);
+
+  setCurrentKOTNo(null);
+  setCurrentKOTNos([]);
+
+  setDiscount(0);
+  setDiscountInputValue(0);
+  setDiscountType(1);
+
+  setReverseQtyMode(false);
+  setShowSaveReverseButton(false);
+  setIsSaveReverseDisabled(false);
+
+  setShowBillPreviewModal(false);
+  setShowSettlementModal(false);
+  setPrintItems([]);
+  // 🔴 TABLE NAME CLEAR
+  setSelectedTable(null);
+};
 
 
 
@@ -294,6 +327,10 @@ const Order = () => {
             setDiscount(0);
             setDiscountInputValue(0);
           }
+          // ✅ Restore customer details from billed transaction
+          setCustomerName(header.CustomerName || '');
+          setMobileNumber(header.MobileNo || '');
+          if (header.customerid) setCustomerId(header.customerid);
           // Also fetch and set reversed items for the billed transaction
           const fetchedReversedItems: ReversedMenuItem[] = (billedBillData.data.reversedItems || []).map((item: any) => ({
             ...item,
@@ -389,6 +426,10 @@ const Order = () => {
           setDiscountInputValue(header.DiscountType === 1 ? header.DiscPer : header.Discount || 0);
           setDiscountType(header.DiscountType !== null ? header.DiscountType : 1);
         }
+        // ✅ Restore customer details from unbilled transaction
+        setCustomerName(header.CustomerName || '');
+        setMobileNumber(header.MobileNo || '');
+        if (header.customerid) setCustomerId(header.customerid);
       } else {
         setItems([]);
         setReversedItems([]);
@@ -549,7 +590,7 @@ const Order = () => {
   });
 
   const getTableButtonClass = (table: TableItem, isSelected: boolean) => {
-    if (isSelected) return 'btn-success';
+
     // Use status for coloring: 0=available, 1=occupied/KOT saved, 2=billed/printed
     switch (table.status) {
       case 1: return 'btn-success'; // KOT saved/occupied (green)
@@ -626,23 +667,29 @@ const Order = () => {
         console.log('Customer API response:', response);
         if (response.customerid && response.name) {
           setCustomerName(response.name);
+          setCustomerId(response.customerid);
         } else if (response.success && response.data && response.data.length > 0) {
           const customer = response.data[0];
           setCustomerName(customer.name);
+          setCustomerId(customer.customerid);
         } else {
           setCustomerName('');
           console.log('Customer not found');
+          setCustomerId(null);
         }
       } else if (res.status === 404) {
         setCustomerName('');
         console.log('Customer not found (404)');
+        setCustomerId(null);
       } else {
         console.error('Failed to fetch customer:', res.status, res.statusText);
         setCustomerName('');
+        setCustomerId(null);
       }
     } catch (err) {
       console.error('Customer fetch error:', err);
       setCustomerName('');
+      setCustomerId(null);
     }
   };
 
@@ -651,6 +698,7 @@ const Order = () => {
       fetchCustomerByMobile(mobileNumber);
     } else {
       setCustomerName('');
+      setCustomerId(null);
     }
   }, [mobileNumber]);
 
@@ -1190,55 +1238,65 @@ const Order = () => {
 
   const handleReverseQty = async (item: MenuItem) => {
     try {
-      // 🧩 Check reverse mode for billed items
+      // 🔒 Reverse mode required for billed items
       if (item.isBilled === 1 && !reverseQtyMode) {
         toast.error('Reverse quantity mode must be activated for billed items.');
         return;
       }
 
-      // 🧩 Prevent reversing all items
-      if (item.isBilled === 1 && items.length === 1 && items[0].qty === 1) {
-        toast.error("At least one item must remain. You cannot reverse all items.");
-        return;
+      // 🔒 Prevent full reverse
+      // 🔒 Prevent reversing ALL items for billed orders
+      if (item.isBilled === 1) {
+        const totalRemainingQty = items.reduce((sum, i) => sum + i.qty, 0);
+
+        // Agar abhi sirf 1 qty bachi hai, to reverse mat allow karo
+        if (totalRemainingQty <= 1) {
+          toast.error(
+            "At least one item must remain on the table. You cannot reverse all items."
+          );
+          return;
+        }
       }
 
-      // 🧩 Dine-in billed order refresh
-      if (item.isBilled === 1 && sourceTableId) {
-        refreshItemsForTable(sourceTableId);
-      }
+      if (!reverseQtyMode) return;
 
-      // This block now handles all scenarios (Dine-in, Pickup, Delivery)
-      if (reverseQtyMode) {
-        setItems(currentItems => {
-          const itemIndex = currentItems.findIndex(i => i.txnDetailId === item.txnDetailId);
-          if (itemIndex > -1) {
-            const updatedItems = [...currentItems];
-            const currentItem = updatedItems[itemIndex];
-            if (currentItem.qty > 0) {
-              updatedItems[itemIndex] = { ...currentItem, qty: currentItem.qty - 1 };
-            }
-            return updatedItems;
-          }
-          return currentItems;
-        });
+      // ✅ 1. UPDATE ITEMS (UI STATE)
+      setItems(prev =>
+        prev.map(i => {
+          if (i.txnDetailId !== item.txnDetailId) return i;
 
-        setReverseQtyItems(prev => {
-          const existing = prev.find(ri => ri.txnDetailId === item.txnDetailId);
-          if (existing) {
-            return prev.map(ri =>
-              ri.txnDetailId === item.txnDetailId ? { ...ri, qty: ri.qty + 1 } : ri
-            );
-          }
-          return [...prev, { ...item, qty: 1, isReverse: true }];
-        });
-        setShowSaveReverseButton(true);
-      }
+          const originalQty = i.originalQty ?? i.qty;
+          const currentRev = i.revQty ?? 0;
+          const newRev = currentRev + 1;
 
+          if (newRev > originalQty) return i;
+
+          return {
+            ...i,
+            revQty: newRev,
+            qty: originalQty - newRev, // 🔥 UI SYNC FIX
+          };
+        })
+      );
+
+      // ✅ 2. UPDATE reverseQtyItems (SAVE KOT payload)
+      setReverseQtyItems(prev => {
+        const existing = prev.find(ri => ri.txnDetailId === item.txnDetailId);
+        if (existing) {
+          return prev.map(ri =>
+            ri.txnDetailId === item.txnDetailId ? { ...ri, qty: ri.qty + 1 } : ri
+          );
+        }
+        return [...prev, { ...item, qty: 1, isReverse: true }];
+      });
+      setShowSaveReverseButton(true);
     } catch (error) {
       console.error('❌ Error processing reverse quantity:', error);
       toast.error('Error processing reverse quantity');
     }
   };
+
+
 
 
   useEffect(() => {
@@ -1486,6 +1544,7 @@ const Order = () => {
     setActiveTab('Dine-in'); // Switch back to the Dine-in tab
     setShowPendingOrdersView(false);
     setShowOrderDetails(false);
+     resetBillingPanel(); 
     setActiveNavTab('ALL'); // Show all department tables
   };
 
@@ -1510,6 +1569,9 @@ const Order = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           outletId: selectedOutletId || Number(user?.outletid),
+          customerName: customerName || null,
+          mobileNo: mobileNumber || null,
+          GuestID: customerId || null,
         }),
       });
 
@@ -1524,6 +1586,7 @@ const Order = () => {
       // Clear customer fields after successful print
       setMobileNumber('');
       setCustomerName('');
+      setCustomerId(null);
 
       // Set the TxnNo from the API response to update the UI for printing
       if (printResult.data && printResult.data.TxnNo) {
@@ -1794,6 +1857,7 @@ const Order = () => {
         DiscountType: DiscountType,
         CustomerName: customerName,
         MobileNo: mobileNumber,
+        GuestID: customerId || null,
         Order_Type: activeTab, // Add the active tab as Order_Type
       };
 
@@ -1832,34 +1896,34 @@ const Order = () => {
         }
 
         // 1️⃣ Fetch printer from settings
-    const printer_name = await fetchKOTPrinter(resolvedOutletId);
+        const printer_name = await fetchKOTPrinter(resolvedOutletId);
 
-if (typeof printer_name !== "string" || !printer_name.trim()) {
-  toast.error("No KOT printer configured.");
-  return;
-}
+        if (typeof printer_name !== "string" || !printer_name.trim()) {
+          toast.error("No KOT printer configured.");
+          return;
+        }
 
-type SystemPrinter = {
-  name: string;
-  displayName?: string;
-};
+        type SystemPrinter = {
+          name: string;
+          displayName?: string;
+        };
 
-const systemPrinters: SystemPrinter[] =
-  await window.electronAPI.getInstalledPrinters();
+        const systemPrinters: SystemPrinter[] =
+          await window.electronAPI.getInstalledPrinters();
 
-const normalize = (s: string) =>
-  s.toLowerCase().replace(/\s+/g, "").trim();
+        const normalize = (s: string) =>
+          s.toLowerCase().replace(/\s+/g, "").trim();
 
-const matchedPrinter = systemPrinters.find(p =>
-  normalize(p.name).includes(normalize(printer_name))
-);
+        const matchedPrinter = systemPrinters.find(p =>
+          normalize(p.name).includes(normalize(printer_name))
+        );
 
-if (!matchedPrinter) {
-  toast.error(`Printer "${printer_name}" not found on this system.`);
-  return;
-}
+        if (!matchedPrinter) {
+          toast.error(`Printer "${printer_name}" not found on this system.`);
+          return;
+        }
 
-const finalPrinterName: string = matchedPrinter.name;
+        const finalPrinterName: string = matchedPrinter.name;
 
 
 
@@ -1989,6 +2053,10 @@ const finalPrinterName: string = matchedPrinter.name;
         setPersistentTxnId(null);
         setPersistentTableId(null);
         setSourceTableId(null);
+        // ✅ Clear customer details after KOT save
+       setMobileNumber('');
+       setCustomerName('');
+       setCustomerId(null);
 
         // After printing, decide what to do based on focusMode
         if (activeTab === 'Pickup' || activeTab === 'Delivery') {
@@ -2161,6 +2229,31 @@ const finalPrinterName: string = matchedPrinter.name;
       if (result.success) {
         toast.success('Reverse KOT processed successfully.');
 
+        // 2️⃣ Table status update API call (green)
+        // 2️⃣ Table status update API call
+        if (selectedTable) {
+          const tableToUpdate = tableItems.find(t => t.table_name === selectedTable);
+          if (tableToUpdate) {
+            // Check if all items in table have qty fully reversed
+            const allReversed = items.every(item => {
+              const revItem = reverseQtyItems.find(r => r.item_no === item.item_no);
+              return revItem ? (item.qty - (revItem.revQty ?? 0)) <= 0 : item.qty <= 0;
+            });
+
+            const newStatus = allReversed ? 0 : 1; // 0 = Vacant, 1 = Running
+
+            await fetch(`http://localhost:3001/api/tablemanagement/${tableToUpdate.tableid}/status`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ status: newStatus }),
+            });
+        
+          }
+        }
+        
+
+
+
         // Open print preview for the reverse KOT
         const printWindow = window.open('', '_blank');
         if (printWindow) {
@@ -2183,7 +2276,7 @@ const finalPrinterName: string = matchedPrinter.name;
         if (activeTab === 'Pickup' || activeTab === 'Delivery') {
           handlePendingOrderTabClick(activeTab.toLowerCase() as 'pickup' | 'delivery');
         }
-
+        // For both partial and full reversals, reset the UI state and refresh tables.
         // For both partial and full reversals, reset the UI state and refresh tables.
         setItems([]);
         setReversedItems([]);
@@ -2193,7 +2286,20 @@ const finalPrinterName: string = matchedPrinter.name;
         setShowSaveReverseButton(false);
         setReverseQtyItems([]);
         setSourceTableId(null);
-        fetchTableManagement(); // Refresh table statuses to show green
+        setDiscount(0);
+        setDiscountInputValue(0);
+        setRoundOffValue(0);
+
+        // 🔴 MISSING BUT REQUIRED
+        setCurrentKOTNo(null);
+        setCurrentKOTNos([]);
+
+        // 🔴 VERY IMPORTANT (transaction lifecycle reset)
+        setPersistentTxnId(null);
+        setPersistentTableId(null);
+
+        fetchTableManagement();
+
       } else {
         throw new Error(result.message || 'Failed to process reverse KOT.');
       }
@@ -2620,26 +2726,18 @@ const finalPrinterName: string = matchedPrinter.name;
       setShowDiscountModal(false);
       // Instead of clearing the table, just refresh its data to show the discount.
       // If the table was billed, applying a discount should make it 'occupied' (green) again.
-      const wasBilled = items.some(item => item.isBilled === 1);
-      if (wasBilled && selectedTable) {
-        const tableToUpdate = tableItems.find(t => t.table_name === selectedTable);
-        if (tableToUpdate) {
-          // Optimistically update UI to green
-          setTableItems(prevTables =>
-            prevTables.map(table =>
-              table.table_name === selectedTable ? { ...table, status: 1 } : table
-            )
-          );
-          // The backend now handles setting isBilled=0, so a refresh will show correct state.
-          if (sourceTableId) {
-            await refreshItemsForTable(sourceTableId);
-          }
-        }
+      // keep table green
+      if (selectedTable) {
+        setTableItems(prev =>
+          prev.map(t =>
+            t.table_name === selectedTable ? { ...t, status: 1 } : t
+          )
+        );
       }
 
-      if (sourceTableId) {
-        await refreshItemsForTable(sourceTableId);
-      }
+      // clear order UI
+     
+
 
     } catch (error: any) {
       toast.error(error.message || 'An error occurred while applying the discount.');
@@ -2731,6 +2829,7 @@ const finalPrinterName: string = matchedPrinter.name;
       // Clear customer fields after successful settlement
       setMobileNumber('');
       setCustomerName('');
+      setCustomerId(null);
 
       // Reset discount and round-off fields
       setDiscount(0);
@@ -2796,51 +2895,51 @@ const finalPrinterName: string = matchedPrinter.name;
     setShowTaxModal(false);
   };
 
- const handleSaveNCKOT = async () => {
-  if (!currentTxnId) {
-    toast.error('No active transaction found. Please save a KOT first.');
-    return;
-  }
-  if (!ncName || !ncPurpose) {
-    toast.error('NC Name and Purpose are required.');
-    return;
-  }
-
-  setLoading(true);
-  try {
-    const response = await fetch(
-      `http://localhost:3001/api/TAxnTrnbill/${currentTxnId}/apply-nckot`,
-      {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ NCName: ncName, NCPurpose: ncPurpose }),
-      }
-    );
-
-    const result = await response.json();
-
-    if (result.success) {
-      toast.success('NCKOT applied successfully to all items.');
-
-      // ✅ 1️⃣ TABLE KO VACANT KARO (FRONTEND)
-      await fetchTableManagement();
-
-      // ✅ 2️⃣ UI CLEAR (already correct)
-      setItems([]);
-      setSelectedTable(null);
-      setShowOrderDetails(false);
-      setShowNCKOTModal(false);
-    } else {
-      throw new Error(result.message || 'Failed to apply NCKOT.');
+  const handleSaveNCKOT = async () => {
+    if (!currentTxnId) {
+      toast.error('No active transaction found. Please save a KOT first.');
+      return;
     }
-  } catch (error: any) {
-    toast.error(error.message || 'An error occurred while applying NCKOT.');
-  } finally {
-    setLoading(false);
-    setNcName('');
-    setNcPurpose('');
-  }
-};
+    if (!ncName || !ncPurpose) {
+      toast.error('NC Name and Purpose are required.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch(
+        `http://localhost:3001/api/TAxnTrnbill/${currentTxnId}/apply-nckot`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ NCName: ncName, NCPurpose: ncPurpose }),
+        }
+      );
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast.success('NCKOT applied successfully to all items.');
+
+        // ✅ 1️⃣ TABLE KO VACANT KARO (FRONTEND)
+        await fetchTableManagement();
+
+        // ✅ 2️⃣ UI CLEAR (already correct)
+        setItems([]);
+        setSelectedTable(null);
+        setShowOrderDetails(false);
+        setShowNCKOTModal(false);
+      } else {
+        throw new Error(result.message || 'Failed to apply NCKOT.');
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'An error occurred while applying NCKOT.');
+    } finally {
+      setLoading(false);
+      setNcName('');
+      setNcPurpose('');
+    }
+  };
 
 
   const handleCloseAuthModal = () => {
@@ -2911,6 +3010,8 @@ const finalPrinterName: string = matchedPrinter.name;
     setCurrentKOTNos(order.KOTNo ? [order.KOTNo] : (order.kotNo ? [order.kotNo] : [])); // Set KOT numbers array
     setCustomerName(order.customer.name);
     setMobileNumber(order.customer.mobile);
+    if (order.GuestID) setCustomerId(order.GuestID);
+    else if (order.customerid) setCustomerId(order.customerid);
     setSelectedOutletId(order.outletid); // Set the outlet ID from the order
 
     // 4. Map and set the items, marking them as existing (not new)
@@ -2937,6 +3038,8 @@ const finalPrinterName: string = matchedPrinter.name;
     setCurrentKOTNos(order.KOTNo ? [order.KOTNo] : (order.kotNo ? [order.kotNo] : []));
     setCustomerName(order.customer.name);
     setMobileNumber(order.customer.mobile);
+    if (order.GuestID) setCustomerId(order.GuestID);
+    else if (order.customerid) setCustomerId(order.customerid);
     setSelectedOutletId(order.outletid);
 
     const existingItems = order.items.map((item: any) => ({
@@ -3508,7 +3611,7 @@ const finalPrinterName: string = matchedPrinter.name;
 
 
       {errorMessage && (
-        <div className="alert alert-danger text-center" role="alert"> 
+        <div className="alert alert-danger text-center" role="alert">
           {errorMessage}
         </div>
       )}
@@ -3890,112 +3993,112 @@ const finalPrinterName: string = matchedPrinter.name;
                 </div>
               </div>
             )}
-           {showBillingPage &&
-  (() => {
-    const indexOfLastItem = currentPage * itemsPerPage;
-    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-    const currentBills = allBills.slice(indexOfFirstItem, indexOfLastItem);
-    const totalPages = Math.ceil(allBills.length / itemsPerPage);
+            {showBillingPage &&
+              (() => {
+                const indexOfLastItem = currentPage * itemsPerPage;
+                const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+                const currentBills = allBills.slice(indexOfFirstItem, indexOfLastItem);
+                const totalPages = Math.ceil(allBills.length / itemsPerPage);
 
-    const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
+                const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
 
-    const cellStyle: React.CSSProperties = {
-      whiteSpace: 'normal',
-      wordBreak: 'break-word',
-      verticalAlign: 'top',
-    };
+                const cellStyle: React.CSSProperties = {
+                  whiteSpace: 'normal',
+                  wordBreak: 'break-word',
+                  verticalAlign: 'top',
+                };
 
-    return (
-      <div className="d-flex">
-        <div
-          className="rounded shadow-sm p-3 bg-light"
-          style={{
-            width: '100%',
-            minWidth: '350px',
-            maxHeight: 'calc(100vh - 120px)',
-            overflowY: 'auto',
-          }}
-        >
-          <h5 className="mb-3 text-center text-primary fw-semibold">
-            All Bills
-          </h5>
+                return (
+                  <div className="d-flex">
+                    <div
+                      className="rounded shadow-sm p-3 bg-light"
+                      style={{
+                        width: '100%',
+                        minWidth: '350px',
+                        maxHeight: 'calc(100vh - 120px)',
+                        overflowY: 'auto',
+                      }}
+                    >
+                      <h5 className="mb-3 text-center text-primary fw-semibold">
+                        All Bills
+                      </h5>
 
-          <Table
-            striped
-            bordered
-            hover
-            responsive
-            size="sm"
-            className="mb-0"
-            style={{ tableLayout: 'fixed' }}   // 👈 IMPORTANT
-          >
-            <thead className="table-info sticky-top">
-              <tr>
-                <th style={{ width: '12%', ...cellStyle }}>Bill No</th>
-                <th style={{ width: '15%', ...cellStyle }}>Order Type</th>
-                <th style={{ width: '20%', ...cellStyle }}>Customer</th>
-                <th style={{ width: '15%', ...cellStyle }}>Mobile</th>
-                <th style={{ width: '18%', ...cellStyle }}>Payment</th>
-                <th style={{ width: '10%', ...cellStyle }}>Total</th>
-              </tr>
-            </thead>
+                      <Table
+                        striped
+                        bordered
+                        hover
+                        responsive
+                        size="sm"
+                        className="mb-0"
+                        style={{ tableLayout: 'fixed' }}   // 👈 IMPORTANT
+                      >
+                        <thead className="table-info sticky-top">
+                          <tr>
+                            <th style={{ width: '12%', ...cellStyle }}>Bill No</th>
+                            <th style={{ width: '15%', ...cellStyle }}>Order Type</th>
+                            <th style={{ width: '20%', ...cellStyle }}>Customer</th>
+                            <th style={{ width: '15%', ...cellStyle }}>Mobile</th>
+                            <th style={{ width: '18%', ...cellStyle }}>Payment</th>
+                            <th style={{ width: '10%', ...cellStyle }}>Total</th>
+                          </tr>
+                        </thead>
 
-            <tbody>
-              {currentBills.length > 0 ? (
-                currentBills.map((bill) => (
-                  <tr key={bill.TxnID}>
-                    <td style={cellStyle}>{bill.TxnNo}</td>
-                    <td style={cellStyle}>{bill.OrderType}</td>
-                    <td style={cellStyle}>{bill.CustomerName}</td>
-                    <td style={cellStyle}>{bill.Mobile}</td>
-                    <td style={cellStyle}>{bill.PaymentMode}</td>
-                    <td style={cellStyle}>{bill.GrandTotal}</td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={6} className="text-center text-muted">
-                    No bills found.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </Table>
+                        <tbody>
+                          {currentBills.length > 0 ? (
+                            currentBills.map((bill) => (
+                              <tr key={bill.TxnID}>
+                                <td style={cellStyle}>{bill.TxnNo}</td>
+                                <td style={cellStyle}>{bill.OrderType}</td>
+                                <td style={cellStyle}>{bill.CustomerName}</td>
+                                <td style={cellStyle}>{bill.Mobile}</td>
+                                <td style={cellStyle}>{bill.PaymentMode}</td>
+                                <td style={cellStyle}>{bill.GrandTotal}</td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td colSpan={6} className="text-center text-muted">
+                                No bills found.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </Table>
 
-          {totalPages > 1 && (
-            <div className="d-flex justify-content-between align-items-center mt-2">
-              <span className="text-muted small">
-                Page {currentPage} of {totalPages}
-              </span>
+                      {totalPages > 1 && (
+                        <div className="d-flex justify-content-between align-items-center mt-2">
+                          <span className="text-muted small">
+                            Page {currentPage} of {totalPages}
+                          </span>
 
-              <div>
-                <Button
-                  variant="outline-primary"
-                  size="sm"
-                  onClick={() => paginate(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  className="me-2"
-                >
-                  Previous
-                </Button>
+                          <div>
+                            <Button
+                              variant="outline-primary"
+                              size="sm"
+                              onClick={() => paginate(currentPage - 1)}
+                              disabled={currentPage === 1}
+                              className="me-2"
+                            >
+                              Previous
+                            </Button>
 
-                <Button
-                  variant="outline-primary"
-                  size="sm"
-                  onClick={() => paginate(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                >
-                  Next
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
+                            <Button
+                              variant="outline-primary"
+                              size="sm"
+                              onClick={() => paginate(currentPage + 1)}
+                              disabled={currentPage === totalPages}
+                            >
+                              Next
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
 
-        <div className="flex-grow-1 ms-3" />
-      </div>
-    );
-  })()}
+                    <div className="flex-grow-1 ms-3" />
+                  </div>
+                );
+              })()}
 
 
             {activeNavTab === 'Quick Bill' && !showOrderDetails && (
@@ -4374,7 +4477,7 @@ background: darkgreen;
                       backgroundColor = '#fdfdfd';
                     }
 
-                   
+
 
                     return (
                       <div
@@ -4388,26 +4491,26 @@ background: darkgreen;
                           fontSize: '0.9rem',
                           minHeight: '40px',
                           borderBottom: '1px solid #eee',
-                          
+
                         }}
                       >
-<span className="item-name">
-  {item.name}
+                        <span className="item-name">
+                          {item.name}
 
-  {isExpanded && (item.revQty ?? 0) > 0 && (
-    <span className="text-muted ms-2">
-      (
-      <span className="text-success fw-semibold">
-        {item.originalQty ?? item.qty}
-      </span>
-      {" - "}
-      <span className="text-danger fw-semibold">
-        {item.revQty ?? 0}
-      </span>
-      )
-    </span>
-  )}
-</span>
+                          {isExpanded && (item.revQty ?? 0) > 0 && (
+                            <span className="text-muted ms-2">
+                              (
+                              <span className="text-success fw-semibold">
+                                {item.originalQty ?? item.qty}
+                              </span>
+                              {" - "}
+                              <span className="text-danger fw-semibold">
+                                {item.revQty ?? 0}
+                              </span>
+                              )
+                            </span>
+                          )}
+                        </span>
 
 
 
@@ -4423,7 +4526,7 @@ background: darkgreen;
                                 handleReverseQty(item as MenuItem);
                               }
                             }}
-                            disabled={(!isEditable && !isReverseClickable) }
+                            disabled={(!isEditable && !isReverseClickable)}
                           >
                             −
                           </button>
@@ -4443,7 +4546,7 @@ background: darkgreen;
                           <input
                             type="number"
                             value={displayQty}
-                            readOnly={isGroupedItem || !isEditable }
+                            readOnly={isGroupedItem || !isEditable}
                             onChange={(e) => {
                               if (isGroupedItem || !isEditable) return;
                               const newQty = parseInt(e.target.value) || 0;
@@ -4468,7 +4571,7 @@ background: darkgreen;
                             className="btn btn-success btn-sm"
                             style={{ padding: '0 5px', lineHeight: '1' }}
                             onClick={() => handleIncreaseQty(item.id)}
-                            disabled={!isEditable }
+                            disabled={!isEditable}
                           >
                             +
                           </button>
@@ -4486,7 +4589,7 @@ background: darkgreen;
                   });
                 })()
               )}
-             
+
             </div>
             <div className="billing-panel-footer flex-shrink-0" style={{ backgroundColor: 'white' }}>
               <div className="d-flex flex-column flex-md-row gap-1 p-1">
@@ -4654,7 +4757,7 @@ background: darkgreen;
                         {/* Tax Button */}
                         <Button
                           variant="primary"
-                          className="rounded-circle p-0 d-flex justify-content-center align-items-center"
+                          className="rounded-circle p-0 d-flex justify-content-center align-items-center d-none"
                           style={{ width: '32px', height: '32px' }}
                           onClick={() => {
                             setShowOptions(false);
@@ -4678,6 +4781,7 @@ background: darkgreen;
                           variant="secondary"
                           className="rounded-circle p-0 d-flex justify-content-center align-items-center"
                           style={{ width: '32px', height: '32px' }}
+                          disabled={!sourceTableId || items.length === 0}
                           onClick={() => {
                             setShowOptions(false);
                             setShowNCKOTModal(true);
@@ -4701,6 +4805,7 @@ background: darkgreen;
                           variant="success"
                           className="rounded-circle p-0 d-flex justify-content-center align-items-center"
                           style={{ width: '32px', height: '32px' }}
+                          disabled={!sourceTableId || items.length === 0}
                           onClick={() => {
                             setShowOptions(false);
                             setShowDiscountModal(true);
@@ -4720,7 +4825,7 @@ background: darkgreen;
                         {/* Reverse Qty Mode Button */}
                         <Button
                           variant={reverseQtyMode ? "danger" : "warning"}
-                          className="rounded-circle p-0 d-flex justify-content-center align-items-center"
+                          className="rounded-circle p-0 d-flex justify-content-center align-items-center d-none"
                           style={{ width: '32px', height: '32px' }}
                           onClick={() => {
                             // Always fetch latest ReverseQtyMode from backend on button click
@@ -4786,12 +4891,37 @@ background: darkgreen;
                         <Button
                           variant="info"
                           className="rounded-circle p-0 d-flex justify-content-center align-items-center"
-                          style={{ width: '32px', height: '32px' }}
+                          style={{ width: "32px", height: "32px" }}
                           disabled={!sourceTableId || items.length === 0}
                           onClick={() => {
                             setShowOptions(false);
-                            setShowKotTransfer(true);
+                            setTransferMode("table");   // ✅ correct
+                            setShowTransferModal(true);
                           }}
+                          title="Table Transfer"
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="20"
+                            height="20"
+                            fill="currentColor"
+                            viewBox="0 0 16 16"
+                          >
+                            <path d="M1 2.5A1.5 1.5 0 0 1 2.5 1h3A1.5 1.5 0 0 1 7 2.5v3A1.5 1.5 0 0 1 5.5 7h-3A1.5 1.5 0 0 1 1 5.5v-3zM2.5 2a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3zm6.5.5A1.5 1.5 0 0 1 10.5 1h3A1.5 1.5 0 0 1 15 2.5v3A1.5 1.5 0 0 1 13.5 7h-3A1.5 1.5 0 0 1 9 5.5v-3zm1.5-.5a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3zM1 10.5A1.5 1.5 0 0 1 2.5 9h3A1.5 1.5 0 0 1 7 10.5v3A1.5 1.5 0 0 1 5.5 15h-3A1.5 1.5 0 0 1 1 13.5v-3zm1.5-.5a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3zm6.5.5A1.5 1.5 0 0 1 10.5 9h3a1.5 1.5 0 0 1 1.5 1.5v3a1.5 1.5 0 0 1-1.5 1.5h-3A1.5 1.5 0 0 1 9 13.5v-3zm1.5-.5a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3z" />
+                          </svg>
+                        </Button>
+
+                        <Button
+                          variant="warning"
+                          className="rounded-circle p-0 d-flex justify-content-center align-items-center"
+                          style={{ width: "32px", height: "32px" }}
+                          disabled={!sourceTableId || items.length === 0}
+                          onClick={() => {
+                            setShowOptions(false);
+                            setTransferMode("kot");
+                            setShowTransferModal(true);
+                          }}
+
                           title="KOT Transfer"
                         >
                           <svg
@@ -5347,18 +5477,30 @@ background: darkgreen;
             </Modal.Footer>
           </Modal>
 
-          <Modal show={showKotTransfer} onHide={() => setShowKotTransfer(false)} size="xl" centered>
+          <Modal
+            show={showTransferModal}
+            onHide={() => setShowTransferModal(false)}
+            size="xl"
+            centered
+          >
             <Modal.Header closeButton>
-              <Modal.Title>KOT Transfer</Modal.Title>
+              <Modal.Title>
+                {transferMode === "table" ? "Table Transfer" : "KOT Transfer"}
+              </Modal.Title>
             </Modal.Header>
             <Modal.Body className="p-0">
               <KotTransfer
-                transferSource="ORDER"
+                transferSource={transferMode}       // "table" or "kot"
                 sourceTableId={sourceTableId}
-                onCancel={() => setShowKotTransfer(false)}
+                onCancel={() => setShowTransferModal(false)}
                 onSuccess={() => {
-                  setShowKotTransfer(false);
-                  if (sourceTableId) refreshItemsForTable(sourceTableId);
+                  setShowTransferModal(false);
+
+                  if (sourceTableId) {
+                    refreshItemsForTable(sourceTableId); // order panel refresh
+                  }
+
+                  fetchTableManagement(); // ⭐ TABLE STATUS refresh
                 }}
               />
             </Modal.Body>

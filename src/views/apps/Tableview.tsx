@@ -479,9 +479,9 @@ export default function App() {
         </Modal.Header>
         <Modal.Body>
            <p className="mt-2">
-    Select <strong>Yes</strong> to proceed directly to settlement.
+    Select <strong>Yes</strong> Do you want to open the bill for settlement.
     <br />
-    Select <strong>No</strong> to open the bill for review.
+    Select <strong>No</strong> Do you want to Modify the bill.
   </p>
         </Modal.Body>
         <Modal.Footer>
