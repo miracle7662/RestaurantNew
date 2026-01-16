@@ -11,6 +11,7 @@ import {
   Card,
 } from 'react-bootstrap';
 import axios from 'axios';
+import { useAuthContext } from '@/common';
 
 interface Settlement {
   SettlementID: number;
@@ -31,12 +32,11 @@ interface PaymentMode {
   mode_name: string;
 }
 
-interface EditSettlementPageProps {
-  role: string;
-  currentUser: any; // You can make this more specific later
-}
+const EditSettlementPage: React.FC = () => {
+  const { user } = useAuthContext();
+  const role = user?.role || '';
+  const currentUser = user;
 
-const EditSettlementPage: React.FC<EditSettlementPageProps> = ({ role, currentUser }) => {
   // ── Main States ───────────────────────────────────────────────────
   const [settlements, setSettlements] = useState<Settlement[]>([]);
   const [filters, setFilters] = useState({
