@@ -496,9 +496,12 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
         setSelectedOption('yes');
       } else if (event.key === 'Enter') {
         if (selectedOption === 'no') {
+          handleSave();
           setShowConfirmModal(false);
         } else if (selectedOption === 'yes') {
-          handleSave();
+          if (availableKOTs.length > 0) {
+            setCurrentFocus('kot');
+          }
           setShowConfirmModal(false);
         }
       } else if (event.key === 'Escape') {
@@ -511,7 +514,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [showConfirmModal, selectedOption]);
+  }, [showConfirmModal, selectedOption, availableKOTs, handleSave, setCurrentFocus]);
 
   const confirmTransfer = () => {
     let itemsToTransfer: Item[];
@@ -829,7 +832,6 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
               ref={f7ButtonRef}
               size="lg"
               onClick={handleTransfer}
-              disabled={!isTableMode && selectedCount === 0}
               style={{
                 width: "60px",
                 height: "60px",
@@ -1030,17 +1032,21 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
         <Modal.Footer>
           <Button
             variant={selectedOption === 'no' ? 'primary' : 'secondary'}
-            onClick={() => setShowConfirmModal(false)}
+            onClick={async () => {
+              await handleSave();
+              setShowConfirmModal(false);
+            }}
             autoFocus={selectedOption === 'no'}
           >
             No
           </Button>
           <Button
             variant={selectedOption === 'yes' ? 'primary' : 'secondary'}
-            onClick={async () => {
-              await handleSave();
+            onClick={() => {
+              if (availableKOTs.length > 0) {
+                setCurrentFocus('kot');
+              }
               setShowConfirmModal(false);
-              setCurrentFocus('kot');
             }}
           >
             Yes
