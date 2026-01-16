@@ -412,57 +412,10 @@ const ModernBill = () => {
 
 
 // Calculate remaining amount excluding one specific mode
-const calculateRemainingExcluding = (excludeModeName?: string): number => {
-  if (!isMixedPayment) return taxCalc.grandTotal;
 
-  const totalPaidByOthers = selectedPaymentModes
-    .filter(name => name !== excludeModeName)
-    .reduce((sum, name) => sum + (Number(paymentAmounts[name]) || 0), 0);
-
-  const remaining = taxCalc.grandTotal - totalPaidByOthers;
-  // If you want to include tip in calculation:
-  // const remaining = (taxCalc.grandTotal + (tip || 0)) - totalPaidByOthers;
-
-  return Math.max(0, remaining);
-};
-
-// Handle focus on payment input → auto-fill remaining if field is empty/zero
-const handlePaymentInputFocus = (focusedModeName: string) => {
-  if (!isMixedPayment) return;
-
-  const currentValue = Number(paymentAmounts[focusedModeName] ?? 0);
-
-  // Don't overwrite if user already entered something meaningful
-  if (currentValue > 0) return;
-
-  const remaining = calculateRemainingExcluding(focusedModeName);
-
-  if (remaining > 0) {
-    setPaymentAmounts(prev => ({
-      ...prev,
-      [focusedModeName]: remaining.toFixed(2)
-    }));
-  }
-};
 
 // Your existing change handler (can stay almost same)
-const handlePaymentAmountChange = (modeName: string, value: string) => {
-  const stringValue = value === '' ? '0' : value;
-  setPaymentAmounts(prev => ({
-    ...prev,
-    [modeName]: stringValue
-  }));
-};
 
-// Remove a payment mode
-const removePaymentMode = (modeName: string) => {
-  setSelectedPaymentModes((prev) => prev.filter((m) => m !== modeName));
-  setPaymentAmounts((prev) => {
-    const updated = { ...prev };
-    delete updated[modeName];
-    return updated;
-  });
-};
   // Reverse Bill modal data
   const [reversePassword, setReversePassword] = useState('');
 
