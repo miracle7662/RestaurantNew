@@ -130,7 +130,7 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
         if (remaining > 0) {
           setPaymentAmounts(prev => ({
             ...prev,
-            [modeName]: Number(remaining.toFixed(2))
+            [modeName]: remaining.toFixed(2)
           }));
         }
       }
