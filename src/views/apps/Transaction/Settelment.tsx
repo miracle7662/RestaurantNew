@@ -64,7 +64,7 @@ const EditSettlementPage: React.FC = () => {
   const [initialIsMixed, setInitialIsMixed] = useState(false);
 
   // ── Payment Modes ─────────────────────────────────────────────────
-  const [outletPaymentModes, setOutletPaymentModes] = useState<PaymentMode[]>([]);
+  const [outletPaymentModes, setOutletPaymentModes] = useState<any[]>([]);
 
   // ── Notification ──────────────────────────────────────────────────
   const [notification, setNotification] = useState<{

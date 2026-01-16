@@ -19,7 +19,7 @@ interface SettlementModalProps {
   loading: boolean;
   outletPaymentModes: PaymentMode[];
 
-  selectedOutletId?: number;
+  selectedOutletId?: number | null;
   initialSelectedModes?: string[];
   initialPaymentAmounts?: { [key: string]: string };
   initialIsMixed?: boolean;
