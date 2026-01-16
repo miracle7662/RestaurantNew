@@ -1156,6 +1156,16 @@ CREATE TABLE IF NOT EXISTS mst_printers (
     )
     REFERENCES accounttypedetails (AccID)
 );
+CREATE TABLE IF NOT EXISTS TrnSettlementLog (
+    ID INTEGER PRIMARY KEY AUTOINCREMENT,
+    SettlementID INTEGER NOT NULL,
+    OldPaymentType TEXT,
+    OldAmount REAL,
+    NewPaymentType TEXT,
+    NewAmount REAL,
+    EditedBy TEXT,
+    InsertDate DATETIME DEFAULT CURRENT_TIMESTAMP
+);
 
 
 

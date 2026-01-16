@@ -128,20 +128,64 @@ exports.deleteSettlement = async (req, res) => {
     const { id } = req.params;
     const { EditedBy } = req.body;
 
-    const settlement = db.prepare('SELECT * FROM TrnSettlement WHERE SettlementID = ?').get(Number(id));
-    if (!settlement) return res.status(404).json({ success: false, message: 'Settlement not found' });
+    // ✅ FORCE EditedBy to a valid SQLite type
+    const editedBySafe =
+      typeof EditedBy === 'object'
+        ? JSON.stringify(EditedBy)     // OR EditedBy.id / EditedBy.username
+        : EditedBy ?? null;
 
-    // Log as delete
+    // 1️⃣ Fetch settlement
+    const settlement = db.prepare(
+      `SELECT * FROM TrnSettlement WHERE SettlementID = ?`
+    ).get([Number(id)]);
+
+    if (!settlement) {
+      return res.status(404).json({
+        success: false,
+        message: 'Settlement not found'
+      });
+    }
+
+    // 2️⃣ Insert log (SAFE BINDING)
     db.prepare(`
-      INSERT INTO TrnSettlementLog (SettlementID, OldPaymentType, OldAmount, NewPaymentType, NewAmount, EditedBy)
+      INSERT INTO TrnSettlementLog (
+        SettlementID,
+        OldPaymentType,
+        OldAmount,
+        NewPaymentType,
+        NewAmount,
+        EditedBy
+      )
       VALUES (?, ?, ?, ?, ?, ?)
-    `).run(settlement.SettlementID, settlement.PaymentType, settlement.Amount, null, null, EditedBy);
+    `).run([
+      Number(settlement.SettlementID),
+      settlement.PaymentType ? String(settlement.PaymentType) : null,
+      settlement.Amount != null ? Number(settlement.Amount) : null,
+      null,
+      null,
+      editedBySafe
+    ]);
 
-    // Soft delete: set isSettled = 0
-    db.prepare('UPDATE TrnSettlement SET isSettled = 0 WHERE SettlementID = ?').run(Number(id));
+    // 3️⃣ Soft delete
+    db.prepare(`
+      UPDATE TrnSettlement
+      SET isSettled = 0
+      WHERE SettlementID = ?
+    `).run([Number(id)]);
 
-    res.json(ok('Settlement reversed'));
+    res.json({
+      success: true,
+      message: 'Settlement reversed successfully'
+    });
+
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to reverse settlement', error: error.message });
+    console.error('Error in deleteSettlement:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to reverse settlement',
+      error: error.message
+    });
   }
 };
+
+

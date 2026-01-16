@@ -170,6 +170,16 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
     }
   }, [show]);
 
+  // Update states when modal opens with initial props
+  useEffect(() => {
+    if (show) {
+      setIsMixedPayment(initialIsMixed);
+      setSelectedPaymentModes(initialSelectedModes);
+      setPaymentAmounts(initialPaymentAmounts);
+      setTip(initialTip);
+    }
+  }, [show, initialIsMixed, initialSelectedModes, initialPaymentAmounts, initialTip]);
+
   const handleSettle = async () => {
     if (loading) return;
     if (balanceDue > 0) {
