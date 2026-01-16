@@ -496,11 +496,11 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
         setSelectedOption('yes');
       } else if (event.key === 'Enter') {
         if (selectedOption === 'no') {
-          handleSave();
+          setShowConfirmModal(false);
         } else if (selectedOption === 'yes') {
-          confirmTransfer();
+          handleSave();
+          setShowConfirmModal(false);
         }
-        setShowConfirmModal(false);
       } else if (event.key === 'Escape') {
         setShowConfirmModal(false);
       }
@@ -1037,9 +1037,10 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
           </Button>
           <Button
             variant={selectedOption === 'yes' ? 'primary' : 'secondary'}
-            onClick={() => {
-              handleSave();
+            onClick={async () => {
+              await handleSave();
               setShowConfirmModal(false);
+              setCurrentFocus('kot');
             }}
           >
             Yes
