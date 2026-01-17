@@ -2161,7 +2161,7 @@ const resetBillingPanel = () => {
         const tableToUpdate = tableItems.find(t => t.table_name === selectedTable);
         if (tableToUpdate) {
           await fetch(`http://localhost:3001/api/tablemanagement/${tableToUpdate.tableid}/status`, {
-            method: 'POST',
+            method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ status: 0 }), // 0 for Vacant
           });
@@ -2785,19 +2785,30 @@ useEffect(() => {
 
 
 
- const handleSettleAndPrint = async () => {
+ const handleSettleAndPrint = async (settlementsData?: any[], tipData?: number) => {
   // 🔍 DEBUG – YAHI ADD KARO
   console.log({
     selectedPaymentModes,
     paymentAmounts,
     grandTotal: taxCalc.grandTotal,
     tip,
+    settlementsData,
+    tipData
   });
 
-  const totalPaid = Object.values(paymentAmounts)
-    .reduce((acc, val) => acc + (Number(val) || 0), 0);
+  const effectiveTip = tipData !== undefined ? tipData : tip;
+  let currentSettlements = [];
+  let totalPaid = 0;
 
-  const payableTotal = Number((taxCalc.grandTotal + (tip || 0)).toFixed(2));
+  if (settlementsData && settlementsData.length > 0) {
+    currentSettlements = settlementsData;
+    totalPaid = settlementsData.reduce((acc: number, val: any) => acc + (Number(val.Amount) || 0), 0);
+  } else {
+    totalPaid = Object.values(paymentAmounts).reduce((acc, val) => acc + (Number(val) || 0), 0);
+    currentSettlements = selectedPaymentModes.map(modeName => ({ PaymentType: modeName, Amount: parseFloat(paymentAmounts[modeName]) || 0 }));
+  }
+
+  const payableTotal = Number((taxCalc.grandTotal + (effectiveTip || 0)).toFixed(2));
   const difference = Number((payableTotal - totalPaid).toFixed(2));
 
   if (!currentTxnId) {
@@ -2805,8 +2816,8 @@ useEffect(() => {
     return;
   }
 
-  if (Math.abs(difference) > 0.01) {
-    toast.error('Payment amount does not match the total due.');
+  if (Math.abs(difference) > 0.05) {
+    toast.error(`Payment amount (${totalPaid}) does not match the total due (${payableTotal}).`);
     return;
   }
 
@@ -2816,12 +2827,12 @@ useEffect(() => {
     setLoading(true);
     try {
       // 1. Construct the settlements payload
-      const settlementsPayload = selectedPaymentModes.map(modeName => {
-        const paymentModeDetails = outletPaymentModes.find(pm => pm.mode_name === modeName);
+      const settlementsPayload = currentSettlements.map((s: any) => {
+        const paymentModeDetails = outletPaymentModes.find(pm => pm.mode_name === s.PaymentType);
         return {
           PaymentTypeID: paymentModeDetails?.paymenttypeid,
-          PaymentType: modeName,
-          Amount: parseFloat(paymentAmounts[modeName]) || 0,
+          PaymentType: s.PaymentType,
+          Amount: s.Amount,
           OrderNo: orderNo,
           HotelID: user?.hotelid,
           Name: user?.name, // Cashier/User name
@@ -2870,7 +2881,7 @@ useEffect(() => {
         const tableToUpdate = tableItems.find(t => t.table_name === selectedTable);
         if (tableToUpdate) {
           await fetch(`http://localhost:3001/api/tablemanagement/${tableToUpdate.tableid}/status`, {
-            method: 'POST',
+            method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ status: 0 }), // 0 for Vacant
           });

@@ -26,9 +26,8 @@ interface KotTransferProps {
   transferSource?: "table" | "kot" 
   sourceTableId?: number | null;
   pax?: number;
-  mode?: "table" | "kot";  // add this
+  mode?: "table" | "kot";
 }
-
 
 const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTableId, mode }: KotTransferProps) => {
   const { user } = useAuthContext();
@@ -36,7 +35,6 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
   const kotSelectRef = useRef<HTMLSelectElement>(null);
   const f7ButtonRef = useRef<HTMLButtonElement>(null);
 
-  // Type definitions
   interface Item {
     id: number;
     txnDetailId: number;
@@ -65,7 +63,6 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
     outlet_name?: string;
   }
 
-  // State management
   const [, setLoading] = useState(true);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [tables, setTables] = useState<TableData[]>([]);
@@ -138,7 +135,6 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
     }
   };
 
-  // Fetch data on mount
   useEffect(() => {
     const fetchInitialData = async () => {
       if (!user) return;
@@ -146,7 +142,6 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
       try {
         await fetchDepartments();
 
-        // Fetch tables from the correct endpoint
         const tablesResponse = await fetch('http://localhost:3001/api/tablemanagement');
         const tablesData = await tablesResponse.json();
         if (tablesData.success && Array.isArray(tablesData.data)) {
@@ -172,14 +167,13 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
           await fetchItemsForTable(Number(defaultTable.id), 'selected');
         }
 
-        const availableTable = tablesData.data.find((t: any) => t.status === 0); // 0 for available
+        const availableTable = tablesData.data.find((t: any) => t.status === 0);
         if (availableTable) {
           setProposedTableId(Number(availableTable.tableid));
           setProposedTable(availableTable.table_name);
           setProposedDepartment(availableTable.department_name || '');
           await fetchItemsForTable(Number(availableTable.tableid), 'proposed');
         }
-
 
       } catch (error) {
         console.error('Error fetching initial data:', error);
@@ -191,7 +185,6 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
     fetchInitialData();
   }, [user, sourceTableId]);
 
-  // Focus on right side table select after tables are loaded
   useEffect(() => {
     if (tables.length > 0 && proposedTableRef.current) {
       proposedTableRef.current.focus();
@@ -199,7 +192,6 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
     }
   }, [tables]);
 
-  // Focus management
   useEffect(() => {
     if (currentFocus === 'table' && proposedTableRef.current) {
       proposedTableRef.current.focus();
@@ -210,7 +202,6 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
     }
   }, [currentFocus]);
 
-  // Apply pending focus after modal closes
   useEffect(() => {
     if (!showConfirmModal && pendingFocus) {
       setCurrentFocus(pendingFocus);
@@ -218,7 +209,6 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
     }
   }, [showConfirmModal, pendingFocus]);
 
-  // Handle transfer done - wait for Enter key
   useEffect(() => {
     if (transferDone) {
       setWaitingForEnter(true);
@@ -226,7 +216,6 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
     }
   }, [transferDone]);
 
-  // Listen for Enter key when waiting for confirmation
   useEffect(() => {
     if (!waitingForEnter) return;
 
@@ -261,10 +250,8 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
 
       if (type === 'selected') {
         setAllItems(mappedItems);
-        // Extract unique KOTs and sort them
         const uniqueKOTs = [...new Set(mappedItems.map(item => item.kot))].sort((a, b) => a - b);
         setAvailableKOTs(uniqueKOTs);
-        // Set latest KOT
         const latest = uniqueKOTs.length > 0 ? Math.max(...uniqueKOTs) : null;
         setLatestKOT(latest);
         setSelectedKOT(latest);
@@ -276,7 +263,6 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
     }
   };
 
-  // Function to update selectedItems based on selectedKOT and transferMode
   const updateSelectedItems = () => {
     if (transferMode === "table" || transferMode === "ORDER") {
       setSelectedItems(allItems.map(item => ({ ...item, selected: true })));
@@ -290,7 +276,6 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
     }
   };
 
-  // useEffect to update selectedItems when dependencies change
   useEffect(() => {
     updateSelectedItems();
   }, [allItems, selectedKOT, transferMode]);
@@ -314,7 +299,6 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
   const effectiveSelectedAmount = isTableMode ? selectedItems.reduce((sum, item) => sum + (item.price * item.qty), 0) : totalSelectedAmount;
   const billDate = new Date().toISOString().split('T')[0];
 
-
   const handleCheck = (index: number) => {
     if (isTableMode) return;
     const updated = [...selectedItems];
@@ -322,15 +306,14 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
     setSelectedItems(updated);
   };
 
-
   const handleTransferTypeChange = (type: "table" | "kot" ) => {
     setTransferMode(type);
     if (type === "table"  ) {
-      setSelectedKOT(-1); // Special value for "All KOTs"
+      setSelectedKOT(-1);
       const updated = selectedItems.map(item => ({ ...item, selected: true }));
       setSelectedItems(updated);
     } else {
-      setSelectedKOT(latestKOT); // Set to latest KOT for KOT mode
+      setSelectedKOT(latestKOT);
     }
   };
 
@@ -360,16 +343,11 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
       return;
     }
 
-    // Transfer all selected items
     const itemsToTransfer = selectedItems.map(item => ({ ...item, selected: false, media: proposedTable }));
 
-    // Update selectedItems to clear them
     setSelectedItems([]);
-
-    // Add to proposedItems
     setProposedItems(prev => [...prev, ...itemsToTransfer]);
 
-    // Update allItems and availableKOTs after transfer
     if (transferMode === "table" || transferMode === "ORDER") {
       setAllItems([]);
       setAvailableKOTs([]);
@@ -382,7 +360,6 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
       setLatestKOT(uniqueKOTs.length > 0 ? Math.max(...uniqueKOTs) : null);
     }
 
-    // Update table status since all items are transferred
     setTables(prevTables =>
       prevTables.map(t => {
         if (t.id === selectedTableId?.toString()) {
@@ -392,7 +369,6 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
       })
     );
 
-    // Open confirmation modal
     setShowConfirmModal(true);
   };
 
@@ -401,17 +377,15 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
     setProposedItems([]);
   };
 
-  // Add keyboard event listeners for F7 and F8
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'F7') {
         event.preventDefault();
         handleTransfer();
       } if (event.key === 'F8' && event.ctrlKey) {
-  event.preventDefault();
-  handleReverseTransfer();
-}
-
+        event.preventDefault();
+        handleReverseTransfer();
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
@@ -440,7 +414,6 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
       let endpoint;
 
       if (transferMode === "table" || transferMode === "ORDER") {
-        // For table transfer, use simpler payload
         payload = {
           sourceTableId: selectedTableId,
           targetTableId: proposedTableId,
@@ -450,7 +423,6 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
         };
         endpoint = 'transfer-table';
       } else {
-        // For KOT transfer, use detailed payload
         payload = {
           sourceTableId: selectedTableId,
           proposedTableId,
@@ -482,7 +454,6 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
 
       const result = await response.json();
 
-      // ✅ backend contract respected
       if (!result.success) {
         toast.error(result.message || 'Transfer failed');
         return;
@@ -490,12 +461,10 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
 
       toast.success(result.message || `${transferMode === "table" ? "Table" : "KOT"} transfer saved successfully`);
 
-      // 🔄 Sync UI
       await fetchItemsForTable(selectedTableId, 'selected');
       await fetchItemsForTable(proposedTableId, 'proposed');
       await fetchTables();
 
-      // ♻ Reset state
       setSelectedItems([]);
       setProposedItems([]);
 
@@ -507,7 +476,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
     }
   };
 
-  // Keyboard navigation for modal
+  // Updated keyboard navigation for modal
   useEffect(() => {
     if (!showConfirmModal) return;
 
@@ -517,16 +486,26 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
       } else if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
         setSelectedOption('yes');
       } else if (event.key === 'Enter') {
+        event.preventDefault();
         if (selectedOption === 'no') {
-          handleSave();
+          // No selected: Close modal and save
           setShowConfirmModal(false);
-        } else if (selectedOption === 'yes') {
-          if (availableKOTs.length > 0) {
-            setPendingFocus('kot');
-          } else {
+          setTimeout(() => {
             handleSave();
-          }
+          }, 100);
+        } else if (selectedOption === 'yes') {
+          // Yes selected: Close modal, check for remaining KOTs
           setShowConfirmModal(false);
+          if (availableKOTs.length > 0) {
+            setTimeout(() => {
+              setCurrentFocus('kot');
+            }, 100);
+          } else {
+            // No remaining KOTs, save immediately
+            setTimeout(() => {
+              handleSave();
+            }, 100);
+          }
         }
       } else if (event.key === 'Escape') {
         setShowConfirmModal(false);
@@ -538,57 +517,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [showConfirmModal, selectedOption, availableKOTs, handleSave, setCurrentFocus]);
-
-  const confirmTransfer = () => {
-    let itemsToTransfer: Item[];
-    let uniqueKOTs: number[] = [];
-    if (isTableMode) {
-      itemsToTransfer = selectedItems.map(item => ({ ...item, selected: false, media: proposedTable }));
-      setSelectedItems([]);
-      setAllItems([]); // Clear all items for table transfer
-    } else {
-      // For KOT mode, transfer all items of the selected KOT
-      itemsToTransfer = allItems.filter(item => item.kot === selectedKOT).map(item => ({ ...item, selected: false, media: proposedTable }));
-      setSelectedItems([]);
-      // Remove the entire transferred KOT from allItems
-      const updatedAllItems = allItems.filter(item => item.kot !== selectedKOT);
-      setAllItems(updatedAllItems);
-
-      // Recalculate available KOTs and latest KOT
-      uniqueKOTs = [...new Set(updatedAllItems.map(item => item.kot))].sort((a, b) => a - b);
-      setAvailableKOTs(uniqueKOTs);
-      const latest = uniqueKOTs.length > 0 ? Math.max(...uniqueKOTs) : null;
-      setLatestKOT(latest);
-      // Always switch to latest remaining KOT after transferring a KOT
-      setSelectedKOT(latest);
-    }
-
-    if (isTableMode) {
-      setProposedItems(itemsToTransfer);
-    } else {
-      setProposedItems([...proposedItems, ...itemsToTransfer]);
-    }
-
-    setTables(prevTables =>
-      prevTables.map(t => {
-        if (t.id === selectedTableId?.toString() && selectedItems.length === 0) {
-          return { ...t, status: "available" as const };
-        }
-        return t;
-      })
-    );
-
-    setShowConfirmModal(false);
-    toast.success(`Successfully transferred ${itemsToTransfer.length} item${itemsToTransfer.length !== 1 ? 's' : ''} to Table ${proposedTable}`);
-    if (!isTableMode && uniqueKOTs.length > 0) {
-      setCurrentFocus('kot');
-    }
-  };
-
-
-
-
+  }, [showConfirmModal, selectedOption, availableKOTs]);
 
   const getTableStatusBadge = (status: string) => {
     const variants = {
@@ -610,7 +539,6 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
   return (
     <Card className="border-0 shadow" style={{ maxWidth: "100%", backgroundColor: "#f1f3f5" }}>
       <Card.Body className="p-1">
-        {/* Header */}
         <div className="d-flex justify-content-between align-items-center mb-2 p-2 bg-white rounded shadow-sm" style={{ minHeight: "60px" }}>
           <div className="d-flex gap-2">
             <Button
@@ -625,7 +553,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
               variant={transferMode === "kot" ? "primary" : "outline-primary"}
               onClick={() => handleTransferTypeChange("kot")}
               style={{ fontWeight: 600, padding: "8px 20px", fontSize: "0.9rem" }}
-              disabled={transferSource === "table" }
+              disabled={transferSource === "table"}
             >
               TRANSFER KOT'S
             </Button>
@@ -638,26 +566,17 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
           </Badge>
         </div>
 
- 
-
-
-        {/* Content Section */}
-        <Row className=" p-1 justify" >
-          {/* Source Table Section */}
-          <Col md={5} className="d-flex justify-content-center col md-6 col-md-5  flex: 0 0 auto;
-        width: 47.66666667%;">
+        <Row className="p-1 justify">
+          <Col md={5} className="d-flex justify-content-center col md-6 col-md-5">
             <Card className="border-0 shadow" style={{ backgroundColor: "#f8f9fa", height: "550px", border: currentFocus === 'kot' ? "3px solid #007bff" : "none" }}>
-
               <Card.Body className="p-2 d-flex flex-column" style={{ height: "100%"}}>
                 <Row className="mb-2 g-2">
                   <Col xs={6}>
                     <Form.Group>
-                      <Form.Label className="fw-semibold"
-                      
-                      style={{ fontSize: "0.9rem", marginBottom: "4px" }}>Table</Form.Label>
+                      <Form.Label className="fw-semibold" style={{ fontSize: "0.9rem", marginBottom: "4px" }}>Table</Form.Label>
                       <Form.Select
                         value={selectedTableId || ''}
-                        disabled              // 🔒 read-only
+                        disabled
                         className="fw-bold"
                         style={{
                           fontSize: "0.9rem",
@@ -671,7 +590,6 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
                           </option>
                         ))}
                       </Form.Select>
-
                     </Form.Group>
                   </Col>
                   <Col xs={6}>
@@ -723,11 +641,8 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
                   </Col>
                 </Row>
 
-                {/* Item Selection - Only for KOT mode */}
                 {!isTableMode ? (
                   <>
-                  
-
                     <div
                       className="table-responsive"
                       style={{
@@ -749,7 +664,6 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
                           style={{ fontSize: "0.85rem" }}
                         >
                           <tr>
-
                             <th style={{ width: "70px" }}>Table</th>
                             <th style={{ width: "90px" }}>KOT No.</th>
                             <th style={{ width: "130px" }}>Item</th>
@@ -757,14 +671,13 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
                             <th style={{ width: "80px" }}>Price</th>
                           </tr>
                         </thead>
-                         <tbody style={{ fontSize: "0.85rem", minHeight: "350px" }}>
+                        <tbody style={{ fontSize: "0.85rem", minHeight: "350px" }}>
                           {selectedItems.map((row, i) => (
                             <tr
                               key={row.id}
                               style={{ cursor: "pointer", backgroundColor: getRowColor(row.kot), fontWeight: row.selected ? 'bold' : 'normal' }}
                               onClick={() => handleCheck(i)}
                             >
-
                               <td>{row.media}</td>
                               <td>{row.kot}</td>
                               <td style={{ wordWrap: 'break-word', whiteSpace: 'normal' }}>{row.item}</td>
@@ -778,12 +691,10 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
                   </>
                 ) : (
                   <>
-                   
-
                     <div
                       className="table-responsive"
                       style={{
-                         height: "400px",
+                        height: "400px",
                         border: "2px solid #e9ecef",
                         borderRadius: "8px",
                         overflowY: "auto",
@@ -801,7 +712,6 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
                           style={{ fontSize: "0.85rem" }}
                         >
                           <tr>
-
                             <th style={{ width: "50px" }}>Table</th>
                             <th style={{ width: "50px" }}>KOT</th>
                             <th style={{ width: "150px" }}>Item</th>
@@ -809,13 +719,12 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
                             <th style={{ width: "80px" }}>Price</th>
                           </tr>
                         </thead>
-                         <tbody style={{ fontSize: "0.85rem", minHeight: "350px" }}>
+                        <tbody style={{ fontSize: "0.85rem", minHeight: "350px" }}>
                           {selectedItems.map((row, i) => (
                             <tr
                               key={row.id}
                               style={{ backgroundColor: getRowColor(row.kot) }}
                             >
-
                               <td>{row.media}</td>
                               <td>{row.kot}</td>
                               <td style={{ wordWrap: 'break-word', whiteSpace: 'normal' }}>{row.item}</td>
@@ -829,8 +738,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
                   </>
                 )}
 
-               <div style={{ height: "20px" }}></div>
-
+                <div style={{ height: "20px" }}></div>
 
                 <div className="d-flex justify-content-around border-top pt-2">
                   <div className="text-center">
@@ -850,7 +758,6 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
             </Card>
           </Col>
 
-          {/* Transfer Buttons */}
           <Col md={1} className="d-flex flex-column justify-content-center align-items-center px-2" style={{ gap: "15px" }}>
             <Button
               ref={f7ButtonRef}
@@ -879,10 +786,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
               size="lg"
               variant="secondary"
               disabled={proposedItems.length === 0}
-              onClick={() => {
-                setSelectedItems([...selectedItems, ...proposedItems]);
-                setProposedItems([]);
-              }}
+              onClick={handleReverseTransfer}
               style={{
                 width: "60px",
                 height: "60px",
@@ -904,10 +808,8 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
             </Button>
           </Col>
 
-          {/* Destination Table Section */}
           <Col md={5} className="pe-0 d-flex justify-content-center">
             <Card className="border-0 shadow" style={{ backgroundColor: "#f8f9fa", height: "550px" }}>
-
               <Card.Body className="p-2">
                 <Row className="mb-2 g-2">
                   <Col xs={6}>
@@ -918,14 +820,12 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
                       >
                         Department
                       </Form.Label>
-
                       <Form.Select
                         value={proposedDepartment}
                         onChange={(e) => setProposedDepartment(e.target.value)}
                         style={{ fontSize: "0.9rem" }}
                       >
                         <option value="">Select Department</option>
-
                         {departments.map((dept) => (
                           <option key={dept.departmentid} value={dept.department_name}>
                             {dept.department_name}
@@ -933,7 +833,6 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
                         ))}
                       </Form.Select>
                     </Form.Group>
-
                   </Col>
                   <Col xs={6}>
                     <Form.Group>
@@ -1034,7 +933,6 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
           </Col>
         </Row>
 
-        {/* Action Buttons */}
         <div className="d-flex justify-content-end gap-3 mt-2">
           <Button variant="success" size="lg" className="px-4 fw-bold" onClick={handleSave} style={{ fontSize: "1rem", padding: "10px 30px" }}>
             💾 Save (F9)
@@ -1045,7 +943,6 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
         </div>
       </Card.Body>
 
-      {/* Confirmation Modal */}
       <Modal show={showConfirmModal} onHide={() => setShowConfirmModal(false)} centered>
         <Modal.Header closeButton>
           <Modal.Title>Save Transfer?</Modal.Title>
@@ -1057,8 +954,10 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
           <Button
             variant={selectedOption === 'no' ? 'primary' : 'secondary'}
             onClick={async () => {
-              await handleSave();
               setShowConfirmModal(false);
+              setTimeout(() => {
+                handleSave();
+              }, 100);
             }}
             autoFocus={selectedOption === 'no'}
           >
@@ -1067,12 +966,14 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
           <Button
             variant={selectedOption === 'yes' ? 'primary' : 'secondary'}
             onClick={() => {
+              setShowConfirmModal(false);
               if (availableKOTs.length > 0) {
                 setPendingFocus('kot');
               } else {
-                handleSave();
+                setTimeout(() => {
+                  handleSave();
+                }, 100);
               }
-              setShowConfirmModal(false);
             }}
           >
             Yes
@@ -1083,4 +984,4 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
   );
 };
 
-export default KotTransfer; 
+export default KotTransfer;
