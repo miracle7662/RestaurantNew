@@ -150,6 +150,7 @@ const ModernBill = () => {
   const [total, setTotal] = useState(0);
   const navigate = useNavigate();
   const location = useLocation();
+  const orderType = location.state?.orderType || 'DINEIN';
   const tableId = location.state?.tableId;
   const tableName = location.state?.tableName;
   const outletIdFromState = location.state?.outletId;
@@ -368,7 +369,7 @@ const ModernBill = () => {
 
   // Load bill details for the current table
   const loadBillDetails = async () => {
-    if (tableId) {
+    if (tableId !== undefined && tableId !== null) {
       await loadBillForTable(tableId);
     }
   };
@@ -833,7 +834,7 @@ const ModernBill = () => {
 
   // Fetch table data when tableId is present
   const loadUnbilledItems = useCallback(async (tableIdNum: number) => {
-    if (!tableIdNum || !user || !user.hotelid) return;
+    if (tableIdNum === undefined || tableIdNum === null || !user || !user.hotelid) return;
 
     setLoading(true);
     setError(null);
@@ -1151,10 +1152,13 @@ const ModernBill = () => {
   }, [selectedOutletId]);
 
   useEffect(() => {
-    if (tableId) {
+    if (orderType === 'DINEIN' && tableId !== undefined && tableId !== null) {
       loadBillForTable(tableId);
+    } else if (orderType === 'TAKEAWAY') {
+      resetBillState();
+      fetchNextTakeawayKot();
     }
-  }, [tableId]);
+  }, [tableId, orderType]);
 
   // Check for openSettlement flag and open settlement modal
   useEffect(() => {
@@ -1315,6 +1319,11 @@ const ModernBill = () => {
 
     if (e.key === "Enter") {
       if (field === 'itemCode') {
+        // For TAKEAWAY, fetch by KOT or item code on Enter
+        if (orderType === 'TAKEAWAY' && billItems[dataIndex].itemCode.trim() !== '') {
+          loadTakeawayByKotOrItem(billItems[dataIndex].itemCode.trim());
+          return;
+        }
         // Only move focus to qty if itemCode has been typed and is valid
         if (billItems[dataIndex].itemCode.trim() !== '' && billItems[dataIndex].isValidCode) {
           const qtyRef = inputRefs.current[index]?.[1];
@@ -1692,6 +1701,7 @@ const printBill = async () => {
       console.error('Error fetching table management:', error);
     }
   };
+
 
   const handleBackToTables = () => {
     navigate('/apps/Tableview');

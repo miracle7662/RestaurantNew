@@ -309,6 +309,10 @@ export default function App() {
     window.location.reload();
   };
 
+  const handleTakeAwayClick = () => {
+    navigate('/apps/Billview', { state: { orderType: 'TAKEAWAY', tableId: null, tableName: 'Take Away', outletId: user?.outletid } });
+  };
+
   const handleTableClick = (table: Table) => {
           if (table.status === 'printed') {
             setSelectedTable(table);
@@ -421,7 +425,7 @@ export default function App() {
                 <RefreshCw size={16} />
               </button>
               <button className="btn btn-danger btn-sm">Delivery</button>
-              <button className="btn btn-danger btn-sm">Take Away</button>
+              <button className="btn btn-danger btn-sm" onClick={handleTakeAwayClick}>Take Away</button>
             </div>
           </div>
         </div>
@@ -493,6 +497,27 @@ export default function App() {
             })}
           </div>
         )}
+
+        {/* Take Away Section */}
+        <div className="mb-4">
+          <h6 className="fw-semibold mb-3 pb-2 border-bottom">Take Away</h6>
+          <div className="table-grid">
+            <div
+              className="bg-warning cursor-pointer table-card d-flex align-items-center justify-content-center"
+              style={{
+                width: '100px',
+                height: '70px',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                border: '1px solid #ddd',
+                padding: '4px'
+              }}
+              onClick={() => navigate('/apps/Billview', { state: { orderType: 'TAKEAWAY', tableId: null, tableName: 'Take Away', outletId: user?.outletid } })}
+            >
+              <span className="text-dark fw-bold" style={{ fontSize: '13px', lineHeight: '1.2' }}>Take Away</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Modal */}
