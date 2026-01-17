@@ -1156,7 +1156,7 @@ const ModernBill = () => {
       loadBillForTable(tableId);
     } else if (orderType === 'TAKEAWAY') {
       resetBillState();
-      fetchNextTakeawayKot();
+      
     }
   }, [tableId, orderType]);
 
@@ -1319,11 +1319,6 @@ const ModernBill = () => {
 
     if (e.key === "Enter") {
       if (field === 'itemCode') {
-        // For TAKEAWAY, fetch by KOT or item code on Enter
-        if (orderType === 'TAKEAWAY' && billItems[dataIndex].itemCode.trim() !== '') {
-          loadTakeawayByKotOrItem(billItems[dataIndex].itemCode.trim());
-          return;
-        }
         // Only move focus to qty if itemCode has been typed and is valid
         if (billItems[dataIndex].itemCode.trim() !== '' && billItems[dataIndex].isValidCode) {
           const qtyRef = inputRefs.current[index]?.[1];
