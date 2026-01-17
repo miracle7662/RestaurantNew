@@ -7,6 +7,9 @@ const controller = require('../controllers/settlementController');
 // Get settlements with filters
 router.get('/', controller.getSettlements);
 
+// Create new settlement
+router.post('/', controller.createSettlement);
+
 // Update settlement
 router.put('/:id', controller.updateSettlement);
 

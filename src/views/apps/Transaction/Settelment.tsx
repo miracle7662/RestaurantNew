@@ -170,66 +170,95 @@ const EditSettlementPage: React.FC = () => {
     setShowSettlementModal(true);
   };
 
-  const handleUpdateSettlement = async (settlements: any[], tip?: number) => {
-    if (!editing) return;
+const handleUpdateSettlement = async (newSettlements: any[], tip?: number) => {
+  if (!editing) return;
 
-    setLoading(true);
-    try {
-      // 1. Delete old settlements
+  setLoading(true);
+
+  try {
+    const wasSingle = editing.SettlementIDs?.length === 1;
+    const isMixedNow = newSettlements.length > 1;
+
+    // 🔹 CASE 1: Single → Single
+    if (wasSingle && !isMixedNow) {
+      await axios.put(
+        `http://localhost:3001/api/settlements/${editing.SettlementIDs![0]}`,
+        {
+          PaymentType: newSettlements[0].PaymentType,
+          Amount: newSettlements[0].Amount,
+          EditedBy: currentUser,
+        }
+      );
+    }
+
+    // 🔹 CASE 2: Single → Mixed  OR  Mixed → Mixed
+    else {
+      // 1️⃣ Soft delete old settlements
       for (const id of editing.SettlementIDs ?? []) {
-        await axios.delete(`http://localhost:3001/api/settlements/${id}`, {
-          data: { EditedBy: currentUser },
-        });
+        await axios.delete(
+          `http://localhost:3001/api/settlements/${id}`,
+          { data: { EditedBy: currentUser } }
+        );
       }
 
-      // 2. Create new settlement records
-      for (const settlement of settlements) {
-        const amount = settlement.Amount;
-        if (amount > 0) {
-          await axios.post('http://localhost:3001/api/settlements', {
-            OrderNo: editing.OrderNo,
-            PaymentType: settlement.PaymentType,
-            Amount: amount,
-            HotelID: editing.HotelID,
-            EditedBy: currentUser,
-          });
+      // 2️⃣ Create new active settlements
+      for (const s of newSettlements) {
+        if (s.Amount > 0) {
+          await axios.post(
+            `http://localhost:3001/api/settlements`,
+            {
+              OrderNo: editing.OrderNo,
+              PaymentType: s.PaymentType,
+              Amount: s.Amount,
+              HotelID: editing.HotelID,
+              EditedBy: currentUser,
+            }
+          );
         }
       }
-
-      setNotification({ show: true, message: 'Settlement updated successfully', type: 'success' });
-      setShowSettlementModal(false);
-      setEditing(null);
-      fetchSettlements();
-    } catch (err: any) {
-      setNotification({
-        show: true,
-        message: err.response?.data?.message || 'Failed to update settlement',
-        type: 'danger',
-      });
-    } finally {
-      setLoading(false);
     }
-  };
+
+    setNotification({
+      show: true,
+      message: 'Settlement updated successfully',
+      type: 'success',
+    });
+
+    setShowSettlementModal(false);
+    setEditing(null);
+    fetchSettlements();
+  } catch (err: any) {
+    setNotification({
+      show: true,
+      message: err.response?.data?.message || 'Failed to update settlement',
+      type: 'danger',
+    });
+  } finally {
+    setLoading(false);
+  }
+};
 
 
 
-  const handleDeleteSettlement = async (id: number) => {
-    if (!window.confirm('Delete this settlement permanently?')) return;
 
-    try {
-      await axios.delete(`http://localhost:3001/api/settlements/${id}`, {
-        data: { EditedBy: currentUser },
-      });
-      setNotification({ show: true, message: 'Settlement deleted successfully', type: 'success' });
-      fetchSettlements();
-    } catch (err: any) {
-      setNotification({
-        show: true,
-        message: err.response?.data?.message || 'Failed to delete settlement',
-        type: 'danger',
-      });
-    }
-  };
+
+  // const handleDeleteSettlement = async (id: number) => {
+  //   if (!window.confirm('Delete this settlement permanently?')) return;
+
+  //   try {
+  //     await axios.delete(`http://localhost:3001/api/settlements/${id}`, {
+  //       data: { EditedBy: currentUser },
+  //     });
+  //     setNotification({ show: true, message: 'Settlement deleted successfully', type: 'success' });
+  //     fetchSettlements();
+  //   } catch (err: any) {
+  //     setNotification({
+  //       show: true,
+  //       message: err.response?.data?.message || 'Failed to delete settlement',
+  //       type: 'danger',
+  //     });
+  //   }
+  // };
 
   // ── UI ────────────────────────────────────────────────────────────
   return (
@@ -315,7 +344,7 @@ const EditSettlementPage: React.FC = () => {
                 <Button size="sm" variant="primary" onClick={() => handleEdit(group)}>
                   Edit
                 </Button>{' '}
-                {role === 'Admin' && (
+                {/* {role === 'Admin' && (
                   <Button
                     size="sm"
                     variant="danger"
@@ -323,7 +352,7 @@ const EditSettlementPage: React.FC = () => {
                   >
                     Delete
                   </Button>
-                )}
+                )} */}
               </td>
             </tr>
           ))}

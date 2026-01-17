@@ -8,9 +8,9 @@ function ok(message, data) {
 // Get settlements with filters
 exports.getSettlements = async (req, res) => {
   try {
-    const { orderNo, billNo, hotelId, from, to, paymentType, page = 1, limit = 10, isSettled } = req.query;
+    const { orderNo, hotelId, from, to, paymentType, page = 1, limit = 10 } = req.query;
 
-    let whereClauses = [];
+    let whereClauses = ['s.isSettled = 1']; // ✅ IMPORTANT FIX
     const params = [];
 
     if (orderNo) {
@@ -34,60 +34,43 @@ exports.getSettlements = async (req, res) => {
     }
 
     if (paymentType) {
-      // We will filter by payment type in the TrnSettlement table
       whereClauses.push('s.PaymentType = ?');
       params.push(paymentType);
     }
 
-    if (isSettled !== undefined && isSettled !== "") {
-      whereClauses.push('s.isSettled = ?');
-      params.push(Number(isSettled));
-    }
+    const whereSql = whereClauses.length
+      ? `WHERE ${whereClauses.join(' AND ')}`
+      : '';
 
-    const whereSettlement = whereClauses.map(clause => clause.replace(/^s\./, '').replace(/^pt\./, ''));
-    const whereSqlSettlement = whereSettlement.length ? `WHERE ${whereSettlement.join(' AND ')}` : '';
-    const countSql = `SELECT COUNT(DISTINCT s.SettlementID) as total FROM TrnSettlement s ${whereSqlSettlement}`;
+    const offset = (page - 1) * limit;
 
-    const whereSql = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
-    const countResult = db.prepare(countSql).get(...params);
-    const total = countResult ? countResult.total : 0;
-
-    const offset = (Number(page) - 1) * Number(limit);
     const sql = `
-      SELECT s.*, b.TxnNo as BillNo, b.Amount as BillTotal,
-        s.PaymentType as PaymentTypes,
-        s.Amount as PaymentAmount,
-        b.TxnNo as TxnNo,
-        b.orderNo as OrderNo,
-        b.CustomerName,
-        b.MobileNo,
-        b.Address,
-        b.UserId as userid
-      
+      SELECT s.*
       FROM TrnSettlement s
-      LEFT JOIN TAxnTrnbill b ON s.OrderNo = b.orderNo AND s.HotelID = b.HotelID
-     
       ${whereSql}
       ORDER BY s.InsertDate DESC
       LIMIT ? OFFSET ?
     `;
+
     params.push(Number(limit), Number(offset));
 
     const settlements = db.prepare(sql).all(...params);
 
-    // Map PaymentTypes and PaymentAmount to PaymentType and Amount for compatibility
-    const mappedSettlements = settlements.map(s => ({
-      ...s,
-      PaymentType: s.PaymentTypes || '',
-      Amount: s.PaymentAmount || s.Amount
-    }));
-
-    res.json(ok('Settlements fetched', { settlements: mappedSettlements, total, page: Number(page), limit: Number(limit) }));
+    res.json({
+      success: true,
+      data: {
+        settlements,
+        total: settlements.length,
+        page,
+        limit
+      }
+    });
   } catch (error) {
-    console.error("Error in getSettlements:", error);
-    res.status(500).json({ success: false, message: 'Failed to fetch settlements', error: error.message, stack: error.stack });
+    console.error(error);
+    res.status(500).json({ success: false, message: 'Failed to fetch settlements' });
   }
 };
+
 
 // Update settlement
 exports.updateSettlement = async (req, res) => {
@@ -95,32 +78,131 @@ exports.updateSettlement = async (req, res) => {
     const { id } = req.params;
     const { PaymentType, Amount, EditedBy } = req.body;
 
-    const settlement = db.prepare('SELECT * FROM TrnSettlement WHERE SettlementID = ?').get(Number(id));
-    if (!settlement) return res.status(404).json({ success: false, message: 'Settlement not found' });
+    const settlement = db
+      .prepare('SELECT * FROM TrnSettlement WHERE SettlementID = ? AND isSettled = 1')
+      .get(Number(id));
 
-    // Get bill total
-    const bill = db.prepare('SELECT Amount FROM TAxnTrnbill WHERE orderNo = ? AND HotelID = ?').get(settlement.OrderNo, settlement.HotelID);
-
-    // Check if updated amount matches bill total (simple check, assuming single settlement per bill)
-    // In reality, might need to sum all settlements for the bill
-    if (bill && Number(Amount) !== Number(bill.Amount)) {
-      return res.status(400).json({ success: false, message: 'Updated amount must match bill grand total' });
+    if (!settlement) {
+      return res.status(404).json({
+        success: false,
+        message: 'Settlement not found'
+      });
     }
 
-    // Log old values
+    // ✅ LOG OLD → NEW
     db.prepare(`
-      INSERT INTO TrnSettlementLog (SettlementID, OldPaymentType, OldAmount, NewPaymentType, NewAmount, EditedBy)
+      INSERT INTO TrnSettlementLog (
+        SettlementID,
+        OldPaymentType,
+        OldAmount,
+        NewPaymentType,
+        NewAmount,
+        EditedBy
+      )
       VALUES (?, ?, ?, ?, ?, ?)
-    `).run(settlement.SettlementID, settlement.PaymentType, settlement.Amount, PaymentType, Amount, EditedBy);
+    `).run(
+      settlement.SettlementID,
+      settlement.PaymentType,
+      settlement.Amount,
+      PaymentType,
+      Amount,
+      typeof EditedBy === 'object' ? JSON.stringify(EditedBy) : EditedBy
+    );
 
-    // Update
-    db.prepare('UPDATE TrnSettlement SET PaymentType = ?, Amount = ? WHERE SettlementID = ?').run(PaymentType, Amount, Number(id));
+    // ✅ UPDATE (NO BILL AMOUNT VALIDATION HERE)
+    db.prepare(`
+      UPDATE TrnSettlement
+      SET PaymentType = ?, Amount = ?
+      WHERE SettlementID = ?
+    `).run(
+      PaymentType,
+      Number(Amount),
+      Number(id)
+    );
 
-    res.json(ok('Settlement updated'));
+    res.json({
+      success: true,
+      message: 'Settlement updated successfully'
+    });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to update settlement', error: error.message });
+    console.error('updateSettlement error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update settlement'
+    });
   }
 };
+
+exports.createSettlement = async (req, res) => {
+  try {
+    const {
+      OrderNo,
+      PaymentType,   // "Cash", "UPI"
+      Amount,
+      HotelID,
+      EditedBy
+    } = req.body;
+
+    if (!OrderNo || !PaymentType || !Amount || !HotelID) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required fields'
+      });
+    }
+
+    // 🔹 Resolve PaymentTypeID correctly
+    const paymentMode = db.prepare(`
+      SELECT paymenttypeid
+      FROM payment_types
+      WHERE mode_name = ?
+    `).get(PaymentType);
+
+    if (!paymentMode) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid payment type: ${PaymentType}`
+      });
+    }
+
+    // ✅ FIXED LINE
+    const paymentTypeID = paymentMode.paymenttypeid;
+
+    // 🔹 Insert settlement
+    db.prepare(`
+      INSERT INTO TrnSettlement (
+        OrderNo,
+        PaymentTypeID,
+        PaymentType,
+        Amount,
+        HotelID,
+        isSettled,
+        InsertDate
+      )
+      VALUES (?, ?, ?, ?, ?, 1, datetime('now'))
+    `).run(
+      OrderNo,
+      paymentTypeID,
+      PaymentType,
+      Number(Amount),
+      HotelID
+    );
+
+    res.json({
+      success: true,
+      message: 'Settlement created successfully'
+    });
+  } catch (error) {
+    console.error('createSettlement error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create settlement'
+    });
+  }
+};
+
+
+
+
 
 // Delete/Reverse settlement
 exports.deleteSettlement = async (req, res) => {
