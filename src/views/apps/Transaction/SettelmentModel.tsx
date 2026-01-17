@@ -152,13 +152,6 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
     return () => window.removeEventListener('keydown', handler);
   }, [show, outletPaymentModes, activePaymentIndex, isMixedPayment, grandTotal, onHide]);
 
-  // Auto-select Cash when modal opens (single mode only)
-  useEffect(() => {
-    if (!show || isMixedPayment || selectedPaymentModes.length > 0) return;
-    const cashMode = outletPaymentModes.find(m => m.mode_name.toLowerCase() === 'cash');
-    if (cashMode) togglePaymentMode(cashMode);
-  }, [show, isMixedPayment, outletPaymentModes]);
-
   // Reset form when modal closes
   useEffect(() => {
     if (!show) {
@@ -170,15 +163,24 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
     }
   }, [show]);
 
-  // Update states when modal opens with initial props
+  // Update states when modal opens with initial props and auto-select Cash if needed
   useEffect(() => {
     if (show) {
       setIsMixedPayment(initialIsMixed);
       setSelectedPaymentModes(initialSelectedModes);
       setPaymentAmounts(initialPaymentAmounts);
       setTip(initialTip);
+
+      // Auto-select Cash if no initial payment modes and not mixed
+      if (!initialIsMixed && initialSelectedModes.length === 0) {
+        const cashMode = outletPaymentModes.find(m => m.mode_name.toLowerCase() === 'cash');
+        if (cashMode) {
+          setSelectedPaymentModes([cashMode.mode_name]);
+          setPaymentAmounts({ [cashMode.mode_name]: grandTotal.toFixed(2) });
+        }
+      }
     }
-  }, [show, initialIsMixed, initialSelectedModes, initialPaymentAmounts, initialTip]);
+  }, [show, initialIsMixed, initialSelectedModes, initialPaymentAmounts, initialTip, outletPaymentModes, grandTotal]);
 
   const handleSettle = async () => {
     if (loading) return;

@@ -71,6 +71,7 @@ interface PaymentMode {
   id: number;
   paymenttypeid: number;
   mode_name: string;
+  payment_mode_name: string;
 }
 
 
@@ -2754,21 +2755,63 @@ const resetBillingPanel = () => {
     if (e.key === 'Enter') handleApplyDiscount();
   };
 
+useEffect(() => {
+  if (!showSettlementModal) return;
+  if (outletPaymentModes.length === 0) return;
+
+  // Check if already selected
+  if (selectedPaymentModes.length > 0) return;
+
+  const cashMode = outletPaymentModes.find(
+    m => m.payment_mode_name?.toLowerCase() === 'cash'
+  );
+
+  if (!cashMode) return;
+
+  const payable = (taxCalc.grandTotal + (tip || 0)).toFixed(2);
+
+  setSelectedPaymentModes(['cash']);
+  setPaymentAmounts({ cash: payable });
+  setIsMixedPayment(false);
+}, [
+  showSettlementModal,
+  outletPaymentModes,
+  taxCalc.grandTotal,
+  tip,
+]);
 
 
-  const handleSettleAndPrint = async () => {
-    // Define these variables before using them
-    const totalPaid = Object.values(paymentAmounts).reduce((acc, val) => acc + (parseFloat(val) || 0), 0) + (tip || 0);
-    const settlementBalance = Number((taxCalc.grandTotal - totalPaid).toFixed(2));
 
-    if (!currentTxnId) {
-      toast.error('Cannot settle bill. No transaction ID found.');
-      return;
-    }
-    if (Math.abs(settlementBalance) > 0.01) {
-      toast.error('Payment amount does not match the total due.');
-      return;
-    }
+
+
+
+ const handleSettleAndPrint = async () => {
+  // 🔍 DEBUG – YAHI ADD KARO
+  console.log({
+    selectedPaymentModes,
+    paymentAmounts,
+    grandTotal: taxCalc.grandTotal,
+    tip,
+  });
+
+  const totalPaid = Object.values(paymentAmounts)
+    .reduce((acc, val) => acc + (Number(val) || 0), 0);
+
+  const payableTotal = Number((taxCalc.grandTotal + (tip || 0)).toFixed(2));
+  const difference = Number((payableTotal - totalPaid).toFixed(2));
+
+  if (!currentTxnId) {
+    toast.error('Cannot settle bill. No transaction ID found.');
+    return;
+  }
+
+  if (Math.abs(difference) > 0.01) {
+    toast.error('Payment amount does not match the total due.');
+    return;
+  }
+
+
+  
 
     setLoading(true);
     try {
