@@ -268,6 +268,29 @@ export default function App() {
     }
   }, [showModal]);
 
+  // Handle Ctrl + number keys for department selection
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.ctrlKey) {
+        const key = event.key;
+        if (key === '0') {
+          setSelectedDepartmentId('all');
+        } else if (key >= '1' && key <= '9') {
+          const index = parseInt(key) - 1;
+          if (departments[index]) {
+            setSelectedDepartmentId(departments[index].departmentid);
+          }
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [departments]);
+
   // Group tables by their departmentid
   const tablesByDepartment = allTables.reduce((acc, table) => {
     if (table.departmentid) {
@@ -414,7 +437,7 @@ export default function App() {
                   ref={tableInputRef}
                   type="number"
                   className="form-control form-control-sm"
-                  placeholder="Table No"
+                  placeholder="Table"
                   value={tableInput}
                   onChange={e => setTableInput(e.target.value)}
                   onKeyDown={handleTableInputEnter}

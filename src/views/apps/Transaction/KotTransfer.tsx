@@ -91,6 +91,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
   const [currentDate] = useState(new Date().toLocaleDateString('en-GB'));
   const [proposedPax, setProposedPax] = useState<number>(0);
   const [currentFocus, setCurrentFocus] = useState<'table' | 'kot' | 'f7' | 'modal'>('table');
+  const [pendingFocus, setPendingFocus] = useState<'table' | 'kot' | 'f7' | null>(null);
 
   useEffect(() => {
     setTransferMode(effectiveSource);
@@ -208,6 +209,14 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
       f7ButtonRef.current.focus();
     }
   }, [currentFocus]);
+
+  // Apply pending focus after modal closes
+  useEffect(() => {
+    if (!showConfirmModal && pendingFocus) {
+      setCurrentFocus(pendingFocus);
+      setPendingFocus(null);
+    }
+  }, [showConfirmModal, pendingFocus]);
 
   // Handle transfer done - wait for Enter key
   useEffect(() => {
@@ -360,6 +369,19 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
     // Add to proposedItems
     setProposedItems(prev => [...prev, ...itemsToTransfer]);
 
+    // Update allItems and availableKOTs after transfer
+    if (transferMode === "table" || transferMode === "ORDER") {
+      setAllItems([]);
+      setAvailableKOTs([]);
+      setLatestKOT(null);
+    } else {
+      setAllItems(prev => prev.filter(item => item.kot !== selectedKOT));
+      const updatedAllItems = allItems.filter(item => item.kot !== selectedKOT);
+      const uniqueKOTs = [...new Set(updatedAllItems.map(item => item.kot))].sort((a, b) => a - b);
+      setAvailableKOTs(uniqueKOTs);
+      setLatestKOT(uniqueKOTs.length > 0 ? Math.max(...uniqueKOTs) : null);
+    }
+
     // Update table status since all items are transferred
     setTables(prevTables =>
       prevTables.map(t => {
@@ -500,7 +522,9 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
           setShowConfirmModal(false);
         } else if (selectedOption === 'yes') {
           if (availableKOTs.length > 0) {
-            setCurrentFocus('kot');
+            setPendingFocus('kot');
+          } else {
+            handleSave();
           }
           setShowConfirmModal(false);
         }
@@ -1044,7 +1068,9 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
             variant={selectedOption === 'yes' ? 'primary' : 'secondary'}
             onClick={() => {
               if (availableKOTs.length > 0) {
-                setCurrentFocus('kot');
+                setPendingFocus('kot');
+              } else {
+                handleSave();
               }
               setShowConfirmModal(false);
             }}

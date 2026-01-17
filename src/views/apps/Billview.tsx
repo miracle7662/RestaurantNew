@@ -45,6 +45,7 @@ interface BillItem {
   isFetched?: boolean;
   reversedQty?: number;
   RevKOT?: number;
+  isValidCode?: boolean;
 }
 
 interface MenuItem {
@@ -1260,7 +1261,7 @@ const ModernBill = () => {
 
     const updated = [...billItems];
     if (!updated[dataIndex]) {
-      updated[dataIndex] = { itemCode: '', itemgroupid: 0, itemId: 0, item_no: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '', isFetched: false };
+      updated[dataIndex] = { itemCode: '', itemgroupid: 0, itemId: 0, item_no: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '', isFetched: false, isValidCode: true };
     }
     const currentItem = { ...updated[dataIndex] };
 
@@ -1272,10 +1273,12 @@ const ModernBill = () => {
         currentItem.itemName = found.item_name;
         currentItem.rate = found.price;
         currentItem.itemId = found.restitemid;
+        currentItem.isValidCode = true;
       } else {
         currentItem.itemName = "";
         currentItem.rate = 0;
         currentItem.itemId = 0;
+        currentItem.isValidCode = false;
       }
     } else if (field === 'itemName') {
       currentItem.itemName = value as string;
@@ -1291,10 +1294,12 @@ const ModernBill = () => {
         currentItem.rate = found.price;
         currentItem.itemId = found.restitemid;
         currentItem.itemName = found.item_name; // Ensure we set the full item name
+        currentItem.isValidCode = true;
       } else {
         currentItem.itemCode = "";
         currentItem.rate = 0;
         currentItem.itemId = 0;
+        currentItem.isValidCode = false;
       }
     } else {
       (currentItem[field] as any) = value;
@@ -1310,15 +1315,15 @@ const ModernBill = () => {
 
     if (e.key === "Enter") {
       if (field === 'itemCode') {
-        // Only move focus to qty if itemCode has been typed
-        if (billItems[dataIndex].itemCode.trim() !== '') {
+        // Only move focus to qty if itemCode has been typed and is valid
+        if (billItems[dataIndex].itemCode.trim() !== '' && billItems[dataIndex].isValidCode) {
           const qtyRef = inputRefs.current[index]?.[1];
           if (qtyRef) {
             qtyRef.focus();
             qtyRef.select();
           }
         }
-        // If itemCode is empty, do nothing - stay in the field
+        // If itemCode is empty or invalid, do nothing - stay in the field
       } else if (field === 'itemName') {
         // Focus and select qty field of the same row
         const qtyRef = inputRefs.current[index]?.[1];
@@ -2655,9 +2660,14 @@ const printBill = async () => {
                                     e.preventDefault();
                                   }
                                 }}
-                                className="form-control"
+                                className={`form-control ${item.isValidCode === false ? 'is-invalid' : ''}`}
                                 style={{ width: '100%', fontSize: '16px', background: 'transparent', padding: '0' }}
                               />
+                              {item.isValidCode === false && (
+                                <div className="invalid-feedback" style={{ display: 'block', fontSize: '12px' }}>
+                                  Invalid Code
+                                </div>
+                              )}
                             </td>
                             <td style={{ width: '400px' }}>
                               <Form.Control
