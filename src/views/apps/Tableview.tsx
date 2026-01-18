@@ -310,7 +310,18 @@ export default function App() {
   };
 
   const handleTakeAwayClick = () => {
-    navigate('/apps/Billview', { state: { orderType: 'TAKEAWAY', tableId: null, tableName: 'Take Away', outletId: user?.outletid } });
+    const outletId = user?.outletid || allTables[0]?.outletid || null;
+
+    navigate('/apps/Billview', {
+      state: {
+        mode: 'TAKEAWAY',
+        orderType: 'TAKEAWAY',
+        outletId,
+        departmentId: selectedDepartmentId !== 'all' ? selectedDepartmentId : null,
+        tableId: null,
+        tableName: 'TAKE AWAY'
+      }
+    });
   };
 
   const handleTableClick = (table: Table) => {
@@ -512,7 +523,7 @@ export default function App() {
                 border: '1px solid #ddd',
                 padding: '4px'
               }}
-              onClick={() => navigate('/apps/Billview', { state: { orderType: 'TAKEAWAY', tableId: null, tableName: 'Take Away', outletId: user?.outletid } })}
+              onClick={handleTakeAwayClick}
             >
               <span className="text-dark fw-bold" style={{ fontSize: '13px', lineHeight: '1.2' }}>Take Away</span>
             </div>

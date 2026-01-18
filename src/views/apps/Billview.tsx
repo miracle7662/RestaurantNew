@@ -155,10 +155,18 @@ const ModernBill = () => {
   const outletIdFromState = location.state?.outletId;
   const txnIdFromState = location.state?.txnId;
   const billNoFromState = location.state?.billNo;
+  const departmentIdFromState = location.state?.departmentId;
+  const isTakeaway = location.state?.mode === 'TAKEAWAY' || location.state?.orderType === 'TAKEAWAY';
   const { user } = useAuthContext();
 
   console.log('Table ID:', tableId);
   console.log('Table Name:', tableName);
+  console.log('ORDER MODE', {
+    isTakeaway,
+    tableId,
+    selectedOutletId: outletIdFromState || user?.outletid || null,
+    departmentIdFromState
+  });
 
   const [waiter, setWaiter] = useState('ASD');
   const [pax, setPax] = useState(1);
@@ -1163,12 +1171,12 @@ const ModernBill = () => {
     }
   }, [location.state]);
 
+  // Fetch menu items
   useEffect(() => {
-    // 1. Fetch menu items from the API when selectedOutletId is available
     const fetchMenuItems = async () => {
       try {
         if (!user || !user.hotelid || !selectedOutletId) {
-          return; // Wait for outlet to be selected
+          return;
         }
         const response = await axios.get(`/api/menu?outletid=${selectedOutletId}`);
         setMenuItems(response.data.data || response.data);
@@ -1177,7 +1185,9 @@ const ModernBill = () => {
       }
     };
     fetchMenuItems();
+  }, [selectedOutletId, user]);
 
+  useEffect(() => {
     calculateTotals(billItems);
 
     // Remove padding or margin from layout containers
