@@ -1609,6 +1609,13 @@ const ModernBill = () => {
         setTxnId(response.data.data.TxnID);
       }
 
+      // Set orderNo from response (use orderNo for takeaway, TxnNo for others)
+      if (response.data?.data?.orderNo) {
+        setOrderNo(response.data.data.orderNo);
+      } else if (response.data?.data?.TxnNo) {
+        setOrderNo(response.data.data.TxnNo);
+      }
+
       // Set customer state from response
       const header = response.data?.data;
       if (header?.CustomerName) {

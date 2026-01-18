@@ -1072,7 +1072,7 @@ exports.createKOT = async (req, res) => {
         }
         // Generate OrderNo only for Pickup, Delivery, Quick Bill, or Take Away
         let newOrderNo = null
-        const orderTypesToGenerateNo = ['Pickup', 'Delivery', 'Quick Bill', 'Take Away']
+        const orderTypesToGenerateNo = ['Pickup', 'Delivery', 'Quick Bill', 'Take Away', 'TAKEAWAY']
         if (Order_Type && orderTypesToGenerateNo.includes(Order_Type)) {
           newOrderNo = generateOrderNo(headerOutletId)
         }
