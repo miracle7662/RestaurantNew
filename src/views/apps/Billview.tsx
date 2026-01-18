@@ -2458,13 +2458,13 @@ const printBill = async () => {
                     {isTakeaway ? 'Order No' : 'Table No'}
                   </div>
                   <div className="fw-bold fs-4" style={{ color: '#333' }}>
-                    {isTakeaway ? (orderNo ?? '') : (tableNo || '--')}
+                    {isTakeaway ? (orderNo ?? '...') : (tableNo || '--')}
                   </div>
                 </div>
               </Col>
 
               {/* Waiter - Centered */}
-              <Col md={2}>
+              <Col md={1}>
                 <div className="info-box p-2 h-100 border rounded text-center d-flex flex-column justify-content-center">
                   <div className="text-uppercase text-secondary small mb-1 fw-semibold">Waiter</div>
                   <input
