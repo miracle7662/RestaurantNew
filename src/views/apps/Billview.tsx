@@ -1388,7 +1388,7 @@ const ModernBill = () => {
         return;
       }
 
-      if (!tableId) {
+      if (!isTakeaway && !tableId) {
         toast.error("Table not selected properly");
         return;
       }
@@ -1411,12 +1411,12 @@ const ModernBill = () => {
 
       const payload = {
         outletid: outletId,
-        tableId,
+        tableId: isTakeaway ? null : tableId,
         table_name: tableName,
         userId: user.id,
         hotelId: user.hotelid,
         KOTNo: editableKot, // Use editableKot if set, else null for backend to generate
-        Order_Type: 'Dine-in',
+        Order_Type: isTakeaway ? 'TAKEAWAY' : 'Dine-in',
         PAX: pax,
         CustomerName: customerName || null,
         MobileNo: customerNo || null,
@@ -1482,10 +1482,12 @@ const ModernBill = () => {
       toast.success('KOT saved successfully');
 
       // Set table status to occupied (green)
-      try {
-        await axios.put(`/api/tablemanagement/${tableId}/status`, { status: 1 });
-      } catch (error) {
-        console.error('Error updating table status:', error);
+      if (tableId) {
+        try {
+          await axios.put(`/api/tablemanagement/${tableId}/status`, { status: 1 });
+        } catch (error) {
+          console.error('Error updating table status:', error);
+        }
       }
 
       // If print is requested, print
@@ -1501,7 +1503,9 @@ const ModernBill = () => {
       }
 
       // 🔥 AFTER KOT SAVE / PRINT
-     await loadBillForTable(tableId);
+      if (tableId) {
+        await loadBillForTable(tableId);
+      }
 
 
       // Navigate to table view page after saving KOT
