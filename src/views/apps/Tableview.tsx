@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { useAuthContext } from '@/common';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Modal, Button } from 'react-bootstrap';
 
 // Types
@@ -104,8 +104,10 @@ export default function App() {
   const [focusedButton, setFocusedButton] = useState<'yes' | 'no'>('yes');
   const yesButtonRef = useRef<HTMLButtonElement>(null);
   const noButtonRef = useRef<HTMLButtonElement>(null);
+  const [takeawayOrders, setTakeawayOrders] = useState<any[]>([]);
   const { user } = useAuthContext();
   const navigate = useNavigate();
+  const location = useLocation();
   const tableInputRef = useRef<HTMLInputElement>(null);
 
   
@@ -352,6 +354,28 @@ export default function App() {
     }
   };
 
+  const fetchTakeawayOrders = async () => {
+    try {
+      const res = await fetch(`http://localhost:3001/api/orders/takeaway?outletId=${user?.outletid}&status=OPEN`);
+      if (res.ok) {
+        const data = await res.json();
+        setTakeawayOrders(data);
+      }
+    } catch (error) {
+      console.error('Error fetching takeaway orders:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchTakeawayOrders();
+  }, [user]);
+
+  useEffect(() => {
+    if ((location as any).state?.refreshTakeaway) {
+      fetchTakeawayOrders();
+    }
+  }, [(location as any).state]);
+
   return (
     <div className="d-flex flex-column" style={{ height: '100vh', minHeight: '100vh' }}>
       <style>{`
@@ -529,6 +553,42 @@ export default function App() {
             </div>
           </div>
         </div>
+
+        {/* Takeaway Orders Cards */}
+        {takeawayOrders.length > 0 && (
+          <div className="mt-3">
+            <h6 className="text-muted">Takeaway Orders</h6>
+            <div className="d-flex gap-2 flex-wrap">
+              {takeawayOrders.map(order => (
+                <div
+                  key={order.order_id}
+                  className="card p-2 shadow-sm"
+                  style={{ width: 140, cursor: 'pointer' }}
+                  onClick={() =>
+                    navigate('/apps/Billview', {
+                      state: {
+                        mode: 'TAKEAWAY',
+                        orderId: order.order_id,
+                        orderNo: order.order_no,
+                        outletId: user?.outletid
+                      }
+                    })
+                  }
+                >
+                  <div className="fw-bold text-danger">
+                    {order.order_no}
+                  </div>
+                  <div className="small text-muted">
+                    Items: {order.item_count}
+                  </div>
+                  <div className="fw-semibold">
+                    ₹{order.total}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Modal */}

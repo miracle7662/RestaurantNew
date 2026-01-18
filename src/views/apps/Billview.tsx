@@ -1509,7 +1509,11 @@ const ModernBill = () => {
 
 
       // Navigate to table view page after saving KOT
-      navigate('/apps/Tableview');
+      navigate('/apps/Tableview', {
+        state: {
+          refreshTakeaway: true
+        }
+      });
     } catch (error) {
       console.error('Error saving KOT:', error);
       toast.error('Error saving KOT');
@@ -2447,11 +2451,15 @@ const printBill = async () => {
 
             {/* Card Layout for Header Information */}
             <Row className="mb-3 g-2 align-items-stretch">
-              {/* Table No - Left aligned */}
+              {/* Table No / Order No - Left aligned */}
               <Col md={1}>
                 <div className="info-box p-2 h-100 border rounded text-center d-flex flex-column justify-content-center">
-                  <div className="text-uppercase text-secondary small mb-1 fw-semibold">Table No</div>
-                  <div className="fw-bold fs-4" style={{ color: '#333' }}>{tableNo || '--'}</div>
+                  <div className="text-uppercase text-secondary small mb-1 fw-semibold">
+                    {isTakeaway ? 'Order No' : 'Table No'}
+                  </div>
+                  <div className="fw-bold fs-4" style={{ color: '#333' }}>
+                    {isTakeaway ? (orderNo ?? '') : (tableNo || '--')}
+                  </div>
                 </div>
               </Col>
 
