@@ -13,6 +13,9 @@ router.post('/', controller.createSettlement);
 // Update settlement
 router.put('/:id', controller.updateSettlement);
 
+// Replace settlements for an OrderNo
+router.post('/replace', controller.replaceSettlement);
+
 // Delete/Reverse settlement
 router.delete('/:id', controller.deleteSettlement);
 

@@ -200,9 +200,107 @@ exports.createSettlement = async (req, res) => {
   }
 };
 
+// Replace settlements for an OrderNo
+exports.replaceSettlement = async (req, res) => {
+  try {
+    const { OrderNo, newSettlements, HotelID, EditedBy } = req.body;
 
+    if (!OrderNo || !Array.isArray(newSettlements) || !HotelID) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required fields: OrderNo, newSettlements, HotelID'
+      });
+    }
 
+    // ✅ FORCE EditedBy to a valid SQLite type
+    const editedBySafe =
+      typeof EditedBy === 'object'
+        ? JSON.stringify(EditedBy)
+        : EditedBy ?? null;
 
+    // 1️⃣ Fetch all existing settlements for the OrderNo
+    const existingSettlements = db.prepare(
+      `SELECT * FROM TrnSettlement WHERE OrderNo = ?`
+    ).all(OrderNo);
+
+    // 2️⃣ Log each existing settlement as deleted
+    for (const settlement of existingSettlements) {
+      db.prepare(`
+        INSERT INTO TrnSettlementLog (
+          SettlementID,
+          OldPaymentType,
+          OldAmount,
+          NewPaymentType,
+          NewAmount,
+          EditedBy
+        )
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).run([
+        Number(settlement.SettlementID),
+        settlement.PaymentType ? String(settlement.PaymentType) : null,
+        settlement.Amount != null ? Number(settlement.Amount) : null,
+        null,
+        null,
+        editedBySafe
+      ]);
+    }
+
+    // 3️⃣ Hard delete all existing settlements for the OrderNo
+    db.prepare(`DELETE FROM TrnSettlement WHERE OrderNo = ?`).run(OrderNo);
+
+    // 4️⃣ Insert new settlements
+    for (const s of newSettlements) {
+      if (!s.PaymentType || s.Amount == null) continue;
+
+      // Resolve PaymentTypeID
+      const paymentMode = db.prepare(`
+        SELECT paymenttypeid
+        FROM payment_types
+        WHERE mode_name = ?
+      `).get(s.PaymentType);
+
+      if (!paymentMode) {
+        return res.status(400).json({
+          success: false,
+          message: `Invalid payment type: ${s.PaymentType}`
+        });
+      }
+
+      const paymentTypeID = paymentMode.paymenttypeid;
+
+      db.prepare(`
+        INSERT INTO TrnSettlement (
+          OrderNo,
+          PaymentTypeID,
+          PaymentType,
+          Amount,
+          HotelID,
+          isSettled,
+          InsertDate
+        )
+        VALUES (?, ?, ?, ?, ?, 1, datetime('now'))
+      `).run(
+        OrderNo,
+        paymentTypeID,
+        s.PaymentType,
+        Number(s.Amount),
+        HotelID
+      );
+    }
+
+    res.json({
+      success: true,
+      message: 'Settlements replaced successfully'
+    });
+  } catch (error) {
+    console.error('Error in replaceSettlement:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to replace settlements',
+      error: error.message
+    });
+  }
+};
 
 // Delete/Reverse settlement
 exports.deleteSettlement = async (req, res) => {

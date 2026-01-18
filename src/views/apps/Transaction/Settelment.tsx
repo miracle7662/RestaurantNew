@@ -176,47 +176,16 @@ const handleUpdateSettlement = async (newSettlements: any[], tip?: number) => {
   setLoading(true);
 
   try {
-    const wasSingle = editing.SettlementIDs?.length === 1;
-    const isMixedNow = newSettlements.length > 1;
-
-    // 🔹 CASE 1: Single → Single
-    if (wasSingle && !isMixedNow) {
-      await axios.put(
-        `http://localhost:3001/api/settlements/${editing.SettlementIDs![0]}`,
-        {
-          PaymentType: newSettlements[0].PaymentType,
-          Amount: newSettlements[0].Amount,
-          EditedBy: currentUser,
-        }
-      );
-    }
-
-    // 🔹 CASE 2: Single → Mixed  OR  Mixed → Mixed
-    else {
-      // 1️⃣ Soft delete old settlements
-      for (const id of editing.SettlementIDs ?? []) {
-        await axios.delete(
-          `http://localhost:3001/api/settlements/${id}`,
-          { data: { EditedBy: currentUser } }
-        );
+    // Always use replace strategy: delete all for OrderNo and insert new
+    await axios.post(
+      `http://localhost:3001/api/settlements/replace`,
+      {
+        OrderNo: editing.OrderNo,
+        newSettlements: newSettlements.filter(s => s.Amount > 0),
+        HotelID: editing.HotelID,
+        EditedBy: currentUser,
       }
-
-      // 2️⃣ Create new active settlements
-      for (const s of newSettlements) {
-        if (s.Amount > 0) {
-          await axios.post(
-            `http://localhost:3001/api/settlements`,
-            {
-              OrderNo: editing.OrderNo,
-              PaymentType: s.PaymentType,
-              Amount: s.Amount,
-              HotelID: editing.HotelID,
-              EditedBy: currentUser,
-            }
-          );
-        }
-      }
-    }
+    );
 
     setNotification({
       show: true,
