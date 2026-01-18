@@ -2662,10 +2662,10 @@ const printBill = async () => {
 
 
               {/* Date - Centered */}
-              <Col md={2}>
+              <Col md={1}>
                 <div className="info-box p-2 h-100 border rounded text-center d-flex flex-column justify-content-center">
                   <div className="text-uppercase text-secondary small mb-1 fw-semibold">Date</div>
-                  <div className="fw-bold fs-5" style={{ color: '#333' }}>
+                  <div className="fw-bold fs-6" style={{ color: '#333' }}>
                     {new Date().toLocaleDateString('en-GB', {
                       day: '2-digit',
                       month: '2-digit',
