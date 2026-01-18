@@ -110,6 +110,12 @@ interface Outlet {
   name: string;
 }
 
+interface Department {
+  departmentid: number;
+  department_name: string;
+  outletid: number;
+}
+
 interface TableManagement {
   table_name: string;
   tablemanagementid: number;
@@ -682,6 +688,9 @@ const ModernBill = () => {
   // Outlet selection states
   const [outlets, setOutlets] = useState<Outlet[]>([]);
   const [selectedOutletId, setSelectedOutletId] = useState<number | null>(outletIdFromState || user?.outletid || null);
+  // Department selection states
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState<number | null>(null);
   // Tax details state
   const [taxDetails, setTaxDetails] = useState<any>(null);
 
@@ -1139,6 +1148,26 @@ const ModernBill = () => {
     fetchTaxDetails();
   }, [selectedOutletId]);
 
+  // Fetch departments based on selected outlet
+  useEffect(() => {
+    const fetchDepartments = async () => {
+      try {
+        if (!selectedOutletId) return;
+        const response = await axios.get(`/api/departments/by-outlet?outletid=${selectedOutletId}`);
+        const deptData = response.data.data || response.data;
+        setDepartments(deptData);
+        // Set first department as default for takeaway orders
+        if (deptData.length > 0 && orderType === 'TAKEAWAY') {
+          setSelectedDepartmentId(deptData[0].departmentid);
+        }
+      } catch (error) {
+        console.error('Failed to fetch departments:', error);
+        setDepartments([]);
+      }
+    };
+    fetchDepartments();
+  }, [selectedOutletId, orderType]);
+
   useEffect(() => {
     if (selectedOutletId) {
       // Fetch outlet settings for Reverse Qty Mode
@@ -1480,7 +1509,7 @@ const ModernBill = () => {
           Discount_Amount: 0,
           isNCKOT: isNoCharge,
           isbilled: print ? 1 : 0,
-          DeptID: 1,
+          DeptID: selectedDepartmentId || 1,
           SpecialInst: item.specialInstructions || null
         }))
       };
