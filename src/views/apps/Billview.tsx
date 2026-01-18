@@ -110,12 +110,6 @@ interface Outlet {
   name: string;
 }
 
-interface Department {
-  departmentid: number;
-  department_name: string;
-  outletid: number;
-}
-
 interface TableManagement {
   table_name: string;
   tablemanagementid: number;
@@ -156,7 +150,6 @@ const ModernBill = () => {
   const [total, setTotal] = useState(0);
   const navigate = useNavigate();
   const location = useLocation();
-  const orderType = location.state?.orderType || 'DINEIN';
   const tableId = location.state?.tableId;
   const tableName = location.state?.tableName;
   const outletIdFromState = location.state?.outletId;
@@ -375,7 +368,7 @@ const ModernBill = () => {
 
   // Load bill details for the current table
   const loadBillDetails = async () => {
-    if (tableId !== undefined && tableId !== null) {
+    if (tableId) {
       await loadBillForTable(tableId);
     }
   };
@@ -688,9 +681,6 @@ const ModernBill = () => {
   // Outlet selection states
   const [outlets, setOutlets] = useState<Outlet[]>([]);
   const [selectedOutletId, setSelectedOutletId] = useState<number | null>(outletIdFromState || user?.outletid || null);
-  // Department selection states
-  const [departments, setDepartments] = useState<Department[]>([]);
-  const [selectedDepartmentId, setSelectedDepartmentId] = useState<number | null>(null);
   // Tax details state
   const [taxDetails, setTaxDetails] = useState<any>(null);
 
@@ -843,7 +833,7 @@ const ModernBill = () => {
 
   // Fetch table data when tableId is present
   const loadUnbilledItems = useCallback(async (tableIdNum: number) => {
-    if (tableIdNum === undefined || tableIdNum === null || !user || !user.hotelid) return;
+    if (!tableIdNum || !user || !user.hotelid) return;
 
     setLoading(true);
     setError(null);
@@ -1067,13 +1057,6 @@ const ModernBill = () => {
     fetchOutlets();
   }, [user]);
 
-  // Set default outlet if not set
-  useEffect(() => {
-    if (outlets.length > 0 && !selectedOutletId) {
-      setSelectedOutletId(outlets[0].id);
-    }
-  }, [outlets, selectedOutletId]);
-
   // Fetch payment modes based on selected outlet
   useEffect(() => {
     const fetchPaymentModes = async () => {
@@ -1094,37 +1077,15 @@ const ModernBill = () => {
       try {
         if (!selectedOutletId) return;
         const response = await axios.get(`/api/TAxnTrnbill/global-kot-number?outletid=${selectedOutletId}`);
-        const maxKOT = response.data.data.maxKOT;
-        setDefaultKot(maxKOT);
-        setEditableKot(maxKOT + 1);
+        const nextKOT = response.data.data.nextKOT;
+        setDefaultKot(nextKOT);
+        setEditableKot(nextKOT);
       } catch (error) {
         console.error('Failed to fetch global KOT number:', error);
-        setDefaultKot(1);
-        setEditableKot(1);
       }
     };
     fetchGlobalKOT();
   }, [selectedOutletId]);
-
-  // Fetch max order number for TAKEAWAY
-  useEffect(() => {
-    const fetchMaxOrderNumber = async () => {
-      try {
-        if (orderType !== 'TAKEAWAY') return;
-        if (!selectedOutletId) {
-          setOrderNo('1');
-          return;
-        }
-        const response = await axios.get(`/api/TAxnTrnbill/max-order-number?outletid=${selectedOutletId}`);
-        const maxOrderNo = response.data.data.maxOrderNo;
-        setOrderNo(maxOrderNo + 1);
-      } catch (error) {
-        console.error('Failed to fetch max order number:', error);
-        setOrderNo('1');
-      }
-    };
-    fetchMaxOrderNumber();
-  }, [selectedOutletId, orderType]);
 
   // Fetch tax details based on selected outlet
   useEffect(() => {
@@ -1147,26 +1108,6 @@ const ModernBill = () => {
 
     fetchTaxDetails();
   }, [selectedOutletId]);
-
-  // Fetch departments based on selected outlet
-  useEffect(() => {
-    const fetchDepartments = async () => {
-      try {
-        if (!selectedOutletId) return;
-        const response = await axios.get(`/api/departments/by-outlet?outletid=${selectedOutletId}`);
-        const deptData = response.data.data || response.data;
-        setDepartments(deptData);
-        // Set first department as default for takeaway orders
-        if (deptData.length > 0 && orderType === 'TAKEAWAY') {
-          setSelectedDepartmentId(deptData[0].departmentid);
-        }
-      } catch (error) {
-        console.error('Failed to fetch departments:', error);
-        setDepartments([]);
-      }
-    };
-    fetchDepartments();
-  }, [selectedOutletId, orderType]);
 
   useEffect(() => {
     if (selectedOutletId) {
@@ -1210,20 +1151,10 @@ const ModernBill = () => {
   }, [selectedOutletId]);
 
   useEffect(() => {
-    if (orderType === 'DINEIN' && tableId !== undefined && tableId !== null) {
-      // Ensure selectedOutletId is set for DINEIN
-      if (user?.outletid && selectedOutletId !== user.outletid) {
-        setSelectedOutletId(user.outletid);
-      }
+    if (tableId) {
       loadBillForTable(tableId);
-    } else if (orderType === 'TAKEAWAY') {
-      resetBillState();
-      // Ensure selectedOutletId is set for TAKEAWAY
-      if (user?.outletid && selectedOutletId !== user.outletid) {
-        setSelectedOutletId(user.outletid);
-      }
     }
-  }, [tableId, orderType, user?.outletid, selectedOutletId]);
+  }, [tableId]);
 
   // Check for openSettlement flag and open settlement modal
   useEffect(() => {
@@ -1236,15 +1167,10 @@ const ModernBill = () => {
     // 1. Fetch menu items from the API when selectedOutletId is available
     const fetchMenuItems = async () => {
       try {
-        if (!user || !user.hotelid) {
-          return; // Wait for user to be available
+        if (!user || !user.hotelid || !selectedOutletId) {
+          return; // Wait for outlet to be selected
         }
-        const params = new URLSearchParams();
-        params.append('hotelid', user.hotelid);
-        if (orderType !== 'TAKEAWAY' && selectedOutletId) {
-          params.append('outletid', selectedOutletId);
-        }
-        const response = await axios.get(`/api/menu?${params.toString()}`);
+        const response = await axios.get(`/api/menu?outletid=${selectedOutletId}`);
         setMenuItems(response.data.data || response.data);
       } catch (error) {
         console.error('Failed to fetch menu items:', error);
@@ -1310,7 +1236,7 @@ const ModernBill = () => {
       window.removeEventListener('resize', calculateHeights);
       document.removeEventListener('keydown', handleEscapeKey);
     };
-  }, [selectedOutletId, navigate]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [navigate]); // eslint-disable-line react-hooks/exhaustive-deps
 
 
 
@@ -1342,22 +1268,17 @@ const ModernBill = () => {
     if (field === 'itemCode') {
       currentItem.itemCode = value as string;
       // 2. When item code is typed, find the item in the fetched menu list
-      if (menuItems.length > 0) {
-        const found = menuItems.find(i => i.item_no.toString() === value);
-        if (found) {
-          currentItem.itemName = found.item_name;
-          currentItem.rate = found.price;
-          currentItem.itemId = found.restitemid;
-          currentItem.isValidCode = true;
-        } else {
-          currentItem.itemName = "";
-          currentItem.rate = 0;
-          currentItem.itemId = 0;
-          currentItem.isValidCode = false;
-        }
+      const found = menuItems.find(i => i.item_no.toString() === value);
+      if (found) {
+        currentItem.itemName = found.item_name;
+        currentItem.rate = found.price;
+        currentItem.itemId = found.restitemid;
+        currentItem.isValidCode = true;
       } else {
-        // Menu not loaded yet, don't validate
-        currentItem.isValidCode = undefined;
+        currentItem.itemName = "";
+        currentItem.rate = 0;
+        currentItem.itemId = 0;
+        currentItem.isValidCode = false;
       }
     } else if (field === 'itemName') {
       currentItem.itemName = value as string;
@@ -1509,7 +1430,7 @@ const ModernBill = () => {
           Discount_Amount: 0,
           isNCKOT: isNoCharge,
           isbilled: print ? 1 : 0,
-          DeptID: selectedDepartmentId || 1,
+          DeptID: 1,
           SpecialInst: item.specialInstructions || null
         }))
       };
@@ -1771,7 +1692,6 @@ const printBill = async () => {
       console.error('Error fetching table management:', error);
     }
   };
-
 
   const handleBackToTables = () => {
     navigate('/apps/Tableview');
@@ -2513,11 +2433,11 @@ const printBill = async () => {
 
             {/* Card Layout for Header Information */}
             <Row className="mb-3 g-2 align-items-stretch">
-              {/* Table No / Order No - Left aligned */}
+              {/* Table No - Left aligned */}
               <Col md={1}>
                 <div className="info-box p-2 h-100 border rounded text-center d-flex flex-column justify-content-center">
-                  <div className="text-uppercase text-secondary small mb-1 fw-semibold">{orderType === 'TAKEAWAY' ? 'Order No' : 'Table No'}</div>
-                  <div className="fw-bold fs-4" style={{ color: '#333' }}>{orderType === 'TAKEAWAY' ? (orderNo || '--') : (tableNo || '--')}</div>
+                  <div className="text-uppercase text-secondary small mb-1 fw-semibold">Table No</div>
+                  <div className="fw-bold fs-4" style={{ color: '#333' }}>{tableNo || '--'}</div>
                 </div>
               </Col>
 
