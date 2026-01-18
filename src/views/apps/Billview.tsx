@@ -157,6 +157,7 @@ const ModernBill = () => {
   const billNoFromState = location.state?.billNo;
   const departmentIdFromState = location.state?.departmentId;
   const isTakeaway = location.state?.mode === 'TAKEAWAY' || location.state?.orderType === 'TAKEAWAY';
+  const takeawayOrderId = location.state?.orderId;
   const { user } = useAuthContext();
 
   console.log('Table ID:', tableId);
@@ -839,6 +840,145 @@ const ModernBill = () => {
     }
   };
 
+  // Load takeaway order details
+  const loadTakeawayOrder = async (orderId: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await axios.get(`/api/TAxnTrnbill/${orderId}`);
+      if (response.status !== 200) {
+        throw new Error(`Server responded with status ${response.status}`);
+      }
+      const data = response.data?.data || response.data;
+      if (!data) {
+        throw new Error('No data received from server');
+      }
+
+      // Map items to BillItem interface
+      const mappedItems: BillItem[] = data.details.map((item: any) => {
+        const qty = item.netQty || item.Qty || 0;
+        const rate = item.price || item.Price || item.Rate || 0;
+        const total = qty * rate;
+
+        return {
+          itemCode: (item.item_no || item.ItemNo || '').toString(),
+          itemId: item.itemId || item.ItemID || 0,
+          itemgroupid: item.itemgroupid || 0,
+          item_no: item.item_no || item.ItemNo || '',
+          itemName: item.itemName || item.ItemName || item.item_name || '',
+          qty: qty,
+          rate: rate,
+          total: total,
+
+          // New tax fields - use from API if available, otherwise calculate fallback
+          cgst: item.cgst ?? (total * 0.025),           // 2.5% default fallback
+          sgst: item.sgst ?? (total * 0.025),           // 2.5% default fallback
+          igst: item.igst ?? 0,
+          cess: item.cess ?? 0,
+
+          mkotNo: item.kotNo ? item.kotNo.toString() : (item.KOTNo ? item.KOTNo.toString() : ''),
+          specialInstructions: item.specialInstructions || item.SpecialInst || '',
+          isBilled: 0,
+          txnDetailId: item.txnDetailId,
+          isFetched: true,
+          revQty: item.revQty || item.RevQty || 0
+        };
+      });
+
+      // Always add a blank row at the end for new item entry
+      mappedItems.push({
+        itemCode: '',
+        itemgroupid: 0,
+        itemId: 0,
+        item_no: 0,
+        itemName: '',
+        qty: 1,
+        rate: 0,
+        total: 0,
+        cgst: 0,
+        sgst: 0,
+        igst: 0,
+        cess: 0,
+        mkotNo: '',
+        specialInstructions: '',
+        isFetched: false
+      });
+
+      setBillItems(mappedItems);
+
+      if (data.reversedItems) {
+        setReversedItems(
+          (data.reversedItems || []).map((item: any) => ({
+            ...item,
+            name: item.ItemName || 'Unknown Item',
+            id: item.ItemID,
+            price: item.RuntimeRate || 0,
+            qty: Math.abs(item.Qty) || 1,
+            isReversed: true,
+            status: 'Reversed',
+            kotNo: item.KOTNo,
+          }))
+        );
+      } else {
+        setReversedItems([]);
+      }
+
+      // Update header fields from data.header and data.kotNo if available
+      console.log('Takeaway API Response Header:', data.header);
+      if (data.header) {
+        setTxnId(data.header.TxnID);
+        setOrderNo(data.header.TxnNo || data.header.orderNo);
+        setWaiter(data.header.waiter || 'ASD');
+        setPax(data.header.pax || data.header.PAX || 1);
+        if (data.header.CustomerName) setCustomerName(data.header.CustomerName);
+        if (data.header.MobileNo) setCustomerNo(data.header.MobileNo);
+        if (data.header.customerid) setCustomerId(data.header.customerid);
+
+        // Discount handling
+        if (data.header.Discount || data.header.DiscPer) {
+          setDiscount(data.header.Discount || 0);
+          setDiscPer(data.header.DiscPer || 0);
+          setDiscountInputValue(
+            data.header.DiscountType === 1 ? data.header.DiscPer : data.header.Discount || 0
+          );
+          setDiscountType(data.header.DiscountType ?? 1);
+        } else {
+          setDiscount(0);
+          setDiscPer(0);
+        }
+
+        if (data.header.RevKOT) {
+          setRevKOT(data.header.RevKOT);
+        }
+
+        // ── NEW TAX & TOTAL FIELDS ──
+        setCgst?.(data.header.CGST || data.header.cgst || 0);
+        setSgst?.(data.header.SGST || data.header.sgst || 0);
+        setIgst?.(data.header.IGST || data.header.igst || 0);
+        setCess?.(data.header.CESS || data.header.cess || 0);
+        setRoundOff?.(data.header.RoundOFF || data.header.roundOff || data.header.roundoff || 0);
+        setGrandTotal?.(data.header.Amount || data.header.amount || data.header.grandTotal || 0);
+      }
+
+      if (data.kotNo !== null && data.kotNo !== undefined) {
+        setKotNo(String(data.kotNo));
+      }
+
+      // Calculate totals (now should also consider new tax fields if your function supports it)
+      calculateTotals(mappedItems);
+
+    } catch (err: any) {
+      if (err.response) {
+        setError(`Server responded with status ${err.response.status}: ${err.response.statusText}`);
+      } else {
+        setError(err.message || 'Failed to fetch takeaway order data');
+      }
+      console.error('Error fetching takeaway order data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Fetch table data when tableId is present
   const loadUnbilledItems = useCallback(async (tableIdNum: number) => {
     if (!tableIdNum || !user || !user.hotelid) return;
@@ -1161,8 +1301,10 @@ const ModernBill = () => {
   useEffect(() => {
     if (tableId) {
       loadBillForTable(tableId);
+    } else if (isTakeaway && takeawayOrderId) {
+      loadTakeawayOrder(takeawayOrderId);
     }
-  }, [tableId]);
+  }, [tableId, isTakeaway, takeawayOrderId]);
 
   // Check for openSettlement flag and open settlement modal
   useEffect(() => {
@@ -2197,37 +2339,7 @@ const printBill = async () => {
           box-shadow: none !important;
         }
 
-       .info-card {
-  border: 1px solid #252526ff;
-  border-radius: 0.5rem;
-  transition: all 0.3s ease;
-
-  /* 🔥 Unified card look */
- background:white ;
- color: #080808ff;
-}
-
-/* Modern minimal styling */
-.info-box {
-  background: #ffffff;
-  border: 1px solid #e0e0e0 !important;
-  border-radius: 6px;
-  transition: all 0.2s ease;
-}
-
-/* Base styling for all info boxes */
-.info-box {
-  background: #ffffff;
-  border: 1px solid #d1d5db !important;
-  border-radius: 8px;
-  transition: all 0.2s ease;
-  min-height: 90px;
-}
-
-.info-box:hover {
-  border-color: #6b7280 !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
+      
 
 /* KOT No. special styling */
 .info-box .bg-light {

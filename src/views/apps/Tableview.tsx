@@ -356,10 +356,12 @@ export default function App() {
 
   const fetchTakeawayOrders = async () => {
     try {
-      const res = await fetch(`http://localhost:3001/api/orders/takeaway?outletId=${user?.outletid}&status=OPEN`);
+      const res = await fetch(`http://localhost:3001/api/TAxnTrnbill/pending-orders?type=takeaway&outletId=${user?.outletid}`);
       if (res.ok) {
         const data = await res.json();
-        setTakeawayOrders(data);
+        if (data.success) {
+          setTakeawayOrders(data.data);
+        }
       }
     } catch (error) {
       console.error('Error fetching takeaway orders:', error);
@@ -533,26 +535,7 @@ export default function App() {
           </div>
         )}
 
-        {/* Take Away Section */}
-        <div className="mb-4">
-          <h6 className="fw-semibold mb-3 pb-2 border-bottom">Take Away</h6>
-          <div className="table-grid">
-            <div
-              className="bg-warning cursor-pointer table-card d-flex align-items-center justify-content-center"
-              style={{
-                width: '100px',
-                height: '70px',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                border: '1px solid #ddd',
-                padding: '4px'
-              }}
-              onClick={handleTakeAwayClick}
-            >
-              <span className="text-dark fw-bold" style={{ fontSize: '13px', lineHeight: '1.2' }}>Take Away</span>
-            </div>
-          </div>
-        </div>
+       
 
         {/* Takeaway Orders Cards */}
         {takeawayOrders.length > 0 && (
@@ -561,25 +544,25 @@ export default function App() {
             <div className="d-flex gap-2 flex-wrap">
               {takeawayOrders.map(order => (
                 <div
-                  key={order.order_id}
+                  key={order.id}
                   className="card p-2 shadow-sm"
                   style={{ width: 140, cursor: 'pointer' }}
                   onClick={() =>
                     navigate('/apps/Billview', {
                       state: {
                         mode: 'TAKEAWAY',
-                        orderId: order.order_id,
-                        orderNo: order.order_no,
+                        orderId: order.id,
+                        orderNo: order.orderNo,
                         outletId: user?.outletid
                       }
                     })
                   }
                 >
                   <div className="fw-bold text-danger">
-                    {order.order_no}
+                    {order.orderNo}
                   </div>
                   <div className="small text-muted">
-                    Items: {order.item_count}
+                    {order.customer?.name || 'N/A'}
                   </div>
                   <div className="fw-semibold">
                     ₹{order.total}

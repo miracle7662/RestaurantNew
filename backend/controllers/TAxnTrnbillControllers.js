@@ -1070,9 +1070,9 @@ exports.createKOT = async (req, res) => {
         if (headerOutletId) {
           txnNo = generateTxnNo(headerOutletId)
         }
-        // Generate OrderNo only for Pickup, Delivery, or Quick Bill
+        // Generate OrderNo only for Pickup, Delivery, Quick Bill, or Take Away
         let newOrderNo = null
-        const orderTypesToGenerateNo = ['Pickup', 'Delivery', 'Quick Bill']
+        const orderTypesToGenerateNo = ['Pickup', 'Delivery', 'Quick Bill', 'Take Away']
         if (Order_Type && orderTypesToGenerateNo.includes(Order_Type)) {
           newOrderNo = generateOrderNo(headerOutletId)
         }
@@ -2789,10 +2789,11 @@ exports.getPendingOrders = async (req, res) => {
     let whereClauses = ['b.isCancelled = 0', 'b.isSetteled = 0']
     const params = []
 
-    // Filter by table_name which will be 'Pickup' or 'Delivery'
-    if (type === 'pickup' || type === 'delivery') {
+    // Filter by table_name which will be 'Pickup', 'Delivery', or 'Take Away'
+    if (type === 'pickup' || type === 'delivery' || type === 'takeaway') {
+      const tableName = type === 'takeaway' ? 'take away' : type;
       whereClauses.push('LOWER(b.table_name) = LOWER(?)')
-      params.push(type)
+      params.push(tableName)
     }
 
     const sql = `
