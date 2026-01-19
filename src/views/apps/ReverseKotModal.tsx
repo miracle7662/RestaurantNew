@@ -67,7 +67,8 @@ useEffect(() => {
       cancelQty: 0,         // user yahan type karega
       reason: '',
       rate: rate,           // ✅ Add rate to the item object
-      amount: rev * rate   // ✅ already reversed amount
+      amount: rev * rate,   // ✅ already reversed amount
+      revKotNo: item.revKotNo || item.RevKOTNo || 0  // ✅ Add revKotNo
     };
   });
   setItems(initialized);
@@ -254,13 +255,17 @@ useEffect(() => {
                                     <td>{row.amount.toFixed(2)}</td>
 
                                     <td>
-                                        {row.mkotNo && (
+                                        {row.revKotNo ? (
+                                            <div className="d-flex flex-wrap gap-1 justify-content-center">
+                                                <Badge bg="danger">{row.revKotNo}</Badge>
+                                            </div>
+                                        ) : row.mkotNo ? (
                                             <div className="d-flex flex-wrap gap-1 justify-content-center">
                                                 {row.mkotNo.split('|').map((kot: string, i: number) => (
                                                     <Badge key={i} bg="secondary">{kot}</Badge>
                                                 ))}
                                             </div>
-                                        )}
+                                        ) : null}
                                     </td>
 
                                     <td>

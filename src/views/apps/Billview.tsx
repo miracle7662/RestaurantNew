@@ -45,6 +45,7 @@ interface BillItem {
   isFetched?: boolean;
   reversedQty?: number;
   RevKOT?: number;
+  revKotNo?: number;
   isValidCode?: boolean;
 }
 
@@ -775,7 +776,8 @@ const ModernBill = () => {
                 isBilled: 1,
                 txnDetailId: item.txnDetailId,
                 isFetched: true,
-                revQty: item.revQty
+                revQty: item.revQty,
+                revKotNo: item.RevKOTNo || 0
               };
             });
 
@@ -804,8 +806,8 @@ const ModernBill = () => {
             setWaiter(header.waiter || 'ASD');
             setPax(header.pax || header.PAX || 1);
             setTableNo(header.table_name || tableName);
-            if (header.RevKOT) {
-              setRevKotNo(header.RevKOT);
+            if (header.RevKOTNo) {
+              setRevKotNo(header.RevKOTNo);
             }
             if (header.CustomerName) setCustomerName(header.CustomerName);
             if (header.MobileNo) setCustomerNo(header.MobileNo);
@@ -981,6 +983,11 @@ const ModernBill = () => {
       if (data.kotNo !== null && data.kotNo !== undefined) {
         setKotNo(String(data.kotNo));
       }
+
+      // Compute max RevKOTNo from details for unbilled orders
+      const reversedDetails = data.details.filter((d: any) => d.RevQty > 0);
+      const maxRevKotNo = reversedDetails.length > 0 ? Math.max(...reversedDetails.map((d: any) => d.RevKOTNo || 0)) : 0;
+      setRevKotNo(maxRevKotNo);
 
       // Calculate totals (now should also consider new tax fields if your function supports it)
       calculateTotals(mappedItems);
