@@ -2802,11 +2802,11 @@ exports.getPendingOrders = async (req, res) => {
     let whereClauses = ['b.isCancelled = 0', 'b.isSetteled = 0']
     const params = []
 
-    // Filter by table_name which will be 'Pickup', 'Delivery', or 'Take Away'
+    // Filter by Order_Type which will be 'Pickup', 'Delivery', or 'TAKEAWAY'
     if (type === 'pickup' || type === 'delivery' || type === 'takeaway') {
-      const tableName = type === 'takeaway' ? 'take away' : type;
-      whereClauses.push('LOWER(b.table_name) = LOWER(?)')
-      params.push(tableName)
+      const orderType = type === 'takeaway' ? 'TAKEAWAY' : (type === 'pickup' ? 'Pickup' : 'Delivery');
+      whereClauses.push('b.Order_Type = ?')
+      params.push(orderType)
     }
 
     const sql = `

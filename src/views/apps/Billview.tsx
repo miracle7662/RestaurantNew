@@ -207,6 +207,23 @@ const ModernBill = () => {
   const [deliveryType, setDeliveryType] = useState<'pickup' | 'homedelivery'>('pickup');
   const [itemGroups, setItemGroups] = useState<ItemGroup[]>([]);
 
+  // Set deliveryType based on location.state?.orderType or loaded order's Order_Type
+  useEffect(() => {
+    if (location.state?.orderType) {
+      if (location.state.orderType === 'Pickup') {
+        setDeliveryType('pickup');
+      } else if (location.state.orderType === 'Delivery') {
+        setDeliveryType('homedelivery');
+      }
+    } else if (billData?.header?.Order_Type) {
+      if (billData.header.Order_Type === 'Pickup') {
+        setDeliveryType('pickup');
+      } else if (billData.header.Order_Type === 'Delivery') {
+        setDeliveryType('homedelivery');
+      }
+    }
+  }, [location.state?.orderType, billData?.header?.Order_Type]);
+
   const isGrouped = groupBy !== 'none';
 
   const [reverseQtyConfig, setReverseQtyConfig] = useState('PasswordRequired');
@@ -1559,7 +1576,7 @@ const ModernBill = () => {
         userId: user.id,
         hotelId: user.hotelid,
         KOTNo: editableKot, // Use editableKot if set, else null for backend to generate
-        Order_Type: isTakeaway ? 'TAKEAWAY' : 'Dine-in',
+      Order_Type: isTakeaway ? (deliveryType === 'pickup' ? 'Pickup' : 'Delivery') : 'Dine-in',
         PAX: pax,
         CustomerName: customerName || null,
         MobileNo: customerNo || null,

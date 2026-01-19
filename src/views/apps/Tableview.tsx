@@ -547,6 +547,9 @@ export default function App() {
                 const kotNumbers = order.details ? order.details.map((item: any) => parseInt(item.KOTNo || item.kotNo || 0)).filter((k: number) => k > 0) : [];
                 const maxKot = kotNumbers.length > 0 ? Math.max(...kotNumbers) : null;
 
+                // Determine order type for icon and navigation
+                const orderType = order.type === 'Pickup' ? 'Pickup' : order.type === 'Delivery' ? 'Delivery' : 'TAKEAWAY';
+
                 return (
                   <div
                     key={order.id}
@@ -556,7 +559,7 @@ export default function App() {
                       navigate('/apps/Billview', {
                         state: {
                           mode: 'TAKEAWAY',
-                          orderType: 'TAKEAWAY',
+                          orderType: orderType,
                           orderId: order.id,
                           txnId: order.id,
                           outletId: order.outletid,
@@ -567,8 +570,16 @@ export default function App() {
                       })
                     }
                   >
-                    <div className="fw-bold text-danger">
-                      {order.orderNo}
+                    <div className="d-flex align-items-center gap-1 mb-1">
+                      <div className="fw-bold text-danger">
+                        {order.orderNo}
+                      </div>
+                      {orderType === 'Pickup' && (
+                        <i className="fi fi-rr-shopping-bag text-primary" title="Pickup"></i>
+                      )}
+                      {orderType === 'Delivery' && (
+                        <i className="fi fi-rr-truck-moving text-warning" title="Delivery"></i>
+                      )}
                     </div>
                     <div className="small text-muted">
                       {order.customer?.name || 'N/A'}
