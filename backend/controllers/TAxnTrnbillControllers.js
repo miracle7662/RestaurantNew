@@ -2865,7 +2865,7 @@ exports.getPendingOrders = async (req, res) => {
             }))
         : [],
       total: r.Amount || 0,
-      type: r.table_name,
+      type: r.Order_Type || r.table_name,
     }))
 
     res.json(ok('Fetched pending orders', orders))
