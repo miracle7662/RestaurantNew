@@ -151,7 +151,7 @@ exports.getBillById = async (req, res) => {
       SELECT d.*, m.item_name as ItemName
       FROM TAxnTrnbilldetails d
       LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
-      WHERE d.TxnID = ? AND d.isCancelled = 0 
+      WHERE d.TxnID = ? AND d.isCancelled = 0
       ORDER BY d.TXnDetailID ASC
     `,
       )
@@ -160,14 +160,27 @@ exports.getBillById = async (req, res) => {
     const settlements = db
       .prepare(
         `
-      SELECT * FROM TrnSettlement 
+      SELECT * FROM TrnSettlement
       WHERE OrderNo = ? AND HotelID = ?
       ORDER BY SettlementID
     `,
       )
       .all(bill.orderNo || null, bill.HotelID || null)
 
-    res.json(ok('Fetched bill', { ...bill, customerid: bill.GuestID, details, settlement: settlements }))
+    // Get the KOT number for the bill (max KOTNo from details)
+    const kotResult = db
+      .prepare(
+        `
+      SELECT MAX(KOTNo) as maxKOT
+      FROM TAxnTrnbilldetails
+      WHERE TxnID = ?
+    `,
+      )
+      .get(Number(id))
+
+    const kotNo = kotResult?.maxKOT || bill.orderNo || null
+
+    res.json(ok('Fetched bill', { header: { ...bill, customerid: bill.GuestID }, details, settlement: settlements, kotNo }))
   } catch (error) {
     res
       .status(500)
