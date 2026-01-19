@@ -550,7 +550,7 @@ export default function App() {
 
         {/* Takeaway Orders Cards */}
         {takeawayOrders.length > 0 && (
-          <div className="mt-3">
+          <div className="mt-3 p-3 ">
             <h6 className="text-muted">Takeaway Orders</h6>
             <div className="d-flex gap-2 flex-wrap">
               {takeawayOrders.map(order => {
@@ -560,6 +560,11 @@ export default function App() {
 
                 // Determine order type for icon and navigation
                 const orderType = order.type === 'Pickup' ? 'Pickup' : order.type === 'Delivery' ? 'Delivery' : 'TAKEAWAY';
+
+                const bgStyle =
+                  orderType === 'Pickup'
+                    ? { backgroundColor: '#E7F1FF', border: '1px solid #B6D4FE' }
+                    : { backgroundColor: '#FFF3CD', border: '1px solid #FFECB5' };
 
                 return (
                   <div
@@ -581,17 +586,34 @@ export default function App() {
                       })
                     }
                   >
-                    <div className="d-flex align-items-center gap-1 mb-1">
-                      <div className="fw-bold text-danger">
-                        {order.orderNo}
-                      </div>
-                      {orderType === 'Pickup' && (
-                        <i className="fi fi-rr-shopping-bag text-primary" title="Pickup"></i>
-                      )}
-                      {orderType === 'Delivery' && (
-                        <i className="fi fi-rr-truck-moving text-warning" title="Delivery"></i>
-                      )}
-                    </div>
+                    <div className="d-flex align-items-center justify-content-between mb-1">
+  {/* Order No - Left */}
+  <div className="fw-bold text-danger">
+    {order.orderNo}
+  </div>
+  
+
+  {/* Order Type Icon - Right in Rectangle */}
+  {(orderType === 'Pickup' || orderType === 'Delivery') && (
+    <div
+      className="d-flex align-items-center justify-content-center rounded"
+      style={{
+        ...bgStyle,
+        width: '30px',
+        height: '26px',
+      }}
+      title={orderType}
+    >
+      {orderType === 'Pickup' && (
+        <i className="fi fi-rr-shopping-bag text-primary fs-6"></i>
+      )}
+      {orderType === 'Delivery' && (
+        <i className="fi fi-rr-truck-moving text-warning fs-6"></i>
+      )}
+    </div>
+  )}
+</div>
+
                     <div className="small text-muted">
                       {order.customer?.name || 'N/A'}
                     </div>
