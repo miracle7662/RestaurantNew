@@ -204,6 +204,7 @@ const ModernBill = () => {
   const [activeTab, setActiveTab] = useState('Dine-in');
   const [groupBy, setGroupBy] = useState<'none' | 'item' | 'group' | 'kot'>('group');
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  const [deliveryType, setDeliveryType] = useState<'pickup' | 'homedelivery'>('pickup');
   const [itemGroups, setItemGroups] = useState<ItemGroup[]>([]);
 
   const isGrouped = groupBy !== 'none';
@@ -1823,7 +1824,10 @@ const printBill = async () => {
     // 2️⃣ TxnNo state me set karo
     setOrderNo(txnNo);
 
-    // 3️⃣ PRINT JSX CONTENT
+    // 3️⃣ Update billItems to mark as billed
+    setBillItems(prev => prev.map(item => ({ ...item, isBilled: 1 })));
+
+    // 4️⃣ PRINT JSX CONTENT
 
 
     toast.success('Bill printed successfully');
@@ -2475,7 +2479,7 @@ const printBill = async () => {
        .function-btn {
   border-radius: 20px;              /* thoda zyada rounded, jaise screenshot */
   font-size: 0.99rem;               /* perfect size */
-  padding: 6px 22px;                /* vertical thoda zyada, horizontal balanced */
+  padding: 6px 16px;                /* vertical thoda zyada, horizontal balanced */
   min-width: 95px;                  /* sab buttons almost same width */
   background: #e3f2fd;
   border: 1.6px solid #2196f3;      /* thodi bold border */
@@ -2680,6 +2684,59 @@ const printBill = async () => {
                   </div>
                 </div>
               </Col>
+
+              {/* Delivery Type - Radio Buttons */}
+<Col md={2}>
+  <div className="border rounded p-2 h-100">
+    <div className="text-uppercase text-secondary small fw-semibold text-center mb-2">
+      Delivery
+    </div>
+
+    <div className="btn-group w-100" role="group">
+      {/* Pickup */}
+      <input
+        type="radio"
+        className="btn-check"
+        name="deliveryType"
+        id="pickup"
+        value="pickup"
+        checked={deliveryType === 'pickup'}
+        onChange={(e) =>
+          setDeliveryType(e.target.value as 'pickup' | 'homedelivery')
+        }
+      />
+      <label
+        className="btn btn-outline-primary btn-sm d-flex align-items-center justify-content-center gap-1"
+        htmlFor="pickup"
+      >
+        <i className="fi fi-rr-shopping-bag"></i>
+        Pickup
+      </label>
+
+      {/* Home Delivery */}
+      <input
+        type="radio"
+        className="btn-check"
+        name="deliveryType"
+        id="homedelivery"
+        value="homedelivery"
+        checked={deliveryType === 'homedelivery'}
+        onChange={(e) =>
+          setDeliveryType(e.target.value as 'pickup' | 'homedelivery')
+        }
+      />
+      <label
+        className="btn btn-outline-primary btn-sm d-flex align-items-center justify-content-center gap-1"
+        htmlFor="homedelivery"
+      >
+        <i className="fi fi-rr-truck-moving"></i>
+        Delivery
+      </label>
+    </div>
+  </div>
+</Col>
+
+
 
               {/* MO No / Name */}
               <Col md={2}>
@@ -2970,6 +3027,7 @@ const printBill = async () => {
                     <Button disabled={disableKOT} onClick={() => saveKOT(false, true)} variant="outline-primary" size="sm" className="function-btn">K O T (F9)</Button>
                     <Button disabled={disableAll} onClick={printBill} variant="outline-primary" size="sm" className="function-btn">Print (F10)</Button>
                     <Button disabled={disableSettlement} onClick={() => setShowSettlementModal(true)} variant="outline-primary" size="sm" className="function-btn">Settle (F11)</Button>
+                    {/* <Button disabled={disableSettlement} onClick={() => setShowSettlementModal(true)} variant="outline-primary" size="sm" className="function-btn">Print&Settle </Button> */}
                     <Button onClick={exitWithoutSave} variant="outline-primary" size="sm" className="function-btn">Exit (Esc)</Button>
                   </div>
                 </Card.Body>
