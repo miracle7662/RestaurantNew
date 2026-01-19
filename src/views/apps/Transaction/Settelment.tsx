@@ -305,7 +305,16 @@ const handleUpdateSettlement = async (newSettlements: any[], tip?: number) => {
             <tr key={group.SettlementIDs?.join('-')} className={group.isSettled === 0 ? 'table-danger' : ''}>
               <td>{group.SettlementIDs?.join(', ')}</td>
               <td>{group.OrderNo}</td>
-              <td>{Object.entries(group.paymentBreakdown || {}).map(([type, amount]) => `${type}: ₹${amount.toFixed(2)}`).join(', ')}</td>
+              <td>
+  {Object.entries(group.paymentBreakdown || {}).map(
+    ([type, amount]) => (
+      <div key={type}>
+        {type}: ₹{amount.toFixed(2)}
+      </div>
+    )
+  )}
+</td>
+
               <td>{group.HotelID}</td>
               <td>₹{group.Amount.toFixed(2)}</td>
               <td>{new Date(group.InsertDate.replace(' ', 'T') + 'Z').toLocaleString()}</td>

@@ -553,29 +553,44 @@ export default function App() {
         {takeawayOrders.length > 0 && (
           <div className="mt-3 p-3">
             {/* POS-style Header */}
-            <div className="d-flex flex-column mb-3">
-              <h6 className="mb-2 fw-semibold">Takeaway Orders</h6>
-              <div className="d-flex gap-2">
-                <button
-                  className={`btn btn-sm ${activeFilter === 'All' ? 'btn-primary' : 'btn-outline-secondary'}`}
-                  onClick={() => setActiveFilter('All')}
-                >
-                  <i className="fi fi-rr-list me-1"></i>All
-                </button>
-                <button
-                  className={`btn btn-sm ${activeFilter === 'Pickup' ? 'btn-primary' : 'btn-outline-secondary'}`}
-                  onClick={() => setActiveFilter('Pickup')}
-                >
-                  <i className="fi fi-rr-shopping-bag me-1"></i>Pickup
-                </button>
-                <button
-                  className={`btn btn-sm ${activeFilter === 'Delivery' ? 'btn-primary' : 'btn-outline-secondary'}`}
-                  onClick={() => setActiveFilter('Delivery')}
-                >
-                  <i className="fi fi-rr-truck-moving me-1"></i>Delivery
-                </button>
-              </div>
-            </div>
+          <div className="d-flex align-items-center gap-3 mb-3">
+  <h6 className="mb-0 fw-semibold">Takeaway Orders</h6>
+
+  <div className="d-flex gap-2">
+    <button
+      className={`btn btn-sm px-3 d-flex align-items-center gap-1
+        ${activeFilter === 'All'
+          ? 'btn-primary'
+          : 'btn-outline-secondary text-primary'}`}
+      onClick={() => setActiveFilter('All')}
+    >
+      <i className="fi fi-rr-list"></i>
+    </button>
+
+    <button
+      className={`btn btn-sm px-3 d-flex align-items-center gap-1
+        ${activeFilter === 'Pickup'
+          ? 'btn-primary'
+          : 'btn-outline-secondary text-muted'}`}
+      onClick={() => setActiveFilter('Pickup')}
+    >
+      <i className="fi fi-rr-shopping-bag"></i>
+      Pickup
+    </button>
+
+    <button
+      className={`btn btn-sm px-3 d-flex align-items-center gap-1
+        ${activeFilter === 'Delivery'
+          ? 'btn-primary'
+          : 'btn-outline-secondary text-muted'}`}
+      onClick={() => setActiveFilter('Delivery')}
+    >
+      <i className="fi fi-rr-truck-moving"></i>
+      Delivery
+    </button>
+  </div>
+</div>
+
             <div className="d-flex gap-2 flex-wrap">
               {takeawayOrders
                 .filter(order => {
