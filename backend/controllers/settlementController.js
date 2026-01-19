@@ -8,9 +8,9 @@ function ok(message, data) {
 // Get settlements with filters
 exports.getSettlements = async (req, res) => {
   try {
-    const { orderNo, hotelId, from, to, paymentType, page = 1, limit = 10 } = req.query;
+    const { orderNo, hotelId, from, to, paymentType } = req.query;
 
-    let whereClauses = ['s.isSettled = 1']; // ✅ IMPORTANT FIX
+    let whereClauses = ['s.isSettled = 1'];
     const params = [];
 
     if (orderNo) {
@@ -42,39 +42,28 @@ exports.getSettlements = async (req, res) => {
       ? `WHERE ${whereClauses.join(' AND ')}`
       : '';
 
-    const offset = (page - 1) * limit;
-
-    // Count total records without LIMIT
-    const countSql = `SELECT COUNT(*) as total FROM TrnSettlement s ${whereSql}`;
-    const totalResult = db.prepare(countSql).get(...params);
-    const total = totalResult.total;
-
     const sql = `
       SELECT s.*
       FROM TrnSettlement s
       ${whereSql}
       ORDER BY s.InsertDate DESC
-      LIMIT ? OFFSET ?
     `;
-
-    params.push(Number(limit), Number(offset));
 
     const settlements = db.prepare(sql).all(...params);
 
     res.json({
       success: true,
-      data: {
-        settlements,
-        total,
-        page,
-        limit
-      }
+      data: settlements
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ success: false, message: 'Failed to fetch settlements' });
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch settlements'
+    });
   }
 };
+
 
 
 // Update settlement

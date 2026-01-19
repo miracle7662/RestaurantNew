@@ -7,7 +7,6 @@ import {
   Row,
   Col,
   Alert,
-  Pagination,
 } from 'react-bootstrap';
 import axios from 'axios';
 import { useAuthContext } from '@/common';
@@ -49,10 +48,8 @@ const EditSettlementPage: React.FC = () => {
     paymentType: '',
   });
 
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const [totalItems, setTotalItems] = useState(0);
   const [selectedOutletId, setSelectedOutletId] = useState<number | null>(
     currentUser?.outletid ? Number(currentUser.outletid) : null
   );
@@ -97,7 +94,7 @@ const EditSettlementPage: React.FC = () => {
   // Fetch settlements list
   const fetchSettlements = async () => {
     try {
-      const params = { ...filters, outletId: selectedOutletId, page: currentPage, limit: pageSize };
+      const params = { ...filters, outletId: selectedOutletId, page: currentPage, limit: 10 };
       const res = await axios.get('http://localhost:3001/api/settlements', { params });
 
       const data = res.data?.data ?? res.data;
@@ -105,8 +102,7 @@ const EditSettlementPage: React.FC = () => {
       const total = data.total ?? 0;
 
       setSettlements(settlementsData);
-      setTotalItems(total);
-      setTotalPages(Math.ceil(total / pageSize));
+      setTotalPages(Math.ceil(total / 10));
     } catch (err) {
       console.error(err);
       setNotification({ show: true, message: 'Failed to fetch settlements', type: 'danger' });
@@ -233,41 +229,6 @@ const handleUpdateSettlement = async (newSettlements: any[], tip?: number) => {
   //   }
   // };
 
-  // Pagination handlers
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-  };
-
-  const handlePageSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setPageSize(parseInt(e.target.value));
-    setCurrentPage(1); // Reset to first page when page size changes
-  };
-
-  // Generate pagination items
-  const getPaginationItems = () => {
-    const items = [];
-    const maxPagesToShow = 5;
-    let startPage = Math.max(1, currentPage - Math.floor(maxPagesToShow / 2));
-    const endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
-
-    if (endPage - startPage < maxPagesToShow - 1) {
-      startPage = Math.max(1, endPage - maxPagesToShow + 1);
-    }
-
-    for (let i = startPage; i <= endPage; i++) {
-      items.push(
-        <Pagination.Item
-          key={i}
-          active={i === currentPage}
-          onClick={() => handlePageChange(i)}
-        >
-          {i}
-        </Pagination.Item>
-      );
-    }
-    return items;
-  };
-
   // ── UI ────────────────────────────────────────────────────────────
   return (
     <div className="container-fluid p-3" style={{ minHeight: '100vh' }}>
@@ -347,7 +308,7 @@ const handleUpdateSettlement = async (newSettlements: any[], tip?: number) => {
               <td>
   {Object.entries(group.paymentBreakdown || {}).map(
     ([type, amount]) => (
-      <div key={type}>
+      <div key={type} className="small">
         {type}: ₹{amount.toFixed(2)}
       </div>
     )
@@ -375,36 +336,6 @@ const handleUpdateSettlement = async (newSettlements: any[], tip?: number) => {
           ))}
         </tbody>
       </Table>
-
-      {/* Pagination */}
-      <div className="d-flex justify-content-between align-items-center mt-3">
-        <div>
-          <Form.Select
-            value={pageSize}
-            onChange={handlePageSizeChange}
-            style={{ width: '100px', display: 'inline-block', marginRight: '10px' }}
-          >
-            <option value="5">5</option>
-            <option value="10">10</option>
-            <option value="20">20</option>
-            <option value="50">50</option>
-          </Form.Select>
-          <span className="text-muted">
-            Showing {groupedSettlements.length} of {totalItems} entries
-          </span>
-        </div>
-        <Pagination>
-          <Pagination.Prev
-            onClick={() => handlePageChange(currentPage - 1)}
-            disabled={currentPage === 1}
-          />
-          {getPaginationItems()}
-          <Pagination.Next
-            onClick={() => handlePageChange(currentPage + 1)}
-            disabled={currentPage === totalPages}
-          />
-        </Pagination>
-      </div>
 
       {/* Edit Settlement Modal */}
       <SettlementModal
