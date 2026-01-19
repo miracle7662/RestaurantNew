@@ -3811,6 +3811,7 @@ exports.getGlobalKOTNumber = async (req, res) => {
       SELECT MAX(KOTNo) as maxKOT
       FROM TAxnTrnbilldetails
       WHERE outletid = ? AND date(KOTUsedDate) = date('now')
+
     `,
       )
       .get(Number(outletid))

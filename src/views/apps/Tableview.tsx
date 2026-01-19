@@ -542,33 +542,44 @@ export default function App() {
           <div className="mt-3">
             <h6 className="text-muted">Takeaway Orders</h6>
             <div className="d-flex gap-2 flex-wrap">
-              {takeawayOrders.map(order => (
-                <div
-                  key={order.id}
-                  className="card p-2 shadow-sm"
-                  style={{ width: 140, cursor: 'pointer' }}
-                  onClick={() =>
-                    navigate('/apps/Billview', {
-                      state: {
-                        mode: 'TAKEAWAY',
-                        orderId: order.id,
-                        orderNo: order.orderNo,
-                        outletId: user?.outletid
-                      }
-                    })
-                  }
-                >
-                  <div className="fw-bold text-danger">
-                    {order.orderNo}
+              {takeawayOrders.map(order => {
+                // Calculate KOT number from order details
+                const kotNumbers = order.details ? order.details.map((item: any) => parseInt(item.KOTNo || item.kotNo || 0)).filter((k: number) => k > 0) : [];
+                const maxKot = kotNumbers.length > 0 ? Math.max(...kotNumbers) : null;
+
+                return (
+                  <div
+                    key={order.id}
+                    className="card p-2 shadow-sm"
+                    style={{ width: 140, cursor: 'pointer' }}
+                    onClick={() =>
+                      navigate('/apps/Billview', {
+                        state: {
+                          mode: 'TAKEAWAY',
+                          orderId: order.id,
+                          orderNo: order.orderNo,
+                          outletId: user?.outletid
+                        }
+                      })
+                    }
+                  >
+                    <div className="fw-bold text-danger">
+                      {order.orderNo}
+                    </div>
+                    <div className="small text-muted">
+                      {order.customer?.name || 'N/A'}
+                    </div>
+                    <div className="fw-semibold">
+                      ₹{order.total}
+                    </div>
+                    {maxKot && (
+                      <div className="small text-primary">
+                        KOT: {maxKot}
+                      </div>
+                    )}
                   </div>
-                  <div className="small text-muted">
-                    {order.customer?.name || 'N/A'}
-                  </div>
-                  <div className="fw-semibold">
-                    ₹{order.total}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
