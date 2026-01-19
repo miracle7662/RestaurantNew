@@ -74,10 +74,10 @@ const Legend: React.FC = () => {
     <div className="d-flex gap-3 flex-wrap align-items-center">
       {legendItems.map((item, idx) => (
         <div key={idx} className="d-flex align-items-center gap-2">
-          <div 
-            style={{ 
-              width: '16px', 
-              height: '16px', 
+          <div
+            style={{
+              width: '16px',
+              height: '16px',
               backgroundColor: item.color,
               border: item.border ? '1px solid #ddd' : 'none',
               borderRadius: '3px'
@@ -105,12 +105,13 @@ export default function App() {
   const yesButtonRef = useRef<HTMLButtonElement>(null);
   const noButtonRef = useRef<HTMLButtonElement>(null);
   const [takeawayOrders, setTakeawayOrders] = useState<any[]>([]);
+  const [activeFilter, setActiveFilter] = useState<'All' | 'Pickup' | 'Delivery'>('All');
   const { user } = useAuthContext();
   const navigate = useNavigate();
   const location = useLocation();
   const tableInputRef = useRef<HTMLInputElement>(null);
 
-  
+
 
   useEffect(() => {
     const fetchTables = async () => {
@@ -327,12 +328,12 @@ export default function App() {
   };
 
   const handleTableClick = (table: Table) => {
-          if (table.status === 'printed') {
-            setSelectedTable(table);
-            setShowModal(true);
-          } else {
-            navigate('/apps/Billview', { state: { tableId: table.id, tableName: table.name, outletId: table.outletid } });
-          }
+    if (table.status === 'printed') {
+      setSelectedTable(table);
+      setShowModal(true);
+    } else {
+      navigate('/apps/Billview', { state: { tableId: table.id, tableName: table.name, outletId: table.outletid } });
+    }
   };
 
   const handleTableInputEnter = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -493,13 +494,13 @@ export default function App() {
                   value={tableInput}
                   onChange={e => setTableInput(e.target.value)}
                   onKeyDown={handleTableInputEnter}
-                  style={{width: '130px', fontWeight: 'bold',fontSize:'25px',height:'60px'}}
+                  style={{ width: '130px', fontWeight: 'bold', fontSize: '25px', height: '60px' }}
                 />
                 <select
                   className="form-select form-select-sm"
                   value={selectedDepartmentId}
                   onChange={e => setSelectedDepartmentId(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-                  style={{width: '290px', fontWeight: 'bold',fontSize:'20px'}}
+                  style={{ width: '290px', fontWeight: 'bold', fontSize: '20px' }}
                 >
                   <option value="all">All Departments</option>
                   {departments.map(department => (
@@ -546,88 +547,115 @@ export default function App() {
           </div>
         )}
 
-       
+
 
         {/* Takeaway Orders Cards */}
         {takeawayOrders.length > 0 && (
-          <div className="mt-3 p-3 ">
-            <h6 className="text-muted">Takeaway Orders</h6>
+          <div className="mt-3 p-3">
+            {/* POS-style Header */}
+            <div className="d-flex flex-column mb-3">
+              <h6 className="mb-2 fw-semibold">Takeaway Orders</h6>
+              <div className="d-flex gap-2">
+                <button
+                  className={`btn btn-sm ${activeFilter === 'All' ? 'btn-primary' : 'btn-outline-secondary'}`}
+                  onClick={() => setActiveFilter('All')}
+                >
+                  <i className="fi fi-rr-list me-1"></i>All
+                </button>
+                <button
+                  className={`btn btn-sm ${activeFilter === 'Pickup' ? 'btn-primary' : 'btn-outline-secondary'}`}
+                  onClick={() => setActiveFilter('Pickup')}
+                >
+                  <i className="fi fi-rr-shopping-bag me-1"></i>Pickup
+                </button>
+                <button
+                  className={`btn btn-sm ${activeFilter === 'Delivery' ? 'btn-primary' : 'btn-outline-secondary'}`}
+                  onClick={() => setActiveFilter('Delivery')}
+                >
+                  <i className="fi fi-rr-truck-moving me-1"></i>Delivery
+                </button>
+              </div>
+            </div>
             <div className="d-flex gap-2 flex-wrap">
-              {takeawayOrders.map(order => {
-                // Calculate KOT number from order details
-                const kotNumbers = order.details ? order.details.map((item: any) => parseInt(item.KOTNo || item.kotNo || 0)).filter((k: number) => k > 0) : [];
-                const maxKot = kotNumbers.length > 0 ? Math.max(...kotNumbers) : null;
+              {takeawayOrders
+                .filter(order => {
+                  const orderType = order.type === 'Pickup' ? 'Pickup' : order.type === 'Delivery' ? 'Delivery' : 'TAKEAWAY';
+                  return activeFilter === 'All' || orderType === activeFilter;
+                })
+                .map(order => {
+                  // Calculate KOT number from order details
+                  const kotNumbers = order.details ? order.details.map((item: any) => parseInt(item.KOTNo || item.kotNo || 0)).filter((k: number) => k > 0) : [];
+                  const maxKot = kotNumbers.length > 0 ? Math.max(...kotNumbers) : null;
 
-                // Determine order type for icon and navigation
-                const orderType = order.type === 'Pickup' ? 'Pickup' : order.type === 'Delivery' ? 'Delivery' : 'TAKEAWAY';
+                  // Determine order type for icon and navigation
+                  const orderType = order.type === 'Pickup' ? 'Pickup' : order.type === 'Delivery' ? 'Delivery' : 'TAKEAWAY';
 
-                const bgStyle =
-                  orderType === 'Pickup'
-                    ? { backgroundColor: '#E7F1FF', border: '1px solid #B6D4FE' }
-                    : { backgroundColor: '#FFF3CD', border: '1px solid #FFECB5' };
+                  const bgStyle =
+                    orderType === 'Pickup'
+                      ? { backgroundColor: '#E7F1FF', border: '1px solid #B6D4FE' }
+                      : { backgroundColor: '#FFF3CD', border: '1px solid #FFECB5' };
 
-                return (
-                  <div
-                    key={order.id}
-                    className="card p-2 shadow-sm"
-                    style={{ width: 140, cursor: 'pointer' }}
-                    onClick={() =>
-                      navigate('/apps/Billview', {
-                        state: {
-                          mode: 'TAKEAWAY',
-                          orderType: orderType,
-                          orderId: order.id,
-                          txnId: order.id,
-                          outletId: order.outletid,
-                          departmentId: selectedDepartmentId !== 'all' ? selectedDepartmentId : null,
-                          tableId: null,
-                          tableName: 'TAKE AWAY'
-                        }
-                      })
-                    }
-                  >
-                    <div className="d-flex align-items-center justify-content-between mb-1">
-  {/* Order No - Left */}
-  <div className="fw-bold text-danger">
-    {order.orderNo}
-  </div>
-  
+                  return (
+                    <div
+                      key={order.id}
+                      className="card p-2 shadow-sm"
+                      style={{ width: 140, cursor: 'pointer' }}
+                      onClick={() =>
+                        navigate('/apps/Billview', {
+                          state: {
+                            mode: 'TAKEAWAY',
+                            orderType: orderType,
+                            orderId: order.id,
+                            txnId: order.id,
+                            outletId: order.outletid,
+                            departmentId: selectedDepartmentId !== 'all' ? selectedDepartmentId : null,
+                            tableId: null,
+                            tableName: 'TAKE AWAY'
+                          }
+                        })
+                      }
+                    >
+                      <div className="d-flex align-items-center justify-content-between mb-1">
+                        {/* Order No - Left */}
+                        <div className="fw-bold text-danger">
+                          {order.orderNo}
+                        </div>
 
-  {/* Order Type Icon - Right in Rectangle */}
-  {(orderType === 'Pickup' || orderType === 'Delivery') && (
-    <div
-      className="d-flex align-items-center justify-content-center rounded"
-      style={{
-        ...bgStyle,
-        width: '30px',
-        height: '26px',
-      }}
-      title={orderType}
-    >
-      {orderType === 'Pickup' && (
-        <i className="fi fi-rr-shopping-bag text-primary fs-6"></i>
-      )}
-      {orderType === 'Delivery' && (
-        <i className="fi fi-rr-truck-moving text-warning fs-6"></i>
-      )}
-    </div>
-  )}
-</div>
-
-                    <div className="small text-muted">
-                      {order.customer?.name || 'N/A'}
-                    </div>
-                    <div className="fw-semibold">
-                      ₹{order.total}
-                    </div>
-                    {maxKot && (
-                      <div className="small text-primary">
-                        KOT: {maxKot}
+                        {/* Order Type Icon - Right in Rectangle */}
+                        {(orderType === 'Pickup' || orderType === 'Delivery') && (
+                          <div
+                            className="d-flex align-items-center justify-content-center rounded"
+                            style={{
+                              ...bgStyle,
+                              width: '30px',
+                              height: '26px',
+                            }}
+                            title={orderType}
+                          >
+                            {orderType === 'Pickup' && (
+                              <i className="fi fi-rr-shopping-bag text-primary fs-6"></i>
+                            )}
+                            {orderType === 'Delivery' && (
+                              <i className="fi fi-rr-truck-moving text-warning fs-6"></i>
+                            )}
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                );
-              })}
+
+                      <div className="small text-muted">
+                        {order.customer?.name || 'N/A'}
+                      </div>
+                      <div className="fw-semibold">
+                        ₹{order.total}
+                      </div>
+                      {maxKot && (
+                        <div className="small text-primary">
+                          KOT: {maxKot}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
             </div>
           </div>
         )}
@@ -639,11 +667,11 @@ export default function App() {
           <Modal.Title>Next Process</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-           <p className="mt-2">
-    Select <strong>Yes</strong> Do you want to open the bill for settlement.
-    <br />
-    Select <strong>No</strong> Do you want to Modify the bill.
-  </p>
+          <p className="mt-2">
+            Select <strong>Yes</strong> Do you want to open the bill for settlement.
+            <br />
+            Select <strong>No</strong> Do you want to Modify the bill.
+          </p>
         </Modal.Body>
         <Modal.Footer>
 
@@ -655,7 +683,7 @@ export default function App() {
           }}>
             Yes -
           </Button>
-           <Button ref={noButtonRef} variant="secondary" onClick={() => {
+          <Button ref={noButtonRef} variant="secondary" onClick={() => {
             if (selectedTable) {
               navigate('/apps/Billview', { state: { tableId: selectedTable.id, tableName: selectedTable.name, outletId: selectedTable.outletid, txnId: selectedTable.txnId } });
             }
