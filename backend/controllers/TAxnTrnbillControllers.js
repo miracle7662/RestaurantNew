@@ -2803,10 +2803,16 @@ exports.getPendingOrders = async (req, res) => {
     const params = []
 
     // Filter by Order_Type which will be 'Pickup', 'Delivery', or 'TAKEAWAY'
-    if (type === 'pickup' || type === 'delivery' || type === 'takeaway') {
-      const orderType = type === 'takeaway' ? 'TAKEAWAY' : (type === 'pickup' ? 'Pickup' : 'Delivery');
+    if (type === 'pickup') {
       whereClauses.push('b.Order_Type = ?')
-      params.push(orderType)
+      params.push('Pickup')
+    } else if (type === 'delivery') {
+      whereClauses.push('b.Order_Type = ?')
+      params.push('Delivery')
+    } else if (type === 'takeaway') {
+      whereClauses.push('b.Order_Type IN (?, ?)')
+      params.push('Pickup')
+      params.push('Delivery')
     }
 
     const sql = `
