@@ -170,42 +170,42 @@ const EditSettlementPage: React.FC = () => {
     setShowSettlementModal(true);
   };
 
-const handleUpdateSettlement = async (newSettlements: any[], tip?: number) => {
-  if (!editing) return;
+  const handleUpdateSettlement = async (newSettlements: any[], tip?: number) => {
+    if (!editing) return;
 
-  setLoading(true);
+    setLoading(true);
 
-  try {
-    // Always use replace strategy: delete all for OrderNo and insert new
-    await axios.post(
-      `http://localhost:3001/api/settlements/replace`,
-      {
-        OrderNo: editing.OrderNo,
-        newSettlements: newSettlements.filter(s => s.Amount > 0),
-        HotelID: editing.HotelID,
-        EditedBy: currentUser,
-      }
-    );
+    try {
+      // Always use replace strategy: delete all for OrderNo and insert new
+      await axios.post(
+        `http://localhost:3001/api/settlements/replace`,
+        {
+          OrderNo: editing.OrderNo,
+          newSettlements: newSettlements.filter(s => s.Amount > 0),
+          HotelID: editing.HotelID,
+          EditedBy: currentUser,
+        }
+      );
 
-    setNotification({
-      show: true,
-      message: 'Settlement updated successfully',
-      type: 'success',
-    });
+      setNotification({
+        show: true,
+        message: 'Settlement updated successfully',
+        type: 'success',
+      });
 
-    setShowSettlementModal(false);
-    setEditing(null);
-    fetchSettlements();
-  } catch (err: any) {
-    setNotification({
-      show: true,
-      message: err.response?.data?.message || 'Failed to update settlement',
-      type: 'danger',
-    });
-  } finally {
-    setLoading(false);
-  }
-};
+      setShowSettlementModal(false);
+      setEditing(null);
+      fetchSettlements();
+    } catch (err: any) {
+      setNotification({
+        show: true,
+        message: err.response?.data?.message || 'Failed to update settlement',
+        type: 'danger',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
 
 
@@ -306,14 +306,14 @@ const handleUpdateSettlement = async (newSettlements: any[], tip?: number) => {
               <td>{group.SettlementIDs?.join(', ')}</td>
               <td>{group.OrderNo}</td>
               <td>
-  {Object.entries(group.paymentBreakdown || {}).map(
-    ([type, amount]) => (
-      <div key={type} className="small">
-        {type}: ₹{amount.toFixed(2)}
-      </div>
-    )
-  )}
-</td>
+                {Object.entries(group.paymentBreakdown || {}).map(
+                  ([type, amount]) => (
+                    <div key={type} className="small">
+                      {type}: ₹{amount.toFixed(2)}
+                    </div>
+                  )
+                )}
+              </td>
 
               <td>{group.HotelID}</td>
               <td>₹{group.Amount.toFixed(2)}</td>
