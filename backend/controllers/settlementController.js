@@ -44,6 +44,11 @@ exports.getSettlements = async (req, res) => {
 
     const offset = (page - 1) * limit;
 
+    // Count total records without LIMIT
+    const countSql = `SELECT COUNT(*) as total FROM TrnSettlement s ${whereSql}`;
+    const totalResult = db.prepare(countSql).get(...params);
+    const total = totalResult.total;
+
     const sql = `
       SELECT s.*
       FROM TrnSettlement s
@@ -60,7 +65,7 @@ exports.getSettlements = async (req, res) => {
       success: true,
       data: {
         settlements,
-        total: settlements.length,
+        total,
         page,
         limit
       }
