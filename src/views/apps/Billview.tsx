@@ -1799,13 +1799,19 @@ const ModernBill = () => {
 const printBill = async () => {
   if (!txnId) return;
 
+  // Safety check for takeaway orders
+  if (isTakeaway && !txnId) {
+    toast.error('Transaction not loaded. Please reopen order.');
+    return;
+  }
+
   try {
     // 1️⃣ Call mark-billed API to generate TxnNo
     const response = await axios.put(`/api/TAxnTrnbill/${txnId}/mark-billed`, {
       outletId: selectedOutletId || Number(user?.outletid),
       customerName: customerName || null,
       mobileNo: customerNo || null,
-        GuestID: customerId || null, 
+        GuestID: customerId || null,
     });
 
     const txnNo = response.data?.data?.TxnNo;
@@ -1818,7 +1824,7 @@ const printBill = async () => {
     setOrderNo(txnNo);
 
     // 3️⃣ PRINT JSX CONTENT
-   
+
 
     toast.success('Bill printed successfully');
 
@@ -2571,7 +2577,7 @@ const printBill = async () => {
             {/* Card Layout for Header Information */}
             <Row className="mb-3 g-2 align-items-stretch">
               {/* Table No / Order No - Left aligned */}
-              <Col md={1}>
+              <Col md={2}>
                 <div className="info-box p-2 h-100 border rounded text-center d-flex flex-column justify-content-center">
                   <div className="text-uppercase text-secondary small mb-1 fw-semibold">
                     {isTakeaway ? 'Order No' : 'Table No'}

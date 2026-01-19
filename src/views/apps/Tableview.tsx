@@ -556,9 +556,13 @@ export default function App() {
                       navigate('/apps/Billview', {
                         state: {
                           mode: 'TAKEAWAY',
+                          orderType: 'TAKEAWAY',
                           orderId: order.id,
-                          orderNo: order.orderNo,
-                          outletId: user?.outletid
+                          txnId: order.id,
+                          outletId: order.outletid,
+                          departmentId: selectedDepartmentId !== 'all' ? selectedDepartmentId : null,
+                          tableId: null,
+                          tableName: 'TAKE AWAY'
                         }
                       })
                     }
