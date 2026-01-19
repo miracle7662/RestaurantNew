@@ -2199,7 +2199,7 @@ const printBill = async () => {
 
   const disableKOT = !enableKOT;
 
-  const disableSettlement = disableAll || hasNewItems || !isBillPrintedState;
+  const disableSettlement = disableAll || hasNewItems || (!isBillPrintedState && !isTakeaway);
 
   const disablePrint = disableAll || isBillPrintedState || hasNewItems;
 
