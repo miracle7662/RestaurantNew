@@ -11,6 +11,8 @@ import OrderDetails from "./OrderDetails";
 import F8PasswordModal from "@/components/F8PasswordModal";
 import KotTransfer from "./KotTransfer";
 import SettlementModal from "./SettelmentModel";
+import { fetchKotPrintSettings, fetchBillSettings } from '@/services/outletSettings.service';
+import { applyKotSettings, applyBillSettings } from '@/utils/applyOutletSettings';
 
 
 // 🔽 YAHAN ADD KARO (component ke bahar)
@@ -773,172 +775,7 @@ const resetBillingPanel = () => {
     }
   };
 
-  const fetchKotPrintSettings = async (outletId: number) => {
-    try {
-      console.log('Fetching KOT print settings for outlet:', outletId);
-
-      const res = await fetch(`http://localhost:3001/api/outlets/kot-print-settings/${outletId}`, {
-        headers: { 'Content-Type': 'application/json' },
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        console.log('KOT print settings response:', data);
-
-        if (data) {
-          // Update the formData state with the fetched settings
-          setFormData(prevFormData => ({
-            ...prevFormData,
-            show_store_name: data.show_store_name ?? prevFormData.show_store_name,
-            dine_in_kot_no: data.dine_in_kot_no ?? prevFormData.dine_in_kot_no,
-            show_new_order_tag: data.show_new_order_tag ?? prevFormData.show_new_order_tag,
-            new_order_tag_label: data.new_order_tag_label ?? prevFormData.new_order_tag_label,
-            show_running_order_tag: data.show_running_order_tag ?? prevFormData.show_running_order_tag,
-            running_order_tag_label: data.running_order_tag_label ?? prevFormData.running_order_tag_label,
-            show_kot_no_quick_bill: data.show_kot_no_quick_bill ?? prevFormData.show_kot_no_quick_bill,
-            hide_table_name_quick_bill: data.hide_table_name_quick_bill ?? prevFormData.hide_table_name_quick_bill,
-            show_order_id_quick_bill: data.show_order_id_quick_bill ?? prevFormData.show_order_id_quick_bill,
-            show_online_order_otp: data.show_online_order_otp ?? prevFormData.show_online_order_otp,
-            show_covers_as_guest: data.show_covers_as_guest ?? prevFormData.show_covers_as_guest,
-            show_order_type_symbol: data.show_order_type_symbol ?? prevFormData.show_order_type_symbol,
-            show_waiter: data.show_waiter ?? prevFormData.show_waiter,
-            show_captain_username: data.show_captain_username ?? prevFormData.show_captain_username,
-            show_username: data.show_username ?? prevFormData.show_username,
-            show_terminal_username: data.show_terminal_username ?? prevFormData.show_terminal_username,
-            customer_on_kot_dine_in: data.customer_on_kot_dine_in ?? prevFormData.customer_on_kot_dine_in,
-            customer_on_kot_quick_bill: data.customer_on_kot_quick_bill ?? prevFormData.customer_on_kot_quick_bill,
-            customer_kot_display_option: data.customer_kot_display_option ?? prevFormData.customer_kot_display_option,
-            show_item_price: data.show_item_price ?? prevFormData.show_item_price,
-            modifier_default_option: data.modifier_default_option ?? prevFormData.modifier_default_option,
-            show_alternative_item: data.show_alternative_item ?? prevFormData.show_alternative_item,
-            show_kot_note: data.show_kot_note ?? prevFormData.show_kot_note,
-            print_kot_both_languages: data.print_kot_both_languages ?? prevFormData.print_kot_both_languages,
-            group_kot_items_by_category: data.group_kot_items_by_category ?? prevFormData.group_kot_items_by_category,
-            pickup_kot_no: data.pickup_kot_no ?? prevFormData.pickup_kot_no,
-            delivery_kot_no: data.delivery_kot_no ?? prevFormData.delivery_kot_no,
-            quick_bill_kot_no: data.quick_bill_kot_no ?? prevFormData.quick_bill_kot_no,
-            customer_on_kot_pickup: data.customer_on_kot_pickup ?? prevFormData.customer_on_kot_pickup,
-            customer_on_kot_delivery: data.customer_on_kot_delivery ?? prevFormData.customer_on_kot_delivery,
-            show_order_placed_time: data.show_order_placed_time ?? prevFormData.show_order_placed_time,
-            hide_item_quantity_column: data.hide_item_quantity_column ?? prevFormData.hide_item_quantity_column,
-            hide_item_rate_column: data.hide_item_rate_column ?? prevFormData.hide_item_rate_column,
-            hide_item_total_column: data.hide_item_total_column ?? prevFormData.hide_item_total_column,
-          }));
-
-          console.log('KOT print settings loaded successfully');
-        } else {
-          console.warn('No KOT print settings found, using defaults');
-        }
-      } else if (res.status === 404) {
-        console.warn('KOT print settings not found for outlet');
-        // Handle 404 gracefully - use existing default settings
-      } else {
-        console.error('Failed to fetch KOT print settings:', res.status, res.statusText);
-      }
-    } catch (err) {
-      console.error('Error fetching KOT print settings:', err);
-      // Handle network errors gracefully - continue with existing defaults
-    }
-  };
-
-  const fetchBillPreviewSettings = async (outletId: number) => {
-    try {
-      const [previewRes, printRes] = await Promise.all([
-        fetch(`http://localhost:3001/api/outlets/bill-preview-settings/${outletId}`),
-        fetch(`http://localhost:3001/api/outlets/bill-print-settings/${outletId}`)
-      ]);
-      const preview = previewRes.ok ? await previewRes.json() : {};
-      const print = printRes.ok ? await printRes.json() : {};
-      setFormData(prev => ({
-        ...prev,
-        // -----------------------
-        // BILL PREVIEW SETTINGS
-        // -----------------------
-        outlet_name: preview.outlet_name ?? prev.outlet_name,
-        email: preview.email ?? prev.email,
-        website: preview.website ?? prev.website,
-        show_phone_on_bill: preview.show_phone_on_bill ?? prev.show_phone_on_bill,
-        note: preview.note ?? prev.note,
-        footer_note: preview.footer_note ?? prev.footer_note,
-        field1: preview.field1 ?? prev.field1,
-        field2: preview.field2 ?? prev.field2,
-        field3: preview.field3 ?? prev.field3,
-        field4: preview.field4 ?? prev.field4,
-        fssai_no: preview.fssai_no ?? prev.fssai_no,
-        bar_bill_prefix: preview.bar_bill_prefix ?? prev.bar_bill_prefix,
-        secondary_bill_prefix: preview.secondary_bill_prefix ?? prev.secondary_bill_prefix,
-        bill_prefix: preview.bill_prefix ?? prev.bill_prefix,
-        upi_id: preview.upi_id ?? prev.upi_id,
-        show_upi_qr: preview.show_upi_qr ?? prev.show_upi_qr,
-        enabled_bar_section: preview.enabled_bar_section ?? prev.enabled_bar_section,
-        enabled_secondary_section: preview.enabled_secondary_section ?? prev.enabled_secondary_section,
-        enabled_upi_section: preview.enabled_upi_section ?? prev.enabled_upi_section,
-        // -----------------------
-        // BILL PRINT SETTINGS (all 43 toggles)
-        // -----------------------
-        bill_title_dine_in: print.bill_title_dine_in ?? prev.bill_title_dine_in,
-        bill_title_pickup: print.bill_title_pickup ?? prev.bill_title_pickup,
-        bill_title_delivery: print.bill_title_delivery ?? prev.bill_title_delivery,
-        bill_title_quick_bill: print.bill_title_quick_bill ?? prev.bill_title_quick_bill,
-        mask_order_id: print.mask_order_id ?? prev.mask_order_id,
-        modifier_default_option_bill: print.modifier_default_option_bill ?? prev.modifier_default_option_bill,
-        print_bill_both_languages: print.print_bill_both_languages ?? prev.print_bill_both_languages,
-        show_alt_item_title_bill: print.show_alt_item_title_bill ?? prev.show_alt_item_title_bill,
-        show_alt_name_bill: print.show_alt_name_bill ?? prev.show_alt_name_bill,
-        show_bill_amount_words: print.show_bill_amount_words ?? prev.show_bill_amount_words,
-        show_bill_no_bill: print.show_bill_no_bill ?? prev.show_bill_no_bill,
-        show_bill_number_prefix_bill: print.show_bill_number_prefix_bill ?? prev.show_bill_number_prefix_bill,
-        show_bill_print_count: print.show_bill_print_count ?? prev.show_bill_print_count,
-        show_brand_name_bill: print.show_brand_name_bill ?? prev.show_brand_name_bill,
-        show_captain_bill: print.show_captain_bill ?? prev.show_captain_bill,
-        show_covers_bill: print.show_covers_bill ?? prev.show_covers_bill,
-        show_custom_qr_codes_bill: print.show_custom_qr_codes_bill ?? prev.show_custom_qr_codes_bill,
-        show_customer_gst_bill: print.show_customer_gst_bill ?? prev.show_customer_gst_bill,
-        show_customer_bill: print.show_customer_bill ?? prev.show_customer_bill,
-        show_customer_paid_amount: print.show_customer_paid_amount ?? prev.show_customer_paid_amount,
-        show_date_bill: print.show_date_bill ?? prev.show_date_bill,
-        show_default_payment: print.show_default_payment ?? prev.show_default_payment,
-        show_discount_reason_bill: print.show_discount_reason_bill ?? prev.show_discount_reason_bill,
-        show_due_amount_bill: print.show_due_amount_bill ?? prev.show_due_amount_bill,
-        show_ebill_invoice_qrcode: print.show_ebill_invoice_qrcode ?? prev.show_ebill_invoice_qrcode,
-        show_item_hsn_code_bill: print.show_item_hsn_code_bill ?? prev.show_item_hsn_code_bill,
-        show_item_level_charges_separately: print.show_item_level_charges_separately ?? prev.show_item_level_charges_separately,
-        show_item_note_bill: print.show_item_note_bill ?? prev.show_item_note_bill,
-        show_items_sequence_bill: print.show_items_sequence_bill ?? prev.show_items_sequence_bill,
-        show_kot_number_bill: print.show_kot_number_bill ?? prev.show_kot_number_bill,
-        show_logo_bill: print.show_logo_bill ?? prev.show_logo_bill,
-        show_order_id_bill: print.show_order_id_bill ?? prev.show_order_id_bill,
-        show_order_no_bill: print.show_order_no_bill ?? prev.show_order_no_bill,
-        show_order_note_bill: print.show_order_note_bill ?? prev.show_order_note_bill,
-        order_type_dine_in: print.order_type_dine_in ?? prev.order_type_dine_in,
-        order_type_pickup: print.order_type_pickup ?? prev.order_type_pickup,
-        order_type_delivery: print.order_type_delivery ?? prev.order_type_delivery,
-        order_type_quick_bill: print.order_type_quick_bill ?? prev.order_type_quick_bill,
-        show_outlet_name_bill: print.show_outlet_name_bill ?? prev.show_outlet_name_bill,
-        payment_mode_dine_in: print.payment_mode_dine_in ?? prev.payment_mode_dine_in,
-        payment_mode_pickup: print.payment_mode_pickup ?? prev.payment_mode_pickup,
-        payment_mode_delivery: print.payment_mode_delivery ?? prev.payment_mode_delivery,
-        payment_mode_quick_bill: print.payment_mode_quick_bill ?? prev.payment_mode_quick_bill,
-        table_name_dine_in: print.table_name_dine_in ?? prev.table_name_dine_in,
-        table_name_pickup: print.table_name_pickup ?? prev.table_name_pickup,
-        table_name_delivery: print.table_name_delivery ?? prev.table_name_delivery,
-        table_name_quick_bill: print.table_name_quick_bill ?? prev.table_name_quick_bill,
-        show_tax_charge_bill: print.show_tax_charge_bill ?? prev.show_tax_charge_bill,
-        show_username_bill: print.show_username_bill ?? prev.show_username_bill,
-        show_waiter_bill: print.show_waiter_bill ?? prev.show_waiter_bill,
-        show_zatca_invoice_qr: print.show_zatca_invoice_qr ?? prev.show_zatca_invoice_qr,
-        show_customer_address_pickup_bill: print.show_customer_address_pickup_bill ?? prev.show_customer_address_pickup_bill,
-        show_order_placed_time: print.show_order_placed_time ?? prev.show_order_placed_time,
-        hide_item_quantity_column: print.hide_item_quantity_column ?? prev.hide_item_quantity_column,
-        hide_item_rate_column: print.hide_item_rate_column ?? prev.hide_item_rate_column,
-        hide_item_total_column: print.hide_item_total_column ?? prev.hide_item_total_column,
-        hide_total_without_tax: print.hide_total_without_tax ?? prev.hide_total_without_tax,
-      }));
-    } catch (err) {
-      console.error("Error fetching bill settings:", err);
-    }
-  };
-
+  
 
   const fetchOutletsData = async () => {
     console.log('Full user object:', JSON.stringify(user, null, 2));
@@ -1442,11 +1279,24 @@ const resetBillingPanel = () => {
 
   }, [items, reversedItems, taxRates, includeTaxInInvoice, discount, roundOffEnabled, roundOffTo]);
 
+  const loadOutletSettings = async (outletId: number) => {
+    try {
+      const kotData = await fetchKotPrintSettings(outletId);
+      if (kotData) {
+        setFormData(prev => applyKotSettings(prev, kotData));
+      }
+
+      const { preview, print } = await fetchBillSettings(outletId);
+      setFormData(prev => applyBillSettings(prev, preview, print));
+
+    } catch (err) {
+      console.error('Failed to load outlet settings', err);
+    }
+  };
 
   useEffect(() => {
     if (selectedOutletId) {
-      fetchKotPrintSettings(selectedOutletId);
-      fetchBillPreviewSettings(selectedOutletId);
+      loadOutletSettings(selectedOutletId);
       // Fetch outlet settings for Reverse Qty Mode
       const fetchReverseQtySetting = async () => {
         try {
@@ -3098,7 +2948,7 @@ useEffect(() => {
     <div className="container-fluid p-0 m-0 fade-in" style={{ height: '100vh' }}>
       {/* Hidden KOT Preview for Printing */}
 
-      <div id="kot-preview" style={{ display: 'none' }} >
+      <div id="kot-preview"  >
         <div style={{
           width: '80mm',
           margin: '0 auto',
@@ -4154,7 +4004,7 @@ useEffect(() => {
         border-color: #2196f3;
       }
       .order-card-header {
-background: darkgreen;
+        background: darkgreen;
         color: white;
         border-bottom: none;
         border-radius: 10px 10px 0 0;
