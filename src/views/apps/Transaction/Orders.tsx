@@ -3605,11 +3605,7 @@ useEffect(() => {
                             </span>
                           )}
                         </span>
-
-
-
-
-                        <div className="text-center d-flex justify-content-center align-items-center gap-2">
+                      <div className="text-center d-flex justify-content-center align-items-center gap-2">
                           <button
                             className="btn btn-danger btn-sm"
                             style={{ padding: '0 5px', lineHeight: '1' }}
