@@ -27,7 +27,7 @@ const CRM = React.lazy(() => import('./../views/dashboards/CRM'))
 // Apps
 
 const Invoice = React.lazy(() => import('./../views/apps/Invoice'))
-
+const KotPrint = React.lazy(() => import('./../views/apps/PrintReport/KotPrint'))
 const Contact = React.lazy(() => import('./../views/apps/Contact'))
 const Tableview = React.lazy(() => import('../views/apps/Tableview'))
 const Billview = React.lazy(() => import('../views/apps/Billview'))
@@ -244,6 +244,12 @@ const appsRoutes: RoutesProps = {
       route: PrivateRoute,
     },
    
+    {
+      path: '/apps/KotPrint',
+      name: 'KotPrint',
+      element: <KotPrint />,
+      route: PrivateRoute,
+    },
    
     {
       path: '/apps/Orders',
