@@ -1856,6 +1856,9 @@ const printBill = async () => {
     // 4️⃣ Table status update
     await axios.post(`/api/tablemanagement/${tableId}/status`, { status: 1 });
 
+    
+
+
     // 5️⃣ Redirect AFTER PRINT
     setTimeout(() => {
       navigate('/apps/Tableview');
@@ -1867,6 +1870,49 @@ const printBill = async () => {
   }
 };
 
+  const PrintAndSettle = async () => {
+    if (!txnId) return;
+
+    // Safety check for takeaway orders
+    if (isTakeaway && !txnId) {
+      toast.error('Transaction not loaded. Please reopen order.');
+      return;
+    }
+
+    try {
+      // 1️⃣ Call mark-billed API to generate TxnNo
+      const response = await axios.put(`/api/TAxnTrnbill/${txnId}/mark-billed`, {
+        outletId: selectedOutletId || Number(user?.outletid),
+        customerName: customerName || null,
+        mobileNo: customerNo || null,
+        GuestID: customerId || null,
+      });
+
+      const txnNo = response.data?.data?.TxnNo;
+      if (!txnNo) {
+        toast.error('TxnNo not generated');
+        return;
+      }
+
+      // 2️⃣ TxnNo state me set karo
+      setOrderNo(txnNo);
+
+      // 3️⃣ Set bill as printed
+      setIsBillPrinted(true);
+
+      toast.success('Bill printed successfully');
+
+      // 4️⃣ Table status update
+      await axios.post(`/api/tablemanagement/${tableId}/status`, { status: 1 });
+
+      // 5️⃣ Open Settlement Modal with all values
+      setShowSettlementModal(true);
+
+    } catch (error) {
+      console.error('Error printing bill:', error);
+      toast.error('Error printing bill');
+    }
+  };
 
   const resetBillState = () => {
     setBillItems([{ itemCode: '', itemgroupid: 0, item_no: 0, itemId: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '', isFetched: false }]);
@@ -3048,6 +3094,8 @@ const printBill = async () => {
                     <Button disabled={disableKOT} onClick={() => saveKOT(false, true)} variant="outline-primary" size="sm" className="function-btn">K O T (F9)</Button>
                     <Button disabled={disableAll} onClick={printBill} variant="outline-primary" size="sm" className="function-btn">Print (F10)</Button>
                     <Button disabled={disableSettlement} onClick={() => setShowSettlementModal(true)} variant="outline-primary" size="sm" className="function-btn">Settle (F11)</Button>
+                    <Button disabled={disableAll} onClick={PrintAndSettle} variant="outline-primary" size="sm" className="function-btn">Print&Settle (F12)</Button>
+
                     <Button onClick={exitWithoutSave} variant="outline-primary" size="sm" className="function-btn">Exit (Esc)</Button>
                   </div>
                 </Card.Body>
