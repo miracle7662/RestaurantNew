@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Button, Modal, Spinner } from "react-bootstrap";
 import { toast } from "react-hot-toast";
-import { FormData } from "src/utils/applyOutletSettings";
+import { OutletSettings } from "src/utils/applyOutletSettings";
 
 interface MenuItem {
   id: number;
@@ -24,8 +24,6 @@ interface MenuItem {
   revQty?: number;
 }
 
-
-
 interface KotPreviewPrintProps {
   show: boolean;
   onHide: () => void;
@@ -37,13 +35,14 @@ interface KotPreviewPrintProps {
   customerName: string;
   mobileNumber: string;
   user: any;
-  formData: FormData;
+  formData: OutletSettings;
   reverseQtyMode: boolean;
   reverseQtyItems?: MenuItem[];
   onPrint?: () => void;
   onClose: () => void;
-  kotNo ?: number;
+  kotNo?: number;
   autoPrint?: boolean;
+  selectedOutletId?: number | null;
 }
 
 const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
@@ -61,59 +60,50 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
   reverseQtyMode,
   reverseQtyItems = [],
   onPrint,
-  autoPrint = false
+  autoPrint = false,
+  selectedOutletId
 }) => {
   const [loading, setLoading] = useState(false);
   const [printerName, setPrinterName] = useState<string | null>(null);
   const [outletId, setOutletId] = useState<number | null>(null);
 
-  // Initialize with user's outlet ID
+  // Initialize with selected outlet ID or user's outlet ID
   useEffect(() => {
-    if (user?.outletid) {
-      setOutletId(Number(user.outletid));
+    const outlet = selectedOutletId ?? Number(user?.outletid);
+    if (outlet) {
+      setOutletId(outlet);
     }
-  }, [user]);
+  }, [user, selectedOutletId]);
 
-  // Fetch KOT printer settings
+  // Fetch printer settings for the outlet
   useEffect(() => {
-    const fetchKOTPrinter = async () => {
+    const fetchPrinter = async () => {
       if (!outletId) return;
 
       try {
-        setLoading(true);
-        const res = await fetch(
+         const res = await fetch(
           `http://localhost:3001/api/settings/kot-printer-settings/${outletId}`
         );
-
-        if (res.ok) {
-          const data = await res.json();
-          console.log("Fetched KOT printer:", data?.printer_name);
-          setPrinterName(data?.printer_name || null);
-        } else {
-          console.warn("Failed to fetch KOT printer settings");
-          setPrinterName(null);
+        if (!res.ok) {
+          throw new Error('Failed to fetch printers');
         }
+        const data = await res.json();
+        setPrinterName(data?.printer_name || null);
       } catch (err) {
-        console.error("Failed to fetch KOT printer:", err);
+        console.error('Error fetching printer:', err);
+        toast.error('Failed to load printer settings.');
         setPrinterName(null);
-      } finally {
-        setLoading(false);
       }
     };
 
-    if (show && outletId) {
-      fetchKOTPrinter();
-    }
-  }, [show, outletId]);
+    fetchPrinter();
+  }, [outletId]);
 
-  // Auto-print when autoPrint is true and printer is ready
+  // Auto-print logic (if enabled)
   useEffect(() => {
-    const autoPrintKOT = async () => {
-      if (autoPrint && show && printerName && !loading) {
-        await handlePrintKOT();
-      }
-    };
-    autoPrintKOT();
+    if (autoPrint && show && printerName && !loading) {
+      handlePrintKOT();
+    }
   }, [autoPrint, show, printerName, loading]);
 
   const handlePrintKOT = async () => {
@@ -126,9 +116,10 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
         return;
       }
 
-      // Get system printers via Electron API
-      const systemPrinters = await (window as any).electronAPI?.getInstalledPrinters?.() || [];
-      
+      // Get system printers via Electron API (synchronous)
+      const systemPrinters = (window as any).electronAPI?.getInstalledPrinters?.() || [];
+      console.log("System Printers:", systemPrinters);
+
       const normalize = (s: string) =>
         s.toLowerCase().replace(/\s+/g, "").trim();
 
@@ -150,23 +141,16 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
       if ((window as any).electronAPI?.directPrint) {
         await (window as any).electronAPI.directPrint(kotHTML, finalPrinterName);
         toast.success("KOT Printed Successfully!");
-        
+
         // Call onPrint callback if provided
         if (onPrint) {
           onPrint();
         }
-        
-        onHide(); // Close modal after printing
+
+        // Close modal after printing with delay to prevent job cancellation
+        setTimeout(onHide, 300);
       } else {
-        // Fallback to browser print
-        const printWindow = window.open('', '_blank');
-        if (printWindow) {
-          printWindow.document.write(kotHTML);
-          printWindow.document.close();
-          printWindow.focus();
-          printWindow.print();
-          onHide(); // Close modal after printing
-        }
+        toast.error("Electron print API not available.");
       }
     } catch (err) {
       console.error("Print error:", err);

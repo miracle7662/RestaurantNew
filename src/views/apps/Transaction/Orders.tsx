@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+ import { useState, useEffect, useRef, useCallback } from "react";
 import { Button, Form, Modal, Table, Card, Row, Col, Spinner } from "react-bootstrap";
 import { fetchOutletsForDropdown } from "@/utils/commonfunction";
 import { useAuthContext } from "@/common";
@@ -13,6 +13,7 @@ import KotTransfer from "./KotTransfer";
 import SettlementModal from "./SettelmentModel";
 import { fetchKotPrintSettings, fetchBillSettings } from '@/services/outletSettings.service';
 import { applyKotSettings, applyBillSettings } from '@/utils/applyOutletSettings';
+import KotPreviewPrint from '../PrintReport/KotPrint';
 
 
 // 🔽 YAHAN ADD KARO (component ke bahar)
@@ -216,6 +217,7 @@ const Order = () => {
 
   const [printItems, setPrintItems] = useState<MenuItem[]>([]);
   const [, setIsPrintMode] = useState(false);
+  const [showKotPreviewModal, setShowKotPreviewModal] = useState<boolean>(false);
   // States for Pending Order Form
 
   const [showBillingPage, setShowBillingPage] = useState<boolean>(false);
@@ -1426,13 +1428,7 @@ const resetBillingPanel = () => {
       const newItemsToKOT = items.filter(item => item.isNew);
       const reverseItemsToKOT = reverseQtyMode ? reverseQtyItems : [];
 
-
-      // Check if we have any items to process (new items or reverse items)
-      if (newItemsToKOT.length === 0 && reverseItemsToKOT.length === 0) {
-        toast.error('No new items or reverse quantity items to save as KOT.');
-        setLoading(false);
-        return;
-      }
+      
 
       setLoading(true);
 
@@ -4446,6 +4442,8 @@ useEffect(() => {
               />
             </Modal.Body>
           </Modal>
+
+         
         </div>
       </div>
     </div>
