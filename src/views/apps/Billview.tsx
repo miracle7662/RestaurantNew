@@ -206,6 +206,8 @@ const ModernBill = () => {
   const [currentKOTNos, setCurrentKOTNos] = useState<number[]>([]);
   const [orderNo, setOrderNo] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('Dine-in');
+  const [restaurantName, setRestaurantName] = useState<string>('');
+  const [outletName, setOutletName] = useState<string>('');
   const [groupBy, setGroupBy] = useState<'none' | 'item' | 'group' | 'kot'>('group');
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [deliveryType, setDeliveryType] = useState<'pickup' | 'homedelivery'>('pickup');
@@ -823,6 +825,19 @@ const ModernBill = () => {
               Array.from(new Set(fetchedItems.map((i: FetchedItem) => i.kotNo))).sort((a: number, b: number) => a - b)
             );
             setBillActionState('printOrSettle');
+
+            // Set activeTab based on Order_Type from database
+            if (header.Order_Type) {
+              setActiveTab(header.Order_Type);
+            } else {
+              setActiveTab('Dine-in'); // Default for table orders
+            }
+
+            // Fetch outlet details for restaurant and outlet names
+            if (header.outletid) {
+              await fetchOutletDetails(header.outletid);
+            }
+
             // restore discount
             if (header.Discount || header.DiscPer) {
               setDiscount(header.Discount || 0);
@@ -1236,6 +1251,20 @@ const ModernBill = () => {
     };
     fetchOutlets();
   }, [user]);
+
+  // Fetch outlet details for restaurant and outlet names
+  const fetchOutletDetails = async (outletId: number) => {
+    try {
+      const response = await axios.get(`/api/outlets/${outletId}`);
+      const outletData = response.data.data || response.data;
+      setRestaurantName(outletData.hotel_name || user?.hotel_name || 'Restaurant Name');
+      setOutletName(outletData.outlet_name || user?.outlet_name || 'Outlet Name');
+    } catch (error) {
+      console.error('Failed to fetch outlet details:', error);
+      setRestaurantName(user?.hotel_name || 'Restaurant Name');
+      setOutletName(user?.outlet_name || 'Outlet Name');
+    }
+  };
 
   // Fetch payment modes based on selected outlet
   useEffect(() => {
@@ -3349,7 +3378,7 @@ const printBill = async () => {
 
   currentKOTNo={currentKotNoForPrint}
   selectedTable={tableNo || 'Takeaway'}
-  activeTab={isTakeaway ? 'Takeaway' : 'Dine-in'}
+  activeTab={activeTab}
   customerName={customerName}
   mobileNumber={customerNo}
   user={user}
@@ -3374,8 +3403,8 @@ const printBill = async () => {
   onClose={() => setShowKotPrintModal(false)}
   selectedOutletId={selectedOutletId}
   pax={pax}
-  restaurantName={user?.hotel_name}
-  outletName={user?.outlet_name}
+  restaurantName={restaurantName || user?.hotel_name}
+  outletName={outletName || user?.outlet_name}
 />
 
 <BillPreviewPrint
