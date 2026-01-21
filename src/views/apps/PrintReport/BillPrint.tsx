@@ -66,6 +66,8 @@ interface BillPreviewPrintProps {
   onPrint?: () => void;
   onClose?: () => void;
   selectedOutletId?: number | null;
+  restaurantName?: string;
+  outletName?: string;
 
 }
 
@@ -92,12 +94,17 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
   selectedPaymentModes = [],
   onPrint,
   onClose,
-  selectedOutletId
+  selectedOutletId,
+  restaurantName,
+  outletName
 }) => {
   const [loading, setLoading] = React.useState(false);
   const [printerName, setPrinterName] = React.useState<string | null>(null);
   const [outletId, setOutletId] = React.useState<number | null>(null);
   const [localFormData, setLocalFormData] = React.useState<OutletSettings>(formData);
+  const [localRestaurantName, setLocalRestaurantName] = React.useState<string>('');
+  const [localOutletName, setLocalOutletName] = React.useState<string>('');
+  const [isLoadingNames, setIsLoadingNames] = React.useState(true);
   const kotNos = currentKOTNos || [];
 
   const loadOutletSettings = async (outletId: number) => {
@@ -159,6 +166,38 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
 
     fetchPrinter();
   }, [outletId]);
+
+  // Fetch outlet details if restaurantName or outletName are not provided or are defaults
+  React.useEffect(() => {
+    const fetchOutletDetails = async () => {
+      if (!outletId) return;
+
+      setIsLoadingNames(true);
+
+      if (!restaurantName || restaurantName.trim() === '' || restaurantName === 'Restaurant Name' ||
+          !outletName || outletName.trim() === '' || outletName === 'Outlet Name') {
+        try {
+          const outletRes = await fetch(`http://localhost:3001/api/outlets/${outletId}`);
+          if (outletRes.ok) {
+            const outletData = await outletRes.json();
+            const data = outletData.data || outletData;
+            if (data) {
+              setLocalRestaurantName(data.brand_name || data.hotel_name || 'Restaurant Name');
+              setLocalOutletName(data.outlet_name || 'Outlet Name');
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching outlet details:', error);
+          setLocalRestaurantName(user?.hotel_name || 'Restaurant Name');
+          setLocalOutletName(user?.outlet_name || 'Outlet Name');
+        }
+      }
+
+      setIsLoadingNames(false);
+    };
+
+    fetchOutletDetails();
+  }, [outletId, restaurantName, outletName, user]);
 
   const generateBillHTML = () => {
     return `
@@ -290,14 +329,18 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
   };
 
   const generateBillContent = () => {
+    // Determine the names to use: outlet props first, then local state, then user object, then defaults
+    const displayRestaurantName = restaurantName || localRestaurantName || user?.hotel_name || 'Restaurant Name';
+    const displayOutletName = outletName || localOutletName || user?.outlet_name || 'Outlet Name';
+
     return `
     <!-- Bill Preview Section (for printing) -->
     <div id="bill-preview-section">
       <div style="margin: 0 auto; font-family: 'Courier New', monospace; font-size: 10pt; line-height: 1.2; padding: 10px; color: #000;">
         <!-- ================= HEADER (with conditional rendering) ================= -->
         <div style="text-align: center; margin-bottom: 10px;">
-          ${formData.show_logo_bill ? `<div style="font-weight: bold; font-size: 12pt; margin-bottom: 5px;">${formData.show_brand_name_bill ? (user?.hotel_name || 'BRAND NAME') : ''}</div>` : ''}
-          ${formData.show_outlet_name_bill ? `<div style="font-weight: bold; font-size: 12pt; margin-bottom: 5px;">${user?.outlet_name || formData.outlet_name || 'RESTAURANT'}</div>` : ''}
+          ${formData.show_logo_bill ? `<div style="font-weight: bold; font-size: 12pt; margin-bottom: 5px;">${formData.show_brand_name_bill ? displayRestaurantName : ''}</div>` : ''}
+          ${formData.show_outlet_name_bill ? `<div style="font-weight: bold; font-size: 12pt; margin-bottom: 5px;">${displayOutletName}</div>` : ''}
           <div style="font-size: 8pt;">${user?.outlet_address || ''}</div>
           ${formData.email ? `<div style="font-size: 8pt;">Email: ${formData.email}</div>` : ''}
           ${formData.website ? `<div style="font-size: 8pt;">Website: ${formData.website}</div>` : ''}
