@@ -91,6 +91,7 @@ export interface OutletSettings {
   hide_item_rate_column?: boolean;
   hide_item_total_column?: boolean;
   hide_total_without_tax?: boolean;
+  
   outlet_name?: string;
   email?: string;
   website?: string;

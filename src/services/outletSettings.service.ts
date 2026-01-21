@@ -1,4 +1,4 @@
-// src/services/outletSettings.service.ts
+ // src/services/outletSettings.service.ts
 
 const BASE_URL = 'http://localhost:3001/api/outlets';
 
@@ -11,7 +11,6 @@ export const fetchKotPrintSettings = async (outletId: number) => {
     if (res.status === 404) return null;
     throw new Error('Failed to fetch KOT print settings');
   }
-
   return res.json();
 };
 
