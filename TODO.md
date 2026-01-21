@@ -1,8 +1,6 @@
-- [x] Refactor generateKOTContent() to conditionally render store name using localFormData.show_store_name
-- [x] Update KOT no to use prefix from localFormData based on activeTab (dine_in_kot_no, pickup_kot_no, etc.) + currentKOTNo
-- [x] Conditionally render waiter section if localFormData.show_waiter and user?.name
-- [x] Conditionally render customer section if customerName and corresponding customer_on_kot_* flag for activeTab
-- [x] Conditionally render table section if selectedTable and corresponding table_name_* flag, and not hide_table_name_quick_bill for Quick Bill
-- [x] Conditionally show Rate and Amt columns in item header and rows based on !localFormData.hide_item_rate_column and !localFormData.hide_item_total_column
-- [x] Update totals section to hide amount if localFormData.hide_item_total_column
-- [x] Ensure preview and print use the same logic, remove dependency on stale formData
+# KotPrint.tsx Fixes
+
+- [x] Remove the useEffect that overwrites localFormData with formData prop
+- [x] Add console.log for activeTab and tabKey mapping in generateKOTContent
+- [x] Verify generateKOTContent uses only localFormData
+- [x] Fix key mapping in applyKotSettings for hide_item_rate_column and hide_item_total_column to use !data.show_item_price

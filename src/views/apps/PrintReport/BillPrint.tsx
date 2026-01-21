@@ -107,6 +107,9 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
   const [isLoadingNames, setIsLoadingNames] = React.useState(true);
   const kotNos = currentKOTNos || [];
 
+  const displayRestaurantName = restaurantName || localRestaurantName || user?.hotel_name || 'Restaurant Name';
+  const displayOutletName = outletName || localOutletName || user?.outlet_name || 'Outlet Name';
+
   const loadOutletSettings = async (outletId: number) => {
     try {
       const { preview, print } = await fetchBillSettings(outletId);
@@ -328,10 +331,9 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
     }
   };
 
-  const generateBillContent = () => {
-    // Determine the names to use: outlet props first, then local state, then user object, then defaults
-    const displayRestaurantName = restaurantName || localRestaurantName || user?.hotel_name || 'Restaurant Name';
-    const displayOutletName = outletName || localOutletName || user?.outlet_name || 'Outlet Name';
+  const generateBillContent = (isPreview = false) => {
+    // For preview, show all values regardless of settings
+    const showAll = isPreview;
 
     return `
     <!-- Bill Preview Section (for printing) -->
@@ -339,92 +341,92 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
       <div style="margin: 0 auto; font-family: 'Courier New', monospace; font-size: 10pt; line-height: 1.2; padding: 10px; color: #000;">
         <!-- ================= HEADER (with conditional rendering) ================= -->
         <div style="text-align: center; margin-bottom: 10px;">
-          ${formData.show_logo_bill ? `<div style="font-weight: bold; font-size: 12pt; margin-bottom: 5px;">${formData.show_brand_name_bill ? displayRestaurantName : ''}</div>` : ''}
-          ${formData.show_outlet_name_bill ? `<div style="font-weight: bold; font-size: 12pt; margin-bottom: 5px;">${displayOutletName}</div>` : ''}
+          ${(showAll || formData.show_logo_bill) ? `<div style="font-weight: bold; font-size: 12pt; margin-bottom: 5px;">${(showAll || formData.show_brand_name_bill) ? displayRestaurantName : ''}</div>` : ''}
+          ${(showAll || formData.show_outlet_name_bill) ? `<div style="font-weight: bold; font-size: 12pt; margin-bottom: 5px;">${displayOutletName}</div>` : ''}
           <div style="font-size: 8pt;">${user?.outlet_address || ''}</div>
-          ${formData.email ? `<div style="font-size: 8pt;">Email: ${formData.email}</div>` : ''}
-          ${formData.website ? `<div style="font-size: 8pt;">Website: ${formData.website}</div>` : ''}
-          ${formData.show_phone_on_bill ? `<div style="font-size: 8pt;">Phone: ${user?.outlet_phone}</div>` : ''}
-          ${formData.fssai_no ? `<div style="font-size: 8pt;">FSSAI: ${formData.fssai_no}</div>` : ''}
-          ${formData.field1 ? `<div style="font-size: 8pt;">${formData.field1}</div>` : ''}
-          ${formData.field2 ? `<div style="font-size: 8pt;">${formData.field2}</div>` : ''}
-          ${formData.field3 ? `<div style="font-size: 8pt;">${formData.field3}</div>` : ''}
-          ${formData.field4 ? `<div style="font-size: 8pt;">${formData.field4}</div>` : ''}
+          ${(showAll || formData.email) ? `<div style="font-size: 8pt;">Email: ${formData.email || 'N/A'}</div>` : ''}
+          ${(showAll || formData.website) ? `<div style="font-size: 8pt;">Website: ${formData.website || 'N/A'}</div>` : ''}
+          ${(showAll || formData.show_phone_on_bill) ? `<div style="font-size: 8pt;">Phone: ${user?.outlet_phone || 'N/A'}</div>` : ''}
+          ${(showAll || formData.fssai_no) ? `<div style="font-size: 8pt;">FSSAI: ${formData.fssai_no || 'N/A'}</div>` : ''}
+          ${(showAll || formData.field1) ? `<div style="font-size: 8pt;">${formData.field1 || 'N/A'}</div>` : ''}
+          ${(showAll || formData.field2) ? `<div style="font-size: 8pt;">${formData.field2 || 'N/A'}</div>` : ''}
+          ${(showAll || formData.field3) ? `<div style="font-size: 8pt;">${formData.field3 || 'N/A'}</div>` : ''}
+          ${(showAll || formData.field4) ? `<div style="font-size: 8pt;">${formData.field4 || 'N/A'}</div>` : ''}
         </div>
         <hr style="border: none; border-top: 1px dashed #000; margin: 5px 0;" />
         <!-- ============ BILL INFO (with conditional rendering) ============ -->
         <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 10px; font-size: 9pt;">
-${formData.show_kot_number_bill
+${(showAll || formData.show_kot_number_bill)
   ? `<div><strong>KOT No:</strong><br />${
       kotNos.length > 0 ? kotNos.join(", ") : (currentKOTNo || "—")
     }</div>`
   : ""
-}          ${formData.show_bill_no_bill ? `<div><strong>Bill No:</strong><br />${formData.show_bill_number_prefix_bill ? (formData.dine_in_kot_no || '') : ''}${orderNo || ''}</div>` : ''}
-          ${formData.show_order_id_bill ? `<div><strong>Order ID:</strong><br />${formData.mask_order_id ? '****' : (currentTxnId || '—')}</div>` : ''}
-          ${((activeTab === 'Dine-in' && formData.table_name_dine_in) || (activeTab === 'Pickup' && formData.table_name_pickup) || (activeTab === 'Delivery' && formData.table_name_delivery) || (activeTab === 'Quick Bill' && formData.table_name_quick_bill)) ? `<div><strong>Table:</strong><br />${selectedTable || '—'}</div>` : ''}
-          ${formData.show_date_bill ? `<div><strong>Date:</strong><br />${new Date().toLocaleDateString('en-GB')}</div>` : ''}
-          ${formData.show_order_placed_time ? `<div><strong>Time:</strong><br />${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</div>` : ''}
-          ${formData.show_waiter_bill ? `<div><strong>Waiter:</strong><br />${user?.name || 'N/A'}</div>` : ''}
-          ${formData.show_captain_bill ? `<div><strong>Captain:</strong><br />${user?.name || 'N/A'}</div>` : ''}
-          ${formData.show_covers_bill ? `<div><strong>Covers:</strong><br />N/A</div>` : ''}
-          ${formData.show_bill_print_count ? `<div><strong>Print Count:</strong><br />1</div>` : ''}
+}          ${(showAll || formData.show_bill_no_bill) ? `<div><strong>Bill No:</strong><br />${(showAll || formData.show_bill_number_prefix_bill) ? (formData.dine_in_kot_no || '') : ''}${orderNo || ''}</div>` : ''}
+          ${(showAll || formData.show_order_id_bill) ? `<div><strong>Order ID:</strong><br />${(showAll || !formData.mask_order_id) ? (currentTxnId || '—') : '****'}</div>` : ''}
+          ${(showAll || ((activeTab === 'Dine-in' && formData.table_name_dine_in) || (activeTab === 'Pickup' && formData.table_name_pickup) || (activeTab === 'Delivery' && formData.table_name_delivery) || (activeTab === 'Quick Bill' && formData.table_name_quick_bill))) ? `<div><strong>Table:</strong><br />${selectedTable || '—'}</div>` : ''}
+          ${(showAll || formData.show_date_bill) ? `<div><strong>Date:</strong><br />${new Date().toLocaleDateString('en-GB')}</div>` : ''}
+          ${(showAll || formData.show_order_placed_time) ? `<div><strong>Time:</strong><br />${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</div>` : ''}
+          ${(showAll || formData.show_waiter_bill) ? `<div><strong>Waiter:</strong><br />${user?.name || 'N/A'}</div>` : ''}
+          ${(showAll || formData.show_captain_bill) ? `<div><strong>Captain:</strong><br />${user?.name || 'N/A'}</div>` : ''}
+          ${(showAll || formData.show_covers_bill) ? `<div><strong>Covers:</strong><br />N/A</div>` : ''}
+          ${(showAll || formData.show_bill_print_count) ? `<div><strong>Print Count:</strong><br />1</div>` : ''}
         </div>
-        ${formData.show_customer_bill ? `
+        ${(showAll || formData.show_customer_bill) ? `
           <hr style="border: none; border-top: 1px dashed #000; margin: 5px 0;" />
           <div style="font-size: 9pt; margin-bottom: 8px;">
             <div><strong>Customer:</strong> ${customerName || 'Guest'}</div>
             <div><strong>Mobile:</strong> ${mobileNumber || 'N/A'}</div>
-            ${formData.show_customer_gst_bill ? `<div><strong>GSTIN:</strong> N/A</div>` : ''}
-            ${activeTab === 'Pickup' && formData.show_customer_address_pickup_bill ? `<div><strong>Address:</strong> N/A</div>` : ''}
+            ${(showAll || formData.show_customer_gst_bill) ? `<div><strong>GSTIN:</strong> N/A</div>` : ''}
+            ${(showAll || (activeTab === 'Pickup' && formData.show_customer_address_pickup_bill)) ? `<div><strong>Address:</strong> N/A</div>` : ''}
           </div>
         ` : ''}
-        ${((activeTab === 'Dine-in' && formData.order_type_dine_in) || (activeTab === 'Pickup' && formData.order_type_pickup) || (activeTab === 'Delivery' && formData.order_type_delivery) || (activeTab === 'Quick Bill' && formData.order_type_quick_bill)) ? `
+        ${(showAll || ((activeTab === 'Dine-in' && formData.order_type_dine_in) || (activeTab === 'Pickup' && formData.order_type_pickup) || (activeTab === 'Delivery' && formData.order_type_delivery) || (activeTab === 'Quick Bill' && formData.order_type_quick_bill))) ? `
           <hr style="border: none; border-top: 1px dashed #000; margin: 5px 0;" />
           <div style="text-align: center; font-weight: bold; font-size: 10pt; margin-bottom: 5px;">
-            ${activeTab === 'Dine-in' && formData.bill_title_dine_in ? 'Dine-In Bill' : ''}
-            ${activeTab === 'Pickup' && formData.bill_title_pickup ? 'Pickup Bill' : ''}
-            ${activeTab === 'Delivery' && formData.bill_title_delivery ? 'Delivery Bill' : ''}
-            ${activeTab === 'Quick Bill' && formData.bill_title_quick_bill ? 'Quick Bill' : ''}
+            ${activeTab === 'Dine-in' && (showAll || formData.bill_title_dine_in) ? 'Dine-In Bill' : ''}
+            ${activeTab === 'Pickup' && (showAll || formData.bill_title_pickup) ? 'Pickup Bill' : ''}
+            ${activeTab === 'Delivery' && (showAll || formData.bill_title_delivery) ? 'Delivery Bill' : ''}
+            ${activeTab === 'Quick Bill' && (showAll || formData.bill_title_quick_bill) ? 'Quick Bill' : ''}
           </div>
         ` : ''}
         <hr style="border: none; border-top: 1px dashed #000; margin: 5px 0;" />
         <!-- ============ ITEMS TABLE (with conditional rendering) ============ -->
         <div style="margin-bottom: 10px;">
-          <div style="display: grid; grid-template-columns: ${formData.print_bill_both_languages ? '3fr' : '2fr'} ${!formData.hide_item_quantity_column ? '30px' : ''} ${!formData.hide_item_rate_column ? '40px' : ''} ${!formData.hide_item_total_column ? '50px' : ''}; gap: 5px; font-weight: bold; border-bottom: 1px solid #000; padding-bottom: 2px; margin-bottom: 5px; font-size: 9pt;">
-            <div>${formData.show_alt_item_title_bill && formData.print_bill_both_languages ? 'Item/항목' : 'Description'}</div>
-            ${!formData.hide_item_quantity_column ? '<div style="text-align: right;">Qty</div>' : ''}
-            ${!formData.hide_item_rate_column ? '<div style="text-align: right;">Rate</div>' : ''}
-            ${!formData.hide_item_total_column ? '<div style="text-align: right;">Amount</div>' : ''}
+          <div style="display: grid; grid-template-columns: ${(showAll || formData.print_bill_both_languages) ? '3fr' : '2fr'} ${(showAll || !formData.hide_item_quantity_column) ? '30px' : ''} ${(showAll || !formData.hide_item_rate_column) ? '40px' : ''} ${(showAll || !formData.hide_item_total_column) ? '50px' : ''}; gap: 5px; font-weight: bold; border-bottom: 1px solid #000; padding-bottom: 2px; margin-bottom: 5px; font-size: 9pt;">
+            <div>${(showAll || (formData.show_alt_item_title_bill && formData.print_bill_both_languages)) ? 'Item/항목' : 'Description'}</div>
+            ${(showAll || !formData.hide_item_quantity_column) ? '<div style="text-align: right;">Qty</div>' : ''}
+            ${(showAll || !formData.hide_item_rate_column) ? '<div style="text-align: right;">Rate</div>' : ''}
+            ${(showAll || !formData.hide_item_total_column) ? '<div style="text-align: right;">Amount</div>' : ''}
           </div>
           ${Object.values(items.filter(i => i.qty > 0).reduce((acc: any, item: any) => {
-            const key = formData.show_items_sequence_bill ? `${item.id}-${item.price}` : String(item.id);
+            const key = (showAll || formData.show_items_sequence_bill) ? `${item.id}-${item.price}` : String(item.id);
             if (!acc[key]) acc[key] = { ...item, qty: 0 };
             acc[key].qty += item.qty;
             return acc;
           }, {})).map((item: any, index: number) => `
-            <div style="display: grid; grid-template-columns: ${formData.print_bill_both_languages ? '3fr' : '2fr'} ${!formData.hide_item_quantity_column ? '30px' : ''} ${!formData.hide_item_rate_column ? '40px' : ''} ${!formData.hide_item_total_column ? '50px' : ''}; gap: 5px; padding: 2px 0; font-size: 9pt;">
+            <div style="display: grid; grid-template-columns: ${(showAll || formData.print_bill_both_languages) ? '3fr' : '2fr'} ${(showAll || !formData.hide_item_quantity_column) ? '30px' : ''} ${(showAll || !formData.hide_item_rate_column) ? '40px' : ''} ${(showAll || !formData.hide_item_total_column) ? '50px' : ''}; gap: 5px; padding: 2px 0; font-size: 9pt;">
               <div>
                 ${item.name}
-                ${formData.print_bill_both_languages && formData.show_alt_name_bill && item.alternativeItem ? ` / ${item.alternativeItem}` : ''}
-                ${formData.show_item_note_bill && item.note ? `<div style="font-size: 8pt; color: #6c757d;">${item.note}</div>` : ''}
-                ${formData.modifier_default_option_bill && item.modifier ? `<div style="font-size: 8pt; color: #6c757d;">${item.modifier.join(', ')}</div>` : ''}
-                ${formData.show_item_hsn_code_bill ? `<div>HSN: ${item.hsn || 'N/A'}</div>` : ''}
+                ${(showAll || (formData.print_bill_both_languages && formData.show_alt_name_bill && item.alternativeItem)) ? ` / ${item.alternativeItem || 'N/A'}` : ''}
+                ${(showAll || (formData.show_item_note_bill && item.note)) ? `<div style="font-size: 8pt; color: #6c757d;">${item.note || 'N/A'}</div>` : ''}
+                ${(showAll || (formData.modifier_default_option_bill && item.modifier)) ? `<div style="font-size: 8pt; color: #6c757d;">${item.modifier ? item.modifier.join(', ') : 'N/A'}</div>` : ''}
+                ${(showAll || formData.show_item_hsn_code_bill) ? `<div>HSN: ${item.hsn || 'N/A'}</div>` : ''}
               </div>
-              ${!formData.hide_item_quantity_column ? `<div style="text-align: right;">${item.qty}</div>` : ''}
-              ${!formData.hide_item_rate_column ? `<div style="text-align: right;">${item.price.toFixed(2)}</div>` : ''}
-              ${!formData.hide_item_total_column ? `<div style="text-align: right;">${(item.qty * item.price).toFixed(2)}</div>` : ''}
+              ${(showAll || !formData.hide_item_quantity_column) ? `<div style="text-align: right;">${item.qty}</div>` : ''}
+              ${(showAll || !formData.hide_item_rate_column) ? `<div style="text-align: right;">${item.price.toFixed(2)}</div>` : ''}
+              ${(showAll || !formData.hide_item_total_column) ? `<div style="text-align: right;">${(item.qty * item.price).toFixed(2)}</div>` : ''}
             </div>
           `).join('')}
         </div>
         <hr style="border: none; border-top: 1px dashed #000; margin: 5px 0;" />
         <!-- ================= TOTALS (with conditional rendering) ================= -->
         <div style="text-align: right; font-size: 9pt; margin-bottom: 5px;">
-          ${!formData.hide_total_without_tax ? `<div>Subtotal: ₹${taxCalc.subtotal.toFixed(2)}</div>` : ''}
+          ${(showAll || !formData.hide_total_without_tax) ? `<div>Subtotal: ₹${taxCalc.subtotal.toFixed(2)}</div>` : ''}
           ${discount > 0 ? `
             <div>Discount: -₹${discount.toFixed(2)}</div>
-            ${formData.show_discount_reason_bill && reason ? `<div style="font-size: 8pt;">(${reason})</div>` : ''}
+            ${(showAll || (formData.show_discount_reason_bill && reason)) ? `<div style="font-size: 8pt;">(${reason || 'N/A'})</div>` : ''}
           ` : ''}
-          ${formData.show_tax_charge_bill ? `
+          ${(showAll || formData.show_tax_charge_bill) ? `
             <div><strong>Taxable Value:</strong> ₹${(taxCalc.subtotal - discount).toFixed(2)}</div>
             ${taxCalc.cgstAmt > 0 ? `<div>CGST @${taxRates.cgst}%: ₹${taxCalc.cgstAmt.toFixed(2)}</div>` : ''}
             ${taxCalc.sgstAmt > 0 ? `<div>SGST @${taxRates.sgst}%: ₹${taxCalc.sgstAmt.toFixed(2)}</div>` : ''}
@@ -434,19 +436,19 @@ ${formData.show_kot_number_bill
           <div style="font-weight: bold; font-size: 10pt; border-top: 1px solid #000; padding-top: 5px;">
             GRAND TOTAL: ₹${taxCalc.grandTotal.toFixed(2)}
           </div>
-          ${formData.show_bill_amount_words ? '<div>In Words: {/* TODO: Function to convert number to words needed */}</div>' : ''}
-          ${formData.show_customer_paid_amount ? `<div>Paid: ₹${taxCalc.grandTotal.toFixed(2)}</div>` : ''}
-          ${formData.show_due_amount_bill ? '<div>Due: ₹0.00</div>' : ''}
+          ${(showAll || formData.show_bill_amount_words) ? '<div>In Words: {/* TODO: Function to convert number to words needed */}</div>' : ''}
+          ${(showAll || formData.show_customer_paid_amount) ? `<div>Paid: ₹${taxCalc.grandTotal.toFixed(2)}</div>` : ''}
+          ${(showAll || formData.show_due_amount_bill) ? '<div>Due: ₹0.00</div>' : ''}
         </div>
-        ${formData.show_order_note_bill && formData.note ? `<div style="text-align: center; font-size: 8pt; margin-top: 5px;">${formData.note}</div>` : ''}
-        ${((activeTab === 'Dine-in' && formData.payment_mode_dine_in) || (activeTab === 'Pickup' && formData.payment_mode_pickup) || (activeTab === 'Delivery' && formData.payment_mode_delivery) || (activeTab === 'Quick Bill' && formData.payment_mode_quick_bill)) && formData.show_default_payment ? `
+        ${(showAll || (formData.show_order_note_bill && formData.note)) ? `<div style="text-align: center; font-size: 8pt; margin-top: 5px;">${formData.note || 'N/A'}</div>` : ''}
+        ${(showAll || (((activeTab === 'Dine-in' && formData.payment_mode_dine_in) || (activeTab === 'Pickup' && formData.payment_mode_pickup) || (activeTab === 'Delivery' && formData.payment_mode_delivery) || (activeTab === 'Quick Bill' && formData.payment_mode_quick_bill)) && formData.show_default_payment)) ? `
           <hr style="border: none; border-top: 1px dashed #000; margin: 5px 0;" />
           <div style="text-align: center; font-size: 9pt;">Payment Mode: ${selectedPaymentModes.join(', ') || 'Cash'}</div>
         ` : ''}
         <!-- QR Codes -->
-        ${formData.show_custom_qr_codes_bill ? '<div>{/* Custom QR Code Image */}</div>' : ''}
-        ${formData.show_ebill_invoice_qrcode ? '<div>{/* E-bill QR Code Image */}</div>' : ''}
-        ${formData.show_zatca_invoice_qr ? '<div>{/* ZATCA QR Code Image */}</div>' : ''}
+        ${(showAll || formData.show_custom_qr_codes_bill) ? '<div>{/* Custom QR Code Image */}</div>' : ''}
+        ${(showAll || formData.show_ebill_invoice_qrcode) ? '<div>{/* E-bill QR Code Image */}</div>' : ''}
+        ${(showAll || formData.show_zatca_invoice_qr) ? '<div>{/* ZATCA QR Code Image */}</div>' : ''}
         <hr style="border: none; border-top: 1px dashed #000; margin: 5px 0;" />
         <div style="text-align: center; font-size: 8pt; margin-top: 10px;">
           ${formData.footer_note || 'STAY SAFE, STAY HEALTHY'}
@@ -489,7 +491,7 @@ ${formData.show_kot_number_bill
                   backgroundColor: "white",
                   border: "1px solid #ccc"
                 }}
-                dangerouslySetInnerHTML={{ __html: generateBillContent() }}
+                dangerouslySetInnerHTML={{ __html: generateBillContent(true) }}
               />
             </div>
             {/* Printer Info */}

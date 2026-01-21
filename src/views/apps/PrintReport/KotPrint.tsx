@@ -85,11 +85,6 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
   const [isLoadingNames, setIsLoadingNames] = useState(true);
   const [localFormData, setLocalFormData] = useState<OutletSettings>(formData);
 
-  // Sync localFormData with formData prop
-  useEffect(() => {
-    setLocalFormData(formData);
-  }, [formData]);
-
   const loadOutletSettings = async (outletId: number) => {
     try {
       const kotData = await fetchKotPrintSettings(outletId);
@@ -356,8 +351,7 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
 
     console.log('KOT Print Debug:', {
       restaurantName,
-      localRestaurantName,
-      userHotelName: user?.hotel_name,
+    
       displayRestaurantName,
       outletName,
       localOutletName,
@@ -373,6 +367,8 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
       'Quick Bill': 'quick_bill'
     };
     const tabKey = tabKeyMap[activeTab] || 'dine_in';
+
+    console.log('ACTIVE TAB 👉', activeTab, 'TAB KEY 👉', tabKey);
 
     // Get KOT no prefix
     const kotNoPrefix = localFormData[`${tabKey}_kot_no`] || '';
