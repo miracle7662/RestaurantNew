@@ -482,6 +482,9 @@ const resetBillingPanel = () => {
   };
 
 
+
+
+
  
 
   const getTableButtonClass = (table: TableItem, isSelected: boolean) => {
@@ -1659,6 +1662,16 @@ const resetBillingPanel = () => {
        setMobileNumber('');
        setCustomerName('');
        setCustomerId(null);
+
+        // After saving KOT, prepare items for printing and show print modal
+        const kotItemsToPrint = newItemsToKOT.map(i => ({
+          ...i,
+          isNew: true,
+          kotNo: currentKOTNo || undefined
+        }));
+
+        setPrintItems(kotItemsToPrint);
+        setShowKotPreviewModal(true);
 
         // After printing, decide what to do based on focusMode
         if (activeTab === 'Pickup' || activeTab === 'Delivery') {
@@ -4443,7 +4456,23 @@ useEffect(() => {
             </Modal.Body>
           </Modal>
 
-         
+          <KotPreviewPrint
+            show={showKotPreviewModal}
+            onHide={() => setShowKotPreviewModal(false)}
+            onClose={() => setShowKotPreviewModal(false)}
+            printItems={printItems}
+            items={items}
+            currentKOTNo={currentKOTNo}
+            selectedTable={selectedTable}
+            activeTab={activeTab}
+            customerName={customerName}
+            mobileNumber={mobileNumber}
+            user={user}
+            formData={formData}
+            reverseQtyMode={reverseQtyMode}
+            reverseQtyItems={reverseQtyItems}
+            selectedOutletId={selectedOutletId}
+          />
         </div>
       </div>
     </div>

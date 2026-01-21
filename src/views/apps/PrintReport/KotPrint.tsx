@@ -117,7 +117,8 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
       }
 
       // Get system printers via Electron API (synchronous)
-      const systemPrinters = (window as any).electronAPI?.getInstalledPrinters?.() || [];
+      const systemPrintersRaw = (window as any).electronAPI?.getInstalledPrinters?.() || [];
+      const systemPrinters = Array.isArray(systemPrintersRaw) ? systemPrintersRaw : [];
       console.log("System Printers:", systemPrinters);
 
       const normalize = (s: string) =>
@@ -243,273 +244,77 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
   };
 
   const generateKOTContent = () => {
-    if (!formData) {
-      return '<div style="text-align: center; padding: 20px;">Loading KOT data...</div>';
-    }
-
     const kotItems = printItems.length > 0 ? printItems : items.filter(i => i.isNew);
 
     return `
-    <!-- ================= STORE INFO ================= -->
-    ${formData.show_store_name ? `
+    <!-- STORE INFO -->
     <div style="text-align: center; margin-bottom: 10px;">
       <div style="font-weight: bold; font-size: 12pt;">
         ${user?.outlet_name || 'Restaurant Name'}
       </div>
       <div style="font-size: 8pt;">
-        ${user?.outlet_address || 'Kolhapur Road Kolhapur 416416'}
+        ${user?.outlet_address || 'Address'}
       </div>
-      ${user?.outlet_email ? `
-      <div style="font-size: 8pt;">${user.outlet_email}</div>
-      ` : ''}
     </div>
-    ` : ''}
 
     <hr style="border: none; border-top: 1px dashed #000; margin: 8px 0;" />
 
-    <!-- ================= KOT HEADER ================= -->
+    <!-- KOT HEADER -->
     <div style="text-align: center; margin-bottom: 8px;">
       <div><strong>Order Type:</strong> ${activeTab}</div>
-      ${formData.show_new_order_tag && formData.new_order_tag_label ? `
-      <div style="
-        background-color: #007bff;
-        color: #fff;
-        display: inline-block;
-        padding: 1px 5px;
-        border-radius: 4px;
-        font-size: 8pt;
-        margin-top: 3px
-      ">
-        ${formData.new_order_tag_label}
-      </div>
-      ` : ''}
-
-      ${formData.show_running_order_tag && formData.running_order_tag_label ? `
-      <div style="
-        background-color: #6c757d;
-        color: #fff;
-        display: inline-block;
-        padding: 1px 5px;
-        border-radius: 4px;
-        font-size: 8pt;
-        margin-top: 3px
-      ">
-        ${formData.running_order_tag_label}
-      </div>
-      ` : ''}
     </div>
 
     <hr style="border: none; border-top: 1px dashed #000; margin: 8px 0;" />
 
-    <!-- ================= BASIC DETAILS ================= -->
-    <div style="
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      margin-bottom: 8px;
-      font-size: 9pt
-    ">
+    <!-- BASIC DETAILS -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; margin-bottom: 8px; font-size: 9pt;">
       <div><strong>KOT No:</strong> ${currentKOTNo || '—'}</div>
       <div><strong>Table:</strong> ${selectedTable || activeTab}</div>
-
       <div><strong>Date:</strong> ${new Date().toLocaleDateString('en-GB')}</div>
       <div><strong>Time:</strong> ${new Date().toLocaleTimeString('en-GB')}</div>
     </div>
 
-    ${formData.show_waiter ? `
-    <div style="font-size: 9pt; margin-bottom: 6px;">
-      <strong>Waiter:</strong> ${user?.name || 'N/A'}
-    </div>
-    ` : ''}
+    ${user?.name ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Waiter:</strong> ${user.name}</div>` : ''}
+
+    ${customerName ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Customer:</strong> ${customerName}</div>` : ''}
+    ${mobileNumber ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Mobile:</strong> ${mobileNumber}</div>` : ''}
 
     <hr style="border: none; border-top: 1px dashed #000; margin: 8px 0;" />
 
-    <!-- ================= CUSTOMER DETAILS ================= -->
-    ${((formData.customer_on_kot_dine_in && activeTab === 'Dine-in') ||
-      (formData.customer_on_kot_quick_bill && activeTab === 'Quick Bill') ||
-      (formData.customer_on_kot_pickup && activeTab === 'Pickup') ||
-      (formData.customer_on_kot_delivery && activeTab === 'Delivery')) &&
-      formData.customer_kot_display_option !== 'DISABLED' ? `
-    <div style="font-size: 9pt; margin-bottom: 8px;">
-      <strong>Customer:</strong> ${customerName || 'Guest'}
-      ${formData.customer_kot_display_option === 'NAME_AND_MOBILE' && mobileNumber ? `
-      <div><strong>Mobile:</strong> ${mobileNumber}</div>
-      ` : ''}
-    </div>
-
-    <hr style="border: none; border-top: 1px dashed #000; margin: 8px 0;" />
-    ` : ''}
-
-    <!-- ================= ITEM HEADER ================= -->
-    <div
-      style="
-        display: grid;
-        grid-template-columns: 1fr 35px 45px 55px;
-        font-weight: bold;
-        border-bottom: 1px solid #000;
-        padding-bottom: 4px;
-        margin-bottom: 5px
-      "
-    >
+    <!-- ITEM HEADER -->
+    <div style="display: grid; grid-template-columns: 1fr 35px 45px 55px; font-weight: bold; border-bottom: 1px solid #000; padding-bottom: 4px; margin-bottom: 5px;">
       <div>Item</div>
       <div style="text-align: center">Qty</div>
       <div style="text-align: right">Rate</div>
-      ${formData.show_item_price ? `
       <div style="text-align: right">Amt</div>
-      ` : ''}
     </div>
 
-    <!-- ================= ITEMS ================= -->
-    ${kotItems.map((item, i) => {
-      const kotQty = item.originalQty
-        ? Math.max(0, item.qty - item.originalQty)
-        : item.qty;
-
-      const displayQty = kotQty > 0 ? kotQty : item.qty;
-
+    <!-- ITEMS -->
+    ${kotItems.map((item) => {
+      const qty = item.originalQty ? item.qty - item.originalQty : item.qty;
       return `
-      <div
-        key="${i}"
-        style="
-          display: grid;
-          grid-template-columns: 1fr 35px 45px 55px;
-          padding-bottom: 3px;
-          margin-bottom: 3px;
-          font-size: 9pt
-        "
-      >
+      <div style="display: grid; grid-template-columns: 1fr 35px 45px 55px; padding-bottom: 3px; margin-bottom: 3px; font-size: 9pt;">
         <div>${item.name}</div>
-        <div style="text-align: center">${displayQty}</div>
+        <div style="text-align: center">${qty}</div>
         <div style="text-align: right">${item.price.toFixed(2)}</div>
-        ${formData.show_item_price ? `
-        <div style="text-align: right">
-          ${(item.price * displayQty).toFixed(2)}
-        </div>
-        ` : ''}
+        <div style="text-align: right">${(item.price * qty).toFixed(2)}</div>
       </div>
       `;
     }).join('')}
 
     <hr style="border: none; border-top: 1px dashed #000; margin: 8px 0;" />
-    
-    <!-- ================= REVERSE QTY BLOCK ================= -->
-    ${reverseQtyMode && reverseQtyItems.length > 0 ? `
-    <div
-      style="
-        text-align: center;
-        font-weight: bold;
-        color: #dc3545;
-        margin-bottom: 10px;
-        padding: 5px;
-        background-color: #f8d7da;
-        border: 1px solid #f5c6cb;
-        border-radius: 4px;
-        font-size: 9pt;
-      "
-    >
-      REVERSE QUANTITY ITEMS
+
+    <!-- TOTALS -->
+    <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 10pt;">
+      <div>Total Qty: ${kotItems.reduce((a, b) => a + (b.originalQty ? b.qty - b.originalQty : b.qty), 0)}</div>
+      <div>Total: ₹${kotItems.reduce((a, b) => a + (b.price * (b.originalQty ? b.qty - b.originalQty : b.qty)), 0).toFixed(2)}</div>
     </div>
-
-    <!-- Reverse Qty Items List -->
-    ${reverseQtyItems.map((item, index) => `
-    <div
-      style="
-        display: grid;
-        grid-template-columns: 1fr 35px 45px 55px;
-        gap: 5px;
-        padding-bottom: 4px;
-        margin-bottom: 4px;
-        background-color: #fff3cd;
-        border: 1px solid #ffeaa7;
-        border-radius: 4px;
-        padding: 6px;
-        font-size: 9pt;
-      "
-    >
-      <!-- Item Name -->
-      <div>
-        ${item.name}
-        ${formData.modifier_default_option && item.modifier ? `
-        <div style="font-size: 7pt; color: #666">${item.modifier}</div>
-        ` : ''}
-      </div>
-
-      <!-- Reverse Qty -->
-      <div style="text-align: center; color: #dc3545; font-weight: bold;">
-        -${item.qty}
-      </div>
-
-      <!-- Rate -->
-      <div style="text-align: right">${item.price.toFixed(2)}</div>
-
-      <!-- Amount -->
-      ${formData.show_item_price ? `
-      <div
-        style="text-align: right; color: #dc3545; font-weight: bold"
-      >
-        -${(item.price * item.qty).toFixed(2)}
-      </div>
-      ` : ''}
-    </div>
-    `).join('')}
-
-    <!-- Reverse Qty Total -->
-    <div
-      style="
-        display: flex;
-        justify-content: space-between;
-        font-weight: bold;
-        margin-top: 8px;
-        margin-bottom: 8px;
-        font-size: 10pt;
-      "
-    >
-      <div style="color: #dc3545">
-        Total Reverse Qty: ${reverseQtyItems.reduce((sum, item) => sum + item.qty, 0)}
-      </div>
-
-      ${formData.show_item_price ? `
-      <div style="color: #dc3545">
-        ₹
-        ${reverseQtyItems
-          .reduce((sum, item) => sum + item.price * item.qty, 0)
-          .toFixed(2)}
-      </div>
-      ` : ''}
-    </div>
-
-    <hr
-      style="
-        border: none;
-        border-top: 1px dashed #000;
-        margin: 10px 0;
-      "
-    />
-    ` : ''}
-
-    <!-- ================= TOTALS ================= -->
-    ${(() => {
-      const totalQty = kotItems.reduce((a, b) => a + (b.originalQty ? b.qty - b.originalQty : b.qty), 0);
-      const totalAmt = kotItems.reduce((a, b) => a + (b.price * (b.originalQty ? b.qty - b.originalQty : b.qty)), 0);
-
-      return `
-      <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 10pt">
-        <div>Total Qty: ${totalQty}</div>
-        ${formData.show_item_price ? `<div>Total: ₹${totalAmt.toFixed(2)}</div>` : ''}
-      </div>
-      `;
-    })()}
 
     <hr style="border: none; border-top: 1px dashed #000; margin: 8px 0;" />
 
-    <!-- ================= FOOTER ================= -->
-    <div style="
-      text-align: center;
-      margin-top: 10px;
-      font-size: 9pt;
-      color: #666
-    ">
-      THANK YOU
-      <br />
+    <!-- FOOTER -->
+    <div style="text-align: center; margin-top: 10px; font-size: 9pt; color: #666;">
+      THANK YOU<br />
       Please prepare the order
     </div>
     `;
