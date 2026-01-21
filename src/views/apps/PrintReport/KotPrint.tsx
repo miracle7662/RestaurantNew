@@ -106,64 +106,9 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
     }
   }, [autoPrint, show, printerName, loading]);
 
-  const handlePrintKOT = async () => {
-    try {
-      setLoading(true);
-
-      // If no printer is configured, show error
-      if (!printerName) {
-        toast.error("No KOT printer configured. Please configure printer settings.");
-        return;
-      }
-
-      // Get system printers via Electron API (synchronous)
-      const systemPrintersRaw = (window as any).electronAPI?.getInstalledPrinters?.() || [];
-      const systemPrinters = Array.isArray(systemPrintersRaw) ? systemPrintersRaw : [];
-      console.log("System Printers:", systemPrinters);
-
-      const normalize = (s: string) =>
-        s.toLowerCase().replace(/\s+/g, "").trim();
-
-      const matchedPrinter = systemPrinters.find((p: any) =>
-        normalize(p.name).includes(normalize(printerName))
-      );
-
-      if (!matchedPrinter) {
-        toast.error(`Printer "${printerName}" not found on this system.`);
-        return;
-      }
-
-      const finalPrinterName: string = matchedPrinter.name;
-
-      // Generate KOT HTML for printing
-      const kotHTML = generateKOTHTML();
-
-      // Print using Electron API
-      if ((window as any).electronAPI?.directPrint) {
-        await (window as any).electronAPI.directPrint(kotHTML, finalPrinterName);
-        toast.success("KOT Printed Successfully!");
-
-        // Call onPrint callback if provided
-        if (onPrint) {
-          onPrint();
-        }
-
-        // Close modal after printing with delay to prevent job cancellation
-        setTimeout(onHide, 300);
-      } else {
-        toast.error("Electron print API not available.");
-      }
-    } catch (err) {
-      console.error("Print error:", err);
-      toast.error("Failed to print KOT.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const generateKOTHTML = () => {
     const kotItems = printItems.length > 0 ? printItems : items.filter(i => i.isNew);
-    
+
     return `
 <!DOCTYPE html>
 <html>
@@ -172,7 +117,7 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
   <title>KOT</title>
   <style>
     @page {
-      size: 302px auto; 
+      size: 302px auto;
       margin: 0;
     }
 
@@ -242,6 +187,91 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
 </html>
 `;
   };
+
+
+
+  const handlePrintKOT = async () => {
+    try {
+      setLoading(true);
+
+      // If no printer is configured, show error
+      if (!printerName) {
+        toast.error("No KOT printer configured. Please configure printer settings.");
+        return;
+      }
+
+      // Get system printers via Electron API (asynchronous)
+      const systemPrintersRaw = await (window as any).electronAPI?.getInstalledPrinters?.() || [];
+      const systemPrinters = Array.isArray(systemPrintersRaw) ? systemPrintersRaw : [];
+      console.log("System Printers:", systemPrinters);
+
+      if (systemPrinters.length === 0) {
+        toast.error("No printers detected on this system. Please check printer connections and drivers.");
+        return;
+      }
+
+      const normalize = (s: string) =>
+        s.toLowerCase().replace(/\s+/g, "").trim();
+
+      // Try to match the configured printer (case-insensitive, partial match)
+      let matchedPrinter = systemPrinters.find((p: any) =>
+        normalize(p.name).includes(normalize(printerName)) ||
+        normalize(p.displayName || "").includes(normalize(printerName))
+      );
+
+      let finalPrinterName: string | null = null;
+      let usedFallback = false;
+
+      if (matchedPrinter) {
+        finalPrinterName = matchedPrinter.name;
+      } else {
+        // Fallback: Use default printer or first available printer
+        const defaultPrinter = systemPrinters.find((p: any) => p.isDefault);
+        const fallbackPrinter = defaultPrinter || systemPrinters[0];
+
+        if (fallbackPrinter) {
+          finalPrinterName = fallbackPrinter.name;
+          usedFallback = true;
+          console.warn(`Configured printer "${printerName}" not found. Using fallback: ${fallbackPrinter.displayName || fallbackPrinter.name}`);
+          toast(`Printer "${printerName}" not found. Using fallback: ${fallbackPrinter.displayName || fallbackPrinter.name}`);
+        } else {
+          toast.error("No suitable printer found, including fallbacks.");
+          return;
+        }
+      }
+
+      if (!finalPrinterName) {
+        toast.error("Failed to determine printer name.");
+        return;
+      }
+
+      // Generate KOT HTML for printing
+      const kotHTML = generateKOTHTML();
+
+      // Print using Electron API
+      if ((window as any).electronAPI?.directPrint) {
+        await (window as any).electronAPI.directPrint(kotHTML, finalPrinterName);
+        toast.success("KOT Printed Successfully!");
+
+        // Call onPrint callback if provided
+        if (onPrint) {
+          onPrint();
+        }
+
+        // Close modal after printing with delay to prevent job cancellation
+        setTimeout(onHide, 300);
+      } else {
+        toast.error("Electron print API not available.");
+      }
+    } catch (err) {
+      console.error("Print error:", err);
+      toast.error("Failed to print KOT.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
 
   const generateKOTContent = () => {
     const kotItems = printItems.length > 0 ? printItems : items.filter(i => i.isNew);

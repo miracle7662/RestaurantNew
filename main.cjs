@@ -13,37 +13,11 @@ let backendProcess;
 // Handle get-installed-printers
 ipcMain.handle("get-installed-printers", async () => {
   if (!mainWindow) return [];
-
-  try {
-    const printers = await mainWindow.webContents.getPrintersAsync();
-    console.log("Raw printers from Electron:", printers);
-
-    let mappedPrinters = printers.map(p => ({
-      name: p.name,
-      displayName: p.displayName || p.name
-    }));
-
-    // If no printers found, provide mock printers for testing
-    if (mappedPrinters.length === 0) {
-      console.log("No printers found, using mock printers for testing");
-      mappedPrinters = [
-        { name: "Thermal_Printer_1", displayName: "Thermal Printer 1 (Mock)" },
-        { name: "Thermal_Printer_2", displayName: "Thermal Printer 2 (Mock)" },
-        { name: "Default_Printer", displayName: "Default Printer (Mock)" }
-      ];
-    }
-
-    console.log("Mapped printers:", mappedPrinters);
-    return mappedPrinters;
-  } catch (error) {
-    console.error("Error getting printers:", error);
-    // Return mock printers on error for testing
-    return [
-      { name: "Thermal_Printer_1", displayName: "Thermal Printer 1 (Mock)" },
-      { name: "Thermal_Printer_2", displayName: "Thermal Printer 2 (Mock)" },
-      { name: "Default_Printer", displayName: "Default Printer (Mock)" }
-    ];
-  }
+  const printers = await mainWindow.webContents.getPrintersAsync();
+  return printers.map(p => ({
+    name: p.name,
+    displayName: p.displayName || p.name
+  }));
 });
 
 // Direct KOT Printing (silent)
@@ -142,7 +116,7 @@ function createWindow() {
 
   mainWindow.webContents.on("did-finish-load", async () => {
     const printers = await mainWindow.webContents.getPrintersAsync();
-    console.log("Installed Printers on load:", printers);
+    console.log("Installed Printers:", printers);
   });
 
   mainWindow.on("closed", () => {

@@ -110,10 +110,6 @@ function SettingsPage() {
   const [, setEditingKotId] = useState<number | null>(null);
   const [, setEditingBillId] = useState<number | null>(null);
 
-  // State for default KOT printer
-  const [defaultKotPrinter, setDefaultKotPrinter] = useState<string>('');
-  const [availableKotPrinters, setAvailableKotPrinters] = useState<KotPrinterSetting[]>([]);
-
 
   useEffect(() => {
     const fetchPrinters = async () => {
@@ -240,53 +236,8 @@ function SettingsPage() {
       fetchTableWiseBill();
       fetchCategoryPrinters();
       fetchKdsUsers();
-      fetchAvailableKotPrinters();
-      fetchDefaultKotPrinter();
     }
   }, [activeTab]);
-
-  // Fetch available KOT printers
-  const fetchAvailableKotPrinters = async () => {
-    try {
-      const data = await apiCall('/settings/kot-printer-settings');
-      setAvailableKotPrinters(data);
-    } catch (error) {
-      console.error('Failed to fetch available KOT printers:', error);
-    }
-  };
-
-  // Fetch default KOT printer
-  const fetchDefaultKotPrinter = async () => {
-    try {
-      const data = await apiCall('/settings/default-kot-printer');
-      setDefaultKotPrinter(data.printer_name || '');
-    } catch (error) {
-      console.error('Failed to fetch default KOT printer:', error);
-      setDefaultKotPrinter('');
-    }
-  };
-
-  // Set default KOT printer
-  const handleSetDefaultKotPrinter = async () => {
-    if (!defaultKotPrinter) {
-      alert('Please select a printer');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      await apiCall('/settings/default-kot-printer', {
-        method: 'POST',
-        body: JSON.stringify({ printer_name: defaultKotPrinter })
-      });
-      alert('Default KOT printer set successfully');
-    } catch (error) {
-      console.error('Failed to set default KOT printer:', error);
-      alert('Failed to set default KOT printer');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const tabs = [
     { key: "general", label: "General", icon: Settings },
@@ -618,44 +569,6 @@ function SettingsPage() {
                   onEdit={handleEditKotPrinter}
                   onDelete={handleDeleteKotPrinter}
                 />
-
-                {/* Default KOT Printer Setting */}
-                <div className="mt-3 p-3 border rounded bg-light">
-                  <h6 className="fw-bold mb-3">Default KOT Printer</h6>
-                  <div className="row g-3 align-items-end">
-                    <div className="col-md-6">
-                      <label className="form-label">Select Default Printer</label>
-                      <select
-                        className="form-select"
-                        value={defaultKotPrinter}
-                        onChange={(e) => setDefaultKotPrinter(e.target.value)}
-                      >
-                        <option value="">Select Printer</option>
-                        {availableKotPrinters.map((printer, index) => (
-                          <option key={index} value={(printer as KotPrinterSetting).printer_name}>
-                            {(printer as KotPrinterSetting).printer_name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="col-md-3">
-                      <button
-                        className="btn btn-primary w-100"
-                        onClick={handleSetDefaultKotPrinter}
-                        disabled={loading}
-                      >
-                        {loading ? 'Setting...' : 'Set Default'}
-                      </button>
-                    </div>
-                  </div>
-                  {defaultKotPrinter && (
-                    <div className="mt-2">
-                      <small className="text-success">
-                        Current Default: <strong>{defaultKotPrinter}</strong>
-                      </small>
-                    </div>
-                  )}
-                </div>
               </PrinterSection>
 
               {/* BILL PRINTER SETTINGS */}
