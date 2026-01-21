@@ -976,6 +976,21 @@ const ModernBill = () => {
         if (data.header.MobileNo) setCustomerNo(data.header.MobileNo);
         if (data.header.customerid) setCustomerId(data.header.customerid);
 
+        // Set activeTab based on Order_Type from database
+        if (data.header.Order_Type) {
+          setActiveTab(data.header.Order_Type);
+        } else {
+          setActiveTab('Takeaway'); // Default for takeaway orders
+        }
+
+        // Set restaurant and outlet names from header if available
+        if (data.header.hotel_name) {
+          setRestaurantName(data.header.hotel_name);
+        }
+        if (data.header.outlet_name) {
+          setOutletName(data.header.outlet_name);
+        }
+
         // Discount handling
         if (data.header.Discount || data.header.DiscPer) {
           setDiscount(data.header.Discount || 0);
@@ -1013,6 +1028,11 @@ const ModernBill = () => {
 
       // Calculate totals (now should also consider new tax fields if your function supports it)
       calculateTotals(mappedItems);
+
+      // Fetch outlet details for restaurant and outlet names
+      if (selectedOutletId) {
+        await fetchOutletDetails(selectedOutletId);
+      }
 
     } catch (err: any) {
       if (err.response) {
@@ -1236,7 +1256,7 @@ const ModernBill = () => {
     setTaxCalc({ grandTotal: roundedFinalAmount, subtotal: gross });
   };
 
-  // Fetch outlets
+  // Fetch outlets and set default restaurant/outlet names
   useEffect(() => {
     const fetchOutlets = async () => {
       try {
@@ -1245,8 +1265,16 @@ const ModernBill = () => {
         }
         const response = await axios.get(`/api/outlets/by-hotel?hotelid=${user.hotelid}`);
         setOutlets(response.data.data || response.data);
+
+        // Set default restaurant and outlet names from user's outlet
+        if (user?.outletid && !restaurantName && !outletName) {
+          await fetchOutletDetails(user.outletid);
+        }
       } catch (error) {
         console.error('Failed to fetch outlets:', error);
+        // Fallback to user object
+        if (!restaurantName) setRestaurantName(user?.hotel_name || 'Restaurant Name');
+        if (!outletName) setOutletName(user?.outlet_name || 'Outlet Name');
       }
     };
     fetchOutlets();
@@ -1255,9 +1283,11 @@ const ModernBill = () => {
   // Fetch outlet details for restaurant and outlet names
   const fetchOutletDetails = async (outletId: number) => {
     try {
+      console.log('Fetching outlet details for ID:', outletId);
       const response = await axios.get(`/api/outlets/${outletId}`);
       const outletData = response.data.data || response.data;
-      setRestaurantName(outletData.hotel_name || user?.hotel_name || 'Restaurant Name');
+      console.log('Outlet API response:', outletData);
+      setRestaurantName(outletData.brand_name || outletData.hotel_name || user?.hotel_name || 'Restaurant Name');
       setOutletName(outletData.outlet_name || user?.outlet_name || 'Outlet Name');
     } catch (error) {
       console.error('Failed to fetch outlet details:', error);
@@ -3372,9 +3402,26 @@ const printBill = async () => {
       NCPurpose: '',
       item_no: item.item_no.toString(),
       kotNo: currentKotNoForPrint || undefined,
-      txnDetailId: item.txnDetailId
+      txnDetailId: item.txnDetailId,
+      isNew: true
     }))
   }
+
+  items={billItems.filter(i => i.itemId > 0).map((item) => ({
+    id: item.itemId,
+    name: item.itemName,
+    price: item.rate,
+    qty: item.qty,
+    isBilled: item.isBilled || 0,
+    isNCKOT: 0,
+    NCName: '',
+    NCPurpose: '',
+    item_no: item.item_no.toString(),
+    txnDetailId: item.txnDetailId,
+    revQty: item.reversedQty || 0,
+    kotNo: item.mkotNo ? parseInt(item.mkotNo.split('|')[0]) : undefined,
+    isNew: !item.mkotNo
+  } as any))}
 
   currentKOTNo={currentKotNoForPrint}
   selectedTable={tableNo || 'Takeaway'}
@@ -3403,8 +3450,8 @@ const printBill = async () => {
   onClose={() => setShowKotPrintModal(false)}
   selectedOutletId={selectedOutletId}
   pax={pax}
-  restaurantName={restaurantName || user?.hotel_name}
-  outletName={outletName || user?.outlet_name}
+  restaurantName={restaurantName}
+  outletName={outletName}
 />
 
 <BillPreviewPrint

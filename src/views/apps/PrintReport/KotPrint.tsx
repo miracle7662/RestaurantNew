@@ -74,6 +74,9 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
   const [hasPrinted, setHasPrinted] = useState(false);
   const [printerName, setPrinterName] = useState<string | null>(null);
   const [outletId, setOutletId] = useState<number | null>(null);
+  const [localRestaurantName, setLocalRestaurantName] = useState<string>('');
+  const [localOutletName, setLocalOutletName] = useState<string>('');
+  const [isLoadingNames, setIsLoadingNames] = useState(true);
 
   // Initialize with selected outlet ID or user's outlet ID or default to 1
   useEffect(() => {
@@ -90,10 +93,12 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
     }
   }, [show]);
 
-  // Fetch printer settings for the outlet
+  // Fetch printer settings and outlet details for the outlet
   useEffect(() => {
-    const fetchPrinter = async () => {
+    const fetchPrinterAndOutlet = async () => {
       if (!outletId) return;
+
+      setIsLoadingNames(true);
 
       try {
          const res = await fetch(
@@ -109,18 +114,40 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
         toast.error('Failed to load printer settings.');
         setPrinterName(null);
       }
+
+      // Fetch outlet details if restaurantName or outletName are not provided or are defaults
+      if (!restaurantName || restaurantName.trim() === '' || restaurantName === 'Restaurant Name' ||
+          !outletName || outletName.trim() === '' || outletName === 'Outlet Name') {
+        try {
+          const outletRes = await fetch(`http://localhost:3001/api/outlets/${outletId}`);
+          if (outletRes.ok) {
+            const outletData = await outletRes.json();
+            const data = outletData.data || outletData;
+            if (data) {
+              setLocalRestaurantName(data.brand_name || data.hotel_name || 'Restaurant Name');
+              setLocalOutletName(data.outlet_name || 'Outlet Name');
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching outlet details:', error);
+          setLocalRestaurantName(user?.hotel_name || 'Restaurant Name');
+          setLocalOutletName(user?.outlet_name || 'Outlet Name');
+        }
+      }
+
+      setIsLoadingNames(false);
     };
 
-    fetchPrinter();
-  }, [outletId]);
+    fetchPrinterAndOutlet();
+  }, [outletId, restaurantName, outletName, user]);
 
   // Auto-print logic (if enabled)
   useEffect(() => {
-    if (autoPrint && show && !loading && !hasPrinted) {
+    if (autoPrint && show && !loading && !hasPrinted && !isLoadingNames) {
       setHasPrinted(true);
       handlePrintKOT();
     }
-  }, [autoPrint, show, loading, hasPrinted]);
+  }, [autoPrint, show, loading, hasPrinted, isLoadingNames]);
 
   const generateKOTHTML = () => {
     const kotItems = printItems.length > 0 ? printItems : items.filter(i => i.isNew);
@@ -292,14 +319,29 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
   const generateKOTContent = () => {
     const kotItems = printItems.length > 0 ? printItems : items.filter(i => i.isNew);
 
+    // Determine the names to use: outlet props first, then local state, then user object, then defaults
+    const displayRestaurantName = restaurantName || localRestaurantName || user?.hotel_name || 'Restaurant Name';
+    const displayOutletName = outletName || localOutletName || user?.outlet_name || 'Outlet Name';
+
+    console.log('KOT Print Debug:', {
+      restaurantName,
+      localRestaurantName,
+      userHotelName: user?.hotel_name,
+      displayRestaurantName,
+      outletName,
+      localOutletName,
+      userOutletName: user?.outlet_name,
+      displayOutletName
+    });
+
     return `
     <!-- STORE INFO -->
     <div style="text-align: center; margin-bottom: 10px;">
       <div style="font-weight: bold; font-size: 12pt;">
-        ${restaurantName || user?.hotel_name || 'Restaurant Name'}
+        ${displayRestaurantName}
       </div>
       <div style="font-size: 8pt;">
-        ${outletName || user?.outlet_name || 'Outlet Name'}
+        ${displayOutletName}
       </div>
     </div>
 
@@ -379,10 +421,10 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
         <Modal.Title>KOT Preview & Print</Modal.Title>
       </Modal.Header>
       <Modal.Body style={{ maxHeight: "70vh", overflowY: "auto" }}>
-        {loading ? (
+        {loading || isLoadingNames ? (
           <div className="text-center py-5">
             <Spinner animation="border" variant="primary" />
-            <p className="mt-2">Loading printer settings...</p>
+            <p className="mt-2">{loading ? 'Loading printer settings...' : 'Loading outlet details...'}</p>
           </div>
         ) : (
           <div>
