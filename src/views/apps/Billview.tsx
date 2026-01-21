@@ -3373,6 +3373,9 @@ const printBill = async () => {
 
   onClose={() => setShowKotPrintModal(false)}
   selectedOutletId={selectedOutletId}
+  pax={pax}
+  restaurantName={user?.hotel_name}
+  outletName={user?.outlet_name}
 />
 
 <BillPreviewPrint

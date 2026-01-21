@@ -20,6 +20,9 @@ type User = {
   token: string
   outletid?: number
   hotelid?: number
+  hotel_name?: string
+  outlet_name?: string
+  brand_name?: string
 }
 
 const AuthContext = createContext<any>({})

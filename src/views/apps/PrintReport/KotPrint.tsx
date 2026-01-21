@@ -44,6 +44,9 @@ interface KotPreviewPrintProps {
   kotNo?: number;
   autoPrint?: boolean;
   selectedOutletId?: number | null;
+  pax?: number;
+  restaurantName?: string;
+  outletName?: string;
 }
 
 const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
@@ -62,7 +65,10 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
   reverseQtyItems = [],
   onPrint,
   autoPrint = false,
-  selectedOutletId
+  selectedOutletId,
+  pax,
+  restaurantName,
+  outletName
 }) => {
   const [loading, setLoading] = useState(false);
   const [hasPrinted, setHasPrinted] = useState(false);
@@ -290,10 +296,10 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
     <!-- STORE INFO -->
     <div style="text-align: center; margin-bottom: 10px;">
       <div style="font-weight: bold; font-size: 12pt;">
-        ${user?.outlet_name || 'Restaurant Name'}
+        ${restaurantName || user?.hotel_name || 'Restaurant Name'}
       </div>
       <div style="font-size: 8pt;">
-        ${user?.outlet_address || 'Address'}
+        ${outletName || user?.outlet_name || 'Outlet Name'}
       </div>
     </div>
 
@@ -312,6 +318,7 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
       <div><strong>Table:</strong> ${selectedTable || activeTab}</div>
       <div><strong>Date:</strong> ${new Date().toLocaleDateString('en-GB')}</div>
       <div><strong>Time:</strong> ${new Date().toLocaleTimeString('en-GB')}</div>
+      <div><strong>PAX:</strong> ${pax || 1}</div>
     </div>
 
     ${user?.name ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Waiter:</strong> ${user.name}</div>` : ''}
