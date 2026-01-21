@@ -2,6 +2,8 @@ import React from 'react';
 import { Modal, Button, Spinner } from 'react-bootstrap';
 import { toast } from 'react-hot-toast';
 import { OutletSettings } from 'src/utils/applyOutletSettings';
+import {fetchBillSettings} from '@/services/outletSettings.service';
+import {applyBillSettings} from '@/utils/applyOutletSettings';
 
 interface MenuItem {
   id: number;
@@ -95,13 +97,25 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
   const [loading, setLoading] = React.useState(false);
   const [printerName, setPrinterName] = React.useState<string | null>(null);
   const [outletId, setOutletId] = React.useState<number | null>(null);
+  const [localFormData, setLocalFormData] = React.useState<OutletSettings>(formData);
   const kotNos = currentKOTNos || [];
+
+  const loadOutletSettings = async (outletId: number) => {
+    try {
+      const { preview, print } = await fetchBillSettings(outletId);
+      setLocalFormData(prev => applyBillSettings(prev, preview, print));
+
+    } catch (err) {
+      console.error('Failed to load outlet settings', err);
+    }
+  };
 
   // Initialize with selected outlet ID or user's outlet ID or default to 1
   React.useEffect(() => {
     const outlet = selectedOutletId ?? Number(user?.outletid) ?? 1;
     if (outlet && !isNaN(outlet)) {
       setOutletId(outlet);
+      loadOutletSettings(outlet);
     }
   }, [user, selectedOutletId]);
 

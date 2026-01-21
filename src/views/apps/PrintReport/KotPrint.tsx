@@ -2,6 +2,12 @@ import { useEffect, useState } from "react";
 import { Button, Modal, Spinner } from "react-bootstrap";
 import { toast } from "react-hot-toast";
 import { OutletSettings } from "src/utils/applyOutletSettings";
+import {
+  fetchKotPrintSettings,
+} from "@/services/outletSettings.service";
+import {
+  applyKotSettings,
+} from "@/utils/applyOutletSettings";
 
 
 interface MenuItem {
@@ -77,12 +83,28 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
   const [localRestaurantName, setLocalRestaurantName] = useState<string>('');
   const [localOutletName, setLocalOutletName] = useState<string>('');
   const [isLoadingNames, setIsLoadingNames] = useState(true);
+  const [localFormData, setLocalFormData] = useState<OutletSettings>(formData);
+
+  const loadOutletSettings = async (outletId: number) => {
+    try {
+      const kotData = await fetchKotPrintSettings(outletId);
+      if (kotData) {
+        setLocalFormData(prev => applyKotSettings(prev, kotData));
+      }
+
+      
+
+    } catch (err) {
+      console.error('Failed to load outlet settings', err);
+    }
+  };
 
   // Initialize with selected outlet ID or user's outlet ID or default to 1
   useEffect(() => {
     const outlet = selectedOutletId ?? Number(user?.outletid) ?? 1;
     if (outlet && !isNaN(outlet)) {
       setOutletId(outlet);
+      loadOutletSettings(outlet);
     }
   }, [user, selectedOutletId]);
 
@@ -446,62 +468,7 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
               />
             </div>
 
-            {/* Printer Info */}
-            <div className="alert alert-info mb-3">
-              <div className="d-flex justify-content-between align-items-center">
-                <div>
-                  <strong>Printer:</strong> {printerName || "Not configured"}
-                </div>
-                {!printerName && (
-                  <Button
-                    variant="outline-primary"
-                    size="sm"
-                    onClick={() => {
-                      // Navigate to printer settings or show configuration
-                      toast("Please configure printer in settings");
-                    }}
-                  >
-                    Configure
-                  </Button>
-                )}
-              </div>
-            </div>
-
-            {/* Print Stats */}
-            <div className="row mb-3">
-              <div className="col-md-6">
-                <div className="card">
-                  <div className="card-body">
-                    <h6 className="card-title">KOT Details</h6>
-                    <p className="mb-1">
-                      <strong>KOT No:</strong> {currentKOTNo || "—"}
-                    </p>
-                    <p className="mb-1">
-                      <strong>Table:</strong> {selectedTable || activeTab}
-                    </p>
-                    <p className="mb-1">
-                      <strong>Items:</strong> {printItems.length > 0 ? printItems.length : items.filter(i => i.isNew).length}
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="col-md-6">
-                <div className="card">
-                  <div className="card-body">
-                    <h6 className="card-title">Customer Info</h6>
-                    <p className="mb-1">
-                      <strong>Name:</strong> {customerName || "Guest"}
-                    </p>
-                    <p className="mb-1">
-                      <strong>Mobile:</strong> {mobileNumber || "—"}
-                    </p>
-                    <p className="mb-0">
-                      <strong>Order Type:</strong> {activeTab}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
+            
           </div>
         )}
       </Modal.Body>
