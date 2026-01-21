@@ -14,6 +14,19 @@ export const fetchKotPrintSettings = async (outletId: number) => {
   return res.json();
 };
 
+export const updateKotPrintSettings = async (outletId: number, settings: any) => {
+  const res = await fetch(`${BASE_URL}/kot-print-settings/${outletId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(settings),
+  });
+
+  if (!res.ok) {
+    throw new Error('Failed to update KOT print settings');
+  }
+  return res.json();
+};
+
 export const fetchBillSettings = async (outletId: number) => {
   const [previewRes, printRes] = await Promise.all([
     fetch(`${BASE_URL}/bill-preview-settings/${outletId}`),

@@ -1,8 +1,115 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-hot-toast';
+import { fetchKotPrintSettings, updateKotPrintSettings } from '@/services/outletSettings.service';
+
+interface KotPrintSettings {
+  kot_printsetting_id?: number;
+  outletid?: number;
+  customer_on_kot_dine_in: boolean;
+  customer_on_kot_pickup: boolean;
+  customer_on_kot_delivery: boolean;
+  customer_on_kot_quick_bill: boolean;
+  customer_kot_display_option: string;
+  group_kot_items_by_category: boolean;
+  hide_table_name_quick_bill: boolean;
+  show_new_order_tag: boolean;
+  new_order_tag_label: string;
+  show_running_order_tag: boolean;
+  running_order_tag_label: string;
+  dine_in_kot_no: string;
+  pickup_kot_no: string;
+  delivery_kot_no: string;
+  quick_bill_kot_no: string;
+  modifier_default_option: boolean;
+  print_kot_both_languages: boolean;
+  show_alternative_item: boolean;
+  show_captain_username: boolean;
+  show_covers_as_guest: boolean;
+  show_item_price: boolean;
+  show_kot_no_quick_bill: boolean;
+  show_kot_note: boolean;
+  show_online_order_otp: boolean;
+  show_order_id_quick_bill: boolean;
+  show_order_id_online_order: boolean;
+  show_order_no_quick_bill_section: boolean;
+  show_order_type_symbol: boolean;
+  show_store_name: boolean;
+  show_terminal_username: boolean;
+  show_username: boolean;
+  show_waiter: boolean;
+}
 
 const KOTPrintSettings: React.FC = () => {
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [settings, setSettings] = useState<KotPrintSettings>({
+    customer_on_kot_dine_in: false,
+    customer_on_kot_pickup: true,
+    customer_on_kot_delivery: true,
+    customer_on_kot_quick_bill: true,
+    customer_kot_display_option: 'NAME_ONLY',
+    group_kot_items_by_category: false,
+    hide_table_name_quick_bill: false,
+    show_new_order_tag: true,
+    new_order_tag_label: 'New',
+    show_running_order_tag: true,
+    running_order_tag_label: 'Running',
+    dine_in_kot_no: 'DIN-',
+    pickup_kot_no: 'PUP-',
+    delivery_kot_no: 'DEL-',
+    quick_bill_kot_no: 'QBL-',
+    modifier_default_option: false,
+    print_kot_both_languages: false,
+    show_alternative_item: false,
+    show_captain_username: false,
+    show_covers_as_guest: false,
+    show_item_price: true,
+    show_kot_no_quick_bill: false,
+    show_kot_note: true,
+    show_online_order_otp: false,
+    show_order_id_quick_bill: false,
+    show_order_id_online_order: false,
+    show_order_no_quick_bill_section: false,
+    show_order_type_symbol: true,
+    show_store_name: true,
+    show_terminal_username: false,
+    show_username: false,
+    show_waiter: true,
+  });
+
+  // Get outlet ID from URL or user context
+  const getOutletId = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get('outletid') || localStorage.getItem('selectedOutletId');
+  };
+
+  // Load settings on component mount
+  useEffect(() => {
+    const loadSettings = async () => {
+      const outletId = getOutletId();
+      if (!outletId) {
+        toast.error('No outlet selected');
+        return;
+      }
+
+      setLoading(true);
+      try {
+        const data = await fetchKotPrintSettings(Number(outletId));
+        if (data) {
+          setSettings(data);
+        }
+      } catch (error) {
+        console.error('Failed to load KOT print settings:', error);
+        toast.error('Failed to load settings');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadSettings();
+  }, []);
 
   // Handle tab navigation
   const handleTabClick = (tab: string) => {
@@ -11,19 +118,44 @@ const KOTPrintSettings: React.FC = () => {
     }
   };
 
+  // Handle input changes
+  const handleInputChange = (field: keyof KotPrintSettings, value: any) => {
+    setSettings(prev => ({ ...prev, [field]: value }));
+  };
+
   // Handlers for Close and Update buttons
   const handleClose = () => {
-    // Navigate back to a previous page (e.g., /add-outlet)
     navigate('/add-outlet');
   };
 
-  const handleUpdate = () => {
-    // Placeholder for update logic
-    console.log('Settings updated');
-    // Add your update logic here (e.g., API call to save settings)
-    // Optionally navigate after update
-    // navigate('/add-outlet');
+  const handleUpdate = async () => {
+    const outletId = getOutletId();
+    if (!outletId) {
+      toast.error('No outlet selected');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await updateKotPrintSettings(Number(outletId), settings);
+      toast.success('KOT print settings updated successfully');
+    } catch (error) {
+      console.error('Failed to update settings:', error);
+      toast.error('Failed to update settings');
+    } finally {
+      setSaving(false);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="text-center py-5">
+        <div className="spinner-border" role="status">
+          <span className="visually-hidden">Loading...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="m-0">
@@ -111,9 +243,10 @@ const KOTPrintSettings: React.FC = () => {
                     <input
                       className="form-check-input"
                       type="checkbox"
-                      id="dineIn"
+                      checked={settings.customer_on_kot_dine_in}
+                      onChange={(e) => handleInputChange('customer_on_kot_dine_in', e.target.checked)}
                     />
-                    <label className="form-check-label" htmlFor="dineIn">
+                    <label className="form-check-label">
                       Dine In
                     </label>
                   </div>
@@ -123,10 +256,10 @@ const KOTPrintSettings: React.FC = () => {
                     <input
                       className="form-check-input"
                       type="checkbox"
-                      id="pickup"
-                      defaultChecked
+                      checked={settings.customer_on_kot_pickup}
+                      onChange={(e) => handleInputChange('customer_on_kot_pickup', e.target.checked)}
                     />
-                    <label className="form-check-label" htmlFor="pickup">
+                    <label className="form-check-label">
                       Pickup
                     </label>
                   </div>
@@ -136,10 +269,10 @@ const KOTPrintSettings: React.FC = () => {
                     <input
                       className="form-check-input"
                       type="checkbox"
-                      id="delivery"
-                      defaultChecked
+                      checked={settings.customer_on_kot_delivery}
+                      onChange={(e) => handleInputChange('customer_on_kot_delivery', e.target.checked)}
                     />
-                    <label className="form-check-label" htmlFor="delivery">
+                    <label className="form-check-label">
                       Delivery
                     </label>
                   </div>
@@ -149,25 +282,26 @@ const KOTPrintSettings: React.FC = () => {
                     <input
                       className="form-check-input"
                       type="checkbox"
-                      id="quickBill"
-                      defaultChecked
+                      checked={settings.customer_on_kot_quick_bill}
+                      onChange={(e) => handleInputChange('customer_on_kot_quick_bill', e.target.checked)}
                     />
-                    <label className="form-check-label" htmlFor="quickBill">
+                    <label className="form-check-label">
                       Quick Bill
                     </label>
                   </div>
                 </div>
                 <select
                   className="form-select"
-                  aria-label="Name and Mobile Number"
+                  value={settings.customer_kot_display_option}
+                  onChange={(e) => handleInputChange('customer_kot_display_option', e.target.value)}
                 >
-                  <option value="enabled">Name And Mobile Number</option>
-                  <option value="disabled">Disabled</option>
+                  <option value="NAME_ONLY">Name Only</option>
+                  <option value="NAME_AND_MOBILE">Name And Mobile Number</option>
                 </select>
               </div>
             </div>
           </div>
-          <hr className="my-2" /> {/* Horizontal line after the first row */}
+          <hr className="my-2" />
 
           {/* Second Row: Group KOT Items */}
           <div className="row mb-2">
@@ -182,13 +316,14 @@ const KOTPrintSettings: React.FC = () => {
                   <input
                     className="form-check-input"
                     type="checkbox"
-                    id="groupKOTItems"
+                    checked={settings.group_kot_items_by_category}
+                    onChange={(e) => handleInputChange('group_kot_items_by_category', e.target.checked)}
                   />
                 </div>
               </div>
             </div>
           </div>
-          <hr className="my-2" /> {/* Horizontal line after second row */}
+          <hr className="my-2" />
 
           {/* Third Row: Hide Table Name */}
           <div className="row mb-2">
@@ -203,13 +338,14 @@ const KOTPrintSettings: React.FC = () => {
                   <input
                     className="form-check-input"
                     type="checkbox"
-                    id="hideTableName"
+                    checked={settings.hide_table_name_quick_bill}
+                    onChange={(e) => handleInputChange('hide_table_name_quick_bill', e.target.checked)}
                   />
                 </div>
               </div>
             </div>
           </div>
-          <hr className="my-2" /> {/* Horizontal line after third row */}
+          <hr className="my-2" />
 
           {/* Fourth Row: KOT Tag */}
           <div className="row mb-2">
@@ -223,12 +359,10 @@ const KOTPrintSettings: React.FC = () => {
                     <input
                       className="form-check-input"
                       type="checkbox"
-                      id="showNewOrderTag"
+                      checked={settings.show_new_order_tag}
+                      onChange={(e) => handleInputChange('show_new_order_tag', e.target.checked)}
                     />
-                    <label
-                      className="form-check-label"
-                      htmlFor="showNewOrderTag"
-                    >
+                    <label className="form-check-label">
                       Show New Order Tag
                     </label>
                   </div>
@@ -237,8 +371,9 @@ const KOTPrintSettings: React.FC = () => {
                   <input
                     type="text"
                     className="form-control"
+                    value={settings.new_order_tag_label}
+                    onChange={(e) => handleInputChange('new_order_tag_label', e.target.value)}
                     placeholder="New Order Tag Label"
-                    defaultValue="New Order"
                   />
                 </div>
                 <div className="mb-3">
@@ -246,12 +381,10 @@ const KOTPrintSettings: React.FC = () => {
                     <input
                       className="form-check-input"
                       type="checkbox"
-                      id="showRunningOrderTag"
+                      checked={settings.show_running_order_tag}
+                      onChange={(e) => handleInputChange('show_running_order_tag', e.target.checked)}
                     />
-                    <label
-                      className="form-check-label"
-                      htmlFor="showRunningOrderTag"
-                    >
+                    <label className="form-check-label">
                       Show Running Order Tag
                     </label>
                   </div>
@@ -260,14 +393,15 @@ const KOTPrintSettings: React.FC = () => {
                   <input
                     type="text"
                     className="form-control"
+                    value={settings.running_order_tag_label}
+                    onChange={(e) => handleInputChange('running_order_tag_label', e.target.value)}
                     placeholder="Running Order Tag Label"
-                    defaultValue="Running Order"
                   />
                 </div>
               </div>
             </div>
           </div>
-          <hr className="my-2" /> {/* Horizontal line after fourth row */}
+          <hr className="my-2" />
 
           {/* Fifth Row: KOT Title */}
           <div className="row mb-2">
@@ -280,6 +414,8 @@ const KOTPrintSettings: React.FC = () => {
                   <input
                     type="text"
                     className="form-control"
+                    value={settings.dine_in_kot_no}
+                    onChange={(e) => handleInputChange('dine_in_kot_no', e.target.value)}
                     placeholder="Dine In KOT No"
                   />
                 </div>
@@ -287,6 +423,8 @@ const KOTPrintSettings: React.FC = () => {
                   <input
                     type="text"
                     className="form-control"
+                    value={settings.pickup_kot_no}
+                    onChange={(e) => handleInputChange('pickup_kot_no', e.target.value)}
                     placeholder="Pickup KOT No"
                   />
                 </div>
@@ -294,6 +432,8 @@ const KOTPrintSettings: React.FC = () => {
                   <input
                     type="text"
                     className="form-control"
+                    value={settings.delivery_kot_no}
+                    onChange={(e) => handleInputChange('delivery_kot_no', e.target.value)}
                     placeholder="Delivery KOT No"
                   />
                 </div>
@@ -301,13 +441,15 @@ const KOTPrintSettings: React.FC = () => {
                   <input
                     type="text"
                     className="form-control"
-                    placeholder="Quick Bill"
+                    value={settings.quick_bill_kot_no}
+                    onChange={(e) => handleInputChange('quick_bill_kot_no', e.target.value)}
+                    placeholder="Quick Bill KOT No"
                   />
                 </div>
               </div>
             </div>
           </div>
-          <hr className="my-2" /> {/* Horizontal line after fifth row */}
+          <hr className="my-2" />
 
           {/* Sixth Row: Modifier Option on KOT Print */}
           <div className="row mb-2">
@@ -322,13 +464,14 @@ const KOTPrintSettings: React.FC = () => {
                   <input
                     className="form-check-input"
                     type="checkbox"
-                    id="modifierOption"
+                    checked={settings.modifier_default_option}
+                    onChange={(e) => handleInputChange('modifier_default_option', e.target.checked)}
                   />
                 </div>
               </div>
             </div>
           </div>
-          <hr className="my-2" /> {/* Horizontal line after sixth row */}
+          <hr className="my-2" />
 
           {/* Seventh Row: Show KOT Number */}
           <div className="row mb-2">
@@ -341,18 +484,19 @@ const KOTPrintSettings: React.FC = () => {
                   <input
                     className="form-check-input"
                     type="checkbox"
-                    id="showKOTNumber"
+                    checked={settings.show_kot_no_quick_bill}
+                    onChange={(e) => handleInputChange('show_kot_no_quick_bill', e.target.checked)}
                   />
                 </div>
               </div>
             </div>
           </div>
-          <hr className="my-2" /> {/* Horizontal line after seventh row */}
+          <hr className="my-2" />
 
-          {/* Eighth Row: Show KOT Time */}
+          {/* Eighth Row: Show KOT Note */}
           <div className="row mb-2">
             <div className="col-md-6">
-              <h6 className="fw-bold mb-3">8. Show KOT Time</h6>
+              <h6 className="fw-bold mb-3">8. Show KOT Note</h6>
             </div>
             <div className="col-md-6">
               <div className="ms-3">
@@ -360,13 +504,14 @@ const KOTPrintSettings: React.FC = () => {
                   <input
                     className="form-check-input"
                     type="checkbox"
-                    id="showKOTTime"
+                    checked={settings.show_kot_note}
+                    onChange={(e) => handleInputChange('show_kot_note', e.target.checked)}
                   />
                 </div>
               </div>
             </div>
           </div>
-          <hr className="my-2" /> {/* Horizontal line after eighth row */}
+          <hr className="my-2" />
 
           {/* Ninth Row: Show Waiter Name */}
           <div className="row mb-2">
@@ -379,18 +524,19 @@ const KOTPrintSettings: React.FC = () => {
                   <input
                     className="form-check-input"
                     type="checkbox"
-                    id="showWaiterName"
+                    checked={settings.show_waiter}
+                    onChange={(e) => handleInputChange('show_waiter', e.target.checked)}
                   />
                 </div>
               </div>
             </div>
           </div>
-          <hr className="my-2" /> {/* Horizontal line after ninth row */}
+          <hr className="my-2" />
 
-          {/* Tenth Row: Show Item Code */}
+          {/* Tenth Row: Show Item Price */}
           <div className="row mb-2">
             <div className="col-md-6">
-              <h6 className="fw-bold mb-3">10. Show Item Code</h6>
+              <h6 className="fw-bold mb-3">10. Show Item Price</h6>
             </div>
             <div className="col-md-6">
               <div className="ms-3">
@@ -398,18 +544,19 @@ const KOTPrintSettings: React.FC = () => {
                   <input
                     className="form-check-input"
                     type="checkbox"
-                    id="showItemCode"
+                    checked={settings.show_item_price}
+                    onChange={(e) => handleInputChange('show_item_price', e.target.checked)}
                   />
                 </div>
               </div>
             </div>
           </div>
-          <hr className="my-2" /> {/* Horizontal line after tenth row */}
+          <hr className="my-2" />
 
-          {/* Eleventh Row: Show Item Short Name */}
+          {/* Eleventh Row: Show Store Name */}
           <div className="row mb-2">
             <div className="col-md-6">
-              <h6 className="fw-bold mb-3">11. Show Item Short Name</h6>
+              <h6 className="fw-bold mb-3">11. Show Store Name</h6>
             </div>
             <div className="col-md-6">
               <div className="ms-3">
@@ -417,18 +564,19 @@ const KOTPrintSettings: React.FC = () => {
                   <input
                     className="form-check-input"
                     type="checkbox"
-                    id="showItemShortName"
+                    checked={settings.show_store_name}
+                    onChange={(e) => handleInputChange('show_store_name', e.target.checked)}
                   />
                 </div>
               </div>
             </div>
           </div>
-          <hr className="my-2" /> {/* Horizontal line after eleventh row */}
+          <hr className="my-2" />
 
-          {/* Twelfth Row: Show Item Serial Number */}
+          {/* Twelfth Row: Show Order Type Symbol */}
           <div className="row mb-2">
             <div className="col-md-6">
-              <h6 className="fw-bold mb-3">12. Show Item Serial Number</h6>
+              <h6 className="fw-bold mb-3">12. Show Order Type Symbol</h6>
             </div>
             <div className="col-md-6">
               <div className="ms-3">
@@ -436,204 +584,8 @@ const KOTPrintSettings: React.FC = () => {
                   <input
                     className="form-check-input"
                     type="checkbox"
-                    id="showItemSerialNumber"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-          <hr className="my-2" /> {/* Horizontal line after twelfth row */}
-
-          {/* Thirteenth Row: Show KOT Serial Number */}
-          <div className="row mb-2">
-            <div className="col-md-6">
-              <h6 className="fw-bold mb-3">13. Show KOT Serial Number</h6>
-            </div>
-            <div className="col-md-6">
-              <div className="ms-3">
-                <div className="form-check form-switch">
-                  <input
-                    className="form-check-input"
-                    type="checkbox"
-                    id="showKOTSerialNumber"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-          <hr className="my-2" /> {/* Horizontal line after thirteenth row */}
-
-          {/* Fourteenth Row: Show Table Name (Quick Bill) */}
-          <div className="row mb-2">
-            <div className="col-md-6">
-              <h6 className="fw-bold mb-3">
-                14. Show Table Name (Quick Bill)
-              </h6>
-            </div>
-            <div className="col-md-6">
-              <div className="ms-3">
-                <div className="form-check form-switch">
-                  <input
-                    className="form-check-input"
-                    type="checkbox"
-                    id="showTableNameQuickBill"
-                    defaultChecked
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-          <hr className="my-2" /> {/* Horizontal line after fourteenth row */}
-
-          {/* Fifteenth Row: Show Customer Name (Quick Bill) */}
-          <div className="row mb-2">
-            <div className="col-md-6">
-              <h6 className="fw-bold mb-3">
-                15. Show Customer Name (Quick Bill)
-              </h6>
-            </div>
-            <div className="col-md-6">
-              <div className="ms-3">
-                <div className="mb-2">
-                  <div className="form-check">
-                    <input
-                      className="form-check-input"
-                      type="checkbox"
-                      id="pickup"
-                      defaultChecked
-                    />
-                    <label className="form-check-label" htmlFor="pickup">
-                      Quick Bill
-                    </label>
-                  </div>
-                </div>
-                <div className="mb-2">
-                  <div className="form-check">
-                    <input
-                      className="form-check-input"
-                      type="checkbox"
-                      id="delivery"
-                      defaultChecked
-                    />
-                    <label className="form-check-label" htmlFor="delivery">
-                      Online Order
-                    </label>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <hr className="my-2" /> {/* Horizontal line after fifteenth row */}
-
-          {/* Sixteenth Row: Show Customer Mobile Number (Quick Bill) */}
-          <div className="row mb-2">
-            <div className="col-md-6">
-              <h6 className="fw-bold mb-3">
-                16. Show Customer Mobile Number (Quick Bill)
-              </h6>
-            </div>
-            <div className="col-md-6">
-              <div className="ms-3">
-                <div className="form-check form-switch">
-                  <input
-                    className="form-check-input"
-                    type="checkbox"
-                    id="showCustomerMobileNumberQuickBill"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-          <hr className="my-2" /> {/* Horizontal line after sixteenth row */}
-
-          {/* Seventeenth Row: Show Item Note */}
-          <div className="row mb-2">
-            <div className="col-md-6">
-              <h6 className="fw-bold mb-3">17. Show Item Note</h6>
-            </div>
-            <div className="col-md-6">
-              <div className="ms-3">
-                <div className="form-check form-switch">
-                  <input
-                    className="form-check-input"
-                    type="checkbox"
-                    id="showItemNote"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-          <hr className="my-2" /> {/* Horizontal line after seventeenth row */}
-
-          {/* Eighteenth Row: Show KOT Note */}
-          <div className="row mb-2">
-            <div className="col-md-6">
-              <h6 className="fw-bold mb-3">18. Show KOT Note</h6>
-            </div>
-            <div className="col-md-6">
-              <div className="ms-3">
-                <div className="form-check form-switch">
-                  <input
-                    className="form-check-input"
-                    type="checkbox"
-                    id="showKOTNote"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-          <hr className="my-2" /> {/* Horizontal line after eighteenth row */}
-
-          {/* Nineteenth Row: Show Item Rate */}
-          <div className="row mb-2">
-            <div className="col-md-6">
-              <h6 className="fw-bold mb-3">19. Show Item Rate</h6>
-            </div>
-            <div className="col-md-6">
-              <div className="ms-3">
-                <div className="form-check form-switch">
-                  <input
-                    className="form-check-input"
-                    type="checkbox"
-                    id="showItemRate"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-          <hr className="my-2" /> {/* Horizontal line after nineteenth row */}
-
-          {/* Twentieth Row: Show KOT Total */}
-          <div className="row mb-2">
-            <div className="col-md-6">
-              <h6 className="fw-bold mb-3">20. Show KOT Total</h6>
-            </div>
-            <div className="col-md-6">
-              <div className="ms-3">
-                <div className="form-check form-switch">
-                  <input
-                    className="form-check-input"
-                    type="checkbox"
-                    id="showKOTTotal"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-          <hr className="my-2" /> {/* Horizontal line after twentieth row */}
-
-          {/* Twenty-First Row: Show KOT Date */}
-          <div className="row mb-2">
-            <div className="col-md-6">
-              <h6 className="fw-bold mb-3">21. Show KOT Date</h6>
-            </div>
-            <div className="col-md-6">
-              <div className="ms-3">
-                <div className="form-check form-switch">
-                  <input
-                    className="form-check-input"
-                    type="checkbox"
-                    id="showKOTDate"
+                    checked={settings.show_order_type_symbol}
+                    onChange={(e) => handleInputChange('show_order_type_symbol', e.target.checked)}
                   />
                 </div>
               </div>
@@ -647,6 +599,7 @@ const KOTPrintSettings: React.FC = () => {
             type="button"
             className="btn btn-secondary"
             onClick={handleClose}
+            disabled={saving}
           >
             Close
           </button>
@@ -654,8 +607,9 @@ const KOTPrintSettings: React.FC = () => {
             type="button"
             className="btn btn-primary"
             onClick={handleUpdate}
+            disabled={saving}
           >
-            Update
+            {saving ? 'Updating...' : 'Update'}
           </button>
         </div>
       </div>

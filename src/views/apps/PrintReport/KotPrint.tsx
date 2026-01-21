@@ -85,6 +85,11 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
   const [isLoadingNames, setIsLoadingNames] = useState(true);
   const [localFormData, setLocalFormData] = useState<OutletSettings>(formData);
 
+  // Sync localFormData with formData prop
+  useEffect(() => {
+    setLocalFormData(formData);
+  }, [formData]);
+
   const loadOutletSettings = async (outletId: number) => {
     try {
       const kotData = await fetchKotPrintSettings(outletId);
@@ -99,14 +104,16 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
     }
   };
 
-  // Initialize with selected outlet ID or user's outlet ID or default to 1
+  // Load outlet settings when modal opens
   useEffect(() => {
-    const outlet = selectedOutletId ?? Number(user?.outletid) ?? 1;
-    if (outlet && !isNaN(outlet)) {
-      setOutletId(outlet);
-      loadOutletSettings(outlet);
-    }
-  }, [user, selectedOutletId]);
+    if (!show) return;
+
+    const outlet = selectedOutletId ?? Number(user?.outletid);
+    if (!outlet || isNaN(outlet)) return;
+
+    setOutletId(outlet);
+    loadOutletSettings(outlet);
+  }, [show, selectedOutletId, user]);
 
   // Reset hasPrinted when modal is closed
   useEffect(() => {
@@ -341,6 +348,8 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
   const generateKOTContent = () => {
     const kotItems = printItems.length > 0 ? printItems : items.filter(i => i.isNew);
 
+    console.log('KOT SETTINGS USED 👉', localFormData);
+
     // Determine the names to use: outlet props first, then local state, then user object, then defaults
     const displayRestaurantName = restaurantName || localRestaurantName || user?.hotel_name || 'Restaurant Name';
     const displayOutletName = outletName || localOutletName || user?.outlet_name || 'Outlet Name';
@@ -356,8 +365,36 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
       displayOutletName
     });
 
+    // Map activeTab to key suffix
+    const tabKeyMap: { [key: string]: string } = {
+      'Dine In': 'dine_in',
+      'Pickup': 'pickup',
+      'Delivery': 'delivery',
+      'Quick Bill': 'quick_bill'
+    };
+    const tabKey = tabKeyMap[activeTab] || 'dine_in';
+
+    // Get KOT no prefix
+    const kotNoPrefix = localFormData[`${tabKey}_kot_no`] || '';
+    const displayKOTNo = currentKOTNo ? `${kotNoPrefix}${currentKOTNo}` : '—';
+
+    // Conditional rendering flags
+    const showStoreName = localFormData.show_store_name;
+    const showWaiter = localFormData.show_waiter && user?.name;
+    const showCustomer = customerName && localFormData[`customer_on_kot_${tabKey}`];
+    const showTable = selectedTable && localFormData[`table_name_${tabKey}`] && !(activeTab === 'Quick Bill' && localFormData.hide_table_name_quick_bill);
+    const showRateColumn = !localFormData.hide_item_rate_column;
+    const showAmountColumn = !localFormData.hide_item_total_column;
+
+    // Calculate grid columns for items
+    const columns = ['1fr', '35px'];
+    if (showRateColumn) columns.push('45px');
+    if (showAmountColumn) columns.push('55px');
+    const gridTemplateColumns = columns.join(' ');
+
     return `
     <!-- STORE INFO -->
+    ${showStoreName ? `
     <div style="text-align: center; margin-bottom: 10px;">
       <div style="font-weight: bold; font-size: 12pt;">
         ${displayRestaurantName}
@@ -368,6 +405,7 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
     </div>
 
     <hr style="border: none; border-top: 1px dashed #000; margin: 8px 0;" />
+    ` : ''}
 
     <!-- KOT HEADER -->
     <div style="text-align: center; margin-bottom: 8px;">
@@ -378,37 +416,37 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
 
     <!-- BASIC DETAILS -->
     <div style="display: grid; grid-template-columns: 1fr 1fr; margin-bottom: 8px; font-size: 9pt;">
-      <div><strong>KOT No:</strong> ${currentKOTNo || '—'}</div>
-      <div><strong>Table:</strong> ${selectedTable || activeTab}</div>
+      <div><strong>KOT No:</strong> ${displayKOTNo}</div>
+      ${showTable ? `<div><strong>Table:</strong> ${selectedTable}</div>` : `<div><strong>Table:</strong> ${activeTab}</div>`}
       <div><strong>Date:</strong> ${new Date().toLocaleDateString('en-GB')}</div>
       <div><strong>Time:</strong> ${new Date().toLocaleTimeString('en-GB')}</div>
       <div><strong>PAX:</strong> ${pax || 1}</div>
     </div>
 
-    ${user?.name ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Waiter:</strong> ${user.name}</div>` : ''}
+    ${showWaiter ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Waiter:</strong> ${user.name}</div>` : ''}
 
-    ${customerName ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Customer:</strong> ${customerName}</div>` : ''}
+    ${showCustomer ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Customer:</strong> ${customerName}</div>` : ''}
     ${mobileNumber ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Mobile:</strong> ${mobileNumber}</div>` : ''}
 
     <hr style="border: none; border-top: 1px dashed #000; margin: 8px 0;" />
 
     <!-- ITEM HEADER -->
-    <div style="display: grid; grid-template-columns: 1fr 35px 45px 55px; font-weight: bold; border-bottom: 1px solid #000; padding-bottom: 4px; margin-bottom: 5px;">
+    <div style="display: grid; grid-template-columns: ${gridTemplateColumns}; font-weight: bold; border-bottom: 1px solid #000; padding-bottom: 4px; margin-bottom: 5px;">
       <div>Item</div>
       <div style="text-align: center">Qty</div>
-      <div style="text-align: right">Rate</div>
-      <div style="text-align: right">Amt</div>
+      ${showRateColumn ? `<div style="text-align: right">Rate</div>` : ''}
+      ${showAmountColumn ? `<div style="text-align: right">Amt</div>` : ''}
     </div>
 
     <!-- ITEMS -->
     ${kotItems.map((item) => {
       const qty = item.originalQty ? item.qty - item.originalQty : item.qty;
       return `
-      <div style="display: grid; grid-template-columns: 1fr 35px 45px 55px; padding-bottom: 3px; margin-bottom: 3px; font-size: 9pt;">
+      <div style="display: grid; grid-template-columns: ${gridTemplateColumns}; padding-bottom: 3px; margin-bottom: 3px; font-size: 9pt;">
         <div>${item.name}</div>
         <div style="text-align: center">${qty}</div>
-        <div style="text-align: right">${item.price.toFixed(2)}</div>
-        <div style="text-align: right">${(item.price * qty).toFixed(2)}</div>
+        ${showRateColumn ? `<div style="text-align: right">${item.price.toFixed(2)}</div>` : ''}
+        ${showAmountColumn ? `<div style="text-align: right">${(item.price * qty).toFixed(2)}</div>` : ''}
       </div>
       `;
     }).join('')}
@@ -418,7 +456,7 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
     <!-- TOTALS -->
     <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 10pt;">
       <div>Total Qty: ${kotItems.reduce((a, b) => a + (b.originalQty ? b.qty - b.originalQty : b.qty), 0)}</div>
-      <div>Total: ₹${kotItems.reduce((a, b) => a + (b.price * (b.originalQty ? b.qty - b.originalQty : b.qty)), 0).toFixed(2)}</div>
+      ${showAmountColumn ? `<div>Total: ₹${kotItems.reduce((a, b) => a + (b.price * (b.originalQty ? b.qty - b.originalQty : b.qty)), 0).toFixed(2)}</div>` : ''}
     </div>
 
     <hr style="border: none; border-top: 1px dashed #000; margin: 8px 0;" />
