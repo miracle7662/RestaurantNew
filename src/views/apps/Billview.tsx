@@ -9,6 +9,8 @@ import SettlementModal from './Transaction/SettelmentModel';
 import toast, { Toaster } from 'react-hot-toast';
 import F8PasswordModal from '../../components/F8PasswordModal';
 import ReverseKotModal from './ReverseKotModal';
+import KotPreviewPrint from './PrintReport/KotPrint';
+import { OutletSettings } from '../../utils/applyOutletSettings';
 
 const KOT_COLORS = [
   '#E8F5E9', // Green 50
@@ -454,6 +456,8 @@ const ModernBill = () => {
   // const [RevKOT, setRevKOT] = useState(0);
   const [reverseQty, setReverseQty] = useState(1);
   const [reverseReason, setReverseReason] = useState('');
+  const [showKotPrintModal, setShowKotPrintModal] = useState(false);
+  const [currentKotNoForPrint, setCurrentKotNoForPrint] = useState<number | null>(null);
 
   // Transfer modal data
   const [availableTables, setAvailableTables] = useState<Table[]>([]);
@@ -1671,7 +1675,8 @@ const ModernBill = () => {
 
       if (print && kotNo) {
         console.log("✅ Printing KOT with number:", kotNo);
-        await printKOT(kotNo);
+        setCurrentKotNoForPrint(kotNo);
+        setShowKotPrintModal(true);
       } else if (print && !kotNo) {
         console.error("❌ Print blocked: KOT No not generated");
       }
@@ -3318,7 +3323,39 @@ const printBill = async () => {
         persistentTxnId={txnId}
         persistentTableId={tableId}
       />
-     
+      <KotPreviewPrint
+        show={showKotPrintModal}
+        onHide={() => setShowKotPrintModal(false)}
+        printItems={billItems.map(item => ({
+          id: item.itemId,
+          name: item.itemName,
+          price: item.rate,
+          qty: item.qty,
+          isBilled: item.isBilled || 0,
+          isNCKOT: 0,
+          NCName: '',
+          NCPurpose: '',
+          item_no: item.item_no.toString(),
+          kotNo: currentKotNoForPrint || undefined,
+          txnDetailId: item.txnDetailId
+        }))}
+        currentKOTNo={currentKotNoForPrint}
+        selectedTable={tableNo}
+        activeTab={isTakeaway ? 'Takeaway' : 'Dine-in'}
+        customerName={customerName}
+        mobileNumber={customerNo}
+        user={user}
+        formData={{} as OutletSettings}
+        reverseQtyMode={false}
+        autoPrint={true}
+        onPrint={() => {
+          // Handle print action if needed
+          setShowKotPrintModal(false);
+        }}
+        onClose={() => setShowKotPrintModal(false)}
+        selectedOutletId={selectedOutletId}
+      />
+
     </React.Fragment>
   );
 };

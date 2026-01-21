@@ -1664,11 +1664,22 @@ const resetBillingPanel = () => {
        setCustomerId(null);
 
         // After saving KOT, prepare items for printing and show print modal
-        const kotItemsToPrint = newItemsToKOT.map(i => ({
-          ...i,
-          isNew: true,
-          kotNo: currentKOTNo || undefined
-        }));
+        let kotItemsToPrint;
+        if (['Pickup', 'Delivery', 'Quick Bill'].includes(activeTab)) {
+          // For these tabs, print all items as the order KOT
+          kotItemsToPrint = items.map(i => ({
+            ...i,
+            isNew: true,
+            kotNo: currentKOTNo || undefined
+          }));
+        } else {
+          // For Dine-in, print only new items
+          kotItemsToPrint = newItemsToKOT.map(i => ({
+            ...i,
+            isNew: true,
+            kotNo: currentKOTNo || undefined
+          }));
+        }
 
         setPrintItems(kotItemsToPrint);
         setShowKotPreviewModal(true);
@@ -4472,6 +4483,7 @@ useEffect(() => {
             reverseQtyMode={reverseQtyMode}
             reverseQtyItems={reverseQtyItems}
             selectedOutletId={selectedOutletId}
+            autoPrint={['Pickup', 'Delivery', 'Quick Bill'].includes(activeTab)}
           />
         </div>
       </div>
