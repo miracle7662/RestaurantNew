@@ -1,36 +1,20 @@
-# Bill Preview and Print Issue Resolution
+# Bill Print Fix - Printer Name Matching
 
-## Problem
-- Bill preview was not showing
-- Bill printing was not working
+## Task: Fix bill print failure due to printer name mismatch
+- Issue: "No Bill printer configured" error even when API returns printer_name = "RP80"
+- Root cause: System printer name doesn't exactly match DB value (e.g., "RP80" vs "RP80 (Thermal Printer)")
 
-## Root Cause
-- The `BillPreviewPrint` component was receiving an empty `formData` object instead of actual outlet settings
-- This caused all conditional rendering in the bill preview to fail, resulting in an empty or incomplete bill
-
-## Solution Implemented
-
-### Changes Made:
-1. **Added formData state** in Billview.tsx:
-   - Added `const [formData, setFormData] = useState<OutletSettings>({} as OutletSettings);`
-
-2. **Enhanced outlet settings fetch**:
-   - Modified the existing useEffect to fetch outlet settings from `/api/outlets/outlet-settings/${selectedOutletId}`
-   - Set formData with the fetched settings: `setFormData(settings);`
-
-3. **Updated BillPreviewPrint component**:
-   - Changed `formData={{} as OutletSettings}` to `formData={formData}`
-
-4. **Fixed TypeScript error**:
-   - Changed `customerNo || undefined` to `customerNo ?? undefined` for proper null handling
-
-## Expected Results
-- Bill preview should now display correctly with all configured settings (brand name, outlet details, tax info, etc.)
-- Bill printing functionality should work as expected
-- All conditional bill elements (headers, footers, taxes, etc.) should render properly
+## Changes Made
+- [x] Improved printer matching logic in BillPrint.tsx
+  - Enhanced normalization to remove all non-alphanumeric characters
+  - Implemented bidirectional matching (DB name in OS name, or OS name in DB name)
+  - Checks both printer name and displayName fields
 
 ## Testing
-- Test bill preview modal opening
-- Verify bill content displays correctly
-- Test bill printing functionality
-- Check that all bill settings are applied (taxes, discounts, round-off, etc.)
+- [ ] Test with various printer name formats (e.g., "RP80", "RP80 Thermal", "RP80 (USB)")
+- [ ] Verify fallback logic still works when no match found
+- [ ] Ensure no regression in existing functionality
+
+## Follow-up
+- [ ] Monitor for any new matching issues
+- [ ] Consider storing exact OS printer names in DB if needed for future improvements

@@ -63,7 +63,8 @@ interface BillPreviewPrintProps {
   selectedPaymentModes?: string[];
   onPrint?: () => void;
   onClose?: () => void;
-  
+  selectedOutletId?: number | null;
+
 }
 
 const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
@@ -88,49 +89,59 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
   roundOffValue = 0,
   selectedPaymentModes = [],
   onPrint,
-  onClose
+  onClose,
+  selectedOutletId
 }) => {
   const [loading, setLoading] = React.useState(false);
   const [printerName, setPrinterName] = React.useState<string | null>(null);
   const [outletId, setOutletId] = React.useState<number | null>(null);
   const kotNos = currentKOTNos || [];
 
-  // Initialize with user's outlet ID or default to 1
+  // Initialize with selected outlet ID or user's outlet ID or default to 1
   React.useEffect(() => {
-    const outlet = Number(user?.outletid) ?? 1;
+    const outlet = selectedOutletId ?? Number(user?.outletid) ?? 1;
     if (outlet && !isNaN(outlet)) {
       setOutletId(outlet);
     }
-  }, [user]);
+  }, [user, selectedOutletId]);
 
 
 
   // Fetch printer settings for the outlet
   React.useEffect(() => {
 
-    
+
    const fetchPrinter = async () => {
-      if (!outletId) return;
+      if (!outletId) {
+        console.log('No outletId, skipping fetch');
+        return;
+      }
+
+      console.log('Fetching printer for outletId:', outletId);
 
       try {
         const res = await fetch(
           `http://localhost:3001/api/settings/bill-printer-settings/${outletId}`
         );
+        console.log('API response status:', res.status);
         if (!res.ok) {
           throw new Error('Failed to fetch printers');
         }
         const data = await res.json();
-       setPrinterName(data?.data?.printer_name || null);
-       
+        console.log('API response data:', data);
+        const printer = data?.data?.printer_name || null;
+        console.log('Setting printerName to:', printer);
+       setPrinterName(printer);
+
 
       } catch (err) {
         console.error('Error fetching printer:', err);
         toast.error('Failed to load printer settings.');
         setPrinterName(null);
       }
-      
+
     };
-    
+
 
     fetchPrinter();
   }, [outletId]);
@@ -183,14 +194,14 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
   };
 
   const handlePrintBill = async () => {
+      console.log('Print Bill button clicked');
+      console.log('Current printerName:', printerName);
+      console.log('Current outletId:', outletId);
+
       try {
       setLoading(true);
 
-      // If no printer is configured, show error
-      if (!printerName) {
-toast.error("No Bill printer configured. Please configure printer settings.");
-        return;
-      }
+    
 
       // Get system printers via Electron API (asynchronous)
       const systemPrintersRaw = await (window as any).electronAPI?.getInstalledPrinters?.() || [];
@@ -206,10 +217,13 @@ toast.error("No Bill printer configured. Please configure printer settings.");
         s.toLowerCase().replace(/\s+/g, "").trim();
 
       // Try to match the configured printer (case-insensitive, partial match)
-      let matchedPrinter = systemPrinters.find((p: any) =>
-        normalize(p.name).includes(normalize(printerName)) ||
-        normalize(p.displayName || "").includes(normalize(printerName))
-      );
+      let matchedPrinter = null;
+      if (printerName) {
+        matchedPrinter = systemPrinters.find((p: any) =>
+          normalize(p.name).includes(normalize(printerName)) ||
+          normalize(p.displayName || "").includes(normalize(printerName))
+        );
+      }
 
       let finalPrinterName: string | null = null;
       let usedFallback = false;
@@ -224,8 +238,6 @@ toast.error("No Bill printer configured. Please configure printer settings.");
         if (fallbackPrinter) {
           finalPrinterName = fallbackPrinter.name;
           usedFallback = true;
-          console.warn(`Configured printer "${printerName}" not found. Using fallback: ${fallbackPrinter.displayName || fallbackPrinter.name}`);
-          toast(`Printer "${printerName}" not found. Using fallback: ${fallbackPrinter.displayName || fallbackPrinter.name}`);
         } else {
           toast.error("No suitable printer found, including fallbacks.");
           return;
@@ -243,7 +255,7 @@ toast.error("No Bill printer configured. Please configure printer settings.");
       // Print using Electron API
       if ((window as any).electronAPI?.directPrint) {
         await (window as any).electronAPI.directPrint(kotHTML, finalPrinterName);
-        toast.success("KOT Printed Successfully!");
+        toast.success("Bill Printed Successfully!");
 
         // Call onPrint callback if provided
         if (onPrint) {
