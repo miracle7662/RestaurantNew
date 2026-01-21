@@ -3,6 +3,7 @@ import { Button, Modal, Spinner } from "react-bootstrap";
 import { toast } from "react-hot-toast";
 import { OutletSettings } from "src/utils/applyOutletSettings";
 
+
 interface MenuItem {
   id: number;
   name: string;
@@ -64,6 +65,7 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
   selectedOutletId
 }) => {
   const [loading, setLoading] = useState(false);
+  const [hasPrinted, setHasPrinted] = useState(false);
   const [printerName, setPrinterName] = useState<string | null>(null);
   const [outletId, setOutletId] = useState<number | null>(null);
 
@@ -74,6 +76,13 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
       setOutletId(outlet);
     }
   }, [user, selectedOutletId]);
+
+  // Reset hasPrinted when modal is closed
+  useEffect(() => {
+    if (!show) {
+      setHasPrinted(false);
+    }
+  }, [show]);
 
   // Fetch printer settings for the outlet
   useEffect(() => {
@@ -101,10 +110,11 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
 
   // Auto-print logic (if enabled)
   useEffect(() => {
-    if (autoPrint && show && !loading) {
+    if (autoPrint && show && !loading && !hasPrinted) {
+      setHasPrinted(true);
       handlePrintKOT();
     }
-  }, [autoPrint, show, loading]);
+  }, [autoPrint, show, loading, hasPrinted]);
 
   const generateKOTHTML = () => {
     const kotItems = printItems.length > 0 ? printItems : items.filter(i => i.isNew);

@@ -1,2 +1,506 @@
+import React from 'react';
+import { Modal, Button, Spinner } from 'react-bootstrap';
+import { toast } from 'react-hot-toast';
+import { OutletSettings } from 'src/utils/applyOutletSettings';
+
+interface MenuItem {
+  id: number;
+  name: string;
+  price: number;
+  qty: number;
+  isBilled: number;
+  isNCKOT: number;
+  NCName: string;
+  NCPurpose: string;
+  table_name?: string;
+  isNew?: boolean;
+  alternativeItem?: string;
+  modifier?: string[];
+  item_no?: string;
+  originalQty?: number;
+  kotNo?: number;
+  txnDetailId?: number;
+  isReverse?: boolean;
+  revQty?: number;
+  hsn?: string;
+  note?: string;
+}
+
+interface TaxCalc {
+  subtotal: number;
+  cgstAmt: number;
+  sgstAmt: number;
+  igstAmt: number;
+  grandTotal: number;
+}
+
+interface TaxRates {
+  cgst: number;
+  sgst: number;
+  igst: number;
+}
+
+interface BillPreviewPrintProps {
+  show: boolean;
+  onHide: () => void;
+  formData: OutletSettings;
+  user: any;
+  items: MenuItem[];
+  currentKOTNos?: number[];
+  currentKOTNo?: number | null;
+  orderNo?: string;
+  selectedTable?: string | null;
+  activeTab: string;
+  customerName?: string;
+  mobileNumber?: string;
+  currentTxnId?: string;
+  taxCalc: TaxCalc;
+  taxRates: TaxRates;
+  discount?: number;
+  reason?: string;
+  roundOffEnabled?: boolean;
+  roundOffValue?: number;
+  selectedPaymentModes?: string[];
+  onPrint?: () => void;
+  onClose?: () => void;
+  
+}
+
+const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
+  show,
+  onHide,
+  formData,
+  user,
+  items,
+  currentKOTNos,
+  currentKOTNo,
+  orderNo,
+  selectedTable,
+  activeTab,
+  customerName,
+  mobileNumber,
+  currentTxnId,
+  taxCalc,
+  taxRates,
+  discount = 0,
+  reason,
+  roundOffEnabled = false,
+  roundOffValue = 0,
+  selectedPaymentModes = [],
+  onPrint,
+  onClose
+}) => {
+  const [loading, setLoading] = React.useState(false);
+  const [printerName, setPrinterName] = React.useState<string | null>(null);
+  const [outletId, setOutletId] = React.useState<number | null>(null);
+  const kotNos = currentKOTNos || [];
+
+  // Initialize with user's outlet ID or default to 1
+  React.useEffect(() => {
+    const outlet = Number(user?.outletid) ?? 1;
+    if (outlet && !isNaN(outlet)) {
+      setOutletId(outlet);
+    }
+  }, [user]);
 
 
+
+  // Fetch printer settings for the outlet
+  React.useEffect(() => {
+
+    
+   const fetchPrinter = async () => {
+      if (!outletId) return;
+
+      try {
+        const res = await fetch(
+          `http://localhost:3001/api/settings/bill-printer-settings/${outletId}`
+        );
+        if (!res.ok) {
+          throw new Error('Failed to fetch printers');
+        }
+        const data = await res.json();
+       setPrinterName(data?.data?.printer_name || null);
+       
+
+      } catch (err) {
+        console.error('Error fetching printer:', err);
+        toast.error('Failed to load printer settings.');
+        setPrinterName(null);
+      }
+      
+    };
+    
+
+    fetchPrinter();
+  }, [outletId]);
+
+  const generateBillHTML = () => {
+    return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>BILL</title>
+  <style>
+    @page {
+      size: auto;
+      margin: 0;
+    }
+
+    html, body {
+      width: 100%;
+      margin: 0;
+      padding: 0;
+      font-family: 'Courier New', monospace;
+      font-size: 10pt;
+      line-height: 1.2;
+      color: #000;
+      box-sizing: border-box;
+    }
+
+    /* CONTENT WRAPPER */
+    #bill-preview-content {
+      width: 100%;
+      margin: 0 auto;
+      padding: 10px;
+      box-sizing: border-box;
+    }
+
+    .center { text-align: center; }
+    .right { text-align: right; }
+    .bold { font-weight: bold; }
+    .separator { border: none; border-top: 1px dashed #000; margin: 5px 0; }
+  </style>
+</head>
+<body>
+  <div id="bill-preview-content">
+    ${generateBillContent()}
+  </div>
+</body>
+</html>
+`;
+  };
+
+  const handlePrintBill = async () => {
+      try {
+      setLoading(true);
+
+      // If no printer is configured, show error
+      if (!printerName) {
+toast.error("No Bill printer configured. Please configure printer settings.");
+        return;
+      }
+
+      // Get system printers via Electron API (asynchronous)
+      const systemPrintersRaw = await (window as any).electronAPI?.getInstalledPrinters?.() || [];
+      const systemPrinters = Array.isArray(systemPrintersRaw) ? systemPrintersRaw : [];
+      console.log("System Printers:", systemPrinters);
+
+      if (systemPrinters.length === 0) {
+        toast.error("No printers detected on this system. Please check printer connections and drivers.");
+        return;
+      }
+
+      const normalize = (s: string) =>
+        s.toLowerCase().replace(/\s+/g, "").trim();
+
+      // Try to match the configured printer (case-insensitive, partial match)
+      let matchedPrinter = systemPrinters.find((p: any) =>
+        normalize(p.name).includes(normalize(printerName)) ||
+        normalize(p.displayName || "").includes(normalize(printerName))
+      );
+
+      let finalPrinterName: string | null = null;
+      let usedFallback = false;
+
+      if (matchedPrinter) {
+        finalPrinterName = matchedPrinter.name;
+      } else {
+        // Fallback: Use default printer or first available printer
+        const defaultPrinter = systemPrinters.find((p: any) => p.isDefault);
+        const fallbackPrinter = defaultPrinter || systemPrinters[0];
+
+        if (fallbackPrinter) {
+          finalPrinterName = fallbackPrinter.name;
+          usedFallback = true;
+          console.warn(`Configured printer "${printerName}" not found. Using fallback: ${fallbackPrinter.displayName || fallbackPrinter.name}`);
+          toast(`Printer "${printerName}" not found. Using fallback: ${fallbackPrinter.displayName || fallbackPrinter.name}`);
+        } else {
+          toast.error("No suitable printer found, including fallbacks.");
+          return;
+        }
+      }
+
+      if (!finalPrinterName) {
+        toast.error("Failed to determine printer name.");
+        return;
+      }
+
+      // Generate KOT HTML for printing
+      const kotHTML = generateBillHTML();
+
+      // Print using Electron API
+      if ((window as any).electronAPI?.directPrint) {
+        await (window as any).electronAPI.directPrint(kotHTML, finalPrinterName);
+        toast.success("KOT Printed Successfully!");
+
+        // Call onPrint callback if provided
+        if (onPrint) {
+          onPrint();
+        }
+
+        // Close modal after printing with delay to prevent job cancellation
+        setTimeout(onHide, 300);
+      } else {
+        toast.error("Electron print API not available.");
+      }
+    } catch (err) {
+      console.error("Print error:", err);
+      toast.error("Failed to print KOT.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const generateBillContent = () => {
+    return `
+    <!-- Bill Preview Section (for printing) -->
+    <div id="bill-preview-section">
+      <div style="margin: 0 auto; font-family: 'Courier New', monospace; font-size: 10pt; line-height: 1.2; padding: 10px; color: #000;">
+        <!-- ================= HEADER (with conditional rendering) ================= -->
+        <div style="text-align: center; margin-bottom: 10px;">
+          ${formData.show_logo_bill ? `<div style="font-weight: bold; font-size: 12pt; margin-bottom: 5px;">${formData.show_brand_name_bill ? (user?.hotel_name || 'BRAND NAME') : ''}</div>` : ''}
+          ${formData.show_outlet_name_bill ? `<div style="font-weight: bold; font-size: 12pt; margin-bottom: 5px;">${user?.outlet_name || formData.outlet_name || 'RESTAURANT'}</div>` : ''}
+          <div style="font-size: 8pt;">${user?.outlet_address || ''}</div>
+          ${formData.email ? `<div style="font-size: 8pt;">Email: ${formData.email}</div>` : ''}
+          ${formData.website ? `<div style="font-size: 8pt;">Website: ${formData.website}</div>` : ''}
+          ${formData.show_phone_on_bill ? `<div style="font-size: 8pt;">Phone: ${user?.outlet_phone}</div>` : ''}
+          ${formData.fssai_no ? `<div style="font-size: 8pt;">FSSAI: ${formData.fssai_no}</div>` : ''}
+          ${formData.field1 ? `<div style="font-size: 8pt;">${formData.field1}</div>` : ''}
+          ${formData.field2 ? `<div style="font-size: 8pt;">${formData.field2}</div>` : ''}
+          ${formData.field3 ? `<div style="font-size: 8pt;">${formData.field3}</div>` : ''}
+          ${formData.field4 ? `<div style="font-size: 8pt;">${formData.field4}</div>` : ''}
+        </div>
+        <hr style="border: none; border-top: 1px dashed #000; margin: 5px 0;" />
+        <!-- ============ BILL INFO (with conditional rendering) ============ -->
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 10px; font-size: 9pt;">
+${formData.show_kot_number_bill
+  ? `<div><strong>KOT No:</strong><br />${
+      kotNos.length > 0 ? kotNos.join(", ") : (currentKOTNo || "—")
+    }</div>`
+  : ""
+}          ${formData.show_bill_no_bill ? `<div><strong>Bill No:</strong><br />${formData.show_bill_number_prefix_bill ? (formData.dine_in_kot_no || '') : ''}${orderNo || ''}</div>` : ''}
+          ${formData.show_order_id_bill ? `<div><strong>Order ID:</strong><br />${formData.mask_order_id ? '****' : (currentTxnId || '—')}</div>` : ''}
+          ${((activeTab === 'Dine-in' && formData.table_name_dine_in) || (activeTab === 'Pickup' && formData.table_name_pickup) || (activeTab === 'Delivery' && formData.table_name_delivery) || (activeTab === 'Quick Bill' && formData.table_name_quick_bill)) ? `<div><strong>Table:</strong><br />${selectedTable || '—'}</div>` : ''}
+          ${formData.show_date_bill ? `<div><strong>Date:</strong><br />${new Date().toLocaleDateString('en-GB')}</div>` : ''}
+          ${formData.show_order_placed_time ? `<div><strong>Time:</strong><br />${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</div>` : ''}
+          ${formData.show_waiter_bill ? `<div><strong>Waiter:</strong><br />${user?.name || 'N/A'}</div>` : ''}
+          ${formData.show_captain_bill ? `<div><strong>Captain:</strong><br />${user?.name || 'N/A'}</div>` : ''}
+          ${formData.show_covers_bill ? `<div><strong>Covers:</strong><br />N/A</div>` : ''}
+          ${formData.show_bill_print_count ? `<div><strong>Print Count:</strong><br />1</div>` : ''}
+        </div>
+        ${formData.show_customer_bill ? `
+          <hr style="border: none; border-top: 1px dashed #000; margin: 5px 0;" />
+          <div style="font-size: 9pt; margin-bottom: 8px;">
+            <div><strong>Customer:</strong> ${customerName || 'Guest'}</div>
+            <div><strong>Mobile:</strong> ${mobileNumber || 'N/A'}</div>
+            ${formData.show_customer_gst_bill ? `<div><strong>GSTIN:</strong> N/A</div>` : ''}
+            ${activeTab === 'Pickup' && formData.show_customer_address_pickup_bill ? `<div><strong>Address:</strong> N/A</div>` : ''}
+          </div>
+        ` : ''}
+        ${((activeTab === 'Dine-in' && formData.order_type_dine_in) || (activeTab === 'Pickup' && formData.order_type_pickup) || (activeTab === 'Delivery' && formData.order_type_delivery) || (activeTab === 'Quick Bill' && formData.order_type_quick_bill)) ? `
+          <hr style="border: none; border-top: 1px dashed #000; margin: 5px 0;" />
+          <div style="text-align: center; font-weight: bold; font-size: 10pt; margin-bottom: 5px;">
+            ${activeTab === 'Dine-in' && formData.bill_title_dine_in ? 'Dine-In Bill' : ''}
+            ${activeTab === 'Pickup' && formData.bill_title_pickup ? 'Pickup Bill' : ''}
+            ${activeTab === 'Delivery' && formData.bill_title_delivery ? 'Delivery Bill' : ''}
+            ${activeTab === 'Quick Bill' && formData.bill_title_quick_bill ? 'Quick Bill' : ''}
+          </div>
+        ` : ''}
+        <hr style="border: none; border-top: 1px dashed #000; margin: 5px 0;" />
+        <!-- ============ ITEMS TABLE (with conditional rendering) ============ -->
+        <div style="margin-bottom: 10px;">
+          <div style="display: grid; grid-template-columns: ${formData.print_bill_both_languages ? '3fr' : '2fr'} ${!formData.hide_item_quantity_column ? '30px' : ''} ${!formData.hide_item_rate_column ? '40px' : ''} ${!formData.hide_item_total_column ? '50px' : ''}; gap: 5px; font-weight: bold; border-bottom: 1px solid #000; padding-bottom: 2px; margin-bottom: 5px; font-size: 9pt;">
+            <div>${formData.show_alt_item_title_bill && formData.print_bill_both_languages ? 'Item/항목' : 'Description'}</div>
+            ${!formData.hide_item_quantity_column ? '<div style="text-align: right;">Qty</div>' : ''}
+            ${!formData.hide_item_rate_column ? '<div style="text-align: right;">Rate</div>' : ''}
+            ${!formData.hide_item_total_column ? '<div style="text-align: right;">Amount</div>' : ''}
+          </div>
+          ${Object.values(items.filter(i => i.qty > 0).reduce((acc: any, item: any) => {
+            const key = formData.show_items_sequence_bill ? `${item.id}-${item.price}` : String(item.id);
+            if (!acc[key]) acc[key] = { ...item, qty: 0 };
+            acc[key].qty += item.qty;
+            return acc;
+          }, {})).map((item: any, index: number) => `
+            <div style="display: grid; grid-template-columns: ${formData.print_bill_both_languages ? '3fr' : '2fr'} ${!formData.hide_item_quantity_column ? '30px' : ''} ${!formData.hide_item_rate_column ? '40px' : ''} ${!formData.hide_item_total_column ? '50px' : ''}; gap: 5px; padding: 2px 0; font-size: 9pt;">
+              <div>
+                ${item.name}
+                ${formData.print_bill_both_languages && formData.show_alt_name_bill && item.alternativeItem ? ` / ${item.alternativeItem}` : ''}
+                ${formData.show_item_note_bill && item.note ? `<div style="font-size: 8pt; color: #6c757d;">${item.note}</div>` : ''}
+                ${formData.modifier_default_option_bill && item.modifier ? `<div style="font-size: 8pt; color: #6c757d;">${item.modifier.join(', ')}</div>` : ''}
+                ${formData.show_item_hsn_code_bill ? `<div>HSN: ${item.hsn || 'N/A'}</div>` : ''}
+              </div>
+              ${!formData.hide_item_quantity_column ? `<div style="text-align: right;">${item.qty}</div>` : ''}
+              ${!formData.hide_item_rate_column ? `<div style="text-align: right;">${item.price.toFixed(2)}</div>` : ''}
+              ${!formData.hide_item_total_column ? `<div style="text-align: right;">${(item.qty * item.price).toFixed(2)}</div>` : ''}
+            </div>
+          `).join('')}
+        </div>
+        <hr style="border: none; border-top: 1px dashed #000; margin: 5px 0;" />
+        <!-- ================= TOTALS (with conditional rendering) ================= -->
+        <div style="text-align: right; font-size: 9pt; margin-bottom: 5px;">
+          ${!formData.hide_total_without_tax ? `<div>Subtotal: ₹${taxCalc.subtotal.toFixed(2)}</div>` : ''}
+          ${discount > 0 ? `
+            <div>Discount: -₹${discount.toFixed(2)}</div>
+            ${formData.show_discount_reason_bill && reason ? `<div style="font-size: 8pt;">(${reason})</div>` : ''}
+          ` : ''}
+          ${formData.show_tax_charge_bill ? `
+            <div><strong>Taxable Value:</strong> ₹${(taxCalc.subtotal - discount).toFixed(2)}</div>
+            ${taxCalc.cgstAmt > 0 ? `<div>CGST @${taxRates.cgst}%: ₹${taxCalc.cgstAmt.toFixed(2)}</div>` : ''}
+            ${taxCalc.sgstAmt > 0 ? `<div>SGST @${taxRates.sgst}%: ₹${taxCalc.sgstAmt.toFixed(2)}</div>` : ''}
+            ${taxCalc.igstAmt > 0 ? `<div>IGST @${taxRates.igst}%: ₹${taxCalc.igstAmt.toFixed(2)}</div>` : ''}
+          ` : ''}
+          ${roundOffEnabled && roundOffValue !== 0 ? `<div>Round Off: ${roundOffValue > 0 ? '+' : ''}₹${roundOffValue.toFixed(2)}</div>` : ''}
+          <div style="font-weight: bold; font-size: 10pt; border-top: 1px solid #000; padding-top: 5px;">
+            GRAND TOTAL: ₹${taxCalc.grandTotal.toFixed(2)}
+          </div>
+          ${formData.show_bill_amount_words ? '<div>In Words: {/* TODO: Function to convert number to words needed */}</div>' : ''}
+          ${formData.show_customer_paid_amount ? `<div>Paid: ₹${taxCalc.grandTotal.toFixed(2)}</div>` : ''}
+          ${formData.show_due_amount_bill ? '<div>Due: ₹0.00</div>' : ''}
+        </div>
+        ${formData.show_order_note_bill && formData.note ? `<div style="text-align: center; font-size: 8pt; margin-top: 5px;">${formData.note}</div>` : ''}
+        ${((activeTab === 'Dine-in' && formData.payment_mode_dine_in) || (activeTab === 'Pickup' && formData.payment_mode_pickup) || (activeTab === 'Delivery' && formData.payment_mode_delivery) || (activeTab === 'Quick Bill' && formData.payment_mode_quick_bill)) && formData.show_default_payment ? `
+          <hr style="border: none; border-top: 1px dashed #000; margin: 5px 0;" />
+          <div style="text-align: center; font-size: 9pt;">Payment Mode: ${selectedPaymentModes.join(', ') || 'Cash'}</div>
+        ` : ''}
+        <!-- QR Codes -->
+        ${formData.show_custom_qr_codes_bill ? '<div>{/* Custom QR Code Image */}</div>' : ''}
+        ${formData.show_ebill_invoice_qrcode ? '<div>{/* E-bill QR Code Image */}</div>' : ''}
+        ${formData.show_zatca_invoice_qr ? '<div>{/* ZATCA QR Code Image */}</div>' : ''}
+        <hr style="border: none; border-top: 1px dashed #000; margin: 5px 0;" />
+        <div style="text-align: center; font-size: 8pt; margin-top: 10px;">
+          ${formData.footer_note || 'STAY SAFE, STAY HEALTHY'}
+        </div>
+      </div>
+    </div>
+    `;
+  };
+
+  return (
+    <Modal
+      show={show}
+      onHide={onHide}
+      size="lg"
+      centered
+      backdrop="static"
+    >
+      <Modal.Header closeButton>
+        <Modal.Title>Bill Preview & Print</Modal.Title>
+      </Modal.Header>
+      <Modal.Body style={{ maxHeight: "70vh", overflowY: "auto" }}>
+        {loading ? (
+          <div className="text-center py-5">
+            <Spinner animation="border" variant="primary" />
+            <p className="mt-2">Loading printer settings...</p>
+          </div>
+        ) : (
+          <div>
+            {/* Preview Section */}
+            <div className="border p-3 mb-3 bg-light">
+              <div
+                style={{
+                  width: "80mm",
+                  margin: "0 auto",
+                  fontFamily: "'Courier New', monospace",
+                  fontSize: "10px",
+                  lineHeight: "1.2",
+                  padding: "10px",
+                  color: "#000",
+                  backgroundColor: "white",
+                  border: "1px solid #ccc"
+                }}
+                dangerouslySetInnerHTML={{ __html: generateBillContent() }}
+              />
+            </div>
+            {/* Printer Info */}
+            <div className="alert alert-info mb-3">
+              <div className="d-flex justify-content-between align-items-center">
+                <div>
+                  <strong>Printer:</strong> {printerName || "Not configured"}
+                </div>
+                {!printerName && (
+                  <Button
+                    variant="outline-primary"
+                    size="sm"
+                    onClick={() => {
+                      toast("Please configure printer in settings");
+                    }}
+                  >
+                    Configure
+                  </Button>
+                )}
+              </div>
+            </div>
+            {/* Print Stats */}
+            <div className="row mb-3">
+              <div className="col-md-6">
+                <div className="card">
+                  <div className="card-body">
+                    <h6 className="card-title">Bill Details</h6>
+                    <p className="mb-1">
+                      <strong>Order No:</strong> {orderNo || "—"}
+                    </p>
+                    <p className="mb-1">
+                      <strong>Table:</strong> {selectedTable || activeTab}
+                    </p>
+                    <p className="mb-1">
+                      <strong>Items:</strong> {items.filter(i => i.qty > 0).length}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="col-md-6">
+                <div className="card">
+                  <div className="card-body">
+                    <h6 className="card-title">Customer Info</h6>
+                    <p className="mb-1">
+                      <strong>Name:</strong> {customerName || "Guest"}
+                    </p>
+                    <p className="mb-1">
+                      <strong>Mobile:</strong> {mobileNumber || "—"}
+                    </p>
+                    <p className="mb-0">
+                      <strong>Order Type:</strong> {activeTab}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </Modal.Body>
+      <Modal.Footer>
+        <Button variant="secondary" onClick={onHide}>
+          Close
+        </Button>
+        <Button
+          variant="primary"
+          onClick={handlePrintBill}
+          disabled={loading}
+        >
+          {loading ? (
+            <>
+              <Spinner animation="border" size="sm" className="me-2" />
+              Printing...
+            </>
+          ) : (
+            "Print Bill"
+          )}
+        </Button>
+      </Modal.Footer>
+    </Modal>
+  );
+};
+
+export default BillPreviewPrint;

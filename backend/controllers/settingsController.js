@@ -77,12 +77,30 @@ exports.createKotPrinterSetting = async (req, res) => {
 
 exports.getBillPrinterSettings = async (req, res) => {
   try {
-    const rows = getAll('SELECT * FROM bill_printer_settings');
-    res.json(rows);
+    const { id } = req.params;
+
+    const rows = await getAll(
+      `SELECT * FROM bill_printer_settings WHERE outlet_id = ?`,
+      [id]
+    );
+
+    if (!rows || rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Bill printer not configured"
+      });
+    }
+
+    res.json({
+      success: true,
+      data: rows[0] // 👈 FIRST ROW
+    });
+
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 };
+
 
 exports.createBillPrinterSetting = async (req, res) => {
   try {

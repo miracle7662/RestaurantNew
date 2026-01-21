@@ -10,6 +10,7 @@ import toast, { Toaster } from 'react-hot-toast';
 import F8PasswordModal from '../../components/F8PasswordModal';
 import ReverseKotModal from './ReverseKotModal';
 import KotPreviewPrint from './PrintReport/KotPrint';
+import BillPreviewPrint from './PrintReport/BillPrint';
 import { OutletSettings } from '../../utils/applyOutletSettings';
 
 const KOT_COLORS = [
@@ -458,6 +459,8 @@ const ModernBill = () => {
   const [reverseReason, setReverseReason] = useState('');
   const [showKotPrintModal, setShowKotPrintModal] = useState(false);
   const [currentKotNoForPrint, setCurrentKotNoForPrint] = useState<number | null>(null);
+  const [showBillPrintModal, setShowBillPrintModal] = useState(false);
+
 
   // Transfer modal data
   const [availableTables, setAvailableTables] = useState<Table[]>([]);
@@ -1837,20 +1840,22 @@ const ModernBill = () => {
 const printBill = async () => {
   if (!txnId) return;
 
-  // Safety check for takeaway orders
   if (isTakeaway && !txnId) {
     toast.error('Transaction not loaded. Please reopen order.');
     return;
   }
 
   try {
-    // 1️⃣ Call mark-billed API to generate TxnNo
-    const response = await axios.put(`/api/TAxnTrnbill/${txnId}/mark-billed`, {
-      outletId: selectedOutletId || Number(user?.outletid),
-      customerName: customerName || null,
-      mobileNo: customerNo || null,
+    // 1️⃣ Generate TxnNo (Bill No)
+    const response = await axios.put(
+      `/api/TAxnTrnbill/${txnId}/mark-billed`,
+      {
+        outletId: selectedOutletId || Number(user?.outletid),
+        customerName: customerName || null,
+        mobileNo: customerNo || null,
         GuestID: customerId || null,
-    });
+      }
+    );
 
     const txnNo = response.data?.data?.TxnNo;
     if (!txnNo) {
@@ -1858,30 +1863,19 @@ const printBill = async () => {
       return;
     }
 
-    // 2️⃣ TxnNo state me set karo
+    // 2️⃣ Save Bill No in state
     setOrderNo(txnNo);
 
-    // 3️⃣ PRINT JSX CONTENT
-
-
-    toast.success('Bill printed successfully');
-
-    // 4️⃣ Table status update
-    await axios.post(`/api/tablemanagement/${tableId}/status`, { status: 1 });
-
-    
-
-
-    // 5️⃣ Redirect AFTER PRINT
-    setTimeout(() => {
-      navigate('/apps/Tableview');
-    }, 500);
+    // ✅ 3️⃣ OPEN BILL PRINT MODAL (THIS WAS MISSING)
+    setShowBillPrintModal(true);
 
   } catch (error) {
     console.error('Error printing bill:', error);
     toast.error('Error printing bill');
   }
 };
+
+
 
   const PrintAndSettle = async () => {
     if (!txnId) return;
@@ -3380,6 +3374,67 @@ const printBill = async () => {
   onClose={() => setShowKotPrintModal(false)}
   selectedOutletId={selectedOutletId}
 />
+
+<BillPreviewPrint
+  show={showBillPrintModal}
+  onHide={() => setShowBillPrintModal(false)}
+
+  formData={{} as OutletSettings}
+  user={user}
+  items={billItems.filter(i => i.itemId > 0).map((item) => ({
+    id: item.itemId,
+    name: item.itemName,
+    price: item.rate,
+    qty: item.qty,
+    isBilled: item.isBilled || 0,
+    isNCKOT: 0,
+    NCName: '',
+    NCPurpose: '',
+    item_no: item.item_no.toString(),
+    txnDetailId: item.txnDetailId,
+    revQty: item.reversedQty || 0,
+    kotNo: item.mkotNo ? parseInt(item.mkotNo.split('|')[0]) : undefined
+  } as any))}
+  orderNo={orderNo ?? undefined}
+  selectedTable={tableNo}
+  activeTab={isTakeaway ? "Takeaway" : "Dine-in"}
+  customerName={customerName}
+  mobileNumber={customerNo ?? undefined}
+  currentTxnId={txnId?.toString()}
+
+  taxCalc={{
+    subtotal: grossAmount,
+    cgstAmt: totalCgst,
+    sgstAmt: totalSgst,
+    igstAmt: totalIgst,
+    grandTotal: finalAmount
+  }}
+
+  taxRates={{
+    cgst: cgstRate,
+    sgst: sgstRate,
+    igst: igstRate
+  }}
+
+  roundOffEnabled={roundOffEnabled}
+  roundOffValue={roundOff}
+  selectedPaymentModes={selectedPaymentModes}
+
+  // ✅ AFTER SUCCESS PRINT
+  onPrint={async () => {
+    toast.success("Bill printed successfully");
+
+    // Table status update AFTER print
+    await axios.post(`/api/tablemanagement/${tableId}/status`, { status: 1 });
+
+    setShowBillPrintModal(false);
+
+    setTimeout(() => {
+      navigate("/apps/Tableview");
+    }, 300);
+  }}
+/>
+
 
 
     </React.Fragment>
