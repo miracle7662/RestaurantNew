@@ -67,10 +67,10 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
   const [printerName, setPrinterName] = useState<string | null>(null);
   const [outletId, setOutletId] = useState<number | null>(null);
 
-  // Initialize with selected outlet ID or user's outlet ID
+  // Initialize with selected outlet ID or user's outlet ID or default to 1
   useEffect(() => {
-    const outlet = selectedOutletId ?? Number(user?.outletid);
-    if (outlet) {
+    const outlet = selectedOutletId ?? Number(user?.outletid) ?? 1;
+    if (outlet && !isNaN(outlet)) {
       setOutletId(outlet);
     }
   }, [user, selectedOutletId]);
@@ -101,10 +101,10 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
 
   // Auto-print logic (if enabled)
   useEffect(() => {
-    if (autoPrint && show && printerName && !loading) {
+    if (autoPrint && show && !loading) {
       handlePrintKOT();
     }
-  }, [autoPrint, show, printerName, loading]);
+  }, [autoPrint, show, loading]);
 
   const generateKOTHTML = () => {
     const kotItems = printItems.length > 0 ? printItems : items.filter(i => i.isNew);
@@ -453,7 +453,7 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
         <Button
           variant="primary"
           onClick={handlePrintKOT}
-          disabled={loading || !printerName}
+          disabled={loading}
         >
           {loading ? (
             <>

@@ -712,7 +712,7 @@ const ModernBill = () => {
 
   // Outlet selection states
   const [outlets, setOutlets] = useState<Outlet[]>([]);
-  const [selectedOutletId, setSelectedOutletId] = useState<number | null>(outletIdFromState || user?.outletid || null);
+  const [selectedOutletId, setSelectedOutletId] = useState<number | null>(outletIdFromState || user?.outletid || 1);
   // Tax details state
   const [taxDetails, setTaxDetails] = useState<any>(null);
 
@@ -1335,6 +1335,8 @@ const ModernBill = () => {
     }
   }, [tableId, isTakeaway, takeawayOrderId]);
 
+  
+
   // Check for openSettlement flag and open settlement modal
   useEffect(() => {
     if (location.state?.openSettlement) {
@@ -1677,22 +1679,28 @@ const ModernBill = () => {
         console.log("✅ Printing KOT with number:", kotNo);
         setCurrentKotNoForPrint(kotNo);
         setShowKotPrintModal(true);
+        // Don't navigate immediately when printing - navigation will happen after print in onPrint callback
       } else if (print && !kotNo) {
         console.error("❌ Print blocked: KOT No not generated");
+        // Navigate even if print failed due to no KOT No
+        navigate('/apps/Tableview', {
+          state: {
+            refreshTakeaway: true
+          }
+        });
+      } else {
+        // Navigate immediately if not printing
+        navigate('/apps/Tableview', {
+          state: {
+            refreshTakeaway: true
+          }
+        });
       }
 
       // 🔥 AFTER KOT SAVE / PRINT
       if (tableId) {
         await loadBillForTable(tableId);
       }
-
-
-      // Navigate to table view page after saving KOT
-      navigate('/apps/Tableview', {
-        state: {
-          refreshTakeaway: true
-        }
-      });
     } catch (error) {
       console.error('Error saving KOT:', error);
       toast.error('Error saving KOT');
@@ -3323,38 +3331,56 @@ const printBill = async () => {
         persistentTxnId={txnId}
         persistentTableId={tableId}
       />
-      <KotPreviewPrint
-        show={showKotPrintModal}
-        onHide={() => setShowKotPrintModal(false)}
-        printItems={billItems.map(item => ({
-          id: item.itemId,
-          name: item.itemName,
-          price: item.rate,
-          qty: item.qty,
-          isBilled: item.isBilled || 0,
-          isNCKOT: 0,
-          NCName: '',
-          NCPurpose: '',
-          item_no: item.item_no.toString(),
-          kotNo: currentKotNoForPrint || undefined,
-          txnDetailId: item.txnDetailId
-        }))}
-        currentKOTNo={currentKotNoForPrint}
-        selectedTable={tableNo}
-        activeTab={isTakeaway ? 'Takeaway' : 'Dine-in'}
-        customerName={customerName}
-        mobileNumber={customerNo}
-        user={user}
-        formData={{} as OutletSettings}
-        reverseQtyMode={false}
-        autoPrint={true}
-        onPrint={() => {
-          // Handle print action if needed
-          setShowKotPrintModal(false);
-        }}
-        onClose={() => setShowKotPrintModal(false)}
-        selectedOutletId={selectedOutletId}
-      />
+     <KotPreviewPrint
+  show={showKotPrintModal}
+  onHide={() => setShowKotPrintModal(false)}
+
+  // ✅ PRINT ONLY NEW KOT ITEMS
+  printItems={billItems
+    .filter(item => item.itemId > 0 && !item.mkotNo)
+    .map(item => ({
+      id: item.itemId,
+      name: item.itemName,
+      price: item.rate,
+      qty: item.qty,
+      isBilled: 0,
+      isNCKOT: 0,
+      NCName: '',
+      NCPurpose: '',
+      item_no: item.item_no.toString(),
+      kotNo: currentKotNoForPrint || undefined,
+      txnDetailId: item.txnDetailId
+    }))
+  }
+
+  currentKOTNo={currentKotNoForPrint}
+  selectedTable={tableNo || 'Takeaway'}
+  activeTab={isTakeaway ? 'Takeaway' : 'Dine-in'}
+  customerName={customerName}
+  mobileNumber={customerNo}
+  user={user}
+  formData={{} as OutletSettings}
+  reverseQtyMode={false}
+
+  // ✅ REQUIRED FOR AUTO PRINT
+  autoPrint={true}
+
+  // ✅ NAVIGATE AFTER PRINT COMPLETES
+  onPrint={() => {
+    setTimeout(() => {
+      setShowKotPrintModal(false);
+      navigate('/apps/Tableview', {
+        state: {
+          refreshTakeaway: true
+        }
+      });
+    }, 300);
+  }}
+
+  onClose={() => setShowKotPrintModal(false)}
+  selectedOutletId={selectedOutletId}
+/>
+
 
     </React.Fragment>
   );

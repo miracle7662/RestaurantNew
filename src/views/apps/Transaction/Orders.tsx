@@ -268,6 +268,7 @@ const resetBillingPanel = () => {
 
 
   const hasModifications = items.some(item => item.isNew) || reverseQtyItems.length > 0;
+  const showKotButton = hasModifications || ['Pickup', 'Delivery', 'Quick Bill'].includes(activeTab);
 
   const fetchAllBills = async () => {
     try {
@@ -461,31 +462,6 @@ const resetBillingPanel = () => {
     }
   }, [setItems, setReversedItems, setCurrentKOTNo, setCurrentKOTNos, setCurrentTxnId]);
 
-
-  const fetchKOTPrinter = async (outletId?: number | null): Promise<string | null> => {
-    try {
-      const res = await fetch(
-        `http://localhost:3001/api/settings/kot-printer-settings/${outletId || selectedOutletId || user?.outletid}`
-      );
-
-
-      if (!res.ok) return null;
-
-      const data = await res.json();
-      console.log("Fetched KOT printer:", data?.printer_name);
-
-      return data?.printer_name || null;
-    } catch (err) {
-      console.error("Failed to fetch KOT printer:", err);
-      return null;
-    }
-  };
-
-
-
-
-
- 
 
   const getTableButtonClass = (table: TableItem, isSelected: boolean) => {
 
@@ -887,6 +863,11 @@ const resetBillingPanel = () => {
       setReverseQtyItems([]);
       setShowSaveReverseButton(false);
       setShowPrintBoth(false);
+
+      // Ensure outlet ID is set for Pickup, Delivery, Quick Bill
+      if (['Pickup', 'Delivery', 'Quick Bill'].includes(tab)) {
+        setSelectedOutletId(Number(user?.outletid));
+      }
 
       setShowOrderDetails(true);
       if (tab === 'Billing') {
@@ -1462,6 +1443,8 @@ const resetBillingPanel = () => {
           potentialOutletId = departments[0].outletid;
         }
         resolvedOutletId = potentialOutletId;
+        // Ensure selectedOutletId is set for KotPreviewPrint component
+        setSelectedOutletId(resolvedOutletId);
 
         if (resolvedOutletId && departments.length > 0) {
           // Find the first department associated with the resolved outlet.
@@ -4097,7 +4080,7 @@ useEffect(() => {
                   <div className="col-12 d-flex align-items-center">
                     {!reverseQtyMode && (
                       <div className="d-flex align-items-center gap-2">
-                        {hasModifications ? (
+                        {showKotButton ? (
                           // Case 1: There are new items or reverse KOT items. Show only KOT button.
                           activeTab === 'Quick Bill' && showPrintBoth ? (
                             <Button
@@ -4483,7 +4466,7 @@ useEffect(() => {
             reverseQtyMode={reverseQtyMode}
             reverseQtyItems={reverseQtyItems}
             selectedOutletId={selectedOutletId}
-            autoPrint={['Pickup', 'Delivery', 'Quick Bill'].includes(activeTab)}
+            autoPrint={false}
           />
         </div>
       </div>
