@@ -1160,8 +1160,7 @@ const resetBillingPanel = () => {
         setFormData(prev => applyKotSettings(prev, kotData));
       }
 
-      const { preview, print } = await fetchBillSettings(outletId);
-      setFormData(prev => applyBillSettings(prev, preview, print));
+      
 
     } catch (err) {
       console.error('Failed to load outlet settings', err);

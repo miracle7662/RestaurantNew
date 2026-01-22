@@ -1,6 +1,9 @@
  // src/services/outletSettings.service.ts
+import axios from "axios";
 
 const BASE_URL = 'http://localhost:3001/api/outlets';
+
+/* ---------------- KOT PRINT SETTINGS ---------------- */
 
 export const fetchKotPrintSettings = async (outletId: number) => {
   const res = await fetch(`${BASE_URL}/kot-print-settings/${outletId}`, {
@@ -11,44 +14,27 @@ export const fetchKotPrintSettings = async (outletId: number) => {
     if (res.status === 404) return null;
     throw new Error('Failed to fetch KOT print settings');
   }
-  return res.json();
+
+  const data = await res.json();
+  return data?.data ?? data;
 };
 
-export const updateKotPrintSettings = async (outletId: number, settings: any) => {
-  const res = await fetch(`${BASE_URL}/kot-print-settings/${outletId}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(settings),
-  });
 
-  if (!res.ok) {
-    throw new Error('Failed to update KOT print settings');
-  }
-  return res.json();
-};
+/* ---------------- BILL SETTINGS (PREVIEW + PRINT) ---------------- */
 
 export const fetchBillSettings = async (outletId: number) => {
-  const [previewRes, printRes] = await Promise.all([
-    fetch(`${BASE_URL}/bill-preview-settings/${outletId}`),
-    fetch(`${BASE_URL}/bill-print-settings/${outletId}`)
+  const [
+    billPreviewRes,
+    billPrintRes
+  ] = await Promise.all([
+    axios.get(`${BASE_URL}/bill-preview-settings/${outletId}`),
+    axios.get(`${BASE_URL}/bill-print-settings/${outletId}`)
   ]);
 
-  const preview = previewRes.ok ? await previewRes.json() : {};
-  const print = printRes.ok ? await printRes.json() : {};
-
-  // Normalize to booleans
-  const normalizedPreview = {
-    ...preview,
-    enablePrintPreview: Boolean(preview.enablePrintPreview),
-  };
-
-  const normalizedPrint = {
-    ...print,
-    enableBillPrint: Boolean(print.enableBillPrint),
-  };
-
   return {
-    preview: normalizedPreview,
-    print: normalizedPrint,
+    billPreviewSettings: billPreviewRes.data,
+    billPrintSettings: billPrintRes.data
   };
 };
+
+
