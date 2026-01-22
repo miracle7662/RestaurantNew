@@ -96,6 +96,8 @@ function SettingsPage() {
   // const [selectedPrinter, setSelectedPrinter] = useState("");
   const [selectedKotPrinter, setSelectedKotPrinter] = useState("");
   const [selectedBillPrinter, setSelectedBillPrinter] = useState("");
+  const [kotEnabled, setKotEnabled] = useState(true);
+  const [billEnabled, setBillEnabled] = useState(true);
 
   const [printers, setPrinters] = useState<Array<{ name: string; displayName: string }>>([]);
 
@@ -231,8 +233,8 @@ function SettingsPage() {
   // Load all data when printer tab is active
   useEffect(() => {
     if (activeTab === 'printer') {
-      fetchKotPrinters();
-      fetchBillPrinters();
+      if (kotEnabled) fetchKotPrinters();
+      if (billEnabled) fetchBillPrinters();
       fetchLabelPrinters();
       fetchReportPrinters();
       fetchDepartmentPrinters();
@@ -241,7 +243,7 @@ function SettingsPage() {
       fetchCategoryPrinters();
       fetchKdsUsers();
     }
-  }, [activeTab]);
+  }, [activeTab, kotEnabled, billEnabled]);
 
   const tabs = [
     { key: "general", label: "General", icon: Settings },
@@ -517,7 +519,7 @@ function SettingsPage() {
                 <div className="row g-3">
                    <div className="col-md-2">
                     <div className="form-check form-switch">
-                      <input className="form-check-input" type="checkbox" role="switch" id="kot-enable-print" defaultChecked />
+                      <input className="form-check-input" type="checkbox" role="switch" id="kot-enable-print" checked={kotEnabled} onChange={(e) => setKotEnabled(e.target.checked)} />
                       <label className="form-check-label">Enable Print</label>
                     </div>
                   </div>
@@ -528,6 +530,7 @@ function SettingsPage() {
                         id="kot-printer"
                         value={selectedKotPrinter}
                         onChange={(e) => setSelectedKotPrinter(e.target.value)}
+                        disabled={!kotEnabled}
                       >
                         <option value="">Select Printer</option>
 
@@ -542,7 +545,7 @@ function SettingsPage() {
                   </div>
                   <div className="col-md-3">
                     <label className="form-label">Source</label>
-                    <select className="form-select" id="kot-source">
+                    <select className="form-select" id="kot-source" disabled={!kotEnabled}>
                       <option>Select Source</option>
                       <option>Source 1</option>
                       <option>Source 2</option>
@@ -550,7 +553,7 @@ function SettingsPage() {
                   </div>
                   <div className="col-md-3">
                     <label className="form-label">Order Type</label>
-                    <select className="form-select" id="kot-order-type">
+                    <select className="form-select" id="kot-order-type" disabled={!kotEnabled}>
                       <option>Select Order Type</option>
                       <option>Dine-in</option>
                       <option>Takeaway</option>
@@ -559,7 +562,7 @@ function SettingsPage() {
                   </div>
                   <div className="col-md-3">
                     <label className="form-label">Size</label>
-                    <select className="form-select" id="kot-size">
+                    <select className="form-select" id="kot-size" disabled={!kotEnabled}>
                       <option>Select Size</option>
                       <option>58mm</option>
                       <option>80mm</option>
@@ -568,14 +571,14 @@ function SettingsPage() {
                   </div>
                   <div className="col-md-3">
                     <label className="form-label">Copies</label>
-                    <input className="form-control" id="kot-copies" placeholder="No of Copies" type="number" min="1" />
+                    <input className="form-control" id="kot-copies" placeholder="No of Copies" type="number" min="1" disabled={!kotEnabled} />
                   </div>
-                 
+
                   <div className="col-md-9 d-flex gap-2 align-items-end">
-                    <button className="btn btn-success" onClick={() => handleAddKotPrinter()}>
+                    <button className="btn btn-success" onClick={() => handleAddKotPrinter()} disabled={!kotEnabled}>
                       {loading ? 'Adding...' : 'Add'}
                     </button>
-                    <button className="btn btn-secondary" onClick={() => clearKotForm()}>Clear</button>
+                    <button className="btn btn-secondary" onClick={() => clearKotForm()} disabled={!kotEnabled}>Clear</button>
                   </div>
                 </div>
                 <PrinterTable
@@ -591,20 +594,21 @@ function SettingsPage() {
                 <div className="row g-3">
                   <div className="col-md-2">
                     <div className="form-check form-switch">
-                      
-                      <input className="form-check-input" type="checkbox" role="switch" id="bill-enable-print" defaultChecked />
+
+                      <input className="form-check-input" type="checkbox" role="switch" id="bill-enable-print" checked={billEnabled} onChange={(e) => setBillEnabled(e.target.checked)} />
                       <label className="form-check-label">Enable Print</label>
                     </div>
                   </div>
                   
                   <div className="col-md-3">
-                    
+
                     <label className="form-label">Printer</label>
                       <select
                         className="form-select"
                         id="bill-printer"
                         value={selectedBillPrinter}
                         onChange={(e) => setSelectedBillPrinter(e.target.value)}
+                        disabled={!billEnabled}
                       >
                         <option value="">Select Printer</option>
 
@@ -617,7 +621,7 @@ function SettingsPage() {
                   </div>
                   <div className="col-md-3">
                     <label className="form-label">Source</label>
-                    <select className="form-select" id="bill-source">
+                    <select className="form-select" id="bill-source" disabled={!billEnabled}>
                       <option>Select Source</option>
                       <option>Source 1</option>
                       <option>Source 2</option>
@@ -625,7 +629,7 @@ function SettingsPage() {
                   </div>
                   <div className="col-md-3">
                     <label className="form-label">Order Type</label>
-                    <select className="form-select" id="bill-order-type">
+                    <select className="form-select" id="bill-order-type" disabled={!billEnabled}>
                       <option>Select Order Type</option>
                       <option>Dine-in</option>
                       <option>Takeaway</option>
@@ -633,7 +637,7 @@ function SettingsPage() {
                   </div>
                   <div className="col-md-3">
                     <label className="form-label">Size</label>
-                    <select className="form-select" id="bill-size">
+                    <select className="form-select" id="bill-size" disabled={!billEnabled}>
                       <option>Select Size</option>
                       <option>58mm</option>
                       <option>80mm</option>
@@ -641,14 +645,14 @@ function SettingsPage() {
                   </div>
                   <div className="col-md-3">
                     <label className="form-label">Copies</label>
-                    <input className="form-control" id="bill-copies" placeholder="No of Copies" type="number" min="1" />
+                    <input className="form-control" id="bill-copies" placeholder="No of Copies" type="number" min="1" disabled={!billEnabled} />
                   </div>
-                  
+
                   <div className="col-md-9 d-flex gap-2 align-items-end">
-                    <button className="btn btn-success" onClick={() => handleAddBillPrinter()}>
+                    <button className="btn btn-success" onClick={() => handleAddBillPrinter()} disabled={!billEnabled}>
                       {loading ? 'Adding...' : 'Add'}
                     </button>
-                    <button className="btn btn-secondary" onClick={() => clearBillForm()}>Clear</button>
+                    <button className="btn btn-secondary" onClick={() => clearBillForm()} disabled={!billEnabled}>Clear</button>
                   </div>
                 </div>
                 <PrinterTable
