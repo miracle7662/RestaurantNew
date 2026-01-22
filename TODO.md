@@ -1,6 +1,29 @@
-# KotPrint.tsx Fixes
+# TODO: Add Enable Print Toggle to KOT and Bill Printer Settings
 
-- [x] Remove the useEffect that overwrites localFormData with formData prop
-- [x] Add console.log for activeTab and tabKey mapping in generateKOTContent
-- [x] Verify generateKOTContent uses only localFormData
-- [x] Fix key mapping in applyKotSettings for hide_item_rate_column and hide_item_total_column to use !data.show_item_price
+## Database Changes
+- [ ] Add `enable_print BOOLEAN DEFAULT 1` to kot_printer_settings table in db.js
+- [ ] Add `enable_print BOOLEAN DEFAULT 1` to bill_printer_settings table in db.js
+
+## Backend Controller Updates
+- [ ] Update settingsController.js to handle enable_print in createKotPrinterSetting
+- [ ] Update settingsController.js to handle enable_print in createBillPrinterSetting
+- [ ] Add update methods for KOT and Bill printer settings if needed
+
+## Frontend Interface Updates
+- [ ] Update KotPrinterSetting interface in Settings.tsx to include enable_print
+- [ ] Update BillPrinterSetting interface in Settings.tsx to include enable_print
+
+## Frontend Form Updates
+- [ ] Add toggle switch for enable_print in KOT Printer Settings form
+- [ ] Add toggle switch for enable_print in Bill Printer Settings form
+- [ ] Update form handlers to include enable_print in API calls
+
+## API Integration
+- [ ] Update handleAddKotPrinter to send enable_print
+- [ ] Update handleAddBillPrinter to send enable_print
+- [ ] Update handleEditKotPrinter to handle enable_print
+- [ ] Update handleEditBillPrinter to handle enable_print
+
+## Testing
+- [ ] Test toggle functionality
+- [ ] Verify backend persistence

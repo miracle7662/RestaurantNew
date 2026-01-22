@@ -42,7 +42,7 @@ exports.getKotPrinterSettings = async (req, res) => {
  */
 exports.getAllKotPrinterSettings = async (req, res) => {
   try {
-    const rows = await getAll("SELECT * FROM kot_printer_settings");
+    const rows = await getAll("SELECT * FROM kot_printer_settings WHERE outlet_id = ?", [req.outletid]);
     res.json(rows);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -55,18 +55,38 @@ exports.getAllKotPrinterSettings = async (req, res) => {
 
 exports.createKotPrinterSetting = async (req, res) => {
   try {
-    const { printer_name, source, order_type, size, copies, outlet_id } =
-      req.body;
+    const {
+      printer_name,
+      source,
+      order_type,
+      size,
+      copies = 1,
+      outlet_id,
+      enableKotPrint = 1
+    } = req.body;
+
+    if (!printer_name || !source || !order_type || !size || !outlet_id) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
 
     await runQuery(
-      `INSERT INTO kot_printer_settings 
-      (printer_name, source, order_type, size, copies, outlet_id) 
-      VALUES (?, ?, ?, ?, ?, ?)`,
-      [printer_name, source, order_type, size, copies, outlet_id]
+      `INSERT INTO kot_printer_settings
+      (printer_name, source, order_type, size, copies, outlet_id, enableKotPrint)
+      VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [
+        printer_name,
+        source,
+        order_type,
+        size,
+        copies,
+        outlet_id,
+        enableKotPrint ? 1 : 0
+      ]
     );
 
-    res.json({ msg: 'KOT Setting Added' });
+    res.json({ success: true, msg: 'KOT Setting Added' });
   } catch (e) {
+    console.error('KOT INSERT ERROR:', e.message);
     res.status(500).json({ error: e.message });
   }
 };
@@ -80,22 +100,30 @@ exports.getBillPrinterSettings = async (req, res) => {
     const { id } = req.params;
 
     const rows = await getAll(
-      `SELECT * FROM bill_printer_settings WHERE outlet_id = ?`,
+      `SELECT * FROM bill_printer_settings 
+       WHERE outlet_id = ? 
+       LIMIT 1`,
       [id]
     );
 
     if (!rows || rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: "Bill printer not configured"
-      });
+      return res.json({ printer_name: null });
     }
 
-    res.json({
-      success: true,
-      data: rows[0] // 👈 FIRST ROW
-    });
+    res.json(rows[0]); // ✅ SINGLE OBJECT
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+};
 
+
+/**
+ * Get all bill printer settings without id parameter
+ */
+exports.getAllBillPrinterSettings = async (req, res) => {
+  try {
+    const rows = await getAll("SELECT * FROM bill_printer_settings");
+    res.json(rows);
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -104,21 +132,42 @@ exports.getBillPrinterSettings = async (req, res) => {
 
 exports.createBillPrinterSetting = async (req, res) => {
   try {
-    const { printer_name, source, order_type, size, copies, outlet_id } =
-      req.body;
+    const {
+      printer_name,
+      source,
+      order_type,
+      size,
+      copies = 1,
+      outlet_id,
+      enableBillPrint = 1
+    } = req.body;
+
+    if (!printer_name || !source || !order_type || !size || !outlet_id) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
 
     await runQuery(
-      `INSERT INTO bill_printer_settings 
-      (printer_name, source, order_type, size, copies, outlet_id) 
-      VALUES (?, ?, ?, ?, ?, ?)`,
-      [printer_name, source, order_type, size, copies, outlet_id]
+      `INSERT INTO bill_printer_settings
+      (printer_name, source, order_type, size, copies, outlet_id, enableBillPrint)
+      VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [
+        printer_name,
+        source,
+        order_type,
+        size,
+        copies,
+        outlet_id,
+        enableBillPrint ? 1 : 0
+      ]
     );
 
-    res.json({ msg: 'Bill Printer Setting Added' });
+    res.json({ success: true, msg: 'Bill Printer Setting Added' });
   } catch (e) {
+    console.error('BILL INSERT ERROR:', e.message);
     res.status(500).json({ error: e.message });
   }
 };
+
 
 // ------------------------------------------
 // 4️⃣ Table-wise KOT Printer
@@ -126,7 +175,7 @@ exports.createBillPrinterSetting = async (req, res) => {
 
 exports.getTableWiseKOT = async (req, res) => {
   try {
-    const rows = getAll('SELECT * FROM table_wise_kot_printer');
+    const rows = getAll('SELECT * FROM table_wise_kot_printer WHERE outlet_id = ?', [req.outletid]);
     res.json(rows);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -135,13 +184,17 @@ exports.getTableWiseKOT = async (req, res) => {
 
 exports.createTableWiseKOT = async (req, res) => {
   try {
-    const { table_no, printer_name, size, source, copies } = req.body;
+    const { table_no, printer_name, size, source, copies, outlet_id } = req.body;
+
+    if (!outlet_id) {
+      return res.status(400).json({ error: 'outlet_id is required' });
+    }
 
     await runQuery(
-      `INSERT INTO table_wise_kot_printer 
-      (table_no, printer_name, size, source, copies) 
-      VALUES (?, ?, ?, ?, ?)`,
-      [table_no, printer_name, size, source, copies]
+      `INSERT INTO table_wise_kot_printer
+      (table_no, printer_name, size, source, copies, outlet_id)
+      VALUES (?, ?, ?, ?, ?, ?)`,
+      [table_no, printer_name, size, source, copies, outlet_id]
     );
 
     res.json({ msg: 'Table-wise KOT Added' });
@@ -156,7 +209,7 @@ exports.createTableWiseKOT = async (req, res) => {
 
 exports.getTableWiseBill = async (req, res) => {
   try {
-    const rows = getAll('SELECT * FROM table_wise_bill_printer');
+    const rows = getAll('SELECT * FROM table_wise_bill_printer WHERE outlet_id = ?', [req.outletid]);
     res.json(rows);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -168,10 +221,10 @@ exports.createTableWiseBill = async (req, res) => {
     const { table_no, printer_name, size, source, copies } = req.body;
 
     await runQuery(
-      `INSERT INTO table_wise_bill_printer 
-      (table_no, printer_name, size, source, copies) 
-      VALUES (?, ?, ?, ?, ?)`,
-      [table_no, printer_name, size, source, copies]
+      `INSERT INTO table_wise_bill_printer
+      (table_no, printer_name, size, source, copies, outlet_id)
+      VALUES (?, ?, ?, ?, ?, ?)`,
+      [table_no, printer_name, size, source, copies, req.outletid]
     );
 
     res.json({ msg: 'Table-wise Bill Added' });
@@ -186,7 +239,7 @@ exports.createTableWiseBill = async (req, res) => {
 
 exports.getCategoryWisePrinters = async (req, res) => {
   try {
-    const rows = getAll('SELECT * FROM category_wise_printer');
+    const rows = getAll('SELECT * FROM category_wise_printer WHERE outlet_id = ?', [req.outletid]);
     res.json(rows);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -195,14 +248,18 @@ exports.getCategoryWisePrinters = async (req, res) => {
 
 exports.createCategoryWisePrinter = async (req, res) => {
   try {
-    const { category, printer_name, order_type, size, source, copies } =
+    const { category, printer_name, order_type, size, source, copies, outlet_id } =
       req.body;
 
+    if (!outlet_id) {
+      return res.status(400).json({ error: 'outlet_id is required' });
+    }
+
     await runQuery(
-      `INSERT INTO category_wise_printer 
-      (category, printer_name, order_type, size, source, copies) 
-      VALUES (?, ?, ?, ?, ?, ?)`,
-      [category, printer_name, order_type, size, source, copies]
+      `INSERT INTO category_wise_printer
+      (category, printer_name, order_type, size, source, copies, outlet_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [category, printer_name, order_type, size, source, copies, outlet_id]
     );
 
     res.json({ msg: 'Category-wise Setting Added' });
@@ -217,7 +274,7 @@ exports.createCategoryWisePrinter = async (req, res) => {
 
 exports.getDepartmentWisePrinters = async (req, res) => {
   try {
-    const rows = getAll('SELECT * FROM department_wise_printer');
+    const rows = getAll('SELECT * FROM department_wise_printer WHERE outlet_id = ?', [req.outletid]);
     res.json(rows);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -230,10 +287,10 @@ exports.createDepartmentWisePrinter = async (req, res) => {
       req.body;
 
     await runQuery(
-      `INSERT INTO department_wise_printer 
-      (department, printer_name, order_type, size, source, copies) 
-      VALUES (?, ?, ?, ?, ?, ?)`,
-      [department, printer_name, order_type, size, source, copies]
+      `INSERT INTO department_wise_printer
+      (department, printer_name, order_type, size, source, copies, outlet_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [department, printer_name, order_type, size, source, copies, req.outletid]
     );
 
     res.json({ msg: 'Department-wise Setting Added' });
@@ -248,7 +305,7 @@ exports.createDepartmentWisePrinter = async (req, res) => {
 
 exports.getLabelPrinterSettings = async (req, res) => {
   try {
-    const rows = getAll('SELECT * FROM label_printer_settings');
+    const rows = getAll('SELECT * FROM label_printer_settings WHERE outlet_id = ?', [req.outletid]);
     res.json(rows);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -278,7 +335,7 @@ exports.createLabelPrinter = async (req, res) => {
 
 exports.getReportPrinterSettings = async (req, res) => {
   try {
-    const rows = getAll('SELECT * FROM report_printer_settings');
+    const rows = getAll('SELECT * FROM report_printer_settings WHERE outlet_id = ?', [req.outletid]);
     res.json(rows);
   } catch (e) {
     res.status(500).json({ error: e.message });

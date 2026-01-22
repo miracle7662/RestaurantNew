@@ -154,8 +154,8 @@ export const applyKotSettings = (prev: any, data: any) => ({
   print_kot_both_languages: data.print_kot_both_languages ?? prev.print_kot_both_languages,
   show_order_placed_time: data.show_order_placed_time ?? prev.show_order_placed_time,
   hide_item_quantity_column: data.hide_item_quantity_column ?? prev.hide_item_quantity_column,
-  hide_item_rate_column: data.hide_item_rate_column ?? prev.hide_item_rate_column,
-  hide_item_total_column: data.hide_item_total_column ?? prev.hide_item_total_column,
+  hide_item_rate_column: !data.show_item_price,
+  hide_item_total_column: !data.show_item_price,
 });
 
 export const applyBillSettings = (prev: any, preview: any, print: any) => ({

@@ -1007,25 +1007,29 @@ CREATE TABLE IF NOT EXISTS mst_printers (
   
 
     CREATE TABLE IF NOT EXISTS kot_printer_settings (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      printer_name TEXT,
-      source TEXT,
-      order_type TEXT,
-      size TEXT,
-      copies INTEGER,
-      outlet_id INTEGER
-    );
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  printer_name TEXT,
+  source TEXT,
+  order_type TEXT,
+  size TEXT,
+  copies INTEGER,
+  outlet_id INTEGER,
+  enableKotPrint INTEGER DEFAULT 1
+);
 
 
-    CREATE TABLE IF NOT EXISTS bill_printer_settings (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      printer_name TEXT,
-      source TEXT,
-      order_type TEXT,
-      size TEXT,
-      copies INTEGER,
-      outlet_id INTEGER
-    );
+
+   CREATE TABLE IF NOT EXISTS bill_printer_settings (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  printer_name TEXT,
+  source TEXT,
+  order_type TEXT,
+  size TEXT,
+  copies INTEGER,
+  outlet_id INTEGER,
+  enableBillPrint INTEGER DEFAULT 1
+);
+
     
 
     CREATE TABLE IF NOT EXISTS table_wise_kot_printer (

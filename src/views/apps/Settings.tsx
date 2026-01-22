@@ -7,6 +7,7 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 
+
 interface KotPrinterSetting {
   id: number;
   printer_name: string;
@@ -15,6 +16,7 @@ interface KotPrinterSetting {
   size: string;
   copies: number;
   outlet_id: number;
+  enableKotPrint: boolean;
 }
 
 interface BillPrinterSetting {
@@ -25,6 +27,7 @@ interface BillPrinterSetting {
   size: string;
   copies: number;
   outlet_id: number;
+  enableBillPrint: boolean;
 }
 
 interface LabelPrinterSetting {
@@ -88,6 +91,7 @@ interface KDSUser {
 }
 
 function SettingsPage() {
+ 
   const [activeTab, setActiveTab] = useState("general");
   // const [selectedPrinter, setSelectedPrinter] = useState("");
   const [selectedKotPrinter, setSelectedKotPrinter] = useState("");
@@ -285,6 +289,7 @@ function SettingsPage() {
     const orderType = (document.getElementById('kot-order-type') as HTMLSelectElement)?.value;
     const size = (document.getElementById('kot-size') as HTMLSelectElement)?.value;
     const copies = parseInt((document.getElementById('kot-copies') as HTMLInputElement)?.value || '1');
+    const enablePrint = (document.getElementById('kot-enable-print') as HTMLInputElement)?.checked;
 
     if (!printer || !source || !orderType || !size) {
       alert('Please fill all required fields');
@@ -299,7 +304,8 @@ function SettingsPage() {
         order_type: orderType,
         size,
         copies,
-        outlet_id: 1 // Assuming outlet_id is 1 for now
+        outlet_id: 1,
+        enableKotPrint: enablePrint
       };
 
       await apiCall('/settings/kot-printer-settings', {
@@ -356,6 +362,7 @@ function SettingsPage() {
     const orderType = (document.getElementById('bill-order-type') as HTMLSelectElement)?.value;
     const size = (document.getElementById('bill-size') as HTMLSelectElement)?.value;
     const copies = parseInt((document.getElementById('bill-copies') as HTMLInputElement)?.value || '1');
+    const enablePrint = (document.getElementById('bill-enable-print') as HTMLInputElement)?.checked;
 
     if (!printer || !source || !orderType || !size) {
       alert('Please fill all required fields');
@@ -370,7 +377,8 @@ function SettingsPage() {
         order_type: orderType,
         size,
         copies,
-        outlet_id: 1 // Assuming outlet_id is 1 for now
+        outlet_id: 1, // Assuming outlet_id is 1 for now
+        enableBillPrint: enablePrint
       };
 
       await apiCall('/settings/bill-printer-settings', {
@@ -507,6 +515,12 @@ function SettingsPage() {
               {/* KOT PRINTER SETTINGS */}
               <PrinterSection title="KOT Printer Settings">
                 <div className="row g-3">
+                   <div className="col-md-2">
+                    <div className="form-check form-switch">
+                      <input className="form-check-input" type="checkbox" role="switch" id="kot-enable-print" defaultChecked />
+                      <label className="form-check-label">Enable Print</label>
+                    </div>
+                  </div>
                   <div className="col-md-3">
                     <label className="form-label">Printer</label>
                       <select
@@ -556,6 +570,7 @@ function SettingsPage() {
                     <label className="form-label">Copies</label>
                     <input className="form-control" id="kot-copies" placeholder="No of Copies" type="number" min="1" />
                   </div>
+                 
                   <div className="col-md-9 d-flex gap-2 align-items-end">
                     <button className="btn btn-success" onClick={() => handleAddKotPrinter()}>
                       {loading ? 'Adding...' : 'Add'}
@@ -574,7 +589,16 @@ function SettingsPage() {
               {/* BILL PRINTER SETTINGS */}
               <PrinterSection title="Bill Printer Settings">
                 <div className="row g-3">
+                  <div className="col-md-2">
+                    <div className="form-check form-switch">
+                      
+                      <input className="form-check-input" type="checkbox" role="switch" id="bill-enable-print" defaultChecked />
+                      <label className="form-check-label">Enable Print</label>
+                    </div>
+                  </div>
+                  
                   <div className="col-md-3">
+                    
                     <label className="form-label">Printer</label>
                       <select
                         className="form-select"
@@ -619,6 +643,7 @@ function SettingsPage() {
                     <label className="form-label">Copies</label>
                     <input className="form-control" id="bill-copies" placeholder="No of Copies" type="number" min="1" />
                   </div>
+                  
                   <div className="col-md-9 d-flex gap-2 align-items-end">
                     <button className="btn btn-success" onClick={() => handleAddBillPrinter()}>
                       {loading ? 'Adding...' : 'Add'}
