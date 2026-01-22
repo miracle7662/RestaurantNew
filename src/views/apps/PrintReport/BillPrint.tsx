@@ -250,11 +250,6 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
   };
 
   const handlePrintBill = async () => {
-      if (!localFormData.enableBillPrint) {
-        toast.error("Bill printing is disabled for this outlet.");
-        return;
-      }
-
       console.log('Print Bill button clicked');
       console.log('Current printerName:', printerName);
       console.log('Current outletId:', outletId);
@@ -560,22 +555,20 @@ ${(showAll || formData.show_kot_number_bill)
         <Button variant="secondary" onClick={onHide}>
           Close
         </Button>
-        {localFormData.enableBillPrint && (
-          <Button
-            variant="primary"
-            onClick={handlePrintBill}
-            disabled={loading}
-          >
-            {loading ? (
-              <>
-                <Spinner animation="border" size="sm" className="me-2" />
-                Printing...
-              </>
-            ) : (
-              "Print Bill"
-            )}
-          </Button>
-        )}
+        <Button
+          variant="primary"
+          onClick={handlePrintBill}
+          disabled={loading}
+        >
+          {loading ? (
+            <>
+              <Spinner animation="border" size="sm" className="me-2" />
+              Printing...
+            </>
+          ) : (
+            "Print Bill"
+          )}
+        </Button>
       </Modal.Footer>
     </Modal>
   );
