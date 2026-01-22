@@ -33,8 +33,22 @@ export const fetchBillSettings = async (outletId: number) => {
     fetch(`${BASE_URL}/bill-print-settings/${outletId}`)
   ]);
 
+  const preview = previewRes.ok ? await previewRes.json() : {};
+  const print = printRes.ok ? await printRes.json() : {};
+
+  // Normalize to booleans
+  const normalizedPreview = {
+    ...preview,
+    enablePrintPreview: Boolean(preview.enablePrintPreview),
+  };
+
+  const normalizedPrint = {
+    ...print,
+    enableBillPrint: Boolean(print.enableBillPrint),
+  };
+
   return {
-    preview: previewRes.ok ? await previewRes.json() : {},
-    print: printRes.ok ? await printRes.json() : {},
+    preview: normalizedPreview,
+    print: normalizedPrint,
   };
 };

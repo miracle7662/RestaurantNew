@@ -167,11 +167,11 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
 
   // Auto-print logic (if enabled)
   useEffect(() => {
-    if (autoPrint && show && !loading && !hasPrinted && !isLoadingNames) {
+    if (autoPrint && show && !loading && !hasPrinted && !isLoadingNames && localFormData.enableKotPrint) {
       setHasPrinted(true);
       handlePrintKOT();
     }
-  }, [autoPrint, show, loading, hasPrinted, isLoadingNames]);
+  }, [autoPrint, show, loading, hasPrinted, isLoadingNames, localFormData.enableKotPrint]);
 
   const generateKOTHTML = () => {
     const kotItems = printItems.length > 0 ? printItems : items.filter(i => i.isNew);
@@ -258,6 +258,11 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
 
 
   const handlePrintKOT = async () => {
+    if (!localFormData.enableKotPrint) {
+      toast.error("KOT printing is disabled for this outlet.");
+      return;
+    }
+
     try {
       setLoading(true);
 
@@ -510,20 +515,22 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
         <Button variant="secondary" onClick={onHide}>
           Close
         </Button>
-        <Button
-          variant="primary"
-          onClick={handlePrintKOT}
-          disabled={loading}
-        >
-          {loading ? (
-            <>
-              <Spinner animation="border" size="sm" className="me-2" />
-              Printing...
-            </>
-          ) : (
-            "Print KOT"
-          )}
-        </Button>
+        {localFormData.enableKotPrint && (
+          <Button
+            variant="primary"
+            onClick={handlePrintKOT}
+            disabled={loading}
+          >
+            {loading ? (
+              <>
+                <Spinner animation="border" size="sm" className="me-2" />
+                Printing...
+              </>
+            ) : (
+              "Print KOT"
+            )}
+          </Button>
+        )}
       </Modal.Footer>
     </Modal>
   );

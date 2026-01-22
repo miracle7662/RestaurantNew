@@ -42,7 +42,7 @@ exports.getKotPrinterSettings = async (req, res) => {
  */
 exports.getAllKotPrinterSettings = async (req, res) => {
   try {
-    const rows = await getAll("SELECT * FROM kot_printer_settings WHERE outlet_id = ?", [req.outletid]);
+    const rows = await getAll("SELECT * FROM kot_printer_settings ");
     res.json(rows);
   } catch (e) {
     res.status(500).json({ error: e.message });

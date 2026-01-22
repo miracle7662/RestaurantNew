@@ -117,6 +117,7 @@ export interface OutletSettings {
 
 export const applyKotSettings = (prev: any, data: any) => ({
   ...prev,
+  enableKotPrint: data.enableKotPrint ?? prev.enableKotPrint,
   show_store_name: data.show_store_name ?? prev.show_store_name,
   dine_in_kot_no: data.dine_in_kot_no ?? prev.dine_in_kot_no,
   pickup_kot_no: data.pickup_kot_no ?? prev.pickup_kot_no,
@@ -162,6 +163,7 @@ export const applyBillSettings = (prev: any, preview: any, print: any) => ({
   ...prev,
 
   // PREVIEW
+  enablePrintPreview: preview.enablePrintPreview ?? prev.enablePrintPreview,
   outlet_name: preview.outlet_name ?? prev.outlet_name,
   email: preview.email ?? prev.email,
   website: preview.website ?? prev.website,
@@ -183,6 +185,7 @@ export const applyBillSettings = (prev: any, preview: any, print: any) => ({
   enabled_upi_section: preview.enabled_upi_section ?? prev.enabled_upi_section,
 
   // PRINT
+  enableBillPrint: print.enableBillPrint ?? prev.enableBillPrint,
   bill_title_dine_in: print.bill_title_dine_in ?? prev.bill_title_dine_in,
   bill_title_pickup: print.bill_title_pickup ?? prev.bill_title_pickup,
   bill_title_delivery: print.bill_title_delivery ?? prev.bill_title_delivery,
