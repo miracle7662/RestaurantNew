@@ -1,4 +1,4 @@
- // src/services/outletSettings.service.ts
+// src/services/outletSettings.service.ts
 import axios from "axios";
 
 const BASE_URL = 'http://localhost:3001/api/outlets';
@@ -6,17 +6,13 @@ const BASE_URL = 'http://localhost:3001/api/outlets';
 /* ---------------- KOT PRINT SETTINGS ---------------- */
 
 export const fetchKotPrintSettings = async (outletId: number) => {
-  const res = await fetch(`${BASE_URL}/kot-print-settings/${outletId}`, {
-    headers: { 'Content-Type': 'application/json' },
-  });
-
-  if (!res.ok) {
-    if (res.status === 404) return null;
+  try {
+    const res = await axios.get(`${BASE_URL}/kot-print-settings/${outletId}`);
+    return res.data?.data ?? res.data;
+  } catch (error) {
+    if (error.response?.status === 404) return null;
     throw new Error('Failed to fetch KOT print settings');
   }
-
-  const data = await res.json();
-  return data?.data ?? data;
 };
 
 

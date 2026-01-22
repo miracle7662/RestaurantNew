@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Button, Modal, Spinner } from "react-bootstrap";
 import { toast } from "react-hot-toast";
 import { OutletSettings } from "src/utils/applyOutletSettings";
@@ -86,16 +86,20 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
   const [localFormData, setLocalFormData] = useState<OutletSettings>(formData);
 
   const loadOutletSettings = async (outletId: number) => {
+    console.log('loadOutletSettings called with outletId:', outletId);
     try {
       const kotData = await fetchKotPrintSettings(outletId);
+      console.log('fetchKotPrintSettings returned:', kotData);
       if (kotData) {
-        setLocalFormData(prev => applyKotSettings(prev, kotData));
+        const newFormData = applyKotSettings(localFormData, kotData);
+        console.log('New form data after applyKotSettings:', newFormData);
+        setLocalFormData(newFormData);
+      } else {
+        console.log('No KOT data returned from fetchKotPrintSettings');
       }
-
-      
-
     } catch (err) {
       console.error('Failed to load outlet settings', err);
+      toast.error('Failed to load KOT print settings.');
     }
   };
 
@@ -104,7 +108,11 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
     if (!show) return;
 
     const outlet = selectedOutletId ?? Number(user?.outletid);
-    if (!outlet || isNaN(outlet)) return;
+    console.log('KOT Settings Load Debug:', { selectedOutletId, userOutletId: user?.outletid, outlet, show });
+    if (!outlet || isNaN(outlet)) {
+      console.log('Skipping outlet settings load - invalid outlet ID');
+      return;
+    }
 
     setOutletId(outlet);
     loadOutletSettings(outlet);
@@ -248,7 +256,7 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
 </head>
 <body>
   <div id="kot-preview-content">
-    ${generateKOTContent()}
+    ${generateKOTContent}
   </div>
 </body>
 </html>
@@ -340,7 +348,7 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
 
 
 
-  const generateKOTContent = () => {
+  const generateKOTContent = useMemo(() => {
     const kotItems = printItems.length > 0 ? printItems : items.filter(i => i.isNew);
 
     console.log('KOT SETTINGS USED 👉', localFormData);
@@ -351,7 +359,7 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
 
     console.log('KOT Print Debug:', {
       restaurantName,
-    
+
       displayRestaurantName,
       outletName,
       localOutletName,
@@ -463,7 +471,7 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
       Please prepare the order
     </div>
     `;
-  };
+  }, [localFormData, printItems, items, restaurantName, localRestaurantName, user, outletName, localOutletName, activeTab, currentKOTNo, selectedTable, customerName, mobileNumber, pax]);
 
   return (
     <Modal
@@ -487,6 +495,7 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
             {/* Preview Section */}
             <div className="border p-3 mb-3 bg-light">
               <div
+                key={JSON.stringify(localFormData)}
                 style={{
                   width: "302px",
                   margin: "0 auto",
@@ -498,7 +507,7 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
                   backgroundColor: "white",
                   border: "1px solid #ccc"
                 }}
-                dangerouslySetInnerHTML={{ __html: generateKOTContent() }}
+                dangerouslySetInnerHTML={{ __html: generateKOTContent }}
               />
             </div>
 

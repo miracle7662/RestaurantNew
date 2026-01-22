@@ -1,3 +1,5 @@
-- [ ] Analyze root cause: applyKotSettings doesn't convert 0/1 to booleans
-- [ ] Update applyKotSettings to convert boolean fields properly
+- [x] Analyze root cause: fetchKotPrintSettings uses fetch instead of axios, poor error handling
+- [x] Update fetchKotPrintSettings to use axios for consistency
+- [x] Add toast error notification in KotPrint.tsx for failed fetches
+- [x] Fix applyKotSettings to convert 0/1 to booleans properly
 - [ ] Test the fix
