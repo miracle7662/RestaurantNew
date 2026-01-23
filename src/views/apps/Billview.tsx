@@ -3498,6 +3498,7 @@ const printBill = async () => {
   roundOffEnabled={roundOffEnabled}
   roundOffValue={roundOff}
   selectedPaymentModes={selectedPaymentModes}
+  selectedOutletId={selectedOutletId}
 
   // ✅ AFTER SUCCESS PRINT
   onPrint={async () => {
