@@ -139,11 +139,11 @@ export const applyKotSettings = (prev: any, data: any) => ({
   running_order_tag_label: data.running_order_tag_label ?? prev.running_order_tag_label,
 
   // Customer on KOT
-  customer_on_kot_dine_in: data.customer_on_kot_dine_in ?? prev.customer_on_kot_dine_in,
-  customer_on_kot_pickup: data.customer_on_kot_pickup ?? prev.customer_on_kot_pickup,
-  customer_on_kot_delivery: data.customer_on_kot_delivery ?? prev.customer_on_kot_delivery,
-  customer_on_kot_quick_bill: data.customer_on_kot_quick_bill ?? prev.customer_on_kot_quick_bill,
-  customer_kot_display_option: data.customer_kot_display_option ?? prev.customer_kot_display_option,
+  customer_on_kot_dine_in: data.customer_on_kot_dine_in ?? prev.customer_on_kot_dine_in ?? false,
+  customer_on_kot_pickup: data.customer_on_kot_pickup ?? prev.customer_on_kot_pickup ?? false,
+  customer_on_kot_delivery: data.customer_on_kot_delivery ?? prev.customer_on_kot_delivery ?? false,
+  customer_on_kot_quick_bill: data.customer_on_kot_quick_bill ?? prev.customer_on_kot_quick_bill ?? false,
+  customer_kot_display_option: data.customer_kot_display_option ?? prev.customer_kot_display_option ?? 'NAME_ONLY',
 
   // Layout / display
   show_order_type_symbol: data.show_order_type_symbol ?? prev.show_order_type_symbol,

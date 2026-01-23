@@ -53,6 +53,7 @@ interface KotPreviewPrintProps {
   pax?: number;
   restaurantName?: string;
   outletName?: string;
+  kotNote?: string;
 }
 
 const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
@@ -74,7 +75,8 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
   selectedOutletId,
   pax,
   restaurantName,
-  outletName
+  outletName,
+  kotNote
 }) => {
   const [loading, setLoading] = useState(false);
   const [hasPrinted, setHasPrinted] = useState(false);
@@ -455,7 +457,7 @@ const showCustomerMobile =
   localFormData.customer_kot_display_option === 'NAME_AND_MOBILE';
     const showCustomer = showCustomerName || showCustomerMobile;
 
-    const showTable = selectedTable && (activeTab === 'Dine-in' || localFormData[`table_name_${tabKey}`]) && !(activeTab === 'Quick Bill' && localFormData.hide_table_name_quick_bill);
+    const showTable = selectedTable && (activeTab === 'Dine In' || localFormData[`table_name_${tabKey}`]) && !(activeTab === 'Quick Bill' && localFormData.hide_table_name_quick_bill);
     const showRateColumn = localFormData.show_item_price;
     const showAmountColumn = !localFormData.hide_item_total_column;
     const showOrderTypeSymbol = localFormData.show_order_type_symbol;
@@ -609,10 +611,9 @@ ${showCustomerMobile
     </div>
     <hr style="border: none; border-top: 1px dashed #000; margin: 8px 0;" />
     <!-- FOOTER -->
-        ${showKotNote ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Note:</strong> Sample KOT Note</div>` : ''}
+        ${showKotNote && kotNote ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Note:</strong> ${kotNote}</div>` : ''}
 
-    <div style="text-align: center; margin-top: 10px; font-size: 9pt; color: #666;">
-      ${printKotBothLanguages ? 'THANK YOU / धन्यवाद<br />Please prepare the order / कृपया ऑर्डर तैयार करें' : 'THANK YOU<br />Please prepare the order'}
+    
     `;
   }, [localFormData, printItems, items, restaurantName, localRestaurantName, user, outletName, localOutletName, activeTab, currentKOTNo, selectedTable, customerName, mobileNumber, pax]);
 

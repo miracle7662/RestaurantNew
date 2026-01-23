@@ -2627,6 +2627,7 @@ exports.getKotPrintSettings = (req, res) => {
       customer_kot_display_option: settings.customer_kot_display_option,
       group_kot_items_by_category: !!settings.group_kot_items_by_category,
       hide_table_name_quick_bill: !!settings.hide_table_name_quick_bill,
+      hide_t
       show_new_order_tag: !!settings.show_new_order_tag,
       new_order_tag_label: settings.new_order_tag_label,
       show_running_order_tag: !!settings.show_running_order_tag,

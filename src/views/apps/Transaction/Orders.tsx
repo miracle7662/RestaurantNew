@@ -203,6 +203,7 @@ const Order = () => {
   const [selectedPaymentModes, setSelectedPaymentModes] = useState<string[]>([]);
   const [reversedItems, setReversedItems] = useState<ReversedMenuItem[]>([]);
   const [tip, setTip] = useState<number>(0);
+  const [kotNote, setKotNote] = useState<string>('');
 
   // States for Pending Orders Modal (Pickup/Delivery)
   const [showPendingOrdersView, setShowPendingOrdersView] = useState<boolean>(false);
@@ -3762,6 +3763,8 @@ useEffect(() => {
                 <input
                   type="text"
                   placeholder="KOT Note"
+                  value={kotNote}
+                  onChange={(e) => setKotNote(e.target.value)}
                   className="form-control"
                   style={{ width: '150px', height: '28px', fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}
                 />
@@ -4453,6 +4456,7 @@ useEffect(() => {
             reverseQtyItems={reverseQtyItems}
             selectedOutletId={selectedOutletId}
             autoPrint={false}
+            kotNote={kotNote}
           />
         </div>
       </div>
