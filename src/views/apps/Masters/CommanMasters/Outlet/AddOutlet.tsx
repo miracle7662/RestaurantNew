@@ -2149,6 +2149,9 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
                                 {formData.show_order_id_quick_bill && (
                                   <small className="d-block"><strong>Order ID:</strong> ORD123</small>
                                 )}
+                                {formData.show_order_no_quick_bill_section && (
+                                  <small className="d-block"><strong>Order NO:</strong> Ord NO</small>
+                                )}
                                 {formData.show_online_order_otp && (
                                   <small className="d-block"><strong>OTP:</strong> 9876</small>
                                 )}

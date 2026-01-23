@@ -515,7 +515,6 @@ ${showCustomerMobile
      </div>`
   : ''}
 
-    ${showKotNote ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Note:</strong> Sample KOT Note</div>` : ''}
     ${showOnlineOrderOtp ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>OTP:</strong> 123456</div>` : ''}
     ${showOrderIdQuickBill ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Order ID:</strong> QB-${currentKOTNo || 'N/A'}</div>` : ''}
     ${showKotNoQuickBill ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>KOT No:</strong> ${displayKOTNo}</div>` : ''}
@@ -560,11 +559,13 @@ ${showCustomerMobile
 
     <!-- TOTALS -->
     <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 10pt;">
-      <div>Total Qty: ${kotItems.reduce((a, b) => a + (b.originalQty ? b.qty - b.originalQty : b.qty), 0)}</div>
-      ${showAmountColumn ? `<div>Total: ₹${kotItems.reduce((a, b) => a + (b.price * (b.originalQty ? b.qty - b.originalQty : b.qty)), 0).toFixed(2)}</div>` : ''}
+      <div> Qty: ${kotItems.reduce((a, b) => a + (b.originalQty ? b.qty - b.originalQty : b.qty), 0)}</div>
+      ${showAmountColumn ? `<div>: ₹${kotItems.reduce((a, b) => a + (b.price * (b.originalQty ? b.qty - b.originalQty : b.qty)), 0).toFixed(2)}</div>` : ''}
     </div>
     <hr style="border: none; border-top: 1px dashed #000; margin: 8px 0;" />
     <!-- FOOTER -->
+        ${showKotNote ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Note:</strong> Sample KOT Note</div>` : ''}
+
     <div style="text-align: center; margin-top: 10px; font-size: 9pt; color: #666;">
       ${printKotBothLanguages ? 'THANK YOU / धन्यवाद<br />Please prepare the order / कृपया ऑर्डर तैयार करें' : 'THANK YOU<br />Please prepare the order'}
     `;

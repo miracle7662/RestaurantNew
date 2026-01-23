@@ -1599,7 +1599,12 @@ const resetBillingPanel = () => {
             resp.data.kot_no ??
             null;
           setCurrentKOTNo(receivedKotNo);
-          setCurrentKOTNos(receivedKotNo ? [receivedKotNo] : []);
+          
+          // 🔥 THIS IS THE FIX
+          setCurrentKOTNos(prev => {
+            if (!receivedKotNo) return prev;
+            return [...new Set([...(prev || []), receivedKotNo])];
+          });
         }
 
         // Optimistically update the table status to green (1)
@@ -1626,11 +1631,11 @@ const resetBillingPanel = () => {
         setReverseQtyMode(false);
         setIsGroupedView(true);
 
-        setCurrentKOTNo(null);
-        setCurrentKOTNos([]);
+        // setCurrentKOTNo(null);
+        // setCurrentKOTNos([]);
 
-        setCurrentTxnId(null);
-        setOrderNo(null);
+        // setCurrentTxnId(null);
+        // setOrderNo(null);
 
         // IMPORTANT
         setPersistentTxnId(null);
@@ -4437,7 +4442,8 @@ useEffect(() => {
             printItems={printItems}
             items={items}
             currentKOTNo={currentKOTNo}
-            selectedTable={selectedTable}
+            kotNo={currentKOTNo}
+            selectedTable={activeTab === 'Dine-in' ? selectedTable : activeTab}
             activeTab={activeTab}
             customerName={customerName}
             mobileNumber={mobileNumber}
