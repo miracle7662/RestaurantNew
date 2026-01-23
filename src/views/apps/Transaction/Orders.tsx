@@ -1666,25 +1666,7 @@ const resetBillingPanel = () => {
 
         setPrintItems(kotItemsToPrint);
         setShowKotPreviewModal(true);
-         // After printing, decide what to do based on focusMode
-        if (activeTab === 'Pickup' || activeTab === 'Delivery') {
-          // For these tabs, refresh the pending orders list and show it.
-          handlePendingOrderTabClick(activeTab.toLowerCase() as 'pickup' | 'delivery');
-        } else if (activeTab === 'Quick Bill') {
-          // For Quick Bill, refresh its history view.
-          fetchQuickBillData();
-          setActiveNavTab('Quick Bill'); // Show the history list
-          setShowOrderDetails(false); // Hide the right panel to show the history
-        } else if (focusMode) {
-          // For Dine-in with Focus Mode ON
-          setSelectedTable(''); // Clear table in details view
-          setTriggerFocusInDetails(c => c + 1);
-        } else {
-          // For Dine-in with Focus Mode OFF
-          // Unselect table so refetch does NOT run
-          setSelectedTable(null); // Clear selection
-          setShowOrderDetails(false);
-        }
+        
         // If it was a quick bill, refresh the quick bill data
         if (activeTab === 'Quick Bill') {
           await fetchQuickBillData();
