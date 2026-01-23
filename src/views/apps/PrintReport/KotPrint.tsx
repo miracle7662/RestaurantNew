@@ -375,6 +375,15 @@ const [loadingSetting, setLoadingSetting] = useState(true);
     }
   };
 
+const dateTime = new Date().toLocaleString('en-GB', {
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit'
+})
+
+
 
 
   const generateKOTContent = useMemo(() => {
@@ -491,11 +500,43 @@ const showCustomerMobile =
     <hr style="border: none; border-top: 1px dashed #000; margin: 8px 0;" />
 
     <!-- BASIC DETAILS -->
-    <div style="display: grid; grid-template-columns: 1fr 1fr; margin-bottom: 8px; font-size: 9pt;">
-      <div><strong>KOT No:</strong> ${displayKOTNo}</div>
-      ${showTable ? `<div><strong>Table:</strong> ${selectedTable}</div>` : `<div><strong>Table:</strong> ${activeTab}</div>`}
-      <div><strong>Date:</strong> ${new Date().toLocaleDateString('en-GB')}</div>
-      <div><strong>Time:</strong> ${new Date().toLocaleTimeString('en-GB')}</div>
+    <div style="display: grid; grid-template-columns: auto 1fr; gap: 12px; margin-bottom: 10px; font-size: 9pt;">
+
+  <!-- TABLE BIG BOX -->
+  <div style="
+    border: 2px solid #000;
+    min-width: 48px;
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16pt;
+    font-weight: bold;
+  ">
+    ${showTable ? selectedTable : activeTab}
+  </div>
+
+ <!-- RIGHT DETAILS -->
+<div style="
+  display: flex;
+  justify-content: flex-end;
+">
+  <div style="
+    display: grid;
+    grid-template-columns: 60px auto;
+    text-align: left;
+  ">
+    <div><strong>KOT No:</strong></div>
+    <div>${displayKOTNo}</div>
+
+    <div><strong>Date:</strong></div>
+    <div>${dateTime}</div>
+  </div>
+</div>
+
+
+</div>
+
       <div><strong>${showCoversAsGuest ? 'Guests' : 'PAX'}:</strong> ${pax || 1}</div>
     </div>
 
