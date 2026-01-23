@@ -472,8 +472,7 @@ const showCustomerMobile =
     const groupKotItemsByCategory = localFormData.group_kot_items_by_category;
 
     // Calculate grid columns for items
-    const columns = ['1fr', '35px'];
-    if (showRateColumn) columns.push('45px');
+    const columns = ['35px', '1fr'];
     if (showAmountColumn) columns.push('55px');
     const gridTemplateColumns = columns.join(' ');
 
@@ -495,6 +494,18 @@ const showCustomerMobile =
     <!-- KOT HEADER -->
     <div style="text-align: center; margin-bottom: 8px;">
       <div><strong>${showOrderTypeSymbol ? '🔸 ' : ''}Order Type:</strong> ${activeTab}</div>
+
+        ${showCustomerName
+  ? `<div style="font-size: 9pt; margin-bottom: 6px;">
+       <strong>Customer:</strong> ${customerName}
+     </div>`
+  : ''}
+
+${showCustomerMobile
+  ? `<div style="font-size: 9pt; margin-bottom: 6px;">
+       <strong>Mobile:</strong> ${mobileNumber}
+     </div>`
+  : ''}
     </div>
 
     <hr style="border: none; border-top: 1px dashed #000; margin: 8px 0;" />
@@ -504,9 +515,9 @@ const showCustomerMobile =
 
   <!-- TABLE BIG BOX -->
   <div style="
-    border: 2px solid #000;
-    min-width: 48px;
-    min-height: 48px;
+    border: 1px solid #696868;
+    min-width: 70px;
+    min-height: 55px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -537,24 +548,13 @@ const showCustomerMobile =
 
 </div>
 
-      <div><strong>${showCoversAsGuest ? 'Guests' : 'PAX'}:</strong> ${pax || 1}</div>
     </div>
 
     ${showWaiter ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Waiter:</strong> ${user.name}</div>` : ''}
     ${showUsername ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Username:</strong> ${user.username}</div>` : ''}
     ${showTerminalUsername ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Terminal Username:</strong> ${user.terminal_username}</div>` : ''}
     ${showCaptainUsername ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Captain Username:</strong> ${user.captain_username}</div>` : ''}
-   ${showCustomerName
-  ? `<div style="font-size: 9pt; margin-bottom: 6px;">
-       <strong>Customer:</strong> ${customerName}
-     </div>`
-  : ''}
-
-${showCustomerMobile
-  ? `<div style="font-size: 9pt; margin-bottom: 6px;">
-       <strong>Mobile:</strong> ${mobileNumber}
-     </div>`
-  : ''}
+ 
 
     ${showOnlineOrderOtp ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>OTP:</strong> 123456</div>` : ''}
     ${showOrderIdQuickBill ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Order ID:</strong> QB-${currentKOTNo || 'N/A'}</div>` : ''}
@@ -563,15 +563,14 @@ ${showCustomerMobile
     <hr style="border: none; border-top: 1px dashed #000; margin: 8px 0;" />
     <!-- ITEM HEADER -->
     <div style="display: grid; grid-template-columns: ${gridTemplateColumns}; font-weight: bold; border-bottom: 1px solid #000; padding-bottom: 4px; margin-bottom: 5px;">
-      <div>Item</div>
       <div style="text-align: center">Qty</div>
-      ${showRateColumn ? `<div style="text-align: right">Rate</div>` : ''}
+      <div style="text-align: center">Item</div>
       ${showAmountColumn ? `<div style="text-align: right">Amt</div>` : ''}
     </div>
     <!-- ITEMS -->
     ${groupKotItemsByCategory ? `
     <!-- Grouped by Category Placeholder -->
-    <div style="font-weight: bold; margin-bottom: 5px;">Category: Main Course</div>
+    <div style="font-weight: bold;   margin-bottom: 5px;">Category: Main Course</div>
     ` : ''}
     ${kotItems.map((item) => {
       const qty = item.originalQty ? item.qty - item.originalQty : item.qty;
@@ -582,15 +581,14 @@ ${showCustomerMobile
       const modifierHtml = modifierDefaultOption && item.modifier && item.modifier.length > 0 ? `<div style="font-size: 8pt; color: #666;">Modifiers: ${item.modifier.join(', ')}</div>` : '';
       const alternativeHtml = showAlternativeItem && item.alternativeItem ? `<div style="font-size: 8pt; color: #666;">Alt: ${item.alternativeItem}</div>` : '';
       return `
-      <div style="display: grid; grid-template-columns: ${gridTemplateColumns}; padding-bottom: 3px; margin-bottom: 3px; font-size: 9pt;">
-        <div>
+      <div style="display: grid; grid-template-columns: ${gridTemplateColumns}; padding-bottom: 3px; margin-bottom: 3px; font-size: 10pt;">
+        <div style="text-align: center">${qty}</div>
+        <div style="text-align: center">
           ${item.name}
           ${tagHtml}
           ${modifierHtml}
           ${alternativeHtml}
         </div>
-        <div style="text-align: center">${qty}</div>
-        ${showRateColumn ? `<div style="text-align: right">${item.price.toFixed(2)}</div>` : ''}
         ${showAmountColumn ? `<div style="text-align: right">${(item.price * qty).toFixed(2)}</div>` : ''}
       </div>
       `;
@@ -600,8 +598,14 @@ ${showCustomerMobile
 
     <!-- TOTALS -->
     <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 10pt;">
-      <div> Qty: ${kotItems.reduce((a, b) => a + (b.originalQty ? b.qty - b.originalQty : b.qty), 0)}</div>
-      ${showAmountColumn ? `<div>: ₹${kotItems.reduce((a, b) => a + (b.price * (b.originalQty ? b.qty - b.originalQty : b.qty)), 0).toFixed(2)}</div>` : ''}
+<div style="padding: 2px 11px;">
+   ${kotItems.reduce(
+    (a, b) => a + (b.originalQty ? b.qty - b.originalQty : b.qty),
+    0
+  )}
+</div>
+
+      ${showAmountColumn ? `<div> ₹${kotItems.reduce((a, b) => a + (b.price * (b.originalQty ? b.qty - b.originalQty : b.qty)), 0).toFixed(2)}</div>` : ''}
     </div>
     <hr style="border: none; border-top: 1px dashed #000; margin: 8px 0;" />
     <!-- FOOTER -->
