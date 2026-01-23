@@ -385,10 +385,25 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
     // Conditional rendering flags
     const showStoreName = localFormData.show_store_name;
     const showWaiter = localFormData.show_waiter && user?.name;
+    const showUsername = localFormData.show_username && user?.username;
+    const showTerminalUsername = localFormData.show_terminal_username && user?.terminal_username;
+    const showCaptainUsername = localFormData.show_captain_username && user?.captain_username;
     const showCustomer = customerName && localFormData[`customer_on_kot_${tabKey}`];
     const showTable = selectedTable && localFormData[`table_name_${tabKey}`] && !(activeTab === 'Quick Bill' && localFormData.hide_table_name_quick_bill);
-    const showRateColumn = !localFormData.hide_item_rate_column;
+    const showRateColumn = localFormData.show_item_price;
     const showAmountColumn = !localFormData.hide_item_total_column;
+    const showOrderTypeSymbol = localFormData.show_order_type_symbol;
+    const showCoversAsGuest = localFormData.show_covers_as_guest;
+    const showKotNote = localFormData.show_kot_note;
+    const showOnlineOrderOtp = localFormData.show_online_order_otp;
+    const showOrderIdQuickBill = localFormData.show_order_id_quick_bill && activeTab === 'Quick Bill';
+    const showKotNoQuickBill = localFormData.show_kot_no_quick_bill && activeTab === 'Quick Bill';
+    const showNewOrderTag = localFormData.show_new_order_tag;
+    const showRunningOrderTag = localFormData.show_running_order_tag;
+    const modifierDefaultOption = localFormData.modifier_default_option;
+    const showAlternativeItem = localFormData.show_alternative_item;
+    const printKotBothLanguages = localFormData.print_kot_both_languages;
+    const groupKotItemsByCategory = localFormData.group_kot_items_by_category;
 
     // Calculate grid columns for items
     const columns = ['1fr', '35px'];
@@ -413,7 +428,7 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
 
     <!-- KOT HEADER -->
     <div style="text-align: center; margin-bottom: 8px;">
-      <div><strong>Order Type:</strong> ${activeTab}</div>
+      <div><strong>${showOrderTypeSymbol ? '🔸 ' : ''}Order Type:</strong> ${activeTab}</div>
     </div>
 
     <hr style="border: none; border-top: 1px dashed #000; margin: 8px 0;" />
@@ -424,16 +439,21 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
       ${showTable ? `<div><strong>Table:</strong> ${selectedTable}</div>` : `<div><strong>Table:</strong> ${activeTab}</div>`}
       <div><strong>Date:</strong> ${new Date().toLocaleDateString('en-GB')}</div>
       <div><strong>Time:</strong> ${new Date().toLocaleTimeString('en-GB')}</div>
-      <div><strong>PAX:</strong> ${pax || 1}</div>
+      <div><strong>${showCoversAsGuest ? 'Guests' : 'PAX'}:</strong> ${pax || 1}</div>
     </div>
 
     ${showWaiter ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Waiter:</strong> ${user.name}</div>` : ''}
-
+    ${showUsername ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Username:</strong> ${user.username}</div>` : ''}
+    ${showTerminalUsername ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Terminal Username:</strong> ${user.terminal_username}</div>` : ''}
+    ${showCaptainUsername ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Captain Username:</strong> ${user.captain_username}</div>` : ''}
     ${showCustomer ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Customer:</strong> ${customerName}</div>` : ''}
     ${mobileNumber ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Mobile:</strong> ${mobileNumber}</div>` : ''}
+    ${showKotNote ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Note:</strong> Sample KOT Note</div>` : ''}
+    ${showOnlineOrderOtp ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>OTP:</strong> 123456</div>` : ''}
+    ${showOrderIdQuickBill ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Order ID:</strong> QB-${currentKOTNo || 'N/A'}</div>` : ''}
+    ${showKotNoQuickBill ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>KOT No:</strong> ${displayKOTNo}</div>` : ''}
 
     <hr style="border: none; border-top: 1px dashed #000; margin: 8px 0;" />
-
     <!-- ITEM HEADER -->
     <div style="display: grid; grid-template-columns: ${gridTemplateColumns}; font-weight: bold; border-bottom: 1px solid #000; padding-bottom: 4px; margin-bottom: 5px;">
       <div>Item</div>
@@ -443,11 +463,26 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
     </div>
 
     <!-- ITEMS -->
+    ${groupKotItemsByCategory ? `
+    <!-- Grouped by Category Placeholder -->
+    <div style="font-weight: bold; margin-bottom: 5px;">Category: Main Course</div>
+    ` : ''}
     ${kotItems.map((item) => {
       const qty = item.originalQty ? item.qty - item.originalQty : item.qty;
+      const tags = [];
+      if (showNewOrderTag && item.isNew) tags.push(`<span class="tag tag-new">${localFormData.new_order_tag_label || 'New'}</span>`);
+      if (showRunningOrderTag && !item.isNew) tags.push(`<span class="tag tag-running">${localFormData.running_order_tag_label || 'Running'}</span>`);
+      const tagHtml = tags.length > 0 ? `<div>${tags.join(' ')}</div>` : '';
+      const modifierHtml = modifierDefaultOption && item.modifier && item.modifier.length > 0 ? `<div style="font-size: 8pt; color: #666;">Modifiers: ${item.modifier.join(', ')}</div>` : '';
+      const alternativeHtml = showAlternativeItem && item.alternativeItem ? `<div style="font-size: 8pt; color: #666;">Alt: ${item.alternativeItem}</div>` : '';
       return `
       <div style="display: grid; grid-template-columns: ${gridTemplateColumns}; padding-bottom: 3px; margin-bottom: 3px; font-size: 9pt;">
-        <div>${item.name}</div>
+        <div>
+          ${item.name}
+          ${tagHtml}
+          ${modifierHtml}
+          ${alternativeHtml}
+        </div>
         <div style="text-align: center">${qty}</div>
         ${showRateColumn ? `<div style="text-align: right">${item.price.toFixed(2)}</div>` : ''}
         ${showAmountColumn ? `<div style="text-align: right">${(item.price * qty).toFixed(2)}</div>` : ''}
@@ -462,14 +497,10 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
       <div>Total Qty: ${kotItems.reduce((a, b) => a + (b.originalQty ? b.qty - b.originalQty : b.qty), 0)}</div>
       ${showAmountColumn ? `<div>Total: ₹${kotItems.reduce((a, b) => a + (b.price * (b.originalQty ? b.qty - b.originalQty : b.qty)), 0).toFixed(2)}</div>` : ''}
     </div>
-
     <hr style="border: none; border-top: 1px dashed #000; margin: 8px 0;" />
-
     <!-- FOOTER -->
     <div style="text-align: center; margin-top: 10px; font-size: 9pt; color: #666;">
-      THANK YOU<br />
-      Please prepare the order
-    </div>
+      ${printKotBothLanguages ? 'THANK YOU / धन्यवाद<br />Please prepare the order / कृपया ऑर्डर तैयार करें' : 'THANK YOU<br />Please prepare the order'}
     `;
   }, [localFormData, printItems, items, restaurantName, localRestaurantName, user, outletName, localOutletName, activeTab, currentKOTNo, selectedTable, customerName, mobileNumber, pax]);
 

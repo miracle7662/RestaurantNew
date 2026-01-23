@@ -1,5 +1,15 @@
-- [x] Analyze root cause: fetchKotPrintSettings uses fetch instead of axios, poor error handling
-- [x] Update fetchKotPrintSettings to use axios for consistency
-- [x] Add toast error notification in KotPrint.tsx for failed fetches
-- [x] Fix applyKotSettings to convert 0/1 to booleans properly
-- [ ] Test the fix
+- [x] Update showRateColumn to use localFormData.show_item_price instead of !localFormData.hide_item_rate_column
+- [x] Add conditional rendering for user info: show_username, show_terminal_username, show_captain_username
+- [x] Add conditional rendering for tags: show_new_order_tag, show_running_order_tag with labels
+- [x] Add conditional rendering for show_order_type_symbol (add symbol before Order Type)
+- [x] Add conditional rendering for show_covers_as_guest (change PAX to Guests)
+- [x] Add conditional rendering for show_kot_note (add note section)
+- [x] Add conditional rendering for show_online_order_otp (add OTP section)
+- [x] Add conditional rendering for show_order_id_quick_bill (for Quick Bill)
+- [x] Add conditional rendering for show_kot_no_quick_bill (for Quick Bill KOT No)
+- [x] Add conditional rendering for modifier_default_option (show modifiers)
+- [x] Add conditional rendering for show_alternative_item (show alternative item)
+- [x] Add conditional rendering for print_kot_both_languages (add bilingual text)
+- [x] Add conditional rendering for group_kot_items_by_category (group items by category - placeholder since no category in MenuItem)
+- [ ] Ensure customer_kot_display_option is used if needed (not implemented as it's unclear how to use it)
+- [ ] Test the updates
