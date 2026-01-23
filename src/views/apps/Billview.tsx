@@ -3424,7 +3424,7 @@ const printBill = async () => {
   } as any))}
 
   currentKOTNo={currentKotNoForPrint}
-  selectedTable={tableNo || 'Takeaway'}
+  selectedTable={activeTab === 'Dine-in' ? tableNo : activeTab}
   activeTab={activeTab}
   customerName={customerName}
   mobileNumber={customerNo}

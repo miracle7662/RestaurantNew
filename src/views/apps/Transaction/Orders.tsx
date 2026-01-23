@@ -268,7 +268,7 @@ const resetBillingPanel = () => {
 
 
   const hasModifications = items.some(item => item.isNew) || reverseQtyItems.length > 0;
-  const showKotButton = hasModifications || ['Pickup', 'Delivery', 'Quick Bill'].includes(activeTab);
+  const showKotButton = (selectedTable || ['Pickup', 'Delivery', 'Quick Bill'].includes(activeTab)) && hasModifications;
 
   const fetchAllBills = async () => {
     try {
@@ -769,7 +769,7 @@ const resetBillingPanel = () => {
     // Force reset selectedTable to null first to allow re-selection of the same table
     setReverseQtyMode(false); // Turn off reverse mode on table change
     setIsGroupedView(true); // Reset to grouped view on table change
-    setSelectedTable(null);
+    setSelectedTable(seat); // Set immediately to avoid timing issues
     setShowOrderDetails(true);
     setItems([]); // Reset items for the new table
     setCurrentKOTNo(null); // Reset KOT number for the new table
@@ -788,38 +788,33 @@ const resetBillingPanel = () => {
     setReverseQtyItems([]); // Clear pending reversed items
 
 
-    // Delay setting selectedTable to seat to trigger re-render and re-fetch
-    setTimeout(() => {
-      setSelectedTable(seat);
+    // Find the full table object to get its ID, case-insensitively
+    const tableList = Array.isArray(filteredTables) && filteredTables.length > 0 ? filteredTables : tableItems;
+    const selectedTableObj = tableList.find(
+      (t: TableItem) => t && t.table_name && t.table_name.toLowerCase() === seat.toLowerCase()
+    );
 
-      // Find the full table object to get its ID, case-insensitively
-      const tableList = Array.isArray(filteredTables) && filteredTables.length > 0 ? filteredTables : tableItems;
-      const selectedTableObj = tableList.find(
-        (t: TableItem) => t && t.table_name && t.table_name.toLowerCase() === seat.toLowerCase()
-      );
+    if (selectedTableObj) {
+      // Use tableid if available, else fallback to tablemanagementid
+      const tableIdNum = Number(selectedTableObj.tableid ?? selectedTableObj.tablemanagementid);
+      const deptId = Number(selectedTableObj.departmentid) || null;
+      const outletId = Number(selectedTableObj.outletid) || (user?.outletid ? Number(user.outletid) : null);
+      setSourceTableId(tableIdNum);
+      console.log("SOURCE TABLE ID:", tableIdNum);
 
-      if (selectedTableObj) {
-        // Use tableid if available, else fallback to tablemanagementid
-        const tableIdNum = Number(selectedTableObj.tableid ?? selectedTableObj.tablemanagementid);
-        const deptId = Number(selectedTableObj.departmentid) || null;
-        const outletId = Number(selectedTableObj.outletid) || (user?.outletid ? Number(user.outletid) : null);
-        setSourceTableId(tableIdNum);
-        console.log("SOURCE TABLE ID:", tableIdNum);
+      setSelectedDeptId(deptId);
+      setSelectedOutletId(outletId);
 
-        setSelectedDeptId(deptId);
-        setSelectedOutletId(outletId);
+      // Refetch items for the selected table
+      refreshItemsForTable(tableIdNum);
 
-        // Refetch items for the selected table
-        refreshItemsForTable(tableIdNum);
-
-      } else {
-        console.warn('Selected table object not found for seat:', seat);
-        setItems([]); // Clear items if table not found
-        setCurrentKOTNo(null);
-        setCurrentKOTNos([]);
-      }
-      console.log('After handleTableClick - selectedTable:', seat, 'showOrderDetails:', true);
-    }, 0);
+    } else {
+      console.warn('Selected table object not found for seat:', seat);
+      setItems([]); // Clear items if table not found
+      setCurrentKOTNo(null);
+      setCurrentKOTNos([]);
+    }
+    console.log('After handleTableClick - selectedTable:', seat, 'showOrderDetails:', true);
   };
 
   const fetchQuickBillData = async () => {
@@ -1421,6 +1416,7 @@ const resetBillingPanel = () => {
           : activeTab === 'Delivery'
             ? 'Delivery'
             : selectedTable || null;
+      setSelectedTable(tableNameForKOT);
       const selectedTableRecord: any = (Array.isArray(filteredTables) ? filteredTables : tableItems)
         .find((t: any) => t && t.table_name && selectedTable && t.table_name.toLowerCase() === selectedTable.toLowerCase())
         || (Array.isArray(tableItems) ? tableItems.find((t: any) => t && t.table_name && selectedTable && t.table_name.toLowerCase() === selectedTable.toLowerCase()) : undefined);
@@ -1663,10 +1659,14 @@ const resetBillingPanel = () => {
           }));
         }
 
+        // Ensure selectedTable is set for the preview
+        if (!selectedTable && selectedTableRecord) {
+          setSelectedTable(selectedTableRecord.table_name);
+        }
+
         setPrintItems(kotItemsToPrint);
         setShowKotPreviewModal(true);
-
-        // After printing, decide what to do based on focusMode
+         // After printing, decide what to do based on focusMode
         if (activeTab === 'Pickup' || activeTab === 'Delivery') {
           // For these tabs, refresh the pending orders list and show it.
           handlePendingOrderTabClick(activeTab.toLowerCase() as 'pickup' | 'delivery');
@@ -1685,7 +1685,6 @@ const resetBillingPanel = () => {
           setSelectedTable(null); // Clear selection
           setShowOrderDetails(false);
         }
-
         // If it was a quick bill, refresh the quick bill data
         if (activeTab === 'Quick Bill') {
           await fetchQuickBillData();

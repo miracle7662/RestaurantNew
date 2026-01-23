@@ -150,6 +150,10 @@ export const applyKotSettings = (prev: any, data: any) => ({
   show_item_price: data.show_item_price ?? prev.show_item_price,
   group_kot_items_by_category: data.group_kot_items_by_category ?? prev.group_kot_items_by_category,
   hide_table_name_quick_bill: data.hide_table_name_quick_bill ?? prev.hide_table_name_quick_bill,
+  table_name_dine_in: data.table_name_dine_in ?? prev.table_name_dine_in,
+  table_name_pickup: data.table_name_pickup ?? prev.table_name_pickup,
+  table_name_delivery: data.table_name_delivery ?? prev.table_name_delivery,
+  table_name_quick_bill: data.table_name_quick_bill ?? prev.table_name_quick_bill,
 
   // Order info
   show_kot_no_quick_bill: data.show_kot_no_quick_bill ?? prev.show_kot_no_quick_bill,
