@@ -388,7 +388,35 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
     const showUsername = localFormData.show_username && user?.username;
     const showTerminalUsername = localFormData.show_terminal_username && user?.terminal_username;
     const showCaptainUsername = localFormData.show_captain_username && user?.captain_username;
-    const showCustomer = customerName && localFormData[`customer_on_kot_${tabKey}`];
+    const showCustomerOnKOT = (() => {
+  switch (activeTab) {
+    case 'Dine-in':
+      return localFormData.customer_on_kot_dine_in;
+    case 'Pickup':
+      return localFormData.customer_on_kot_pickup;
+    case 'Delivery':
+      return localFormData.customer_on_kot_delivery;
+    case 'Quick Bill':
+      return localFormData.customer_on_kot_quick_bill;
+    default:
+      return false;
+  }
+})();
+const displayOption =
+  localFormData.customer_kot_display_option ?? 'NAME_ONLY';
+
+
+const showCustomerName =
+  showCustomerOnKOT &&
+  !!customerName &&
+  ['NAME_ONLY', 'NAME_AND_MOBILE'].includes(displayOption);
+
+const showCustomerMobile =
+  showCustomerOnKOT &&
+  !!mobileNumber &&
+  localFormData.customer_kot_display_option === 'NAME_AND_MOBILE';
+    const showCustomer = showCustomerName || showCustomerMobile;
+
     const showTable = selectedTable && (activeTab === 'Dine-in' || localFormData[`table_name_${tabKey}`]) && !(activeTab === 'Quick Bill' && localFormData.hide_table_name_quick_bill);
     const showRateColumn = localFormData.show_item_price;
     const showAmountColumn = !localFormData.hide_item_total_column;
@@ -446,8 +474,18 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
     ${showUsername ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Username:</strong> ${user.username}</div>` : ''}
     ${showTerminalUsername ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Terminal Username:</strong> ${user.terminal_username}</div>` : ''}
     ${showCaptainUsername ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Captain Username:</strong> ${user.captain_username}</div>` : ''}
-    ${showCustomer ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Customer:</strong> ${customerName}</div>` : ''}
-    ${mobileNumber ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Mobile:</strong> ${mobileNumber}</div>` : ''}
+   ${showCustomerName
+  ? `<div style="font-size: 9pt; margin-bottom: 6px;">
+       <strong>Customer:</strong> ${customerName}
+     </div>`
+  : ''}
+
+${showCustomerMobile
+  ? `<div style="font-size: 9pt; margin-bottom: 6px;">
+       <strong>Mobile:</strong> ${mobileNumber}
+     </div>`
+  : ''}
+
     ${showKotNote ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Note:</strong> Sample KOT Note</div>` : ''}
     ${showOnlineOrderOtp ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>OTP:</strong> 123456</div>` : ''}
     ${showOrderIdQuickBill ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Order ID:</strong> QB-${currentKOTNo || 'N/A'}</div>` : ''}
