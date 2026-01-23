@@ -461,7 +461,6 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
       ${showRateColumn ? `<div style="text-align: right">Rate</div>` : ''}
       ${showAmountColumn ? `<div style="text-align: right">Amt</div>` : ''}
     </div>
-
     <!-- ITEMS -->
     ${groupKotItemsByCategory ? `
     <!-- Grouped by Category Placeholder -->
