@@ -102,6 +102,8 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
   const [printerName, setPrinterName] = React.useState<string | null>(null);
   const [outletId, setOutletId] = React.useState<number | null>(null);
   const [localFormData, setLocalFormData] = React.useState<OutletSettings>(formData);
+  const [enableBillPrint, setEnableBillPrint] = React.useState<number>(0);
+  const [loadingSetting, setLoadingSetting] = React.useState(true);
   const [localRestaurantName, setLocalRestaurantName] = React.useState<string>('');
   const [localOutletName, setLocalOutletName] = React.useState<string>('');
   const [isLoadingNames, setIsLoadingNames] = React.useState(true);
@@ -112,8 +114,8 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
 
   const loadOutletSettings = async (outletId: number) => {
     try {
-      const { preview, print } = await fetchBillSettings(outletId);
-      setLocalFormData(prev => applyBillSettings(prev, preview, print));
+      const { billPreviewSettings, billPrintSettings } = await fetchBillSettings(outletId);
+      setLocalFormData(prev => applyBillSettings(prev, billPreviewSettings, billPrintSettings));
 
     } catch (err) {
       console.error('Failed to load outlet settings', err);
@@ -201,6 +203,29 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
 
     fetchOutletDetails();
   }, [outletId, restaurantName, outletName, user]);
+
+  // Direct API call for enableBillPrint setting
+  React.useEffect(() => {
+  const outletId = selectedOutletId ?? Number(user?.outletid);
+  if (!outletId) return;
+
+  const fetchBillSetting = async () => {
+    try {
+      const res = await fetch(
+        `http://localhost:3001/api/settings/bill-printer-settings/${outletId}`
+      );
+      const data = await res.json();
+
+      setEnableBillPrint(Number(data?.enableBillPrint) || 0);
+    } catch (err) {
+      console.error("Bill setting fetch failed", err);
+      setEnableBillPrint(0);
+    }
+  };
+
+  fetchBillSetting();
+}, [selectedOutletId, user]);
+
 
   const generateBillHTML = () => {
     return `
@@ -555,20 +580,14 @@ ${(showAll || formData.show_kot_number_bill)
         <Button variant="secondary" onClick={onHide}>
           Close
         </Button>
-        <Button
-          variant="primary"
-          onClick={handlePrintBill}
-          disabled={loading}
-        >
-          {loading ? (
-            <>
-              <Spinner animation="border" size="sm" className="me-2" />
-              Printing...
-            </>
-          ) : (
-            "Print Bill"
-          )}
-        </Button>
+       <Button
+  variant="primary"
+  onClick={handlePrintBill}
+  disabled={enableBillPrint === 0}
+>
+  Print Bill
+</Button>
+
       </Modal.Footer>
     </Modal>
   );

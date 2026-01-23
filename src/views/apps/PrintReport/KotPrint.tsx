@@ -84,6 +84,9 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
   const [localOutletName, setLocalOutletName] = useState<string>('');
   const [isLoadingNames, setIsLoadingNames] = useState(true);
   const [localFormData, setLocalFormData] = useState<OutletSettings>(formData);
+  const [enableKotPrint, setEnableKotPrint] = useState<number>(0);
+const [loadingSetting, setLoadingSetting] = useState(true);
+
 
   const loadOutletSettings = async (outletId: number) => {
     console.log('loadOutletSettings called with outletId:', outletId);
@@ -180,6 +183,32 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
       handlePrintKOT();
     }
   }, [autoPrint, show, loading, hasPrinted, isLoadingNames]);
+
+  // Direct API call for enableKotPrint setting
+ useEffect(() => {
+  const outletId = selectedOutletId ?? Number(user?.outletid);
+  if (!outletId) return;
+
+  const fetchKotSetting = async () => {
+    try {
+      const res = await fetch(
+        `http://localhost:3001/api/settings/kot-printer-settings/${outletId}`
+      );
+      const data = await res.json();
+
+      // 👇 IMPORTANT: backend sends 0 / 1
+      setEnableKotPrint(Number(data?.enableKotPrint) || 0);
+    } catch (err) {
+      console.error("KOT setting fetch failed", err);
+      setEnableKotPrint(0);
+    } finally {
+      setLoadingSetting(false);
+    }
+  };
+
+  fetchKotSetting();
+}, [selectedOutletId, user]);
+
 
   const generateKOTHTML = () => {
     const kotItems = printItems.length > 0 ? printItems : items.filter(i => i.isNew);
@@ -587,20 +616,14 @@ ${showCustomerMobile
         <Button variant="secondary" onClick={onHide}>
           Close
         </Button>
-        <Button
-          variant="primary"
-          onClick={handlePrintKOT}
-          disabled={loading}
-        >
-          {loading ? (
-            <>
-              <Spinner animation="border" size="sm" className="me-2" />
-              Printing...
-            </>
-          ) : (
-            "Print KOT"
-          )}
-        </Button>
+       <Button
+  variant="primary"
+  onClick={handlePrintKOT}
+  disabled={enableKotPrint === 0 || loading}
+>
+  Print KOT
+</Button>
+
       </Modal.Footer>
     </Modal>
   );
