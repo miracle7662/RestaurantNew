@@ -235,7 +235,6 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
       color: #000;
       box-sizing: border-box;
     }
-
     /* CONTENT WRAPPER */
     #bill-preview-content {
       width: 100%;
@@ -403,7 +402,7 @@ ${(showAll || localFormData.show_kot_number_bill)
         <!-- ============ ITEMS TABLE (with conditional rendering) ============ -->
         <div style="margin-bottom: 10px;">
           <div style="display: grid; grid-template-columns: ${(showAll || localFormData.print_bill_both_languages) ? '3fr' : '2fr'} ${(showAll || !localFormData.hide_item_quantity_column) ? '30px' : ''} ${(showAll || !localFormData.hide_item_rate_column) ? '40px' : ''} ${(showAll || !localFormData.hide_item_total_column) ? '50px' : ''}; gap: 5px; font-weight: bold; border-bottom: 1px solid #000; padding-bottom: 2px; margin-bottom: 5px; font-size: 9pt;">
-            <div>${(showAll || (localFormData.show_alt_item_title_bill && localFormData.print_bill_both_languages)) ? 'Item/항목' : 'Description'}</div>
+            <div>${(showAll || (localFormData.show_alt_item_title_bill && localFormData.print_bill_both_languages)) ? 'Item' : 'Description'}</div>
             ${(showAll || !localFormData.hide_item_quantity_column) ? '<div style="text-align: right;">Qty</div>' : ''}
             ${(showAll || !localFormData.hide_item_rate_column) ? '<div style="text-align: right;">Rate</div>' : ''}
             ${(showAll || !localFormData.hide_item_total_column) ? '<div style="text-align: right;">Amount</div>' : ''}
@@ -506,60 +505,7 @@ ${(showAll || localFormData.show_kot_number_bill)
                 />
               </div>
             )}
-            {/* Printer Info */}
-            <div className="alert alert-info mb-3">
-              <div className="d-flex justify-content-between align-items-center">
-                <div>
-                  <strong>Printer:</strong> {printerName || "Not configured"}
-                </div>
-                {!printerName && (
-                  <Button
-                    variant="outline-primary"
-                    size="sm"
-                    onClick={() => {
-                      toast("Please configure printer in settings");
-                    }}
-                  >
-                    Configure
-                  </Button>
-                )}
-              </div>
-            </div>
-            {/* Print Stats */}
-            <div className="row mb-3">
-              <div className="col-md-6">
-                <div className="card">
-                  <div className="card-body">
-                    <h6 className="card-title">Bill Details</h6>
-                    <p className="mb-1">
-                      <strong>Order No:</strong> {orderNo || "—"}
-                    </p>
-                    <p className="mb-1">
-                      <strong>Table:</strong> {selectedTable || activeTab}
-                    </p>
-                    <p className="mb-1">
-                      <strong>Items:</strong> {items.filter(i => i.qty > 0).length}
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="col-md-6">
-                <div className="card">
-                  <div className="card-body">
-                    <h6 className="card-title">Customer Info</h6>
-                    <p className="mb-1">
-                      <strong>Name:</strong> {customerName || "Guest"}
-                    </p>
-                    <p className="mb-1">
-                      <strong>Mobile:</strong> {mobileNumber || "—"}
-                    </p>
-                    <p className="mb-0">
-                      <strong>Order Type:</strong> {activeTab}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
+           
           </div>
         )}
       </Modal.Body>
