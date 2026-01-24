@@ -488,6 +488,7 @@ const showCustomerMobile =
 
     // Calculate grid columns for items
     const columns = ['35px', '1fr'];
+    if (showRateColumn) columns.push('55px');
     if (showAmountColumn) columns.push('55px');
     const gridTemplateColumns = columns.join(' ');
 
@@ -581,8 +582,10 @@ ${showCustomerMobile
     <div style="display: grid; grid-template-columns: ${gridTemplateColumns}; font-weight: bold; border-bottom: 1px solid #000; padding-bottom: 4px; margin-bottom: 5px;">
       <div style="text-align: center">Qty</div>
       <div style="text-align: center">Item</div>
+      ${showRateColumn ? `<div style="text-align: right">Rate</div>` : ''}
       ${showAmountColumn ? `<div style="text-align: right">Amt</div>` : ''}
     </div>
+    
     <!-- ITEMS -->
     ${groupKotItemsByCategory ? `
     <!-- Grouped by Category Placeholder -->
@@ -605,6 +608,7 @@ ${showCustomerMobile
           ${modifierHtml}
           ${alternativeHtml}
         </div>
+        ${showRateColumn ? `<div style="text-align: right">${item.price.toFixed(2)}</div>` : ''}
         ${showAmountColumn ? `<div style="text-align: right">${(item.price * qty).toFixed(2)}</div>` : ''}
       </div>
       `;

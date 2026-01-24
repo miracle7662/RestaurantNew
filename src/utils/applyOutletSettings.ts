@@ -33,6 +33,7 @@ export interface OutletSettings {
   show_store_name?: boolean;
   show_terminal_username?: boolean;
   show_username?: boolean;
+  hide_item_Amt_column?: boolean;
   show_waiter?: boolean;
   bill_title_dine_in?: boolean;
   bill_title_pickup?: boolean;
@@ -154,6 +155,8 @@ export const applyKotSettings = (prev: any, data: any) => ({
   table_name_pickup: data.table_name_pickup ?? prev.table_name_pickup,
   table_name_delivery: data.table_name_delivery ?? prev.table_name_delivery,
   table_name_quick_bill: data.table_name_quick_bill ?? prev.table_name_quick_bill,
+  hide_item_Amt_column: data.hide_item_Amt_column ?? prev.hide_item_Amt_column,
+
 
   // Order info
   show_kot_no_quick_bill: data.show_kot_no_quick_bill ?? prev.show_kot_no_quick_bill,

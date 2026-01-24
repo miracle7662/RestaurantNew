@@ -2242,8 +2242,9 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
                               <div className="col-1">#</div>
                               <div className="col-4">Item Name</div>
                               <div className="col-2 text-center">Qty</div>
-                              <div className="col-2 text-end">Rate</div>
-                              {formData.show_item_price && !formData.hide_item_Amt_column && <div className="col-3 text-end">Amount</div>}
+                              {formData.hide_item_Amt_column && ( <div className="col-2 text-end fw-bold">Rate</div>)}
+
+                            {formData.show_item_price && <div className="col-3 text-end">Amount</div>}
                             </div>
 
                             {/* Items */}
@@ -2274,8 +2275,9 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
                                   )}
                                 </div>
                                 <div className="col-2 text-center">{item.qty}</div>
-                                <div className="col-2 text-end">{item.rate.toFixed(2)}</div>
-                                {formData.show_item_price && !formData.hide_item_Amt_column && (
+                                {formData.hide_item_Amt_column && (<div className="col-2 text-end">{item.rate.toFixed(2)}</div>)}
+
+                                 {formData.show_item_price && (
                                   <div className="col-3 text-end">{(item.qty * item.rate).toFixed(2)}</div>
                                 )}
                               </div>
@@ -2288,7 +2290,7 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
                               <div className="col-8 text-end">
                                 <small>Total Items: 6</small>
                               </div>
-                              {formData.show_item_price && !formData.hide_item_Amt_column && (
+                              {formData.show_item_price && (
                                 <div className="col-4 text-end">
                                   <small>₹ 475.00</small>
                                 </div>
