@@ -80,6 +80,7 @@ interface OutletSettings {
   show_terminal_username: boolean;
   show_username: boolean;
   show_waiter: boolean;
+  hide_item_Amt_column: boolean;
   // Bill print settings
   bill_title_dine_in: boolean;
   bill_title_pickup: boolean;
@@ -304,6 +305,7 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
     show_terminal_username: false,
     show_username: false,
     show_waiter: true,
+    hide_item_Amt_column: false,
     bill_title_dine_in: true,
     bill_title_pickup: true,
     bill_title_delivery: true,
@@ -566,6 +568,7 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
           show_terminal_username: convertToBoolean(data.kot_print_settings?.show_terminal_username ?? false),
           show_username: convertToBoolean(data.kot_print_settings?.show_username ?? false),
           show_waiter: convertToBoolean(data.kot_print_settings?.show_waiter ?? true),
+          hide_item_Amt_column: convertToBoolean(data.kot_print_settings?.hide_item_Amt_column ?? false),
 
           // Bill Print Settings
           bill_title_dine_in: convertToBoolean(data.bill_print_settings?.bill_title_dine_in ?? true),
@@ -853,6 +856,7 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
         show_terminal_username: formData.show_terminal_username ? 1 : 0,
         show_username: formData.show_username ? 1 : 0,
         show_waiter: formData.show_waiter ? 1 : 0,
+        hide_item_Amt_column: formData.hide_item_Amt_column ? 1 : 0,
       };
 
       // Bill Print Settings Payload
@@ -2093,6 +2097,26 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
                                 </div>
                               </div>
                             </div>
+                            <hr className="my-2" style={{ borderColor: '#ccc' }} />
+                            <div className="row mb-2">
+                              <div className="col-md-6">
+                                <h6 className="fw-bold mb-3">22. Hide Item Amount Column</h6>
+                              </div>
+                              <div className="col-md-6">
+                                <div className="ms-3">
+                                  <div className="form-check form-switch">
+                                    <input
+                                      style={{ borderColor: '#ccc' }}
+                                      className="form-check-input"
+                                      type="checkbox"
+                                      id="hide_item_Amt_column"
+                                      checked={formData.hide_item_Amt_column}
+                                      onChange={handleInputChange}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
                             <div
                               className="d-flex justify-content-end gap-3 mt-4"
                               style={{ padding: '10px' }}
@@ -2219,7 +2243,7 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
                               <div className="col-4">Item Name</div>
                               <div className="col-2 text-center">Qty</div>
                               <div className="col-2 text-end">Rate</div>
-                              {formData.show_item_price && <div className="col-3 text-end">Amount</div>}
+                              {formData.show_item_price && !formData.hide_item_Amt_column && <div className="col-3 text-end">Amount</div>}
                             </div>
 
                             {/* Items */}
@@ -2251,7 +2275,7 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
                                 </div>
                                 <div className="col-2 text-center">{item.qty}</div>
                                 <div className="col-2 text-end">{item.rate.toFixed(2)}</div>
-                                {formData.show_item_price && (
+                                {formData.show_item_price && !formData.hide_item_Amt_column && (
                                   <div className="col-3 text-end">{(item.qty * item.rate).toFixed(2)}</div>
                                 )}
                               </div>
@@ -2264,7 +2288,7 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
                               <div className="col-8 text-end">
                                 <small>Total Items: 6</small>
                               </div>
-                              {formData.show_item_price && (
+                              {formData.show_item_price && !formData.hide_item_Amt_column && (
                                 <div className="col-4 text-end">
                                   <small>₹ 475.00</small>
                                 </div>
