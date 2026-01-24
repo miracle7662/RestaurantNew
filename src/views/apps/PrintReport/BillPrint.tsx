@@ -509,7 +509,7 @@ ${(showAll || localFormData.show_kot_number_bill)
                     backgroundColor: "white",
                     border: "1px solid #ccc"
                   }}
-                  dangerouslySetInnerHTML={{ __html: generateBillContent(true) }}
+                  dangerouslySetInnerHTML={{ __html: generateBillContent(false) }}
                 />
               </div>
             )}
