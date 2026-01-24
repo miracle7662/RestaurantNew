@@ -471,7 +471,7 @@ const showCustomerMobile =
 
     const showTable = selectedTable && (activeTab === 'Dine-in' || localFormData[`table_name_${tabKey}`]) && !(activeTab === 'Quick Bill' && localFormData.hide_table_name_quick_bill);
     const showRateColumn = localFormData.show_item_price;
-    const showAmountColumn = !localFormData.hide_item_total_column;
+    const showAmountColumn = localFormData.hide_item_Amt_column;
     const showOrderTypeSymbol = localFormData.show_order_type_symbol;
     const showCoversAsGuest = localFormData.show_covers_as_guest;
     const showKotNote = localFormData.show_kot_note;
