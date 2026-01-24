@@ -1316,6 +1316,8 @@ const Order = () => {
 
       // 5. For Dine-in and Quick Bill, refresh the page to clear the state.
       // For Pickup/Delivery, keep the order on screen to proceed to settlement.
+      // Commented out to prevent showing table view page after printing bill
+      /*
       if (activeTab === 'Dine-in' || activeTab === 'Quick Bill') {
         setShowOrderDetails(false); // Hide the order panel
         setSelectedTable(null); // Deselect the table
@@ -1327,6 +1329,7 @@ const Order = () => {
 
       fetchTableManagement();
       window.location.reload();
+      */
     } catch (error: any) {
       console.error('Error printing bill:', error);
       toast.error(error.message || 'An error occurred while printing the bill.');
