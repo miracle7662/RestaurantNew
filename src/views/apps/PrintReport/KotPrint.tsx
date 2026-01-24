@@ -553,8 +553,7 @@ ${showCustomerMobile
     grid-template-columns: 60px auto;
     text-align: left;
   ">
-    <div><strong>KOT No:</strong></div>
-    <div>${displayKOTNo}</div>
+    ${activeTab !== 'Quick Bill' || showKotNoQuickBill ? `<div><strong>KOT No:</strong></div><div>${displayKOTNo}</div>` : ''}
 
     <div><strong>Date:</strong></div>
     <div>${dateTime}</div>
