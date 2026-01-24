@@ -103,9 +103,17 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
   const [outletId, setOutletId] = React.useState<number | null>(null);
   const [localFormData, setLocalFormData] = React.useState<OutletSettings>(formData);
   const [localRestaurantName, setLocalRestaurantName] = React.useState<string>('');
+
+  // Collect all unique KOT numbers from items if currentKOTNos is not provided or empty
+  const allKOTNos = React.useMemo(() => {
+    if (currentKOTNos && currentKOTNos.length > 0) {
+      return currentKOTNos;
+    }
+    const kotsFromItems = items.map(item => item.kotNo).filter(Boolean);
+    return [...new Set(kotsFromItems)].sort((a, b) => a - b);
+  }, [currentKOTNos, items]);
   const [localOutletName, setLocalOutletName] = React.useState<string>('');
   const [isLoadingNames, setIsLoadingNames] = React.useState(true);
-  const kotNos = currentKOTNos || [];
 
   const displayRestaurantName = restaurantName || localRestaurantName || user?.hotel_name || 'Restaurant Name';
   const displayOutletName = outletName || localOutletName || user?.outlet_name || 'Outlet Name';
@@ -367,10 +375,10 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
         <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 10px; font-size: 9pt;">
 ${(showAll || localFormData.show_kot_number_bill)
   ? `<div><strong>KOT No:</strong><br />${
-      kotNos.length > 0 ? kotNos.join(", ") : (currentKOTNo || "—")
+      allKOTNos.length > 0 ? allKOTNos.join(", ") : (currentKOTNo || "—")
     }</div>`
   : ""
-}          ${(showAll || localFormData.show_bill_no_bill) ? `<div><strong>Bill No:</strong><br />${(showAll || localFormData.show_bill_number_prefix_bill) ? (localFormData.dine_in_kot_no || '') : ''}${orderNo || ''}</div>` : ''}
+}      ${(showAll || localFormData.show_bill_no_bill) ? `<div><strong>Bill No:</strong><br />${(showAll || localFormData.show_bill_number_prefix_bill) ? (localFormData.dine_in_kot_no || '') : ''}${orderNo || ''}</div>` : ''}
           ${(showAll || localFormData.show_order_id_bill) ? `<div><strong>Order ID:</strong><br />${(showAll || !localFormData.mask_order_id) ? (currentTxnId || '—') : '****'}</div>` : ''}
           ${(showAll || ((activeTab === 'Dine-in' && localFormData.table_name_dine_in) || (activeTab === 'Pickup' && localFormData.table_name_pickup) || (activeTab === 'Delivery' && localFormData.table_name_delivery) || (activeTab === 'Quick Bill' && localFormData.table_name_quick_bill))) ? `<div><strong>Table:</strong><br />${selectedTable || '—'}</div>` : ''}
           ${(showAll || localFormData.show_date_bill) ? `<div><strong>Date:</strong><br />${new Date().toLocaleDateString('en-GB')}</div>` : ''}

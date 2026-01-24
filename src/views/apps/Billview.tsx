@@ -2723,7 +2723,7 @@ const ModernBill = () => {
                 </div>
               </Col>
 
-              {/* KOT No - Editable input */}
+                  {/* KOT No - Editable input */}
               <Col md={2}>
                 <div className="info-box p-2 h-100 border rounded text-center d-flex flex-column justify-content-center">
                   <div className="text-uppercase text-secondary small mb-1 fw-semibold">
@@ -2734,7 +2734,7 @@ const ModernBill = () => {
                     className="d-flex align-items-center justify-content-center border rounded bg-light mx-auto"
                     style={{ maxWidth: '140px' }}
                   >
-                    {/* DEFAULT KOT (LEFT) */}
+                    {/* USED KOT (LEFT) */}
                     <div
                       className="fw-bold fs-5 px-2 py-1"
                       style={{
@@ -2743,7 +2743,7 @@ const ModernBill = () => {
                         minWidth: '100px'
                       }}
                     >
-                      {defaultKot || '--'}
+                      {currentKOTNos.length > 0 ? currentKOTNos.join(', ') : (defaultKot || '--')}
                     </div>
 
                     {/* EDITABLE KOT (RIGHT) */}
@@ -2764,6 +2764,7 @@ const ModernBill = () => {
                       }}
                       className="border-0 fw-bold text-center bg-transparent"
                       style={{ width: '100px', color: '#333' }}
+                      disabled={!hasNewItems}
                     />
                   </div>
                 </div>
@@ -3428,6 +3429,7 @@ const ModernBill = () => {
           revQty: item.reversedQty || 0,
           kotNo: item.mkotNo ? parseInt(item.mkotNo.split('|')[0]) : undefined
         } as any))}
+        currentKOTNos={currentKOTNos}
         orderNo={orderNo ?? undefined}
         selectedTable={tableNo}
         activeTab={isTakeaway ? "Takeaway" : "Dine-in"}
