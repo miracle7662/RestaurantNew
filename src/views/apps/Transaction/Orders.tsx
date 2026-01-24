@@ -14,9 +14,7 @@ import SettlementModal from "./SettelmentModel";
 import { fetchKotPrintSettings, fetchBillSettings } from '@/services/outletSettings.service';
 import { applyKotSettings, applyBillSettings } from '@/utils/applyOutletSettings';
 import KotPreviewPrint from '../PrintReport/KotPrint';
-
-
-// 🔽 YAHAN ADD KARO (component ke bahar)
+import BillPreviewPrint from '../PrintReport/BillPrint';
 
 interface MenuItem {
   id: number;
@@ -38,14 +36,12 @@ interface MenuItem {
   isReverse?: boolean; // Added for reverse quantity items
   revQty?: number;
 }
-
 interface ReversedMenuItem extends MenuItem {
   isReversed: true;
   reversalLogId: number;
   status: 'Reversed';
 
 }
-
 interface TableItem {
   tablemanagementid: string;
   table_name: string;
@@ -69,15 +65,12 @@ interface DepartmentItem {
   department_name: string;
   outletid: number;
 }
-
 interface PaymentMode {
   id: number;
   paymenttypeid: number;
   mode_name: string;
   payment_mode_name: string;
 }
-
-
 
 const Order = () => {
   const [selectedTable, setSelectedTable] = useState<string | null>('');
@@ -144,12 +137,10 @@ const Order = () => {
   const [isSaveReverseDisabled, setIsSaveReverseDisabled] = useState(false);
   // New state for F9 password modal for reversing orders
 
-
   // New state for F9 password modal
   const [showF9BilledPasswordModal, setShowCtrlF9BilledPasswordModal] = useState<boolean>(false);
   const [f9BilledPasswordError, setF9BilledPasswordError] = useState<string>('');
   const [f9BilledPasswordLoading, setF9BilledPasswordLoading] = useState<boolean>(false);
-
 
   // New state for Reverse Qty Mode authentication
   const [, setReverseQtyConfig] = useState<'NoPassword' | 'PasswordRequired'>('PasswordRequired'); // Config for Reverse Qty Mode
@@ -179,11 +170,7 @@ const Order = () => {
   const [showKotTransfer, setShowKotTransfer] = useState<boolean>(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [transferMode, setTransferMode] = useState<"table" | "kot">("table");
-
-
   // KOT Print Settings state
-
-
   // Tax modal form state
   const [cgst, setCgst] = useState<string>('');
   const [sgst, setSgst] = useState<string>('');
@@ -215,6 +202,9 @@ const Order = () => {
   // New state for the Bill Preview Modal
   const [showBillPreviewModal, setShowBillPreviewModal] = useState<boolean>(false);
   const [errorPending, setErrorPending] = useState<string | null>(null);
+
+  // New state for the Bill Print Modal
+  const [showBillPrintModal, setShowBillPrintModal] = useState<boolean>(false);
 
   const [printItems, setPrintItems] = useState<MenuItem[]>([]);
   const [, setIsPrintMode] = useState(false);
@@ -256,8 +246,6 @@ const resetBillingPanel = () => {
   // 🔴 TABLE NAME CLEAR
   setSelectedTable(null);
 };
-
-
 
   // Function to apply rounding
   const applyRoundOff = (amount: number, roundTo: number) => {
@@ -463,7 +451,6 @@ const resetBillingPanel = () => {
     }
   }, [setItems, setReversedItems, setCurrentKOTNo, setCurrentKOTNos, setCurrentTxnId]);
 
-
   const getTableButtonClass = (table: TableItem, isSelected: boolean) => {
 
     // Use status for coloring: 0=available, 1=occupied/KOT saved, 2=billed/printed
@@ -474,8 +461,6 @@ const resetBillingPanel = () => {
       default: return 'btn-outline-success';
     }
   };
-
-
   const fetchTableManagement = async () => {
     setLoading(true);
     try {
@@ -644,8 +629,6 @@ const resetBillingPanel = () => {
       setLoading(false);
     }
   };
-
-  
 
   const fetchOutletsData = async () => {
     console.log('Full user object:', JSON.stringify(user, null, 2));
@@ -1005,10 +988,6 @@ const resetBillingPanel = () => {
       toast.error('Error processing reverse quantity');
     }
   };
-
-
-
-
   useEffect(() => {
     const selectedDepartment = departments.find(d => d.department_name === activeNavTab) || null;
     if (selectedDepartment) {
@@ -1090,8 +1069,6 @@ const resetBillingPanel = () => {
       console.log("✅ Active Items Total (After Reverse):", grandTotal);
       return;
     }
-
-
     // Correctly calculate subtotal based on active (non-reversed) items
     const activeItems = items.filter(item => !item.isReverse);
     const lineTotal = activeItems.reduce((sum, item) => sum + item.price * item.qty, 0);
@@ -1155,9 +1132,6 @@ const resetBillingPanel = () => {
       if (kotData) {
         setFormData(prev => applyKotSettings(prev, kotData));
       }
-
-      
-
     } catch (err) {
       console.error('Failed to load outlet settings', err);
     }
@@ -1269,9 +1243,6 @@ const resetBillingPanel = () => {
      resetBillingPanel(); 
     setActiveNavTab('ALL'); // Show all department tables
   };
-
-
-
   const handlePrintBill = async () => {
     if (items.length === 0) {
       toast.error('No items to print a bill for.');
@@ -1406,9 +1377,6 @@ const resetBillingPanel = () => {
     try {
       const newItemsToKOT = items.filter(item => item.isNew);
       const reverseItemsToKOT = reverseQtyMode ? reverseQtyItems : [];
-
-      
-
       setLoading(true);
 
       const tableNameForKOT =
@@ -1618,12 +1586,7 @@ const resetBillingPanel = () => {
             )
           );
         }
-
-      
-
-
         setIsPrintMode(false);
-
         // 🔥 HARD RESET after KOT save
         setItems([]);
         setPrintItems([]);
@@ -2311,7 +2274,6 @@ const resetBillingPanel = () => {
       setReason('');
     }
   };
-
   const handleDiscountKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') setShowDiscountModal(false);
     if (e.key === 'Enter') handleApplyDiscount();
@@ -2341,12 +2303,6 @@ useEffect(() => {
   taxCalc.grandTotal,
   tip,
 ]);
-
-
-
-
-
-
  const handleSettleAndPrint = async (settlementsData?: any[], tipData?: number) => {
   // 🔍 DEBUG – YAHI ADD KARO
   console.log({
@@ -2382,9 +2338,6 @@ useEffect(() => {
     toast.error(`Payment amount (${totalPaid}) does not match the total due (${payableTotal}).`);
     return;
   }
-
-
-  
 
     setLoading(true);
     try {
@@ -2530,8 +2483,6 @@ useEffect(() => {
       setNcPurpose('');
     }
   };
-
-
   const handleCloseAuthModal = () => {
     setShowAuthModal(false);
     setAuthPassword('');
@@ -2578,9 +2529,6 @@ useEffect(() => {
       setLoadingPending(false);
     }
   };
-
-
-
   const handleLoadPendingOrder = (order: any) => {
     // 1. Hide the pending orders list and show the main order details panel
     setShowPendingOrdersView(false); // Hide the list view
@@ -2671,7 +2619,6 @@ useEffect(() => {
       setShowSettlementModal(true); // Show modal after payment modes are fetched
     });
   };
-
   const handlePendingOrderTabClick = (type: 'pickup' | 'delivery') => {
     setActiveNavTab(type.charAt(0).toUpperCase() + type.slice(1)); // Set the active tab
     setShowOrderDetails(false);
@@ -2689,10 +2636,6 @@ useEffect(() => {
   return (
     <div className="container-fluid p-0 m-0 fade-in" style={{ height: '100vh' }}>
       {/* Hidden KOT Preview for Printing */}
-
-     
-
-
       {errorMessage && (
         <div className="alert alert-danger text-center" role="alert">
           {errorMessage}
@@ -3147,7 +3090,6 @@ useEffect(() => {
                           )}
                         </tbody>
                       </Table>
-
                       {totalPages > 1 && (
                         <div className="d-flex justify-content-between align-items-center mt-2">
                           <span className="text-muted small">
@@ -3182,8 +3124,6 @@ useEffect(() => {
                   </div>
                 );
               })()}
-
-
             {activeNavTab === 'Quick Bill' && !showOrderDetails && (
               <div
                 className="rounded shadow-sm p-3 mt-0 bg-light"
@@ -4015,10 +3955,7 @@ useEffect(() => {
                             <path d="M1 2.5A1.5 1.5 0 0 1 2.5 1h3A1.5 1.5 0 0 1 7 2.5v3A1.5 1.5 0 0 1 5.5 7h-3A1.5 1.5 0 0 1 1 5.5v-3zM2.5 2a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3zm6.5.5A1.5 1.5 0 0 1 10.5 1h3A1.5 1.5 0 0 1 15 2.5v3A1.5 1.5 0 0 1 13.5 7h-3A1.5 1.5 0 0 1 9 5.5v-3zm1.5-.5a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3zM1 10.5A1.5 1.5 0 0 1 2.5 9h3A1.5 1.5 0 0 1 7 10.5v3A1.5 1.5 0 0 1 5.5 15h-3A1.5 1.5 0 0 1 1 13.5v-3zm1.5-.5a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3zm6.5.5A1.5 1.5 0 0 1 10.5 9h3a1.5 1.5 0 0 1 1.5 1.5v3a1.5 1.5 0 0 1-1.5 1.5h-3A1.5 1.5 0 0 1 9 13.5v-3zm1.5-.5a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-3z" />
                           </svg>
                         </Button>
-
-
                       </div>
-
                       {/* Overlay to close when clicking outside */}
                       <div
                         style={{
@@ -4200,7 +4137,6 @@ useEffect(() => {
               </Button>
             </Modal.Footer>
           </Modal>
-
           <Modal show={showDiscountModal} onHide={() => setShowDiscountModal(false)} centered onShow={() => {
             if (DiscountType === 1) {
               setDiscountInputValue(DiscPer);
@@ -4265,7 +4201,6 @@ useEffect(() => {
               </Button>
             </Modal.Footer>
           </Modal>
-
           <Modal
             show={showTaxModal}
             onHide={() => setShowTaxModal(false)}
@@ -4277,7 +4212,6 @@ useEffect(() => {
             <Modal.Header closeButton>
               <Modal.Title>View Tax Rates</Modal.Title>
             </Modal.Header>
-
             <Modal.Body>
               <div>
                 <h6>Tax Summary</h6>
@@ -4308,14 +4242,11 @@ useEffect(() => {
                 </div>
               </div>
             </Modal.Body>
-
             <Modal.Footer>
               <Button variant="secondary" onClick={() => setShowTaxModal(false)}>Cancel</Button>
               <Button variant="primary" onClick={handleSaveTax}>Save</Button>
             </Modal.Footer>
           </Modal>
-
-
           <Modal show={showNCKOTModal} onHide={() => setShowNCKOTModal(false)} centered>
             <Modal.Header closeButton>
               <Modal.Title>NCKOT</Modal.Title>
@@ -4335,7 +4266,6 @@ useEffect(() => {
               <Button variant="primary" onClick={handleSaveNCKOT}>Save</Button>
             </Modal.Footer>
           </Modal>
-
           {/* Bill Preview Modal */}
           <Modal
             show={showBillPreviewModal}
@@ -4437,7 +4367,6 @@ useEffect(() => {
               />
             </Modal.Body>
           </Modal>
-
           <KotPreviewPrint
             show={showKotPreviewModal}
             onHide={() => setShowKotPreviewModal(false)}
