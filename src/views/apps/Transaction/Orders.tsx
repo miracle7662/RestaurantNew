@@ -1286,21 +1286,8 @@ const resetBillingPanel = () => {
         setOrderNo(printResult.data.TxnNo);
       }
 
-      // 2. Print the bill preview from the existing data
-      const printWindow = window.open('', '_blank');
-      if (printWindow) {
-        const contentToPrint = document.getElementById('bill-preview');
-        if (contentToPrint) {
-          printWindow.document.write(contentToPrint.innerHTML);
-          printWindow.document.close();
-          printWindow.focus();
-          // Use a small timeout to ensure the TxnNo is rendered before printing
-          setTimeout(() => {
-            printWindow.print();
-          }, 100);
-        }
-      }
-
+      // 2. Open the BillPreviewPrint modal instead of directly printing
+      setShowBillPrintModal(true);
 
       // 3. Update table status after discount and print
       if (selectedTable) {
@@ -1389,7 +1376,6 @@ const resetBillingPanel = () => {
       const selectedTableRecord: any = (Array.isArray(filteredTables) ? filteredTables : tableItems)
         .find((t: any) => t && t.table_name && selectedTable && t.table_name.toLowerCase() === selectedTable.toLowerCase())
         || (Array.isArray(tableItems) ? tableItems.find((t: any) => t && t.table_name && selectedTable && t.table_name.toLowerCase() === selectedTable.toLowerCase()) : undefined);
-
 
       let resolvedTableId = selectedTableRecord ? Number((selectedTableRecord as any).tableid || (selectedTableRecord as any).tablemanagementid) : null;
       let resolvedDeptId = selectedTableRecord ? Number((selectedTableRecord as any).departmentid) || selectedDeptId : undefined;
@@ -1659,22 +1645,16 @@ const resetBillingPanel = () => {
       setLoading(false);
     }
   };
-
-
-
  const handlePrintAndSettle = async () => {
   if (items.length === 0) {
     toast.error('No items to process.');
     return;
   }
-
   if (!currentTxnId) {
     toast.error('Cannot proceed. No transaction ID found.');
     return;
   }
-
   setLoading(true);
-
   try {
     // 1️⃣ Mark as Billed (Generate TxnNo)
     const billedRes = await fetch(
@@ -1729,8 +1709,6 @@ const resetBillingPanel = () => {
     setLoading(false);
   }
 };
-
-
   const handleSaveReverse = async () => {
     if (!persistentTxnId) {
       toast.error('Cannot save reversal. No active transaction found.');
@@ -1778,10 +1756,6 @@ const resetBillingPanel = () => {
         
           }
         }
-        
-
-
-
         // Open print preview for the reverse KOT
         const printWindow = window.open('', '_blank');
         if (printWindow) {
@@ -3972,7 +3946,6 @@ useEffect(() => {
                     </>
                   )}
                 </div>
-
               </div>
             </div>
             <div className="billing-panel-footer mt-auto flex-shrink-0" style={{ backgroundColor: 'white', position: 'sticky', bottom: 0 }}>
@@ -4086,7 +4059,6 @@ useEffect(() => {
               </div>
             </div>
           </div>
-
           <Modal show={showSavedKOTsModal} onHide={() => setShowSavedKOTsModal(false)} centered size="lg" onShow={async () => {
             try {
               const resp = await getSavedKOTs({ isBilled: 0 })
@@ -4388,10 +4360,38 @@ useEffect(() => {
             kotNote={kotNote}
             orderNo={orderNo}
           />
+          <BillPreviewPrint
+            show={showBillPrintModal}
+            onHide={() => setShowBillPrintModal(false)}
+            formData={formData}
+            user={user}
+            items={items}
+            currentKOTNos={currentKOTNos}
+            currentKOTNo={currentKOTNo}
+            orderNo={orderNo}
+            selectedTable={selectedTable || undefined}
+            activeTab={activeTab}
+            customerName={customerName}
+            mobileNumber={mobileNumber}
+            currentTxnId={currentTxnId}
+            taxCalc={taxCalc}
+            taxRates={taxRates}
+            discount={discount}
+            reason={reason}
+            roundOffEnabled={roundOffEnabled}
+            roundOffValue={roundOffValue}
+            selectedPaymentModes={selectedPaymentModes}
+            onPrint={() => {
+              // Handle print callback if needed
+            }}
+            onClose={() => setShowBillPrintModal(false)}
+            selectedOutletId={selectedOutletId}
+            restaurantName={user?.hotel_name}
+            outletName={user?.outlet_name}
+          />
         </div>
       </div>
     </div>
-
   );
 };
 
