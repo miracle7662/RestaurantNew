@@ -4445,7 +4445,7 @@ useEffect(() => {
             printItems={printItems}
             items={items}
             currentKOTNo={currentKOTNo}
-            kotNo={currentKOTNo}
+            kotNo={currentKOTNo !== null ? currentKOTNo : undefined}
             selectedTable={activeTab === 'Dine-in' ? selectedTable : activeTab}
             activeTab={activeTab}
             customerName={customerName}
