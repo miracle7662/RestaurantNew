@@ -54,6 +54,7 @@ interface KotPreviewPrintProps {
   restaurantName?: string;
   outletName?: string;
   kotNote?: string;
+  orderNo?: string | null;
 }
 
 const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
@@ -76,7 +77,8 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
   pax,
   restaurantName,
   outletName,
-  kotNote
+  kotNote,
+  orderNo
 }) => {
   const [loading, setLoading] = useState(false);
   const [hasPrinted, setHasPrinted] = useState(false);
@@ -563,7 +565,7 @@ ${showCustomerMobile
     ${showOnlineOrderOtp ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>OTP:</strong> 123456</div>` : ''}
     ${showOrderIdQuickBill ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Order ID:</strong> QB-${currentKOTNo || 'N/A'}</div>` : ''}
     ${showKotNoQuickBill ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>KOT No:</strong> ${displayKOTNo}</div>` : ''}
-    ${showOrderNoQuickBillSection ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Order No:</strong> ${currentKOTNo || 'N/A'}</div>` : ''}
+    ${showOrderNoQuickBillSection ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Order No:</strong> ${orderNo || 'N/A'}</div>` : ''}
 
     <hr style="border: none; border-top: 1px dashed #000; margin: 8px 0;" />
     <!-- ITEM HEADER -->

@@ -4457,6 +4457,7 @@ useEffect(() => {
             selectedOutletId={selectedOutletId}
             autoPrint={false}
             kotNote={kotNote}
+            orderNo={orderNo}
           />
         </div>
       </div>
