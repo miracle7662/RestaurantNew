@@ -418,6 +418,15 @@ const dateTime = new Date().toLocaleString('en-GB', {
     };
     const tabKey = tabKeyMap[activeTab] || 'dine_in';
 
+    // Determine order tag for KOT header
+    const orderTag = (() => {
+      if (activeTab === 'Dine-in' && selectedTable) {
+        const hasExistingItems = items.some(item => !item.isNew);
+        return hasExistingItems ? (localFormData.running_order_tag_label || 'Running') : (localFormData.new_order_tag_label || 'New');
+      }
+      return '';
+    })();
+
     console.log('ACTIVE TAB 👉', activeTab, 'TAB KEY 👉', tabKey);
 
     // Get KOT no prefix
@@ -499,7 +508,7 @@ const showCustomerMobile =
 
     <!-- KOT HEADER -->
     <div style="text-align: center; margin-bottom: 8px;">
-      <div><strong>${showOrderTypeSymbol ? '🔸 ' : ''}Order Type:</strong> ${activeTab}</div>
+      <div><strong>${showOrderTypeSymbol ? '🔸 ' : ''}Order Type:</strong> ${activeTab} ${orderTag ? `- ${orderTag}` : ''}</div>
 
         ${showCustomerName
   ? `<div style="font-size: 9pt; margin-bottom: 6px;">

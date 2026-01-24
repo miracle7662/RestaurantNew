@@ -422,8 +422,9 @@ exports.addOutlet = (req, res) => {
         show_store_name,
         show_terminal_username,
         show_username,
-        show_waiter
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        show_waiter,
+        hide_item_Amt_column
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     kotPrintStmt.run(
@@ -459,7 +460,8 @@ exports.addOutlet = (req, res) => {
       1, // show_store_name
       0, // show_terminal_username
       0, // show_username
-      1 // show_waiter
+      1, // show_waiter
+      0 // hide_item_Amt_column
     );
 
     // Insert default settings into mstbill_print_settings
@@ -1568,7 +1570,7 @@ exports.updateKotPrintSettings = (req, res) => {
       show_terminal_username,
       show_username,
       show_waiter,
-    
+      hide_item_Amt_column
     } = req.body;
 
     // Validate required fields
@@ -1609,8 +1611,8 @@ exports.updateKotPrintSettings = (req, res) => {
         show_store_name = ?,
         show_terminal_username = ?,
         show_username = ?,
-        show_waiter = ?
-       
+        show_waiter = ?,
+        hide_item_Amt_column = ?
       WHERE outletid = ?
     `);
 
@@ -1647,7 +1649,7 @@ exports.updateKotPrintSettings = (req, res) => {
       show_terminal_username ? 1 : 0,
       show_username ? 1 : 0,
       show_waiter ? 1 : 0,
-   
+      hide_item_Amt_column ? 1 : 0,
       outletid
     );
 
@@ -1685,7 +1687,7 @@ exports.updateKotPrintSettings = (req, res) => {
       show_terminal_username: !!show_terminal_username,
       show_username: !!show_username,
       show_waiter: !!show_waiter,
-     
+      hide_item_Amt_column: !!hide_item_Amt_column
     });
   } catch (error) {
     console.error("Error updating KOT print settings:", error);
@@ -2239,7 +2241,8 @@ exports.getOutletBillingSettings = (req, res) => {
         kps.show_store_name,
         kps.show_terminal_username,
         kps.show_username,
-        kps.show_waiter
+        kps.show_waiter,
+        kps.hide_item_Amt_column
       FROM mst_outlets o
       LEFT JOIN mstbills_print_settings bps ON o.outletid = bps.outletid
       LEFT JOIN mstgeneral_settings gs ON o.outletid = gs.outletid
@@ -2446,6 +2449,7 @@ exports.getOutletBillingSettings = (req, res) => {
         show_terminal_username: !!settings.show_terminal_username,
         show_username: !!settings.show_username,
         show_waiter: !!settings.show_waiter,
+        hide_item_Amt_column: !!settings.hide_item_Amt_column,
       } : null,
     };
 
@@ -2654,6 +2658,7 @@ exports.getKotPrintSettings = (req, res) => {
       show_terminal_username: !!settings.show_terminal_username,
       show_username: !!settings.show_username,
       show_waiter: !!settings.show_waiter,
+      hide_item_Amt_column: !!settings.hide_item_Amt_column,
     };
 
     res.json(response);
