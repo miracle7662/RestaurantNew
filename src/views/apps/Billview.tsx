@@ -1,4 +1,4 @@
- import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { Row, Col, Card, Table, Badge, Button, Form, Modal } from 'react-bootstrap';
 import axios from 'axios';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -51,7 +51,6 @@ interface BillItem {
   revKotNo?: number;
   isValidCode?: boolean;
 }
-
 interface MenuItem {
   restitemid: number;
   item_no: string;
@@ -60,19 +59,16 @@ interface MenuItem {
   price: number;
   itemgroupid?: number;
 }
-
 interface ItemGroup {
   itemgroupid: number;
   group_name: string;
 }
-
 interface DisplayedItem extends BillItem {
   type?: 'header' | 'item';
   groupName?: string;
   isEditable?: boolean;
   originalIndex?: number;
 }
-
 const groupExistingItems = (items: BillItem[], cgstRate: number, sgstRate: number, igstRate: number, cessRate: number, includeTaxInInvoice: boolean): BillItem[] => {
   const grouped = items.reduce((acc, item) => {
     const key = item.itemId || item.itemName;
@@ -118,7 +114,6 @@ interface TableManagement {
   table_name: string;
   tablemanagementid: number;
 }
-
 interface FetchedItem {
   id: number;
   txnDetailId: number;
@@ -143,7 +138,6 @@ const ModernBill = () => {
   const [totalSgst, setTotalSgst] = useState(0);
   const [totalIgst, setTotalIgst] = useState(0);
   const [totalCess, setTotalCess] = useState(0);
-  const [totalRevQty, setTotalRevQty] = useState(0);
   const [roundOff, setRoundOff] = useState(0);
   const [cgst, setCgst] = useState<number>(0);
   const [sgst, setSgst] = useState<number>(0);
@@ -437,7 +431,7 @@ const ModernBill = () => {
   const refundAmount =
     totalReceived > taxCalc.grandTotal
       ? totalReceived - taxCalc.grandTotal
-    : 0;
+      : 0;
 
   const balanceAmount =
     totalReceived < taxCalc.grandTotal
@@ -445,29 +439,16 @@ const ModernBill = () => {
       : 0;
 
 
-// Calculate remaining amount excluding one specific mode
-
-
-// Your existing change handler (can stay almost same)
-
-  // Reverse Bill modal data
-  const [reversePassword, setReversePassword] = useState('');
 
   // Reverse KOT modal data
   const [showReverseKot, setShowReverseKot] = useState(false);
   const [revKotNo, setRevKotNo] = useState(0);
-  // const [RevKOT, setRevKOT] = useState(0);
-  const [reverseQty, setReverseQty] = useState(1);
-  const [reverseReason, setReverseReason] = useState('');
   const [showKotPrintModal, setShowKotPrintModal] = useState(false);
   const [currentKotNoForPrint, setCurrentKotNoForPrint] = useState<number | null>(null);
   const [showBillPrintModal, setShowBillPrintModal] = useState(false);
-
-
   // Transfer modal data
   const [availableTables, setAvailableTables] = useState<Table[]>([]);
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
-
   const [customerNo, setCustomerNo] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [customerId, setCustomerId] = useState<number | null>(null);
@@ -483,7 +464,6 @@ const ModernBill = () => {
   const [givenBy, setGivenBy] = useState('');
   const [reason, setReason] = useState('');
   const [DiscPer, setDiscPer] = useState(0);
-
   const handleDiscountModalKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
       setShowDiscountModal(false);
@@ -1216,9 +1196,6 @@ const ModernBill = () => {
     }
   };
 
-  // Mock data for item lookup
-  // This is now replaced by the menuItems state fetched from the API
-
   const calculateTotals = (items: BillItem[]) => {
     const updatedItems = items.map(item => {
       const total = item.qty * item.rate;
@@ -1397,7 +1374,7 @@ const ModernBill = () => {
     }
   }, [tableId, isTakeaway, takeawayOrderId]);
 
-  
+
 
   // Check for openSettlement flag and open settlement modal
   useEffect(() => {
@@ -1643,7 +1620,6 @@ const ModernBill = () => {
         }
         return;
       }
-
       const payload = {
         outletid: outletId,
         tableId: isTakeaway ? null : tableId,
@@ -1651,7 +1627,7 @@ const ModernBill = () => {
         userId: user.id,
         hotelId: user.hotelid,
         KOTNo: editableKot, // Use editableKot if set, else null for backend to generate
-      Order_Type: isTakeaway ? (deliveryType === 'pickup' ? 'Pickup' : 'Delivery') : 'Dine-in',
+        Order_Type: isTakeaway ? (deliveryType === 'pickup' ? 'Pickup' : 'Delivery') : 'Dine-in',
         PAX: pax,
         CustomerName: customerName || null,
         MobileNo: customerNo || null,
@@ -1815,7 +1791,6 @@ const ModernBill = () => {
       setNcPurpose('');
     }
   };
-
   const handleReverseKotSave = async (reverseItemsFromModal: any[]) => {
     if (!txnId || !tableId) {
       toast.error('Transaction or table not found');
@@ -1881,11 +1856,11 @@ const ModernBill = () => {
       toast.error(err.message || 'Reverse failed');
     }
   };
- const printKOT = async (kotNo: number) => {
+  const printKOT = async (kotNo: number) => {
     try {
       const response = await axios.post(`/api/kot/print/${kotNo}`, {
         CustomerName: customerName || null,
-  MobileNo: customerNo || null,
+        MobileNo: customerNo || null,
       });
       toast.success('KOT printed successfully');
       // Handle print data if needed
@@ -1896,45 +1871,43 @@ const ModernBill = () => {
     }
   };
 
-const printBill = async () => {
-  if (!txnId) return;
+  const printBill = async () => {
+    if (!txnId) return;
 
-  if (isTakeaway && !txnId) {
-    toast.error('Transaction not loaded. Please reopen order.');
-    return;
-  }
-
-  try {
-    // 1️⃣ Generate TxnNo (Bill No)
-    const response = await axios.put(
-      `/api/TAxnTrnbill/${txnId}/mark-billed`,
-      {
-        outletId: selectedOutletId || Number(user?.outletid),
-        customerName: customerName || null,
-        mobileNo: customerNo || null,
-        GuestID: customerId || null,
-      }
-    );
-
-    const txnNo = response.data?.data?.TxnNo;
-    if (!txnNo) {
-      toast.error('TxnNo not generated');
+    if (isTakeaway && !txnId) {
+      toast.error('Transaction not loaded. Please reopen order.');
       return;
     }
 
-    // 2️⃣ Save Bill No in state
-    setOrderNo(txnNo);
+    try {
+      // 1️⃣ Generate TxnNo (Bill No)
+      const response = await axios.put(
+        `/api/TAxnTrnbill/${txnId}/mark-billed`,
+        {
+          outletId: selectedOutletId || Number(user?.outletid),
+          customerName: customerName || null,
+          mobileNo: customerNo || null,
+          GuestID: customerId || null,
+        }
+      );
 
-    // ✅ 3️⃣ OPEN BILL PRINT MODAL (THIS WAS MISSING)
-    setShowBillPrintModal(true);
+      const txnNo = response.data?.data?.TxnNo;
+      if (!txnNo) {
+        toast.error('TxnNo not generated');
+        return;
+      }
 
-  } catch (error) {
-    console.error('Error printing bill:', error);
-    toast.error('Error printing bill');
-  }
-};
+      // 2️⃣ Save Bill No in state
+      setOrderNo(txnNo);
 
+      // ✅ 3️⃣ OPEN BILL PRINT MODAL (THIS WAS MISSING)
+      setShowBillPrintModal(true);
 
+    } catch (error) {
+      console.error('Error printing bill:', error);
+      toast.error('Error printing bill');
+    }
+  };
 
   const PrintAndSettle = async () => {
     if (!txnId) return;
@@ -2030,9 +2003,6 @@ const printBill = async () => {
       setPaymentAmounts({ [mode.mode_name]: taxCalc.grandTotal.toString() });
     }
   };
-
-  
-
   const handleApplyDiscount = async () => {
     if (!txnId) {
       toast.error("Please save the KOT before applying a discount.");
@@ -2110,9 +2080,6 @@ const printBill = async () => {
       if (tableId) {
         await loadBillForTable(tableId);
       }
-
-     
-
     } catch (error: any) {
       toast.error(error.message || 'An error occurred while applying the discount.');
     } finally {
@@ -2217,7 +2184,6 @@ const printBill = async () => {
   );
 
   const hasOnlyExistingItems = hasItems && !hasNewItems;
-
   const isBillPrintedState = billItems.some(i => i.isBilled === 1);
 
 
@@ -2253,7 +2219,7 @@ const printBill = async () => {
           case 'F5': // 🔒 Reverse Bill (only if isBilled = 1)
             event.preventDefault();
             if (disableReverseBill) return;
-           setShowReverseBillModal(true);
+            setShowReverseBillModal(true);
             return;
 
           case 'F6':
@@ -2819,58 +2785,55 @@ const printBill = async () => {
               </Col>
 
               {/* Delivery Type - Radio Buttons */}
-            <Col md={2}>
-  <div className="border rounded p-2 h-100">
-    <div className="text-uppercase text-secondary small fw-semibold text-center mb-2">
-      Delivery
-    </div>
+              <Col md={2}>
+                <div className="border rounded p-2 h-100">
+                  <div className="text-uppercase text-secondary small fw-semibold text-center mb-2">
+                    Delivery
+                  </div>
 
-    <div className="btn-group w-100" role="group">
-      {/* Pickup */}
-      <input
-        type="radio"
-        className="btn-check"
-        name="deliveryType"
-        id="pickup"
-        value="pickup"
-        checked={deliveryType === 'pickup'}
-        onChange={(e) =>
-          setDeliveryType(e.target.value as 'pickup' | 'homedelivery')
-        }
-      />
-      <label
-        className="btn btn-outline-primary btn-sm d-flex align-items-center justify-content-center gap-1"
-        htmlFor="pickup"
-      >
-        <i className="fi fi-rr-shopping-bag"></i>
-        Pickup
-      </label>
+                  <div className="btn-group w-100" role="group">
+                    {/* Pickup */}
+                    <input
+                      type="radio"
+                      className="btn-check"
+                      name="deliveryType"
+                      id="pickup"
+                      value="pickup"
+                      checked={deliveryType === 'pickup'}
+                      onChange={(e) =>
+                        setDeliveryType(e.target.value as 'pickup' | 'homedelivery')
+                      }
+                    />
+                    <label
+                      className="btn btn-outline-primary btn-sm d-flex align-items-center justify-content-center gap-1"
+                      htmlFor="pickup"
+                    >
+                      <i className="fi fi-rr-shopping-bag"></i>
+                      Pickup
+                    </label>
 
-      {/* Home Delivery */}
-      <input
-        type="radio"
-        className="btn-check"
-        name="deliveryType"
-        id="homedelivery"
-        value="homedelivery"
-        checked={deliveryType === 'homedelivery'}
-        onChange={(e) =>
-          setDeliveryType(e.target.value as 'pickup' | 'homedelivery')
-        }
-      />
-      <label
-        className="btn btn-outline-primary btn-sm d-flex align-items-center justify-content-center gap-1"
-        htmlFor="homedelivery"
-      >
-        <i className="fi fi-rr-truck-moving"></i>
-        Delivery
-      </label>
-    </div>
-  </div>
-</Col>
-
-
-
+                    {/* Home Delivery */}
+                    <input
+                      type="radio"
+                      className="btn-check"
+                      name="deliveryType"
+                      id="homedelivery"
+                      value="homedelivery"
+                      checked={deliveryType === 'homedelivery'}
+                      onChange={(e) =>
+                        setDeliveryType(e.target.value as 'pickup' | 'homedelivery')
+                      }
+                    />
+                    <label
+                      className="btn btn-outline-primary btn-sm d-flex align-items-center justify-content-center gap-1"
+                      htmlFor="homedelivery"
+                    >
+                      <i className="fi fi-rr-truck-moving"></i>
+                      Delivery
+                    </label>
+                  </div>
+                </div>
+              </Col>
               {/* MO No / Name */}
               <Col md={2}>
                 <div className="info-box p-2 h-100 border rounded d-flex flex-column justify-content-center">
@@ -3106,7 +3069,6 @@ const printBill = async () => {
               )}
             </div>
           </div>
-
           {/* Bottom Bar for Summary and Footer */}
           <div className="bottom-bar">
             <div className="bottom-content">
@@ -3145,7 +3107,6 @@ const printBill = async () => {
                   </tbody>
                 </Table>
               </div>
-
               {/* Footer with Function Keys */}
               <Card className="footer-card">
                 <Card.Body className="py-1">
@@ -3169,8 +3130,6 @@ const printBill = async () => {
             </div>
           </div>
         </div>
-
-
       </div>
 
       {/* NC KOT Modal */}
@@ -3212,10 +3171,8 @@ const printBill = async () => {
                 placeholder="Enter NC Purpose"
               />
             </Form.Group>
-
           </div>
         </Modal.Body>
-
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setShowNCKOTModal(false)}>
             Cancel
@@ -3225,8 +3182,6 @@ const printBill = async () => {
           </Button>
         </Modal.Footer>
       </Modal>
-
-
       <Modal show={showDiscountModal} onHide={() => setShowDiscountModal(false)} centered onShow={() => {
         if (DiscountType === 1) {
           setDiscountInputValue(DiscPer);
@@ -3272,25 +3227,24 @@ const printBill = async () => {
         <Modal.Footer>
           <Button variant="primary" onClick={handleApplyDiscount}>Apply</Button>
           <Button variant="secondary" onClick={() => setShowDiscountModal(false)}>Cancel</Button>
-
         </Modal.Footer>
       </Modal>
 
-{/* Settlement Modal */}
-<SettlementModal
-  show={showSettlementModal}
-  onHide={() => setShowSettlementModal(false)}
-  onSettle={handleSettleAndPrint}
-  grandTotal={taxCalc.grandTotal}
-  subtotal={taxCalc.subtotal}
-  loading={loading}
-  outletPaymentModes={outletPaymentModes}
-  selectedOutletId={selectedOutletId}
-  initialSelectedModes={selectedPaymentModes}
-  initialPaymentAmounts={paymentAmounts}
-  initialIsMixed={isMixedPayment}
-  initialTip={tip}
-/>
+      {/* Settlement Modal */}
+      <SettlementModal
+        show={showSettlementModal}
+        onHide={() => setShowSettlementModal(false)}
+        onSettle={handleSettleAndPrint}
+        grandTotal={taxCalc.grandTotal}
+        subtotal={taxCalc.subtotal}
+        loading={loading}
+        outletPaymentModes={outletPaymentModes}
+        selectedOutletId={selectedOutletId}
+        initialSelectedModes={selectedPaymentModes}
+        initialPaymentAmounts={paymentAmounts}
+        initialIsMixed={isMixedPayment}
+        initialTip={tip}
+      />
       {/* KOT Transfer Modal */}
       <Modal show={showKotTransferModal} onHide={() => setShowKotTransferModal(false)} size="xl" centered>
         <Modal.Header closeButton>
@@ -3384,139 +3338,136 @@ const printBill = async () => {
         persistentTxnId={txnId}
         persistentTableId={tableId}
       />
-     <KotPreviewPrint
-  show={showKotPrintModal}
-  onHide={() => setShowKotPrintModal(false)}
+      <KotPreviewPrint
+        show={showKotPrintModal}
+        onHide={() => setShowKotPrintModal(false)}
 
-  // ✅ PRINT ONLY NEW KOT ITEMS
-  printItems={billItems
-    .filter(item => item.itemId > 0 && !item.mkotNo)
-    .map(item => ({
-      id: item.itemId,
-      name: item.itemName,
-      price: item.rate,
-      qty: item.qty,
-      isBilled: 0,
-      isNCKOT: 0,
-      NCName: '',
-      NCPurpose: '',
-      item_no: item.item_no.toString(),
-      kotNo: currentKotNoForPrint || undefined,
-      txnDetailId: item.txnDetailId,
-      isNew: true
-    }))
-  }
-
-  items={billItems.filter(i => i.itemId > 0).map((item) => ({
-    id: item.itemId,
-    name: item.itemName,
-    price: item.rate,
-    qty: item.qty,
-    isBilled: item.isBilled || 0,
-    isNCKOT: 0,
-    NCName: '',
-    NCPurpose: '',
-    item_no: item.item_no.toString(),
-    txnDetailId: item.txnDetailId,
-    revQty: item.reversedQty || 0,
-    kotNo: item.mkotNo ? parseInt(item.mkotNo.split('|')[0]) : undefined,
-    isNew: !item.mkotNo
-  } as any))}
-
-  currentKOTNo={currentKotNoForPrint}
-  selectedTable={activeTab === 'Dine-in' ? tableNo : activeTab}
-  activeTab={activeTab}
-  customerName={customerName}
-  mobileNumber={customerNo}
-  user={user}
-  formData={{} as OutletSettings}
-  reverseQtyMode={false}
-
-  // ✅ REQUIRED FOR AUTO PRINT
-  autoPrint={true}
-
-  // ✅ NAVIGATE AFTER PRINT COMPLETES
-  onPrint={() => {
-    setTimeout(() => {
-      setShowKotPrintModal(false);
-      navigate('/apps/Tableview', {
-        state: {
-          refreshTakeaway: true
+        // ✅ PRINT ONLY NEW KOT ITEMS
+        printItems={billItems
+          .filter(item => item.itemId > 0 && !item.mkotNo)
+          .map(item => ({
+            id: item.itemId,
+            name: item.itemName,
+            price: item.rate,
+            qty: item.qty,
+            isBilled: 0,
+            isNCKOT: 0,
+            NCName: '',
+            NCPurpose: '',
+            item_no: item.item_no.toString(),
+            kotNo: currentKotNoForPrint || undefined,
+            txnDetailId: item.txnDetailId,
+            isNew: true
+          }))
         }
-      });
-    }, 300);
-  }}
 
-  onClose={() => setShowKotPrintModal(false)}
-  selectedOutletId={selectedOutletId}
-  pax={pax}
-  restaurantName={restaurantName}
-  outletName={outletName}
-/>
+        items={billItems.filter(i => i.itemId > 0).map((item) => ({
+          id: item.itemId,
+          name: item.itemName,
+          price: item.rate,
+          qty: item.qty,
+          isBilled: item.isBilled || 0,
+          isNCKOT: 0,
+          NCName: '',
+          NCPurpose: '',
+          item_no: item.item_no.toString(),
+          txnDetailId: item.txnDetailId,
+          revQty: item.reversedQty || 0,
+          kotNo: item.mkotNo ? parseInt(item.mkotNo.split('|')[0]) : undefined,
+          isNew: !item.mkotNo
+        } as any))}
 
-<BillPreviewPrint
-  show={showBillPrintModal}
-  onHide={() => setShowBillPrintModal(false)}
+        currentKOTNo={currentKotNoForPrint}
+        selectedTable={activeTab === 'Dine-in' ? tableNo : activeTab}
+        activeTab={activeTab}
+        customerName={customerName}
+        mobileNumber={customerNo}
+        user={user}
+        formData={{} as OutletSettings}
+        reverseQtyMode={false}
 
-  formData={{} as OutletSettings}
-  user={user}
-  items={billItems.filter(i => i.itemId > 0).map((item) => ({
-    id: item.itemId,
-    name: item.itemName,
-    price: item.rate,
-    qty: item.qty,
-    isBilled: item.isBilled || 0,
-    isNCKOT: 0,
-    NCName: '',
-    NCPurpose: '',
-    item_no: item.item_no.toString(),
-    txnDetailId: item.txnDetailId,
-    revQty: item.reversedQty || 0,
-    kotNo: item.mkotNo ? parseInt(item.mkotNo.split('|')[0]) : undefined
-  } as any))}
-  orderNo={orderNo ?? undefined}
-  selectedTable={tableNo}
-  activeTab={isTakeaway ? "Takeaway" : "Dine-in"}
-  customerName={customerName}
-  mobileNumber={customerNo ?? undefined}
-  currentTxnId={txnId?.toString()}
+        // ✅ REQUIRED FOR AUTO PRINT
+        autoPrint={true}
 
-  taxCalc={{
-    subtotal: grossAmount,
-    cgstAmt: totalCgst,
-    sgstAmt: totalSgst,
-    igstAmt: totalIgst,
-    grandTotal: finalAmount
-  }}
+        // ✅ NAVIGATE AFTER PRINT COMPLETES
+        onPrint={() => {
+          setTimeout(() => {
+            setShowKotPrintModal(false);
+            navigate('/apps/Tableview', {
+              state: {
+                refreshTakeaway: true
+              }
+            });
+          }, 300);
+        }}
 
-  taxRates={{
-    cgst: cgstRate,
-    sgst: sgstRate,
-    igst: igstRate
-  }}
+        onClose={() => setShowKotPrintModal(false)}
+        selectedOutletId={selectedOutletId}
+        pax={pax}
+        restaurantName={restaurantName}
+        outletName={outletName}
+      />
 
-  roundOffEnabled={roundOffEnabled}
-  roundOffValue={roundOff}
-  selectedPaymentModes={selectedPaymentModes}
-  selectedOutletId={selectedOutletId}
+      <BillPreviewPrint
+        show={showBillPrintModal}
+        onHide={() => setShowBillPrintModal(false)}
 
-  // ✅ AFTER SUCCESS PRINT
-  onPrint={async () => {
-    toast.success("Bill printed successfully");
+        formData={{} as OutletSettings}
+        user={user}
+        items={billItems.filter(i => i.itemId > 0).map((item) => ({
+          id: item.itemId,
+          name: item.itemName,
+          price: item.rate,
+          qty: item.qty,
+          isBilled: item.isBilled || 0,
+          isNCKOT: 0,
+          NCName: '',
+          NCPurpose: '',
+          item_no: item.item_no.toString(),
+          txnDetailId: item.txnDetailId,
+          revQty: item.reversedQty || 0,
+          kotNo: item.mkotNo ? parseInt(item.mkotNo.split('|')[0]) : undefined
+        } as any))}
+        orderNo={orderNo ?? undefined}
+        selectedTable={tableNo}
+        activeTab={isTakeaway ? "Takeaway" : "Dine-in"}
+        customerName={customerName}
+        mobileNumber={customerNo ?? undefined}
+        currentTxnId={txnId?.toString()}
 
-    // Table status update AFTER print
-    await axios.post(`/api/tablemanagement/${tableId}/status`, { status: 1 });
+        taxCalc={{
+          subtotal: grossAmount,
+          cgstAmt: totalCgst,
+          sgstAmt: totalSgst,
+          igstAmt: totalIgst,
+          grandTotal: finalAmount
+        }}
 
-    setShowBillPrintModal(false);
+        taxRates={{
+          cgst: cgstRate,
+          sgst: sgstRate,
+          igst: igstRate
+        }}
 
-    setTimeout(() => {
-      navigate("/apps/Tableview");
-    }, 300);
-  }}
-/>
+        roundOffEnabled={roundOffEnabled}
+        roundOffValue={roundOff}
+        selectedPaymentModes={selectedPaymentModes}
+        selectedOutletId={selectedOutletId}
 
+        // ✅ AFTER SUCCESS PRINT
+        onPrint={async () => {
+          toast.success("Bill printed successfully");
 
+          // Table status update AFTER print
+          await axios.post(`/api/tablemanagement/${tableId}/status`, { status: 1 });
 
+          setShowBillPrintModal(false);
+
+          setTimeout(() => {
+            navigate("/apps/Tableview");
+          }, 300);
+        }}
+      />
     </React.Fragment>
   );
 };

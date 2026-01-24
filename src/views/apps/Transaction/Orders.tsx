@@ -1,4 +1,4 @@
- import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Button, Form, Modal, Table, Card, Row, Col, Spinner } from "react-bootstrap";
 import { fetchOutletsForDropdown } from "@/utils/commonfunction";
 import { useAuthContext } from "@/common";
@@ -219,33 +219,33 @@ const Order = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10); // You can make this configurable
 
-const resetBillingPanel = () => {
-  setItems([]);
-  setReversedItems([]);
-  setReverseQtyItems([]);
+  const resetBillingPanel = () => {
+    setItems([]);
+    setReversedItems([]);
+    setReverseQtyItems([]);
 
-  setOrderNo(null);
-  setCurrentTxnId(null);
-  setPersistentTxnId(null);
-  setPersistentTableId(null);
+    setOrderNo(null);
+    setCurrentTxnId(null);
+    setPersistentTxnId(null);
+    setPersistentTableId(null);
 
-  setCurrentKOTNo(null);
-  setCurrentKOTNos([]);
+    setCurrentKOTNo(null);
+    setCurrentKOTNos([]);
 
-  setDiscount(0);
-  setDiscountInputValue(0);
-  setDiscountType(1);
+    setDiscount(0);
+    setDiscountInputValue(0);
+    setDiscountType(1);
 
-  setReverseQtyMode(false);
-  setShowSaveReverseButton(false);
-  setIsSaveReverseDisabled(false);
+    setReverseQtyMode(false);
+    setShowSaveReverseButton(false);
+    setIsSaveReverseDisabled(false);
 
-  setShowBillPreviewModal(false);
-  setShowSettlementModal(false);
-  setPrintItems([]);
-  // 🔴 TABLE NAME CLEAR
-  setSelectedTable(null);
-};
+    setShowBillPreviewModal(false);
+    setShowSettlementModal(false);
+    setPrintItems([]);
+    // 🔴 TABLE NAME CLEAR
+    setSelectedTable(null);
+  };
 
   // Function to apply rounding
   const applyRoundOff = (amount: number, roundTo: number) => {
@@ -1240,7 +1240,7 @@ const resetBillingPanel = () => {
     setActiveTab('Dine-in'); // Switch back to the Dine-in tab
     setShowPendingOrdersView(false);
     setShowOrderDetails(false);
-     resetBillingPanel(); 
+    resetBillingPanel();
     setActiveNavTab('ALL'); // Show all department tables
   };
   const handlePrintBill = async () => {
@@ -1554,7 +1554,7 @@ const resetBillingPanel = () => {
             resp.data.kot_no ??
             null;
           setCurrentKOTNo(receivedKotNo);
-          
+
           // 🔥 THIS IS THE FIX
           setCurrentKOTNos(prev => {
             if (!receivedKotNo) return prev;
@@ -1592,9 +1592,9 @@ const resetBillingPanel = () => {
         setPersistentTableId(null);
         setSourceTableId(null);
         // ✅ Clear customer details after KOT save
-       setMobileNumber('');
-       setCustomerName('');
-       setCustomerId(null);
+        setMobileNumber('');
+        setCustomerName('');
+        setCustomerId(null);
 
         // After saving KOT, prepare items for printing and show print modal
         let kotItemsToPrint;
@@ -1621,7 +1621,7 @@ const resetBillingPanel = () => {
 
         setPrintItems(kotItemsToPrint);
         setShowKotPreviewModal(true);
-        
+
         // If it was a quick bill, refresh the quick bill data
         if (activeTab === 'Quick Bill') {
           await fetchQuickBillData();
@@ -1645,70 +1645,70 @@ const resetBillingPanel = () => {
       setLoading(false);
     }
   };
- const handlePrintAndSettle = async () => {
-  if (items.length === 0) {
-    toast.error('No items to process.');
-    return;
-  }
-  if (!currentTxnId) {
-    toast.error('Cannot proceed. No transaction ID found.');
-    return;
-  }
-  setLoading(true);
-  try {
-    // 1️⃣ Mark as Billed (Generate TxnNo)
-    const billedRes = await fetch(
-      `http://localhost:3001/api/TAxnTrnbill/${currentTxnId}/mark-billed`,
-      {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          outletId: selectedOutletId || Number(user?.outletid),
-        }),
-      }
-    );
-
-    const billedData = await billedRes.json();
-
-    if (!billedData.success) {
-      throw new Error(billedData.message || 'Failed to mark as billed.');
-    }
-
-    // 2️⃣ Set Order / Txn No (VERY IMPORTANT)
-    const txnNo = billedData?.data?.TxnNo || billedData?.TxnNo;
-    if (!txnNo) {
-      toast.error('TxnNo not generated');
+  const handlePrintAndSettle = async () => {
+    if (items.length === 0) {
+      toast.error('No items to process.');
       return;
     }
-
-    setOrderNo(txnNo);
-
-    // 3️⃣ (Optional) Print Bill
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      const contentToPrint = document.getElementById('bill-preview');
-      if (contentToPrint) {
-        printWindow.document.write(contentToPrint.innerHTML);
-        printWindow.document.close();
-        printWindow.focus();
-        await new Promise(res => setTimeout(res, 500));
-        printWindow.print();
-      }
+    if (!currentTxnId) {
+      toast.error('Cannot proceed. No transaction ID found.');
+      return;
     }
+    setLoading(true);
+    try {
+      // 1️⃣ Mark as Billed (Generate TxnNo)
+      const billedRes = await fetch(
+        `http://localhost:3001/api/TAxnTrnbill/${currentTxnId}/mark-billed`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            outletId: selectedOutletId || Number(user?.outletid),
+          }),
+        }
+      );
 
-    toast.success('Bill printed successfully');
+      const billedData = await billedRes.json();
 
-    // 4️⃣ ✅ OPEN SETTLEMENT MODAL (NO RESET HERE)
-    setBillActionState('printOrSettle');
-    setShowSettlementModal(true);
+      if (!billedData.success) {
+        throw new Error(billedData.message || 'Failed to mark as billed.');
+      }
 
-  } catch (error: any) {
-    console.error('Error in Print & Settle:', error);
-    toast.error(error.message || 'An error occurred while printing bill.');
-  } finally {
-    setLoading(false);
-  }
-};
+      // 2️⃣ Set Order / Txn No (VERY IMPORTANT)
+      const txnNo = billedData?.data?.TxnNo || billedData?.TxnNo;
+      if (!txnNo) {
+        toast.error('TxnNo not generated');
+        return;
+      }
+
+      setOrderNo(txnNo);
+
+      // 3️⃣ (Optional) Print Bill
+      const printWindow = window.open('', '_blank');
+      if (printWindow) {
+        const contentToPrint = document.getElementById('bill-preview');
+        if (contentToPrint) {
+          printWindow.document.write(contentToPrint.innerHTML);
+          printWindow.document.close();
+          printWindow.focus();
+          await new Promise(res => setTimeout(res, 500));
+          printWindow.print();
+        }
+      }
+
+      toast.success('Bill printed successfully');
+
+      // 4️⃣ ✅ OPEN SETTLEMENT MODAL (NO RESET HERE)
+      setBillActionState('printOrSettle');
+      setShowSettlementModal(true);
+
+    } catch (error: any) {
+      console.error('Error in Print & Settle:', error);
+      toast.error(error.message || 'An error occurred while printing bill.');
+    } finally {
+      setLoading(false);
+    }
+  };
   const handleSaveReverse = async () => {
     if (!persistentTxnId) {
       toast.error('Cannot save reversal. No active transaction found.');
@@ -1753,7 +1753,7 @@ const resetBillingPanel = () => {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ status: newStatus }),
             });
-        
+
           }
         }
         // Open print preview for the reverse KOT
@@ -2238,7 +2238,7 @@ const resetBillingPanel = () => {
       }
 
       // clear order UI
-     
+
 
 
     } catch (error: any) {
@@ -2253,65 +2253,65 @@ const resetBillingPanel = () => {
     if (e.key === 'Enter') handleApplyDiscount();
   };
 
-useEffect(() => {
-  if (!showSettlementModal) return;
-  if (outletPaymentModes.length === 0) return;
+  useEffect(() => {
+    if (!showSettlementModal) return;
+    if (outletPaymentModes.length === 0) return;
 
-  // Check if already selected
-  if (selectedPaymentModes.length > 0) return;
+    // Check if already selected
+    if (selectedPaymentModes.length > 0) return;
 
-  const cashMode = outletPaymentModes.find(
-    m => m.payment_mode_name?.toLowerCase() === 'cash'
-  );
+    const cashMode = outletPaymentModes.find(
+      m => m.payment_mode_name?.toLowerCase() === 'cash'
+    );
 
-  if (!cashMode) return;
+    if (!cashMode) return;
 
-  const payable = (taxCalc.grandTotal + (tip || 0)).toFixed(2);
+    const payable = (taxCalc.grandTotal + (tip || 0)).toFixed(2);
 
-  setSelectedPaymentModes(['cash']);
-  setPaymentAmounts({ cash: payable });
-  setIsMixedPayment(false);
-}, [
-  showSettlementModal,
-  outletPaymentModes,
-  taxCalc.grandTotal,
-  tip,
-]);
- const handleSettleAndPrint = async (settlementsData?: any[], tipData?: number) => {
-  // 🔍 DEBUG – YAHI ADD KARO
-  console.log({
-    selectedPaymentModes,
-    paymentAmounts,
-    grandTotal: taxCalc.grandTotal,
+    setSelectedPaymentModes(['cash']);
+    setPaymentAmounts({ cash: payable });
+    setIsMixedPayment(false);
+  }, [
+    showSettlementModal,
+    outletPaymentModes,
+    taxCalc.grandTotal,
     tip,
-    settlementsData,
-    tipData
-  });
+  ]);
+  const handleSettleAndPrint = async (settlementsData?: any[], tipData?: number) => {
+    // 🔍 DEBUG – YAHI ADD KARO
+    console.log({
+      selectedPaymentModes,
+      paymentAmounts,
+      grandTotal: taxCalc.grandTotal,
+      tip,
+      settlementsData,
+      tipData
+    });
 
-  const effectiveTip = tipData !== undefined ? tipData : tip;
-  let currentSettlements = [];
-  let totalPaid = 0;
+    const effectiveTip = tipData !== undefined ? tipData : tip;
+    let currentSettlements = [];
+    let totalPaid = 0;
 
-  if (settlementsData && settlementsData.length > 0) {
-    currentSettlements = settlementsData;
-    totalPaid = settlementsData.reduce((acc: number, val: any) => acc + (Number(val.Amount) || 0), 0);
-  } else {
-    totalPaid = Object.values(paymentAmounts).reduce((acc, val) => acc + (Number(val) || 0), 0);
-    currentSettlements = selectedPaymentModes.map(modeName => ({ PaymentType: modeName, Amount: parseFloat(paymentAmounts[modeName]) || 0 }));
-  }
+    if (settlementsData && settlementsData.length > 0) {
+      currentSettlements = settlementsData;
+      totalPaid = settlementsData.reduce((acc: number, val: any) => acc + (Number(val.Amount) || 0), 0);
+    } else {
+      totalPaid = Object.values(paymentAmounts).reduce((acc, val) => acc + (Number(val) || 0), 0);
+      currentSettlements = selectedPaymentModes.map(modeName => ({ PaymentType: modeName, Amount: parseFloat(paymentAmounts[modeName]) || 0 }));
+    }
 
-  const payableTotal = Number((taxCalc.grandTotal + (effectiveTip || 0)).toFixed(2));
-  const difference = Number((payableTotal - totalPaid).toFixed(2));
+    const payableTotal = Number((taxCalc.grandTotal + (effectiveTip || 0)).toFixed(2));
+    const difference = Number((payableTotal - totalPaid).toFixed(2));
 
-  if (!currentTxnId) {
-    toast.error('Cannot settle bill. No transaction ID found.');
-    return;
-  }
+    if (!currentTxnId) {
+      toast.error('Cannot settle bill. No transaction ID found.');
+      return;
+    }
 
-  if (Math.abs(difference) > 0.05) {
-    toast.error(`Payment amount (${totalPaid}) does not match the total due (${payableTotal}).`);
-    return;
-  }
+    if (Math.abs(difference) > 0.05) {
+      toast.error(`Payment amount (${totalPaid}) does not match the total due (${payableTotal}).`);
+      return;
+    }
 
     setLoading(true);
     try {
@@ -3508,7 +3508,7 @@ useEffect(() => {
                             </span>
                           )}
                         </span>
-                      <div className="text-center d-flex justify-content-center align-items-center gap-2">
+                        <div className="text-center d-flex justify-content-center align-items-center gap-2">
                           <button
                             className="btn btn-danger btn-sm"
                             style={{ padding: '0 5px', lineHeight: '1' }}
@@ -4266,7 +4266,7 @@ useEffect(() => {
             initialIsMixed={isMixedPayment}
             initialTip={tip}
           />
-          
+
           {/* F8PasswordModal */}
 
           <F8PasswordModal
