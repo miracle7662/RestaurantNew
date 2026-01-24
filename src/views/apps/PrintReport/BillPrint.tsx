@@ -365,10 +365,7 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
           ${(showAll || localFormData.website) ? `<div style="font-size: 8pt;">Website: ${localFormData.website || 'N/A'}</div>` : ''}
           ${(showAll || localFormData.show_phone_on_bill) ? `<div style="font-size: 8pt;">Phone: ${user?.outlet_phone || 'N/A'}</div>` : ''}
           ${(showAll || localFormData.fssai_no) ? `<div style="font-size: 8pt;">FSSAI: ${localFormData.fssai_no || 'N/A'}</div>` : ''}
-          ${(showAll || localFormData.field1) ? `<div style="font-size: 8pt;">${localFormData.field1 || 'N/A'}</div>` : ''}
-          ${(showAll || localFormData.field2) ? `<div style="font-size: 8pt;">${localFormData.field2 || 'N/A'}</div>` : ''}
-          ${(showAll || localFormData.field3) ? `<div style="font-size: 8pt;">${localFormData.field3 || 'N/A'}</div>` : ''}
-          ${(showAll || localFormData.field4) ? `<div style="font-size: 8pt;">${localFormData.field4 || 'N/A'}</div>` : ''}
+         
         </div>
         <hr style="border: none; border-top: 1px dashed #000; margin: 5px 0;" />
         <!-- ============ BILL INFO (with conditional rendering) ============ -->
@@ -450,9 +447,17 @@ ${(showAll || localFormData.show_kot_number_bill)
             ${taxCalc.igstAmt > 0 ? `<div>IGST @${taxRates.igst}%: ₹${taxCalc.igstAmt.toFixed(2)}</div>` : ''}
           ` : ''}
           ${roundOffEnabled && roundOffValue !== 0 ? `<div>Round Off: ${roundOffValue > 0 ? '+' : ''}₹${roundOffValue.toFixed(2)}</div>` : ''}
+
+           ${(showAll || localFormData.field1) ? `<div style="font-size: 8pt;">${localFormData.field1 || 'N/A'}</div>` : ''}
+          ${(showAll || localFormData.field2) ? `<div style="font-size: 8pt;">${localFormData.field2 || 'N/A'}</div>` : ''}
+          ${(showAll || localFormData.field3) ? `<div style="font-size: 8pt;">${localFormData.field3 || 'N/A'}</div>` : ''}
+          ${(showAll || localFormData.field4) ? `<div style="font-size: 8pt;">${localFormData.field4 || 'N/A'}</div>` : ''}
+
+          
           <div style="font-weight: bold; font-size: 10pt; border-top: 1px solid #000; padding-top: 5px;">
             GRAND TOTAL: ₹${taxCalc.grandTotal.toFixed(2)}
           </div>
+          
           ${(showAll || localFormData.show_bill_amount_words) ? '<div>In Words: {/* TODO: Function to convert number to words needed */}</div>' : ''}
           ${(showAll || localFormData.show_customer_paid_amount) ? `<div>Paid: ₹${taxCalc.grandTotal.toFixed(2)}</div>` : ''}
           ${(showAll || localFormData.show_due_amount_bill) ? '<div>Due: ₹0.00</div>' : ''}
