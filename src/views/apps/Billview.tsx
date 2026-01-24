@@ -2743,7 +2743,7 @@ const ModernBill = () => {
                         minWidth: '100px'
                       }}
                     >
-                      {currentKOTNos.length > 0 ? currentKOTNos.join(', ') : (defaultKot || '--')}
+                      {defaultKot || '--'}
                     </div>
 
                     {/* EDITABLE KOT (RIGHT) */}
@@ -2764,7 +2764,7 @@ const ModernBill = () => {
                       }}
                       className="border-0 fw-bold text-center bg-transparent"
                       style={{ width: '100px', color: '#333' }}
-                      disabled={!hasNewItems}
+                     
                     />
                   </div>
                 </div>
