@@ -457,7 +457,8 @@ const showCustomerMobile =
   localFormData.customer_kot_display_option === 'NAME_AND_MOBILE';
     const showCustomer = showCustomerName || showCustomerMobile;
 
-    const showTable = selectedTable && (activeTab === 'Dine In' || localFormData[`table_name_${tabKey}`]) && !(activeTab === 'Quick Bill' && localFormData.hide_table_name_quick_bill);
+
+    const showTable = selectedTable && (activeTab === 'Dine-in' || localFormData[`table_name_${tabKey}`]) && !(activeTab === 'Quick Bill' && localFormData.hide_table_name_quick_bill);
     const showRateColumn = localFormData.show_item_price;
     const showAmountColumn = !localFormData.hide_item_total_column;
     const showOrderTypeSymbol = localFormData.show_order_type_symbol;
@@ -466,6 +467,7 @@ const showCustomerMobile =
     const showOnlineOrderOtp = localFormData.show_online_order_otp;
     const showOrderIdQuickBill = localFormData.show_order_id_quick_bill && activeTab === 'Quick Bill';
     const showKotNoQuickBill = localFormData.show_kot_no_quick_bill && activeTab === 'Quick Bill';
+    const showOrderNoQuickBillSection = localFormData.show_order_no_quick_bill_section && ['Pickup', 'Quick Bill', 'Delivery'].includes(activeTab);
     const showNewOrderTag = localFormData.show_new_order_tag;
     const showRunningOrderTag = localFormData.show_running_order_tag;
     const modifierDefaultOption = localFormData.modifier_default_option;
@@ -561,6 +563,7 @@ ${showCustomerMobile
     ${showOnlineOrderOtp ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>OTP:</strong> 123456</div>` : ''}
     ${showOrderIdQuickBill ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Order ID:</strong> QB-${currentKOTNo || 'N/A'}</div>` : ''}
     ${showKotNoQuickBill ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>KOT No:</strong> ${displayKOTNo}</div>` : ''}
+    ${showOrderNoQuickBillSection ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Order No:</strong> ${currentKOTNo || 'N/A'}</div>` : ''}
 
     <hr style="border: none; border-top: 1px dashed #000; margin: 8px 0;" />
     <!-- ITEM HEADER -->

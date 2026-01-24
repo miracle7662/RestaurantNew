@@ -2234,6 +2234,7 @@ exports.getOutletBillingSettings = (req, res) => {
         kps.show_online_order_otp,
         kps.show_order_id_quick_bill,
         kps.show_order_id_online_order,
+        kps.show_order_no_quick_bill_section,
         kps.show_order_type_symbol,
         kps.show_store_name,
         kps.show_terminal_username,
@@ -2439,6 +2440,7 @@ exports.getOutletBillingSettings = (req, res) => {
         show_online_order_otp: !!settings.show_online_order_otp,
         show_order_id_quick_bill: !!settings.show_order_id_quick_bill,
         show_order_id_online_order: !!settings.show_order_id_online_order,
+        show_order_no_quick_bill_section: !!settings.show_order_no_quick_bill_section,
         show_order_type_symbol: !!settings.show_order_type_symbol,
         show_store_name: !!settings.show_store_name,
         show_terminal_username: !!settings.show_terminal_username,
@@ -2627,7 +2629,6 @@ exports.getKotPrintSettings = (req, res) => {
       customer_kot_display_option: settings.customer_kot_display_option,
       group_kot_items_by_category: !!settings.group_kot_items_by_category,
       hide_table_name_quick_bill: !!settings.hide_table_name_quick_bill,
-      hide_t
       show_new_order_tag: !!settings.show_new_order_tag,
       new_order_tag_label: settings.new_order_tag_label,
       show_running_order_tag: !!settings.show_running_order_tag,

@@ -160,6 +160,8 @@ export const applyKotSettings = (prev: any, data: any) => ({
   show_kot_note: data.show_kot_note ?? prev.show_kot_note,
   show_online_order_otp: data.show_online_order_otp ?? prev.show_online_order_otp,
   show_order_id_quick_bill: data.show_order_id_quick_bill ?? prev.show_order_id_quick_bill,
+  show_order_no_quick_bill_section: data.show_order_no_quick_bill_section ?? prev.show_order_no_quick_bill_section,
+  
 
   // Modifiers / print
   modifier_default_option: data.modifier_default_option ?? prev.modifier_default_option,
