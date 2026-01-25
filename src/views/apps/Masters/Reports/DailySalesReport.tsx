@@ -8,8 +8,6 @@ import { useAuthContext } from "@/common";
 import { fetchOutletsForDropdown } from "@/utils/commonfunction";
 import brandService, { BrandData } from "@/common/api/brand";
 import { OutletData } from "@/common/api/outlet";
-import { useNavigate } from "react-router-dom";
-import KOTAllocationPrintPreview from "./KOTAllocationPrintPreview";
 
 interface Bill {
   [key: string]: any; // Index signature for dynamic property access in export functions
@@ -106,7 +104,6 @@ interface PaymentMode {
 }
 
 const ReportPage = () => {
-  const navigate = useNavigate();
   const [bills, setBills] = useState<Bill[]>([]);
   const [filteredBills, setFilteredBills] = useState<Bill[]>([]);
   const [reportType, setReportType] = useState("monthly");
@@ -1236,16 +1233,16 @@ const hotelPhone = hotelDetails?.phone || 'Phone not available';
   // Render sections remain the same, as they use calculated data
   const renderBillSummarySection = () => {
     const initialTotals: { [key: string]: number } = {
-  grossAmount: 0,
-  discount: 0,
-  amount: 0,
-  cgst: 0,
-  sgst: 0,
-  igst: 0,
+  grossAmount: 0, 
+  discount: 0, 
+  amount: 0, 
+  cgst: 0, 
+  sgst: 0, 
+  igst: 0, 
   roundOff: 0,
-  revAmt: 0,
-  serviceCharge_Amount: 0,
-  totalAmount: 0,
+  revAmt: 0, 
+  serviceCharge_Amount: 0, 
+  totalAmount: 0, 
   cardAmount: 0,
   ...dynamicPaymentModes.reduce((acc, mode) => {
     const modeKey = mode.mode_name.toLowerCase().replace(/[^a-z0-9]/gi, '');
@@ -1272,44 +1269,10 @@ const hotelPhone = hotelDetails?.phone || 'Phone not available';
       return acc;
     }, initialTotals);
 
-    const handlePrintPreview = () => {
-      const billData = billSummaryData.map(bill => ({
-        billNo: bill.billNo,
-        billDate: bill.billDate,
-        totalAmount: bill.totalAmount || 0,
-        discount: bill.discount || 0,
-        amount: bill.amount || 0,
-        paymentMode: bill.paymentMode,
-        customerName: bill.customerName
-      }));
-
-      navigate('/kot-allocation-preview', {
-        state: {
-          dataType: 'bill',
-          billData,
-          dateRange: customRange,
-          filters
-        }
-      });
-    };
-
     return (
       <Card className="p-2 shadow-sm border-0">
         <Card.Header style={{ backgroundColor: "#E3F2FD" }}>
-          <Row className="align-items-center">
-            <Col>
-              <h5 className="mb-0">📋 Bill Summary with Credit Card Details</h5>
-            </Col>
-            <Col xs="auto">
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={handlePrintPreview}
-              >
-                🖨️ Print Preview
-              </Button>
-            </Col>
-          </Row>
+          <h5 className="mb-0">📋 Bill Summary with Credit Card Details</h5>
         </Card.Header>
         <Card.Body style={{ overflowY: 'auto', maxHeight: '70vh' }}>
           <Table bordered hover responsive size="sm">
@@ -1927,26 +1890,7 @@ const hotelPhone = hotelDetails?.phone || 'Phone not available';
   const renderKitchenAllocationSection = () => (
     <Card className="p-2 shadow-sm border-0">
       <Card.Header style={{ backgroundColor: "#FCE4EC" }}>
-        <Row className="align-items-center">
-          <Col>
-            <h5 className="mb-0">🍳 Kitchen Allocation</h5>
-          </Col>
-          <Col xs="auto">
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={() => navigate('/kot-allocation-preview', {
-                state: {
-                  allocationData: kitchenAllocation,
-                  dateRange: customRange,
-                  filters
-                }
-              })}
-            >
-              🖨️ Print Preview
-            </Button>
-          </Col>
-        </Row>
+        <h5 className="mb-0">🍳 Kitchen Allocation</h5>
       </Card.Header>
       <Card.Header className="py-2">
         <Row className="align-items-center">
