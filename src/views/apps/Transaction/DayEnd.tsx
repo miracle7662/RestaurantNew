@@ -114,13 +114,13 @@ const DayEnd = () => {
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportDate, setReportDate] = useState("");
   const [selectedReports, setSelectedReports] = useState({
-    billDetails: false,
-    creditSummary: false,
-    paymentSummary: false,
-    discountSummary: false,
-    reverseKOTsSummary: false,
-    reverseBillSummary: false,
-    ncKOTSalesSummary: false,
+    billDetails: true,
+    creditSummary: true,
+    paymentSummary: true,
+    discountSummary: true,
+    reverseKOTsSummary: true,
+    reverseBillSummary: true,
+    ncKOTSalesSummary: true,
   });
 
   useEffect(() => {
@@ -153,6 +153,14 @@ const DayEnd = () => {
       setShowPasswordModal(true);
     }
   }, [user, passwordVerified]); // Add user to dependency array
+
+  useEffect(() => {
+    if (showReportModal) {
+      const today = new Date();
+      const formattedDate = today.toLocaleDateString('en-GB'); // dd/mm/yyyy format
+      setReportDate(formattedDate);
+    }
+  }, [showReportModal]);
 
   // Computed summary from orders
   const totalOrders = orders.length;
@@ -393,6 +401,158 @@ const DayEnd = () => {
       console.error('Password verification error:', error);
       return false;
     }
+  };
+
+  const handleGenerateReports = async () => {
+    try {
+      // Get selected reports
+      const selectedReportTypes = Object.entries(selectedReports)
+        .filter(([_, isSelected]) => isSelected)
+        .map(([reportType, _]) => reportType);
+
+      if (selectedReportTypes.length === 0) {
+        toast.error("Please select at least one report to generate.");
+        return;
+      }
+
+      // Parse the date (assuming dd/mm/yyyy format)
+      const [day, month, year] = reportDate.split('/');
+      const formattedDate = `${year}-${month}-${day}`;
+
+      // Call backend to get report data
+      const response = await fetch(`http://localhost:3001/api/reports?start=${formattedDate}&end=${formattedDate}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch report data');
+      }
+      const data = await response.json();
+
+      if (data.success) {
+        // Generate HTML for printing
+        const reportHTML = generateReportHTML(data.data, selectedReportTypes, reportDate);
+
+        // Print using Electron API
+        if ((window as any).electronAPI?.directPrint) {
+          await (window as any).electronAPI.directPrint(reportHTML, 'report-printer');
+          toast.success("Reports generated and printed successfully!");
+        } else {
+          toast.error("Printing not available. Please check your setup.");
+        }
+      } else {
+        toast.error(data.message || "Failed to generate reports.");
+      }
+    } catch (error) {
+      console.error("Error generating reports:", error);
+      toast.error("An error occurred while generating reports.");
+    } finally {
+      setShowReportModal(false);
+    }
+  };
+
+  const generateReportHTML = (reportData: any, selectedReports: string[], reportDate: string) => {
+    let html = `
+      <html>
+        <head>
+          <title>Day End Reports - ${reportDate}</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            h1 { text-align: center; color: #333; }
+            h2 { color: #666; border-bottom: 2px solid #333; padding-bottom: 5px; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th { background-color: #f2f2f2; font-weight: bold; }
+            .total-row { background-color: #e8f5e8; font-weight: bold; }
+            .summary { background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
+            .summary-item { display: flex; justify-content: space-between; margin-bottom: 5px; }
+          </style>
+        </head>
+        <body>
+          <h1>Day End Reports - ${reportDate}</h1>
+    `;
+
+    // Summary section
+    if (selectedReports.includes('billDetails') || selectedReports.includes('paymentSummary') || selectedReports.includes('discountSummary')) {
+      html += `
+        <div class="summary">
+          <h2>Summary</h2>
+          <div class="summary-item"><span>Total Orders:</span><span>${reportData.summary.totalOrders}</span></div>
+          <div class="summary-item"><span>Total Sales:</span><span>₹${reportData.summary.totalSales.toLocaleString()}</span></div>
+          <div class="summary-item"><span>Cash:</span><span>₹${reportData.summary.cash.toLocaleString()}</span></div>
+          <div class="summary-item"><span>Card:</span><span>₹${reportData.summary.card.toLocaleString()}</span></div>
+          <div class="summary-item"><span>UPI:</span><span>₹${reportData.summary.gpay + reportData.summary.phonepe + reportData.summary.qrcode}</span></div>
+        </div>
+      `;
+    }
+
+    // Bill Details
+    if (selectedReports.includes('billDetails')) {
+      html += `
+        <h2>Bill Details</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Bill No</th>
+              <th>Table</th>
+              <th>Amount</th>
+              <th>Status</th>
+              <th>Time</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+      reportData.orders.forEach((order: any) => {
+        html += `
+          <tr>
+            <td>${order.orderNo}</td>
+            <td>${order.table}</td>
+            <td>₹${order.amount.toLocaleString()}</td>
+            <td>${order.status}</td>
+            <td>${new Date(order.time).toLocaleTimeString()}</td>
+          </tr>
+        `;
+      });
+      html += `
+          </tbody>
+        </table>
+      `;
+    }
+
+    // Payment Summary
+    if (selectedReports.includes('paymentSummary')) {
+      html += `
+        <h2>Payment Summary</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Payment Type</th>
+              <th>Amount</th>
+              <th>Percentage</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+      reportData.paymentMethods.forEach((method: any) => {
+        html += `
+          <tr>
+            <td>${method.type}</td>
+            <td>₹${method.amount.toLocaleString()}</td>
+            <td>${method.percentage}%</td>
+          </tr>
+        `;
+      });
+      html += `
+          </tbody>
+        </table>
+      `;
+    }
+
+    // Add other report sections as needed...
+
+    html += `
+        </body>
+      </html>
+    `;
+
+    return html;
   };
 
 
@@ -1437,11 +1597,7 @@ const getFormattedDate = (dateStr: string) => {
             <Button variant="secondary" onClick={() => setShowReportModal(false)}>
               Cancel
             </Button>
-            <Button variant="primary" onClick={() => {
-              // Handle report generation logic here if needed
-              toast.success("Reports selected and generated successfully!");
-              setShowReportModal(false);
-            }}>
+            <Button variant="primary" onClick={handleGenerateReports}>
               Generate Reports
             </Button>
           </Modal.Footer>
