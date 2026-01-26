@@ -300,6 +300,10 @@ const DayEnd = () => {
     if (response.ok && data.success) {
       toast.success(data.message || "✅ Day-End saved successfully!");
       setOrders([]); // Clear the orders table after successful day-end
+      // Update reportDate to the actual dayend_date from backend
+      if (data.data && data.data.dayend_date) {
+        setReportDate(data.data.dayend_date);
+      }
       setShowReportModal(true);
     } else {
       // Backend may return pending table info
@@ -1405,16 +1409,17 @@ const getFormattedDate = (dateStr: string) => {
           <Modal.Body className="p-3">
             <div className="mb-3">
               <InputGroup>
-                <InputGroup.Text>
-                  <Calendar size={16} />
-                </InputGroup.Text>
-                <Form.Control
-                  type="text"
-                  placeholder="dd-mm-yyyy"
-                  value={reportDate}
-                  onChange={(e) => setReportDate(e.target.value)}
-                />
-              </InputGroup>
+  <InputGroup.Text>
+    <Calendar size={16} />
+  </InputGroup.Text>
+
+  <Form.Control
+    type="date"
+    value={reportDate}
+    onChange={(e) => setReportDate(e.target.value)}
+  />
+</InputGroup>
+
             </div>
             <div>
               <div className="fw-semibold mb-2">Choose Reports</div>

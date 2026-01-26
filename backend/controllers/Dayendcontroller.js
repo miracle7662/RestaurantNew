@@ -472,7 +472,7 @@ const generateDayEndReportHTML = (req, res) => {
       FROM TAxnTrnbill t
       LEFT JOIN TAxnTrnbilldetails td ON t.TxnID = td.TxnID
       LEFT JOIN mst_users u ON t.UserId = u.userid
-      WHERE t.isDayEnd = 1 AND DATE(t.TxnDatetime) = ? AND t.DayEndEmpID = ?
+      WHERE t.isDayEnd = 1 AND strftime('%Y-%m-%d', datetime(t.TxnDatetime, '+05:30')) = ? AND t.DayEndEmpID = ?
       GROUP BY t.TxnID, t.TxnNo
       ORDER BY t.TxnDatetime DESC;
     `;
