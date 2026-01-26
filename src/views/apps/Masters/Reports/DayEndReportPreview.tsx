@@ -14,7 +14,7 @@ const DayEndReportPreview: React.FC = () => {
       setPreviewHTML(html);
     } else {
       // If no HTML found, redirect back to DayEnd
-      navigate('/apps/Transaction/DayEnd');
+      navigate('/apps/DayEnd');
     }
   }, [navigate]);
 
@@ -28,7 +28,7 @@ const DayEndReportPreview: React.FC = () => {
   };
 
   const handleBack = () => {
-    navigate('/apps/Transaction/DayEnd');
+    navigate('/apps/DayEnd');
   };
 
   return (
