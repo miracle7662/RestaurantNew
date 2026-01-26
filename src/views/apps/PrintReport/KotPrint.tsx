@@ -322,7 +322,7 @@ const [loadingSetting, setLoadingSetting] = useState(true);
         s.toLowerCase().replace(/\s+/g, "").trim();
 
       // Try to match the configured printer (case-insensitive, partial match)
-      let matchedPrinter = systemPrinters.find((p: any) =>
+      const matchedPrinter = systemPrinters.find((p: any) =>
         normalize(p.name).includes(normalize(printerName)) ||
         normalize(p.displayName || "").includes(normalize(printerName))
       );
