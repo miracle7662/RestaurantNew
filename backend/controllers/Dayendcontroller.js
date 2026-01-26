@@ -423,9 +423,323 @@ const getLatestCurrDate = (req, res) => {
   }
 };
 
+const generateDayEndReportHTML = (req, res) => {
+  try {
+    const { hotelId, businessDate, selectedReports } = req.body;
+
+    if ( !hotelId || !businessDate || !selectedReports) {
+      return res.status(400).json({ success: false, message: 'Missing required parameters' });
+    }
+
+    // Query to get day-ended transactions for the outlet and business date
+    const query = `
+      SELECT
+          t.TxnID,
+          t.TxnNo,
+          t.TableID,
+          t.outletid,
+          t.Amount as TotalAmount,
+          t.Discount,
+          t.GrossAmt as GrossAmount,
+          t.CGST,
+          t.SGST,
+          t.RoundOFF,
+          t.RevKOT as RevAmt,
+          t.TxnDatetime,
+          t.Steward as Captain,
+          t.UserId,
+          u.username as UserName,
+          t.NCPurpose,
+          t.NCName,
+          t.DiscountType,
+          t.DiscPer,
+          GROUP_CONCAT(DISTINCT CASE WHEN td.Qty > 0 THEN td.KOTNo END) as KOTNo,
+          COALESCE(GROUP_CONCAT(DISTINCT td.RevKOTNo), '') as RevKOTNo,
+          GROUP_CONCAT(DISTINCT CASE WHEN td.isNCKOT = 1 THEN td.KOTNo END) as NCKOT,
+          (
+            SELECT GROUP_CONCAT(s.PaymentType || ':' || s.Amount)
+            FROM TrnSettlement s
+            WHERE s.OrderNo = t.TxnNo AND s.isSettled = 1
+          ) as Settlements,
+          t.isSetteled,
+          t.isBilled,
+          t.isreversebill,
+          t.isCancelled,
+          t.isDayEnd,
+          t.DayEndEmpID,
+          SUM(td.Qty) as TotalItems,
+          GROUP_CONCAT(DISTINCT td.ItemID || ':' || td.Qty || ':' || td.RuntimeRate || ':'  || ':' || td.isNCKOT || ':' || td.RevKOTNo) as ItemDetails
+      FROM TAxnTrnbill t
+      LEFT JOIN TAxnTrnbilldetails td ON t.TxnID = td.TxnID
+      LEFT JOIN mst_users u ON t.UserId = u.userid
+      WHERE t.isDayEnd = 1 AND DATE(t.TxnDatetime) = ? AND t.outletid = ?
+      GROUP BY t.TxnID, t.TxnNo
+      ORDER BY t.TxnDatetime DESC;
+    `;
+
+    const rows = db.prepare(query).all(businessDate, hotelId);
+
+    // Process data
+    const transactions = [];
+    const reverseKOTs = [];
+    const reverseBills = [];
+    const ncKOTs = [];
+
+    rows.forEach(row => {
+      const settlements = (row.Settlements || '').split(',');
+      const paymentBreakdown = { cash: 0, card: 0, gpay: 0, phonepe: 0, qrcode: 0, credit: 0, other: 0 };
+      let paymentModes = [];
+
+      settlements.forEach(s => {
+        const [type, amountStr] = s.split(':');
+        const amount = parseFloat(amountStr) || 0;
+        if (type) paymentModes.push(type);
+        const tLower = type.toLowerCase();
+        if (tLower.includes('cash')) paymentBreakdown.cash += amount;
+        else if (tLower.includes('card')) paymentBreakdown.card += amount;
+        else if (tLower.includes('gpay') || tLower.includes('google')) paymentBreakdown.gpay += amount;
+        else if (tLower.includes('phonepe')) paymentBreakdown.phonepe += amount;
+        else if (tLower.includes('qr')) paymentBreakdown.qrcode += amount;
+        else if (tLower.includes('credit') && !tLower.includes('card')) paymentBreakdown.credit += amount;
+        else paymentBreakdown.other += amount;
+      });
+
+      const transaction = {
+        billNo: row.TxnNo,
+        tableNo: row.TableID,
+        grossAmount: parseFloat(row.GrossAmount || 0),
+        discount: parseFloat(row.Discount || 0),
+        cgst: parseFloat(row.CGST || 0),
+        sgst: parseFloat(row.SGST || 0),
+        netAmount: parseFloat(row.TotalAmount || 0),
+        paymentMode: paymentModes.join(', ') || 'Cash',
+        discountReason: row.DiscountType || (row.DiscPer ? `${row.DiscPer}%` : 'N/A'),
+        customerName: row.NCName || 'N/A',
+        creditAmount: paymentBreakdown.credit,
+        reversedAmount: parseFloat(row.RevAmt || 0),
+        reason: row.DiscountType || 'N/A',
+        time: row.TxnDatetime,
+        ncName: row.NCName || '',
+        ncPurpose: row.NCPurpose || '',
+        isReverseBill: row.isreversebill,
+        itemDetails: (row.ItemDetails || '').split(',').map(detail => {
+          const [itemId, qty, rate, reason, isNcKot, revKotNo] = detail.split(':');
+          return { itemId, qty: parseInt(qty), rate: parseFloat(rate), reason, isNcKot: isNcKot === '1', revKotNo };
+        }).filter(d => d.itemId)
+      };
+
+      transactions.push(transaction);
+
+      // Collect reverse KOTs
+      if (row.RevKOTNo) {
+        row.RevKOTNo.split(',').forEach(revKot => {
+          if (revKot.trim()) {
+            reverseKOTs.push({
+              kotNo: revKot.trim(),
+              tableNo: row.TableID,
+              itemName: 'N/A', // Would need to join with mstrestmenu for item name
+              quantity: 1, // Placeholder
+              reason: 'N/A', // Placeholder
+              time: row.TxnDatetime
+            });
+          }
+        });
+      }
+
+      // Collect reverse bills
+      if (row.isreversebill) {
+        reverseBills.push({
+          billNo: row.TxnNo,
+          tableNo: row.TableID,
+          reversedAmount: parseFloat(row.RevAmt || 0),
+          reason: 'N/A', // Placeholder
+          time: row.TxnDatetime
+        });
+      }
+
+      // Collect NC KOTs
+      if (row.NCKOT) {
+        ncKOTs.push({
+          ncName: row.NCName || '',
+          purpose: row.NCPurpose || '',
+          itemName: 'N/A', // Placeholder
+          quantity: 1, // Placeholder
+          amount: parseFloat(row.TotalAmount || 0)
+        });
+      }
+    });
+
+    // Generate HTML
+    let html = '<div style="font-family: monospace; font-size: 12px; line-height: 1.2; max-width: 320px; margin: 0 auto; white-space: pre-wrap;">';
+
+    selectedReports.forEach(reportKey => {
+      switch (reportKey) {
+        case 'billDetails':
+          html += generateBillDetailsHTML(transactions);
+          break;
+        case 'creditSummary':
+          html += generateCreditSummaryHTML(transactions);
+          break;
+        case 'paymentSummary':
+          html += generatePaymentSummaryHTML(transactions);
+          break;
+        case 'discountSummary':
+          html += generateDiscountSummaryHTML(transactions);
+          break;
+        case 'reverseKOTsSummary':
+          html += generateReverseKOTsSummaryHTML(reverseKOTs);
+          break;
+        case 'reverseBillSummary':
+          html += generateReverseBillSummaryHTML(reverseBills);
+          break;
+        case 'ncKOTSalesSummary':
+          html += generateNCKOTSalesSummaryHTML(ncKOTs);
+          break;
+      }
+      html += '\n----------------------------\n';
+    });
+
+    html += '</div>';
+
+    res.json({ success: true, html });
+  } catch (error) {
+    console.error('Error generating day end report HTML:', error);
+    res.status(500).json({ success: false, message: 'Failed to generate report' });
+  }
+};
+
+function generateBillDetailsHTML(transactions) {
+  let html = 'BILL DETAILS\n\n';
+  html += 'Bill No  Table  Gross   Disc   CGST   SGST   Net    Payment\n';
+  html += '-------- ------ ------- ------ ------ ------ ------ --------\n';
+
+  let totalGross = 0, totalDisc = 0, totalCGST = 0, totalSGST = 0, totalNet = 0;
+
+  transactions.forEach(t => {
+    html += `${t.billNo.padEnd(8)} ${String(t.tableNo).padEnd(6)} ${t.grossAmount.toFixed(2).padStart(7)} ${t.discount.toFixed(2).padStart(6)} ${t.cgst.toFixed(2).padStart(6)} ${t.sgst.toFixed(2).padStart(6)} ${t.netAmount.toFixed(2).padStart(6)} ${t.paymentMode.substring(0,8)}\n`;
+    totalGross += t.grossAmount;
+    totalDisc += t.discount;
+    totalCGST += t.cgst;
+    totalSGST += t.sgst;
+    totalNet += t.netAmount;
+  });
+
+  html += '-------- ------ ------- ------ ------ ------ ------ --------\n';
+  html += `TOTAL    ${totalGross.toFixed(2).padStart(7)} ${totalDisc.toFixed(2).padStart(6)} ${totalCGST.toFixed(2).padStart(6)} ${totalSGST.toFixed(2).padStart(6)} ${totalNet.toFixed(2).padStart(6)}\n\n`;
+
+  return html;
+}
+
+function generateCreditSummaryHTML(transactions) {
+  let html = 'CREDIT SUMMARY\n\n';
+  html += 'Customer / Ledger Name     Credit Amount\n';
+  html += '----------------------- --------------\n';
+
+  let totalCredit = 0;
+
+  transactions.filter(t => t.creditAmount > 0).forEach(t => {
+    html += `${t.customerName.substring(0,23).padEnd(23)} ${t.creditAmount.toFixed(2).padStart(14)}\n`;
+    totalCredit += t.creditAmount;
+  });
+
+  html += '----------------------- --------------\n';
+  html += `TOTAL CREDIT             ${totalCredit.toFixed(2).padStart(14)}\n\n`;
+
+  return html;
+}
+
+function generatePaymentSummaryHTML(transactions) {
+  let html = 'PAYMENT SUMMARY\n\n';
+
+  let cash = 0, card = 0, upi = 0, qr = 0, other = 0;
+
+  transactions.forEach(t => {
+    cash += t.paymentMode.toLowerCase().includes('cash') ? t.netAmount : 0;
+    card += t.paymentMode.toLowerCase().includes('card') ? t.netAmount : 0;
+    upi += (t.paymentMode.toLowerCase().includes('gpay') || t.paymentMode.toLowerCase().includes('phonepe')) ? t.netAmount : 0;
+    qr += t.paymentMode.toLowerCase().includes('qr') ? t.netAmount : 0;
+    other += t.netAmount - (cash + card + upi + qr); // Approximation
+  });
+
+  html += `Cash          ${cash.toFixed(2).padStart(10)}\n`;
+  html += `Card          ${card.toFixed(2).padStart(10)}\n`;
+  html += `UPI           ${upi.toFixed(2).padStart(10)}\n`;
+  html += `QR Code       ${qr.toFixed(2).padStart(10)}\n`;
+  html += `Other         ${other.toFixed(2).padStart(10)}\n`;
+  html += '---------- ----------\n';
+  html += `GRAND TOTAL   ${(cash + card + upi + qr + other).toFixed(2).padStart(10)}\n\n`;
+
+  return html;
+}
+
+function generateDiscountSummaryHTML(transactions) {
+  let html = 'DISCOUNT SUMMARY\n\n';
+  html += 'Bill No  Discount Reason      Amount\n';
+  html += '-------- -------------------- ------\n';
+
+  let totalDiscount = 0;
+
+  transactions.filter(t => t.discount > 0).forEach(t => {
+    html += `${t.billNo.padEnd(8)} ${t.discountReason.substring(0,20).padEnd(20)} ${t.discount.toFixed(2).padStart(6)}\n`;
+    totalDiscount += t.discount;
+  });
+
+  html += '-------- -------------------- ------\n';
+  html += `TOTAL DISCOUNT               ${totalDiscount.toFixed(2).padStart(6)}\n\n`;
+
+  return html;
+}
+
+function generateReverseKOTsSummaryHTML(reverseKOTs) {
+  let html = 'REVERSE KOTs SUMMARY\n\n';
+  html += 'KOT No  Table  Item Name          Qty  Reason    Time\n';
+  html += '------- ------ ------------------ ---- --------- --------\n';
+
+  reverseKOTs.forEach(r => {
+    const timeStr = new Date(r.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+    html += `${r.kotNo.padEnd(7)} ${String(r.tableNo).padEnd(6)} ${r.itemName.substring(0,18).padEnd(18)} ${String(r.quantity).padStart(4)} ${r.reason.substring(0,9).padEnd(9)} ${timeStr}\n`;
+  });
+
+  html += '\n';
+  return html;
+}
+
+function generateReverseBillSummaryHTML(reverseBills) {
+  let html = 'REVERSE BILL SUMMARY\n\n';
+  html += 'Bill No  Table  Reversed Amount  Reason    Time\n';
+  html += '-------- ------ ---------------- --------- --------\n';
+
+  reverseBills.forEach(r => {
+    const timeStr = new Date(r.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+    html += `${r.billNo.padEnd(8)} ${String(r.tableNo).padEnd(6)} ${r.reversedAmount.toFixed(2).padStart(16)} ${r.reason.substring(0,9).padEnd(9)} ${timeStr}\n`;
+  });
+
+  html += '\n';
+  return html;
+}
+
+function generateNCKOTSalesSummaryHTML(ncKOTs) {
+  let html = 'NC KOT SALES SUMMARY\n\n';
+  html += 'NC Name    Purpose    Item Name          Qty  Amount\n';
+  html += '---------- ---------- ------------------ ---- ------\n';
+
+  let totalAmount = 0;
+
+  ncKOTs.forEach(n => {
+    html += `${n.ncName.substring(0,10).padEnd(10)} ${n.purpose.substring(0,10).padEnd(10)} ${n.itemName.substring(0,18).padEnd(18)} ${String(n.quantity).padStart(4)} ${n.amount.toFixed(2).padStart(6)}\n`;
+    totalAmount += n.amount;
+  });
+
+  html += '---------- ---------- ------------------ ---- ------\n';
+  html += `TOTAL NC AMOUNT                            ${totalAmount.toFixed(2).padStart(6)}\n\n`;
+
+  return html;
+}
+
 module.exports = {
   getDayendData,
   saveDayEndCashDenomination,
   saveDayEnd,
   getLatestCurrDate,
+  generateDayEndReportHTML,
 };

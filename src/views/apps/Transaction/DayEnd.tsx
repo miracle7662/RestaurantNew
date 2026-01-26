@@ -117,7 +117,7 @@ const DayEnd = () => {
   const [passwordVerified, setPasswordVerified] = useState(false);
   const [showOnlyNotDayEnded, setShowOnlyNotDayEnded] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
-  const [reportDate, setReportDate] = useState(todayFormatted);
+  const [reportDate, setReportDate] = useState(`${yyyy}-${mm}-${dd}`);
   const [selectedReports, setSelectedReports] = useState({
     billDetails: true,
     creditSummary: true,
@@ -398,6 +398,74 @@ const DayEnd = () => {
     } catch (error) {
       console.error('Password verification error:', error);
       return false;
+    }
+  };
+
+  const handleGenerateReports = async () => {
+    try {
+      console.log('User object:', user); // Debug log
+      console.log('User outletid:', user?.outletid); // Debug log
+
+      const selectedReportKeys = Object.keys(selectedReports).filter(key => selectedReports[key as keyof typeof selectedReports]);
+
+      if (selectedReportKeys.length === 0) {
+        toast.error("Please select at least one report to generate.");
+        return;
+      }
+
+      if (!user) {
+        toast.error("User information is not available. Please log in again.");
+        return;
+      }
+
+    
+
+      if (!user.token) {
+        toast.error("Authentication token is missing. Please log in again.");
+        return;
+      }
+
+      const payload = {
+          outletId: user?.outletid,
+          hotelId: user?.hotelid,
+        businessDate: reportDate, // Already in yyyy-mm-dd format
+        selectedReports: selectedReportKeys,
+      };
+
+      console.log('Sending payload:', payload); // Debug log
+
+      const response = await fetch('http://localhost:3001/api/dayend/generate-report-html', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${user.token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      console.log('Response status:', response.status); // Debug log
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Response error text:', errorText); // Debug log
+        toast.error(`Failed to generate reports: ${response.status} ${response.statusText}`);
+        return;
+      }
+
+      const data = await response.json();
+      console.log('Response data:', data); // Debug log
+
+      if (data.success) {
+        // Store the HTML in sessionStorage for the preview page
+        sessionStorage.setItem('dayEndReportHTML', data.html);
+        // Navigate to the preview page
+        navigate('/apps/Masters/Reports/DayEndReportPreview');
+      } else {
+        toast.error(data.message || "Failed to generate reports.");
+      }
+    } catch (error) {
+      console.error('Error generating reports:', error);
+      toast.error("An error occurred while generating reports.");
     }
   };
 
@@ -1443,11 +1511,7 @@ const getFormattedDate = (dateStr: string) => {
             <Button variant="secondary" onClick={() => setShowReportModal(false)}>
               Cancel
             </Button>
-            <Button variant="primary" onClick={() => {
-              // Handle report generation logic here if needed
-              toast.success("Reports selected and generated successfully!");
-              setShowReportModal(false);
-            }}>
+            <Button variant="primary" onClick={handleGenerateReports}>
               Generate Reports
             </Button>
           </Modal.Footer>
