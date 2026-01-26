@@ -299,6 +299,7 @@ const DayEnd = () => {
 
     if (response.ok && data.success) {
       toast.success(data.message || "✅ Day-End saved successfully!");
+      setOrders([]); // Clear the orders table after successful day-end
       setShowReportModal(true);
     } else {
       // Backend may return pending table info
