@@ -401,6 +401,46 @@ const DayEnd = () => {
     }
   };
 
+  const handleGenerateReports = async () => {
+    try {
+      const selectedReportKeys = Object.keys(selectedReports).filter(key => selectedReports[key as keyof typeof selectedReports]);
+
+      if (selectedReportKeys.length === 0) {
+        toast.error("Please select at least one report to generate.");
+        return;
+      }
+
+      const payload = {
+        outletId: user?.outletid,
+        businessDate: reportDate.split('-').reverse().join('-'), // Convert dd-mm-yyyy to yyyy-mm-dd
+        selectedReports: selectedReportKeys,
+      };
+
+      const response = await fetch('http://localhost:3001/api/dayend/generate-report-html', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${user?.token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        // Store the HTML in sessionStorage for the preview page
+        sessionStorage.setItem('dayEndReportHTML', data.html);
+        // Navigate to the preview page
+        navigate('/apps/Masters/Reports/DayEndReportPreview');
+      } else {
+        toast.error(data.message || "Failed to generate reports.");
+      }
+    } catch (error) {
+      console.error('Error generating reports:', error);
+      toast.error("An error occurred while generating reports.");
+    }
+  };
+
 
   const StatusBadge = ({ status }: { status: string }) => {
     const variants = {
@@ -1443,11 +1483,7 @@ const getFormattedDate = (dateStr: string) => {
             <Button variant="secondary" onClick={() => setShowReportModal(false)}>
               Cancel
             </Button>
-            <Button variant="primary" onClick={() => {
-              // Handle report generation logic here if needed
-              toast.success("Reports selected and generated successfully!");
-              setShowReportModal(false);
-            }}>
+            <Button variant="primary" onClick={handleGenerateReports}>
               Generate Reports
             </Button>
           </Modal.Footer>
