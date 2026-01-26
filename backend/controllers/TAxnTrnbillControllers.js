@@ -1751,7 +1751,7 @@ exports.getUnbilledItemsByTable = async (req, res) => {
           `
       SELECT TxnID, GrossAmt, RevKOT, Discount, DiscPer, DiscountType, CGST, SGST, IGST, CESS, RoundOFF, Amount, PAX, CustomerName, MobileNo
       FROM TAxnTrnbill
-      WHERE TableID = ? AND isBilled = 0 AND isCancelled = 0
+      WHERE TableID = ? AND isBilled = 0 AND isCancelled = 0 AND isNCKOT = 0
       ORDER BY TxnID DESC
       LIMIT 1
     `,
