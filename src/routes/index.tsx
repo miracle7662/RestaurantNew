@@ -279,7 +279,7 @@ const appsRoutes: RoutesProps = {
       route: PrivateRoute,
     },
     {
-      path: '/apps/DayEndReportPreview',
+      path: '/apps/Masters/Reports/DayEndReportPreview',
       name: ' DayEndReportPreview',
       element: <  DayEndReportPreview />,
       route: PrivateRoute,
