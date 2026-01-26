@@ -425,9 +425,9 @@ const getLatestCurrDate = (req, res) => {
 
 const generateDayEndReportHTML = (req, res) => {
   try {
-    const { outletId, businessDate, selectedReports } = req.body;
+    const { hotelId, businessDate, selectedReports } = req.body;
 
-    if ( !businessDate || !selectedReports) {
+    if ( !hotelId || !businessDate || !selectedReports) {
       return res.status(400).json({ success: false, message: 'Missing required parameters' });
     }
 
@@ -468,7 +468,7 @@ const generateDayEndReportHTML = (req, res) => {
           t.isDayEnd,
           t.DayEndEmpID,
           SUM(td.Qty) as TotalItems,
-          GROUP_CONCAT(DISTINCT td.ItemID || ':' || td.Qty || ':' || td.RuntimeRate || ':'   || ':' || td.isNCKOT || ':' || td.RevKOTNo) as ItemDetails
+          GROUP_CONCAT(DISTINCT td.ItemID || ':' || td.Qty || ':' || td.RuntimeRate || ':'  || ':' || td.isNCKOT || ':' || td.RevKOTNo) as ItemDetails
       FROM TAxnTrnbill t
       LEFT JOIN TAxnTrnbilldetails td ON t.TxnID = td.TxnID
       LEFT JOIN mst_users u ON t.UserId = u.userid
@@ -477,7 +477,7 @@ const generateDayEndReportHTML = (req, res) => {
       ORDER BY t.TxnDatetime DESC;
     `;
 
-    const rows = db.prepare(query).all(businessDate, outletId);
+    const rows = db.prepare(query).all(businessDate, hotelId);
 
     // Process data
     const transactions = [];
