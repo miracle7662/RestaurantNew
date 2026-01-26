@@ -11,7 +11,6 @@ import {
     Spinner
 } from 'react-bootstrap';
 import { toast } from 'react-toastify';
-import axios from 'axios';
 
 const KOT_COLORS = ['#E8F5E9', '#FFF3E0'];
 
@@ -28,13 +27,13 @@ interface ReverseKotModalProps {
     onClose: () => void;
     onSave: (data: any) => void;
     kotItems: any[];
+    revKotNo: number;
     tableNo: number | string;
     waiter: string;
     pax: number;
     date: string;
     persistentTxnId: number | null;
     persistentTableId: number;
-    outletid: number;
 }
 
 const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
@@ -42,17 +41,16 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
     onClose,
     onSave,
     kotItems,
+    revKotNo,
     tableNo,
     waiter,
     pax,
     date,
     persistentTxnId,
-    persistentTableId,
-    outletid
+    persistentTableId
 }) => {
     const [items, setItems] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
-    const [fetchedRevKotNo, setFetchedRevKotNo] = useState<number | null>(null);
 
     // Refs for navigation
     const cancelRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -77,36 +75,10 @@ useEffect(() => {
 }, [kotItems]);
 
 useEffect(() => {
-  if (show) {
-    // Fetch the next reverse KOT number
-    const fetchReverseKOTNumber = async () => {
-      if (!outletid) {
-        console.error('outletid is undefined, cannot fetch reverse KOT number');
-        return;
-      }
-      try {
-        console.log('Fetching reverse KOT number for outletid:', outletid);
-        const response = await axios.get(`/api/bills/global-reverse-kot-number?outletid=${outletid}`);
-        console.log('API Response:', response.data);
-        if (response.data.success) {
-          const nextRevKOT = response.data.data.nextRevKOT;
-          setFetchedRevKotNo(nextRevKOT);
-          console.log('Fetched Reverse KOT No:', nextRevKOT);
-        } else {
-          console.error('API returned success: false');
-        }
-      } catch (error) {
-        console.error('Failed to fetch reverse KOT number:', error);
-      }
-    };
-
-    fetchReverseKOTNumber();
-
-    if (cancelRefs.current[0]) {
-      cancelRefs.current[0].focus();
-    }
+  if (show && cancelRefs.current[0]) {
+    cancelRefs.current[0].focus();
   }
-}, [show, outletid]);
+}, [show]);
 
     const updateQty = (
         idx: number,
@@ -177,7 +149,7 @@ useEffect(() => {
 
         console.log('Modal sending:', filteredItems);
 
-        onSave({ revKotNo: fetchedRevKotNo, items: filteredItems });
+        onSave(filteredItems);
         onClose();
     };
 
@@ -201,8 +173,8 @@ useEffect(() => {
                 <Row className="g-2 mb-3 text-center">
                         {[
                         { label: '', value: tableNo, highlight: true },
-                         { label: 'REV KOT NO', value: (() => { console.log('Rendering REV KOT NO:', fetchedRevKotNo); return fetchedRevKotNo ?? '-'; })() },
-                         { label: 'WAITER', value: waiter },
+                        { label: 'REV KOT NO', value: revKotNo + 1 },
+                        { label: 'WAITER', value: waiter },
                         { label: 'PAX', value: pax },
                         { label: 'DATE', value: date }
                     ].map((info, idx) => (
