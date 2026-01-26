@@ -4371,7 +4371,7 @@ const Order = () => {
             items={items}
             currentKOTNos={currentKOTNos}
             currentKOTNo={currentKOTNo}
-            orderNo={orderNo}
+            orderNo={orderNo ?? undefined}
             selectedTable={selectedTable || undefined}
             activeTab={activeTab}
             customerName={customerName}
