@@ -9,6 +9,7 @@ import {
 } from 'react'
 import { Preloader, PreloaderFull } from '@/components/Misc/Preloader'
 import { getCurrentUser } from '@/common/api/auth'
+import { getLatestCurrDate } from '@/common/api/dayend'
 
 type User = {
   id: number
@@ -23,6 +24,7 @@ type User = {
   hotel_name?: string
   outlet_name?: string
   brand_name?: string
+  currDate?: string
 }
 
 const AuthContext = createContext<any>({})
@@ -67,7 +69,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const parsedUser = JSON.parse(storedUser)
           if (parsedUser && parsedUser.token) {
             const currentUser = await getCurrentUser(parsedUser.token)
-            saveSession({ ...currentUser, token: parsedUser.token })
+            const currDateData = await getLatestCurrDate(parsedUser.token)
+            saveSession({ ...currentUser, token: parsedUser.token, currDate: currDateData.curr_date })
           } else {
             removeSession()
           }

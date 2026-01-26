@@ -5,7 +5,7 @@ function ok(message, data) {
   return { success: true, message, data }
 }
 
-function toBool(value) {
+function toBool(value) { 
   return value ? 1 : 0
 }
 function generateTxnNo(outletid) {
@@ -990,6 +990,7 @@ exports.createKOT = async (req, res) => {
       GuestID,
       Order_Type,
       PAX,
+      TxnDatetime,
       items: details = [],
     } = req.body
 
@@ -1095,7 +1096,7 @@ exports.createKOT = async (req, res) => {
             outletid, TxnNo, TableID, table_name, PAX, UserId, HotelID, TxnDatetime,
             isBilled, isCancelled, isSetteled, status, AutoKOT, CustomerName, MobileNo, GuestID, Order_Type, orderNo,
             NCName, NCPurpose, DiscPer, Discount, DiscountType, isNCKOT
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), 0, 0, 0, 1, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 1, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `)
         const result = insertHeaderStmt.run(
           headerOutletId,
@@ -1105,6 +1106,7 @@ exports.createKOT = async (req, res) => {
           PAX ?? null,
           UserId,
           HotelID,
+          TxnDatetime,
           CustomerName,
           MobileNo,
           GuestID,
