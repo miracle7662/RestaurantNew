@@ -171,9 +171,9 @@ useEffect(() => {
 
                 {/* ===== INFO ===== */}
                 <Row className="g-2 mb-3 text-center">
-                    {[
+                        {[
                         { label: '', value: tableNo, highlight: true },
-                        { label: 'REV KOT NO', value: revKotNo },
+                        { label: 'REV KOT NO', value: revKotNo + 1 },
                         { label: 'WAITER', value: waiter },
                         { label: 'PAX', value: pax },
                         { label: 'DATE', value: date }
