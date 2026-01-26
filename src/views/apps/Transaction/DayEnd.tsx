@@ -84,6 +84,11 @@ interface Order {
 const DayEnd = () => {
   const { user } = useAuthContext();
   const navigate = useNavigate();
+  const today = new Date();
+  const dd = String(today.getDate()).padStart(2, '0');
+  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  const yyyy = today.getFullYear();
+  const todayFormatted = `${dd}-${mm}-${yyyy}`;
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [showDetailsModal, setShowDetailsModal] = useState(false);
@@ -112,15 +117,15 @@ const DayEnd = () => {
   const [passwordVerified, setPasswordVerified] = useState(false);
   const [showOnlyNotDayEnded, setShowOnlyNotDayEnded] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
-  const [reportDate, setReportDate] = useState("");
+  const [reportDate, setReportDate] = useState(todayFormatted);
   const [selectedReports, setSelectedReports] = useState({
-    billDetails: false,
-    creditSummary: false,
-    paymentSummary: false,
-    discountSummary: false,
-    reverseKOTsSummary: false,
-    reverseBillSummary: false,
-    ncKOTSalesSummary: false,
+    billDetails: true,
+    creditSummary: true,
+    paymentSummary: true,
+    discountSummary: true,
+    reverseKOTsSummary: true,
+    reverseBillSummary: true,
+    ncKOTSalesSummary: true,
   });
 
   useEffect(() => {
