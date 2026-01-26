@@ -56,7 +56,9 @@ const DayEndReportPreview: React.FC = () => {
               lineHeight: '1.2',
               whiteSpace: 'pre-wrap',
               maxWidth: '320px',
-              margin: '0 auto'
+              margin: '0 auto',
+              maxHeight: '80vh',
+              overflowY: 'auto'
             }}
             dangerouslySetInnerHTML={{
               __html: previewHTML.replace(/<html>[\s\S]*<body>/, '').replace(/<\/body><\/html>/, '')
