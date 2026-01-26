@@ -945,6 +945,10 @@ const ModernBill = () => {
         setReversedItems([]);
       }
 
+      // Compute max RevKOTNo from reversedItems for unbilled orders
+      const maxRevKotNoFromReversed = reversedItems.length > 0 ? Math.max(...reversedItems.map(r => r.kotNo || 0)) : 0;
+      setRevKotNo(maxRevKotNoFromReversed);
+
       // Update header fields from data.header and data.kotNo if available
       console.log('Takeaway API Response Header:', data.header);
       if (data.header) {

@@ -1709,6 +1709,7 @@ exports.getUnbilledItemsByTable = async (req, res) => {
         (d.Qty - COALESCE(d.RevQty, 0)) as NetQty,
         d.RuntimeRate as price,
         d.KOTNo,
+        d.RevKOTNo,
         m.item_no as MenuItemNo,
         m.item_group_id
       FROM TAxnTrnbilldetails d
@@ -1719,6 +1720,21 @@ exports.getUnbilledItemsByTable = async (req, res) => {
       `,
       )
       .all(Number(tableId))
+
+    // Get the max RevKOTNo for the outlet to set as revKotNo for unbilled
+    let maxRevKOT = 0
+    if (bill && bill.outletid) {
+      const maxRevKOTResult = db
+        .prepare(
+          `
+        SELECT MAX(RevKOTNo) as maxRevKOT
+        FROM TAxnTrnbilldetails
+        WHERE outletid = ? AND date(KOTUsedDate) = date('now')
+      `,
+        )
+        .get(bill.outletid)
+      maxRevKOT = maxRevKOTResult?.maxRevKOT || 0
+    }
 
     // Fetch reversed items from the log for this transaction
     const reversedItemsRows = bill
@@ -1733,7 +1749,7 @@ exports.getUnbilledItemsByTable = async (req, res) => {
         l.ReversedQty as reversedQty,
         d.RuntimeRate as price,
         'Reversed' as status,
-        d.KOTNo as kotNo,
+        l.RevKOTNo as kotNo,
         d.TXnDetailID as txnDetailId,
         l.ReversalDate as reversalTime
       FROM TAxnTrnReversalLog l
