@@ -418,7 +418,6 @@ const DayEnd = () => {
         return;
       }
 
-    
 
       if (!user.token) {
         toast.error("Authentication token is missing. Please log in again.");
@@ -426,8 +425,7 @@ const DayEnd = () => {
       }
 
       const payload = {
-          outletId: user?.outletid,
-          hotelId: user?.hotelid,
+        DayEndEmpID: user?.id,
         businessDate: reportDate, // Already in yyyy-mm-dd format
         selectedReports: selectedReportKeys,
       };
@@ -766,7 +764,6 @@ const getFormattedDate = (dateStr: string) => {
             </Row>
           </Card.Header>
         </Card>
-
         {/* Tabs Navigation - Sticky */}
         <div className="tabs-header">
           <Tabs

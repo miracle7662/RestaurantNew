@@ -11,6 +11,7 @@ const getDayendData = (req, res) => {
           t.TxnNo,
           t.TableID,
           t.outletid,
+          t.HotelID,
           t.Amount as TotalAmount,
           t.Discount,
           t.GrossAmt as GrossAmount,
@@ -20,8 +21,6 @@ const getDayendData = (req, res) => {
           t.RevKOT as RevAmt,
           t.TxnDatetime,
           t.Steward as Captain,
-
-
           t.UserId,
           u.username as UserName,
           (SELECT SUM(CASE WHEN i.item_name LIKE '%water%' THEN d.RuntimeRate * d.Qty ELSE 0 END) FROM TAxnTrnbilldetails d JOIN mstrestmenu i ON d.ItemID = i.restitemid WHERE d.TxnID = t.TxnID) as Water,
@@ -42,7 +41,7 @@ const getDayendData = (req, res) => {
       FROM TAxnTrnbill t
       LEFT JOIN TAxnTrnbilldetails td ON t.TxnID = td.TxnID
       LEFT JOIN mst_users u ON t.UserId = u.userid
-      WHERE  t.isDayEnd= 0 and (t.isCancelled = 0 AND (t.isBilled = 1 OR t.isSetteled = 1)) 
+      WHERE  t.isDayEnd= 0 and (t.isCancelled = 0 AND (t.isBilled = 1 OR t.isSetteled = 1))
 
       GROUP BY t.TxnID, t.TxnNo
       ORDER BY t.TxnDatetime DESC;
@@ -50,6 +49,7 @@ const getDayendData = (req, res) => {
 
     const rows = db.prepare(query).all();
 
+  
     // Group by transaction
     const transactions = {};
     for (const row of rows) {
@@ -425,13 +425,13 @@ const getLatestCurrDate = (req, res) => {
 
 const generateDayEndReportHTML = (req, res) => {
   try {
-    const { hotelId, businessDate, selectedReports } = req.body;
+    const { DayEndEmpID, businessDate, selectedReports } = req.body;
 
-    if ( !hotelId || !businessDate || !selectedReports) {
+    if (!DayEndEmpID || !businessDate || !selectedReports) {
       return res.status(400).json({ success: false, message: 'Missing required parameters' });
     }
 
-    // Query to get day-ended transactions for the outlet and business date
+    // Query to get day-ended transactions for the DayEndEmpID and business date
     const query = `
       SELECT
           t.TxnID,
@@ -472,12 +472,12 @@ const generateDayEndReportHTML = (req, res) => {
       FROM TAxnTrnbill t
       LEFT JOIN TAxnTrnbilldetails td ON t.TxnID = td.TxnID
       LEFT JOIN mst_users u ON t.UserId = u.userid
-      WHERE t.isDayEnd = 1 AND DATE(t.TxnDatetime) = ? AND t.outletid = ?
+      WHERE t.isDayEnd = 1 AND DATE(t.TxnDatetime) = ? AND t.DayEndEmpID = ?
       GROUP BY t.TxnID, t.TxnNo
       ORDER BY t.TxnDatetime DESC;
     `;
 
-    const rows = db.prepare(query).all(businessDate, hotelId);
+    const rows = db.prepare(query).all(businessDate, DayEndEmpID);
 
     // Process data
     const transactions = [];
