@@ -3854,4 +3854,40 @@ exports.getGlobalKOTNumber = async (req, res) => {
   }
 }
 
+/* -------------------------------------------------------------------------- */
+/* 26) getGlobalReverseKOTNumber → fetch the next global reverse KOT number for an outlet */
+/* -------------------------------------------------------------------------- */
+exports.getGlobalReverseKOTNumber = async (req, res) => {
+  try {
+    const { outletid } = req.query
+
+    if (!outletid) {
+      return res.status(400).json({ success: false, message: 'outletid is required', data: null })
+    }
+
+    const result = db
+      .prepare(
+        `
+      SELECT MAX(RevKOTNo) as maxRevKOT
+      FROM TAxnTrnbilldetails
+      WHERE outletid = ? AND date(KOTUsedDate) = date('now')
+    `,
+      )
+      .get(Number(outletid))
+
+    const nextRevKOT = (result?.maxRevKOT || 0) + 1
+
+    res.json(ok('Fetched next global reverse KOT number', { nextRevKOT }))
+  } catch (error) {
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: 'Failed to fetch global reverse KOT number',
+        data: null,
+        error: error.message,
+      })
+  }
+}
+
 module.exports = exports
