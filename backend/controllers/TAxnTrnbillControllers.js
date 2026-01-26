@@ -1673,6 +1673,7 @@ exports.getUnbilledItemsByTable = async (req, res) => {
       SELECT TxnID
       FROM TAxnTrnbill
       WHERE TableID = ? AND isBilled in (0,1) AND isCancelled = 0 AND isSetteled = 0
+      ORDER BY TxnID DESC LIMIT 1
     `,
       )
       .get(Number(tableId))
@@ -2272,13 +2273,11 @@ exports.getLatestBilledBillForTable = async (req, res) => {
       .get(Number(tableId))
 
     if (!bill) {
-      return res
-        .status(404)
-        .json({
-          success: false,
-          message: 'No billed and unsettled transaction found for this table.',
-          data: null,
-        })
+      return res.json({
+        success: true,
+        message: 'No billed and unsettled transaction found for this table.',
+        data: null,
+      })
     }
 
     // Step 2: Load all items (billed and unbilled) associated with that transaction

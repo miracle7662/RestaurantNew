@@ -1772,6 +1772,10 @@ const ModernBill = () => {
         toast.success('NCKOT applied successfully to all items.');
 
         // ✅ 1️⃣ TABLE KO VACANT KARO (FRONTEND)
+        // Explicitly set table status to vacant (0) after NCKOT
+        if (tableId) {
+          await axios.put(`/api/tablemanagement/${tableId}/status`, { status: 0 });
+        }
         await fetchTableManagement();
 
         // ✅ 2️⃣ UI CLEAR (already correct)
