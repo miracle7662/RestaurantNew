@@ -1535,9 +1535,10 @@ const Order = () => {
         MobileNo: mobileNumber,
         GuestID: customerId || null,
         Order_Type: activeTab, // Add the active tab as Order_Type
-        TxnDatetime: user?.currDate, // Pass curr_date from useAuthContext
+        TxnDatetime: user?.curr_date, // Pass curr_date from useAuthContext
       };
 
+      console.log('TxnDatetime from useAuthContext:', user?.curr_date);
       console.log('Sending payload to createKOT:', JSON.stringify(kotPayload, null, 2));
       const resp = await createKOT(kotPayload);
       if (resp?.success) {
