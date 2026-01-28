@@ -1642,6 +1642,7 @@ const ModernBill = () => {
         Discount: discount,
         DiscPer: DiscountType === 1 ? discountInputValue : 0,
         DiscountType: DiscountType,
+        TxnDatetime: user?.currDate,
         ...(txnId ? { txnId } : {}),
         ...(isNoCharge ? { NCName: ncName, NCPurpose: ncPurpose } : {}),
         items: validItems.map(item => ({
@@ -3412,6 +3413,7 @@ const ModernBill = () => {
 
         onClose={() => setShowKotPrintModal(false)}
         selectedOutletId={selectedOutletId}
+        date={user?.currDate}
         pax={pax}
         restaurantName={restaurantName}
         outletName={outletName}

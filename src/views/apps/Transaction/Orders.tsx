@@ -1535,7 +1535,7 @@ const Order = () => {
         MobileNo: mobileNumber,
         GuestID: customerId || null,
         Order_Type: activeTab, // Add the active tab as Order_Type
-        TxnDatetime: user?.curr_date, // Pass curr_date from useAuthContext
+        TxnDatetime: user?.currDate, // Pass curr_date from useAuthContext
       };
 
       console.log('TxnDatetime from useAuthContext:', user?.curr_date);
@@ -4364,6 +4364,7 @@ const Order = () => {
             autoPrint={false}
             kotNote={kotNote}
             orderNo={orderNo}
+            date={user?.currDate}
           />
           <BillPreviewPrint
             show={showBillPrintModal}

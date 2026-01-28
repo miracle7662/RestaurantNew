@@ -55,6 +55,7 @@ interface KotPreviewPrintProps {
   outletName?: string;
   kotNote?: string;
   orderNo?: string | null;
+  date?: string | null;
 }
 
 const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
@@ -78,7 +79,8 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
   restaurantName,
   outletName,
   kotNote,
-  orderNo
+  orderNo,
+  date
 }) => {
   const [loading, setLoading] = useState(false);
   const [hasPrinted, setHasPrinted] = useState(false);
@@ -379,7 +381,13 @@ const [loadingSetting, setLoadingSetting] = useState(true);
     }
   };
 
-const dateTime = new Date().toLocaleString('en-GB', {
+const dateTime = date ? new Date(date).toLocaleString('en-GB', {
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit'
+}) : new Date().toLocaleString('en-GB', {
   day: '2-digit',
   month: '2-digit',
   year: 'numeric',
