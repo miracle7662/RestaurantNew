@@ -11,6 +11,7 @@ import {
     Spinner
 } from 'react-bootstrap';
 import { toast } from 'react-toastify';
+import axios from 'axios';
 
 const KOT_COLORS = ['#E8F5E9', '#FFF3E0'];
 
@@ -34,6 +35,7 @@ interface ReverseKotModalProps {
     date: string;
     persistentTxnId: number | null;
     persistentTableId: number;
+    outletid?: number;
 }
 
 const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
@@ -47,14 +49,41 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
     pax,
     date,
     persistentTxnId,
-    persistentTableId
+    persistentTableId,
+    outletid
 }) => {
     const [items, setItems] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
+    const [nextRevKotNo, setNextRevKotNo] = useState<number>(revKotNo + 1);
 
     // Refs for navigation
     const cancelRefs = useRef<(HTMLInputElement | null)[]>([]);
     const reasonRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+    // Function to fetch global reverse KOT number
+    const fetchGlobalReverseKOTNumber = async (outletid: number) => {
+        try {
+            const response = await axios.get(`/api/TAxnTrnbill/global-reverse-kot-number?outletid=${outletid}`);
+            return response.data.data.nextRevKOT;
+        } catch (error) {
+            console.error('Error fetching global reverse KOT number:', error);
+            toast.error('Failed to fetch reverse KOT number');
+            return null;
+        }
+    };
+
+    // Fetch next reverse KOT number when modal opens
+    useEffect(() => {
+        const fetchNextRevKot = async () => {
+            if (show && persistentTxnId && outletid) {
+                const next = await fetchGlobalReverseKOTNumber(outletid);
+                if (next) {
+                    setNextRevKotNo(next);
+                }
+            }
+        };
+        fetchNextRevKot();
+    }, [show, persistentTxnId, outletid]);
 
 useEffect(() => {
   const initialized = kotItems.map(item => {
@@ -173,7 +202,7 @@ useEffect(() => {
                 <Row className="g-2 mb-3 text-center">
                         {[
                         { label: '', value: tableNo, highlight: true },
-                        { label: 'REV KOT NO', value: revKotNo + 1 },
+                        { label: 'REV KOT NO', value: nextRevKotNo },
                         { label: 'WAITER', value: waiter },
                         { label: 'PAX', value: pax },
                         { label: 'DATE', value: date }

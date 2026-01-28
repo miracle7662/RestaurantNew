@@ -3347,6 +3347,7 @@ const ModernBill = () => {
         onSave={handleReverseKotSave}
         persistentTxnId={txnId}
         persistentTableId={tableId}
+        outletid={selectedOutletId}
       />
       <KotPreviewPrint
         show={showKotPrintModal}
