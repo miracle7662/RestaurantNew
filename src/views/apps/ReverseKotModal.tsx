@@ -28,14 +28,14 @@ interface ReverseKotModalProps {
     onClose: () => void;
     onSave: (data: any) => void;
     kotItems: any[];
-    revKotNo: number;
+    revKotNo: number | null;
     tableNo: number | string;
     waiter: string;
     pax: number;
     date: string;
     persistentTxnId: number | null;
     persistentTableId: number;
-    outletid?: number;
+    outletid?: number | null | undefined;
 }
 
 const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
@@ -54,7 +54,7 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
 }) => {
     const [items, setItems] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
-    const [nextRevKotNo, setNextRevKotNo] = useState<number>(revKotNo + 1);
+    const [nextRevKotNo, setNextRevKotNo] = useState<number>((revKotNo ?? 0) + 1);
 
     // Refs for navigation
     const cancelRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -77,7 +77,7 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
         const fetchNextRevKot = async () => {
             if (show && persistentTxnId && outletid) {
                 const next = await fetchGlobalReverseKOTNumber(outletid);
-                if (next) {
+                if (next !== null) {
                     setNextRevKotNo(next);
                 }
             }

@@ -15,7 +15,6 @@ import { fetchKotPrintSettings, fetchBillSettings } from '@/services/outletSetti
 import { applyKotSettings, applyBillSettings } from '@/utils/applyOutletSettings';
 import KotPreviewPrint from '../PrintReport/KotPrint';
 import BillPreviewPrint from '../PrintReport/BillPrint';
-
 interface MenuItem {
   id: number;
   name: string;
@@ -40,7 +39,6 @@ interface ReversedMenuItem extends MenuItem {
   isReversed: true;
   reversalLogId: number;
   status: 'Reversed';
-
 }
 interface TableItem {
   tablemanagementid: string;
@@ -71,7 +69,6 @@ interface PaymentMode {
   mode_name: string;
   payment_mode_name: string;
 }
-
 const Order = () => {
   const [selectedTable, setSelectedTable] = useState<string | null>('');
   const [items, setItems] = useState<MenuItem[]>([]);
@@ -120,15 +117,12 @@ const Order = () => {
   const [roundOffEnabled, setRoundOffEnabled] = useState<boolean>(false);
   const [roundOffTo, setRoundOffTo] = useState<number>(1); // Default to 1
   const [roundOffValue, setRoundOffValue] = useState<number>(0); // To store the calculated round-off value
-
   const [currentKOTNos, setCurrentKOTNos] = useState<number[]>([]);
   const [currentTxnId, setCurrentTxnId] = useState<number | null>(null);
   const [orderNo, setOrderNo] = useState<string | null>(null); // New state for displaying Bill No  
   const [formData, setFormData] = useState<FormData>({} as FormData);
   // New state for F8 password modal on billed tables
   const [showPrintBoth, setShowPrintBoth] = useState(false);
-
-
   const [showF8PasswordModal, setShowF8PasswordModal] = useState<boolean>(false);
   const [f8PasswordError, setF8PasswordError] = useState<string>('');
   const [f8PasswordLoading, setF8PasswordLoading] = useState<boolean>(false);
@@ -167,7 +161,6 @@ const Order = () => {
   const [isGroupedView, setIsGroupedView] = useState<boolean>(true); // State for grouped/expanded view
   const [showTaxModal, setShowTaxModal] = useState<boolean>(false);
   const [showNCKOTModal, setShowNCKOTModal] = useState<boolean>(false);
-  const [showKotTransfer, setShowKotTransfer] = useState<boolean>(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [transferMode, setTransferMode] = useState<"table" | "kot">("table");
   // KOT Print Settings state
@@ -210,11 +203,9 @@ const Order = () => {
   const [, setIsPrintMode] = useState(false);
   const [showKotPreviewModal, setShowKotPreviewModal] = useState<boolean>(false);
   // States for Pending Order Form
-
   const [showBillingPage, setShowBillingPage] = useState<boolean>(false);
   const [quickBillData, setQuickBillData] = useState<any[]>([]);
   const [allBills, setAllBills] = useState<any[]>([]);
-
   // Pagination state for the "All Bills" table
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10); // You can make this configurable
@@ -255,10 +246,8 @@ const Order = () => {
     return { roundedAmount, roundOffValue };
   };
 
-
   const hasModifications = items.some(item => item.isNew) || reverseQtyItems.length > 0;
   const showKotButton = (selectedTable || ['Pickup', 'Delivery', 'Quick Bill'].includes(activeTab)) && hasModifications;
-
   const fetchAllBills = async () => {
     try {
       const res = await fetch("http://localhost:3001/api/TAxnTrnbill/all");
@@ -270,7 +259,6 @@ const Order = () => {
       console.error("Error fetching all bills:", err);
     }
   };
-
   const refreshItemsForTable = useCallback(async (tableIdNum: number) => {
     try {
       // Step 1: Try to fetch the latest billed (but not settled) bill
@@ -1310,7 +1298,6 @@ const Order = () => {
           );
         }
       }
-
       // 4. Update items in the UI to reflect their 'billed' state
       setItems(prevItems => prevItems.map(item => ({ ...item, isNew: false, isBilled: 1, originalQty: item.qty })));
 
@@ -1325,11 +1312,10 @@ const Order = () => {
         setBillActionState('printOrSettle'); // Ensure it's ready for settlement
       }
       // 5. Refresh the table list to show the new 'billed' status (red color)
-
-
       fetchTableManagement();
       window.location.reload();
       */
+
     } catch (error: any) {
       console.error('Error printing bill:', error);
       toast.error(error.message || 'An error occurred while printing the bill.');
@@ -1585,10 +1571,8 @@ const Order = () => {
         setReversedItems([]);
         setReverseQtyMode(false);
         setIsGroupedView(true);
-
         // setCurrentKOTNo(null);
         // setCurrentKOTNos([]);
-
         // setCurrentTxnId(null);
         // setOrderNo(null);
 
@@ -2243,9 +2227,6 @@ const Order = () => {
       }
 
       // clear order UI
-
-
-
     } catch (error: any) {
       toast.error(error.message || 'An error occurred while applying the discount.');
     } finally {
@@ -3298,8 +3279,6 @@ const Order = () => {
 
                                     </div>
                                   </li>
-
-
                                 ))}
                               </ul>
                             </div>
@@ -3355,7 +3334,6 @@ const Order = () => {
                   setReverseQtyMode={setReverseQtyMode}
                   isBilled={items.some(item => item.isBilled === 1)}
                 />
-
               </div>
             )}
           </>
@@ -3479,8 +3457,6 @@ const Order = () => {
                       backgroundColor = '#fdfdfd';
                     }
 
-
-
                     return (
                       <div
                         key={isGroupedItem ? `${item.id}-${item.price}-${index}` : (item.txnDetailId ?? `new-${item.id}-${index}`)}
@@ -3587,7 +3563,6 @@ const Order = () => {
                   });
                 })()
               )}
-
             </div>
             <div className="billing-panel-footer flex-shrink-0" style={{ backgroundColor: 'white' }}>
               <div className="d-flex flex-column flex-md-row gap-1 p-1">
@@ -3712,7 +3687,6 @@ const Order = () => {
                       />
                     </svg>
                   </Button>
-
                   <Button
                     variant="info"
                     className="rounded-circle d-flex justify-content-center align-items-center ms-2"
@@ -3736,7 +3710,6 @@ const Order = () => {
                       />
                     </svg>
                   </Button>
-
                   {showOptions && (
                     <>
                       <div
@@ -4271,7 +4244,6 @@ const Order = () => {
             initialIsMixed={isMixedPayment}
             initialTip={tip}
           />
-
           {/* F8PasswordModal */}
 
           <F8PasswordModal
@@ -4285,7 +4257,6 @@ const Order = () => {
             loading={f8PasswordLoading}
             txnId={currentTxnId?.toString()}
           />
-
           {/* F9 Billed Password Modal */}
           <F8PasswordModal
             show={showF9BilledPasswordModal}
@@ -4298,7 +4269,6 @@ const Order = () => {
             loading={f9BilledPasswordLoading}
             title="Admin Password for Reversal"
           />
-
           <Modal show={showAuthModal} onHide={handleCloseAuthModal} centered>
             <Modal.Header closeButton>
               <Modal.Title>Reverse Qty Mode</Modal.Title>
@@ -4379,7 +4349,7 @@ const Order = () => {
             activeTab={activeTab}
             customerName={customerName}
             mobileNumber={mobileNumber}
-            currentTxnId={currentTxnId}
+            currentTxnId={currentTxnId?.toString()}
             taxCalc={taxCalc}
             taxRates={taxRates}
             discount={discount}
@@ -4400,5 +4370,4 @@ const Order = () => {
     </div>
   );
 };
-
 export default Order;
