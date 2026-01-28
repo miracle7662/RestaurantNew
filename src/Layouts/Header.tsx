@@ -15,6 +15,7 @@ import { useViewport } from '@/hooks'
 import { useState } from 'react'
 //import { Link } from 'react-router-dom'
 import MegaMenu from './MegaMenu'
+import { useAuthContext } from '@/common/context/useAuthContext'
 
 type HeaderProps = {
   toggleMenu?: () => void
@@ -26,6 +27,7 @@ const Header = ({ toggleMenu, navOpen }: HeaderProps) => {
   // const { sidenavType } = useThemeCustomizer()
   // const { updateSidebar } = useThemeContext()
   const [megaMenuOpen, setMegaMenuOpen] = useState(false)
+  const { user } = useAuthContext()
 
   function handleMegaMenuClick() {
     setMegaMenuOpen(!megaMenuOpen)
@@ -139,6 +141,11 @@ const Header = ({ toggleMenu, navOpen }: HeaderProps) => {
               <Applications />
             </span>
             <Notifications />
+            {user?.currDate && (
+              <div className="header-btn px-2">
+                <span className="text-muted small">Business Date: {user.currDate}</span>
+              </div>
+            )}
             <Profile />
             <div className="header-btn pe-md-0 d-lg-none" onClick={handleMegaMenuClick}>
               <i className="fi fi-rr-menu-burger"></i>

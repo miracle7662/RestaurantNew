@@ -397,26 +397,48 @@ console.log("Lock DateTime selected:", lock_datetime);
   }
 };
 
-
-
+const { getBusinessDate } = require('../utils/businessDate');
 
 const getLatestCurrDate = (req, res) => {
   try {
-    const query = `
-      SELECT curr_date FROM trn_dayend
-      ORDER BY id DESC LIMIT 1
-    `;
-    const row = db.prepare(query).get();
+    const { brandId: outlet_id, hotelid } = req.query;
 
-    if (row) {
-      res.json({ success: true, curr_date: row.curr_date });
+    if (!hotelid) {
+      return res.status(400).json({ success: false, message: 'User hotelid is required' });
+    }
+
+    let currDate = null;
+
+    // If outlet_id is provided, use it; otherwise, just use hotelid
+    if (outlet_id) {
+      currDate = getBusinessDate(outlet_id, hotelid);
     } else {
-      // If no dayend done yet, return current date as fallback
+      // For hotel admins without specific outlet, get the latest dayend for the hotel
+      const db = require('../config/db');
+      const row = db.prepare(`
+        SELECT curr_date FROM trn_dayend
+        WHERE hotel_id = ?
+        ORDER BY id DESC LIMIT 1
+      `).get(hotelid);
+      currDate = row ? row.curr_date : null;
+    }
+
+    // If no dayend record exists, calculate default business date
+    if (!currDate) {
       const now = new Date();
       const indiaTime = new Date(now.getTime() + (5.5 * 60 * 60 * 1000));
-      const currentDate = `${indiaTime.getFullYear()}-${String(indiaTime.getMonth() + 1).padStart(2, '0')}-${String(indiaTime.getDate()).padStart(2, '0')}`;
-      res.json({ success: true, curr_date: currentDate });
+      const currentHour = indiaTime.getHours();
+
+      let businessDate = new Date(indiaTime);
+      // If current time is after midnight (12:00 AM) and before 6:00 AM, use previous day as business date
+      if (currentHour < 6) {
+        businessDate.setDate(businessDate.getDate() - 1);
+      }
+
+      currDate = `${businessDate.getFullYear()}-${String(businessDate.getMonth() + 1).padStart(2, '0')}-${String(businessDate.getDate()).padStart(2, '0')}`;
     }
+
+    res.json({ success: true, curr_date: currDate });
   } catch (error) {
     console.error('Error fetching latest curr_date:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch latest curr_date' });
