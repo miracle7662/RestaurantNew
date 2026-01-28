@@ -202,6 +202,7 @@ const Order = () => {
   const [printItems, setPrintItems] = useState<MenuItem[]>([]);
   const [, setIsPrintMode] = useState(false);
   const [showKotPreviewModal, setShowKotPreviewModal] = useState<boolean>(false);
+  const [originalTableStatus, setOriginalTableStatus] = useState<number | null>(null);
   // States for Pending Order Form
   const [showBillingPage, setShowBillingPage] = useState<boolean>(false);
   const [quickBillData, setQuickBillData] = useState<any[]>([]);
@@ -777,6 +778,9 @@ const Order = () => {
       setSelectedDeptId(deptId);
       setSelectedOutletId(outletId);
 
+      // Capture original table status for order tag logic
+      setOriginalTableStatus(selectedTableObj.status);
+
       // Refetch items for the selected table
       refreshItemsForTable(tableIdNum);
 
@@ -785,6 +789,7 @@ const Order = () => {
       setItems([]); // Clear items if table not found
       setCurrentKOTNo(null);
       setCurrentKOTNos([]);
+      setOriginalTableStatus(null);
     }
     console.log('After handleTableClick - selectedTable:', seat, 'showOrderDetails:', true);
   };
@@ -4338,6 +4343,7 @@ const Order = () => {
             kotNote={kotNote}
             orderNo={orderNo}
             date={user?.currDate}
+            tableStatus={originalTableStatus}
           />
           <BillPreviewPrint
             show={showBillPrintModal}

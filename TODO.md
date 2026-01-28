@@ -1,0 +1,5 @@
+- [ ] Add tableStatus state in KotPrint.tsx
+- [ ] Add fetchTableStatus function to get table status from API
+- [ ] Add useEffect to call fetchTableStatus when selectedTable or outletId changes
+- [ ] Modify orderTag logic to use tableStatus for determining 'New' or 'Running' tag
+- [ ] Verify the changes work as expected

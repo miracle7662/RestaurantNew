@@ -56,6 +56,7 @@ interface KotPreviewPrintProps {
   kotNote?: string;
   orderNo?: string | null;
   date?: string | null;
+  tableStatus?: number | null;
 }
 
 const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
@@ -80,7 +81,8 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
   outletName,
   kotNote,
   orderNo,
-  date
+  date,
+  tableStatus
 }) => {
   const [loading, setLoading] = useState(false);
   const [hasPrinted, setHasPrinted] = useState(false);
@@ -428,9 +430,12 @@ const dateTime = date ? new Date(date).toLocaleString('en-GB', {
 
     // Determine order tag for KOT header
     const orderTag = (() => {
-      if (activeTab === 'Dine-in' && selectedTable) {
-        const hasExistingItems = items.some(item => !item.isNew);
-        return hasExistingItems ? (localFormData.running_order_tag_label || 'Running') : (localFormData.new_order_tag_label || 'New');
+      if (activeTab === 'Dine-in' && selectedTable && tableStatus !== null) {
+        if (tableStatus === 0) {
+          return localFormData.new_order_tag_label || 'New';
+        } else if (tableStatus === 1 || tableStatus === 2) {
+          return localFormData.running_order_tag_label || 'Running';
+        }
       }
       return '';
     })();
