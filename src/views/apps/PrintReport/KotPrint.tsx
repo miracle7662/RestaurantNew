@@ -447,14 +447,14 @@ const dateTime = date ? new Date(date).toLocaleString('en-GB', {
     const showUsername = localFormData.show_username && user?.username;
     const showTerminalUsername = localFormData.show_terminal_username && user?.terminal_username;
     const showCaptainUsername = localFormData.show_captain_username && user?.captain_username;
-    const showCustomerOnKOT = (() => {
+const showCustomerOnKOT = (() => {
   switch (activeTab) {
     case 'Dine-in':
       return localFormData.customer_on_kot_dine_in;
     case 'Pickup':
-      return localFormData.customer_on_kot_pickup;
+      return true; // Always show customer for Pickup
     case 'Delivery':
-      return localFormData.customer_on_kot_delivery;
+      return true; // Always show customer for Delivery
     case 'Quick Bill':
       return localFormData.customer_on_kot_quick_bill;
     default:

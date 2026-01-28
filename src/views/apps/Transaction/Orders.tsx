@@ -1580,10 +1580,12 @@ const Order = () => {
         setPersistentTxnId(null);
         setPersistentTableId(null);
         setSourceTableId(null);
-        // ✅ Clear customer details after KOT save
-        setMobileNumber('');
-        setCustomerName('');
-        setCustomerId(null);
+        // ✅ Clear customer details after KOT save only for Dine-in
+        if (activeTab === 'Dine-in') {
+          setMobileNumber('');
+          setCustomerName('');
+          setCustomerId(null);
+        }
 
         // After saving KOT, prepare items for printing and show print modal
         let kotItemsToPrint;
@@ -3625,7 +3627,8 @@ const Order = () => {
                     type="text"
                     placeholder="Customer Name"
                     value={customerName}
-                    readOnly
+                    readOnly={activeTab === 'Dine-in'}
+                    onChange={(e) => setCustomerName(e.target.value)}
                     className="form-control"
                     style={{
                       width: "150px",
