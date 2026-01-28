@@ -435,6 +435,14 @@ const MENU_ITEMS: MenuItemTypes[] = [
     parentKey: 'apps',
   },
 
+    {
+    key: 'KitchenAllocation',
+    label: 'Kitchen Allocation',
+    url: '/apps/KitchenAllocation',
+    icon: 'fi fi-rr-file-invoice',
+    parentKey: 'apps',
+  },
+
   // Pages
 
   // Authentication
