@@ -7,13 +7,13 @@ exports.getUsers = (req, res) => {
         const { currentUserId, roleLevel, brandId, hotelid } = req.query;
         
         let query = `
-            SELECT u.*, 
+            SELECT u.*,
                    b.hotel_name as brand_name,
                    h.hotel_name as hotel_name
             FROM mst_users u
             LEFT JOIN msthotelmasters b ON u.brand_id = b.hotelid
             LEFT JOIN msthotelmasters h ON u.hotelid = h.hotelid
-            WHERE u.is_active = 0
+            WHERE u.status = 1
         `;
         
         const params = [];

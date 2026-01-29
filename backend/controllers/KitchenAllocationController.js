@@ -29,11 +29,15 @@ const getKitchenAllocation = async (req, res) => {
             LEFT JOIN mst_Item_Group i ON i.item_groupid = m.item_group_id
             WHERE DATE(t.TxnDatetime) BETWEEN ? AND ?
               AND t.HotelID = ?
-              AND t.outletid = ?
               AND d.isCancelled = 0
         `;
 
-        const params = [fromDate, toDate, hotelId, outletId];
+        const params = [fromDate, toDate, hotelId];
+
+        if (outletId) {
+            query += ' AND t.outletid = ?';
+            params.push(outletId);
+        }
 
         // Apply dynamic filter based on filterType
         if (filterType && filterId) {
@@ -83,7 +87,7 @@ const getKitchenAllocation = async (req, res) => {
         console.log('SQL Query:', query);
         console.log('Parameters:', params);
 
-        const [results] = await db.execute(query, params);
+        const results = db.prepare(query).all(...params);
 
         res.status(200).json({
             success: true,

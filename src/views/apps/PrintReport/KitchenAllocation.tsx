@@ -1,286 +1,249 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardBody, CardHeader, Col, Row, Table, Button, FormGroup, Label, Input, Alert } from 'reactstrap';
-import axios from 'axios';
+import { Card, Row, Col, Form, Button, Table, Alert } from 'react-bootstrap';
+import { useAuthContext } from '@/common';
 
 interface KitchenAllocationData {
-    TxnDate: string;
-    HotelID: number;
-    outletid: number;
-    item_no: string;
-    item_name: string;
-    TotalQty: number;
-    Amount: number;
-    UserId: number;
-    username: string;
-    DeptID: number;
-    department_name: string;
-    kitchen_category: string;
-    item_group: string;
+  item_no: string;
+  item_name: string;
+  TotalQty: number;
+  Amount: number;
 }
 
 interface FilterOption {
-    id: number;
-    name: string;
+  [key: string]: any;
 }
 
 const KitchenAllocation: React.FC = () => {
-    const [data, setData] = useState<KitchenAllocationData[]>([]);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+  const { user } = useAuthContext();
+  const [data, setData] = useState<KitchenAllocationData[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-    // Filter states
-    const [fromDate, setFromDate] = useState('');
-    const [toDate, setToDate] = useState('');
-    const [hotelId, setHotelId] = useState('');
-    const [outletId, setOutletId] = useState('');
-    const [filterType, setFilterType] = useState('');
-    const [filterId, setFilterId] = useState('');
+  // Filters
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+  const [selectedUser, setSelectedUser] = useState('');
+  const [selectedItemGroup, setSelectedItemGroup] = useState('');
+  const [selectedDepartment, setSelectedDepartment] = useState('');
+  const [selectedKitchenMainGroup, setSelectedKitchenMainGroup] = useState('');
 
-    // Filter options
-    const [kitchenCategories, setKitchenCategories] = useState<FilterOption[]>([]);
-    const [itemGroups, setItemGroups] = useState<FilterOption[]>([]);
-    const [departments, setDepartments] = useState<FilterOption[]>([]);
-    const [users, setUsers] = useState<FilterOption[]>([]);
+  // Filter options
+  const [users, setUsers] = useState<FilterOption[]>([]);
+  const [itemGroups, setItemGroups] = useState<FilterOption[]>([]);
+  const [departments, setDepartments] = useState<FilterOption[]>([]);
+  const [kitchenMainGroups, setKitchenMainGroups] = useState<FilterOption[]>([]);
 
-    // Fetch filter options on component mount
-    useEffect(() => {
-        fetchFilterOptions();
-    }, []);
-
+  // Fetch filter options
+  useEffect(() => {
     const fetchFilterOptions = async () => {
-        try {
-            const [kitchenRes, itemGroupRes, deptRes, userRes] = await Promise.all([
-                axios.get('/api/KitchenMainGroup'),
-                axios.get('/api/ItemGroup'),
-                axios.get('/api/table-department'),
-                axios.get('/api/users')
-            ]);
+      try {
+        // Use correct API endpoints that match backend routes
+        const userParams = new URLSearchParams({
+          currentUserId: user?.id?.toString() || '',
+          roleLevel: user?.role || '',
+          brandId: user?.hotelid?.toString() || '',
+          hotelid: user?.hotelid?.toString() || ''
+        });
 
-            setKitchenCategories(kitchenRes.data.data || []);
-            setItemGroups(itemGroupRes.data.data || []);
-            setDepartments(deptRes.data.data || []);
-            setUsers(userRes.data.data || []);
-        } catch (err) {
-            console.error('Error fetching filter options:', err);
-        }
+        const departmentParams = new URLSearchParams({
+          hotelid: user?.hotelid?.toString() || ''
+        });
+
+        const [usersRes, itemGroupsRes, departmentsRes, kitchenMainGroupsRes] = await Promise.all([
+          fetch(`/api/users?${userParams}`),
+          fetch('/api/ItemGroup'),
+          fetch(`/api/table-department?${departmentParams}`),
+          fetch('/api/KitchenMainGroup')
+        ]);
+
+        const usersData = await usersRes.json();
+        const itemGroupsData = await itemGroupsRes.json();
+        const departmentsData = await departmentsRes.json();
+        const kitchenMainGroupsData = await kitchenMainGroupsRes.json();
+
+        // Handle different response formats
+        setUsers(Array.isArray(usersData) ? usersData : usersData.data || []);
+        setItemGroups(Array.isArray(itemGroupsData) ? itemGroupsData : itemGroupsData.data || []);
+        setDepartments(Array.isArray(departmentsData) ? departmentsData : departmentsData.data || []);
+        setKitchenMainGroups(Array.isArray(kitchenMainGroupsData) ? kitchenMainGroupsData : kitchenMainGroupsData.data || []);
+      } catch (err) {
+        console.error('Error fetching filter options:', err);
+        setError('Failed to load filter options. Please check your connection.');
+      }
     };
 
-    const fetchData = async () => {
-        if (!fromDate || !toDate || !hotelId || !outletId) {
-            setError('Please fill in all required fields');
-            return;
-        }
+    fetchFilterOptions();
+  }, []);
 
-        setLoading(true);
-        setError(null);
+  // Fetch data
+  const fetchData = async () => {
+    if (!fromDate || !toDate) {
+      setError('Please select both From Date and To Date.');
+      return;
+    }
+    if (!user?.hotelid) {
+      setError('Hotel information is not available. Please log in again.');
+      return;
+    }
 
-        try {
-            const params: any = {
-                fromDate,
-                toDate,
-                hotelId,
-                outletId
-            };
+    setLoading(true);
+    setError(null);
 
-            if (filterType && filterId) {
-                params.filterType = filterType;
-                params.filterId = filterId;
-            }
+    try {
+      let filterType = '';
+      let filterId = '';
 
-            const response = await axios.get('/api/kitchen-allocation', { params });
-            setData(response.data.data || []);
-        } catch (err: any) {
-            setError(err.response?.data?.message || 'Failed to fetch data');
-        } finally {
-            setLoading(false);
-        }
-    };
+      if (selectedUser) {
+        filterType = 'user';
+        filterId = selectedUser;
+      } else if (selectedItemGroup) {
+        filterType = 'item-group';
+        filterId = selectedItemGroup;
+      } else if (selectedDepartment) {
+        filterType = 'department';
+        filterId = selectedDepartment;
+      } else if (selectedKitchenMainGroup) {
+        filterType = 'kitchen-category';
+        filterId = selectedKitchenMainGroup;
+      }
 
-    const handleFilterTypeChange = (type: string) => {
-        setFilterType(type);
-        setFilterId(''); // Reset filter ID when type changes
-    };
+      // Ensure fromDate is before toDate
+      const startDate = fromDate < toDate ? fromDate : toDate;
+      const endDate = fromDate < toDate ? toDate : fromDate;
 
-    const getCurrentFilterOptions = () => {
-        switch (filterType) {
-            case 'kitchen-category':
-                return kitchenCategories;
-            case 'item-group':
-                return itemGroups;
-            case 'department':
-                return departments;
-            case 'user':
-                return users;
-            default:
-                return [];
-        }
-    };
+      const params = new URLSearchParams({
+        fromDate: startDate,
+        toDate: endDate,
+        hotelId: user.hotelid.toString(),
+        ...(user.outletid && { outletId: user.outletid.toString() }),
+        ...(filterType && { filterType, filterId })
+      });
 
-    const formatCurrency = (amount: number) => {
-        return new Intl.NumberFormat('en-IN', {
-            style: 'currency',
-            currency: 'INR'
-        }).format(amount);
-    };
+      const response = await fetch(`/api/kitchen-allocation?${params}`);
+      const result = await response.json();
 
-    return (
-        <div className="container-fluid">
+      if (result.success) {
+        setData(result.data);
+      } else {
+        setError(result.message || 'Failed to fetch data');
+      }
+    } catch (err) {
+      setError('Error fetching data');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div>
+      <Card>
+        <Card.Header>
+          <h4>Kitchen Allocation Report</h4>
+        </Card.Header>
+        <Card.Body>
+          <Form>
             <Row>
-                <Col lg={12}>
-                    <Card>
-                        <CardHeader>
-                            <h4 className="card-title">Kitchen Allocation Report</h4>
-                        </CardHeader>
-                        <CardBody>
-                            {/* Filters */}
-                            <Row className="mb-4">
-                                <Col md={3}>
-                                    <FormGroup>
-                                        <Label for="fromDate">From Date</Label>
-                                        <Input
-                                            type="date"
-                                            id="fromDate"
-                                            value={fromDate}
-                                            onChange={(e) => setFromDate(e.target.value)}
-                                        />
-                                    </FormGroup>
-                                </Col>
-                                <Col md={3}>
-                                    <FormGroup>
-                                        <Label for="toDate">To Date</Label>
-                                        <Input
-                                            type="date"
-                                            id="toDate"
-                                            value={toDate}
-                                            onChange={(e) => setToDate(e.target.value)}
-                                        />
-                                    </FormGroup>
-                                </Col>
-                                <Col md={3}>
-                                    <FormGroup>
-                                        <Label for="hotelId">Hotel ID</Label>
-                                        <Input
-                                            type="number"
-                                            id="hotelId"
-                                            value={hotelId}
-                                            onChange={(e) => setHotelId(e.target.value)}
-                                        />
-                                    </FormGroup>
-                                </Col>
-                                <Col md={3}>
-                                    <FormGroup>
-                                        <Label for="outletId">Outlet ID</Label>
-                                        <Input
-                                            type="number"
-                                            id="outletId"
-                                            value={outletId}
-                                            onChange={(e) => setOutletId(e.target.value)}
-                                        />
-                                    </FormGroup>
-                                </Col>
-                            </Row>
-
-                            <Row className="mb-4">
-                                <Col md={4}>
-                                    <FormGroup>
-                                        <Label for="filterType">Filter Type</Label>
-                                        <Input
-                                            type="select"
-                                            id="filterType"
-                                            value={filterType}
-                                            onChange={(e) => handleFilterTypeChange(e.target.value)}
-                                        >
-                                            <option value="">Select Filter Type</option>
-                                            <option value="kitchen-category">Kitchen Category</option>
-                                            <option value="item-group">Item Group</option>
-                                            <option value="department">Department</option>
-                                            <option value="user">User</option>
-                                        </Input>
-                                    </FormGroup>
-                                </Col>
-                                <Col md={4}>
-                                    <FormGroup>
-                                        <Label for="filterId">Filter Value</Label>
-                                        <Input
-                                            type="select"
-                                            id="filterId"
-                                            value={filterId}
-                                            onChange={(e) => setFilterId(e.target.value)}
-                                            disabled={!filterType}
-                                        >
-                                            <option value="">Select {filterType.replace('-', ' ')}</option>
-                                            {getCurrentFilterOptions().map(option => (
-                                                <option key={option.id} value={option.id}>
-                                                    {option.name}
-                                                </option>
-                                            ))}
-                                        </Input>
-                                    </FormGroup>
-                                </Col>
-                                <Col md={4} className="d-flex align-items-end">
-                                    <Button
-                                        color="primary"
-                                        onClick={fetchData}
-                                        disabled={loading}
-                                    >
-                                        {loading ? 'Loading...' : 'Generate Report'}
-                                    </Button>
-                                </Col>
-                            </Row>
-
-                            {error && (
-                                <Alert color="danger" className="mb-4">
-                                    {error}
-                                </Alert>
-                            )}
-
-                            {/* Data Table */}
-                            {data.length > 0 && (
-                                <div className="table-responsive">
-                                    <Table striped bordered hover>
-                                        <thead>
-                                            <tr>
-                                                <th>Date</th>
-                                                <th>Item No</th>
-                                                <th>Item Name</th>
-                                                <th>Total Qty</th>
-                                                <th>Amount</th>
-                                                <th>User</th>
-                                                <th>Department</th>
-                                                <th>Kitchen Category</th>
-                                                <th>Item Group</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {data.map((item, index) => (
-                                                <tr key={index}>
-                                                    <td>{item.TxnDate}</td>
-                                                    <td>{item.item_no}</td>
-                                                    <td>{item.item_name}</td>
-                                                    <td>{item.TotalQty}</td>
-                                                    <td>{formatCurrency(item.Amount)}</td>
-                                                    <td>{item.username}</td>
-                                                    <td>{item.department_name}</td>
-                                                    <td>{item.kitchen_category}</td>
-                                                    <td>{item.item_group}</td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </Table>
-                                </div>
-                            )}
-
-                            {data.length === 0 && !loading && !error && (
-                                <div className="text-center mt-4">
-                                    <p>No data available. Please select filters and generate report.</p>
-                                </div>
-                            )}
-                        </CardBody>
-                    </Card>
-                </Col>
+              <Col md={3}>
+                <Form.Group>
+                  <Form.Label>From Date</Form.Label>
+                  <Form.Control
+                    type="date"
+                    value={fromDate}
+                    onChange={(e) => setFromDate(e.target.value)}
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={3}>
+                <Form.Group>
+                  <Form.Label>To Date</Form.Label>
+                  <Form.Control
+                    type="date"
+                    value={toDate}
+                    onChange={(e) => setToDate(e.target.value)}
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={3}>
+                <Form.Group>
+                  <Form.Label>User</Form.Label>
+                  <Form.Select value={selectedUser} onChange={(e) => setSelectedUser(e.target.value)}>
+                    <option value="">All Users</option>
+                    {users.map((user) => (
+                      <option key={user.userid} value={user.userid}>{user.full_name || user.username}</option>
+                    ))}
+                  </Form.Select>
+                </Form.Group>
+              </Col>
+              <Col md={3}>
+                <Form.Group>
+                  <Form.Label>Item Group</Form.Label>
+                  <Form.Select value={selectedItemGroup} onChange={(e) => setSelectedItemGroup(e.target.value)}>
+                    <option value="">All Item Groups</option>
+                    {itemGroups.map((group) => (
+                      <option key={group.item_groupid} value={group.item_groupid}>{group.itemgroupname}</option>
+                    ))}
+                  </Form.Select>
+                </Form.Group>
+              </Col>
             </Row>
-        </div>
-    );
+            <Row className="mt-3">
+              <Col md={3}>
+                <Form.Group>
+                  <Form.Label>Department</Form.Label>
+                  <Form.Select value={selectedDepartment} onChange={(e) => setSelectedDepartment(e.target.value)}>
+                    <option value="">All Departments</option>
+                    {departments.map((dept) => (
+                      <option key={dept.departmentid} value={dept.departmentid}>{dept.department_name}</option>
+                    ))}
+                  </Form.Select>
+                </Form.Group>
+              </Col>
+              <Col md={3}>
+                <Form.Group>
+                  <Form.Label>Kitchen Main Group</Form.Label>
+                  <Form.Select value={selectedKitchenMainGroup} onChange={(e) => setSelectedKitchenMainGroup(e.target.value)}>
+                    <option value="">All Kitchen Main Groups</option>
+                    {kitchenMainGroups.map((group) => (
+                      <option key={group.kitchenmaingroupid} value={group.kitchenmaingroupid}>{group.Kitchen_main_Group}</option>
+                    ))}
+                  </Form.Select>
+                </Form.Group>
+              </Col>
+              <Col md={3} className="d-flex align-items-end">
+                <Button onClick={fetchData} disabled={loading}>
+                  {loading ? 'Loading...' : 'Generate Report'}
+                </Button>
+              </Col>
+            </Row>
+          </Form>
+
+          {error && <Alert variant="danger" className="mt-3">{error}</Alert>}
+
+          <Table striped bordered hover responsive className="mt-3">
+            <thead>
+              <tr>
+                <th>Item No</th>
+                <th>Item Name</th>
+                <th>Total Qty</th>
+                <th>Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.map((item, index) => (
+                <tr key={index}>
+                  <td>{item.item_no}</td>
+                  <td>{item.item_name}</td>
+                  <td>{item.TotalQty}</td>
+                  <td>{item.Amount}</td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        </Card.Body>
+      </Card>
+    </div>
+  );
 };
 
 export default KitchenAllocation;
