@@ -364,18 +364,20 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
           ${(showAll || localFormData.email) ? `<div style="font-size: 8pt;">Email: ${localFormData.email || 'N/A'}</div>` : ''}
           ${(showAll || localFormData.website) ? `<div style="font-size: 8pt;">Website: ${localFormData.website || 'N/A'}</div>` : ''}
           ${(showAll || localFormData.show_phone_on_bill) ? `<div style="font-size: 8pt;">Phone: ${user?.outlet_phone || 'N/A'}</div>` : ''}
+           ${(showAll || localFormData.show_item_hsn_code_bill) ? `` : ''}
           ${(showAll || localFormData.fssai_no) ? `<div style="font-size: 8pt;">FSSAI: ${localFormData.fssai_no || 'N/A'}</div>` : ''}
          
         </div>
         <hr style="border: none; border-top: 1px dashed #000; margin: 5px 0;" />
         <!-- ============ BILL INFO (with conditional rendering) ============ -->
         <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 10px; font-size: 9pt;">
+        ${(showAll || localFormData.show_bill_no_bill) ? `<div><strong>Bill No:</strong><br />${(showAll || localFormData.show_bill_number_prefix_bill) ? (localFormData.dine_in_kot_no || '') : ''}${orderNo || ''}</div>` : ''}
 ${(showAll || localFormData.show_kot_number_bill)
   ? `<div><strong>KOT No:</strong><br />${
       allKOTNos.length > 0 ? allKOTNos.join(", ") : (currentKOTNo || "—")
     }</div>`
   : ""
-}      ${(showAll || localFormData.show_bill_no_bill) ? `<div><strong>Bill No:</strong><br />${(showAll || localFormData.show_bill_number_prefix_bill) ? (localFormData.dine_in_kot_no || '') : ''}${orderNo || ''}</div>` : ''}
+}      
           ${(showAll || localFormData.show_order_id_bill) ? `<div><strong>Order ID:</strong><br />${(showAll || !localFormData.mask_order_id) ? (currentTxnId || '—') : '****'}</div>` : ''}
           ${(showAll || ((activeTab === 'Dine-in' && localFormData.table_name_dine_in) || (activeTab === 'Pickup' && localFormData.table_name_pickup) || (activeTab === 'Delivery' && localFormData.table_name_delivery) || (activeTab === 'Quick Bill' && localFormData.table_name_quick_bill))) ? `<div><strong>Table:</strong><br />${selectedTable || '—'}</div>` : ''}
           ${(showAll || localFormData.show_date_bill) ? `<div><strong>Date:</strong><br />${new Date().toLocaleDateString('en-GB')}</div>` : ''}
@@ -424,7 +426,7 @@ ${(showAll || localFormData.show_kot_number_bill)
                 ${(showAll || (localFormData.print_bill_both_languages && localFormData.show_alt_name_bill && item.alternativeItem)) ? ` / ${item.alternativeItem || 'N/A'}` : ''}
                 ${(showAll || (localFormData.show_item_note_bill && item.note)) ? `<div style="font-size: 8pt; color: #6c757d;">${item.note || 'N/A'}</div>` : ''}
                 ${(showAll || (localFormData.modifier_default_option_bill && item.modifier)) ? `<div style="font-size: 8pt; color: #6c757d;">${item.modifier ? item.modifier.join(', ') : 'N/A'}</div>` : ''}
-                ${(showAll || localFormData.show_item_hsn_code_bill) ? `<div>HSN: ${item.hsn || 'N/A'}</div>` : ''}
+               
               </div>
               ${(showAll || !localFormData.hide_item_quantity_column) ? `<div style="text-align: right;">${item.qty}</div>` : ''}
               ${(showAll || !localFormData.hide_item_rate_column) ? `<div style="text-align: right;">${item.price.toFixed(2)}</div>` : ''}
