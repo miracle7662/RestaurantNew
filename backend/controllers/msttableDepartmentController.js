@@ -5,19 +5,23 @@ exports.getAllDepartments = (req, res) => {
   try {
     const { hotelid } = req.query;
     let query = `
-      SELECT *
-      FROM msttable_department
-      WHERE status IS NOT NULL
+      SELECT d.*, o.outlet_name, h.hotel_name
+      FROM msttable_department d
+      LEFT JOIN mst_outlets o ON d.outletid = o.outletid
+      LEFT JOIN msthotelmasters h ON o.hotelid = h.hotelid
+      WHERE d.status = 1
     `;
     const params = [];
     if (hotelid) {
-      query += ' AND hotelid = ?';
+      query += ' AND o.hotelid = ?';
       params.push(hotelid);
     }
+    query += ' ORDER BY d.department_name';
     const rows = db.prepare(query).all(...params);
 
     res.status(200).json({ success: true, data: rows });
   } catch (error) {
+    console.error('Error fetching departments:', error);
     res.status(500).json({ success: false, message: "Failed to fetch departments", error: error.message });
   }
 };

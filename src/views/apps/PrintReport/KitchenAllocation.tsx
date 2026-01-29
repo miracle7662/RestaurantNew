@@ -50,11 +50,16 @@ const KitchenAllocation: React.FC = () => {
         });
 
         const [usersRes, itemGroupsRes, departmentsRes, kitchenMainGroupsRes] = await Promise.all([
-          fetch(`/api/users?${userParams}`),
-          fetch('/api/ItemGroup'),
-          fetch(`/api/table-department?${departmentParams}`),
-          fetch('/api/KitchenMainGroup')
+          fetch(`http://localhost:3001/api/users?${userParams}`),
+          fetch('http://localhost:3001/api/ItemGroup'),
+          fetch(`http://localhost:3001/api/table-department?${departmentParams}`),
+          fetch('http://localhost:3001/api/KitchenMainGroup')
         ]);
+
+        if (!usersRes.ok) throw new Error(`Failed to fetch users: ${usersRes.status} ${usersRes.statusText}`);
+        if (!itemGroupsRes.ok) throw new Error(`Failed to fetch item groups: ${itemGroupsRes.status} ${itemGroupsRes.statusText}`);
+        if (!departmentsRes.ok) throw new Error(`Failed to fetch departments: ${departmentsRes.status} ${departmentsRes.statusText}`);
+        if (!kitchenMainGroupsRes.ok) throw new Error(`Failed to fetch kitchen main groups: ${kitchenMainGroupsRes.status} ${kitchenMainGroupsRes.statusText}`);
 
         const usersData = await usersRes.json();
         const itemGroupsData = await itemGroupsRes.json();
@@ -119,7 +124,7 @@ const KitchenAllocation: React.FC = () => {
         ...(filterType && { filterType, filterId })
       });
 
-      const response = await fetch(`/api/kitchen-allocation?${params}`);
+      const response = await fetch(`http://localhost:3001/api/kitchen-allocation?${params}`);
       const result = await response.json();
 
       if (result.success) {
