@@ -50,6 +50,9 @@ const AccountLedgerRoutes = require('./routes/AccountLedgerRoutes');
 const AccountNatureRoutes = require('./routes/AccountNatureRoutes');
 const AccountTypeRoutes = require('./routes/AccountTypeRoutes');  // New import
 
+const KitchenAllocationRoutes = require('./routes/KitchenAllocationRoutes');
+
+
 
 
 // ✅ Correct order of middleware
@@ -97,6 +100,7 @@ app.use('/api/TAxnTrnbill', TAxnTrnbillRoutes);
 app.use('/api/settlements', settlementRoutes);
 app.use('/api/warehouse', WarehouseRoutes); // Register warehouse routes
 app.use('/api/reports', ReportRoutes); // Register report routes
+app.use('/api/kitchen-allocation', KitchenAllocationRoutes); // Register kitchen allocation routes
 app.use("/api/settings", settingsRoutes);
 
 app.use('/api/account-ledger', authenticateToken, AccountLedgerRoutes);

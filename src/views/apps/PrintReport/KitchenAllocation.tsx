@@ -30,7 +30,6 @@ const KitchenAllocationReport: React.FC = () => {
   const [filterOptions, setFilterOptions] = useState<FilterOption[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
-
   const today = new Date();
   const todayString = today.toISOString().split('T')[0];
 
@@ -100,8 +99,7 @@ const KitchenAllocationReport: React.FC = () => {
           break;
       }
     }
-
-    // Apply search filter for 'all' items
+ // Apply search filter for 'all' items
     if (selectedFilter === 'all' && searchQuery.trim()) {
       const query = searchQuery.toLowerCase().trim();
       filtered = filtered.filter(item =>
@@ -109,7 +107,6 @@ const KitchenAllocationReport: React.FC = () => {
         item.itemNo.toLowerCase().includes(query)
       );
     }
-
     return filtered;
   }, [data, activeTab, dateRange, selectedFilter, filterValue, searchQuery, todayString]);
 
@@ -237,7 +234,7 @@ const KitchenAllocationReport: React.FC = () => {
               <select
                 className="form-select form-select-sm border"
                 value={selectedFilter}
-                onChange={(e) => {
+                 onChange={(e) => {
                   const newFilter = e.target.value as FilterType;
                   setSelectedFilter(newFilter);
                   if (newFilter !== 'all') {
@@ -251,7 +248,7 @@ const KitchenAllocationReport: React.FC = () => {
                 <option value="table-department">Table / Department</option>
               </select>
             </div>
-            {selectedFilter === 'all' && (
+             {selectedFilter === 'all' && (
               <div className={activeTab === 'backdated' ? 'col-12 col-md-3' : 'col-12 col-md-4'}>
                 <label className="form-label small fw-semibold">Search Items</label>
                 <div className="input-group input-group-sm">
