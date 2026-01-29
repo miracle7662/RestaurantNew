@@ -334,6 +334,7 @@ const KitchenAllocationReport: React.FC = () => {
                 <tfoot className="bg-light">
                   <tr>
                     <td className="ps-4 fw-bold">Totals</td>
+                    
                     <td className="text-end fw-bold">{totals.totalQuantity}</td>
                     <td className="text-end fw-bold">₹{totals.totalAmount.toLocaleString('en-IN')}</td>
                     <td className="pe-4"></td>
