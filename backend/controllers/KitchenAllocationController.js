@@ -1,143 +1,106 @@
 const db = require('../config/db');
 
-const getKitchenAllocationData = (req, res) => {
-  try {
-    const { startDate, endDate, filterType, filterValue, hotelid, outletid } = req.query;
+const getKitchenAllocation = async (req, res) => {
+    try {
+        const { fromDate, toDate, hotelId, outletId, filterType, filterId } = req.query;
 
-    // Default to today's date if not provided
-    const today = new Date().toISOString().split('T')[0];
-    const start = startDate || today;
-    const end = endDate || today;
+        // Base query
+        let query = `
+            SELECT
+                DATE(t.TxnDatetime)              AS TxnDate,
+                t.HotelID,
+                t.outletid,
+                d.item_no,
+                d.item_name,
+                SUM(d.Qty)                       AS TotalQty,
+                SUM(d.Qty * d.RuntimeRate)       AS Amount,
+                t.UserId,
+                u.username,
+                t.DeptID,
+                td.department_name,
+                k.Kitchen_main_Group             AS kitchen_category,
+                i.itemgroupname                  AS item_group
+            FROM TAxnTrnbilldetails d
+            JOIN TAxnTrnbill t ON t.TxnID = d.TxnID
+            LEFT JOIN msttable_department td ON td.departmentid = t.DeptID
+            LEFT JOIN mst_users u ON u.userid = t.UserId
+            LEFT JOIN mstrestmenu m ON m.restitemid = d.ItemID
+            LEFT JOIN mstkitchenmaingroup k ON k.kitchenmaingroupid = m.kitchen_main_group_id
+            LEFT JOIN mst_Item_Group i ON i.item_groupid = m.item_group_id
+            WHERE DATE(t.TxnDatetime) BETWEEN ? AND ?
+              AND t.HotelID = ?
+              AND t.outletid = ?
+              AND d.isCancelled = 0
+        `;
 
-    // Base query to aggregate item-wise data
-    let query = `
-      SELECT
-        m.restitemid AS id,
-        m.item_name AS itemName,
-        m.item_no AS itemNo,
-        SUM(td.Qty) AS quantity,
-        SUM(td.RuntimeRate * td.Qty) AS amount,
-        kc.Kitchen_Category AS kitchenCategory,
-        ig.itemgroupname AS itemGroup,
-        mt.table_name AS tableNo,
-        d.department_name AS department,
-        DATE(t.TxnDatetime) AS txnDate
-      FROM TAxnTrnbill t
-      INNER JOIN TAxnTrnbilldetails td ON t.TxnID = td.TxnID
-      INNER JOIN mstrestmenu m ON td.ItemID = m.restitemid
-      LEFT JOIN mstkitchencategory kc ON m.kitchen_category_id = kc.kitchencategoryid
-      LEFT JOIN mst_Item_Group ig ON m.item_group_id = ig.item_groupid
-      LEFT JOIN msttablemanagement mt ON t.TableID = mt.tableid
-      LEFT JOIN msttable_department d ON mt.departmentid = d.departmentid
-      WHERE DATE(t.TxnDatetime) BETWEEN ? AND ?
-        AND t.hotelid = ?
-        AND t.outletid = ?
-        AND t.isCancelled = 0
-        AND (t.isBilled = 1 OR t.isSetteled = 1)
-    `;
+        const params = [fromDate, toDate, hotelId, outletId];
 
-    const params = [start, end, hotelid, outletid];
+        // Apply dynamic filter based on filterType
+        if (filterType && filterId) {
+            switch (filterType) {
+                case 'kitchen-category':
+                    query += ' AND m.kitchen_main_group_id = ?';
+                    params.push(filterId);
+                    break;
+                case 'item-group':
+                    query += ' AND m.item_group_id = ?';
+                    params.push(filterId);
+                    break;
+                case 'department':
+                    query += ' AND t.DeptID = ?';
+                    params.push(filterId);
+                    break;
+                case 'user':
+                    query += ' AND t.UserId = ?';
+                    params.push(filterId);
+                    break;
+                default:
+                    // No additional filter
+                    break;
+            }
+        }
 
-    // Apply filters
-    if (filterType && filterValue) {
-      switch (filterType) {
-        case 'kitchen-category':
-          query += ' AND kc.Kitchen_Category = ?';
-          params.push(filterValue);
-          break;
-        case 'item-group':
-          query += ' AND ig.itemgroupname = ?';
-          params.push(filterValue);
-          break;
-        case 'table-department':
-          const [tableNo, department] = filterValue.split(' - ');
-          query += ' AND mt.table_name = ? AND d.department_name = ?';
-          params.push(tableNo, department);
-          break;
-      }
+        // Add GROUP BY
+        query += `
+            GROUP BY
+                DATE(t.TxnDatetime),
+                t.HotelID,
+                t.outletid,
+                d.item_no,
+                d.item_name,
+                t.UserId,
+                u.username,
+                t.DeptID,
+                td.department_name,
+                k.Kitchen_main_Group,
+                i.itemgroupname
+            ORDER BY TxnDate, d.item_name
+        `;
+
+        // Debug logging
+        console.log('Filter Type:', filterType);
+        console.log('Filter ID:', filterId);
+        console.log('SQL Query:', query);
+        console.log('Parameters:', params);
+
+        const [results] = await db.execute(query, params);
+
+        res.status(200).json({
+            success: true,
+            data: results,
+            message: 'Kitchen allocation data retrieved successfully'
+        });
+
+    } catch (error) {
+        console.error('Error fetching kitchen allocation data:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to retrieve kitchen allocation data',
+            error: error.message
+        });
     }
-
-    query += ' GROUP BY m.restitemid ORDER BY m.item_name';
-
-    const rows = db.prepare(query).all(...params);
-
-    // Calculate totals
-    const totals = rows.reduce(
-      (acc, item) => ({
-        totalQuantity: acc.totalQuantity + (item.quantity || 0),
-        totalAmount: acc.totalAmount + (item.amount || 0)
-      }),
-      { totalQuantity: 0, totalAmount: 0 }
-    );
-
-    res.json({
-      success: true,
-      data: rows,
-      totals
-    });
-  } catch (error) {
-    console.error('Error fetching kitchen allocation data:', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch kitchen allocation data' });
-  }
 };
 
-const getFilterOptions = (req, res) => {
-  try {
-    const { filterType, hotelid, outletid } = req.query;
-
-    let query = '';
-    const params = [hotelid, outletid];
-
-    switch (filterType) {
-      case 'kitchen-category':
-        query = `
-          SELECT DISTINCT kc.Kitchen_Category AS value, kc.Kitchen_Category AS label
-          FROM TAxnTrnbill t
-          INNER JOIN TAxnTrnbilldetails td ON t.TxnID = td.TxnID
-          INNER JOIN mstrestmenu m ON td.ItemID = m.restitemid
-          INNER JOIN mstkitchencategory kc ON m.kitchen_category_id = kc.kitchencategoryid
-          WHERE t.hotelid = ? AND t.outletid = ?
-            AND t.isCancelled = 0 AND (t.isBilled = 1 OR t.isSetteled = 1)
-          ORDER BY kc.Kitchen_Category
-        `;
-        break;
-      case 'item-group':
-        query = `
-          SELECT DISTINCT ig.itemgroupname AS value, ig.itemgroupname AS label
-          FROM TAxnTrnbill t
-          INNER JOIN TAxnTrnbilldetails td ON t.TxnID = td.TxnID
-          INNER JOIN mstrestmenu m ON td.ItemID = m.restitemid
-          INNER JOIN mst_Item_Group ig ON m.item_group_id = ig.item_groupid
-          WHERE t.hotelid = ? AND t.outletid = ?
-            AND t.isCancelled = 0 AND (t.isBilled = 1 OR t.isSetteled = 1)
-          ORDER BY ig.itemgroupname
-        `;
-        break;
-      case 'table-department':
-        query = `
-          SELECT DISTINCT (mt.table_name || ' - ' || d.department_name) AS value,
-                         (mt.table_name || ' - ' || d.department_name) AS label
-          FROM TAxnTrnbill t
-          INNER JOIN TAxnTrnbilldetails td ON t.TxnID = td.TxnID
-          INNER JOIN mstrestmenu m ON td.ItemID = m.restitemid
-          LEFT JOIN msttablemanagement mt ON t.TableID = mt.tableid
-          LEFT JOIN msttable_department d ON mt.departmentid = d.departmentid
-          WHERE t.hotelid = ? AND t.outletid = ?
-            AND t.isCancelled = 0 AND (t.isBilled = 1 OR t.isSetteled = 1)
-            AND mt.table_name IS NOT NULL AND d.department_name IS NOT NULL
-          ORDER BY mt.table_name, d.department_name
-        `;
-        break;
-      default:
-        return res.json({ success: true, options: [] });
-    }
-
-    const options = db.prepare(query).all(...params);
-    res.json({ success: true, options });
-  } catch (error) {
-    console.error('Error fetching filter options:', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch filter options' });
-  }
+module.exports = {
+    getKitchenAllocation
 };
-
-module.exports = { getKitchenAllocationData, getFilterOptions };
