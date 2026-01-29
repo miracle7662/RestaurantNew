@@ -250,6 +250,8 @@ exports.createBill = async (req, res) => {
       details = [],
     } = req.body
 
+    const DeptID = details.length > 0 ? details[0].DeptID : null
+
     const isHeaderNCKOT = details.some((item) => toBool(item.isNCKOT))
 
     console.log('Details array length:', details.length)
@@ -335,8 +337,8 @@ exports.createBill = async (req, res) => {
           isHomeDelivery, DriverID, CustomerName, MobileNo, Address, Landmark,
           orderNo, isPickup, HotelID, GuestID, DiscRefID, DiscPer, DiscountType, UserId,
           BatchNo, PrevTableID, PrevDeptId, isTrnsfered, isChangeTrfAmt,
-          ServiceCharge, ServiceCharge_Amount, Extra1, Extra2, Extra3, NCName, NCPurpose, isNCKOT
-        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+          ServiceCharge, ServiceCharge_Amount, Extra1, Extra2, Extra3, NCName, NCPurpose, isNCKOT, DeptID
+        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
   `)
 
       const result = stmt.run(
@@ -385,6 +387,7 @@ exports.createBill = async (req, res) => {
         NCName || null,
         NCPurpose || null,
         toBool(isHeaderNCKOT),
+        DeptID,
       )
 
       const txnId = result.lastInsertRowid
@@ -1091,12 +1094,14 @@ exports.createKOT = async (req, res) => {
           newOrderNo = generateOrderNo(headerOutletId)
         }
 
+        const DeptID = details.length > 0 ? details[0].DeptID : null
+
         const insertHeaderStmt = db.prepare(`
           INSERT INTO TAxnTrnbill (
             outletid, TxnNo, TableID, table_name, PAX, UserId, HotelID, TxnDatetime,
             isBilled, isCancelled, isSetteled, status, AutoKOT, CustomerName, MobileNo, GuestID, Order_Type, orderNo,
-            NCName, NCPurpose, DiscPer, Discount, DiscountType, isNCKOT
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 1, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            NCName, NCPurpose, DiscPer, Discount, DiscountType, isNCKOT, DeptID
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 1, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `)
         const result = insertHeaderStmt.run(
           headerOutletId,
@@ -1118,6 +1123,7 @@ exports.createKOT = async (req, res) => {
           finalDiscount,
           finalDiscountType,
           toBool(isHeaderNCKOT),
+          DeptID,
         )
         txnId = result.lastInsertRowid
         db.prepare('UPDATE msttablemanagement SET status = 1 WHERE tableid = ?').run(

@@ -605,10 +605,6 @@ ${showCustomerMobile
     ` : ''}
     ${kotItems.map((item) => {
       const qty = item.originalQty ? item.qty - item.originalQty : item.qty;
-      const tags = [];
-      if (showNewOrderTag && item.isNew) tags.push(`<span class="tag tag-new">${localFormData.new_order_tag_label || 'New'}</span>`);
-      if (showRunningOrderTag && !item.isNew) tags.push(`<span class="tag tag-running">${localFormData.running_order_tag_label || 'Running'}</span>`);
-      const tagHtml = tags.length > 0 ? `<div>${tags.join(' ')}</div>` : '';
       const modifierHtml = modifierDefaultOption && item.modifier && item.modifier.length > 0 ? `<div style="font-size: 8pt; color: #666;">Modifiers: ${item.modifier.join(', ')}</div>` : '';
       const alternativeHtml = showAlternativeItem && item.alternativeItem ? `<div style="font-size: 8pt; color: #666;">Alt: ${item.alternativeItem}</div>` : '';
       return `
@@ -616,7 +612,6 @@ ${showCustomerMobile
         <div style="text-align: center">${qty}</div>
         <div style="text-align: center">
           ${item.name}
-          ${tagHtml}
           ${modifierHtml}
           ${alternativeHtml}
         </div>

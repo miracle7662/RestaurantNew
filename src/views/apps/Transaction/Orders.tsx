@@ -1515,6 +1515,7 @@ const Order = () => {
         outletid: resolvedOutletId,
         userId: userId,
         hotelId: hotelId,
+        DeptID: resolvedDeptId, // Add DeptID to header payload
 
         // Add NCName and NCPurpose to the main payload for the TAxnTrnbill header
         NCName: firstNCItem ? firstNCItem.NCName : null,
