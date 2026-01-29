@@ -2,23 +2,28 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
-import { 
-  KitchenAllocationItem, 
-  DateRange, 
-  FilterType, 
+import {
+  KitchenAllocationItem,
+  DateRange,
+  FilterType,
   TabType,
-  FilterOption 
+  FilterOption
 } from './types';
+import {
+  fetchKitchenCategory,
+  fetchItemGroup,
+  fetchTableDepartment,
+  fetchTableManagement,
+  KitchenCategoryItem,
+  ItemGroupItem,
+  TableDepartmentItem,
+  TableItem
+} from '../../../utils/commonfunction';
 
 // Mock data
-const mockData: KitchenAllocationItem[] = [
-  { id: '1', itemName: 'Chicken Tikka', itemNo: 'CT-001', quantity: 15, amount: 4500, kitchenCategory: 'Tandoor', itemGroup: 'Appetizers', tableNo: 'T-12', department: 'Main Dining', txnDate: new Date() },
-  { id: '2', itemName: 'Butter Chicken', itemNo: 'BC-002', quantity: 8, amount: 3200, kitchenCategory: 'Curry', itemGroup: 'Main Course', tableNo: 'T-05', department: 'Private Room', txnDate: new Date() },
-  { id: '3', itemName: 'Garlic Naan', itemNo: 'GN-003', quantity: 25, amount: 2500, kitchenCategory: 'Tandoor', itemGroup: 'Bread', tableNo: 'T-08', department: 'Main Dining', txnDate: new Date() },
-  { id: '4', itemName: 'Vegetable Biryani', itemNo: 'VB-004', quantity: 12, amount: 3600, kitchenCategory: 'Rice', itemGroup: 'Main Course', tableNo: 'T-03', department: 'Terrace', txnDate: new Date() },
-];
 
-const KitchenAllocationReport: React.FC = () => {
+
+const KitchenAllocationReport = () => {
   const [activeTab, setActiveTab] = useState<TabType>('current');
   const [selectedFilter, setSelectedFilter] = useState<FilterType>('all');
   const [filterValue, setFilterValue] = useState<string>('');
@@ -26,48 +31,61 @@ const KitchenAllocationReport: React.FC = () => {
     fromDate: null,
     toDate: null
   });
-  const [data, setData] = useState<KitchenAllocationItem[]>(mockData);
   const [filterOptions, setFilterOptions] = useState<FilterOption[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [kitchenCategories, setKitchenCategories] = useState<KitchenCategoryItem[]>([]);
+  const [itemGroups, setItemGroups] = useState<ItemGroupItem[]>([]);
+  const [tableDepartments, setTableDepartments] = useState<TableDepartmentItem[]>([]);
+  const [tables, setTables] = useState<TableItem[]>([]);
+  const [data] = useState<KitchenAllocationItem[]>([]);
   const today = new Date();
   const todayString = today.toISOString().split('T')[0];
 
   useEffect(() => {
+    const fetchData = async () => {
+      await fetchKitchenCategory(setKitchenCategories, (id: number) => {});
+      await fetchItemGroup(setItemGroups, (id: number) => {});
+      await fetchTableDepartment(setTableDepartments, (id: number) => {});
+      await fetchTableManagement(setTables, (id: number) => {});
+    };
+    fetchData();
+  }, []);
+
+  useEffect(() => {
     const options: FilterOption[] = [];
-    
+
     if (selectedFilter === 'all') {
       options.push({ value: 'all', label: 'All Items', type: 'all' });
     } else if (selectedFilter === 'kitchen-category') {
-      const categories = Array.from(new Set(data.map(item => item.kitchenCategory).filter(Boolean)));
-      options.push(...categories.map(cat => ({
-        value: cat!,
-        label: cat!,
+      options.push(...kitchenCategories.map(cat => ({
+        value: cat.Kitchen_Category,
+        label: cat.Kitchen_Category,
         type: 'kitchen-category'
       })));
     } else if (selectedFilter === 'item-group') {
-      const groups = Array.from(new Set(data.map(item => item.itemGroup).filter(Boolean)));
-      options.push(...groups.map(group => ({
-        value: group!,
-        label: group!,
+      options.push(...itemGroups.map(group => ({
+        value: group.itemgroupname,
+        label: group.itemgroupname,
         type: 'item-group'
       })));
     } else if (selectedFilter === 'table-department') {
-      const tableDepts = Array.from(new Set(
-        data.map(item => `${item.tableNo} - ${item.department}`).filter(Boolean)
-      ));
-      options.push(...tableDepts.map(td => ({
-        value: td,
-        label: td,
-        type: 'table-department'
-      })));
+      // Show only department names
+      if (Array.isArray(tableDepartments)) {
+        const departmentOptions = tableDepartments.map(dept => ({
+          value: dept.department_name,
+          label: dept.department_name,
+          type: 'table-department' as const
+        }));
+        options.push(...departmentOptions);
+      }
     }
-    
+
     setFilterOptions(options);
     if (options.length > 0) {
       setFilterValue(options[0].value);
     }
-  }, [selectedFilter, data]);
+  }, [selectedFilter, kitchenCategories, itemGroups, tableDepartments, tables]);
 
   const filteredData = useMemo(() => {
     let filtered = [...data];
@@ -92,10 +110,7 @@ const KitchenAllocationReport: React.FC = () => {
           filtered = filtered.filter(item => item.itemGroup === filterValue);
           break;
         case 'table-department':
-          const [tableNo, department] = filterValue.split(' - ');
-          filtered = filtered.filter(item =>
-            item.tableNo === tableNo && item.department === department
-          );
+          filtered = filtered.filter(item => item.department === filterValue);
           break;
       }
     }
@@ -245,7 +260,7 @@ const KitchenAllocationReport: React.FC = () => {
                 <option value="all">All Items</option>
                 <option value="kitchen-category">Kitchen Category</option>
                 <option value="item-group">Item Group</option>
-                <option value="table-department">Table / Department</option>
+                <option value="table-department">Department</option>
               </select>
             </div>
              {selectedFilter === 'all' && (

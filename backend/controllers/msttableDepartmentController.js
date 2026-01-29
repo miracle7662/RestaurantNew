@@ -3,11 +3,18 @@ const db = require("../config/db");
 // Get all departments
 exports.getAllDepartments = (req, res) => {
   try {
-    const rows = db.prepare(`
+    const { hotelid } = req.query;
+    let query = `
       SELECT *
       FROM msttable_department
       WHERE status IS NOT NULL
-    `).all();
+    `;
+    const params = [];
+    if (hotelid) {
+      query += ' AND hotelid = ?';
+      params.push(hotelid);
+    }
+    const rows = db.prepare(query).all(...params);
 
     res.status(200).json({ success: true, data: rows });
   } catch (error) {

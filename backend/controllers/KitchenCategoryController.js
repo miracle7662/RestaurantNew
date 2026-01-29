@@ -1,7 +1,14 @@
 const db = require('../config/db');
 
 exports.getKitchenCategory = (req, res) => {
-    const KitchenCategory = db.prepare('SELECT * FROM mstkitchencategory').all();
+    const { hotelid } = req.query;
+    let query = 'SELECT * FROM mstkitchencategory';
+    const params = [];
+    if (hotelid) {
+      query += ' WHERE hotelid = ?';
+      params.push(hotelid);
+    }
+    const KitchenCategory = db.prepare(query).all(...params);
     res.json(KitchenCategory);
 };
 

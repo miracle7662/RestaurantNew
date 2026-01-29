@@ -98,6 +98,7 @@ export interface UserTypeItem {
   table_name: string
   outlet_name: string
   status: number
+  departmentid: number
 }
 
 export interface MenuItem {
@@ -155,6 +156,12 @@ export interface unitmasterItem {
 export interface WarehouseItem {
   warehouseid: number
   warehouse_name: string
+}
+
+export interface TableDepartmentItem {
+  departmentid: number
+  department_name: string
+  status: number
 }
 
 export const fetchCountries = async (
@@ -257,9 +264,11 @@ export const fetchKitchenCategory = async (
   setKitchen_Category: (data: KitchenCategoryItem[]) => void,
   setkitchencategoryid: (id: number) => void,
   currentkitchencategoryid?: number,
+  hotelid?: number,
 ) => {
   try {
-    const res = await fetch('http://localhost:3001/api/KitchenCategory')
+    const url = hotelid ? `http://localhost:3001/api/KitchenCategory?hotelid=${hotelid}` : 'http://localhost:3001/api/KitchenCategory'
+    const res = await fetch(url)
     const data: KitchenCategoryItem[] = await res.json()
     setKitchen_Category(data)
     if (data.length > 0 && !currentkitchencategoryid) {
@@ -311,9 +320,11 @@ export const fetchItemGroup = async (
   setItemGroup: (data: ItemGroupItem[]) => void,
   setitemgroupid: (id: number) => void,
   currentitemgroupid?: string,
+  hotelid?: number,
 ) => {
   try {
-    const res = await fetch('http://localhost:3001/api/ItemGroup')
+    const url = hotelid ? `http://localhost:3001/api/ItemGroup?hotelid=${hotelid}` : 'http://localhost:3001/api/ItemGroup'
+    const res = await fetch(url)
     const data: ItemGroupItem[] = await res.json()
     setItemGroup(data)
     if (data.length > 0 && !currentitemgroupid) {
@@ -433,17 +444,25 @@ export const fetchMenu = async (
 };
 
 export const fetchTableManagement = async (
-  setTableManagement: (data: TableItem[]) => void,    
-  settablemanagementid: (id: number) => void,    
-  currenttablemanagementid?: string,                
+  setTableManagement: (data: TableItem[]) => void,
+  settablemanagementid: (id: number) => void,
+  currenttablemanagementid?: string,
   ) => {
 
     try {
+      console.log('Fetching table management from: http://localhost:3001/api/tablemanagement');
       const res = await fetch('http://localhost:3001/api/tablemanagement');
-      const data: TableItem[] = await res.json();
-      setTableManagement(data);
-      if(data.length > 0 && !currenttablemanagementid){
-        settablemanagementid(data[0].tablemanagementid);
+      const response = await res.json();
+      console.log('Table management response:', response);
+      if (response.success) {
+        const data: TableItem[] = response.data;
+        console.log('Table management data:', data);
+        setTableManagement(data);
+        if(data.length > 0 && !currenttablemanagementid){
+          settablemanagementid(data[0].tablemanagementid);
+        }
+      } else {
+        throw new Error(response.message || 'Failed to fetch table management');
       }
     } catch (err) {
       toast.error('Failed to fetch table management');
@@ -714,5 +733,34 @@ export const fetchWarehouses = async (
     console.error('Fetch warehouses error:', err)
   } finally {
     setLoading(false)
+  }
+}
+
+export const fetchTableDepartment = async (
+  setTableDepartment: (data: TableDepartmentItem[]) => void,
+  settabledepartmentid: (id: number) => void,
+  currenttabledepartmentid?: string,
+  hotelid?: number,
+) => {
+  try {
+    const url = hotelid ? `http://localhost:3001/api/table-department?hotelid=${hotelid}` : 'http://localhost:3001/api/table-department'
+    console.log('Fetching table departments from:', url)
+    const res = await fetch(url)
+    const response = await res.json()
+    console.log('Table departments response:', response)
+    if (response.success) {
+      const data: TableDepartmentItem[] = response.data
+      console.log('Table departments data:', data)
+      setTableDepartment(data)
+      if (data.length > 0 && !currenttabledepartmentid) {
+        settabledepartmentid(data[0].departmentid)
+      }
+    } else {
+      throw new Error(response.message || 'Failed to fetch table departments')
+    }
+  } catch (err) {
+    toast.error('Failed to fetch table departments')
+    console.error('Fetch table departments error:', err)
+    setTableDepartment([])
   }
 }
