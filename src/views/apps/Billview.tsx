@@ -2781,69 +2781,78 @@ const ModernBill = () => {
 
 
               {/* Date - Centered */}
-              <Col md={1}>
-                <div className="info-box p-2 h-100 border rounded text-center d-flex flex-column justify-content-center">
-                  <div className="text-uppercase text-secondary small mb-1 fw-semibold">Date</div>
-                  <div className="fw-bold fs-6" style={{ color: '#333' }}>
-                    {new Date().toLocaleDateString('en-GB', {
-                      day: '2-digit',
-                      month: '2-digit',
-                      year: 'numeric'
-                    })}
-                  </div>
-                </div>
-              </Col>
+             <Col md={1}>
+  <div className="info-box p-2 h-100 border rounded text-center d-flex flex-column justify-content-center">
+    <div className="text-uppercase text-secondary small mb-1 fw-semibold">
+      Date
+    </div>
+    <div className="fw-bold fs-6" style={{ color: '#333' }}>
+      {user?.currDate
+        ? new Date(user.currDate).toLocaleDateString('en-GB', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+          })
+        : '--/--/----'}
+    </div>
+  </div>
+</Col>
 
-              {/* Delivery Type - Radio Buttons */}
-              <Col md={2}>
-                <div className="border rounded p-2 h-100">
-                  <div className="text-uppercase text-secondary small fw-semibold text-center mb-2">
-                    Delivery
-                  </div>
 
-                  <div className="btn-group w-100" role="group">
-                    {/* Pickup */}
-                    <input
-                      type="radio"
-                      className="btn-check"
-                      name="deliveryType"
-                      id="pickup"
-                      value="pickup"
-                      checked={deliveryType === 'pickup'}
-                      onChange={(e) =>
-                        setDeliveryType(e.target.value as 'pickup' | 'homedelivery')
-                      }
-                    />
-                    <label
-                      className="btn btn-outline-primary btn-sm d-flex align-items-center justify-content-center gap-1"
-                      htmlFor="pickup"
-                    >
-                      <i className="fi fi-rr-shopping-bag"></i>
-                      Pickup
-                    </label>
+              {isTakeaway && (
+                <>
+                  {/* Delivery Type - Radio Buttons */}
+                  <Col md={2}>
+                    <div className="border rounded p-2 h-100">
+                      <div className="text-uppercase text-secondary small fw-semibold text-center mb-2">
+                        Delivery
+                      </div>
 
-                    {/* Home Delivery */}
-                    <input
-                      type="radio"
-                      className="btn-check"
-                      name="deliveryType"
-                      id="homedelivery"
-                      value="homedelivery"
-                      checked={deliveryType === 'homedelivery'}
-                      onChange={(e) =>
-                        setDeliveryType(e.target.value as 'pickup' | 'homedelivery')
-                      }
-                    />
-                    <label
-                      className="btn btn-outline-primary btn-sm d-flex align-items-center justify-content-center gap-1"
-                      htmlFor="homedelivery"
-                    >
-                      <i className="fi fi-rr-truck-moving"></i>
-                      Delivery
-                    </label>
-                  </div>
-                </div>
-              </Col>
+                      <div className="btn-group w-100" role="group">
+                        {/* Pickup */}
+                        <input
+                          type="radio"
+                          className="btn-check"
+                          name="deliveryType"
+                          id="pickup"
+                          value="pickup"
+                          checked={deliveryType === 'pickup'}
+                          onChange={(e) =>
+                            setDeliveryType(e.target.value as 'pickup' | 'homedelivery')
+                          }
+                        />
+                        <label
+                          className="btn btn-outline-primary btn-sm d-flex align-items-center justify-content-center gap-1"
+                          htmlFor="pickup"
+                        >
+                          <i className="fi fi-rr-shopping-bag"></i>
+                          Pickup
+                        </label>
+
+                        {/* Home Delivery */}
+                        <input
+                          type="radio"
+                          className="btn-check"
+                          name="deliveryType"
+                          id="homedelivery"
+                          value="homedelivery"
+                          checked={deliveryType === 'homedelivery'}
+                          onChange={(e) =>
+                            setDeliveryType(e.target.value as 'pickup' | 'homedelivery')
+                          }
+                        />
+                        <label
+                          className="btn btn-outline-primary btn-sm d-flex align-items-center justify-content-center gap-1"
+                          htmlFor="homedelivery"
+                        >
+                          <i className="fi fi-rr-truck-moving"></i>
+                          Delivery
+                        </label>
+                      </div>
+                    </div>
+                  </Col>
+                </>
+              )}
               {/* MO No / Name */}
               <Col md={2}>
                 <div className="info-box p-2 h-100 border rounded d-flex flex-column justify-content-center">
