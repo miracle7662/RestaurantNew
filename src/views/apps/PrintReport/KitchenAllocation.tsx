@@ -136,39 +136,48 @@ const KitchenAllocationReport: React.FC = () => {
   }, [activeTab, selectedFilter, filterValue, dateRange]);
 
   return (
-    <div className="container-fluid p-4">
+    <div className="container-fluid p-4" style={{ backgroundColor: '#f8f9fa', minHeight: '100vh' }}>
       {/* Header */}
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <div>
-          <h1 className="h3 fw-bold text-dark mb-1">Kitchen Allocation Report</h1>
-          <p className="text-muted">Track and manage kitchen item allocations</p>
+      <div className="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4">
+        <div className="mb-3 mb-md-0">
+          <h1 className="h4 fw-bold text-dark mb-1">Kitchen Allocation Report</h1>
+          <p className="text-muted small mb-0">Track kitchen item allocations and usage</p>
         </div>
-        <div className="btn-group">
-          <button className="btn btn-light border" onClick={handlePrint}>
-            <i className="bi bi-printer me-1"></i> Print
+        <div className="d-flex gap-2">
+          <button 
+            className="btn btn-outline-secondary btn-sm d-flex align-items-center"
+            onClick={handlePrint}
+          >
+            <i className="bi bi-printer me-2"></i> Print
           </button>
-          <button className="btn btn-light border" onClick={handleExportPDF}>
-            <i className="bi bi-file-pdf text-danger me-1"></i> PDF
+          <button 
+            className="btn btn-outline-danger btn-sm d-flex align-items-center"
+            onClick={handleExportPDF}
+          >
+            <i className="bi bi-file-pdf me-2"></i> PDF
           </button>
-          <button className="btn btn-light border" onClick={handleExportExcel}>
-            <i className="bi bi-file-excel text-success me-1"></i> Excel
+          <button 
+            className="btn btn-outline-success btn-sm d-flex align-items-center"
+            onClick={handleExportExcel}
+          >
+            <i className="bi bi-file-excel me-2"></i> Excel
           </button>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="card shadow-sm border-0 mb-4">
-        <div className="card-body p-0">
-          <div className="nav nav-pills p-3">
+      <div className="card border-0 shadow-sm mb-4">
+        <div className="card-body p-2">
+          <div className="d-flex">
             <button
-              className={`nav-link ${activeTab === 'current' ? 'active' : ''} me-3`}
+              className={`btn btn-sm ${activeTab === 'current' ? 'btn-primary' : 'btn-outline-primary'} me-2 d-flex align-items-center`}
               onClick={() => setActiveTab('current')}
             >
               <i className="bi bi-calendar-day me-2"></i>
               Today's Allocation
             </button>
             <button
-              className={`nav-link ${activeTab === 'backdated' ? 'active' : ''}`}
+              className={`btn btn-sm ${activeTab === 'backdated' ? 'btn-primary' : 'btn-outline-primary'} d-flex align-items-center`}
               onClick={() => setActiveTab('backdated')}
             >
               <i className="bi bi-calendar-range me-2"></i>
@@ -178,133 +187,118 @@ const KitchenAllocationReport: React.FC = () => {
         </div>
       </div>
 
-      <div className="card shadow-sm border-0 mb-4">
-  <div className="card-body">
-    <div className="row g-3 align-items-end">
-
-      {/* From Date */}
-      {activeTab === 'backdated' && (
-        <div className="col-md-3">
-          <label className="form-label small">From Date</label>
-          <DatePicker
-            selected={dateRange.fromDate}
-            onChange={(date: Date | null) =>
-              setDateRange(prev => ({ ...prev, fromDate: date }))
-            }
-            className="form-control form-control-sm"
-            dateFormat="dd/MM/yyyy"
-            isClearable
-          />
+      {/* Filters */}
+      <div className="card border-0 shadow-sm mb-4">
+        <div className="card-body p-3">
+          <div className="row g-2">
+            {activeTab === 'backdated' && (
+              <>
+                <div className="col-12 col-md-3">
+                  <label className="form-label small fw-semibold">From Date</label>
+                  <DatePicker
+                    selected={dateRange.fromDate}
+                    onChange={(date: Date | null) =>
+                      setDateRange(prev => ({ ...prev, fromDate: date }))
+                    }
+                    className="form-control form-control-sm border"
+                    dateFormat="dd/MM/yyyy"
+                    isClearable
+                    placeholderText="Select from date"
+                  />
+                </div>
+                <div className="col-12 col-md-3">
+                  <label className="form-label small fw-semibold">To Date</label>
+                  <DatePicker
+                    selected={dateRange.toDate}
+                    onChange={(date: Date | null) =>
+                      setDateRange(prev => ({ ...prev, toDate: date }))
+                    }
+                    className="form-control form-control-sm border"
+                    dateFormat="dd/MM/yyyy"
+                    isClearable
+                    minDate={dateRange.fromDate || undefined}
+                    placeholderText="Select to date"
+                  />
+                </div>
+              </>
+            )}
+            <div className={activeTab === 'backdated' ? 'col-12 col-md-3' : 'col-12 col-md-4'}>
+              <label className="form-label small fw-semibold">Filter By</label>
+              <select
+                className="form-select form-select-sm border"
+                value={selectedFilter}
+                onChange={(e) => setSelectedFilter(e.target.value as FilterType)}
+              >
+                <option value="all">All Items</option>
+                <option value="kitchen-category">Kitchen Category</option>
+                <option value="item-group">Item Group</option>
+                <option value="table-department">Table / Department</option>
+              </select>
+            </div>
+            {selectedFilter !== 'all' && (
+              <div className={activeTab === 'backdated' ? 'col-12 col-md-3' : 'col-12 col-md-4'}>
+                <label className="form-label small fw-semibold">
+                  {selectedFilter === 'kitchen-category'
+                    ? 'Select Category'
+                    : selectedFilter === 'item-group'
+                    ? 'Select Group'
+                    : 'Select Table/Dept'}
+                </label>
+                <select
+                  className="form-select form-select-sm border"
+                  value={filterValue}
+                  onChange={(e) => setFilterValue(e.target.value)}
+                  disabled={filterOptions.length === 0}
+                >
+                  {filterOptions.map(option => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
         </div>
-      )}
-
-      {/* To Date */}
-      {activeTab === 'backdated' && (
-        <div className="col-md-3">
-          <label className="form-label small">To Date</label>
-          <DatePicker
-            selected={dateRange.toDate}
-            onChange={(date: Date | null) =>
-              setDateRange(prev => ({ ...prev, toDate: date }))
-            }
-            className="form-control form-control-sm"
-            dateFormat="dd/MM/yyyy"
-            isClearable
-            minDate={dateRange.fromDate || undefined}
-          />
-        </div>
-      )}
-
-      {/* Filter By */}
-      <div className={activeTab === 'backdated' ? 'col-md-3' : 'col-md-4'}>
-        <label className="form-label small">Filter By</label>
-        <select
-          className="form-select form-select-sm"
-          value={selectedFilter}
-          onChange={(e) =>
-            setSelectedFilter(e.target.value as FilterType)
-          }
-        >
-          <option value="all">All Items</option>
-          <option value="kitchen-category">Kitchen Category</option>
-          <option value="item-group">Item Group</option>
-          <option value="table-department">Table / Department</option>
-        </select>
       </div>
 
-      {/* Filter Value */}
-      {selectedFilter !== 'all' && (
-        <div className={activeTab === 'backdated' ? 'col-md-3' : 'col-md-4'}>
-          <label className="form-label small">
-            {selectedFilter === 'kitchen-category'
-              ? 'Kitchen Category'
-              : selectedFilter === 'item-group'
-              ? 'Item Group'
-              : 'Table / Department'}
-          </label>
-          <select
-            className="form-select form-select-sm"
-            value={filterValue}
-            onChange={(e) => setFilterValue(e.target.value)}
-            disabled={filterOptions.length === 0}
-          >
-            {filterOptions.map(option => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
-
-    </div>
-  </div>
-</div>
-
-
       {/* Summary Cards */}
-      <div className="row mb-4">
-        <div className="col-md-4 mb-3">
-          <div className="card border-0 bg-light-subtle shadow-sm">
-            <div className="card-body">
-              <div className="d-flex align-items-center">
-                <div className="bg-primary bg-opacity-10 p-3 rounded me-3">
-                  <i className="bi bi-box text-primary fs-4"></i>
-                </div>
-                <div>
-                  <h6 className="text-muted mb-1">Total Items</h6>
-                  <h3 className="mb-0">{filteredData.length}</h3>
-                </div>
+      <div className="row mb-4 g-3">
+        <div className="col-md-4">
+          <div className="card border-0 bg-white shadow-sm h-100">
+            <div className="card-body d-flex align-items-center">
+              <div className="rounded-circle bg-primary bg-opacity-10 p-3 me-3">
+                <i className="bi bi-box text-primary fs-5"></i>
+              </div>
+              <div>
+                <h6 className="text-muted mb-1">Total Items</h6>
+                <h3 className="mb-0 fw-bold">{filteredData.length}</h3>
               </div>
             </div>
           </div>
         </div>
-        <div className="col-md-4 mb-3">
-          <div className="card border-0 bg-light-subtle shadow-sm">
-            <div className="card-body">
-              <div className="d-flex align-items-center">
-                <div className="bg-success bg-opacity-10 p-3 rounded me-3">
-                  <i className="bi bi-cart-check text-success fs-4"></i>
-                </div>
-                <div>
-                  <h6 className="text-muted mb-1">Total Quantity</h6>
-                  <h3 className="mb-0">{totals.totalQuantity}</h3>
-                </div>
+        <div className="col-md-4">
+          <div className="card border-0 bg-white shadow-sm h-100">
+            <div className="card-body d-flex align-items-center">
+              <div className="rounded-circle bg-success bg-opacity-10 p-3 me-3">
+                <i className="bi bi-cart-check text-success fs-5"></i>
+              </div>
+              <div>
+                <h6 className="text-muted mb-1">Total Quantity</h6>
+                <h3 className="mb-0 fw-bold">{totals.totalQuantity}</h3>
               </div>
             </div>
           </div>
         </div>
-        <div className="col-md-4 mb-3">
-          <div className="card border-0 bg-light-subtle shadow-sm">
-            <div className="card-body">
-              <div className="d-flex align-items-center">
-                <div className="bg-info bg-opacity-10 p-3 rounded me-3">
-                  <i className="bi bi-currency-rupee text-info fs-4"></i>
-                </div>
-                <div>
-                  <h6 className="text-muted mb-1">Total Amount</h6>
-                  <h3 className="mb-0">₹{totals.totalAmount.toLocaleString('en-IN')}</h3>
-                </div>
+        <div className="col-md-4">
+          <div className="card border-0 bg-white shadow-sm h-100">
+            <div className="card-body d-flex align-items-center">
+              <div className="rounded-circle bg-info bg-opacity-10 p-3 me-3">
+                <i className="bi bi-currency-rupee text-info fs-5"></i>
+              </div>
+              <div>
+                <h6 className="text-muted mb-1">Total Amount</h6>
+                <h3 className="mb-0 fw-bold">₹{totals.totalAmount.toLocaleString('en-IN')}</h3>
               </div>
             </div>
           </div>
@@ -312,62 +306,62 @@ const KitchenAllocationReport: React.FC = () => {
       </div>
 
       {/* Data Table */}
-      <div className="card shadow-sm border-0">
+      <div className="card border-0 shadow-sm">
         <div className="card-body p-0">
           <div className="table-responsive">
             <table className="table table-hover mb-0">
               <thead className="bg-light">
                 <tr>
-                   <th className="border-0 ps-4">Item No</th>
-                  <th className="border-0 ps-4">Item Name</th>
-                  <th className="border-0 text-end">Quantity</th>
-                  <th className="border-0 text-end">Amount</th>
-                  
+                  <th className="border-0 ps-4 fw-semibold text-secondary">Item Details</th>
+                  <th className="border-0 text-end fw-semibold text-secondary">Quantity</th>
+                  <th className="border-0 text-end fw-semibold text-secondary">Amount</th>
+                  <th className="border-0 text-end pe-4 fw-semibold text-secondary">Category</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr>
                     <td colSpan={4} className="text-center py-5">
-                      <div className="spinner-border spinner-border-sm text-primary" role="status">
-                        <span className="visually-hidden">Loading...</span>
+                      <div className="d-flex justify-content-center">
+                        <div className="spinner-border spinner-border-sm text-primary" role="status">
+                          <span className="visually-hidden">Loading...</span>
+                        </div>
                       </div>
-                      <p className="mt-2 text-muted">Loading data...</p>
+                      <p className="mt-2 text-muted small">Loading data...</p>
                     </td>
                   </tr>
                 ) : filteredData.length === 0 ? (
                   <tr>
                     <td colSpan={4} className="text-center py-5">
-                      <i className="bi bi-clipboard-x text-muted fs-1"></i>
-                      <p className="mt-3 text-muted">No allocation data found</p>
+                      <div className="text-muted">
+                        <i className="bi bi-inbox fs-1 opacity-50"></i>
+                        <p className="mt-3">No allocation data found</p>
+                      </div>
                     </td>
                   </tr>
                 ) : (
                   filteredData.map((item) => (
                     <tr key={item.id} className="border-bottom">
-                        <td className="ps-4">
-                        
-                        <div className="small text-muted">
-                          <span className="badge bg-light text-dark me-2">{item.itemNo}</span>
-                          {item.kitchenCategory}
-                        </div>
-                      </td>
                       <td className="ps-4">
                         <div className="fw-semibold">{item.itemName}</div>
                         <div className="small text-muted">
                           <span className="badge bg-light text-dark me-2">{item.itemNo}</span>
-                          {item.kitchenCategory}
+                          {item.tableNo} • {item.department}
                         </div>
                       </td>
                       <td className="text-end align-middle">
-                        <span className="badge bg-primary rounded-pill px-3 py-2">
+                        <span className="badge bg-primary bg-opacity-10 text-primary px-3 py-1 rounded-pill">
                           {item.quantity}
                         </span>
                       </td>
                       <td className="text-end align-middle fw-semibold">
                         ₹{item.amount.toLocaleString('en-IN')}
                       </td>
-                     
+                      <td className="text-end align-middle pe-4">
+                        <span className="badge bg-light text-dark px-2 py-1">
+                          {item.kitchenCategory}
+                        </span>
+                      </td>
                     </tr>
                   ))
                 )}
@@ -377,8 +371,8 @@ const KitchenAllocationReport: React.FC = () => {
                   <tr>
                     <td className="ps-4 fw-bold">Totals</td>
                     <td className="text-end fw-bold">{totals.totalQuantity}</td>
-                    <td className="text-end fw-bold pe-4">₹{totals.totalAmount.toLocaleString('en-IN')}</td>
-                    <td></td>
+                    <td className="text-end fw-bold">₹{totals.totalAmount.toLocaleString('en-IN')}</td>
+                    <td className="pe-4"></td>
                   </tr>
                 </tfoot>
               )}
@@ -387,13 +381,16 @@ const KitchenAllocationReport: React.FC = () => {
         </div>
       </div>
 
-      {/* Footer Info */}
+      {/* Footer */}
       <div className="mt-4 text-center">
         <small className="text-muted">
-          Data last updated: {new Date().toLocaleDateString('en-IN', {
+          <i className="bi bi-info-circle me-1"></i>
+          Report generated on {new Date().toLocaleDateString('en-IN', {
             day: 'numeric',
             month: 'short',
-            year: 'numeric'
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
           })}
         </small>
       </div>
