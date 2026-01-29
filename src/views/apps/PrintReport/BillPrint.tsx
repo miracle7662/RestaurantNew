@@ -110,7 +110,7 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
       return currentKOTNos;
     }
     const kotsFromItems = items.map(item => item.kotNo).filter(Boolean);
-    return [...new Set(kotsFromItems)].sort((a, b) => a - b);
+    return [...new Set(kotsFromItems)].sort((a, b) => (a ?? 0) - (b ?? 0));
   }, [currentKOTNos, items]);
   const [localOutletName, setLocalOutletName] = React.useState<string>('');
   const [isLoadingNames, setIsLoadingNames] = React.useState(true);
@@ -364,7 +364,9 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
           ${(showAll || localFormData.email) ? `<div style="font-size: 8pt;">Email: ${localFormData.email || 'N/A'}</div>` : ''}
           ${(showAll || localFormData.website) ? `<div style="font-size: 8pt;">Website: ${localFormData.website || 'N/A'}</div>` : ''}
           ${(showAll || localFormData.show_phone_on_bill) ? `<div style="font-size: 8pt;">Phone: ${user?.outlet_phone || 'N/A'}</div>` : ''}
-           ${(showAll || localFormData.show_item_hsn_code_bill) ? `` : ''}
+          
+           ${(showAll || localFormData.show_item_hsn_code_bill) ? `<div>HSN: ${localFormData.hsn || 'N/A'}</div>` : ''}
+           
           ${(showAll || localFormData.fssai_no) ? `<div style="font-size: 8pt;">FSSAI: ${localFormData.fssai_no || 'N/A'}</div>` : ''}
          
         </div>
