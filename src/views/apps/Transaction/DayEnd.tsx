@@ -460,6 +460,9 @@ const DayEnd = () => {
       if (data.success) {
         // Store the HTML in sessionStorage for the preview page
         sessionStorage.setItem('dayEndReportHTML', data.html);
+        // Store the outletId for printer settings
+        const outletId = orders[0]?.outletid || user?.outletid;
+        sessionStorage.setItem('dayEndReportOutletId', outletId?.toString() || '');
         // Navigate to the preview page
         navigate('/apps/Masters/Reports/DayEndReportPreview');
       } else {

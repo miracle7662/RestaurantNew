@@ -2,10 +2,17 @@ import React, { useEffect, useState } from 'react';
 import { Button, Card } from 'react-bootstrap';
 import { Printer, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-hot-toast';
+import { useAuthContext } from '@/common/context/useAuthContext';
+
 
 const DayEndReportPreview: React.FC = () => {
   const navigate = useNavigate();
   const [previewHTML, setPreviewHTML] = useState('');
+  const [printerName, setPrinterName] = useState<string | null>(null);
+  const [outletId, setOutletId] = useState<number | null>(null);
+  const [loading, setLoading] = useState(false);
+  const { user } = useAuthContext();
 
   useEffect(() => {
     // Retrieve the HTML from sessionStorage
@@ -18,12 +25,103 @@ const DayEndReportPreview: React.FC = () => {
     }
   }, [navigate]);
 
-  const handlePrint = () => {
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      printWindow.document.write(previewHTML);
-      printWindow.document.close();
-      printWindow.print();
+  // Fetch printer settings and outlet details
+  useEffect(() => {
+    const fetchPrinterAndOutlet = async () => {
+      // Get outletId from sessionStorage first, then fallback to user outletid, then hotelid
+      const storedOutletId = sessionStorage.getItem('dayEndReportOutletId');
+      const outletIdToUse = storedOutletId || user?.outletid || user?.hotelid;
+
+      if (!outletIdToUse) return;
+
+      setOutletId(Number(outletIdToUse));
+
+      try {
+        const res = await fetch(
+          `http://localhost:3001/api/settings/bill-printer-settings/${outletIdToUse}`
+        );
+        if (!res.ok) {
+          throw new Error('Failed to fetch printers');
+        }
+        const data = await res.json();
+        setPrinterName(data?.printer_name || null);
+      } catch (err) {
+        console.error('Error fetching printer:', err);
+        toast.error('Failed to load printer settings.');
+        setPrinterName(null);
+      }
+    };
+
+    fetchPrinterAndOutlet();
+  }, [user]);
+
+  const handlePrint = async () => {
+    try {
+      setLoading(true);
+
+      // Get system printers via Electron API (asynchronous)
+      const systemPrintersRaw = await (window as any).electronAPI?.getInstalledPrinters?.() || [];
+      const systemPrinters = Array.isArray(systemPrintersRaw) ? systemPrintersRaw : [];
+      console.log("System Printers:", systemPrinters);
+
+      if (systemPrinters.length === 0) {
+        toast.error("No printers detected on this system. Please check printer connections and drivers.");
+        return;
+      }
+
+      const normalize = (s: string) =>
+        s.toLowerCase().replace(/\s+/g, "").trim();
+
+      let finalPrinterName: string | null = null;
+      let usedFallback = false;
+
+      // Try to match the configured printer (case-insensitive, partial match)
+      if (printerName) {
+        const matchedPrinter = systemPrinters.find((p: any) =>
+          normalize(p.name).includes(normalize(printerName)) ||
+          normalize(p.displayName || "").includes(normalize(printerName))
+        );
+
+        if (matchedPrinter) {
+          finalPrinterName = matchedPrinter.name;
+        }
+      }
+
+      // If no configured printer or not found, use default printer or first available
+      if (!finalPrinterName) {
+        const defaultPrinter = systemPrinters.find((p: any) => p.isDefault);
+        const fallbackPrinter = defaultPrinter || systemPrinters[0];
+
+        if (fallbackPrinter) {
+          finalPrinterName = fallbackPrinter.name;
+          usedFallback = true;
+          if (printerName) {
+            console.warn(`Configured printer "${printerName}" not found. Using fallback: ${fallbackPrinter.displayName || fallbackPrinter.name}`);
+            toast(`Printer "${printerName}" not found. Using fallback: ${fallbackPrinter.displayName || fallbackPrinter.name}`);
+          }
+        } else {
+          toast.error("No suitable printer found, including fallbacks.");
+          return;
+        }
+      }
+
+      if (!finalPrinterName) {
+        toast.error("Failed to determine printer name.");
+        return;
+      }
+
+      // Print using Electron API
+      if ((window as any).electronAPI?.directPrint) {
+        await (window as any).electronAPI.directPrint(previewHTML, finalPrinterName);
+        toast.success("Day End Report Printed Successfully!");
+      } else {
+        toast.error("Electron print API not available.");
+      }
+    } catch (err) {
+      console.error("Print error:", err);
+      toast.error("Failed to print Day End Report.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -43,9 +141,9 @@ const DayEndReportPreview: React.FC = () => {
               </Button>
               <h6 className="mb-0 fw-bold">Day End Report Preview</h6>
             </div>
-            <Button variant="primary" onClick={handlePrint}>
+            <Button variant="primary" onClick={handlePrint} disabled={loading}>
               <Printer size={16} className="me-2" />
-              Print Report
+              {loading ? 'Printing...' : 'Print Report'}
             </Button>
           </div>
           <div
