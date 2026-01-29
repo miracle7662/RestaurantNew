@@ -29,6 +29,7 @@ const KitchenAllocationReport: React.FC = () => {
   const [data, setData] = useState<KitchenAllocationItem[]>(mockData);
   const [filterOptions, setFilterOptions] = useState<FilterOption[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   const today = new Date();
   const todayString = today.toISOString().split('T')[0];
@@ -93,15 +94,24 @@ const KitchenAllocationReport: React.FC = () => {
           break;
         case 'table-department':
           const [tableNo, department] = filterValue.split(' - ');
-          filtered = filtered.filter(item => 
+          filtered = filtered.filter(item =>
             item.tableNo === tableNo && item.department === department
           );
           break;
       }
     }
 
+    // Apply search filter for 'all' items
+    if (selectedFilter === 'all' && searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      filtered = filtered.filter(item =>
+        item.itemName.toLowerCase().includes(query) ||
+        item.itemNo.toLowerCase().includes(query)
+      );
+    }
+
     return filtered;
-  }, [data, activeTab, dateRange, selectedFilter, filterValue, todayString]);
+  }, [data, activeTab, dateRange, selectedFilter, filterValue, searchQuery, todayString]);
 
   const totals = useMemo(() => {
     return filteredData.reduce(
@@ -227,7 +237,13 @@ const KitchenAllocationReport: React.FC = () => {
               <select
                 className="form-select form-select-sm border"
                 value={selectedFilter}
-                onChange={(e) => setSelectedFilter(e.target.value as FilterType)}
+                onChange={(e) => {
+                  const newFilter = e.target.value as FilterType;
+                  setSelectedFilter(newFilter);
+                  if (newFilter !== 'all') {
+                    setSearchQuery('');
+                  }
+                }}
               >
                 <option value="all">All Items</option>
                 <option value="kitchen-category">Kitchen Category</option>
@@ -235,6 +251,21 @@ const KitchenAllocationReport: React.FC = () => {
                 <option value="table-department">Table / Department</option>
               </select>
             </div>
+            {selectedFilter === 'all' && (
+              <div className={activeTab === 'backdated' ? 'col-12 col-md-3' : 'col-12 col-md-4'}>
+                <label className="form-label small fw-semibold">Search Items</label>
+                <div className="input-group input-group-sm">
+                  <span className="input-group-text"><i className="bi bi-search"></i></span>
+                  <input
+                    type="text"
+                    className="form-control border"
+                    placeholder="Search by name or item no..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
             {selectedFilter !== 'all' && (
               <div className={activeTab === 'backdated' ? 'col-12 col-md-3' : 'col-12 col-md-4'}>
                 <label className="form-label small fw-semibold">
