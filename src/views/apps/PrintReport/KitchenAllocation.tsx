@@ -262,48 +262,7 @@ const KitchenAllocationReport: React.FC = () => {
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="row mb-4 g-3">
-        <div className="col-md-4">
-          <div className="card border-0 bg-white shadow-sm h-100">
-            <div className="card-body d-flex align-items-center">
-              <div className="rounded-circle bg-primary bg-opacity-10 p-3 me-3">
-                <i className="bi bi-box text-primary fs-5"></i>
-              </div>
-              <div>
-                <h6 className="text-muted mb-1">Total Items</h6>
-                <h3 className="mb-0 fw-bold">{filteredData.length}</h3>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-4">
-          <div className="card border-0 bg-white shadow-sm h-100">
-            <div className="card-body d-flex align-items-center">
-              <div className="rounded-circle bg-success bg-opacity-10 p-3 me-3">
-                <i className="bi bi-cart-check text-success fs-5"></i>
-              </div>
-              <div>
-                <h6 className="text-muted mb-1">Total Quantity</h6>
-                <h3 className="mb-0 fw-bold">{totals.totalQuantity}</h3>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-4">
-          <div className="card border-0 bg-white shadow-sm h-100">
-            <div className="card-body d-flex align-items-center">
-              <div className="rounded-circle bg-info bg-opacity-10 p-3 me-3">
-                <i className="bi bi-currency-rupee text-info fs-5"></i>
-              </div>
-              <div>
-                <h6 className="text-muted mb-1">Total Amount</h6>
-                <h3 className="mb-0 fw-bold">₹{totals.totalAmount.toLocaleString('en-IN')}</h3>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+    
 
       {/* Data Table */}
       <div className="card border-0 shadow-sm">
@@ -312,10 +271,11 @@ const KitchenAllocationReport: React.FC = () => {
             <table className="table table-hover mb-0">
               <thead className="bg-light">
                 <tr>
-                  <th className="border-0 ps-4 fw-semibold text-secondary">Item Details</th>
+                  <th className="border-0 ps-4 fw-semibold text-secondary">Item No</th>
+                  <th className="border-0 fw-semibold text-secondary">Item Name</th>
                   <th className="border-0 text-end fw-semibold text-secondary">Quantity</th>
                   <th className="border-0 text-end fw-semibold text-secondary">Amount</th>
-                  <th className="border-0 text-end pe-4 fw-semibold text-secondary">Category</th>
+                 
                 </tr>
               </thead>
               <tbody>
@@ -342,6 +302,14 @@ const KitchenAllocationReport: React.FC = () => {
                 ) : (
                   filteredData.map((item) => (
                     <tr key={item.id} className="border-bottom">
+
+                      <td className="ps-4">
+                        
+                        <div className="small text-muted">
+                          <span className="badge bg-light text-dark me-2">{item.itemNo}</span>
+                          {item.tableNo} • {item.department}
+                        </div>
+                      </td>
                       <td className="ps-4">
                         <div className="fw-semibold">{item.itemName}</div>
                         <div className="small text-muted">
@@ -357,11 +325,7 @@ const KitchenAllocationReport: React.FC = () => {
                       <td className="text-end align-middle fw-semibold">
                         ₹{item.amount.toLocaleString('en-IN')}
                       </td>
-                      <td className="text-end align-middle pe-4">
-                        <span className="badge bg-light text-dark px-2 py-1">
-                          {item.kitchenCategory}
-                        </span>
-                      </td>
+                     
                     </tr>
                   ))
                 )}
