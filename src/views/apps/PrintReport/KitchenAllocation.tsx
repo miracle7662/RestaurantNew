@@ -13,14 +13,11 @@ import {
   fetchKitchenCategory,
   fetchItemGroup,
   fetchTableDepartment,
-  fetchTableManagement,
   KitchenCategoryItem,
   ItemGroupItem,
-  TableDepartmentItem,
-  TableItem
+  TableDepartmentItem
 } from '../../../utils/commonfunction';
 
-// Mock data
 
 
 const KitchenAllocationReport = () => {
@@ -34,27 +31,26 @@ const KitchenAllocationReport = () => {
   const [filterOptions, setFilterOptions] = useState<FilterOption[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const today = new Date();
+  const todayString = today.toISOString().split('T')[0];
   const [kitchenCategories, setKitchenCategories] = useState<KitchenCategoryItem[]>([]);
   const [itemGroups, setItemGroups] = useState<ItemGroupItem[]>([]);
   const [tableDepartments, setTableDepartments] = useState<TableDepartmentItem[]>([]);
-  const [tables, setTables] = useState<TableItem[]>([]);
   const [data] = useState<KitchenAllocationItem[]>([]);
-  const today = new Date();
-  const todayString = today.toISOString().split('T')[0];
 
+  
   useEffect(() => {
     const fetchData = async () => {
       await fetchKitchenCategory(setKitchenCategories, (id: number) => {});
       await fetchItemGroup(setItemGroups, (id: number) => {});
       await fetchTableDepartment(setTableDepartments, (id: number) => {});
-      await fetchTableManagement(setTables, (id: number) => {});
+     
     };
     fetchData();
   }, []);
-
   useEffect(() => {
     const options: FilterOption[] = [];
-
+    
     if (selectedFilter === 'all') {
       options.push({ value: 'all', label: 'All Items', type: 'all' });
     } else if (selectedFilter === 'kitchen-category') {
@@ -70,7 +66,7 @@ const KitchenAllocationReport = () => {
         type: 'item-group'
       })));
     } else if (selectedFilter === 'table-department') {
-      // Show only department names
+     // Show only department names
       if (Array.isArray(tableDepartments)) {
         const departmentOptions = tableDepartments.map(dept => ({
           value: dept.department_name,
@@ -80,12 +76,12 @@ const KitchenAllocationReport = () => {
         options.push(...departmentOptions);
       }
     }
-
+    
     setFilterOptions(options);
     if (options.length > 0) {
       setFilterValue(options[0].value);
     }
-  }, [selectedFilter, kitchenCategories, itemGroups, tableDepartments, tables]);
+}, [selectedFilter, kitchenCategories, itemGroups, tableDepartments]);
 
   const filteredData = useMemo(() => {
     let filtered = [...data];
@@ -110,7 +106,7 @@ const KitchenAllocationReport = () => {
           filtered = filtered.filter(item => item.itemGroup === filterValue);
           break;
         case 'table-department':
-          filtered = filtered.filter(item => item.department === filterValue);
+           filtered = filtered.filter(item => item.department === filterValue);
           break;
       }
     }

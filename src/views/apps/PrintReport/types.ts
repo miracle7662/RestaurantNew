@@ -16,7 +16,7 @@ export interface DateRange {
   toDate: Date | null;
 }
 
-export type FilterType = 'all' | 'kitchen-category' | 'item-group' | 'table-department';
+export type FilterType = 'all' | 'kitchen-category' | 'item-group' | 'table-department' | 'user';
 
 export type TabType = 'current' | 'backdated';
 

@@ -164,6 +164,18 @@ export interface TableDepartmentItem {
   status: number
 }
 
+export interface UserItem {
+  userid: number
+  full_name: string
+  username: string
+  hotel_name: string
+  outlet_name: string
+  outletid: number
+  designation_name: string
+  user_type_name: string
+  role_level: string
+}
+
 export const fetchCountries = async (
   setCountryItems: (data: CountryItem[]) => void,
   setCountryId: (id: number) => void,
@@ -762,5 +774,29 @@ export const fetchTableDepartment = async (
     toast.error('Failed to fetch table departments')
     console.error('Fetch table departments error:', err)
     setTableDepartment([])
+  }
+}
+
+export const fetchUsers = async (
+  setUsers: (data: UserItem[]) => void,
+  setuserid: (id: number) => void,
+  currentuserid?: string,
+  hotelid?: number,
+  outletid?: number,
+) => {
+  try {
+    const url = `http://localhost:3001/api/outlet-users?hotelid=${hotelid}&outletid=${outletid}`
+    console.log('Fetching users from:', url)
+    const res = await fetch(url)
+    const data: UserItem[] = await res.json()
+    console.log('Users data:', data)
+    setUsers(data)
+    if (data.length > 0 && !currentuserid) {
+      setuserid(data[0].userid)
+    }
+  } catch (err) {
+    toast.error('Failed to fetch users')
+    console.error('Fetch users error:', err)
+    setUsers([])
   }
 }
