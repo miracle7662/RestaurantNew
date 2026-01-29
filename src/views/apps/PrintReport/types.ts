@@ -8,6 +8,7 @@ export interface KitchenAllocationItem {
   itemGroup: string;
   tableNo: string;
   department: string;
+  user: string;
   txnDate: Date;
 }
 

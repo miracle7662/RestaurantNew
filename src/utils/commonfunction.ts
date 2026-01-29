@@ -780,18 +780,18 @@ export const fetchTableDepartment = async (
 export const fetchUsers = async (
   setUsers: (data: UserItem[]) => void,
   setuserid: (id: number) => void,
-  currentuserid?: string,
-  hotelid?: number,
-  outletid?: number,
+  user: any,
 ) => {
   try {
-    const url = `http://localhost:3001/api/outlet-users?hotelid=${hotelid}&outletid=${outletid}`
+    const url = `http://localhost:3001/api/outlet-users?currentUserId=${user?.id}&roleLevel=${user?.role_level}&hotelid=${user?.hotelid}&outletid=${user?.outletid}`
     console.log('Fetching users from:', url)
+    console.log('User object:', user)
     const res = await fetch(url)
+    console.log('Fetch response status:', res.status)
     const data: UserItem[] = await res.json()
-    console.log('Users data:', data)
+    console.log('Users data received:', data)
     setUsers(data)
-    if (data.length > 0 && !currentuserid) {
+    if (data.length > 0 && !user?.id) {
       setuserid(data[0].userid)
     }
   } catch (err) {

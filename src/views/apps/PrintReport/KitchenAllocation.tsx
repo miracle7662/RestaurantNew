@@ -13,14 +13,18 @@ import {
   fetchKitchenCategory,
   fetchItemGroup,
   fetchTableDepartment,
+  fetchUsers,
   KitchenCategoryItem,
   ItemGroupItem,
-  TableDepartmentItem
+  TableDepartmentItem,
+  UserItem
 } from '../../../utils/commonfunction';
+import useUser from '../../../hooks/useUser';
 
 
 
 const KitchenAllocationReport = () => {
+  const [loggedInUser] = useUser();
   const [activeTab, setActiveTab] = useState<TabType>('current');
   const [selectedFilter, setSelectedFilter] = useState<FilterType>('all');
   const [filterValue, setFilterValue] = useState<string>('');
@@ -36,6 +40,7 @@ const KitchenAllocationReport = () => {
   const [kitchenCategories, setKitchenCategories] = useState<KitchenCategoryItem[]>([]);
   const [itemGroups, setItemGroups] = useState<ItemGroupItem[]>([]);
   const [tableDepartments, setTableDepartments] = useState<TableDepartmentItem[]>([]);
+  const [users, setUsers] = useState<UserItem[]>([]);
   const [data] = useState<KitchenAllocationItem[]>([]);
 
   
@@ -44,13 +49,15 @@ const KitchenAllocationReport = () => {
       await fetchKitchenCategory(setKitchenCategories, (id: number) => {});
       await fetchItemGroup(setItemGroups, (id: number) => {});
       await fetchTableDepartment(setTableDepartments, (id: number) => {});
-     
+      if (loggedInUser?.hotelid && loggedInUser?.outletid) {
+        await fetchUsers(setUsers, (id: number) => {}, loggedInUser);
+      }
     };
     fetchData();
-  }, []);
+  }, [loggedInUser]);
   useEffect(() => {
     const options: FilterOption[] = [];
-    
+
     if (selectedFilter === 'all') {
       options.push({ value: 'all', label: 'All Items', type: 'all' });
     } else if (selectedFilter === 'kitchen-category') {
@@ -75,13 +82,21 @@ const KitchenAllocationReport = () => {
         }));
         options.push(...departmentOptions);
       }
+    } else if (selectedFilter === 'user') {
+      if (Array.isArray(users)) {
+        options.push(...users.map(user => ({
+          value: user.full_name,
+          label: user.full_name,
+          type: 'user'
+        })));
+      }
     }
-    
+
     setFilterOptions(options);
     if (options.length > 0) {
       setFilterValue(options[0].value);
     }
-}, [selectedFilter, kitchenCategories, itemGroups, tableDepartments]);
+}, [selectedFilter, kitchenCategories, itemGroups, tableDepartments, users]);
 
   const filteredData = useMemo(() => {
     let filtered = [...data];
@@ -107,6 +122,9 @@ const KitchenAllocationReport = () => {
           break;
         case 'table-department':
            filtered = filtered.filter(item => item.department === filterValue);
+          break;
+        case 'user':
+          filtered = filtered.filter(item => item.user === filterValue);
           break;
       }
     }
@@ -257,6 +275,7 @@ const KitchenAllocationReport = () => {
                 <option value="kitchen-category">Kitchen Category</option>
                 <option value="item-group">Item Group</option>
                 <option value="table-department">Department</option>
+                <option value="user">User</option>
               </select>
             </div>
              {selectedFilter === 'all' && (
@@ -281,7 +300,11 @@ const KitchenAllocationReport = () => {
                     ? 'Select Category'
                     : selectedFilter === 'item-group'
                     ? 'Select Group'
-                    : 'Select Table/Dept'}
+                    : selectedFilter === 'table-department'
+                    ? 'Select Table/Dept'
+                    : selectedFilter === 'user'
+                    ? 'Select User'
+                    : 'Select Option'}
                 </label>
                 <select
                   className="form-select form-select-sm border"
