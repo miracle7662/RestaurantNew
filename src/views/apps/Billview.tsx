@@ -1665,7 +1665,7 @@ useEffect(() => {
           Discount_Amount: 0,
           isNCKOT: isNoCharge,
           isbilled: print ? 1 : 0,
-          DeptID: 1,
+          DeptID: departmentIdFromState && departmentIdFromState > 0 ? departmentIdFromState : null,
           SpecialInst: item.specialInstructions || null
         }))
       };

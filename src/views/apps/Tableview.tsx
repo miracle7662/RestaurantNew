@@ -332,7 +332,7 @@ export default function App() {
       setSelectedTable(table);
       setShowModal(true);
     } else {
-      navigate('/apps/Billview', { state: { tableId: table.id, tableName: table.name, outletId: table.outletid } });
+      navigate('/apps/Billview', { state: { tableId: table.id, tableName: table.name, outletId: table.outletid, departmentId: table.departmentid } });
     }
   };
 
@@ -692,7 +692,7 @@ export default function App() {
 
           <Button ref={yesButtonRef} variant="primary" onClick={() => {
             if (selectedTable) {
-              navigate('/apps/Billview', { state: { tableId: selectedTable.id, tableName: selectedTable.name, outletId: selectedTable.outletid, openSettlement: true, txnId: selectedTable.txnId } });
+              navigate('/apps/Billview', { state: { tableId: selectedTable.id, tableName: selectedTable.name, outletId: selectedTable.outletid, departmentId: selectedTable.departmentid, openSettlement: true, txnId: selectedTable.txnId } });
             }
             setShowModal(false);
           }}>
@@ -700,7 +700,7 @@ export default function App() {
           </Button>
           <Button ref={noButtonRef} variant="secondary" onClick={() => {
             if (selectedTable) {
-              navigate('/apps/Billview', { state: { tableId: selectedTable.id, tableName: selectedTable.name, outletId: selectedTable.outletid, txnId: selectedTable.txnId } });
+              navigate('/apps/Billview', { state: { tableId: selectedTable.id, tableName: selectedTable.name, outletId: selectedTable.outletid, departmentId: selectedTable.departmentid, txnId: selectedTable.txnId } });
             }
             setShowModal(false);
           }}>
