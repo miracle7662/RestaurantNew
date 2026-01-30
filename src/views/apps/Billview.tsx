@@ -2204,20 +2204,26 @@ useEffect(() => {
   const hasOnlyExistingItems = hasItems && !hasNewItems;
   const isBillPrintedState = billItems.some(i => i.isBilled === 1);
 
+  // Determine table status
+  const tableStatus = isBillPrintedState ? 'billed' : (isTableOccupied ? 'occupied' : 'vacant');
+
   // Button enable/disable logic based on task
   const noItems = !hasItems;
   const hasExistingOnly = hasItems && !hasNewItems;
   const hasNew = hasNewItems;
 
-  // New disable flags based on task requirements
-  const disableKOTTransfer = !hasExistingOnly;
-  const disableNCKOT = !hasExistingOnly;
-  const disableTableTransfer = !hasExistingOnly;
-  const disableNewBill = !hasExistingOnly;
-  const disableRevKOT = !hasExistingOnly;
-  const disablePrint = !hasExistingOnly;
-  const disableSettle = !hasExistingOnly;
-  const disablePrintSettle = !hasExistingOnly;
+  // Disable flags based on table status: vacant, occupied, billed
+  // For vacant: all buttons disabled
+  // For occupied: all buttons disabled except Exit (Esc)
+  // For billed: all buttons enabled
+  const disableKOTTransfer = tableStatus === 'vacant' || tableStatus === 'occupied';
+  const disableNCKOT = tableStatus === 'vacant' || tableStatus === 'occupied';
+  const disableTableTransfer = tableStatus === 'vacant' || tableStatus === 'occupied';
+  const disableNewBill = tableStatus === 'vacant' || tableStatus === 'occupied';
+  const disableRevKOT = tableStatus === 'vacant' || tableStatus === 'occupied';
+  const disablePrint = tableStatus === 'vacant' || tableStatus === 'occupied';
+  const disableSettle = tableStatus === 'vacant' || tableStatus === 'occupied';
+  const disablePrintSettle = tableStatus === 'vacant' || tableStatus === 'occupied';
 
 
   const handleF8Action = useCallback(() => {
@@ -3165,7 +3171,6 @@ useEffect(() => {
                     <Button disabled={disablePrint} onClick={printBill} variant="outline-primary" size="sm" className="function-btn">Print (F10)</Button>
                     <Button disabled={disableSettle} onClick={() => setShowSettlementModal(true)} variant="outline-primary" size="sm" className="function-btn">Settle (F11)</Button>
                     <Button disabled={disablePrintSettle} onClick={PrintAndSettle} variant="outline-primary" size="sm" className="function-btn">Print&Settle (F12)</Button>
-
                     <Button onClick={exitWithoutSave} variant="outline-primary" size="sm" className="function-btn">Exit (Esc)</Button>
                   </div>
                 </Card.Body>
