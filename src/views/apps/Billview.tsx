@@ -2232,9 +2232,9 @@ useEffect(() => {
     }
 
     if (status === 0) { // Vacant
-        states.exit = true;      
+        states.exit = true;
     } else if (status === 1) { // Occupied - only KOT enabled when items are input
-    
+
       states.kotTransfer = true;
       states.ncKot = true;
       states.tableTransfer = true;
@@ -2251,6 +2251,11 @@ useEffect(() => {
       states.reverseKot = true;
       states.newBill = true;
       states.exit = true;
+    }
+
+    // Special case: If status is 2 (billed) and new items are added, disable Rev Bill (F5)
+    if (status === 2 && hasNewItems) {
+      states.reverseBill = false;
     }
 
     return states;
