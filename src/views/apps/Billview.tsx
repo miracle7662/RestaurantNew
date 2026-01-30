@@ -2226,10 +2226,9 @@ useEffect(() => {
     };
 
     if (status === 0) { // Vacant
-      states.kot = true;
-      states.exit = true;
+        states.exit = true;
     } else if (status === 1) { // Occupied
-      states.kot = true;
+      
       states.kotTransfer = true;
       states.ncKot = true;
       states.tableTransfer = true;
