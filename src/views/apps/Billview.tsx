@@ -114,6 +114,7 @@ interface Outlet {
 interface TableManagement {
   table_name: string;
   tablemanagementid: number;
+  status: number;
 }
 interface FetchedItem {
   id: number;
@@ -206,24 +207,31 @@ const ModernBill = () => {
   const [groupBy, setGroupBy] = useState<'none' | 'item' | 'group' | 'kot'>('group');
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [deliveryType, setDeliveryType] = useState<'pickup' | 'homedelivery'>('pickup');
-  const [itemGroups, setItemGroups] = useState<ItemGroup[]>([]);
+const [itemGroups, setItemGroups] = useState<ItemGroup[]>([]);
 
-  // Set deliveryType based on location.state?.orderType or loaded order's Order_Type
-  useEffect(() => {
-    if (location.state?.orderType) {
-      if (location.state.orderType === 'Pickup') {
-        setDeliveryType('pickup');
-      } else if (location.state.orderType === 'Delivery') {
-        setDeliveryType('homedelivery');
-      }
-    } else if (billData?.header?.Order_Type) {
-      if (billData.header.Order_Type === 'Pickup') {
-        setDeliveryType('pickup');
-      } else if (billData.header.Order_Type === 'Delivery') {
-        setDeliveryType('homedelivery');
-      }
+const [isTableOccupied, setIsTableOccupied] = useState(false);
+
+// Set deliveryType based on location.state?.orderType or loaded order's Order_Type
+useEffect(() => {
+  if (location.state?.orderType) {
+    if (location.state.orderType === 'Pickup') {
+      setDeliveryType('pickup');
+    } else if (location.state.orderType === 'Delivery') {
+      setDeliveryType('homedelivery');
     }
-  }, [location.state?.orderType, billData?.header?.Order_Type]);
+  } else if (billData?.header?.Order_Type) {
+    if (billData.header.Order_Type === 'Pickup') {
+      setDeliveryType('pickup');
+    } else if (billData.header.Order_Type === 'Delivery') {
+      setDeliveryType('homedelivery');
+    }
+  }
+}, [location.state?.orderType, billData?.header?.Order_Type]);
+
+useEffect(() => {
+  const currentTable = tableItems.find(t => t.table_name === tableName);
+  setIsTableOccupied(currentTable?.status === 1);
+}, [tableItems, tableName]);
 
   const isGrouped = groupBy !== 'none';
 
@@ -2196,6 +2204,21 @@ const ModernBill = () => {
   const hasOnlyExistingItems = hasItems && !hasNewItems;
   const isBillPrintedState = billItems.some(i => i.isBilled === 1);
 
+  // Button enable/disable logic based on task
+  const noItems = !hasItems;
+  const hasExistingOnly = hasItems && !hasNewItems;
+  const hasNew = hasNewItems;
+
+  // New disable flags based on task requirements
+  const disableKOTTransfer = !hasExistingOnly;
+  const disableNCKOT = !hasExistingOnly;
+  const disableTableTransfer = !hasExistingOnly;
+  const disableNewBill = !hasExistingOnly;
+  const disableRevKOT = !hasExistingOnly;
+  const disablePrint = !hasExistingOnly;
+  const disableSettle = !hasExistingOnly;
+  const disablePrintSettle = !hasExistingOnly;
+
 
   const handleF8Action = useCallback(() => {
     if (reverseQtyConfig === 'PasswordRequired') {
@@ -2258,7 +2281,7 @@ const ModernBill = () => {
 
           case 'F10': // 🔒 Print
             event.preventDefault();
-            if (disablePrint) return;
+            if (isPrintDisabled) return;
             printBill();
             return;
 
@@ -2303,17 +2326,17 @@ const ModernBill = () => {
   ]);
 
   // 🔘 BUTTON ENABLE FLAGS
-  const disableReverseBill = !isBillPrintedState;
+  const disableReverseBill = !isBillPrintedState || isTableOccupied;
 
   const disableAll = !hasItems;
 
   const enableKOT = !disableAll && hasNewItems;
 
-  const disableKOT = !enableKOT;
+  const disableKOT = !enableKOT || isTableOccupied;
 
-  const disableSettlement = disableAll || hasNewItems || (!isBillPrintedState && !isTakeaway);
+  const disableSettlement = disableAll || hasNewItems || (!isBillPrintedState && !isTakeaway) || isTableOccupied;
 
-  const disablePrint = disableAll || isBillPrintedState || hasNewItems;
+  const isPrintDisabled = !hasExistingOnly;
 
   return (
     <React.Fragment>
@@ -3131,17 +3154,17 @@ const ModernBill = () => {
               <Card className="footer-card">
                 <Card.Body className="py-1">
                   <div className="d-flex justify-content-between align-items-center px-2 py-1">
-                    <Button disabled={disableAll || isBillPrintedState} onClick={() => { setTransferSource("kot"); setShowKotTransferModal(true); }} variant="outline-primary" size="sm" className="function-btn">KOT Tr (F2)</Button>
-                    <Button disabled={disableAll || isBillPrintedState} onClick={() => setShowNCKOTModal(true)} variant="outline-primary" size="sm" className="function-btn">N C KOT (ctrl + F9)</Button>
+                    <Button disabled={disableKOTTransfer} onClick={() => { setTransferSource("kot"); setShowKotTransferModal(true); }} variant="outline-primary" size="sm" className="function-btn">KOT Tr (F2)</Button>
+                    <Button disabled={disableNCKOT} onClick={() => setShowNCKOTModal(true)} variant="outline-primary" size="sm" className="function-btn">N C KOT (ctrl + F9)</Button>
                     {/* <Button onClick={() => setShowCustomerModal(true)} variant="outline-primary" size="sm" className="function-btn">Customer (F1)</Button> */}
                     <Button disabled={!isBillPrintedState} onClick={() => setShowReverseBillModal(true)} variant="outline-primary" size="sm" className="function-btn">Rev Bill (F5)</Button>
-                    <Button disabled={disableAll || isBillPrintedState} onClick={() => { setTransferSource("table"); setShowKotTransferModal(true); }} variant="outline-primary" size="sm" className="function-btn">TBL Tr (F7)</Button>
-                    <Button disabled={disableAll} onClick={resetBillState} variant="outline-primary" size="sm" className="function-btn">New Bill (F6)</Button>
-                    <Button disabled={disableAll} onClick={handleF8Action} variant="outline-primary" size="sm" className="function-btn">Rev KOT (F8)</Button>
+                    <Button disabled={disableTableTransfer} onClick={() => { setTransferSource("table"); setShowKotTransferModal(true); }} variant="outline-primary" size="sm" className="function-btn">TBL Tr (F7)</Button>
+                    <Button disabled={disableNewBill} onClick={resetBillState} variant="outline-primary" size="sm" className="function-btn">New Bill (F6)</Button>
+                    <Button disabled={disableRevKOT} onClick={handleF8Action} variant="outline-primary" size="sm" className="function-btn">Rev KOT (F8)</Button>
                     <Button disabled={disableKOT} onClick={() => saveKOT(false, true)} variant="outline-primary" size="sm" className="function-btn">K O T (F9)</Button>
-                    <Button disabled={disableAll} onClick={printBill} variant="outline-primary" size="sm" className="function-btn">Print (F10)</Button>
-                    <Button disabled={disableSettlement} onClick={() => setShowSettlementModal(true)} variant="outline-primary" size="sm" className="function-btn">Settle (F11)</Button>
-                    <Button disabled={disableAll} onClick={PrintAndSettle} variant="outline-primary" size="sm" className="function-btn">Print&Settle (F12)</Button>
+                    <Button disabled={disablePrint} onClick={printBill} variant="outline-primary" size="sm" className="function-btn">Print (F10)</Button>
+                    <Button disabled={disableSettle} onClick={() => setShowSettlementModal(true)} variant="outline-primary" size="sm" className="function-btn">Settle (F11)</Button>
+                    <Button disabled={disablePrintSettle} onClick={PrintAndSettle} variant="outline-primary" size="sm" className="function-btn">Print&Settle (F12)</Button>
 
                     <Button onClick={exitWithoutSave} variant="outline-primary" size="sm" className="function-btn">Exit (Esc)</Button>
                   </div>
