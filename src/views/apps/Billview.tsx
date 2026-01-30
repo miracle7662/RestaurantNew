@@ -13,6 +13,7 @@ import KotPreviewPrint from './PrintReport/KotPrint';
 import BillPreviewPrint from './PrintReport/BillPrint';
 import { OutletSettings } from '../../utils/applyOutletSettings';
 
+
 const KOT_COLORS = [
   '#E8F5E9', // Green 50
   '#FFF3E0', // Orange 50 
