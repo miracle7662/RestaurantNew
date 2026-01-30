@@ -2204,27 +2204,74 @@ useEffect(() => {
   const hasOnlyExistingItems = hasItems && !hasNewItems;
   const isBillPrintedState = billItems.some(i => i.isBilled === 1);
 
-  // Determine table status
-  const tableStatus = isBillPrintedState ? 'billed' : (isTableOccupied ? 'occupied' : 'vacant');
+  // Determine table status as number: 0 = Vacant, 1 = Occupied, 2 = Billed
+  // Use reliable conditions: item count, kot count, bill printed flag
+  const hasKOT = billItems.some(i => i.mkotNo);
+  const tableStatusNum = isBillPrintedState ? 2 : ((hasItems || hasKOT) ? 1 : 0);
 
-  // Button enable/disable logic based on task
-  const noItems = !hasItems;
-  const hasExistingOnly = hasItems && !hasNewItems;
-  const hasNew = hasNewItems;
+  // Function to get button states based on table status
+  const getButtonStates = (status: number) => {
+    const states = {
+      kotTransfer: false,
+      ncKot: false,
+      reverseBill: false,
+      tableTransfer: false,
+      newBill: false,
+      reverseKot: false,
+      kot: false,
+      print: false,
+      settle: false,
+      printSettle: false,
+      exit: true, // always enabled
+    };
 
-  // Disable flags based on table status: vacant, occupied, billed
-  // For vacant: all buttons disabled
-  // For occupied: all buttons disabled except Exit (Esc)
-  // For billed: all buttons enabled
-  const disableKOTTransfer = tableStatus === 'vacant' || tableStatus === 'occupied';
-  const disableNCKOT = tableStatus === 'vacant' || tableStatus === 'occupied';
-  const disableTableTransfer = tableStatus === 'vacant' || tableStatus === 'occupied';
-  const disableNewBill = tableStatus === 'vacant' || tableStatus === 'occupied';
-  const disableRevKOT = tableStatus === 'vacant' || tableStatus === 'occupied';
-  const disablePrint = tableStatus === 'vacant' || tableStatus === 'occupied';
-  const disableSettle = tableStatus === 'vacant' || tableStatus === 'occupied';
-  const disablePrintSettle = tableStatus === 'vacant' || tableStatus === 'occupied';
+    if (status === 0) { // Vacant
+      states.kot = true;
+      states.exit = true;
+    } else if (status === 1) { // Occupied
+      states.kot = true;
+      states.kotTransfer = true;
+      states.ncKot = true;
+      states.tableTransfer = true;
+      states.reverseKot = true;
+      states.print = true;
+      states.newBill = true;
+      states.printSettle = true;
+      states.exit = true;
+    } else if (status === 2) { // Billed
+      states.reverseBill = true;
+      states.print = true;
+      states.settle = true;
+      states.printSettle = true;
+      states.reverseKot = true;
+      states.newBill = true;
+      states.exit = true;
+    }
 
+    return states;
+  };
+
+  const buttonStates = getButtonStates(tableStatusNum);
+
+  // Disable flags (true means disabled)
+  const disableKOTTransfer = !buttonStates.kotTransfer;
+  const disableNCKOT = !buttonStates.ncKot;
+  const disableReverseBill = !buttonStates.reverseBill;
+  const disableTableTransfer = !buttonStates.tableTransfer;
+  const disableNewBill = !buttonStates.newBill;
+  const disableRevKOT = !buttonStates.reverseKot;
+  const disableKOT = !(buttonStates.kot || hasNewItems);
+  const disablePrint = !buttonStates.print;
+
+  // 🔘 BUTTON ENABLE FLAGS
+  const disableAll = !hasItems;
+
+  const disableSettle = disableAll || hasNewItems || (!isBillPrintedState && !isTakeaway);
+  const disablePrintSettle = !buttonStates.printSettle;
+
+  const disableSettlement = disableAll || hasNewItems || (!isBillPrintedState && !isTakeaway) || isTableOccupied;
+
+  const isPrintDisabled = !hasOnlyExistingItems;
 
   const handleF8Action = useCallback(() => {
     if (reverseQtyConfig === 'PasswordRequired') {
@@ -2330,19 +2377,6 @@ useEffect(() => {
 
 
   ]);
-
-  // 🔘 BUTTON ENABLE FLAGS
-  const disableReverseBill = !isBillPrintedState || isTableOccupied;
-
-  const disableAll = !hasItems;
-
-  const enableKOT = !disableAll && hasNewItems;
-
-  const disableKOT = !enableKOT || isTableOccupied;
-
-  const disableSettlement = disableAll || hasNewItems || (!isBillPrintedState && !isTakeaway) || isTableOccupied;
-
-  const isPrintDisabled = !hasExistingOnly;
 
   return (
     <React.Fragment>
