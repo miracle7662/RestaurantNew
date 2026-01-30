@@ -2210,7 +2210,7 @@ useEffect(() => {
   const tableStatusNum = isBillPrintedState ? 2 : ((hasItems || hasKOT) ? 1 : 0);
 
   // Function to get button states based on table status
-  const getButtonStates = (status: number) => {
+  const getButtonStates = (status: number, hasNewItems: boolean) => {
     const states = {
       kotTransfer: false,
       ncKot: false,
@@ -2225,10 +2225,16 @@ useEffect(() => {
       exit: true, // always enabled
     };
 
+    if (hasNewItems) {
+      // When new items are added, only KOT (F9) should be active
+      states.kot = true;
+      return states;
+    }
+
     if (status === 0) { // Vacant
-        states.exit = true;
-    } else if (status === 1) { // Occupied
-      
+        states.exit = true;      
+    } else if (status === 1) { // Occupied - only KOT enabled when items are input
+    
       states.kotTransfer = true;
       states.ncKot = true;
       states.tableTransfer = true;
@@ -2250,7 +2256,7 @@ useEffect(() => {
     return states;
   };
 
-  const buttonStates = getButtonStates(tableStatusNum);
+  const buttonStates = getButtonStates(tableStatusNum, hasNewItems);
 
   // Disable flags (true means disabled)
   const disableKOTTransfer = !buttonStates.kotTransfer;
