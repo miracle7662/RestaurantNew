@@ -102,14 +102,14 @@ const ModernBill = () => {
   const [totalCgst, setTotalCgst] = useState(0);
   const [totalSgst, setTotalSgst] = useState(0);
   const [totalIgst, setTotalIgst] = useState(0);
+
   const [roundOff, setRoundOff] = useState(0);
   const [cgst, setCgst] = useState<number>(0);
   const [sgst, setSgst] = useState<number>(0);
   const [igst, setIgst] = useState<number>(0);
-  const [cess, setCess] = useState<number>(0);
+const [cess, setCess] = useState<number>(0);
 
 const [finalAmount, setFinalAmount] = useState(0);
-const [activePaymentIndex, setActivePaymentIndex] = useState(0);
 const navigate = useNavigate();
   const location = useLocation();
   const tableId = location.state?.tableId;
@@ -139,7 +139,8 @@ const navigate = useNavigate();
   const [txnId, setTxnId] = useState<number | null>(null);
 const [billData] = useState<any>(null);
 
-  const [discount, setDiscount] = useState(0);
+
+const [discount, setDiscount] = useState(0);
   const [DiscountType, setDiscountType] = useState(1);
   const [discountInputValue, setDiscountInputValue] = useState(0);
   const [RevKOT, setRevKOT] = useState(0);
@@ -149,8 +150,6 @@ const [billData] = useState<any>(null);
   // const totalRevKotAmount = useMemo(() => {
   //   return reversedItems.reduce((acc, item) => acc + ((item.qty || 0) * (item.price || 0)), 0);
   // }, [reversedItems]);
-
-  const [showOrderDetails, setShowOrderDetails] = useState(false);
 
   const [tableItems, setTableItems] = useState([] as TableManagement[]);
 
@@ -369,8 +368,6 @@ setFinalAmount(roundedFinalAmount);
   const [outletPaymentModes, setOutletPaymentModes] = useState<any[]>([]);
   const [taxCalc, setTaxCalc] = useState({ grandTotal: 0, subtotal: 0 });
 
-
-
   const totalReceived = Object.values(paymentAmounts).reduce(
     (acc, val) => acc + (parseFloat(val) || 0),
     0
@@ -381,7 +378,10 @@ setFinalAmount(roundedFinalAmount);
       ? totalReceived - taxCalc.grandTotal
       : 0;
 
-
+  const [activePaymentIndex, setActivePaymentIndex] = useState(0);
+  const [totalCess, setTotalCess] = useState(0);
+  const [showOrderDetails, setShowOrderDetails] = useState(false);
+  const [showPendingOrdersView, setShowPendingOrdersView] = useState(false);
 
   // Reverse KOT modal data
   const [showReverseKot, setShowReverseKot] = useState(false);
@@ -462,7 +462,7 @@ setFinalAmount(roundedFinalAmount);
 
       if (e.key === "ArrowDown") {
         e.preventDefault();
-        setActivePaymentIndex((prev) => {
+        setActivePaymentIndex((prev: number) => {
           const newIndex = prev < outletPaymentModes.length - 1 ? prev + 1 : 0;
           const selectedMode = outletPaymentModes[newIndex];
           if (selectedMode) {
@@ -474,7 +474,7 @@ setFinalAmount(roundedFinalAmount);
 
       if (e.key === "ArrowUp") {
         e.preventDefault();
-        setActivePaymentIndex((prev) => {
+        setActivePaymentIndex((prev: number) => {
           const newIndex = prev > 0 ? prev - 1 : outletPaymentModes.length - 1;
           const selectedMode = outletPaymentModes[newIndex];
           if (selectedMode) {
@@ -624,7 +624,6 @@ setFinalAmount(roundedFinalAmount);
         setItems([]);
         setReversedItems([]);
         setSelectedTable(null);
-        setShowOrderDetails(false);
         setCurrentKOTNos([]);
         setOrderNo(null);
 
@@ -743,7 +742,6 @@ setFinalAmount(roundedFinalAmount);
             setCurrentKOTNos(
               Array.from(new Set(fetchedItems.map((i: FetchedItem) => i.kotNo))).sort((a: number, b: number) => a - b)
             );
-            setBillActionState('printOrSettle');
 
             // Set activeTab based on Order_Type from database
             if (header.Order_Type) {
@@ -1085,12 +1083,10 @@ setRoundOff?.(data.header.RoundOFF || data.header.roundOff || data.header.roundo
         setIgst?.(data.header.IGST || data.header.igst || 0);
         setCess?.(data.header.CESS || data.header.cess || 0);
         setRoundOff?.(data.header.RoundOFF || data.header.roundOff || data.header.roundoff || 0);
-        setGrandTotal?.(data.header.Amount || data.header.amount || data.header.grandTotal || 0);
+        setFinalAmount(data.header.Amount || data.header.amount || data.header.grandTotal || 0);
       }
 
-      if (data.kotNo !== null && data.kotNo !== undefined) {
-        setKotNo(String(data.kotNo));
-      }
+
 
       // Calculate totals (now should also consider new tax fields if your function supports it)
       calculateTotals(mappedItems);
@@ -1178,8 +1174,8 @@ setRoundOff?.(data.header.RoundOFF || data.header.roundOff || data.header.roundo
         if (!user || !user.hotelid) {
           throw new Error('User not authenticated or hotel ID missing');
         }
-const response = await axios.get(`/api/outlets/by-hotel?hotelid=${user.hotelid}`);
-// Set default restaurant and outlet names from user's outlet
+        await axios.get(`/api/outlets/by-hotel?hotelid=${user.hotelid}`);
+        // Set default restaurant and outlet names from user's outlet
         if (user?.outletid && !restaurantName && !outletName) {
           await fetchOutletDetails(user.outletid);
         }
@@ -1892,7 +1888,6 @@ toast.success('Bill printed successfully');
     setTxnId(null);
     setWaiter('ASD');
     setPax(1);
-    setKotNo('');
     setTableNo('Loading...');
     setDefaultKot(null);
     setEditableKot(null);
@@ -2068,7 +2063,7 @@ toast.success('Bill printed successfully');
       // Reset discount and round-off fields
       setDiscount(0);
       setDiscountInputValue(0);
-      setRoundOffValue(0);
+      setRoundOff(0);
 
       // 3. Reset UI states for the next order
       setBillItems([]);
@@ -3102,7 +3097,7 @@ setOrderNo(null);
                       <td className="text-end">{cgst.toFixed(2)}</td>
                       <td className="text-end">{sgst.toFixed(2)}</td>
                       <td className="text-end">{igst.toFixed(2)}</td>
-                      <td className="text-end">{cess.toFixed(2)}</td>
+                      <td className="text-end">{totalCess.toFixed(2)}</td>
                       <td className="text-end">{roundOff.toFixed(2)}</td>
                       <td className="text-center">0</td>
                       <td className="text-end fw-bold text-success">{finalAmount.toFixed(2)}</td>
