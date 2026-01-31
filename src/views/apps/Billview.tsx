@@ -6,7 +6,7 @@ import { useAuthContext } from '@/common';
 import KotTransfer from './Transaction/KotTransfer';
 import CustomerModal from './Transaction/Customers';
 import SettlementModal from './Transaction/SettelmentModel';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 import F8PasswordModal from '../../components/F8PasswordModal';
 import ReverseKotModal from './ReverseKotModal';
 import KotPreviewPrint from './PrintReport/KotPrint';
@@ -60,55 +60,18 @@ interface MenuItem {
   price: number;
   itemgroupid?: number;
 }
-interface ItemGroup {
-  itemgroupid: number;
-  group_name: string;
-}
 interface DisplayedItem extends BillItem {
   type?: 'header' | 'item';
   groupName?: string;
   isEditable?: boolean;
   originalIndex?: number;
 }
-const groupExistingItems = (items: BillItem[], cgstRate: number, sgstRate: number, igstRate: number, cessRate: number, includeTaxInInvoice: boolean): BillItem[] => {
-  const grouped = items.reduce((acc, item) => {
-    const key = item.itemId || item.itemName;
-    if (!acc[key]) {
-      acc[key] = { ...item };
-    } else {
-      acc[key].qty += item.qty;
-      acc[key].total = acc[key].qty * acc[key].rate;
-      if (!includeTaxInInvoice) {
-        acc[key].cgst = acc[key].total * (cgstRate / 100);
-        acc[key].sgst = acc[key].total * (sgstRate / 100);
-        acc[key].igst = acc[key].total * (igstRate / 100);
-        acc[key].cess = acc[key].total * (cessRate / 100);
-      }
-      if (item.mkotNo) {
-        const existing = acc[key].mkotNo ? acc[key].mkotNo.split('|') : [];
-        if (!existing.includes(item.mkotNo)) {
-          existing.push(item.mkotNo);
-        }
-        acc[key].mkotNo = existing.sort((a, b) => parseInt(a) - parseInt(b)).join('|');
-      }
-      if (!acc[key].specialInstructions && item.specialInstructions) {
-        acc[key].specialInstructions = item.specialInstructions;
-      }
-    }
-    return acc;
-  }, {} as Record<string | number, BillItem>);
-  return Object.values(grouped);
-};
+
 
 interface Table {
   id: number;
   name: string;
   outletid: number;
-}
-
-interface Outlet {
-  id: number;
-  name: string;
 }
 
 interface TableManagement {
@@ -139,22 +102,19 @@ const ModernBill = () => {
   const [totalCgst, setTotalCgst] = useState(0);
   const [totalSgst, setTotalSgst] = useState(0);
   const [totalIgst, setTotalIgst] = useState(0);
-  const [totalCess, setTotalCess] = useState(0);
   const [roundOff, setRoundOff] = useState(0);
   const [cgst, setCgst] = useState<number>(0);
   const [sgst, setSgst] = useState<number>(0);
   const [igst, setIgst] = useState<number>(0);
   const [cess, setCess] = useState<number>(0);
-  const [grandTotal, setGrandTotal] = useState<number>(0);
-  const [finalAmount, setFinalAmount] = useState(0);
-  const [total, setTotal] = useState(0);
-  const navigate = useNavigate();
+
+const [finalAmount, setFinalAmount] = useState(0);
+const [activePaymentIndex, setActivePaymentIndex] = useState(0);
+const navigate = useNavigate();
   const location = useLocation();
   const tableId = location.state?.tableId;
   const tableName = location.state?.tableName;
   const outletIdFromState = location.state?.outletId;
-  const txnIdFromState = location.state?.txnId;
-  const billNoFromState = location.state?.billNo;
   const departmentIdFromState = location.state?.departmentId;
   const isTakeaway = location.state?.mode === 'TAKEAWAY' || location.state?.orderType === 'TAKEAWAY';
   const takeawayOrderId = location.state?.orderId;
@@ -171,22 +131,18 @@ const ModernBill = () => {
 
   const [waiter, setWaiter] = useState('ASD');
   const [pax, setPax] = useState(1);
-  const [kotNo, setKotNo] = useState('');
   const [tableNo, setTableNo] = useState(tableName || 'Loading...');
   const [defaultKot, setDefaultKot] = useState<number | null>(null); // last / system KOT
   const [editableKot, setEditableKot] = useState<number | null>(null); // user editable
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [txnId, setTxnId] = useState<number | null>(null);
-  const [billNo, setBillNo] = useState<number | null>(null);
-  const [billData, setBillData] = useState<any>(null);
-  const [isBillPrinted, setIsBillPrinted] = useState(false);
+const [billData] = useState<any>(null);
 
   const [discount, setDiscount] = useState(0);
   const [DiscountType, setDiscountType] = useState(1);
   const [discountInputValue, setDiscountInputValue] = useState(0);
   const [RevKOT, setRevKOT] = useState(0);
-  const [roundOffValue, setRoundOffValue] = useState(0);
   const [items, setItems] = useState<any[]>([]);
   const [reversedItems, setReversedItems] = useState<any[]>([]);
 
@@ -195,19 +151,16 @@ const ModernBill = () => {
   // }, [reversedItems]);
 
   const [showOrderDetails, setShowOrderDetails] = useState(false);
-  const [billActionState, setBillActionState] = useState('initial');
+
   const [tableItems, setTableItems] = useState([] as TableManagement[]);
-  const [currentKOTNo, setCurrentKOTNo] = useState(null);
-  const [showPendingOrdersView, setShowPendingOrdersView] = useState(false);
+
   const [currentKOTNos, setCurrentKOTNos] = useState<number[]>([]);
   const [orderNo, setOrderNo] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('Dine-in');
   const [restaurantName, setRestaurantName] = useState<string>('');
   const [outletName, setOutletName] = useState<string>('');
   const [groupBy, setGroupBy] = useState<'none' | 'item' | 'group' | 'kot'>('group');
-  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [deliveryType, setDeliveryType] = useState<'pickup' | 'homedelivery'>('pickup');
-const [itemGroups, setItemGroups] = useState<ItemGroup[]>([]);
 
 const [isTableOccupied, setIsTableOccupied] = useState(false);
 
@@ -237,7 +190,6 @@ useEffect(() => {
 
   const [reverseQtyConfig, setReverseQtyConfig] = useState('PasswordRequired');
   const [roundOffEnabled, setRoundOffEnabled] = useState(false);
-  const [roundOffTo, setRoundOffTo] = useState(1);
 
   // Tax rates states
   const [cgstRate, setCgstRate] = useState(2.5);
@@ -382,25 +334,14 @@ useEffect(() => {
     setGrossAmount(gross);
     setTotalCgst(cgstTotal);
     setTotalSgst(sgstTotal);
-    setTotalIgst(igstTotal);
-    setTotalCess(cessTotal);
-    setFinalAmount(roundedFinalAmount);
+setTotalIgst(igstTotal);
+setFinalAmount(roundedFinalAmount);
     setRoundOff(ro);
     setDiscount(discountAmount);
     setTaxCalc({ grandTotal: roundedFinalAmount, subtotal: gross });
   }, [displayedItems, cgstRate, sgstRate, igstRate, cessRate, includeTaxInInvoice, discountInputValue, DiscountType]);
 
-  // Fetch bill details
-  const fetchBillDetails = async () => {
-    if (!txnId) return;
-    try {
-      const response = await axios.get(`/api/TAxnTrnbill/${txnId}`);
-      setBillData(response.data);
-      setIsBillPrinted(response.data.isPrinted || false);
-    } catch (error) {
-      console.error('Error fetching bill details:', error);
-    }
-  };
+
 
   // Load bill details for the current table
   const loadBillDetails = async () => {
@@ -412,11 +353,10 @@ useEffect(() => {
   // Modal states
   const [showSettlementModal, setShowSettlementModal] = useState(false);
   const [showReverseBillModal, setShowReverseBillModal] = useState(false);
-  const [showReverseKOTModal, setShowReverseKOTModal] = useState(false);
-  const [showTransferModal, setShowTransferModal] = useState(false);
+
   const [showNCKOTModal, setShowNCKOTModal] = useState(false);
   const [showKotTransferModal, setShowKotTransferModal] = useState(false);
-  const [transferMode, setTransferMode] = useState<"kot" | "table">("table");
+
   const [transferSource, setTransferSource] = useState<"kot" | "table">("table");
   const [ncName, setNcName] = useState('');
   const [ncPurpose, setNcPurpose] = useState('');
@@ -428,8 +368,7 @@ useEffect(() => {
   const [tip, setTip] = useState<number>(0);
   const [outletPaymentModes, setOutletPaymentModes] = useState<any[]>([]);
   const [taxCalc, setTaxCalc] = useState({ grandTotal: 0, subtotal: 0 });
-  const [settlements, setSettlements] = useState([{ PaymentType: 'Cash', Amount: finalAmount }]);
-  const [activePaymentIndex, setActivePaymentIndex] = useState(0);
+
 
 
   const totalReceived = Object.values(paymentAmounts).reduce(
@@ -442,11 +381,6 @@ useEffect(() => {
       ? totalReceived - taxCalc.grandTotal
       : 0;
 
-  const balanceAmount =
-    totalReceived < taxCalc.grandTotal
-      ? taxCalc.grandTotal - totalReceived
-      : 0;
-
 
 
   // Reverse KOT modal data
@@ -456,7 +390,7 @@ useEffect(() => {
   const [currentKotNoForPrint, setCurrentKotNoForPrint] = useState<number | null>(null);
   const [showBillPrintModal, setShowBillPrintModal] = useState(false);
   // Transfer modal data
-  const [availableTables, setAvailableTables] = useState<Table[]>([]);
+
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
   const [customerNo, setCustomerNo] = useState('');
   const [customerName, setCustomerName] = useState('');
@@ -691,7 +625,6 @@ useEffect(() => {
         setReversedItems([]);
         setSelectedTable(null);
         setShowOrderDetails(false);
-        setCurrentKOTNo(null);
         setCurrentKOTNos([]);
         setOrderNo(null);
 
@@ -705,15 +638,12 @@ useEffect(() => {
   };
 
   // Outlet selection states
-  const [outlets, setOutlets] = useState<Outlet[]>([]);
-  const [selectedOutletId, setSelectedOutletId] = useState<number | null>(outletIdFromState || user?.outletid || 1);
+  const selectedOutletId = outletIdFromState || user?.outletid || 1;
   // Tax details state
-  const [taxDetails, setTaxDetails] = useState<any>(null);
 
   // Handle customer modal
   const handleCloseCustomerModal = () => setShowCustomerModal(false);
   const inputRefs = useRef<(HTMLInputElement | null)[][]>([]);
-  const kotInputRef = useRef<HTMLInputElement | null>(null);
   // Discount Modal Refs
   const discountTypeRef = useRef<HTMLSelectElement>(null);
   const discountInputRef = useRef<HTMLInputElement>(null);
@@ -1006,15 +936,10 @@ useEffect(() => {
         setSgst?.(data.header.SGST || data.header.sgst || 0);
         setIgst?.(data.header.IGST || data.header.igst || 0);
         setCess?.(data.header.CESS || data.header.cess || 0);
-        setRoundOff?.(data.header.RoundOFF || data.header.roundOff || data.header.roundoff || 0);
-        setGrandTotal?.(data.header.Amount || data.header.amount || data.header.grandTotal || 0);
+setRoundOff?.(data.header.RoundOFF || data.header.roundOff || data.header.roundoff || 0);
       }
 
-      if (data.kotNo !== null && data.kotNo !== undefined) {
-        setKotNo(String(data.kotNo));
-      }
-
-      // Compute max RevKOTNo from details for unbilled orders
+// Compute max RevKOTNo from details for unbilled orders
       const reversedDetails = data.details.filter((d: any) => d.RevQty > 0);
       const maxRevKotNo = reversedDetails.length > 0 ? Math.max(...reversedDetails.map((d: any) => d.RevKOTNo || 0)) : 0;
       setRevKotNo(maxRevKotNo);
@@ -1253,10 +1178,8 @@ useEffect(() => {
         if (!user || !user.hotelid) {
           throw new Error('User not authenticated or hotel ID missing');
         }
-        const response = await axios.get(`/api/outlets/by-hotel?hotelid=${user.hotelid}`);
-        setOutlets(response.data.data || response.data);
-
-        // Set default restaurant and outlet names from user's outlet
+const response = await axios.get(`/api/outlets/by-hotel?hotelid=${user.hotelid}`);
+// Set default restaurant and outlet names from user's outlet
         if (user?.outletid && !restaurantName && !outletName) {
           await fetchOutletDetails(user.outletid);
         }
@@ -1322,9 +1245,8 @@ useEffect(() => {
       if (!selectedOutletId) return;
 
       try {
-        const response = await axios.get(`/api/tax-details?outletid=${selectedOutletId}`);
-        setTaxDetails(response.data);
-        setCgstRate(response.data.cgst_rate || 2.5);
+const response = await axios.get(`/api/tax-details?outletid=${selectedOutletId}`);
+setCgstRate(response.data.cgst_rate || 2.5);
         setSgstRate(response.data.sgst_rate || 2.5);
         setIgstRate(response.data.igst_rate || 0);
         setCessRate(response.data.cess_rate || 0);
@@ -1348,10 +1270,8 @@ useEffect(() => {
             const settings = await res.json();
             if (settings) {
               setReverseQtyConfig(settings.ReverseQtyMode === 1 ? 'PasswordRequired' : 'NoPassword');
-              setRoundOffEnabled(!!settings.bill_round_off);
-              setRoundOffTo(settings.bill_round_off_to || 1);
-
-              // include_tax_in_invoice may be returned with different casing
+setRoundOffEnabled(!!settings.bill_round_off);
+// include_tax_in_invoice may be returned with different casing
               const incFlag =
                 settings.include_tax_in_invoice ??
                 (settings as any).IncludeTaxInInvoice ??
@@ -1951,13 +1871,9 @@ useEffect(() => {
         return;
       }
 
-      // 2️⃣ TxnNo state me set karo
-      setOrderNo(txnNo);
-
-      // 3️⃣ Set bill as printed
-      setIsBillPrinted(true);
-
-      toast.success('Bill printed successfully');
+// 2️⃣ TxnNo state me set karo
+setOrderNo(txnNo);
+toast.success('Bill printed successfully');
 
       // 4️⃣ Table status update
       await axios.post(`/api/tablemanagement/${tableId}/status`, { status: 1 });
@@ -1994,9 +1910,7 @@ useEffect(() => {
     }
   };
 
-  const handleBackToTables = () => {
-    navigate('/apps/Tableview');
-  };
+
 
   const exitWithoutSave = () => {
     navigate('/apps/Tableview');
@@ -2113,7 +2027,6 @@ useEffect(() => {
     }
 
     const totalReceived = settlements.reduce((sum, s) => sum + s.received_amount, 0) + (tip || 0);
-    const balanceAmount = totalReceived < taxCalc.grandTotal ? taxCalc.grandTotal - totalReceived : 0;
 
     if (totalReceived < taxCalc.grandTotal || totalReceived === 0) {
       alert('Payment amount is less than the total due.');
@@ -2165,11 +2078,9 @@ useEffect(() => {
       setPaymentAmounts({});
       setSelectedPaymentModes([]);
       setIsMixedPayment(false);
-      setTip(0); // Reset tip amount
-      setShowSettlementModal(false);
-      setBillActionState('initial');
-
-      if (selectedTable) {
+setTip(0); // Reset tip amount
+setShowSettlementModal(false);
+if (selectedTable) {
         const tableToUpdate = tableItems.find(t => t.table_name === selectedTable.name);
         if (tableToUpdate) {
           await axios.post(`/api/tablemanagement/${tableToUpdate.tablemanagementid}/status`, {
@@ -2177,11 +2088,10 @@ useEffect(() => {
           });
         }
       }
-      fetchTableManagement(); // Refresh table statuses
-      setCurrentKOTNo(null);
-      setShowPendingOrdersView(false); // Hide pending view after successful settlement
-      setCurrentKOTNos([]);
-      setOrderNo(null);
+fetchTableManagement(); // Refresh table statuses
+setShowPendingOrdersView(false); // Hide pending view after successful settlement
+setCurrentKOTNos([]);
+setOrderNo(null);
 
       // Navigate to tableview page after settling the bill
       navigate('/apps/Tableview');
