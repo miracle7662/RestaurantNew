@@ -147,9 +147,9 @@ const [discount, setDiscount] = useState(0);
   const [items, setItems] = useState<any[]>([]);
   const [reversedItems, setReversedItems] = useState<any[]>([]);
 
-  // const totalRevKotAmount = useMemo(() => {
-  //   return reversedItems.reduce((acc, item) => acc + ((item.qty || 0) * (item.price || 0)), 0);
-  // }, [reversedItems]);
+  const totalRevKotAmount = useMemo(() => {
+    return reversedItems.reduce((acc, item) => acc + ((item.qty || 0) * (item.price || 0)), 0);
+  }, [reversedItems]);
 
   const [tableItems, setTableItems] = useState([] as TableManagement[]);
 
@@ -782,6 +782,13 @@ setFinalAmount(roundedFinalAmount);
             const reversedDetails = details.filter((d: any) => d.RevQty > 0);
             const maxRevKotNo = reversedDetails.length > 0 ? Math.max(...reversedDetails.map((d: any) => d.RevKOTNo || 0)) : 0;
             setRevKotNo(maxRevKotNo);
+
+            // Set tax values from header for billed bills
+            if (header.CGST !== undefined) setCgst(header.CGST);
+            if (header.SGST !== undefined) setSgst(header.SGST);
+            if (header.IGST !== undefined) setIgst(header.IGST);
+            if (header.CESS !== undefined) setCess(header.CESS);
+
             calculateTotals(mappedItems);
             setLoading(false);
             return;
@@ -1582,7 +1589,9 @@ setRoundOffEnabled(!!settings.bill_round_off);
           isNCKOT: isNoCharge,
           isbilled: print ? 1 : 0,
           DeptID: departmentIdFromState && departmentIdFromState > 0 ? departmentIdFromState : null,
-          SpecialInst: item.specialInstructions || null
+          SpecialInst: item.specialInstructions || null,
+          item_name: item.itemName,
+          item_no: item.item_no
         }))
       };
 

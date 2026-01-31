@@ -314,13 +314,15 @@ export default function App() {
 
   const handleTakeAwayClick = () => {
     const outletId = user?.outletid || allTables[0]?.outletid || null;
+    // If 'all' departments selected, use the first department as default for takeaway
+    const departmentId = selectedDepartmentId !== 'all' ? selectedDepartmentId : (departments.length > 0 ? departments[0].departmentid : null);
 
     navigate('/apps/Billview', {
       state: {
         mode: 'TAKEAWAY',
         orderType: 'TAKEAWAY',
         outletId,
-        departmentId: selectedDepartmentId !== 'all' ? selectedDepartmentId : null,
+        departmentId,
         tableId: null,
         tableName: 'TAKE AWAY'
       }
