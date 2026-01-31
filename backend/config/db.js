@@ -885,6 +885,7 @@ CREATE TABLE IF NOT EXISTS TAxnTrnReversalLog (
     KOTNo             INTEGER,
     RevKOTNo          INTEGER,
     ItemID            INTEGER,
+    ItemName          TEXT,
     ActualQty         REAL,
     ReversedQty       REAL,
     RemainingQty      REAL,
@@ -893,7 +894,7 @@ CREATE TABLE IF NOT EXISTS TAxnTrnReversalLog (
     ReversedByUserID  INTEGER,
     ApprovedByAdmin   INTEGER,
     HotelID           INTEGER,
-    ReversalReason    TEXT,    
+    ReversalReason    TEXT,
     ReversalDate      DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
