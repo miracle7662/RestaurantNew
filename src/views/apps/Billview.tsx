@@ -823,7 +823,7 @@ setFinalAmount(roundedFinalAmount);
       // Map items to BillItem interface
       const mappedItems: BillItem[] = data.details.map((item: any) => {
         const qty = item.netQty || item.Qty || 0;
-        const rate = item.price || item.Price || item.Rate || 0;
+        const rate = item.RuntimeRate || item.price || item.Price || item.Rate || 0;
         const total = qty * rate;
 
         return {
