@@ -98,6 +98,7 @@ const Order = () => {
   const [mobileNumber, setMobileNumber] = useState<string>('');
   const [customerName, setCustomerName] = useState<string>('');
   const [customerId, setCustomerId] = useState<number | null>(null);
+  const [customerNo, setCustomerNo] = useState<string>('');
   const [taxRates, setTaxRates] = useState<{ cgst: number; sgst: number; igst: number; cess: number }>({ cgst: 0, sgst: 0, igst: 0, cess: 0 });
   const [taxCalc, setTaxCalc] = useState<{ subtotal: number; cgstAmt: number; sgstAmt: number; igstAmt: number; cessAmt: number; grandTotal: number }>({ subtotal: 0, cgstAmt: 0, sgstAmt: 0, igstAmt: 0, cessAmt: 0, grandTotal: 0 });
   // 0 = exclusive (default), 1 = inclusive
@@ -184,6 +185,7 @@ const Order = () => {
   const [reversedItems, setReversedItems] = useState<ReversedMenuItem[]>([]);
   const [tip, setTip] = useState<number>(0);
   const [kotNote, setKotNote] = useState<string>('');
+  const [pax, setPax] = useState<number>(1);
 
   // States for Pending Orders Modal (Pickup/Delivery)
   const [showPendingOrdersView, setShowPendingOrdersView] = useState<boolean>(false);
@@ -506,9 +508,9 @@ const Order = () => {
     }
   };
 
-  const fetchCustomerByMobile = async (mobile: string) => {
+  const fetchCustomerByMobile = async (value: string) => {
     try {
-      const res = await fetch(`http://localhost:3001/api/customer/by-mobile?mobile=${mobile}`, {
+      const res = await fetch(`http://localhost:3001/api/customer/by-mobile?mobile=${value}`, {
         headers: { 'Content-Type': 'application/json' },
       });
       if (res.ok) {
@@ -557,6 +559,16 @@ const Order = () => {
       if (mobileNumber.trim()) {
         fetchCustomerByMobile(mobileNumber.trim());
       }
+    }
+  };
+
+  const handleCustomerNoChange = async (value: string) => {
+    setCustomerNo(value);
+
+    if (!value) {
+      setCustomerName('');
+      setCustomerId(null);
+      return;
     }
   };
 
@@ -1527,6 +1539,7 @@ const Order = () => {
         MobileNo: mobileNumber,
         GuestID: customerId || null,
         Order_Type: activeTab, // Add the active tab as Order_Type
+        PAX: 1, // Use the PAX value from the input field
         TxnDatetime: user?.currDate, // Pass curr_date from useAuthContext
       };
 
@@ -1722,7 +1735,7 @@ const Order = () => {
         body: JSON.stringify({
           txnId: persistentTxnId,
           tableId: persistentTableId,
-          reversedItems: reverseQtyItems.map(item => ({ ...item, item_no: item.item_no, item_name: item.name })),
+          reversedItems: reverseQtyItems.map(item => ({ ...item, item_no: item.item_no, itemName: item.name })),
           userId: user?.id,
           reversalReason: 'Full Reverse from UI' // You can add a specific reason here if needed
         }),
@@ -3663,6 +3676,7 @@ const Order = () => {
                     style={{ width: '150px', height: '28px', fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}
                   />
                 )}
+               
                 <input
                   type="text"
                   placeholder="KOT Note"

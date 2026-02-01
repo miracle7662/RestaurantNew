@@ -333,8 +333,8 @@ useEffect(() => {
     setGrossAmount(gross);
     setTotalCgst(cgstTotal);
     setTotalSgst(sgstTotal);
-setTotalIgst(igstTotal);
-setFinalAmount(roundedFinalAmount);
+    setTotalIgst(igstTotal);
+    setFinalAmount(roundedFinalAmount);
     setRoundOff(ro);
     setDiscount(discountAmount);
     setTaxCalc({ grandTotal: roundedFinalAmount, subtotal: gross });

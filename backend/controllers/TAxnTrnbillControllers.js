@@ -4,7 +4,6 @@ const db = require('../config/db')
 function ok(message, data) {
   return { success: true, message, data }
 }
-
 function toBool(value) { 
   return value ? 1 : 0
 }
@@ -1390,9 +1389,9 @@ exports.createReverseKOT = async (req, res) => {
 
       const logReversalStmt = db.prepare(`
         INSERT INTO TAxnTrnReversalLog (
-          TxnDetailID, TxnID, KOTNo, ItemID, RevKOTNo, ActualQty, ReversedQty, RemainingQty, 
-          IsBeforeBill, IsAfterBill, ReversedByUserID, ReversalReason
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?, ?)
+          TxnDetailID, TxnID, KOTNo, RevKOTNo, ItemID, ItemName, ActualQty, ReversedQty, RemainingQty,
+          IsBeforeBill, IsAfterBill, ReversedByUserID, ApprovedByAdmin, HotelID, ReversalReason
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
 
       let totalReverseAmount = 0
@@ -1401,7 +1400,7 @@ exports.createReverseKOT = async (req, res) => {
         if (!item.txnDetailId || !item.qty) continue
 
         const detail = db
-          .prepare('SELECT * FROM TAxnTrnbilldetails WHERE TXnDetailID = ?')
+          .prepare('SELECT d.*, m.item_name as itemName FROM TAxnTrnbilldetails d LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid WHERE d.TXnDetailID = ?')
           .get(item.txnDetailId)
         if (detail) {
           const newRevQty = (detail.RevQty || 0) + item.qty
@@ -1412,14 +1411,17 @@ exports.createReverseKOT = async (req, res) => {
             item.txnDetailId,
             detail.TxnID,
             detail.KOTNo,
+            newRevKOTNo, // RevKOTNo
             detail.ItemID,
-            newRevKOTNo, // Log the new RevKOTNo
-            detail.Qty,
-            item.qty,
-            remainingQty,
+            detail.itemName || 'Unknown Item', // ItemName
+            detail.Qty, // ActualQty
+            item.qty, // ReversedQty
+            remainingQty, // RemainingQty
             detail.isBilled ? 0 : 1, // IsBeforeBill
             detail.isBilled ? 1 : 0, // IsAfterBill
             userId, // ReversedByUserID
+            null, // ApprovedByAdmin
+            detail.HotelID, // HotelID
             reversalReason || 'Item Reversed', // ReversalReason
           )
 
@@ -1942,10 +1944,10 @@ exports.handleF8KeyPress = async (req, res) => {
         db.prepare(
           `
           INSERT INTO TAxnTrnReversalLog (
-            TxnDetailID, TxnID, KOTNo, RevKOTNo, ItemID,
+            TxnDetailID, TxnID, KOTNo, RevKOTNo, ItemID, ItemName,
             ActualQty, ReversedQty, RemainingQty, IsBeforeBill, IsAfterBill,
             ReversedByUserID, ApprovedByAdmin, HotelID, ReversalReason
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         ).run(
           item.TXnDetailID,
@@ -1953,6 +1955,7 @@ exports.handleF8KeyPress = async (req, res) => {
           item.KOTNo,
           newRevKOTNo,
           item.ItemID,
+          item.ItemName,
           currentQty,
           1,
           availableQty - 1,
@@ -2045,10 +2048,10 @@ exports.handleF8KeyPress = async (req, res) => {
           db.prepare(
             `
             INSERT INTO TAxnTrnReversalLog ( 
-              TxnDetailID, TxnID, KOTNo, RevKOTNo, ItemID,
+              TxnDetailID, TxnID, KOTNo, RevKOTNo, ItemID, ItemName,
               ActualQty, ReversedQty, RemainingQty, IsBeforeBill, IsAfterBill,
               ReversedByUserID, ApprovedByAdmin, HotelID, ReversalReason 
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `,
           ).run(
             item.TXnDetailID,
@@ -2056,6 +2059,7 @@ exports.handleF8KeyPress = async (req, res) => {
             item.KOTNo,
             null,
             item.ItemID,
+            item.ItemName,
             currentQty,
             1,
             availableQty - 1,
@@ -2233,9 +2237,9 @@ exports.reverseQuantity = async (req, res) => {
       db.prepare(
         `
         INSERT INTO TAxnTrnReversalLog ( 
-          TxnDetailID, TxnID, KOTNo, RevKOTNo, ItemID, ActualQty, ReversedQty, RemainingQty, 
+          TxnDetailID, TxnID, KOTNo, RevKOTNo, ItemID,  ItemName, ActualQty, ReversedQty, RemainingQty, 
           IsBeforeBill, IsAfterBill, ReversedByUserID, ApprovedByAdmin, HotelID, ReversalReason 
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
       ).run(
         item.TXnDetailID,
@@ -2243,6 +2247,7 @@ exports.reverseQuantity = async (req, res) => {
         item.KOTNo,
         newRevKOTNo,
         item.ItemID,
+        item.ItemName,
         currentQty,
         1,
         availableQty - 1,
@@ -2338,6 +2343,7 @@ exports.getLatestBilledBillForTable = async (req, res) => {
       SELECT
         l.ReversalID,
         l.ItemID,
+        l.RevKOTNo,
         COALESCE(m.item_name, 'Unknown Item') AS ItemName,
         l.ReversedQty as Qty,
         d.RuntimeRate as price,
