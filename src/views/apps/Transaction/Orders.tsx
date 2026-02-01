@@ -4341,14 +4341,28 @@ const Order = () => {
           <KotPreviewPrint
             show={showKotPreviewModal}
             onHide={() => setShowKotPreviewModal(false)}
-            onClose={() => {
-              setShowKotPreviewModal(false);
-              // For Dine-in, reset to table view after KOT save
-              if (activeTab === 'Dine-in') {
-                setShowOrderDetails(false);
-                setSelectedTable(null);
-              }
-            }}
+          onClose={() => {
+            setShowKotPreviewModal(false);
+            // Clear the order state after KOT print
+            setItems([]);
+            setPrintItems([]);
+            setReverseQtyItems([]);
+            setReversedItems([]);
+            setReverseQtyMode(false);
+            setIsGroupedView(true);
+            setPersistentTxnId(null);
+            setPersistentTableId(null);
+            setSourceTableId(null);
+            setCurrentKOTNo(null);
+            setCurrentKOTNos([]);
+            if (activeTab === 'Dine-in') {
+              setMobileNumber('');
+              setCustomerName('');
+              setCustomerId(null);
+              setShowOrderDetails(false);
+              setSelectedTable(null);
+            }
+          }}
             printItems={printItems}
             items={items}
             currentKOTNo={currentKOTNo}
