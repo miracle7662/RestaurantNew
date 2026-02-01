@@ -4379,6 +4379,12 @@ const Order = () => {
               setCustomerId(null);
               setShowOrderDetails(false);
               setSelectedTable(null);
+            } else if (activeTab === 'Pickup' || activeTab === 'Delivery') {
+              // For Pickup/Delivery, go back to pending orders view
+              setShowOrderDetails(false);
+              setPendingType(activeTab.toLowerCase() as 'pickup' | 'delivery');
+              setShowPendingOrdersView(true);
+              fetchPendingOrders(activeTab.toLowerCase() as 'pickup' | 'delivery');
             }
           }}
             printItems={printItems}
