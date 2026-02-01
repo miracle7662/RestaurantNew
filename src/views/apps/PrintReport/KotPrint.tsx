@@ -95,7 +95,7 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
   const [isLoadingNames, setIsLoadingNames] = useState(true);
   const [localFormData, setLocalFormData] = useState<OutletSettings>(formData);
   const [enableKotPrint, setEnableKotPrint] = useState<number>(0);
-const [loadingSetting, setLoadingSetting] = useState(true);
+const [, setLoadingSetting] = useState(true);
 
 
   const loadOutletSettings = async (outletId: number) => {
@@ -221,8 +221,6 @@ const [loadingSetting, setLoadingSetting] = useState(true);
 
 
   const generateKOTHTML = () => {
-    const kotItems = printItems.length > 0 ? printItems : items.filter(i => i.isNew);
-
     return `
 <!DOCTYPE html>
 <html>
@@ -359,6 +357,10 @@ const [loadingSetting, setLoadingSetting] = useState(true);
         return;
       }
 
+      if (usedFallback) {
+  console.log("Fallback printer used");
+}
+
       // Generate KOT HTML for printing
       const kotHTML = generateKOTHTML();
 
@@ -484,24 +486,19 @@ const showCustomerMobile =
   showCustomerOnKOT &&
   !!mobileNumber &&
   localFormData.customer_kot_display_option === 'NAME_AND_MOBILE';
-    const showCustomer = showCustomerName || showCustomerMobile;
-
 
     const showTable = selectedTable && (activeTab === 'Dine-in' || localFormData[`table_name_${tabKey}`]) && !(activeTab === 'Quick Bill' && localFormData.hide_table_name_quick_bill);
     const showRateColumn = localFormData.show_item_price;
     const showAmountColumn = localFormData.hide_item_Amt_column;
     const showOrderTypeSymbol = localFormData.show_order_type_symbol;
-    const showCoversAsGuest = localFormData.show_covers_as_guest;
+    // const _showCoversAsGuest = localFormData.show_covers_as_guest;
     const showKotNote = localFormData.show_kot_note;
     const showOnlineOrderOtp = localFormData.show_online_order_otp;
     const showOrderIdQuickBill = localFormData.show_order_id_quick_bill && activeTab === 'Quick Bill';
     const showKotNoQuickBill = localFormData.show_kot_no_quick_bill && activeTab === 'Quick Bill';
     const showOrderNoQuickBillSection = localFormData.show_order_no_quick_bill_section && ['Pickup', 'Quick Bill', 'Delivery'].includes(activeTab);
-    const showNewOrderTag = localFormData.show_new_order_tag;
-    const showRunningOrderTag = localFormData.show_running_order_tag;
     const modifierDefaultOption = localFormData.modifier_default_option;
     const showAlternativeItem = localFormData.show_alternative_item;
-    const printKotBothLanguages = localFormData.print_kot_both_languages;
     const groupKotItemsByCategory = localFormData.group_kot_items_by_category;
 
     // Calculate grid columns for items
@@ -588,7 +585,7 @@ ${showCustomerMobile
     ${showTerminalUsername ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Terminal Username:</strong> ${user.terminal_username}</div>` : ''}
     ${showCaptainUsername ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Captain Username:</strong> ${user.captain_username}</div>` : ''}
  
-
+    
     ${showOnlineOrderOtp ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>OTP:</strong> 123456</div>` : ''}
     ${showOrderIdQuickBill ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Order ID:</strong> QB-${currentKOTNo || 'N/A'}</div>` : ''}
     ${showKotNoQuickBill ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>KOT No:</strong> ${displayKOTNo}</div>` : ''}

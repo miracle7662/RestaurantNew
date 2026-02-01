@@ -107,7 +107,7 @@ const ModernBill = () => {
   const [cgst, setCgst] = useState<number>(0);
   const [sgst, setSgst] = useState<number>(0);
   const [igst, setIgst] = useState<number>(0);
-const [cess, setCess] = useState<number>(0);
+const [, setCess] = useState<number>(0);
 
 const [finalAmount, setFinalAmount] = useState(0);
 const navigate = useNavigate();
@@ -147,9 +147,7 @@ const [discount, setDiscount] = useState(0);
   const [items, setItems] = useState<any[]>([]);
   const [reversedItems, setReversedItems] = useState<any[]>([]);
 
-  const totalRevKotAmount = useMemo(() => {
-    return reversedItems.reduce((acc, item) => acc + ((item.qty || 0) * (item.price || 0)), 0);
-  }, [reversedItems]);
+ 
 
   const [tableItems, setTableItems] = useState([] as TableManagement[]);
 
@@ -378,10 +376,10 @@ useEffect(() => {
       ? totalReceived - taxCalc.grandTotal
       : 0;
 
-  const [activePaymentIndex, setActivePaymentIndex] = useState(0);
+  const [, setActivePaymentIndex] = useState(0);
   const [totalCess, setTotalCess] = useState(0);
-  const [showOrderDetails, setShowOrderDetails] = useState(false);
-  const [showPendingOrdersView, setShowPendingOrdersView] = useState(false);
+  const [, setShowOrderDetails] = useState(false);
+  const [, setShowPendingOrdersView] = useState(false);
 
   // Reverse KOT modal data
   const [showReverseKot, setShowReverseKot] = useState(false);
@@ -704,7 +702,9 @@ useEffect(() => {
                 txnDetailId: item.txnDetailId,
                 isFetched: true,
                 revQty: item.revQty,
-                revKotNo: item.RevKOTNo || 0
+                revKotNo: item.RevKOTNo || 0,
+                RevKOT: item.RevKOT
+
               };
             });
 
@@ -776,6 +776,8 @@ useEffect(() => {
                 isReversed: true,
                 status: 'Reversed',
                 kotNo: item.RevKOTNo,
+                RevKOT: item.RevKOT
+
               }))
             );
             // Compute max RevKOTNo from details
@@ -941,7 +943,7 @@ useEffect(() => {
         setSgst?.(data.header.SGST || data.header.sgst || 0);
         setIgst?.(data.header.IGST || data.header.igst || 0);
         setCess?.(data.header.CESS || data.header.cess || 0);
-setRoundOff?.(data.header.RoundOFF || data.header.roundOff || data.header.roundoff || 0);
+        setRoundOff?.(data.header.RoundOFF || data.header.roundOff || data.header.roundoff || 0);
       }
 
 // Compute max RevKOTNo from details for unbilled orders

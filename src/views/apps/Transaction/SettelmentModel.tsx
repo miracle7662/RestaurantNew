@@ -1,7 +1,6 @@
 // SettlementModal.tsx
 import React, { useState, useEffect } from 'react';
 import { Modal, Row, Col, Form, Button, Card } from 'react-bootstrap';
-import { useAuthContext } from '@/common';
 import toast from 'react-hot-toast';
 
 interface PaymentMode {
@@ -38,7 +37,8 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
   initialIsMixed = false,
   initialTip = 0,
 }) => {
-  const { user } = useAuthContext();
+
+
 
   const [isMixedPayment, setIsMixedPayment] = useState(initialIsMixed);
   const [selectedPaymentModes, setSelectedPaymentModes] = useState<string[]>(initialSelectedModes);
@@ -58,7 +58,6 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
   const totalReceived = Object.values(paymentAmounts).reduce((sum, v) => sum + (Number(v) || 0), 0) + (tip || 0);
   const balance = grandTotal - totalReceived;
   const balanceDue = balance > 0 ? balance : 0;
-  const changeToReturn = -balance > 0 ? -balance : 0;
   const [cashReceived, setCashReceived] = useState<number>(0);
 
   const getRemainingExcluding = (excludeMode?: string) => {

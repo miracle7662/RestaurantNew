@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Card } from 'react-bootstrap';
+import { Button,  } from 'react-bootstrap';
 import { Printer, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
@@ -10,7 +10,7 @@ const DayEndReportPreview: React.FC = () => {
   const navigate = useNavigate();
   const [previewHTML, setPreviewHTML] = useState('');
   const [printerName, setPrinterName] = useState<string | null>(null);
-  const [outletId, setOutletId] = useState<number | null>(null);
+  const [, setOutletId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const { user } = useAuthContext();
 
@@ -109,6 +109,9 @@ const DayEndReportPreview: React.FC = () => {
         toast.error("Failed to determine printer name.");
         return;
       }
+      if (usedFallback) {
+  console.log("Fallback printer used");
+}
 
       // Print using Electron API
       if ((window as any).electronAPI?.directPrint) {

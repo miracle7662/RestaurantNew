@@ -2346,6 +2346,7 @@ exports.getLatestBilledBillForTable = async (req, res) => {
         l.ReversalID,
         l.ItemID,
         l.RevKOTNo,
+        l.RevKOT AS RevKOT,
         COALESCE(m.item_name, 'Unknown Item') AS ItemName,
         l.ReversedQty as Qty,
         d.RuntimeRate as price,

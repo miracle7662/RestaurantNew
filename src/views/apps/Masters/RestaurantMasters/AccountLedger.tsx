@@ -68,6 +68,8 @@ const getNextLedgerNo = (data: ILedger[]): string => {
   const maxNo = ledgerNos.length > 0 ? Math.max(...ledgerNos) : 0;
   return String(maxNo + 1);
 };
+console.log(getNextLedgerNo);
+
 
 const AccountLedger = () => {
   const { user } = useAuthContext();

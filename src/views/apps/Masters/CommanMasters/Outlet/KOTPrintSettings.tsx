@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { fetchKotPrintSettings, updateKotPrintSettings } from '@/services/outletSettings.service';
+import { fetchKotPrintSettings } from '@/services/outletSettings.service';
+import { applyKotSettings } from '@/utils/applyOutletSettings';
 
 interface KotPrintSettings {
   kot_printsetting_id?: number;
@@ -137,7 +138,7 @@ const KOTPrintSettings: React.FC = () => {
 
     setSaving(true);
     try {
-      await updateKotPrintSettings(Number(outletId), settings);
+      await applyKotSettings(Number(outletId), settings);
       toast.success('KOT print settings updated successfully');
     } catch (error) {
       console.error('Failed to update settings:', error);

@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { Button, Form, Modal, Table, Card, Row, Col, Spinner } from "react-bootstrap";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { Button,  Modal, Table, Card, Row, Col, Spinner } from "react-bootstrap";
 import { fetchOutletsForDropdown } from "@/utils/commonfunction";
 import { useAuthContext } from "@/common";
 import { getUnbilledItemsByTable } from "@/common/api/orders";
@@ -11,8 +11,8 @@ import OrderDetails from "./OrderDetails";
 import F8PasswordModal from "@/components/F8PasswordModal";
 import KotTransfer from "./KotTransfer";
 import SettlementModal from "./SettelmentModel";
-import { fetchKotPrintSettings, fetchBillSettings } from '@/services/outletSettings.service';
-import { applyKotSettings, applyBillSettings } from '@/utils/applyOutletSettings';
+import { fetchKotPrintSettings, } from '@/services/outletSettings.service';
+import { applyKotSettings,  } from '@/utils/applyOutletSettings';
 import KotPreviewPrint from '../PrintReport/KotPrint';
 import BillPreviewPrint from '../PrintReport/BillPrint';
 interface MenuItem {
@@ -104,7 +104,6 @@ const Order = () => {
   const [mobileNumber, setMobileNumber] = useState<string>('');
   const [customerName, setCustomerName] = useState<string>('');
   const [customerId, setCustomerId] = useState<number | null>(null);
-  const [customerNo, setCustomerNo] = useState<string>('');
   const [taxRates, setTaxRates] = useState<{ cgst: number; sgst: number; igst: number; cess: number }>({ cgst: 0, sgst: 0, igst: 0, cess: 0 });
   const [taxCalc, setTaxCalc] = useState<{ subtotal: number; cgstAmt: number; sgstAmt: number; igstAmt: number; cessAmt: number; grandTotal: number }>({ subtotal: 0, cgstAmt: 0, sgstAmt: 0, igstAmt: 0, cessAmt: 0, grandTotal: 0 });
   // 0 = exclusive (default), 1 = inclusive
@@ -161,7 +160,7 @@ const Order = () => {
     localStorage.setItem('focusMode', JSON.stringify(focusMode));
   }, [focusMode]);
 
-  const [triggerFocusInDetails, setTriggerFocusInDetails] = useState<number>(0);
+  const [triggerFocusInDetails, ] = useState<number>(0);
 
   // New state for floating button group and modals
   const [showOptions, setShowOptions] = useState<boolean>(false);
@@ -191,7 +190,6 @@ const Order = () => {
   const [reversedItems, setReversedItems] = useState<ReversedMenuItem[]>([]);
   const [tip, setTip] = useState<number>(0);
   const [kotNote, setKotNote] = useState<string>('');
-  const [pax, setPax] = useState<number>(1);
 
   // States for Pending Orders Modal (Pickup/Delivery)
   const [showPendingOrdersView, setShowPendingOrdersView] = useState<boolean>(false);
@@ -568,16 +566,8 @@ const Order = () => {
     }
   };
 
-  const handleCustomerNoChange = async (value: string) => {
-    setCustomerNo(value);
-
-    if (!value) {
-      setCustomerName('');
-      setCustomerId(null);
-      return;
-    }
-  };
-
+ 
+ 
   useEffect(() => {
     const lastItem = items[items.length - 1];
     if (itemListRef.current && items.length > 10 && lastItem?.isNew) {
@@ -1563,7 +1553,8 @@ const Order = () => {
         DiscountType: DiscountType,
         CustomerName: customerName,
         MobileNo: mobileNumber,
-        GuestID: customerId || null,
+        guestid: customerId ?? null,
+
         Order_Type: activeTab, // Add the active tab as Order_Type
         PAX: 1, // Use the PAX value from the input field
         TxnDatetime: user?.currDate, // Pass curr_date from useAuthContext

@@ -8,7 +8,7 @@ import {
     Button,
     Badge,
     Form,
-    Spinner
+   
 } from 'react-bootstrap';
 import { toast } from 'react-toastify';
 import axios from 'axios';
@@ -53,7 +53,6 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
     outletid
 }) => {
     const [items, setItems] = useState<any[]>([]);
-    const [loading, setLoading] = useState(false);
     const [nextRevKotNo, setNextRevKotNo] = useState<number>((revKotNo ?? 0) + 1);
 
     // Refs for navigation

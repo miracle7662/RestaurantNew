@@ -92,7 +92,6 @@ const Legend: React.FC = () => {
 
 // Main App Component
 export default function App() {
-  const [selectedLayout, setSelectedLayout] = useState('Default Layout');
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<number | 'all'>('all');
   const [departments, setDepartments] = useState<Department[]>([]);
   const [allTables, setAllTables] = useState<Table[]>([]);

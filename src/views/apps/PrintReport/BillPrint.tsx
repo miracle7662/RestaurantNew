@@ -113,7 +113,7 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
     return [...new Set(kotsFromItems)].sort((a, b) => (a ?? 0) - (b ?? 0));
   }, [currentKOTNos, items]);
   const [localOutletName, setLocalOutletName] = React.useState<string>('');
-  const [isLoadingNames, setIsLoadingNames] = React.useState(true);
+  const [, setIsLoadingNames] = React.useState(true);
 
   const displayRestaurantName = restaurantName || localRestaurantName || user?.hotel_name || 'Restaurant Name';
   const displayOutletName = outletName || localOutletName || user?.outlet_name || 'Outlet Name';
@@ -321,6 +321,10 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
         toast.error("Failed to determine printer name.");
         return;
       }
+
+      if (usedFallback) {
+  console.log("Fallback printer used");
+}
 
       // Generate KOT HTML for printing
       const kotHTML = generateBillHTML();

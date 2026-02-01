@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Card, Row, Col, Form, Button, Table, Badge, Alert, Modal } from "react-bootstrap";
+import { Card, Row, Col, Form, Button, Table, Badge,  Modal } from "react-bootstrap";
 import { getUnbilledItemsByTable } from "@/common/api/orders";
 import { useAuthContext } from "@/common";
 import { toast } from 'react-hot-toast';
@@ -70,7 +70,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
   const [proposedItems, setProposedItems] = useState<Item[]>([]);
   const [selectedTableId, setSelectedTableId] = useState<number | null>(null);
   const [proposedTableId, setProposedTableId] = useState<number | null>(null);
-  const [selectedTable, setSelectedTable] = useState('');
+  const [, setSelectedTable] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState('');
   const [proposedTable, setProposedTable] = useState('');
   const [proposedDepartment, setProposedDepartment] = useState('');
@@ -282,7 +282,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
 
   const sourceTable = tables.find(t => t.id === selectedTableId?.toString());
   const sourcePax = sourceTable?.pax || 0;
-  const sourceKOT = selectedItems.length > 0 ? selectedItems[0].kot : 0;
+ 
 
   const totalSelectedAmount = selectedItems
     .filter(item => item.selected)
@@ -318,6 +318,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
   };
 
   const handleSelectedTableChange = async (tableId: string) => {
+    console.log('Selected Table ID:', handleSelectedTableChange);
     const numericTableId = Number(tableId);
     setSelectedTableId(numericTableId);
     const srcTable = tables.find(t => t.id === tableId);
@@ -532,7 +533,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
   };
 
   const destTable = tables.find(t => t.id === proposedTableId?.toString());
-  const destPax = destTable?.pax || 0;
+  
   const destStatus = destTable?.status || "available";
   const destKOT = proposedItems.length > 0 ? proposedItems[0].kot : 0;
 

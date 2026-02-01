@@ -34,7 +34,6 @@ interface PaymentMode {
 
 const EditSettlementPage: React.FC = () => {
   const { user } = useAuthContext();
-  const role = user?.role || '';
   const currentUser = user;
 
   // ── Main States ───────────────────────────────────────────────────
@@ -49,7 +48,7 @@ const EditSettlementPage: React.FC = () => {
   });
 
   const [currentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  const [, setTotalPages] = useState(1);
   const [selectedOutletId, setSelectedOutletId] = useState<number | null>(
     currentUser?.outletid ? Number(currentUser.outletid) : null
   );
