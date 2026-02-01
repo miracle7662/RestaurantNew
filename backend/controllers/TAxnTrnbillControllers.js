@@ -994,6 +994,7 @@ exports.createKOT = async (req, res) => {
       PAX,
       TxnDatetime,
       items: details = [],
+      orderTag,
     } = req.body
 
     console.log('Received Discount Data for KOT:', { DiscPer, Discount, DiscountType })
@@ -1150,12 +1151,12 @@ exports.createKOT = async (req, res) => {
           TxnID, outletid, ItemID, TableID, table_name, Qty, RuntimeRate, DeptID, HotelID,
           isKOTGenerate, AutoKOT, KOTUsedDate, isBilled, isCancelled, isSetteled, isNCKOT,
           CGST, CGST_AMOUNT, SGST, SGST_AMOUNT, IGST, IGST_AMOUNT, CESS, CESS_AMOUNT, Discount_Amount, KOTNo,
-          item_no, item_name
+          item_no, item_name, order_tag
         ) VALUES (
           @TxnID, @outletid, @ItemID, @TableID, @table_name, @Qty, @RuntimeRate, @DeptID, @HotelID,
           1, 1, datetime('now'), 0, 0, 0, @isNCKOT,
           @CGST, @CGST_AMOUNT, @SGST, @SGST_AMOUNT, @IGST, @IGST_AMOUNT, @CESS, @CESS_AMOUNT, @Discount_Amount, @KOTNo,
-          @item_no, @item_name
+          @item_no, @item_name, @order_tag
         )
       `)
 
@@ -1220,6 +1221,7 @@ exports.createKOT = async (req, res) => {
           KOTNo: kotNo,
           item_no: itemNo,
           item_name: item.item_name,
+          order_tag: orderTag,
         })
       }
 

@@ -2665,7 +2665,7 @@ setOrderNo(null);
         <div className="full-screen-header">
           <div className="container-fluid  px-2">
             <div className="d-flex justify-content-between align-items-center mb-1">
-              <h2 className="text-primary mb-0">BILL{isTakeaway && orderNo ? ` - ${orderNo}` : ''}</h2>
+              <h2 className="text-primary mb-0">{isTakeaway && orderNo ? ` - ${orderNo}` : ''}</h2>
 
               <span className="badge bg-light text-dark border">
                 Group Items: <strong>Ctrl + G</strong> &nbsp;|&nbsp;

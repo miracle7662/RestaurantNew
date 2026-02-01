@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Button, Form, Modal, Table, Card, Row, Col, Spinner } from "react-bootstrap";
 import { fetchOutletsForDropdown } from "@/utils/commonfunction";
 import { useAuthContext } from "@/common";
@@ -68,6 +68,12 @@ interface PaymentMode {
   paymenttypeid: number;
   mode_name: string;
   payment_mode_name: string;
+}
+interface FormData {
+  show_new_order_tag?: boolean;
+  new_order_tag_label?: string;
+  show_running_order_tag?: boolean;
+  running_order_tag_label?: string;
 }
 const Order = () => {
   const [selectedTable, setSelectedTable] = useState<string | null>('');
@@ -1519,6 +1525,26 @@ const Order = () => {
       // Find the first NCKOT item to get the overall NCName and NCPurpose for the bill header
       const firstNCItem = newKotItemsPayload.find(item => item.isNCKOT);
 
+      // Determine order tag for KOT header
+      const orderTag = (() => {
+        if (activeTab === 'Dine-in') {
+          if (currentTxnId) {
+            return 'Running';
+          } else if (originalTableStatus === null || originalTableStatus === 0) {
+            return 'New';
+          } else {
+            return 'Running';
+          }
+        } else if (['Pickup', 'Delivery', 'Quick Bill', 'Order/KOT'].includes(activeTab)) {
+          if (currentTxnId) {
+            return 'Running';
+          } else {
+            return 'New';
+          }
+        }
+        return 'New';
+      })();
+
       const kotPayload = {
         txnId: currentTxnId || 0,
         tableId: resolvedTableId,
@@ -1541,6 +1567,7 @@ const Order = () => {
         Order_Type: activeTab, // Add the active tab as Order_Type
         PAX: 1, // Use the PAX value from the input field
         TxnDatetime: user?.currDate, // Pass curr_date from useAuthContext
+        orderTag: orderTag, // Add order tag to payload
       };
 
       console.log('TxnDatetime from useAuthContext:', user?.curr_date);
@@ -4381,6 +4408,7 @@ const Order = () => {
             orderNo={orderNo}
             date={user?.currDate}
             tableStatus={originalTableStatus}
+            orderTag={formData.show_new_order_tag ? formData.new_order_tag_label : formData.show_running_order_tag ? formData.running_order_tag_label : ''}
           />
           <BillPreviewPrint
             show={showBillPrintModal}
