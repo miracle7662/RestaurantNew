@@ -642,10 +642,10 @@ ${showCustomerMobile
     `;
   }, [localFormData, printItems, items, restaurantName, localRestaurantName, user, outletName, localOutletName, activeTab, currentKOTNo, selectedTable, customerName, mobileNumber, pax]);
 
-  // if (autoPrint) {
-  //   // For auto print, don't show the modal, just handle printing in useEffect
-  //   return null;
-  // }
+  if (autoPrint) {
+    // For auto print, don't show the modal, just handle printing in useEffect
+    return null;
+  }
 
   return (
     <Modal

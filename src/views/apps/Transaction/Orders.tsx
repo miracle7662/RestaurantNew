@@ -1631,6 +1631,7 @@ const Order = () => {
 
         setPrintItems(kotItemsToPrint);
         setShowKotPreviewModal(true);
+        setKotNote(''); // Clear KOT note after printing
 
         // If it was a quick bill, refresh the quick bill data
         if (activeTab === 'Quick Bill') {
@@ -4354,7 +4355,7 @@ const Order = () => {
             reverseQtyMode={reverseQtyMode}
             reverseQtyItems={reverseQtyItems}
             selectedOutletId={selectedOutletId}
-            autoPrint={false}
+            autoPrint={true}
             kotNote={kotNote}
             orderNo={orderNo}
             date={user?.currDate}
