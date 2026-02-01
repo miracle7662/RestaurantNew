@@ -688,8 +688,9 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
                         maxWidth: '100px',
                         minHeight: '60px',
                         fontSize: '1.2rem',
-                        border: '2px solid #4A90E2',
-                        backgroundColor: '#E6F3FA',
+                        border: focusMode ? '3px solid #FF6B35' : '2px solid #4A90E2',
+                        backgroundColor: focusMode ? '#FFF3E0' : '#E6F3FA',
+                        boxShadow: focusMode ? '0 0 10px rgba(255, 107, 53, 0.5)' : 'none',
                       }}
                     />
                   </div>
