@@ -1759,7 +1759,7 @@ setRoundOffEnabled(!!settings.bill_round_off);
             reversedItems: reverseItemsFromModal.map(item => ({
               txnDetailId: item.txnDetailId, // Add txnDetailId for database update
               item_no: item.item_no,
-              item_name: item.itemName,
+              name: item.itemName,
               qty: item.cancelQty,     // ✅ modal ka cancelQty
               price: item.rate
             })),
