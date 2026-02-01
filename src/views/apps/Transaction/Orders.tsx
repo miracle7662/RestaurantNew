@@ -4381,11 +4381,13 @@ const Order = () => {
               setShowOrderDetails(false);
               setSelectedTable(null);
             } else if (activeTab === 'Pickup' || activeTab === 'Delivery') {
-              // For Pickup/Delivery, go back to pending orders view
+              // Navigate back to table page for Pickup/Delivery
+              setActiveTab('Dine-in');
               setShowOrderDetails(false);
-              setPendingType(activeTab.toLowerCase() as 'pickup' | 'delivery');
-              setShowPendingOrdersView(true);
-              fetchPendingOrders(activeTab.toLowerCase() as 'pickup' | 'delivery');
+              setMobileNumber('');
+              setCustomerName('');
+              setCustomerId(null);
+              setSelectedTable(null);
             }
           }}
             printItems={printItems}
