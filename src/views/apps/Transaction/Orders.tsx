@@ -57,6 +57,9 @@ interface TableItem {
   isCommonToAllDepartments: boolean;
   departmentid?: number;
   tableid?: string;
+  billNo?: string | null;
+  billAmount?: number | null;
+  billPrintedTime?: string | null;
 }
 interface DepartmentItem {
   departmentid: number;
@@ -125,7 +128,9 @@ const Order = () => {
   const [roundOffValue, setRoundOffValue] = useState<number>(0); // To store the calculated round-off value
   const [currentKOTNos, setCurrentKOTNos] = useState<number[]>([]);
   const [currentTxnId, setCurrentTxnId] = useState<number | null>(null);
-  const [orderNo, setOrderNo] = useState<string | null>(null); // New state for displaying Bill No  
+  const [orderNo, setOrderNo] = useState<string | null>(null); // New state for displaying Bill No
+  const [billPrintedTime, setBillPrintedTime] = useState<string | null>(null); // New state for Bill Printed Time
+  const [netAmount, setNetAmount] = useState<number | null>(null); // New state for Net Amount
   const [formData, setFormData] = useState<FormData>({} as FormData);
   // New state for F8 password modal on billed tables
   const [showPrintBoth, setShowPrintBoth] = useState(false);
@@ -223,6 +228,8 @@ const Order = () => {
     setReverseQtyItems([]);
 
     setOrderNo(null);
+    setBillPrintedTime(null);
+    setNetAmount(null);
     setCurrentTxnId(null);
     setPersistentTxnId(null);
     setPersistentTableId(null);
@@ -308,6 +315,14 @@ const Order = () => {
               .filter((v, i, a): v is number => v !== undefined && a.indexOf(v) === i)
               .sort((a, b) => a - b)
           );
+
+          // Set printed bill information
+          if (header.BilledDate) {
+            const date = new Date(header.BilledDate);
+            const istDate = new Date(date.getTime() + (5.5 * 60 * 60 * 1000)); // Convert to IST
+            setBillPrintedTime(istDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }));
+          }
+          setNetAmount(header.Amount);
 
           setBillActionState('printOrSettle');
           // Restore applied discount for billed tables
@@ -469,19 +484,31 @@ const Order = () => {
           const formattedData = await Promise.all(
             response.data.map(async (item: any) => {
               let status = Number(item.status);
+              let billNo: string | null = null;
+              let billAmount: number | null = null;
+              let billPrintedTime: string | null = null;
 
               // Fetch bill status for each table from backend
               const res = await fetch(`http://localhost:3001/api/TAxnTrnbill/bill-status/${item.tableid}`);
               const data = await res.json();
 
               if (data.success && data.data) {
-                const { isBilled, isSetteled } = data.data;
+                const { isBilled, isSetteled, TxnNo, Amount, BilledDate } = data.data;
 
-                if (isBilled === 1 && isSetteled !== 1) status = 2; // 🔴 red when billed but not settled
+                if (isBilled === 1 && isSetteled !== 1) {
+                  status = 2; // 🔴 red when billed but not settled
+                  billNo = TxnNo || null;
+                  billAmount = Amount || null;
+                  if (BilledDate) {
+                    const date = new Date(BilledDate);
+                    const istDate = new Date(date.getTime() + (5.5 * 60 * 60 * 1000)); // Convert to IST
+                    billPrintedTime = istDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+                  }
+                }
                 if (isSetteled === 1) status = 0; // ⚪ vacant when settled
               }
 
-              return { ...item, status };
+              return { ...item, status, billNo, billAmount, billPrintedTime };
             })
           );
 
@@ -1314,19 +1341,19 @@ const Order = () => {
       // 4. Update items in the UI to reflect their 'billed' state
       setItems(prevItems => prevItems.map(item => ({ ...item, isNew: false, isBilled: 1, originalQty: item.qty })));
 
-      // 5. For Dine-in and Quick Bill, refresh the page to clear the state.
+      // 5. For Dine-in and Quick Bill, keep the order screen visible and reload the latest printed bill data.
       // For Pickup/Delivery, keep the order on screen to proceed to settlement.
-      // Commented out to prevent showing table view page after printing bill
-      
       if (activeTab === 'Dine-in' || activeTab === 'Quick Bill') {
-        setShowOrderDetails(false); // Hide the order panel
-        setSelectedTable(null); // Deselect the table
+        // Reload the latest printed bill data from backend
+        if (sourceTableId) {
+          refreshItemsForTable(sourceTableId);
+        }
+        setBillActionState('printOrSettle'); // Ensure it's ready for settlement
       } else {
         setBillActionState('printOrSettle'); // Ensure it's ready for settlement
       }
-      // 5. Refresh the table list to show the new 'billed' status (red color)
+      // 6. Refresh the table list to show the new 'billed' status (red color)
       fetchTableManagement();
-      window.location.reload();
     
 
     } catch (error: any) {
@@ -2932,13 +2959,20 @@ const Order = () => {
                                     <div key={tableIndex} className="p-1">
                                       <button
                                         className={`btn ${getTableButtonClass(table, selectedTable === table.table_name)}`}
-                                        style={{ width: '90px', height: '80px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+                                        style={{ width: '90px', height: '80px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '2px' }}
                                         onClick={() => {
                                           console.log('Button clicked for table:', table.table_name, 'isActive:', table.isActive);
                                           handleTableClick(table.table_name);
                                         }}
                                       >
-                                        {table.table_name} {table.isActive ? '' : ''}
+                                        <span className="text-dark fw-bold" style={{ fontSize: '11px', lineHeight: '1.1' }}>{table.table_name}</span>
+                                        {table.status === 2 && (
+                                          <div className="d-flex flex-column align-items-center" style={{ fontSize: '8px', lineHeight: '1', color: 'white' }}>
+                                            <span>{table.billNo || 'N/A'}</span>
+                                            <span>₹{table.billAmount || 0}</span>
+                                            <span>{table.billPrintedTime || 'N/A'}</span>
+                                          </div>
+                                        )}
                                       </button>
                                     </div>
                                   ) : null
