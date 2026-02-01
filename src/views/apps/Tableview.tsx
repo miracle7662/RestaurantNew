@@ -18,6 +18,9 @@ interface Table {
   department_name?: string;
   txnId?: number | null;
   TxnNo?: string | null;
+  billNo?: string | null;
+  billAmount?: number | null;
+  billPrintedTime?: string | null;
 }
 
 interface Department {
@@ -42,18 +45,25 @@ const TableCard: React.FC<{ table: Table; onClick: () => void }> = ({ table, onC
 
   return (
     <div
-      className={`${getStatusClass(table.status)} cursor-pointer table-card d-flex align-items-center justify-content-center`}
+      className={`${getStatusClass(table.status)} cursor-pointer table-card d-flex flex-column align-items-center justify-content-center`}
       style={{
         width: '100px',
         height: '70px',
         borderRadius: '6px',
         cursor: 'pointer',
         border: '1px solid #ddd',
-        padding: '4px'
+        padding: '2px'
       }}
       onClick={onClick}
     >
-      <span className="text-dark fw-bold" style={{ fontSize: '13px', lineHeight: '1.2' }}>{table.name}</span>
+      <span className="text-dark fw-bold" style={{ fontSize: '11px', lineHeight: '1.1' }}>{table.name}</span>
+      {table.status === 'printed' && table.billNo && table.billAmount && table.billPrintedTime && (
+        <div className="d-flex flex-column align-items-center" style={{ fontSize: '8px', lineHeight: '1', color: 'white' }}>
+          <span>{table.billNo}</span>
+          <span>₹{table.billAmount}</span>
+          <span>{table.billPrintedTime}</span>
+        </div>
+      )}
     </div>
   );
 };
@@ -139,9 +149,19 @@ export default function App() {
                 const data = await res.json();
 
                 let txnId: number | null = null;
+                let billNo: string | null = null;
+                let billAmount: number | null = null;
+                let billPrintedTime: string | null = null;
                 if (data.success && data.data) {
-                  const { isBilled, isSetteled, TxnID } = data.data;
+                  const { isBilled, isSetteled, TxnID, TxnNo, Amount, BilledDate } = data.data;
                   txnId = TxnID || null;
+                  billNo = TxnNo || null;
+                  billAmount = Amount || null;
+                  if (BilledDate) {
+                    const date = new Date(BilledDate);
+                    const istDate = new Date(date.getTime() + (5.5 * 60 * 60 * 1000)); // Convert to IST
+                    billPrintedTime = istDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+                  }
 
                   if (isBilled === 1 && isSetteled !== 1) status = 2; // 🔴 red when billed but not settled
                   if (isSetteled === 1) status = 0; // ⚪ vacant when settled
@@ -157,7 +177,7 @@ export default function App() {
                   default: statusString = 'available'; break;
                 }
 
-                return { id: item.tableid, name: item.table_name, status: statusString, outletid: item.outletid, departmentid: item.departmentid, department_name: item.department_name, txnId };
+                return { id: item.tableid, name: item.table_name, status: statusString, outletid: item.outletid, departmentid: item.departmentid, department_name: item.department_name, txnId, billNo, billAmount, billPrintedTime };
               })
             );
 

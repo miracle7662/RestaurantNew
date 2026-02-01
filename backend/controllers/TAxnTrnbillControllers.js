@@ -3213,9 +3213,9 @@ exports.getBillStatusByTable = async (req, res) => {
     const bill = db
       .prepare(
         `
-      SELECT isBilled, isSetteled
+      SELECT isBilled, isSetteled, TxnNo, Amount, BilledDate
       FROM TAxnTrnbill
-      WHERE TableID = ? 
+      WHERE TableID = ?
       ORDER BY TxnID DESC LIMIT 1
     `,
       )
