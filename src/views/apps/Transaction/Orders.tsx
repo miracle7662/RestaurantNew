@@ -1617,11 +1617,12 @@ const Order = () => {
         setPersistentTxnId(null);
         setPersistentTableId(null);
         setSourceTableId(null);
-        // ✅ Clear customer details after KOT save only for Dine-in
-        if (activeTab === 'Dine-in') {
+        // ✅ Clear customer details after KOT save for Dine-in, Pickup, Delivery
+        if (['Dine-in', 'Pickup', 'Delivery'].includes(activeTab)) {
           setMobileNumber('');
           setCustomerName('');
           setCustomerId(null);
+          setOrderNo(null);
         }
 
         // After saving KOT, prepare items for printing and show print modal
