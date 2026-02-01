@@ -74,6 +74,7 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
   reverseQtyMode,
   reverseQtyItems = [],
   onPrint,
+  onClose,
   autoPrint = false,
   selectedOutletId,
   pax,
@@ -370,6 +371,9 @@ const [loadingSetting, setLoadingSetting] = useState(true);
           onPrint();
         }
 
+        // Call onClose immediately for UI update
+        if (onClose) onClose();
+
         // Close modal after printing with delay to prevent job cancellation
         setTimeout(onHide, 300);
       } else {
@@ -650,7 +654,10 @@ ${showCustomerMobile
   return (
     <Modal
       show={show}
-      onHide={onHide}
+      onHide={() => {
+        onHide();
+        if (onClose) onClose();
+      }}
       size="lg"
       centered
       backdrop="static"
