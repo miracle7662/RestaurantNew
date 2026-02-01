@@ -160,7 +160,7 @@ const Order = () => {
     localStorage.setItem('focusMode', JSON.stringify(focusMode));
   }, [focusMode]);
 
-  const [triggerFocusInDetails, setTriggerFocusInDetails] = useState<number>(0);
+  const [triggerFocusInDetails, ] = useState<number>(0);
 
   // New state for floating button group and modals
   const [showOptions, setShowOptions] = useState<boolean>(false);
@@ -1569,11 +1569,6 @@ const Order = () => {
         console.log("KOT SAVE RESPONSE: ", resp.data);
 
         toast.success('KOT saved successfully!');
-
-        // Trigger focus on table field in OrderDetails if focus mode is on
-        if (focusMode) {
-          setTriggerFocusInDetails(prev => prev + 1);
-        }
 
         // Update TxnNo and TxnID from the response
         if (resp?.data) {
