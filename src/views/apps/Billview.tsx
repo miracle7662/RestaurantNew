@@ -810,6 +810,7 @@ useEffect(() => {
             if (header.CESS !== undefined) setCess(header.CESS);
 
             calculateTotals(mappedItems);
+            setOriginalTableStatus(2); // Set to billed status for order_tag logic
             setLoading(false);
             return;
           }
@@ -1115,6 +1116,9 @@ useEffect(() => {
 
       // Calculate totals (now should also consider new tax fields if your function supports it)
       calculateTotals(mappedItems);
+
+      // Set originalTableStatus for order_tag logic: 1 for occupied (has items), 0 for vacant
+      setOriginalTableStatus(data.items.length > 0 ? 1 : 0);
 
     } catch (err: any) {
       if (err.response) {
@@ -3153,12 +3157,12 @@ setOrderNo(null);
               <Card className="footer-card">
                 <Card.Body className="py-1">
                   <div className="d-flex justify-content-between align-items-center px-2 py-1">
-                    <Button disabled={disableKOTTransfer} onClick={() => { setTransferSource("kot"); setShowKotTransferModal(true); }} variant="outline-primary" size="sm" className="function-btn">KOT Tr (F2)</Button>
+                    {!isTakeaway && <Button disabled={disableKOTTransfer} onClick={() => { setTransferSource("kot"); setShowKotTransferModal(true); }} variant="outline-primary" size="sm" className="function-btn">KOT Tr (F2)</Button>}
                     <Button disabled={disableNCKOT} onClick={() => setShowNCKOTModal(true)} variant="outline-primary" size="sm" className="function-btn">N C KOT (ctrl + F9)</Button>
                     {/* <Button onClick={() => setShowCustomerModal(true)} variant="outline-primary" size="sm" className="function-btn">Customer (F1)</Button> */}
                     <Button disabled={!isBillPrintedState} onClick={() => setShowReverseBillModal(true)} variant="outline-primary" size="sm" className="function-btn">Rev Bill (F5)</Button>
-                    <Button disabled={disableTableTransfer} onClick={() => { setTransferSource("table"); setShowKotTransferModal(true); }} variant="outline-primary" size="sm" className="function-btn">TBL Tr (F7)</Button>
-                    <Button disabled={disableNewBill} onClick={resetBillState} variant="outline-primary" size="sm" className="function-btn">New Bill (F6)</Button>
+                    {!isTakeaway && <Button disabled={disableTableTransfer} onClick={() => { setTransferSource("table"); setShowKotTransferModal(true); }} variant="outline-primary" size="sm" className="function-btn">TBL Tr (F7)</Button>}
+                    {!isTakeaway && <Button disabled={disableNewBill} onClick={resetBillState} variant="outline-primary" size="sm" className="function-btn">New Bill (F6)</Button>}
                     <Button disabled={disableRevKOT} onClick={handleF8Action} variant="outline-primary" size="sm" className="function-btn">Rev KOT (F8)</Button>
                     <Button disabled={disableKOT} onClick={() => saveKOT(false, true)} variant="outline-primary" size="sm" className="function-btn">K O T (F9)</Button>
                     <Button disabled={disablePrint} onClick={printBill} variant="outline-primary" size="sm" className="function-btn">Print (F10)</Button>

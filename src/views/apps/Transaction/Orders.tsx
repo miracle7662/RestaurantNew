@@ -108,6 +108,7 @@ const Order = () => {
   const [mobileNumber, setMobileNumber] = useState<string>('');
   const [customerName, setCustomerName] = useState<string>('');
   const [customerId, setCustomerId] = useState<number | null>(null);
+  const [customerAddress, setCustomerAddress] = useState<string>('');
   const [taxRates, setTaxRates] = useState<{ cgst: number; sgst: number; igst: number; cess: number }>({ cgst: 0, sgst: 0, igst: 0, cess: 0 });
   const [taxCalc, setTaxCalc] = useState<{ subtotal: number; cgstAmt: number; sgstAmt: number; igstAmt: number; cessAmt: number; grandTotal: number }>({ subtotal: 0, cgstAmt: 0, sgstAmt: 0, igstAmt: 0, cessAmt: 0, grandTotal: 0 });
   // 0 = exclusive (default), 1 = inclusive
@@ -551,27 +552,33 @@ const Order = () => {
         if (response.customerid && response.name) {
           setCustomerName(response.name);
           setCustomerId(response.customerid);
+          setCustomerAddress(`${response.address1 || ''} ${response.address2 || ''}`.trim());
         } else if (response.success && response.data && response.data.length > 0) {
           const customer = response.data[0];
           setCustomerName(customer.name);
           setCustomerId(customer.customerid);
+          setCustomerAddress(`${customer.address1 || ''} ${customer.address2 || ''}`.trim());
         } else {
           setCustomerName('');
+          setCustomerAddress('');
           console.log('Customer not found');
           setCustomerId(null);
         }
       } else if (res.status === 404) {
         setCustomerName('');
+        setCustomerAddress('');
         console.log('Customer not found (404)');
         setCustomerId(null);
       } else {
         console.error('Failed to fetch customer:', res.status, res.statusText);
         setCustomerName('');
+        setCustomerAddress('');
         setCustomerId(null);
       }
     } catch (err) {
       console.error('Customer fetch error:', err);
       setCustomerName('');
+      setCustomerAddress('');
       setCustomerId(null);
     }
   };
@@ -1569,12 +1576,12 @@ const Order = () => {
         DiscountType: DiscountType,
         CustomerName: customerName,
         MobileNo: mobileNumber,
-        guestid: customerId ?? null,
+        GuestID: customerId ?? null,
 
         Order_Type: activeTab, // Add the active tab as Order_Type
         PAX: 1, // Use the PAX value from the input field
         TxnDatetime: user?.currDate, // Pass curr_date from useAuthContext
-        
+
       };
 
       console.log('TxnDatetime from useAuthContext:', user?.curr_date);

@@ -155,8 +155,8 @@ exports.getCustomerByMobile = (req, res) => {
     }
 
     const stmt = db.prepare(`
-      SELECT customerid, name, mobile 
-      FROM mstcustomer 
+      SELECT customerid, name, mobile, address1, address2
+      FROM mstcustomer
       WHERE TRIM(mobile) = TRIM(?)
       LIMIT 1
     `);
