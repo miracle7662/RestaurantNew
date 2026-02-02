@@ -69,15 +69,12 @@ const TableCard: React.FC<{ table: Table; onClick: () => void }> = ({ table, onC
 };
 
 // Legend Component
-const Legend: React.FC = () => {
+const Legend: React.FC<{ statusCounts: { vacant: number; occupied: number; printed: number; pending: number } }> = ({ statusCounts }) => {
   const legendItems = [
-    { label: 'Move KOT / Serve', color: '#f0f0f0', border: true },
-    { label: 'Blank Table', color: '#f0f0f0', border: true },
-    { label: 'Running Table', color: '#0d6efd' },
-    { label: 'Printed Table', color: '#198754' },
-    { label: 'Paid Table', color: '#f0f0f0', border: true },
-    { label: 'Running KOT Table', color: '#fd7e14' },
-    { label: 'Reserved Table', color: '#ffc107' },
+    { label: 'Vacant', color: '#f0f0f0', border: true, count: statusCounts.vacant },
+    { label: 'Occupied', color: '#17af68', count: statusCounts.occupied },
+    { label: 'Printed', color: '#dc3545', count: statusCounts.printed },
+    { label: 'Pending', color: '#fd7e14', count: statusCounts.pending },
   ];
 
   return (
@@ -93,7 +90,7 @@ const Legend: React.FC = () => {
               borderRadius: '3px'
             }}
           />
-          <small className="text-muted">{item.label}</small>
+          <small className="text-muted">{item.label} ({item.count})</small>
         </div>
       ))}
     </div>
@@ -115,6 +112,12 @@ export default function App() {
   const noButtonRef = useRef<HTMLButtonElement>(null);
   const [takeawayOrders, setTakeawayOrders] = useState<any[]>([]);
   const [activeFilter, setActiveFilter] = useState<'All' | 'Pickup' | 'Delivery'>('All');
+  const [statusCounts, setStatusCounts] = useState<{ vacant: number; occupied: number; printed: number; pending: number }>({
+    vacant: 0,
+    occupied: 0,
+    printed: 0,
+    pending: 0
+  });
   const { user } = useAuthContext();
   const navigate = useNavigate();
   const location = useLocation();
@@ -313,8 +316,25 @@ export default function App() {
     };
   }, [departments]);
 
+  // Filter tables to only show specified statuses
+  const filteredTables = allTables.filter(table =>
+    table.status === 'available' || table.status === 'running' || table.status === 'printed' || table.status === 'running-kot'
+  );
+
+  // Compute status counts
+  useEffect(() => {
+    const counts = filteredTables.reduce((acc, table) => {
+      if (table.status === 'available') acc.vacant++;
+      else if (table.status === 'running') acc.occupied++;
+      else if (table.status === 'printed') acc.printed++;
+      else if (table.status === 'running-kot') acc.pending++;
+      return acc;
+    }, { vacant: 0, occupied: 0, printed: 0, pending: 0 });
+    setStatusCounts(counts);
+  }, [filteredTables]);
+
   // Group tables by their departmentid
-  const tablesByDepartment = allTables.reduce((acc, table) => {
+  const tablesByDepartment = filteredTables.reduce((acc, table) => {
     if (table.departmentid) {
       if (!acc[table.departmentid]) {
         acc[table.departmentid] = [];
@@ -534,7 +554,7 @@ export default function App() {
             </div>
 
             <div className="col d-flex justify-content-end">
-              <Legend />
+              <Legend statusCounts={statusCounts} />
             </div>
           </div>
         </div>
