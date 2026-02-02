@@ -1543,24 +1543,8 @@ const Order = () => {
       const firstNCItem = newKotItemsPayload.find(item => item.isNCKOT);
 
       // Determine order tag for KOT header
-      const orderTag = (() => {
-        if (activeTab === 'Dine-in') {
-          if (currentTxnId) {
-            return 'Running';
-          } else if (originalTableStatus === null || originalTableStatus === 0) {
-            return 'New';
-          } else {
-            return 'Running';
-          }
-        } else if (['Pickup', 'Delivery', 'Quick Bill', 'Order/KOT'].includes(activeTab)) {
-          if (currentTxnId) {
-            return 'Running';
-          } else {
-            return 'New';
-          }
-        }
-        return 'New';
-      })();
+      const orderTag = currentTxnId ? 'Running' : 'New';
+      console.log('orderTag determined:', orderTag, 'currentTxnId:', currentTxnId, 'activeTab:', activeTab, 'selectedTable:', selectedTable);
 
       const kotPayload = {
         txnId: currentTxnId || 0,

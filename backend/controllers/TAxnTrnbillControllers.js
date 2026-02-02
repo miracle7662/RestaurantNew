@@ -998,6 +998,7 @@ exports.createKOT = async (req, res) => {
     } = req.body
 
     console.log('Received Discount Data for KOT:', { DiscPer, Discount, DiscountType })
+    console.log('Received orderTag:', orderTag)
 
     if (!Array.isArray(details) || details.length === 0) {
       console.log('Details array is empty or not an array')
@@ -1027,6 +1028,7 @@ exports.createKOT = async (req, res) => {
             'SELECT TxnID, DiscPer, Discount, DiscountType, isNCKOT, isBilled FROM TAxnTrnbill WHERE TxnID = ?',
           )
           .get(payloadTxnId)
+        console.log('Existing bill found by TxnID:', existingBill)
       } else if (TableID && TableID > 0) {
         existingBill = db
           .prepare(
@@ -1036,6 +1038,7 @@ exports.createKOT = async (req, res) => {
         `,
           )
           .get(Number(TableID))
+        console.log('Existing bill found by TableID:', existingBill)
       }
 
       if (existingBill) {
@@ -1198,6 +1201,7 @@ exports.createKOT = async (req, res) => {
           if (menuData) itemNo = menuData.item_no
         }
 
+        console.log('Inserting item with order_tag:', orderTag)
         insertDetailStmt.run({
           TxnID: txnId,
           outletid: outletid,
@@ -2345,8 +2349,6 @@ exports.getLatestBilledBillForTable = async (req, res) => {
       SELECT
         l.ReversalID,
         l.ItemID,
-        l.RevKOTNo,
-        l.RevKOT AS RevKOT,
         COALESCE(m.item_name, 'Unknown Item') AS ItemName,
         l.ReversedQty as Qty,
         d.RuntimeRate as price,
