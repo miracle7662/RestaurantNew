@@ -165,7 +165,7 @@ const Order = () => {
     localStorage.setItem('focusMode', JSON.stringify(focusMode));
   }, [focusMode]);
 
-  const [triggerFocusInDetails, ] = useState<number>(0);
+  const [triggerFocusInDetails, setTriggerFocusInDetails] = useState<number>(0);
 
   // New state for floating button group and modals
   const [showOptions, setShowOptions] = useState<boolean>(false);
@@ -4409,11 +4409,20 @@ const Order = () => {
             setCurrentKOTNo(null);
             setCurrentKOTNos([]);
             if (activeTab === 'Dine-in') {
-              setMobileNumber('');
-              setCustomerName('');
-              setCustomerId(null);
-              setShowOrderDetails(false);
-              setSelectedTable(null);
+              if (focusMode) {
+                // In focus mode, keep order details open and focus the table input
+                setTriggerFocusInDetails(prev => prev + 1);
+                setMobileNumber('');
+                setCustomerName('');
+                setCustomerId(null);
+                // Do not hide order details or clear selected table
+              } else {
+                setMobileNumber('');
+                setCustomerName('');
+                setCustomerId(null);
+                setShowOrderDetails(false);
+                setSelectedTable(null);
+              }
             } else if (activeTab === 'Pickup' || activeTab === 'Delivery') {
               // Navigate back to table page for Pickup/Delivery
               setActiveTab('Dine-in');
