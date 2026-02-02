@@ -12,6 +12,8 @@ import ReverseKotModal from './ReverseKotModal';
 import KotPreviewPrint from './PrintReport/KotPrint';
 import BillPreviewPrint from './PrintReport/BillPrint';
 import { OutletSettings } from '../../utils/applyOutletSettings';
+import { fetchKotPrintSettings, } from '@/services/outletSettings.service';
+import { applyKotSettings, } from '@/utils/applyOutletSettings';
 
 
 const KOT_COLORS = [
@@ -91,6 +93,13 @@ interface FetchedItem {
   isNew: boolean;
   originalQty: number;
   kotNo: number;
+}
+
+interface FormData {
+  show_new_order_tag?: boolean;
+  new_order_tag_label?: string;
+  show_running_order_tag?: boolean;
+  running_order_tag_label?: string;
 }
 
 const ModernBill = () => {
@@ -189,6 +198,9 @@ useEffect(() => {
 
   const [reverseQtyConfig, setReverseQtyConfig] = useState('PasswordRequired');
   const [roundOffEnabled, setRoundOffEnabled] = useState(false);
+
+  // Form data for KOT settings
+  const [formData, setFormData] = useState<FormData>({} as FormData);
 
   // Tax rates states
   const [cgstRate, setCgstRate] = useState(2.5);
@@ -390,7 +402,8 @@ useEffect(() => {
   const [currentKotNoForPrint, setCurrentKotNoForPrint] = useState<number | null>(null);
   const [showBillPrintModal, setShowBillPrintModal] = useState(false);
   // Transfer modal data
-
+  const [originalTableStatus, setOriginalTableStatus] = useState<number>(0);
+  
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
   const [customerNo, setCustomerNo] = useState('');
   const [customerName, setCustomerName] = useState('');
@@ -676,6 +689,7 @@ useEffect(() => {
                 isNew: false,
                 originalQty: item.Qty,
                 kotNo: item.KOTNo,
+                RevKOT: item.RevKOT
               }))
               .filter((item: FetchedItem) => (item.qty - item.revQty) > 0);
 
@@ -1267,8 +1281,20 @@ setCgstRate(response.data.cgst_rate || 2.5);
     fetchTaxDetails();
   }, [selectedOutletId]);
 
+   const loadOutletSettings = async (outletId: number) => {
+    try {
+      const kotData = await fetchKotPrintSettings(outletId);
+      if (kotData) {
+        setFormData(prev => applyKotSettings(prev, kotData));
+      }
+    } catch (err) {
+      console.error('Failed to load outlet settings', err);
+    }
+  };
+
   useEffect(() => {
-    if (selectedOutletId) {
+  if (selectedOutletId) {
+      loadOutletSettings(selectedOutletId);
       // Fetch outlet settings for Reverse Qty Mode
       const fetchReverseQtySetting = async () => {
         try {
@@ -1532,7 +1558,11 @@ setRoundOffEnabled(!!settings.bill_round_off);
       // ✅ outletId MUST come from department context
       const outletId = selectedOutletId; // same variable used to load departments
 
+
       console.log("🏷️ OutletId (from department context):", outletId);
+
+       const order_tag = originalTableStatus === 0 ? (formData.new_order_tag_label || 'New') : (formData.running_order_tag_label || 'Running');
+      console.log('orderTag determined:', order_tag, 'originalTableStatus:', originalTableStatus, 'activeTab:', activeTab, 'selectedTable:', selectedTable);
 
       if (!outletId) {
         console.error("❌ Outlet ID missing, cannot save KOT");
@@ -1595,7 +1625,8 @@ setRoundOffEnabled(!!settings.bill_round_off);
           DeptID: departmentIdFromState && departmentIdFromState > 0 ? departmentIdFromState : null,
           SpecialInst: item.specialInstructions || null,
           item_name: item.itemName,
-          item_no: item.item_no
+          item_no: item.item_no,
+          order_tag: order_tag 
         }))
       };
 
@@ -3396,6 +3427,8 @@ setOrderNo(null);
         user={user}
         formData={{} as OutletSettings}
         reverseQtyMode={false}
+        tableStatus={originalTableStatus}
+        order_tag={formData.show_new_order_tag ? formData.new_order_tag_label : formData.show_running_order_tag ? formData.running_order_tag_label : ''}
 
         // ✅ REQUIRED FOR AUTO PRINT
         autoPrint={true}
@@ -3424,7 +3457,7 @@ setOrderNo(null);
         show={showBillPrintModal}
         onHide={() => setShowBillPrintModal(false)}
 
-        formData={{} as OutletSettings}
+        formData={formData}
         user={user}
         items={billItems.filter(i => i.itemId > 0).map((item) => ({
           id: item.itemId,
