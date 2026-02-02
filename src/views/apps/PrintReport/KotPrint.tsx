@@ -57,7 +57,7 @@ interface KotPreviewPrintProps {
   orderNo?: string | null;
   date?: string | null;
   tableStatus?: number | null;
-  orderTag?: string;
+  order_tag?: string;
 }
 
 const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({

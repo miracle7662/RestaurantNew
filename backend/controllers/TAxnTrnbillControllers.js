@@ -2,7 +2,7 @@ const db = require('../config/db')
 
 // Utility: standard success response
 function ok(message, data) {
-  return { success: true, message, data }
+  return { success: true, message, data } 
 }
 function toBool(value) { 
   return value ? 1 : 0
@@ -976,29 +976,29 @@ exports.createKOT = async (req, res) => {
   try {
     console.log('Received createKOT body:', JSON.stringify(req.body, null, 2))
     // Correctly destructure from the frontend payload which uses camelCase (e.g., tableId, userId)
-    const {
-      outletid,
-      tableId: TableID,
-      table_name,
-      userId: UserId,
-      hotelId: HotelID,
-      NCName,
-      NCPurpose,
-      DiscPer,
-      Discount,
-      DiscountType,
-      CustomerName,
-      MobileNo,
-      GuestID,
-      Order_Type,
-      PAX,
-      TxnDatetime,
-      items: details = [],
-      orderTag,
-    } = req.body
+  const {
+    outletid,
+    tableId: TableID,
+    table_name,
+    userId: UserId,
+    hotelId: HotelID,
+    NCName,
+    NCPurpose,
+    DiscPer,
+    Discount,
+    DiscountType,
+    CustomerName,
+    MobileNo,
+    GuestID,
+    Order_Type,
+    PAX,
+    TxnDatetime,
+
+    items: details = [],
+  } = req.body
 
     console.log('Received Discount Data for KOT:', { DiscPer, Discount, DiscountType })
-    console.log('Received orderTag:', orderTag)
+    let order_tag = req.body.order_tag
 
     if (!Array.isArray(details) || details.length === 0) {
       console.log('Details array is empty or not an array')
@@ -1185,6 +1185,7 @@ exports.createKOT = async (req, res) => {
         const igstAmt = Number(item.IGST_AMOUNT) || (lineSubtotal * igstPer) / 100
         const cessAmt = Number(item.CESS_AMOUNT) || (lineSubtotal * cessPer) / 100
         const isNCKOT = toBool(item.isNCKOT)
+        const order_tag = item.order_tag || ''
 
         let itemDiscountAmount = 0
         if (finalDiscountType === 1) {
@@ -1201,7 +1202,7 @@ exports.createKOT = async (req, res) => {
           if (menuData) itemNo = menuData.item_no
         }
 
-        console.log('Inserting item with order_tag:', orderTag)
+        console.log('Inserting item with order_tag:', order_tag)
         insertDetailStmt.run({
           TxnID: txnId,
           outletid: outletid,
@@ -1225,7 +1226,7 @@ exports.createKOT = async (req, res) => {
           KOTNo: kotNo,
           item_no: itemNo,
           item_name: item.item_name,
-          order_tag: orderTag,
+          order_tag: order_tag,
         })
       }
 
@@ -1727,12 +1728,13 @@ exports.getUnbilledItemsByTable = async (req, res) => {
         d.KOTNo,
         d.RevKOTNo,
         m.item_no as MenuItemNo,
-        m.item_group_id
+        m.item_group_id,
+        d.order_tag
       FROM TAxnTrnbilldetails d
       LEFT JOIN msttablemanagement t ON d.TableID = t.tableid
       JOIN TAxnTrnbill b ON d.TxnID = b.TxnID
       LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
-      WHERE b.TableID = ? AND b.isBilled in (1,0)   AND b.issetteled = 0 AND b.isNCKOT = 0 AND  d.isCancelled = 0 
+      WHERE b.TableID = ? AND b.isBilled in (1,0)   AND b.issetteled = 0 AND b.isNCKOT = 0 AND  d.isCancelled = 0
       `,
       )
       .all(Number(tableId))
@@ -1805,6 +1807,7 @@ exports.getUnbilledItemsByTable = async (req, res) => {
       isNew: r.KOTNo === kotNo,
       kotNo: r.KOTNo,
       itemgroupid: r.item_group_id,
+      order_tag: r.order_tag || '',
     }))
 
     console.log('Unbilled items for tableId', tableId, ':', items)

@@ -1543,8 +1543,8 @@ const Order = () => {
       const firstNCItem = newKotItemsPayload.find(item => item.isNCKOT);
 
       // Determine order tag for KOT header
-      const orderTag = currentTxnId ? 'Running' : 'New';
-      console.log('orderTag determined:', orderTag, 'currentTxnId:', currentTxnId, 'activeTab:', activeTab, 'selectedTable:', selectedTable);
+      const order_tag = originalTableStatus === 0 ? (formData.new_order_tag_label || 'New') : (formData.running_order_tag_label || 'Running');
+      console.log('orderTag determined:', order_tag, 'originalTableStatus:', originalTableStatus, 'activeTab:', activeTab, 'selectedTable:', selectedTable);
 
       const kotPayload = {
         txnId: currentTxnId || 0,
@@ -1569,7 +1569,7 @@ const Order = () => {
         Order_Type: activeTab, // Add the active tab as Order_Type
         PAX: 1, // Use the PAX value from the input field
         TxnDatetime: user?.currDate, // Pass curr_date from useAuthContext
-        orderTag: orderTag, // Add order tag to payload
+        order_tag: order_tag, // Add order tag to payload
       };
 
       console.log('TxnDatetime from useAuthContext:', user?.curr_date);
@@ -4435,7 +4435,7 @@ const Order = () => {
             orderNo={orderNo}
             date={user?.currDate}
             tableStatus={originalTableStatus}
-            orderTag={formData.show_new_order_tag ? formData.new_order_tag_label : formData.show_running_order_tag ? formData.running_order_tag_label : ''}
+            order_tag={formData.show_new_order_tag ? formData.new_order_tag_label : formData.show_running_order_tag ? formData.running_order_tag_label : ''}
           />
           <BillPreviewPrint
             show={showBillPrintModal}
