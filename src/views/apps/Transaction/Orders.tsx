@@ -3030,7 +3030,7 @@ const Order = () => {
                         .map((table, index) => (
                           <div key={index} className="p-1">
                             <button
-                              className={`btn ${selectedTable === table.table_name ? 'btn-success' : 'btn-outline-success'}`}
+                              className={`btn ${getTableButtonClass(table, selectedTable === table.table_name)}`}
                               style={{ width: '90px', height: '80px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
                               onClick={() => {
                                 console.log('Button clicked for table:', table.table_name, 'isActive:', table.isActive);
