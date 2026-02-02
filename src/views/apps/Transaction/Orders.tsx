@@ -34,6 +34,7 @@ interface MenuItem {
   txnDetailId?: number;
   isReverse?: boolean; // Added for reverse quantity items
   revQty?: number;
+  order_tag ?: string
 }
 interface ReversedMenuItem extends MenuItem {
   isReversed: true;
@@ -1479,6 +1480,10 @@ const Order = () => {
         // Decreases are handled by Re-KOT.
         if (qtyDelta <= 0) return null;
 
+        // Determine order tag for KOT header
+      const order_tag = originalTableStatus === 0 ? (formData.new_order_tag_label || 'New') : (formData.running_order_tag_label || 'Running');
+      console.log('orderTag determined:', order_tag, 'originalTableStatus:', originalTableStatus, 'activeTab:', activeTab, 'selectedTable:', selectedTable);
+
         const lineSubtotal = Number(i.price) * qtyDelta;
         const cgstPer = Number(currentTaxRates.cgst) || 0;
         const sgstPer = Number(currentTaxRates.sgst) || 0;
@@ -1488,6 +1493,7 @@ const Order = () => {
         const sgstAmt = (lineSubtotal * sgstPer) / 100;
         const igstAmt = (lineSubtotal * igstPer) / 100;
         const cessAmt = (lineSubtotal * cessPer) / 100; // This tax calculation is for bill, not KOT. KOT only needs item and quantity.
+       
         return {
           ItemID: i.id,
           item_no: i.item_no,
@@ -1510,6 +1516,7 @@ const Order = () => {
           isNCKOT: i.isNCKOT || 0,
           NCName: i.isNCKOT ? i.NCName : null,
           NCPurpose: i.isNCKOT ? i.NCPurpose : null,
+          order_tag: order_tag, // Add order tag to payload
         };
       }).filter(Boolean) as any[];
 
@@ -1542,9 +1549,7 @@ const Order = () => {
       // Find the first NCKOT item to get the overall NCName and NCPurpose for the bill header
       const firstNCItem = newKotItemsPayload.find(item => item.isNCKOT);
 
-      // Determine order tag for KOT header
-      const order_tag = originalTableStatus === 0 ? (formData.new_order_tag_label || 'New') : (formData.running_order_tag_label || 'Running');
-      console.log('orderTag determined:', order_tag, 'originalTableStatus:', originalTableStatus, 'activeTab:', activeTab, 'selectedTable:', selectedTable);
+      
 
       const kotPayload = {
         txnId: currentTxnId || 0,
@@ -1569,7 +1574,7 @@ const Order = () => {
         Order_Type: activeTab, // Add the active tab as Order_Type
         PAX: 1, // Use the PAX value from the input field
         TxnDatetime: user?.currDate, // Pass curr_date from useAuthContext
-        order_tag: order_tag, // Add order tag to payload
+        
       };
 
       console.log('TxnDatetime from useAuthContext:', user?.curr_date);
