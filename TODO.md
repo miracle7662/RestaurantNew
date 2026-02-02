@@ -1,5 +1,6 @@
-- [x] Filter tables to only show 'available', 'running', 'printed', 'running-kot' statuses
-- [x] Compute counts for each status
-- [x] Display status counts in the toolbar
-- [x] Update Legend component to show only Vacant, Occupied, Printed, Pending
-- [x] Ensure only filtered tables are displayed in the grid
+# TODO: Implement Pending Status for Unsettled Printed Bills
+
+## Tasks
+- [x] Modify status determination in fetchTables to set status to 'pending' (4) if printed bill unsettled for >10 minutes
+- [x] Update TableCard component to display bill info for 'running-kot' (pending) status
+- [ ] Verify the changes work as expected

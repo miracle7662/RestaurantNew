@@ -108,15 +108,15 @@ const ModernBill = () => {
   const [billItems, setBillItems] = useState<BillItem[]>([{ itemCode: '', itemgroupid: 0, itemId: 0, item_no: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '', isFetched: false }]);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [grossAmount, setGrossAmount] = useState(0);
-  
+
   const [roundOff, setRoundOff] = useState(0);
   const [cgst, setCgst] = useState<number>(0);
   const [sgst, setSgst] = useState<number>(0);
   const [igst, setIgst] = useState<number>(0);
-const [cess, setCess] = useState<number>(0);
+  const [cess, setCess] = useState<number>(0);
 
-const [finalAmount, setFinalAmount] = useState(0);
-const navigate = useNavigate();
+  const [finalAmount, setFinalAmount] = useState(0);
+  const navigate = useNavigate();
   const location = useLocation();
   const tableId = location.state?.tableId;
   const tableName = location.state?.tableName;
@@ -143,10 +143,10 @@ const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [txnId, setTxnId] = useState<number | null>(null);
-const [billData] = useState<any>(null);
+  const [billData] = useState<any>(null);
 
 
-const [discount, setDiscount] = useState(0);
+  const [discount, setDiscount] = useState(0);
   const [DiscountType, setDiscountType] = useState(1);
   const [discountInputValue, setDiscountInputValue] = useState(0);
   const [RevKOT, setRevKOT] = useState(0);
@@ -167,29 +167,29 @@ const [discount, setDiscount] = useState(0);
   const [groupBy, setGroupBy] = useState<'none' | 'item' | 'group' | 'kot'>('group');
   const [deliveryType, setDeliveryType] = useState<'pickup' | 'homedelivery'>('pickup');
 
-const [isTableOccupied, setIsTableOccupied] = useState(false);
+  const [isTableOccupied, setIsTableOccupied] = useState(false);
 
-// Set deliveryType based on location.state?.orderType or loaded order's Order_Type
-useEffect(() => {
-  if (location.state?.orderType) {
-    if (location.state.orderType === 'Pickup') {
-      setDeliveryType('pickup');
-    } else if (location.state.orderType === 'Delivery') {
-      setDeliveryType('homedelivery');
+  // Set deliveryType based on location.state?.orderType or loaded order's Order_Type
+  useEffect(() => {
+    if (location.state?.orderType) {
+      if (location.state.orderType === 'Pickup') {
+        setDeliveryType('pickup');
+      } else if (location.state.orderType === 'Delivery') {
+        setDeliveryType('homedelivery');
+      }
+    } else if (billData?.header?.Order_Type) {
+      if (billData.header.Order_Type === 'Pickup') {
+        setDeliveryType('pickup');
+      } else if (billData.header.Order_Type === 'Delivery') {
+        setDeliveryType('homedelivery');
+      }
     }
-  } else if (billData?.header?.Order_Type) {
-    if (billData.header.Order_Type === 'Pickup') {
-      setDeliveryType('pickup');
-    } else if (billData.header.Order_Type === 'Delivery') {
-      setDeliveryType('homedelivery');
-    }
-  }
-}, [location.state?.orderType, billData?.header?.Order_Type]);
+  }, [location.state?.orderType, billData?.header?.Order_Type]);
 
-useEffect(() => {
-  const currentTable = tableItems.find(t => t.table_name === tableName);
-  setIsTableOccupied(currentTable?.status === 1);
-}, [tableItems, tableName]);
+  useEffect(() => {
+    const currentTable = tableItems.find(t => t.table_name === tableName);
+    setIsTableOccupied(currentTable?.status === 1);
+  }, [tableItems, tableName]);
 
   const isGrouped = groupBy !== 'none';
 
@@ -400,7 +400,7 @@ useEffect(() => {
   const [showBillPrintModal, setShowBillPrintModal] = useState(false);
   // Transfer modal data
   const [originalTableStatus, setOriginalTableStatus] = useState<number>(0);
-  
+
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
   const [customerNo, setCustomerNo] = useState('');
   const [customerName, setCustomerName] = useState('');
@@ -960,7 +960,7 @@ useEffect(() => {
         setRoundOff?.(data.header.RoundOFF || data.header.roundOff || data.header.roundoff || 0);
       }
 
-// Compute max RevKOTNo from details for unbilled orders
+      // Compute max RevKOTNo from details for unbilled orders
       const reversedDetails = data.details.filter((d: any) => d.RevQty > 0);
       const maxRevKotNo = reversedDetails.length > 0 ? Math.max(...reversedDetails.map((d: any) => d.RevKOTNo || 0)) : 0;
       setRevKotNo(maxRevKotNo);
@@ -1267,8 +1267,8 @@ useEffect(() => {
       if (!selectedOutletId) return;
 
       try {
-const response = await axios.get(`/api/tax-details?outletid=${selectedOutletId}`);
-setCgstRate(response.data.cgst_rate || 2.5);
+        const response = await axios.get(`/api/tax-details?outletid=${selectedOutletId}`);
+        setCgstRate(response.data.cgst_rate || 2.5);
         setSgstRate(response.data.sgst_rate || 2.5);
         setIgstRate(response.data.igst_rate || 0);
         setCessRate(response.data.cess_rate || 0);
@@ -1282,7 +1282,7 @@ setCgstRate(response.data.cgst_rate || 2.5);
     fetchTaxDetails();
   }, [selectedOutletId]);
 
-   const loadOutletSettings = async (outletId: number) => {
+  const loadOutletSettings = async (outletId: number) => {
     try {
       const kotData = await fetchKotPrintSettings(outletId);
       if (kotData) {
@@ -1294,7 +1294,7 @@ setCgstRate(response.data.cgst_rate || 2.5);
   };
 
   useEffect(() => {
-  if (selectedOutletId) {
+    if (selectedOutletId) {
       loadOutletSettings(selectedOutletId);
       // Fetch outlet settings for Reverse Qty Mode
       const fetchReverseQtySetting = async () => {
@@ -1304,8 +1304,8 @@ setCgstRate(response.data.cgst_rate || 2.5);
             const settings = await res.json();
             if (settings) {
               setReverseQtyConfig(settings.ReverseQtyMode === 1 ? 'PasswordRequired' : 'NoPassword');
-setRoundOffEnabled(!!settings.bill_round_off);
-// include_tax_in_invoice may be returned with different casing
+              setRoundOffEnabled(!!settings.bill_round_off);
+              // include_tax_in_invoice may be returned with different casing
               const incFlag =
                 settings.include_tax_in_invoice ??
                 (settings as any).IncludeTaxInInvoice ??
@@ -1562,7 +1562,7 @@ setRoundOffEnabled(!!settings.bill_round_off);
 
       console.log("🏷️ OutletId (from department context):", outletId);
 
-       const order_tag = originalTableStatus === 0 ? (formData.new_order_tag_label || 'New') : (formData.running_order_tag_label || 'Running');
+      const order_tag = originalTableStatus === 0 ? (formData.new_order_tag_label || 'New') : (formData.running_order_tag_label || 'Running');
       console.log('orderTag determined:', order_tag, 'originalTableStatus:', originalTableStatus, 'activeTab:', activeTab, 'selectedTable:', selectedTable);
 
       if (!outletId) {
@@ -1627,7 +1627,7 @@ setRoundOffEnabled(!!settings.bill_round_off);
           SpecialInst: item.specialInstructions || null,
           item_name: item.itemName,
           item_no: item.item_no,
-          order_tag: order_tag 
+          order_tag: order_tag
         }))
       };
 
@@ -1912,9 +1912,9 @@ setRoundOffEnabled(!!settings.bill_round_off);
         return;
       }
 
-// 2️⃣ TxnNo state me set karo
-setOrderNo(txnNo);
-toast.success('Bill printed successfully');
+      // 2️⃣ TxnNo state me set karo
+      setOrderNo(txnNo);
+      toast.success('Bill printed successfully');
 
       // 4️⃣ Table status update
       await axios.post(`/api/tablemanagement/${tableId}/status`, { status: 1 });
@@ -2118,9 +2118,9 @@ toast.success('Bill printed successfully');
       setPaymentAmounts({});
       setSelectedPaymentModes([]);
       setIsMixedPayment(false);
-setTip(0); // Reset tip amount
-setShowSettlementModal(false);
-if (selectedTable) {
+      setTip(0); // Reset tip amount
+      setShowSettlementModal(false);
+      if (selectedTable) {
         const tableToUpdate = tableItems.find(t => t.table_name === selectedTable.name);
         if (tableToUpdate) {
           await axios.post(`/api/tablemanagement/${tableToUpdate.tablemanagementid}/status`, {
@@ -2128,10 +2128,10 @@ if (selectedTable) {
           });
         }
       }
-fetchTableManagement(); // Refresh table statuses
-setShowPendingOrdersView(false); // Hide pending view after successful settlement
-setCurrentKOTNos([]);
-setOrderNo(null);
+      fetchTableManagement(); // Refresh table statuses
+      setShowPendingOrdersView(false); // Hide pending view after successful settlement
+      setCurrentKOTNos([]);
+      setOrderNo(null);
 
       // Navigate to tableview page after settling the bill
       navigate('/apps/Tableview');
@@ -2182,7 +2182,7 @@ setOrderNo(null);
     }
 
     if (status === 0) { // Vacant
-        states.exit = true;
+      states.exit = true;
     } else if (status === 1) { // Occupied - only KOT enabled when items are input
 
       states.kotTransfer = true;
@@ -2756,7 +2756,7 @@ setOrderNo(null);
                 </div>
               </Col>
 
-                  {/* KOT No - Editable input */}
+              {/* KOT No - Editable input */}
               <Col md={2}>
                 <div className="info-box p-2 h-100 border rounded text-center d-flex flex-column justify-content-center">
                   <div className="text-uppercase text-secondary small mb-1 fw-semibold">
@@ -2797,7 +2797,7 @@ setOrderNo(null);
                       }}
                       className="border-0 fw-bold text-center bg-transparent"
                       style={{ width: '100px', color: '#333' }}
-                     
+
                     />
                   </div>
                 </div>
@@ -2805,22 +2805,22 @@ setOrderNo(null);
 
 
               {/* Date - Centered */}
-             <Col md={1}>
-  <div className="info-box p-2 h-100 border rounded text-center d-flex flex-column justify-content-center">
-    <div className="text-uppercase text-secondary small mb-1 fw-semibold">
-      Date
-    </div>
-    <div className="fw-bold fs-6" style={{ color: '#333' }}>
-      {user?.currDate
-        ? new Date(user.currDate).toLocaleDateString('en-GB', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric',
-          })
-        : '--/--/----'}
-    </div>
-  </div>
-</Col>
+              <Col md={1}>
+                <div className="info-box p-2 h-100 border rounded text-center d-flex flex-column justify-content-center">
+                  <div className="text-uppercase text-secondary small mb-1 fw-semibold">
+                    Date
+                  </div>
+                  <div className="fw-bold fs-6" style={{ color: '#333' }}>
+                    {user?.currDate
+                      ? new Date(user.currDate).toLocaleDateString('en-GB', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                      })
+                      : '--/--/----'}
+                  </div>
+                </div>
+              </Col>
 
 
               {isTakeaway && (
