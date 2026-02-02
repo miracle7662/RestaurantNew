@@ -108,10 +108,7 @@ const ModernBill = () => {
   const [billItems, setBillItems] = useState<BillItem[]>([{ itemCode: '', itemgroupid: 0, itemId: 0, item_no: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '', isFetched: false }]);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [grossAmount, setGrossAmount] = useState(0);
-  const [totalCgst, setTotalCgst] = useState(0);
-  const [totalSgst, setTotalSgst] = useState(0);
-  const [totalIgst, setTotalIgst] = useState(0);
-
+  
   const [roundOff, setRoundOff] = useState(0);
   const [cgst, setCgst] = useState<number>(0);
   const [sgst, setSgst] = useState<number>(0);
@@ -343,9 +340,9 @@ useEffect(() => {
     const roundedFinalAmount = Math.round(totalBeforeRoundOff);
     const ro = roundedFinalAmount - totalBeforeRoundOff;
     setGrossAmount(gross);
-    setTotalCgst(cgstTotal);
-    setTotalSgst(sgstTotal);
-    setTotalIgst(igstTotal);
+    setCgst(cgstTotal);
+    setSgst(sgstTotal);
+    setIgst(igstTotal);
     setFinalAmount(roundedFinalAmount);
     setRoundOff(ro);
     setDiscount(discountAmount);
@@ -1186,9 +1183,9 @@ useEffect(() => {
     const ro = roundedFinalAmount - totalBeforeRoundOff;
 
     setGrossAmount(gross);
-    setTotalCgst(cgstTotal);
-    setTotalSgst(sgstTotal);
-    setTotalIgst(igstTotal);
+    setCgst(cgstTotal);
+    setSgst(sgstTotal);
+    setIgst(igstTotal);
     setTotalCess(cessTotal);
     setFinalAmount(roundedFinalAmount);
     setRoundOff(ro);
@@ -3487,9 +3484,9 @@ setOrderNo(null);
 
         taxCalc={{
           subtotal: grossAmount,
-          cgstAmt: totalCgst,
-          sgstAmt: totalSgst,
-          igstAmt: totalIgst,
+          cgstAmt: cgst,
+          sgstAmt: sgst,
+          igstAmt: igst,
           grandTotal: finalAmount
         }}
 
