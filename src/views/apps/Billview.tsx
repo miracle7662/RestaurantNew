@@ -796,6 +796,8 @@ useEffect(() => {
 
               }))
             );
+            const totalRev = (billedBillData.data.reversedItems || []).reduce((acc: number, item: any) => acc + ((item.Qty || 0) * (item.price || 0)), 0);
+            setRevKOT(header.RevKOT ?? totalRev);
             // Compute max RevKOTNo from details
             const reversedDetails = details.filter((d: any) => d.RevQty > 0);
             const maxRevKotNo = reversedDetails.length > 0 ? Math.max(...reversedDetails.map((d: any) => d.RevKOTNo || 0)) : 0;
@@ -950,9 +952,7 @@ useEffect(() => {
           setDiscPer(0);
         }
 
-        if (data.header.RevKOT) {
-          setRevKOT(data.header.RevKOT);
-        }
+        setRevKOT(data.header?.RevKOT ?? 0);
 
         // ── NEW TAX & TOTAL FIELDS ──
         setCgst?.(data.header.CGST || data.header.cgst || 0);
