@@ -1771,8 +1771,8 @@ const ModernBill = () => {
     }
   };
   const handleReverseKotSave = async (reverseItemsFromModal: any[]) => {
-    if (!txnId || !tableId) {
-      toast.error('Transaction or table not found');
+    if (!txnId) {
+      toast.error('Transaction not found');
       return;
     }
 
