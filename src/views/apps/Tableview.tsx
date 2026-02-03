@@ -58,7 +58,7 @@ const TableCard: React.FC<{ table: Table; onClick: () => void }> = ({ table, onC
       onClick={onClick}
     >
       <span className="text-dark fw-bold" style={{ fontSize: '14px', lineHeight: '1.1' }}>{table.name}</span>
-      {table.status === 'printed' && table.billNo && table.billAmount && table.billPrintedTime && (
+      {(table.status === 'printed' || table.status === 'running-kot') && table.billNo && table.billAmount && table.billPrintedTime && (
         <div className="d-flex flex-column align-items-center" style={{ fontSize: '10px', lineHeight: '1', color: 'white' }}>
           <span>{table.billNo}</span>
           <span>₹{table.billAmount}</span>
@@ -75,7 +75,7 @@ const Legend: React.FC<{ statusCounts: { vacant: number; occupied: number; print
     { label: 'Vacant', color: '#f0f0f0', border: true, count: statusCounts.vacant },
     { label: 'Occupied', color: '#17af68', count: statusCounts.occupied },
     { label: 'Printed', color: '#dc3545', count: statusCounts.printed },
-    { label: 'Pending', color: '#fd7e14', count: statusCounts.pending },
+    { label: 'Pending', color: '#E6E6FA', count: statusCounts.pending },
   ];
 
   return (
