@@ -107,7 +107,7 @@ const Order = () => {
   const [sourceTableId, setSourceTableId] = useState<number | null>(null);
   const [mobileNumber, setMobileNumber] = useState<string>('');
   const [customerName, setCustomerName] = useState<string>('');
-  const [customerId, setCustomerId] = useState<number | null>(null);
+  const [customerid, setCustomerId] = useState<number | null>(null);
 
 
   const [customerAddress, setCustomerAddress] = useState<string>('');
@@ -1302,7 +1302,7 @@ const Order = () => {
           outletId: selectedOutletId || Number(user?.outletid),
           customerName: customerName || null,
           mobileNo: mobileNumber || null,
-          GuestID: customerId || null,
+          GuestID: customerid || null,
         }),
       });
 
@@ -1401,8 +1401,8 @@ const Order = () => {
 
   const handlePrintAndSaveKOT = async () => {
     try {
-      // Ensure customer details are fetched if mobile number is provided but customerId is null
-      if (mobileNumber && !customerId) {
+      // Ensure customer details are fetched if mobile number is provided but customerid is null
+      if (mobileNumber && !customerid) {
         await fetchCustomerByMobile(mobileNumber);
       }
 
@@ -1583,7 +1583,7 @@ const Order = () => {
         DiscountType: DiscountType,
         CustomerName: customerName,
         MobileNo: mobileNumber,
-        GuestID: customerId,
+        GuestID: customerid,
 
         Order_Type: activeTab, // Add the active tab as Order_Type
         PAX: 1, // Use the PAX value from the input field
@@ -1651,7 +1651,6 @@ const Order = () => {
         if (['Dine-in', 'Pickup', 'Delivery'].includes(activeTab)) {
           setMobileNumber('');
           setCustomerName('');
-          setCustomerId(null);
           setOrderNo(null);
         }
 
