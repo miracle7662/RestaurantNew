@@ -266,29 +266,30 @@ const KitchenAllocation: React.FC = () => {
                   </Form.Select>
                 </Form.Group>
               </Col>
-            </Row>
-            <Row className="mt-3">
+              <Col md={3}>
+                <Form.Group>
+                  <Form.Label>Search Item Name</Form.Label>
+                  <Form.Control
+                    type="text"
+                    placeholder="Enter item name to search..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </Form.Group>
+              </Col>
               <Col md={3} className="d-flex align-items-end">
                 <Button onClick={fetchData} disabled={loading}>
                   {loading ? 'Loading...' : 'Generate Report'}
                 </Button>
               </Col>
+            
+              
+              
             </Row>
+            
           </Form>
 
-          <Row className="mt-3">
-            <Col md={4}>
-              <Form.Group>
-                <Form.Label>Search Item Name</Form.Label>
-                <Form.Control
-                  type="text"
-                  placeholder="Enter item name to search..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </Form.Group>
-            </Col>
-          </Row>
+          
 
           {error && <Alert variant="danger" className="mt-3">{error}</Alert>}
 
