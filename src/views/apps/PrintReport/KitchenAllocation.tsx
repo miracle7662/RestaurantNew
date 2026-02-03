@@ -20,24 +20,24 @@ const KitchenAllocation: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   // Filters
-  const [fromDate, setFromDate] = useState('');
-  const [toDate, setToDate] = useState('');
   const [selectedUser, setSelectedUser] = useState('');
-  const [selectedItemGroup, setSelectedItemGroup] = useState('');
+   const [departments, setDepartments] = useState<FilterOption[]>([]);
+  const [users, setUsers] = useState<FilterOption[]>([]);
   const [selectedDepartment, setSelectedDepartment] = useState('');
+  const [fromDate, setFromDate] = useState(new Date().toISOString().split('T')[0]);
+  const [toDate, setToDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedItemGroup, setSelectedItemGroup] = useState('');
   const [selectedKitchenMainGroup, setSelectedKitchenMainGroup] = useState('');
 
   // Filter options
-  const [users, setUsers] = useState<FilterOption[]>([]);
   const [itemGroups, setItemGroups] = useState<FilterOption[]>([]);
-  const [departments, setDepartments] = useState<FilterOption[]>([]);
   const [kitchenMainGroups, setKitchenMainGroups] = useState<FilterOption[]>([]);
 
   // Fetch filter options
   useEffect(() => {
     const fetchFilterOptions = async () => {
       try {
-        // Use correct API endpoints that match backend routes
+          // Use correct API endpoints that match backend routes
         const userParams = new URLSearchParams({
           currentUserId: user?.id?.toString() || '',
           roleLevel: user?.role || '',
@@ -53,23 +53,19 @@ const KitchenAllocation: React.FC = () => {
           fetch(`http://localhost:3001/api/users?${userParams}`),
           fetch('http://localhost:3001/api/ItemGroup'),
           fetch(`http://localhost:3001/api/table-department?${departmentParams}`),
+
           fetch('http://localhost:3001/api/KitchenMainGroup')
         ]);
 
-        if (!usersRes.ok) throw new Error(`Failed to fetch users: ${usersRes.status} ${usersRes.statusText}`);
         if (!itemGroupsRes.ok) throw new Error(`Failed to fetch item groups: ${itemGroupsRes.status} ${itemGroupsRes.statusText}`);
-        if (!departmentsRes.ok) throw new Error(`Failed to fetch departments: ${departmentsRes.status} ${departmentsRes.statusText}`);
         if (!kitchenMainGroupsRes.ok) throw new Error(`Failed to fetch kitchen main groups: ${kitchenMainGroupsRes.status} ${kitchenMainGroupsRes.statusText}`);
 
-        const usersData = await usersRes.json();
         const itemGroupsData = await itemGroupsRes.json();
-        const departmentsData = await departmentsRes.json();
         const kitchenMainGroupsData = await kitchenMainGroupsRes.json();
 
         // Handle different response formats
-        setUsers(Array.isArray(usersData) ? usersData : usersData.data || []);
+        
         setItemGroups(Array.isArray(itemGroupsData) ? itemGroupsData : itemGroupsData.data || []);
-        setDepartments(Array.isArray(departmentsData) ? departmentsData : departmentsData.data || []);
         setKitchenMainGroups(Array.isArray(kitchenMainGroupsData) ? kitchenMainGroupsData : kitchenMainGroupsData.data || []);
       } catch (err) {
         console.error('Error fetching filter options:', err);
@@ -79,6 +75,13 @@ const KitchenAllocation: React.FC = () => {
 
     fetchFilterOptions();
   }, []);
+
+  // Fetch data on component mount with current date
+  useEffect(() => {
+    if (user?.hotelid) {
+      fetchData();
+    }
+  }, [user]);
 
   // Fetch data
   const fetchData = async () => {
@@ -98,16 +101,17 @@ const KitchenAllocation: React.FC = () => {
       let filterType = '';
       let filterId = '';
 
+     
       if (selectedUser) {
         filterType = 'user';
         filterId = selectedUser;
       } else if (selectedItemGroup) {
         filterType = 'item-group';
         filterId = selectedItemGroup;
-      } else if (selectedDepartment) {
+        } else if (selectedDepartment) {
         filterType = 'department';
         filterId = selectedDepartment;
-      } else if (selectedKitchenMainGroup) {
+      }  else if (selectedKitchenMainGroup) {
         filterType = 'kitchen-category';
         filterId = selectedKitchenMainGroup;
       }
@@ -169,7 +173,7 @@ const KitchenAllocation: React.FC = () => {
                   />
                 </Form.Group>
               </Col>
-              <Col md={3}>
+               <Col md={3}>
                 <Form.Group>
                   <Form.Label>User</Form.Label>
                   <Form.Select value={selectedUser} onChange={(e) => setSelectedUser(e.target.value)}>
@@ -191,7 +195,7 @@ const KitchenAllocation: React.FC = () => {
                   </Form.Select>
                 </Form.Group>
               </Col>
-            </Row>
+                </Row>
             <Row className="mt-3">
               <Col md={3}>
                 <Form.Group>
@@ -215,6 +219,8 @@ const KitchenAllocation: React.FC = () => {
                   </Form.Select>
                 </Form.Group>
               </Col>
+            </Row>
+            <Row className="mt-3">
               <Col md={3} className="d-flex align-items-end">
                 <Button onClick={fetchData} disabled={loading}>
                   {loading ? 'Loading...' : 'Generate Report'}
