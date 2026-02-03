@@ -108,6 +108,8 @@ const Order = () => {
   const [mobileNumber, setMobileNumber] = useState<string>('');
   const [customerName, setCustomerName] = useState<string>('');
   const [customerId, setCustomerId] = useState<number | null>(null);
+
+
   const [customerAddress, setCustomerAddress] = useState<string>('');
   const [taxRates, setTaxRates] = useState<{ cgst: number; sgst: number; igst: number; cess: number }>({ cgst: 0, sgst: 0, igst: 0, cess: 0 });
   const [taxCalc, setTaxCalc] = useState<{ subtotal: number; cgstAmt: number; sgstAmt: number; igstAmt: number; cessAmt: number; grandTotal: number }>({ subtotal: 0, cgstAmt: 0, sgstAmt: 0, igstAmt: 0, cessAmt: 0, grandTotal: 0 });
@@ -1399,6 +1401,11 @@ const Order = () => {
 
   const handlePrintAndSaveKOT = async () => {
     try {
+      // Ensure customer details are fetched if mobile number is provided but customerId is null
+      if (mobileNumber && !customerId) {
+        await fetchCustomerByMobile(mobileNumber);
+      }
+
       const newItemsToKOT = items.filter(item => item.isNew);
       const reverseItemsToKOT = reverseQtyMode ? reverseQtyItems : [];
       setLoading(true);
@@ -1576,7 +1583,7 @@ const Order = () => {
         DiscountType: DiscountType,
         CustomerName: customerName,
         MobileNo: mobileNumber,
-        GuestID: customerId ?? null,
+        GuestID: customerId,
 
         Order_Type: activeTab, // Add the active tab as Order_Type
         PAX: 1, // Use the PAX value from the input field

@@ -1065,7 +1065,7 @@ exports.createKOT = async (req, res) => {
               isNCKOT = ?,
               CustomerName = COALESCE(?, CustomerName),
               MobileNo = COALESCE(?, MobileNo),
-              GuestID = COALESCE(?, GuestID)
+              GuestID = ?
             WHERE TxnID = ?
         `,
         ).run(
