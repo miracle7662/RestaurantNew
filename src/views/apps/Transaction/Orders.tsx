@@ -107,9 +107,7 @@ const Order = () => {
   const [sourceTableId, setSourceTableId] = useState<number | null>(null);
   const [mobileNumber, setMobileNumber] = useState<string>('');
   const [customerName, setCustomerName] = useState<string>('');
-  const [customerid, setCustomerId] = useState<number | null>(null);
-
-
+  const [customerId, setCustomerId] = useState<number | null>(null);
   const [customerAddress, setCustomerAddress] = useState<string>('');
   const [taxRates, setTaxRates] = useState<{ cgst: number; sgst: number; igst: number; cess: number }>({ cgst: 0, sgst: 0, igst: 0, cess: 0 });
   const [taxCalc, setTaxCalc] = useState<{ subtotal: number; cgstAmt: number; sgstAmt: number; igstAmt: number; cessAmt: number; grandTotal: number }>({ subtotal: 0, cgstAmt: 0, sgstAmt: 0, igstAmt: 0, cessAmt: 0, grandTotal: 0 });
@@ -1302,7 +1300,7 @@ const Order = () => {
           outletId: selectedOutletId || Number(user?.outletid),
           customerName: customerName || null,
           mobileNo: mobileNumber || null,
-          GuestID: customerid || null,
+          GuestID: customerId || null,
         }),
       });
 
@@ -1400,12 +1398,33 @@ const Order = () => {
   };
 
   const handlePrintAndSaveKOT = async () => {
-    try {
-      // Ensure customer details are fetched if mobile number is provided but customerid is null
-      if (mobileNumber && !customerid) {
-        await fetchCustomerByMobile(mobileNumber);
-      }
+    let currentCustomerId = customerId;
+    let currentCustomerName = customerName;
 
+    // If mobile number is entered but customerId is not set, fetch the customer
+    if (mobileNumber && !customerId) {
+      try {
+        const res = await fetch(`http://localhost:3001/api/customer/by-mobile?mobile=${mobileNumber}`, {
+          headers: { 'Content-Type': 'application/json' },
+        });
+        if (res.ok) {
+          const response = await res.json();
+          console.log('Customer API response:', response);
+          if (response.success && response.data) {
+            const customer = response.data;
+            currentCustomerId = customer.customerid;
+            currentCustomerName = customer.name;
+            setCustomerId(customer.customerid);
+            setCustomerName(customer.name);
+            setCustomerAddress(`${customer.address1 || ''} ${customer.address2 || ''}`.trim());
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching customer:', error);
+        // Continue with KOT save even if customer fetch fails
+      }
+    }
+    try {
       const newItemsToKOT = items.filter(item => item.isNew);
       const reverseItemsToKOT = reverseQtyMode ? reverseQtyItems : [];
       setLoading(true);
@@ -1581,9 +1600,9 @@ const Order = () => {
         DiscPer: DiscPer,
         Discount: discount,
         DiscountType: DiscountType,
-        CustomerName: customerName,
+         CustomerName: currentCustomerName,
         MobileNo: mobileNumber,
-        GuestID: customerid,
+        GuestID: currentCustomerId ?? null,
 
         Order_Type: activeTab, // Add the active tab as Order_Type
         PAX: 1, // Use the PAX value from the input field
@@ -1651,6 +1670,7 @@ const Order = () => {
         if (['Dine-in', 'Pickup', 'Delivery'].includes(activeTab)) {
           setMobileNumber('');
           setCustomerName('');
+          setCustomerId(null);
           setOrderNo(null);
         }
 
