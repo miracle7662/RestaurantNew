@@ -1,6 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card, Row, Col, Form, Button, Table, Alert } from 'react-bootstrap';
 import { useAuthContext } from '@/common';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 
 interface KitchenAllocationData {
   item_no: string;
@@ -28,6 +31,7 @@ const KitchenAllocation: React.FC = () => {
   const [toDate, setToDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedItemGroup, setSelectedItemGroup] = useState('');
   const [selectedKitchenMainGroup, setSelectedKitchenMainGroup] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Filter options
   const [itemGroups, setItemGroups] = useState<FilterOption[]>([]);
@@ -101,7 +105,7 @@ const KitchenAllocation: React.FC = () => {
       let filterType = '';
       let filterId = '';
 
-     
+
       if (selectedUser) {
         filterType = 'user';
         filterId = selectedUser;
@@ -144,11 +148,54 @@ const KitchenAllocation: React.FC = () => {
     }
   };
 
+  // Handler functions for buttons
+  const handlePDF = () => {
+    const doc = new jsPDF();
+    doc.text('Kitchen Allocation Report', 20, 10);
+    const tableColumn = ['Item No', 'Item Name', 'Total Qty', 'Amount'];
+    const tableRows = filteredData.map(item => [
+      item.item_no,
+      item.item_name,
+      item.TotalQty.toString(),
+      item.Amount.toString()
+    ]);
+    autoTable(doc, {
+      head: [tableColumn],
+      body: tableRows,
+      startY: 20
+    });
+    doc.save('kitchen_allocation_report.pdf');
+  };
+
+  const handleExcel = () => {
+    const worksheet = XLSX.utils.json_to_sheet(filteredData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Kitchen Allocation');
+    XLSX.writeFile(workbook, 'kitchen_allocation_report.xlsx');
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  // Filtered data based on search term
+  const filteredData = useMemo(() => {
+    if (!searchTerm) return data;
+    return data.filter(item =>
+      item.item_name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [data, searchTerm]);
+
   return (
     <div>
       <Card>
-        <Card.Header>
+        <Card.Header className="d-flex justify-content-between align-items-center">
           <h4>Kitchen Allocation Report</h4>
+          <div>
+            <Button variant="outline-primary" onClick={handlePDF} className="me-2">PDF</Button>
+            <Button variant="outline-success" onClick={handleExcel} className="me-2">Excel</Button>
+            <Button variant="outline-info" onClick={handlePrint}>Print</Button>
+          </div>
         </Card.Header>
         <Card.Body>
           <Form>
@@ -229,6 +276,20 @@ const KitchenAllocation: React.FC = () => {
             </Row>
           </Form>
 
+          <Row className="mt-3">
+            <Col md={4}>
+              <Form.Group>
+                <Form.Label>Search Item Name</Form.Label>
+                <Form.Control
+                  type="text"
+                  placeholder="Enter item name to search..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </Form.Group>
+            </Col>
+          </Row>
+
           {error && <Alert variant="danger" className="mt-3">{error}</Alert>}
 
           <Table striped bordered hover responsive className="mt-3">
@@ -241,7 +302,7 @@ const KitchenAllocation: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {data.map((item, index) => (
+              {filteredData.map((item, index) => (
                 <tr key={index}>
                   <td>{item.item_no}</td>
                   <td>{item.item_name}</td>
