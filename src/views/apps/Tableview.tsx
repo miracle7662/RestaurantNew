@@ -21,6 +21,7 @@ interface Table {
   billNo?: string | null;
   billAmount?: number | null;
   billPrintedTime?: string | null;
+  billPrintedDate?: Date | null;
 }
 
 interface Department {
@@ -155,6 +156,7 @@ export default function App() {
                 let billNo: string | null = null;
                 let billAmount: number | null = null;
                 let billPrintedTime: string | null = null;
+                let billPrintedDate: Date | null = null;
                 if (data.success && data.data) {
                   const { isBilled, isSetteled, TxnID, TxnNo, Amount, BilledDate } = data.data;
                   txnId = TxnID || null;
@@ -162,8 +164,8 @@ export default function App() {
                   billAmount = Amount || null;
                   if (BilledDate) {
                     const date = new Date(BilledDate);
-                    const istDate = new Date(date.getTime() + (5.5 * 60 * 60 * 1000)); // Convert to IST
-                    billPrintedTime = istDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+                    billPrintedDate = new Date(date.getTime() + (5.5 * 60 * 60 * 1000)); // Convert to IST
+                    billPrintedTime = billPrintedDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
                   }
 
                   if (isBilled === 1 && isSetteled !== 1) status = 2; // 🔴 red when billed but not settled
@@ -180,7 +182,16 @@ export default function App() {
                   default: statusString = 'available'; break;
                 }
 
-                return { id: item.tableid, name: item.table_name, status: statusString, outletid: item.outletid, departmentid: item.departmentid, department_name: item.department_name, txnId, billNo, billAmount, billPrintedTime };
+                // Check if printed bill is 10+ minutes old, change to pending
+                if (statusString === 'printed' && billPrintedDate) {
+                  const now = new Date();
+                  const diffMinutes = (now.getTime() - billPrintedDate.getTime()) / (1000 * 60);
+                  if (diffMinutes >= 10) {
+                    statusString = 'running-kot'; // Mark as pending
+                  }
+                }
+
+                return { id: item.tableid, name: item.table_name, status: statusString, outletid: item.outletid, departmentid: item.departmentid, department_name: item.department_name, txnId, billNo, billAmount, billPrintedTime, billPrintedDate };
               })
             );
 
@@ -246,6 +257,29 @@ export default function App() {
       document.removeEventListener('keydown', handleEscapeKey);
     };
   }, [user, navigate]);
+
+  // Periodically update table statuses based on bill printed time
+  useEffect(() => {
+    const updateTableStatuses = () => {
+      setAllTables(prevTables =>
+        prevTables.map(table => {
+          if (table.status === 'printed' && table.billPrintedDate) {
+            const now = new Date();
+            const diffMinutes = (now.getTime() - table.billPrintedDate.getTime()) / (1000 * 60);
+            if (diffMinutes >= 10) {
+              return { ...table, status: 'running-kot' as TableStatus };
+            }
+          }
+          return table;
+        })
+      );
+    };
+
+    updateTableStatuses();
+    const interval = setInterval(updateTableStatuses, 60000); // 60 seconds
+
+    return () => clearInterval(interval);
+  }, []);
 
   // Focus the table input field when the component mounts
   useEffect(() => {

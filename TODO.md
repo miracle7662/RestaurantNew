@@ -1,6 +1,8 @@
-# TODO: Implement Pending Status for Unsettled Printed Bills
+# TODO: Implement Printed Bill Time Display and Pending Logic
 
 ## Tasks
-- [x] Modify status determination in fetchTables to set status to 'pending' (4) if printed bill unsettled for >10 minutes
-- [x] Update TableCard component to display bill info for 'running-kot' (pending) status
-- [ ] Verify the changes work as expected
+- [ ] Add billPrintedDate field to Table interface
+- [ ] Update fetchTables to store billPrintedDate as Date object
+- [ ] Implement logic to change status to 'running-kot' if 10+ minutes since billPrintedDate
+- [ ] Add setInterval in useEffect to periodically update table statuses
+- [ ] Test the implementation for correct behavior
