@@ -282,9 +282,7 @@ const KitchenAllocation: React.FC = () => {
                   {loading ? 'Loading...' : 'Generate Report'}
                 </Button>
               </Col>
-            
-              
-              
+ 
             </Row>
             
           </Form>
