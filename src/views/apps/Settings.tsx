@@ -107,7 +107,7 @@ function SettingsPage() {
   const [kotPrinters, setKotPrinters] = useState<KotPrinterSetting[]>([]);
   const [billPrinters, setBillPrinters] = useState<BillPrinterSetting[]>([]);
   const [, setLabelPrinters] = useState<LabelPrinterSetting[]>([]);
-  const [, setReportPrinters] = useState<ReportPrinterSetting[]>([]);
+  const [reportPrinters, setReportPrinters] = useState<ReportPrinterSetting[]>([]);
   const [departmentPrinters, setDepartmentPrinters] = useState<DepartmentWisePrinter[]>([]);
   const [tableWiseKot, setTableWiseKot] = useState<TableWiseKot[]>([]);
   const [tableWiseBill, setTableWiseBill] = useState<TableWiseBill[]>([]);
@@ -116,6 +116,9 @@ function SettingsPage() {
   const [loading, setLoading] = useState(false);
   const [, setEditingKotId] = useState<number | null>(null);
   const [, setEditingBillId] = useState<number | null>(null);
+  const [reportPrinterName, setReportPrinterName] = useState("");
+  const [reportPaperSize, setReportPaperSize] = useState("80mm");
+  const [reportAutoPrint, setReportAutoPrint] = useState(true);
 
 
   useEffect(() => {
@@ -358,6 +361,36 @@ function SettingsPage() {
     (document.getElementById('kot-copies') as HTMLInputElement).value = '';
     setKotEnablePrint(true);
     setEditingKotId(null);
+  };
+
+  // Report Printer handlers
+  const handleUpdateReportPrinter = async () => {
+    if (reportPrinters.length === 0) {
+      alert('No report printer settings found to update');
+      return;
+    }
+
+    const existingSetting = reportPrinters[0]; // Assuming single setting for now
+
+    setLoading(true);
+    try {
+      await apiCall(`/settings/report-printer/${existingSetting.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          printer_name: reportPrinterName,
+          paper_size: reportPaperSize,
+          auto_print: reportAutoPrint
+        })
+      });
+
+      fetchReportPrinters();
+      alert('Report printer settings updated successfully');
+    } catch (error) {
+      console.error('Failed to update report printer:', error);
+      alert('Failed to update report printer settings');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Bill Printer handlers
@@ -695,24 +728,51 @@ function SettingsPage() {
                 <div className="row g-3 align-items-end">
                   <div className="col-md-4">
                     <label className="form-label">Printer</label>
-                    <PrinterSelector />
+                    <select
+                      className="form-select"
+                      value={reportPrinterName}
+                      onChange={(e) => setReportPrinterName(e.target.value)}
+                    >
+                      <option value="">Select Printer</option>
+                      {printers.map((printer, index: number) => (
+                        <option key={index} value={printer.name}>
+                          {printer.displayName}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div className="col-md-3">
                     <label className="form-label">Paper Size</label>
-                    <select className="form-select">
-                      <option>80mm</option>
-                      <option>A4</option>
-                      <option>A5</option>
+                    <select
+                      className="form-select"
+                      value={reportPaperSize}
+                      onChange={(e) => setReportPaperSize(e.target.value)}
+                    >
+                      <option value="80mm">80mm</option>
+                      <option value="A4">A4</option>
+                      <option value="A5">A5</option>
                     </select>
                   </div>
                   <div className="col-md-3">
                     <div className="form-check form-switch">
-                      <input className="form-check-input" type="checkbox" role="switch" defaultChecked />
+                      <input
+                        className="form-check-input"
+                        type="checkbox"
+                        role="switch"
+                        checked={reportAutoPrint}
+                        onChange={(e) => setReportAutoPrint(e.target.checked)}
+                      />
                       <label className="form-check-label">Auto Print Reports</label>
                     </div>
                   </div>
                   <div className="col-md-2">
-                    <button className="btn btn-success w-100">Update</button>
+                    <button
+                      className="btn btn-success w-100"
+                      onClick={handleUpdateReportPrinter}
+                      disabled={loading}
+                    >
+                      {loading ? 'Updating...' : 'Update'}
+                    </button>
                   </div>
                 </div>
               </PrinterSection>

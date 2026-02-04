@@ -361,6 +361,8 @@ const [, setLoadingSetting] = useState(true);
   console.log("Fallback printer used");
 }
 
+      console.log(`Printing to printer: ${finalPrinterName}`);
+
       // Generate KOT HTML for printing
       const kotHTML = generateKOTHTML();
 

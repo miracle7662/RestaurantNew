@@ -171,7 +171,7 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
         }
         const data = await res.json();
         console.log('API response data:', data);
-        const printer = data?.data?.printer_name || null;
+        const printer = data?.printer_name || null;
         console.log('Setting printerName to:', printer);
        setPrinterName(printer);
 

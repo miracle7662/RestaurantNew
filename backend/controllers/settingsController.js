@@ -91,6 +91,30 @@ exports.createKotPrinterSetting = async (req, res) => {
   }
 };
 
+exports.deleteKotPrinterSetting = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({ error: 'ID is required' });
+    }
+
+    const result = await runQuery(
+      'DELETE FROM kot_printer_settings WHERE id = ?',
+      [id]
+    );
+
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'KOT printer setting not found' });
+    }
+
+    res.json({ success: true, msg: 'KOT printer setting deleted successfully' });
+  } catch (e) {
+    console.error('KOT DELETE ERROR:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+};
+
 // ------------------------------------------
 // 3️⃣ Bill Printer Settings
 // ------------------------------------------
@@ -164,6 +188,30 @@ exports.createBillPrinterSetting = async (req, res) => {
     res.json({ success: true, msg: 'Bill Printer Setting Added' });
   } catch (e) {
     console.error('BILL INSERT ERROR:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+};
+
+exports.deleteBillPrinterSetting = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({ error: 'ID is required' });
+    }
+
+    const result = await runQuery(
+      'DELETE FROM bill_printer_settings WHERE id = ?',
+      [id]
+    );
+
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Bill printer setting not found' });
+    }
+
+    res.json({ success: true, msg: 'Bill printer setting deleted successfully' });
+  } catch (e) {
+    console.error('BILL DELETE ERROR:', e.message);
     res.status(500).json({ error: e.message });
   }
 };
@@ -344,16 +392,42 @@ exports.getReportPrinterSettings = async (req, res) => {
 
 exports.createReportPrinter = async (req, res) => {
   try {
-    const { printer_name, paper_size, auto_print } = req.body;
+    const { printer_name, paper_size, auto_print, outlet_id } = req.body;
+
+    if (!outlet_id) {
+      return res.status(400).json({ error: 'outlet_id is required' });
+    }
 
     await runQuery(
-      `INSERT INTO report_printer_settings 
-      (printer_name, paper_size, auto_print) 
-      VALUES (?, ?, ?)`,
-      [printer_name, paper_size, auto_print]
+      `INSERT INTO report_printer_settings
+      (printer_name, paper_size, auto_print, outlet_id)
+      VALUES (?, ?, ?, ?)`,
+      [printer_name, paper_size, auto_print, outlet_id]
     );
 
     res.json({ msg: 'Report Printer Added' });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+};
+
+exports.updateReportPrinter = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { printer_name, paper_size, auto_print } = req.body;
+
+    if (!id) {
+      return res.status(400).json({ error: 'ID is required' });
+    }
+
+    await runQuery(
+      `UPDATE report_printer_settings
+      SET printer_name = ?, paper_size = ?, auto_print = ?
+      WHERE id = ?`,
+      [printer_name, paper_size, auto_print, id]
+    );
+
+    res.json({ msg: 'Report Printer Updated' });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

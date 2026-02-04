@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Card, Row, Col, Form, Button, Table, Alert } from 'react-bootstrap';
 import { useAuthContext } from '@/common';
+import { toast } from 'react-hot-toast';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
@@ -21,6 +22,8 @@ const KitchenAllocation: React.FC = () => {
   const [data, setData] = useState<KitchenAllocationData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [printerName, setPrinterName] = useState<string | null>(null);
+  const [, setOutletId] = useState<number | null>(null);
 
   // Filters
   const [selectedUser, setSelectedUser] = useState('');
@@ -85,6 +88,35 @@ const KitchenAllocation: React.FC = () => {
     if (user?.hotelid) {
       fetchData();
     }
+  }, [user]);
+
+  // Fetch printer settings and outlet details
+  useEffect(() => {
+    const fetchPrinterAndOutlet = async () => {
+      // Get outletId from user outletid, then hotelid
+      const outletIdToUse = user?.outletid || user?.hotelid;
+
+      if (!outletIdToUse) return;
+
+      setOutletId(Number(outletIdToUse));
+
+      try {
+        const res = await fetch(
+          `http://localhost:3001/api/settings/bill-printer-settings/${outletIdToUse}`
+        );
+        if (!res.ok) {
+          throw new Error('Failed to fetch printers');
+        }
+        const data = await res.json();
+        setPrinterName(data?.printer_name || null);
+      } catch (err) {
+        console.error('Error fetching printer:', err);
+        toast.error('Failed to load printer settings.');
+        setPrinterName(null);
+      }
+    };
+
+    fetchPrinterAndOutlet();
   }, [user]);
 
   // Fetch data
@@ -174,8 +206,121 @@ const KitchenAllocation: React.FC = () => {
     XLSX.writeFile(workbook, 'kitchen_allocation_report.xlsx');
   };
 
-  const handlePrint = () => {
-    window.print();
+  const handlePrint = async () => {
+    try {
+      setLoading(true);
+
+      // Get system printers via Electron API (asynchronous)
+      const systemPrintersRaw = await (window as any).electronAPI?.getInstalledPrinters?.() || [];
+      const systemPrinters = Array.isArray(systemPrintersRaw) ? systemPrintersRaw : [];
+      console.log("System Printers:", systemPrinters);
+
+      if (systemPrinters.length === 0) {
+        toast.error("No printers detected on this system. Please check printer connections and drivers.");
+        return;
+      }
+
+      const normalize = (s: string) =>
+        s.toLowerCase().replace(/\s+/g, "").trim();
+
+      let finalPrinterName: string | null = null;
+      let usedFallback = false;
+
+      // Try to match the configured printer (case-insensitive, partial match)
+      if (printerName) {
+        const matchedPrinter = systemPrinters.find((p: any) =>
+          normalize(p.name).includes(normalize(printerName)) ||
+          normalize(p.displayName || "").includes(normalize(printerName))
+        );
+
+        if (matchedPrinter) {
+          finalPrinterName = matchedPrinter.name;
+        }
+      }
+
+      // If no configured printer or not found, use default printer or first available
+      if (!finalPrinterName) {
+        const defaultPrinter = systemPrinters.find((p: any) => p.isDefault);
+        const fallbackPrinter = defaultPrinter || systemPrinters[0];
+
+        if (fallbackPrinter) {
+          finalPrinterName = fallbackPrinter.name;
+          usedFallback = true;
+          if (printerName) {
+            console.warn(`Configured printer "${printerName}" not found. Using fallback: ${fallbackPrinter.displayName || fallbackPrinter.name}`);
+            toast(`Printer "${printerName}" not found. Using fallback: ${fallbackPrinter.displayName || fallbackPrinter.name}`);
+          }
+        } else {
+          toast.error("No suitable printer found, including fallbacks.");
+          return;
+        }
+      }
+
+      if (!finalPrinterName) {
+        toast.error("Failed to determine printer name.");
+        return;
+      }
+      if (usedFallback) {
+        console.log("Fallback printer used");
+      }
+
+      console.log(`Printing to printer: ${finalPrinterName}`);
+
+      // Generate HTML for the kitchen allocation report
+      const reportHTML = `
+        <html>
+          <head>
+            <title>Kitchen Allocation Report</title>
+            <style>
+              body { font-family: monospace; font-size: 12px; line-height: 1.2; }
+              table { width: 100%; border-collapse: collapse; }
+              th, td { border: 1px solid #000; padding: 4px; text-align: left; }
+              th { background-color: #f0f0f0; }
+              .header { text-align: center; margin-bottom: 10px; }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <h2>Kitchen Allocation Report</h2>
+              <p>From: ${fromDate} To: ${toDate}</p>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Item No</th>
+                  <th>Item Name</th>
+                  <th>Total Qty</th>
+                  <th>Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${filteredData.map(item => `
+                  <tr>
+                    <td>${item.item_no}</td>
+                    <td>${item.item_name}</td>
+                    <td>${item.TotalQty}</td>
+                    <td>${item.Amount}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </body>
+        </html>
+      `;
+
+      // Print using Electron API
+      if ((window as any).electronAPI?.directPrint) {
+        await (window as any).electronAPI.directPrint(reportHTML, finalPrinterName);
+        toast.success("Kitchen Allocation Report Printed Successfully!");
+      } else {
+        toast.error("Electron print API not available.");
+      }
+    } catch (err) {
+      console.error("Print error:", err);
+      toast.error("Failed to print Kitchen Allocation Report.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Filtered data based on search term

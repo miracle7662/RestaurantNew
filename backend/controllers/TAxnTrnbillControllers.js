@@ -1080,7 +1080,7 @@ exports.createKOT = async (req, res) => {
           CustomerName,
           MobileNo,
           customerid,
-         
+          customerid,
           txnId,
         )
       } else {

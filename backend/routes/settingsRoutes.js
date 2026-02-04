@@ -5,11 +5,12 @@ const settingsController = require("../controllers/settingsController");
 
 
  // -------------------------
- // KOT PRINTER SETTINGS
+// KOT PRINTER SETTINGS
  // -------------------------
  router.get("/kot-printer-settings/:id", settingsController.getKotPrinterSettings);
  router.get("/kot-printer-settings", settingsController.getAllKotPrinterSettings);
  router.post("/kot-printer-settings", settingsController.createKotPrinterSetting);
+ router.delete("/kot-printer-settings/:id", settingsController.deleteKotPrinterSetting);
 
 // -------------------------
 // BILL PRINTER SETTINGS
@@ -17,6 +18,7 @@ const settingsController = require("../controllers/settingsController");
 router.get("/bill-printer-settings", settingsController.getAllBillPrinterSettings);
 router.get("/bill-printer-settings/:id", settingsController.getBillPrinterSettings);
 router.post("/bill-printer-settings", settingsController.createBillPrinterSetting);
+router.delete("/bill-printer-settings/:id", settingsController.deleteBillPrinterSetting);
 
 // -------------------------
 // TABLE-WISE KOT PRINTER
@@ -53,6 +55,7 @@ router.post("/label-printer", settingsController.createLabelPrinter);
 // -------------------------
 router.get("/report-printer", settingsController.getReportPrinterSettings);
 router.post("/report-printer", settingsController.createReportPrinter);
+router.put("/report-printer/:id", settingsController.updateReportPrinter);
 
 // -------------------------
 // KDS USERS
