@@ -17,6 +17,9 @@ router.get('/designations', outletUserController.getDesignations);
 // Get user types for dropdown
 router.get('/user-types', outletUserController.getUserTypes);
 
+// Get waiter users for a specific outlet
+router.get('/waiters/:outletId', outletUserController.getWaiterUsers);
+
 // Get hotel admin by ID (must come before /:id route)
 router.get('/hotel-admin/:id', outletUserController.getHotelAdminById);
 

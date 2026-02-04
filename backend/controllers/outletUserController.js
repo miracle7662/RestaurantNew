@@ -559,6 +559,45 @@ exports.getHotelAdmins = (req, res) => {
   }
 }
 
+// Get waiter users (Waiter or Caption designation) for a specific outlet
+exports.getWaiterUsers = (req, res) => {
+  try {
+    const { outletId } = req.params;
+
+    if (!outletId) {
+      return res.status(400).json({ message: 'Outlet ID is required' });
+    }
+
+    console.log('Fetching waiter users for outletId:', outletId);
+
+    const query = `
+      SELECT u.userid as userId,
+             u.username,
+             u.full_name as employee_name,
+             d.Designation as designation
+      FROM mst_users u
+      LEFT JOIN mstdesignation d ON u.designationid = d.designationid
+      WHERE u.outletid = ?
+        AND u.status = 0
+        AND (d.Designation = 'Waiter' OR d.Designation = 'Caption')
+      ORDER BY u.full_name
+    `;
+
+    const waiters = db.prepare(query).all(outletId);
+    
+    res.json({
+      success: true,
+      data: waiters
+    });
+  } catch (error) {
+    console.error('Error fetching waiter users:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+};
+
 // Get hotel admin by ID
 exports.getHotelAdminById = (req, res) => {
   try {
@@ -566,7 +605,7 @@ exports.getHotelAdminById = (req, res) => {
     const hotelAdmin = db
       .prepare(
         `
-            SELECT u.*, 
+            SELECT u.*,
                    b.hotel_name as brand_name,
                    h.hotel_name as hotel_name
             FROM mst_users u

@@ -14,6 +14,7 @@ import BillPreviewPrint from './PrintReport/BillPrint';
 import { OutletSettings } from '../../utils/applyOutletSettings';
 import { fetchKotPrintSettings, } from '@/services/outletSettings.service';
 import { applyKotSettings, } from '@/utils/applyOutletSettings';
+import { fetchWaiterUsers, WaiterUser } from '@/services/user.service';
 
 
 const KOT_COLORS = [
@@ -407,6 +408,7 @@ const ModernBill = () => {
   const [customerId, setCustomerId] = useState<number | null>(null);
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [showF9BilledPasswordModal, setShowF9BilledPasswordModal] = useState(false);
+  const [waiterUsers, setWaiterUsers] = useState<WaiterUser[]>([]);
   const [f9BilledPasswordError, setF9BilledPasswordError] = useState('');
   const [f9BilledPasswordLoading, setF9BilledPasswordLoading] = useState(false);
   const [showF8RevKotPasswordModal, setShowF8RevKotPasswordModal] = useState(false);
@@ -1365,6 +1367,22 @@ const ModernBill = () => {
     };
     fetchMenuItems();
   }, [selectedOutletId, user]);
+
+  // Fetch waiter users
+  useEffect(() => {
+    const fetchWaiters = async () => {
+      try {
+        console.log('selectedOutletId:', selectedOutletId);
+        if (!selectedOutletId) return;
+        const waiters = await fetchWaiterUsers(selectedOutletId);
+        console.log('Fetched waiter users:', waiters);
+        setWaiterUsers(waiters);
+      } catch (error) {
+        console.error('Failed to fetch waiter users:', error);
+      }
+    };
+    fetchWaiters();
+  }, [selectedOutletId]);
 
   useEffect(() => {
     calculateTotals(billItems);
@@ -2737,6 +2755,12 @@ const ModernBill = () => {
                     list="waiters"
                     style={{ color: '#333' }}
                   />
+                  <datalist id="waiters">
+                   
+                    {waiterUsers.map((user) => (
+                      <option key={user.userId} value={user.username} />
+                    ))}
+                  </datalist>
                 </div>
               </Col>
 
