@@ -79,6 +79,69 @@ ORDER BY
     }
 };
 
+const getItemDetails = async (req, res) => {
+  try {
+    const { item_no } = req.params;
+    const { fromDate, toDate, hotelId, outletId } = req.query;
+
+    if (!item_no) {
+      return res.status(400).json({
+        success: false,
+        message: 'Item number is required'
+      });
+    }
+
+    let query = `
+      SELECT
+        d.item_name,
+        d.Qty,
+        (d.Qty * d.RuntimeRate) AS Amount,
+        d.KOTNo,
+        t.TxnDatetime,
+        t.table_name,
+        t.TableID
+      FROM TAxnTrnbilldetails d
+      JOIN TAxnTrnbill t ON t.TxnID = d.TxnID
+      WHERE d.item_no = ?
+        AND t.TxnDatetime >= ?
+        AND t.TxnDatetime < datetime(?, '+1 day')
+        AND t.HotelID = ?
+        AND (d.isCancelled = 0 OR d.isCancelled IS NULL)
+    `;
+
+    const params = [item_no, fromDate, toDate, hotelId];
+
+    if (outletId) {
+      query += ` AND t.outletid = ?`;
+      params.push(outletId);
+    }
+
+    // ✅ ORDER BY ONLY ONCE — AT THE END
+    query += ` ORDER BY t.TxnDatetime DESC`;
+
+    console.log('FINAL SQL:', query);
+    console.log('PARAMS:', params);
+
+    const results = db.prepare(query).all(...params);
+
+    res.status(200).json({
+      success: true,
+      data: results,
+      message: 'Item details retrieved successfully'
+    });
+
+  } catch (error) {
+    console.error('Error fetching item details:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve item details',
+      error: error.message
+    });
+  }
+};
+
+
 module.exports = {
-    getKitchenAllocation
+    getKitchenAllocation,
+    getItemDetails
 };

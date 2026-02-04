@@ -1,15 +1,19 @@
-# TODO: Kitchen Allocation (Item Consumption) Report
+# Kitchen Allocation Action Column Implementation
 
-## Tasks
-- [x] Modify backend controller to group by item only (item_no, item_name)
-- [x] Remove filters for user and department from backend and frontend
-- [x] Update frontend to show item-wise total consumption
-- [x] Ensure report sums quantities per item, ignoring bill/transaction ID, user/waiter, table/order type
-- [x] Fix SQL query error: RangeError: The supplied SQL string contains more than one statement
+## Backend Tasks
+- [x] Add getItemDetails function in KitchenAllocationController.js
+- [x] Add new route for /item-details/:item_no in KitchenAllocationRoutes.js
+- [x] Populate missing item_no and item_name fields in TAxnTrnbilldetails table
 
-## Printing Enhancement Tasks
-- [x] Add state for printer settings (paperSize)
-- [x] Fetch report printer settings on component mount using outlet_id
-- [x] Create dynamic print styles for thermal printer (80mm default)
-- [x] Add <style> tag to inject print styles in JSX
-- [x] Adjust table layout for narrow thermal printing
+## Frontend Tasks
+- [x] Add Action column to KitchenAllocation table
+- [x] Create ItemDetailsModal component
+- [x] Add state management for modal
+- [x] Implement API call on Eye icon click
+- [x] Display item details in modal table
+
+## Testing
+- [x] Test new API endpoint
+- [x] Verify modal functionality
+- [x] Check error handling
+- [x] Fix "Failed to fetch item details" error by populating missing database fields

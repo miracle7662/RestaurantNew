@@ -1,16 +1,27 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Card, Row, Col, Form, Button, Table, Alert } from 'react-bootstrap';
+import { Card, Row, Col, Form, Button, Table, Alert, Modal } from 'react-bootstrap';
 import { useAuthContext } from '@/common';
 import { toast } from 'react-hot-toast';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
+// import { Eye } from 'react-feather';
 
 interface KitchenAllocationData {
   item_no: string;
   item_name: string;
   TotalQty: number;
   Amount: number;
+}
+
+interface ItemDetailData {
+  item_name: string;
+  Qty: number;
+  Amount: number;
+  KOTNo: number | null;
+  TxnDatetime: string;
+  table_name: string | null;
+  TableID: number | null;
 }
 
 interface FilterOption {
@@ -39,6 +50,12 @@ const KitchenAllocation: React.FC = () => {
   // Filter options
   const [itemGroups, setItemGroups] = useState<FilterOption[]>([]);
   const [kitchenMainGroups, setKitchenMainGroups] = useState<FilterOption[]>([]);
+
+  // Modal state
+  const [showModal, setShowModal] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<string>('');
+  const [modalData, setModalData] = useState<ItemDetailData[]>([]);
+  const [modalLoading, setModalLoading] = useState(false);
 
   // Fetch filter options
   useEffect(() => {
@@ -336,6 +353,52 @@ const KitchenAllocation: React.FC = () => {
     );
   }, [data, searchTerm]);
 
+  // Handle eye icon click
+  const handleEyeClick = async (item: KitchenAllocationData) => {
+  setSelectedItem(item.item_name);
+  setShowModal(true);
+  setModalLoading(true);
+
+  try {
+    const startDate = fromDate <= toDate ? fromDate : toDate;
+    const endDate = fromDate <= toDate ? toDate : fromDate;
+
+    const params = new URLSearchParams();
+    params.append('fromDate', startDate);
+    params.append('toDate', endDate);
+    params.append('hotelId', String(user?.hotelid));
+
+    if (user?.outletid) {
+      params.append('outletId', String(user.outletid));
+    }
+
+    const response = await fetch(
+      `http://localhost:3001/api/kitchen-allocation/item-details/${item.item_no}?${params.toString()}`
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    if (result?.success) {
+      setModalData(result.data);
+    } else {
+      setModalData([]);
+      toast.error(result?.message || 'No item details found');
+    }
+
+  } catch (error) {
+    console.error('Error fetching item details:', error);
+    setModalData([]);
+    toast.error('Failed to fetch item details');
+  } finally {
+    setModalLoading(false);
+  }
+};
+
+
   return (
     <div>
       <Card>
@@ -448,6 +511,7 @@ const KitchenAllocation: React.FC = () => {
                 <th>Item Name</th>
                 <th>Total Qty</th>
                 <th>Amount</th>
+                <th>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -457,10 +521,71 @@ const KitchenAllocation: React.FC = () => {
                   <td>{item.item_name}</td>
                   <td>{item.TotalQty}</td>
                   <td>{item.Amount}</td>
+                  <td>
+                    <Button
+                      variant="link"
+                      size="sm"
+                      onClick={() => handleEyeClick(item)}
+                      title="View Item Details"
+                    >
+                      👁️
+                    </Button>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </Table>
+
+          {/* Modal for Item Details */}
+          <Modal show={showModal} onHide={() => setShowModal(false)} size="lg">
+            <Modal.Header closeButton>
+              <Modal.Title>Item Details - {selectedItem}</Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+              {modalLoading ? (
+                <div className="text-center">
+                  <div className="spinner-border" role="status">
+                    <span className="visually-hidden">Loading...</span>
+                  </div>
+                  <p>Loading item details...</p>
+                </div>
+              ) : modalData.length > 0 ? (
+                <Table striped bordered hover responsive>
+                  <thead>
+                    <tr>
+                      <th>Item Name</th>
+                      <th>Qty</th>
+                      <th>Amount</th>
+                      <th>KOT No</th>
+                      <th>Txn Date & Time</th>
+                      <th>Table Name / Table ID</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {modalData.map((detail, index) => (
+                      <tr key={index}>
+                        <td>{detail.item_name}</td>
+                        <td>{detail.Qty}</td>
+                        <td>{detail.Amount}</td>
+                        <td>{detail.KOTNo || 'N/A'}</td>
+                        <td>{new Date(detail.TxnDatetime).toLocaleString()}</td>
+                        <td>{detail.table_name || `Table ${detail.TableID}`}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </Table>
+              ) : (
+                <Alert variant="info">
+                  No item details found for the selected item.
+                </Alert>
+              )}
+            </Modal.Body>
+            <Modal.Footer>
+              <Button variant="secondary" onClick={() => setShowModal(false)}>
+                Close
+              </Button>
+            </Modal.Footer>
+          </Modal>
         </Card.Body>
       </Card>
     </div>
