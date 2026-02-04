@@ -128,7 +128,8 @@ export async function createKOT(payload: {
   Order_Type?: string;
   TxnDatetime?: string;
   order_tag?: string;
-  customerid?: number
+  customerid?: number | null;
+
 }) {
   const backendPayload = {
     txnId: payload.txnId,
