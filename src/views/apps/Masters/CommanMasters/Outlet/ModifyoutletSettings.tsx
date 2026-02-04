@@ -80,7 +80,7 @@ interface OutletSettings {
   updated_by_id?: string;
   default_waiter_id: number | null;
   enable_pax: boolean;
-  pax?: number;
+ 
 }
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
@@ -162,7 +162,7 @@ const ModifyOutletSettingsModal: React.FC<{
     updated_by_id: '',
     default_waiter_id: null,
     enable_pax: false,
-    pax: 1,
+    
   };
 
   const [formData, setFormData] = useState<OutletSettings>(initialFormData);
@@ -303,7 +303,7 @@ const ModifyOutletSettingsModal: React.FC<{
         keeta_enabled: formData.keeta_enabled ? 1 : 0,
         default_waiter_id: formData.default_waiter_id,
         enable_pax: formData.enable_pax ? 1 : 0,
-        pax: formData.pax || 1,
+       
       };
 
       const res = await fetch(`${API_BASE_URL}/api/outlets/outlet-settings/${selectedOutlet.outletid}`, {
@@ -505,8 +505,6 @@ return (
   </Form.Group>
 </Col>
 
-              
-              
             </Row>
             
           </Col>
