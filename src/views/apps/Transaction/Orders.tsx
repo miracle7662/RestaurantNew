@@ -61,6 +61,7 @@ interface TableItem {
   billNo?: string | null;
   billAmount?: number | null;
   billPrintedTime?: string | null;
+  billPrintedDate?: Date | null;
 }
 interface DepartmentItem {
   departmentid: number;
@@ -467,11 +468,12 @@ const Order = () => {
 
   const getTableButtonClass = (table: TableItem, isSelected: boolean) => {
 
-    // Use status for coloring: 0=available, 1=occupied/KOT saved, 2=billed/printed
+    // Use status for coloring: 0=available, 1=occupied/KOT saved, 2=billed/printed, 4=pending
     switch (table.status) {
       case 1: return 'btn-success'; // KOT saved/occupied (green)
       case 0: return 'btn-outline-success'; // Default background (white/grey)
       case 2: return 'btn-danger'; // Billed/Printed (red)
+      case 4: return 'btn-warning'; // Pending (orange)
       default: return 'btn-outline-success';
     }
   };
@@ -491,6 +493,7 @@ const Order = () => {
               let billNo: string | null = null;
               let billAmount: number | null = null;
               let billPrintedTime: string | null = null;
+              let billPrintedDate: Date | null = null;
 
               // Fetch bill status for each table from backend
               const res = await fetch(`http://localhost:3001/api/TAxnTrnbill/bill-status/${item.tableid}`);
@@ -507,12 +510,22 @@ const Order = () => {
                     const date = new Date(BilledDate);
                     const istDate = new Date(date.getTime() + (5.5 * 60 * 60 * 1000)); // Convert to IST
                     billPrintedTime = istDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+                    billPrintedDate = istDate;
                   }
                 }
                 if (isSetteled === 1) status = 0; // ⚪ vacant when settled
+
+                // Check if printed bill is 10+ minutes old, change to pending (orange)
+                if (status === 2 && billPrintedDate) {
+                  const now = new Date();
+                  const diffMinutes = (now.getTime() - billPrintedDate.getTime()) / (1000 * 60);
+                  if (diffMinutes >= 10) {
+                    status = 4; // 4 for pending (orange)
+                  }
+                }
               }
 
-              return { ...item, status, billNo, billAmount, billPrintedTime };
+              return { ...item, status, billNo, billAmount, billPrintedTime, billPrintedDate };
             })
           );
 
@@ -2227,6 +2240,28 @@ const Order = () => {
   }, [activeTab, showOrderDetails]);
 
   useEffect(() => {
+    const updateTableStatuses = () => {
+      setTableItems(prevTables =>
+        prevTables.map(table => {
+          if (table.status === 2 && table.billPrintedDate) { // status 2 is 'printed'
+            const now = new Date();
+            const diffMinutes = (now.getTime() - new Date(table.billPrintedDate).getTime()) / (1000 * 60);
+            if (diffMinutes >= 10) {
+              return { ...table, status: 4 }; // 4 for pending
+            }
+          }
+          return table;
+        })
+      );
+    };
+
+    updateTableStatuses(); // Initial check
+    const interval = setInterval(updateTableStatuses, 60000); // Check every minute
+
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
     console.log('State update - showOrderDetails:', showOrderDetails, 'selectedTable:', selectedTable);
   }, [showOrderDetails, selectedTable]);
 
@@ -2968,7 +3003,7 @@ const Order = () => {
                                         }}
                                       >
                                         <span className="text-dark fw-bold" style={{ fontSize: '11px', lineHeight: '1.1' }}>{table.table_name}</span>
-                                        {table.status === 2 && (
+                                        {(table.status === 2 || table.status === 4) && (
                                           <div className="d-flex flex-column align-items-center" style={{ fontSize: '8px', lineHeight: '1', color: 'white' }}>
                                             <span>{table.billNo || 'N/A'}</span>
                                             <span>₹{table.billAmount || 0}</span>
