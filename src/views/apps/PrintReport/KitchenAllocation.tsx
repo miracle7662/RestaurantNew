@@ -64,15 +64,20 @@ const KitchenAllocation: React.FC = () => {
           fetch('http://localhost:3001/api/KitchenMainGroup')
         ]);
 
+        if (!usersRes.ok) throw new Error(`Failed to fetch users: ${usersRes.status} ${usersRes.statusText}`);
         if (!itemGroupsRes.ok) throw new Error(`Failed to fetch item groups: ${itemGroupsRes.status} ${itemGroupsRes.statusText}`);
+        if (!departmentsRes.ok) throw new Error(`Failed to fetch departments: ${departmentsRes.status} ${departmentsRes.statusText}`);
         if (!kitchenMainGroupsRes.ok) throw new Error(`Failed to fetch kitchen main groups: ${kitchenMainGroupsRes.status} ${kitchenMainGroupsRes.statusText}`);
 
+        const usersData = await usersRes.json();
         const itemGroupsData = await itemGroupsRes.json();
+        const departmentsData = await departmentsRes.json();
         const kitchenMainGroupsData = await kitchenMainGroupsRes.json();
 
         // Handle different response formats
-        
+        setUsers(Array.isArray(usersData) ? usersData : []);
         setItemGroups(Array.isArray(itemGroupsData) ? itemGroupsData : itemGroupsData.data || []);
+        setDepartments(Array.isArray(departmentsData.data) ? departmentsData.data : []);
         setKitchenMainGroups(Array.isArray(kitchenMainGroupsData) ? kitchenMainGroupsData : kitchenMainGroupsData.data || []);
       } catch (err) {
         console.error('Error fetching filter options:', err);
