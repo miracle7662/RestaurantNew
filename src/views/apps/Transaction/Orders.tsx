@@ -15,6 +15,7 @@ import { fetchKotPrintSettings, } from '@/services/outletSettings.service';
 import { applyKotSettings,  } from '@/utils/applyOutletSettings';
 import KotPreviewPrint from '../PrintReport/KotPrint';
 import BillPreviewPrint from '../PrintReport/BillPrint';
+import { fetchWaiterUsers, WaiterUser } from '@/services/user.service';
 interface MenuItem {
   id: number;
   name: string;
@@ -216,6 +217,10 @@ const Order = () => {
   const [showBillPrintModal, setShowBillPrintModal] = useState<boolean>(false);
 
   const [printItems, setPrintItems] = useState<MenuItem[]>([]);
+  const [showWaiterPaxModal, setShowWaiterPaxModal] = useState<boolean>(false);
+  const [waiterUsers, setWaiterUsers] = useState<WaiterUser[]>([]);
+  const [selectedWaiter, setSelectedWaiter] = useState<string>('');
+  const [pax, setPax] = useState<number>(1);
   const [, setIsPrintMode] = useState(false);
   const [showKotPreviewModal, setShowKotPreviewModal] = useState<boolean>(false);
   const [originalTableStatus, setOriginalTableStatus] = useState<number | null>(null);
@@ -1247,8 +1252,20 @@ const Order = () => {
         }
       };
       fetchPaymentModes();
+
+      // Fetch waiter users
+      const fetchWaiters = async () => {
+        try {
+          const waiters = await fetchWaiterUsers(selectedOutletId);
+          setWaiterUsers(waiters);
+        } catch (error) {
+          console.error('Failed to fetch waiter users:', error);
+        }
+      };
+      fetchWaiters();
     } else {
       setOutletPaymentModes([]);
+      setWaiterUsers([]);
     }
   }, [selectedOutletId]);
 
@@ -3470,6 +3487,18 @@ const Order = () => {
               <div className="d-flex justify-content-between align-items-center bg-white border rounded p-2">
                 <span className="fw-bold flex-grow-1 text-center">{getKOTLabel()}</span>
                 {reverseQtyMode && <span className="badge bg-danger me-2">Reverse Qty Mode: Active</span>}
+                {selectedTable && items.some(item => item.isNew) && (
+                  <button
+                    className="btn btn-sm btn-outline-primary p-1 me-1"
+                    style={{ lineHeight: 1 }}
+                    onClick={() => setShowWaiterPaxModal(true)}
+                    title="Waiter & PAX"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                      <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4zm-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.289 10 8 10c-2.29 0-3.516.68-4.168 1.332-.678.678-.83 1.418-.832 1.664h10z"/>
+                    </svg>
+                  </button>
+                )}
                 <button
                   className="btn btn-sm btn-outline-secondary p-1"
                   style={{ lineHeight: 1 }}
@@ -4519,6 +4548,48 @@ const Order = () => {
             restaurantName={user?.hotel_name}
             outletName={user?.outlet_name}
           />
+          {/* Waiter & PAX Modal */}
+          <Modal show={showWaiterPaxModal} onHide={() => setShowWaiterPaxModal(false)} centered>
+            <Modal.Header closeButton>
+              <Modal.Title>Waiter & PAX</Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+              <div className="mb-3">
+                <label>Waiter</label>
+                <select
+                  className="form-control"
+                  value={selectedWaiter}
+                  onChange={(e) => setSelectedWaiter(e.target.value)}
+                >
+                  <option value="">Select Waiter</option>
+                  {waiterUsers.map((waiter) => (
+                    <option key={waiter.userId} value={waiter.username}>
+                      {waiter.employee_name || waiter.username}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="mb-3">
+                <label>PAX</label>
+                <input
+                  type="number"
+                  className="form-control"
+                  value={pax}
+                  onChange={(e) => setPax(Number(e.target.value) || 1)}
+                  min="1"
+                  max="50"
+                />
+              </div>
+            </Modal.Body>
+            <Modal.Footer>
+              <Button variant="secondary" onClick={() => setShowWaiterPaxModal(false)}>
+                Close
+              </Button>
+              <Button variant="primary" onClick={() => setShowWaiterPaxModal(false)}>
+                Save
+              </Button>
+            </Modal.Footer>
+          </Modal>
         </div>
       </div>
     </div>

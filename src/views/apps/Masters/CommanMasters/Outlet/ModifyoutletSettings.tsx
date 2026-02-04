@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { useAuthContext } from '@/common';
 import { OutletData } from '@/common/api/outlet';
+import { fetchWaiterUsers, WaiterUser } from '@/services/user.service';
 
 // Update OutletSettings interface
 interface OutletSettings {
@@ -77,6 +78,9 @@ interface OutletSettings {
   created_at: string;
   updated_at: string;
   updated_by_id?: string;
+  default_waiter_id: number | null;
+  enable_pax: boolean;
+  pax?: number;
 }
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
@@ -156,10 +160,14 @@ const ModifyOutletSettingsModal: React.FC<{
     created_at: '',
     updated_at: '',
     updated_by_id: '',
+    default_waiter_id: null,
+    enable_pax: false,
+    pax: 1,
   };
 
   const [formData, setFormData] = useState<OutletSettings>(initialFormData);
   const [loading, setLoading] = useState(false);
+  const [waiterUsers, setWaiterUsers] = useState<WaiterUser[]>([]);
   const { user } = useAuthContext();
 
   useEffect(() => {
@@ -190,9 +198,22 @@ const ModifyOutletSettingsModal: React.FC<{
           setLoading(false);
         }
       };
+
+      const fetchWaiters = async () => {
+        try {
+          const waiters = await fetchWaiterUsers(selectedOutlet.outletid!);
+          setWaiterUsers(waiters);
+        } catch (error) {
+          console.error('Error fetching waiter users:', error);
+          toast.error('Failed to fetch waiter users.');
+        }
+      };
+
       fetchOutletSettings();
+      fetchWaiters();
     } else {
       setFormData(initialFormData);
+      setWaiterUsers([]);
     }
   }, [show, selectedOutlet]);
 
@@ -280,6 +301,9 @@ const ModifyOutletSettingsModal: React.FC<{
         cari_enabled: formData.cari_enabled ? 1 : 0,
         the_chefz_enabled: formData.the_chefz_enabled ? 1 : 0,
         keeta_enabled: formData.keeta_enabled ? 1 : 0,
+        default_waiter_id: formData.default_waiter_id,
+        enable_pax: formData.enable_pax ? 1 : 0,
+        pax: formData.pax || 1,
       };
 
       const res = await fetch(`${API_BASE_URL}/api/outlets/outlet-settings/${selectedOutlet.outletid}`, {
@@ -498,7 +522,39 @@ return (
               />
             </Form.Group>
           </Col>
-          
+
+        </Row>
+        <Row className="mb-3">
+          <Col md={3}>
+            <Form.Group controlId="default_waiter_id">
+              <Form.Label>Default Waiter</Form.Label>
+              <Form.Select
+                style={{ borderColor: '#ccc' }}
+                value={formData.default_waiter_id || ''}
+                onChange={handleChange}
+                aria-label="Select default waiter"
+              >
+                <option value="">Select Waiter</option>
+                {waiterUsers.map((waiter) => (
+                  <option key={waiter.userId} value={waiter.userId}>
+                    {waiter.employee_name} ({waiter.designation})
+                  </option>
+                ))}
+              </Form.Select>
+            </Form.Group>
+          </Col>
+          <Col md={3}>
+            <Form.Group controlId="enable_pax">
+              <Form.Label>Enable Pax</Form.Label>
+              <Form.Check
+                type="switch"
+                checked={formData.enable_pax}
+                onChange={handleChange}
+                aria-label="Toggle pax"
+              />
+            </Form.Group>
+            
+          </Col>
         </Row>
         <Row className="mb-3">
           <Col md={3}>
