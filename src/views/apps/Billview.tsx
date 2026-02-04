@@ -1602,7 +1602,7 @@ const ModernBill = () => {
         PAX: pax,
         CustomerName: customerName || null,
         MobileNo: customerNo || null,
-        GuestID: customerId || null,
+        customerid: customerId || null,
         discount: discount,
         discPer: discountInputValue,
         discountType: DiscountType,
@@ -1866,7 +1866,7 @@ const ModernBill = () => {
           outletId: selectedOutletId || Number(user?.outletid),
           customerName: customerName || null,
           mobileNo: customerNo || null,
-          GuestID: customerId || null,
+          customerid: customerId || null,
         }
       );
 
@@ -1903,7 +1903,7 @@ const ModernBill = () => {
         outletId: selectedOutletId || Number(user?.outletid),
         customerName: customerName || null,
         mobileNo: customerNo || null,
-        GuestID: customerId || null,
+        customerid: customerId || null,
       });
 
       const txnNo = response.data?.data?.TxnNo;

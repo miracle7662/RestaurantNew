@@ -798,7 +798,7 @@ CREATE TABLE IF NOT EXISTS TAxnTrnbill (
     HandOverEmpID INTEGER,         -- FK → mst_employees
     DayEndEmpID INTEGER,           -- FK → mst_employees
     HotelID INTEGER,               -- FK → msthotelmasters
-    GuestID INTEGER,               -- FK → mst_guest
+    customerid INTEGER,               -- FK → mst_guest
     DiscRefID INTEGER,             -- FK → mst_discount_ref
     DiscPer REAL DEFAULT 0,
     DiscountType INTEGER,

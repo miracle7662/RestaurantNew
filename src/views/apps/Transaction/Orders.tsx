@@ -1302,7 +1302,7 @@ const Order = () => {
           outletId: selectedOutletId || Number(user?.outletid),
           customerName: customerName || null,
           mobileNo: mobileNumber || null,
-          GuestID: customerid || null,
+          customerid: customerid || null,
         }),
       });
 
@@ -1583,7 +1583,7 @@ const Order = () => {
         DiscountType: DiscountType,
         CustomerName: customerName,
         MobileNo: mobileNumber,
-        GuestID: customerid,
+        customerid: customerid,
 
         Order_Type: activeTab, // Add the active tab as Order_Type
         PAX: 1, // Use the PAX value from the input field
@@ -2578,7 +2578,7 @@ const Order = () => {
     setCurrentKOTNos(order.KOTNo ? [order.KOTNo] : (order.kotNo ? [order.kotNo] : [])); // Set KOT numbers array
     setCustomerName(order.customer.name);
     setMobileNumber(order.customer.mobile);
-    if (order.GuestID) setCustomerId(order.GuestID);
+    if (order.customerid) setCustomerId(order.customerid);
     else if (order.customerid) setCustomerId(order.customerid);
     setSelectedOutletId(order.outletid); // Set the outlet ID from the order
 
@@ -2606,7 +2606,7 @@ const Order = () => {
     setCurrentKOTNos(order.KOTNo ? [order.KOTNo] : (order.kotNo ? [order.kotNo] : []));
     setCustomerName(order.customer.name);
     setMobileNumber(order.customer.mobile);
-    if (order.GuestID) setCustomerId(order.GuestID);
+    if (order.customerid) setCustomerId(order.customerid);
     else if (order.customerid) setCustomerId(order.customerid);
     setSelectedOutletId(order.outletid);
 
