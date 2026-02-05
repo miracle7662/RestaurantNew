@@ -273,8 +273,10 @@ exports.addOutlet = (req, res) => {
         the_chefz_enabled,
         keeta_enabled,
         notification_channel,
-        ReverseQtyMode
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?, ?)
+        ReverseQtyMode,
+        default_waiter_id,
+        pax
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?, ?, ?, ?)
     `);
 
     settingsStmt.run(
@@ -339,7 +341,9 @@ exports.addOutlet = (req, res) => {
       0, // the_chefz_enabled
       0, // keeta_enabled
       'SMS', // notification_channel
-      0 // ReverseQtyMode
+      0, // ReverseQtyMode
+      null, // default_waiter_id
+      0 // pax
     );
 
     // Insert default settings into mstbill_preview_settings
@@ -1095,7 +1099,9 @@ exports.updateOutletSettings = (req, res) => {
       the_chefz_enabled,
       keeta_enabled,
       notification_channel,
-      ReverseQtyMode
+      ReverseQtyMode,
+      default_waiter_id,
+      pax
     } = req.body
 
     // Validate outletid
@@ -1189,6 +1195,8 @@ exports.updateOutletSettings = (req, res) => {
           keeta_enabled = ?,
           notification_channel = ?,
           ReverseQtyMode = ?,
+          default_waiter_id = ?,
+          pax = ?,
           updated_at = CURRENT_TIMESTAMP
         WHERE outletid = ?
       `)
@@ -1259,6 +1267,8 @@ exports.updateOutletSettings = (req, res) => {
         keeta_enabled,
         notification_channel,
         ReverseQtyMode,
+        default_waiter_id,
+        pax,
         outletid
       )
     } else {
@@ -1329,9 +1339,11 @@ const insertStmt = db.prepare(`
           cari_enabled,
           the_chefz_enabled,
           keeta_enabled,
-          notification_channel,
-          ReverseQtyMode
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        notification_channel,
+        ReverseQtyMode,
+        default_waiter_id,
+        pax
+      )
       `);
 
 
@@ -1401,7 +1413,9 @@ const insertStmt = db.prepare(`
         the_chefz_enabled,
         keeta_enabled,
         notification_channel,
-        ReverseQtyMode
+        ReverseQtyMode,
+        default_waiter_id,
+        pax
       )
     }
 

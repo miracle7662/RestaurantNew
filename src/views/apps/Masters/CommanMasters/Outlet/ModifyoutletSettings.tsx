@@ -79,7 +79,7 @@ interface OutletSettings {
   updated_at: string;
   updated_by_id?: string;
   default_waiter_id: number | null;
-  enable_pax: boolean;
+  pax:  number ;
  
 }
 
@@ -161,7 +161,8 @@ const ModifyOutletSettingsModal: React.FC<{
     updated_at: '',
     updated_by_id: '',
     default_waiter_id: null,
-    enable_pax: false,
+    pax: 1,
+
     
   };
 
@@ -302,7 +303,7 @@ const ModifyOutletSettingsModal: React.FC<{
         the_chefz_enabled: formData.the_chefz_enabled ? 1 : 0,
         keeta_enabled: formData.keeta_enabled ? 1 : 0,
         default_waiter_id: formData.default_waiter_id,
-        enable_pax: formData.enable_pax ? 1 : 0,
+        pax: formData.pax ? 1 : 0,
        
       };
 
@@ -541,18 +542,20 @@ return (
               </Form.Select>
             </Form.Group>
           </Col>
-          <Col md={3}>
-            <Form.Group controlId="enable_pax">
-              <Form.Label>Enable Pax</Form.Label>
-              <Form.Check
-                type="switch"
-                checked={formData.enable_pax}
-                onChange={handleChange}
-                aria-label="Toggle pax"
-              />
-            </Form.Group>
-            
-          </Col>
+         <Col md={3}>
+  <Form.Group controlId="pax">
+    <Form.Label>Pax</Form.Label>
+    <Form.Control
+      type="number"
+      name="pax"
+      min={1}
+      value={formData.pax}
+      onChange={handleChange}
+      placeholder="Enter Pax"
+    />
+  </Form.Group>
+</Col>
+
         </Row>
         <Row className="mb-3">
           <Col md={3}>

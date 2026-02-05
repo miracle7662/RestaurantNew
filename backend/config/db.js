@@ -728,6 +728,8 @@ CREATE TABLE IF NOT EXISTS mstoutlet_settings (
     keeta_enabled BOOLEAN,
     notification_channel VARCHAR(50) DEFAULT 'SMS',
     ReverseQtyMode INTEGER DEFAULT 0, -- 0: No Password Required, 1: Password Required
+    default_waiter_id INTEGER ,
+    pax INTEGER ,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ,
    FOREIGN KEY (outletid) REFERENCES mst_outlets(outletid)
