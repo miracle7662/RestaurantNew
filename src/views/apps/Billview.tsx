@@ -1616,8 +1616,9 @@ const ModernBill = () => {
         userId: user.id,
         hotelId: user.hotelid,
         KOTNo: editableKot, // Use editableKot if set, else null for backend to generate
-        Order_Type: isTakeaway ? (deliveryType === 'pickup' ? 'Pickup' : 'Delivery') : 'Dine-in',
-        PAX: pax,
+  Order_Type: isTakeaway ? (deliveryType === 'pickup' ? 'Pickup' : 'Delivery') : 'Dine-in',
+  Steward: waiter,
+  PAX: pax,
         CustomerName: customerName || null,
         MobileNo: customerNo || null,
         customerid: customerId || null,
