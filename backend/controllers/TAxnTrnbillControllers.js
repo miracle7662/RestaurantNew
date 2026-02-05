@@ -992,6 +992,7 @@ exports.createKOT = async (req, res) => {
     customerid,
     Order_Type,
     PAX,
+    Steward,
     TxnDatetime,
 
     items: details = [],
@@ -1056,6 +1057,8 @@ exports.createKOT = async (req, res) => {
             UPDATE TAxnTrnbill
             SET
               table_name = ?,
+              Steward = ?,
+              PAX = ?,
               DiscPer = ?,
               Discount = ?,
               DiscountType = ?,
@@ -1070,6 +1073,8 @@ exports.createKOT = async (req, res) => {
         `,
         ).run(
           table_name,
+          Steward || null,
+          PAX ?? null,
           finalDiscPer,
           finalDiscount,
           finalDiscountType,
@@ -1102,16 +1107,17 @@ exports.createKOT = async (req, res) => {
 
         const insertHeaderStmt = db.prepare(`
           INSERT INTO TAxnTrnbill (
-            outletid, TxnNo, TableID, table_name, PAX, UserId, HotelID, TxnDatetime,
+            outletid, TxnNo, TableID, table_name, Steward, PAX, UserId, HotelID, TxnDatetime,
             isBilled, isCancelled, isSetteled, status, AutoKOT, CustomerName, MobileNo, customerid, Order_Type, orderNo,
             NCName, NCPurpose, DiscPer, Discount, DiscountType, isNCKOT, DeptID
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 1, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 1, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `)
         const result = insertHeaderStmt.run(
           headerOutletId,
           null,
           Number(TableID),
           table_name,
+          Steward || null,
           PAX ?? null,
           UserId,
           HotelID,

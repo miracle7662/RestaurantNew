@@ -1657,7 +1657,8 @@ const Order = () => {
         customerid: customerid,
 
         Order_Type: activeTab, // Add the active tab as Order_Type
-        PAX: 1, // Use the PAX value from the input field
+        Steward: selectedWaiter , // Add selected waiter name
+        PAX: pax || 1, // Use the PAX value from the input field
         TxnDatetime: user?.currDate, // Pass curr_date from useAuthContext
 
       };
@@ -4604,7 +4605,7 @@ const Order = () => {
                 >
                   <option value="">Select Waiter</option>
                   {waiterUsers.map((waiter) => (
-                    <option key={waiter.userId} value={waiter.username}>
+                    <option key={waiter.userId} value={waiter.employee_name || waiter.username}>
                       {waiter.employee_name || waiter.username}
                     </option>
                   ))}
