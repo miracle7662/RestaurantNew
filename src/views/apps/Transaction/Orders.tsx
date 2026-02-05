@@ -221,6 +221,25 @@ const Order = () => {
   const [waiterUsers, setWaiterUsers] = useState<WaiterUser[]>([]);
   const [selectedWaiter, setSelectedWaiter] = useState<string>('');
   const [pax, setPax] = useState<number>(1);
+  const [defaultWaiterId, setDefaultWaiterId] = useState<number | null>(null);
+  const [defaultPax, setDefaultPax] = useState<number>(1);
+
+  // Set default waiter and pax when modal opens
+  useEffect(() => {
+    if (showWaiterPaxModal) {
+      // Set default waiter
+      if (defaultWaiterId) {
+        const defaultWaiter = waiterUsers.find(waiter => waiter.userId === defaultWaiterId);
+        if (defaultWaiter) {
+          setSelectedWaiter(defaultWaiter.username);
+        }
+      } else {
+        setSelectedWaiter('');
+      }
+      // Set default pax
+      setPax(defaultPax);
+    }
+  }, [showWaiterPaxModal, defaultWaiterId, defaultPax, waiterUsers]);
   const [, setIsPrintMode] = useState(false);
   const [showKotPreviewModal, setShowKotPreviewModal] = useState<boolean>(false);
   const [originalTableStatus, setOriginalTableStatus] = useState<number | null>(null);
@@ -1263,9 +1282,31 @@ const Order = () => {
         }
       };
       fetchWaiters();
+
+      // Fetch outlet settings for default waiter and pax
+      const fetchOutletSettings = async () => {
+        try {
+          const res = await fetch(`http://localhost:3001/api/outlets/outlet-settings/${selectedOutletId}`);
+          if (res.ok) {
+            const settings = await res.json();
+            setDefaultWaiterId(settings.default_waiter_id || null);
+            setDefaultPax(settings.pax || 1);
+          } else {
+            setDefaultWaiterId(null);
+            setDefaultPax(1);
+          }
+        } catch (error) {
+          console.error("Failed to fetch outlet settings", error);
+          setDefaultWaiterId(null);
+          setDefaultPax(1);
+        }
+      };
+      fetchOutletSettings();
     } else {
       setOutletPaymentModes([]);
       setWaiterUsers([]);
+      setDefaultWaiterId(null);
+      setDefaultPax(1);
     }
   }, [selectedOutletId]);
 
