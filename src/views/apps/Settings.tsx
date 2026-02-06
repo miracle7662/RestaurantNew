@@ -452,12 +452,12 @@ function SettingsPage() {
   const handleAddReportPrinter = async () => {
     const printer = reportPrinterName;
     const source = selectedReportSource;
-    const orderType = selectedReportOrderType;
-    const size = selectedReportSize;
-    const copies = parseInt(reportCopies || '1');
+    // const orderType = selectedReportOrderType;
+    // const size = selectedReportSize;
+    // const copies = parseInt(reportCopies || '1');
     const enablePrint = reportEnablePrint;
 
-    if (!printer || !source || !orderType || !size) {
+    if (!printer || !source ) {
       alert('Please fill all required fields');
       return;
     }
@@ -467,9 +467,7 @@ function SettingsPage() {
       const newSetting = {
         printer_name: printer,
         source,
-        order_type: orderType,
-        size,
-        copies,
+       
         enablePrint,
         paper_size: reportPaperSize,
         auto_print: reportAutoPrint,
@@ -532,13 +530,13 @@ function SettingsPage() {
   // Label Printer handlers
   const handleAddLabelPrinter = async () => {
     const printer = labelPrinterName;
-    const source = selectedLabelSource;
-    const orderType = selectedLabelOrderType;
-    const size = selectedLabelSize;
-    const copies = parseInt(labelCopies || '1');
+    // const source = selectedLabelSource;
+    // const orderType = selectedLabelOrderType;
+    // const size = selectedLabelSize;
+    // const copies = parseInt(labelCopies || '1');
     const enablePrint = labelEnablePrint;
 
-    if (!printer || !source || !orderType || !size) {
+    if (!printer ) {
       alert('Please fill all required fields');
       return;
     }
@@ -547,10 +545,8 @@ function SettingsPage() {
     try {
       const newSetting = {
         printer_name: printer,
-        source,
-        order_type: orderType,
-        size,
-        copies,
+      
+       
         enablePrint,
         paper_width: parseInt(labelPaperWidth),
         is_enabled: labelIsEnabled,
