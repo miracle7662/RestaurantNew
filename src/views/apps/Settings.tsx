@@ -114,7 +114,7 @@ function SettingsPage() {
   // State for all printer settings
   const [kotPrinters, setKotPrinters] = useState<KotPrinterSetting[]>([]);
   const [billPrinters, setBillPrinters] = useState<BillPrinterSetting[]>([]);
-  const [, setLabelPrinters] = useState<LabelPrinterSetting[]>([]);
+  const [labelPrinters, setLabelPrinters] = useState<LabelPrinterSetting[]>([]);
   const [reportPrinters, setReportPrinters] = useState<ReportPrinterSetting[]>([]);
   const [departmentPrinters, setDepartmentPrinters] = useState<DepartmentWisePrinter[]>([]);
   const [tableWiseKot, setTableWiseKot] = useState<TableWiseKot[]>([]);
@@ -127,6 +127,10 @@ function SettingsPage() {
   const [reportPrinterName, setReportPrinterName] = useState("");
   const [reportPaperSize, setReportPaperSize] = useState("80mm");
   const [reportAutoPrint, setReportAutoPrint] = useState(true);
+
+  const [labelPrinterName, setLabelPrinterName] = useState("");
+  const [labelPaperWidth, setLabelPaperWidth] = useState("");
+  const [labelIsEnabled, setLabelIsEnabled] = useState(true);
 
 
   useEffect(() => {
@@ -258,6 +262,16 @@ function SettingsPage() {
       fetchKdsUsers();
     }
   }, [activeTab]);
+
+  // Populate label printer state when data is fetched
+  useEffect(() => {
+    if (labelPrinters && labelPrinters.length > 0) {
+      const labelSetting = labelPrinters[0]; // Assuming single setting
+      setLabelPrinterName(labelSetting.printer_name);
+      setLabelPaperWidth(labelSetting.paper_width.toString());
+      setLabelIsEnabled(labelSetting.is_enabled);
+    }
+  }, [labelPrinters]);
 
   const tabs = [
     { key: "general", label: "General", icon: Settings },
@@ -398,6 +412,45 @@ function SettingsPage() {
     } catch (error) {
       console.error('Failed to update report printer:', error);
       alert('Failed to update report printer settings');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Label Printer handlers
+  const handleUpdateLabelPrinter = async () => {
+    setLoading(true);
+    try {
+      if (labelPrinters.length === 0) {
+        // Create new setting if none exists
+        await apiCall('/settings/label-printer', {
+          method: 'POST',
+          body: JSON.stringify({
+            printer_name: labelPrinterName,
+            paper_width: parseInt(labelPaperWidth),
+            is_enabled: labelIsEnabled,
+            outletid: 1 // Assuming outletid is 1
+          })
+        });
+        alert('Label printer settings created successfully');
+      } else {
+        // Update existing setting
+        const existingSetting = labelPrinters[0];
+        await apiCall(`/settings/label-printer/${existingSetting.id}`, {
+          method: 'PUT',
+          body: JSON.stringify({
+            printer_name: labelPrinterName,
+            paper_width: parseInt(labelPaperWidth),
+            is_enabled: labelIsEnabled
+          })
+        });
+        alert('Label printer settings updated successfully');
+      }
+
+      fetchLabelPrinters();
+    } catch (error) {
+      console.error('Failed to save label printer:', error);
+      alert('Failed to save label printer settings');
     } finally {
       setLoading(false);
     }
@@ -761,20 +814,49 @@ function SettingsPage() {
                 <div className="row g-3 align-items-end">
                   <div className="col-md-4">
                     <label className="form-label">Printer</label>
-                    <PrinterSelector />
+                    <select
+                      className="form-select"
+                      value={labelPrinterName}
+                      onChange={(e) => setLabelPrinterName(e.target.value)}
+                    >
+                      <option value="">Select Printer</option>
+                      {printers.map((printer, index: number) => (
+                        <option key={index} value={printer.name}>
+                          {printer.displayName}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div className="col-md-3">
                     <label className="form-label">Paper Width (mm)</label>
-                    <input className="form-control" type="number" placeholder="80" />
+                    <input
+                      className="form-control"
+                      type="number"
+                      value={labelPaperWidth}
+                      onChange={(e) => setLabelPaperWidth(e.target.value)}
+                      placeholder="80"
+                    />
                   </div>
                   <div className="col-md-3">
                     <div className="form-check form-switch">
-                      <input className="form-check-input" type="checkbox" role="switch" />
+                      <input
+                        className="form-check-input"
+                        type="checkbox"
+                        role="switch"
+                        checked={labelIsEnabled}
+                        onChange={(e) => setLabelIsEnabled(e.target.checked)}
+                      />
                       <label className="form-check-label">Enable Label Printing</label>
                     </div>
                   </div>
                   <div className="col-md-2">
-                    <button className="btn btn-success w-100">Update</button>
+                    <button
+                      className="btn btn-success w-100"
+                      onClick={handleUpdateLabelPrinter}
+                      disabled={loading}
+                    >
+                      {loading ? 'Updating...' : 'Update'}
+                    </button>
                   </div>
                 </div>
               </PrinterSection>

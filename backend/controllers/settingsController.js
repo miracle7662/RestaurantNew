@@ -353,26 +353,60 @@ exports.createDepartmentWisePrinter = async (req, res) => {
 
 exports.getLabelPrinterSettings = async (req, res) => {
   try {
-    const rows = getAll('SELECT * FROM label_printer_settings WHERE outletid = ?', [req.outletid]);
+    console.log('Fetching label printer settings...');
+    const rows = getAll('SELECT * FROM label_printer_settings');
+    console.log('Label printer settings data:', rows);
     res.json(rows);
   } catch (e) {
+    console.error('Error fetching label printer settings:', e.message);
     res.status(500).json({ error: e.message });
   }
 };
 
 exports.createLabelPrinter = async (req, res) => {
   try {
-    const { printer_name, paper_width, is_enabled } = req.body;
+    const { printer_name, paper_width, is_enabled, outletid } = req.body;
+
+    if (!outletid) {
+      return res.status(400).json({ error: 'outletid is required' });
+    }
 
     await runQuery(
-      `INSERT INTO label_printer_settings 
-      (printer_name, paper_width, is_enabled) 
-      VALUES (?, ?, ?)`,
-      [printer_name, paper_width, is_enabled]
+      `INSERT INTO label_printer_settings
+      (printer_name, paper_width, is_enabled, outletid)
+      VALUES (?, ?, ?, ?)`,
+      [printer_name, paper_width, is_enabled, outletid]
     );
 
     res.json({ msg: 'Label Printer Added' });
   } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+};
+
+exports.updateLabelPrinter = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { printer_name, paper_width, is_enabled } = req.body;
+
+    if (!id) {
+      return res.status(400).json({ error: 'ID is required' });
+    }
+
+    const result = await runQuery(
+      `UPDATE label_printer_settings
+      SET printer_name = ?, paper_width = ?, is_enabled = ?
+      WHERE id = ?`,
+      [printer_name, paper_width, is_enabled ? 1 : 0, id]
+    );
+
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Label printer setting not found' });
+    }
+
+    res.json({ msg: 'Label Printer Updated' });
+  } catch (e) {
+    console.error('Error updating label printer:', e.message);
     res.status(500).json({ error: e.message });
   }
 };

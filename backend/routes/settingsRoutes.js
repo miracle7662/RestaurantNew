@@ -49,6 +49,7 @@ router.post("/department-wise-printer", settingsController.createDepartmentWiseP
 // -------------------------
 router.get("/label-printer", settingsController.getLabelPrinterSettings);
 router.post("/label-printer", settingsController.createLabelPrinter);
+router.put("/label-printer/:id", settingsController.updateLabelPrinter);
 
 // -------------------------
 // REPORT PRINTER SETTINGS
