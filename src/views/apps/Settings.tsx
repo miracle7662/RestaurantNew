@@ -146,6 +146,11 @@ function SettingsPage() {
     fetchPrinters();
   }, []);
 
+  // Fetch report printer settings on component mount
+  useEffect(() => {
+    fetchReportPrinters();
+  }, []);
+
   // API Base URL
   const API_BASE = 'http://localhost:3001/api';
 
@@ -272,6 +277,16 @@ function SettingsPage() {
       setLabelIsEnabled(labelSetting.is_enabled);
     }
   }, [labelPrinters]);
+
+  // Populate report printer state when data is fetched
+  useEffect(() => {
+    if (reportPrinters && reportPrinters.length > 0) {
+      const reportSetting = reportPrinters[0]; // Assuming single setting
+      setReportPrinterName(reportSetting.printer_name);
+      setReportPaperSize(reportSetting.paper_size);
+      setReportAutoPrint(reportSetting.auto_print);
+    }
+  }, [reportPrinters]);
 
   const tabs = [
     { key: "general", label: "General", icon: Settings },
