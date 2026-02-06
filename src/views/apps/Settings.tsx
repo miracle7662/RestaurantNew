@@ -35,6 +35,11 @@ interface LabelPrinterSetting {
   printer_name: string;
   paper_width: number;
   is_enabled: boolean;
+  source?: string;
+  order_type?: string;
+  size?: string;
+  copies?: number;
+  enablePrint?: boolean;
 }
 
 interface ReportPrinterSetting {
@@ -42,6 +47,11 @@ interface ReportPrinterSetting {
   printer_name: string;
   paper_size: string;
   auto_print: boolean;
+  source?: string;
+  order_type?: string;
+  size?: string;
+  copies?: number;
+  enablePrint?: boolean;
 }
 
 interface DepartmentWisePrinter {
@@ -127,10 +137,22 @@ function SettingsPage() {
   const [reportPrinterName, setReportPrinterName] = useState("");
   const [reportPaperSize, setReportPaperSize] = useState("80mm");
   const [reportAutoPrint, setReportAutoPrint] = useState(true);
+  const [selectedReportSource, setSelectedReportSource] = useState("");
+  const [selectedReportOrderType, setSelectedReportOrderType] = useState("");
+  const [selectedReportSize, setSelectedReportSize] = useState("");
+  const [reportCopies, setReportCopies] = useState("");
+  const [reportEnablePrint, setReportEnablePrint] = useState(true);
+  const [editingReportId, setEditingReportId] = useState<number | null>(null);
 
   const [labelPrinterName, setLabelPrinterName] = useState("");
   const [labelPaperWidth, setLabelPaperWidth] = useState("");
   const [labelIsEnabled, setLabelIsEnabled] = useState(true);
+  const [selectedLabelSource, setSelectedLabelSource] = useState("");
+  const [selectedLabelOrderType, setSelectedLabelOrderType] = useState("");
+  const [selectedLabelSize, setSelectedLabelSize] = useState("");
+  const [labelCopies, setLabelCopies] = useState("");
+  const [labelEnablePrint, setLabelEnablePrint] = useState(true);
+  const [editingLabelId, setEditingLabelId] = useState<number | null>(null);
 
   // Department Wise Printer states
   const [selectedDeptPrinter, setSelectedDeptPrinter] = useState("");
@@ -272,8 +294,8 @@ function SettingsPage() {
     if (activeTab === 'printer') {
       fetchKotPrinters();
       fetchBillPrinters();
-      fetchLabelPrinters();
-      fetchReportPrinters();
+     fetchLabelPrinters();
+-      fetchReportPrinters();
       fetchDepartmentPrinters();
       fetchTableWiseKot();
       fetchTableWiseBill();
@@ -289,6 +311,11 @@ function SettingsPage() {
       setLabelPrinterName(labelSetting.printer_name);
       setLabelPaperWidth(labelSetting.paper_width.toString());
       setLabelIsEnabled(labelSetting.is_enabled);
+      setSelectedLabelSource(labelSetting.source || '');
+      setSelectedLabelOrderType(labelSetting.order_type || '');
+      setSelectedLabelSize(labelSetting.size || '');
+      setLabelCopies(labelSetting.copies?.toString() || '');
+      setLabelEnablePrint(labelSetting.enablePrint || true);
     }
   }, [labelPrinters]);
 
@@ -299,6 +326,11 @@ function SettingsPage() {
       setReportPrinterName(reportSetting.printer_name);
       setReportPaperSize(reportSetting.paper_size);
       setReportAutoPrint(reportSetting.auto_print);
+      setSelectedReportSource(reportSetting.source || '');
+      setSelectedReportOrderType(reportSetting.order_type || '');
+      setSelectedReportSize(reportSetting.size || '');
+      setReportCopies(reportSetting.copies?.toString() || '');
+      setReportEnablePrint(reportSetting.enablePrint || true);
     }
   }, [reportPrinters]);
 
@@ -417,72 +449,165 @@ function SettingsPage() {
   };
 
   // Report Printer handlers
-  const handleUpdateReportPrinter = async () => {
-    if (reportPrinters.length === 0) {
-      alert('No report printer settings found to update');
+  const handleAddReportPrinter = async () => {
+    const printer = reportPrinterName;
+    const source = selectedReportSource;
+    const orderType = selectedReportOrderType;
+    const size = selectedReportSize;
+    const copies = parseInt(reportCopies || '1');
+    const enablePrint = reportEnablePrint;
+
+    if (!printer || !source || !orderType || !size) {
+      alert('Please fill all required fields');
       return;
     }
 
-    const existingSetting = reportPrinters[0]; // Assuming single setting for now
-
     setLoading(true);
     try {
-      await apiCall(`/settings/report-printer/${existingSetting.id}`, {
-        method: 'PUT',
-        body: JSON.stringify({
-          printer_name: reportPrinterName,
-          paper_size: reportPaperSize,
-          auto_print: reportAutoPrint
-        })
+      const newSetting = {
+        printer_name: printer,
+        source,
+        order_type: orderType,
+        size,
+        copies,
+        enablePrint,
+        paper_size: reportPaperSize,
+        auto_print: reportAutoPrint,
+        outletid: 1 // Assuming outletid is 1
+      };
+
+      await apiCall('/settings/report-printer', {
+        method: 'POST',
+        body: JSON.stringify(newSetting)
       });
 
       fetchReportPrinters();
-      alert('Report printer settings updated successfully');
+      clearReportForm();
     } catch (error) {
-      console.error('Failed to update report printer:', error);
-      alert('Failed to update report printer settings');
+      console.error('Failed to add report printer:', error);
+      alert('Failed to add report printer setting');
     } finally {
       setLoading(false);
     }
   };
 
+  const handleEditReportPrinter = (item: ReportPrinterSetting) => {
+    setEditingReportId(item.id);
+    setReportEnablePrint(item.enablePrint || true);
+    setReportPrinterName(item.printer_name);
+    setSelectedReportSource(item.source || '');
+    setSelectedReportOrderType(item.order_type || '');
+    setSelectedReportSize(item.size || '');
+    setReportCopies(item.copies?.toString() || '');
+    setReportPaperSize(item.paper_size);
+    setReportAutoPrint(item.auto_print);
+  };
+
+  const handleDeleteReportPrinter = async (id: number) => {
+    if (!confirm('Are you sure you want to delete this report printer setting?')) return;
+
+    try {
+      await apiCall(`/settings/report-printer/${id}`, {
+        method: 'DELETE'
+      });
+      fetchReportPrinters();
+    } catch (error) {
+      console.error('Failed to delete report printer:', error);
+      alert('Failed to delete report printer setting');
+    }
+  };
+
+  const clearReportForm = () => {
+    setReportPrinterName('');
+    setSelectedReportSource('');
+    setSelectedReportOrderType('');
+    setSelectedReportSize('');
+    setReportCopies('');
+    setReportEnablePrint(true);
+    setReportPaperSize('80mm');
+    setReportAutoPrint(true);
+    setEditingReportId(null);
+  };
+
   // Label Printer handlers
-  const handleUpdateLabelPrinter = async () => {
+  const handleAddLabelPrinter = async () => {
+    const printer = labelPrinterName;
+    const source = selectedLabelSource;
+    const orderType = selectedLabelOrderType;
+    const size = selectedLabelSize;
+    const copies = parseInt(labelCopies || '1');
+    const enablePrint = labelEnablePrint;
+
+    if (!printer || !source || !orderType || !size) {
+      alert('Please fill all required fields');
+      return;
+    }
+
     setLoading(true);
     try {
-      if (labelPrinters.length === 0) {
-        // Create new setting if none exists
-        await apiCall('/settings/label-printer', {
-          method: 'POST',
-          body: JSON.stringify({
-            printer_name: labelPrinterName,
-            paper_width: parseInt(labelPaperWidth),
-            is_enabled: labelIsEnabled,
-            outletid: 1 // Assuming outletid is 1
-          })
-        });
-        alert('Label printer settings created successfully');
-      } else {
-        // Update existing setting
-        const existingSetting = labelPrinters[0];
-        await apiCall(`/settings/label-printer/${existingSetting.id}`, {
-          method: 'PUT',
-          body: JSON.stringify({
-            printer_name: labelPrinterName,
-            paper_width: parseInt(labelPaperWidth),
-            is_enabled: labelIsEnabled
-          })
-        });
-        alert('Label printer settings updated successfully');
-      }
+      const newSetting = {
+        printer_name: printer,
+        source,
+        order_type: orderType,
+        size,
+        copies,
+        enablePrint,
+        paper_width: parseInt(labelPaperWidth),
+        is_enabled: labelIsEnabled,
+        outletid: 1 // Assuming outletid is 1
+      };
+
+      await apiCall('/settings/label-printer', {
+        method: 'POST',
+        body: JSON.stringify(newSetting)
+      });
 
       fetchLabelPrinters();
+      clearLabelForm();
     } catch (error) {
-      console.error('Failed to save label printer:', error);
-      alert('Failed to save label printer settings');
+      console.error('Failed to add label printer:', error);
+      alert('Failed to add label printer setting');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleEditLabelPrinter = (item: LabelPrinterSetting) => {
+    setEditingLabelId(item.id);
+    setLabelEnablePrint(item.enablePrint || true);
+    setLabelPrinterName(item.printer_name);
+    setSelectedLabelSource(item.source || '');
+    setSelectedLabelOrderType(item.order_type || '');
+    setSelectedLabelSize(item.size || '');
+    setLabelCopies(item.copies?.toString() || '');
+    setLabelPaperWidth(item.paper_width.toString());
+    setLabelIsEnabled(item.is_enabled);
+  };
+
+  const handleDeleteLabelPrinter = async (id: number) => {
+    if (!confirm('Are you sure you want to delete this label printer setting?')) return;
+
+    try {
+      await apiCall(`/settings/label-printer/${id}`, {
+        method: 'DELETE'
+      });
+      fetchLabelPrinters();
+    } catch (error) {
+      console.error('Failed to delete label printer:', error);
+      alert('Failed to delete label printer setting');
+    }
+  };
+
+  const clearLabelForm = () => {
+    setLabelPrinterName('');
+    setSelectedLabelSource('');
+    setSelectedLabelOrderType('');
+    setSelectedLabelSize('');
+    setLabelCopies('');
+    setLabelEnablePrint(true);
+    setLabelPaperWidth('');
+    setLabelIsEnabled(true);
+    setEditingLabelId(null);
   };
 
   // Bill Printer handlers
@@ -890,8 +1015,9 @@ function SettingsPage() {
 
               {/* LABEL PRINTER SETTINGS */}
               <PrinterSection title="Label Printer Settings">
-                <div className="row g-3 align-items-end">
-                  <div className="col-md-4">
+                <div className="row g-3">
+                  
+                  <div className="col-md-3">
                     <label className="form-label">Printer</label>
                     <select
                       className="form-select"
@@ -906,6 +1032,21 @@ function SettingsPage() {
                       ))}
                     </select>
                   </div>
+                  <div className="col-md-3">
+                    <label className="form-label">Source</label>
+                    <select
+                      className="form-select"
+                      value={selectedLabelSource}
+                      onChange={(e) => setSelectedLabelSource(e.target.value)}
+                    >
+                      <option value="">Select Source</option>
+                      <option value="Source 1">Source 1</option>
+                      <option value="Source 2">Source 2</option>
+                    </select>
+                  </div>
+                  
+          
+                  
                   <div className="col-md-3">
                     <label className="form-label">Paper Width (mm)</label>
                     <input
@@ -928,22 +1069,35 @@ function SettingsPage() {
                       <label className="form-check-label">Enable Label Printing</label>
                     </div>
                   </div>
-                  <div className="col-md-2">
+                  <div className="col-md-9 d-flex gap-2 align-items-end">
                     <button
-                      className="btn btn-success w-100"
-                      onClick={handleUpdateLabelPrinter}
+                      className="btn btn-success"
+                      onClick={handleAddLabelPrinter}
                       disabled={loading}
                     >
-                      {loading ? 'Updating...' : 'Update'}
+                      {loading ? 'Adding...' : 'Add'}
+                    </button>
+                    <button
+                      className="btn btn-secondary"
+                      onClick={clearLabelForm}
+                    >
+                      Clear
                     </button>
                   </div>
                 </div>
+                <PrinterTable
+                  data={labelPrinters}
+                  columns={['Printer Name',  'Paper Width']}
+                  onEdit={handleEditLabelPrinter}
+                  onDelete={handleDeleteLabelPrinter}
+                />
               </PrinterSection>
 
               {/* REPORTS PRINTER SETTINGS */}
               <PrinterSection title="Reports Printer Settings">
-                <div className="row g-3 align-items-end">
-                  <div className="col-md-4">
+                <div className="row g-3">
+                  
+                  <div className="col-md-3">
                     <label className="form-label">Printer</label>
                     <select
                       className="form-select"
@@ -958,6 +1112,21 @@ function SettingsPage() {
                       ))}
                     </select>
                   </div>
+                  <div className="col-md-3">
+                    <label className="form-label">Source</label>
+                    <select
+                      className="form-select"
+                      value={selectedReportSource}
+                      onChange={(e) => setSelectedReportSource(e.target.value)}
+                    >
+                      <option value="">Select Source</option>
+                      <option value="Source 1">Source 1</option>
+                      <option value="Source 2">Source 2</option>
+                    </select>
+                  </div>
+                  
+                  
+                  
                   <div className="col-md-3">
                     <label className="form-label">Paper Size</label>
                     <select
@@ -982,16 +1151,28 @@ function SettingsPage() {
                       <label className="form-check-label">Auto Print Reports</label>
                     </div>
                   </div>
-                  <div className="col-md-2">
+                  <div className="col-md-9 d-flex gap-2 align-items-end">
                     <button
-                      className="btn btn-success w-100"
-                      onClick={handleUpdateReportPrinter}
+                      className="btn btn-success"
+                      onClick={handleAddReportPrinter}
                       disabled={loading}
                     >
-                      {loading ? 'Updating...' : 'Update'}
+                      {loading ? 'Adding...' : 'Add'}
+                    </button>
+                    <button
+                      className="btn btn-secondary"
+                      onClick={clearReportForm}
+                    >
+                      Clear
                     </button>
                   </div>
                 </div>
+                <PrinterTable
+                  data={reportPrinters}
+                  columns={['Printer Name',  'Paper Size']}
+                  onEdit={handleEditReportPrinter}
+                  onDelete={handleDeleteReportPrinter}
+                />
               </PrinterSection>
 
               {/* KITCHEN DEPARTMENT WISE PRINTER */}
