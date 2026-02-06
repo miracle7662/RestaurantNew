@@ -322,7 +322,7 @@ exports.createCategoryWisePrinter = async (req, res) => {
 
 exports.getDepartmentWisePrinters = async (req, res) => {
   try {
-    const rows = getAll('SELECT * FROM department_wise_printer WHERE outletid = ?', [req.outletid]);
+    const rows = getAll('SELECT * FROM department_wise_printer');
     res.json(rows);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -331,18 +331,26 @@ exports.getDepartmentWisePrinters = async (req, res) => {
 
 exports.createDepartmentWisePrinter = async (req, res) => {
   try {
-    const { department, printer_name, order_type, size, source, copies } =
-      req.body;
+   
+    const { department, printer_name, order_type, size, source, copies, outletid } = req.body;
 
-    await runQuery(
-      `INSERT INTO department_wise_printer
+
+    if (!outletid) {
+      console.log('outletid is missing');
+      return res.status(400).json({ error: 'outletid is required' });
+    }
+
+    const query = `INSERT INTO department_wise_printer
       (department, printer_name, order_type, size, source, copies, outletid)
-      VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [department, printer_name, order_type, size, source, copies, req.outletid]
-    );
+      VALUES (?, ?, ?, ?, ?, ?, ?)`;
+    const params = [department, printer_name, order_type, size, source, copies, outletid];
 
+   
+    const result = await runQuery(query, params);
+    
     res.json({ msg: 'Department-wise Setting Added' });
   } catch (e) {
+    console.error('Error in createDepartmentWisePrinter:', e);
     res.status(500).json({ error: e.message });
   }
 };

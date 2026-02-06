@@ -132,6 +132,14 @@ function SettingsPage() {
   const [labelPaperWidth, setLabelPaperWidth] = useState("");
   const [labelIsEnabled, setLabelIsEnabled] = useState(true);
 
+  // Department Wise Printer states
+  const [selectedDeptPrinter, setSelectedDeptPrinter] = useState("");
+  const [selectedDeptSource, setSelectedDeptSource] = useState("");
+  const [selectedDeptOrderType, setSelectedDeptOrderType] = useState("");
+  const [selectedDeptDepartment, setSelectedDeptDepartment] = useState("");
+  const [selectedDeptSize, setSelectedDeptSize] = useState("");
+  const [deptCopies, setDeptCopies] = useState("");
+
 
   useEffect(() => {
     const fetchPrinters = async () => {
@@ -210,10 +218,16 @@ function SettingsPage() {
 
   const fetchDepartmentPrinters = async () => {
     try {
+      console.log('Fetching department printers...');
       const data = await apiCall('/settings/department-wise-printer');
+      console.log('Department printers data received:', data);
+      console.log('Data type:', typeof data);
+      console.log('Data length:', Array.isArray(data) ? data.length : 'Not an array');
       setDepartmentPrinters(data);
+      console.log('Department printers state updated');
     } catch (error) {
       console.error('Failed to fetch department printers:', error);
+      console.error('Error details:', error);
     }
   };
 
@@ -472,6 +486,16 @@ function SettingsPage() {
   };
 
   // Bill Printer handlers
+  const clearBillForm = () => {
+    setSelectedBillPrinter('');
+    setSelectedBillSource('');
+    setSelectedBillOrderType('');
+    setSelectedBillSize('');
+    setBillCopies('');
+    setBillEnablePrint(true);
+    setEditingBillId(null);
+  };
+
   const handleAddBillPrinter = async () => {
     const printer = selectedBillPrinter;
     const source = selectedBillSource;
@@ -536,14 +560,54 @@ function SettingsPage() {
     }
   };
 
-  const clearBillForm = () => {
-    setSelectedBillPrinter('');
-    setSelectedBillSource('');
-    setSelectedBillOrderType('');
-    setSelectedBillSize('');
-    setBillCopies('');
-    setBillEnablePrint(true);
-    setEditingBillId(null);
+  // Department Wise Printer handlers
+  const handleAddDepartmentPrinter = async () => {
+    const printer = selectedDeptPrinter;
+    const source = selectedDeptSource;
+    const orderType = selectedDeptOrderType;
+    const department = selectedDeptDepartment;
+    const size = selectedDeptSize;
+    const copies = parseInt(deptCopies || '1');
+
+    if (!printer || !source || !orderType || !department || !size) {
+      alert('Please fill all required fields');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const newSetting = {
+        department,
+        printer_name: printer,
+        order_type: orderType,
+        size,
+        source,
+        copies,
+        outletid: 1 // Assuming outletid is 1
+      };
+
+      await apiCall('/settings/department-wise-printer', {
+        method: 'POST',
+        body: JSON.stringify(newSetting)
+      });
+
+      fetchDepartmentPrinters();
+      clearDeptForm();
+    } catch (error) {
+      console.error('Failed to add department printer:', error);
+      alert('Failed to add department printer setting');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const clearDeptForm = () => {
+    setSelectedDeptPrinter('');
+    setSelectedDeptSource('');
+    setSelectedDeptOrderType('');
+    setSelectedDeptDepartment('');
+    setSelectedDeptSize('');
+    setDeptCopies('');
   };
 
   const PrinterTable = ({
@@ -935,48 +999,93 @@ function SettingsPage() {
                 <div className="row g-3">
                   <div className="col-md-3">
                     <label className="form-label">Printer</label>
-                    <PrinterSelector />
+                    <select
+                      className="form-select"
+                      value={selectedDeptPrinter}
+                      onChange={(e) => setSelectedDeptPrinter(e.target.value)}
+                    >
+                      <option value="">Select Printer</option>
+                      {printers.map((printer, index: number) => (
+                        <option key={index} value={printer.name}>
+                          {printer.displayName}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div className="col-md-3">
                     <label className="form-label">Source</label>
-                    <select className="form-select">
-                      <option>Select Source</option>
-                      <option>Kitchen 1</option>
-                      <option>Kitchen 2</option>
+                    <select
+                      className="form-select"
+                      value={selectedDeptSource}
+                      onChange={(e) => setSelectedDeptSource(e.target.value)}
+                    >
+                      <option value="">Select Source</option>
+                      <option value="Kitchen 1">Kitchen 1</option>
+                      <option value="Kitchen 2">Kitchen 2</option>
                     </select>
                   </div>
                   <div className="col-md-3">
                     <label className="form-label">Order Type</label>
-                    <select className="form-select">
-                      <option>Select Order Type</option>
-                      <option>Dine-in</option>
-                      <option>Takeaway</option>
+                    <select
+                      className="form-select"
+                      value={selectedDeptOrderType}
+                      onChange={(e) => setSelectedDeptOrderType(e.target.value)}
+                    >
+                      <option value="">Select Order Type</option>
+                      <option value="Dine-in">Dine-in</option>
+                      <option value="Takeaway">Takeaway</option>
                     </select>
                   </div>
                   <div className="col-md-3">
                     <label className="form-label">Department</label>
-                    <select className="form-select">
-                      <option>Select Department</option>
-                      <option>Main Kitchen</option>
-                      <option>Bar</option>
-                      <option>Bakery</option>
+                    <select
+                      className="form-select"
+                      value={selectedDeptDepartment}
+                      onChange={(e) => setSelectedDeptDepartment(e.target.value)}
+                    >
+                      <option value="">Select Department</option>
+                      <option value="Main Kitchen">Main Kitchen</option>
+                      <option value="Bar">Bar</option>
+                      <option value="Bakery">Bakery</option>
                     </select>
                   </div>
                   <div className="col-md-3">
                     <label className="form-label">Size</label>
-                    <select className="form-select">
-                      <option>Select Size</option>
-                      <option>58mm</option>
-                      <option>80mm</option>
+                    <select
+                      className="form-select"
+                      value={selectedDeptSize}
+                      onChange={(e) => setSelectedDeptSize(e.target.value)}
+                    >
+                      <option value="">Select Size</option>
+                      <option value="58mm">58mm</option>
+                      <option value="80mm">80mm</option>
                     </select>
                   </div>
                   <div className="col-md-3">
                     <label className="form-label">Copies</label>
-                    <input className="form-control" placeholder="No of Copies" type="number" min="1" />
+                    <input
+                      className="form-control"
+                      placeholder="No of Copies"
+                      type="number"
+                      min="1"
+                      value={deptCopies}
+                      onChange={(e) => setDeptCopies(e.target.value)}
+                    />
                   </div>
                   <div className="col-md-6 d-flex gap-2 align-items-end">
-                    <button className="btn btn-success">Add</button>
-                    <button className="btn btn-secondary">Clear</button>
+                    <button
+                      className="btn btn-success"
+                      onClick={() => handleAddDepartmentPrinter()}
+                      disabled={loading}
+                    >
+                      {loading ? 'Adding...' : 'Add'}
+                    </button>
+                    <button
+                      className="btn btn-secondary"
+                      onClick={() => clearDeptForm()}
+                    >
+                      Clear
+                    </button>
                   </div>
                 </div>
                 <PrinterTable
