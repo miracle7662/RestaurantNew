@@ -182,7 +182,9 @@ function SettingsPage() {
 
   const fetchReportPrinters = async () => {
     try {
+      console.log('Fetching report printers...');
       const data = await apiCall('/settings/report-printer');
+      console.log('Report printers data:', data);
       setReportPrinters(data);
     } catch (error) {
       console.error('Failed to fetch report printers:', error);

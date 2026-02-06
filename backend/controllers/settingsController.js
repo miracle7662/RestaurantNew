@@ -383,9 +383,12 @@ exports.createLabelPrinter = async (req, res) => {
 
 exports.getReportPrinterSettings = async (req, res) => {
   try {
+    console.log('Fetching report printer settings...');
     const rows = getAll('SELECT * FROM report_printer_settings');
+    console.log('Report printer settings data:', rows);
     res.json(rows);
   } catch (e) {
+    console.error('Error fetching report printer settings:', e.message);
     res.status(500).json({ error: e.message });
   }
 };
@@ -416,19 +419,24 @@ exports.updateReportPrinter = async (req, res) => {
     const { id } = req.params;
     const { printer_name, paper_size, auto_print } = req.body;
 
+    console.log('Updating report printer with ID:', id);
+    console.log('Request body:', { printer_name, paper_size, auto_print });
+
     if (!id) {
       return res.status(400).json({ error: 'ID is required' });
     }
 
-    await runQuery(
+    const result = await runQuery(
       `UPDATE report_printer_settings
       SET printer_name = ?, paper_size = ?, auto_print = ?
       WHERE id = ?`,
-      [printer_name, paper_size, auto_print, id]
+      [printer_name, paper_size, auto_print ? 1 : 0, id]
     );
 
+    console.log('Update result:', result);
     res.json({ msg: 'Report Printer Updated' });
   } catch (e) {
+    console.error('Error updating report printer:', e.message);
     res.status(500).json({ error: e.message });
   }
 };
