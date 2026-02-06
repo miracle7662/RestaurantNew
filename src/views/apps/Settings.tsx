@@ -297,8 +297,8 @@ function SettingsPage() {
   ];
 
   // Printer Settings Components
-  const PrinterSection = ({ title, children }: { title: string; children: React.ReactNode }) => (
-    <div className="border rounded p-3 mb-4">
+  const PrinterSection = ({ title, children, style }: { title: string; children: React.ReactNode; style?: React.CSSProperties }) => (
+    <div className="border rounded p-3 mb-4" style={style}>
       <h5 className="fw-bold mb-3">{title}</h5>
       {children}
     </div>
@@ -988,7 +988,7 @@ function SettingsPage() {
               </PrinterSection>
 
               {/* TABLE WISE KOT PRINTER SETTINGS */}
-              <PrinterSection title="Table Wise KOT Printer Settings">
+              <PrinterSection title="Table Wise KOT Printer Settings" style={{ display: 'none' }}>
                 <div className="row g-3">
                   <div className="col-md-3">
                     <label className="form-label">Printer</label>
@@ -1037,7 +1037,7 @@ function SettingsPage() {
               </PrinterSection>
 
               {/* TABLE WISE BILL PRINTER SETTINGS */}
-              <PrinterSection title="Table Wise Bill Printer Settings">
+              <PrinterSection title="Table Wise Bill Printer Settings " style={{ display: 'none' }}>
                 <div className="row g-3">
                   <div className="col-md-3">
                     <label className="form-label">Printer</label>
@@ -1085,7 +1085,7 @@ function SettingsPage() {
               </PrinterSection>
 
               {/* CATEGORY WISE PRINTER SETTINGS */}
-              <PrinterSection title="Category Wise Printer Settings">
+              <PrinterSection title="Category Wise Printer Settings " style={{ display: 'none' }} >
                 <div className="row g-3">
                   <div className="col-md-3">
                     <label className="form-label">Printer</label>
@@ -1142,7 +1142,7 @@ function SettingsPage() {
               </PrinterSection>
 
               {/* ================= KITCHEN DEPARTMENT WISE KDS (OFFLINE) ================= */}
-              <div className="border rounded p-3 mb-4">
+              <div className="border rounded p-3 mb-4"  style={{ display: 'none' }}>
                 <h5 className="fw-bold mb-3">Kitchen Department Wise KDS (Offline)</h5>
 
                 <div className="row g-3">
