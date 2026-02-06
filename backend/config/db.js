@@ -1016,7 +1016,7 @@ CREATE TABLE IF NOT EXISTS mst_printers (
   order_type TEXT,
   size TEXT,
   copies INTEGER,
-  outlet_id INTEGER,
+  outletid INTEGER,
   enableKotPrint INTEGER DEFAULT 1
 );
 
@@ -1029,7 +1029,7 @@ CREATE TABLE IF NOT EXISTS mst_printers (
   order_type TEXT,
   size TEXT,
   copies INTEGER,
-  outlet_id INTEGER,
+  outletid INTEGER,
   enableBillPrint INTEGER DEFAULT 1
 );
 
@@ -1041,7 +1041,8 @@ CREATE TABLE IF NOT EXISTS mst_printers (
       printer_name TEXT,
       size TEXT,
       source TEXT,
-      copies INTEGER
+      copies INTEGER,
+       outletid INTEGER
     );
 
 
@@ -1051,7 +1052,8 @@ CREATE TABLE IF NOT EXISTS mst_printers (
       printer_name TEXT,
       size TEXT,
       source TEXT,
-      copies INTEGER
+      copies INTEGER,
+       outletid INTEGER
 
     ) ;
 
@@ -1063,7 +1065,8 @@ CREATE TABLE IF NOT EXISTS mst_printers (
       order_type TEXT,
       size TEXT,
       source TEXT,
-      copies INTEGER
+      copies INTEGER,
+       outletid INTEGER
 
     ) ;
 
@@ -1075,7 +1078,8 @@ CREATE TABLE IF NOT EXISTS mst_printers (
       order_type TEXT,
       size TEXT,
       source TEXT,
-      copies INTEGER
+      copies INTEGER,
+       outletid INTEGER
     );
 
 
@@ -1084,7 +1088,8 @@ CREATE TABLE IF NOT EXISTS mst_printers (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       printer_name TEXT,
       paper_width INTEGER,
-      is_enabled INTEGER
+      is_enabled INTEGER,
+      outletid INTEGER
     );
 
 
@@ -1092,7 +1097,8 @@ CREATE TABLE IF NOT EXISTS mst_printers (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       printer_name TEXT,
       paper_size TEXT,
-      auto_print INTEGER
+      auto_print INTEGER,
+       outletid INTEGER
     );
 
 
@@ -1102,7 +1108,8 @@ CREATE TABLE IF NOT EXISTS mst_printers (
       department TEXT,
       user TEXT,
       is_active INTEGER,
-      updated_at TEXT
+      updated_at TEXT,
+      outletid INTEGER
     );
 
 

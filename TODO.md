@@ -1,4 +1,6 @@
-- [ ] Import fetchWaiterUsers and WaiterUser interface in ModifyoutletSettings.tsx
-- [ ] Add state for waiterUsers
-- [ ] Fetch waiter users in useEffect when selectedOutlet changes
-- [ ] Update default_waiter_id select to use fetched waiter data for options
+- [x] Update getTableWiseKOT: Add console.log(req.user), extract outletId, add 401 check, use outletId in query
+- [x] Update getTableWiseBill: Add console.log(req.user), extract outletId, add 401 check, use outletId in query
+- [x] Update getCategoryWisePrinters: Add console.log(req.user), extract outletId, add 401 check, use outletId in query
+- [ ] Update getDepartmentWisePrinters: Add console.log(req.user), extract outletId, add 401 check, use outletId in query
+- [ ] Update getLabelPrinterSettings: Add console.log(req.user), extract outletId, add 401 check, use outletId in query
+- [ ] Update getReportPrinterSettings: Add console.log(req.user), extract outletId, add 401 check, use outletId in query

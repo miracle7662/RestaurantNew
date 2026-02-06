@@ -15,7 +15,7 @@ interface KotPrinterSetting {
   order_type: string;
   size: string;
   copies: number;
-  outlet_id: number;
+  outletid: number;
   enableKotPrint: boolean;
 }
 
@@ -26,7 +26,7 @@ interface BillPrinterSetting {
   order_type: string;
   size: string;
   copies: number;
-  outlet_id: number;
+  outletid: number;
   enableBillPrint: boolean;
 }
 
@@ -310,7 +310,7 @@ function SettingsPage() {
         order_type: orderType,
         size,
         copies,
-        outlet_id: 1,
+        outletid: 1,
         enableKotPrint: enablePrint
       };
 
@@ -415,7 +415,7 @@ function SettingsPage() {
         order_type: orderType,
         size,
         copies,
-        outlet_id: 1, // Assuming outlet_id is 1 for now
+        outletid: 1, // Assuming outletid is 1 for now
         enableBillPrint: enablePrint
       };
 
