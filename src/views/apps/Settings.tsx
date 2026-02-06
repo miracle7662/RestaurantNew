@@ -6,9 +6,9 @@ import {
   User,
   SlidersHorizontal,
 } from "lucide-react";
-import useUser from '../../hooks/useUser';
 import { fetchOutlets } from '../../utils/commonfunction';
 import { OutletData } from '../../common/api/outlet';
+import { useAuthContext } from "@/common/context/useAuthContext";
 
 
 interface KotPrinterSetting {
@@ -104,7 +104,7 @@ interface KDSUser {
 }
 
 function SettingsPage() {
-  const [user] = useUser();
+  const { user } = useAuthContext();
   const [outlets, setOutlets] = useState<OutletData[]>([]);
   const [loading, setLoading] = useState(false);
   const [outletsLoaded, setOutletsLoaded] = useState(false);
@@ -187,7 +187,9 @@ function SettingsPage() {
   }, []);
 
   useEffect(() => {
+    console.log('User in Settings:', user);
     if (user) {
+      console.log('Fetching outlets for user...');
       fetchOutlets(user, setOutlets, setLoading);
     }
   }, [user]);
@@ -965,21 +967,25 @@ function SettingsPage() {
                         ))}
                       </select>
                   </div>
-                  <div className="col-md-3">
+                 <div className="col-md-3">
                     <label className="form-label">Outlet</label>
                     <select
-                      className="form-select"
-                      id="bill-outlet"
-                      value={selectedBillSource}
-                      onChange={(e) => setSelectedBillSource(e.target.value)}
-                    >
-                      <option value="">Select Outlet</option>
-                      {outlets.map((outlet) => (
-                        <option key={outlet.outletid} value={outlet.outletid}>
-                          {outlet.outlet_name}
-                        </option>
-                      ))}
-                    </select>
+  value={selectedOutlet !== null ? String(selectedOutlet) : ''}
+  onChange={(e) =>
+    setSelectedOutlet(e.target.value ? Number(e.target.value) : null)
+  }
+
+  className="form-select rounded-lg"
+  required
+>
+  <option value="">Select Outlet</option>
+  {outlets.map((outlet) => (
+    <option key={outlet.outletid} value={String(outlet.outletid)}>
+      {outlet.outlet_name}
+    </option>
+  ))}
+</select>
+
                   </div>
                   <div className="col-md-3">
                     <label className="form-label">Order Type</label>
@@ -1055,16 +1061,24 @@ function SettingsPage() {
                     </select>
                   </div>
                   <div className="col-md-3">
-                    <label className="form-label">Source</label>
+                    <label className="form-label">Outlet</label>
                     <select
-                      className="form-select"
-                      value={selectedLabelSource}
-                      onChange={(e) => setSelectedLabelSource(e.target.value)}
-                    >
-                      <option value="">Select Source</option>
-                      <option value="Source 1">Source 1</option>
-                      <option value="Source 2">Source 2</option>
-                    </select>
+  value={selectedOutlet !== null ? String(selectedOutlet) : ''}
+  onChange={(e) =>
+    setSelectedOutlet(e.target.value ? Number(e.target.value) : null)
+  }
+
+  className="form-select rounded-lg"
+  required
+>
+  <option value="">Select Outlet</option>
+  {outlets.map((outlet) => (
+    <option key={outlet.outletid} value={String(outlet.outletid)}>
+      {outlet.outlet_name}
+    </option>
+  ))}
+</select>
+
                   </div>
                   
           
@@ -1134,17 +1148,25 @@ function SettingsPage() {
                       ))}
                     </select>
                   </div>
-                  <div className="col-md-3">
-                    <label className="form-label">Source</label>
+                 <div className="col-md-3">
+                    <label className="form-label">Outlet</label>
                     <select
-                      className="form-select"
-                      value={selectedReportSource}
-                      onChange={(e) => setSelectedReportSource(e.target.value)}
-                    >
-                      <option value="">Select Source</option>
-                      <option value="Source 1">Source 1</option>
-                      <option value="Source 2">Source 2</option>
-                    </select>
+  value={selectedOutlet !== null ? String(selectedOutlet) : ''}
+  onChange={(e) =>
+    setSelectedOutlet(e.target.value ? Number(e.target.value) : null)
+  }
+
+  className="form-select rounded-lg"
+  required
+>
+  <option value="">Select Outlet</option>
+  {outlets.map((outlet) => (
+    <option key={outlet.outletid} value={String(outlet.outletid)}>
+      {outlet.outlet_name}
+    </option>
+  ))}
+</select>
+
                   </div>
                   
                   
@@ -1216,16 +1238,24 @@ function SettingsPage() {
                     </select>
                   </div>
                   <div className="col-md-3">
-                    <label className="form-label">Source</label>
+                    <label className="form-label">Outlet</label>
                     <select
-                      className="form-select"
-                      value={selectedDeptSource}
-                      onChange={(e) => setSelectedDeptSource(e.target.value)}
-                    >
-                      <option value="">Select Source</option>
-                      <option value="Kitchen 1">Kitchen 1</option>
-                      <option value="Kitchen 2">Kitchen 2</option>
-                    </select>
+  value={selectedOutlet !== null ? String(selectedOutlet) : ''}
+  onChange={(e) =>
+    setSelectedOutlet(e.target.value ? Number(e.target.value) : null)
+  }
+
+  className="form-select rounded-lg"
+  required
+>
+  <option value="">Select Outlet</option>
+  {outlets.map((outlet) => (
+    <option key={outlet.outletid} value={String(outlet.outletid)}>
+      {outlet.outlet_name}
+    </option>
+  ))}
+</select>
+
                   </div>
                   <div className="col-md-3">
                     <label className="form-label">Order Type</label>
