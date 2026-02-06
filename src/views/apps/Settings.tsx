@@ -6,6 +6,9 @@ import {
   User,
   SlidersHorizontal,
 } from "lucide-react";
+import useUser from '../../hooks/useUser';
+import { fetchOutlets } from '../../utils/commonfunction';
+import { OutletData } from '../../common/api/outlet';
 
 
 interface KotPrinterSetting {
@@ -101,7 +104,14 @@ interface KDSUser {
 }
 
 function SettingsPage() {
+  const [user] = useUser();
+  const [outlets, setOutlets] = useState<OutletData[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [outletsLoaded, setOutletsLoaded] = useState(false);
+
+  // Don't render if user is not available
  
+
   const [activeTab, setActiveTab] = useState("general");
   // const [selectedPrinter, setSelectedPrinter] = useState("");
   const [selectedKotPrinter, setSelectedKotPrinter] = useState("");
@@ -131,7 +141,6 @@ function SettingsPage() {
   const [tableWiseBill, setTableWiseBill] = useState<TableWiseBill[]>([]);
   const [categoryPrinters, setCategoryPrinters] = useState<CategoryWisePrinter[]>([]);
   const [, setKdsUsers] = useState<KDSUser[]>([]);
-  const [loading, setLoading] = useState(false);
   const [, setEditingKotId] = useState<number | null>(null);
   const [, setEditingBillId] = useState<number | null>(null);
   const [reportPrinterName, setReportPrinterName] = useState("");
@@ -143,6 +152,7 @@ function SettingsPage() {
   const [reportCopies, setReportCopies] = useState("");
   const [reportEnablePrint, setReportEnablePrint] = useState(true);
   const [editingReportId, setEditingReportId] = useState<number | null>(null);
+  const [selectedOutlet, setSelectedOutlet] = useState<number | null>( null);
 
   const [labelPrinterName, setLabelPrinterName] = useState("");
   const [labelPaperWidth, setLabelPaperWidth] = useState("");
@@ -175,6 +185,12 @@ function SettingsPage() {
     };
     fetchPrinters();
   }, []);
+
+  useEffect(() => {
+    if (user) {
+      fetchOutlets(user, setOutlets, setLoading);
+    }
+  }, [user]);
 
   // Fetch report printer settings on component mount
   useEffect(() => {
@@ -211,7 +227,7 @@ function SettingsPage() {
 
   const fetchBillPrinters = async () => {
     try {
-      const data = await apiCall('/settings/bill-printer-settings');
+     const data = await apiCall('/settings/bill-printer-settings');
       setBillPrinters(data);
     } catch (error) {
       console.error('Failed to fetch bill printers:', error);
@@ -844,17 +860,24 @@ function SettingsPage() {
 
                   </div>
                   <div className="col-md-3">
-                    <label className="form-label">Source</label>
+                    <label className="form-label">Outlet</label>
                     <select
-                      className="form-select"
-                      id="kot-source"
-                      value={selectedKotSource}
-                      onChange={(e) => setSelectedKotSource(e.target.value)}
-                    >
-                      <option value="">Select Source</option>
-                      <option value="Source 1">Source 1</option>
-                      <option value="Source 2">Source 2</option>
-                    </select>
+  value={selectedOutlet !== null ? String(selectedOutlet) : ''}
+  onChange={(e) =>
+    setSelectedOutlet(e.target.value ? Number(e.target.value) : null)
+  }
+
+  className="form-select rounded-lg"
+  required
+>
+  <option value="">Select Outlet</option>
+  {outlets.map((outlet) => (
+    <option key={outlet.outletid} value={String(outlet.outletid)}>
+      {outlet.outlet_name}
+    </option>
+  ))}
+</select>
+
                   </div>
                   <div className="col-md-3">
                     <label className="form-label">Order Type</label>
@@ -943,16 +966,19 @@ function SettingsPage() {
                       </select>
                   </div>
                   <div className="col-md-3">
-                    <label className="form-label">Source</label>
+                    <label className="form-label">Outlet</label>
                     <select
                       className="form-select"
-                      id="bill-source"
+                      id="bill-outlet"
                       value={selectedBillSource}
                       onChange={(e) => setSelectedBillSource(e.target.value)}
                     >
-                      <option value="">Select Source</option>
-                      <option value="Source 1">Source 1</option>
-                      <option value="Source 2">Source 2</option>
+                      <option value="">Select Outlet</option>
+                      {outlets.map((outlet) => (
+                        <option key={outlet.outletid} value={outlet.outletid}>
+                          {outlet.outlet_name}
+                        </option>
+                      ))}
                     </select>
                   </div>
                   <div className="col-md-3">
