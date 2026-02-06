@@ -98,6 +98,14 @@ function SettingsPage() {
   const [selectedBillPrinter, setSelectedBillPrinter] = useState("");
   const [kotEnablePrint, setKotEnablePrint] = useState(true);
   const [billEnablePrint, setBillEnablePrint] = useState(true);
+  const [selectedKotSource, setSelectedKotSource] = useState("");
+  const [selectedKotOrderType, setSelectedKotOrderType] = useState("");
+  const [selectedKotSize, setSelectedKotSize] = useState("");
+  const [kotCopies, setKotCopies] = useState("");
+  const [selectedBillSource, setSelectedBillSource] = useState("");
+  const [selectedBillOrderType, setSelectedBillOrderType] = useState("");
+  const [selectedBillSize, setSelectedBillSize] = useState("");
+  const [billCopies, setBillCopies] = useState("");
  
 
   const [printers, setPrinters] = useState<Array<{ name: string; displayName: string }>>([]);
@@ -292,11 +300,11 @@ function SettingsPage() {
 
   // KOT Printer handlers
   const handleAddKotPrinter = async () => {
-    const printer = (document.getElementById('kot-printer') as HTMLSelectElement)?.value;
-    const source = (document.getElementById('kot-source') as HTMLSelectElement)?.value;
-    const orderType = (document.getElementById('kot-order-type') as HTMLSelectElement)?.value;
-    const size = (document.getElementById('kot-size') as HTMLSelectElement)?.value;
-    const copies = parseInt((document.getElementById('kot-copies') as HTMLInputElement)?.value || '1');
+    const printer = selectedKotPrinter;
+    const source = selectedKotSource;
+    const orderType = selectedKotOrderType;
+    const size = selectedKotSize;
+    const copies = parseInt(kotCopies || '1');
     const enablePrint = kotEnablePrint;
 
     if (!printer || !source || !orderType || !size) {
@@ -334,11 +342,11 @@ function SettingsPage() {
   const handleEditKotPrinter = (item: KotPrinterSetting) => {
     setEditingKotId(item.id);
     setKotEnablePrint(item.enableKotPrint);
-    (document.getElementById('kot-printer') as HTMLSelectElement).value = item.printer_name;
-    (document.getElementById('kot-source') as HTMLSelectElement).value = item.source;
-    (document.getElementById('kot-order-type') as HTMLSelectElement).value = item.order_type;
-    (document.getElementById('kot-size') as HTMLSelectElement).value = item.size;
-    (document.getElementById('kot-copies') as HTMLInputElement).value = item.copies.toString();
+    setSelectedKotPrinter(item.printer_name);
+    setSelectedKotSource(item.source);
+    setSelectedKotOrderType(item.order_type);
+    setSelectedKotSize(item.size);
+    setKotCopies(item.copies.toString());
   };
 
   const handleDeleteKotPrinter = async (id: number) => {
@@ -356,11 +364,11 @@ function SettingsPage() {
   };
 
   const clearKotForm = () => {
-    (document.getElementById('kot-printer') as HTMLSelectElement).value = 'Select Printer';
-    (document.getElementById('kot-source') as HTMLSelectElement).value = 'Select Source';
-    (document.getElementById('kot-order-type') as HTMLSelectElement).value = 'Select Order Type';
-    (document.getElementById('kot-size') as HTMLSelectElement).value = 'Select Size';
-    (document.getElementById('kot-copies') as HTMLInputElement).value = '';
+    setSelectedKotPrinter('');
+    setSelectedKotSource('');
+    setSelectedKotOrderType('');
+    setSelectedKotSize('');
+    setKotCopies('');
     setKotEnablePrint(true);
     setEditingKotId(null);
   };
@@ -397,11 +405,11 @@ function SettingsPage() {
 
   // Bill Printer handlers
   const handleAddBillPrinter = async () => {
-    const printer = (document.getElementById('bill-printer') as HTMLSelectElement)?.value;
-    const source = (document.getElementById('bill-source') as HTMLSelectElement)?.value;
-    const orderType = (document.getElementById('bill-order-type') as HTMLSelectElement)?.value;
-    const size = (document.getElementById('bill-size') as HTMLSelectElement)?.value;
-    const copies = parseInt((document.getElementById('bill-copies') as HTMLInputElement)?.value || '1');
+    const printer = selectedBillPrinter;
+    const source = selectedBillSource;
+    const orderType = selectedBillOrderType;
+    const size = selectedBillSize;
+    const copies = parseInt(billCopies || '1');
     const enablePrint = billEnablePrint;
 
     if (!printer || !source || !orderType || !size) {
@@ -439,11 +447,11 @@ function SettingsPage() {
   const handleEditBillPrinter = (item: BillPrinterSetting) => {
     setEditingBillId(item.id);
     setBillEnablePrint(item.enableBillPrint);
-    (document.getElementById('bill-printer') as HTMLSelectElement).value = item.printer_name;
-    (document.getElementById('bill-source') as HTMLSelectElement).value = item.source;
-    (document.getElementById('bill-order-type') as HTMLSelectElement).value = item.order_type;
-    (document.getElementById('bill-size') as HTMLSelectElement).value = item.size;
-    (document.getElementById('bill-copies') as HTMLInputElement).value = item.copies.toString();
+    setSelectedBillPrinter(item.printer_name);
+    setSelectedBillSource(item.source);
+    setSelectedBillOrderType(item.order_type);
+    setSelectedBillSize(item.size);
+    setBillCopies(item.copies.toString());
   };
 
   const handleDeleteBillPrinter = async (id: number) => {
@@ -461,11 +469,11 @@ function SettingsPage() {
   };
 
   const clearBillForm = () => {
-    (document.getElementById('bill-printer') as HTMLSelectElement).value = 'Select Printer';
-    (document.getElementById('bill-source') as HTMLSelectElement).value = 'Select Source';
-    (document.getElementById('bill-order-type') as HTMLSelectElement).value = 'Select Order Type';
-    (document.getElementById('bill-size') as HTMLSelectElement).value = 'Select Size';
-    (document.getElementById('bill-copies') as HTMLInputElement).value = '';
+    setSelectedBillPrinter('');
+    setSelectedBillSource('');
+    setSelectedBillOrderType('');
+    setSelectedBillSize('');
+    setBillCopies('');
     setBillEnablePrint(true);
     setEditingBillId(null);
   };
@@ -584,33 +592,56 @@ function SettingsPage() {
                   </div>
                   <div className="col-md-3">
                     <label className="form-label">Source</label>
-                    <select className="form-select" id="kot-source">
-                      <option>Select Source</option>
-                      <option>Source 1</option>
-                      <option>Source 2</option>
+                    <select
+                      className="form-select"
+                      id="kot-source"
+                      value={selectedKotSource}
+                      onChange={(e) => setSelectedKotSource(e.target.value)}
+                    >
+                      <option value="">Select Source</option>
+                      <option value="Source 1">Source 1</option>
+                      <option value="Source 2">Source 2</option>
                     </select>
                   </div>
                   <div className="col-md-3">
                     <label className="form-label">Order Type</label>
-                    <select className="form-select" id="kot-order-type" >
-                      <option>Select Order Type</option>
-                      <option>Dine-in</option>
-                      <option>Takeaway</option>
-                      <option>Delivery</option>
+                    <select
+                      className="form-select"
+                      id="kot-order-type"
+                      value={selectedKotOrderType}
+                      onChange={(e) => setSelectedKotOrderType(e.target.value)}
+                    >
+                      <option value="">Select Order Type</option>
+                      <option value="Dine-in">Dine-in</option>
+                      <option value="Takeaway">Takeaway</option>
+                      <option value="Delivery">Delivery</option>
                     </select>
                   </div>
                   <div className="col-md-3">
                     <label className="form-label">Size</label>
-                    <select className="form-select" id="kot-size" >
-                      <option>Select Size</option>
-                      <option>58mm</option>
-                      <option>80mm</option>
-                      <option>A4</option>
+                    <select
+                      className="form-select"
+                      id="kot-size"
+                      value={selectedKotSize}
+                      onChange={(e) => setSelectedKotSize(e.target.value)}
+                    >
+                      <option value="">Select Size</option>
+                      <option value="58mm">58mm</option>
+                      <option value="80mm">80mm</option>
+                      <option value="A4">A4</option>
                     </select>
                   </div>
                   <div className="col-md-3">
                     <label className="form-label">Copies</label>
-                    <input className="form-control" id="kot-copies" placeholder="No of Copies" type="number" min="1"  />
+                    <input
+                      className="form-control"
+                      id="kot-copies"
+                      placeholder="No of Copies"
+                      type="number"
+                      min="1"
+                      value={kotCopies}
+                      onChange={(e) => setKotCopies(e.target.value)}
+                    />
                   </div>
 
                   <div className="col-md-9 d-flex gap-2 align-items-end">
@@ -660,31 +691,54 @@ function SettingsPage() {
                   </div>
                   <div className="col-md-3">
                     <label className="form-label">Source</label>
-                    <select className="form-select" id="bill-source" >
-                      <option>Select Source</option>
-                      <option>Source 1</option>
-                      <option>Source 2</option>
+                    <select
+                      className="form-select"
+                      id="bill-source"
+                      value={selectedBillSource}
+                      onChange={(e) => setSelectedBillSource(e.target.value)}
+                    >
+                      <option value="">Select Source</option>
+                      <option value="Source 1">Source 1</option>
+                      <option value="Source 2">Source 2</option>
                     </select>
                   </div>
                   <div className="col-md-3">
                     <label className="form-label">Order Type</label>
-                    <select className="form-select" id="bill-order-type">
-                      <option>Select Order Type</option>
-                      <option>Dine-in</option>
-                      <option>Takeaway</option>
+                    <select
+                      className="form-select"
+                      id="bill-order-type"
+                      value={selectedBillOrderType}
+                      onChange={(e) => setSelectedBillOrderType(e.target.value)}
+                    >
+                      <option value="">Select Order Type</option>
+                      <option value="Dine-in">Dine-in</option>
+                      <option value="Takeaway">Takeaway</option>
                     </select>
                   </div>
                   <div className="col-md-3">
                     <label className="form-label">Size</label>
-                    <select className="form-select" id="bill-size" >
-                      <option>Select Size</option>
-                      <option>58mm</option>
-                      <option>80mm</option>
+                    <select
+                      className="form-select"
+                      id="bill-size"
+                      value={selectedBillSize}
+                      onChange={(e) => setSelectedBillSize(e.target.value)}
+                    >
+                      <option value="">Select Size</option>
+                      <option value="58mm">58mm</option>
+                      <option value="80mm">80mm</option>
                     </select>
                   </div>
                   <div className="col-md-3">
                     <label className="form-label">Copies</label>
-                    <input className="form-control" id="bill-copies" placeholder="No of Copies" type="number" min="1" />
+                    <input
+                      className="form-control"
+                      id="bill-copies"
+                      placeholder="No of Copies"
+                      type="number"
+                      min="1"
+                      value={billCopies}
+                      onChange={(e) => setBillCopies(e.target.value)}
+                    />
                   </div>
 
                   <div className="col-md-9 d-flex gap-2 align-items-end">
