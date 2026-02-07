@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, forwardRef, useImperativeHandle, useRef } from 'react';
 import Swal from 'sweetalert2';
 import { toast } from 'react-hot-toast';
 import { Preloader } from '@/components/Misc/Preloader';
-import { Button, Card, Stack, Pagination, Table, Modal, Form } from 'react-bootstrap';
+import { Button, Card, Stack, Pagination, Table, Modal } from 'react-bootstrap';
 import { ContactSearchBar, ContactSidebar } from '@/components/Apps/Contact';
 import TitleHelmet from '@/components/Common/TitleHelmet';
 import {
@@ -13,6 +13,10 @@ import {
   ColumnDef,
   flexRender,
 } from '@tanstack/react-table';
+import { Formik, Form } from 'formik';
+import { stateFormValidationSchema } from '@/common/validators';
+import FormikTextInput from '@/components/Common/FormikTextInput';
+import FormikSelect from '@/components/Common/FormikSelect';
 import StateService from '@/common/api/states';
 import CountryService from '@/common/api/countries';
 
@@ -500,19 +504,19 @@ const States: React.FC = () => {
 };
 
 // Add State Modal
-const StateModal: React.FC<StateModalProps> = ({ show, onHide, onSuccess, state, onUpdateSelectedState }) => {
-  const [state_name, setName] = useState('');
-  const [state_code, setCode] = useState('');
-  const [state_capital, setCapital] = useState('');
+interface StateModalRef {
+  saveData: () => void;
+}
+
+const StateModal = forwardRef<StateModalRef, StateModalProps>(({ show, onHide, onSuccess, state, onUpdateSelectedState }, ref) => {
   const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState('Active');
   const [countryItems, setCountryItems] = useState<CountryItem[]>([]);
-  const [countryId, setCountryId] = useState<number | null>(null);
+  const formikRef = useRef<any>(null);
 
   const isEditMode = !!state;
 
   useEffect(() => {
-      const fetchCountries = async () => {
+    const fetchCountries = async () => {
       try {
         const data = await CountryService.list() as unknown as CountryItem[];
         setCountryItems(data);
@@ -523,43 +527,30 @@ const StateModal: React.FC<StateModalProps> = ({ show, onHide, onSuccess, state,
     fetchCountries();
   }, []);
 
-  useEffect(() => {
-    if (state && isEditMode) {
-      setName(state.state_name);
-      setCode(state.state_code);
-      setCapital(state.state_capital);
-      setCountryId(Number(state.countryid));
-      setStatus(String(state.status) === '0' ? 'Active' : 'Inactive');
-    } else {
-      setName('');
-      setCode('');
-      setCapital('');
-      setCountryId(null);
-      setStatus('Active');
-    }
-  }, [state, show]);
+  const initialValues = {
+    state_name: state?.state_name || '',
+    state_code: state?.state_code || '',
+    state_capital: state?.state_capital || '',
+    countryId: state ? Number(state.countryid) : null,
+    status: state ? (state.status === 0 ? 'Active' : 'Inactive') : 'Active',
+  };
 
-  const handleSubmit = async () => {
-    if (!state_name || !state_code || !state_capital || !countryId || !status) {
-      toast.error('All fields are required');
-      return;
-    }
-
+  const handleSubmit = async (values: any) => {
     setLoading(true);
     try {
-      const statusValue = status === 'Active' ? 0 : 1;
+      const statusValue = values.status === 'Active' ? 0 : 1;
       const currentDate = new Date().toISOString();
+
       const payload: any = {
-        state_name,
-        state_code,
-        state_capital,
-        countryid: countryId.toString(),
+        state_name: values.state_name,
+        state_code: values.state_code,
+        state_capital: values.state_capital,
+        countryid: values.countryId.toString(),
         status: statusValue,
-        created_by_id: isEditMode ? Number(state!.created_by_id) : 1,
+        created_by_id: isEditMode ? state!.created_by_id : '1',
         created_date: isEditMode ? state!.created_date : currentDate,
-        updated_by_id: 2,
+        updated_by_id: '2',
         updated_date: currentDate,
-        ...(isEditMode ? { stateid: parseInt(state!.stateid) } : {}),
       };
 
       try {
@@ -569,20 +560,40 @@ const StateModal: React.FC<StateModalProps> = ({ show, onHide, onSuccess, state,
           await StateService.create(payload);
         }
         toast.success(`State ${isEditMode ? 'updated' : 'added'} successfully`);
+
         if (isEditMode && state && onUpdateSelectedState) {
-          onUpdateSelectedState({ ...state, state_name, state_code, state_capital, countryid: String(countryId), status: statusValue });
+          onUpdateSelectedState({
+            ...state,
+            state_name: values.state_name,
+            state_code: values.state_code,
+            state_capital: values.state_capital,
+            countryid: String(values.countryId),
+            status: statusValue,
+            updated_by_id: '2',
+            updated_date: currentDate
+          });
         }
+
         onSuccess();
         onHide();
-     } catch (error: unknown) {
+      } catch (error: unknown) {
         toast.error((error as string) || `Failed to ${isEditMode ? 'update' : 'add'} state`);
       }
-    } catch {
+    } catch (error) {
+      console.error('Error:', error);
       toast.error('Something went wrong');
     } finally {
       setLoading(false);
     }
   };
+
+  useImperativeHandle(ref, () => ({
+    saveData: () => {
+      if (formikRef.current) {
+        formikRef.current.submitForm();
+      }
+    },
+  }));
 
   return (
     <Modal show={show} onHide={onHide}>
@@ -590,102 +601,91 @@ const StateModal: React.FC<StateModalProps> = ({ show, onHide, onSuccess, state,
         <Modal.Title>{isEditMode ? 'Edit State' : 'Add New State'}</Modal.Title>
       </Modal.Header>
       <Modal.Body>
-        <Form>
-          <div className="row">
-            <div className="col-md-6 mb-3">
-              <Form.Group>
-                <Form.Label>State Name <span style={{ color: 'red' }}>*</span></Form.Label>
-                <Form.Control
-                  type="text"
-                  placeholder="Enter state name"
-                  value={state_name}
-                  onChange={(e) => setName(e.target.value)}
-                  style={{ borderColor: '#ccc' }}
-                />
-              </Form.Group>
-            </div>
-            <div className="col-md-6 mb-3">
-              <Form.Group>
-                <Form.Label>State Code <span style={{ color: 'red' }}>*</span></Form.Label>
-                <Form.Control
-                  type="text"
-                  placeholder="Enter state code"
-                  value={state_code}
-                  onChange={(e) => {
-                    const value = e.target.value.toUpperCase();
-                    if (value.length <= 4 && /^[A-Z0-9]*$/.test(value)) {
-                      setCode(value);
-                    }
-                  }}
-                  maxLength={4}
-                  style={{ borderColor: '#ccc' }}
-                />
-              </Form.Group>
-            </div>
-          </div>
-          <div className="row">
-            <div className="col-md-6 mb-3">
-              <Form.Group>
-                <Form.Label>Capital City <span style={{ color: 'red' }}>*</span></Form.Label>
-                <Form.Control
-                  type="text"
-                  placeholder="Enter capital city"
-                  value={state_capital}
-                  onChange={(e) => setCapital(e.target.value)}
-                  style={{ borderColor: '#ccc' }}
-                />
-              </Form.Group>
-            </div>
-            <div className="col-md-6 mb-3">
-              <Form.Group>
-                <Form.Label>Country <span style={{ color: 'red' }}>*</span></Form.Label>
-                <Form.Select
-                  value={countryId ?? ''}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    setCountryId(value === '' ? null : Number(value));
-                  }}
-                  style={{ borderColor: '#ccc' }}
-                >
-                  <option value="">Select a country</option>
-                  {countryItems
-                    .filter((country) => String(country.status) === '0')
-                    .map((country) => (
-                      <option key={country.countryid} value={country.countryid}>
-                        {country.country_name}
-                      </option>
-                    ))}
-                </Form.Select>
-              </Form.Group>
-            </div>
-          </div>
-          <div className="row">
-            <div className="col-md-6 mb-3">
-              <Form.Group>
-                <Form.Label>Status</Form.Label>
-                <Form.Select
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value)}
-                  style={{ borderColor: '#ccc' }}
-                >
-                  <option value="Active">Active</option>
-                  <option value="Inactive">Inactive</option>
-                </Form.Select>
-              </Form.Group>
-            </div>
-          </div>
-        </Form>
+        <Formik
+          innerRef={formikRef}
+          initialValues={initialValues}
+          validationSchema={stateFormValidationSchema}
+          onSubmit={handleSubmit}
+          enableReinitialize={true}
+        >
+          {({ values, setFieldValue }) => (
+            <Form>
+              <div className="row">
+                <div className="col-md-6 mb-3">
+                  <FormikTextInput
+                    name="state_name"
+                    label="State Name"
+                    placeholder="Enter state name"
+                  />
+                </div>
+                <div className="col-md-6 mb-3">
+                  <FormikTextInput
+                    name="state_code"
+                    label="State Code"
+                    placeholder="Enter state code"
+                    maxLength={4}
+                    onChange={(e) => {
+                      const value = e.target.value.toUpperCase();
+                      setFieldValue('state_code', value);
+                    }}
+                  />
+                </div>
+              </div>
+              <div className="row">
+                <div className="col-md-6 mb-3">
+                  <FormikTextInput
+                    name="state_capital"
+                    label="Capital City"
+                    placeholder="Enter capital city"
+                  />
+                </div>
+                <div className="col-md-6 mb-3">
+                  <FormikSelect
+                    name="countryId"
+                    label="Country"
+                    options={countryItems
+                      .filter((country) => String(country.status) === '0')
+                      .map((country) => ({
+                        value: String(country.countryid),
+                        label: country.country_name,
+                      }))}
+                    onChange={(e) => {
+                      setFieldValue('countryId', Number(e.target.value));
+                    }}
+                  />
+                </div>
+              </div>
+              <div className="row">
+                <div className="col-md-6 mb-3">
+                  <FormikSelect
+                    name="status"
+                    label="Status"
+                    options={[
+                      { value: 'Active', label: 'Active' },
+                      { value: 'Inactive', label: 'Inactive' },
+                    ]}
+                    onChange={(e) => {
+                      setFieldValue('status', e.target.value);
+                    }}
+                  />
+                </div>
+              </div>
+            </Form>
+          )}
+        </Formik>
       </Modal.Body>
       <Modal.Footer>
         <Button variant="secondary" onClick={onHide} disabled={loading}>
           Cancel
         </Button>
-        <Button variant="primary" onClick={handleSubmit} disabled={loading}>
+        <Button variant="primary" onClick={() => formikRef.current?.submitForm()} disabled={loading}>
           {loading ? (isEditMode ? 'Updating...' : 'Adding...') : 'Save'}
         </Button>
       </Modal.Footer>
     </Modal>
   );
-};
+});
+
+StateModal.displayName = 'StateModal';
 
 export default States;

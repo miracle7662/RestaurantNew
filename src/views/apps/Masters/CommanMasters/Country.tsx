@@ -1,8 +1,8 @@
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Swal from 'sweetalert2';
 import { toast } from 'react-hot-toast';
-import { Button, Card, Stack, Pagination, Table, Modal, Form } from 'react-bootstrap';
+import { Button, Card, Stack, Pagination, Table, Modal } from 'react-bootstrap';
 import { Preloader } from '@/components/Misc/Preloader';
 import { ContactSearchBar, ContactSidebar } from '@/components/Apps/Contact';
 import TitleHelmet from '@/components/Common/TitleHelmet';
@@ -14,6 +14,10 @@ import {
   ColumnDef,
   flexRender,
 } from '@tanstack/react-table';
+import { Formik, Form } from 'formik';
+import { myFormValidationSchema } from '@/common/validators';
+import FormikTextInput from '@/components/Common/FormikTextInput';
+import FormikSelect from '@/components/Common/FormikSelect';
 import CountryService from '@/common/api/countries';
 
 // Interfaces
@@ -482,42 +486,27 @@ const Country: React.FC = () => {
 
 // CountryModal Component
 const CountryModal: React.FC<CountryModalProps> = ({ show, onHide, onSuccess, country, onUpdateSelectedCountry }) => {
-  const [country_name, setName] = useState('');
-  const [country_code, setCode] = useState('');
-  const [country_capital, setCapital] = useState('');
-  const [status, setStatus] = useState('Active');
   const [loading, setLoading] = useState(false);
+  const formikRef = useRef<any>(null);
 
   const isEditMode = !!country;
 
-  useEffect(() => {
-    if (country && isEditMode) {
-      setName(country.country_name);
-      setCode(country.country_code);
-      setCapital(country.country_capital);
-      setStatus(String(country.status) === '0' ? 'Active' : 'Inactive');
-    } else {
-      setName('');
-      setCode('');
-      setCapital('');
-      setStatus('Active');
-    }
-  }, [country, show]);
+  const initialValues = {
+    country_name: country?.country_name || '',
+    country_code: country?.country_code || '',
+    country_capital: country?.country_capital || '',
+    status: country ? (String(country.status) === '0' ? 'Active' : 'Inactive') : 'Active',
+  };
 
-  const handleSubmit = async () => {
-    if (!country_name || !country_code || !country_capital || !status) {
-      toast.error('All fields are required');
-      return;
-    }
-
+  const handleSubmit = async (values: any) => {
     setLoading(true);
     try {
-      const statusValue = status === 'Active' ? 0 : 1;
+      const statusValue = values.status === 'Active' ? 0 : 1;
       const currentDate = new Date().toISOString();
       const payload: any = {
-        country_name,
-        country_code,
-        country_capital,
+        country_name: values.country_name,
+        country_code: values.country_code,
+        country_capital: values.country_capital,
         status: statusValue,
         created_by_id: isEditMode ? Number(country!.created_by_id) : 1,
         created_date: isEditMode ? country!.created_date : currentDate,
@@ -534,7 +523,7 @@ const CountryModal: React.FC<CountryModalProps> = ({ show, onHide, onSuccess, co
         }
         toast.success(`Country ${isEditMode ? 'updated' : 'added'} successfully`);
         if (isEditMode && country && onUpdateSelectedCountry) {
-          onUpdateSelectedCountry({ ...country, country_name, country_code, country_capital, status: statusValue });
+          onUpdateSelectedCountry({ ...country, country_name: values.country_name, country_code: values.country_code, country_capital: values.country_capital, status: statusValue });
         }
         onSuccess();
         onHide();
@@ -554,73 +543,69 @@ const CountryModal: React.FC<CountryModalProps> = ({ show, onHide, onSuccess, co
         <Modal.Title>{isEditMode ? 'Edit Country' : 'Add New Country'}</Modal.Title>
       </Modal.Header>
       <Modal.Body>
-        <Form>
-          <div className="row">
-            <div className="col-md-6 mb-3">
-              <Form.Group>
-                <Form.Label>Country Name <span style={{ color: 'red' }}>*</span></Form.Label>
-                <Form.Control
-                  type="text"
-                  placeholder="Enter country name"
-                  value={country_name}
-                  onChange={(e) => setName(e.target.value)}
-                  style={{ borderColor: '#ccc' }}
-                />
-              </Form.Group>
-            </div>
-            <div className="col-md-6 mb-3">
-              <Form.Group>
-                <Form.Label>Country Code <span style={{ color: 'red' }}>*</span></Form.Label>
-                <Form.Control
-                  type="text"
-                  placeholder="Enter country code"
-                  value={country_code}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    if (value.length <= 3 && /^[0-9]*$/.test(value)) {
-                      setCode(value);
-                    }
-                  }}
-                  maxLength={3}
-                  style={{ borderColor: '#ccc' }}
-                />
-              </Form.Group>
-            </div>
-          </div>
-          <div className="row">
-            <div className="col-md-6 mb-3">
-              <Form.Group>
-                <Form.Label>Capital City <span style={{ color: 'red' }}>*</span></Form.Label>
-                <Form.Control
-                  type="text"
-                  placeholder="Enter capital city"
-                  value={country_capital}
-                  onChange={(e) => setCapital(e.target.value)}
-                  style={{ borderColor: '#ccc' }}
-                />
-              </Form.Group>
-            </div>
-            <div className="col-md-6 mb-3">
-              <Form.Group>
-                <Form.Label>Status <span style={{ color: 'red' }}>*</span></Form.Label>
-                <Form.Select
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value)}
-                  style={{ borderColor: '#ccc' }}
-                >
-                  <option value="Active">Active</option>
-                  <option value="Inactive">Inactive</option>
-                </Form.Select>
-              </Form.Group>
-            </div>
-          </div>
-        </Form>
+        <Formik
+          innerRef={formikRef}
+          initialValues={initialValues}
+          validationSchema={myFormValidationSchema}
+          onSubmit={handleSubmit}
+          enableReinitialize={true}
+        >
+          {({ values, setFieldValue }) => (
+            <Form>
+              <div className="row">
+                <div className="col-md-6 mb-3">
+                  <FormikTextInput
+                    name="country_name"
+                    label="Country Name"
+                    placeholder="Enter country name"
+                  />
+                </div>
+                <div className="col-md-6 mb-3">
+                  <FormikTextInput
+                    name="country_code"
+                    label="Country Code"
+                    placeholder="Enter country code"
+                    maxLength={3}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (/^[0-9]*$/.test(value)) {
+                        setFieldValue('country_code', value);
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+              <div className="row">
+                <div className="col-md-6 mb-3">
+                  <FormikTextInput
+                    name="country_capital"
+                    label="Capital City"
+                    placeholder="Enter capital city"
+                  />
+                </div>
+                <div className="col-md-6 mb-3">
+                  <FormikSelect
+                    name="status"
+                    label="Status"
+                    options={[
+                      { value: 'Active', label: 'Active' },
+                      { value: 'Inactive', label: 'Inactive' },
+                    ]}
+                    onChange={(e) => {
+                      setFieldValue('status', e.target.value);
+                    }}
+                  />
+                </div>
+              </div>
+            </Form>
+          )}
+        </Formik>
       </Modal.Body>
       <Modal.Footer>
         <Button variant="secondary" onClick={onHide} disabled={loading}>
           Cancel
         </Button>
-        <Button variant="primary" onClick={handleSubmit} disabled={loading}>
+        <Button variant="primary" onClick={() => formikRef.current?.submitForm()} disabled={loading}>
           {loading ? (isEditMode ? 'Updating...' : 'Adding...') : 'Save'}
         </Button>
       </Modal.Footer>
