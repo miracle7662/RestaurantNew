@@ -234,7 +234,11 @@ function SettingsPage() {
   const fetchBillPrinters = async () => {
     try {
      const data = await apiCall('/settings/bill-printer-settings');
-      setBillPrinters(data);
+      const dataWithOutlet = data.map((item: any) => {
+        const outlet = outlets.find(o => o.outletid === item.outletid);
+        return { ...item, outlet_name: outlet ? outlet.outlet_name : 'Unknown' };
+      });
+      setBillPrinters(dataWithOutlet);
     } catch (error) {
       console.error('Failed to fetch bill printers:', error);
     }
@@ -243,7 +247,11 @@ function SettingsPage() {
   const fetchLabelPrinters = async () => {
     try {
       const data = await apiCall('/settings/label-printer');
-      setLabelPrinters(data);
+      const dataWithOutlet = data.map((item: any) => {
+        const outlet = outlets.find(o => o.outletid === item.outletid);
+        return { ...item, outlet_name: outlet ? outlet.outlet_name : 'Unknown' };
+      });
+      setLabelPrinters(dataWithOutlet);
     } catch (error) {
       console.error('Failed to fetch label printers:', error);
     }
@@ -264,7 +272,11 @@ function SettingsPage() {
     try {
       console.log('Fetching department printers...');
       const data = await apiCall('/settings/department-wise-printer');
-      setDepartmentPrinters(data);
+      const dataWithOutlet = data.map((item: any) => {
+        const outlet = outlets.find(o => o.outletid === item.outletid);
+        return { ...item, outlet_name: outlet ? outlet.outlet_name : 'Unknown' };
+      });
+      setDepartmentPrinters(dataWithOutlet);
       console.log('Department printers state updated');
     } catch (error) {
       console.error('Failed to fetch department printers:', error);
@@ -476,7 +488,7 @@ function SettingsPage() {
     // const copies = parseInt(reportCopies || '1');
     const enablePrint = reportEnablePrint;
 
-    if (!printer || !source || !selectedOutlet) {
+    if (!printer  || !selectedOutlet) {
       alert('Please fill all required fields');
       return;
     }
@@ -645,7 +657,7 @@ function SettingsPage() {
     const copies = parseInt(billCopies || '1');
     const enablePrint = billEnablePrint;
 
-    if (!printer || !source || !orderType || !size || !selectedOutlet) {
+    if (!printer  || !orderType || !size || !selectedOutlet) {
       alert('Please fill all required fields');
       return;
     }
@@ -710,7 +722,7 @@ function SettingsPage() {
     const size = selectedDeptSize;
     const copies = parseInt(deptCopies || '1');
 
-    if (!printer || !source || !orderType || !department || !size || !selectedOutlet) {
+    if (!printer  || !orderType || !department || !size || !selectedOutlet) {
       alert('Please fill all required fields');
       return;
     }
@@ -933,7 +945,7 @@ function SettingsPage() {
                 </div>
                 <PrinterTable
                   data={kotPrinters}
-                  columns={['Printer Name', 'Source', 'Order Type', 'Size', 'Copies']}
+                  columns={['Printer Name', 'Outlet Name', 'Order Type', 'Size', 'Copies']}
                   onEdit={handleEditKotPrinter}
                   onDelete={handleDeleteKotPrinter}
                 />
@@ -1037,7 +1049,7 @@ function SettingsPage() {
                 </div>
                 <PrinterTable
                   data={billPrinters}
-                  columns={['Printer Name', 'Source', 'Order Type', 'Size', 'Copies']}
+                  columns={['Printer Name', 'Outlet Name', 'Order Type', 'Size', 'Copies']}
                   onEdit={handleEditBillPrinter}
                   onDelete={handleDeleteBillPrinter}
                 />
@@ -1325,7 +1337,7 @@ function SettingsPage() {
                 </div>
                 <PrinterTable
                   data={departmentPrinters}
-                  columns={['Printer Name', 'Source', 'Order Type', 'Department', 'Size', 'Copies']}
+                  columns={['Printer Name', 'Outlet Name', 'Order Type', 'Department', 'Size', 'Copies']}
                   onEdit={() => { }}
                   onDelete={(id) => { }}
                 />
