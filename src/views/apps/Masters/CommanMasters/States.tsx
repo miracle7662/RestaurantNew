@@ -22,7 +22,6 @@ interface CountryItem {
   country_name: string;
   status: number;
 }
-
 // Interfaces
 interface StateItem {
   stateid: string;
@@ -261,7 +260,7 @@ const States: React.FC = () => {
 
     if (result.isConfirmed) {
       try {
-   await StateService.remove(Number(state.stateid));
+       await StateService.remove(Number(state.stateid));
     toast.success('State deleted successfully');
     fetchStates();           // Refresh the list
     setSelectedState(null);  // Clear selected
@@ -513,7 +512,7 @@ const StateModal: React.FC<StateModalProps> = ({ show, onHide, onSuccess, state,
   const isEditMode = !!state;
 
   useEffect(() => {
-    const fetchCountries = async () => {
+      const fetchCountries = async () => {
       try {
         const data = await CountryService.list() as unknown as CountryItem[];
         setCountryItems(data);
@@ -575,7 +574,7 @@ const StateModal: React.FC<StateModalProps> = ({ show, onHide, onSuccess, state,
         }
         onSuccess();
         onHide();
-      } catch (error: unknown) {
+     } catch (error: unknown) {
         toast.error((error as string) || `Failed to ${isEditMode ? 'update' : 'add'} state`);
       }
     } catch {
