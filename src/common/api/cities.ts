@@ -3,16 +3,15 @@ import { HttpClient } from '../helpers'
 type CityPayload = {
   cityid?: number
   city_name: string
-  city_code: string
-  stateId?: string
+  city_Code: string
+  stateId?: number
   countryid?: string
   iscoastal: number
   status: number
-  created_by_id: number
-  created_date: string
-  updated_by_id: number
-  updated_date: string
-  
+  created_by_id?: string
+  created_date?: string
+  updated_by_id?: string
+  updated_date?: string
 }
 
 

@@ -14,6 +14,7 @@ import {
   ColumnDef,
   flexRender,
 } from '@tanstack/react-table';
+import CountryService from '@/common/api/countries';
 
 // Interfaces
 interface CountryItem {
@@ -87,8 +88,7 @@ const Country: React.FC = () => {
   const fetchCountries = async () => {
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:3001/api/countries');
-      const data = await res.json();
+      const data = await CountryService.list() as unknown as CountryItem[];
       setCountryItems(data);
       setFilteredCountries(data);
     } catch {
@@ -251,12 +251,14 @@ const Country: React.FC = () => {
 
     if (result.isConfirmed) {
       try {
-        await fetch(`http://localhost:3001/api/countries/${country.countryid}`, { method: 'DELETE' });
-        toast.success('Deleted successfully');
+        await CountryService.remove(Number(country.countryid));
+        toast.success('Country deleted successfully');
         fetchCountries();
         setSelectedCountry(null);
-      } catch {
-        toast.error('Failed to delete');
+        setContainerToggle(false);
+      } catch (err: any) {
+        console.error(err);
+        toast.error(err?.response?.data?.message || 'Failed to delete country');
       }
     }
   };
@@ -512,46 +514,32 @@ const CountryModal: React.FC<CountryModalProps> = ({ show, onHide, onSuccess, co
     try {
       const statusValue = status === 'Active' ? 0 : 1;
       const currentDate = new Date().toISOString();
-      const payload = {
+      const payload: any = {
         country_name,
         country_code,
         country_capital,
         status: statusValue,
-        ...(isEditMode
-          ? { countryid: country!.countryid, updated_by_id: '2', updated_date: currentDate }
-          : { created_by_id: '1', created_date: currentDate }),
+        created_by_id: isEditMode ? Number(country!.created_by_id) : 1,
+        created_date: isEditMode ? country!.created_date : currentDate,
+        updated_by_id: 2,
+        updated_date: currentDate,
+        ...(isEditMode ? { countryid: parseInt(country!.countryid) } : {}),
       };
 
-      const url = isEditMode
-        ? `http://localhost:3001/api/countries/${country!.countryid}`
-        : 'http://localhost:3001/api/countries';
-      const method = isEditMode ? 'PUT' : 'POST';
-
-      console.log('Sending to backend:', payload);
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (res.ok) {
+      try {
+        if (isEditMode) {
+          await CountryService.update(parseInt(country!.countryid), payload);
+        } else {
+          await CountryService.create(payload);
+        }
         toast.success(`Country ${isEditMode ? 'updated' : 'added'} successfully`);
         if (isEditMode && country && onUpdateSelectedCountry) {
-          const updatedCountry = {
-            ...country,
-            country_name,
-            country_code,
-            country_capital,
-            status: statusValue,
-            updated_by_id: '2',
-            updated_date: currentDate,
-          };
-          onUpdateSelectedCountry(updatedCountry);
+          onUpdateSelectedCountry({ ...country, country_name, country_code, country_capital, status: statusValue });
         }
         onSuccess();
         onHide();
-      } else {
-        toast.error(`Failed to ${isEditMode ? 'update' : 'add'} country`);
+      } catch (error: unknown) {
+        toast.error((error as string) || `Failed to ${isEditMode ? 'update' : 'add'} country`);
       }
     } catch {
       toast.error('Something went wrong');

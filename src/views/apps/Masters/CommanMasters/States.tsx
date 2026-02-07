@@ -13,7 +13,15 @@ import {
   ColumnDef,
   flexRender,
 } from '@tanstack/react-table';
-import { fetchCountries, CountryItem } from '../../../../utils/commonfunction';
+import StateService from '@/common/api/states';
+import CountryService from '@/common/api/countries';
+
+// Interfaces
+interface CountryItem {
+  countryid: string;
+  country_name: string;
+  status: number;
+}
 
 // Interfaces
 interface StateItem {
@@ -89,8 +97,7 @@ const States: React.FC = () => {
   const fetchStates = async () => {
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:3001/api/states');
-      const data = await res.json();
+      const data = await StateService.list() as unknown as StateItem[];
       setStateItems(data);
       setFilteredStates(data);
     } catch {
@@ -254,14 +261,15 @@ const States: React.FC = () => {
 
     if (result.isConfirmed) {
       try {
-        await fetch(`http://localhost:3001/api/states/${state.stateid}`, { method: 'DELETE' });
-        toast.success('State deleted successfully');
-        fetchStates();
-        setSelectedState(null);
-        setContainerToggle(false);
-      } catch {
-        toast.error('Failed to delete state');
-      }
+   await StateService.remove(Number(state.stateid));
+    toast.success('State deleted successfully');
+    fetchStates();           // Refresh the list
+    setSelectedState(null);  // Clear selected
+    setContainerToggle(false);
+  } catch (err: any) {
+    console.error(err);
+    toast.error(err?.response?.data?.message || 'Failed to delete state');
+  }
     }
   };
 
@@ -505,7 +513,15 @@ const StateModal: React.FC<StateModalProps> = ({ show, onHide, onSuccess, state,
   const isEditMode = !!state;
 
   useEffect(() => {
-    fetchCountries(setCountryItems, setCountryId);
+    const fetchCountries = async () => {
+      try {
+        const data = await CountryService.list() as unknown as CountryItem[];
+        setCountryItems(data);
+      } catch {
+        toast.error('Failed to fetch countries');
+      }
+    };
+    fetchCountries();
   }, []);
 
   useEffect(() => {
@@ -534,36 +550,33 @@ const StateModal: React.FC<StateModalProps> = ({ show, onHide, onSuccess, state,
     try {
       const statusValue = status === 'Active' ? 0 : 1;
       const currentDate = new Date().toISOString();
-      const payload = {
+      const payload: any = {
         state_name,
         state_code,
         state_capital,
-        countryid: countryId,
+        countryid: countryId.toString(),
         status: statusValue,
-        ...(isEditMode ? { stateid: state!.stateid, updated_by_id: '2', updated_date: currentDate } : { created_by_id: '1', created_date: currentDate }),
+        created_by_id: isEditMode ? Number(state!.created_by_id) : 1,
+        created_date: isEditMode ? state!.created_date : currentDate,
+        updated_by_id: 2,
+        updated_date: currentDate,
+        ...(isEditMode ? { stateid: parseInt(state!.stateid) } : {}),
       };
 
-      const url = isEditMode
-        ? `http://localhost:3001/api/states/${state!.stateid}`
-        : 'http://localhost:3001/api/states';
-      const method = isEditMode ? 'PUT' : 'POST';
-
-      console.log('Sending to backend:', payload);
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (res.ok) {
+      try {
+        if (isEditMode) {
+          await StateService.update(parseInt(state!.stateid), payload);
+        } else {
+          await StateService.create(payload);
+        }
         toast.success(`State ${isEditMode ? 'updated' : 'added'} successfully`);
         if (isEditMode && state && onUpdateSelectedState) {
           onUpdateSelectedState({ ...state, state_name, state_code, state_capital, countryid: String(countryId), status: statusValue });
         }
         onSuccess();
         onHide();
-      } else {
-        toast.error(`Failed to ${isEditMode ? 'update' : 'add'} state`);
+      } catch (error: unknown) {
+        toast.error((error as string) || `Failed to ${isEditMode ? 'update' : 'add'} state`);
       }
     } catch {
       toast.error('Something went wrong');
