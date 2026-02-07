@@ -427,7 +427,8 @@ function SettingsPage() {
         size,
         copies,
         outletid: selectedOutlet,
-        enableKotPrint: enablePrint
+        enableKotPrint: enablePrint,
+        hotelid: user?.hotelid || '1'
       };
 
       await apiCall('/settings/kot-printer-settings', {
@@ -502,7 +503,8 @@ function SettingsPage() {
         enablePrint,
         paper_size: reportPaperSize,
         auto_print: reportAutoPrint,
-        outletid: selectedOutlet
+        outletid: selectedOutlet,
+        hotelid: user?.hotelid || '1'
       };
 
       await apiCall('/settings/report-printer', {
@@ -582,7 +584,8 @@ function SettingsPage() {
         enablePrint,
         paper_width: parseInt(labelPaperWidth),
         is_enabled: labelIsEnabled,
-        outletid: selectedOutlet
+        outletid: selectedOutlet,
+        hotelid: user?.hotelid || '1'
       };
 
       await apiCall('/settings/label-printer', {
@@ -671,7 +674,8 @@ function SettingsPage() {
         size,
         copies,
         outletid: selectedOutlet,
-        enableBillPrint: enablePrint
+        enableBillPrint: enablePrint,
+        hotelid: user?.hotelid || '1'
       };
 
       await apiCall('/settings/bill-printer-settings', {
@@ -736,7 +740,8 @@ function SettingsPage() {
         size,
         source,
         copies,
-        outletid: selectedOutlet
+        outletid: selectedOutlet,
+        hotelid: user?.hotelid || '1'
       };
 
       await apiCall('/settings/department-wise-printer', {
