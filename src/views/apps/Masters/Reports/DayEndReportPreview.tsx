@@ -26,34 +26,35 @@ const DayEndReportPreview: React.FC = () => {
   }, [navigate]);
 
   // Fetch printer settings and outlet details
-  useEffect(() => {
-    const fetchPrinterAndOutlet = async () => {
-      // Get outletId from sessionStorage first, then fallback to user outletid, then hotelid
-      const storedOutletId = sessionStorage.getItem('dayEndReportOutletId');
-      const outletIdToUse = storedOutletId || user?.outletid || user?.hotelid;
-
-      if (!outletIdToUse) return;
-
-      setOutletId(Number(outletIdToUse));
-
-      try {
-        const res = await fetch(
-          `http://localhost:3001/api/settings/bill-printer-settings/${outletIdToUse}`
-        );
-        if (!res.ok) {
-          throw new Error('Failed to fetch printers');
+  // Fetch printer settings and outlet details
+    useEffect(() => {
+      const fetchPrinterAndOutlet = async () => {
+        // Get outletId from user outletid, then hotelid
+        const outletIdToUse = user?.outletid || user?.hotelid;
+  
+        if (!outletIdToUse) return;
+  
+        setOutletId(Number(outletIdToUse));
+  
+        try {
+          const res = await fetch(
+            `http://localhost:3001/api/settings/report-printer/${outletIdToUse}`
+          );
+          if (!res.ok) {
+            throw new Error('Failed to fetch printers');
+          }
+          const data = await res.json();
+          setPrinterName(data[0]?.printer_name || null);
+        } catch (err) {
+          console.error('Error fetching printer:', err);
+          toast.error('Failed to load printer settings.');
+          setPrinterName(null);
         }
-        const data = await res.json();
-        setPrinterName(data?.printer_name || null);
-      } catch (err) {
-        console.error('Error fetching printer:', err);
-        toast.error('Failed to load printer settings.');
-        setPrinterName(null);
-      }
-    };
-
-    fetchPrinterAndOutlet();
-  }, [user]);
+      };
+  
+      fetchPrinterAndOutlet();
+    }, [user]);
+  
 
   const handlePrint = async () => {
     try {
