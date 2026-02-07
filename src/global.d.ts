@@ -30,6 +30,13 @@ declare module '*.mp4' {
 
 declare module 'sanscript';
 
+interface ImportMeta {
+ env: {
+   VITE_API_URL?: string;
+ };
+}
+
+
 interface Window {
   electronAPI: {
     getInstalledPrinters: () => Promise<Array<{ name: string; displayName: string }>>;

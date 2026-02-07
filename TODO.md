@@ -1,7 +1,9 @@
-# TODO: Add hotelid to Printer Settings Functions
+# City Module Refactor TODO
 
-- [x] Update getKotPrinterSettings to include hotelid in WHERE clause
-- [x] Update getBillPrinterSettings to include hotelid in WHERE clause
-- [ ] Update getDepartmentWisePrinters (department_wise_printer) to include hotelid in WHERE clause
-- [ ] Update getReportPrinterSettings to include hotelid in WHERE clause
-- [ ] Test the updated functions
+## Steps to Complete
+- [x] Create `src/common/api/cities.ts` with API service functions using httpClient
+- [x] Create `src/views/apps/Masters/CommanMasters/index.tsx` for listing logic
+- [x] Create `src/views/apps/Masters/CommanMasters/CityForm.tsx` with Formik + Yup
+- [x] Update `src/common/api/index.ts` to export cities functions
+- [x] Verify no direct fetch/axios in components, all via cities.ts and httpClient
+- [x] Test functionality and ensure production-ready code

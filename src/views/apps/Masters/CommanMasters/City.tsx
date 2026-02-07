@@ -3,7 +3,7 @@ import Swal from 'sweetalert2';
 import { toast } from 'react-hot-toast';
 import { Preloader } from '@/components/Misc/Preloader';
 import { Button, Card, Stack, Pagination, Table, Modal, Form } from 'react-bootstrap';
-import { ContactSearchBar,  } from '@/components/Apps/Contact';
+import { ContactSearchBar } from '@/components/Apps/Contact';
 import TitleHelmet from '@/components/Common/TitleHelmet';
 import {
   useReactTable,
@@ -13,23 +13,9 @@ import {
   ColumnDef,
   flexRender,
 } from '@tanstack/react-table';
-import { fetchStates, StateItem } from '../../../../utils/commonfunction';
-
-// Interfaces
-interface CityItem {
-  cityid: string;
-  city_name: string;
-  city_code: string;
-  stateId: string;
-  state_name?: string;
-  countryid: string;
-  country_name?: string;
-  status: number;
-  created_by_id: string;
-  created_date: string;
-  updated_by_id: string;
-  updated_date: string;
-}
+import { Formik, Form as FormikForm, Field, ErrorMessage } from 'formik';
+import * as Yup from 'yup';
+import { getCities, deleteCity, createCity, updateCity, getStates, getCountries, CityItem, StateItem, CountryItem } from '@/common/api/cities';
 
 
 
@@ -78,8 +64,7 @@ const City: React.FC = () => {
   const fetchCities = async () => {
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:3001/api/cities');
-      const data = await res.json();
+      const data = await getCities();
       // Map city_Code to city_code for frontend consistency
       const mappedData = data.map((item: any) => ({
         ...item,
@@ -453,177 +438,232 @@ const City: React.FC = () => {
 };
 
 // Add City Modal
-const CityModal: React.FC<CityModalProps> = ({ show, onHide, onSuccess, city, onUpdateSelectedCity }) => {
-  const [city_name, setName] = useState('');
-  const [city_code, setCode] = useState('');
+const CityModal: React.FC<CityModalProps> = ({ show, onHide, city, onSuccess, onUpdateSelectedCity }) => {
+  const [states, setStates] = useState<StateItem[]>([]);
+  const [countries, setCountries] = useState<CountryItem[]>([]);
   const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState('Active');
-  const [stateItems, setStateItems] = useState<StateItem[]>([]);
-  const [stateId, setStateId] = useState<number | null>(null);
 
   const isEditMode = !!city;
 
+  // Validation schema
+  const validationSchema = Yup.object({
+    city_name: Yup.string().required('City Name is required'),
+    city_code: Yup.string()
+      .required('City Code is required')
+      .max(4, 'City Code must be at most 4 characters')
+      .matches(/^[A-Z]+$/, 'City Code must be uppercase letters only'),
+    stateId: Yup.number().required('State is required'),
+    countryid: Yup.number().required('Country is required'),
+    status: Yup.boolean().required('Status is required'),
+  });
+
+  // Initial values
+  const initialValues = {
+    city_name: city?.city_name || '',
+    city_code: city?.city_code || '',
+    stateId: city ? Number(city.stateId) : null,
+    countryid: city ? Number(city.countryid) : null,
+    status: city ? city.status === 0 : true,
+  };
+
+  // Fetch states and countries
   useEffect(() => {
-    fetchStates(setStateItems, setStateId);
-  }, []);
-
-  useEffect(() => {
-    if (city && isEditMode) {
-      setName(city.city_name);
-      setCode(city.city_code);
-      setStateId(Number(city.stateId));
-      setStatus(String(city.status) === '0' ? 'Active' : 'Inactive');
-    } else {
-      setName('');
-      setCode('');
-      setStateId(null);
-      setStatus('Active');
+    const fetchData = async () => {
+      try {
+        const [statesData, countriesData] = await Promise.all([getStates(), getCountries()]);
+        setStates(statesData);
+        setCountries(countriesData);
+      } catch (error) {
+        toast.error('Failed to load states and countries');
+      }
+    };
+    if (show) {
+      fetchData();
     }
-  }, [city, show]);
+  }, [show]);
 
-  const handleSubmit = async () => {
-    if (!city_name || !city_code || !stateId || !status) {
-      toast.error('All fields are required');
-      return;
-    }
-
+  // Handle form submit
+  const handleSubmit = async (values: typeof initialValues) => {
     setLoading(true);
     try {
-      const statusValue = status === 'Active' ? 0 : 1;
       const currentDate = new Date().toISOString();
-      
-      // Map frontend fields to backend expected fields
       const payload = {
-        city_name,
-        city_Code: city_code, // Fix: backend expects city_Code (capital C)
-        stateId: stateId,     // Fix: backend expects stateId (capital I)
-        iscoastal: 0,         // Add: backend expects iscoastal field
-        status: statusValue,
-        ...(isEditMode 
-          ? { 
-              updated_by_id: '2', 
-              updated_date: currentDate 
-            } 
-          : { 
-              created_by_id: '1', 
-              created_date: currentDate 
+        city_name: values.city_name,
+        city_Code: values.city_code, // Backend expects city_Code
+        stateId: values.stateId ? String(values.stateId) : undefined,
+        countryid: values.countryid ? String(values.countryid) : undefined,
+        iscoastal: 0, // Backend expects iscoastal
+        status: values.status ? 0 : 1,
+        ...(isEditMode
+          ? {
+              updated_by_id: '2',
+              updated_date: currentDate,
             }
-        ),
+          : {
+              created_by_id: '1',
+              created_date: currentDate,
+            }),
       };
 
-      const url = isEditMode
-        ? `http://localhost:3001/api/cities/${city!.cityid}`
-        : 'http://localhost:3001/api/cities';
-      const method = isEditMode ? 'PUT' : 'POST';
-
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (res.ok) {
-        await res.json();
-        toast.success(`City ${isEditMode ? 'updated' : 'added'} successfully`);
-        
-        if (isEditMode && city && onUpdateSelectedCity) {
-          onUpdateSelectedCity({ 
-            ...city, 
-            city_name, 
-            city_code, 
-            stateId: String(stateId), 
-            status: statusValue 
+      if (isEditMode && city) {
+        await updateCity(city.cityid, payload);
+        toast.success('City updated successfully');
+        if (onUpdateSelectedCity) {
+          onUpdateSelectedCity({
+            ...city,
+            city_name: values.city_name,
+            city_code: values.city_code,
+            stateId: String(values.stateId),
+            countryid: String(values.countryid),
+            status: values.status ? 0 : 1,
           });
         }
-        
-        onSuccess();
-        onHide();
       } else {
-        const errorData = await res.json();
-        toast.error(errorData.message || `Failed to ${isEditMode ? 'update' : 'add'} city`);
+        await createCity(payload);
+        toast.success('City added successfully');
       }
-    } catch (error) {
-      console.error('Error:', error);
-      toast.error('Something went wrong');
+
+      onSuccess();
+      onHide();
+    } catch (error: any) {
+      toast.error(error.message || `Failed to ${isEditMode ? 'update' : 'add'} city`);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Modal show={show} onHide={onHide}>
+    <Modal show={show} onHide={onHide} size="lg">
       <Modal.Header closeButton>
         <Modal.Title>{isEditMode ? 'Edit City' : 'Add New City'}</Modal.Title>
       </Modal.Header>
       <Modal.Body>
-        <Form>
-          <div className="row">
-            <div className="col-md-6 mb-3">
-              <Form.Group>
-                <Form.Label>City Name <span style={{ color: 'red' }}>*</span></Form.Label>
-                <Form.Control
-                  type="text"
-                  placeholder="Enter city name"
-                  value={city_name}
-                  onChange={(e) => setName(e.target.value)}
-                />
-              </Form.Group>
-            </div>
-            <div className="col-md-6 mb-3">
-              <Form.Group>
-                <Form.Label>City Code <span style={{ color: 'red' }}>*</span></Form.Label>
-                <Form.Control
-                  type="text"
-                  placeholder="Enter city code"
-                  value={city_code}
-                  onChange={(e) => setCode(e.target.value.toUpperCase())}
-                  maxLength={4}
-                />
-              </Form.Group>
-            </div>
-          </div>
-          <div className="row">
-            <div className="col-md-6 mb-3">
-              <Form.Group>
-                <Form.Label>State <span style={{ color: 'red' }}>*</span></Form.Label>
-                <Form.Select
-                  value={stateId ?? ''}
-                  onChange={(e) => setStateId(Number(e.target.value))}
-                >
-                  <option value="">Select a state</option>
-                  {stateItems
-                    .filter((state) => String(state.status) === '0')
-                    .map((state) => (
-                      <option key={state.stateid} value={state.stateid}>
-                        {state.state_name}
-                      </option>
-                    ))}
-                </Form.Select>
-              </Form.Group>
-            </div>
-            <div className="col-md-6 mb-3">
-              <Form.Group>
-                <Form.Label>Status</Form.Label>
-                <Form.Select
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value)}
-                >
-                  <option value="Active">Active</option>
-                  <option value="Inactive">Inactive</option>
-                </Form.Select>
-              </Form.Group>
-            </div>
-          </div>
-        </Form>
+        <Formik
+          initialValues={initialValues}
+          validationSchema={validationSchema}
+          onSubmit={handleSubmit}
+          enableReinitialize
+        >
+          {({ values, setFieldValue, resetForm }) => {
+            // Reset form on close
+            useEffect(() => {
+              if (!show) {
+                resetForm();
+              }
+            }, [show, resetForm]);
+
+            return (
+              <FormikForm>
+                <div className="row">
+                  <div className="col-md-6 mb-3">
+                    <Form.Group>
+                      <Form.Label>City Name <span style={{ color: 'red' }}>*</span></Form.Label>
+                      <Field
+                        name="city_name"
+                        as={Form.Control}
+                        type="text"
+                        placeholder="Enter city name"
+                      />
+                      <ErrorMessage name="city_name" component="div" className="text-danger" />
+                    </Form.Group>
+                  </div>
+                  <div className="col-md-6 mb-3">
+                    <Form.Group>
+                      <Form.Label>City Code <span style={{ color: 'red' }}>*</span></Form.Label>
+                      <Field
+                        name="city_code"
+                        as={Form.Control}
+                        type="text"
+                        placeholder="Enter city code"
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                          setFieldValue('city_code', e.target.value.toUpperCase());
+                        }}
+                        maxLength={4}
+                      />
+                      <ErrorMessage name="city_code" component="div" className="text-danger" />
+                    </Form.Group>
+                  </div>
+                </div>
+                <div className="row">
+                  <div className="col-md-6 mb-3">
+                    <Form.Group>
+                      <Form.Label>State <span style={{ color: 'red' }}>*</span></Form.Label>
+                      <Field
+                        name="stateId"
+                        as={Form.Select}
+                        value={values.stateId || ''}
+                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                          setFieldValue('stateId', Number(e.target.value));
+                        }}
+                      >
+                        <option value="">Select a state</option>
+                        {states
+                          .filter((state) => state.status === 0)
+                          .map((state) => (
+                            <option key={state.stateid} value={state.stateid}>
+                              {state.state_name}
+                            </option>
+                          ))}
+                      </Field>
+                      <ErrorMessage name="stateId" component="div" className="text-danger" />
+                    </Form.Group>
+                  </div>
+                  <div className="col-md-6 mb-3">
+                    <Form.Group>
+                      <Form.Label>Country <span style={{ color: 'red' }}>*</span></Form.Label>
+                      <Field
+                        name="countryid"
+                        as={Form.Select}
+                        value={values.countryid || ''}
+                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                          setFieldValue('countryid', Number(e.target.value));
+                        }}
+                      >
+                        <option value="">Select a country</option>
+                        {countries
+                          .filter((country) => country.status === 0)
+                          .map((country) => (
+                            <option key={country.countryid} value={country.countryid}>
+                              {country.country_name}
+                            </option>
+                          ))}
+                      </Field>
+                      <ErrorMessage name="countryid" component="div" className="text-danger" />
+                    </Form.Group>
+                  </div>
+                </div>
+                <div className="row">
+                  <div className="col-md-6 mb-3">
+                    <Form.Group>
+                      <Form.Label>Active</Form.Label>
+                      <div className="form-check">
+                        <Field
+                          name="status"
+                          type="checkbox"
+                          className="form-check-input"
+                          id="status"
+                        />
+                        <label className="form-check-label" htmlFor="status">
+                          Active
+                        </label>
+                      </div>
+                      <ErrorMessage name="status" component="div" className="text-danger" />
+                    </Form.Group>
+                  </div>
+                </div>
+                <Modal.Footer>
+                  <Button variant="secondary" onClick={onHide} disabled={loading}>
+                    Cancel
+                  </Button>
+                  <Button variant="primary" type="submit" disabled={loading}>
+                    {loading ? (isEditMode ? 'Updating...' : 'Adding...') : 'Save'}
+                  </Button>
+                </Modal.Footer>
+              </FormikForm>
+            );
+          }}
+        </Formik>
       </Modal.Body>
-      <Modal.Footer>
-        <Button variant="secondary" onClick={onHide} disabled={loading}>
-          Cancel
-        </Button>
-        <Button variant="primary" onClick={handleSubmit} disabled={loading}>
-          {loading ? (isEditMode ? 'Updating...' : 'Adding...') : 'Save'}
-        </Button>
-      </Modal.Footer>
     </Modal>
   );
 };
