@@ -14,7 +14,6 @@ import { useAuthContext } from "@/common/context/useAuthContext";
 interface KotPrinterSetting {
   id: number;
   printer_name: string;
-  source: string;
   order_type: string;
   size: string;
   copies: number;
@@ -25,7 +24,6 @@ interface KotPrinterSetting {
 interface BillPrinterSetting {
   id: number;
   printer_name: string;
-  source: string;
   order_type: string;
   size: string;
   copies: number;
@@ -38,7 +36,6 @@ interface LabelPrinterSetting {
   printer_name: string;
   paper_width: number;
   is_enabled: boolean;
-  source?: string;
   order_type?: string;
   size?: string;
   copies?: number;
@@ -50,7 +47,6 @@ interface ReportPrinterSetting {
   printer_name: string;
   paper_size: string;
   auto_print: boolean;
-  source?: string;
   order_type?: string;
   size?: string;
   copies?: number;
@@ -63,7 +59,6 @@ interface DepartmentWisePrinter {
   printer_name: string;
   order_type: string;
   size: string;
-  source: string;
   copies: number;
 }
 
@@ -72,7 +67,6 @@ interface TableWiseKot {
   table_no: string;
   printer_name: string;
   size: string;
-  source: string;
   copies: number;
 }
 
@@ -81,7 +75,6 @@ interface TableWiseBill {
   table_no: string;
   printer_name: string;
   size: string;
-  source: string;
   copies: number;
 }
 
@@ -91,7 +84,6 @@ interface CategoryWisePrinter {
   printer_name: string;
   order_type: string;
   size: string;
-  source: string;
   copies: number;
 }
 
@@ -146,27 +138,26 @@ function SettingsPage() {
   const [reportPrinterName, setReportPrinterName] = useState("");
   const [reportPaperSize, setReportPaperSize] = useState("80mm");
   const [reportAutoPrint, setReportAutoPrint] = useState(true);
-  const [selectedReportSource, setSelectedReportSource] = useState("");
-  const [selectedReportOrderType, setSelectedReportOrderType] = useState("");
-  const [selectedReportSize, setSelectedReportSize] = useState("");
-  const [reportCopies, setReportCopies] = useState("");
+  const [, setSelectedReportSource] = useState("");
+  const [, setSelectedReportOrderType] = useState("");
+  const [, setSelectedReportSize] = useState("");
+  const [, setReportCopies] = useState("");
   const [reportEnablePrint, setReportEnablePrint] = useState(true);
-  const [editingReportId, setEditingReportId] = useState<number | null>(null);
+  const [, setEditingReportId] = useState<number | null>(null);
   const [selectedOutlet, setSelectedOutlet] = useState<number | null>( null);
 
   const [labelPrinterName, setLabelPrinterName] = useState("");
   const [labelPaperWidth, setLabelPaperWidth] = useState("");
   const [labelIsEnabled, setLabelIsEnabled] = useState(true);
-  const [selectedLabelSource, setSelectedLabelSource] = useState("");
-  const [selectedLabelOrderType, setSelectedLabelOrderType] = useState("");
-  const [selectedLabelSize, setSelectedLabelSize] = useState("");
-  const [labelCopies, setLabelCopies] = useState("");
+  const [, setSelectedLabelSource] = useState("");
+  const [, setSelectedLabelOrderType] = useState("");
+  const [, setSelectedLabelSize] = useState("");
+  const [, setLabelCopies] = useState("");
   const [labelEnablePrint, setLabelEnablePrint] = useState(true);
-  const [editingLabelId, setEditingLabelId] = useState<number | null>(null);
+  const [, setEditingLabelId] = useState<number | null>(null);
 
   // Department Wise Printer states
   const [selectedDeptPrinter, setSelectedDeptPrinter] = useState("");
-  const [selectedDeptSource, setSelectedDeptSource] = useState("");
   const [selectedDeptOrderType, setSelectedDeptOrderType] = useState("");
   const [selectedDeptDepartment, setSelectedDeptDepartment] = useState("");
   const [selectedDeptSize, setSelectedDeptSize] = useState("");
@@ -221,7 +212,7 @@ function SettingsPage() {
   const fetchKotPrinters = async () => {
     try {
       const data = await apiCall('/settings/kot-printer-settings');
-      const dataWithOutlet = data.map(item => {
+      const dataWithOutlet = data.map((item: any) => {
         const outlet = outlets.find(o => o.outletid === item.outletid);
         return { ...item, outlet_name: outlet ? outlet.outlet_name : 'Unknown' };
       });
@@ -342,7 +333,6 @@ function SettingsPage() {
       setLabelPrinterName(labelSetting.printer_name);
       setLabelPaperWidth(labelSetting.paper_width.toString());
       setLabelIsEnabled(labelSetting.is_enabled);
-      setSelectedLabelSource(labelSetting.source || '');
       setSelectedLabelOrderType(labelSetting.order_type || '');
       setSelectedLabelSize(labelSetting.size || '');
       setLabelCopies(labelSetting.copies?.toString() || '');
@@ -357,7 +347,6 @@ function SettingsPage() {
       setReportPrinterName(reportSetting.printer_name);
       setReportPaperSize(reportSetting.paper_size);
       setReportAutoPrint(reportSetting.auto_print);
-      setSelectedReportSource(reportSetting.source || '');
       setSelectedReportOrderType(reportSetting.order_type || '');
       setSelectedReportSize(reportSetting.size || '');
       setReportCopies(reportSetting.copies?.toString() || '');
@@ -407,7 +396,6 @@ function SettingsPage() {
   // KOT Printer handlers
   const handleAddKotPrinter = async () => {
     const printer = selectedKotPrinter;
-    const source = selectedKotSource;
     const orderType = selectedKotOrderType;
     const size = selectedKotSize;
     const copies = parseInt(kotCopies || '1');
@@ -422,7 +410,6 @@ function SettingsPage() {
     try {
       const newSetting = {
         printer_name: printer,
-        source,
         order_type: orderType,
         size,
         copies,
@@ -450,7 +437,6 @@ function SettingsPage() {
     setEditingKotId(item.id);
     setKotEnablePrint(item.enableKotPrint);
     setSelectedKotPrinter(item.printer_name);
-    setSelectedKotSource(item.source);
     setSelectedKotOrderType(item.order_type);
     setSelectedKotSize(item.size);
     setKotCopies(item.copies.toString());
@@ -483,7 +469,6 @@ function SettingsPage() {
   // Report Printer handlers
   const handleAddReportPrinter = async () => {
     const printer = reportPrinterName;
-    const source = selectedReportSource;
     // const orderType = selectedReportOrderType;
     // const size = selectedReportSize;
     // const copies = parseInt(reportCopies || '1');
@@ -498,7 +483,7 @@ function SettingsPage() {
     try {
       const newSetting = {
         printer_name: printer,
-        source,
+        
 
         enablePrint,
         paper_size: reportPaperSize,
@@ -526,7 +511,6 @@ function SettingsPage() {
     setEditingReportId(item.id);
     setReportEnablePrint(item.enablePrint || true);
     setReportPrinterName(item.printer_name);
-    setSelectedReportSource(item.source || '');
     setSelectedReportOrderType(item.order_type || '');
     setSelectedReportSize(item.size || '');
     setReportCopies(item.copies?.toString() || '');
@@ -563,7 +547,6 @@ function SettingsPage() {
   // Label Printer handlers
   const handleAddLabelPrinter = async () => {
     const printer = labelPrinterName;
-    // const source = selectedLabelSource;
     // const orderType = selectedLabelOrderType;
     // const size = selectedLabelSize;
     // const copies = parseInt(labelCopies || '1');
@@ -607,7 +590,6 @@ function SettingsPage() {
     setEditingLabelId(item.id);
     setLabelEnablePrint(item.enablePrint || true);
     setLabelPrinterName(item.printer_name);
-    setSelectedLabelSource(item.source || '');
     setSelectedLabelOrderType(item.order_type || '');
     setSelectedLabelSize(item.size || '');
     setLabelCopies(item.copies?.toString() || '');
@@ -654,7 +636,6 @@ function SettingsPage() {
 
   const handleAddBillPrinter = async () => {
     const printer = selectedBillPrinter;
-    const source = selectedBillSource;
     const orderType = selectedBillOrderType;
     const size = selectedBillSize;
     const copies = parseInt(billCopies || '1');
@@ -669,7 +650,6 @@ function SettingsPage() {
     try {
       const newSetting = {
         printer_name: printer,
-        source,
         order_type: orderType,
         size,
         copies,
@@ -697,7 +677,6 @@ function SettingsPage() {
     setEditingBillId(item.id);
     setBillEnablePrint(item.enableBillPrint);
     setSelectedBillPrinter(item.printer_name);
-    setSelectedBillSource(item.source);
     setSelectedBillOrderType(item.order_type);
     setSelectedBillSize(item.size);
     setBillCopies(item.copies.toString());
@@ -720,7 +699,6 @@ function SettingsPage() {
   // Department Wise Printer handlers
   const handleAddDepartmentPrinter = async () => {
     const printer = selectedDeptPrinter;
-    const source = selectedDeptSource;
     const orderType = selectedDeptOrderType;
     const department = selectedDeptDepartment;
     const size = selectedDeptSize;
@@ -738,7 +716,6 @@ function SettingsPage() {
         printer_name: printer,
         order_type: orderType,
         size,
-        source,
         copies,
         outletid: selectedOutlet,
         hotelid: user?.hotelid || '1'
@@ -761,7 +738,6 @@ function SettingsPage() {
 
   const clearDeptForm = () => {
     setSelectedDeptPrinter('');
-    setSelectedDeptSource('');
     setSelectedDeptOrderType('');
     setSelectedDeptDepartment('');
     setSelectedDeptSize('');
