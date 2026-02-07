@@ -1,10 +1,15 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+ import React, { useState, useEffect, useMemo, useCallback, forwardRef, useImperativeHandle, useRef } from 'react';
 import Swal from 'sweetalert2';
 import { toast } from 'react-hot-toast';
-import { Button, Card, Stack, Pagination, Table, Modal, Form, Row, Col } from 'react-bootstrap';
+import { Button, Card, Stack, Pagination, Table, Modal, Form as BootstrapForm, Form } from 'react-bootstrap';
 import { Preloader } from '@/components/Misc/Preloader';
 import TitleHelmet from '@/components/Common/TitleHelmet';
 import { useAuthContext } from '../../../../common/context/useAuthContext';
+import { Formik,   } from 'formik';
+import { hoteltypeFormValidationSchema } from '@/common/validators';
+import FormikTextInput from '@/components/Common/FormikTextInput';
+import FormikSelect from '@/components/Common/FormikSelect';
+import HotelTypeService from '@/common/api/hoteltype';
 
 import {
   useReactTable,
@@ -35,6 +40,10 @@ interface HoteltypeModalProps {
   onUpdateSelectedHoteltype: (hoteltype: HoteltypeItem) => void;
 }
 
+interface HoteltypeModalRef {
+  saveData: () => void;
+}
+
 // Utility Functions
 const debounce = (func: (...args: any[]) => void, wait: number) => {
   let timeout: NodeJS.Timeout;
@@ -58,8 +67,7 @@ const HoteltypeMasters: React.FC = () => {
   const fetchHoteltypes = async () => {
     try {
       setLoading(true);
-      const res = await fetch('http://localhost:3001/api/hoteltype');
-      const data = await res.json();
+      const data = await HotelTypeService.list() as unknown as HoteltypeItem[];
       console.log('Fetched hotel types:', data); // Debug log
       setHoteltypeItems(data);
     } catch (err) {
@@ -168,7 +176,7 @@ const HoteltypeMasters: React.FC = () => {
     });
     if (res.isConfirmed) {
       try {
-        await fetch(`http://localhost:3001/api/hoteltype/${hoteltype.hoteltypeid}`, { method: 'DELETE' });
+        await HotelTypeService.remove(parseInt(hoteltype.hoteltypeid));
         toast.success('Deleted successfully');
         fetchHoteltypes();
         setSelectedHoteltype(null);
@@ -205,40 +213,29 @@ const HoteltypeMasters: React.FC = () => {
   };
 
   // Modal for Add/Edit
-  const HoteltypeModal: React.FC<HoteltypeModalProps> = ({ show, onHide, hoteltype, onSuccess, onUpdateSelectedHoteltype }) => {
-    const [hotel_type, setName] = useState('');
-    const [status, setStatus] = useState('Active');
+  const HoteltypeModal = forwardRef<HoteltypeModalRef, HoteltypeModalProps>(({ show, onHide, onSuccess, hoteltype, onUpdateSelectedHoteltype }, ref) => {
     const [loading, setLoading] = useState(false);
+    const formikRef = useRef<any>(null);
 
-    useEffect(() => {
-      if (hoteltype) {
-        setName(hoteltype.hotel_type);
-        setStatus(hoteltype.status === 0 ? 'Active' : 'Inactive');
-        console.log('Edit hoteltype status:', hoteltype.status, typeof hoteltype.status); // Debug log
-      } else {
-        setName('');
-        setStatus('Active');
-      }
-    }, [hoteltype, show]);
+    const isEditMode = !!hoteltype;
 
-    const handleSubmit = async () => {
-      if (!hotel_type || !status) {
-        toast.error('All fields are required');
-        return;
-      }
+    const initialValues = {
+      hotel_type: hoteltype?.hotel_type || '',
+      status: hoteltype ? (hoteltype.status === 0 ? 'Active' : 'Inactive') : 'Active',
+    };
 
+    const handleSubmit = async (values: any) => {
       setLoading(true);
       try {
-        const statusValue = status === 'Active' ? 0 : 1;
+        const statusValue = values.status === 'Active' ? 0 : 1;
         const currentDate = new Date().toISOString();
         const hotelId = user?.hotelid || '1';
         const userId = user?.id || '1';
         const payload = {
-          hotel_type,
+          hotel_type: values.hotel_type,
           status: statusValue,
-          ...(hoteltype
+          ...(isEditMode
             ? {
-                hoteltypeid: hoteltype.hoteltypeid,
                 updated_by_id: userId,
                 updated_date: currentDate,
                 hotelid: hoteltype!.hotelid || hotelId,
@@ -251,93 +248,101 @@ const HoteltypeMasters: React.FC = () => {
         };
         console.log('Sending to backend:', payload); // Debug log
 
-        const url = hoteltype
-          ? `http://localhost:3001/api/hoteltype/${hoteltype.hoteltypeid}`
-          : 'http://localhost:3001/api/hoteltype';
-        const method = hoteltype ? 'PUT' : 'POST';
-
-        const res = await fetch(url, {
-          method,
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-
-        if (res.ok) {
-          toast.success(`Hotel type ${hoteltype ? 'updated' : 'added'} successfully`);
-          if (hoteltype) {
-            const updatedHoteltype = {
-              ...hoteltype,
-              hotel_type,
-              status: statusValue,
-              updated_by_id: '2',
-              updated_date: currentDate,
-            };
-            onUpdateSelectedHoteltype(updatedHoteltype);
+        try {
+          if (isEditMode) {
+            await HotelTypeService.update(parseInt(hoteltype!.hoteltypeid), payload);
+          } else {
+            await HotelTypeService.create(payload);
           }
+          toast.success(`Hotel type ${isEditMode ? 'updated' : 'added'} successfully`);
+
+          if (isEditMode && hoteltype && onUpdateSelectedHoteltype) {
+            onUpdateSelectedHoteltype({
+              ...hoteltype,
+              hotel_type: values.hotel_type,
+              status: statusValue,
+              updated_by_id: userId,
+              updated_date: currentDate,
+            });
+          }
+
           onSuccess();
           onHide();
-        } else {
-          const errorData = await res.json();
-          console.log('Backend error:', errorData); // Debug log
-          toast.error('Failed to save hotel type');
+        } catch (error: unknown) {
+          toast.error((error as string) || `Failed to ${isEditMode ? 'update' : 'add'} hotel type`);
         }
-      } catch (err) {
-        console.error('Save hoteltype error:', err); // Debug log
+      } catch (error) {
+        console.error('Error:', error);
         toast.error('Something went wrong');
       } finally {
         setLoading(false);
       }
     };
 
-    if (!show) return null;
+    useImperativeHandle(ref, () => ({
+      saveData: () => {
+        if (formikRef.current) {
+          formikRef.current.submitForm();
+        }
+      },
+    }));
 
     return (
-      <Modal show={show} onHide={onHide} size="lg">
+      <Modal show={show} onHide={onHide} size="sm">
         <Modal.Header closeButton>
-          <Modal.Title>{hoteltype ? 'Edit Hotel Type' : 'Add Hotel Type'}</Modal.Title>
+          <Modal.Title>{isEditMode ? 'Edit Hotel Type' : 'Add Hotel Type'}</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <Form>
-            <Row>
-              <Col md={12}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Hotel Type <span className="text-danger">*</span></Form.Label>
-                  <Form.Control
-                    type="text"
-                    value={hotel_type}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Enter hotel type name"
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
-            <Row>
-              <Col md={12}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Status <span className="text-danger">*</span></Form.Label>
-                  <Form.Select
-                    value={status}
-                    onChange={(e) => setStatus(e.target.value)}
-                  >
-                    <option value="Active">Active</option>
-                    <option value="Inactive">Inactive</option>
-                  </Form.Select>
-                </Form.Group>
-              </Col>
-            </Row>
-          </Form>
+          <Formik
+            innerRef={formikRef}
+            initialValues={initialValues}
+            validationSchema={hoteltypeFormValidationSchema}
+            onSubmit={handleSubmit}
+            enableReinitialize={true}
+          >
+            {({ values, setFieldValue }) => (
+              <Form>
+                <div className="row">
+                  <div className="col-md-12 mb-3">
+                    <FormikTextInput
+                      name="hotel_type"
+                      label="Hotel Type"
+                      placeholder="Enter hotel type name"
+                    />
+                  </div>
+                </div>
+                <div className="row">
+                  <div className="col-md-12 mb-3">
+                    <FormikSelect
+                      name="status"
+                      label="Status"
+                      options={[
+                        { value: 'Active', label: 'Active' },
+                        { value: 'Inactive', label: 'Inactive' },
+                      ]}
+                      onChange={(e: any) => {
+                        setFieldValue('status', e.target.value);
+                      }}
+                    />
+                  </div>
+                </div>
+              </Form>
+            )}
+          </Formik>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="danger" onClick={onHide} disabled={loading}>
-            Close
+          <Button variant="secondary" onClick={onHide} disabled={loading}>
+            Cancel
           </Button>
-          <Button variant="success" onClick={handleSubmit} disabled={loading}>
-            {loading ? 'Saving...' : hoteltype ? 'Save' : 'Create'}
+          <Button variant="primary" onClick={() => formikRef.current?.submitForm()} disabled={loading}>
+            {loading ? (isEditMode ? 'Updating...' : 'Adding...') : 'Save'}
           </Button>
         </Modal.Footer>
       </Modal>
     );
-  };
+  });
+
+ 
 
   return (
     <>
@@ -396,7 +401,7 @@ const HoteltypeMasters: React.FC = () => {
                 <div>
                   <Form.Select
                     value={table.getState().pagination.pageSize}
-                    onChange={(e) => table.setPageSize(Number(e.target.value))}
+                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) => table.setPageSize(Number(e.target.value))}
                     style={{ width: '100px', display: 'inline-block', marginRight: '10px' }}
                   >
                     <option value="5">5</option>
@@ -441,5 +446,7 @@ const HoteltypeMasters: React.FC = () => {
     </>
   );
 };
+
+
 
 export default HoteltypeMasters;

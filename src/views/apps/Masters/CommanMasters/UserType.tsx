@@ -1,10 +1,15 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, forwardRef, useImperativeHandle, useRef } from 'react';
 import Swal from 'sweetalert2';
 import { toast } from 'react-hot-toast';
+import { Button, Card, Stack, Pagination, Table, Modal, Form } from 'react-bootstrap';
 import { Preloader } from '@/components/Misc/Preloader';
-import { Button, Card, Stack, Pagination, Table, Form } from 'react-bootstrap';
-import { useAuthContext } from '../../../../common/context/useAuthContext';
 import TitleHelmet from '@/components/Common/TitleHelmet';
+import { useAuthContext } from '../../../../common/context/useAuthContext';
+import { Formik } from 'formik';
+import { usertypeFormValidationSchema } from '@/common/validators';
+import FormikTextInput from '@/components/Common/FormikTextInput';
+import FormikSelect from '@/components/Common/FormikSelect';
+import UserTypeService from '@/common/api/usertype';
 import {
   useReactTable,
   getCoreRowModel,
@@ -34,6 +39,10 @@ interface UserTypeModalProps {
   onUpdateSelectedUserType?: (userType: UserTypeItem) => void;
 }
 
+interface UserTypeModalRef {
+  saveData: () => void;
+}
+
 // Debounce utility function
 const debounce = (func: (...args: any[]) => void, wait: number) => {
   let timeout: NodeJS.Timeout;
@@ -54,8 +63,7 @@ const UserType: React.FC = () => {
   const fetchUserType = async () => {
     try {
       setLoading(true);
-      const res = await fetch('http://localhost:3001/api/UserType');
-      const data = await res.json();
+      const data = await UserTypeService.list() as unknown as UserTypeItem[];
       console.log('Fetched user types:', data); // Debug log
       setUserTypeItem(data);
     } catch (err) {
@@ -166,7 +174,7 @@ const UserType: React.FC = () => {
     });
     if (res.isConfirmed) {
       try {
-        await fetch(`http://localhost:3001/api/usertype/${usertype.usertypeid}`, { method: 'DELETE' });
+        await UserTypeService.remove(usertype.usertypeid);
         toast.success('Deleted successfully');
         fetchUserType();
         setSelectedUserType(null);
@@ -306,130 +314,136 @@ const UserType: React.FC = () => {
   );
 };
 
-// Combined UserTypeModal Component
-const UserTypeModal: React.FC<UserTypeModalProps> = ({ show, onHide, onSuccess, userType, onUpdateSelectedUserType }) => {
-  const [User_type, setName] = useState('');
-  const [status, setStatus] = useState('Active');
+// Modal for Add/Edit
+const UserTypeModal = forwardRef<UserTypeModalRef, UserTypeModalProps>(({ show, onHide, onSuccess, userType, onUpdateSelectedUserType }, ref) => {
   const [loading, setLoading] = useState(false);
+  const formikRef = useRef<any>(null);
   const { user } = useAuthContext();
+
   const isEditMode = !!userType;
 
-  useEffect(() => {
-    if (userType && isEditMode) {
-      setName(userType.User_type);
-      setStatus(String(userType.status) === '0' ? 'Active' : 'Inactive');
-      console.log('Edit userType status:', userType.status, typeof userType.status); // Debug log
-    } else {
-      setName('');
-      setStatus('Active');
-    }
-  }, [userType, isEditMode]);
+  const initialValues = {
+    User_type: userType?.User_type || '',
+    status: userType ? (userType.status === '0' ? 'Active' : 'Inactive') : 'Active',
+  };
 
-  const handleSubmit = async () => {
-    if (!User_type || !status) {
-      toast.error('All fields are required');
-      return;
-    }
-
+  const handleSubmit = async (values: any) => {
     setLoading(true);
     try {
-      const statusValue = status === 'Active' ? 0 : 1;
-      const hotelId = user?.hotelid || '1';
+      const statusValue = values.status === 'Active' ? 0 : 1;
       const currentDate = new Date().toISOString();
+      const hotelId = user?.hotelid || '1';
+      const userId = user?.id || '1';
       const payload = {
-        User_type,
+        User_type: values.User_type,
         status: statusValue,
-        ...(isEditMode ? { usertypeid: userType!.usertypeid, updated_by_id: user.id, updated_date: currentDate, hotelid: hotelId } : { created_by_id: user.id, created_date: currentDate, hotelid: hotelId } ),
+        ...(isEditMode
+          ? {
+              updated_by_id: userId,
+              updated_date: currentDate,
+              hotelid: hotelId,
+            }
+          : {
+              created_by_id: userId,
+              created_date: currentDate,
+              hotelid: hotelId,
+            }),
       };
       console.log('Sending to backend:', payload); // Debug log
 
-      const url = isEditMode
-        ? `http://localhost:3001/api/usertype/${userType!.usertypeid}`
-        : 'http://localhost:3001/api/usertype';
-      const method = isEditMode ? 'PUT' : 'POST';
-
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (res.ok) {
-        toast.success(`UserType ${isEditMode ? 'updated' : 'added'} successfully`);
-        if (isEditMode && userType && onUpdateSelectedUserType) {
-          const updatedUserType = {
-            ...userType,
-            User_type,
-            status: statusValue.toString(),
-            updated_by_id: '2',
-            updated_date: currentDate,
-            usertypeid: userType.usertypeid,
-          };
-          onUpdateSelectedUserType(updatedUserType);
+      try {
+        if (isEditMode) {
+          await UserTypeService.update(userType!.usertypeid, payload);
+        } else {
+          await UserTypeService.create(payload);
         }
-        setName('');
-        setStatus('Active');
+        toast.success(`User type ${isEditMode ? 'updated' : 'added'} successfully`);
+
+        if (isEditMode && userType && onUpdateSelectedUserType) {
+          onUpdateSelectedUserType({
+            ...userType,
+            User_type: values.User_type,
+            status: statusValue.toString(),
+            updated_by_id: userId,
+            updated_date: currentDate,
+          });
+        }
+
         onSuccess();
         onHide();
-      } else {
-        const errorData = await res.json();
-        console.log('Backend error:', errorData); // Debug log
-        toast.error(`Failed to ${isEditMode ? 'update' : 'add'} usertype`);
+      } catch (error: unknown) {
+        toast.error((error as string) || `Failed to ${isEditMode ? 'update' : 'add'} user type`);
       }
-    } catch (err) {
-      console.error(`${isEditMode ? 'Edit' : 'Add'} usertype error:`, err); // Debug log
+    } catch (error) {
+      console.error('Error:', error);
       toast.error('Something went wrong');
     } finally {
       setLoading(false);
     }
   };
 
-  if (!show) return null;
+  useImperativeHandle(ref, () => ({
+    saveData: () => {
+      if (formikRef.current) {
+        formikRef.current.submitForm();
+      }
+    },
+  }));
 
   return (
-    <div className="modal" style={{ display: show ? 'block' : 'none', background: 'rgba(0,0,0,0.5)', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
-      <div className="modal-content" style={{ background: 'white', padding: '20px', maxWidth: '600px', margin: '100px auto', borderRadius: '8px' }}>
-        <div className="d-flex justify-content-between align-items-center mb-3">
-          <h5 className="mb-0">{isEditMode ? 'Edit User Type' : 'Add User Type'}</h5>
-          <button className="btn-close" onClick={onHide}></button>
-        </div>
-        <div className="row mb-3">
-          <div className="col-md-12">
-            <label className="form-label">User Type <span style={{ color: 'red' }}>*</span></label>
-            <input
-              type="text"
-              className="form-control"
-              value={User_type}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Enter User Type"
-            />
-          </div>
-        </div>
-        <div className="row mb-3">
-          <div className="col-md-12">
-            <label className="form-label">Status <span style={{ color: 'red' }}>*</span></label>
-            <select
-              className="form-control"
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-            >
-              <option value="Active">Active</option>
-              <option value="Inactive">Inactive</option>
-            </select>
-          </div>
-        </div>
-        <div className="d-flex justify-content-end mt-4">
-          <button className="btn btn-success me-2" onClick={handleSubmit} disabled={loading}>
-            {loading ? (isEditMode ? 'Updating...' : 'Adding...') : (isEditMode ? 'Save' : 'Create')}
-          </button>
-          <button className="btn btn-danger" onClick={onHide} disabled={loading}>
-            Close
-          </button>
-        </div>
-      </div>
-    </div>
+    <Modal show={show} onHide={onHide} size="sm">
+      <Modal.Header closeButton>
+        <Modal.Title>{isEditMode ? 'Edit User Type' : 'Add User Type'}</Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        <Formik
+          innerRef={formikRef}
+          initialValues={initialValues}
+          validationSchema={usertypeFormValidationSchema}
+          onSubmit={handleSubmit}
+          enableReinitialize={true}
+        >
+          {({ values, setFieldValue }) => (
+            <Form>
+              <div className="row">
+                <div className="col-md-12 mb-3">
+                  <FormikTextInput
+                    name="User_type"
+                    label="User Type"
+                    placeholder="Enter user type name"
+                  />
+                </div>
+              </div>
+              <div className="row">
+                <div className="col-md-12 mb-3">
+                  <FormikSelect
+                    name="status"
+                    label="Status"
+                    options={[
+                      { value: 'Active', label: 'Active' },
+                      { value: 'Inactive', label: 'Inactive' },
+                    ]}
+                    onChange={(e: any) => {
+                      setFieldValue('status', e.target.value);
+                    }}
+                  />
+                </div>
+              </div>
+            </Form>
+          )}
+        </Formik>
+      </Modal.Body>
+      <Modal.Footer>
+        <Button variant="secondary" onClick={onHide} disabled={loading}>
+          Cancel
+        </Button>
+        <Button variant="primary" onClick={() => formikRef.current?.submitForm()} disabled={loading}>
+          {loading ? (isEditMode ? 'Updating...' : 'Adding...') : 'Save'}
+        </Button>
+      </Modal.Footer>
+    </Modal>
   );
-};
+});
 
 
 
