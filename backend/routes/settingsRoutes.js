@@ -4,9 +4,9 @@ const settingsController = require("../controllers/settingsController");
 
 
 
- // -------------------------
+// -------------------------
 // KOT PRINTER SETTINGS
- // -------------------------
+// -------------------------
  router.get("/kot-printer-settings/:id", settingsController.getKotPrinterSettings);
  router.get("/kot-printer-settings", settingsController.getAllKotPrinterSettings);
  router.post("/kot-printer-settings", settingsController.createKotPrinterSetting);
@@ -54,7 +54,8 @@ router.put("/label-printer/:id", settingsController.updateLabelPrinter);
 // -------------------------
 // REPORT PRINTER SETTINGS
 // -------------------------
-router.get("/report-printer", settingsController.getReportPrinterSettings);
+router.get("/report-printer", settingsController.getAllReportPrinterSettings);
+router.get("/report-printer/:id", settingsController.getReportPrinterSettings);
 router.post("/report-printer", settingsController.createReportPrinter);
 router.put("/report-printer/:id", settingsController.updateReportPrinter);
 

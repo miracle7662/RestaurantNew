@@ -423,17 +423,23 @@ exports.updateLabelPrinter = async (req, res) => {
 // 9️⃣ Report Printer Settings
 // ------------------------------------------
 
+
+
 exports.getReportPrinterSettings = async (req, res) => {
   try {
-    console.log('Fetching report printer settings...');
-    const rows = getAll('SELECT * FROM report_printer_settings');
-    console.log('Report printer settings data:', rows);
+    const { id } = req.params;
+
+    const rows = getAll(
+      "SELECT * FROM report_printer_settings WHERE outletid = ? OR hotelid = ?",
+      [id, id]
+    );
+
     res.json(rows);
   } catch (e) {
-    console.error('Error fetching report printer settings:', e.message);
     res.status(500).json({ error: e.message });
   }
 };
+
 
 exports.createReportPrinter = async (req, res) => {
   try {
@@ -479,6 +485,18 @@ exports.updateReportPrinter = async (req, res) => {
     res.json({ msg: 'Report Printer Updated' });
   } catch (e) {
     console.error('Error updating report printer:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+};
+
+/**
+ * Get all report printer settings without id parameter
+ */
+exports.getAllReportPrinterSettings = async (req, res) => {
+  try {
+    const rows = await getAll("SELECT * FROM report_printer_settings");
+    res.json(rows);
+  } catch (e) {
     res.status(500).json({ error: e.message });
   }
 };

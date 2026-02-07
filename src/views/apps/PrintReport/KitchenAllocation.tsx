@@ -124,13 +124,13 @@ const KitchenAllocation: React.FC = () => {
 
       try {
         const res = await fetch(
-          `http://localhost:3001/api/settings/bill-printer-settings/${outletIdToUse}`
+          `http://localhost:3001/api/settings/report-printer/${outletIdToUse}`
         );
         if (!res.ok) {
           throw new Error('Failed to fetch printers');
         }
         const data = await res.json();
-        setPrinterName(data?.printer_name || null);
+        setPrinterName(data[0]?.printer_name || null);
       } catch (err) {
         console.error('Error fetching printer:', err);
         toast.error('Failed to load printer settings.');
