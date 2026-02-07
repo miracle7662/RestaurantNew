@@ -30,11 +30,11 @@ function HttpClient() {
   }, _errorHandler)
 
   return {
-    get: <T = any>(url: string, config?: any): Promise<T> => _httpClient.get(url, config),
-    post: <T = any>(url: string, data: any, config?: any): Promise<T> => _httpClient.post(url, data, config),
-    patch: <T = any>(url: string, config?: any): Promise<T> => _httpClient.patch(url, config),
-    put: <T = any>(url: string, config?: any): Promise<T> => _httpClient.put(url, config),
-    delete: <T = any>(url: string, config?: any): Promise<T> => _httpClient.delete(url, config),
+    get: (url: string, config = {}) => _httpClient.get(url, config),
+    post: (url: string, data: any, config = {}) => _httpClient.post(url, data, config),
+    patch: (url: string, config = {}) => _httpClient.patch(url, config),
+    put: (url: string, data: any, config = {}) => _httpClient.put(url, data, config),
+    delete: (url: string, config = {}) => _httpClient.delete(url, config),
     client: _httpClient,
   }
 }

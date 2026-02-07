@@ -15,7 +15,7 @@ import {
 } from '@tanstack/react-table';
 import { Formik, Form as FormikForm, Field, ErrorMessage } from 'formik';
 import * as Yup from 'yup';
-import { getCities, deleteCity, createCity, updateCity, getStates, getCountries, CityItem, StateItem, CountryItem } from '@/common/api/cities';
+import { getCities, deleteCity, getStates, getCountries, updateCity, createCity, CityItem, StateItem, CountryItem } from '@/common/api/cities';
 
 
 
@@ -65,13 +65,8 @@ const City: React.FC = () => {
     setLoading(true);
     try {
       const data = await getCities();
-      // Map city_Code to city_code for frontend consistency
-      const mappedData = data.map((item: any) => ({
-        ...item,
-        city_code: item.city_Code,
-      }));
-      setCityItems(mappedData);
-      setFilteredCities(mappedData);
+      setCityItems(data);
+      setFilteredCities(data);
     } catch {
       toast.error('Failed to fetch cities');
     } finally {
@@ -92,7 +87,7 @@ const City: React.FC = () => {
       cell: (cell) => <span>{cell.row.index + 1}</span>,
     },
     {
-      accessorKey: 'city_code',
+      accessorKey: 'city_Code',
       header: 'Code',
       size: 10,
       cell: (cell) => (
@@ -173,7 +168,7 @@ const City: React.FC = () => {
       const filtered = cityItems.filter((item) => {
         return (
           item.city_name.toLowerCase().includes(searchValue) ||
-          item.city_code.toLowerCase().includes(searchValue) ||
+          item.city_Code.toLowerCase().includes(searchValue) ||
           (item.state_name && item.state_name.toLowerCase().includes(searchValue)) ||
           (item.country_name && item.country_name.toLowerCase().includes(searchValue))
         );
@@ -203,17 +198,19 @@ const City: React.FC = () => {
       confirmButtonText: 'Yes, delete it!',
     });
 
-    if (result.isConfirmed) {
-      try {
-        await fetch(`http://localhost:3001/api/cities/${city.cityid}`, { method: 'DELETE' });
-        toast.success('City deleted successfully');
-        fetchCities();
-        setSelectedCity(null);
-        setContainerToggle(false);
-      } catch {
-        toast.error('Failed to delete city');
-      }
-    }
+  if (result.isConfirmed) {
+  try {
+    await deleteCity(city.cityid);
+
+    toast.success('City deleted successfully');
+    fetchCities();
+    setSelectedCity(null);
+    setContainerToggle(false);
+  } catch (error) {
+    toast.error('Failed to delete city');
+  }
+}
+
   };
 
   // Update selected city index
@@ -403,7 +400,7 @@ const City: React.FC = () => {
                 <div className="apps-contact-details p-4">
                   <div className="mb-4">
                     <h5 className="mb-2">{selectedCity.city_name}</h5>
-                    <p className="text-muted mb-0">City Code: {selectedCity.city_code}</p>
+                    <p className="text-muted mb-0">City Code: {selectedCity.city_Code}</p>
                   </div>
                   <div className="mb-4">
                     <p className="text-muted mb-0">State: {selectedCity.state_name || 'N/A'}</p>
@@ -460,7 +457,7 @@ const CityModal: React.FC<CityModalProps> = ({ show, onHide, city, onSuccess, on
   // Initial values
   const initialValues = {
     city_name: city?.city_name || '',
-    city_code: city?.city_code || '',
+    city_code: city?.city_Code || '',
     stateId: city ? Number(city.stateId) : null,
     countryid: city ? Number(city.countryid) : null,
     status: city ? city.status === 0 : true,
@@ -512,7 +509,7 @@ const CityModal: React.FC<CityModalProps> = ({ show, onHide, city, onSuccess, on
           onUpdateSelectedCity({
             ...city,
             city_name: values.city_name,
-            city_code: values.city_code,
+            city_Code: values.city_code,
             stateId: String(values.stateId),
             countryid: String(values.countryid),
             status: values.status ? 0 : 1,

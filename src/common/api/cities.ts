@@ -1,10 +1,13 @@
-import httpClient from '../helpers/httpClient';
+import HttpClient from '../helpers/httpClient'
 
-// Interfaces
+/* =======================
+   Interfaces
+======================= */
+
 export interface CityItem {
-  cityid: string;
+   cityid: number;
   city_name: string;
-  city_code: string;
+  city_Code: string;
   stateId: string;
   state_name?: string;
   countryid: string;
@@ -17,38 +20,88 @@ export interface CityItem {
 }
 
 export interface StateItem {
-  stateid: number;
-  state_name: string;
-  status: number;
+  stateid: number
+  state_name: string
+  status: number
 }
 
 export interface CountryItem {
-  countryid: number;
-  country_name: string;
-  status: number;
+  countryid: number
+  country_name: string
+  status: number
 }
 
-// API Functions
-export const getCities = async (): Promise<CityItem[]> => {
-  return await httpClient.get<CityItem[]>('/cities');
-};
+/* =======================
+   Types
+======================= */
 
-export const createCity = async (data: Partial<CityItem>): Promise<CityItem> => {
-  return await httpClient.post<CityItem>('/cities', data);
-};
+type CityPayload =
+  | {
+      created_by_id: string;
+      created_date: string;
+      city_name: string;
+      city_Code: string;
+      stateId: string | undefined;
+      countryid: string | undefined;
+      iscoastal: number;
+      status: number;
+    }
+  | {
+      updated_by_id: string;
+      updated_date: string;
+      city_name: string;
+      city_Code: string;
+      stateId: string | undefined;
+      countryid: string | undefined;
+      iscoastal: number;
+      status: number;
+    };
 
-export const updateCity = async (id: string, data: Partial<CityItem>): Promise<CityItem> => {
-  return await httpClient.put<CityItem>(`/cities/${id}`, data);
-};
+type CityQueryParams = {
+  q?: string
+}
 
-export const deleteCity = async (id: string): Promise<void> => {
-  return await httpClient.delete<void>(`/cities/${id}`);
-};
+/* =======================
+   Service
+======================= */
 
-export const getStates = async (): Promise<StateItem[]> => {
-  return await httpClient.get<StateItem[]>('/states');
-};
+function CityService() {
+  return {
+    /* -------- Cities -------- */
 
-export const getCountries = async (): Promise<CountryItem[]> => {
-  return await httpClient.get<CountryItem[]>('/countries');
-};
+    list: (params?: CityQueryParams) => {
+      return HttpClient.get('/cities', { params })
+    },
+
+    create: (payload: CityPayload) => {
+      return HttpClient.post('/cities', payload)
+    },
+
+    update: (id: number, payload: CityPayload) => {
+      return HttpClient.put(`/cities/${id}`, payload)
+    },
+
+    remove: (id: number) => {
+      return HttpClient.delete(`/cities/${id}`)
+    },
+
+    /* -------- Masters -------- */
+
+    states: () => {
+      return HttpClient.get('/states')
+    },
+
+    countries: () => {
+      return HttpClient.get('/countries')
+    },
+  }
+}
+
+export const getCities = CityService().list;
+export const createCity = CityService().create;
+export const updateCity = CityService().update;
+export const deleteCity = CityService().remove;
+export const getStates = CityService().states;
+export const getCountries = CityService().countries;
+
+export default CityService()
