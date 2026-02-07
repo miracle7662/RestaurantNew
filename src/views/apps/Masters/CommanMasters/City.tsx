@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, forwardRef, useImperativeHandle, useRef } from 'react';
 import Swal from 'sweetalert2';
 import { toast } from 'react-hot-toast';
 import { Preloader } from '@/components/Misc/Preloader';
-import { Button, Card, Stack, Pagination, Table, Modal, Form } from 'react-bootstrap';
+import { Button, Card, Stack, Pagination, Table, Modal } from 'react-bootstrap';
 import { ContactSearchBar } from '@/components/Apps/Contact';
 import TitleHelmet from '@/components/Common/TitleHelmet';
 import {
@@ -16,6 +16,10 @@ import {
   Row,
   Cell,
 } from '@tanstack/react-table';
+import { Formik, Form } from 'formik';
+import { cityFormValidationSchema } from '@/common/validators';
+import FormikTextInput from '@/components/Common/FormikTextInput';
+import FormikSelect from '@/components/Common/FormikSelect';
 import CityService from '@/common/api/cities';
 import StateService from '@/common/api/states';
 
@@ -49,6 +53,10 @@ interface CityModalProps {
   onUpdateSelectedCity?: (city: CityItem) => void;
 }
 
+interface CityModalRef {
+  saveData: () => void;
+}
+
 // Utility Functions
 const debounce = <T extends (...args: any[]) => void>(func: T, wait: number) => {
   let timeout: NodeJS.Timeout;
@@ -80,6 +88,8 @@ const City: React.FC = () => {
   const [sidebarLeftToggle, setSidebarLeftToggle] = useState<boolean>(false);
   const [sidebarMiniToggle, setSidebarMiniToggle] = useState<boolean>(false);
   const [containerToggle, setContainerToggle] = useState<boolean>(false);
+  const addModalRef = useRef<CityModalRef>(null);
+  const editModalRef = useRef<CityModalRef>(null);
 
   // Fetch cities from API
   const fetchCities = async () => {
@@ -451,13 +461,10 @@ const City: React.FC = () => {
 };
 
 // Add City Modal
-const CityModal: React.FC<CityModalProps> = ({ show, onHide, onSuccess, city, onUpdateSelectedCity }) => {
-  const [city_name, setName] = useState('');
-  const [city_code, setCode] = useState('');
+const CityModal = forwardRef<CityModalRef, CityModalProps>(({ show, onHide, onSuccess, city, onUpdateSelectedCity }, ref) => {
   const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState('Active');
   const [stateItems, setStateItems] = useState<StateItem[]>([]);
-  const [stateId, setStateId] = useState<number | null>(null);
+  const formikRef = useRef<any>(null);
 
   const isEditMode = !!city;
 
@@ -473,46 +480,34 @@ const CityModal: React.FC<CityModalProps> = ({ show, onHide, onSuccess, city, on
     fetchStates();
   }, []);
 
-  useEffect(() => {
-    if (city && isEditMode) {
-      setName(city.city_name);
-      setCode(city.city_code);
-      setStateId(Number(city.stateId));
-      setStatus(city.status === 0 ? 'Active' : 'Inactive');
-    } else {
-      setName('');
-      setCode('');
-      setStateId(null);
-      setStatus('Active');
-    }
-  }, [city, show]);
+  const initialValues = {
+    city_name: city?.city_name || '',
+    city_code: city?.city_code || '',
+    stateId: city ? Number(city.stateId) : null,
+    status: city ? (city.status === 0 ? 'Active' : 'Inactive') : 'Active',
+  };
 
-  const handleSubmit = async () => {
-    if (!city_name || !city_code || !stateId || !status) {
-      toast.error('All fields are required');
-      return;
-    }
-
+  const handleSubmit = async (values: any) => {
     setLoading(true);
     try {
-      const statusValue = status === 'Active' ? 0 : 1;
+      const statusValue = values.status === 'Active' ? 0 : 1;
       const currentDate = new Date().toISOString();
-      
+
       // Map frontend fields to backend expected fields
       const payload = {
-        city_name,
-        city_Code: city_code, // Fix: backend expects city_Code (capital C)
-        stateId: stateId,     // Fix: backend expects stateId (capital I)
+        city_name: values.city_name,
+        city_Code: values.city_code, // Fix: backend expects city_Code (capital C)
+        stateId: values.stateId,     // Fix: backend expects stateId (capital I)
         iscoastal: 0,         // Add: backend expects iscoastal field
         status: statusValue,
-        ...(isEditMode 
-          ? { 
-              updated_by_id: '2', 
-              updated_date: currentDate 
-            } 
-          : { 
-              created_by_id: '1', 
-              created_date: currentDate 
+        ...(isEditMode
+          ? {
+              updated_by_id: '2',
+              updated_date: currentDate
+            }
+          : {
+              created_by_id: '1',
+              created_date: currentDate
             }
         ),
       };
@@ -528,9 +523,9 @@ const CityModal: React.FC<CityModalProps> = ({ show, onHide, onSuccess, city, on
         if (isEditMode && city && onUpdateSelectedCity) {
           onUpdateSelectedCity({
             ...city,
-            city_name,
-            city_code,
-            stateId: String(stateId),
+            city_name: values.city_name,
+            city_code: values.city_code,
+            stateId: String(values.stateId),
             status: statusValue,
             updated_by_id: '2',
             updated_date: currentDate
@@ -549,82 +544,97 @@ const CityModal: React.FC<CityModalProps> = ({ show, onHide, onSuccess, city, on
       setLoading(false);
     }
   };
+
+  useImperativeHandle(ref, () => ({
+    saveData: () => {
+      if (formikRef.current) {
+        formikRef.current.submitForm();
+      }
+    },
+  }));
+
   return (
     <Modal show={show} onHide={onHide}>
       <Modal.Header closeButton>
         <Modal.Title>{isEditMode ? 'Edit City' : 'Add New City'}</Modal.Title>
       </Modal.Header>
       <Modal.Body>
-        <Form>
-          <div className="row">
-            <div className="col-md-6 mb-3">
-              <Form.Group>
-                <Form.Label>City Name <span style={{ color: 'red' }}>*</span></Form.Label>
-                <Form.Control
-                  type="text"
-                  placeholder="Enter city name"
-                  value={city_name}
-                  onChange={(e) => setName(e.target.value)}
-                />
-              </Form.Group>
-            </div>
-            <div className="col-md-6 mb-3">
-              <Form.Group>
-                <Form.Label>City Code <span style={{ color: 'red' }}>*</span></Form.Label>
-                <Form.Control
-                  type="text"
-                  placeholder="Enter city code"
-                  value={city_code}
-                  onChange={(e) => setCode(e.target.value.toUpperCase())}
-                  maxLength={4}
-                />
-              </Form.Group>
-            </div>
-          </div>
-          <div className="row">
-            <div className="col-md-6 mb-3">
-              <Form.Group>
-                <Form.Label>State <span style={{ color: 'red' }}>*</span></Form.Label>
-                <Form.Select
-                  value={stateId ?? ''}
-                  onChange={(e) => setStateId(Number(e.target.value))}
-                >
-                  <option value="">Select a state</option>
-                  {stateItems
-                    .filter((state) => String(state.status) === '0')
-                    .map((state) => (
-                      <option key={state.stateid} value={state.stateid}>
-                        {state.state_name}
-                      </option>
-                    ))}
-                </Form.Select>
-              </Form.Group>
-            </div>
-            <div className="col-md-6 mb-3">
-              <Form.Group>
-                <Form.Label>Status</Form.Label>
-                <Form.Select
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value)}
-                >
-                  <option value="Active">Active</option>
-                  <option value="Inactive">Inactive</option>
-                </Form.Select>
-              </Form.Group>
-            </div>
-          </div>
-        </Form>
+        <Formik
+          innerRef={formikRef}
+          initialValues={initialValues}
+          validationSchema={cityFormValidationSchema}
+          onSubmit={handleSubmit}
+          enableReinitialize={true}
+        >
+          {({ values, setFieldValue }) => (
+            <Form>
+              <div className="row">
+                <div className="col-md-6 mb-3">
+                  <FormikTextInput
+                    name="city_name"
+                    label="City Name"
+                    placeholder="Enter city name"
+                  />
+                </div>
+                <div className="col-md-6 mb-3">
+                  <FormikTextInput
+                    name="city_code"
+                    label="City Code"
+                    placeholder="Enter city code"
+                    maxLength={4}
+                    onChange={(e) => {
+                      const value = e.target.value.toUpperCase();
+                      setFieldValue('city_code', value);
+                    }}
+                  />
+                </div>
+              </div>
+              <div className="row">
+                <div className="col-md-6 mb-3">
+                  <FormikSelect
+                    name="stateId"
+                    label="State"
+                    options={stateItems
+                      .filter((state) => String(state.status) === '0')
+                      .map((state) => ({
+                        value: String(state.stateid),
+                        label: state.state_name,
+                      }))}
+                    onChange={(e) => {
+                      setFieldValue('stateId', Number(e.target.value));
+                    }}
+                  />
+                </div>
+                <div className="col-md-6 mb-3">
+                  <FormikSelect
+                    name="status"
+                    label="Status"
+                    options={[
+                      { value: 'Active', label: 'Active' },
+                      { value: 'Inactive', label: 'Inactive' },
+                    ]}
+                    onChange={(e) => {
+                      setFieldValue('status', e.target.value);
+                    }}
+                  />
+                </div>
+              </div>
+            </Form>
+          )}
+        </Formik>
       </Modal.Body>
       <Modal.Footer>
         <Button variant="secondary" onClick={onHide} disabled={loading}>
           Cancel
         </Button>
-        <Button variant="primary" onClick={handleSubmit} disabled={loading}>
+        <Button variant="primary" onClick={() => formikRef.current?.submitForm()} disabled={loading}>
           {loading ? (isEditMode ? 'Updating...' : 'Adding...') : 'Save'}
         </Button>
       </Modal.Footer>
     </Modal>
   );
-};
+});
+
+CityModal.displayName = 'CityModal';
 
 export default City;
