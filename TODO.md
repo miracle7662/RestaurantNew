@@ -1,6 +1,7 @@
-- [x] Update getTableWiseKOT: Add console.log(req.user), extract outletId, add 401 check, use outletId in query
-- [x] Update getTableWiseBill: Add console.log(req.user), extract outletId, add 401 check, use outletId in query
-- [x] Update getCategoryWisePrinters: Add console.log(req.user), extract outletId, add 401 check, use outletId in query
-- [ ] Update getDepartmentWisePrinters: Add console.log(req.user), extract outletId, add 401 check, use outletId in query
-- [ ] Update getLabelPrinterSettings: Add console.log(req.user), extract outletId, add 401 check, use outletId in query
-- [ ] Update getReportPrinterSettings: Add console.log(req.user), extract outletId, add 401 check, use outletId in query
+# TODO: Add hotelid to Printer Settings Functions
+
+- [x] Update getKotPrinterSettings to include hotelid in WHERE clause
+- [x] Update getBillPrinterSettings to include hotelid in WHERE clause
+- [ ] Update getDepartmentWisePrinters (department_wise_printer) to include hotelid in WHERE clause
+- [ ] Update getReportPrinterSettings to include hotelid in WHERE clause
+- [ ] Test the updated functions
