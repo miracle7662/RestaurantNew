@@ -221,7 +221,11 @@ function SettingsPage() {
   const fetchKotPrinters = async () => {
     try {
       const data = await apiCall('/settings/kot-printer-settings');
-      setKotPrinters(data);
+      const dataWithOutlet = data.map(item => {
+        const outlet = outlets.find(o => o.outletid === item.outletid);
+        return { ...item, outlet_name: outlet ? outlet.outlet_name : 'Unknown' };
+      });
+      setKotPrinters(dataWithOutlet);
     } catch (error) {
       console.error('Failed to fetch KOT printers:', error);
     }
@@ -260,9 +264,6 @@ function SettingsPage() {
     try {
       console.log('Fetching department printers...');
       const data = await apiCall('/settings/department-wise-printer');
-      console.log('Department printers data received:', data);
-      console.log('Data type:', typeof data);
-      console.log('Data length:', Array.isArray(data) ? data.length : 'Not an array');
       setDepartmentPrinters(data);
       console.log('Department printers state updated');
     } catch (error) {
@@ -400,7 +401,7 @@ function SettingsPage() {
     const copies = parseInt(kotCopies || '1');
     const enablePrint = kotEnablePrint;
 
-    if (!printer || !source || !orderType || !size) {
+    if (!printer || !orderType || !size || !selectedOutlet) {
       alert('Please fill all required fields');
       return;
     }
@@ -413,7 +414,7 @@ function SettingsPage() {
         order_type: orderType,
         size,
         copies,
-        outletid: 1,
+        outletid: selectedOutlet,
         enableKotPrint: enablePrint
       };
 
@@ -475,7 +476,7 @@ function SettingsPage() {
     // const copies = parseInt(reportCopies || '1');
     const enablePrint = reportEnablePrint;
 
-    if (!printer || !source ) {
+    if (!printer || !source || !selectedOutlet) {
       alert('Please fill all required fields');
       return;
     }
@@ -485,11 +486,11 @@ function SettingsPage() {
       const newSetting = {
         printer_name: printer,
         source,
-       
+
         enablePrint,
         paper_size: reportPaperSize,
         auto_print: reportAutoPrint,
-        outletid: 1 // Assuming outletid is 1
+        outletid: selectedOutlet
       };
 
       await apiCall('/settings/report-printer', {
@@ -554,7 +555,7 @@ function SettingsPage() {
     // const copies = parseInt(labelCopies || '1');
     const enablePrint = labelEnablePrint;
 
-    if (!printer ) {
+    if (!printer || !selectedOutlet) {
       alert('Please fill all required fields');
       return;
     }
@@ -563,12 +564,13 @@ function SettingsPage() {
     try {
       const newSetting = {
         printer_name: printer,
-      
-       
+
+
+
         enablePrint,
         paper_width: parseInt(labelPaperWidth),
         is_enabled: labelIsEnabled,
-        outletid: 1 // Assuming outletid is 1
+        outletid: selectedOutlet
       };
 
       await apiCall('/settings/label-printer', {
@@ -643,7 +645,7 @@ function SettingsPage() {
     const copies = parseInt(billCopies || '1');
     const enablePrint = billEnablePrint;
 
-    if (!printer || !source || !orderType || !size) {
+    if (!printer || !source || !orderType || !size || !selectedOutlet) {
       alert('Please fill all required fields');
       return;
     }
@@ -656,7 +658,7 @@ function SettingsPage() {
         order_type: orderType,
         size,
         copies,
-        outletid: 1, // Assuming outletid is 1 for now
+        outletid: selectedOutlet,
         enableBillPrint: enablePrint
       };
 
@@ -708,7 +710,7 @@ function SettingsPage() {
     const size = selectedDeptSize;
     const copies = parseInt(deptCopies || '1');
 
-    if (!printer || !source || !orderType || !department || !size) {
+    if (!printer || !source || !orderType || !department || !size || !selectedOutlet) {
       alert('Please fill all required fields');
       return;
     }
@@ -722,7 +724,7 @@ function SettingsPage() {
         size,
         source,
         copies,
-        outletid: 1 // Assuming outletid is 1
+        outletid: selectedOutlet
       };
 
       await apiCall('/settings/department-wise-printer', {

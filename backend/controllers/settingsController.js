@@ -57,7 +57,7 @@ exports.createKotPrinterSetting = async (req, res) => {
   try {
     const {
       printer_name,
-      source,
+      hotelid,
       order_type,
       size,
       copies = 1,
@@ -65,17 +65,17 @@ exports.createKotPrinterSetting = async (req, res) => {
       enableKotPrint = 1
     } = req.body;
 
-    if (!printer_name || !source || !order_type || !size || !outletid) {
+    if (!printer_name  || !order_type || !size || !outletid) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
     await runQuery(
       `INSERT INTO kot_printer_settings
-      (printer_name, source, order_type, size, copies, outletid, enableKotPrint)
+      (printer_name, hotelid, order_type, size, copies, outletid, enableKotPrint)
       VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [
         printer_name,
-        source,
+        hotelid,
         order_type,
         size,
         copies,
@@ -158,7 +158,7 @@ exports.createBillPrinterSetting = async (req, res) => {
   try {
     const {
       printer_name,
-      source,
+      hotelid,
       order_type,
       size,
       copies = 1,
@@ -166,17 +166,17 @@ exports.createBillPrinterSetting = async (req, res) => {
       enableBillPrint = 1
     } = req.body;
 
-    if (!printer_name || !source || !order_type || !size || !outletid) {
+    if (!printer_name || !order_type || !size || !outletid) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
     await runQuery(
       `INSERT INTO bill_printer_settings
-      (printer_name, source, order_type, size, copies, outletid, enableBillPrint)
+      (printer_name, hotelid, order_type, size, copies, outletid, enableBillPrint)
       VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [
         printer_name,
-        source,
+        hotelid,
         order_type,
         size,
         copies,
@@ -332,7 +332,7 @@ exports.getDepartmentWisePrinters = async (req, res) => {
 exports.createDepartmentWisePrinter = async (req, res) => {
   try {
    
-    const { department, printer_name, order_type, size, source, copies, outletid } = req.body;
+    const { department, printer_name, order_type, size, hotelid, copies, outletid } = req.body;
 
 
     if (!outletid) {
@@ -341,9 +341,9 @@ exports.createDepartmentWisePrinter = async (req, res) => {
     }
 
     const query = `INSERT INTO department_wise_printer
-      (department, printer_name, order_type, size, source, copies, outletid)
+      (department, printer_name, order_type, size, hotelid, copies, outletid)
       VALUES (?, ?, ?, ?, ?, ?, ?)`;
-    const params = [department, printer_name, order_type, size, source, copies, outletid];
+    const params = [department, printer_name, order_type, size, hotelid, copies, outletid];
 
    
     const result = await runQuery(query, params);
@@ -373,7 +373,7 @@ exports.getLabelPrinterSettings = async (req, res) => {
 
 exports.createLabelPrinter = async (req, res) => {
   try {
-    const { printer_name, paper_width, is_enabled, outletid } = req.body;
+    const { printer_name, paper_width, is_enabled, hotelid, outletid } = req.body;
 
     if (!outletid) {
       return res.status(400).json({ error: 'outletid is required' });
@@ -381,9 +381,9 @@ exports.createLabelPrinter = async (req, res) => {
 
     await runQuery(
       `INSERT INTO label_printer_settings
-      (printer_name, paper_width, is_enabled, outletid)
-      VALUES (?, ?, ?, ?)`,
-      [printer_name, paper_width, is_enabled, outletid]
+      (printer_name, paper_width, is_enabled, hotelid, outletid)
+      VALUES (?, ?, ?, ?, ?)`,
+      [printer_name, paper_width, is_enabled ? 1 : 0, hotelid, outletid]
     );
 
     res.json({ msg: 'Label Printer Added' });
@@ -437,7 +437,7 @@ exports.getReportPrinterSettings = async (req, res) => {
 
 exports.createReportPrinter = async (req, res) => {
   try {
-    const { printer_name, paper_size, auto_print, outletid } = req.body;
+    const { printer_name, paper_size, auto_print, hotelid, outletid } = req.body;
 
     if (!outletid) {
       return res.status(400).json({ error: 'outletid is required' });
@@ -445,9 +445,9 @@ exports.createReportPrinter = async (req, res) => {
 
     await runQuery(
       `INSERT INTO report_printer_settings
-      (printer_name, paper_size, auto_print, outletid)
-      VALUES (?, ?, ?, ?)`,
-      [printer_name, paper_size, auto_print, outletid]
+      (printer_name, paper_size, auto_print, hotelid, outletid)
+      VALUES (?, ?, ?, ?, ?)`,
+      [printer_name, paper_size, auto_print ? 1 : 0, hotelid, outletid]
     );
 
     res.json({ msg: 'Report Printer Added' });

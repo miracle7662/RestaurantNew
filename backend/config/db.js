@@ -1012,7 +1012,7 @@ CREATE TABLE IF NOT EXISTS mst_printers (
     CREATE TABLE IF NOT EXISTS kot_printer_settings (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   printer_name TEXT,
-  source TEXT,
+  hotelid INTEGER,
   order_type TEXT,
   size TEXT,
   copies INTEGER,
@@ -1025,7 +1025,7 @@ CREATE TABLE IF NOT EXISTS mst_printers (
    CREATE TABLE IF NOT EXISTS bill_printer_settings (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   printer_name TEXT,
-  source TEXT,
+  hotelid INTEGER,
   order_type TEXT,
   size TEXT,
   copies INTEGER,
@@ -1077,7 +1077,7 @@ CREATE TABLE IF NOT EXISTS mst_printers (
       printer_name TEXT,
       order_type TEXT,
       size TEXT,
-      source TEXT,
+      hotelid INTEGER,
       copies INTEGER,
        outletid INTEGER
     );
@@ -1089,6 +1089,7 @@ CREATE TABLE IF NOT EXISTS mst_printers (
       printer_name TEXT,
       paper_width INTEGER,
       is_enabled INTEGER,
+      hotelid INTEGER,
       outletid INTEGER
     );
 
@@ -1098,6 +1099,7 @@ CREATE TABLE IF NOT EXISTS mst_printers (
       printer_name TEXT,
       paper_size TEXT,
       auto_print INTEGER,
+      hotelid INTEGER,
        outletid INTEGER
     );
 
