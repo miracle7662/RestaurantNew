@@ -16,6 +16,7 @@ import {
 } from '@tanstack/react-table';
 import { useAuthContext } from '../../../../common/context/useAuthContext';
 import { fetchKitchenCategory, KitchenCategoryItem } from '../../../../utils/commonfunction';
+import ItemGroupService from '@/common/api/itemgroup';
 
 // Interfaces
 interface ItemGroupItem {
@@ -92,8 +93,7 @@ const ItemGroup: React.FC = () => {
   const fetchItemGroup = async () => {
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:3001/api/ItemGroup');
-      const data = await res.json();
+      const data = await ItemGroupService.list() as unknown as ItemGroupItem[];
       setItemGroupItems(data);
       setFilteredItemGroup(data);
     } catch {
@@ -237,9 +237,7 @@ const ItemGroup: React.FC = () => {
 
     if (result.isConfirmed) {
       try {
-        await fetch(`http://localhost:3001/api/ItemGroup/${itemGroup.item_groupid}`, {
-          method: 'DELETE',
-        });
+        await ItemGroupService.remove(itemGroup.item_groupid);
         toast.success('ItemGroup deleted successfully');
         setItemGroupItems((prev) => prev.filter((s) => s.item_groupid !== itemGroup.item_groupid));
         setFilteredItemGroup((prev) => prev.filter((s) => s.item_groupid !== itemGroup.item_groupid));
@@ -587,7 +585,6 @@ const ItemGroupModal: React.FC<ItemGroupModalProps> = ({ show, onHide, itemGroup
       const userId = user?.id || '1';
       const hotelId = user?.hotelid || '1';
       const marketId = user?.marketid || '1';
-      
 
       const payload = {
         itemgroupname,
@@ -610,44 +607,35 @@ const ItemGroupModal: React.FC<ItemGroupModalProps> = ({ show, onHide, itemGroup
             }),
       };
 
-      const url = isEditMode
-        ? `http://localhost:3001/api/ItemGroup/${itemGroup!.item_groupid}`
-        : 'http://localhost:3001/api/ItemGroup';
-      const method = isEditMode ? 'PUT' : 'POST';
-
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (res.ok) {
-        toast.success(`ItemGroup ${isEditMode ? 'updated' : 'added'} successfully`);
-        if (isEditMode && itemGroup && onUpdateSelectedItemGroup) {
-          const updatedItemGroup = {
-            ...itemGroup,
-            itemgroupname,
-            code,
-            kitchencategoryid: String(kitchencategoryid),
-            status: statusValue,
-            updated_by_id: userId,
-            updated_date: currentDate,
-            hotelid: itemGroup.hotelid || hotelId,
-            marketid: itemGroup.marketid || marketId,
-          };
-          onUpdateSelectedItemGroup(updatedItemGroup);
-        }
-        setItemGroupName('');
-        setCode('');
-        setKitchenCategoryId(null);
-        setStatus('Active');
-        onSuccess();
-        onHide();
+      if (isEditMode) {
+        await ItemGroupService.update(itemGroup!.item_groupid, payload);
       } else {
-        toast.error(`Failed to ${isEditMode ? 'update' : 'add'} ItemGroup`);
+        await ItemGroupService.create(payload);
       }
+
+      toast.success(`ItemGroup ${isEditMode ? 'updated' : 'added'} successfully`);
+      if (isEditMode && itemGroup && onUpdateSelectedItemGroup) {
+        const updatedItemGroup = {
+          ...itemGroup,
+          itemgroupname,
+          code,
+          kitchencategoryid: String(kitchencategoryid),
+          status: statusValue,
+          updated_by_id: userId,
+          updated_date: currentDate,
+          hotelid: itemGroup.hotelid || hotelId,
+          marketid: itemGroup.marketid || marketId,
+        };
+        onUpdateSelectedItemGroup(updatedItemGroup);
+      }
+      setItemGroupName('');
+      setCode('');
+      setKitchenCategoryId(null);
+      setStatus('Active');
+      onSuccess();
+      onHide();
     } catch {
-      toast.error('Something went wrong');
+      toast.error(`Failed to ${isEditMode ? 'update' : 'add'} ItemGroup`);
     } finally {
       setLoading(false);
     }

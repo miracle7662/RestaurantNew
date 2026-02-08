@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card, Col, Row, Button, Form, Table, Modal, Alert } from 'react-bootstrap';
 import { useAuthContext } from '@/common/context/useAuthContext';
 import { fetchBrands, fetchOutletsForDropdown } from '@/utils/commonfunction';
@@ -128,6 +128,7 @@ const RestTaxMaster: React.FC = () => {
       taxgroupid: '',
       status: '1',
     });
+    setSelectedOutlet(null);
     setEditingId(null);
     setError(null);
   };
@@ -213,6 +214,7 @@ const RestTaxMaster: React.FC = () => {
       taxgroupid: (restTax.taxgroupid || 0).toString(),
       status: (restTax.status || 0).toString(),
     });
+    setSelectedOutlet(restTax.outletid);
     setEditingId(restTax.resttaxid);
     setShowModal(true);
   };
@@ -235,6 +237,12 @@ const RestTaxMaster: React.FC = () => {
     ) : (
       <span className="badge bg-danger">Inactive</span>
     );
+  };
+
+  const getOutletName = (outletid: number | null) => {
+    if (!outletid) return 'All Outlets';
+    const outlet = outlets.find(o => o.outletid === outletid);
+    return outlet ? `${outlet.outlet_name} (${outlet.outlet_code})` : 'Unknown Outlet';
   };
 
   // Pagination logic
@@ -298,6 +306,7 @@ const RestTaxMaster: React.FC = () => {
                         <th>ID</th>
                         <th>Tax Name</th>
                         <th>Hotel</th>
+                        <th>Outlet</th>
                         <th>Tax Group</th>
                         <th>Tax Value</th>
                         <th>CGST</th>
@@ -345,7 +354,7 @@ const RestTaxMaster: React.FC = () => {
                         ))
                       ) : (
                         <tr>
-                          <td colSpan={12} className="text-center">
+                          <td colSpan={13} className="text-center">
                             {loading ? 'Loading...' : 'No rest taxes found'}
                           </td>
                         </tr>
