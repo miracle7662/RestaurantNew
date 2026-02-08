@@ -4,6 +4,8 @@ import axios from 'axios';
 import { useAuthContext } from '@/common/context/useAuthContext';
 import { fetchBrands, fetchOutletsForDropdown } from '@/utils/commonfunction';
 import { OutletData } from '@/common/api/outlet';
+import RestTaxMasterService from '@/common/api/resttaxmaster';
+import TaxGroupService from '@/common/api/taxgroups';
 
 interface RestTaxMaster {
   resttaxid: number;
@@ -70,21 +72,17 @@ const RestTaxMaster: React.FC = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const restTaxesRes = await axios.get('/api/resttaxmaster');
-      console.log('Fetched rest taxes:', restTaxesRes.data);
-      const taxes = Array.isArray(restTaxesRes.data) ? restTaxesRes.data : [];
+      const restTaxesRes = await RestTaxMasterService.list();
+      const taxes = Array.isArray(restTaxesRes) ? restTaxesRes : [];
       setRestTaxes(taxes);
       setFilteredRestTaxes(taxes);
-
       await fetchBrands(user, setBrands);
-      console.log('Fetched brands:', brands);
-
-      const taxGroupsRes = await axios.get('/api/taxgroup');
-      console.log('Fetched tax groups:', taxGroupsRes.data);
-      setTaxGroups(Array.isArray(taxGroupsRes.data.data?.taxGroups) ? taxGroupsRes.data.data.taxGroups : []);
+      const taxGroupsRes = await TaxGroupService.list();
+     
+      setTaxGroups(Array.isArray(taxGroupsRes.data?.taxGroups) ? taxGroupsRes.data.taxGroups : []);
     } catch (err: any) {
       setError('Failed to fetch data: ' + (err.response?.data?.message || err.message));
-      console.error('Fetch error:', err);
+
     } finally {
       setLoading(false);
     }
@@ -182,39 +180,38 @@ const RestTaxMaster: React.FC = () => {
     };
 
     try {
-      console.log('Submitting payload:', payload);
+      
       let response;
       if (editingId) {
-        response = await axios.put(`/api/resttaxmaster/${editingId}`, payload);
+        response = await RestTaxMasterService.update(editingId, payload);
         setSuccess('Rest tax updated successfully');
       } else {
-        response = await axios.post('/api/resttaxmaster', payload);
+        response = await RestTaxMasterService.create(payload);
         setSuccess('Rest tax created successfully');
       }
-      console.log('Server response:', response.data);
+      
       setShowModal(false);
       resetForm();
       await fetchData();
     } catch (err: any) {
       const errorMessage = err.response?.data?.message || err.message || 'Operation failed';
       setError(errorMessage);
-      console.error('Submit error:', err);
     }
   };
 
   const handleEdit = (restTax: RestTaxMaster) => {
     setFormData({
-      hotelid: restTax.hotelid.toString(),
+      hotelid: (restTax.hotelid || 0).toString(),
       outletid: restTax.outletid?.toString() || '',
       isapplicablealloutlet: restTax.isapplicablealloutlet === 1,
-      resttax_name: restTax.resttax_name,
-      resttax_value: restTax.resttax_value.toString(),
-      restcgst: restTax.restcgst.toString(),
-      restsgst: restTax.restsgst.toString(),
-      restigst: restTax.restigst.toString(),
-      restcess: restTax.restcess?.toString() ?? "",
-      taxgroupid: restTax.taxgroupid.toString(),
-      status: restTax.status.toString(),
+      resttax_name: restTax.resttax_name || '',
+      resttax_value: (restTax.resttax_value || 0).toString(),
+      restcgst: (restTax.restcgst || 0).toString(),
+      restsgst: (restTax.restsgst || 0).toString(),
+      restigst: (restTax.restigst || 0).toString(),
+      restcess: restTax.restcess ? restTax.restcess.toString() : '',
+      taxgroupid: (restTax.taxgroupid || 0).toString(),
+      status: (restTax.status || 0).toString(),
     });
     setEditingId(restTax.resttaxid);
     setShowModal(true);
@@ -223,17 +220,14 @@ const RestTaxMaster: React.FC = () => {
   const handleDelete = async (id: number) => {
     if (window.confirm('Are you sure you want to delete this rest tax?')) {
       try {
-        const response = await axios.delete(`/api/resttaxmaster/${id}`);
-        console.log('Delete response:', response.data);
+        const response = await RestTaxMasterService.remove(id);
         setSuccess('Rest tax deleted successfully');
         await fetchData();
       } catch (err: any) {
         setError(err.response?.data?.message || 'Failed to delete rest tax');
-        console.error('Delete error:', err);
       }
     }
   };
-
 
   const getStatusBadge = (status: number) => {
     return status === 1 ? (
@@ -333,7 +327,7 @@ const RestTaxMaster: React.FC = () => {
               ) : (
                 <>
                   <Table responsive hover className="mb-4">
-                    <thead>
+                    <thead className="bg-light">
                       <tr>
                         <th>ID</th>
                         <th>Tax Name</th>

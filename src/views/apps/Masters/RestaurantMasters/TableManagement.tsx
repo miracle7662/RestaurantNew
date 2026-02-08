@@ -14,6 +14,9 @@ import {
 } from '@tanstack/react-table';
 import { fetchOutletsForDropdown, fetchBrands } from '@/utils/commonfunction';
 import { OutletData } from '@/common/api/outlet';
+import TableManagementService from '@/common/api/tablemanagement';
+import TableDepartmentService from '@/common/api/tabledepartment';
+
 
 // Define TableItem interface
 interface TableItem {
@@ -88,21 +91,10 @@ const TableManagement: React.FC = () => {
   // Fetch department data
   const fetchDepartments = async () => {
     try {
-      const res = await fetch(`http://localhost:3001/api/table-department`, {
-        headers: { 'Content-Type': 'application/json' },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success) {
-          setDepartments(data.data);
-        } else {
-          toast.error(data.message || 'Failed to fetch departments');
-        }
-      } else {
-        toast.error('Failed to fetch departments');
-      }
-    } catch (err) {
-      toast.error('Failed to fetch departments');
+      const data = await TableDepartmentService.list();
+      setDepartments(data.data);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to fetch departments');
     }
   };
 
@@ -110,27 +102,16 @@ const TableManagement: React.FC = () => {
   const fetchTableManagement = async (search: string = '') => {
     setLoading(true);
     try {
-      const res = await fetch(`http://localhost:3001/api/tablemanagement?search=${encodeURIComponent(search)}`, {
-        headers: { 'Content-Type': 'application/json' },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success) {
-          const formattedData = data.data.map((item: any) => ({
-            ...item,
-            status: Number(item.status),
-            department_name: item.department_name || '', // Ensure department_name is included
-          }));
-          setTableItems(formattedData);
-          setFilteredTableItems(formattedData);
-        } else {
-          toast.error(data.message || 'Failed to fetch table data');
-        }
-      } else {
-        toast.error('Failed to fetch table data');
-      }
-    } catch (err) {
-      toast.error('Failed to fetch table data');
+      const data = await TableManagementService.list({ search });
+      const formattedData = data.data.map((item: any) => ({
+        ...item,
+        status: Number(item.status),
+        department_name: item.department_name || '', // Ensure department_name is included
+      }));
+      setTableItems(formattedData);
+      setFilteredTableItems(formattedData);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to fetch table data');
     } finally {
       setLoading(false);
     }
@@ -317,23 +298,12 @@ const TableManagement: React.FC = () => {
     });
     if (res.isConfirmed) {
       try {
-        const response = await fetch(
-          `http://localhost:3001/api/tablemanagement/${table.tableid}`,
-          {
-            method: 'DELETE',
-            headers: { 'Content-Type': 'application/json' },
-          }
-        );
-        const data = await response.json();
-        if (response.ok && data.success) {
-          toast.success(data.message || 'Table deleted successfully');
-          fetchTableManagement(searchTerm);
-          setSelectedTable(null);
-        } else {
-          toast.error(data.message || 'Failed to delete table');
-        }
-      } catch {
-        toast.error('Failed to delete table');
+        await TableManagementService.remove(Number(table.tableid));
+        toast.success('Table deleted successfully');
+        fetchTableManagement(searchTerm);
+        setSelectedTable(null);
+      } catch (err: any) {
+        toast.error(err.response?.data?.message || 'Failed to delete table');
       }
     }
   };
@@ -359,21 +329,10 @@ const TableManagement: React.FC = () => {
 
     const fetchDepartments = async () => {
       try {
-        const res = await fetch(`http://localhost:3001/api/table-department`, {
-          headers: { 'Content-Type': 'application/json' },
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.success) {
-            setDepartments(data.data);
-          } else {
-            toast.error(data.message || 'Failed to fetch departments');
-          }
-        } else {
-          toast.error('Failed to fetch departments');
-        }
-      } catch (err) {
-        toast.error('Failed to fetch departments');
+        const data = await TableDepartmentService.list();
+        setDepartments(data.data);
+      } catch (err: any) {
+        toast.error(err.response?.data?.message || 'Failed to fetch departments');
       }
     };
 
@@ -425,21 +384,9 @@ const TableManagement: React.FC = () => {
               }),
         };
 
-        const url = tableItem
-          ? `http://localhost:3001/api/tablemanagement/${tableItem.tableid}`
-          : 'http://localhost:3001/api/tablemanagement';
-        const method = tableItem ? 'PUT' : 'POST';
-
-        const res = await fetch(url, {
-          method,
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-
-        const data = await res.json();
-        if (res.ok && data.success) {
-          toast.success(data.message || `Table ${tableItem ? 'updated' : 'added'} successfully`);
+        try {
           if (tableItem) {
+            await TableManagementService.update(Number(tableItem.tableid), payload);
             const updatedTable: TableItem = {
               ...tableItem,
               table_name,
@@ -452,7 +399,10 @@ const TableManagement: React.FC = () => {
               marketid: tableItem.marketid || '1',
             };
             onUpdateSelectedTable(updatedTable);
+          } else {
+            await TableManagementService.create(payload);
           }
+          toast.success(`Table ${tableItem ? 'updated' : 'added'} successfully`);
           setTableName('');
           setOutletId(null);
           setStatus('Active');
@@ -460,8 +410,8 @@ const TableManagement: React.FC = () => {
           setDepartmentId(null);
           onSuccess();
           onHide();
-        } else {
-          toast.error(data.message || `Failed to ${tableItem ? 'update' : 'add'} table`);
+        } catch (err: any) {
+          toast.error(err.response?.data?.message || `Failed to ${tableItem ? 'update' : 'add'} table`);
         }
       } catch (err) {
         toast.error('Something went wrong');

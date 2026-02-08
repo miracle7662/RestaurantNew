@@ -15,6 +15,7 @@ import {
 import { fetchOutletsForDropdown, fetchBrands } from '@/utils/commonfunction';
 import { OutletData } from '@/common/api/outlet';
 import axios from 'axios';
+import TableDepartmentService from '@/common/api/tabledepartment';
 
 // Define TableItem interface
 interface DepartmentItem {
@@ -78,26 +79,15 @@ const TableDepartment: React.FC = () => {
   const fetchTableDepartment = async () => {
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:3001/api/table-department', {
-        headers: { 'Content-Type': 'application/json' },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success) {
-          const formattedData = data.data.map((item: any) => ({
-            ...item,
-            status: Number(item.status),
-            taxgroupid: item.taxgroupid || '',
-          }));
-          setTableItems(formattedData);
-        } else {
-          toast.error(data.message || 'Failed to fetch department data');
-        }
-      } else {
-        toast.error('Failed to fetch department data');
-      }
-    } catch (err) {
-      toast.error('Failed to fetch department data');
+      const data = await TableDepartmentService.list();
+      const formattedData = data.data.map((item: any) => ({
+        ...item,
+        status: Number(item.status),
+        taxgroupid: item.taxgroupid || '',
+      }));
+      setTableItems(formattedData);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to fetch department data');
     } finally {
       setLoading(false);
     }
@@ -233,23 +223,12 @@ const TableDepartment: React.FC = () => {
     });
     if (res.isConfirmed) {
       try {
-        const response = await fetch(
-          `http://localhost:3001/api/table-department/${table.departmentid}`,
-          {
-            method: 'DELETE',
-            headers: { 'Content-Type': 'application/json' },
-          }
-        );
-        const data = await response.json();
-        if (response.ok && data.success) {
-          toast.success(data.message || 'Department deleted successfully');
-          fetchTableDepartment();
-          setSelectedTable(null);
-        } else {
-          toast.error(data.message || 'Failed to delete department');
-        }
-      } catch {
-        toast.error('Failed to delete department');
+        await TableDepartmentService.remove(Number(table.departmentid));
+        toast.success('Department deleted successfully');
+        fetchTableDepartment();
+        setSelectedTable(null);
+      } catch (err: any) {
+        toast.error(err.response?.data?.message || 'Failed to delete department');
       }
     }
   };
@@ -327,21 +306,9 @@ const TableDepartment: React.FC = () => {
               }),
         };
 
-        const url = DepartmentItem
-          ? `http://localhost:3001/api/table-department/${DepartmentItem.departmentid}`
-          : 'http://localhost:3001/api/table-department';
-        const method = DepartmentItem ? 'PUT' : 'POST';
-
-        const res = await fetch(url, {
-          method,
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-
-        const data = await res.json();
-        if (res.ok && data.success) {
-          toast.success(data.message || `Department ${DepartmentItem ? 'updated' : 'added'} successfully`);
+        try {
           if (DepartmentItem) {
+            await TableDepartmentService.update(Number(DepartmentItem.departmentid), payload);
             const updatedTable: DepartmentItem = {
               ...DepartmentItem,
               department_name: department_name,
@@ -352,15 +319,18 @@ const TableDepartment: React.FC = () => {
               updated_date: new Date().toISOString(),
             };
             onUpdateSelectedTable(updatedTable);
+          } else {
+            await TableDepartmentService.create(payload);
           }
+          toast.success(`Department ${DepartmentItem ? 'updated' : 'added'} successfully`);
           setDepartmentName('');
           setOutletId(null);
           setStatus('Active');
           setTaxGroupId(null);
           onSuccess();
           onHide();
-        } else {
-          toast.error(data.message || `Failed to ${DepartmentItem ? 'update' : 'add'} department`);
+        } catch (err: any) {
+          toast.error(err.response?.data?.message || `Failed to ${DepartmentItem ? 'update' : 'add'} department`);
         }
       } catch (err) {
         toast.error('Something went wrong');

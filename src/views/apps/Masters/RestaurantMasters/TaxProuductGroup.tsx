@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Col, Row, Button, Form, Table, Modal, Alert, Pagination } from 'react-bootstrap';
-import axios from 'axios';
 import { useAuthContext } from '../../../../common/context/useAuthContext';
 import { fetchBrands } from '@/utils/commonfunction';
+import taxGroupsService from '../../../../common/api/taxgroups';
 
 interface TaxGroup {
   taxgroupid: number;
@@ -15,8 +15,6 @@ interface TaxGroup {
   created_date: string;
   created_by?: string; // Optional, if you want to show created by user name
 }
-
-
 
 const TaxProductGroup: React.FC = () => {
   const { user } = useAuthContext();
@@ -43,17 +41,16 @@ const TaxProductGroup: React.FC = () => {
     try {
       setLoading(true);
 
-      // Fetch tax groups using axios
-      const taxGroupsRes = await axios.get('/api/taxgroup');
-      setTaxGroups(taxGroupsRes.data.data?.taxGroups || []);
-      setFilteredTaxGroups(taxGroupsRes.data.data?.taxGroups || []);
+      // Fetch tax groups using taxGroupsService
+      const taxGroupsRes = await taxGroupsService.list();
+      setTaxGroups(taxGroupsRes.data?.taxGroups || []);
+      setFilteredTaxGroups(taxGroupsRes.data?.taxGroups || []);
 
       // Fetch hotels using the common fetchBrands function
       await fetchBrands(user, setBrands);
 
     } catch (err) {
       setError('Failed to fetch data');
-      console.error('Error fetching data:', err);
     } finally {
       setLoading(false);
     }
@@ -126,7 +123,7 @@ const TaxProductGroup: React.FC = () => {
           updated_by_id: user?.id ?? 1,
           updated_date: new Date().toISOString()
         };
-        await axios.put(`/api/taxgroup/${editingId}`, payload);
+        await taxGroupsService.update(editingId, payload);
         setSuccess('Tax group updated successfully');
       } else {
         payload = {
@@ -137,7 +134,7 @@ const TaxProductGroup: React.FC = () => {
           created_by_id: user?.id ?? 1,
           created_date: new Date().toISOString()
         };
-        await axios.post('/api/taxgroup', payload);
+        await taxGroupsService.create(payload);
         setSuccess('Tax group created successfully');
       }
 
@@ -146,7 +143,6 @@ const TaxProductGroup: React.FC = () => {
       fetchData();
     } catch (err: any) {
       setError(err.response?.data?.message || 'Operation failed');
-      console.error('Error submitting form:', err);
     }
   };
 
@@ -162,12 +158,11 @@ const TaxProductGroup: React.FC = () => {
   const handleDelete = async (id: number) => {
     if (window.confirm('Are you sure you want to delete this tax group?')) {
       try {
-        await axios.delete(`/api/taxgroup/${id}`);
+        await taxGroupsService.remove(id);
         setSuccess('Tax group deleted successfully');
         fetchData();
       } catch (err) {
         setError('Failed to delete tax group');
-        console.error('Error deleting tax group:', err);
       }
     }
   };
@@ -272,7 +267,7 @@ const TaxProductGroup: React.FC = () => {
               ) : (
                 <>
                   <Table responsive hover className="mb-4">
-                    <thead>
+                    <thead className="bg-light">
                       <tr>
                         <th>ID</th>
                         <th>Tax Group Name</th>
