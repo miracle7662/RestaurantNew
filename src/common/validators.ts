@@ -37,16 +37,6 @@ export const stateFormValidationSchema = Yup.object().shape({
     .oneOf(['Active', 'Inactive'], 'Status must be Active or Inactive'),
 });
 
-export const hoteltypeFormValidationSchema = Yup.object().shape({
-  hotel_type: Yup.string().required('Hotel type is required'),
-  status: Yup.string()
-    .required('Status is required')
-    .oneOf(['Active', 'Inactive'], 'Status must be Active or Inactive'),
-});
 
-export const usertypeFormValidationSchema = Yup.object().shape({
-  User_type: Yup.string().required('User type is required'),
-  status: Yup.string()
-    .required('Status is required')
-    .oneOf(['Active', 'Inactive'], 'Status must be Active or Inactive'),
-});
+
+

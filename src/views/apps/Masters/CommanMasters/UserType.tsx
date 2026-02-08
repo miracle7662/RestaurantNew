@@ -1,14 +1,10 @@
-import React, { useState, useEffect, useMemo, useCallback, forwardRef, useImperativeHandle, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Swal from 'sweetalert2';
 import { toast } from 'react-hot-toast';
 import { Button, Card, Stack, Pagination, Table, Modal, Form } from 'react-bootstrap';
 import { Preloader } from '@/components/Misc/Preloader';
 import TitleHelmet from '@/components/Common/TitleHelmet';
 import { useAuthContext } from '../../../../common/context/useAuthContext';
-import { Formik } from 'formik';
-import { usertypeFormValidationSchema } from '@/common/validators';
-import FormikTextInput from '@/components/Common/FormikTextInput';
-import FormikSelect from '@/components/Common/FormikSelect';
 import UserTypeService from '@/common/api/usertype';
 import {
   useReactTable,
@@ -39,9 +35,7 @@ interface UserTypeModalProps {
   onUpdateSelectedUserType?: (userType: UserTypeItem) => void;
 }
 
-interface UserTypeModalRef {
-  saveData: () => void;
-}
+
 
 // Debounce utility function
 const debounce = (func: (...args: any[]) => void, wait: number) => {
@@ -315,27 +309,38 @@ const UserType: React.FC = () => {
 };
 
 // Modal for Add/Edit
-const UserTypeModal = forwardRef<UserTypeModalRef, UserTypeModalProps>(({ show, onHide, onSuccess, userType, onUpdateSelectedUserType }, ref) => {
+const UserTypeModal = ({ show, onHide, onSuccess, userType, onUpdateSelectedUserType }: UserTypeModalProps) => {
   const [loading, setLoading] = useState(false);
-  const formikRef = useRef<any>(null);
+  const [formData, setFormData] = useState({
+    User_type: userType?.User_type || '',
+    status: userType ? (userType.status === '0' ? 'Active' : 'Inactive') : 'Active',
+  });
   const { user } = useAuthContext();
 
   const isEditMode = !!userType;
 
-  const initialValues = {
-    User_type: userType?.User_type || '',
-    status: userType ? (userType.status === '0' ? 'Active' : 'Inactive') : 'Active',
+  useEffect(() => {
+    setFormData({
+      User_type: userType?.User_type || '',
+      status: userType ? (userType.status === '0' ? 'Active' : 'Inactive') : 'Active',
+    });
+  }, [userType]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = async (values: any) => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     setLoading(true);
     try {
-      const statusValue = values.status === 'Active' ? 0 : 1;
+      const statusValue = formData.status === 'Active' ? 0 : 1;
       const currentDate = new Date().toISOString();
       const hotelId = user?.hotelid || '1';
       const userId = user?.id || '1';
       const payload = {
-        User_type: values.User_type,
+        User_type: formData.User_type,
         status: statusValue,
         ...(isEditMode
           ? {
@@ -362,9 +367,9 @@ const UserTypeModal = forwardRef<UserTypeModalRef, UserTypeModalProps>(({ show, 
         if (isEditMode && userType && onUpdateSelectedUserType) {
           onUpdateSelectedUserType({
             ...userType,
-            User_type: values.User_type,
+            User_type: formData.User_type,
             status: statusValue.toString(),
-            updated_by_id: userId,
+            Updated_by_id: userId,
             updated_date: currentDate,
           });
         }
@@ -382,69 +387,52 @@ const UserTypeModal = forwardRef<UserTypeModalRef, UserTypeModalProps>(({ show, 
     }
   };
 
-  useImperativeHandle(ref, () => ({
-    saveData: () => {
-      if (formikRef.current) {
-        formikRef.current.submitForm();
-      }
-    },
-  }));
-
   return (
-    <Modal show={show} onHide={onHide} size="sm">
+    <Modal show={show} onHide={onHide} >
       <Modal.Header closeButton>
         <Modal.Title>{isEditMode ? 'Edit User Type' : 'Add User Type'}</Modal.Title>
       </Modal.Header>
       <Modal.Body>
-        <Formik
-          innerRef={formikRef}
-          initialValues={initialValues}
-          validationSchema={usertypeFormValidationSchema}
-          onSubmit={handleSubmit}
-          enableReinitialize={true}
-        >
-          {({ values, setFieldValue }) => (
-            <Form>
-              <div className="row">
-                <div className="col-md-12 mb-3">
-                  <FormikTextInput
-                    name="User_type"
-                    label="User Type"
-                    placeholder="Enter user type name"
-                  />
-                </div>
-              </div>
-              <div className="row">
-                <div className="col-md-12 mb-3">
-                  <FormikSelect
-                    name="status"
-                    label="Status"
-                    options={[
-                      { value: 'Active', label: 'Active' },
-                      { value: 'Inactive', label: 'Inactive' },
-                    ]}
-                    onChange={(e: any) => {
-                      setFieldValue('status', e.target.value);
-                    }}
-                  />
-                </div>
-              </div>
-            </Form>
-          )}
-        </Formik>
+        <Form onSubmit={handleSubmit}>
+          <div className="row">
+            <div className="col-md-12 mb-3">
+              <label>User Type</label>
+              <input
+                name="User_type"
+                value={formData.User_type}
+                onChange={handleInputChange}
+                placeholder="Enter user type name"
+                className="form-control"
+                required
+              />
+            </div>
+          </div>
+          <div className="row">
+            <div className="col-md-12 mb-3">
+              <label>Status</label>
+              <select
+                name="status"
+                value={formData.status}
+                onChange={handleInputChange}
+                className="form-control"
+              >
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
+              </select>
+            </div>
+          </div>
+          <Modal.Footer>
+            <Button variant="secondary" onClick={onHide} disabled={loading}>
+              Cancel
+            </Button>
+            <Button variant="primary" type="submit" disabled={loading}>
+              {loading ? (isEditMode ? 'Updating...' : 'Adding...') : 'Save'}
+            </Button>
+          </Modal.Footer>
+        </Form>
       </Modal.Body>
-      <Modal.Footer>
-        <Button variant="secondary" onClick={onHide} disabled={loading}>
-          Cancel
-        </Button>
-        <Button variant="primary" onClick={() => formikRef.current?.submitForm()} disabled={loading}>
-          {loading ? (isEditMode ? 'Updating...' : 'Adding...') : 'Save'}
-        </Button>
-      </Modal.Footer>
     </Modal>
   );
-});
-
-
+};
 
 export default UserType;

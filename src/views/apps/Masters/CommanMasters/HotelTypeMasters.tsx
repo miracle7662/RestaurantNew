@@ -1,14 +1,10 @@
- import React, { useState, useEffect, useMemo, useCallback, forwardRef, useImperativeHandle, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Swal from 'sweetalert2';
 import { toast } from 'react-hot-toast';
-import { Button, Card, Stack, Pagination, Table, Modal, Form as BootstrapForm, Form } from 'react-bootstrap';
+import { Button, Card, Stack, Pagination, Table, Modal, Form } from 'react-bootstrap';
 import { Preloader } from '@/components/Misc/Preloader';
 import TitleHelmet from '@/components/Common/TitleHelmet';
 import { useAuthContext } from '../../../../common/context/useAuthContext';
-import { Formik,   } from 'formik';
-import { hoteltypeFormValidationSchema } from '@/common/validators';
-import FormikTextInput from '@/components/Common/FormikTextInput';
-import FormikSelect from '@/components/Common/FormikSelect';
 import HotelTypeService from '@/common/api/hoteltype';
 
 import {
@@ -40,9 +36,6 @@ interface HoteltypeModalProps {
   onUpdateSelectedHoteltype: (hoteltype: HoteltypeItem) => void;
 }
 
-interface HoteltypeModalRef {
-  saveData: () => void;
-}
 
 // Utility Functions
 const debounce = (func: (...args: any[]) => void, wait: number) => {
@@ -213,26 +206,37 @@ const HoteltypeMasters: React.FC = () => {
   };
 
   // Modal for Add/Edit
-  const HoteltypeModal = forwardRef<HoteltypeModalRef, HoteltypeModalProps>(({ show, onHide, onSuccess, hoteltype, onUpdateSelectedHoteltype }, ref) => {
+  const HoteltypeModal = ({ show, onHide, onSuccess, hoteltype, onUpdateSelectedHoteltype }: HoteltypeModalProps) => {
     const [loading, setLoading] = useState(false);
-    const formikRef = useRef<any>(null);
+    const [formData, setFormData] = useState({
+      hotel_type: hoteltype?.hotel_type || '',
+      status: hoteltype ? (hoteltype.status === 0 ? 'Active' : 'Inactive') : 'Active',
+    });
 
     const isEditMode = !!hoteltype;
 
-    const initialValues = {
-      hotel_type: hoteltype?.hotel_type || '',
-      status: hoteltype ? (hoteltype.status === 0 ? 'Active' : 'Inactive') : 'Active',
+    useEffect(() => {
+      setFormData({
+        hotel_type: hoteltype?.hotel_type || '',
+        status: hoteltype ? (hoteltype.status === 0 ? 'Active' : 'Inactive') : 'Active',
+      });
+    }, [hoteltype]);
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+      const { name, value } = e.target;
+      setFormData(prev => ({ ...prev, [name]: value }));
     };
 
-    const handleSubmit = async (values: any) => {
+    const handleSubmit = async (e: React.FormEvent) => {
+      e.preventDefault();
       setLoading(true);
       try {
-        const statusValue = values.status === 'Active' ? 0 : 1;
+        const statusValue = formData.status === 'Active' ? 0 : 1;
         const currentDate = new Date().toISOString();
         const hotelId = user?.hotelid || '1';
         const userId = user?.id || '1';
         const payload = {
-          hotel_type: values.hotel_type,
+          hotel_type: formData.hotel_type,
           status: statusValue,
           ...(isEditMode
             ? {
@@ -259,7 +263,7 @@ const HoteltypeMasters: React.FC = () => {
           if (isEditMode && hoteltype && onUpdateSelectedHoteltype) {
             onUpdateSelectedHoteltype({
               ...hoteltype,
-              hotel_type: values.hotel_type,
+              hotel_type: formData.hotel_type,
               status: statusValue,
               updated_by_id: userId,
               updated_date: currentDate,
@@ -279,70 +283,53 @@ const HoteltypeMasters: React.FC = () => {
       }
     };
 
-    useImperativeHandle(ref, () => ({
-      saveData: () => {
-        if (formikRef.current) {
-          formikRef.current.submitForm();
-        }
-      },
-    }));
-
     return (
-      <Modal show={show} onHide={onHide} size="sm">
+      <Modal show={show} onHide={onHide} >
         <Modal.Header closeButton>
           <Modal.Title>{isEditMode ? 'Edit Hotel Type' : 'Add Hotel Type'}</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <Formik
-            innerRef={formikRef}
-            initialValues={initialValues}
-            validationSchema={hoteltypeFormValidationSchema}
-            onSubmit={handleSubmit}
-            enableReinitialize={true}
-          >
-            {({ values, setFieldValue }) => (
-              <Form>
-                <div className="row">
-                  <div className="col-md-12 mb-3">
-                    <FormikTextInput
-                      name="hotel_type"
-                      label="Hotel Type"
-                      placeholder="Enter hotel type name"
-                    />
-                  </div>
-                </div>
-                <div className="row">
-                  <div className="col-md-12 mb-3">
-                    <FormikSelect
-                      name="status"
-                      label="Status"
-                      options={[
-                        { value: 'Active', label: 'Active' },
-                        { value: 'Inactive', label: 'Inactive' },
-                      ]}
-                      onChange={(e: any) => {
-                        setFieldValue('status', e.target.value);
-                      }}
-                    />
-                  </div>
-                </div>
-              </Form>
-            )}
-          </Formik>
+          <Form onSubmit={handleSubmit}>
+            <div className="row">
+              <div className="col-md-12 mb-3">
+                <label>Hotel Type</label>
+                <input
+                  name="hotel_type"
+                  value={formData.hotel_type}
+                  onChange={handleInputChange}
+                  placeholder="Enter hotel type name"
+                  className="form-control"
+                  required
+                />
+              </div>
+            </div>
+            <div className="row">
+              <div className="col-md-12 mb-3">
+                <label>Status</label>
+                <select
+                  name="status"
+                  value={formData.status}
+                  onChange={handleInputChange}
+                  className="form-control"
+                >
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
+                </select>
+              </div>
+            </div>
+            <Modal.Footer>
+              <Button variant="secondary" onClick={onHide} disabled={loading}>
+                Cancel
+              </Button>
+              <Button variant="primary" type="submit" disabled={loading}>
+                {loading ? (isEditMode ? 'Updating...' : 'Adding...') : 'Save'}
+              </Button>
+            </Modal.Footer>
+          </Form>
         </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={onHide} disabled={loading}>
-            Cancel
-          </Button>
-          <Button variant="primary" onClick={() => formikRef.current?.submitForm()} disabled={loading}>
-            {loading ? (isEditMode ? 'Updating...' : 'Adding...') : 'Save'}
-          </Button>
-        </Modal.Footer>
       </Modal>
     );
-  });
-
- 
+  };
 
   return (
     <>
@@ -446,7 +433,5 @@ const HoteltypeMasters: React.FC = () => {
     </>
   );
 };
-
-
 
 export default HoteltypeMasters;
