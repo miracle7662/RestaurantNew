@@ -13,6 +13,8 @@ import {
   ColumnDef,
   flexRender,
 } from '@tanstack/react-table';
+import KitchenCategoryService from '@/common/api/kitchencategory';
+import KitchenMainGroupService from '@/common/api/kitchenmaingroup';
 
 interface KitchenCategoryItem {
   kitchencategoryid: number;
@@ -77,8 +79,7 @@ const KitchenCategory: React.FC = () => {
   const fetchKitchenCategory = async () => {
     try {
       setLoading(true);
-      const res = await fetch('http://localhost:3001/api/KitchenCategory');
-      const data = await res.json();
+      const data = await KitchenCategoryService.list() as unknown as KitchenCategoryItem[];
       console.log('Fetched KitchenCategory:', data);
       // Ensure status is treated as a number
       const formattedData = data.map((item: any) => ({
@@ -95,8 +96,7 @@ const KitchenCategory: React.FC = () => {
 
   const fetchKitchenGroups = async () => {
     try {
-      const res = await fetch('http://localhost:3001/api/KitchenMainGroup');
-      const data = await res.json();
+      const data = await KitchenMainGroupService.list() as unknown as KitchenGroupItem[];
       setKitchenGroups(data);
     } catch (err) {
       toast.error('Failed to fetch Kitchen Groups');
@@ -252,9 +252,7 @@ const KitchenCategory: React.FC = () => {
       if (result.isConfirmed) {
         setLoading(true);
         try {
-          await fetch(`http://localhost:3001/api/KitchenCategory/${kitchenCategory.kitchencategoryid}`, {
-            method: 'DELETE',
-          });
+          await KitchenCategoryService.remove(kitchenCategory.kitchencategoryid);
           toast.success('KitchenCategory deleted successfully');
           fetchKitchenCategory();
           if (selectedKitchenCategory?.kitchencategoryid === kitchenCategory.kitchencategoryid) {
@@ -375,51 +373,38 @@ const KitchenCategory: React.FC = () => {
               }),
         };
         console.log('Sending to backend:', payload);
-        const url = KitchenCategory
-          ? `http://localhost:3001/api/KitchenCategory/${KitchenCategory.kitchencategoryid}`
-          : 'http://localhost:3001/api/KitchenCategory';
-        const method = KitchenCategory ? 'PUT' : 'POST';
-        const res = await fetch(url, {
-          method,
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-        if (res.ok) {
-           await res.json();
-          toast.success(`KitchenCategory ${KitchenCategory ? 'updated' : 'added'} successfully`);
-          if (KitchenCategory) {
-            const updatedKitchenCategory = {
-              ...KitchenCategory,
-              Kitchen_Category,
-              alternative_category_name,
-              kitchenmaingroupid: selectedKitchenGroupId,
-              Description,
-              alternative_category_Description,
-              digital_order_image,
-              categorycolor,
-              status: statusValue,
-              updated_by_id: user?.id || '1',
-              updated_date: currentDate,
-              hotelid: KitchenCategory.hotelid || hotelId,
-              marketid: KitchenCategory.marketid || marketId,
-            };
-            onUpdateSelectedKitchenCategory(updatedKitchenCategory);
-          }
-          setKitchen_Category('');
-          setalternative_category_name('');
-          setSelectedKitchenGroupId(undefined);
-          setDescription('');
-          setalternative_category_Description('');
-          setcategorycolor('');
-          setdigital_order_image(null);
-          setStatus('Active');
-          onSuccess();
-          onHide();
-        } else {
-          const errorData = await res.json();
-          console.log('Backend error:', errorData);
-          toast.error(`Failed to ${KitchenCategory ? 'update' : 'add'} KitchenCategory`);
+        const res = KitchenCategory
+          ? await KitchenCategoryService.update(KitchenCategory.kitchencategoryid, payload)
+          : await KitchenCategoryService.create(payload);
+        toast.success(`KitchenCategory ${KitchenCategory ? 'updated' : 'added'} successfully`);
+        if (KitchenCategory) {
+          const updatedKitchenCategory = {
+            ...KitchenCategory,
+            Kitchen_Category,
+            alternative_category_name,
+            kitchenmaingroupid: selectedKitchenGroupId,
+            Description,
+            alternative_category_Description,
+            digital_order_image,
+            categorycolor,
+            status: statusValue,
+            updated_by_id: user?.id || '1',
+            updated_date: currentDate,
+            hotelid: KitchenCategory.hotelid || hotelId,
+            marketid: KitchenCategory.marketid || marketId,
+          };
+          onUpdateSelectedKitchenCategory(updatedKitchenCategory);
         }
+        setKitchen_Category('');
+        setalternative_category_name('');
+        setSelectedKitchenGroupId(undefined);
+        setDescription('');
+        setalternative_category_Description('');
+        setcategorycolor('');
+        setdigital_order_image(null);
+        setStatus('Active');
+        onSuccess();
+        onHide();
       } catch (err) {
         console.error(`${KitchenCategory ? 'Edit' : 'Add'} KitchenCategory error:`, err);
         toast.error('Something went wrong');

@@ -283,8 +283,12 @@ export const fetchKitchenCategory = async (
     const res = await fetch(url)
     const data: KitchenCategoryItem[] = await res.json()
     setKitchen_Category(data)
-    if (data.length > 0 && !currentkitchencategoryid) {
-      setkitchencategoryid(data[0].kitchencategoryid)
+    if (data.length > 0) {
+      if (currentkitchencategoryid) {
+        setkitchencategoryid(currentkitchencategoryid)
+      } else {
+        setkitchencategoryid(data[0].kitchencategoryid)
+      }
     }
   } catch (err) {
     toast.error('Failed to fetch kitchen categories')

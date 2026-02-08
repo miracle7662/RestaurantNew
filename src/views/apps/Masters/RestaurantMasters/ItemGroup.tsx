@@ -554,7 +554,8 @@ const ItemGroupModal: React.FC<ItemGroupModalProps> = ({ show, onHide, itemGroup
 
   useEffect(() => {
     if (show) {
-      fetchKitchenCategory(setKitchenCategory, setKitchenCategoryId);
+      const currentId = itemGroup ? Number(itemGroup.kitchencategoryid) : undefined;
+      fetchKitchenCategory(setKitchenCategory, setKitchenCategoryId, currentId);
     }
   }, [show, itemGroup]);
 
@@ -681,7 +682,7 @@ const ItemGroupModal: React.FC<ItemGroupModalProps> = ({ show, onHide, itemGroup
             >
               <option value="">Select a Kitchen Category</option>
               {kitchenCategory
-                .filter((category) => String(category.status) === '0')
+                .filter((category) => String(category.status) === '0' || category.kitchencategoryid === kitchencategoryid)
                 .map((category) => (
                   <option key={category.kitchencategoryid} value={category.kitchencategoryid}>
                     {category.Kitchen_Category}

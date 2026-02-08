@@ -14,6 +14,7 @@ import { Preloader } from '@/components/Misc/Preloader';
 import { ContactSearchBar, ContactSidebar } from '@/components/Apps/Contact';
 import TitleHelmet from '@/components/Common/TitleHelmet';
 import { useAuthContext } from '../../../../common/context/useAuthContext';
+import ItemMainGroupService from '@/common/api/itemmaingroup';
 
 // Interfaces
 interface ItemMainGroupItem {
@@ -87,8 +88,7 @@ const ItemMainGroup: React.FC = () => {
   const fetchItemMainGroup = async () => {
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:3001/api/ItemMainGroup');
-      const data = await res.json();
+      const data = await ItemMainGroupService.list() as unknown as ItemMainGroupItem[];
       setItemMainGroupItems(data);
       setFilteredItemMainGroup(data);
     } catch {
@@ -229,7 +229,7 @@ const ItemMainGroup: React.FC = () => {
 
     if (result.isConfirmed) {
       try {
-        await fetch(`http://localhost:3001/api/ItemMainGroup/${itemMainGroup.item_maingroupid}`, { method: 'DELETE' });
+        await ItemMainGroupService.remove(itemMainGroup.item_maingroupid);
         toast.success('Deleted successfully');
         fetchItemMainGroup();
         setSelectedItemMainGroup(null);
@@ -509,34 +509,23 @@ const ItemMainGroupModal: React.FC<ItemMainGroupModalProps> = ({ show, onHide, o
           }),
       };
 
-      const url = isEditMode
-        ? `http://localhost:3001/api/ItemMainGroup/${itemMainGroup!.item_maingroupid}`
-        : 'http://localhost:3001/api/ItemMainGroup';
-      const method = isEditMode ? 'PUT' : 'POST';
+      const res = isEditMode
+        ? await ItemMainGroupService.update(itemMainGroup!.item_maingroupid, payload)
+        : await ItemMainGroupService.create(payload);
 
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (res.ok) {
-        toast.success(`ItemMainGroup ${isEditMode ? 'updated' : 'added'} successfully`);
-        if (isEditMode && itemMainGroup && onUpdateSelectedItemMainGroup) {
-          const updatedItemMainGroup = {
-            ...itemMainGroup,
-            item_group_name,
-            status: statusValue,
-            updated_by_id: user?.id || '2',
-            updated_date: currentDate,
-          };
-          onUpdateSelectedItemMainGroup(updatedItemMainGroup);
-        }
-        onSuccess();
-        onHide();
-      } else {
-        toast.error(`Failed to ${isEditMode ? 'update' : 'add'} ItemMainGroup`);
+      toast.success(`ItemMainGroup ${isEditMode ? 'updated' : 'added'} successfully`);
+      if (isEditMode && itemMainGroup && onUpdateSelectedItemMainGroup) {
+        const updatedItemMainGroup = {
+          ...itemMainGroup,
+          item_group_name,
+          status: statusValue,
+          updated_by_id: user?.id || '2',
+          updated_date: currentDate,
+        };
+        onUpdateSelectedItemMainGroup(updatedItemMainGroup);
       }
+      onSuccess();
+      onHide();
     } catch {
       toast.error('Something went wrong');
     } finally {

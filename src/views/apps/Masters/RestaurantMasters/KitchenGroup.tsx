@@ -5,6 +5,7 @@ import { Preloader } from '@/components/Misc/Preloader';
 import { Button, Card, Stack, Pagination, Table, Form } from 'react-bootstrap';
 import TitleHelmet from '@/components/Common/TitleHelmet';
 import { useAuthContext } from '../../../../common/context/useAuthContext';
+import KitchenMainGroupService from '@/common/api/kitchenmaingroup';
 
 import {
   useReactTable,
@@ -61,8 +62,7 @@ const KitchenMainGroup: React.FC = () => {
   const fetchKitchenMainGroup = async () => {
     try {
       setLoading(true);
-      const res = await fetch('http://localhost:3001/api/KitchenMainGroup');
-      const data = await res.json();
+      const data = await KitchenMainGroupService.list() as unknown as KitchenMainGroupItem[];
       console.log('Fetched KitchenMainGroup:', data);
       setKitchenMainGroupItem(data);
     } catch (err) {
@@ -173,7 +173,7 @@ const KitchenMainGroup: React.FC = () => {
     });
     if (res.isConfirmed) {
       try {
-        await fetch(`http://localhost:3001/api/KitchenMainGroup/${KitchenMainGroup.kitchenmaingroupid}`, { method: 'DELETE' });
+        await KitchenMainGroupService.remove(KitchenMainGroup.kitchenmaingroupid);
         toast.success('Deleted successfully');
         fetchKitchenMainGroup();
         setSelectedKitchenMainGroup(null);
@@ -267,37 +267,28 @@ const KitchenMainGroup: React.FC = () => {
         };
         console.log('Sending to backend:', payload);
 
-        const res = await fetch(
-          `http://localhost:3001/api/KitchenMainGroup${isEditMode ? `/${KitchenMainGroup!.kitchenmaingroupid}` : ''}`,
-          {
-            method: isEditMode ? 'PUT' : 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-          }
-        );
-
-        if (res.ok) {
-          toast.success(`Kitchen Main Group ${isEditMode ? 'updated' : 'added'} successfully`);
-          if (isEditMode && KitchenMainGroup && onUpdateSelectedKitchenMainGroup) {
-            const updatedKitchenMainGroup = {
-              ...KitchenMainGroup,
-              Kitchen_main_Group: kitchenMainGroupName,
-              status: statusValue.toString(),
-              updated_by_id: '2',
-              updated_date: currentDate,
-              kitchenmaingroupid: KitchenMainGroup.kitchenmaingroupid,
-            };
-            onUpdateSelectedKitchenMainGroup(updatedKitchenMainGroup);
-          }
-          setKitchenMainGroupName('');
-          setStatus('Active');
-          onSuccess();
-          onHide();
+        if (isEditMode) {
+          await KitchenMainGroupService.update(KitchenMainGroup!.kitchenmaingroupid, payload);
         } else {
-          const errorData = await res.json();
-          console.log('Backend error:', errorData);
-          toast.error(`Failed to ${isEditMode ? 'update' : 'add'} Kitchen Main Group`);
+          await KitchenMainGroupService.create(payload);
         }
+
+        toast.success(`Kitchen Main Group ${isEditMode ? 'updated' : 'added'} successfully`);
+        if (isEditMode && KitchenMainGroup && onUpdateSelectedKitchenMainGroup) {
+          const updatedKitchenMainGroup = {
+            ...KitchenMainGroup,
+            Kitchen_main_Group: kitchenMainGroupName,
+            status: statusValue.toString(),
+            updated_by_id: userId,
+            updated_date: currentDate,
+            kitchenmaingroupid: KitchenMainGroup.kitchenmaingroupid,
+          };
+          onUpdateSelectedKitchenMainGroup(updatedKitchenMainGroup);
+        }
+        setKitchenMainGroupName('');
+        setStatus('Active');
+        onSuccess();
+        onHide();
       } catch (err) {
         console.error(`${isEditMode ? 'Edit' : 'Add'} KitchenMainGroup error:`, err);
         toast.error('Something went wrong');
