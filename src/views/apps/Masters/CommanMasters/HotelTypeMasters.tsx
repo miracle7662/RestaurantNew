@@ -61,7 +61,6 @@ const HoteltypeMasters: React.FC = () => {
     try {
       setLoading(true);
       const data = await HotelTypeService.list() as unknown as HoteltypeItem[];
-      console.log('Fetched hotel types:', data); // Debug log
       setHoteltypeItems(data);
     } catch (err) {
       toast.error('Failed to fetch hotel types');
@@ -250,7 +249,6 @@ const HoteltypeMasters: React.FC = () => {
                 hotelid: hotelId,
               }),
         };
-        console.log('Sending to backend:', payload); // Debug log
 
         try {
           if (isEditMode) {
@@ -276,7 +274,6 @@ const HoteltypeMasters: React.FC = () => {
           toast.error((error as string) || `Failed to ${isEditMode ? 'update' : 'add'} hotel type`);
         }
       } catch (error) {
-        console.error('Error:', error);
         toast.error('Something went wrong');
       } finally {
         setLoading(false);

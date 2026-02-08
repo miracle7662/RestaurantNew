@@ -136,7 +136,6 @@ const Country: React.FC = () => {
       size: 150,
       cell: (cell) => {
         const statusValue = cell.getValue<string | number>();
-        console.log('Status value:', statusValue, typeof statusValue); // Debug log
         return getStatusBadge(Number(statusValue));
       },
     },
@@ -261,7 +260,6 @@ const Country: React.FC = () => {
         setSelectedCountry(null);
         setContainerToggle(false);
       } catch (err: any) {
-        console.error(err);
         toast.error(err?.response?.data?.message || 'Failed to delete country');
       }
     }

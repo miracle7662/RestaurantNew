@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Col, Row, Button, Form, Table, Modal, Alert, Pagination } from 'react-bootstrap';
+import { Card, Col, Row, Button, Form, Table, Modal, Alert } from 'react-bootstrap';
 import { useAuthContext } from '../../../../common/context/useAuthContext';
 import { fetchBrands } from '@/utils/commonfunction';
 import taxGroupsService from '../../../../common/api/taxgroups';
+import PaginationComponent from '@/components/Common/PaginationComponent';
 
 interface TaxGroup {
   taxgroupid: number;
@@ -177,44 +178,9 @@ const TaxProductGroup: React.FC = () => {
 
   // Pagination logic
   const totalItems = filteredTaxGroups.length;
-  const totalPages = Math.ceil(totalItems / pageSize);
   const startIndex = (currentPage - 1) * pageSize;
   const endIndex = startIndex + pageSize;
   const currentItems = filteredTaxGroups.slice(startIndex, endIndex);
-
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-  };
-
-  const handlePageSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setPageSize(parseInt(e.target.value));
-    setCurrentPage(1); // Reset to first page when page size changes
-  };
-
-  // Generate pagination items
-  const getPaginationItems = () => {
-    const items = [];
-    const maxPagesToShow = 5;
-    let startPage = Math.max(1, currentPage - Math.floor(maxPagesToShow / 2));
-    const endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
-
-    if (endPage - startPage < maxPagesToShow - 1) {
-      startPage = Math.max(1, endPage - maxPagesToShow + 1);
-    }
-
-    for (let i = startPage; i <= endPage; i++) {
-      items.push(
-        <Pagination.Item
-          key={i}
-          active={i === currentPage}
-          onClick={() => handlePageChange(i)}
-        >
-          {i}
-        </Pagination.Item>
-      );
-    }
-    return items;
-  };
 
   return (
     <div className="flex-grow-1 p-4" style={{ overflowY: 'auto' }}>
@@ -316,34 +282,13 @@ const TaxProductGroup: React.FC = () => {
                       )}
                     </tbody>
                   </Table>
-                  <div className="d-flex justify-content-between align-items-center">
-                    <div>
-                      <Form.Select
-                        value={pageSize}
-                        onChange={handlePageSizeChange}
-                        style={{ width: '100px', display: 'inline-block', marginRight: '10px' }}
-                      >
-                        <option value="5">5</option>
-                        <option value="10">10</option>
-                        <option value="20">20</option>
-                        <option value="50">50</option>
-                      </Form.Select>
-                      <span className="text-muted">
-                        Showing {currentItems.length} of {totalItems} entries
-                      </span>
-                    </div>
-                    <Pagination>
-                      <Pagination.Prev
-                        onClick={() => handlePageChange(currentPage - 1)}
-                        disabled={currentPage === 1}
-                      />
-                      {getPaginationItems()}
-                      <Pagination.Next
-                        onClick={() => handlePageChange(currentPage + 1)}
-                        disabled={currentPage === totalPages}
-                      />
-                    </Pagination>
-                  </div>
+                  <PaginationComponent
+                    totalItems={totalItems}
+                    pageSize={pageSize}
+                    currentPage={currentPage}
+                    onPageChange={setCurrentPage}
+                    onPageSizeChange={(size) => { setPageSize(size); setCurrentPage(1); }}
+                  />
                 </>
               )}
             </Card.Body>

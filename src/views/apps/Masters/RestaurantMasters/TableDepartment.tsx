@@ -1,21 +1,15 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import Swal from 'sweetalert2';
 import { Preloader } from '@/components/Misc/Preloader';
 import { toast } from 'react-hot-toast';
 import { Button, Card, Stack, Table } from 'react-bootstrap';
 import TitleHelmet from '@/components/Common/TitleHelmet';
 import { useAuthContext } from '@/common';
-import {
-  useReactTable,
-  getCoreRowModel,
-  getFilteredRowModel,
-  ColumnDef,
-  flexRender,
-} from '@tanstack/react-table';
 import { fetchOutletsForDropdown, fetchBrands } from '@/utils/commonfunction';
 import { OutletData } from '@/common/api/outlet';
 import axios from 'axios';
 import TableDepartmentService from '@/common/api/tabledepartment';
+import PaginationComponent from '@/components/Common/PaginationComponent';
 
 // Define TableItem interface
 interface DepartmentItem {
@@ -55,24 +49,19 @@ const getStatusBadge = (status: number) => {
   );
 };
 
-// Debounce utility function
-const debounce = (func: (...args: any[]) => void, wait: number) => {
-  let timeout: NodeJS.Timeout;
-  return (...args: any[]) => {
-    clearTimeout(timeout);
-    timeout = setTimeout(() => func(...args), wait);
-  };
-};
 
 // Main TableDepartment Component
 const TableDepartment: React.FC = () => {
   const [tableItems, setTableItems] = useState<DepartmentItem[]>([]);
+  const [filteredTableItems, setFilteredTableItems] = useState<DepartmentItem[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [showTableModal, setShowTableModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [selectedTable, setSelectedTable] = useState<DepartmentItem | null>(null);
   const [outlets, setOutlets] = useState<OutletData[]>([]);
-  const [brands, setBrands] = useState<Array<{ hotelid: number; hotel_name: string }>>([]);
+  const [, setBrands] = useState<Array<{ hotelid: number; hotel_name: string }>>([]);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(10);
   const { user } = useAuthContext();
 
   // Fetch table data
@@ -86,6 +75,7 @@ const TableDepartment: React.FC = () => {
         taxgroupid: item.taxgroupid || '',
       }));
       setTableItems(formattedData);
+      setFilteredTableItems(formattedData);
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to fetch department data');
     } finally {
@@ -99,110 +89,24 @@ const TableDepartment: React.FC = () => {
     fetchOutletsForDropdown(user, setOutlets, setLoading);
   }, [user]);
 
-  // Define table columns with action column shifted to the right
-  const columns = useMemo<ColumnDef<DepartmentItem>[]>(
-    () => [
-      {
-        id: 'checkbox',
-        header: '',
-        size: 50,
-        cell: () => (
-          <input
-            type="checkbox"
-            style={{
-              width: '20px',
-              height: '20px',
-              border: '2px solid #ccc',
-              borderRadius: '4px',
-              cursor: 'pointer',
-            }}
-          />
-        ),
-      },
-      {
-        accessorKey: 'departmentid',
-        header: 'SrNo',
-        size: 50,
-        cell: (info) => <span>{info.getValue<string>()}</span>,
-      },
-      {
-        accessorKey: 'department_name',
-        header: 'Department Name',
-        size: 150,
-        cell: (info) => <span>{info.getValue<string>()}</span>,
-      },
-      {
-        accessorKey: 'hotel_name',
-        header: 'Outlet Name',
-        size: 200,
-        cell: (info) => {
-          const outletId = Number(info.row.original.outletid);
-          const outlet = outlets.find((outlet) => outlet.outletid === outletId);
-          return <span>{outlet ? `${outlet.outlet_name} (${outlet.outlet_code})` : 'Unknown Outlet'}</span>;
-        },
-      },
-      {
-        accessorKey: 'status',
-        header: 'Active',
-        size: 15,
-        cell: (info) => {
-          const statusValue = Number(info.getValue<number>());
-          return <div style={{ textAlign: 'center' }}>{getStatusBadge(statusValue)}</div>;
-        },
-      },
-      {
-        id: 'actions',
-        header: 'Action',
-        size: 100,
-        cell: ({ row }) => (
-          <div className="d-flex gap-2 justify-content-end">
-            <button
-              className="btn btn-sm btn-success"
-              style={{ padding: '4px 8px' }}
-              onClick={() => handleEditClick(row.original)}
-            >
-              <i className="fi fi-rr-edit"></i>
-            </button>
-            <button
-              className="btn btn-sm btn-danger"
-              onClick={() => handleDeleteTable(row.original)}
-              style={{ padding: '4px 8px' }}
-            >
-              <i className="fi fi-rr-trash"></i>
-            </button>
-          </div>
-        ),
-      },
-    ],
-    [outlets, brands]
-  );
-
-  // Initialize react-table
-  const table = useReactTable({
-    data: tableItems,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    state: {
-      globalFilter: searchTerm,
-    },
-    onGlobalFilterChange: setSearchTerm,
-  });
-
   // Handle search
-  const handleSearch = useCallback(
-    debounce((value: string) => {
-      table.setGlobalFilter(value);
-    }, 300),
-    [table]
-  );
-
-  // Handle input change for search
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSearchTerm(value);
-    handleSearch(value);
+    const filtered = tableItems.filter(
+      (item) =>
+        item.department_name.toLowerCase().includes(value.toLowerCase()) ||
+        item.hotel_name.toLowerCase().includes(value.toLowerCase())
+    );
+    setFilteredTableItems(filtered);
+    setCurrentPage(1); // Reset to first page on search
   };
+
+  // Pagination logic
+  const totalItems = filteredTableItems.length;
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = startIndex + pageSize;
+  const currentItems = filteredTableItems.slice(startIndex, endIndex);
 
   // Handle edit button click
   const handleEditClick = (table: DepartmentItem) => {
@@ -467,7 +371,7 @@ const TableDepartment: React.FC = () => {
                 className="form-control rounded-pill"
                 placeholder="Search..."
                 value={searchTerm}
-                onChange={handleInputChange}
+                onChange={handleSearch}
                 style={{ width: '350px', borderColor: '#ccc', borderWidth: '2px' }}
               />
             </div>
@@ -479,48 +383,65 @@ const TableDepartment: React.FC = () => {
               <div style={{ overflowY: 'auto', width: '100%' }}>
                 <Table responsive className="mb-0" style={{ tableLayout: 'auto', width: '100%' }}>
                   <thead>
-                    {table.getHeaderGroups().map((headerGroup) => (
-                      <tr key={headerGroup.id}>
-                        {headerGroup.headers.map((header) => (
-                          <th
-                            key={header.id}
-                            colSpan={header.colSpan}
-                            style={{
-                              width: header.column.columnDef.size,
-                              whiteSpace: 'normal',
-                              padding: '8px',
-                              textAlign: header.id === 'actions' ? 'right' : 'center',
-                            }}
-                          >
-                            {header.isPlaceholder ? null : (
-                              <div>
-                                {flexRender(header.column.columnDef.header, header.getContext())}
-                              </div>
-                            )}
-                          </th>
-                        ))}
-                      </tr>
-                    ))}
+                    <tr>
+                      <th style={{ width: '50px', textAlign: 'center' }}>
+                        <input type="checkbox" />
+                      </th>
+                      <th style={{ width: '50px', textAlign: 'center' }}>SrNo</th>
+                      <th style={{ width: '150px', textAlign: 'center' }}>Department Name</th>
+                      <th style={{ width: '200px', textAlign: 'center' }}>Outlet Name</th>
+                      <th style={{ width: '100px', textAlign: 'center' }}>Active</th>
+                      <th style={{ width: '100px', textAlign: 'right' }}>Action</th>
+                    </tr>
                   </thead>
                   <tbody>
-                    {table.getRowModel().rows.map((row) => (
-                      <tr key={row.id}>
-                        {row.getVisibleCells().map((cell) => (
-                          <td
-                            key={cell.id}
-                            style={{
-                              whiteSpace: 'normal',
-                              padding: '8px',
-                              textAlign: cell.column.id === 'actions' ? 'right' : 'center',
-                            }}
-                          >
-                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    {currentItems.map((item, index) => {
+                      const outletId = Number(item.outletid);
+                      const outlet = outlets.find((outlet) => outlet.outletid === outletId);
+                      return (
+                        <tr key={item.departmentid}>
+                          <td style={{ textAlign: 'center' }}>
+                            <input type="checkbox" />
                           </td>
-                        ))}
-                      </tr>
-                    ))}
+                          <td style={{ textAlign: 'center' }}>{item.departmentid}</td>
+                          <td style={{ textAlign: 'center' }}>{item.department_name}</td>
+                          <td style={{ textAlign: 'center' }}>
+                            {outlet ? `${outlet.outlet_name} (${outlet.outlet_code})` : 'Unknown Outlet'}
+                          </td>
+                          <td style={{ textAlign: 'center' }}>{getStatusBadge(item.status)}</td>
+                          <td style={{ textAlign: 'right' }}>
+                            <div className="d-flex gap-2 justify-content-end">
+                              <button
+                                className="btn btn-sm btn-success"
+                                style={{ padding: '4px 8px' }}
+                                onClick={() => handleEditClick(item)}
+                              >
+                                <i className="fi fi-rr-edit"></i>
+                              </button>
+                              <button
+                                className="btn btn-sm btn-danger"
+                                onClick={() => handleDeleteTable(item)}
+                                style={{ padding: '4px 8px' }}
+                              >
+                                <i className="fi fi-rr-trash"></i>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </Table>
+                <PaginationComponent
+                  totalItems={totalItems}
+                  pageSize={pageSize}
+                  currentPage={currentPage}
+                  onPageChange={setCurrentPage}
+                  onPageSizeChange={(size) => {
+                    setPageSize(size);
+                    setCurrentPage(1);
+                  }}
+                />
               </div>
             )}
           </div>

@@ -270,7 +270,6 @@ const States: React.FC = () => {
     setSelectedState(null);  // Clear selected
     setContainerToggle(false);
   } catch (err: any) {
-    console.error(err);
     toast.error(err?.response?.data?.message || 'Failed to delete state');
   }
     }
@@ -580,7 +579,6 @@ const StateModal = forwardRef<StateModalRef, StateModalProps>(({ show, onHide, o
         toast.error((error as string) || `Failed to ${isEditMode ? 'update' : 'add'} state`);
       }
     } catch (error) {
-      console.error('Error:', error);
       toast.error('Something went wrong');
     } finally {
       setLoading(false);

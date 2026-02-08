@@ -538,7 +538,6 @@ const CityModal = forwardRef<CityModalRef, CityModalProps>(({ show, onHide, onSu
         toast.error((error as string) || `Failed to ${isEditMode ? 'update' : 'add'} city`);
       }
     } catch (error) {
-      console.error('Error:', error);
       toast.error('Something went wrong');
     } finally {
       setLoading(false);

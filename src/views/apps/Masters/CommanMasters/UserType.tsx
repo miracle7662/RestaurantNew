@@ -58,7 +58,6 @@ const UserType: React.FC = () => {
     try {
       setLoading(true);
       const data = await UserTypeService.list() as unknown as UserTypeItem[];
-      console.log('Fetched user types:', data); // Debug log
       setUserTypeItem(data);
     } catch (err) {
       toast.error('Failed to fetch UserType');
@@ -92,7 +91,6 @@ const UserType: React.FC = () => {
         size: 150,
         cell: (info) => {
           const statusValue = info.getValue<string | number>();
-          console.log('Status value:', statusValue, typeof statusValue); // Debug log
           return <div style={{ textAlign: 'center' }}>{statusValue == '0' || statusValue === 0 ? 'Active' : 'Inactive'}</div>;
         },
       },
@@ -354,7 +352,6 @@ const UserTypeModal = ({ show, onHide, onSuccess, userType, onUpdateSelectedUser
               hotelid: hotelId,
             }),
       };
-      console.log('Sending to backend:', payload); // Debug log
 
       try {
         if (isEditMode) {
@@ -380,7 +377,6 @@ const UserTypeModal = ({ show, onHide, onSuccess, userType, onUpdateSelectedUser
         toast.error((error as string) || `Failed to ${isEditMode ? 'update' : 'add'} user type`);
       }
     } catch (error) {
-      console.error('Error:', error);
       toast.error('Something went wrong');
     } finally {
       setLoading(false);

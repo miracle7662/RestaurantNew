@@ -7,7 +7,7 @@ import TitleHelmet from '@/components/Common/TitleHelmet';
 import { useAuthContext } from '@/common';
 import {
   useReactTable,
-  getCoreRowModel,
+  getCoreRowModel,          
   getFilteredRowModel,
   ColumnDef,
   flexRender,
