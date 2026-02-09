@@ -1,8 +1,28 @@
-# TODO: Update Brand.tsx to use BrandService API calls
+# Refactor API calls in commonfunction.ts
 
-## Steps to Complete:
-- [x] Import BrandService in Brand.tsx
-- [x] Update fetchHotelMasters function to use BrandService.getBrands(params)
-- [x] Update handleDeleteHotelMasters function to use BrandService.deleteBrand(id)
-- [x] Update HotelMastersModal's handleSubmit to use BrandService.addBrand for add and BrandService.updateBrand for update
-- [ ] Test the updated API calls and verify error handling
+- [ ] Add imports for API services (countries, states, cities, markets, hoteltype, kitchencategory, kitchenmaingroup, kitchensubcategory, itemgroup, itemmaingroup, outletdesignation, usertype, menu, tablemanagement, taxgroups, unitmaster, brand, orders, warehouses, tabledepartment, outletUser)
+- [ ] Update fetchCountries to use countriesService.list()
+- [ ] Update fetchStates to use statesService.list()
+- [ ] Update fetchCities to use citiesService.list({ stateId })
+- [ ] Update fetchMarkets to use marketsService.list()
+- [ ] Update fetchHotelType to use hoteltypeService.list()
+- [ ] Update fetchKitchenCategory to use kitchencategoryService.list({ hotelid })
+- [ ] Update fetchKitchenMainGroup to use kitchenmaingroupService.list()
+- [ ] Update fetchKitchenSubCategory to use kitchensubcategoryService.list()
+- [ ] Update fetchItemGroup to use itemgroupService.list({ hotelid })
+- [ ] Update fetchItemMainGroup to use itemmaingroupService.list()
+- [ ] Update fetchItemGroupsWithMenuItems to use itemgroupService.list({ withmenuitems: true })
+- [ ] Update fetchDesignation to use outletdesignationService.list()
+- [ ] Update fetchUserType to use usertypeService.list()
+- [ ] Update fetchMenu to use menuService.list()
+- [ ] Update fetchTableManagement to use tablemanagementService.list()
+- [ ] Update fetchData (taxgroup) to use taxgroupsService.list()
+- [ ] Update fetchunitmaster to use unitmasterService.list()
+- [ ] Update fetchBrands to use brandService.getBrands(params) (already using service)
+- [ ] Update fetchOutlets to use outletService.getOutlets(params) (already using service)
+- [ ] Update fetchOutletsForDropdown to use outletService.getOutletsForDropdown(params) (already using service)
+- [ ] Update fetchShiftTypes to use ordersService.getShiftTypes()
+- [ ] Update fetchWarehouses to use warehousesService.list()
+- [ ] Update fetchTableDepartment to use tabledepartmentService.list({ hotelid })
+- [ ] Update fetchUsers to use outletUserService.list(params)
+- [ ] Test the refactored functions
