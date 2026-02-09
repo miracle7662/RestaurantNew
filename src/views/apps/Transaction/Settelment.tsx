@@ -8,10 +8,10 @@ import {
   Col,
   Alert,
 } from 'react-bootstrap';
-import axios from 'axios';
 import { useAuthContext } from '@/common';
 import SettlementModal from './SettelmentModel';
 import OutletPaymentModeService from '@/common/api/outletpaymentmode';
+import SettlementService from '@/common/api/settlements';
 
 interface Settlement {
   SettlementID: number;
@@ -98,8 +98,11 @@ const EditSettlementPage: React.FC = () => {
   // Fetch settlements list
   const fetchSettlements = async () => {
     try {
-      const params = { ...filters, outletId: selectedOutletId, page: currentPage, limit: 10 };
-      const res = await axios.get('http://localhost:3001/api/settlements', { params });
+      const params: any = { ...filters, page: currentPage, limit: 10 };
+      if (selectedOutletId !== null) {
+        params.outletId = selectedOutletId;
+      }
+      const res = await SettlementService.list(params);
 
       const data = res.data?.data ?? res.data;
       const settlementsData = Array.isArray(data.settlements) ? data.settlements : data;
@@ -181,15 +184,12 @@ const EditSettlementPage: React.FC = () => {
 
     try {
       // Always use replace strategy: delete all for OrderNo and insert new
-      await axios.post(
-        `http://localhost:3001/api/settlements/replace`,
-        {
-          OrderNo: editing.OrderNo,
-          newSettlements: newSettlements.filter(s => s.Amount > 0),
-          HotelID: editing.HotelID,
-          EditedBy: currentUser,
-        }
-      );
+      await SettlementService.replace({
+        OrderNo: editing.OrderNo,
+        newSettlements: newSettlements.filter(s => s.Amount > 0),
+        HotelID: editing.HotelID,
+        EditedBy: currentUser,
+      });
 
       setNotification({
         show: true,
@@ -210,10 +210,6 @@ const EditSettlementPage: React.FC = () => {
       setLoading(false);
     }
   };
-
-
-
-
 
   // const handleDeleteSettlement = async (id: number) => {
   //   if (!window.confirm('Delete this settlement permanently?')) return;

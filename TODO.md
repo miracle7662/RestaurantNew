@@ -1,6 +1,5 @@
-# TODO: Modify fetchPaymentModes in Settelment.tsx
+# TODO: Refactor Settelment.tsx to use common API calls
 
-- [x] Modify the fetchPaymentModes function to pass outletid parameter to OutletPaymentModeService.list()
-- [x] Add useEffect to call fetchPaymentModes when selectedOutletId changes
-- [x] Handle case when selectedOutletId is null by setting outletPaymentModes to empty array
-- [ ] Test the changes to ensure payment modes are filtered by selected outlet
+- [ ] Import SettlementService in Settelment.tsx
+- [ ] Replace axios.get in fetchSettlements with SettlementService.list
+- [ ] Replace axios.post in handleUpdateSettlement with SettlementService.replace
