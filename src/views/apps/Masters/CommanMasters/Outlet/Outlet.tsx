@@ -8,6 +8,7 @@ import AddOutlet from './AddOutlet';
 import ModifyOutletSettingsModal from './ModifyoutletSettings'; // Import the modal component
 import outletService, { OutletData } from '@/common/api/outlet';
 import masterDataService, { Country, Timezone, TimeOption } from '@/common/api/masterData';
+import WarehouseService from '@/common/api/warehouses';
 import { useAuthContext } from '@/common';
 import { fetchBrands, fetchCountries } from '@/utils/commonfunction';
 import {
@@ -105,8 +106,7 @@ const OutletList: React.FC = () => {
 
   const fetchWarehouses = async () => {
     try {
-      const res = await fetch('http://localhost:3001/api/warehouse');
-      const data = await res.json();
+     const data = await WarehouseService.list() as unknown as warehouseItem[];
       setWarehouses(data);
     } catch (err) {
       toast.error('Failed to fetch Warehouses');

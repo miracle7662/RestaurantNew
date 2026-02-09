@@ -13,6 +13,7 @@ import {
     ColumnDef,
     flexRender,
 } from '@tanstack/react-table';
+import WarehouseService from '@/common/api/warehouses';
 
 interface warehouseItem {
     warehouse_name: string;
@@ -66,10 +67,9 @@ const Warehouse: React.FC = () => {
     const fetchWarehouse = async () => {
         try {
             setLoading(true);
-            const res = await fetch('http://localhost:3001/api/warehouse');
-            const data = await res.json();
-            console.log('Fetched warehouse:', data);
-            setWarehouseItem(data);
+           const data = await WarehouseService.list() as unknown as warehouseItem[];
+            const response = { data };
+            setWarehouseItem(response.data);
         } catch (err) {
             toast.error('Failed to fetch Warehouse');
         } finally {
@@ -198,7 +198,7 @@ const Warehouse: React.FC = () => {
         });
         if (res.isConfirmed) {
             try {
-                await fetch(`http://localhost:3001/api/warehouse/${warehouse.warehouseid}`, { method: 'DELETE' });
+                await WarehouseService.remove(warehouse.warehouseid);
                 toast.success('Deleted successfully');
                 fetchWarehouse();
                 setSelectedWarehouse(null);
@@ -295,41 +295,30 @@ const Warehouse: React.FC = () => {
                 };
                 console.log('Sending to backend:', payload);
 
-                const url = isEditMode
-                    ? `http://localhost:3001/api/warehouse/${warehouse!.warehouseid}`
-                    : 'http://localhost:3001/api/warehouse';
-                const method = isEditMode ? 'PUT' : 'POST';
-
-                const res = await fetch(url, {
-                    method,
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload),
-                });
-
-                if (res.ok) {
-                    toast.success(`Warehouse ${isEditMode ? 'updated' : 'added'} successfully`);
-                    if (isEditMode && warehouse && onUpdateSelectedWarehouse) {
-                        const updatedWarehouse = {
-                            ...warehouse,
-                            warehouse_name,
-                            location,
-                            status: statusValue.toString(),
-                            updated_by_id: userId,
-                            updated_date: currentDate,
-                            warehouseid: warehouse.warehouseid,
-                        };
-                        onUpdateSelectedWarehouse(updatedWarehouse);
-                    }
-                    setWarehouse_name('');
-                    setLocation('');
-                    setStatus('Active');
-                    onSuccess();
-                    onHide();
+                if (isEditMode) {
+                    await WarehouseService.update(warehouse!.warehouseid, payload);
                 } else {
-                    const errorData = await res.json();
-                    console.log('Backend error:', errorData);
-                    toast.error(`Failed to ${isEditMode ? 'update' : 'add'} Warehouse`);
+                    await WarehouseService.create(payload);
                 }
+
+                toast.success(`Warehouse ${isEditMode ? 'updated' : 'added'} successfully`);
+                if (isEditMode && warehouse && onUpdateSelectedWarehouse) {
+                    const updatedWarehouse = {
+                        ...warehouse,
+                        warehouse_name,
+                        location,
+                        status: statusValue.toString(),
+                        updated_by_id: userId,
+                        updated_date: currentDate,
+                        warehouseid: warehouse.warehouseid,
+                    };
+                    onUpdateSelectedWarehouse(updatedWarehouse);
+                }
+                setWarehouse_name('');
+                setLocation('');
+                setStatus('Active');
+                onSuccess();
+                onHide();
             } catch (err) {
                 console.error(`${isEditMode ? 'Edit' : 'Add'} Warehouse error:`, err);
                 toast.error('Something went wrong');
@@ -498,7 +487,7 @@ const Warehouse: React.FC = () => {
                                             <option value="50">50</option>
                                         </Form.Select>
                                         <span className="text-muted">
-                                            Showing {table.getRowModel().rows.length} of {warehouseItem.length} entries
+                                            Showing {table.getRowModel().rows.length} of {warehouseItem?.length || 0} entries
                                         </span>
                                     </div>
                                     <Pagination>
