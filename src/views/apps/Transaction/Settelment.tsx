@@ -11,6 +11,7 @@ import {
 import axios from 'axios';
 import { useAuthContext } from '@/common';
 import SettlementModal from './SettelmentModel';
+import OutletPaymentModeService from '@/common/api/outletpaymentmode';
 
 interface Settlement {
   SettlementID: number;
@@ -80,8 +81,12 @@ const EditSettlementPage: React.FC = () => {
   useEffect(() => {
     const fetchPaymentModes = async () => {
       try {
-        const res = await axios.get('http://localhost:3001/api/payment-modes');
-        setOutletPaymentModes(Array.isArray(res.data) ? res.data : []);
+        const response = await OutletPaymentModeService.list({ outletid: selectedOutletId?.toString() || ''});
+        const data = response;
+        if (!Array.isArray(data)) {
+          throw new Error('Expected an array of payment modes');
+        }
+        setOutletPaymentModes(data);
       } catch (err) {
         console.error('Failed to load payment modes:', err);
         setOutletPaymentModes([]);

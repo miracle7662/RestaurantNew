@@ -240,7 +240,7 @@ const OutletUserList: React.FC = () => {
         // console.log('Updating hotel admin:', { userid: selectedHotelAdmin?.userid, data: hotelAdminData });
         if (selectedHotelAdmin) {
           const response = await outletUserService.updateHotelAdmin(selectedHotelAdmin.userid!, hotelAdminData);
-          // console.log('Update hotel admin response:', response.data);
+          console.log('Update hotel admin response:', response.data);
           toast.success('Hotel admin updated successfully!');
         }
         fetchHotelAdmins();

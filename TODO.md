@@ -1,4 +1,6 @@
-- [ ] Modify backend TableManagementController.js getAllTables to accept 'search' query param, join mst_hotels for hotel_name, add WHERE clause for filtering on table_name, hotel_name, outlet_name, department_name.
-- [ ] Update frontend TableManagement.tsx fetchTableManagement to pass search term to API.
-- [ ] Adjust frontend handleSearch to only set searchTerm and trigger refetch, remove client-side filtering.
-- [ ] Adjust handleOutletFilterChange to filter the fetched (search-filtered) data by outlet.
+# TODO: Modify fetchPaymentModes in Settelment.tsx
+
+- [x] Modify the fetchPaymentModes function to pass outletid parameter to OutletPaymentModeService.list()
+- [x] Add useEffect to call fetchPaymentModes when selectedOutletId changes
+- [x] Handle case when selectedOutletId is null by setting outletPaymentModes to empty array
+- [ ] Test the changes to ensure payment modes are filtered by selected outlet

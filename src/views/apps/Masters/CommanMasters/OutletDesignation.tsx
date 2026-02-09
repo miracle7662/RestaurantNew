@@ -179,7 +179,7 @@ const Designation: React.FC = () => {
     });
     if (res.isConfirmed) {
       try {
-        await fetch(`http://localhost:3001/api/Designation/${designation.designationid}`, { method: 'DELETE' });
+       await OutletDesignationService.remove(designation.designationid) // Use DesignationService instead of hardcoded URL
         toast.success('Deleted successfully');
         fetchDesignation();
         setSelectedDesignation(null);
