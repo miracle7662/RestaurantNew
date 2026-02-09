@@ -9,6 +9,7 @@ import {
 import { fetchOutlets } from '../../utils/commonfunction';
 import { OutletData } from '../../common/api/outlet';
 import { useAuthContext } from "@/common/context/useAuthContext";
+import SettingsService from '@/common/api/settings';
 
 
 interface KotPrinterSetting {
@@ -190,28 +191,11 @@ function SettingsPage() {
     fetchReportPrinters();
   }, []);
 
-  // API Base URL
-  const API_BASE = 'http://localhost:3001/api';
-
-  // Generic API functions
-  const apiCall = async (endpoint: string, options: RequestInit = {}) => {
-    const response = await fetch(`${API_BASE}${endpoint}`, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-      ...options,
-    });
-    if (!response.ok) {
-      throw new Error(`API call failed: ${response.statusText}`);
-    }
-    return response.json();
-  };
-
   // Fetch functions for each data type
   const fetchKotPrinters = async () => {
     try {
-      const data = await apiCall('/settings/kot-printer-settings');
+    const data = await SettingsService.listKotPrinters() as unknown as KotPrinterSetting[];
+      
       const dataWithOutlet = data.map((item: any) => {
         const outlet = outlets.find(o => o.outletid === item.outletid);
         return { ...item, outlet_name: outlet ? outlet.outlet_name : 'Unknown' };
@@ -224,7 +208,7 @@ function SettingsPage() {
 
   const fetchBillPrinters = async () => {
     try {
-     const data = await apiCall('/settings/bill-printer-settings');
+      const data = await SettingsService.listBillPrinters() as unknown as BillPrinterSetting[];
       const dataWithOutlet = data.map((item: any) => {
         const outlet = outlets.find(o => o.outletid === item.outletid);
         return { ...item, outlet_name: outlet ? outlet.outlet_name : 'Unknown' };
@@ -237,7 +221,8 @@ function SettingsPage() {
 
   const fetchLabelPrinters = async () => {
     try {
-      const data = await apiCall('/settings/label-printer');
+       const data = await SettingsService.listLabelPrinters() as unknown as LabelPrinterSetting[];
+      
       const dataWithOutlet = data.map((item: any) => {
         const outlet = outlets.find(o => o.outletid === item.outletid);
         return { ...item, outlet_name: outlet ? outlet.outlet_name : 'Unknown' };
@@ -251,7 +236,7 @@ function SettingsPage() {
   const fetchReportPrinters = async () => {
     try {
       console.log('Fetching report printers...');
-      const data = await apiCall('/settings/report-printer');
+      const data = await SettingsService.listReportPrinters() as unknown as ReportPrinterSetting[];
       console.log('Report printers data:', data);
       setReportPrinters(data);
     } catch (error) {
@@ -262,7 +247,8 @@ function SettingsPage() {
   const fetchDepartmentPrinters = async () => {
     try {
       console.log('Fetching department printers...');
-      const data = await apiCall('/settings/department-wise-printer');
+      const data = await SettingsService.listDepartmentPrinters() as unknown as DepartmentWisePrinter[];
+     
       const dataWithOutlet = data.map((item: any) => {
         const outlet = outlets.find(o => o.outletid === item.outletid);
         return { ...item, outlet_name: outlet ? outlet.outlet_name : 'Unknown' };
@@ -277,7 +263,8 @@ function SettingsPage() {
 
   const fetchTableWiseKot = async () => {
     try {
-      const data = await apiCall('/settings/table-wise-kot');
+      const response = await SettingsService.listTableWiseKot();
+      const data = response.data || [];
       setTableWiseKot(data);
     } catch (error) {
       console.error('Failed to fetch table wise KOT:', error);
@@ -286,7 +273,8 @@ function SettingsPage() {
 
   const fetchTableWiseBill = async () => {
     try {
-      const data = await apiCall('/settings/table-wise-bill');
+      const response = await SettingsService.listTableWiseBill();
+      const data = response.data;
       setTableWiseBill(data);
     } catch (error) {
       console.error('Failed to fetch table wise bill:', error);
@@ -295,7 +283,8 @@ function SettingsPage() {
 
   const fetchCategoryPrinters = async () => {
     try {
-      const data = await apiCall('/settings/category-wise-printer');
+      const response = await SettingsService.listCategoryPrinters();
+      const data = response.data || [];
       setCategoryPrinters(data);
     } catch (error) {
       console.error('Failed to fetch category printers:', error);
@@ -304,7 +293,8 @@ function SettingsPage() {
 
   const fetchKdsUsers = async () => {
     try {
-      const data = await apiCall('/settings/kds-users');
+      const response = await SettingsService.listKdsUsers();
+      const data = response.data || [];
       setKdsUsers(data);
     } catch (error) {
       console.error('Failed to fetch KDS users:', error);
@@ -418,10 +408,7 @@ function SettingsPage() {
         hotelid: user?.hotelid || '1'
       };
 
-      await apiCall('/settings/kot-printer-settings', {
-        method: 'POST',
-        body: JSON.stringify(newSetting)
-      });
+      await SettingsService.createKotPrinter(newSetting);
 
       fetchKotPrinters();
       clearKotForm();
@@ -446,9 +433,7 @@ function SettingsPage() {
     if (!confirm('Are you sure you want to delete this KOT printer setting?')) return;
 
     try {
-      await apiCall(`/settings/kot-printer-settings/${id}`, {
-        method: 'DELETE'
-      });
+      await SettingsService.deleteKotPrinter(id);
       fetchKotPrinters();
     } catch (error) {
       console.error('Failed to delete KOT printer:', error);
@@ -483,7 +468,7 @@ function SettingsPage() {
     try {
       const newSetting = {
         printer_name: printer,
-        
+
 
         enablePrint,
         paper_size: reportPaperSize,
@@ -492,10 +477,7 @@ function SettingsPage() {
         hotelid: user?.hotelid || '1'
       };
 
-      await apiCall('/settings/report-printer', {
-        method: 'POST',
-        body: JSON.stringify(newSetting)
-      });
+      await SettingsService.createReportPrinter(newSetting);
 
       fetchReportPrinters();
       clearReportForm();
@@ -522,9 +504,7 @@ function SettingsPage() {
     if (!confirm('Are you sure you want to delete this report printer setting?')) return;
 
     try {
-      await apiCall(`/settings/report-printer/${id}`, {
-        method: 'DELETE'
-      });
+      await SettingsService.deleteReportPrinter(id);
       fetchReportPrinters();
     } catch (error) {
       console.error('Failed to delete report printer:', error);
@@ -571,10 +551,7 @@ function SettingsPage() {
         hotelid: user?.hotelid || '1'
       };
 
-      await apiCall('/settings/label-printer', {
-        method: 'POST',
-        body: JSON.stringify(newSetting)
-      });
+      await SettingsService.createLabelPrinter(newSetting);
 
       fetchLabelPrinters();
       clearLabelForm();
@@ -601,9 +578,7 @@ function SettingsPage() {
     if (!confirm('Are you sure you want to delete this label printer setting?')) return;
 
     try {
-      await apiCall(`/settings/label-printer/${id}`, {
-        method: 'DELETE'
-      });
+      await SettingsService.deleteLabelPrinter(id);
       fetchLabelPrinters();
     } catch (error) {
       console.error('Failed to delete label printer:', error);
@@ -658,10 +633,7 @@ function SettingsPage() {
         hotelid: user?.hotelid || '1'
       };
 
-      await apiCall('/settings/bill-printer-settings', {
-        method: 'POST',
-        body: JSON.stringify(newSetting)
-      });
+      await SettingsService.createBillPrinter(newSetting);
 
       fetchBillPrinters();
       clearBillForm();
@@ -686,9 +658,7 @@ function SettingsPage() {
     if (!confirm('Are you sure you want to delete this bill printer setting?')) return;
 
     try {
-      await apiCall(`/settings/bill-printer-settings/${id}`, {
-        method: 'DELETE'
-      });
+      await SettingsService.deleteBillPrinter(id);
       fetchBillPrinters();
     } catch (error) {
       console.error('Failed to delete bill printer:', error);
@@ -721,10 +691,7 @@ function SettingsPage() {
         hotelid: user?.hotelid || '1'
       };
 
-      await apiCall('/settings/department-wise-printer', {
-        method: 'POST',
-        body: JSON.stringify(newSetting)
-      });
+      await SettingsService.createDepartmentPrinter(newSetting);
 
       fetchDepartmentPrinters();
       clearDeptForm();
@@ -750,7 +717,7 @@ function SettingsPage() {
     onEdit,
     onDelete
   }: {
-    data: any[];
+    data?: any[];
     columns: string[];
     onEdit: (item: any) => void;
     onDelete: (id: number) => void;
@@ -766,14 +733,14 @@ function SettingsPage() {
           </tr>
         </thead>
         <tbody>
-          {data.length === 0 ? (
+          {(data || []).length === 0 ? (
             <tr>
               <td colSpan={columns.length + 1} className="text-center text-muted">
                 No data available
               </td>
             </tr>
           ) : (
-            data.map((item, index) => (
+            (data || []).map((item, index) => (
               <tr key={item.id || index}>
                 {columns.map((col, colIndex) => (
                   <td key={colIndex}>{item[col.toLowerCase().replace(' ', '_')] || item[col]}</td>
