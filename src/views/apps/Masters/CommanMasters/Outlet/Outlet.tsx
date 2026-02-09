@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Button, Modal, Form, Row, Col, Card, Stack, Pagination, Table } from 'react-bootstrap';
+import { Button, Modal, Form, Row, Col, Card, Stack, Table } from 'react-bootstrap';
 import { QRCodeCanvas } from 'qrcode.react';
 import { toast } from 'react-hot-toast';
 import { ToastContainer } from 'react-toastify';
@@ -20,6 +20,7 @@ import {
 } from '@tanstack/react-table';
 import { Preloader } from '@/components/Misc/Preloader';
 import Swal from 'sweetalert2';
+import PaginationComponent from '@/components/Common/PaginationComponent';
 
 interface warehouseItem {
   warehouse_name: string;
@@ -253,9 +254,6 @@ const OutletList: React.FC = () => {
       setShowSettingsModal(true);
       return;
     }
-
- 
-
     if (outlet && type === 'Edit Item') {
       loadOutletDataIntoForm(outlet);
     } else {
@@ -604,32 +602,6 @@ const OutletList: React.FC = () => {
     handleSearch(value);
   };
 
-  const getPaginationItems = () => {
-    const items = [];
-    const maxPagesToShow = 5;
-    const pageIndex = table.getState().pagination.pageIndex;
-    const totalPages = table.getPageCount();
-    let startPage = Math.max(0, pageIndex - Math.floor(maxPagesToShow / 2));
-    const endPage = Math.min(totalPages - 1, startPage + maxPagesToShow - 1);
-
-    if (endPage - startPage < maxPagesToShow - 1) {
-      startPage = Math.max(0, endPage - maxPagesToShow + 1);
-    }
-
-    for (let i = startPage; i <= endPage; i++) {
-      items.push(
-        <Pagination.Item
-          key={i}
-          active={i === pageIndex}
-          onClick={() => table.setPageIndex(i)}
-        >
-          {i + 1}
-        </Pagination.Item>
-      );
-    }
-    return items;
-  };
-
   return (
     <div className="m-1">
       <ToastContainer />
@@ -694,34 +666,13 @@ const OutletList: React.FC = () => {
                       ))}
                     </tbody>
                   </Table>
-                  <Stack direction="horizontal" className="justify-content-between align-items-center">
-                    <div>
-                      <Form.Select
-                        value={table.getState().pagination.pageSize}
-                        onChange={(e) => table.setPageSize(Number(e.target.value))}
-                        style={{ width: '100px', display: 'inline-block', marginRight: '10px' }}
-                      >
-                        <option value="5">5</option>
-                        <option value="10">10</option>
-                        <option value="20">20</option>
-                        <option value="50">50</option>
-                      </Form.Select>
-                      <span className="text-muted">
-                        Showing {table.getRowModel().rows.length} of {outlets.length} entries
-                      </span>
-                    </div>
-                    <Pagination>
-                      <Pagination.Prev
-                        onClick={() => table.previousPage()}
-                        disabled={!table.getCanPreviousPage()}
-                      />
-                      {getPaginationItems()}
-                      <Pagination.Next
-                        onClick={() => table.nextPage()}
-                        disabled={!table.getCanNextPage()}
-                      />
-                    </Pagination>
-                  </Stack>
+                  <PaginationComponent
+                    totalItems={outlets.length}
+                    pageSize={table.getState().pagination.pageSize}
+                    currentPage={table.getState().pagination.pageIndex + 1}
+                    onPageChange={(page) => table.setPageIndex(page - 1)}
+                    onPageSizeChange={(size) => table.setPageSize(size)}
+                  />
                 </>
               )}
             </div>
@@ -1046,9 +997,7 @@ const OutletList: React.FC = () => {
                       onChange={(e) => setOutletCode(e.target.value)}
                     />
                   </Form.Group>
-                </Col>
-                
-                
+                </Col>             
               </Row>
               <Row className="mb-3">
                 <Col md={12}>
