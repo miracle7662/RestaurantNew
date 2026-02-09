@@ -211,6 +211,10 @@ const EditSettlementPage: React.FC = () => {
     }
   };
 
+
+
+
+
   // const handleDeleteSettlement = async (id: number) => {
   //   if (!window.confirm('Delete this settlement permanently?')) return;
 
