@@ -687,6 +687,7 @@ const BrandList: React.FC = () => {
         show={showAddBrandModal}
         onHide={() => setShowAddBrandModal(false)}
         onSuccess={fetchHotelMasters}
+        user={user}
       />
       <HotelMastersModal
         show={showEditBrandModal}
@@ -694,6 +695,7 @@ const BrandList: React.FC = () => {
         initialData={selectedHotelMasters}
         onSuccess={fetchHotelMasters}
         onUpdateSelectedHotelMasters={setSelectedHotelMasters}
+        user={user}
       />
       <BannerManagementModal show={showBannerModal} onHide={() => setShowBannerModal(false)} brandId={selectedBrand?.id || ''} />
       <SettingsModal show={showSettingsModal} onHide={() => setShowSettingsModal(false)} brandId={selectedBrand?.id || ''} />
@@ -721,6 +723,7 @@ interface HotelMastersModalProps {
   onSuccess: () => void;
   initialData?: HotelMastersItem | null;           // undefined → Add mode, object → Edit mode
   onUpdateSelectedHotelMasters?: (updated: HotelMastersItem) => void; // only needed in edit mode
+  user?: any; // Add user prop
 }
 
 const HotelMastersModal: React.FC<HotelMastersModalProps> = ({
@@ -729,6 +732,7 @@ const HotelMastersModal: React.FC<HotelMastersModalProps> = ({
   onSuccess,
   initialData,
   onUpdateSelectedHotelMasters,
+  user,
 }) => {
   const isEditMode = !!initialData;
 
@@ -828,6 +832,7 @@ const HotelMastersModal: React.FC<HotelMastersModalProps> = ({
     try {
       const statusValue = status === 'Active' ? 0 : 1;
       const currentDate = new Date().toISOString();
+      const userId = user?.id || 1;
 
       const payload: any = {
         hotel_name,
@@ -854,14 +859,14 @@ const HotelMastersModal: React.FC<HotelMastersModalProps> = ({
         if (!hotelid) throw new Error('Missing hotelid in edit mode');
 
         payload.hotelid = hotelid;
-        payload.updated_by_id = 2; // or get from auth context
+        payload.updated_by_id = userId; // use actual user ID
 
         console.log('Updating HotelMasters:', payload);
 
         await BrandService.updateBrand(hotelid, payload);
       } else {
         // === ADD ===
-        payload.created_by_id = 1; // or from auth
+        payload.created_by_id = userId; // use actual user ID
 
         console.log('Creating HotelMasters:', payload);
 
