@@ -231,12 +231,14 @@ const TableManagement: React.FC = () => {
     getFilteredRowModel: getFilteredRowModel(),
   });
 
-  // Handle search input
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setSearchTerm(value);
-    fetchTableManagement(value);
-  };
+  // Handle search input with debouncing
+  const handleSearch = useCallback(
+    debounce((value: string) => {
+      setSearchTerm(value);
+      fetchTableManagement(value);
+    }, 300),
+    []
+  );
 
   // Handle outlet filter change
   const handleOutletFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -551,7 +553,7 @@ const TableManagement: React.FC = () => {
                 type="text"
                 className="form-control rounded-pill"
                 placeholder="Search..."
-                onChange={handleSearch}
+                onChange={(e) => handleSearch(e.target.value)}
                 style={{ width: '350px', borderColor: '#ccc', borderWidth: '2px' }}
               />
               <select
