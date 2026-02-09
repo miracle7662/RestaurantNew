@@ -118,11 +118,11 @@ const TableManagement: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchTableManagement(searchTerm);
+    fetchTableManagement();
     fetchBrands(user, setBrands);
     fetchOutletsForDropdown(user, setOutlets, setLoading);
     fetchDepartments(); // Fetch departments on component mount
-  }, [user, searchTerm]);
+  }, [user]);
 
   // Define table columns
   const columns = useMemo<ColumnDef<TableItem>[]>(
@@ -231,30 +231,12 @@ const TableManagement: React.FC = () => {
     getFilteredRowModel: getFilteredRowModel(),
   });
 
-  // Handle search and outlet filter
-  const handleSearch = useCallback(
-    debounce((value: string) => {
-      setSearchTerm(value);
-      let filtered = [...tableItems];
-
-      // Apply outlet filter first if selected
-      if (selectedOutletId !== null && selectedOutletId !== undefined) {
-        filtered = filtered.filter((item) => Number(item.outletid) === selectedOutletId);
-      }
-
-      // Apply search term filter
-      if (value) {
-        filtered = filtered.filter((item) =>
-          item.table_name.toLowerCase().includes(value.toLowerCase()) ||
-          item.hotel_name.toLowerCase().includes(value.toLowerCase()) ||
-          item.outlet_name.toLowerCase().includes(value.toLowerCase())
-        );
-      }
-
-      setFilteredTableItems(filtered);
-    }, 300),
-    [tableItems, selectedOutletId]
-  );
+  // Handle search input
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+    fetchTableManagement(value);
+  };
 
   // Handle outlet filter change
   const handleOutletFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -270,9 +252,9 @@ const TableManagement: React.FC = () => {
     // Apply search term filter if any
     if (searchTerm) {
       filtered = filtered.filter((item) =>
-        item.table_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.hotel_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.outlet_name.toLowerCase().includes(searchTerm.toLowerCase())
+        (item.table_name && item.table_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (item.hotel_name && item.hotel_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (item.outlet_name && item.outlet_name.toLowerCase().includes(searchTerm.toLowerCase()))
       );
     }
 
@@ -569,7 +551,7 @@ const TableManagement: React.FC = () => {
                 type="text"
                 className="form-control rounded-pill"
                 placeholder="Search..."
-                onChange={(e) => handleSearch(e.target.value)}
+                onChange={handleSearch}
                 style={{ width: '350px', borderColor: '#ccc', borderWidth: '2px' }}
               />
               <select

@@ -3,17 +3,26 @@ const db = require("../config/db"); // SQLite connection
 // Get all table records with search and pagination
 exports.getAllTables = (req, res) => {
   try {
-    const sql = `
+    const { search } = req.query;
+    let sql = `
       SELECT
         t.*,
         d.department_name,
         o.outlet_name,
+        h.hotel_name,
         (SELECT PAX FROM TAxnTrnbill WHERE TableID = t.tableid AND isBilled = 0 ORDER BY TxnID DESC LIMIT 1) as pax
       FROM msttablemanagement t
       LEFT JOIN msttable_department d ON t.departmentid = d.departmentid
       LEFT JOIN mst_outlets o ON t.outletid = o.outletid
+      LEFT JOIN msthotelmasters h ON t.hotelid = h.hotelid
     `;
-    const rows = db.prepare(sql).all();
+    let params = [];
+    if (search) {
+      sql += ` WHERE (t.table_name LIKE ? OR o.outlet_name LIKE ? OR h.hotel_name LIKE ?)`;
+      const searchParam = `%${search}%`;
+      params = [searchParam, searchParam, searchParam];
+    }
+    const rows = db.prepare(sql).all(...params);
 
     res.json({
       success: true,
