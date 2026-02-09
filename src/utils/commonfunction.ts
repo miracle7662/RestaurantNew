@@ -262,9 +262,13 @@ export const fetchHotelType = async (
     console.log('Fetched hotel types:', data)
     setHoteltype(data)
 
-    // Set default selection if none already selected
-    if (data.length > 0 && !currentHoteltypeid) {
-      setHoteltypeid(data[0].id)
+    // Set selection: use current if provided, otherwise default to first
+    if (data.length > 0) {
+      if (currentHoteltypeid) {
+        setHoteltypeid(currentHoteltypeid)
+      } else {
+        setHoteltypeid(data[0].hoteltypeid)
+      }
     }
   } catch (err) {
     toast.error('Failed to fetch hotel types')

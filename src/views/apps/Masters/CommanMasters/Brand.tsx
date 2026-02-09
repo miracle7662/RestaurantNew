@@ -786,11 +786,11 @@ const HotelMastersModal: React.FC<HotelMastersModalProps> = ({
   // Load dropdowns when modal opens
   useEffect(() => {
     if (show) {
-      fetchMarkets(setMarkets, setMarketId, marketid ?? undefined);
-      fetchStates(setStates, setStateId, stateid ?? undefined);
-      fetchHotelType(setHoteltype, setHoteltypeid, hoteltypeid ?? undefined);
+      fetchMarkets(setMarkets, setMarketId, initialData ? Number(initialData.marketid) : undefined);
+      fetchStates(setStates, setStateId, initialData ? Number(initialData.stateid) : undefined);
+      fetchHotelType(setHoteltype, setHoteltypeid, initialData ? Number(initialData.hoteltypeid) : undefined);
     }
-  }, [show]);
+  }, [show, initialData]);
 
   // Load cities when state changes
   useEffect(() => {
