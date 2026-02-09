@@ -63,7 +63,7 @@ const KitchenMainGroup: React.FC = () => {
     try {
       setLoading(true);
       const data = await KitchenMainGroupService.list() as unknown as KitchenMainGroupItem[];
-      console.log('Fetched KitchenMainGroup:', data);
+      // console.log('Fetched KitchenMainGroup:', data);
       setKitchenMainGroupItem(data);
     } catch (err) {
       toast.error('Failed to fetch KitchenMainGroup');
@@ -96,7 +96,7 @@ const KitchenMainGroup: React.FC = () => {
         size: 150,
         cell: (info) => {
           const statusValue = info.getValue<number>();
-          console.log('Status value:', statusValue, typeof statusValue);
+          // console.log('Status value:', statusValue, typeof statusValue);
           return <div style={{ textAlign: 'center' }}>{getStatusBadge(statusValue)}</div>;
         },
       },
@@ -226,7 +226,7 @@ const KitchenMainGroup: React.FC = () => {
       if (isEditMode && KitchenMainGroup) {
         setKitchenMainGroupName(KitchenMainGroup.Kitchen_main_Group);
         setStatus(String(KitchenMainGroup.status) === '0' ? 'Active' : 'Inactive');
-        console.log('Edit KitchenMainGroup status:', KitchenMainGroup.status, typeof KitchenMainGroup.status);
+        // console.log('Edit KitchenMainGroup status:', KitchenMainGroup.status, typeof KitchenMainGroup.status);
       } else {
         setKitchenMainGroupName('');
         setStatus('Active');
@@ -265,7 +265,7 @@ const KitchenMainGroup: React.FC = () => {
                 marketid: marketId,
               }),
         };
-        console.log('Sending to backend:', payload);
+        // console.log('Sending to backend:', payload);
 
         if (isEditMode) {
           await KitchenMainGroupService.update(KitchenMainGroup!.kitchenmaingroupid, payload);
@@ -290,7 +290,7 @@ const KitchenMainGroup: React.FC = () => {
         onSuccess();
         onHide();
       } catch (err) {
-        console.error(`${isEditMode ? 'Edit' : 'Add'} KitchenMainGroup error:`, err);
+        // console.error(`${isEditMode ? 'Edit' : 'Add'} KitchenMainGroup error:`, err);
         toast.error('Something went wrong');
       } finally {
         setLoading(false);

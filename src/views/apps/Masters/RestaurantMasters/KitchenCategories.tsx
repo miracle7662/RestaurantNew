@@ -80,7 +80,7 @@ const KitchenCategory: React.FC = () => {
     try {
       setLoading(true);
       const data = await KitchenCategoryService.list() as unknown as KitchenCategoryItem[];
-      console.log('Fetched KitchenCategory:', data);
+      // console.log('Fetched KitchenCategory:', data);
       // Ensure status is treated as a number
       const formattedData = data.map((item: any) => ({
         ...item,
@@ -372,7 +372,7 @@ const KitchenCategory: React.FC = () => {
                 marketid: marketId,
               }),
         };
-        console.log('Sending to backend:', payload);
+        // console.log('Sending to backend:', payload);
         const res = KitchenCategory
           ? await KitchenCategoryService.update(KitchenCategory.kitchencategoryid, payload)
           : await KitchenCategoryService.create(payload);
@@ -406,7 +406,7 @@ const KitchenCategory: React.FC = () => {
         onSuccess();
         onHide();
       } catch (err) {
-        console.error(`${KitchenCategory ? 'Edit' : 'Add'} KitchenCategory error:`, err);
+        // console.error(`${KitchenCategory ? 'Edit' : 'Add'} KitchenCategory error:`, err);
         toast.error('Something went wrong');
       } finally {
         setLoading(false);

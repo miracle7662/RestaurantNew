@@ -82,7 +82,7 @@ const KitchenSubCategory: React.FC = () => {
   const [sidebarLeftToggle, setSidebarLeftToggle] = useState<boolean>(false);
   const [sidebarMiniToggle, setSidebarMiniToggle] = useState<boolean>(false);
   const [containerToggle, setContainerToggle] = useState<boolean>(false);
- 
+
 
   const fetchKitchenSubCategory = async () => {
     setLoading(true);
@@ -189,20 +189,20 @@ const KitchenSubCategory: React.FC = () => {
     []
   );
 
-// Update the handleSearch function
-const handleSearch = useCallback(
-  (value: string) => {
-    setSearchTerm(value); // Update searchTerm immediately
-    const debouncedFilter = debounce((searchValue: string) => {
-      const filtered = kitchenSubCategoryItem.filter((item) =>
-        item.Kitchen_sub_category.toLowerCase().includes(searchValue.toLowerCase())
-      );
-      setFilteredKitchenSubCategory(filtered);
-    }, 300);
-    debouncedFilter(value);
-  },
-  [kitchenSubCategoryItem]
-);
+  // Update the handleSearch function
+  const handleSearch = useCallback(
+    (value: string) => {
+      setSearchTerm(value); // Update searchTerm immediately
+      const debouncedFilter = debounce((searchValue: string) => {
+        const filtered = kitchenSubCategoryItem.filter((item) =>
+          item.Kitchen_sub_category.toLowerCase().includes(searchValue.toLowerCase())
+        );
+        setFilteredKitchenSubCategory(filtered);
+      }, 300);
+      debouncedFilter(value);
+    },
+    [kitchenSubCategoryItem]
+  );
 
   // Category change handler
   const handleCategoryChange = useCallback(
@@ -249,7 +249,7 @@ const handleSearch = useCallback(
         await fetchKitchenSubCategory();
       } catch (error) {
         toast.error('Failed to delete KitchenSubCategory');
-        console.error('Deletion error:', error);
+        // console.error('Deletion error:', error);
       }
     }
   }, [selectedKitchenSubCategory, fetchKitchenSubCategory]);
@@ -599,7 +599,7 @@ const handleSearch = useCallback(
         kitchenSubCategory={selectedKitchenSubCategory}
         onSuccess={fetchKitchenSubCategory}
         onUpdateSelectedKitchenSubCategory={(updatedKitchenSubCategory) => setSelectedKitchenSubCategory(updatedKitchenSubCategory)}
-       
+
       />
     </>
   );
@@ -659,35 +659,35 @@ const KitchenSubCategoryModal: React.FC<KitchenSubCategoryModalProps> = ({
       toast.error('All fields are required');
       return;
     }
-       // Use authenticated user ID and context
-      const hotelId = user.hotelid || '1';
-      const marketId = user.marketid || '1';
+    // Use authenticated user ID and context
+    const hotelId = user.hotelid || '1';
+    const marketId = user.marketid || '1';
 
 
     setLoading(true);
     try {
       const statusValue = status === 'Active' ? 0 : 1;
       const currentDate = new Date().toISOString();
-     const payload = {
-  Kitchen_sub_category: kitchenSubCategoryName,
-  kitchencategoryid,
-  kitchenmaingroupid,
-  status: statusValue,
-  ...(isEditMode
-    ? {
-        updated_by_id: user?.id ?? 1,
-        updated_date: currentDate,
-        hotelid: kitchenSubCategory!.hotelid || hotelId,
-        marketid: kitchenSubCategory!.marketid || marketId
-      }
-    : {
-        created_by_id: user?.id ?? 1,
-        created_date: currentDate,
-        hotelid: hotelId,
-        marketid: marketId,
-      }),
-};
-      console.log('Sending to backend:', payload);
+      const payload = {
+        Kitchen_sub_category: kitchenSubCategoryName,
+        kitchencategoryid,
+        kitchenmaingroupid,
+        status: statusValue,
+        ...(isEditMode
+          ? {
+            updated_by_id: user?.id ?? 1,
+            updated_date: currentDate,
+            hotelid: kitchenSubCategory!.hotelid || hotelId,
+            marketid: kitchenSubCategory!.marketid || marketId
+          }
+          : {
+            created_by_id: user?.id ?? 1,
+            created_date: currentDate,
+            hotelid: hotelId,
+            marketid: marketId,
+          }),
+      };
+      // console.log('Sending to backend:', payload);
 
       const res = isEditMode
         ? await KitchenSubCategoryService.update(kitchenSubCategory!.kitchensubcategoryid, payload)

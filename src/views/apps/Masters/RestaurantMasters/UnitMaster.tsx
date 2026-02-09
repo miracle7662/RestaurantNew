@@ -65,7 +65,7 @@ const Unitmaster: React.FC = () => {
     try {
       setLoading(true);
       const data = await UnitmasterService.list() as unknown as unitmasterItem[];
-      console.log('Fetched unitmaster:', data);
+      // console.log('Fetched unitmaster:', data);
       setunitmasterItem(data);
     } catch (err) {
       toast.error('Failed to fetch Unitmaster');
@@ -229,7 +229,7 @@ const Unitmaster: React.FC = () => {
       if (unitmaster && isEditMode) {
         setunit_name(unitmaster.unit_name);
         setStatus(String(unitmaster.status) === '0' ? 'Active' : 'Inactive');
-        console.log('Edit unitmaster status:', unitmaster.status, typeof unitmaster.status);
+        // console.log('Edit unitmaster status:', unitmaster.status, typeof unitmaster.status);
       } else {
         setunit_name('');
         setStatus('Active');
@@ -270,7 +270,7 @@ const Unitmaster: React.FC = () => {
                 marketid: marketId,
               }),
         };
-        console.log('Sending to backend:', payload);
+        // console.log('Sending to backend:', payload);
 
         try {
           if (isEditMode) {
@@ -295,11 +295,11 @@ const Unitmaster: React.FC = () => {
           onSuccess();
           onHide();
         } catch (error: any) {
-          console.log('Backend error:', error);
+          // console.log('Backend error:', error);
           toast.error(`Failed to ${isEditMode ? 'update' : 'add'} Unitmaster`);
         }
       } catch (err) {
-        console.error(`${isEditMode ? 'Edit' : 'Add'} Unitmaster error:`, err);
+        // console.error(`${isEditMode ? 'Edit' : 'Add'} Unitmaster error:`, err);
         toast.error('Something went wrong');
       } finally {
         setLoading(false);
