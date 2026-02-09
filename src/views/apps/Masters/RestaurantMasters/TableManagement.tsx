@@ -349,7 +349,7 @@ const TableManagement: React.FC = () => {
 
       setLoading(true);
       try {
-        const statusValue = status === 'Active' ? 1 : 0;
+        const statusValue = status === 'Active' ? 1 : 11;
         const payload = {
           table_name,
           outletid: outletid.toString(),

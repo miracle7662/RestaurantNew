@@ -88,8 +88,7 @@ const City: React.FC = () => {
   const [sidebarLeftToggle, setSidebarLeftToggle] = useState<boolean>(false);
   const [sidebarMiniToggle, setSidebarMiniToggle] = useState<boolean>(false);
   const [containerToggle, setContainerToggle] = useState<boolean>(false);
-  const addModalRef = useRef<CityModalRef>(null);
-  const editModalRef = useRef<CityModalRef>(null);
+  
 
   // Fetch cities from API
   const fetchCities = async () => {
