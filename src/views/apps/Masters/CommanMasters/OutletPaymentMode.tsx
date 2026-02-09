@@ -48,7 +48,7 @@ const fetchPaymentTypes = async () => {
     setPaymentTypes(data);
     setAvailablePaymentModes(data.filter((type) => type && type.mode_name).map((type) => type.mode_name));
   } catch (error: any) {
-    console.error('Error fetching payment types:', error);
+    // console.error('Error fetching payment types:', error);
     toast.error('Failed to fetch payment types');
   }
 };
@@ -69,7 +69,7 @@ const fetchPaymentModes = async () => {
         }))
     );
   } catch (error: any) {
-    console.error('Error fetching payment modes:', error);
+    // console.error('Error fetching payment modes:', error);
     toast.error('Failed to fetch payment modes');
   }
 };
@@ -119,14 +119,14 @@ const fetchPaymentModes = async () => {
         mode_name: modeName,
         is_active: 1,
       };
-      console.log('POST request payload:', payload);
+      // console.log('POST request payload:', payload);
       const response = await OutletPaymentModeService.create(payload);
-      console.log('POST response:', response);
+      // console.log('POST response:', response);
       setPaymentModes((prev) => [...prev, response.data]);
       setSelectedModesLeft((prev) => prev.filter((name) => name !== modeName));
       await fetchPaymentModes();
     } catch (error: any) {
-      console.error('Full error object:', JSON.stringify(error, null, 2));
+      // console.error('Full error object:', JSON.stringify(error, null, 2));
       const errorMessage =
         error.response?.data?.error ||
         error.message ||
@@ -154,7 +154,7 @@ const fetchPaymentModes = async () => {
       setSelectedModesRight((prev) => prev.filter((mid) => mid !== modeId.toString()));
       await fetchPaymentModes();
     } catch (error: any) {
-      console.error('Error deleting payment mode:', JSON.stringify(error, null, 2));
+      // console.error('Error deleting payment mode:', JSON.stringify(error, null, 2));
       const errorMessage =
         error.response?.data?.error ||
         error.message ||

@@ -64,7 +64,7 @@ const Designation: React.FC = () => {
     try {
       setLoading(true);
       const data = await OutletDesignationService.list() as unknown as DesignationItem[];
-      console.log('Fetched Designation:', data);
+      // console.log('Fetched Designation:', data);
       setDesignationItem(data);
     } catch (err) {
       toast.error('Failed to fetch Designation');
@@ -228,7 +228,7 @@ const Designation: React.FC = () => {
       if (designation && isEditMode) {
         setDesignationName(designation.Designation);
         setStatus(String(designation.status) === '0' ? 'Active' : 'Inactive');
-        console.log('Edit designation status:', designation.status, typeof designation.status);
+        // console.log('Edit designation status:', designation.status, typeof designation.status);
       } else {
         setDesignationName('');
         setStatus('Active');
@@ -266,7 +266,7 @@ const Designation: React.FC = () => {
                 marketid: marketId,
               }),
         };
-        console.log('Sending to backend:', payload);
+        // console.log('Sending to backend:', payload);
 
         if (isEditMode) {
           await OutletDesignationService.update(designation!.designationid, payload);
@@ -291,7 +291,7 @@ const Designation: React.FC = () => {
         onSuccess();
         onHide();
       } catch (err) {
-        console.error(`${isEditMode ? 'Edit' : 'Add'} Designation error:`, err);
+        // console.error(`${isEditMode ? 'Edit' : 'Add'} Designation error:`, err);
         toast.error('Something went wrong');
       } finally {
         setLoading(false);

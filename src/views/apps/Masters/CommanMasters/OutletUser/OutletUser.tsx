@@ -48,7 +48,7 @@ const OutletUserList: React.FC = () => {
   const [status, setStatus] = useState<boolean>(true);
 
   useEffect(() => {
-    console.log('Current user in OutletUserList:', user);
+    // console.log('Current user in OutletUserList:', user);
     fetchOutletUsers();
     if (user?.role_level === 'superadmin' || user?.role_level === 'brand_admin') {
       fetchHotelAdmins();
@@ -58,15 +58,15 @@ const OutletUserList: React.FC = () => {
 
   const fetchMasterData = async () => {
     try {
-      console.log('Fetching master data...');
+      // console.log('Fetching master data...');
       await fetchOutlets(user, setOutlets, setLoading);
-      console.log('Fetched outlets:', outlets);
+      // console.log('Fetched outlets:', outlets);
       fetchDesignation(setDesignations, setDesignationId);
       fetchUserType(setUserTypes, setUserTypeId);
       fetchShiftTypes(setShiftTypes, setShiftTime);
       fetchWarehouses(setWarehouses, setLoading);
     } catch (error) {
-      console.error('Error fetching master data:', error);
+      // console.error('Error fetching master data:', error);
       toast.error('Failed to fetch master data. Please check if the backend server is running.');
     }
   };
@@ -74,7 +74,7 @@ const OutletUserList: React.FC = () => {
   const fetchOutletUsers = async () => {
     try {
       setLoading(true);
-      console.log('Fetching outlet users...');
+      // console.log('Fetching outlet users...');
       const params: any = {
         currentUserId: user?.userid,
         roleLevel: user?.role_level,
@@ -84,16 +84,16 @@ const OutletUserList: React.FC = () => {
         params.created_by_id = user.userid;
       }
       const response = await outletUserService.getOutletUsers(params);
-      console.log('Outlet users response:', response);
+      // console.log('Outlet users response:', response);
       if (response && response.data) {
         const outletUsersOnly = response.data.filter((user: any) => user.role_level === 'outlet_user');
         setOutletUsers(outletUsersOnly);
       } else {
-        console.error('Invalid response format:', response);
+        // console.error('Invalid response format:', response);
         toast.error('Invalid response from server');
       }
     } catch (error) {
-      console.error('Error fetching outlet users:', error);
+      // console.error('Error fetching outlet users:', error);
       toast.error('Failed to fetch outlet users. Please check if the backend server is running.');
     } finally {
       setLoading(false);
@@ -102,20 +102,20 @@ const OutletUserList: React.FC = () => {
 
   const fetchHotelAdmins = async () => {
     try {
-      console.log('Fetching hotel admins...');
+      // console.log('Fetching hotel admins...');
       const response = await outletUserService.getHotelAdmins({
         currentUserId: user?.userid,
         roleLevel: user?.role_level,
         hotelid: user?.hotelid
       });
-      console.log('Hotel admins response:', response);
+      // console.log('Hotel admins response:', response);
       if (response && response.data) {
         setHotelAdmins(response.data);
       } else {
-        console.error('Invalid hotel admins response format:', response);
+        // console.error('Invalid hotel admins response format:', response);
       }
     } catch (error) {
-      console.error('Error fetching hotel admins:', error);
+      // console.error('Error fetching hotel admins:', error);
       toast.error('Failed to fetch hotel admins. Please check if the backend server is running.');
     }
   };
@@ -208,7 +208,7 @@ const OutletUserList: React.FC = () => {
         toast.success('Outlet user deleted successfully!');
         fetchOutletUsers();
       } catch (error) {
-        console.error('Error deleting outlet user:', error);
+        // console.error('Error deleting outlet user:', error);
         toast.error('Failed to delete outlet user');
       }
     }
@@ -220,13 +220,13 @@ const OutletUserList: React.FC = () => {
   };
 
   const handleModalSubmit = async () => {
-    console.log('Starting handleModalSubmit...', { modalType, user });
-    console.log('Form data:', { username, email, password, fullName, selectedOutlet });
+    // console.log('Starting handleModalSubmit...', { modalType, user });
+    // console.log('Form data:', { username, email, password, fullName, selectedOutlet });
 
     if (modalType === 'Edit Hotel Admin') {
       if (!fullName) {
         toast.error('Please enter full name');
-        console.warn('Validation failed: Full name is missing');
+        // console.warn('Validation failed: Full name is missing');
         return;
       }
 
@@ -237,52 +237,52 @@ const OutletUserList: React.FC = () => {
       };
 
       try {
-        console.log('Updating hotel admin:', { userid: selectedHotelAdmin?.userid, data: hotelAdminData });
+        // console.log('Updating hotel admin:', { userid: selectedHotelAdmin?.userid, data: hotelAdminData });
         if (selectedHotelAdmin) {
           const response = await outletUserService.updateHotelAdmin(selectedHotelAdmin.userid!, hotelAdminData);
-          console.log('Update hotel admin response:', response.data);
+          // console.log('Update hotel admin response:', response.data);
           toast.success('Hotel admin updated successfully!');
         }
         fetchHotelAdmins();
         handleCloseModal();
       } catch (error: any) {
-        console.error('Error updating hotel admin:', error, error.response?.data);
+        // console.error('Error updating hotel admin:', error, error.response?.data);
         toast.error(error.response?.data?.message || 'Failed to update hotel admin');
       }
     } else {
       // Validate required fields
       if (!username || username.length < 3) {
         toast.error('Please enter a valid username (minimum 3 characters)');
-        console.warn('Validation failed: Invalid username', { username });
+        // console.warn('Validation failed: Invalid username', { username });
         return;
       }
       if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
         toast.error('Please enter a valid email address');
-        console.warn('Validation failed: Invalid email', { email });
+        // console.warn('Validation failed: Invalid email', { email });
         return;
       }
       if (!password && modalType === 'Add Outlet User') {
         toast.error('Please enter a password');
-        console.warn('Validation failed: Password is missing');
+        // console.warn('Validation failed: Password is missing');
         return;
       }
       if (!fullName || fullName.length < 2) {
         toast.error('Please enter a valid full name (minimum 2 characters)');
-        console.warn('Validation failed: Invalid full name', { fullName });
+        // console.warn('Validation failed: Invalid full name', { fullName });
         return;
       }
       if (!selectedOutlet) {
         toast.error('Please select an outlet');
-        console.warn('Validation failed: Outlet is not selected', { selectedOutlet });
+        // console.warn('Validation failed: Outlet is not selected', { selectedOutlet });
         return;
       }
 
       const parentUserId = user?.id || 1;
       const createdById = user?.id || 1;
-      console.log('Using parent_user_id:', parentUserId, 'created_by_id:', createdById);
+      // console.log('Using parent_user_id:', parentUserId, 'created_by_id:', createdById);
       if (!parentUserId || !createdById) {
         toast.error('Unable to determine user identity. Please ensure you are logged in.');
-        console.error('Validation failed: Invalid user identity', { user, parentUserId, createdById });
+        // console.error('Validation failed: Invalid user identity', { user, parentUserId, createdById });
         return;
       }
 
@@ -317,27 +317,27 @@ const OutletUserList: React.FC = () => {
         created_by_id: createdById,
       };
 
-      console.log('Submitting userData to backend:', JSON.stringify(userData, null, 2));
+      // console.log('Submitting userData to backend:', JSON.stringify(userData, null, 2));
 
       try {
         if (modalType === 'Edit Outlet User' && selectedUser) {
           const response = await outletUserService.updateOutletUser(selectedUser.userid!, userData);
-          console.log('Update response:', response.data);
+          // console.log('Update response:', response.data);
           toast.success('Outlet user updated successfully!');
         } else {
           const response = await outletUserService.createOutletUser(userData);
-          console.log('Create response:', response.data);
+          // console.log('Create response:', response.data);
           toast.success('Outlet user added successfully!');
         }
         fetchOutletUsers();
         handleCloseModal();
       } catch (error: any) {
-        console.error('Full error object:', error);
+        // console.error('Full error object:', error);
         const status = error.response?.status;
         const errorData = error.response?.data || error.message;
         const errorMessage = errorData?.message || (modalType === 'Edit Outlet User' ? 'Failed to update outlet user' : 'Failed to add outlet user');
         const invalidOutletId = errorData?.invalidOutletId || [];
-        console.log('Error details:', { status, message: errorMessage, invalidOutletId, sentOutletId: selectedOutlet, response: errorData });
+        // console.log('Error details:', { status, message: errorMessage, invalidOutletId, sentOutletId: selectedOutlet, response: errorData });
         toast.error(`${errorMessage}${invalidOutletId.length > 0 ? ` (Invalid Outlet IDs: ${invalidOutletId.join(', ')})` : ''}`);
       }
     }

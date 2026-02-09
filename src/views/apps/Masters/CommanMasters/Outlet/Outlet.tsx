@@ -114,23 +114,23 @@ const OutletList: React.FC = () => {
   };
 
   useEffect(() => {
-    console.log('OutletList component mounted');
-    console.log('Current user in OutletList:', user);
+    // console.log('OutletList component mounted');
+    // console.log('Current user in OutletList:', user);
 
     if (user) {
-      console.log('User authenticated, fetching data...');
+      // console.log('User authenticated, fetching data...');
       fetchOutlets();
       fetchMasterData();
       fetchBrands(user, setBrands);
       fetchWarehouses();
     } else {
-      console.log('User not authenticated, cannot fetch data');
+      // console.log('User not authenticated, cannot fetch data');
     }
   }, [user]);
 
   const fetchMasterData = async () => {
     try {
-      console.log('Fetching master data...');
+      // console.log('Fetching master data...');
       fetchCountries(setCountries, setCountryId, countryId || undefined);
 
       const startTimesResponse = await masterDataService.getStartTimes();
@@ -143,7 +143,7 @@ const OutletList: React.FC = () => {
         setCloseTimes(closeTimesResponse.data);
       }
     } catch (error) {
-      console.error('Error fetching master data:', error);
+      // console.error('Error fetching master data:', error);
       toast.error('Failed to fetch master data. Please check if the backend server is running.');
     }
   };
@@ -151,15 +151,15 @@ const OutletList: React.FC = () => {
   const fetchTimezones = async (countryCode: string) => {
     try {
       setLoadingTimezones(true);
-      console.log('Fetching timezones for country:', countryCode);
+      // console.log('Fetching timezones for country:', countryCode);
       const timezonesResponse = await masterDataService.getTimezones(countryCode);
       if (timezonesResponse && timezonesResponse.data) {
-        console.log('Available timezones for', countryCode, ':', timezonesResponse.data);
+        // console.log('Available timezones for', countryCode, ':', timezonesResponse.data);
         setTimezones(timezonesResponse.data);
         setSelectedTimezone(null);
       }
     } catch (error) {
-      console.error('Error fetching timezones:', error);
+      // console.error('Error fetching timezones:', error);
       toast.error('Failed to fetch timezones for selected country.');
     } finally {
       setLoadingTimezones(false);
@@ -169,7 +169,7 @@ const OutletList: React.FC = () => {
   const fetchOutlets = async () => {
     try {
       setLoading(true);
-      console.log('Fetching outlets...');
+      // console.log('Fetching outlets...');
       const params: any = {
         role_level: user?.role_level,
         hotelid: user?.hotelid,
@@ -179,7 +179,7 @@ const OutletList: React.FC = () => {
         params.created_by_id = user.userid;
       }
 
-      console.log('Fetching outlets with params:', params);
+      // console.log('Fetching outlets with params:', params);
       console.log('Current user details:', {
         userid: user?.userid,
         role_level: user?.role_level,
@@ -187,19 +187,19 @@ const OutletList: React.FC = () => {
       });
 
       const response = await outletService.getOutlets(params);
-      console.log("Outlet response data:", response.data); // Debugging log
-      console.log('Outlet response:', response);
+      // console.log("Outlet response data:", response.data); // Debugging log
+      // console.log('Outlet response:', response);
       if (response && response.data) {
         const sortedOutlets = response.data.sort((a: OutletData, b: OutletData) => {
           return new Date(a.registered_at || '').getTime() - new Date(b.registered_at || '').getTime();
         });
         setOutlets(sortedOutlets);
       } else {
-        console.error('Invalid response format:', response);
+        // console.error('Invalid response format:', response);
         toast.error('Invalid response from server');
       }
     } catch (error) {
-      console.error('Error fetching outlets:', error);
+      // console.error('Error fetching outlets:', error);
       toast.error('Failed to fetch outlets. Please check if the backend server is running.');
     } finally {
       setLoading(false);
@@ -329,7 +329,7 @@ const OutletList: React.FC = () => {
         toast.success('Outlet deleted successfully!');
         fetchOutlets();
       } catch (error) {
-        console.error('Error deleting outlet:', error);
+        // console.error('Error deleting outlet:', error);
         toast.error('Failed to delete outlet');
       }
     }
@@ -340,7 +340,7 @@ const OutletList: React.FC = () => {
       await fetchOutlets(); // Refresh the outlet list after updating settings
       toast.success('Outlet settings updated and list refreshed!');
     } catch (error) {
-      console.error('Error refreshing outlets after update:', error);
+      // console.error('Error refreshing outlets after update:', error);
       toast.error('Failed to refresh outlet list');
     }
   };
@@ -432,7 +432,7 @@ const OutletList: React.FC = () => {
       fetchOutlets();
       handleCloseModal();
     } catch (error) {
-      console.error('Error saving outlet:', error);
+      // console.error('Error saving outlet:', error);
       toast.error(modalType === 'Edit Item' ? 'Failed to update outlet' : 'Failed to add outlet');
     }
   };

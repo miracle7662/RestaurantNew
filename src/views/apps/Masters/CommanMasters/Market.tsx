@@ -65,7 +65,7 @@ const Market: React.FC = () => {
       setLoading(true);
       const data = await MarketService.list() as unknown as MarketItem[];
       
-      console.log('Fetched markets:', data);
+      // console.log('Fetched markets:', data);
       setMarketItems(Array.isArray(data) ? data : []);
     } catch (err) {
       toast.error('Failed to fetch Markets');
@@ -226,7 +226,7 @@ const Market: React.FC = () => {
       if (market && isEditMode) {
         setMarketName(market.market_name);
         setStatus(String(market.status) === '0' ? 'Active' : 'Inactive');
-        console.log('Edit market status:', market.status, typeof market.status);
+        // console.log('Edit market status:', market.status, typeof market.status);
       } else {
         setMarketName('');
         setStatus('Active');
@@ -257,7 +257,7 @@ const Market: React.FC = () => {
                 created_date: currentDate,
               }),
         };
-        console.log('Sending to backend:', payload);
+        // console.log('Sending to backend:', payload);
 
         if (isEditMode) {
           await MarketService.update(Number(market!.marketid), payload);
@@ -281,7 +281,7 @@ const Market: React.FC = () => {
         onSuccess();
         onHide();
       } catch (err) {
-        console.error(`${isEditMode ? 'Edit' : 'Add'} Market error:`, err);
+        // console.error(`${isEditMode ? 'Edit' : 'Add'} Market error:`, err);
         toast.error('Something went wrong');
       } finally {
         setLoading(false);
