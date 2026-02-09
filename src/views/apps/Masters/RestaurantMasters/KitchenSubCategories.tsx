@@ -5,6 +5,7 @@ import { Preloader } from '@/components/Misc/Preloader';
 import { Button, Card, Stack, Pagination, Table, Modal, Form } from 'react-bootstrap';
 import { useAuthContext } from '../../../../common/context/useAuthContext';
 import { ContactSearchBar, ContactSidebar } from '@/components/Apps/Contact';
+import KitchenSubCategoryService from '@/common/api/kitchensubcategory';
 import TitleHelmet from '@/components/Common/TitleHelmet';
 import {
   useReactTable,
@@ -86,8 +87,7 @@ const KitchenSubCategory: React.FC = () => {
   const fetchKitchenSubCategory = async () => {
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:3001/api/KitchenSubCategory');
-      const data = await res.json();
+      const data = await KitchenSubCategoryService.list() as unknown as KitchenSubCategoryItem[];
       setKitchenSubCategoryItem(data);
       setFilteredKitchenSubCategory(data);
     } catch (err) {
@@ -237,7 +237,7 @@ const handleSearch = useCallback(
 
     if (res.isConfirmed) {
       try {
-        await fetch(`http://localhost:3001/api/KitchenSubCategory/${kitchenSubCategory.kitchensubcategoryid}`, { method: 'DELETE' });
+        await KitchenSubCategoryService.remove(kitchenSubCategory.kitchensubcategoryid);
         setSelectedKitchenSubCategory(null);
         setContainerToggle(false);
         setKitchenSubCategoryItem((prev) => prev.filter((s) => s.kitchensubcategoryid !== kitchenSubCategory.kitchensubcategoryid));
@@ -689,18 +689,11 @@ const KitchenSubCategoryModal: React.FC<KitchenSubCategoryModalProps> = ({
 };
       console.log('Sending to backend:', payload);
 
-      const url = isEditMode
-        ? `http://localhost:3001/api/KitchenSubCategory/${kitchenSubCategory!.kitchensubcategoryid}`
-        : 'http://localhost:3001/api/KitchenSubCategory';
-      const method = isEditMode ? 'PUT' : 'POST';
+      const res = isEditMode
+        ? await KitchenSubCategoryService.update(kitchenSubCategory!.kitchensubcategoryid, payload)
+        : await KitchenSubCategoryService.create(payload);
 
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (res.ok) {
+      if (res) {
         toast.success(`Kitchen Subcategory ${isEditMode ? 'updated' : 'added'} successfully`);
         if (isEditMode && kitchenSubCategory) {
           const updatedKitchenSubCategory = {

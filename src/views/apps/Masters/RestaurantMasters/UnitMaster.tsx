@@ -5,6 +5,7 @@ import { Preloader } from '@/components/Misc/Preloader';
 import { Button, Card, Stack, Pagination, Table, Form } from 'react-bootstrap';
 import TitleHelmet from '@/components/Common/TitleHelmet';
 import { useAuthContext } from '../../../../common/context/useAuthContext';
+import UnitmasterService from '@/common/api/unitmaster';
 import {
   useReactTable,
   getCoreRowModel,
@@ -63,8 +64,7 @@ const Unitmaster: React.FC = () => {
   const fetchunitmaster = async () => {
     try {
       setLoading(true);
-      const res = await fetch('http://localhost:3001/api/unitmaster');
-      const data = await res.json();
+      const data = await UnitmasterService.list() as unknown as unitmasterItem[];
       console.log('Fetched unitmaster:', data);
       setunitmasterItem(data);
     } catch (err) {
@@ -180,7 +180,7 @@ const Unitmaster: React.FC = () => {
     });
     if (res.isConfirmed) {
       try {
-        await fetch(`http://localhost:3001/api/unitmaster/${unitmaster.unitid}`, { method: 'DELETE' });
+        await UnitmasterService.remove(parseInt(unitmaster.unitid));
         toast.success('Deleted successfully');
         fetchunitmaster();
         setSelectedunitmaster(null);
@@ -258,12 +258,10 @@ const Unitmaster: React.FC = () => {
           status: statusValue,
           ...(isEditMode
             ? {
-                unitid: unitmaster!.unitid,
                 updated_by_id: userId,
                 updated_date: currentDate,
                 hotelid: unitmaster!.hotelid || hotelId,
                 marketid: unitmaster!.marketid || marketId
-
               }
             : {
                 created_by_id: userId,
@@ -274,18 +272,12 @@ const Unitmaster: React.FC = () => {
         };
         console.log('Sending to backend:', payload);
 
-        const url = isEditMode
-          ? `http://localhost:3001/api/unitmaster/${unitmaster!.unitid}`
-          : 'http://localhost:3001/api/unitmaster';
-        const method = isEditMode ? 'PUT' : 'POST';
-
-        const res = await fetch(url, {
-          method,
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-
-        if (res.ok) {
+        try {
+          if (isEditMode) {
+            await UnitmasterService.update(parseInt(unitmaster!.unitid), payload);
+          } else {
+            await UnitmasterService.create(payload);
+          }
           toast.success(`Unitmaster ${isEditMode ? 'updated' : 'added'} successfully`);
           if (isEditMode && unitmaster && onUpdateSelectedunitmaster) {
             const updatedUnitmaster = {
@@ -302,9 +294,8 @@ const Unitmaster: React.FC = () => {
           setStatus('Active');
           onSuccess();
           onHide();
-        } else {
-          const errorData = await res.json();
-          console.log('Backend error:', errorData);
+        } catch (error: any) {
+          console.log('Backend error:', error);
           toast.error(`Failed to ${isEditMode ? 'update' : 'add'} Unitmaster`);
         }
       } catch (err) {
