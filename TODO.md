@@ -1,10 +1,8 @@
-# TODO: Integrate PaginationComponent into Settlement.tsx
+# TODO: Update Brand.tsx to use BrandService API calls
 
-- [ ] Import PaginationComponent in Settlement.tsx
-- [ ] Add state for pageSize (default 10)
-- [ ] Make currentPage stateful
-- [ ] Add state for totalItems
-- [ ] Update fetchSettlements to use dynamic pageSize and set totalItems
-- [ ] Add handlePageChange and handlePageSizeChange functions
-- [ ] Add PaginationComponent UI after the table
-- [ ] Test the pagination functionality
+## Steps to Complete:
+- [x] Import BrandService in Brand.tsx
+- [x] Update fetchHotelMasters function to use BrandService.getBrands(params)
+- [x] Update handleDeleteHotelMasters function to use BrandService.deleteBrand(id)
+- [x] Update HotelMastersModal's handleSubmit to use BrandService.addBrand for add and BrandService.updateBrand for update
+- [ ] Test the updated API calls and verify error handling

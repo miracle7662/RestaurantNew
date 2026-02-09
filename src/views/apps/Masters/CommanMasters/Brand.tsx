@@ -20,6 +20,7 @@ import {
   fetchCities,
 } from '../../../../utils/commonfunction';
 import { useAuthContext } from '@/common';
+import BrandService from '@/common/api/brand';
 
 import Swal from 'sweetalert2';
 
@@ -51,9 +52,6 @@ interface HotelMastersItem {
   Masteruserid: string;
   image?: string | null;
 }
-
-
-
 
 // Register User Modal Component
 interface RegisterUserModalProps {
@@ -340,20 +338,16 @@ const BrandList: React.FC = () => {
     try {
       setLoading(true);
 
-      // Build query parameters based on user role
-      const params = new URLSearchParams();
+      const params: { role_level?: string; hotelid?: string } = {};
       if (user?.role_level) {
-        params.append('role_level', user.role_level);
+        params.role_level = user.role_level;
       }
       if (user?.role_level === 'hotel_admin' && user?.hotelid) {
-        params.append('hotelid', user.hotelid.toString());
+        params.hotelid = user.hotelid.toString();
       }
 
-      const url = `http://localhost:3001/api/HotelMasters${params.toString() ? `?${params.toString()}` : ''}`;
-      console.log('Fetching hotels with URL:', url);
-
-      const res = await fetch(url);
-      const data = await res.json();
+      const response = await BrandService.getBrands(params);
+      const data = response.data;
       console.log('Fetched HotelMasters:', data); // Debug log to inspect backend data
       console.log('Sample hotel data:', data[0]); // Log first item to see structure
       setHotelMastersItem(data);
@@ -545,7 +539,7 @@ const BrandList: React.FC = () => {
     });
     if (res.isConfirmed) {
       try {
-        await fetch(`http://localhost:3001/api/HotelMasters/${HotelMasters.Hotelid || HotelMasters.hotelid}`, { method: 'DELETE' });
+        await BrandService.deleteBrand(HotelMasters.Hotelid || HotelMasters.hotelid);
         toast.success('Deleted successfully');
         fetchHotelMasters();
         setSelectedHotelMasters(null);
@@ -689,15 +683,15 @@ const BrandList: React.FC = () => {
           )}
         </div>
       </Card>
-      <AddHotelMastersModal
+      <HotelMastersModal
         show={showAddBrandModal}
         onHide={() => setShowAddBrandModal(false)}
         onSuccess={fetchHotelMasters}
       />
-      <EditHotelMastersModal
+      <HotelMastersModal
         show={showEditBrandModal}
         onHide={() => setShowEditBrandModal(false)}
-        HotelMasters={selectedHotelMasters}
+        initialData={selectedHotelMasters}
         onSuccess={fetchHotelMasters}
         onUpdateSelectedHotelMasters={setSelectedHotelMasters}
       />
@@ -721,42 +715,71 @@ const BrandList: React.FC = () => {
 };
 
 
-interface AddHotelMastersModalProps {
+interface HotelMastersModalProps {
   show: boolean;
   onHide: () => void;
   onSuccess: () => void;
+  initialData?: HotelMastersItem | null;           // undefined → Add mode, object → Edit mode
+  onUpdateSelectedHotelMasters?: (updated: HotelMastersItem) => void; // only needed in edit mode
 }
 
-const AddHotelMastersModal: React.FC<AddHotelMastersModalProps> = ({ show, onHide, onSuccess }) => {
-  const [hotel_name, setHotelName] = useState<string>('');
-  const [short_name, setShortName] = useState<string>('');
-  const [phone, setPhone] = useState<string>('');
-  const [email, setEmail] = useState<string>('');
-  const [fssai_no, setFssaiNo] = useState<string>('');
-  const [trn_gstno, setTrnGstNo] = useState<string>('');
-  const [panno, setPanNo] = useState<string>('');
+const HotelMastersModal: React.FC<HotelMastersModalProps> = ({
+  show,
+  onHide,
+  onSuccess,
+  initialData,
+  onUpdateSelectedHotelMasters,
+}) => {
+  const isEditMode = !!initialData;
+
+  // Form states
+  const [hotel_name, setHotelName] = useState('');
+  const [short_name, setShortName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [fssai_no, setFssaiNo] = useState('');
+  const [trn_gstno, setTrnGstNo] = useState('');
+  const [panno, setPanNo] = useState('');
   const [image, setImage] = useState<File | null>(null);
-  const [website, setWebsite] = useState<string>('');
-  const [address, setAddress] = useState<string>('');
-  const [loading, setLoading] = useState<boolean>(false);
-  const [status, setStatus] = useState('Active'); // Default to 'Active'
+  const [website, setWebsite] = useState('');
+  const [address, setAddress] = useState('');
+  const [status, setStatus] = useState('Active');
 
-  const [markets, setMarkets] = useState<MarketItem[]>([]);
-  const [, setMarketName] = useState<string>('');
   const [marketid, setMarketId] = useState<number | null>(null);
-
-  const [states, setStates] = useState<StateItem[]>([]);
   const [stateid, setStateId] = useState<number | null>(null);
-
-  const [hoteltype, setHoteltype] = useState<HotelTypeItem[]>([]);
+  const [cityid, setCityId] = useState<number | null>(null);
   const [hoteltypeid, setHoteltypeid] = useState<number | null>(null);
 
+  // Dropdown data
+  const [markets, setMarkets] = useState<MarketItem[]>([]);
+  const [states, setStates] = useState<StateItem[]>([]);
   const [cities, setCities] = useState<{ cityid: number; city_name: string }[]>([]);
-  const [cityid, setCityId] = useState<number | null>(null);
+  const [hoteltype, setHoteltype] = useState<HotelTypeItem[]>([]);
 
+  const [loading, setLoading] = useState(false);
 
+  // Fill form when editing
+  useEffect(() => {
+    if (show && initialData) {
+      setHotelName(initialData.hotel_name || '');
+      setShortName(initialData.short_name || '');
+      setPhone(initialData.phone || '');
+      setEmail(initialData.email || '');
+      setFssaiNo(initialData.fssai_no || '');
+      setTrnGstNo(initialData.trn_gstno || '');
+      setPanNo(initialData.panno || '');
+      setWebsite(initialData.website || '');
+      setAddress(initialData.address || '');
+      setMarketId(Number(initialData.marketid) || null);
+      setStateId(Number(initialData.stateid) || null);
+      setCityId(Number(initialData.cityid) || null);
+      setHoteltypeid(Number(initialData.hoteltypeid) || null);
+      setStatus(String(initialData.status) === '0' ? 'Active' : 'Inactive');
+      setImage(null); // new file only — old image name shown as placeholder
+    }
+  }, [show, initialData]);
 
-  // Fetch states and markets when modal opens
+  // Load dropdowns when modal opens
   useEffect(() => {
     if (show) {
       fetchMarkets(setMarkets, setMarketId, marketid ?? undefined);
@@ -765,7 +788,7 @@ const AddHotelMastersModal: React.FC<AddHotelMastersModalProps> = ({ show, onHid
     }
   }, [show]);
 
-  // Fetch cities when state changes
+  // Load cities when state changes
   useEffect(() => {
     if (stateid) {
       fetchCities(stateid, setCities, setCityId, cityid ?? undefined);
@@ -775,21 +798,39 @@ const AddHotelMastersModal: React.FC<AddHotelMastersModalProps> = ({ show, onHid
     }
   }, [stateid]);
 
+  const resetForm = () => {
+    setHotelName('');
+    setShortName('');
+    setPhone('');
+    setEmail('');
+    setFssaiNo('');
+    setTrnGstNo('');
+    setPanNo('');
+    setWebsite('');
+    setAddress('');
+    setImage(null);
+    setMarketId(null);
+    setStateId(null);
+    setCityId(null);
+    setHoteltypeid(null);
+    setStatus('Active');
+  };
 
-
-  const handleAdd = async () => {
-    if (!hotel_name || !short_name || !phone || !fssai_no || !trn_gstno || !panno || !website || !address || !status) {
-      toast.error('HotelMasters details are required');
+  const handleSubmit = async () => {
+    // Basic required fields validation
+    if (!hotel_name || !short_name || !marketid || !stateid || !cityid || !hoteltypeid || !status) {
+      toast.error('Please fill all required fields');
       return;
     }
 
     setLoading(true);
+
     try {
       const statusValue = status === 'Active' ? 0 : 1;
-      const currentDate = new Date().toISOString(); // Timestamp: e.g., 2025-07-01T04:00:00.000Z
-      const payload = {
+      const currentDate = new Date().toISOString();
+
+      const payload: any = {
         hotel_name,
-        marketid,
         short_name,
         phone,
         email,
@@ -798,57 +839,76 @@ const AddHotelMastersModal: React.FC<AddHotelMastersModalProps> = ({ show, onHid
         panno,
         website,
         address,
+        marketid,
         stateid,
         cityid,
         hoteltypeid,
         status: statusValue,
-        created_by_id: 1, // Default to null (or 0 if backend requires)
-        created_date: currentDate,
+        created_date: currentDate, // only for create
+        updated_date: currentDate, // only for update
       };
-      console.log('Sending to backend:', payload); // Debug log
-      const res = await fetch('http://localhost:3001/api/HotelMasters', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (res.ok) {
-        toast.success('HotelMasters added successfully');
-        setHotelName(''); setShortName(''); setMarketName(''); setPhone(''); setEmail(''); setFssaiNo(''); setTrnGstNo(''); setPanNo(''); setImage(null); setWebsite(''); setAddress('');
-        setStatus('Active'); // Reset to 'Active' after successful add
-        onSuccess();
-        onHide();
+
+      if (isEditMode) {
+        // === EDIT ===
+        const hotelid = initialData?.hotelid;
+        if (!hotelid) throw new Error('Missing hotelid in edit mode');
+
+        payload.hotelid = hotelid;
+        payload.updated_by_id = 2; // or get from auth context
+
+        console.log('Updating HotelMasters:', payload);
+
+        await BrandService.updateBrand(hotelid, payload);
       } else {
-        const errorData = await res.json();
-        console.log('Backend error:', errorData); // Debug log
-        toast.error('Failed to add HotelMasters');
+        // === ADD ===
+        payload.created_by_id = 1; // or from auth
+
+        console.log('Creating HotelMasters:', payload);
+
+        await BrandService.addBrand(payload);
       }
-    } catch (err) {
-      console.error('Add HotelMasters error:', err); // Debug log
-      toast.error('Something went wrong');
+
+      toast.success(isEditMode ? 'Hotel updated successfully' : 'Hotel added successfully');
+
+      if (isEditMode && onUpdateSelectedHotelMasters && initialData) {
+        onUpdateSelectedHotelMasters({
+          ...initialData,
+          ...payload,
+          status: statusValue,
+        });
+      }
+
+      resetForm();
+      onSuccess();
+      onHide();
+    } catch (err: any) {
+      console.error('HotelMasters save error:', err);
+      toast.error(err.message || 'Something went wrong');
     } finally {
       setLoading(false);
     }
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
+    if (e.target.files?.[0]) {
       setImage(e.target.files[0]);
     }
   };
 
   if (!show) return null;
 
+  const modalTitle = isEditMode ? 'Edit Hotel' : 'Add Hotel';
+  const submitButtonText = isEditMode ? (loading ? 'Updating...' : 'Save') : (loading ? 'Adding...' : 'Create');
+  const fileInputId = isEditMode ? 'fileInputEdit' : 'fileInputAdd';
+
   return (
     <div
       className="modal"
       style={{
-        display: show ? 'block' : 'none',
+        display: 'block',
         background: 'rgba(0,0,0,0.5)',
         position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
+        inset: 0,
       }}
     >
       <div
@@ -862,9 +922,11 @@ const AddHotelMastersModal: React.FC<AddHotelMastersModalProps> = ({ show, onHid
         }}
       >
         <div className="d-flex justify-content-between align-items-center mb-3">
-          <h5 className="mb-0">Add Hotel</h5>
-          <button className="btn-close" onClick={onHide} disabled={loading}></button>
+          <h5 className="mb-0">{modalTitle}</h5>
+          <button className="btn-close" onClick={onHide} disabled={loading} />
         </div>
+
+        {/* Form content – same as before */}
         <div className="row mb-3">
           <div className="col-md-6">
             <label className="form-label">
@@ -873,20 +935,18 @@ const AddHotelMastersModal: React.FC<AddHotelMastersModalProps> = ({ show, onHid
             <select
               className="form-control"
               value={marketid ?? ''}
-              onChange={(e) => {
-                const value = e.target.value;
-                setMarketId(value === '' ? null : Number(value));
-              }}
+              onChange={(e) => setMarketId(e.target.value ? Number(e.target.value) : null)}
               disabled={loading}
             >
               <option value="">Select a market</option>
-              {markets.map((market) => (
-                <option key={market.marketid} value={market.marketid}>
-                  {market.market_name}
+              {markets.map((m) => (
+                <option key={m.marketid} value={m.marketid}>
+                  {m.market_name}
                 </option>
               ))}
             </select>
           </div>
+
           <div className="col-md-6">
             <label className="form-label">
               Hotel Type <span style={{ color: 'red' }}>*</span>
@@ -894,22 +954,20 @@ const AddHotelMastersModal: React.FC<AddHotelMastersModalProps> = ({ show, onHid
             <select
               className="form-control"
               value={hoteltypeid ?? ''}
-              onChange={(e) => {
-                const value = e.target.value;
-                setHoteltypeid(value === '' ? null : Number(value));
-              }}
-
+              onChange={(e) => setHoteltypeid(e.target.value ? Number(e.target.value) : null)}
+              disabled={loading}
             >
               <option value="">Select a hotel type</option>
-              {hoteltype.map((hoteltype) => (
-                <option key={hoteltype.hoteltypeid} value={hoteltype.hoteltypeid}>
-                  {hoteltype.hotel_type}
+              {hoteltype.map((ht) => (
+                <option key={ht.hoteltypeid} value={ht.hoteltypeid}>
+                  {ht.hotel_type}
                 </option>
               ))}
             </select>
           </div>
         </div>
-        <div className="d-flex">
+
+        <div className="row">
           <div className="col-md-6 pe-3">
             <div className="mb-3">
               <label className="form-label">
@@ -924,6 +982,7 @@ const AddHotelMastersModal: React.FC<AddHotelMastersModalProps> = ({ show, onHid
                 disabled={loading}
               />
             </div>
+
             <div className="mb-3">
               <label className="form-label">
                 State Name <span style={{ color: 'red' }}>*</span>
@@ -931,480 +990,17 @@ const AddHotelMastersModal: React.FC<AddHotelMastersModalProps> = ({ show, onHid
               <select
                 className="form-control"
                 value={stateid ?? ''}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setStateId(value === '' ? null : Number(value));
-                }}
+                onChange={(e) => setStateId(e.target.value ? Number(e.target.value) : null)}
                 disabled={loading}
               >
                 <option value="">Select a state</option>
-                {states.map((state) => (
-                  <option key={state.stateid} value={state.stateid}>
-                    {state.state_name}
-                  </option>
-                ))}
-              </select>
-
-            </div>
-            <div className="mb-3">
-              <label className="form-label">Phone</label>
-              <input
-                type="text"
-                className="form-control"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="PHONE"
-                disabled={loading}
-              />
-            </div>
-            <div className="mb-3">
-              <label className="form-label">FSSAI NO</label>
-              <input
-                type="text"
-                className="form-control"
-                value={fssai_no}
-                onChange={(e) => setFssaiNo(e.target.value)}
-                placeholder="FSSAI NO"
-                disabled={loading}
-              />
-            </div>
-            <div className="mb-3">
-              <label className="form-label">PAN No.</label>
-              <input
-                type="text"
-                className="form-control"
-                value={panno}
-                onChange={(e) => setPanNo(e.target.value)}
-                placeholder="PAN NO."
-                disabled={loading}
-              />
-            </div>
-            <div className="mb-3">
-              <label className="form-label">TRN / GST NO.</label>
-              <input
-                type="text"
-                className="form-control"
-                value={trn_gstno}
-                onChange={(e) => setTrnGstNo(e.target.value)}
-                placeholder="TRN / GST NO."
-                disabled={loading}
-              />
-            </div>
-            <div className="mb-3">
-              <label className="form-label">
-                Status <span style={{ color: 'red' }}>*</span>
-              </label>
-              <select
-                className="form-control"
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-                disabled={loading}
-              >
-                <option value="0">Active</option>
-                <option value="1">Inactive</option>
-              </select>
-            </div>
-          </div>
-          <div className="col-md-6 ps-3">
-            <div className="mb-3">
-              <label className="form-label">
-                Short Name <span style={{ color: 'red' }}>*</span>
-              </label>
-              <input
-                type="text"
-                className="form-control"
-                value={short_name}
-                onChange={(e) => setShortName(e.target.value)}
-                placeholder="ENTER SHORT NAME"
-                disabled={loading}
-              />
-            </div>
-            <div className="mb-3">
-              <label className="form-label">
-                City Name <span style={{ color: 'red' }}>*</span>
-              </label>
-              <select
-                className="form-control"
-                value={cityid ?? ''}
-                onChange={(e) => setCityId(e.target.value === '' ? null : Number(e.target.value))}
-                disabled={!stateid || loading}
-              >
-                <option value="">Select a city</option>
-                {cities.map((city) => (
-                  <option key={city.cityid} value={city.cityid}>
-                    {city.city_name}
+                {states.map((s) => (
+                  <option key={s.stateid} value={s.stateid}>
+                    {s.state_name}
                   </option>
                 ))}
               </select>
             </div>
-
-
-            <div className="mb-3">
-              <label className="form-label">Address</label>
-              <textarea
-                className="form-control"
-                style={{ resize: 'vertical' }}
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                placeholder="ADDRESS"
-                rows={4}
-                disabled={loading}
-              ></textarea>
-            </div>
-            <div className="mb-3">
-              <label className="form-label">Email</label>
-              <input
-                type="email"
-                className="form-control"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="EMAIL"
-                disabled={loading}
-              />
-            </div>
-            <div className="mb-3">
-              <label className="form-label">Website</label>
-              <input
-                type="text"
-                className="form-control"
-                value={website}
-                onChange={(e) => setWebsite(e.target.value)}
-                placeholder="WEBSITE"
-                disabled={loading}
-
-              />
-            </div>
-
-            <div className="mb-3">
-              <label className="form-label">Image</label>
-              <div className="input-group">
-                <input
-                  type="text"
-                  className="form-control"
-                  value={image ? image.name : ''}
-                  placeholder="Choose a File or Drop it Here"
-                  readOnly
-                  disabled={loading}
-                />
-                <button
-                  className="btn btn-outline-secondary"
-                  onClick={() => document.getElementById('fileInputAdd')?.click()}
-                  disabled={loading}
-                >
-                  Browse
-                </button>
-                <input
-                  id="fileInputAdd"
-                  type="file"
-                  hidden
-                  onChange={(e) => handleImageChange(e)}
-                  disabled={loading}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-        <div className="d-flex justify-content-end mt-4">
-          <button className="btn btn-success me-2" onClick={handleAdd} disabled={loading}>
-            {loading ? 'Adding...' : 'Create'}
-          </button>
-          <button className="btn btn-danger" onClick={onHide} disabled={loading}>
-            Close
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-interface EditHotelMastersModalProps {
-  show: boolean;
-  onHide: () => void;
-  HotelMasters: HotelMastersItem | null;
-  onSuccess: () => void;
-  onUpdateSelectedHotelMasters: (HotelMasters: HotelMastersItem) => void;
-}
-
-const EditHotelMastersModal: React.FC<EditHotelMastersModalProps> = ({ show, onHide, HotelMasters, onSuccess, onUpdateSelectedHotelMasters }) => {
-  const [hotel_name, setHotelName] = useState<string>('');
-  const [short_name, setShortName] = useState<string>('');
-  const [marketid, setMarketid] = useState<number | null>(null);
-  const [, setHotelid] = useState<string>('');
-  const [phone, setPhone] = useState<string>('');
-  const [email, setEmail] = useState<string>('');
-  const [fssai_no, setFssaiNo] = useState<string>('');
-  const [trn_gstno, setTrnGstNo] = useState<string>('');
-  const [panno, setPanNo] = useState<string>('');
-  const [image, setImage] = useState<File | null>(null);
-  const [website, setWebsite] = useState<string>('');
-  const [address, setAddress] = useState<string>('');
-  const [stateid, setStateId] = useState<number | null>(null);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [status, setStatus] = useState('active'); // Default to 'Active'
-  const [markets, setMarkets] = useState<MarketItem[]>([]);
-  const [states, setStates] = useState<StateItem[]>([]);
-  const [cities, setCities] = useState<{ cityid: number; city_name: string }[]>([]);
-  const [cityid, setCityId] = useState<number | null>(null);
-  const [hoteltype, setHoteltype] = useState<HotelTypeItem[]>([]);
-  const [hoteltypeid, setHoteltypeid] = useState<number | null>(null);
-
-
-
-
-
-
-
-  useEffect(() => {
-    if (HotelMasters) {
-      setHotelName(HotelMasters.hotel_name || '');
-      setShortName(HotelMasters.short_name || '');
-      setMarketid(Number(HotelMasters.marketid) || 0); // or undefined, depending on useState default
-      setHotelid(HotelMasters.hotelid || '');
-      setPhone(HotelMasters.phone || '');
-      setEmail(HotelMasters.email || '');
-      setFssaiNo(HotelMasters.fssai_no || '');
-      setTrnGstNo(HotelMasters.trn_gstno || '');
-      setPanNo(HotelMasters.panno || '');
-      setImage(null);
-      setWebsite(HotelMasters.website || '');
-      setAddress(HotelMasters.address || '');
-      setHoteltypeid(Number(HotelMasters.hoteltypeid) || 0);
-      setStateId(Number(HotelMasters.stateid) || 0); // fallback to 0 if falsy
-      setCityId(Number(HotelMasters.cityid) || 0); // fallback to 0 if falsy
-      setStatus(String(HotelMasters.status) === '0' ? 'Active' : 'Inactive');
-      console.log('Edit HotelMasters status:', HotelMasters.status, typeof HotelMasters.status); // Debug log
-
-    }
-  }, [HotelMasters]);
-
-  // Fetch states and markets when modal opens
-  useEffect(() => {
-    if (show) {
-      fetchMarkets(setMarkets, setMarketid, marketid ?? undefined);
-      fetchStates(setStates, setStateId, stateid ?? undefined);
-      fetchHotelType(setHoteltype, setHoteltypeid, hoteltypeid ?? undefined);
-      
-    }
-  }, [show]);
-
-   // Fetch cities when state changes
-  useEffect(() => {
-    if (stateid) {
-      fetchCities(stateid, setCities, setCityId, cityid ?? undefined);
-    } else {
-      setCities([]);
-      setCityId(null);
-    }
-  }, [stateid]);
-
-
-
-  const handleEdit = async () => {
-    if (!hotel_name || !short_name || !marketid || !phone || !email || !fssai_no || !trn_gstno || !panno || !website || !address || !stateid || !hoteltypeid || !status || !HotelMasters) {
-      toast.error('All required fields must be filled');
-      setLoading(false);
-      return;
-    }
-
-    const hotelId = HotelMasters?.hotelid || HotelMasters?.hotelid;
-    if (!hotelId || isNaN(Number(hotelId))) {
-      toast.error('Invalid Hotel ID');
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const statusValue = status === 'Active' ? 0 : 1; // Convert status to numeric value
-      const currentDate = new Date().toISOString();
-      const payload = {
-        hotel_name,
-        marketid,
-        short_name,
-        phone,
-        email,
-        fssai_no,
-        trn_gstno,
-        panno,
-        website,
-        address,
-        stateid,
-        cityid,
-        hoteltypeid,
-        status: statusValue,
-        hotelid: hotelId,
-        updated_by_id: '2',
-        updated_date: currentDate,
-      };
-
-      console.log('Sending to backend:', payload); // Debug payload
-      const res = await fetch(`http://localhost:3001/api/HotelMasters/${hotelId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      const text = await res.text(); // Get raw response
-      console.log('Raw response:', text); // Debug raw response
-
-      if (!res.ok) {
-        let errorData;
-        try {
-          errorData = JSON.parse(text);
-        } catch (e) {
-          console.error('Failed to parse response as JSON:', text);
-          toast.error('Server returned an invalid response');
-          setLoading(false);
-          return;
-        }
-        console.error('Backend error:', errorData);
-        toast.error(`Failed to update HotelMasters: ${errorData.message || 'Unknown error'}`);
-        setLoading(false);
-        return;
-      }
-
-      toast.success('HotelMasters updated successfully');
-      const updatedHotelMasters = {
-        ...HotelMasters,
-        hotel_name,
-        status: statusValue.toString(),
-        updated_by_id: '2',
-        updated_date: currentDate,
-        hotelid: hotelId,
-
-      };
-      onUpdateSelectedHotelMasters(updatedHotelMasters);
-      onSuccess();
-      onHide();
-    } catch (err) {
-      if (err instanceof Error) {
-        console.error('Edit HotelMasters error:', err.message, err.stack);
-        toast.error('Something went wrong: ' + err.message);
-      } else {
-        console.error('Edit HotelMasters error:', err);
-        toast.error('Something went wrong');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setImage(e.target.files[0]);
-    }
-  };
-
-  if (!show || !HotelMasters) return null;
-
-
-
-  return (
-    <div
-      className="modal"
-      style={{
-        display: show ? 'block' : 'none',
-        background: 'rgba(0,0,0,0.5)',
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-      }}
-    >
-      <div
-        className="modal-content"
-        style={{
-          background: 'white',
-          padding: '20px',
-          maxWidth: '800px',
-          margin: '100px auto',
-          borderRadius: '8px',
-        }}
-      >
-        <div className="d-flex justify-content-between align-items-center mb-3">
-          <h5 className="mb-0">{HotelMasters ? 'Edit Hotel' : 'Add Hotel'}</h5>
-          <button className="btn-close" onClick={onHide} disabled={loading}></button>
-        </div>
-        <div className="row mb-3">
-          <div className="col-md-6">
-            <label className="form-label">
-              Market Name <span style={{ color: 'red' }}>*</span>
-            </label>
-            <select
-              className="form-control"
-              value={marketid ?? ''}
-              onChange={(e) => {
-                const value = e.target.value;
-                setMarketid(value === '' ? null : Number(value));
-              }}
-              disabled={loading}
-            >
-              <option value="">Select a market</option>
-              {markets.map((market) => (
-                <option key={market.marketid} value={market.marketid}>
-                  {market.market_name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="col-md-6">
-            <label className="form-label">
-              Hotel Type <span style={{ color: 'red' }}>*</span>
-            </label>
-            <select
-              className="form-control"
-              value={hoteltypeid ?? ''}
-              onChange={(e) => {
-                const value = e.target.value;
-                setHoteltypeid(value === '' ? null : Number(value));
-              }}
-              disabled={loading}
-            >
-              <option value="">Select a hotel type</option>
-              {hoteltype.map((hoteltype) => (
-                <option key={hoteltype.hoteltypeid} value={hoteltype.hoteltypeid}>
-                  {hoteltype.hotel_type}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-        <div className="d-flex">
-          <div className="col-md-6 pe-3">
-            <div className="mb-3">
-              <label className="form-label">
-                Hotel Name <span style={{ color: 'red' }}>*</span>
-              </label>
-              <input
-                type="text"
-                className="form-control"
-                value={hotel_name}
-                onChange={(e) => setHotelName(e.target.value)}
-                placeholder="ENTER HOTEL NAME"
-                disabled={loading}
-              />
-            </div>
-            <div className="mb-3">
-              <label className="form-label">
-                State Name <span style={{ color: 'red' }}>*</span>
-              </label>
-              <select
-                className="form-control"
-                value={stateid ?? ''}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setStateId(value === '' ? null : Number(value));
-                }}
-                disabled={loading}
-              >
-                <option value="">Select a state</option>
-                {states.map((state) => (
-                  <option key={state.stateid} value={state.stateid}>
-                    {state.state_name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
 
             <div className="mb-3">
               <label className="form-label">Phone</label>
@@ -1417,6 +1013,7 @@ const EditHotelMastersModal: React.FC<EditHotelMastersModalProps> = ({ show, onH
                 disabled={loading}
               />
             </div>
+
             <div className="mb-3">
               <label className="form-label">FSSAI NO</label>
               <input
@@ -1428,6 +1025,7 @@ const EditHotelMastersModal: React.FC<EditHotelMastersModalProps> = ({ show, onH
                 disabled={loading}
               />
             </div>
+
             <div className="mb-3">
               <label className="form-label">PAN No.</label>
               <input
@@ -1439,6 +1037,7 @@ const EditHotelMastersModal: React.FC<EditHotelMastersModalProps> = ({ show, onH
                 disabled={loading}
               />
             </div>
+
             <div className="mb-3">
               <label className="form-label">TRN / GST NO.</label>
               <input
@@ -1450,6 +1049,7 @@ const EditHotelMastersModal: React.FC<EditHotelMastersModalProps> = ({ show, onH
                 disabled={loading}
               />
             </div>
+
             <div className="mb-3">
               <label className="form-label">
                 Status <span style={{ color: 'red' }}>*</span>
@@ -1465,6 +1065,7 @@ const EditHotelMastersModal: React.FC<EditHotelMastersModalProps> = ({ show, onH
               </select>
             </div>
           </div>
+
           <div className="col-md-6 ps-3">
             <div className="mb-3">
               <label className="form-label">
@@ -1487,17 +1088,18 @@ const EditHotelMastersModal: React.FC<EditHotelMastersModalProps> = ({ show, onH
               <select
                 className="form-control"
                 value={cityid ?? ''}
-                onChange={(e) => setCityId(e.target.value === '' ? null : Number(e.target.value))}
+                onChange={(e) => setCityId(e.target.value ? Number(e.target.value) : null)}
                 disabled={!stateid || loading}
               >
                 <option value="">Select a city</option>
-                {cities.map((city) => (
-                  <option key={city.cityid} value={city.cityid}>
-                    {city.city_name}
+                {cities.map((c) => (
+                  <option key={c.cityid} value={c.cityid}>
+                    {c.city_name}
                   </option>
                 ))}
               </select>
             </div>
+
             <div className="mb-3">
               <label className="form-label">Address</label>
               <textarea
@@ -1506,10 +1108,11 @@ const EditHotelMastersModal: React.FC<EditHotelMastersModalProps> = ({ show, onH
                 onChange={(e) => setAddress(e.target.value)}
                 placeholder="ADDRESS"
                 rows={4}
-                disabled={loading}
                 style={{ resize: 'vertical' }}
-              ></textarea>
+                disabled={loading}
+              />
             </div>
+
             <div className="mb-3">
               <label className="form-label">Email</label>
               <input
@@ -1521,6 +1124,7 @@ const EditHotelMastersModal: React.FC<EditHotelMastersModalProps> = ({ show, onH
                 disabled={loading}
               />
             </div>
+
             <div className="mb-3">
               <label className="form-label">Website</label>
               <input
@@ -1532,26 +1136,27 @@ const EditHotelMastersModal: React.FC<EditHotelMastersModalProps> = ({ show, onH
                 disabled={loading}
               />
             </div>
+
             <div className="mb-3">
               <label className="form-label">Image</label>
               <div className="input-group">
                 <input
                   type="text"
                   className="form-control"
-                  value={image ? image.name : HotelMasters?.image || ''}
+                  value={image ? image.name : (isEditMode ? initialData?.image || '' : '')}
                   placeholder="Choose a File or Drop it Here"
                   readOnly
                   disabled={loading}
                 />
                 <button
                   className="btn btn-outline-secondary"
-                  onClick={() => document.getElementById(HotelMasters ? 'fileInputEdit' : 'fileInputAdd')?.click()}
+                  onClick={() => document.getElementById(fileInputId)?.click()}
                   disabled={loading}
                 >
                   Browse
                 </button>
                 <input
-                  id={HotelMasters ? 'fileInputEdit' : 'fileInputAdd'}
+                  id={fileInputId}
                   type="file"
                   hidden
                   onChange={handleImageChange}
@@ -1561,13 +1166,14 @@ const EditHotelMastersModal: React.FC<EditHotelMastersModalProps> = ({ show, onH
             </div>
           </div>
         </div>
+
         <div className="d-flex justify-content-end mt-4">
           <button
             className="btn btn-success me-2"
-            onClick={handleEdit}
+            onClick={handleSubmit}
             disabled={loading}
           >
-            {loading ? 'Updating...' : 'Save'}
+            {submitButtonText}
           </button>
           <button className="btn btn-danger" onClick={onHide} disabled={loading}>
             Close
