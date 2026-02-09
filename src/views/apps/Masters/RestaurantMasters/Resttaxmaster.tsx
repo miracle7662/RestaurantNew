@@ -242,7 +242,7 @@ const RestTaxMaster: React.FC = () => {
   const getOutletName = (outletid: number | null) => {
     if (!outletid) return 'All Outlets';
     const outlet = outlets.find(o => o.outletid === outletid);
-    return outlet ? `${outlet.outlet_name} (${outlet.outlet_code})` : 'Unknown Outlet';
+    return outlet ? `${outlet.outlet_name} ` : 'Unknown Outlet';
   };
 
   // Pagination logic
@@ -325,6 +325,7 @@ const RestTaxMaster: React.FC = () => {
                             <td>{tax.resttaxid}</td>
                             <td>{tax.resttax_name}</td>
                             <td>{tax.hotel_name}</td>
+                            <td>{getOutletName(tax.outletid)}</td>
                             <td>{tax.taxgroup_name}</td>
                             <td>{tax.resttax_value}%</td>
                             <td>{tax.restcgst}%</td>
@@ -418,7 +419,7 @@ const RestTaxMaster: React.FC = () => {
                     <option value="">Select Outlet</option>
                     {outlets.map((outlet) => (
                       <option key={outlet.outletid} value={outlet.outletid}>
-                        {outlet.outlet_name} ({outlet.outlet_code})
+                        {outlet.outlet_name} 
                       </option>
                     ))}
                   </Form.Select>

@@ -492,8 +492,8 @@ const OutletUserList: React.FC = () => {
                       <td>{outletUser.username}</td>
                       <td>{outletUser.email}</td>
                       <td>{outletUser.phone || 'N/A'}</td>
-                      <td>{outletUser.Designation || 'N/A'}</td>
-                      <td>{outletUser.user_type || 'N/A'}</td>
+                      <td>{outletUser.designation_name || 'N/A'}</td>
+                      <td>{outletUser.user_type_name || 'N/A'}</td>
                       <td>
                         <span className={`badge ${outletUser.status === 0 ? 'bg-success' : 'bg-danger'}`}>
                           {outletUser.status === 0 ? 'Active' : 'Inactive'}
@@ -571,8 +571,8 @@ const OutletUserList: React.FC = () => {
                     <td>{row.username}</td>
                     <td>{row.email}</td>
                     <td>{row.phone || '-'}</td>
-                    <td>{row.designation || '-'}</td>
-                    <td>{row.user_type || '-'}</td>
+                    <td>{row.designation_name || row.designation || '-'}</td>
+                    <td>{row.user_type_name || row.user_type || '-'}</td>
                     <td>
                       <span className={`badge ${row.status === 0 ? 'bg-success' : 'bg-danger'}`}>
                         {row.status === 0 ? 'Active' : 'Inactive'}

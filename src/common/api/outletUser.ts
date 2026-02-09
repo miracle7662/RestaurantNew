@@ -40,6 +40,8 @@ export interface OutletUserData {
   brand_name?: string
   hotel_name?: string
   outlet_name?: string
+  designation_name?: string
+  user_type_name?: string
 }
 
 // Interface for hotel admin data

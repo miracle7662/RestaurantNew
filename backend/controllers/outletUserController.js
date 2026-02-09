@@ -7,7 +7,7 @@ exports.getOutletUsers = (req, res) => {
     const { currentUserId, roleLevel, hotelid, outletid } = req.query;
 
     let query = `
-      SELECT u.*, 
+      SELECT u.*,
              h.hotel_name as hotel_name,
              o.outlet_name as outlet_name,
              o.outletid as outletid,
@@ -16,8 +16,8 @@ exports.getOutletUsers = (req, res) => {
       FROM mst_users u
       LEFT JOIN msthotelmasters h ON u.hotelid = h.hotelid
       LEFT JOIN mst_outlets o ON u.outletid = o.outletid
-      LEFT JOIN mstdesignation d ON u.designation = d.designationid
-      LEFT JOIN mstuserType ut ON u.user_type = ut.usertypeid
+      LEFT JOIN mstdesignation d ON u.designationid = d.designationid
+      LEFT JOIN mstuserType ut ON u.usertypeid = ut.usertypeid
       WHERE (u.role_level = 'outlet_user' OR u.role_level = 'hotel_admin')
     `;
 
