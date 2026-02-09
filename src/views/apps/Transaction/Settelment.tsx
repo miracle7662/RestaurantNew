@@ -12,6 +12,7 @@ import { useAuthContext } from '@/common';
 import SettlementModal from './SettelmentModel';
 import OutletPaymentModeService from '@/common/api/outletpaymentmode';
 import SettlementService from '@/common/api/settlements';
+import PaginationComponent from '@/components/Common/PaginationComponent';
 
 interface Settlement {
   SettlementID: number;
@@ -48,8 +49,9 @@ const EditSettlementPage: React.FC = () => {
     paymentType: '',
   });
 
-  const [currentPage] = useState(1);
-  const [, setTotalPages] = useState(1);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalItems, setTotalItems] = useState(0);
   const [selectedOutletId, setSelectedOutletId] = useState<number | null>(
     currentUser?.outletid ? Number(currentUser.outletid) : null
   );
@@ -98,7 +100,7 @@ const EditSettlementPage: React.FC = () => {
   // Fetch settlements list
   const fetchSettlements = async () => {
     try {
-      const params: any = { ...filters, page: currentPage, limit: 10 };
+      const params: any = { ...filters };
       if (selectedOutletId !== null) {
         params.outletId = selectedOutletId;
       }
@@ -106,10 +108,8 @@ const EditSettlementPage: React.FC = () => {
 
       const data = res.data?.data ?? res.data;
       const settlementsData = Array.isArray(data.settlements) ? data.settlements : data;
-      const total = data.total ?? 0;
 
       setSettlements(settlementsData);
-      setTotalPages(Math.ceil(total / 10));
     } catch (err) {
       console.error(err);
       setNotification({ show: true, message: 'Failed to fetch settlements', type: 'danger' });
@@ -119,7 +119,7 @@ const EditSettlementPage: React.FC = () => {
 
   useEffect(() => {
     fetchSettlements();
-  }, [filters, currentPage, selectedOutletId]);
+  }, [filters, selectedOutletId]);
 
   useEffect(() => {
     if (filters.outletId) {
@@ -151,6 +151,28 @@ const EditSettlementPage: React.FC = () => {
 
     return Object.values(grouped);
   }, [settlements]);
+
+  // Paginate grouped settlements
+  const paginatedGroupedSettlements = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    return groupedSettlements.slice(startIndex, endIndex);
+  }, [groupedSettlements, currentPage, pageSize]);
+
+  // Set totalItems based on grouped settlements
+  useEffect(() => {
+    setTotalItems(paginatedGroupedSettlements.length);
+  }, [groupedSettlements]);
+
+  // ── Pagination Handlers ────────────────────────────────────────────
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handlePageSizeChange = (size: number) => {
+    setPageSize(size);
+    setCurrentPage(1); // Reset to first page when page size changes
+  };
 
   // ── Edit Handlers ─────────────────────────────────────────────────
   const handleEdit = (group: Settlement) => {
@@ -340,6 +362,15 @@ const EditSettlementPage: React.FC = () => {
           ))}
         </tbody>
       </Table>
+
+      {/* Pagination */}
+      <PaginationComponent
+        totalItems={totalItems}
+        pageSize={pageSize}
+        currentPage={currentPage}
+        onPageChange={handlePageChange}
+        onPageSizeChange={handlePageSizeChange}
+      />
 
       {/* Edit Settlement Modal */}
       <SettlementModal
