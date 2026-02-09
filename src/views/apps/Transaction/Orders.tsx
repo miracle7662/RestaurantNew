@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Button,  Modal, Table, Card, Row, Col, Spinner } from "react-bootstrap";
+import { Button, Modal, Table, Card, Row, Col, Spinner } from "react-bootstrap";
 import { fetchOutletsForDropdown } from "@/utils/commonfunction";
 import { useAuthContext } from "@/common";
 import { getUnbilledItemsByTable } from "@/common/api/orders";
@@ -12,7 +12,7 @@ import F8PasswordModal from "@/components/F8PasswordModal";
 import KotTransfer from "./KotTransfer";
 import SettlementModal from "./SettelmentModel";
 import { fetchKotPrintSettings, } from '@/services/outletSettings.service';
-import { applyKotSettings,  } from '@/utils/applyOutletSettings';
+import { applyKotSettings, } from '@/utils/applyOutletSettings';
 import KotPreviewPrint from '../PrintReport/KotPrint';
 import BillPreviewPrint from '../PrintReport/BillPrint';
 import { fetchWaiterUsers, WaiterUser } from '@/services/user.service';
@@ -35,7 +35,7 @@ interface MenuItem {
   txnDetailId?: number;
   isReverse?: boolean; // Added for reverse quantity items
   revQty?: number;
-  order_tag ?: string
+  order_tag?: string
 }
 interface ReversedMenuItem extends MenuItem {
   isReversed: true;
@@ -640,8 +640,8 @@ const Order = () => {
     }
   };
 
- 
- 
+
+
   useEffect(() => {
     const lastItem = items[items.length - 1];
     if (itemListRef.current && items.length > 10 && lastItem?.isNew) {
@@ -1435,7 +1435,7 @@ const Order = () => {
       }
       // 6. Refresh the table list to show the new 'billed' status (red color)
       fetchTableManagement();
-    
+
 
     } catch (error: any) {
       console.error('Error printing bill:', error);
@@ -1566,8 +1566,8 @@ const Order = () => {
         if (qtyDelta <= 0) return null;
 
         // Determine order tag for KOT header
-      const order_tag = originalTableStatus === 0 ? (formData.new_order_tag_label || 'New') : (formData.running_order_tag_label || 'Running');
-      console.log('orderTag determined:', order_tag, 'originalTableStatus:', originalTableStatus, 'activeTab:', activeTab, 'selectedTable:', selectedTable);
+        const order_tag = originalTableStatus === 0 ? (formData.new_order_tag_label || 'New') : (formData.running_order_tag_label || 'Running');
+        console.log('orderTag determined:', order_tag, 'originalTableStatus:', originalTableStatus, 'activeTab:', activeTab, 'selectedTable:', selectedTable);
 
         const lineSubtotal = Number(i.price) * qtyDelta;
         const cgstPer = Number(currentTaxRates.cgst) || 0;
@@ -1578,7 +1578,7 @@ const Order = () => {
         const sgstAmt = (lineSubtotal * sgstPer) / 100;
         const igstAmt = (lineSubtotal * igstPer) / 100;
         const cessAmt = (lineSubtotal * cessPer) / 100; // This tax calculation is for bill, not KOT. KOT only needs item and quantity.
-       
+
         return {
           ItemID: i.id,
           item_no: i.item_no,
@@ -1634,7 +1634,7 @@ const Order = () => {
       // Find the first NCKOT item to get the overall NCName and NCPurpose for the bill header
       const firstNCItem = newKotItemsPayload.find(item => item.isNCKOT);
 
-      
+
 
       const kotPayload = {
         txnId: currentTxnId || 0,
@@ -1657,7 +1657,7 @@ const Order = () => {
         customerid: customerid,
 
         Order_Type: activeTab, // Add the active tab as Order_Type
-        Steward: selectedWaiter , // Add selected waiter name
+        Steward: selectedWaiter, // Add selected waiter name
         PAX: pax || 1, // Use the PAX value from the input field
         TxnDatetime: user?.currDate, // Pass curr_date from useAuthContext
 
@@ -3131,13 +3131,20 @@ const Order = () => {
                           <div key={index} className="p-1">
                             <button
                               className={`btn ${getTableButtonClass(table, selectedTable === table.table_name)}`}
-                              style={{ width: '90px', height: '80px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+                              style={{ width: '90px', height: '80px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '2px' }}
                               onClick={() => {
                                 console.log('Button clicked for table:', table.table_name, 'isActive:', table.isActive);
                                 handleTableClick(table.table_name);
                               }}
                             >
-                              {table.table_name} {table.isActive ? '' : ''}
+                              <span className="text-dark fw-bold" style={{ fontSize: '11px', lineHeight: '1.1' }}>{table.table_name}</span>
+                              {(table.status === 2 || table.status === 4) && (
+                                <div className="d-flex flex-column align-items-center" style={{ fontSize: '8px', lineHeight: '1', color: 'white' }}>
+                                  <span>{table.billNo || 'N/A'}</span>
+                                  <span>₹{table.billAmount || 0}</span>
+                                  <span>{table.billPrintedTime || 'N/A'}</span>
+                                </div>
+                              )}
                             </button>
                           </div>
                         )) : null}
@@ -3537,7 +3544,7 @@ const Order = () => {
                     title="Waiter & PAX"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                      <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4zm-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.289 10 8 10c-2.29 0-3.516.68-4.168 1.332-.678.678-.83 1.418-.832 1.664h10z"/>
+                      <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4zm-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.289 10 8 10c-2.29 0-3.516.68-4.168 1.332-.678.678-.83 1.418-.832 1.664h10z" />
                     </svg>
                   </button>
                 )}
@@ -3838,7 +3845,7 @@ const Order = () => {
                     style={{ width: '150px', height: '28px', fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}
                   />
                 )}
-               
+
                 <input
                   type="text"
                   placeholder="KOT Note"
@@ -4502,45 +4509,45 @@ const Order = () => {
           <KotPreviewPrint
             show={showKotPreviewModal}
             onHide={() => setShowKotPreviewModal(false)}
-          onClose={() => {
-            setShowKotPreviewModal(false);
-            // Clear the order state after KOT print
-            setItems([]);
-            setPrintItems([]);
-            setReverseQtyItems([]);
-            setReversedItems([]);
-            setReverseQtyMode(false);
-            setIsGroupedView(true);
-            setPersistentTxnId(null);
-            setPersistentTableId(null);
-            setSourceTableId(null);
-            setCurrentKOTNo(null);
-            setCurrentKOTNos([]);
-            if (activeTab === 'Dine-in') {
-              if (focusMode) {
-                // In focus mode, keep order details open and focus the table input
-                setTriggerFocusInDetails(prev => prev + 1);
-                setMobileNumber('');
-                setCustomerName('');
-                setCustomerId(null);
-                // Do not hide order details or clear selected table
-              } else {
-                setMobileNumber('');
-                setCustomerName('');
-                setCustomerId(null);
+            onClose={() => {
+              setShowKotPreviewModal(false);
+              // Clear the order state after KOT print
+              setItems([]);
+              setPrintItems([]);
+              setReverseQtyItems([]);
+              setReversedItems([]);
+              setReverseQtyMode(false);
+              setIsGroupedView(true);
+              setPersistentTxnId(null);
+              setPersistentTableId(null);
+              setSourceTableId(null);
+              setCurrentKOTNo(null);
+              setCurrentKOTNos([]);
+              if (activeTab === 'Dine-in') {
+                if (focusMode) {
+                  // In focus mode, keep order details open and focus the table input
+                  setTriggerFocusInDetails(prev => prev + 1);
+                  setMobileNumber('');
+                  setCustomerName('');
+                  setCustomerId(null);
+                  // Do not hide order details or clear selected table
+                } else {
+                  setMobileNumber('');
+                  setCustomerName('');
+                  setCustomerId(null);
+                  setShowOrderDetails(false);
+                  setSelectedTable(null);
+                }
+              } else if (activeTab === 'Pickup' || activeTab === 'Delivery') {
+                // Navigate back to table page for Pickup/Delivery
+                setActiveTab('Dine-in');
                 setShowOrderDetails(false);
+                setMobileNumber('');
+                setCustomerName('');
+                setCustomerId(null);
                 setSelectedTable(null);
               }
-            } else if (activeTab === 'Pickup' || activeTab === 'Delivery') {
-              // Navigate back to table page for Pickup/Delivery
-              setActiveTab('Dine-in');
-              setShowOrderDetails(false);
-              setMobileNumber('');
-              setCustomerName('');
-              setCustomerId(null);
-              setSelectedTable(null);
-            }
-          }}
+            }}
             printItems={printItems}
             items={items}
             currentKOTNo={currentKOTNo}
