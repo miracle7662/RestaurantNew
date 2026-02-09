@@ -1,12 +1,13 @@
 import { useState, useEffect, useMemo } from "react";
 import { toast } from "react-hot-toast";
 import { useAuthContext } from "@/common";
+import CustomerService from "../../../common/api/customers";
 
 import {
- 
   StateItem,
- 
   CityItem,
+  fetchStates,
+  fetchCities,
 } from "../../../utils/commonfunction";
 
 interface CustomerFormData {
@@ -176,8 +177,8 @@ function Customers() {
   const [loading, setLoading] = useState<boolean>(false);
   const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [states, ] = useState<StateItem[]>([]);
-  const [cities, ] = useState<CityItem[]>([]);
+  const [states, setStates] = useState<StateItem[]>([]);
+  const [cities, setCities] = useState<CityItem[]>([]);
   const [stateid, setStateId] = useState<number | null>(null);
   const [cityid, setCityId] = useState<number | null>(null);
   const { user } = useAuthContext();
@@ -187,17 +188,10 @@ function Customers() {
   const fetchCustomers = async () => {
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:3001/api/customer', {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      if (res.ok) {
-        const responseData = await res.json();
-        const customerList = Array.isArray(responseData) ? responseData : (responseData.data || []);
-        setCustomers(customerList);
-      } else {
-        toast.error('Failed to fetch customer data');
-      }
+      const response = await CustomerService.list();
+      const responseData = response.data || response;
+      const customerList = Array.isArray(responseData) ? responseData : (responseData.data || []);
+      setCustomers(customerList);
     } catch (err) {
       toast.error('Error fetching customer data');
     } finally {
@@ -206,57 +200,25 @@ function Customers() {
   };
 
   // Fetch hotelmaster data for default state and city
-  const fetchHotelMaster = async (hotelid: number) => {
-    try {
-      const res = await fetch(`http://localhost:3001/api/hotelmasters/${hotelid}`, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      if (res.ok) {
-        const hotelData = await res.json();
-        if (hotelData.stateid && hotelData.cityid) {
-          setFormData(prev => ({
-            ...prev,
-            state: hotelData.state_name || '',
-            city: hotelData.city_name || '',
-          }));
-          setStateId(hotelData.stateid);
-          setCityId(hotelData.cityid);
-        }
-      }
-    } catch (err) {
-      console.error('Error fetching hotelmaster data', err);
-    }
-  };
+  
 
   useEffect(() => {
     if (user) {
-      fetchCustomers();
-      if (user.hotelid) {
-        fetchHotelMaster(user.hotelid);
-      }
+      fetchCustomers();    
     }
   }, [user]);
 
- 
+  useEffect(() => {
+    fetchStates(setStates, () => {});
+  }, []);
 
   useEffect(() => {
-    if (!formData.state) {
-      setStateId(null);
-      return;
+    if (stateid) {
+      fetchCities(stateid, setCities, () => {});
+    } else {
+      setCities([]);
     }
-    const match = states.find(s => s.state_name.toLowerCase() === formData.state.toLowerCase());
-    setStateId(match ? match.stateid : null);
-  }, [formData.state, states]);
-
-  useEffect(() => {
-    if (!formData.city) {
-      setCityId(null);
-      return;
-    }
-    const match = cities.find(c => c.city_name.toLowerCase() === formData.city.toLowerCase());
-    setCityId(match ? match.cityid : null);
-  }, [formData.city, cities]);
+  }, [stateid]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({
@@ -275,10 +237,17 @@ function Customers() {
     if (mobileValue.length <= 10) setFormData({ ...formData, mobile2: mobileValue });
   };
 
-  const handlePincodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePincodeChange = (
+  e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+) => {
+  if (e.target instanceof HTMLInputElement) {
     const pincodeValue = e.target.value.replace(/\D/g, '');
-    if (pincodeValue.length <= 6) setFormData({ ...formData, pincode: pincodeValue });
-  };
+    if (pincodeValue.length <= 6) {
+      setFormData({ ...formData, pincode: pincodeValue });
+    }
+  }
+};
+
 
   const handleAadharChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const aadharValue = e.target.value.replace(/\D/g, '');
@@ -366,34 +335,16 @@ function Customers() {
         updated_by_id: user?.id || 1,
         updated_date: currentDate,
       };
-      let res;
+      const response = selectedCustomerId ? await CustomerService.update(selectedCustomerId, payload) : await CustomerService.create(payload);
+      const data = response.data || response;
+      const message = selectedCustomerId ? 'Customer updated successfully' : 'Customer added successfully';
+      toast.success(message);
       if (selectedCustomerId) {
-        res = await fetch(`http://localhost:3001/api/customer/${selectedCustomerId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
+        setCustomers((prev) => prev.map((c) => (c.customerid === selectedCustomerId ? data : c)));
       } else {
-        res = await fetch('http://localhost:3001/api/customer', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
+        setCustomers((prev) => [...prev, data]);
       }
-      if (res.ok) {
-        const data = await res.json();
-        const message = selectedCustomerId ? 'Customer updated successfully' : 'Customer added successfully';
-        toast.success(message);
-        if (selectedCustomerId) {
-          setCustomers((prev) => prev.map((c) => (c.customerid === selectedCustomerId ? data : c)));
-        } else {
-          setCustomers((prev) => [...prev, data]);
-        }
-        handleClear();
-      } else {
-        const errorData = await res.json().catch(() => ({}));
-        toast.error(errorData.message || `Failed to ${selectedCustomerId ? 'update' : 'add'} customer`);
-      }
+      handleClear();
     } catch (err) {
       toast.error(`Error ${selectedCustomerId ? 'updating' : 'adding'} customer`);
     } finally {
@@ -535,18 +486,41 @@ function Customers() {
                     label="State"
                     name="state"
                     value={formData.state}
-                    onChange={handleInputChange}
-                    placeholder="State"
+                    onChange={(e) => {
+                      const selectedState = states.find(s => s.state_name === e.target.value);
+                      setStateId(selectedState ? selectedState.stateid : null);
+                      setFormData(prev => ({ ...prev, state: e.target.value, city: '' }));
+                      setCityId(null);
+                    }}
                     disabled={loading}
-                  />
-                  <PairedFields
-                    fields={[
-                      { label: "City", name: "city", placeholder: "City" },
-                      { label: "Pincode", name: "pincode", placeholder: "Pincode" },
-                    ]}
-                    formData={formData}
-                    onChange={handleInputChange}
-                    customOnChanges={customOnChanges}
+                  >
+                    <option value="">Select State</option>
+                    {states.map(state => (
+                      <option key={state.stateid} value={state.state_name}>{state.state_name}</option>
+                    ))}
+                  </Field>
+                  <Field
+                    label="City"
+                    name="city"
+                    value={formData.city}
+                    onChange={(e) => {
+                      const selectedCity = cities.find(c => c.city_name === e.target.value);
+                      setCityId(selectedCity ? selectedCity.cityid : null);
+                      setFormData(prev => ({ ...prev, city: e.target.value }));
+                    }}
+                    disabled={loading || !stateid}
+                  >
+                    <option value="">Select City</option>
+                    {cities.map(city => (
+                      <option key={city.cityid} value={city.city_name}>{city.city_name}</option>
+                    ))}
+                  </Field>
+                  <Field
+                    label="Pincode"
+                    name="pincode"
+                    value={formData.pincode}
+                    onChange={customOnChanges.pincode}
+                    placeholder="Pincode"
                     disabled={loading}
                   />
 
