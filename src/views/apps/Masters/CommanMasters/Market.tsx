@@ -5,6 +5,7 @@ import { Preloader } from '@/components/Misc/Preloader';
 import { Button, Card, Stack, Pagination, Table, Form } from 'react-bootstrap';
 import TitleHelmet from '@/components/Common/TitleHelmet';
 import { useAuthContext } from '../../../../common/context/useAuthContext';
+import MarketService from '../../../../common/api/markets';
 import {
   useReactTable,
   getCoreRowModel,
@@ -62,12 +63,13 @@ const Market: React.FC = () => {
   const fetchMarkets = async () => {
     try {
       setLoading(true);
-      const res = await fetch('http://localhost:3001/api/markets');
-      const data = await res.json();
+      const data = await MarketService.list() as unknown as MarketItem[];
+      
       console.log('Fetched markets:', data);
-      setMarketItems(data);
+      setMarketItems(Array.isArray(data) ? data : []);
     } catch (err) {
       toast.error('Failed to fetch Markets');
+      setMarketItems([]);
     } finally {
       setLoading(false);
     }
@@ -175,7 +177,7 @@ const Market: React.FC = () => {
     });
     if (res.isConfirmed) {
       try {
-        await fetch(`http://localhost:3001/api/markets/${market.marketid}`, { method: 'DELETE' });
+        await MarketService.remove(Number(market.marketid));
         toast.success('Deleted successfully');
         fetchMarkets();
         setSelectedMarket(null);
@@ -247,7 +249,6 @@ const Market: React.FC = () => {
           status: statusValue,
           ...(isEditMode
             ? {
-                marketid: market!.marketid,
                 updated_by_id: userId,
                 updated_date: currentDate,
               }
@@ -258,38 +259,27 @@ const Market: React.FC = () => {
         };
         console.log('Sending to backend:', payload);
 
-        const url = isEditMode
-          ? `http://localhost:3001/api/markets/${market!.marketid}`
-          : 'http://localhost:3001/api/markets';
-        const method = isEditMode ? 'PUT' : 'POST';
-
-        const res = await fetch(url, {
-          method,
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-
-        if (res.ok) {
-          toast.success(`Market ${isEditMode ? 'updated' : 'added'} successfully`);
-          if (isEditMode && market && onUpdateSelectedMarket) {
-            const updatedMarket = {
-              ...market,
-              market_name,
-              status: statusValue.toString(),
-              updated_by_id: userId,
-              updated_date: currentDate,
-            };
-            onUpdateSelectedMarket(updatedMarket);
-          }
-          setMarketName('');
-          setStatus('Active');
-          onSuccess();
-          onHide();
+        if (isEditMode) {
+          await MarketService.update(Number(market!.marketid), payload);
         } else {
-          const errorData = await res.json();
-          console.log('Backend error:', errorData);
-          toast.error(`Failed to ${isEditMode ? 'update' : 'add'} Market`);
+          await MarketService.create(payload);
         }
+
+        toast.success(`Market ${isEditMode ? 'updated' : 'added'} successfully`);
+        if (isEditMode && market && onUpdateSelectedMarket) {
+          const updatedMarket = {
+            ...market,
+            market_name,
+            status: statusValue.toString(),
+            updated_by_id: userId,
+            updated_date: currentDate,
+          };
+          onUpdateSelectedMarket(updatedMarket);
+        }
+        setMarketName('');
+        setStatus('Active');
+        onSuccess();
+        onHide();
       } catch (err) {
         console.error(`${isEditMode ? 'Edit' : 'Add'} Market error:`, err);
         toast.error('Something went wrong');

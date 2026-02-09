@@ -13,6 +13,7 @@ import {
   ColumnDef,
   flexRender,
 } from '@tanstack/react-table';
+import OutletDesignationService from '@/common/api/outletdesignation';
 
 interface DesignationItem {
   Designation: string;
@@ -62,8 +63,7 @@ const Designation: React.FC = () => {
   const fetchDesignation = async () => {
     try {
       setLoading(true);
-      const res = await fetch('http://localhost:3001/api/Designation');
-      const data = await res.json();
+      const data = await OutletDesignationService.list() as unknown as DesignationItem[];
       console.log('Fetched Designation:', data);
       setDesignationItem(data);
     } catch (err) {
@@ -268,39 +268,28 @@ const Designation: React.FC = () => {
         };
         console.log('Sending to backend:', payload);
 
-        const url = isEditMode
-          ? `http://localhost:3001/api/Designation/${designation!.designationid}`
-          : 'http://localhost:3001/api/Designation';
-        const method = isEditMode ? 'PUT' : 'POST';
-
-        const res = await fetch(url, {
-          method,
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-
-        if (res.ok) {
-          toast.success(`Designation ${isEditMode ? 'updated' : 'added'} successfully`);
-          if (isEditMode && designation && onUpdateSelectedDesignation) {
-            const updatedDesignation = {
-              ...designation,
-              Designation: designationName,
-              status: statusValue.toString(),
-              updated_by_id: userId,
-              updated_date: currentDate,
-              designationid: designation.designationid,
-            };
-            onUpdateSelectedDesignation(updatedDesignation);
-          }
-          setDesignationName('');
-          setStatus('Active');
-          onSuccess();
-          onHide();
+        if (isEditMode) {
+          await OutletDesignationService.update(designation!.designationid, payload);
         } else {
-          const errorData = await res.json();
-          console.log('Backend error:', errorData);
-          toast.error(`Failed to ${isEditMode ? 'update' : 'add'} Designation`);
+          await OutletDesignationService.create(payload);
         }
+
+        toast.success(`Designation ${isEditMode ? 'updated' : 'added'} successfully`);
+        if (isEditMode && designation && onUpdateSelectedDesignation) {
+          const updatedDesignation = {
+            ...designation,
+            Designation: designationName,
+            status: statusValue.toString(),
+            updated_by_id: userId,
+            updated_date: currentDate,
+            designationid: designation.designationid,
+          };
+          onUpdateSelectedDesignation(updatedDesignation);
+        }
+        setDesignationName('');
+        setStatus('Active');
+        onSuccess();
+        onHide();
       } catch (err) {
         console.error(`${isEditMode ? 'Edit' : 'Add'} Designation error:`, err);
         toast.error('Something went wrong');

@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Button, Card, Form, ListGroup, Row, Col } from 'react-bootstrap';
-import axios from 'axios';
 import { fetchOutletsForDropdown } from '@/utils/commonfunction';
 import { OutletData } from '@/common/api/outlet';
 import { useAuthContext } from '@/common';
 import { toast } from 'react-hot-toast';
+import OutletPaymentModeService from '@/common/api/outletpaymentmode';
 
 interface PaymentMode {
   id?: number;
@@ -37,6 +37,43 @@ const PaymentModes: React.FC = () => {
   const [adding, setAdding] = useState(false);
   const [removing, setRemoving] = useState(false);
 
+ // Fetch payment types
+const fetchPaymentTypes = async () => {
+  try {
+    const response = await OutletPaymentModeService.types();
+    const data = response;
+    if (!Array.isArray(data)) {
+      throw new Error('Expected an array of payment types');
+    }
+    setPaymentTypes(data);
+    setAvailablePaymentModes(data.filter((type) => type && type.mode_name).map((type) => type.mode_name));
+  } catch (error: any) {
+    console.error('Error fetching payment types:', error);
+    toast.error('Failed to fetch payment types');
+  }
+};
+
+const fetchPaymentModes = async () => {
+  try {
+    const response = await OutletPaymentModeService.list({ outletid: selectedOutlet });
+    const data = response;
+    if (!Array.isArray(data)) {
+      throw new Error('Expected an array of payment modes');
+    }
+    setPaymentModes(
+      data
+        .filter((mode) => mode && mode.mode_name)
+        .map((mode) => ({
+          ...mode,
+          is_active: mode.is_active ?? 1,
+        }))
+    );
+  } catch (error: any) {
+    console.error('Error fetching payment modes:', error);
+    toast.error('Failed to fetch payment modes');
+  }
+};
+
   // Fetch outlets and payment types on component mount
   useEffect(() => {
     fetchOutletsForDropdown(user, setOutlets, setLoading);
@@ -56,48 +93,6 @@ const PaymentModes: React.FC = () => {
       localStorage.removeItem('lastSelectedOutlet');
     }
   }, [selectedOutlet]);
-
-  // Fetch payment types
- const fetchPaymentTypes = async () => {
-  try {
-    const response = await axios.get('/api/payment-modes/types', {
-      headers: { Authorization: `Bearer ${user.token}` },
-    });
-    const data = response.data;
-    if (!Array.isArray(data)) {
-      throw new Error('Expected an array of payment types');
-    }
-    setPaymentTypes(data);
-    setAvailablePaymentModes(data.filter((type) => type && type.mode_name).map((type) => type.mode_name));
-  } catch (error: any) {
-    console.error('Error fetching payment types:', error);
-    toast.error('Failed to fetch payment types');
-  }
-};
-
-const fetchPaymentModes = async () => {
-  try {
-    const response = await axios.get('/api/payment-modes', {
-      params: { outletid: selectedOutlet },
-      headers: { Authorization: `Bearer ${user.token}` },
-    });
-    const data = response.data;
-    if (!Array.isArray(data)) {
-      throw new Error('Expected an array of payment modes');
-    }
-    setPaymentModes(
-      data
-        .filter((mode) => mode && mode.mode_name)
-        .map((mode) => ({
-          ...mode,
-          is_active: mode.is_active ?? 1,
-        }))
-    );
-  } catch (error: any) {
-    console.error('Error fetching payment modes:', error);
-    toast.error('Failed to fetch payment modes');
-  }
-};
 
   // Add a new payment mode
   const handleAddPaymentMode = async (modeName: string) => {
@@ -125,10 +120,8 @@ const fetchPaymentModes = async () => {
         is_active: 1,
       };
       console.log('POST request payload:', payload);
-      const response = await axios.post('/api/payment-modes', payload, {
-        headers: { Authorization: `Bearer ${user.token}` },
-      });
-      console.log('POST response:', response.data);
+      const response = await OutletPaymentModeService.create(payload);
+      console.log('POST response:', response);
       setPaymentModes((prev) => [...prev, response.data]);
       setSelectedModesLeft((prev) => prev.filter((name) => name !== modeName));
       await fetchPaymentModes();
@@ -156,9 +149,7 @@ const fetchPaymentModes = async () => {
 
     setRemoving(true);
     try {
-      await axios.delete(`/api/payment-modes/${id}`, {
-        headers: { Authorization: `Bearer ${user.token}` },
-      });
+      await OutletPaymentModeService.remove(id);
       setPaymentModes((prev) => prev.filter((mode) => mode.id !== id));
       setSelectedModesRight((prev) => prev.filter((mid) => mid !== modeId.toString()));
       await fetchPaymentModes();
@@ -251,7 +242,7 @@ const fetchPaymentModes = async () => {
 
 // Filter for available (left side) payment modes
 const filteredPaymentModesLeft = availablePaymentModes
-  .filter((mode) => typeof mode === 'string' && !paymentModes.some((pm) => pm.mode_name === mode))
+  .filter((mode) => typeof mode === 'string' && !paymentModes.some((pm) => pm && pm.mode_name === mode))
   .filter((mode) => mode.toLowerCase().includes(searchTerm));
 
 // Filter for added (right side) payment modes
