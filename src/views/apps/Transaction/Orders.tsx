@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Button, Modal, Table, Card, Row, Col, Spinner } from "react-bootstrap";
-import { fetchOutletsForDropdown, fetchCustomerByMobile } from "@/utils/commonfunction";
+import { fetchOutletsForDropdown, fetchCustomerByMobile, getTaxesByOutletAndDepartment } from "@/utils/commonfunction";
 import { useAuthContext } from "@/common";
-import { getUnbilledItemsByTable } from "@/common/api/orders";
+import OrderService from '@/common/api/orders'
 import { OutletData } from "@/common/api/outlet";
 import AddCustomerModal from "./Customers";
 import { toast } from "react-hot-toast";
-import { createKOT, getPendingOrders, getSavedKOTs, getTaxesByOutletAndDepartment } from "@/common/api/orders";
+
 import OrderDetails from "./OrderDetails";
 import F8PasswordModal from "@/components/F8PasswordModal";
 import KotTransfer from "./KotTransfer";
@@ -292,103 +292,116 @@ const Order = () => {
   const hasModifications = items.some(item => item.isNew) || reverseQtyItems.length > 0;
   const showKotButton = (selectedTable || ['Pickup', 'Delivery', 'Quick Bill'].includes(activeTab)) && hasModifications;
   const fetchAllBills = async () => {
-    try {
-      const res = await fetch("http://localhost:3001/api/TAxnTrnbill/all");
-      const data = await res.json();
-      if (data.success) {
-        setAllBills(data.data);
-      }
-    } catch (err) {
-      console.error("Error fetching all bills:", err);
+  try {
+    const res = await OrderService.getAllBills()
+
+    if (res.data?.success) {
+      setAllBills(res.data.data)
     }
-  };
+  } catch (error) {
+    console.error('Error fetching all bills:', error)
+  }
+}
+
   const refreshItemsForTable = useCallback(async (tableIdNum: number) => {
     try {
       // Step 1: Try to fetch the latest billed (but not settled) bill
-      const billedBillRes = await fetch(`http://localhost:3001/api/TAxnTrnbill/billed-bill/by-table/${tableIdNum}`);
+        const billedBillRes = await OrderService.getBilledBillByTable(tableIdNum)
 
-      if (billedBillRes.ok) {
-        const billedBillData = await billedBillRes.json();
-        if (billedBillData.success && billedBillData.data) {
-          const { details, ...header } = billedBillData.data;
-          const fetchedItems: MenuItem[] = details.map((item: any) => {
-            const originalQty = Number(item.Qty) || 0;
-            const revQty = Number(item.RevQty) || 0;
-            return {
-              id: item.ItemID,
-              txnDetailId: item.TXnDetailID,
-              item_no: item.item_no,
-              name: item.ItemName || 'Unknown Item',
-              price: item.RuntimeRate,
-              qty: originalQty - revQty,
-              isBilled: item.isBilled,
-              revQty: revQty,
-              isNCKOT: item.isNCKOT,
-              NCName: '',
-              NCPurpose: '',
-              isNew: false,
-              originalQty: originalQty,
-              kotNo: item.KOTNo,
-            };
-          });
+    const billedBillData = billedBillRes.data;
 
-          setItems(fetchedItems);
-          setPersistentTxnId(header.TxnID);
-          setPersistentTableId(tableIdNum);
-          setOrderNo(header.TxnNo); // Set TxnNo from the fetched bill header
-          setCurrentTxnId(header.TxnID);
-          setCurrentKOTNo(header.KOTNo); // A billed order might have a KOT no.
-          setCurrentKOTNos(
-            fetchedItems
-              .map(item => item.kotNo)
-              .filter((v, i, a): v is number => v !== undefined && a.indexOf(v) === i)
-              .sort((a, b) => a - b)
-          );
+if (billedBillData?.success && billedBillData.data) {
+  const { details, ...header } = billedBillData.data;
 
-          // Set printed bill information
-          if (header.BilledDate) {
-            const date = new Date(header.BilledDate);
-            const istDate = new Date(date.getTime() + (5.5 * 60 * 60 * 1000)); // Convert to IST
-            setBillPrintedTime(istDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }));
-          }
-          setNetAmount(header.Amount);
+  const fetchedItems: MenuItem[] = details.map((item: any) => {
+    const originalQty = Number(item.Qty) || 0;
+    const revQty = Number(item.RevQty) || 0;
 
-          setBillActionState('printOrSettle');
-          // Restore applied discount for billed tables
-          if (header.Discount || header.DiscPer) {
-            setDiscount(header.Discount || 0);
-            setDiscountInputValue(header.DiscountType === 1 ? header.DiscPer : header.Discount || 0);
-            setDiscountType(header.DiscountType !== null ? header.DiscountType : 1);
-          } else {
-            setDiscount(0);
-            setDiscountInputValue(0);
-          }
-          // ✅ Restore customer details from billed transaction
-          setCustomerName(header.CustomerName || '');
-          setMobileNumber(header.MobileNo || '');
-          if (header.customerid) setCustomerId(header.customerid);
-          // Also fetch and set reversed items for the billed transaction
-          const fetchedReversedItems: ReversedMenuItem[] = (billedBillData.data.reversedItems || []).map((item: any) => ({
-            ...item,
-            name: item.ItemName || item.itemName || 'Unknown Item',
-            id: item.ItemID || item.itemId,
-            price: item.RuntimeRate || item.price || 0,
-            qty: Math.abs(item.Qty) || 1, // Ensure positive qty for display
-            isReversed: true,
-            ReversalLogID: item.ReversalLogID,
-            status: 'Reversed',
-            kotNo: item.KOTNo,
-          }));
-          setReversedItems(fetchedReversedItems);
+    return {
+      id: item.ItemID,
+      txnDetailId: item.TXnDetailID,
+      item_no: item.item_no,
+      name: item.ItemName || 'Unknown Item',
+      price: item.RuntimeRate,
+      qty: originalQty - revQty,
+      isBilled: item.isBilled,
+      revQty: revQty,
+      isNCKOT: item.isNCKOT,
+      NCName: '',
+      NCPurpose: '',
+      isNew: false,
+      originalQty: originalQty,
+      kotNo: item.KOTNo,
+    };
+  });
 
-          return; // Exit after successfully loading billed items
-        } else {
-          setBillActionState('initial'); // Reset if no billed bill is found
-        }
-      }
+  setItems(fetchedItems);
+  setPersistentTxnId(header.TxnID);
+  setPersistentTableId(tableIdNum);
+  setOrderNo(header.TxnNo);
+  setCurrentTxnId(header.TxnID);
+  setCurrentKOTNo(header.KOTNo);
+
+  setCurrentKOTNos(
+    fetchedItems
+      .map(item => item.kotNo)
+      .filter((v, i, a): v is number => v !== undefined && a.indexOf(v) === i)
+      .sort((a, b) => a - b)
+  );
+
+  if (header.BilledDate) {
+    const date = new Date(header.BilledDate);
+    const istDate = new Date(date.getTime() + 5.5 * 60 * 60 * 1000);
+    setBillPrintedTime(
+      istDate.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      })
+    );
+  }
+
+  setNetAmount(header.Amount);
+  setBillActionState('printOrSettle');
+
+  if (header.Discount || header.DiscPer) {
+    setDiscount(header.Discount || 0);
+    setDiscountInputValue(
+      header.DiscountType === 1 ? header.DiscPer : header.Discount || 0
+    );
+    setDiscountType(header.DiscountType !== null ? header.DiscountType : 1);
+  } else {
+    setDiscount(0);
+    setDiscountInputValue(0);
+  }
+
+  setCustomerName(header.CustomerName || '');
+  setMobileNumber(header.MobileNo || '');
+  if (header.customerid) setCustomerId(header.customerid);
+
+  const fetchedReversedItems: ReversedMenuItem[] =
+    (billedBillData.data.reversedItems || []).map((item: any) => ({
+      ...item,
+      name: item.ItemName || item.itemName || 'Unknown Item',
+      id: item.ItemID || item.itemId,
+      price: item.RuntimeRate || item.price || 0,
+      qty: Math.abs(item.Qty) || 1,
+      isReversed: true,
+      ReversalLogID: item.ReversalLogID,
+      status: 'Reversed',
+      kotNo: item.KOTNo,
+    }));
+
+  setReversedItems(fetchedReversedItems);
+
+  return; // ✅ same early exit
+} else {
+  setBillActionState('initial');
+}
+
 
       // Step 2: If no billed bill found (e.g., 404), fetch unbilled items (existing logic)
-      const unbilledItemsRes = await getUnbilledItemsByTable(tableIdNum);
+       const unbilledItemsRes = await OrderService.getUnbilledItemsByTable(tableIdNum)
       if (unbilledItemsRes.success && unbilledItemsRes.data && Array.isArray(unbilledItemsRes.data.items)) {
         const fetchedItems: MenuItem[] = unbilledItemsRes.data.items.map((item: any) => {
           return {
@@ -502,83 +515,109 @@ const Order = () => {
     }
   };
   const fetchTableManagement = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch('http://localhost:3001/api/tablemanagement', {
-        headers: { 'Content-Type': 'application/json' },
-      });
-      if (res.ok) {
-        const response = await res.json();
-        console.log('Raw tableItems data:', JSON.stringify(response, null, 2));
-        if (response.success && Array.isArray(response.data)) {
-          const formattedData = await Promise.all(
-            response.data.map(async (item: any) => {
-              let status = Number(item.status);
-              let billNo: string | null = null;
-              let billAmount: number | null = null;
-              let billPrintedTime: string | null = null;
-              let billPrintedDate: Date | null = null;
+  setLoading(true)
 
-              // Fetch bill status for each table from backend
-              const res = await fetch(`http://localhost:3001/api/TAxnTrnbill/bill-status/${item.tableid}`);
-              const data = await res.json();
+  try {
+    // 1️⃣ Get all tables
+    const res = await OrderService.getTableManagement()
+    const response = res.data
 
-              if (data.success && data.data) {
-                const { isBilled, isSetteled, TxnNo, Amount, BilledDate } = data.data;
+    console.log('Raw tableItems data:', JSON.stringify(response, null, 2))
 
-                if (isBilled === 1 && isSetteled !== 1) {
-                  status = 2; // 🔴 red when billed but not settled
-                  billNo = TxnNo || null;
-                  billAmount = Amount || null;
-                  if (BilledDate) {
-                    const date = new Date(BilledDate);
-                    const istDate = new Date(date.getTime() + (5.5 * 60 * 60 * 1000)); // Convert to IST
-                    billPrintedTime = istDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-                    billPrintedDate = istDate;
-                  }
-                }
-                if (isSetteled === 1) status = 0; // ⚪ vacant when settled
+    if (response.success && Array.isArray(response.data)) {
+      const formattedData = await Promise.all(
+        response.data.map(async (item: any) => {
+          let status = Number(item.status)
+          let billNo: string | null = null
+          let billAmount: number | null = null
+          let billPrintedTime: string | null = null
+          let billPrintedDate: Date | null = null
 
-                // Check if printed bill is 10+ minutes old, change to pending (orange)
-                if (status === 2 && billPrintedDate) {
-                  const now = new Date();
-                  const diffMinutes = (now.getTime() - billPrintedDate.getTime()) / (1000 * 60);
-                  if (diffMinutes >= 10) {
-                    status = 4; // 4 for pending (orange)
-                  }
+          try {
+            // 2️⃣ Get bill status table-wise
+            const billRes = await OrderService.getBillStatus(item.tableid)
+            const billData = billRes.data
+
+            if (billData.success && billData.data) {
+              const { isBilled, isSetteled, TxnNo, Amount, BilledDate } = billData.data
+
+              if (isBilled === 1 && isSetteled !== 1) {
+                status = 2 // 🔴 billed but not settled
+                billNo = TxnNo || null
+                billAmount = Amount || null
+
+                if (BilledDate) {
+                  const date = new Date(BilledDate)
+                  const istDate = new Date(date.getTime() + 5.5 * 60 * 60 * 1000)
+
+                  billPrintedTime = istDate.toLocaleTimeString('en-US', {
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true,
+                  })
+
+                  billPrintedDate = istDate
                 }
               }
 
-              return { ...item, status, billNo, billAmount, billPrintedTime, billPrintedDate };
-            })
-          );
+              if (isSetteled === 1) {
+                status = 0 // ⚪ vacant
+              }
 
-          setTableItems(formattedData);
-          setFilteredTables(formattedData);
-          setErrorMessage('');
-        } else if (response.success && response.data.length === 0) {
-          setErrorMessage('No tables found in TableManagement API.');
-          setTableItems([]);
-          setFilteredTables([]);
-        } else {
-          setErrorMessage(response.message || 'Invalid data format received from TableManagement API.');
-          setTableItems([]);
-          setFilteredTables([]);
-        }
-      } else {
-        setErrorMessage(`Failed to fetch tables: ${res.status} ${res.statusText}`);
-        setTableItems([]);
-        setFilteredTables([]);
-      }
-    } catch (err) {
-      console.error('Table fetch error:', err);
-      setErrorMessage('Failed to fetch tables. Please check the API endpoint.');
-      setTableItems([]);
-      setFilteredTables([]);
-    } finally {
-      setLoading(false);
+              // 3️⃣ Pending logic (10+ min)
+              if (status === 2 && billPrintedDate) {
+                const now = new Date()
+                const diffMinutes =
+                  (now.getTime() - billPrintedDate.getTime()) / (1000 * 60)
+
+                if (diffMinutes >= 10) {
+                  status = 4 // 🟠 pending
+                }
+              }
+            }
+          } catch (billErr) {
+            console.error(
+              `Bill status fetch failed for table ${item.tableid}`,
+              billErr
+            )
+          }
+
+          return {
+            ...item,
+            status,
+            billNo,
+            billAmount,
+            billPrintedTime,
+            billPrintedDate,
+          }
+        })
+      )
+
+      setTableItems(formattedData)
+      setFilteredTables(formattedData)
+      setErrorMessage('')
+    } else if (response.success && response.data.length === 0) {
+      setErrorMessage('No tables found in TableManagement API.')
+      setTableItems([])
+      setFilteredTables([])
+    } else {
+      setErrorMessage(
+        response.message ||
+          'Invalid data format received from TableManagement API.'
+      )
+      setTableItems([])
+      setFilteredTables([])
     }
-  };
+  } catch (err) {
+    console.error('Table fetch error:', err)
+    setErrorMessage('Failed to fetch tables. Please check the API endpoint.')
+    setTableItems([])
+    setFilteredTables([])
+  } finally {
+    setLoading(false)
+  }
+}
+
 
   useEffect(() => {
     if (mobileNumber.length >= 10) {
@@ -609,7 +648,7 @@ const Order = () => {
   useEffect(() => {
     (async () => {
       try {
-        const resp = await getSavedKOTs({ isBilled: 0 });
+        const resp = await OrderService.getSavedKOTs({ isBilled: 0 });
         const list = resp?.data || resp;
         if (Array.isArray(list)) setSavedKOTs(list);
       } catch (err) {
@@ -627,36 +666,39 @@ const Order = () => {
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
-  const fetchDepartments = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch('http://localhost:3001/api/table-department', {
-        headers: { 'Content-Type': 'application/json' },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success) {
-          let formattedDepartments = data.data.map((item: any) => ({
-            departmentid: item.departmentid,
-            department_name: item.department_name,
-            outletid: item.outletid,
-          }));
-          if (user && user.role_level === 'outlet_user' && user.outletid) {
-            formattedDepartments = formattedDepartments.filter((d: DepartmentItem) => d.outletid === Number(user.outletid));
-          }
-          setDepartments(formattedDepartments);
-        } else {
-          toast.error(data.message || 'Failed to fetch departments');
-        }
-      } else {
-        toast.error('Failed to fetch departments');
+ const fetchDepartments = async () => {
+  setLoading(true)
+
+  try {
+    const res = await OrderService.getTableDepartments()
+    const data = res.data
+
+    if (data?.success) {
+      let formattedDepartments = data.data.map((item: any) => ({
+        departmentid: item.departmentid,
+        department_name: item.department_name,
+        outletid: item.outletid,
+      }))
+
+      // 🔐 Outlet-wise filter for outlet_user
+      if (user?.role_level === 'outlet_user' && user.outletid) {
+        formattedDepartments = formattedDepartments.filter(
+          (d: DepartmentItem) => d.outletid === Number(user.outletid)
+        )
       }
-    } catch (err) {
-      toast.error('Failed to fetch departments');
-    } finally {
-      setLoading(false);
+
+      setDepartments(formattedDepartments)
+    } else {
+      toast.error(data?.message || 'Failed to fetch departments')
     }
-  };
+  } catch (err) {
+    console.error('Department fetch error:', err)
+    toast.error('Failed to fetch departments')
+  } finally {
+    setLoading(false)
+  }
+}
+
 
   const fetchOutletsData = async () => {
     console.log('Full user object:', JSON.stringify(user, null, 2));
@@ -834,19 +876,20 @@ const Order = () => {
   };
 
   const fetchQuickBillData = async () => {
-    try {
-      const res = await fetch("http://localhost:3001/api/TAxnTrnbill/by-type/Quick Bill");
-      const data = await res.json();
-      if (data.success) {
-        setQuickBillData(data.data);
-      } else {
-        toast.error(data.message || "Failed to fetch quick bill data");
-      }
-    } catch (err) {
-      console.error("Failed to fetch quick bill data", err);
-      toast.error("An error occurred while fetching quick bills.");
+  try {
+    const res = await OrderService.getBillsByType('Quick Bill')
+    const data = res.data
+
+    if (data?.success) {
+      setQuickBillData(data.data)
+    } else {
+      toast.error(data?.message || 'Failed to fetch quick bill data')
     }
-  };
+  } catch (err) {
+    console.error('Failed to fetch quick bill data', err)
+    toast.error('An error occurred while fetching quick bills.')
+  }
+}
 
   const handleTabClick = (tab: string) => {
     console.log('Tab clicked:', tab);
@@ -1169,66 +1212,72 @@ const Order = () => {
     }
   };
 
-  useEffect(() => {
-    if (selectedOutletId) {
-      loadOutletSettings(selectedOutletId);
-      // Fetch outlet settings for Reverse Qty Mode
-      const fetchReverseQtySetting = async () => {
-        try {
-          const res = await fetch(`http://localhost:3001/api/outlets/outlet-settings/${selectedOutletId}`);
-          if (res.ok) {
-            const settings = await res.json();
-            if (settings) {
-              setReverseQtyConfig(settings.ReverseQtyMode === 1 ? 'PasswordRequired' : 'NoPassword');
-              setRoundOffEnabled(!!settings.bill_round_off);
-              setRoundOffTo(settings.bill_round_off_to || 1);
+ useEffect(() => {
+  if (selectedOutletId) {
+    loadOutletSettings(selectedOutletId)
 
-              // include_tax_in_invoice may be returned with different casing
-              const incFlag =
-                settings.include_tax_in_invoice ??
-                (settings as any).IncludeTaxInInvoice ??
-                (settings as any).includeTaxInInvoice ??
-                (settings as any).includeTaxInInvoice;
-              setIncludeTaxInInvoice(Number(incFlag) === 1 ? 1 : 0);
+    // Fetch outlet settings for Reverse Qty Mode
+    const fetchReverseQtySetting = async () => {
+      try {
+        const res = await OrderService.getOutletSettings(selectedOutletId)
+        const settings = res.data
 
-              // Debug console for tax mode
-              console.log("Include Tax in Invoice:", Number(incFlag) === 1 ? "Inclusive" : "Exclusive");
-            } else {
-              setReverseQtyConfig('PasswordRequired'); // Default to password required
-              setIncludeTaxInInvoice(0);
-            }
-          } else {
-            setReverseQtyConfig('PasswordRequired'); // Default to password required
-            setIncludeTaxInInvoice(0);
-          }
-        } catch (error) {
-          console.error("Failed to fetch outlet settings for Reverse Qty Mode", error);
-          setReverseQtyConfig('PasswordRequired'); // Default to password required
-          setIncludeTaxInInvoice(0);
+        if (settings) {
+          setReverseQtyConfig(
+            settings.ReverseQtyMode === 1
+              ? 'PasswordRequired'
+              : 'NoPassword'
+          )
+
+          setRoundOffEnabled(!!settings.bill_round_off)
+          setRoundOffTo(settings.bill_round_off_to || 1)
+
+          // include_tax_in_invoice may be returned with different casing
+          const incFlag =
+            settings.include_tax_in_invoice ??
+            (settings as any).IncludeTaxInInvoice ??
+            (settings as any).includeTaxInInvoice ??
+            (settings as any).includeTaxInInvoice
+
+          setIncludeTaxInInvoice(Number(incFlag) === 1 ? 1 : 0)
+
+          // Debug console for tax mode
+          console.log(
+            'Include Tax in Invoice:',
+            Number(incFlag) === 1 ? 'Inclusive' : 'Exclusive'
+          )
+        } else {
+          setReverseQtyConfig('PasswordRequired')
+          setIncludeTaxInInvoice(0)
         }
-      };
-      fetchReverseQtySetting();
+      } catch (error) {
+        console.error(
+          'Failed to fetch outlet settings for Reverse Qty Mode',
+          error
+        )
+        setReverseQtyConfig('PasswordRequired')
+        setIncludeTaxInInvoice(0)
+      }
     }
-  }, [selectedOutletId]);
+
+    fetchReverseQtySetting()
+  }
+}, [selectedOutletId])
+
 
   useEffect(() => {
-    if (selectedOutletId) {
-      const fetchPaymentModes = async () => {
-        try { // The URL was incorrect, it should be a query parameter
-          const res = await fetch(`http://localhost:3001/api/payment-modes/by-outlet?outletid=${selectedOutletId}`);
-          if (res.ok) {
-            const data = await res.json();
-            setOutletPaymentModes(data);
-          } else {
-            setOutletPaymentModes([]);
-          }
-        } catch (error) {
-          console.error("Failed to fetch payment modes", error);
-          setOutletPaymentModes([]);
-        }
-      };
-      fetchPaymentModes();
+   if (selectedOutletId) {
+  const fetchPaymentModes = async () => {
+    try {
+      const res = await OrderService.getPaymentModesByOutlet(selectedOutletId)
+      setOutletPaymentModes(res.data || [])
+    } catch (error) {
+      console.error('Failed to fetch payment modes', error)
+      setOutletPaymentModes([])
+    }
+  }
 
+  fetchPaymentModes()
       // Fetch waiter users
       const fetchWaiters = async () => {
         try {
@@ -1242,23 +1291,21 @@ const Order = () => {
 
       // Fetch outlet settings for default waiter and pax
       const fetchOutletSettings = async () => {
-        try {
-          const res = await fetch(`http://localhost:3001/api/outlets/outlet-settings/${selectedOutletId}`);
-          if (res.ok) {
-            const settings = await res.json();
-            setDefaultWaiterId(settings.default_waiter_id || null);
-            setDefaultPax(settings.pax || 1);
-          } else {
-            setDefaultWaiterId(null);
-            setDefaultPax(1);
-          }
-        } catch (error) {
-          console.error("Failed to fetch outlet settings", error);
-          setDefaultWaiterId(null);
-          setDefaultPax(1);
-        }
-      };
-      fetchOutletSettings();
+  try {
+    const res = await OrderService.getOutletSettings(selectedOutletId)
+    const settings = res.data
+
+    setDefaultWaiterId(settings?.default_waiter_id || null)
+    setDefaultPax(settings?.pax || 1)
+  } catch (error) {
+    console.error('Failed to fetch outlet settings', error)
+    setDefaultWaiterId(null)
+    setDefaultPax(1)
+  }
+}
+
+fetchOutletSettings()
+
     } else {
       setOutletPaymentModes([]);
       setWaiterUsers([]);
@@ -1323,18 +1370,15 @@ const Order = () => {
     setLoading(true);
     try {
       // 1. Call the new endpoint to mark the bill as billed
-      const printResponse = await fetch(`http://localhost:3001/api/TAxnTrnbill/${currentTxnId}/mark-billed`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          outletId: selectedOutletId || Number(user?.outletid),
-          customerName: customerName || null,
-          mobileNo: mobileNumber || null,
-          customerid: customerid || null,
-        }),
-      });
+     const printResponse = await OrderService.markBillAsBilled(currentTxnId, {
+  outletId: selectedOutletId || Number(user?.outletid),
+  customerName: customerName || undefined,
+  mobileNo: mobileNumber || undefined,
+  customerid: customerid || undefined,
+})
 
-      const printResult = await printResponse.json();
+
+     const printResult = printResponse.data
 
       if (!printResult.success) {
         throw new Error(printResult.message || 'Failed to mark bill as printed.');
@@ -1356,26 +1400,30 @@ const Order = () => {
       setShowBillPrintModal(true);
 
       // 3. Update table status after discount and print
-      if (selectedTable) {
-        const tableToUpdate = tableItems.find(t => t.table_name === selectedTable);
-        if (tableToUpdate) {
-          // If discount applied, set green (status=1), else red (status=2)
-          const newStatus = 2; // Always set to 2 (billed/red) on printing
+   if (selectedTable) {
+  const tableToUpdate = tableItems.find(
+    t => t.table_name === selectedTable
+  )
 
-          await fetch(`http://localhost:3001/api/tablemanagement/${tableToUpdate.tableid}/status`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ status: newStatus }),
-          });
+  if (tableToUpdate?.tableid) {
+    const newStatus = 2
+    const tableId = Number(tableToUpdate.tableid)
 
-          // Update UI immediately
-          setTableItems(prevTables =>
-            prevTables.map(table =>
-              table.table_name === selectedTable ? { ...table, status: newStatus } : table
-            )
-          );
-        }
-      }
+    await OrderService.updateTableStatus(tableId, {
+      status: newStatus,
+    })
+
+    setTableItems(prevTables =>
+      prevTables.map(table =>
+        table.table_name === selectedTable
+          ? { ...table, status: newStatus }
+          : table
+      )
+    )
+  }
+}
+
+
       // 4. Update items in the UI to reflect their 'billed' state
       setItems(prevItems => prevItems.map(item => ({ ...item, isNew: false, isBilled: 1, originalQty: item.qty })));
 
@@ -1619,8 +1667,8 @@ const Order = () => {
 
       console.log('TxnDatetime from useAuthContext:', user?.curr_date);
       console.log('Sending payload to createKOT:', JSON.stringify(kotPayload, null, 2));
-      const resp = await createKOT(kotPayload);
-      if (resp?.success) {
+      const resp = await OrderService.createKOT(kotPayload);
+      if (resp?. data?.success) {
         // Debugging: Log the entire data response to check field names
         console.log("KOT SAVE RESPONSE: ", resp.data);
 
@@ -1713,7 +1761,7 @@ const Order = () => {
         }
 
         // Refresh saved KOTs list in the background without blocking UI
-        getSavedKOTs({ isBilled: 0 })
+        OrderService.getSavedKOTs({ isBilled: 0 })
           .then(listResp => {
             const list = listResp?.data || listResp;
             if (Array.isArray(list)) setSavedKOTs(list);
@@ -1722,7 +1770,7 @@ const Order = () => {
             console.warn('refresh saved KOTs failed', err);
           });
       } else {
-        toast.error(resp?.message || 'Failed to save KOT');
+        toast.error(resp?.data?.message || 'Failed to save KOT');
       }
     } catch (e: any) {
       toast.error(e?.message || 'Error saving KOT');
@@ -1730,70 +1778,66 @@ const Order = () => {
       setLoading(false);
     }
   };
+
   const handlePrintAndSettle = async () => {
-    if (items.length === 0) {
-      toast.error('No items to process.');
-      return;
+  if (items.length === 0) {
+    toast.error('No items to process.')
+    return
+  }
+
+  if (!currentTxnId) {
+    toast.error('Cannot proceed. No transaction ID found.')
+    return
+  }
+
+  setLoading(true)
+  try {
+    // 1️⃣ Mark as Billed (Generate TxnNo)
+    const billedRes = await OrderService.markBillAsBilled(currentTxnId, {
+      outletId: selectedOutletId || Number(user?.outletid),
+    })
+
+    const billedData = billedRes.data
+
+    if (!billedData.success) {
+      throw new Error(billedData.message || 'Failed to mark as billed.')
     }
-    if (!currentTxnId) {
-      toast.error('Cannot proceed. No transaction ID found.');
-      return;
+
+    // 2️⃣ Set Order / Txn No (VERY IMPORTANT)
+    const txnNo = billedData?.data?.TxnNo || billedData?.TxnNo
+    if (!txnNo) {
+      toast.error('TxnNo not generated')
+      return
     }
-    setLoading(true);
-    try {
-      // 1️⃣ Mark as Billed (Generate TxnNo)
-      const billedRes = await fetch(
-        `http://localhost:3001/api/TAxnTrnbill/${currentTxnId}/mark-billed`,
-        {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            outletId: selectedOutletId || Number(user?.outletid),
-          }),
-        }
-      );
 
-      const billedData = await billedRes.json();
+    setOrderNo(txnNo)
 
-      if (!billedData.success) {
-        throw new Error(billedData.message || 'Failed to mark as billed.');
+    // 3️⃣ (Optional) Print Bill
+    const printWindow = window.open('', '_blank')
+    if (printWindow) {
+      const contentToPrint = document.getElementById('bill-preview')
+      if (contentToPrint) {
+        printWindow.document.write(contentToPrint.innerHTML)
+        printWindow.document.close()
+        printWindow.focus()
+        await new Promise(res => setTimeout(res, 500))
+        printWindow.print()
       }
-
-      // 2️⃣ Set Order / Txn No (VERY IMPORTANT)
-      const txnNo = billedData?.data?.TxnNo || billedData?.TxnNo;
-      if (!txnNo) {
-        toast.error('TxnNo not generated');
-        return;
-      }
-
-      setOrderNo(txnNo);
-
-      // 3️⃣ (Optional) Print Bill
-      const printWindow = window.open('', '_blank');
-      if (printWindow) {
-        const contentToPrint = document.getElementById('bill-preview');
-        if (contentToPrint) {
-          printWindow.document.write(contentToPrint.innerHTML);
-          printWindow.document.close();
-          printWindow.focus();
-          await new Promise(res => setTimeout(res, 500));
-          printWindow.print();
-        }
-      }
-
-      toast.success('Bill printed successfully');
-
-      // 4️⃣ ✅ OPEN SETTLEMENT MODAL (NO RESET HERE)
-      setBillActionState('printOrSettle');
-      setShowSettlementModal(true);
-
-    } catch (error: any) {
-      console.error('Error in Print & Settle:', error);
-      toast.error(error.message || 'An error occurred while printing bill.');
-    } finally {
-      setLoading(false);
     }
-  };
+
+    toast.success('Bill printed successfully')
+
+    // 4️⃣ ✅ OPEN SETTLEMENT MODAL (NO RESET HERE)
+    setBillActionState('printOrSettle')
+    setShowSettlementModal(true)
+  } catch (error: any) {
+    console.error('Error in Print & Settle:', error)
+    toast.error(error.message || 'An error occurred while printing bill.')
+  } finally {
+    setLoading(false)
+  }
+}
+
   const handleSaveReverse = async () => {
     if (!persistentTxnId) {
       toast.error('Cannot save reversal. No active transaction found.');
@@ -1803,20 +1847,20 @@ const Order = () => {
     // ✅ Disable the button immediately to prevent double-clicks
     setIsSaveReverseDisabled(true);
 
-    try {
-      const response = await fetch('http://localhost:3001/api/TAxnTrnbill/create-reverse-kot', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          txnId: persistentTxnId,
-          tableId: persistentTableId,
-          reversedItems: reverseQtyItems.map(item => ({ ...item, item_no: item.item_no, itemName: item.name })),
-          userId: user?.id,
-          reversalReason: 'Full Reverse from UI' // You can add a specific reason here if needed
-        }),
-      });
+      try {
+    const response = await OrderService.createReverseKOT({
+      txnId: persistentTxnId,
+     tableId: persistentTableId as number,
+      reversedItems: reverseQtyItems.map(item => ({
+        ...item,
+        item_no: item.item_no,
+        itemName: item.name,
+      })),
+      userId: user?.id,
+      reversalReason: 'Full Reverse from UI',
+    })
 
-      const result = await response.json();
+    const result = response.data
       if (result.success) {
         toast.success('Reverse KOT processed successfully.');
 
@@ -1833,11 +1877,9 @@ const Order = () => {
 
             const newStatus = allReversed ? 0 : 1; // 0 = Vacant, 1 = Running
 
-            await fetch(`http://localhost:3001/api/tablemanagement/${tableToUpdate.tableid}/status`, {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ status: newStatus }),
-            });
+            await OrderService.updateTableStatus(Number(tableToUpdate.tableid), {
+              status: newStatus,
+            });   
 
           }
         }
@@ -1918,21 +1960,14 @@ const Order = () => {
     setF8PasswordLoading(true);
     setF8PasswordError('');
     try {
-      const response = await fetch('http://localhost:3001/api/auth/verify-bill-creator-password', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${user.token}`
-        },
-        body: JSON.stringify({
-          password,
-          txnId: finalTxnId
-        })
+      const response = await OrderService.verifyBillCreatorPassword({
+        password,
+        txnId: finalTxnId.toString()
       });
 
-      const data = await response.json();
+      const data = response.data;
 
-      if (response.ok && data.success) {
+      if (data.success) {
         setShowF8PasswordModal(false);
         // Proceed with F8 action: activate reverse mode, set expanded view, refresh items, initialize reverseQtyItems
         setReverseQtyMode(true);
@@ -1982,12 +2017,9 @@ const Order = () => {
     try {
       setLoading(true);
       // 1. Fetch full bill details from the backend
-      const res = await fetch(`http://localhost:3001/api/TAxnTrnbill/${bill.TxnID}`);
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.message || 'Failed to fetch bill details.');
-      }
-      const billDetailsData = await res.json();
+      const res = await OrderService.getBillById(bill.TxnID);
+const billDetailsData = res.data;
+
 
       if (billDetailsData.success && billDetailsData.data) {
         const fullBill = billDetailsData.data;
@@ -2032,18 +2064,9 @@ const Order = () => {
     setF9BilledPasswordLoading(true);
     setF9BilledPasswordError('');
     try {
-      const response = await fetch('http://localhost:3001/api/auth/verify-creator-password', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${user.token}`
-        },
-        body: JSON.stringify({ password })
-      });
+      const response = await OrderService.verifyCreatorPassword({ password });
 
-      const data = await response.json();
-
-      if (response.ok && data.success) {
+      if (response.data.success) {
         // Password verified, now call the bill reversal endpoint
         if (!currentTxnId) {
           setF9BilledPasswordError("Transaction ID not found. Cannot reverse bill.");
@@ -2051,18 +2074,9 @@ const Order = () => {
         }
 
         try {
-          const reverseResponse = await fetch(`http://localhost:3001/api/TAxnTrnbill/${currentTxnId}/reverse`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${user.token}`
-            },
-            body: JSON.stringify({ userId: user.id }) // Pass admin's ID for logging
-          });
+          const reverseResponse = await OrderService.reverseBill(currentTxnId, { userId: user.id });
 
-          const reverseData = await reverseResponse.json();
-
-          if (reverseResponse.ok && reverseData.success) {
+          if (reverseResponse.data.success) {
             toast.success('Bill reversed successfully!');
             setShowCtrlF9BilledPasswordModal(false);
 
@@ -2087,13 +2101,13 @@ const Order = () => {
             setCurrentKOTNos([]);
             setSourceTableId(null);
           } else {
-            setF9BilledPasswordError(reverseData.message || 'Failed to reverse the bill.');
+            setF9BilledPasswordError(reverseResponse.data.message || 'Failed to reverse the bill.');
           }
         } catch (reverseError) {
           setF9BilledPasswordError('An error occurred while reversing the bill.');
         }
       } else {
-        setF9BilledPasswordError(data.message || 'Invalid password');
+        setF9BilledPasswordError(response.data.message || 'Invalid password');
       }
     } catch (error) {
       setF9BilledPasswordError('An error occurred. Please try again.');
@@ -2117,17 +2131,12 @@ const Order = () => {
       if (e.key === "F10" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
         e.preventDefault();
         handlePrintBill();
-        return;
-      }
-      if (e.key === "F9" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
+      } else if (e.key === "F9" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
         e.preventDefault();
         handlePrintAndSaveKOT();
-        return;
-      }
-      if (e.key === "F11" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
+      } else if (e.key === "F11" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
         e.preventDefault();
         handlePrintAndSettle();
-        return;
       }
 
       // 🔹 Keyboard event listener for F8 Reverse Mode
@@ -2168,51 +2177,57 @@ const Order = () => {
         // UNBILLED TABLE: Proceed with normal F8 functionality (outlet setting based)
         // Always fetch latest ReverseQtyMode from backend on F8 press for unbilled tables
         const fetchLatestReverseQtySettingForUnbilled = async () => {
-          try {
-            if (selectedOutletId) {
-              const res = await fetch(`http://localhost:3001/api/outlets/outlet-settings/${selectedOutletId}`);
-              if (res.ok) {
-                const settings = await res.json();
-                if (settings && settings.ReverseQtyMode !== undefined) {
-                  const currentConfig = settings.ReverseQtyMode === 1 ? 'PasswordRequired' : 'NoPassword';
-                  setReverseQtyConfig(currentConfig);
+  try {
+    if (selectedOutletId) {
+      const res = await OrderService.getOutletSettings(selectedOutletId)
+      const settings = res.data
 
-                  // Handle F8 based on latest backend value
-                  if (currentConfig === 'PasswordRequired') {
-                    setShowAuthModal(true);
-                  } else {
-                    setReverseQtyMode(prev => {
-                      const newMode = !prev;
-                      // Clear reverse quantity items when turning off reverse mode
-                      if (!newMode) {
-                        setReverseQtyItems([]);
-                      } else {
-                        // When activating reverse mode, also set to expanded view
-                        setIsGroupedView(false);
-                      }
-                      toast.success(`Reverse Qty Mode ${newMode ? 'activated' : 'deactivated'}.`);
-                      return newMode;
-                    });
-                  }
-                } else {
-                  // Default to password required if setting not found
-                  setReverseQtyConfig('PasswordRequired');
-                  setShowAuthModal(true);
-                }
-              } else {
-                // Default to password required if API call fails
-                setReverseQtyConfig('PasswordRequired');
-                setShowAuthModal(true);
-              }
+      if (settings && settings.ReverseQtyMode !== undefined) {
+        const currentConfig =
+          settings.ReverseQtyMode === 1 ? 'PasswordRequired' : 'NoPassword'
+
+        setReverseQtyConfig(currentConfig)
+
+        // Handle F8 based on latest backend value
+        if (currentConfig === 'PasswordRequired') {
+          setShowAuthModal(true)
+        } else {
+          setReverseQtyMode(prev => {
+            const newMode = !prev
+
+            // Clear reverse quantity items when turning off reverse mode
+            if (!newMode) {
+              setReverseQtyItems([])
+            } else {
+              // When activating reverse mode, also set to expanded view
+              setIsGroupedView(false)
             }
-          } catch (error) {
-            console.error("Failed to fetch latest outlet settings for Reverse Qty Mode", error);
-            // Default to password required if error occurs
-            setReverseQtyConfig('PasswordRequired');
-            setShowAuthModal(true);
-          }
-        };
-        fetchLatestReverseQtySettingForUnbilled();
+
+            toast.success(
+              `Reverse Qty Mode ${newMode ? 'activated' : 'deactivated'}.`
+            )
+            return newMode
+          })
+        }
+      } else {
+        // Default to password required if setting not found
+        setReverseQtyConfig('PasswordRequired')
+        setShowAuthModal(true)
+      }
+    }
+  } catch (error) {
+    console.error(
+      'Failed to fetch latest outlet settings for Reverse Qty Mode',
+      error
+    )
+    // Default to password required if error occurs
+    setReverseQtyConfig('PasswordRequired')
+    setShowAuthModal(true)
+  }
+}
+
+fetchLatestReverseQtySettingForUnbilled()
+
       }
       if (e.ctrlKey && e.key === 'F9') {
         e.preventDefault();
@@ -2315,18 +2330,12 @@ const Order = () => {
         discount: appliedDiscount,
         discPer: appliedDiscPer,
         discountType: DiscountType,
-        tableId: sourceTableId,
+       tableId: sourceTableId ?? 0,
         items: items, // Send current items to recalculate on backend
       };
 
-      const response = await fetch(`http://localhost:3001/api/TAxnTrnbill/${currentTxnId}/discount`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      const result = await response.json();
-
+       const res = await OrderService.applyDiscount(currentTxnId, payload);
+    const result = res.data;
       if (!result.success) {
         throw new Error(result.message || 'Failed to apply discount.');
       }
@@ -2433,17 +2442,12 @@ const Order = () => {
       });
 
       // 2. Call the settlement endpoint
-      const response = await fetch(`http://localhost:3001/api/TAxnTrnbill/${currentTxnId}/settle`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ settlements: settlementsPayload }),
-      });
+      const result = await OrderService.settleBill(currentTxnId, settlementsPayload);
 
-      const result = await response.json();
+      if (!result.data?.success) {
+  throw new Error(result.data?.message || 'Failed to settle bill.');
+}
 
-      if (!result.success) {
-        throw new Error(result.message || 'Failed to settle bill.');
-      }
 
       toast.success('Settlement successful and bill printed!');
 
@@ -2473,12 +2477,10 @@ const Order = () => {
       if (selectedTable) {
         const tableToUpdate = tableItems.find(t => t.table_name === selectedTable);
         if (tableToUpdate) {
-          await fetch(`http://localhost:3001/api/tablemanagement/${tableToUpdate.tableid}/status`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ status: 0 }), // 0 for Vacant
-          });
-        }
+  await OrderService.updateTableStatus(tableToUpdate.tableid, {
+    status: 0, // 0 for Vacant
+  });
+}
       }
       fetchTableManagement(); // Refresh table statuses
       setCurrentKOTNo(null);
@@ -2528,17 +2530,14 @@ const Order = () => {
 
     setLoading(true);
     try {
-      const response = await fetch(
-        `http://localhost:3001/api/TAxnTrnbill/${currentTxnId}/apply-nckot`,
-        {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ NCName: ncName, NCPurpose: ncPurpose }),
-        }
-      );
+      const res = await OrderService.applyNCKOT(currentTxnId, {
+  NCName: ncName,
+  NCPurpose: ncPurpose,
+});
 
-      const result = await response.json();
+const result = res.data;
 
+     
       if (result.success) {
         toast.success('NCKOT applied successfully to all items.');
 
@@ -2590,23 +2589,26 @@ const Order = () => {
   };
 
   const fetchPendingOrders = async (type: 'pickup' | 'delivery') => {
-    setLoadingPending(true);
-    setErrorPending(null);
-    try {
-      const data = await getPendingOrders(type);
-      if (data.success) {
-        setPendingOrders(data.data);
-      } else {
-        throw new Error(data.message || 'Invalid data format received');
-      }
-    } catch (error: any) {
-      setErrorPending(error.message || 'Could not fetch orders.');
-      // Fallback to mock data on error
-      setPendingOrders([]); // Clear orders on error
-    } finally {
-      setLoadingPending(false);
+  setLoadingPending(true);
+  setErrorPending(null);
+
+  try {
+    const res = await OrderService.getPendingOrders(type);
+    const data = res.data;
+
+    if (data?.success) {
+      setPendingOrders(data.data);
+    } else {
+      throw new Error(data?.message || 'Invalid data format received');
     }
-  };
+  } catch (error: any) {
+    setErrorPending(error.message || 'Could not fetch orders.');
+    setPendingOrders([]); // Clear orders on error
+  } finally {
+    setLoadingPending(false);
+  }
+};
+
   const handleLoadPendingOrder = (order: any) => {
     // 1. Hide the pending orders list and show the main order details panel
     setShowPendingOrdersView(false); // Hide the list view
@@ -2671,20 +2673,15 @@ const Order = () => {
     setPrintTrigger(c => c + 1);
   };
 
-  const fetchPaymentModesForOutlet = async (outletId: number) => {
-    try {
-      const res = await fetch(`http://localhost:3001/api/payment-modes/by-outlet?outletid=${outletId}`);
-      if (res.ok) {
-        const data = await res.json();
-        setOutletPaymentModes(data);
-      } else {
-        setOutletPaymentModes([]);
-      }
-    } catch (error) {
-      console.error("Failed to fetch payment modes", error);
-      setOutletPaymentModes([]);
-    }
-  };
+ const fetchPaymentModesForOutlet = async (outletId: number) => {
+  try {
+    const res = await OrderService.getPaymentModesByOutlet(outletId);
+    setOutletPaymentModes(res.data);
+  } catch (error) {
+    console.error('Failed to fetch payment modes', error);
+    setOutletPaymentModes([]);
+  }
+};
 
   const handlePendingMakePayment = (order: any) => {
     setCurrentTxnId(order.id);
@@ -3950,10 +3947,11 @@ const Order = () => {
                             // Always fetch latest ReverseQtyMode from backend on button click
                             const fetchLatestReverseQtySetting = async () => {
                               try {
-                                if (selectedOutletId) {
-                                  const res = await fetch(`http://localhost:3001/api/outlets/outlet-settings/${selectedOutletId}`);
-                                  if (res.ok) {
-                                    const settings = await res.json();
+                                 if (selectedOutletId) {
+      const res = await OrderService.getOutletSettings(selectedOutletId);
+      const settings = res.data;
+
+                                  
                                     if (settings && settings.ReverseQtyMode !== undefined) {
                                       const currentConfig = settings.ReverseQtyMode === 1 ? 'PasswordRequired' : 'NoPassword';
                                       setReverseQtyConfig(currentConfig);
@@ -3982,7 +3980,7 @@ const Order = () => {
                                     setShowAuthModal(true);
                                   }
                                 }
-                              } catch (error) {
+                               catch (error) {
                                 console.error("Failed to fetch latest outlet settings for Reverse Qty Mode", error);
                                 // Default to password required if error occurs
                                 setReverseQtyConfig('PasswordRequired');
@@ -4185,7 +4183,7 @@ const Order = () => {
           </div>
           <Modal show={showSavedKOTsModal} onHide={() => setShowSavedKOTsModal(false)} centered size="lg" onShow={async () => {
             try {
-              const resp = await getSavedKOTs({ isBilled: 0 })
+              const resp = await OrderService.getSavedKOTs({ isBilled: 0 })
               const list = resp?.data || resp
               if (Array.isArray(list)) setSavedKOTs(list)
             } catch (err) {

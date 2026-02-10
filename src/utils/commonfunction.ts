@@ -816,3 +816,17 @@ export const fetchCustomerByMobile = async (
     setCustomerId(null);
   }
 };
+
+export const getTaxesByOutletAndDepartment = async (params: { outletid?: number; departmentid?: number }) => {
+  try {
+    const query = new URLSearchParams();
+    if (params.outletid) query.append('outletid', params.outletid.toString());
+    if (params.departmentid) query.append('departmentid', params.departmentid.toString());
+    const res = await fetch(`http://localhost:3001/api/rest-tax-master/by-outlet-department?${query.toString()}`);
+    const data = await res.json();
+    return data;
+  } catch (err) {
+    console.error('Error fetching taxes:', err);
+    return { success: false };
+  }
+};

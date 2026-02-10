@@ -24,6 +24,17 @@ function HttpClient() {
     },
   })
 
+  _httpClient.interceptors.request.use((config) => {
+    const session = localStorage.getItem('WINDOW_AUTH_SESSION')
+    if (session) {
+      const user = JSON.parse(session)
+      if (user.token) {
+        config.headers.Authorization = `Bearer ${user.token}`
+      }
+    }
+    return config
+  }, (error) => Promise.reject(error))
+
   _httpClient.interceptors.response.use((response) => {
     return response.data
   }, _errorHandler)
