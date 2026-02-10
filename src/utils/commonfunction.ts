@@ -769,3 +769,50 @@ export const fetchUsers = async (
     setUsers([])
   }
 }
+
+export const fetchCustomerByMobile = async (
+  value: string,
+  setCustomerName: (name: string) => void,
+  setCustomerId: (id: number | null) => void,
+  setCustomerAddress: (address: string) => void
+) => {
+  try {
+    const res = await fetch(`http://localhost:3001/api/customer/by-mobile?mobile=${value}`, {
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (res.ok) {
+      const response = await res.json();
+      console.log('Customer API response:', response);
+      if (response.customerid && response.name) {
+        setCustomerName(response.name);
+        setCustomerId(response.customerid);
+        setCustomerAddress(`${response.address1 || ''} ${response.address2 || ''}`.trim());
+      } else if (response.success && response.data && response.data.length > 0) {
+        const customer = response.data[0];
+        setCustomerName(customer.name);
+        setCustomerId(customer.customerid);
+        setCustomerAddress(`${customer.address1 || ''} ${customer.address2 || ''}`.trim());
+      } else {
+        setCustomerName('');
+        setCustomerAddress('');
+        console.log('Customer not found');
+        setCustomerId(null);
+      }
+    } else if (res.status === 404) {
+      setCustomerName('');
+      setCustomerAddress('');
+      console.log('Customer not found (404)');
+      setCustomerId(null);
+    } else {
+      console.error('Failed to fetch customer:', res.status, res.statusText);
+      setCustomerName('');
+      setCustomerAddress('');
+      setCustomerId(null);
+    }
+  } catch (err) {
+    console.error('Customer fetch error:', err);
+    setCustomerName('');
+    setCustomerAddress('');
+    setCustomerId(null);
+  }
+};
