@@ -38,7 +38,7 @@ const ordersRoutes = require('./routes/ordersRoutes');
 const handoverRoutes = require('./routes/handoverRoutes.js');
 const DayendRoutes = require('./routes/DayendRoutes');
 const paymentModesRoutes = require('./routes/paymentModesRoutes');
-const msttableDepartmentRoutes = require('./routes/msttableDepartmentRoutes');
+// const msttableDepartmentRoutes = require('./routes/msttableDepartmentRoutes');
 const paymentmethodRoutes = require('./routes/paymentmethodRoutes');
 const TAxnTrnbillRoutes = require('./routes/TAxnTrnbillRoutes');
 const settlementRoutes = require('./routes/settlementRoutes');
@@ -94,7 +94,6 @@ app.use('/api/orders', ordersRoutes);
 app.use('/api/handover', handoverRoutes); // Register handover routes
 app.use('/api/dayend', DayendRoutes);
 app.use('/api/payment-modes', paymentModesRoutes); // Register payment modes routes
-app.use('/api/table-department', msttableDepartmentRoutes); // Register table department routes
 app.use('/api/payment', paymentmethodRoutes);
 app.use('/api/TAxnTrnbill', TAxnTrnbillRoutes);
 app.use('/api/settlements', settlementRoutes);
