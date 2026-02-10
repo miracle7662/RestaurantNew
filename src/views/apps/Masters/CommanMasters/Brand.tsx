@@ -1586,15 +1586,8 @@ const DigitalOrderModal: React.FC<{
 };
 
 // User Management Modal Component
-interface UserManagementModalProps {
-  show: boolean;
-  onHide: () => void;
-  brand: HotelMastersItem | null;
-  onSuccess: () => void;
-  user?: any;
-}
 
-const UserManagementModal: React.FC<UserManagementModalProps> = ({ show, onHide, brand, onSuccess, user }) => {
+const UserManagementModal: React.FC<UserManagementModalProps> = ({ show, onHide, brand, onSuccess }) => {
   const [users, setUsers] = useState<any[]>([]);
   const [showAddUserModal, setShowAddUserModal] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -1732,7 +1725,6 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({ show, onHide,
           fetchUsers();
           onSuccess();
         }}
-        user={user}
       />
     </div>
   );
@@ -1744,24 +1736,15 @@ interface AddUserModalProps {
   onHide: () => void;
   brand: HotelMastersItem | null;
   onSuccess: () => void;
-  user?: any;
 }
 
-const AddUserModal: React.FC<AddUserModalProps> = ({ show, onHide, brand, onSuccess, user }) => {
+const AddUserModal: React.FC<AddUserModalProps> = ({ show, onHide, brand, onSuccess }) => {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
-  const [currentUser, setCurrentUser] = useState<any>(null);
-
-  useEffect(() => {
-    if (user) {
-      setCurrentUser(user);
-    }
-  }, [user]);
-
 
   const handleSubmit = async () => {
     if (!brand || !username || !email || !password || !fullName) {

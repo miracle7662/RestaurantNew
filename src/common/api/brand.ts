@@ -59,6 +59,20 @@ class BrandService {
   deleteBrand(id: string) {
     return api.delete(`/api/HotelMasters/${id}`)
   }
+
+  // Get users by brand_id
+  getUsers(params?: { brand_id?: string }) {
+    const queryParams: any = {}
+    if (params?.brand_id) {
+      queryParams.brand_id = params.brand_id
+    }
+    return api.get('/api/users', queryParams)
+  }
+
+  // Create a new user
+  createUser(userData: any) {
+    return api.create('/api/users', userData)
+  }
 }
 
-export default new BrandService() 
+export default new BrandService()
