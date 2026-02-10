@@ -1591,9 +1591,10 @@ interface UserManagementModalProps {
   onHide: () => void;
   brand: HotelMastersItem | null;
   onSuccess: () => void;
+  user?: any;
 }
 
-const UserManagementModal: React.FC<UserManagementModalProps> = ({ show, onHide, brand, onSuccess }) => {
+const UserManagementModal: React.FC<UserManagementModalProps> = ({ show, onHide, brand, onSuccess, user }) => {
   const [users, setUsers] = useState<any[]>([]);
   const [showAddUserModal, setShowAddUserModal] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -1606,9 +1607,10 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({ show, onHide,
       setLoading(true);
       const res = await fetch(`http://localhost:3001/api/users?brand_id=${brand.hotelid || brand.hotelid}`);
       const data = await res.json();
-      setUsers(data);
+      setUsers(Array.isArray(data) ? data : []);
     } catch (err) {
       toast.error('Failed to fetch users');
+      setUsers([]);
     } finally {
       setLoading(false);
     }
@@ -1681,7 +1683,7 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({ show, onHide,
                 </tr>
               </thead>
               <tbody>
-                {users.map((user) => (
+                {Array.isArray(users) && users.map((user) => (
                   <tr key={user.userid}>
                     <td>{user.username}</td>
                     <td>{user.full_name}</td>
@@ -1702,7 +1704,7 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({ show, onHide,
                     </td>
                   </tr>
                 ))}
-                {users.length === 0 && (
+                {Array.isArray(users) && users.length === 0 && (
                   <tr>
                     <td colSpan={6} className="text-center text-muted">
                       No users found for this hotel
@@ -1730,6 +1732,7 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({ show, onHide,
           fetchUsers();
           onSuccess();
         }}
+        user={user}
       />
     </div>
   );
@@ -1741,15 +1744,24 @@ interface AddUserModalProps {
   onHide: () => void;
   brand: HotelMastersItem | null;
   onSuccess: () => void;
+  user?: any;
 }
 
-const AddUserModal: React.FC<AddUserModalProps> = ({ show, onHide, brand, onSuccess }) => {
+const AddUserModal: React.FC<AddUserModalProps> = ({ show, onHide, brand, onSuccess, user }) => {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  useEffect(() => {
+    if (user) {
+      setCurrentUser(user);
+    }
+  }, [user]);
+
 
   const handleSubmit = async () => {
     if (!brand || !username || !email || !password || !fullName) {
@@ -1775,7 +1787,8 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ show, onHide, brand, onSucc
         role_level: 'hotel_admin',
         brand_id: hotelId,
         hotelid: hotelId, // Changed from hotel_id to hotelid
-        created_by_id: 1 // SuperAdmin ID
+        parent_user_id: user?.id || 1, // Current user ID as parent
+        created_by_id: user?.id || 1 // Current user ID
       };
 
       const res = await fetch('http://localhost:3001/api/users', {
