@@ -623,7 +623,13 @@ const Order = () => {
     console.log('Fetching departments for outlet:', selectedOutletId);
     setLoading(true);
     try {
-      const response = await OrderService.getTableDepartments();
+      const params: any = {};
+      if (user && user.role_level === 'outlet_user' && user.outletid) {
+        params.outletid = user.outletid;
+      } else if (user && user.hotelid) {
+        params.hotelid = user.hotelid;
+      }
+      const response = await OrderService.getTableDepartments(params);
       const data = response.data;
       console.log('Departments API response:', data);
       if (data.success) {
@@ -632,18 +638,17 @@ const Order = () => {
           department_name: item.department_name,
           outletid: item.outletid,
         }));
-        console.log('Formatted departments before filter:', formattedDepartments);
-        if (user && user.role_level === 'outlet_user' && user.outletid) {
-          formattedDepartments = formattedDepartments.filter((d: DepartmentItem) => d.outletid === Number(user.outletid));
-          console.log('Filtered departments for outlet_user:', formattedDepartments);
-        }
+        console.log('Formatted departments after backend filter:', formattedDepartments);
         setDepartments(formattedDepartments);
+        setErrorMessage(''); // Clear error message on success
       } else {
         console.log('Departments API failed:', data.message);
+        setErrorMessage(data.message || 'Failed to fetch departments');
         toast.error(data.message || 'Failed to fetch departments');
       }
     } catch (err) {
       console.log('Error fetching departments:', err);
+      setErrorMessage('Failed to load departments. Please check the API endpoint.');
       toast.error('Failed to fetch departments');
     } finally {
       setLoading(false);
@@ -697,11 +702,16 @@ const Order = () => {
   useEffect(() => {
     const fetchData = async () => {
       await fetchOutletsData();
-      await fetchDepartments();
       fetchTableManagement();
     };
     fetchData();
   }, [user?.id, user?.hotelid, user?.outletid, user?.role_level]);
+
+  useEffect(() => {
+    if (selectedOutletId) {
+      fetchDepartments();
+    }
+  }, [selectedOutletId]);
 
   // Set default outlet ID based on logged-in user
   useEffect(() => {
@@ -721,6 +731,14 @@ const Order = () => {
     console.log('Departments state changed:', departments);
     console.log('TableItems state changed:', tableItems);
   }, [outlets, departments, tableItems]);
+
+  useEffect(() => {
+    if (departments.length === 0 && !loading) {
+      setErrorMessage('Failed to load departments or no departments available');
+    } else if (departments.length > 0) {
+      setErrorMessage('');
+    }
+  }, [departments.length, loading]);
 
   useEffect(() => {
     console.log('ActiveNavTab:', activeNavTab, 'Outlets:', outlets, 'Departments:', departments, 'TableItems:', tableItems);
