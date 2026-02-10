@@ -1586,6 +1586,12 @@ const DigitalOrderModal: React.FC<{
 };
 
 // User Management Modal Component
+interface UserManagementModalProps {
+  show: boolean;
+  onHide: () => void;
+  brand: HotelMastersItem | null;
+  onSuccess: () => void;
+}
 
 const UserManagementModal: React.FC<UserManagementModalProps> = ({ show, onHide, brand, onSuccess }) => {
   const [users, setUsers] = useState<any[]>([]);
@@ -1736,9 +1742,10 @@ interface AddUserModalProps {
   onHide: () => void;
   brand: HotelMastersItem | null;
   onSuccess: () => void;
+  user?: any;
 }
 
-const AddUserModal: React.FC<AddUserModalProps> = ({ show, onHide, brand, onSuccess }) => {
+const AddUserModal: React.FC<AddUserModalProps> = ({ show, onHide, brand, onSuccess, user }) => {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
