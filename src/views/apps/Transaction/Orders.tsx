@@ -1,13 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Button, Modal, Table, Card, Row, Col, Spinner } from "react-bootstrap";
-import { fetchOutletsForDropdown, fetchCustomerByMobile } from "@/utils/commonfunction";
+import { fetchOutletsForDropdown } from "@/utils/commonfunction";
 import { useAuthContext } from "@/common";
-import { getUnbilledItemsByTable } from "@/common/api/orders_old";
+import { getUnbilledItemsByTable } from "@/common/api/orders";
 import { OutletData } from "@/common/api/outlet";
 import AddCustomerModal from "./Customers";
 import { toast } from "react-hot-toast";
-import { createKOT, getPendingOrders, getSavedKOTs, getTaxesByOutletAndDepartment } from "@/common/api/orders_old";
-import OrderService from "@/common/api/orders";
+import { createKOT, getPendingOrders, getSavedKOTs, getTaxesByOutletAndDepartment } from "@/common/api/orders";
 import OrderDetails from "./OrderDetails";
 import F8PasswordModal from "@/components/F8PasswordModal";
 import KotTransfer from "./KotTransfer";
@@ -505,60 +504,69 @@ const Order = () => {
   const fetchTableManagement = async () => {
     setLoading(true);
     try {
-      const response = await OrderService.getTableManagement();
-      console.log('Raw tableItems data:', JSON.stringify(response.data, null, 2));
-      if (response.data.success && Array.isArray(response.data.data)) {
-        const formattedData = await Promise.all(
-          response.data.map(async (item: any) => {
-            let status = Number(item.status);
-            let billNo: string | null = null;
-            let billAmount: number | null = null;
-            let billPrintedTime: string | null = null;
-            let billPrintedDate: Date | null = null;
+      const res = await fetch('http://localhost:3001/api/tablemanagement', {
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (res.ok) {
+        const response = await res.json();
+        console.log('Raw tableItems data:', JSON.stringify(response, null, 2));
+        if (response.success && Array.isArray(response.data)) {
+          const formattedData = await Promise.all(
+            response.data.map(async (item: any) => {
+              let status = Number(item.status);
+              let billNo: string | null = null;
+              let billAmount: number | null = null;
+              let billPrintedTime: string | null = null;
+              let billPrintedDate: Date | null = null;
 
-            // Fetch bill status for each table from backend
-            const billStatusResponse = await OrderService.getBillStatus(item.tableid);
-            const data = billStatusResponse.data;
+              // Fetch bill status for each table from backend
+              const res = await fetch(`http://localhost:3001/api/TAxnTrnbill/bill-status/${item.tableid}`);
+              const data = await res.json();
 
-            if (data.success && data.data) {
-              const { isBilled, isSetteled, TxnNo, Amount, BilledDate } = data.data;
+              if (data.success && data.data) {
+                const { isBilled, isSetteled, TxnNo, Amount, BilledDate } = data.data;
 
-              if (isBilled === 1 && isSetteled !== 1) {
-                status = 2; // 🔴 red when billed but not settled
-                billNo = TxnNo || null;
-                billAmount = Amount || null;
-                if (BilledDate) {
-                  const date = new Date(BilledDate);
-                  const istDate = new Date(date.getTime() + (5.5 * 60 * 60 * 1000)); // Convert to IST
-                  billPrintedTime = istDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-                  billPrintedDate = istDate;
+                if (isBilled === 1 && isSetteled !== 1) {
+                  status = 2; // 🔴 red when billed but not settled
+                  billNo = TxnNo || null;
+                  billAmount = Amount || null;
+                  if (BilledDate) {
+                    const date = new Date(BilledDate);
+                    const istDate = new Date(date.getTime() + (5.5 * 60 * 60 * 1000)); // Convert to IST
+                    billPrintedTime = istDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+                    billPrintedDate = istDate;
+                  }
+                }
+                if (isSetteled === 1) status = 0; // ⚪ vacant when settled
+
+                // Check if printed bill is 10+ minutes old, change to pending (orange)
+                if (status === 2 && billPrintedDate) {
+                  const now = new Date();
+                  const diffMinutes = (now.getTime() - billPrintedDate.getTime()) / (1000 * 60);
+                  if (diffMinutes >= 10) {
+                    status = 4; // 4 for pending (orange)
+                  }
                 }
               }
-              if (isSetteled === 1) status = 0; // ⚪ vacant when settled
 
-              // Check if printed bill is 10+ minutes old, change to pending (orange)
-              if (status === 2 && billPrintedDate) {
-                const now = new Date();
-                const diffMinutes = (now.getTime() - billPrintedDate.getTime()) / (1000 * 60);
-                if (diffMinutes >= 10) {
-                  status = 4; // 4 for pending (orange)
-                }
-              }
-            }
+              return { ...item, status, billNo, billAmount, billPrintedTime, billPrintedDate };
+            })
+          );
 
-            return { ...item, status, billNo, billAmount, billPrintedTime, billPrintedDate };
-          })
-        );
-
-        setTableItems(formattedData);
-        setFilteredTables(formattedData);
-        setErrorMessage('');
-      } else if (response.data.success && response.data.length === 0) {
-        setErrorMessage('No tables found in TableManagement API.');
-        setTableItems([]);
-        setFilteredTables([]);
+          setTableItems(formattedData);
+          setFilteredTables(formattedData);
+          setErrorMessage('');
+        } else if (response.success && response.data.length === 0) {
+          setErrorMessage('No tables found in TableManagement API.');
+          setTableItems([]);
+          setFilteredTables([]);
+        } else {
+          setErrorMessage(response.message || 'Invalid data format received from TableManagement API.');
+          setTableItems([]);
+          setFilteredTables([]);
+        }
       } else {
-        setErrorMessage(response. data.message || 'Invalid data format received from TableManagement API.');
+        setErrorMessage(`Failed to fetch tables: ${res.status} ${res.statusText}`);
         setTableItems([]);
         setFilteredTables([]);
       }
@@ -572,13 +580,54 @@ const Order = () => {
     }
   };
 
+  const fetchCustomerByMobile = async (value: string) => {
+    try {
+      const res = await fetch(`http://localhost:3001/api/customer/by-mobile?mobile=${value}`, {
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (res.ok) {
+        const response = await res.json();
+        console.log('Customer API response:', response);
+        if (response.customerid && response.name) {
+          setCustomerName(response.name);
+          setCustomerId(response.customerid);
+          setCustomerAddress(`${response.address1 || ''} ${response.address2 || ''}`.trim());
+        } else if (response.success && response.data && response.data.length > 0) {
+          const customer = response.data[0];
+          setCustomerName(customer.name);
+          setCustomerId(customer.customerid);
+          setCustomerAddress(`${customer.address1 || ''} ${customer.address2 || ''}`.trim());
+        } else {
+          setCustomerName('');
+          setCustomerAddress('');
+          console.log('Customer not found');
+          setCustomerId(null);
+        }
+      } else if (res.status === 404) {
+        setCustomerName('');
+        setCustomerAddress('');
+        console.log('Customer not found (404)');
+        setCustomerId(null);
+      } else {
+        console.error('Failed to fetch customer:', res.status, res.statusText);
+        setCustomerName('');
+        setCustomerAddress('');
+        setCustomerId(null);
+      }
+    } catch (err) {
+      console.error('Customer fetch error:', err);
+      setCustomerName('');
+      setCustomerAddress('');
+      setCustomerId(null);
+    }
+  };
+
   useEffect(() => {
     if (mobileNumber.length >= 10) {
-      fetchCustomerByMobile(mobileNumber, setCustomerName, setCustomerId, setCustomerAddress);
+      fetchCustomerByMobile(mobileNumber);
     } else {
       setCustomerName('');
       setCustomerId(null);
-      setCustomerAddress('');
     }
   }, [mobileNumber]);
 
@@ -586,10 +635,12 @@ const Order = () => {
     if (e.key === 'Enter') {
       e.preventDefault();
       if (mobileNumber.trim()) {
-        fetchCustomerByMobile(mobileNumber.trim(), setCustomerName, setCustomerId, setCustomerAddress);
+        fetchCustomerByMobile(mobileNumber.trim());
       }
     }
   };
+
+
 
   useEffect(() => {
     const lastItem = items[items.length - 1];
@@ -620,35 +671,30 @@ const Order = () => {
   }, []);
 
   const fetchDepartments = async () => {
-    console.log('Fetching departments for outlet:', selectedOutletId);
     setLoading(true);
     try {
-      const params: any = {};
-      if (user && user.role_level === 'outlet_user' && user.outletid) {
-        params.outletid = user.outletid;
-      } else if (user && user.hotelid) {
-        params.hotelid = user.hotelid;
-      }
-      const response = await OrderService.getTableDepartments(params);
-      const data = response.data;
-      console.log('Departments API response:', data);
-      if (data.success) {
-        let formattedDepartments = data.data.map((item: any) => ({
-          departmentid: item.departmentid,
-          department_name: item.department_name,
-          outletid: item.outletid,
-        }));
-        console.log('Formatted departments after backend filter:', formattedDepartments);
-        setDepartments(formattedDepartments);
-        setErrorMessage(''); // Clear error message on success
+      const res = await fetch('http://localhost:3001/api/table-department', {
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          let formattedDepartments = data.data.map((item: any) => ({
+            departmentid: item.departmentid,
+            department_name: item.department_name,
+            outletid: item.outletid,
+          }));
+          if (user && user.role_level === 'outlet_user' && user.outletid) {
+            formattedDepartments = formattedDepartments.filter((d: DepartmentItem) => d.outletid === Number(user.outletid));
+          }
+          setDepartments(formattedDepartments);
+        } else {
+          toast.error(data.message || 'Failed to fetch departments');
+        }
       } else {
-        console.log('Departments API failed:', data.message);
-        setErrorMessage(data.message || 'Failed to fetch departments');
-        toast.error(data.message || 'Failed to fetch departments');
+        toast.error('Failed to fetch departments');
       }
     } catch (err) {
-      console.log('Error fetching departments:', err);
-      setErrorMessage('Failed to load departments. Please check the API endpoint.');
       toast.error('Failed to fetch departments');
     } finally {
       setLoading(false);
@@ -702,16 +748,11 @@ const Order = () => {
   useEffect(() => {
     const fetchData = async () => {
       await fetchOutletsData();
+      await fetchDepartments();
       fetchTableManagement();
     };
     fetchData();
   }, [user?.id, user?.hotelid, user?.outletid, user?.role_level]);
-
-  useEffect(() => {
-    if (selectedOutletId) {
-      fetchDepartments();
-    }
-  }, [selectedOutletId]);
 
   // Set default outlet ID based on logged-in user
   useEffect(() => {
@@ -731,14 +772,6 @@ const Order = () => {
     console.log('Departments state changed:', departments);
     console.log('TableItems state changed:', tableItems);
   }, [outlets, departments, tableItems]);
-
-  useEffect(() => {
-    if (departments.length === 0 && !loading) {
-      setErrorMessage('Failed to load departments or no departments available');
-    } else if (departments.length > 0) {
-      setErrorMessage('');
-    }
-  }, [departments.length, loading]);
 
   useEffect(() => {
     console.log('ActiveNavTab:', activeNavTab, 'Outlets:', outlets, 'Departments:', departments, 'TableItems:', tableItems);
@@ -1185,23 +1218,28 @@ const Order = () => {
       // Fetch outlet settings for Reverse Qty Mode
       const fetchReverseQtySetting = async () => {
         try {
-          const response = await OrderService.getOutletSettings(selectedOutletId);
-          const settings = response.data;
-          if (settings) {
-            setReverseQtyConfig(settings.ReverseQtyMode === 1 ? 'PasswordRequired' : 'NoPassword');
-            setRoundOffEnabled(!!settings.bill_round_off);
-            setRoundOffTo(settings.bill_round_off_to || 1);
+          const res = await fetch(`http://localhost:3001/api/outlets/outlet-settings/${selectedOutletId}`);
+          if (res.ok) {
+            const settings = await res.json();
+            if (settings) {
+              setReverseQtyConfig(settings.ReverseQtyMode === 1 ? 'PasswordRequired' : 'NoPassword');
+              setRoundOffEnabled(!!settings.bill_round_off);
+              setRoundOffTo(settings.bill_round_off_to || 1);
 
-            // include_tax_in_invoice may be returned with different casing
-            const incFlag =
-              settings.include_tax_in_invoice ??
-              (settings as any).IncludeTaxInInvoice ??
-              (settings as any).includeTaxInInvoice ??
-              (settings as any).includeTaxInInvoice;
-            setIncludeTaxInInvoice(Number(incFlag) === 1 ? 1 : 0);
+              // include_tax_in_invoice may be returned with different casing
+              const incFlag =
+                settings.include_tax_in_invoice ??
+                (settings as any).IncludeTaxInInvoice ??
+                (settings as any).includeTaxInInvoice ??
+                (settings as any).includeTaxInInvoice;
+              setIncludeTaxInInvoice(Number(incFlag) === 1 ? 1 : 0);
 
-            // Debug console for tax mode
-            console.log("Include Tax in Invoice:", Number(incFlag) === 1 ? "Inclusive" : "Exclusive");
+              // Debug console for tax mode
+              console.log("Include Tax in Invoice:", Number(incFlag) === 1 ? "Inclusive" : "Exclusive");
+            } else {
+              setReverseQtyConfig('PasswordRequired'); // Default to password required
+              setIncludeTaxInInvoice(0);
+            }
           } else {
             setReverseQtyConfig('PasswordRequired'); // Default to password required
             setIncludeTaxInInvoice(0);
@@ -1436,7 +1474,7 @@ const Order = () => {
     try {
       // Ensure customer details are fetched if mobile number is provided but customerid is null
       if (mobileNumber && !customerid) {
-        await fetchCustomerByMobile(mobileNumber, setCustomerName, setCustomerId, setCustomerAddress);
+        await fetchCustomerByMobile(mobileNumber);
       }
 
       const newItemsToKOT = items.filter(item => item.isNew);
@@ -1595,6 +1633,9 @@ const Order = () => {
 
       // Find the first NCKOT item to get the overall NCName and NCPurpose for the bill header
       const firstNCItem = newKotItemsPayload.find(item => item.isNCKOT);
+
+
+
       const kotPayload = {
         txnId: currentTxnId || 0,
         tableId: resolvedTableId,
@@ -2678,8 +2719,13 @@ const Order = () => {
 
   const fetchPaymentModesForOutlet = async (outletId: number) => {
     try {
-      const response = await OrderService.getPaymentModesByOutlet(outletId);
-      setOutletPaymentModes(response.data);
+      const res = await fetch(`http://localhost:3001/api/payment-modes/by-outlet?outletid=${outletId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setOutletPaymentModes(data);
+      } else {
+        setOutletPaymentModes([]);
+      }
     } catch (error) {
       console.error("Failed to fetch payment modes", error);
       setOutletPaymentModes([]);
@@ -3752,7 +3798,7 @@ const Order = () => {
                     value={mobileNumber}
                     onChange={(e) => setMobileNumber(e.target.value)}
                     onKeyPress={handleMobileKeyPress}
-                    onBlur={(e) => fetchCustomerByMobile(mobileNumber, setCustomerName, setCustomerId, setCustomerAddress)}
+                    onBlur={(e) => fetchCustomerByMobile(mobileNumber)}
                     className="form-control"
                     style={{
                       width: "150px",
