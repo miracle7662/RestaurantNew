@@ -43,7 +43,7 @@ export type SettlementPayload = {
   Batch?: string
   Name?: string
   OrderNo?: string
-  \\
+  
   HotelID?: number
 }
 
