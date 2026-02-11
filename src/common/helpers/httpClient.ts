@@ -30,10 +30,10 @@ function HttpClient() {
     return response.data
   }, _errorHandler)
 
-  return {
+ return {
     get: (url: string, config = {}) => _httpClient.get(url, config),
     post: (url: string, data: any, config = {}) => _httpClient.post(url, data, config),
-    patch: (url: string, config = {}) => _httpClient.patch(url, config),
+    patch: (url: string, data: any, config = {}) => _httpClient.patch(url, data, config),
     put: (url: string, data: any, config = {}) => _httpClient.put(url, data, config),
     delete: (url: string, config = {}) => _httpClient.delete(url, config),
     client: _httpClient,

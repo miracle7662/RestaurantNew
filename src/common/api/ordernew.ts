@@ -193,8 +193,9 @@ function OrdernewService() {
     },
 
     getTableDepartment: (params?: any) => {
-      return HttpClient.get('/table-department', params)
-    },
+    return HttpClient.get('/table-department', { params })
+     },
+
 
     getOutletSettings: (outletId: number) => {
       return HttpClient.get(`/outlets/outlet-settings/${outletId}`)

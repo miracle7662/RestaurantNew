@@ -503,34 +503,42 @@ const ModernBill = () => {
   }, [showSettlementModal, outletPaymentModes]);
 
 
-  const handleCustomerNoChange = async (value: string) => {
-    setCustomerNo(value);
+ const handleCustomerNoChange = async (value: string) => {
+  setCustomerNo(value);
 
-    if (!value) {
+  if (!value) {
+    setCustomerName('');
+    setCustomerId(null);
+    return;
+  }
+
+  try {
+    const res: any = await OrdernewService().getCustomerByMobile(value)
+
+
+    // ⚠️ yaad rakho: HttpClient response.data return karta hai
+    // isliye res already data hoga
+
+    if (res?.customerid && res?.name) {
+      setCustomerName(res.name);
+      setCustomerId(res.customerid);
+
+    } else if (res?.success && res?.data?.length > 0) {
+      setCustomerName(res.data[0].name);
+      setCustomerId(res.data[0].customerid);
+
+    } else {
       setCustomerName('');
       setCustomerId(null);
-      return;
     }
 
-    try {
-      const res = await axios.get(`http://localhost:3001/api/customer/by-mobile?mobile=${value}`);
-      if (res.data) {
-        if (res.data.customerid && res.data.name) {
-          setCustomerName(res.data.name);
-          setCustomerId(res.data.customerid);
-        } else if (res.data.success && res.data.data && res.data.data.length > 0) {
-          setCustomerName(res.data.data[0].name);
-          setCustomerId(res.data.data[0].customerid);
-        } else {
-          setCustomerName('');
-          setCustomerId(null);
-        }
-      }
-    } catch (err) {
-      setCustomerName('');
-      setCustomerId(null);
-    }
-  };
+  } catch (err) {
+    console.error('Customer fetch failed:', err);
+    setCustomerName('');
+    setCustomerId(null);
+  }
+};
+
 
   const handleF9PasswordSubmit = async (password: string) => {
     if (!(user as any)?.token) {
@@ -670,7 +678,6 @@ const ModernBill = () => {
       // STEP 1: try billed bill first
       try {
         const billedBillRes = await OrdernewService().getBilledBillByTable(tableIdNum);
-      
         if (billedBillRes.status === 200) {
           const billedBillData = billedBillRes.data;
           if (billedBillData.success && billedBillData.data) {
@@ -831,7 +838,7 @@ const ModernBill = () => {
     setLoading(true);
     setError(null);
     try {
-     const response = await OrdernewService().getBillById(Number(orderId));
+       const response = await OrdernewService().getBillById(Number(orderId));
       const data = response.data?.data || response.data;
       if (!data) {
         throw new Error('No data received from server');
@@ -991,7 +998,7 @@ const ModernBill = () => {
     setLoading(true);
     setError(null);
     try {
-       const response = await OrdernewService().getUnbilledItemsByTable(tableIdNum);
+      const response = await OrdernewService().getUnbilledItemsByTable(tableIdNum);
     const data = response.data?.data || response.data;
       if (!data) {
         throw new Error('No data received from server');
