@@ -192,8 +192,8 @@ function OrdernewService() {
       return HttpClient.get('/tablemanagement')
     },
 
-    getTableDepartments: () => {
-      return HttpClient.get('/table-department')
+    getTableDepartment: (params?: any) => {
+      return HttpClient.get('/table-department', params)
     },
 
     getOutletSettings: (outletId: number) => {
@@ -205,6 +205,40 @@ function OrdernewService() {
         params: { outletid: outletId },
       })
     },
+
+    /* Additional functions for Billview */
+    getGlobalKOTNumber: (outletId: number) => {
+      return HttpClient.get('/TAxnTrnbill/global-kot-number', { params: { outletid: outletId } })
+    },
+
+    getOutletsByHotel: (hotelId: number) => {
+      return HttpClient.get('/outlets/by-hotel', { params: { hotelid: hotelId } })
+    },
+
+    getOutletById: (outletId: number) => {
+      return HttpClient.get(`/outlets/${outletId}`)
+    },
+
+    getTaxDetails: (outletId: number) => {
+      return HttpClient.get('/tax-details', { params: { outletid: outletId } })
+    },
+
+    getMenu: (outletId: number) => {
+      return HttpClient.get('/menu', { params: { outletid: outletId } })
+    },
+
+    printKOT: (kotNo: number, payload: any) => {
+      return HttpClient.post(`/kot/print/${kotNo}`, payload)
+    },
+
+    getTableById: (tableId: number) => {
+      return HttpClient.get(`/tables/${tableId}`)
+    },
+
+    verifyCreatorPassword: (password: string) => {
+      return HttpClient.post('/auth/verify-creator-password', { password })
+    },
+
   }
 }
 
