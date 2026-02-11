@@ -49,7 +49,7 @@ export type SettlementPayload = {
 
 /* ─────────────── Service ─────────────── */
 
-function OrderService() {
+function OrdernewService() {
   return {
     /* Bills */
     createBill: (payload: CreateBillPayload) => {
@@ -208,4 +208,5 @@ function OrderService() {
   }
 }
 
-export default OrderService()  
+export default OrdernewService;
+  

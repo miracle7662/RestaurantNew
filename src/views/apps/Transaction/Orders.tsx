@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Button, Modal, Table, Card, Row, Col, Spinner } from "react-bootstrap";
-import { fetchOutletsForDropdown } from "@/utils/commonfunction";
+import { fetchOutletsForDropdown, fetchCustomerByMobile } from "@/utils/commonfunction";
 import { useAuthContext } from "@/common";
 import { getUnbilledItemsByTable } from "@/common/api/orders";
 import { OutletData } from "@/common/api/outlet";
@@ -580,54 +580,13 @@ const Order = () => {
     }
   };
 
-  const fetchCustomerByMobile = async (value: string) => {
-    try {
-      const res = await fetch(`http://localhost:3001/api/customer/by-mobile?mobile=${value}`, {
-        headers: { 'Content-Type': 'application/json' },
-      });
-      if (res.ok) {
-        const response = await res.json();
-        console.log('Customer API response:', response);
-        if (response.customerid && response.name) {
-          setCustomerName(response.name);
-          setCustomerId(response.customerid);
-          setCustomerAddress(`${response.address1 || ''} ${response.address2 || ''}`.trim());
-        } else if (response.success && response.data && response.data.length > 0) {
-          const customer = response.data[0];
-          setCustomerName(customer.name);
-          setCustomerId(customer.customerid);
-          setCustomerAddress(`${customer.address1 || ''} ${customer.address2 || ''}`.trim());
-        } else {
-          setCustomerName('');
-          setCustomerAddress('');
-          console.log('Customer not found');
-          setCustomerId(null);
-        }
-      } else if (res.status === 404) {
-        setCustomerName('');
-        setCustomerAddress('');
-        console.log('Customer not found (404)');
-        setCustomerId(null);
-      } else {
-        console.error('Failed to fetch customer:', res.status, res.statusText);
-        setCustomerName('');
-        setCustomerAddress('');
-        setCustomerId(null);
-      }
-    } catch (err) {
-      console.error('Customer fetch error:', err);
-      setCustomerName('');
-      setCustomerAddress('');
-      setCustomerId(null);
-    }
-  };
-
   useEffect(() => {
     if (mobileNumber.length >= 10) {
-      fetchCustomerByMobile(mobileNumber);
+      fetchCustomerByMobile(mobileNumber, setCustomerName, setCustomerId, setCustomerAddress);
     } else {
       setCustomerName('');
       setCustomerId(null);
+      setCustomerAddress('');
     }
   }, [mobileNumber]);
 
@@ -635,12 +594,10 @@ const Order = () => {
     if (e.key === 'Enter') {
       e.preventDefault();
       if (mobileNumber.trim()) {
-        fetchCustomerByMobile(mobileNumber.trim());
+        fetchCustomerByMobile(mobileNumber.trim(), setCustomerName, setCustomerId, setCustomerAddress);
       }
     }
   };
-
-
 
   useEffect(() => {
     const lastItem = items[items.length - 1];
@@ -1474,7 +1431,7 @@ const Order = () => {
     try {
       // Ensure customer details are fetched if mobile number is provided but customerid is null
       if (mobileNumber && !customerid) {
-        await fetchCustomerByMobile(mobileNumber);
+        await fetchCustomerByMobile(mobileNumber, setCustomerName, setCustomerId, setCustomerAddress);
       }
 
       const newItemsToKOT = items.filter(item => item.isNew);
@@ -1633,9 +1590,6 @@ const Order = () => {
 
       // Find the first NCKOT item to get the overall NCName and NCPurpose for the bill header
       const firstNCItem = newKotItemsPayload.find(item => item.isNCKOT);
-
-
-
       const kotPayload = {
         txnId: currentTxnId || 0,
         tableId: resolvedTableId,
@@ -3798,7 +3752,7 @@ const Order = () => {
                     value={mobileNumber}
                     onChange={(e) => setMobileNumber(e.target.value)}
                     onKeyPress={handleMobileKeyPress}
-                    onBlur={(e) => fetchCustomerByMobile(mobileNumber)}
+                    onBlur={(e) => fetchCustomerByMobile(mobileNumber, setCustomerName, setCustomerId, setCustomerAddress)}
                     className="form-control"
                     style={{
                       width: "150px",
