@@ -670,7 +670,7 @@ const ModernBill = () => {
       // STEP 1: try billed bill first
       try {
         const billedBillRes = await OrdernewService().getBilledBillByTable(tableIdNum);
-       
+      
         if (billedBillRes.status === 200) {
           const billedBillData = billedBillRes.data;
           if (billedBillData.success && billedBillData.data) {
@@ -831,8 +831,7 @@ const ModernBill = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await OrdernewService().getBillById(Number(orderId));
-     
+     const response = await OrdernewService().getBillById(Number(orderId));
       const data = response.data?.data || response.data;
       if (!data) {
         throw new Error('No data received from server');
@@ -992,7 +991,7 @@ const ModernBill = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await OrdernewService().getUnbilledItemsByTable(tableIdNum);
+       const response = await OrdernewService().getUnbilledItemsByTable(tableIdNum);
     const data = response.data?.data || response.data;
       if (!data) {
         throw new Error('No data received from server');
