@@ -3,6 +3,8 @@ import { RefreshCw } from 'lucide-react';
 import { useAuthContext } from '@/common';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Modal, Button } from 'react-bootstrap';
+import TableManagementService from '@/common/api/tablemanagement';
+import TableDepartmentService from '@/common/api/tabledepartment';
 
 // Types
 type TableStatus = 'blank' | 'running' | 'printed' | 'paid' | 'running-kot' | 'occupied' | 'available' | 'reserved';
@@ -136,78 +138,72 @@ export default function App() {
           setLoading(false);
           return;
         }
-        const res = await fetch('http://localhost:3001/api/tablemanagement', {
-          headers: { 'Content-Type': 'application/json' },
-        });
-        if (res.ok) {
-          const response = await res.json();
-          console.log('Raw tableItems data:', JSON.stringify(response, null, 2));
-          const filteredData = response.data.filter((t: any) => t.hotelid === user.hotelid);
-          if (response.success && Array.isArray(filteredData)) {
-            const formattedData = await Promise.all(
-              filteredData.map(async (item: any) => {
-                let status = Number(item.status);
+        const response = await TableManagementService.list();
+        console.log('Raw tableItems data:', JSON.stringify(response, null, 2));
+        if (response.success && Array.isArray(response.data)) {
+            const filteredData = response.data.filter((t: any) => t.hotelid === user.hotelid);
+            if (filteredData.length > 0) {
+              const formattedData = await Promise.all(
+                filteredData.map(async (item: any) => {
+                  let status = Number(item.status);
 
-                // Fetch bill status for each table from backend
-                const res = await fetch(`http://localhost:3001/api/TAxnTrnbill/bill-status/${item.tableid}`);
-                const data = await res.json();
+                  // Fetch bill status for each table from backend
+                  const res = await fetch(`http://localhost:3001/api/TAxnTrnbill/bill-status/${item.tableid}`);
+                  const data = await res.json();
 
-                let txnId: number | null = null;
-                let billNo: string | null = null;
-                let billAmount: number | null = null;
-                let billPrintedTime: string | null = null;
-                let billPrintedDate: Date | null = null;
-                if (data.success && data.data) {
-                  const { isBilled, isSetteled, TxnID, TxnNo, Amount, BilledDate } = data.data;
-                  txnId = TxnID || null;
-                  billNo = TxnNo || null;
-                  billAmount = Amount || null;
-                  if (BilledDate) {
-                    const date = new Date(BilledDate);
-                    billPrintedDate = new Date(date.getTime() + (5.5 * 60 * 60 * 1000)); // Convert to IST
-                    billPrintedTime = billPrintedDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+                  let txnId: number | null = null;
+                  let billNo: string | null = null;
+                  let billAmount: number | null = null;
+                  let billPrintedTime: string | null = null;
+                  let billPrintedDate: Date | null = null;
+                  if (data.success && data.data) {
+                    const { isBilled, isSetteled, TxnID, TxnNo, Amount, BilledDate } = data.data;
+                    txnId = TxnID || null;
+                    billNo = TxnNo || null;
+                    billAmount = Amount || null;
+                    if (BilledDate) {
+                      const date = new Date(BilledDate);
+                      billPrintedDate = new Date(date.getTime() + (5.5 * 60 * 60 * 1000)); // Convert to IST
+                      billPrintedTime = billPrintedDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+                    }
+
+                    if (isBilled === 1 && isSetteled !== 1) status = 2; // 🔴 red when billed but not settled
+                    if (isSetteled === 1) status = 0; // ⚪ vacant when settled
                   }
 
-                  if (isBilled === 1 && isSetteled !== 1) status = 2; // 🔴 red when billed but not settled
-                  if (isSetteled === 1) status = 0; // ⚪ vacant when settled
-                }
-
-                let statusString: TableStatus;
-                switch (status) {
-                  case 0: statusString = 'available'; break;
-                  case 1: statusString = 'running'; break;
-                  case 2: statusString = 'printed'; break;
-                  case 3: statusString = 'paid'; break;
-                  case 4: statusString = 'running-kot'; break;
-                  default: statusString = 'available'; break;
-                }
-
-                // Check if printed bill is 10+ minutes old, change to pending
-                if (statusString === 'printed' && billPrintedDate) {
-                  const now = new Date();
-                  const diffMinutes = (now.getTime() - billPrintedDate.getTime()) / (1000 * 60);
-                  if (diffMinutes >= 10) {
-                    statusString = 'running-kot'; // Mark as pending
+                  let statusString: TableStatus;
+                  switch (status) {
+                    case 0: statusString = 'available'; break;
+                    case 1: statusString = 'running'; break;
+                    case 2: statusString = 'printed'; break;
+                    case 3: statusString = 'paid'; break;
+                    case 4: statusString = 'running-kot'; break;
+                    default: statusString = 'available'; break;
                   }
-                }
 
-                return { id: item.tableid, name: item.table_name, status: statusString, outletid: item.outletid, departmentid: item.departmentid, department_name: item.department_name, txnId, billNo, billAmount, billPrintedTime, billPrintedDate };
-              })
-            );
+                  // Check if printed bill is 10+ minutes old, change to pending
+                  if (statusString === 'printed' && billPrintedDate) {
+                    const now = new Date();
+                    const diffMinutes = (now.getTime() - billPrintedDate.getTime()) / (1000 * 60);
+                    if (diffMinutes >= 10) {
+                      statusString = 'running-kot'; // Mark as pending
+                    }
+                  }
 
-            setAllTables(formattedData);
-            setError('');
-          } else if (response.success && filteredData.length === 0) {
-            setError('No tables found in TableManagement API.');
-            setAllTables([]);
+                  return { id: item.tableid, name: item.table_name, status: statusString, outletid: item.outletid, departmentid: item.departmentid, department_name: item.department_name, txnId, billNo, billAmount, billPrintedTime, billPrintedDate };
+                })
+              );
+
+              setAllTables(formattedData);
+              setError('');
+            } else {
+              setError('No tables found in TableManagement API.');
+              setAllTables([]);
+            }
           } else {
-            setError(response.message || 'Invalid data format received from TableManagement API.');
+            setError('Invalid data format received from TableManagement API.');
             setAllTables([]);
           }
-        } else {
-          setError(`Failed to fetch tables: ${res.status} ${res.statusText}`);
-          setAllTables([]);
-        }
       } catch (err) {
         console.error('Table fetch error:', err);
         setError('Failed to fetch tables. Please check the API endpoint.');
@@ -222,12 +218,7 @@ export default function App() {
         if (!user) {
           throw new Error('User not authenticated');
         }
-        const response = await fetch(`http://localhost:3001/api/table-department`);
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch departments');
-        }
-        const data = await response.json();
+        const data = await TableDepartmentService.list();
         setDepartments(data.data || data);
       } catch (err: any) {
         setError(err.message);
