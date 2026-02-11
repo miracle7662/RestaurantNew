@@ -16,6 +16,8 @@ import { applyKotSettings, } from '@/utils/applyOutletSettings';
 import KotPreviewPrint from '../PrintReport/KotPrint';
 import BillPreviewPrint from '../PrintReport/BillPrint';
 import { fetchWaiterUsers, WaiterUser } from '@/services/user.service';
+import TableManagementService from '@/common/api/tablemanagement';
+import TableDepartmentService from '@/common/api/tabledepartment';
 interface MenuItem {
   id: number;
   name: string;
@@ -504,15 +506,13 @@ const Order = () => {
   const fetchTableManagement = async () => {
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:3001/api/tablemanagement', {
-        headers: { 'Content-Type': 'application/json' },
-      });
-      if (res.ok) {
-        const response = await res.json();
-        console.log('Raw tableItems data:', JSON.stringify(response, null, 2));
-        if (response.success && Array.isArray(response.data)) {
+      const response = await TableManagementService.list();
+      console.log('Raw tableItems data:', JSON.stringify(response, null, 2));
+      if (response.success && Array.isArray(response.data)) {
+        const filteredData = response.data.filter((t: any) => t.hotelid === user.hotelid);
+        if (filteredData.length > 0) {
           const formattedData = await Promise.all(
-            response.data.map(async (item: any) => {
+            filteredData.map(async (item: any) => {
               let status = Number(item.status);
               let billNo: string | null = null;
               let billAmount: number | null = null;
@@ -556,17 +556,13 @@ const Order = () => {
           setTableItems(formattedData);
           setFilteredTables(formattedData);
           setErrorMessage('');
-        } else if (response.success && response.data.length === 0) {
-          setErrorMessage('No tables found in TableManagement API.');
-          setTableItems([]);
-          setFilteredTables([]);
         } else {
-          setErrorMessage(response.message || 'Invalid data format received from TableManagement API.');
+          setErrorMessage('No tables found in TableManagement API.');
           setTableItems([]);
           setFilteredTables([]);
         }
       } else {
-        setErrorMessage(`Failed to fetch tables: ${res.status} ${res.statusText}`);
+        setErrorMessage('Invalid data format received from TableManagement API.');
         setTableItems([]);
         setFilteredTables([]);
       }
@@ -627,36 +623,64 @@ const Order = () => {
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
-  const fetchDepartments = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch('http://localhost:3001/api/table-department', {
-        headers: { 'Content-Type': 'application/json' },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success) {
-          let formattedDepartments = data.data.map((item: any) => ({
-            departmentid: item.departmentid,
-            department_name: item.department_name,
-            outletid: item.outletid,
-          }));
-          if (user && user.role_level === 'outlet_user' && user.outletid) {
-            formattedDepartments = formattedDepartments.filter((d: DepartmentItem) => d.outletid === Number(user.outletid));
-          }
-          setDepartments(formattedDepartments);
-        } else {
-          toast.error(data.message || 'Failed to fetch departments');
-        }
-      } else {
-        toast.error('Failed to fetch departments');
+ const fetchDepartments = async () => {
+  setLoading(true);
+
+  // 🚨 fail fast
+  if (user?.role_level === 'outlet_user' && !user.outletid) {
+    toast.error('No outlet assigned to this user.');
+    setDepartments([]);
+    setLoading(false);
+    return;
+  }
+
+  try {
+    const response = await TableDepartmentService.list();
+    console.log('Raw departments data:', response);
+
+    if (response.success && Array.isArray(response.data)) {
+      const hotelDepartments = response.data.filter(
+        (d: any) => d.hotelid === user.hotelid
+      );
+
+      if (hotelDepartments.length === 0) {
+        toast.error('No departments found for the hotel.');
+        setDepartments([]);
+        return;
       }
-    } catch (err) {
-      toast.error('Failed to fetch departments');
-    } finally {
-      setLoading(false);
+
+      let formattedDepartments = hotelDepartments.map((item: any) => ({
+        departmentid: item.departmentid,
+        department_name: item.department_name,
+        outletid: item.outletid,
+      }));
+
+      // ✅ always filter for outlet_user
+      if (user.role_level === 'outlet_user') {
+        formattedDepartments = formattedDepartments.filter(
+          (d: DepartmentItem) => d.outletid === Number(user.outletid)
+        );
+      }
+
+      if (user.role_level === 'outlet_user' && formattedDepartments.length === 0) {
+        toast.error('No assigned departments found for outlet user.');
+        setDepartments([]);
+      } else {
+        setDepartments(formattedDepartments);
+      }
+    } else {
+      toast.error('Invalid data format received from TableDepartment API.');
+      setDepartments([]);
     }
-  };
+  } catch (err) {
+    console.error('Departments fetch error:', err);
+    toast.error('Failed to fetch departments. Please check the API endpoint.');
+    setDepartments([]);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const fetchOutletsData = async () => {
     console.log('Full user object:', JSON.stringify(user, null, 2));

@@ -15,6 +15,7 @@ import { OutletSettings } from '../../utils/applyOutletSettings';
 import { fetchKotPrintSettings, } from '@/services/outletSettings.service';
 import { applyKotSettings, } from '@/utils/applyOutletSettings';
 import { fetchWaiterUsers, WaiterUser } from '@/services/user.service';
+import OrdernewService from '@/common/api/ordernew';
 
 
 const KOT_COLORS = [
@@ -668,9 +669,8 @@ const ModernBill = () => {
     try {
       // STEP 1: try billed bill first
       try {
-        const billedBillRes = await axios.get(
-          `/api/TAxnTrnbill/billed-bill/by-table/${tableIdNum}`
-        );
+        const billedBillRes = await OrdernewService().getBilledBillByTable(tableIdNum);
+       
         if (billedBillRes.status === 200) {
           const billedBillData = billedBillRes.data;
           if (billedBillData.success && billedBillData.data) {
@@ -831,10 +831,8 @@ const ModernBill = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await axios.get(`/api/TAxnTrnbill/${orderId}`);
-      if (response.status !== 200) {
-        throw new Error(`Server responded with status ${response.status}`);
-      }
+      const response = await OrdernewService().getBillById(Number(orderId));
+     
       const data = response.data?.data || response.data;
       if (!data) {
         throw new Error('No data received from server');
@@ -994,11 +992,8 @@ const ModernBill = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await axios.get(`/api/TAxnTrnbill/unbilled-items/${tableIdNum}`);
-      if (response.status !== 200) {
-        throw new Error(`Server responded with status ${response.status}`);
-      }
-      const data = response.data?.data || response.data;
+      const response = await OrdernewService().getUnbilledItemsByTable(tableIdNum);
+    const data = response.data?.data || response.data;
       if (!data) {
         throw new Error('No data received from server');
       }
