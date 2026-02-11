@@ -506,7 +506,7 @@ const Order = () => {
   const fetchTableManagement = async () => {
     setLoading(true);
     try {
-      const response = await TableManagementService.list();
+      const response = await TableManagementService.list() as any;
       console.log('Raw tableItems data:', JSON.stringify(response, null, 2));
       if (response.success && Array.isArray(response.data)) {
         const filteredData = response.data.filter((t: any) => t.hotelid === user.hotelid);
@@ -635,39 +635,29 @@ const Order = () => {
   }
 
   try {
-    const response = await TableDepartmentService.list();
+    const params: { hotelid: number; outletid?: number } = { hotelid: user.hotelid };
+    if (user.role_level === 'outlet_user' && user.outletid) {
+      params.outletid = Number(user.outletid);
+    }
+    const response = await TableDepartmentService.list(params) as any;
     console.log('Raw departments data:', response);
 
     if (response.success && Array.isArray(response.data)) {
-      const hotelDepartments = response.data.filter(
-        (d: any) => d.hotelid === user.hotelid
-      );
+      const departmentsData = response.data;
 
-      if (hotelDepartments.length === 0) {
-        toast.error('No departments found for the hotel.');
+      if (departmentsData.length === 0) {
+        toast.error('No departments found.');
         setDepartments([]);
         return;
       }
 
-      let formattedDepartments = hotelDepartments.map((item: any) => ({
+      const formattedDepartments = departmentsData.map((item: any) => ({
         departmentid: item.departmentid,
         department_name: item.department_name,
         outletid: item.outletid,
       }));
 
-      // ✅ always filter for outlet_user
-      if (user.role_level === 'outlet_user') {
-        formattedDepartments = formattedDepartments.filter(
-          (d: DepartmentItem) => d.outletid === Number(user.outletid)
-        );
-      }
-
-      if (user.role_level === 'outlet_user' && formattedDepartments.length === 0) {
-        toast.error('No assigned departments found for outlet user.');
-        setDepartments([]);
-      } else {
-        setDepartments(formattedDepartments);
-      }
+      setDepartments(formattedDepartments);
     } else {
       toast.error('Invalid data format received from TableDepartment API.');
       setDepartments([]);
