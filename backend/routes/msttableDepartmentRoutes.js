@@ -6,7 +6,7 @@ const msttableDepartmentController = require('../controllers/msttableDepartmentC
 router.get('/', msttableDepartmentController.getAllDepartments);
 
 // Get a single department by ID
-router.get('/', msttableDepartmentController.getDepartmentById);
+router.get('/:id', msttableDepartmentController.getDepartmentById);
 
 // Create a new department
 router.post('/', msttableDepartmentController.createDepartment);

@@ -5,7 +5,7 @@ exports.getAllDepartments = (req, res) => {
   try {
     const { hotelid } = req.query;
     let query = `
-      SELECT d.*, o.outlet_name, h.hotel_name
+      SELECT d.*, o.outlet_name, h.hotel_name, h.hotelid
       FROM msttable_department d
       LEFT JOIN mst_outlets o ON d.outletid = o.outletid
       LEFT JOIN msthotelmasters h ON o.hotelid = h.hotelid

@@ -14,7 +14,7 @@ type TableDepartmentPayload = {
 
 function TableDepartmentService() {
   return {
-    list: (params?: { q?: string }) => {
+    list: (params?: { q?: string; hotelid?: number; outletid?: number }) => {
       return HttpClient.get('/table-department', { params })
     },
     create: (payload: TableDepartmentPayload) => {
