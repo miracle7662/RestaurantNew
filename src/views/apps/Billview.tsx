@@ -14,7 +14,7 @@ import BillPreviewPrint from './PrintReport/BillPrint';
 import { OutletSettings } from '../../utils/applyOutletSettings';
 import { fetchKotPrintSettings, } from '@/services/outletSettings.service';
 import { applyKotSettings, } from '@/utils/applyOutletSettings';
-import { fetchWaiterUsers, WaiterUser } from '@/services/user.service';
+
 import OrdernewService from '@/common/api/ordernew';
 import MenuItemService from '@/common/api/menu';
 
@@ -96,6 +96,14 @@ interface FetchedItem {
   isNew: boolean;
   originalQty: number;
   kotNo: number;
+}
+
+interface ReverseModalItem {
+  txnDetailId: number;
+  item_no: string;
+  itemName: string;
+  cancelQty: number;
+  rate: number;
 }
 
 interface FormData {
@@ -410,7 +418,6 @@ const ModernBill = () => {
   const [customerId, setCustomerId] = useState<number | null>(null);
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [showF9BilledPasswordModal, setShowF9BilledPasswordModal] = useState(false);
-  const [waiterUsers, setWaiterUsers] = useState<WaiterUser[]>([]);
   const [f9BilledPasswordError, setF9BilledPasswordError] = useState('');
   const [f9BilledPasswordLoading, setF9BilledPasswordLoading] = useState(false);
   const [showF8RevKotPasswordModal, setShowF8RevKotPasswordModal] = useState(false);
@@ -507,14 +514,14 @@ const ModernBill = () => {
  const handleCustomerNoChange = async (value: string) => {
   setCustomerNo(value);
 
-  if (!value) {
+  if (!value.trim()) {
     setCustomerName('');
     setCustomerId(null);
     return;
   }
 
   try {
-    const res = await OrdernewService.getCustomerByMobile(value);
+    const res = await OrdernewService.getCustomerByMobile(value.trim());
 
     if (res.success && res.data) {
       setCustomerName(res.data.name || '');
@@ -523,7 +530,6 @@ const ModernBill = () => {
       setCustomerName('');
       setCustomerId(null);
     }
-
   } catch (err) {
     console.error("Customer fetch error:", err);
     setCustomerName('');
@@ -533,122 +539,96 @@ const ModernBill = () => {
 
 
   const handleF9PasswordSubmit = async (password: string) => {
-    if (!(user as any)?.token) {
-      toast.error("Authentication token not found. Please log in again.");
-      return;
+  if (!(user as any)?.token) {
+    toast.error("Authentication token not found. Please log in again.");
+    return;
+  }
+
+  setF9BilledPasswordLoading(true);
+  setF9BilledPasswordError('');
+
+  try {
+    const response = await OrdernewService.verifyCreatorPassword(password);
+
+    if (response.success) {
+      setShowF9BilledPasswordModal(false);
+      setShowReverseBillConfirmationModal(true);
+    } else {
+      setF9BilledPasswordError(response.message || 'Invalid password');
     }
+  } catch (error: any) {
+    setF9BilledPasswordError(error.message || 'An error occurred. Please try again.');
+  } finally {
+    setF9BilledPasswordLoading(false);
+  }
+};
 
-    setF9BilledPasswordLoading(true);
-    setF9BilledPasswordError('');
-    try {
-      const response = await fetch('http://localhost:3001/api/auth/verify-creator-password', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${(user as any).token}`
-        },
-        body: JSON.stringify({ password })
-      });
+ const handleF8RevKotPasswordSubmit = async (password: string) => {
+  if (!(user as any)?.token) {
+    toast.error("Authentication token not found. Please log in again.");
+    return;
+  }
 
-      const data = await response.json();
+  setF8RevKotPasswordLoading(true);
+  setF8RevKotPasswordError('');
 
-      if (response.ok && data.success) {
-        // Password verified, now open confirmation modal
-        setShowF9BilledPasswordModal(false);
-        setShowReverseBillConfirmationModal(true);
-      } else {
-        setF9BilledPasswordError(data.message || 'Invalid password');
+  try {
+    const response = await OrdernewService.verifyCreatorPassword(password);
+
+    if (response.success) {
+      setShowF8RevKotPasswordModal(false);
+      setShowReverseKot(true);
+    } else {
+      setF8RevKotPasswordError(response.message || 'Invalid password');
+    }
+  } catch (error: any) {
+    setF8RevKotPasswordError(error.message || 'An error occurred. Please try again.');
+  } finally {
+    setF8RevKotPasswordLoading(false);
+  }
+};
+
+
+ const handleReverseBillConfirmation = async () => {
+  setShowReverseBillConfirmationModal(false);
+
+  if (!txnId) {
+    toast.error("Transaction ID not found. Cannot reverse bill.");
+    return;
+  }
+
+  try {
+    const reverseResponse = await OrdernewService.reverseBill(txnId, {
+      userId: user.id
+    });
+
+    if (reverseResponse.success) {
+      toast.success('Bill reversed successfully!');
+
+      // Optimistic UI update
+      if (tableName) {
+        setTableItems(prev =>
+          prev.map(t =>
+            t.table_name === tableName ? { ...t, status: 0 } : t
+          )
+        );
       }
-    } catch (error) {
-      setF9BilledPasswordError('An error occurred. Please try again.');
-    } finally {
-      setF9BilledPasswordLoading(false);
+
+      resetBillState();
+      setItems([]);
+      setReversedItems([]);
+      setSelectedTable(null);
+      setCurrentKOTNos([]);
+      setOrderNo(null);
+
+      navigate('/apps/Tableview');
+    } else {
+      toast.error(reverseResponse.message || 'Failed to reverse the bill.');
     }
-  };
-
-  const handleF8RevKotPasswordSubmit = async (password: string) => {
-    if (!(user as any)?.token) {
-      toast.error("Authentication token not found. Please log in again.");
-      return;
-    }
-
-    setF8RevKotPasswordLoading(true);
-    setF8RevKotPasswordError('');
-    try {
-      const response = await fetch('http://localhost:3001/api/auth/verify-creator-password', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${(user as any).token}`
-        },
-        body: JSON.stringify({ password })
-      });
-
-      const data = await response.json();
-
-      if (response.ok && data.success) {
-        setShowF8RevKotPasswordModal(false);
-        setShowReverseKot(true);
-      } else {
-        setF8RevKotPasswordError(data.message || 'Invalid password');
-      }
-    } catch (error) {
-      setF8RevKotPasswordError('An error occurred. Please try again.');
-    } finally {
-      setF8RevKotPasswordLoading(false);
-    }
-  };
-
-  const handleReverseBillConfirmation = async () => {
-    setShowReverseBillConfirmationModal(false);
-
-    // Now call the bill reversal endpoint
-    if (!txnId) {
-      toast.error("Transaction ID not found. Cannot reverse bill.");
-      return;
-    }
-
-    try {
-      const reverseResponse = await fetch(`http://localhost:3001/api/TAxnTrnbill/${txnId}/reverse`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${(user as any).token}`
-        },
-        body: JSON.stringify({ userId: user.id }) // Pass admin's ID for logging
-      });
-
-      const reverseData = await reverseResponse.json();
-
-      if (reverseResponse.ok && reverseData.success) {
-        toast.success('Bill reversed successfully!');
-
-        // Optimistically update the table status in the UI
-        if (tableName) {
-          setTableItems(prevTables =>
-            prevTables.map(table =>
-              table.table_name === tableName ? { ...table, status: 0 } : table
-            )
-          );
-        }
-
-        // Clear current UI states
-        resetBillState();
-        setItems([]);
-        setReversedItems([]);
-        setSelectedTable(null);
-        setCurrentKOTNos([]);
-        setOrderNo(null);
-
-        navigate('/apps/Tableview');
-      } else {
-        toast.error(reverseData.message || 'Failed to reverse the bill.');
-      }
-    } catch (reverseError) {
-      toast.error('An error occurred while reversing the bill.');
-    }
-  };
-
+  } catch (err: any) {
+    toast.error(err.message || 'An error occurred while reversing the bill.');
+  }
+};
   // Outlet selection states
   const selectedOutletId = outletIdFromState || user?.outletid || 1;
   // Tax details state
@@ -745,7 +725,7 @@ const ModernBill = () => {
             setTxnId(billHeader.header.TxnID);
             setOrderNo(billHeader.header.TxnNo);
             setWaiter(billHeader.header.waiter || 'ASD');
-            setPax(billHeader.header.pax || billHeader.header.PAX || 1);
+            setPax(billHeader.header.pax ?? billHeader.header.PAX ?? 1);
             setTableNo(billHeader.header.table_name || tableName);
             if (billHeader.header.RevKOTNo) {
               setRevKotNo(parseInt(billHeader.header.RevKOTNo, 10));
@@ -1390,7 +1370,9 @@ fetchMenuItems();
       try {
         console.log('selectedOutletId:', selectedOutletId);
         if (!selectedOutletId) return;
-        const waiters = await fetchWaiterUsers(selectedOutletId);
+
+        const response = await OrdernewService.getWaiterUsers(selectedOutletId);
+        const waiters = Array.isArray(response) ? response : response?.data || [];
         console.log('Fetched waiter users:', waiters);
         setWaiterUsers(waiters);
       } catch (error) {
@@ -1790,11 +1772,11 @@ fetchMenuItems();
       setNcPurpose('');
     }
   };
- const handleReverseKotSave = async (
+  const handleReverseKotSave = async (
   reverseItemsFromModal: ReverseModalItem[]
 ) => {
-  if (!txnId || !tableId) {
-    toast.error('Transaction or table not found');
+  if (!txnId) {
+    toast.error('Transaction not found');
     return;
   }
 

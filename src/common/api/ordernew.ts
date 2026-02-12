@@ -133,6 +133,15 @@ export type BillHeader = {
   Status?: number
 }
 
+export interface ReverseKOTItem {
+  txnDetailId: number;
+  item_no: string;
+  name: string;
+  qty: number;
+  price: number;
+}
+
+
 export type BillDetailsResponse = ApiResponse<{
   details: BillItem[]
   reversedItems: BillItem[]
@@ -171,6 +180,13 @@ export type CreateKOTPayload = {
   PAX?: number | null
 }
 
+export interface WaiterUser {
+  id: number;
+  name: string;
+  mobile?: string;
+}
+
+
 /* ─────────────── Service ─────────────── */
 
 const OrdernewService = {
@@ -182,7 +198,7 @@ const OrdernewService = {
     HttpClient.put<ApiResponse<Bill>>(`/TAxnTrnbill/${id}`, { details }),
 
   getBillById: (id: number) =>
-    HttpClient.get<ApiResponse<Bill>>(`/TAxnTrnbill/${id}`),
+    HttpClient.get<BillDetailsResponse>(`/TAxnTrnbill/${id}`),
 
   getAllBills: () =>
     HttpClient.get<ApiResponse<Bill[]>>('/TAxnTrnbill/all'),
@@ -201,15 +217,22 @@ const OrdernewService = {
   createKOT: (payload: CreateKOTPayload) =>
     HttpClient.post<ApiResponse<KOTItem>>('/TAxnTrnbill/kot', payload),
 
-  createReverseKOT: (payload: {
-    txnId: number
-    tableId: number
-    kotType: string
-    isReverseKot: number
-    reversedItems: BillItem[]
-    userId: number
-    reversalReason: string
-  }) => HttpClient.post<ApiResponse<null>>('/TAxnTrnbill/create-reverse-kot', payload),
+ createReverseKOT: (payload: {
+  txnId: number;
+  tableId: number;
+  kotType: string;
+  isReverseKot: number;
+  reversedItems: ReverseKOTItem[];
+  userId: number;
+  reversalReason: string;
+}) =>
+  HttpClient.post<ApiResponse<ReverseKOTItem>>(
+    '/TAxnTrnbill/create-reverse-kot',
+    payload
+  ),
+
+
+
 
   getKOTList: (tableId: number) =>
     HttpClient.get<ApiResponse<KOTItem[]>>('/TAxnTrnbill/kot/list', { params: { tableId } }),
@@ -275,6 +298,16 @@ const OrdernewService = {
 
   getTableManagementById: (tableId: number) =>
     HttpClient.get<ApiResponse<any>>(`/tables/${tableId}`),
+
+  // In ordernew.ts – add this if not present yet
+getWaiterUsers: (outletId: number) =>
+ HttpClient.get<ApiResponse<WaiterUser[]>>(
+  '/users/waiters',
+  {
+    params: { outletid: outletId }
+  }
+)
+
 }
 
 export default OrdernewService
