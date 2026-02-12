@@ -3,7 +3,7 @@ const db = require("../config/db");
 // Get all departments
 exports.getAllDepartments = (req, res) => {
   try {
-    const { hotelid } = req.query;
+    const { hotelid, outletid } = req.query;
     let query = `
       SELECT d.*, o.outlet_name, h.hotel_name, h.hotelid
       FROM msttable_department d
@@ -15,6 +15,10 @@ exports.getAllDepartments = (req, res) => {
     if (hotelid) {
       query += ' AND o.hotelid = ?';
       params.push(hotelid);
+    }
+    if (outletid) {
+      query += ' AND d.outletid = ?';
+      params.push(outletid);
     }
     query += ' ORDER BY d.department_name';
     const rows = db.prepare(query).all(...params);

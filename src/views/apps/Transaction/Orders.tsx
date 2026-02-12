@@ -509,7 +509,10 @@ const Order = () => {
       const response = await TableManagementService.list() as any;
       console.log('Raw tableItems data:', JSON.stringify(response, null, 2));
       if (response.success && Array.isArray(response.data)) {
-        const filteredData = response.data.filter((t: any) => t.hotelid === user.hotelid);
+        let filteredData = response.data.filter((t: any) => t.hotelid === user.hotelid);
+        if (user.role_level === 'outlet_user' && user.outletid) {
+          filteredData = filteredData.filter((t: any) => t.outletid === Number(user.outletid));
+        }
         if (filteredData.length > 0) {
           const formattedData = await Promise.all(
             filteredData.map(async (item: any) => {
