@@ -18,7 +18,7 @@ export type Bill = {
 }
 
 export type KOTItem = {
-  kotNo: number
+  KOTNo: number
   itemId: number
   qty: number
   revQty: number
@@ -32,7 +32,7 @@ export type KOTItem = {
   customerid?: number
 }
 
-/* ─────────────── Payload Types ─────────────── */
+/* ─────────────── Bill Payload Types ─────────────── */
 
 export type BillDetail = {
   ItemID: number
@@ -78,7 +78,7 @@ export type SettlementPayload = {
   HotelID?: number
 }
 
-/* ─────────────── Bill API Response Types ─────────────── */
+/* ─────────────── Bill Response Types ─────────────── */
 
 export type BillItem = {
   ItemID: number
@@ -100,52 +100,52 @@ export type BillHeader = {
   TableID: number
   Steward?: string
   PAX?: number
+  pax?: number
+  waiter?: string
+  table_name?: string
   CustomerName?: string
   MobileNo?: string
   Address?: string
   Landmark?: string
+  customerid?: number
+  Order_Type?: string
+  outletid?: number
   GrossAmt?: number
   Discount?: number
+  DiscPer?: number
+  DiscountType?: number
+  RevKOT?: number
+  RevKOTNo?: string
   CGST?: number
   SGST?: number
   IGST?: number
   CESS?: number
   RoundOFF?: number
   Amount?: number
+  grandTotal?: number
   Status?: number
 }
 
-export type BillDetailsResponse = {
-  success: boolean
-  message?: string
-  data: {
-    details: BillItem[]
-    reversedItems: BillItem[]
-    header: BillHeader
-  }
-  error?: string
-}
+export type BillDetailsResponse = ApiResponse<{
+  details: BillItem[]
+  reversedItems: BillItem[]
+  header: BillHeader
+}>
 
-export type UnbilledItemsResponse = {
-  success: boolean
-  message?: string
-  data: {
-    items: BillItem[]
-    reversedItems: BillItem[]
-    header: BillHeader
-    kotNo?: number
-  }
-  header?: BillHeader
-  error?: string
-}
+export type UnbilledItemsResponse = ApiResponse<{
+  items: BillItem[]
+  reversedItems: BillItem[]
+  header: BillHeader
+  kotNo?: number
+}>
 
 /* ─────────────── KOT Payload ─────────────── */
 
 export type CreateKOTPayload = {
-  txnId: number
+  txnId?: number | null
   tableId: number | null
   table_name?: string | null
-  items: BillItem[]
+  items: any[]
   outletid: number | null
   userId: number | null
   hotelId: number | null
@@ -183,15 +183,7 @@ const OrderService = {
   reverseBill: (txnId: number, payload: { userId: number }) =>
     HttpClient.post<ApiResponse<null>>(`/TAxnTrnbill/${txnId}/reverse`, payload),
 
-  markBillAsBilled: (
-    txnId: number,
-    payload: {
-      outletId: number
-      customerName?: string | null
-      mobileNo?: string | null
-      customerid?: number | null
-    }
-  ) =>
+  markBillAsBilled: (txnId: number, payload: { outletId: number; customerName?: string | null; mobileNo?: string | null; customerid?: number | null }) =>
     HttpClient.put<ApiResponse<Bill>>(`/TAxnTrnbill/${txnId}/mark-billed`, payload),
 
   /* ================= SETTLEMENT ================= */
@@ -210,8 +202,7 @@ const OrderService = {
     reversedItems: BillItem[]
     userId: number
     reversalReason: string
-  }) =>
-    HttpClient.post<ApiResponse<null>>('/TAxnTrnbill/create-reverse-kot', payload),
+  }) => HttpClient.post<ApiResponse<null>>('/TAxnTrnbill/create-reverse-kot', payload),
 
   getKOTList: (tableId: number) =>
     HttpClient.get<ApiResponse<KOTItem[]>>('/TAxnTrnbill/kot/list', { params: { tableId } }),
@@ -234,10 +225,8 @@ const OrderService = {
     HttpClient.get<ApiResponse<Customer>>('/customer/by-mobile', { params: { mobile } }),
 
   /* ================= DISCOUNT ================= */
-  applyDiscount: (
-    txnId: number,
-    payload: { discount: number; discPer: number; discountType: number; tableId: number; items: BillItem[] }
-  ) => HttpClient.post<ApiResponse<Bill>>(`/TAxnTrnbill/${txnId}/discount`, payload),
+  applyDiscount: (txnId: number, payload: { discount: number; discPer: number; discountType: number; tableId: number; items: BillItem[] }) =>
+    HttpClient.post<ApiResponse<Bill>>(`/TAxnTrnbill/${txnId}/discount`, payload),
 
   /* ================= MASTERS ================= */
   getTableManagement: () =>
@@ -252,7 +241,7 @@ const OrderService = {
   verifyCreatorPassword: (password: string) =>
     HttpClient.post<ApiResponse<{ verified: boolean }>>('/auth/verify-creator-password', { password }),
 
-  /* ================= ADDITIONAL METHODS ================= */
+  /* ================= ADDITIONAL ================= */
   getBillDetails: (id: number) =>
     HttpClient.get<BillDetailsResponse>(`/TAxnTrnbill/${id}`),
 
@@ -274,7 +263,6 @@ const OrderService = {
   printKOT: (kotNo: number, payload: { CustomerName?: string; MobileNo?: string }) =>
     HttpClient.post<ApiResponse<any>>('/kot/print', { kotNo, ...payload }),
 
-  /* ================= ADDITIONAL METHODS ================= */
   applyNCKOT: (txnId: number, payload: { NCName: string; NCPurpose: string; userId: number }) =>
     HttpClient.put<ApiResponse<any>>(`/TAxnTrnbill/${txnId}/apply-nckot`, payload),
 
