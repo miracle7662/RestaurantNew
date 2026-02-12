@@ -1977,141 +1977,86 @@ fetchMenuItems();
       setPaymentAmounts({ [mode.mode_name]: taxCalc.grandTotal.toString() });
     }
   };
- const handleApplyDiscount = async () => {
-  if (!txnId) {
-    toast.error("Please save the KOT / bill before applying discount.");
-    return;
-  }
-
-  if (!grossAmount || grossAmount <= 0) {
-    toast.error("No items in the bill. Cannot apply discount.");
-    return;
-  }
-
-  // ────────────────────────────────────────────────
-  // Validation
-  // ────────────────────────────────────────────────
-  let appliedDiscount = 0;
-  let appliedDiscPer = 0;
-
-  if (DiscountType === 1) {
-    // Percentage discount
-    if (
-      discountInputValue < 0 ||
-      discountInputValue > 100 ||
-      isNaN(discountInputValue)
-    ) {
-      toast.error("Discount percentage must be between 0% and 100%.");
+  const handleApplyDiscount = async () => {
+    if (!txnId) {
+      toast.error("Please save the KOT before applying a discount.");
       return;
     }
 
-    const MAX_AUTO_APPROVE_DISC = 20;
-    if (
-      discountInputValue > MAX_AUTO_APPROVE_DISC &&
-      user?.role_level !== "superadmin" &&
-      user?.role_level !== "hotel_admin" &&
-      user?.role_level !== "manager" // ← add more roles if needed
-    ) {
-      toast.error(
-        `Discount > ${MAX_AUTO_APPROVE_DISC}% requires manager / admin approval.`
-      );
-      return;
+    let appliedDiscount = 0;
+    let appliedDiscPer = 0;
+
+    if (DiscountType === 1) { // Percentage
+      if (discountInputValue < 0 || discountInputValue > 100 || isNaN(discountInputValue)) {
+        toast.error('Discount percentage must be between 0% and 100%');
+        return;
+      }
+      const discountThreshold = 20; // Configurable threshold
+      if (discountInputValue > discountThreshold && user?.role_level !== 'superadmin' && user?.role_level !== 'hotel_admin') {
+        toast.error('Discount > 20% requires manager approval');
+        return;
+      }
+      appliedDiscPer = discountInputValue;
+      appliedDiscount = (grossAmount * discountInputValue) / 100;
+    } else { // Amount
+      if (discountInputValue <= 0 || discountInputValue > grossAmount || isNaN(discountInputValue)) {
+        toast.error(`Discount amount must be > 0 and <= subtotal (${grossAmount.toFixed(2)})`);
+        return;
+      }
+      appliedDiscPer = 0;
+      appliedDiscount = discountInputValue;
     }
 
-    appliedDiscPer = discountInputValue;
-    appliedDiscount = (grossAmount * discountInputValue) / 100;
-  } else {
-    // Fixed amount discount
-    if (
-      discountInputValue <= 0 ||
-      discountInputValue > grossAmount ||
-      isNaN(discountInputValue)
-    ) {
-      toast.error(
-        `Discount amount must be between 0 and ${grossAmount.toFixed(2)}.`
-      );
-      return;
+    setLoading(true);
+    setDiscount(appliedDiscount); // Ensure the discount state is updated
+    try {
+      const payload = {
+        discount: appliedDiscount,
+        discPer: appliedDiscPer,
+        discountType: DiscountType,
+        tableId: tableId,
+        items: billItems.filter(item => item.itemId > 0).map(item => ({ ...item, price: item.rate })), // Send current items to recalculate on backend
+      };
+
+      const response = await OrdernewService.applyDiscount(txnId, payload);
+
+      const result = response.data;
+
+      if (!result.success) {
+        throw new Error(result.message || 'Failed to apply discount.');
+      }
+
+      toast.success('Discount applied successfully!');
+      setShowDiscountModal(false);
+      // Instead of clearing the table, just refresh its data to show the discount.
+      // If the table was billed, applying a discount should make it 'occupied' (green) again.
+      const wasBilled = items.some(item => item.isBilled === 1);
+      if (wasBilled && selectedTable) {
+        const tableToUpdate = tableItems.find(t => t.table_name === selectedTable.name);
+        if (tableToUpdate) {
+          // Optimistically update UI to green
+          setTableItems(prevTables =>
+            prevTables.map(table =>
+              table.table_name === selectedTable.name ? { ...table, status: 1 } : table
+            )
+          );
+          // The backend now handles setting isBilled=0, so a refresh will show correct state.
+          if (selectedTable?.id) {
+            await loadBillForTable(selectedTable.id);
+          }
+        }
+      }
+
+      if (tableId) {
+        await loadBillForTable(tableId);
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'An error occurred while applying the discount.');
+    } finally {
+      setLoading(false);
+      setReason('');
     }
-
-    appliedDiscPer = 0;
-    appliedDiscount = discountInputValue;
-  }
-
-  // Optional: prevent very small meaningless discounts
-  if (appliedDiscount < 0.01) {
-    toast.error("Discount amount is too small.");
-    return;
-  }
-
-  setLoading(true);
-
-  try {
-    // Prepare items snapshot (important for backend audit & recalculation)
-    const currentItems = billItems
-      .filter((item) => item.itemId > 0 && item.qty > 0)
-      .map((item) => ({
-        ...item,
-        price: item.rate,           // backend might expect 'price' or 'RuntimeRate'
-        RuntimeRate: item.rate,     // be safe — send both names if backend is inconsistent
-      }));
-
-    const payload = {
-      discount: appliedDiscount,
-      discPer: appliedDiscPer,
-      discountType: DiscountType,
-      tableId: tableId,
-      items: currentItems,
-      // Optional: audit trail fields
-      givenBy: givenBy.trim() || user?.name || "System",
-      reason: reason.trim() || null,
-    };
-
-    // Use service layer instead of raw fetch → better consistency & interceptors
-    const response = await OrdernewService.applyDiscount(txnId, payload);
-
-    if (!response.success) {
-      throw new Error(response.message || "Failed to apply discount on server.");
-    }
-
-    toast.success(`Discount of ${appliedDiscount.toFixed(2)} applied successfully!`);
-
-    setShowDiscountModal(false);
-
-    // ─── UI + state refresh ────────────────────────────────────────
-    setDiscount(appliedDiscount);
-    setDiscPer(appliedDiscPer);           // if you have this state
-
-    // If this was a billed order → it might now be "re-opened"
-    const wasBilled = billItems.some((item) => item.isBilled === 1);
-
-    if (wasBilled && tableId) {
-      // Optimistic UI update: mark table as occupied again
-      setTableItems((prev) =>
-        prev.map((t) =>
-          t.tablemanagementid === tableId ? { ...t, status: 1 } : t
-        )
-      );
-
-      // Then reload real state from backend
-      await loadBillForTable(tableId);
-    } else if (tableId) {
-      // Just refresh current view
-      await loadBillForTable(tableId);
-    }
-
-    // Clear form
-    setReason("");
-    setGivenBy(user?.name || ""); // optional reset
-  } catch (err: any) {
-    console.error("Discount application failed:", err);
-    toast.error(
-      err.message ||
-        "Failed to apply discount. Please check your connection or contact support."
-    );
-  } finally {
-    setLoading(false);
-  }
-};
+  }; 
 
   const handleSettleAndPrint = async (settlements: any[], tip?: number) => {
     if (!txnId) {

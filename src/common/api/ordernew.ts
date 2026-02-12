@@ -11,10 +11,15 @@ export type Customer = {
 }
 
 export type Bill = {
+   success: boolean
+  message: string
+  data: {
   TxnID: number
   TableID: number
   Amount: number
   status?: number
+ }
+  error?: string
 }
 
 export type KOTItem = {
