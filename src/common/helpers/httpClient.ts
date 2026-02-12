@@ -1,43 +1,53 @@
-import axios from 'axios'
+import axios, { AxiosError, AxiosRequestConfig } from 'axios'
 
-const ErrorCodeMessages: { [key: number]: string } = {
+const ErrorCodeMessages: Record<number, string> = {
   401: 'Invalid credentials',
   403: 'Access Forbidden',
   404: 'Resource or page not found',
 }
 
-function HttpClient() {
-  const _errorHandler = (error: any) =>
-    Promise.reject(
-      Object.keys(ErrorCodeMessages).includes(error?.response?.status)
-        ? ErrorCodeMessages[error.response.status]
-        : error.response.data && error.response.data.message
-          ? error.response.data.message
-          : error.message || error,
-    )
+const _httpClient = axios.create({
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3001/api',
+  timeout: 15000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+})
 
-  const _httpClient = axios.create({
-    baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3001/api',
-    timeout: 15000,
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  })
+const errorHandler = (error: AxiosError<any>) => {
+  const status = error.response?.status
 
- 
+  const message =
+    (status && ErrorCodeMessages[status]) ||
+    error.response?.data?.message ||
+    error.message ||
+    'Something went wrong'
 
-  _httpClient.interceptors.response.use((response) => {
-    return response.data
-  }, _errorHandler)
-
- return {
-    get: (url: string, config = {}) => _httpClient.get(url, config),
-    post: (url: string, data: any, config = {}) => _httpClient.post(url, data, config),
-    patch: (url: string, data: any, config = {}) => _httpClient.patch(url, data, config),
-    put: (url: string, data: any, config = {}) => _httpClient.put(url, data, config),
-    delete: (url: string, config = {}) => _httpClient.delete(url, config),
-    client: _httpClient,
-  }
+  return Promise.reject(message)
 }
 
-export default HttpClient()
+_httpClient.interceptors.response.use(
+  (response) => response.data,
+  errorHandler
+)
+
+const HttpClient = {
+  get: <T>(url: string, config?: AxiosRequestConfig) =>
+    _httpClient.get<T>(url, config),
+
+  post: <T>(url: string, data?: unknown, config?: AxiosRequestConfig) =>
+    _httpClient.post<T>(url, data, config),
+
+  put: <T>(url: string, data?: unknown, config?: AxiosRequestConfig) =>
+    _httpClient.put<T>(url, data, config),
+
+  patch: <T>(url: string, data?: unknown, config?: AxiosRequestConfig) =>
+    _httpClient.patch<T>(url, data, config),
+
+  delete: <T>(url: string, config?: AxiosRequestConfig) =>
+    _httpClient.delete<T>(url, config),
+
+  client: _httpClient,
+}
+
+export default HttpClient

@@ -1,6 +1,37 @@
 import { HttpClient } from '../helpers'
+import { ApiResponse } from '@/types/api'
 
-/* ─────────────── Types ─────────────── */
+/* ─────────────── Entity Types ─────────────── */
+
+export type Customer = {
+  customerid: number
+  name: string
+  mobile: string
+}
+
+export type Bill = {
+  TxnID: number
+  TableID: number
+  Amount: number
+  status?: number
+}
+
+export type KOTItem = {
+  kotNo: number
+  itemId: number
+  qty: number
+  revQty: number
+  TxnID: number
+  orderNo: string
+  TxnNo: string | null
+  CustomerName ?: string
+  MobileNo ?: string
+  Address ?: string
+  Landmark ?: string
+  customerid ?: number
+}
+
+/* ─────────────── Payload Types ─────────────── */
 
 export type BillDetail = {
   ItemID: number
@@ -11,6 +42,18 @@ export type BillDetail = {
   SpecialInst?: string
   DeptID?: number
   HotelID?: number
+}
+
+export type UnbilledItemsResponse = {
+  items: any[]
+  reversedItems: any[]
+  header: any
+}
+
+export type BillDetailsResponse = {
+  details: any[]
+  reversedItems: any[]
+  header: any
 }
 
 export type CreateBillPayload = {
@@ -43,7 +86,6 @@ export type SettlementPayload = {
   Batch?: string
   Name?: string
   OrderNo?: string
-  
   HotelID?: number
 }
 
@@ -51,109 +93,110 @@ export type SettlementPayload = {
 
 function OrdernewService() {
   return {
-    /* Bills */
-    createBill: (payload: CreateBillPayload) => {
-      return HttpClient.post('/TAxnTrnbill', payload)
-    },
 
-    addItemToBill: (id: number, details: BillDetail[]) => {
-      return HttpClient.put(`/TAxnTrnbill/${id}`, { details })
-    },
+    /* ================= BILL ================= */
 
-    getBillById: (id: number) => {
-      return HttpClient.get(`/TAxnTrnbill/${id}`)
-    },
+    createBill: (payload: CreateBillPayload) =>
+      HttpClient.post<ApiResponse<Bill>>('/TAxnTrnbill', payload),
 
-    getAllBills: () => {
-      return HttpClient.get('/TAxnTrnbill/all')
-    },
+    addItemToBill: (id: number, details: BillDetail[]) =>
+      HttpClient.put<ApiResponse<Bill>>(`/TAxnTrnbill/${id}`, { details }),
 
-    getBillsByType: (type: string) => {
-      return HttpClient.get(`/TAxnTrnbill/by-type/${type}`)
-    },
+    getBillById: (id: number) =>
+      HttpClient.get<ApiResponse<Bill>>(`/TAxnTrnbill/${id}`),
 
-    /* Settlement */
-    settleBill: (id: number, settlements: SettlementPayload[]) => {
-      return HttpClient.post(`/TAxnTrnbill/${id}/settle`, { settlements })
-    },
+    getAllBills: () =>
+      HttpClient.get<ApiResponse<Bill[]>>('/TAxnTrnbill/all'),
 
-    reverseBill: (txnId: number, payload: { userId: number }) => {
-      return HttpClient.post(`/TAxnTrnbill/${txnId}/reverse`, payload)
-    },
+    reverseBill: (txnId: number, payload: { userId: number }) =>
+      HttpClient.post<ApiResponse<null>>(
+        `/TAxnTrnbill/${txnId}/reverse`,
+        payload
+      ),
 
     markBillAsBilled: (
       txnId: number,
       payload: {
         outletId: number
-        customerName?: string
-        mobileNo?: string
-        customerid?: number
+        customerName?: string | null
+        mobileNo?: string | null
+        customerid?: number | null
       }
-    ) => {
-      return HttpClient.put(`/TAxnTrnbill/${txnId}/mark-billed`, payload)
-    },
+    ) =>
+      HttpClient.put<ApiResponse<Bill>>(
+        `/TAxnTrnbill/${txnId}/mark-billed`,
+        payload
+      ),
 
-    /* KOT */
-    createKOT: (payload: any) => {
-      return HttpClient.post('/TAxnTrnbill/kot', payload)
-    },
+    /* ================= SETTLEMENT ================= */
 
-    reverseKOT: (payload: {
-      txnId: number
-      tableId: number
-      itemId: number
-      qtyToReverse?: number
-    }) => {
-      return HttpClient.post('/TAxnTrnbill/kot/reverse', payload)
-    },
+    settleBill: (id: number, settlements: SettlementPayload[]) =>
+      HttpClient.post<ApiResponse<Bill>>(
+        `/TAxnTrnbill/${id}/settle`,
+        { settlements }
+      ),
+
+    /* ================= KOT ================= */
+
+    createKOT: (payload: any) =>
+      HttpClient.post<ApiResponse<KOTItem>>('/TAxnTrnbill/kot', payload),
 
     createReverseKOT: (payload: {
       txnId: number
       tableId: number
+      kotType: string
+      isReverseKot: number
       reversedItems: any[]
       userId: number
       reversalReason: string
-    }) => {
-      return HttpClient.post('/TAxnTrnbill/create-reverse-kot', payload)
-    },
+    }) =>
+      HttpClient.post<ApiResponse<null>>(
+        '/TAxnTrnbill/create-reverse-kot',
+        payload
+      ),
 
-    getKOTList: (tableId: number) => {
-      return HttpClient.get('/TAxnTrnbill/kot/list', { params: { tableId } })
-    },
+    getKOTList: (tableId: number) =>
+      HttpClient.get<ApiResponse<KOTItem[]>>(
+        '/TAxnTrnbill/kot/list',
+        { params: { tableId } }
+      ),
 
-    getLatestKOTForTable: (params: { tableId: string }) => {
-      return HttpClient.get('/TAxnTrnbill/latest-kot', { params })
-    },
+    /* ================= TABLE ================= */
 
-    getSavedKOTs: (params?: { isBilled?: 0 | 1; tableId?: number }) => {
-      return HttpClient.get('/TAxnTrnbill/kots/saved', {
-        params: { isBilled: 0, ...params },
-      })
-    },
+    getUnbilledItemsByTable: (tableId: number) =>
+      HttpClient.get<UnbilledItemsResponse>(
+        `/TAxnTrnbill/unbilled-items/${tableId}`
+      ),
 
-    /* Table / Orders */
-    getUnbilledItemsByTable: (tableId: number) => {
-      return HttpClient.get(`/TAxnTrnbill/unbilled-items/${tableId}`)
-    },
+    getBilledBillByTable: (tableId: number) =>
+      HttpClient.get<BillDetailsResponse>(
+        `/TAxnTrnbill/billed-bill/by-table/${tableId}`
+      ),
 
-    getBilledBillByTable: (tableId: number) => {
-      return HttpClient.get(`/TAxnTrnbill/billed-bill/by-table/${tableId}`)
-    },
+    getBillDetails: (id: number) =>
+      HttpClient.get<BillDetailsResponse>(`/TAxnTrnbill/${id}`),
 
-    getBillStatus: (tableId: number) => {
-      return HttpClient.get(`/TAxnTrnbill/bill-status/${tableId}`)
-    },
+    getBillStatus: (tableId: number) =>
+      HttpClient.get<ApiResponse<{ status: number }>>(
+        `/TAxnTrnbill/bill-status/${tableId}`
+      ),
 
-    updateTableStatus: (tableId: number, payload: { status: number }) => {
-      return HttpClient.put(`/tablemanagement/${tableId}/status`, payload)
-    },
+    updateTableStatus: (tableId: number, payload: { status: number }) =>
+      HttpClient.put<ApiResponse<null>>(
+        `/tablemanagement/${tableId}/status`,
+        payload
+      ),
 
-    /* Customer */
-    getCustomerByMobile: (mobile: string) => {
-      return HttpClient.get('/customer/by-mobile', { params: { mobile } })
-    },
+    /* ================= CUSTOMER ================= */
 
-    /* Discounts */
+    getCustomerByMobile: (mobile: string) =>
+      HttpClient.get<ApiResponse<Customer>>(
+        '/customer/by-mobile',
+        { params: { mobile } }
+      ),
+
+    /* ================= DISCOUNT ================= */
+
     applyDiscount: (
       txnId: number,
       payload: {
@@ -163,84 +206,35 @@ function OrdernewService() {
         tableId: number
         items: any[]
       }
-    ) => {
-      return HttpClient.post(`/TAxnTrnbill/${txnId}/discount`, payload)
-    },
+    ) =>
+      HttpClient.post<ApiResponse<Bill>>(
+        `/TAxnTrnbill/${txnId}/discount`,
+        payload
+      ),
 
-    applyNCKOT: (txnId: number, payload: { NCName: string; NCPurpose: string }) => {
-      return HttpClient.put(`/TAxnTrnbill/${txnId}/apply-nckot`, payload)
-    },
+    /* ================= MASTERS ================= */
 
-    /* Pending Orders */
-    getPendingOrders: (type: 'pickup' | 'delivery') => {
-      return HttpClient.get('/TAxnTrnbill/pending-orders', { params: { type } })
-    },
+    getTableManagement: () =>
+      HttpClient.get<ApiResponse<any[]>>('/tablemanagement'),
 
-    updatePendingOrder: (
-      id: number,
-      payload: { notes: string; items: any[]; linkedItems?: any[] }
-    ) => {
-      return HttpClient.put(`/TAxnTrnbill/${id}/update`, payload)
-    },
+    getPaymentModesByOutlet: (outletId: number) =>
+      HttpClient.get<ApiResponse<any[]>>(
+        '/payment-modes/by-outlet',
+        { params: { outletid: outletId } }
+      ),
 
-    getLinkedPendingItems: (orderId: number) => {
-      return HttpClient.get(`/TAxnTrnbill/linked-pending-items/${orderId}`)
-    },
+    getMenu: (outletId: number) =>
+      HttpClient.get<ApiResponse<any[]>>(
+        '/menu',
+        { params: { outletid: outletId } }
+      ),
 
-    /* Masters */
-    getTableManagement: () => {
-      return HttpClient.get('/tablemanagement')
-    },
-
-    getTableDepartment: (params?: any) => {
-        return HttpClient.get('/table-department', { params })
-    },
-
-    getOutletSettings: (outletId: number) => {
-      return HttpClient.get(`/outlets/outlet-settings/${outletId}`)
-    },
-
-    getPaymentModesByOutlet: (outletId: number) => {
-      return HttpClient.get('/payment-modes/by-outlet', {
-        params: { outletid: outletId },
-      })
-    },
-
-    /* Additional functions for Billview */
-    getGlobalKOTNumber: (outletId: number) => {
-      return HttpClient.get('/TAxnTrnbill/global-kot-number', { params: { outletid: outletId } })
-    },
-
-    getOutletsByHotel: (hotelId: number) => {
-      return HttpClient.get('/outlets/by-hotel', { params: { hotelid: hotelId } })
-    },
-
-    getOutletById: (outletId: number) => {
-      return HttpClient.get(`/outlets/${outletId}`)
-    },
-
-    getTaxDetails: (outletId: number) => {
-      return HttpClient.get('/tax-details', { params: { outletid: outletId } })
-    },
-
-    getMenu: (outletId: number) => {
-      return HttpClient.get('/menu', { params: { outletid: outletId } })
-    },
-
-    printKOT: (kotNo: number, payload: any) => {
-      return HttpClient.post(`/kot/print/${kotNo}`, payload)
-    },
-
-    getTableById: (tableId: number) => {
-      return HttpClient.get(`/tables/${tableId}`)
-    },
-
-    verifyCreatorPassword: (password: string) => {
-      return HttpClient.post('/auth/verify-creator-password', { password })
-    },
-
+    verifyCreatorPassword: (password: string) =>
+      HttpClient.post<ApiResponse<{ verified: boolean }>>(
+        '/auth/verify-creator-password',
+        { password }
+      ),
   }
 }
 
-export default OrdernewService;
-  
+export default OrdernewService()

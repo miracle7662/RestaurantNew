@@ -503,34 +503,31 @@ const ModernBill = () => {
   }, [showSettlementModal, outletPaymentModes]);
 
 
-  const handleCustomerNoChange = async (value: string) => {
-    setCustomerNo(value);
+ const handleCustomerNoChange = async (value: string) => {
+  setCustomerNo(value);
 
-    if (!value) {
-      setCustomerName('');
-      setCustomerId(null);
-      return;
-    }
+  if (!value) {
+    setCustomerName('');
+    setCustomerId(null);
+    return;
+  }
 
-    try {
-      const res = await axios.get(`http://localhost:3001/api/customer/by-mobile?mobile=${value}`);
-      if (res.data) {
-        if (res.data.customerid && res.data.name) {
-          setCustomerName(res.data.name);
-          setCustomerId(res.data.customerid);
-        } else if (res.data.success && res.data.data && res.data.data.length > 0) {
-          setCustomerName(res.data.data[0].name);
-          setCustomerId(res.data.data[0].customerid);
-        } else {
-          setCustomerName('');
-          setCustomerId(null);
-        }
-      }
-    } catch (err) {
+  try {
+    const res = await OrdernewService.getCustomerByMobile(value);
+
+    if (res.data?.data) {
+      setCustomerName(res.data.data.name);
+      setCustomerId(res.data.data.customerid);
+    } else {
       setCustomerName('');
       setCustomerId(null);
     }
-  };
+  } catch (err) {
+    setCustomerName('');
+    setCustomerId(null);
+  }
+};
+
 
   const handleF9PasswordSubmit = async (password: string) => {
     if (!(user as any)?.token) {
@@ -609,18 +606,9 @@ const ModernBill = () => {
     }
 
     try {
-      const reverseResponse = await fetch(`http://localhost:3001/api/TAxnTrnbill/${txnId}/reverse`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${(user as any).token}`
-        },
-        body: JSON.stringify({ userId: user.id }) // Pass admin's ID for logging
-      });
+      const response = await OrdernewService.reverseBill(txnId, { userId: user.id });
 
-      const reverseData = await reverseResponse.json();
-
-      if (reverseResponse.ok && reverseData.success) {
+      if (response.data.success) {
         toast.success('Bill reversed successfully!');
 
         // Optimistically update the table status in the UI
@@ -642,7 +630,7 @@ const ModernBill = () => {
 
         navigate('/apps/Tableview');
       } else {
-        toast.error(reverseData.message || 'Failed to reverse the bill.');
+        toast.error(response.data.message || 'Failed to reverse the bill.');
       }
     } catch (reverseError) {
       toast.error('An error occurred while reversing the bill.');
@@ -669,8 +657,9 @@ const ModernBill = () => {
     try {
       // STEP 1: try billed bill first
       try {
-        const billedBillRes = await OrdernewService().getBilledBillByTable(tableIdNum);
-      
+        const billedBillRes = await axios.get(
+          `/api/TAxnTrnbill/billed-bill/by-table/${tableIdNum}`
+        );
         if (billedBillRes.status === 200) {
           const billedBillData = billedBillRes.data;
           if (billedBillData.success && billedBillData.data) {
@@ -831,7 +820,10 @@ const ModernBill = () => {
     setLoading(true);
     setError(null);
     try {
-     const response = await OrdernewService().getBillById(Number(orderId));
+      const response = await axios.get(`/api/TAxnTrnbill/${orderId}`);
+      if (response.status !== 200) {
+        throw new Error(`Server responded with status ${response.status}`);
+      }
       const data = response.data?.data || response.data;
       if (!data) {
         throw new Error('No data received from server');
@@ -991,8 +983,8 @@ const ModernBill = () => {
     setLoading(true);
     setError(null);
     try {
-       const response = await OrdernewService().getUnbilledItemsByTable(tableIdNum);
-    const data = response.data?.data || response.data;
+      const response = await OrdernewService.getUnbilledItemsByTable(tableIdNum);
+      const data = response.data.data;
       if (!data) {
         throw new Error('No data received from server');
       }
@@ -1104,8 +1096,6 @@ const ModernBill = () => {
         setRoundOff?.(data.header.RoundOFF || data.header.roundOff || data.header.roundoff || 0);
         setFinalAmount(data.header.Amount || data.header.amount || data.header.grandTotal || 0);
       }
-
-
 
       // Calculate totals (now should also consider new tax fields if your function supports it)
       calculateTotals(mappedItems);
@@ -1232,8 +1222,8 @@ const ModernBill = () => {
     const fetchPaymentModes = async () => {
       try {
         if (!selectedOutletId) return;
-        const response = await axios.get(`/api/payment-modes/by-outlet?outletid=${selectedOutletId}`);
-        setOutletPaymentModes(response.data.data || response.data);
+        const response = await OrdernewService.getPaymentModesByOutlet(selectedOutletId);
+        setOutletPaymentModes(response.data.data);
       } catch (error) {
         console.error('Failed to fetch payment modes:', error);
       }
@@ -1353,8 +1343,8 @@ const ModernBill = () => {
         if (!user || !user.hotelid || !selectedOutletId) {
           return;
         }
-        const response = await axios.get(`/api/menu?outletid=${selectedOutletId}`);
-        setMenuItems(response.data.data || response.data);
+        const response = await OrdernewService.getMenu(selectedOutletId);
+        setMenuItems(response.data.data);
       } catch (error) {
         console.error('Failed to fetch menu items:', error);
       }
@@ -1646,17 +1636,16 @@ const ModernBill = () => {
 
       console.log("📤 KOT Payload being sent:", payload);
 
-      const response = await axios.post('/api/TAxnTrnbill/kot', payload);
+      const response = await OrdernewService.createKOT(payload);
 
       console.log("📥 RAW KOT API RESPONSE:", response);
       console.log("📥 response.data:", response?.data);
       console.log("📥 response.data.data:", response?.data?.data);
 
       const kotNo =
-        response.data?.data?.KOTNo ??
         response.data?.data?.kotNo ??
-        response.data?.KOTNo ??
-        response.data?.kotNo ??
+        response.data?.data?.kotNo ??
+        
         null;
 
       console.log("🔢 Extracted KOT No:", kotNo);
@@ -1690,7 +1679,7 @@ const ModernBill = () => {
       // Set table status to occupied (green)
       if (tableId) {
         try {
-          await axios.put(`/api/tablemanagement/${tableId}/status`, { status: 1 });
+          await OrdernewService.updateTableStatus(tableId, { status: 1 });
         } catch (error) {
           console.error('Error updating table status:', error);
         }
@@ -1873,17 +1862,14 @@ const ModernBill = () => {
 
     try {
       // 1️⃣ Generate TxnNo (Bill No)
-      const response = await axios.put(
-        `/api/TAxnTrnbill/${txnId}/mark-billed`,
-        {
-          outletId: selectedOutletId || Number(user?.outletid),
-          customerName: customerName || null,
-          mobileNo: customerNo || null,
-          customerid: customerId || null,
-        }
-      );
+      const response = await OrdernewService.markBillAsBilled(txnId, {
+        outletId: selectedOutletId || Number(user?.outletid),
+        customerName: customerName || null,
+        mobileNo: customerNo || null,
+        customerid: customerId || null,
+      });
 
-      const txnNo = response.data?.data?.TxnNo;
+      const txnNo = response.data.data?.TxnNo;
       if (!txnNo) {
         toast.error('TxnNo not generated');
         return;
@@ -2029,16 +2015,10 @@ const ModernBill = () => {
         items: billItems.filter(item => item.itemId > 0).map(item => ({ ...item, price: item.rate })), // Send current items to recalculate on backend
       };
 
-      const response = await fetch(`http://localhost:3001/api/TAxnTrnbill/${txnId}/discount`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
+      const result = await OrdernewService.applyDiscount(txnId, payload);
 
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.message || 'Failed to apply discount.');
+      if (!result.data.success) {
+        throw new Error(result.data.message || 'Failed to apply discount.');
       }
 
       toast.success('Discount applied successfully!');
