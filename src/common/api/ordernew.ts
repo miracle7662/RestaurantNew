@@ -92,6 +92,13 @@ export type BillItem = {
   DeptID?: number
   HotelID?: number
   isReversed?: boolean
+  kotNo?: number
+  CustomerName?: string
+  MobileNo?: string
+  Address?: string
+  Landmark?: string
+  TxnNo?: string
+
 }
 
 export type BillHeader = {
@@ -142,10 +149,10 @@ export type UnbilledItemsResponse = ApiResponse<{
 /* ─────────────── KOT Payload ─────────────── */
 
 export type CreateKOTPayload = {
-  txnId?: number | null
+  txnId?: number
   tableId: number | null
   table_name?: string | null
-  items: any[]
+  items: BillItem[]
   outletid: number | null
   userId: number | null
   hotelId: number | null
@@ -154,8 +161,8 @@ export type CreateKOTPayload = {
   DiscPer?: number
   Discount?: number
   DiscountType?: number
-  CustomerName?: string
-  MobileNo?: string
+  CustomerName?: string | undefined
+  MobileNo?: string | undefined
   Order_Type?: string
   TxnDatetime?: string
   order_tag?: string
@@ -166,7 +173,7 @@ export type CreateKOTPayload = {
 
 /* ─────────────── Service ─────────────── */
 
-const OrderService = {
+const OrdernewService = {
   /* ================= BILL ================= */
   createBill: (payload: CreateBillPayload) =>
     HttpClient.post<ApiResponse<Bill>>('/TAxnTrnbill', payload),
@@ -270,4 +277,4 @@ const OrderService = {
     HttpClient.get<ApiResponse<any>>(`/tables/${tableId}`),
 }
 
-export default OrderService
+export default OrdernewService
