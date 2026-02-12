@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { Row, Col, Card, Table, Badge, Button, Form, Modal } from 'react-bootstrap';
-import axios from 'axios';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthContext } from '@/common';
 import KotTransfer from './Transaction/KotTransfer';
@@ -15,7 +14,7 @@ import { OutletSettings } from '../../utils/applyOutletSettings';
 import { fetchKotPrintSettings, } from '@/services/outletSettings.service';
 import { applyKotSettings, } from '@/utils/applyOutletSettings';
 import { fetchWaiterUsers, WaiterUser } from '@/services/user.service';
-import OrdernewService from '@/common/api/ordernew';
+import OrderService from '@/common/api/ordernew';
 
 
 const KOT_COLORS = [
@@ -503,31 +502,34 @@ const ModernBill = () => {
   }, [showSettlementModal, outletPaymentModes]);
 
 
- const handleCustomerNoChange = async (value: string) => {
-  setCustomerNo(value);
+  const handleCustomerNoChange = async (value: string) => {
+    setCustomerNo(value);
 
-  if (!value) {
-    setCustomerName('');
-    setCustomerId(null);
-    return;
-  }
+    if (!value) {
+      setCustomerName('');
+      setCustomerId(null);
+      return;
+    }
 
-  try {
-    const res = await OrdernewService.getCustomerByMobile(value);
-
-    if (res.data?.data) {
-      setCustomerName(res.data.data.name);
-      setCustomerId(res.data.data.customerid);
-    } else {
+    try {
+      const res = await OrderService.getCustomerByMobile(value);
+      if (res.data) {
+        if (res.data.customerid && res.data.name) {
+          setCustomerName(res.data.name);
+          setCustomerId(res.data.customerid);
+        } else if (res.data.success && res.data.data && res.data.data.length > 0) {
+          setCustomerName(res.data.data[0].name);
+          setCustomerId(res.data.data[0].customerid);
+        } else {
+          setCustomerName('');
+          setCustomerId(null);
+        }
+      }
+    } catch (err) {
       setCustomerName('');
       setCustomerId(null);
     }
-  } catch (err) {
-    setCustomerName('');
-    setCustomerId(null);
-  }
-};
-
+  };
 
   const handleF9PasswordSubmit = async (password: string) => {
     if (!(user as any)?.token) {
@@ -606,9 +608,18 @@ const ModernBill = () => {
     }
 
     try {
-      const response = await OrdernewService.reverseBill(txnId, { userId: user.id });
+      const reverseResponse = await fetch(`http://localhost:3001/api/TAxnTrnbill/${txnId}/reverse`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${(user as any).token}`
+        },
+        body: JSON.stringify({ userId: user.id }) // Pass admin's ID for logging
+      });
 
-      if (response.data.success) {
+      const reverseData = await reverseResponse.json();
+
+      if (reverseResponse.ok && reverseData.success) {
         toast.success('Bill reversed successfully!');
 
         // Optimistically update the table status in the UI
@@ -630,7 +641,7 @@ const ModernBill = () => {
 
         navigate('/apps/Tableview');
       } else {
-        toast.error(response.data.message || 'Failed to reverse the bill.');
+        toast.error(reverseData.message || 'Failed to reverse the bill.');
       }
     } catch (reverseError) {
       toast.error('An error occurred while reversing the bill.');
@@ -657,159 +668,153 @@ const ModernBill = () => {
     try {
       // STEP 1: try billed bill first
       try {
-        const billedBillRes = await axios.get(
-          `/api/TAxnTrnbill/billed-bill/by-table/${tableIdNum}`
-        );
-        if (billedBillRes.status === 200) {
-          const billedBillData = billedBillRes.data;
-          if (billedBillData.success && billedBillData.data) {
-            const { details, ...header } = billedBillData.data;
-            const fetchedItems: FetchedItem[] = details
-              .map((item: any) => ({
-                id: item.ItemID,
-                txnDetailId: item.TXnDetailID,
-                item_no: item.item_no,
-                name: item.ItemName || 'Unknown Item',
-                price: item.RuntimeRate,
-                qty: Number(item.Qty) || 0,
-                revQty: Number(item.RevQty) || 0,
-                isNCKOT: item.isNCKOT,
-                isNew: false,
-                originalQty: item.Qty,
-                kotNo: item.KOTNo,
-                RevKOT: item.RevKOT
-              }))
-              .filter((item: FetchedItem) => (item.qty - item.revQty) > 0);
+        const billedBillRes = await OrderService.getBilledBillByTable(tableIdNum);
+        if (billedBillRes.success && billedBillRes.data) {
+          const { details, ...header } = billedBillRes.data;
+          const fetchedItems: FetchedItem[] = details
+            .map((item: any) => ({
+              id: item.ItemID,
+              txnDetailId: item.TXnDetailID,
+              item_no: item.item_no,
+              name: item.ItemName || 'Unknown Item',
+              price: item.RuntimeRate,
+              qty: Number(item.Qty) || 0,
+              revQty: Number(item.RevQty) || 0,
+              isNCKOT: item.isNCKOT,
+              isNew: false,
+              originalQty: item.Qty,
+              kotNo: item.KOTNo,
+              RevKOT: item.RevKOT
+            }))
+            .filter((item: FetchedItem) => (item.qty - item.revQty) > 0);
 
-            // Map to billItems
-            const mappedItems: BillItem[] = fetchedItems.map((item: any) => {
-              const netQty = item.qty - item.revQty;
-              const total = netQty * item.price;
-              const cgst = total * (cgstRate / 100);
-              const sgst = total * (sgstRate / 100);
-              return {
-                itemCode: item.item_no.toString(),
-                itemgroupid: item.id,
-                itemId: item.id,
-                item_no: item.item_no,
-                itemName: item.name,
-                qty: netQty,
-                rate: item.price,
-                total,
-                cgst,
-                sgst,
-                igst: 0,
-                cess: 0,
-                mkotNo: item.kotNo ? item.kotNo.toString() : '',
-                specialInstructions: '',
-                isBilled: 1,
-                txnDetailId: item.txnDetailId,
-                isFetched: true,
-                revQty: item.revQty,
-                revKotNo: item.RevKOTNo || 0,
-                RevKOT: item.RevKOT
-
-              };
-            });
-
-            // Add blank row for new item entry
-            mappedItems.push({
-              itemCode: '',
-              itemgroupid: 0,
-              itemId: 0,
-              item_no: 0,
-              itemName: '',
-              qty: 1,
-              rate: 0,
-              total: 0,
-              cgst: 0,
-              sgst: 0,
+          // Map to billItems
+          const mappedItems: BillItem[] = fetchedItems.map((item: any) => {
+            const netQty = item.qty - item.revQty;
+            const total = netQty * item.price;
+            const cgst = total * (cgstRate / 100);
+            const sgst = total * (sgstRate / 100);
+            return {
+              itemCode: item.item_no.toString(),
+              itemgroupid: item.id,
+              itemId: item.id,
+              item_no: item.item_no,
+              itemName: item.name,
+              qty: netQty,
+              rate: item.price,
+              total,
+              cgst,
+              sgst,
               igst: 0,
               cess: 0,
-              mkotNo: '',
+              mkotNo: item.kotNo ? item.kotNo.toString() : '',
               specialInstructions: '',
-              isFetched: false
-            });
+              isBilled: 1,
+              txnDetailId: item.txnDetailId,
+              isFetched: true,
+              revQty: item.revQty,
+              revKotNo: item.RevKOTNo || 0,
+              RevKOT: item.RevKOT
 
-            setBillItems(mappedItems);
-            setTxnId(header.TxnID);
-            setOrderNo(header.TxnNo);
-            setWaiter(header.waiter || 'ASD');
-            setPax(header.pax || header.PAX || 1);
-            setTableNo(header.table_name || tableName);
-            if (header.RevKOTNo) {
-              setRevKotNo(header.RevKOTNo);
-            }
-            if (header.CustomerName) setCustomerName(header.CustomerName);
-            if (header.MobileNo) setCustomerNo(header.MobileNo);
-            if (header.customerid) setCustomerId(header.customerid);
-            setCurrentKOTNos(
-              Array.from(new Set(fetchedItems.map((i: FetchedItem) => i.kotNo))).sort((a: number, b: number) => a - b)
-            );
+            };
+          });
 
-            // Set activeTab based on Order_Type from database
-            if (header.Order_Type) {
-              setActiveTab(header.Order_Type);
-            } else {
-              setActiveTab('Dine-in'); // Default for table orders
-            }
+          // Add blank row for new item entry
+          mappedItems.push({
+            itemCode: '',
+            itemgroupid: 0,
+            itemId: 0,
+            item_no: 0,
+            itemName: '',
+            qty: 1,
+            rate: 0,
+            total: 0,
+            cgst: 0,
+            sgst: 0,
+            igst: 0,
+            cess: 0,
+            mkotNo: '',
+            specialInstructions: '',
+            isFetched: false
+          });
 
-            // Fetch outlet details for restaurant and outlet names
-            if (header.outletid) {
-              await fetchOutletDetails(header.outletid);
-            }
-
-            // restore discount
-            if (header.Discount || header.DiscPer) {
-              setDiscount(header.Discount || 0);
-              setDiscountInputValue(
-                header.DiscountType === 1 ? header.DiscPer : header.Discount || 0
-              );
-              setDiscountType(header.DiscountType ?? 1);
-            } else {
-              setDiscount(0);
-              setDiscountInputValue(0);
-            }
-            setReversedItems(
-              (billedBillData.data.reversedItems || []).map((item: any) => ({
-                ...item,
-                name: item.ItemName || 'Unknown Item',
-                id: item.ItemID,
-                price: item.RuntimeRate || 0,
-                qty: Math.abs(item.Qty) || 1,
-                isReversed: true,
-                status: 'Reversed',
-                kotNo: item.RevKOTNo,
-                RevKOT: item.RevKOT
-
-              }))
-            );
-            const totalRev = (billedBillData.data.reversedItems || []).reduce((acc: number, item: any) => acc + ((item.Qty || 0) * (item.price || 0)), 0);
-            setRevKOT(header.RevKOT ?? totalRev);
-            // Compute max RevKOTNo from details
-            const reversedDetails = details.filter((d: any) => d.RevQty > 0);
-            const maxRevKotNo = reversedDetails.length > 0 ? Math.max(...reversedDetails.map((d: any) => d.RevKOTNo || 0)) : 0;
-            setRevKotNo(maxRevKotNo);
-
-            // Set tax values from header for billed bills
-            if (header.CGST !== undefined) setCgst(header.CGST);
-            if (header.SGST !== undefined) setSgst(header.SGST);
-            if (header.IGST !== undefined) setIgst(header.IGST);
-            if (header.CESS !== undefined) setCess(header.CESS);
-
-            calculateTotals(mappedItems);
-            setOriginalTableStatus(2); // Set to billed status for order_tag logic
-            setLoading(false);
-            return;
+          setBillItems(mappedItems);
+          setTxnId(header.TxnID);
+          setOrderNo(header.TxnNo);
+          setWaiter(header.waiter || 'ASD');
+          setPax(header.pax || header.PAX || 1);
+          setTableNo(header.table_name || tableName);
+          if (header.RevKOTNo) {
+            setRevKotNo(header.RevKOTNo);
           }
+          if (header.CustomerName) setCustomerName(header.CustomerName);
+          if (header.MobileNo) setCustomerNo(header.MobileNo);
+          if (header.customerid) setCustomerId(header.customerid);
+          setCurrentKOTNos(
+            Array.from(new Set(fetchedItems.map((i: FetchedItem) => i.kotNo))).sort((a: number, b: number) => a - b)
+          );
+
+          // Set activeTab based on Order_Type from database
+          if (header.Order_Type) {
+            setActiveTab(header.Order_Type);
+          } else {
+            setActiveTab('Dine-in'); // Default for table orders
+          }
+
+          // Fetch outlet details for restaurant and outlet names
+          if (header.outletid) {
+            await fetchOutletDetails(header.outletid);
+          }
+
+          // restore discount
+          if (header.Discount || header.DiscPer) {
+            setDiscount(header.Discount || 0);
+            setDiscountInputValue(
+              header.DiscountType === 1 ? header.DiscPer : header.Discount || 0
+            );
+            setDiscountType(header.DiscountType ?? 1);
+          } else {
+            setDiscount(0);
+            setDiscountInputValue(0);
+          }
+          setReversedItems(
+            (billedBillRes.data.reversedItems || []).map((item: any) => ({
+              ...item,
+              name: item.ItemName || 'Unknown Item',
+              id: item.ItemID,
+              price: item.RuntimeRate || 0,
+              qty: Math.abs(item.Qty) || 1,
+              isReversed: true,
+              status: 'Reversed',
+              kotNo: item.RevKOTNo,
+              RevKOT: item.RevKOT
+
+            }))
+          );
+          const totalRev = (billedBillRes.data.reversedItems || []).reduce((acc: number, item: any) => acc + ((item.Qty || 0) * (item.price || 0)), 0);
+          setRevKOT(header.RevKOT ?? totalRev);
+          // Compute max RevKOTNo from details
+          const reversedDetails = details.filter((d: any) => d.RevQty > 0);
+          const maxRevKotNo = reversedDetails.length > 0 ? Math.max(...reversedDetails.map((d: any) => d.RevKOTNo || 0)) : 0;
+          setRevKotNo(maxRevKotNo);
+
+          // Set tax values from header for billed bills
+          if (header.CGST !== undefined) setCgst(header.CGST);
+          if (header.SGST !== undefined) setSgst(header.SGST);
+          if (header.IGST !== undefined) setIgst(header.IGST);
+          if (header.CESS !== undefined) setCess(header.CESS);
+
+          calculateTotals(mappedItems);
+          setOriginalTableStatus(2); // Set to billed status for order_tag logic
+          setLoading(false);
+          return;
         }
       } catch (billedErr) {
         console.log('Billed bill not found or error, falling back to unbilled items');
       }
       // STEP 2: fallback to unbilled API
-      await loadUnbilledItems(tableIdNum);
+      loadUnbilledItems(tableIdNum);
     } catch (err) {
-
       console.error('Error loading bill for table:', err);
       setError('Failed to load bill data');
       setLoading(false);
@@ -826,7 +831,9 @@ const ModernBill = () => {
         throw new Error(`Server responded with status ${response.status}`);
       }
       const data = response.data?.data || response.data;
-     
+      if (!data) {
+        throw new Error('No data received from server');
+      }
 
       // Map items to BillItem interface
       const mappedItems: BillItem[] = data.details.map((item: any) => {
@@ -982,16 +989,14 @@ const ModernBill = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await OrdernewService.getUnbilledItemsByTable(tableIdNum);
-
-      // Check if response is valid
-      if (!response || !response.success || !response.data || !response.data.items) {
-        setError('No unbilled items found or invalid response from server');
-        setLoading(false);
-        return;
+      const response = await OrderService.getUnbilledItemsByTable(tableIdNum);
+      if (!response.success) {
+        throw new Error(response.message || 'Failed to fetch unbilled items');
       }
-
       const data = response.data;
+      if (!data) {
+        throw new Error('No data received from server');
+      }
 
       // Map items to BillItem interface
       const mappedItems: BillItem[] = data.items.map((item: any) => {
@@ -1066,17 +1071,14 @@ const ModernBill = () => {
       console.log('API Response Header:', data.header);
       if (data.header) {
         setTxnId(data.header.TxnID);
-        setOrderNo(data.header.orderNo || data.header.TxnNo || null);
         setWaiter(data.header.waiter || 'ASD');
         setPax(data.header.pax || data.header.PAX || 1);
-
         if (data.header.table_name) {
           setTableNo(data.header.table_name);
         }
         if (data.header.CustomerName) setCustomerName(data.header.CustomerName);
         if (data.header.MobileNo) setCustomerNo(data.header.MobileNo);
         if (data.header.customerid) setCustomerId(data.header.customerid);
-
 
         // Discount handling
         if (data.header.Discount || data.header.DiscPer) {
@@ -1103,6 +1105,8 @@ const ModernBill = () => {
         setRoundOff?.(data.header.RoundOFF || data.header.roundOff || data.header.roundoff || 0);
         setFinalAmount(data.header.Amount || data.header.amount || data.header.grandTotal || 0);
       }
+
+
 
       // Calculate totals (now should also consider new tax fields if your function supports it)
       calculateTotals(mappedItems);
@@ -1229,8 +1233,8 @@ const ModernBill = () => {
     const fetchPaymentModes = async () => {
       try {
         if (!selectedOutletId) return;
-        const response = await OrdernewService.getPaymentModesByOutlet(selectedOutletId);
-        setOutletPaymentModes(response.data.data);
+        const response = await axios.get(`/api/payment-modes/by-outlet?outletid=${selectedOutletId}`);
+        setOutletPaymentModes(response.data.data || response.data);
       } catch (error) {
         console.error('Failed to fetch payment modes:', error);
       }
@@ -1350,8 +1354,8 @@ const ModernBill = () => {
         if (!user || !user.hotelid || !selectedOutletId) {
           return;
         }
-        const response = await OrdernewService.getMenu(selectedOutletId);
-        setMenuItems(response.data.data);
+        const response = await axios.get(`/api/menu?outletid=${selectedOutletId}`);
+        setMenuItems(response.data.data || response.data);
       } catch (error) {
         console.error('Failed to fetch menu items:', error);
       }
@@ -1643,16 +1647,17 @@ const ModernBill = () => {
 
       console.log("📤 KOT Payload being sent:", payload);
 
-      const response = await OrdernewService.createKOT(payload);
+      const response = await axios.post('/api/TAxnTrnbill/kot', payload);
 
       console.log("📥 RAW KOT API RESPONSE:", response);
       console.log("📥 response.data:", response?.data);
       console.log("📥 response.data.data:", response?.data?.data);
 
       const kotNo =
+        response.data?.data?.KOTNo ??
         response.data?.data?.kotNo ??
-        response.data?.data?.kotNo ??
-        
+        response.data?.KOTNo ??
+        response.data?.kotNo ??
         null;
 
       console.log("🔢 Extracted KOT No:", kotNo);
@@ -1686,7 +1691,7 @@ const ModernBill = () => {
       // Set table status to occupied (green)
       if (tableId) {
         try {
-          await OrdernewService.updateTableStatus(tableId, { status: 1 });
+          await axios.put(`/api/tablemanagement/${tableId}/status`, { status: 1 });
         } catch (error) {
           console.error('Error updating table status:', error);
         }
@@ -1869,14 +1874,17 @@ const ModernBill = () => {
 
     try {
       // 1️⃣ Generate TxnNo (Bill No)
-      const response = await OrdernewService.markBillAsBilled(txnId, {
-        outletId: selectedOutletId || Number(user?.outletid),
-        customerName: customerName || null,
-        mobileNo: customerNo || null,
-        customerid: customerId || null,
-      });
+      const response = await axios.put(
+        `/api/TAxnTrnbill/${txnId}/mark-billed`,
+        {
+          outletId: selectedOutletId || Number(user?.outletid),
+          customerName: customerName || null,
+          mobileNo: customerNo || null,
+          customerid: customerId || null,
+        }
+      );
 
-      const txnNo = response.data.data?.TxnNo;
+      const txnNo = response.data?.data?.TxnNo;
       if (!txnNo) {
         toast.error('TxnNo not generated');
         return;
@@ -2022,10 +2030,16 @@ const ModernBill = () => {
         items: billItems.filter(item => item.itemId > 0).map(item => ({ ...item, price: item.rate })), // Send current items to recalculate on backend
       };
 
-      const result = await OrdernewService.applyDiscount(txnId, payload);
+      const response = await fetch(`http://localhost:3001/api/TAxnTrnbill/${txnId}/discount`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
 
-      if (!result.data.success) {
-        throw new Error(result.data.message || 'Failed to apply discount.');
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.message || 'Failed to apply discount.');
       }
 
       toast.success('Discount applied successfully!');
@@ -2221,9 +2235,10 @@ const ModernBill = () => {
   const disableNewBill = !buttonStates.newBill;
   const disableRevKOT = !buttonStates.reverseKot;
   const disableKOT = !(buttonStates.kot || hasNewItems);
-  const disableAll = !hasItems;
-   const disablePrint = !buttonStates.print;
+  const disablePrint = !buttonStates.print;
 
+  // 🔘 BUTTON ENABLE FLAGS
+  const disableAll = !hasItems;
 
   const disableSettle = disableAll || hasNewItems || (!isBillPrintedState && !isTakeaway);
   const disablePrintSettle = !buttonStates.printSettle;
@@ -2470,7 +2485,6 @@ const ModernBill = () => {
           color: black !important;
         }
 
-        
         .modern-table td, .modern-table th {
           padding: 0.25rem;
           vertical-align: middle;
