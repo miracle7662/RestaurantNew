@@ -45,16 +45,28 @@ export type BillDetail = {
 }
 
 export type UnbilledItemsResponse = {
-  items: any[]
-  reversedItems: any[]
-  header: any
+  success: boolean
+  message?: string
+  data: {
+    items: any[]
+    reversedItems: any[]
+    header: any
+    kotNo?: number
+  }
+  error?: string
 }
 
 export type BillDetailsResponse = {
-  details: any[]
-  reversedItems: any[]
-  header: any
+  success: boolean
+  message?: string
+  data: {
+    details: any[]
+    reversedItems: any[]
+    header: any
+  }
+  error?: string
 }
+
 
 export type CreateBillPayload = {
   TxnNo?: string

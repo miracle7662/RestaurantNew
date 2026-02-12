@@ -807,8 +807,9 @@ const ModernBill = () => {
         console.log('Billed bill not found or error, falling back to unbilled items');
       }
       // STEP 2: fallback to unbilled API
-      loadUnbilledItems(tableIdNum);
+      await loadUnbilledItems(tableIdNum);
     } catch (err) {
+
       console.error('Error loading bill for table:', err);
       setError('Failed to load bill data');
       setLoading(false);
@@ -825,9 +826,7 @@ const ModernBill = () => {
         throw new Error(`Server responded with status ${response.status}`);
       }
       const data = response.data?.data || response.data;
-      if (!data) {
-        throw new Error('No data received from server');
-      }
+     
 
       // Map items to BillItem interface
       const mappedItems: BillItem[] = data.details.map((item: any) => {
@@ -985,9 +984,7 @@ const ModernBill = () => {
     try {
       const response = await OrdernewService.getUnbilledItemsByTable(tableIdNum);
       const data = response.data.data;
-      if (!data) {
-        throw new Error('No data received from server');
-      }
+     
 
       // Map items to BillItem interface
       const mappedItems: BillItem[] = data.items.map((item: any) => {
@@ -1062,14 +1059,17 @@ const ModernBill = () => {
       console.log('API Response Header:', data.header);
       if (data.header) {
         setTxnId(data.header.TxnID);
+        setOrderNo(data.header.orderNo || data.header.TxnNo || null);
         setWaiter(data.header.waiter || 'ASD');
         setPax(data.header.pax || data.header.PAX || 1);
+
         if (data.header.table_name) {
           setTableNo(data.header.table_name);
         }
         if (data.header.CustomerName) setCustomerName(data.header.CustomerName);
         if (data.header.MobileNo) setCustomerNo(data.header.MobileNo);
         if (data.header.customerid) setCustomerId(data.header.customerid);
+
 
         // Discount handling
         if (data.header.Discount || data.header.DiscPer) {
@@ -2214,9 +2214,6 @@ const ModernBill = () => {
   const disableNewBill = !buttonStates.newBill;
   const disableRevKOT = !buttonStates.reverseKot;
   const disableKOT = !(buttonStates.kot || hasNewItems);
-  const disablePrint = !buttonStates.print;
-
-  // 🔘 BUTTON ENABLE FLAGS
   const disableAll = !hasItems;
 
   const disableSettle = disableAll || hasNewItems || (!isBillPrintedState && !isTakeaway);
