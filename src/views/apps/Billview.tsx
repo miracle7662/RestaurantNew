@@ -156,7 +156,7 @@ const ModernBill = () => {
   const [txnId, setTxnId] = useState<number | null>(null);
   const [billData] = useState<any>(null);
 
-
+  const [waiterUsers, setWaiterUsers] = useState<any[]>([]);
   const [discount, setDiscount] = useState(0);
   const [DiscountType, setDiscountType] = useState(1);
   const [discountInputValue, setDiscountInputValue] = useState(0);
@@ -1785,6 +1785,8 @@ fetchMenuItems();
     return;
   }
 
+  console.log('Modal sending:', reverseItemsFromModal);
+
   try {
     const result = await OrdernewService.createReverseKOT({
       txnId,
@@ -1801,6 +1803,7 @@ fetchMenuItems();
       userId: user?.id,
       reversalReason: 'Reverse from Billview',
     });
+    console.log('Reverse KOT API response:', result);
 
     // Since HttpClient returns response.data directly
     if (!result?.success) {
