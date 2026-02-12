@@ -32,19 +32,19 @@ _httpClient.interceptors.response.use(
 )
 
 const HttpClient = {
-  get: <T>(url: string, config?: AxiosRequestConfig) =>
+  get: <T>(url: string, config?: AxiosRequestConfig): Promise<T> =>
     _httpClient.get<T>(url, config),
 
-  post: <T>(url: string, data?: unknown, config?: AxiosRequestConfig) =>
+  post: <T>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> =>
     _httpClient.post<T>(url, data, config),
 
-  put: <T>(url: string, data?: unknown, config?: AxiosRequestConfig) =>
+  put: <T>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> =>
     _httpClient.put<T>(url, data, config),
 
-  patch: <T>(url: string, data?: unknown, config?: AxiosRequestConfig) =>
+  patch: <T>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> =>
     _httpClient.patch<T>(url, data, config),
 
-  delete: <T>(url: string, config?: AxiosRequestConfig) =>
+  delete: <T>(url: string, config?: AxiosRequestConfig): Promise<T> =>
     _httpClient.delete<T>(url, config),
 
   client: _httpClient,

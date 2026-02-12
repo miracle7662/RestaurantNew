@@ -53,6 +53,7 @@ export type UnbilledItemsResponse = {
     header: any
     kotNo?: number
   }
+  header?: any
   error?: string
 }
 

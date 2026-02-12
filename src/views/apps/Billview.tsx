@@ -983,8 +983,15 @@ const ModernBill = () => {
     setError(null);
     try {
       const response = await OrdernewService.getUnbilledItemsByTable(tableIdNum);
-      const data = response.data.data;
-     
+
+      // Check if response is valid
+      if (!response || !response.success || !response.data || !response.data.items) {
+        setError('No unbilled items found or invalid response from server');
+        setLoading(false);
+        return;
+      }
+
+      const data = response.data;
 
       // Map items to BillItem interface
       const mappedItems: BillItem[] = data.items.map((item: any) => {
@@ -2215,6 +2222,8 @@ const ModernBill = () => {
   const disableRevKOT = !buttonStates.reverseKot;
   const disableKOT = !(buttonStates.kot || hasNewItems);
   const disableAll = !hasItems;
+   const disablePrint = !buttonStates.print;
+
 
   const disableSettle = disableAll || hasNewItems || (!isBillPrintedState && !isTakeaway);
   const disablePrintSettle = !buttonStates.printSettle;
@@ -2461,6 +2470,7 @@ const ModernBill = () => {
           color: black !important;
         }
 
+        
         .modern-table td, .modern-table th {
           padding: 0.25rem;
           vertical-align: middle;
