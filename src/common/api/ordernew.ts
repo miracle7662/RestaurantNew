@@ -169,7 +169,7 @@ export type UnbilledItemsResponse = ApiResponse<{
 }>
 
 
-/* ─────────────── KOT Payload ─────────────── */
+/* ─────────────── KOT Payload ──────  ──── ─ ─ ─── */
 
 export type CreateKOTPayload = {
    TxnID: number
