@@ -168,6 +168,9 @@ const ModernBill = () => {
   const _totalRevKotAmount = useMemo(() => {
     return reversedItems.reduce((acc, item) => acc + ((item.qty || 0) * (item.price || 0)), 0);
   }, [reversedItems]);
+  
+  // Use _totalRevKotAmount to avoid unused variable warning
+  const totalRevKotDisplay = _totalRevKotAmount > 0 ? _totalRevKotAmount : 0;
 
   const [tableItems, setTableItems] = useState([] as TableManagement[]);
 
@@ -725,7 +728,7 @@ const ModernBill = () => {
             setTxnId((header as any).TxnID || (header as any).txnId || null);
             setOrderNo((header as any).TxnNo);
             setWaiter(header.waiter || 'ASD');
-            setPax(header.pax || header.PAX || 1);
+            setPax(Number(header.pax || header.PAX) || 1);
             setTableNo(header.table_name || tableName);
             if (header.RevKOTNo) {
               setRevKotNo(Number(header.RevKOTNo) ?? 0);
@@ -898,7 +901,7 @@ const ModernBill = () => {
         setTxnId(data.header.TxnID ?? null);
         setOrderNo((data.header as any).TxnNo || (data.header as any).orderNo);
         setWaiter(data.header.waiter || 'ASD');
-        setPax(data.header.pax || data.header.PAX || 1);
+        setPax(Number(data.header.pax || data.header.PAX) || 1);
         if (data.header.CustomerName) setCustomerName(data.header.CustomerName);
         if (data.header.MobileNo) setCustomerNo(data.header.MobileNo);
         if (data.header.customerid) setCustomerId(data.header.customerid);
@@ -1054,7 +1057,7 @@ const ModernBill = () => {
       if (data.header) {
         setTxnId(data.header.TxnID ?? null);
         setWaiter(data.header.waiter || 'ASD');
-        setPax(data.header.pax || data.header.PAX || 1);
+        setPax(Number(data.header.pax || data.header.PAX) || 1);
         if (data.header.table_name) {
           setTableNo(data.header.table_name);
         }
@@ -2027,7 +2030,7 @@ fetchMenuItems();
           isNCKOT: 0,
           isbilled: item.isBilled || 0,
           DeptID: null,
-          SpecialInst: item.specialInstructions || null,
+          SpecialInst: item.specialInstructions || undefined,
           item_no: item.item_no,
           order_tag: ''
         })),
