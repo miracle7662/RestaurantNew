@@ -650,56 +650,9 @@ const ModernBill = () => {
       // STEP 1: try billed bill first
       try {
         const billedBillRes = await OrdernewService.getBilledBillByTable(tableIdNum);
-        
-        // Handle new axios-style response structure: { data: { success: true, data: { details, reversedItems, ...header } } }
-        // Also maintain backward compatibility with old structure: { success: true, data: { details, header } }
-        const apiData = billedBillRes?.data;
-        const isSuccess = apiData?.success === true || billedBillRes?.success === true;
-        
-        if (isSuccess && apiData?.data) {
-          // New structure: apiData.data has details, reversedItems, and header fields at same level
-          // Old structure: apiData.data has details and header nested
-          const responseData = apiData.data;
-          
-          // Extract details - handle both new and old structures
-          const details = responseData?.details || [];
-          
-          // Extract header fields - in new structure they're at root level, in old they were in a header object
-          const header = {
-            TxnID: responseData?.TxnID,
-            TxnNo: responseData?.TxnNo,
-            TableID: responseData?.TableID,
-            waiter: responseData?.waiter,
-            pax: responseData?.pax,
-            PAX: responseData?.PAX,
-            table_name: responseData?.table_name,
-            CustomerName: responseData?.CustomerName,
-            MobileNo: responseData?.MobileNo,
-            Address: responseData?.Address,
-            Landmark: responseData?.Landmark,
-            customerid: responseData?.customerid,
-            Order_Type: responseData?.Order_Type,
-            outletid: responseData?.outletid,
-            GrossAmt: responseData?.GrossAmt,
-            Discount: responseData?.Discount,
-            DiscPer: responseData?.DiscPer,
-            DiscountType: responseData?.DiscountType,
-            RevKOT: responseData?.RevKOT,
-            RevKOTNo: responseData?.RevKOTNo,
-            CGST: responseData?.CGST,
-            SGST: responseData?.SGST,
-            IGST: responseData?.IGST,
-            CESS: responseData?.CESS,
-            RoundOFF: responseData?.RoundOFF,
-            Amount: responseData?.Amount,
-            grandTotal: responseData?.grandTotal,
-            Status: responseData?.Status,
-            // Also check for old header object structure for backward compatibility
-            ...(responseData?.header || {})
-          };
-          
-          // Extract reversedItems - handle both new and old structures
-          const reversedItems = responseData?.reversedItems || responseData?.reversedItems || [];
+        if (billedBillRes.success && billedBillRes.data) {
+          const billedBillData = billedBillRes;
+            const { details, ...header } = billedBillData.data;
             const fetchedItems: FetchedItem[] = details
               .map((item: any) => ({
                 id: item.ItemID,
