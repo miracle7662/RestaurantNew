@@ -90,6 +90,7 @@ export interface BillHeader {
   DiscountType?: number
   RevKOT?: number
   RevKOTNo?: string
+  KOTNo?: number
   CGST?: number
   SGST?: number
   IGST?: number

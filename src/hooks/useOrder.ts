@@ -926,3 +926,369 @@ export const useGetBilledBillByTable = (tableId: number | null) => {
 
   return { data, loading, error, execute }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+ * Menu Item Types (for useOrder hook)
+ * ═══════════════════════════════════════════════════════════════════════════════ */
+
+/** Menu item interface for order items */
+export interface MenuItem {
+  id: number
+  name: string
+  price: number
+  qty: number
+  isBilled: number
+  isNCKOT: number
+  NCName: string
+  NCPurpose: string
+  table_name?: string
+  isNew?: boolean
+  alternativeItem?: string
+  modifier?: string[]
+  item_no?: string
+  originalQty?: number
+  kotNo?: number
+  txnDetailId?: number
+  isReverse?: boolean
+  revQty?: number
+  order_tag?: string
+}
+
+/** Reversed menu item interface */
+export interface ReversedMenuItem extends MenuItem {
+  isReversed: true
+  reversalLogId: number
+  status: 'Reversed'
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+ * useOrder Hook - Main hook for order management with refreshItemsForTable
+ * ═══════════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * useOrder - Comprehensive hook for order management
+ * Contains the refreshItemsForTable function with all mapping logic from Orders.tsx
+ * Manages all order-related state including items, transactions, KOTs, discounts
+ */
+export const useOrder = () => {
+  // ═══════════════════════════════════════════════════════════════════════════
+  // State Management
+  // ═══════════════════════════════════════════════════════════════════════════
+  
+  const [items, setItems] = useState<MenuItem[]>([])
+  const [reversedItems, setReversedItems] = useState<ReversedMenuItem[]>([])
+  const [currentTxnId, setCurrentTxnId] = useState<number | null>(null)
+  const [orderNo, setOrderNo] = useState<string | null>(null)
+  const [currentKOTNo, setCurrentKOTNo] = useState<number | null>(null)
+  const [currentKOTNos, setCurrentKOTNos] = useState<number[]>([])
+  const [billActionState, setBillActionState] = useState<'initial' | 'printOrSettle'>('initial')
+  
+  // Persistent IDs for reversal operations
+  const [persistentTxnId, setPersistentTxnId] = useState<number | null>(null)
+  const [persistentTableId, setPersistentTableId] = useState<number | null>(null)
+  
+  // Discount state
+  const [discount, setDiscount] = useState<number>(0)
+  const [discountInputValue, setDiscountInputValue] = useState<number>(0)
+  const [discountType, setDiscountType] = useState<number>(1) // 1 for percentage, 0 for amount
+  
+  // Customer state
+  const [customerName, setCustomerName] = useState<string>('')
+  const [mobileNumber, setMobileNumber] = useState<string>('')
+  const [customerId, setCustomerId] = useState<number | null>(null)
+  
+  // Bill printed info
+  const [billPrintedTime, setBillPrintedTime] = useState<string | null>(null)
+  const [netAmount, setNetAmount] = useState<number | null>(null)
+
+  // Loading state
+  const [loading, setLoading] = useState<boolean>(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // refreshItemsForTable - Core function with all mapping logic
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  const refreshItemsForTable = useCallback(async (tableIdNum: number) => {
+    setLoading(true)
+    setError(null)
+
+    try {
+      // Step 1: Try to fetch the latest billed (but not settled) bill
+      const billedBillRes = await OrderService.getBilledBillByTable(tableIdNum)
+
+      if (billedBillRes && billedBillRes.success && billedBillRes.data) {
+        const billedData = billedBillRes.data as any
+        const details = billedData.details || []
+        const reversedItemsData = billedData.reversedItems || []
+        const header = billedData.header || {}
+        
+        // Map billed bill details to MenuItem[]
+        const fetchedItems: MenuItem[] = (details).map((item: any) => {
+          const originalQty = Number(item.Qty) || 0
+          const revQty = Number(item.RevQty) || 0
+          return {
+            id: item.ItemID,
+            txnDetailId: item.TXnDetailID,
+            item_no: item.item_no,
+            name: item.ItemName || item.itemName || 'Unknown Item',
+            price: item.RuntimeRate,
+            qty: originalQty - revQty,
+            isBilled: item.isBilled,
+            revQty: revQty,
+            isNCKOT: item.isNCKOT || 0,
+            NCName: item.NCName || '',
+            NCPurpose: item.NCPurpose || '',
+            isNew: false,
+            originalQty: originalQty,
+            kotNo: item.KOTNo,
+          }
+        })
+
+        // Set all state for billed items
+        setItems(fetchedItems)
+        setPersistentTxnId(header.TxnID || null)
+        setPersistentTableId(tableIdNum)
+        setOrderNo(header.TxnNo || null)
+        setCurrentTxnId(header.TxnID || null)
+        setCurrentKOTNo(header.KOTNo || header.kotNo || null)
+        
+        // Aggregate unique KOT numbers
+        const kotNumbers = fetchedItems
+          .map(item => item.kotNo)
+          .filter((v, i, a): v is number => v !== undefined && a.indexOf(v) === i)
+          .sort((a, b) => a - b)
+        setCurrentKOTNos(kotNumbers)
+
+        // Set printed bill information
+        if (header.BilledDate) {
+          const date = new Date(header.BilledDate)
+          const istDate = new Date(date.getTime() + (5.5 * 60 * 60 * 1000)) // Convert to IST
+          setBillPrintedTime(istDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }))
+        } else {
+          setBillPrintedTime(null)
+        }
+        
+        setNetAmount(header.Amount || null)
+        setBillActionState('printOrSettle')
+
+        // Restore applied discount for billed tables
+        if (header.Discount || header.DiscPer) {
+          setDiscount(header.Discount || 0)
+          setDiscountInputValue(header.DiscountType === 1 ? header.DiscPer : header.Discount || 0)
+          setDiscountType(header.DiscountType !== null ? header.DiscountType : 1)
+        } else {
+          setDiscount(0)
+          setDiscountInputValue(0)
+        }
+
+        // Restore customer details from billed transaction
+        setCustomerName(header.CustomerName || '')
+        setMobileNumber(header.MobileNo || '')
+        setCustomerId(header.customerid || null)
+
+        // Map reversed items for billed transaction
+        const fetchedReversedItems: ReversedMenuItem[] = (reversedItemsData || []).map((item: any) => ({
+          ...item,
+          name: item.ItemName || item.itemName || 'Unknown Item',
+          id: item.ItemID || item.itemId,
+          price: item.RuntimeRate || item.price || 0,
+          qty: Math.abs(item.Qty) || 1,
+          isReversed: true,
+          reversalLogId: item.ReversalLogID || item.reversalLogId || 0,
+          status: 'Reversed',
+          kotNo: item.KOTNo,
+        }))
+        setReversedItems(fetchedReversedItems)
+
+        setLoading(false)
+        return // Exit after successfully loading billed items
+      } else {
+        setBillActionState('initial') // Reset if no billed bill is found
+      }
+
+      // Step 2: If no billed bill found, fetch unbilled items
+      const unbilledItemsRes = await OrderService.getUnbilledItemsByTable(tableIdNum)
+      
+      if (unbilledItemsRes && unbilledItemsRes.success && unbilledItemsRes.data) {
+        const unbilledData = unbilledItemsRes.data as any
+        const unbilledItems = unbilledData.items || []
+        
+        // Map unbilled items to MenuItem[]
+        const fetchedItems: MenuItem[] = unbilledItems.map((item: any) => {
+          return {
+            id: item.itemId,
+            txnDetailId: item.txnDetailId,
+            item_no: item.item_no,
+            name: item.itemName,
+            price: item.price,
+            qty: item.netQty || item.qty,
+            isBilled: 0,
+            isNCKOT: 0,
+            NCName: '',
+            NCPurpose: '',
+            isNew: false,
+            originalQty: item.qty,
+            revQty: item.revQty,
+            kotNo: item.kotNo,
+          }
+        })
+
+        setCurrentKOTNo(unbilledData.kotNo || null)
+        
+        const firstItem = unbilledItems.length > 0 ? unbilledItems[0] : null
+        setPersistentTxnId(firstItem ? (firstItem.txnId || firstItem.TxnID || null) : null)
+        setPersistentTableId(tableIdNum)
+
+        // Map reversed items from unbilled response
+        const fetchedReversedItems: ReversedMenuItem[] = (unbilledData.reversedItems || []).map((item: any) => ({
+          id: item.ItemID || item.itemId,
+          name: item.ItemName || item.itemName,
+          price: item.price,
+          qty: item.reversedQty || Math.abs(item.Qty) || 1,
+          kotNo: item.KOTNo,
+          isReversed: true,
+          reversalLogId: item.reversalLogId || item.ReversalLogID || 0,
+          status: 'Reversed',
+        }))
+        setReversedItems(fetchedReversedItems)
+        
+        setItems(fetchedItems)
+
+        // Set TxnNo if it exists on the unbilled transaction
+        if (firstItem) {
+          setOrderNo(firstItem.TxnNo || firstItem.txnNo || null)
+          setCurrentTxnId(firstItem.txnId || firstItem.TxnID || null)
+        } else {
+          setOrderNo(null)
+          setCurrentTxnId(null)
+        }
+
+        // Aggregate KOT numbers
+        const kotNumbersForTable = fetchedItems
+          .map(item => item.kotNo)
+          .filter((v, i, a): v is number => v !== undefined && a.indexOf(v) === i)
+          .sort((a, b) => a - b)
+        setCurrentKOTNos(kotNumbersForTable)
+
+        // Restore discount from unbilled header
+        const header = unbilledData.header
+        if (header) {
+          if (header.Discount || header.DiscPer) {
+            setDiscount(header.Discount || 0)
+            setDiscountInputValue(header.DiscountType === 1 ? header.DiscPer : header.Discount || 0)
+            setDiscountType(header.DiscountType !== null ? header.DiscountType : 1)
+          }
+          // Restore customer details from unbilled transaction
+          setCustomerName(header.CustomerName || '')
+          setMobileNumber(header.MobileNo || '')
+          setCustomerId(header.customerid || null)
+        } else {
+          setDiscount(0)
+          setDiscountInputValue(0)
+        }
+      } else {
+        // No billed or unbilled items found - reset state
+        setItems([])
+        setReversedItems([])
+        setCurrentKOTNo(null)
+        setCurrentKOTNos([])
+        setOrderNo(null)
+        setCurrentTxnId(null)
+        setDiscount(0)
+        setDiscountInputValue(0)
+        setCustomerName('')
+        setMobileNumber('')
+        setCustomerId(null)
+      }
+
+    } catch (err: any) {
+      console.error('Error fetching/refetching items for table:', err)
+      setError(err.message || 'Failed to fetch items for table')
+      
+      // Reset state on error
+      setItems([])
+      setReversedItems([])
+      setOrderNo(null)
+      setCurrentKOTNo(null)
+      setCurrentKOTNos([])
+      setCurrentTxnId(null)
+      setBillActionState('initial')
+    } finally {
+      setLoading(false)
+    }
+  }, []) // Empty deps - all state updates are functional
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Reset function - Clear all order state
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  const resetOrder = useCallback(() => {
+    setItems([])
+    setReversedItems([])
+    setCurrentTxnId(null)
+    setOrderNo(null)
+    setCurrentKOTNo(null)
+    setCurrentKOTNos([])
+    setBillActionState('initial')
+    setPersistentTxnId(null)
+    setPersistentTableId(null)
+    setDiscount(0)
+    setDiscountInputValue(0)
+    setDiscountType(1)
+    setCustomerName('')
+    setMobileNumber('')
+    setCustomerId(null)
+    setBillPrintedTime(null)
+    setNetAmount(null)
+    setError(null)
+  }, [])
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Return hook interface
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  return {
+    // State
+    items,
+    reversedItems,
+    currentTxnId,
+    orderNo,
+    currentKOTNo,
+    currentKOTNos,
+    billActionState,
+    persistentTxnId,
+    persistentTableId,
+    discount,
+    discountInputValue,
+    discountType,
+    customerName,
+    mobileNumber,
+    customerId,
+    billPrintedTime,
+    netAmount,
+    loading,
+    error,
+
+    // State setters (for external updates if needed)
+    setItems,
+    setReversedItems,
+    setCurrentTxnId,
+    setOrderNo,
+    setCurrentKOTNo,
+    setCurrentKOTNos,
+    setBillActionState,
+    setPersistentTxnId,
+    setPersistentTableId,
+    setDiscount,
+    setDiscountInputValue,
+    setDiscountType,
+    setCustomerName,
+    setMobileNumber,
+    setCustomerId,
+
+    // Actions
+    refreshItemsForTable,
+    resetOrder,
+  }
+}

@@ -16,6 +16,7 @@ import { fetchKotPrintSettings, } from '@/services/outletSettings.service';
 import { applyKotSettings, } from '@/utils/applyOutletSettings';
 
 import OrdernewService from '@/common/api/ordernew';
+import OrderService from '@/common/api/order';
 import MenuItemService from '@/common/api/menu';
 
 
@@ -650,9 +651,10 @@ const ModernBill = () => {
       // STEP 1: try billed bill first
       try {
         const billedBillRes = await OrdernewService.getBilledBillByTable(tableIdNum);
-        if (billedBillRes.success && billedBillRes.data) {
-          const billedBillData = billedBillRes;
-            const { details, ...header } = billedBillData.data;
+        const billedBillData = billedBillRes.data;
+         if (billedBillData && billedBillData.details && billedBillData.header) {
+          const header = billedBillData.header;
+          const details = billedBillData.details;
             const fetchedItems: FetchedItem[] = details
               .map((item: any) => ({
                 id: item.ItemID,
@@ -751,16 +753,14 @@ const ModernBill = () => {
             // restore discount
             if (header.Discount || header.DiscPer) {
               setDiscount(header.Discount || 0);
-              setDiscountInputValue(
-                header.DiscountType === 1 ? header.DiscPer : header.Discount || 0
-              );
+             setDiscountInputValue(header.DiscountType === 1 ? (header.DiscPer || 0) : (header.Discount ?? 0));
               setDiscountType(header.DiscountType ?? 1);
             } else {
               setDiscount(0);
               setDiscountInputValue(0);
             }
             setReversedItems(
-              (billedBillData.data.reversedItems || []).map((item: any) => ({
+              (billedBillData.reversedItems || []).map((item: any) => ({
                 ...item,
                 name: item.ItemName || 'Unknown Item',
                 id: item.ItemID,
@@ -773,7 +773,7 @@ const ModernBill = () => {
 
               }))
             );
-            const totalRev = (billedBillData.data.reversedItems || []).reduce((acc: number, item: any) => acc + ((item.Qty || 0) * (item.price || 0)), 0);
+            const totalRev = (billedBillData.reversedItems || []).reduce((acc: number, item: any) => acc + ((item.Qty || 0) * (item.price || 0)), 0);
             setRevKOT(header.RevKOT ?? totalRev);
             // Compute max RevKOTNo from details
             const reversedDetails = details.filter((d: any) => d.RevQty > 0);
@@ -1205,7 +1205,7 @@ const ModernBill = () => {
       setOutletName(user?.outlet_name || 'Outlet Name');
     }
   };
-
+ 
   // Fetch payment modes based on selected outlet
   useEffect(() => {
   const fetchPaymentModes = async () => {

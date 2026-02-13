@@ -1,26 +1,42 @@
-# Refactoring Orders.tsx - TODO
+# Refactoring Plan: refreshItemsForTable in Orders.tsx
 
-## Task
-Refactor an existing large React function that fetches billed and unbilled restaurant orders into a clean, scalable architecture.
+## Objective
+Refactor the `refreshItemsForTable(tableId)` function in `src/views/apps/Transaction/Orders.tsx` to use a clean service layer (OrderService using HttpClient) instead of direct fetch calls.
 
-## Steps
+## Changes Required
 
-- [ ] 1. Create `src/services/order.ts` - API service layer
-- [ ] 2. Update `src/hooks/useOrder.ts` - Add comprehensive useOrder hook
-- [ ] 3. Refactor `src/views/apps/Transaction/Orders.tsx` - Use the hook
+### 1. Update Imports
+- Add import for `OrderService` from `@/common/api/order`
+- Remove old API import `getUnbilledItemsByTable` from `@/common/api/orders_old`
 
-## Progress
+### 2. Replace Direct Fetch Call
+- Replace: `fetch(\`http://localhost:3001/api/TAxnTrnbill/billed-bill/by-table/${tableIdNum}\`)`
+- With: `OrderService.getBilledBillByTable(tableIdNum)`
 
-### Step 1: Create services/order.ts
-- [ ] Create the file with OrderService class
-- [ ] Add getBilledBillByTable function
-- [ ] Add getUnbilledItemsByTable function
+### 3. Replace Old API Call
+- Replace: `getUnbilledItemsByTable(tableIdNum)` from `@/common/api/orders_old`
+- With: `OrderService.getUnbilledItemsByTable(tableIdNum)`
 
-### Step 2: Update hooks/useOrder.ts
-- [ ] Add comprehensive useOrder hook
-- [ ] Implement refreshItemsForTable with orchestration logic
+### 4. Keep Existing Logic Intact
+- ✅ Billed bill priority
+- ✅ Unbilled fallback
+- ✅ Item qty calculation (Qty - RevQty)
+- ✅ Reversed items handling
+- ✅ TxnID/TxnNo mapping
+- ✅ KOT numbers aggregation
+- ✅ Discount restoration
+- ✅ Customer details
 
-### Step 3: Refactor Orders.tsx
-- [ ] Import useOrder hook
-- [ ] Remove API URLs and fetch calls
-- [ ] Use refreshItemsForTable from hook
+### 5. Extract Reset Logic
+- Create a helper function `resetBillingPanel()` that clears all order-related state
+- Use this function where needed
+
+### 6. TypeScript Safety
+- Ensure proper typing for all mapped objects
+- Use consistent interfaces
+
+## Implementation Steps
+1. Add OrderService import
+2. Replace billed bill fetch with OrderService call
+3. Replace unbilled items API with OrderService call
+4. Test all functionality works the same

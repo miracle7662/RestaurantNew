@@ -18,6 +18,7 @@ import BillPreviewPrint from '../PrintReport/BillPrint';
 import { fetchWaiterUsers, WaiterUser } from '@/services/user.service';
 import TableManagementService from '@/common/api/tablemanagement';
 import TableDepartmentService from '@/common/api/tabledepartment';
+import OrderService from "@/common/api/order";
 interface MenuItem {
   id: number;
   name: string;
@@ -307,12 +308,13 @@ const Order = () => {
   const refreshItemsForTable = useCallback(async (tableIdNum: number) => {
     try {
       // Step 1: Try to fetch the latest billed (but not settled) bill
-      const billedBillRes = await fetch(`http://localhost:3001/api/TAxnTrnbill/billed-bill/by-table/${tableIdNum}`);
+      const billedBillRes = await OrderService.getBilledBillByTable(tableIdNum);
 
-      if (billedBillRes.ok) {
-        const billedBillData = await billedBillRes.json();
-        if (billedBillData.success && billedBillData.data) {
-          const { details, ...header } = billedBillData.data;
+      if (billedBillRes.success) {
+        const billedBillData = billedBillRes.data;
+        if (billedBillData && billedBillData.details && billedBillData.header) {
+          const header = billedBillData.header;
+          const details = billedBillData.details;
           const fetchedItems: MenuItem[] = details.map((item: any) => {
             const originalQty = Number(item.Qty) || 0;
             const revQty = Number(item.RevQty) || 0;
@@ -339,7 +341,7 @@ const Order = () => {
           setPersistentTableId(tableIdNum);
           setOrderNo(header.TxnNo); // Set TxnNo from the fetched bill header
           setCurrentTxnId(header.TxnID);
-          setCurrentKOTNo(header.KOTNo); // A billed order might have a KOT no.
+          setCurrentKOTNo(header.KOTNo || null); // A billed order might have a KOT no.
           setCurrentKOTNos(
             fetchedItems
               .map(item => item.kotNo)
@@ -353,14 +355,14 @@ const Order = () => {
             const istDate = new Date(date.getTime() + (5.5 * 60 * 60 * 1000)); // Convert to IST
             setBillPrintedTime(istDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }));
           }
-          setNetAmount(header.Amount);
+          setNetAmount(header.Amount || null);
 
           setBillActionState('printOrSettle');
           // Restore applied discount for billed tables
           if (header.Discount || header.DiscPer) {
             setDiscount(header.Discount || 0);
-            setDiscountInputValue(header.DiscountType === 1 ? header.DiscPer : header.Discount || 0);
-            setDiscountType(header.DiscountType !== null ? header.DiscountType : 1);
+            setDiscountInputValue(header.DiscountType === 1 ? (header.DiscPer || 0) : (header.Discount ?? 0));
+            setDiscountType(header.DiscountType !== undefined ? header.DiscountType : 1);
           } else {
             setDiscount(0);
             setDiscountInputValue(0);
@@ -370,7 +372,7 @@ const Order = () => {
           setMobileNumber(header.MobileNo || '');
           if (header.customerid) setCustomerId(header.customerid);
           // Also fetch and set reversed items for the billed transaction
-          const fetchedReversedItems: ReversedMenuItem[] = (billedBillData.data.reversedItems || []).map((item: any) => ({
+          const fetchedReversedItems: ReversedMenuItem[] = (billedBillData.reversedItems || []).map((item: any) => ({
             ...item,
             name: item.ItemName || item.itemName || 'Unknown Item',
             id: item.ItemID || item.itemId,
@@ -390,7 +392,8 @@ const Order = () => {
       }
 
       // Step 2: If no billed bill found (e.g., 404), fetch unbilled items (existing logic)
-      const unbilledItemsRes = await getUnbilledItemsByTable(tableIdNum);
+        const unbilledItemsRes = await getUnbilledItemsByTable(tableIdNum);
+
       if (unbilledItemsRes.success && unbilledItemsRes.data && Array.isArray(unbilledItemsRes.data.items)) {
         const fetchedItems: MenuItem[] = unbilledItemsRes.data.items.map((item: any) => {
           return {
@@ -461,8 +464,8 @@ const Order = () => {
         const { header } = unbilledItemsRes.data;
         if (header.Discount || header.DiscPer) {
           setDiscount(header.Discount || 0);
-          setDiscountInputValue(header.DiscountType === 1 ? header.DiscPer : header.Discount || 0);
-          setDiscountType(header.DiscountType !== null ? header.DiscountType : 1);
+          setDiscountInputValue(header.DiscountType === 1 ? (header.DiscPer || 0) : (header.Discount || 0));
+          setDiscountType(header.DiscountType !== undefined ? header.DiscountType : 1);
         }
         // ✅ Restore customer details from unbilled transaction
         setCustomerName(header.CustomerName || '');
