@@ -1290,26 +1290,21 @@ const ModernBill = () => {
       // Fetch outlet settings for Reverse Qty Mode
       const fetchReverseQtySetting = async () => {
         try {
-          const res = await fetch(`http://localhost:3001/api/outlets/outlet-settings/${selectedOutletId}`);
-          if (res.ok) {
-            const settings = await res.json();
-            if (settings) {
-              setReverseQtyConfig(settings.ReverseQtyMode === 1 ? 'PasswordRequired' : 'NoPassword');
-              setRoundOffEnabled(!!settings.bill_round_off);
-              // include_tax_in_invoice may be returned with different casing
-              const incFlag =
-                settings.include_tax_in_invoice ??
-                (settings as any).IncludeTaxInInvoice ??
-                (settings as any).includeTaxInInvoice ??
-                (settings as any).includeTaxInInvoice;
-              setIncludeTaxInInvoice(!!Number(incFlag));
+          const response = await OrdernewService.getOutletSettings(selectedOutletId);
+          if (response.success && response.data) {
+            const settings = response.data;
+            setReverseQtyConfig(settings.ReverseQtyMode === 1 ? 'PasswordRequired' : 'NoPassword');
+            setRoundOffEnabled(!!settings.bill_round_off);
+            // include_tax_in_invoice may be returned with different casing
+            const incFlag =
+              settings.include_tax_in_invoice ??
+              settings.IncludeTaxInInvoice ??
+              settings.includeTaxInInvoice ??
+              settings.includeTaxInInvoice;
+            setIncludeTaxInInvoice(!!Number(incFlag));
 
-              // Debug console for tax mode
-              console.log("Include Tax in Invoice:", Number(incFlag) === 1 ? "Inclusive" : "Exclusive");
-            } else {
-              setReverseQtyConfig('PasswordRequired'); // Default to password required
-              setIncludeTaxInInvoice(false);
-            }
+            // Debug console for tax mode
+            console.log("Include Tax in Invoice:", Number(incFlag) === 1 ? "Inclusive" : "Exclusive");
           } else {
             setReverseQtyConfig('PasswordRequired'); // Default to password required
             setIncludeTaxInInvoice(false);
@@ -1980,6 +1975,7 @@ fetchMenuItems();
       toast.error("Please save the KOT before applying a discount.");
       return;
     }
+    console.log('Applying discount with input value:', discountInputValue, 'and type:', DiscountType);
 
     let appliedDiscount = 0;
     let appliedDiscPer = 0;
@@ -2017,12 +2013,11 @@ fetchMenuItems();
       };
 
       const response = await OrdernewService.applyDiscount(txnId, payload);
+      console.log('Apply Discount API response:', response);
 
       const result = response.data;
 
-      if (!result.success) {
-        throw new Error(result.message || 'Failed to apply discount.');
-      }
+      
 
       toast.success('Discount applied successfully!');
       setShowDiscountModal(false);
