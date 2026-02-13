@@ -73,14 +73,20 @@ export type CreateBillPayload = {
   details: BillDetail[]
 }
 
+export type SettleBillRequest = {
+  bill_amount: number
+  total_received: number
+  total_refund: number
+  settlements: SettlementPayload[]
+}
+
 export type SettlementPayload = {
   PaymentTypeID?: number
   PaymentType: string
   Amount: number
-  Batch?: string
-  Name?: string
-  OrderNo?: string
-  HotelID?: number
+  ReferenceNo?: string
+  OutletID?: number
+  userId?: number
 }
 
 /* ─────────────── Bill Response Types ─────────────── */
@@ -216,8 +222,13 @@ const OrdernewService = {
     HttpClient.put<ApiResponse<Bill>>(`/TAxnTrnbill/${txnId}/mark-billed`, payload),
 
   /* ================= SETTLEMENT ================= */
-  settleBill: (id: number, settlements: SettlementPayload[]) =>
-    HttpClient.post<ApiResponse<Bill>>(`/TAxnTrnbill/${id}/settle`, { settlements }),
+  /* ================= SETTLEMENT ================= */
+settleBill: (id: number, payload: SettleBillRequest) =>
+  HttpClient.post<ApiResponse<Bill>>(
+    `/TAxnTrnbill/${id}/settle`,
+    payload
+  ),
+
 
   /* ================= KOT ================= */
   createKOT: (payload: CreateKOTPayload) =>

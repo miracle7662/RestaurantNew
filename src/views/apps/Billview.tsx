@@ -1744,7 +1744,7 @@ fetchMenuItems();
         // ✅ 1️⃣ TABLE KO VACANT KARO (FRONTEND)
         // Explicitly set table status to vacant (0) after NCKOT
         if (tableId) {
-          await axios.put(`/api/tablemanagement/${tableId}/status`, { status: 0 });
+          await OrdernewService.updateTableStatus(tableId, { status: 0 });
         }
         await fetchTableManagement();
 
@@ -1814,7 +1814,7 @@ fetchMenuItems();
 
     // Update table status to occupied
     try {
-      await axios.put(`/api/tablemanagement/${tableId}/status`, { status: 1 });
+       await OrdernewService.updateTableStatus(tableId, { status: 1 });
     } catch (error) {
       console.error('Error updating table status:', error);
     }
@@ -1912,7 +1912,7 @@ fetchMenuItems();
       toast.success('Bill printed successfully');
 
       // 4️⃣ Table status update
-      await axios.post(`/api/tablemanagement/${tableId}/status`, { status: 1 });
+      await OrdernewService.updateTableStatus(tableId, { status: 1 });
 
       // 5️⃣ Open Settlement Modal with all values
       setShowSettlementModal(true);
@@ -1938,7 +1938,7 @@ fetchMenuItems();
 
   const fetchTableManagement = async () => {
     try {
-      const response = await axios.get(`/api/tables/${tableId}`);
+      const response = await OrdernewService.getTableManagementById(user?.hotelid, );
       setTableItems(response.data);
     } catch (error) {
       console.error('Error fetching table management:', error);
@@ -2079,16 +2079,14 @@ fetchMenuItems();
       }));
 
       // 2. Call the settlement endpoint
-      const response = await axios.post(`/api/TAxnTrnbill/${txnId}/settle`, {
-        bill_amount: taxCalc.grandTotal,
-        total_received: totalReceived,
-        total_refund: refundAmount,
-        settlements: settlementsPayload
+     await OrdernewService.settleBill(txnId, {
+  bill_amount: taxCalc.grandTotal,
+  total_received: totalReceived,
+  total_refund: refundAmount,
+  settlements: settlementsPayload
       });
 
-      if (!response.data.success) {
-        throw new Error(response.data.message || 'Failed to settle bill.');
-      }
+     
 
       toast.success('Settlement successful and bill printed!');
 
@@ -2114,7 +2112,7 @@ fetchMenuItems();
       if (selectedTable) {
         const tableToUpdate = tableItems.find(t => t.table_name === selectedTable.name);
         if (tableToUpdate) {
-          await axios.post(`/api/tablemanagement/${tableToUpdate.tablemanagementid}/status`, {
+          await OrdernewService.updateTableStatus(tableToUpdate.tablemanagementid, {
             status: 0 // 0 for Vacant
           });
         }
@@ -3503,7 +3501,7 @@ fetchMenuItems();
           toast.success("Bill printed successfully");
 
           // Table status update AFTER print
-          await axios.post(`/api/tablemanagement/${tableId}/status`, { status: 1 });
+          await OrdernewService.updateTableStatus(tableId, { status: 1 });
 
           setShowBillPrintModal(false);
 
