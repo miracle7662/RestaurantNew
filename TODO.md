@@ -1,45 +1,56 @@
-# TODO: Refactor Billview.tsx to use OrdernewService
+# API Response Format Migration - TODO
 
-## Completed Tasks
-- [x] Import OrdernewService into Billview.tsx
-- [x] Replace axios calls in loadUnbilledItems with OrdernewService methods
-- [x] Replace axios calls in loadBillForTable with OrdernewService methods
-- [x] Replace axios calls in loadTakeawayOrder with OrdernewService methods
-- [x] Add getBilledBillByTable and getUnbilledItemsByTable methods to OrdernewService
-- [x] Test the refactored code to ensure functionality remains intact
+## Objective
+Remove the `{ success, message, data }` wrapper pattern and use direct objects instead.
 
-## Remaining Tasks
-- [ ] Replace axios calls in handleCustomerNoChange with OrdernewService.getCustomerByMobile
-- [ ] Replace axios calls in fetchOutlets with OrdernewService.getOutletsByHotel
-- [ ] Replace axios calls in fetchOutletDetails with OrdernewService.getOutletById
-- [ ] Replace axios calls in fetchPaymentModes with OrdernewService.getPaymentModesByOutlet
-- [ ] Replace axios calls in fetchGlobalKOT with OrdernewService.getGlobalKOTNumber
-- [ ] Replace axios calls in fetchTaxDetails with OrdernewService.getTaxDetails
-- [ ] Replace axios calls in fetchMenuItems with OrdernewService.getMenu
-- [ ] Replace axios calls in fetchTableManagement with OrdernewService.getTableById
-- [ ] Replace axios calls in saveKOT with OrdernewService.createKOT
-- [ ] Replace axios calls in printBill with OrdernewService.markBillAsBilled
-- [ ] Replace axios calls in PrintAndSettle with OrdernewService.markBillAsBilled
-- [ ] Replace axios calls in handleReverseBillConfirmation with OrdernewService.reverseBill
-- [ ] Replace axios calls in handleReverseKotSave with OrdernewService.createReverseKOT
-- [ ] Replace axios calls in printKOT with OrdernewService.printKOT
-- [ ] Replace axios calls in handleSaveNCKOT with OrdernewService.applyNCKOT
-- [ ] Replace axios calls in handleApplyDiscount with OrdernewService.applyDiscount
-- [ ] Replace axios calls in handleSettleAndPrint with OrdernewService.settleBill
-- [ ] Add any missing methods to OrdernewService if needed
+## Changes Required
 
-## Summary
-Successfully refactored Billview.tsx to use OrdernewService methods instead of direct axios calls for bill loading functionality. The changes include:
-- Added import for OrdernewService
-- Replaced axios.get calls in loadBillForTable, loadUnbilledItems, and loadTakeawayOrder with OrdernewService methods
-- Added the required API methods to the OrdernewService
-- Verified that the application builds without errors
+### Phase 1: Backend Changes (TAxnTrnbillControllers.js)
+- [ ] 1.1 Update `getAllBills` - Return direct data array instead of `ok('Fetched all bills', data)`
+- [ ] 1.2 Update `getBillById` - Return direct object instead of `ok('Fetched bill', {...})`
+- [ ] 1.3 Update `createBill` - Return direct object instead of `ok('Bill created', {...})`
+- [ ] 1.4 Update `updateBill` - Return direct object instead of `ok('Bill updated', {...})`
+- [ ] 1.5 Update `deleteBill` - Return direct object
+- [ ] 1.6 Update `settleBill` - Return direct object instead of `ok('Bill settled', {...})`
+- [ ] 1.7 Update `addItemToBill` - Return direct object
+- [ ] 1.8 Update `updateBillItemsIsBilled` - Return direct object
+- [ ] 1.9 Update `createKOT` - Return direct object
+- [ ] 1.10 Update `createReverseKOT` - Return direct object
+- [ ] 1.11 Update `getSavedKOTs` - Return direct array
+- [ ] 1.12 Update `getLatestKOTForTable` - Return direct object
+- [ ] 1.13 Update `getUnbilledItemsByTable` - Return direct object (remove {success, message, data} wrapper)
+- [ ] 1.14 Update `printBill` - Return direct object
+- [ ] 1.15 Update `markBillAsBilled` - Return direct object
+- [ ] 1.16 Update `generateTxnNo` - Return direct object
+- [ ] 1.17 Update `applyNCKOT` - Return direct object
+- [ ] 1.18 Update `applyDiscountToBill` - Return direct object
+- [ ] 1.19 Update `getPendingOrders` - Return direct array
+- [ ] 1.20 Update `updatePendingOrder` - Return direct object
+- [ ] 1.21 Update `getLinkedPendingItems` - Return direct array
+- [ ] 1.22 Update `getBillsByType` - Return direct array
+- [ ] 1.23 Update `getAllBillsForBillingTab` - Return direct array
+- [ ] 1.24 Update `reverseBill` - Return direct object
+- [ ] 1.25 Update `getBillStatusByTable` - Return direct object
+- [ ] 1.26 Update `saveFullReverse` - Return direct object
+- [ ] 1.27 Update `transferKOT` - Return direct object
+- [ ] 1.28 Update `transferTable` - Return direct object
+- [ ] 1.29 Update `getGlobalKOTNumber` - Return direct object
+- [ ] 1.30 Update `getGlobalReverseKOTNumber` - Return direct object
 
-The refactoring improves code maintainability by centralizing API logic in the service layer.
+### Phase 2: Frontend Type Changes
+- [ ] 2.1 Update `src/types/api.ts` - Keep ApiResponse for error handling, but mark as optional
+- [ ] 2.2 Update `src/common/api/ordernew.ts` - Remove ApiResponse<> wrappers from type definitions
 
-## Follow-up Steps
-- Complete the remaining axios replacements
-- Run the application and test bill loading, KOT saving, printing, settlement, etc.
-- Verify that all API calls work correctly with the new service methods.
-- Check for any console errors or failed requests.
-- If issues arise, debug and fix accordingly.
+### Phase 3: Frontend API Service Changes
+- [ ] 3.1 Update `src/common/api/ordernew.ts` - Change all HttpClient calls to use direct types
+  - From: `HttpClient.post<ApiResponse<Bill>>('/TAxnTrnbill', payload)`
+  - To: `HttpClient.post<Bill>('/TAxnTrnbill', payload)`
+
+### Phase 4: Frontend Component Updates
+- [ ] 4.1 Update `src/views/apps/Billview.tsx` - Remove `.success` and `.data` checks
+- [ ] 4.2 Update other components that access `.success` and `.data`
+
+## Notes
+- The Axios interceptor in httpClient.ts returns `response.data`, so it should work with direct objects
+- Error handling should rely on HTTP status codes instead of `{success: false}` wrapper
+- Some controllers may need separate error handling updates

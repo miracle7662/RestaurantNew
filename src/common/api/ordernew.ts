@@ -153,18 +153,20 @@ export interface ReverseKOTItem {
 }
 
 
-export type BillDetailsResponse = ApiResponse<{
+// Since HttpClient interceptor returns response.data directly, 
+// these types should NOT have ApiResponse wrapper
+export type BillDetailsResponse = {
   details: BillItem[]
   reversedItems: BillItem[]
   header: BillHeader
-}>
+}
 
-export type UnbilledItemsResponse = ApiResponse<{
+export type UnbilledItemsResponse = {
   items: BillItem[]
   reversedItems: BillItem[]
   header: BillHeader
   kotNo?: number
-}>
+}
 
 /* ─────────────── KOT Payload ─────────────── */
 
