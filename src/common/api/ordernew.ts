@@ -163,7 +163,8 @@ export type UnbilledItemsResponse = ApiResponse<{
 /* ─────────────── KOT Payload ─────────────── */
 
 export type CreateKOTPayload = {
-  txnId?: number
+   TxnID: number
+
   tableId: number | null
   table_name?: string | null
   items: BillItem[]

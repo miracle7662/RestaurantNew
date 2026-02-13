@@ -643,17 +643,16 @@ const ModernBill = () => {
   const reasonRef = useRef<HTMLTextAreaElement>(null);
 
   // Load bill for table: try billed first, then unbilled
-  const loadBillForTable = async (tableIdNum: number) => {
+   const loadBillForTable = async (tableIdNum: number) => {
     setLoading(true);
     setError(null);
     try {
       // STEP 1: try billed bill first
       try {
         const billedBillRes = await OrdernewService.getBilledBillByTable(tableIdNum);
-        if (billedBillRes.success) {
-          const billedBillData = billedBillRes.data;
-          if (billedBillData) {
-            const { details, ...billHeader } = billedBillData;
+        if (billedBillRes.success && billedBillRes.data) {
+          const billedBillData = billedBillRes;
+            const { details, ...header } = billedBillData.data;
             const fetchedItems: FetchedItem[] = details
               .map((item: any) => ({
                 id: item.ItemID,
@@ -722,46 +721,46 @@ const ModernBill = () => {
             });
 
             setBillItems(mappedItems);
-            setTxnId(billHeader.header.TxnID);
-            setOrderNo(billHeader.header.TxnNo);
-            setWaiter(billHeader.header.waiter || 'ASD');
-            setPax(billHeader.header.pax ?? billHeader.header.PAX ?? 1);
-            setTableNo(billHeader.header.table_name || tableName);
-            if (billHeader.header.RevKOTNo) {
-              setRevKotNo(parseInt(billHeader.header.RevKOTNo, 10));
+            setTxnId((header as any).TxnID || (header as any).txnId || null);
+            setOrderNo(header.TxnNo);
+            setWaiter(header.waiter || 'ASD');
+            setPax(header.pax || header.PAX || 1);
+            setTableNo(header.table_name || tableName);
+            if (header.RevKOTNo) {
+              setRevKotNo(header.RevKOTNo);
             }
-            if (billHeader.header.CustomerName) setCustomerName(billHeader.header.CustomerName);
-            if (billHeader.header.MobileNo) setCustomerNo(billHeader.header.MobileNo);
-            if (billHeader.header.customerid) setCustomerId(billHeader.header.customerid);
+            if (header.CustomerName) setCustomerName(header.CustomerName);
+            if (header.MobileNo) setCustomerNo(header.MobileNo);
+            if (header.customerid) setCustomerId(header.customerid);
             setCurrentKOTNos(
               Array.from(new Set(fetchedItems.map((i: FetchedItem) => i.kotNo))).sort((a: number, b: number) => a - b)
             );
 
             // Set activeTab based on Order_Type from database
-            if (billHeader.header.Order_Type) {
-              setActiveTab(billHeader.header.Order_Type);
+            if (header.Order_Type) {
+              setActiveTab(header.Order_Type);
             } else {
               setActiveTab('Dine-in'); // Default for table orders
             }
 
             // Fetch outlet details for restaurant and outlet names
-            if (billHeader.header.outletid) {
-              await fetchOutletDetails(billHeader.header.outletid);
+            if (header.outletid) {
+              await fetchOutletDetails(header.outletid);
             }
 
             // restore discount
-            if (billHeader.header.Discount || billHeader.header.DiscPer) {
-              setDiscount(billHeader.header.Discount || 0);
+            if (header.Discount || header.DiscPer) {
+              setDiscount(header.Discount || 0);
               setDiscountInputValue(
-                billHeader.header.DiscountType === 1 ? billHeader.header.DiscPer : billHeader.header.Discount || 0
+                header.DiscountType === 1 ? header.DiscPer : header.Discount || 0
               );
-              setDiscountType(billHeader.header.DiscountType ?? 1);
+              setDiscountType(header.DiscountType ?? 1);
             } else {
               setDiscount(0);
               setDiscountInputValue(0);
             }
             setReversedItems(
-              (billHeader.reversedItems || []).map((item: any) => ({
+              (billedBillData.data.reversedItems || []).map((item: any) => ({
                 ...item,
                 name: item.ItemName || 'Unknown Item',
                 id: item.ItemID,
@@ -774,24 +773,24 @@ const ModernBill = () => {
 
               }))
             );
-            const totalRev = (billHeader.reversedItems || []).reduce((acc: number, item: any) => acc + ((item.Qty || 0) * (item.price || 0)), 0);
-            setRevKOT(billHeader.header.RevKOT ?? totalRev);
+            const totalRev = (billedBillData.data.reversedItems || []).reduce((acc: number, item: any) => acc + ((item.Qty || 0) * (item.price || 0)), 0);
+            setRevKOT(header.RevKOT ?? totalRev);
             // Compute max RevKOTNo from details
             const reversedDetails = details.filter((d: any) => d.RevQty > 0);
             const maxRevKotNo = reversedDetails.length > 0 ? Math.max(...reversedDetails.map((d: any) => d.RevKOTNo || 0)) : 0;
             setRevKotNo(maxRevKotNo);
 
             // Set tax values from header for billed bills
-            if (billHeader.header.CGST !== undefined) setCgst(billHeader.header.CGST);
-            if (billHeader.header.SGST !== undefined) setSgst(billHeader.header.SGST);
-            if (billHeader.header.IGST !== undefined) setIgst(billHeader.header.IGST);
-            if (billHeader.header.CESS !== undefined) setCess(billHeader.header.CESS);
+            if (header.CGST !== undefined) setCgst(header.CGST);
+            if (header.SGST !== undefined) setSgst(header.SGST);
+            if (header.IGST !== undefined) setIgst(header.IGST);
+            if (header.CESS !== undefined) setCess(header.CESS);
 
             calculateTotals(mappedItems);
             setOriginalTableStatus(2); // Set to billed status for order_tag logic
             setLoading(false);
             return;
-          }
+       
         }
       } catch (billedErr) {
         console.log('Billed bill not found or error, falling back to unbilled items');
@@ -804,7 +803,6 @@ const ModernBill = () => {
       setLoading(false);
     }
   };
-
   // Load takeaway order details
   const loadTakeawayOrder = async (orderId: string) => {
     setLoading(true);
