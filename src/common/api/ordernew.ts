@@ -15,6 +15,7 @@ export type Bill = {
   message: string
   data: {
   TxnID: number
+  TxnNo?: string
   TableID: number
   Amount: number
   status?: number
@@ -153,20 +154,20 @@ export interface ReverseKOTItem {
 }
 
 
-// Since HttpClient interceptor returns response.data directly, 
-// these types should NOT have ApiResponse wrapper
-export type BillDetailsResponse = {
+// HttpClient interceptor returns response.data directly, which IS the ApiResponse object
+// So these types should be wrapped in ApiResponse
+export type BillDetailsResponse = ApiResponse<{
   details: BillItem[]
   reversedItems: BillItem[]
   header: BillHeader
-}
+}>
 
-export type UnbilledItemsResponse = {
+export type UnbilledItemsResponse = ApiResponse<{
   items: BillItem[]
   reversedItems: BillItem[]
   header: BillHeader
   kotNo?: number
-}
+}>
 
 /* ─────────────── KOT Payload ─────────────── */
 
