@@ -277,6 +277,7 @@ export interface UnbilledItemsResponse {
 export interface BillStatusResponse {
   isBilled?: number
   isSetteled?: number
+  TxnID?: number
   TxnNo?: string
   Amount?: number
   BilledDate?: string

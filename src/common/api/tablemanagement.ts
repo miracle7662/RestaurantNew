@@ -1,34 +1,84 @@
-import { HttpClient } from '../helpers'
+/**
+ * Table Management Service - Clean API service for restaurant table operations
+ * Uses HttpClient with interceptors for authentication
+ * Returns ApiResponse<T> for consistent response handling
+ */
 
-type TableManagementPayload = {
-  tableid?: number
+import HttpClient from '../helpers/httpClient'
+import { ApiResponse } from '@/types/api'
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+ * Type Definitions
+ * ═══════════════════════════════════════════════════════════════════════════════ */
+
+/** Table information */
+export interface Table {
+  tableid: number
   table_name: string
-  outletid: string
-  hotelid: string
-  departmentid: string
-  marketid: string
+  table_no?: string
+  outletid: number
+  hotelid: number
+  departmentid: number
+  marketid: number
   status: number
+  capacity?: number
+  minCapacity?: number
   created_by_id?: string
   created_date?: string
   updated_by_id?: string
   updated_date?: string
 }
 
-function TableManagementService() {
-  return {
-    list: (params?: { q?: string, search?: string }) => {
-      return HttpClient.get('/tablemanagement', { params })
-    },
-    create: (payload: TableManagementPayload) => {
-      return HttpClient.post('/tablemanagement', payload)
-    },
-    update: (id: number, payload: TableManagementPayload) => {
-      return HttpClient.put(`/tablemanagement/${id}`, payload)
-    },
-    remove: (id: number) => {
-      return HttpClient.delete(`/tablemanagement/${id}`)
-    },
-  }
+/** Table management payload */
+export interface TableManagementPayload {
+  tableid?: number
+  table_name: string
+  table_no?: string
+  outletid: string | number
+  hotelid: string | number
+  departmentid: string | number
+  marketid: string | number
+  status: number
+  capacity?: number
+  minCapacity?: number
+  created_by_id?: string
+  created_date?: string
+  updated_by_id?: string
+  updated_date?: string
 }
 
-export default TableManagementService()
+/* ═══════════════════════════════════════════════════════════════════════════════
+ * Table Management Service
+ * ═══════════════════════════════════════════════════════════════════════════════ */
+
+const TableManagementService = {
+  /* ═══════════════════════════════════════════════════════════════════════════
+   * CRUD Operations
+   * ═══════════════════════════════════════════════════════════════════════════ */
+
+  /**
+   * Get all tables with optional filters
+   */
+  list: (params?: { q?: string; search?: string }): Promise<ApiResponse<Table[]>> =>
+    HttpClient.get<ApiResponse<Table[]>>('/tablemanagement', { params }),
+
+  /**
+   * Create a new table
+   */
+  create: (payload: TableManagementPayload): Promise<ApiResponse<Table>> =>
+    HttpClient.post<ApiResponse<Table>>('/tablemanagement', payload),
+
+  /**
+   * Update an existing table
+   */
+  update: (id: number, payload: TableManagementPayload): Promise<ApiResponse<Table>> =>
+    HttpClient.put<ApiResponse<Table>>(`/tablemanagement/${id}`, payload),
+
+  /**
+   * Delete a table
+   */
+  remove: (id: number): Promise<ApiResponse<null>> =>
+    HttpClient.delete<ApiResponse<null>>(`/tablemanagement/${id}`)
+}
+
+export default TableManagementService

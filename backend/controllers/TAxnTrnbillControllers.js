@@ -1696,7 +1696,7 @@ exports.getUnbilledItemsByTable = async (req, res) => {
         `
       SELECT TxnID
       FROM TAxnTrnbill
-      WHERE TableID = ? AND isBilled in (0,1) AND isCancelled = 0 AND isSetteled = 0
+      WHERE TableID = ? AND isBilled = 0 AND isCancelled = 0 AND isSetteled = 0
       ORDER BY TxnID DESC LIMIT 1
     `,
       )
@@ -1741,7 +1741,7 @@ exports.getUnbilledItemsByTable = async (req, res) => {
       LEFT JOIN msttablemanagement t ON d.TableID = t.tableid
       JOIN TAxnTrnbill b ON d.TxnID = b.TxnID
       LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
-      WHERE b.TableID = ? AND b.isBilled in (1,0)   AND b.issetteled = 0 AND b.isNCKOT = 0 AND  d.isCancelled = 0
+      WHERE b.TableID = ? AND b.isBilled = 0   AND b.issetteled = 0 AND b.isNCKOT = 0 AND  d.isCancelled = 0
       `,
       )
       .all(Number(tableId))
@@ -2347,7 +2347,7 @@ exports.getLatestBilledBillForTable = async (req, res) => {
       FROM TAxnTrnbilldetails d
       JOIN TAxnTrnbill b ON d.TxnID = b.TxnID
       LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
-      WHERE b.TableID = ? AND b.isBilled = 0 AND b.isCancelled = 0 AND d.isCancelled = 0
+      WHERE b.TableID = ? AND b.isBilled =  0 AND b.isCancelled = 0 AND d.isCancelled = 0
     `,
       )
       .all(Number(tableId))
@@ -2378,7 +2378,7 @@ exports.getLatestBilledBillForTable = async (req, res) => {
 
     // Respond with the main billed transaction header, all items, and the reversed items
     res.json(
-      ok('Fetched billed and unbilled items for the table', {
+      ok('Fetched billed items for the table', {
         ...bill,
         details: combinedDetails,
         reversedItems: reversedItemsRows,

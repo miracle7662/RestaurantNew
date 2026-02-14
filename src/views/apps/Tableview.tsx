@@ -5,6 +5,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Modal, Button } from 'react-bootstrap';
 import TableManagementService from '@/common/api/tablemanagement';
 import TableDepartmentService from '@/common/api/tabledepartment';
+import OrderService from '@/common/api/order';
 
 // Types
 type TableStatus = 'blank' | 'running' | 'printed' | 'paid' | 'running-kot' | 'occupied' | 'available' | 'reserved';
@@ -139,7 +140,7 @@ export default function App() {
           return;
         }
         const response = await TableManagementService.list();
-        console.log('Raw tableItems data:', JSON.stringify(response, null, 2));
+        console.log('TableManagement API response:', response);
         if (response.success && Array.isArray(response.data)) {
             const filteredData = response.data.filter((t: any) => t.hotelid === user.hotelid);
             if (filteredData.length > 0) {
@@ -147,9 +148,10 @@ export default function App() {
                 filteredData.map(async (item: any) => {
                   let status = Number(item.status);
 
-                  // Fetch bill status for each table from backend
-                  const res = await fetch(`http://localhost:3001/api/TAxnTrnbill/bill-status/${item.tableid}`);
-                  const data = await res.json();
+                  // Fetch bill status for each table from backend using OrderService
+                  const response = await OrderService.getBillStatus(item.tableid);
+                  const data = response;
+                  console.log(`Bill status for table ${item.tableid}:`, data);
 
                   let txnId: number | null = null;
                   let billNo: string | null = null;
