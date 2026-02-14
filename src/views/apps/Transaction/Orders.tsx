@@ -310,9 +310,9 @@ const Order = () => {
       // Step 1: Try to fetch the latest billed (but not settled) bill
       const billedBillRes = await OrderService.getBilledBillByTable(tableIdNum);
 
-      if (billedBillRes.success) {
+      if (billedBillRes.success && billedBillRes.data) {
         const billedBillData = billedBillRes.data;
-        if (billedBillData && billedBillData.details && billedBillData.header) {
+        if (billedBillData.details && billedBillData.header) {
           const header = billedBillData.header;
           const details = billedBillData.details;
           const fetchedItems: MenuItem[] = details.map((item: any) => {

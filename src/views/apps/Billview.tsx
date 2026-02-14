@@ -816,7 +816,7 @@ const ModernBill = () => {
       }
 
       // Map items to BillItem interface
-      const mappedItems: BillItem[] = data.details.map((item: any) => {
+      const mappedItems: BillItem[] = (data.details || []).map((item: any) => {
         const qty = item.netQty || item.Qty || 0;
         const rate = item.RuntimeRate || item.price || item.Price || item.Rate || 0;
         const total = qty * rate;
@@ -938,7 +938,7 @@ const ModernBill = () => {
       }
 
       // Compute max RevKOTNo from details for unbilled orders
-      const reversedDetails = data.details.filter((d: any) => d.RevQty > 0);
+      const reversedDetails = (data.details || []).filter((d: any) => d.RevQty > 0);
       const maxRevKotNo = reversedDetails.length > 0 ? Math.max(...reversedDetails.map((d: any) => d.RevKOTNo || 0)) : 0;
       setRevKotNo(maxRevKotNo);
 
@@ -1795,7 +1795,7 @@ fetchMenuItems();
       })),
       userId: user?.id,
       reversalReason: 'Reverse from Billview',
-    });
+    });                 
     console.log('Reverse KOT API response:', result);
 
     // Since HttpClient returns response.data directly
