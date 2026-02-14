@@ -145,13 +145,16 @@ exports.deleteCustomer = (req, res) => {
 };
 
 // Get customer by mobile number
-// Get customer by mobile number
 exports.getCustomerByMobile = (req, res) => {
   try {
     const { mobile } = req.query;
 
     if (!mobile) {
-      return res.status(400).json({ error: "Mobile number is required" });
+      return res.status(400).json({ 
+        success: false, 
+        data: null, 
+        message: "Mobile number is required" 
+      });
     }
 
     const stmt = db.prepare(`
@@ -163,13 +166,26 @@ exports.getCustomerByMobile = (req, res) => {
     const customer = stmt.get(mobile);
 
     if (customer) {
-      res.json(customer);
+      res.json({ 
+        success: true, 
+        data: customer, 
+        message: "Customer found" 
+      });
     } else {
-      res.status(404).json({ error: "Customer not found" });
+      res.json({ 
+        success: false, 
+        data: null, 
+        message: "Customer not found" 
+      });
     }
   } catch (err) {
     console.error("Error fetching customer:", err);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ 
+      success: false, 
+      data: null, 
+      message: "Internal server error", 
+      error: err.message 
+    });
   }
 };
 
