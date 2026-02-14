@@ -14,8 +14,7 @@ import BillPreviewPrint from './PrintReport/BillPrint';
 import { OutletSettings } from '../../utils/applyOutletSettings';
 import { fetchKotPrintSettings, } from '@/services/outletSettings.service';
 import { applyKotSettings, } from '@/utils/applyOutletSettings';
-
-import OrdernewService from '@/common/api/ordernew';
+import TableManagementService from '@/common/api/tablemanagement';
 import OrderService from '@/common/api/order';
 import MenuItemService from '@/common/api/menu';
 
@@ -522,7 +521,7 @@ const ModernBill = () => {
   }
 
   try {
-    const res = await OrdernewService.getCustomerByMobile(value.trim());
+    const res = await OrderService.getCustomerByMobile(value.trim());
 
     if (res.success && res.data) {
       setCustomerName(res.data.name || '');
@@ -549,7 +548,7 @@ const ModernBill = () => {
   setF9BilledPasswordError('');
 
   try {
-    const response = await OrdernewService.verifyCreatorPassword(password);
+    const response = await OrderService.verifyCreatorPassword(password);
 
     if (response.success) {
       setShowF9BilledPasswordModal(false);
@@ -574,7 +573,7 @@ const ModernBill = () => {
   setF8RevKotPasswordError('');
 
   try {
-    const response = await OrdernewService.verifyCreatorPassword(password);
+    const response = await OrderService.verifyCreatorPassword(password);
 
     if (response.success) {
       setShowF8RevKotPasswordModal(false);
@@ -599,7 +598,7 @@ const ModernBill = () => {
   }
 
   try {
-    const reverseResponse = await OrdernewService.reverseBill(txnId, {
+    const reverseResponse = await OrderService.reverseBill(txnId, {
       userId: user.id
     });
 
@@ -812,7 +811,7 @@ const ModernBill = () => {
     try {
       const response = await OrderService.getBillById(Number(orderId));
       
-      const data = response.data?.data || response.data;
+      const data = response.data || response;
       if (!data) {
         throw new Error('No data received from server');
       }
@@ -894,7 +893,7 @@ const ModernBill = () => {
       console.log('Takeaway API Response Header:', data.header);
       if (data.header) {
         setTxnId(data.header.TxnID);
-        setOrderNo(data.header.TxnNo || data.header.orderNo);
+        setOrderNo(data.header.TxnNo ?? data.header.orderNo);
         setWaiter(data.header.waiter || 'ASD');
         setPax(data.header.pax || data.header.PAX || 1);
         if (data.header.CustomerName) setCustomerName(data.header.CustomerName);
@@ -920,9 +919,9 @@ const ModernBill = () => {
         if (data.header.Discount || data.header.DiscPer) {
           setDiscount(data.header.Discount || 0);
           setDiscPer(data.header.DiscPer || 0);
-          setDiscountInputValue(
-            data.header.DiscountType === 1 ? data.header.DiscPer : data.header.Discount || 0
-          );
+         setDiscountInputValue(
+  data.header.DiscountType === 1 ? data.header.DiscPer ?? 0 : data.header.Discount ?? 0
+);
           setDiscountType(data.header.DiscountType ?? 1);
         } else {
           setDiscount(0);
@@ -932,11 +931,11 @@ const ModernBill = () => {
         setRevKOT(data.header?.RevKOT ?? 0);
 
         // ── NEW TAX & TOTAL FIELDS ──
-        setCgst?.(data.header.CGST || data.header.cgst || 0);
-        setSgst?.(data.header.SGST || data.header.sgst || 0);
-        setIgst?.(data.header.IGST || data.header.igst || 0);
-        setCess?.(data.header.CESS || data.header.cess || 0);
-        setRoundOff?.(data.header.RoundOFF || data.header.roundOff || data.header.roundoff || 0);
+        setCgst?.(data.header.CGST || data.header.CGST || 0);
+        setSgst?.(data.header.SGST || data.header.SGST || 0);
+        setIgst?.(data.header.IGST || data.header.IGST || 0);
+        setCess?.(data.header.CESS || data.header.CESS || 0);
+        setRoundOff?.(data.header.RoundOFF || data.header.RoundOFF || 0);
       }
 
       // Compute max RevKOTNo from details for unbilled orders
@@ -971,9 +970,9 @@ const ModernBill = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await OrdernewService.getUnbilledItemsByTable(tableIdNum);
+      const response = await OrderService.getUnbilledItemsByTable(tableIdNum);
      
-      const data = response.data?.data || response.data;
+        const data = response.data || response;
       if (!data) {
         throw new Error('No data received from server');
       }
@@ -1064,9 +1063,9 @@ const ModernBill = () => {
         if (data.header.Discount || data.header.DiscPer) {
           setDiscount(data.header.Discount || 0);
           setDiscPer(data.header.DiscPer || 0);
-          setDiscountInputValue(
-            data.header.DiscountType === 1 ? data.header.DiscPer : data.header.Discount || 0
-          );
+        setDiscountInputValue(
+  (data.header.DiscountType === 1 ? data.header.DiscPer : data.header.Discount || 0) as number
+);
           setDiscountType(data.header.DiscountType ?? 1);
         } else {
           setDiscount(0);
@@ -1078,12 +1077,12 @@ const ModernBill = () => {
         }
 
         // ── NEW TAX & TOTAL FIELDS ──
-        setCgst?.(data.header.CGST || data.header.cgst || 0);
-        setSgst?.(data.header.SGST || data.header.sgst || 0);
-        setIgst?.(data.header.IGST || data.header.igst || 0);
-        setCess?.(data.header.CESS || data.header.cess || 0);
-        setRoundOff?.(data.header.RoundOFF || data.header.roundOff || data.header.roundoff || 0);
-        setFinalAmount(data.header.Amount || data.header.amount || data.header.grandTotal || 0);
+        setCgst?.(data.header.CGST || data.header.CGST || 0);
+        setSgst?.(data.header.SGST || data.header.SGST || 0);
+        setIgst?.(data.header.IGST || data.header.IGST || 0);
+        setCess?.(data.header.CESS || data.header.CESS || 0);
+        setRoundOff?.(data.header.RoundOFF || data.header.RoundOFF || 0);
+        setFinalAmount(data.header.Amount || data.header.Amount || data.header.grandTotal || 0);
       }
 
 
@@ -1177,7 +1176,7 @@ const ModernBill = () => {
         if (!user || !user.hotelid) {
           throw new Error('User not authenticated or hotel ID missing');
         }
-        await OrdernewService.getOutletsByHotel(user.hotelid);
+        await OrderService.getOutletsByHotel(user.hotelid);
         // Set default restaurant and outlet names from user's outlet
         if (user?.outletid && !restaurantName && !outletName) {
           await fetchOutletDetails(user.outletid);
@@ -1196,7 +1195,7 @@ const ModernBill = () => {
   const fetchOutletDetails = async (outletId: number) => {
     try {
       console.log('Fetching outlet details for ID:', outletId);
-      const response = await OrdernewService.getOutletById(outletId);
+      const response = await OrderService.getOutletById(outletId);
       const outletData = response.data.data || response.data;
       console.log('Outlet API response:', outletData);
       setRestaurantName(outletData.brand_name || outletData.hotel_name || user?.hotel_name || 'Restaurant Name');
@@ -1214,7 +1213,7 @@ const ModernBill = () => {
     try {
       if (!selectedOutletId) return;
 
-      const response = await OrdernewService.getPaymentModesByOutlet(selectedOutletId);
+      const response = await OrderService.getPaymentModesByOutlet(selectedOutletId);
 
       if (Array.isArray(response)) {
         setOutletPaymentModes(response);
@@ -1240,7 +1239,7 @@ const ModernBill = () => {
     try {
       if (!selectedOutletId) return;
 
-      const response = await OrdernewService.getGlobalKOTNumber(selectedOutletId);
+      const response = await OrderService.getGlobalKOTNumber(selectedOutletId);
 
       const nextKOT = response.data.nextKOT; // ✅ FIXED
 
@@ -1260,7 +1259,7 @@ const ModernBill = () => {
       if (!selectedOutletId) return;
 
       try {
-        const response = await OrdernewService.getTaxDetails(selectedOutletId);
+        const response = await OrderService.getTaxDetails(selectedOutletId);
         setCgstRate(response.data.cgst_rate || 2.5);
         setSgstRate(response.data.sgst_rate || 2.5);
         setIgstRate(response.data.igst_rate || 0);
@@ -1292,7 +1291,7 @@ const ModernBill = () => {
       // Fetch outlet settings for Reverse Qty Mode
       const fetchReverseQtySetting = async () => {
         try {
-          const response = await OrdernewService.getOutletSettings(selectedOutletId);
+          const response = await OrderService.getOutletSettings(selectedOutletId);
           if (response.success && response.data) {
             const settings = response.data;
             setReverseQtyConfig(settings.ReverseQtyMode === 1 ? 'PasswordRequired' : 'NoPassword');
@@ -1345,9 +1344,11 @@ const ModernBill = () => {
     if (!user?.hotelid || !selectedOutletId) return;
 
     const data = await MenuItemService.list({
+      
       hotelid: user.hotelid,
       outletid: selectedOutletId,
     });
+    
 
     setMenuItems(data); // ✅ Already MenuItem[]
   } catch (error) {
@@ -1366,7 +1367,7 @@ fetchMenuItems();
         console.log('selectedOutletId:', selectedOutletId);
         if (!selectedOutletId) return;
 
-        const response = await OrdernewService.getWaiterUsers(selectedOutletId);
+        const response = await OrderService.getWaiterUsers(selectedOutletId);
         const waiters = Array.isArray(response) ? response : response?.data || [];
         console.log('Fetched waiter users:', waiters);
         setWaiterUsers(waiters);
@@ -1609,12 +1610,12 @@ fetchMenuItems();
         userId: user.id,
         hotelId: user.hotelid,
         KOTNo: editableKot, // Use editableKot if set, else null for backend to generate
-  Order_Type: isTakeaway ? (deliveryType === 'pickup' ? 'Pickup' : 'Delivery') : 'Dine-in',
-  Steward: waiter,
-  PAX: pax,
-        CustomerName: customerName || null,
-        MobileNo: customerNo || null,
-        customerid: customerId || null,
+        Order_Type: isTakeaway ? (deliveryType === 'pickup' ? 'Pickup' : 'Delivery') : 'Dine-in',
+        Steward: waiter,
+        PAX: pax,
+        CustomerName: customerName ,
+        MobileNo: customerNo ,
+        customerid: customerId,
         discount: discount,
         discPer: discountInputValue,
         discountType: DiscountType,
@@ -1646,7 +1647,7 @@ fetchMenuItems();
 
       console.log("📤 KOT Payload being sent:", payload);
 
-      const res = await OrdernewService.createKOT(payload);
+      const res = await OrderService.createKOT(payload);
 
       console.log("📥 RAW KOT API RESPONSE:", res);
       console.log("📥 res.data:", res?.data);
@@ -1683,7 +1684,7 @@ fetchMenuItems();
       // Set table status to occupied (green)
       if (tableId) {
         try {
-          await axios.put(`/api/tablemanagement/${tableId}/status`, { status: 1 });
+         await OrderService.updateTableStatus(tableId, { status: 1 });
         } catch (error) {
           console.error('Error updating table status:', error);
         }
@@ -1738,7 +1739,7 @@ fetchMenuItems();
 
     setLoading(true);
     try {
-      const result = await OrdernewService.applyNCKOT(txnId, { NCName: ncName, NCPurpose: ncPurpose, userId: user?.id });
+      const result = await OrderService.applyNCKOT(txnId, { NCName: ncName, NCPurpose: ncPurpose, userId: user?.id });
 
       if (result.success) {
         toast.success('NCKOT applied successfully to all items.');
@@ -1746,7 +1747,7 @@ fetchMenuItems();
         // ✅ 1️⃣ TABLE KO VACANT KARO (FRONTEND)
         // Explicitly set table status to vacant (0) after NCKOT
         if (tableId) {
-          await OrdernewService.updateTableStatus(tableId, { status: 0 });
+          await OrderService.updateTableStatus(tableId, { status: 0 });
         }
         await fetchTableManagement();
 
@@ -1783,7 +1784,7 @@ fetchMenuItems();
   console.log('Modal sending:', reverseItemsFromModal);
 
   try {
-    const result = await OrdernewService.createReverseKOT({
+    const result = await OrderService.createReverseKOT({
       txnId,
       tableId,
       kotType: 'REVERSE',
@@ -1806,7 +1807,7 @@ fetchMenuItems();
       return;
     }
 
-    const reverseKotNo = result.reverseKotNo;
+    const reverseKotNo = result?.data?.revkotNo;
 
     toast.success(`Reverse KOT ${reverseKotNo ?? ''} saved`);
 
@@ -1816,7 +1817,7 @@ fetchMenuItems();
 
     // Update table status to occupied
     try {
-       await OrdernewService.updateTableStatus(tableId, { status: 1 });
+       await OrderService.updateTableStatus(tableId, { status: 1 });
     } catch (error) {
       console.error('Error updating table status:', error);
     }
@@ -1896,14 +1897,14 @@ fetchMenuItems();
 
     try {
       // 1️⃣ Call mark-billed API to generate TxnNo
-      const response = await OrdernewService.markBillAsBilled(txnId, {
+      const response = await OrderService.markBillAsBilled(txnId, {
         outletId: selectedOutletId || Number(user?.outletid),
         customerName: customerName || null,
         mobileNo: customerNo || null,
         customerid: customerId || null,
       });
 
-      const txnNo = response.data?.TxnNo;
+      const txnNo = response.data?.data?.TxnNo;
       if (!txnNo) {
         toast.error('TxnNo not generated');
         return;
@@ -1914,7 +1915,7 @@ fetchMenuItems();
       toast.success('Bill printed successfully');
 
       // 4️⃣ Table status update
-      await OrdernewService.updateTableStatus(tableId, { status: 1 });
+      await OrderService.updateTableStatus(tableId, { status: 1 });
 
       // 5️⃣ Open Settlement Modal with all values
       setShowSettlementModal(true);
@@ -1940,7 +1941,7 @@ fetchMenuItems();
 
   const fetchTableManagement = async () => {
     try {
-      const response = await OrdernewService.getTableManagementById(user?.hotelid, );
+      const response = await TableManagementService.list();
       setTableItems(response.data);
     } catch (error) {
       console.error('Error fetching table management:', error);
@@ -2011,10 +2012,16 @@ fetchMenuItems();
         discPer: appliedDiscPer,
         discountType: DiscountType,
         tableId: tableId,
-        items: billItems.filter(item => item.itemId > 0).map(item => ({ ...item, price: item.rate })), // Send current items to recalculate on backend
-      };
+        items: billItems.filter(item => item.itemId > 0).map(item => ({
+    ItemID: item.itemId,
+    Name: item.itemName,
+    Qty: item.qty,
+    RuntimeRate: item.rate,
+    Amount: item.total,
+    ...item, // include all other properties
+  })),      };
 
-      const response = await OrdernewService.applyDiscount(txnId, payload);
+      const response = await OrderService.applyDiscount(txnId, payload);
       console.log('Apply Discount API response:', response);
 
       const result = response.data;
@@ -2081,7 +2088,7 @@ fetchMenuItems();
       }));
 
       // 2. Call the settlement endpoint
-     await OrdernewService.settleBill(txnId, {
+     await OrderService.settleBill(txnId, {
   bill_amount: taxCalc.grandTotal,
   total_received: totalReceived,
   total_refund: refundAmount,
@@ -2114,7 +2121,7 @@ fetchMenuItems();
       if (selectedTable) {
         const tableToUpdate = tableItems.find(t => t.table_name === selectedTable.name);
         if (tableToUpdate) {
-          await OrdernewService.updateTableStatus(tableToUpdate.tablemanagementid, {
+          await OrderService.updateTableStatus(tableToUpdate.tablemanagementid, {
             status: 0 // 0 for Vacant
           });
         }
@@ -3503,7 +3510,7 @@ fetchMenuItems();
           toast.success("Bill printed successfully");
 
           // Table status update AFTER print
-          await OrdernewService.updateTableStatus(tableId, { status: 1 });
+          await OrderService.updateTableStatus(tableId, { status: 1 });
 
           setShowBillPrintModal(false);
 

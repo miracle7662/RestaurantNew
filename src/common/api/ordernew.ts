@@ -142,6 +142,8 @@ export type BillHeader = {
   Amount?: number
   grandTotal?: number
   Status?: number
+  hotel_name?: string
+  outlet_name?: string
 }
 
 export interface ReverseKOTItem {
@@ -172,7 +174,7 @@ export type UnbilledItemsResponse = ApiResponse<{
 /* ─────────────── KOT Payload ─────────────── */
 
 export type CreateKOTPayload = {
-   TxnID: number
+   TxnID?: number
 
   tableId: number | null
   table_name?: string | null

@@ -4,6 +4,7 @@
  * Returns ApiResponse<T> for consistent response handling
  */
 
+import { kMaxLength } from 'node:buffer'
 import HttpClient from '../helpers/httpClient'
 import { ApiResponse } from '@/types/api'
 
@@ -36,13 +37,13 @@ export interface BillDetail {
 export interface BillItem {
   ItemID: number
   Name: string
-  item_no?: string
+  item_no?: number
   Qty: number
   RuntimeRate: number
   Amount: number
   AutoKOT?: boolean
   ManualKOT?: boolean
-  SpecialInst?: string
+  SpecialInst?: string | null
   DeptID?: number
   HotelID?: number
   isReversed?: boolean
@@ -53,7 +54,7 @@ export interface BillItem {
   Landmark?: string
   TxnNo?: string
   isBilled?: number
-  isNCKOT?: number
+  isNCKOT?: boolean
   NCName?: string
   NCPurpose?: string
   RevQty?: number
@@ -65,6 +66,8 @@ export interface BillItem {
   price?: number
   itemId?: number
   reversalLogId?: number
+ 
+  
 }
 
 /** Bill header information */
@@ -100,6 +103,9 @@ export interface BillHeader {
   grandTotal?: number
   Status?: number
   BilledDate?: string
+  hotel_name?: string
+  outlet_name?: string
+  orderNo?: string
 }
 
 /** Create bill payload */
@@ -171,7 +177,7 @@ export interface KOTItem {
 
 /** Create KOT payload */
 export interface CreateKOTPayload {
-  txnId: number
+  txnId?: number
   tableId: number | null
   table_name?: string | null
   items: BillItem[]
@@ -192,6 +198,7 @@ export interface CreateKOTPayload {
   Steward?: string
   PAX?: number | null
   DeptID?: number
+  
 }
 
 /** Reverse KOT item */
@@ -203,6 +210,7 @@ export interface ReverseKOTItem {
   price: number
   itemId?: number
   itemName?: string
+  revkotNo?: number
 }
 
 /** Tax rates */
