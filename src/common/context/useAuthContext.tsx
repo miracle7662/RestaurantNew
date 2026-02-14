@@ -49,6 +49,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const saveSession = useCallback(
     (user: User) => {
       localStorage.setItem(authSessionKey, JSON.stringify(user))
+      // Also save the token separately for httpClient to access
+      if (user.token) {
+        localStorage.setItem("token", user.token)
+      }
       setUser(user)
     },
     [setUser],
