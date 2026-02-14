@@ -16,7 +16,6 @@ import { fetchKotPrintSettings, } from '@/services/outletSettings.service';
 import { applyKotSettings, } from '@/utils/applyOutletSettings';
 import TableManagementService from '@/common/api/tablemanagement';
 import OrderService from '@/common/api/order';
-import MenuItemService from '@/common/api/menu';
 
 
 const KOT_COLORS = [
@@ -1338,27 +1337,22 @@ const ModernBill = () => {
   }, [location.state]);
 
   // Fetch menu items
+  // Fetch menu items
   useEffect(() => {
-   const fetchMenuItems = async () => {
-  try {
-    if (!user?.hotelid || !selectedOutletId) return;
-
-    const data = await MenuItemService.list({
-      
-      hotelid: user.hotelid,
-      outletid: selectedOutletId,
-    });
-    
-
-    setMenuItems(data); // ✅ Already MenuItem[]
-  } catch (error) {
-    console.error('Failed to fetch menu items:', error);
-  }
-};
-
-fetchMenuItems();
-
+    const fetchMenuItems = async () => {
+      try {
+        if (!user || !user.hotelid || !selectedOutletId) {
+          return;
+        }
+        const response = await axios.get(`/api/menu?outletid=${selectedOutletId}`);
+        setMenuItems(response.data.data || response.data);
+      } catch (error) {
+        console.error('Failed to fetch menu items:', error);
+      }
+    };
+    fetchMenuItems();
   }, [selectedOutletId, user]);
+
 
   // Fetch waiter users
   useEffect(() => {
@@ -1940,13 +1934,18 @@ fetchMenuItems();
   };
 
   const fetchTableManagement = async () => {
-    try {
-      const response = await TableManagementService.list();
-      setTableItems(response.data);
-    } catch (error) {
-      console.error('Error fetching table management:', error);
-    }
-  };
+  try {
+    const response = await TableManagementService.list();
+    const tableManagementData = response.data.map(table => ({
+      ...table,
+      tablemanagementid: table.tableid || 0, // Add the missing property
+      // Add any other required properties here
+    }));
+    setTableItems(tableManagementData);
+  } catch (error) {
+    console.error('Error fetching table management:', error);
+  }
+};
 
 
 
