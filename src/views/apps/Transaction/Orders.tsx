@@ -2,11 +2,9 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Button, Modal, Table, Card, Row, Col, Spinner } from "react-bootstrap";
 import { fetchOutletsForDropdown, fetchCustomerByMobile } from "@/utils/commonfunction";
 import { useAuthContext } from "@/common";
-import { getUnbilledItemsByTable } from "@/common/api/orders_old";
 import { OutletData } from "@/common/api/outlet";
 import AddCustomerModal from "./Customers";
 import { toast } from "react-hot-toast";
-import { createKOT, getPendingOrders, getSavedKOTs, getTaxesByOutletAndDepartment } from "@/common/api/orders_old";
 import OrderDetails from "./OrderDetails";
 import F8PasswordModal from "@/components/F8PasswordModal";
 import KotTransfer from "./KotTransfer";
@@ -393,7 +391,7 @@ const Order = () => {
       }
 
       // Step 2: If no billed bill found (e.g., 404), fetch unbilled items (existing logic)
-        const unbilledItemsRes = await getUnbilledItemsByTable(tableIdNum);
+        const unbilledItemsRes = await OrderService.getUnbilledItemsByTable(tableIdNum);
 
       if (unbilledItemsRes.success && unbilledItemsRes.data && Array.isArray(unbilledItemsRes.data.items)) {
         const fetchedItems: MenuItem[] = unbilledItemsRes.data.items.map((item: any) => {
@@ -612,7 +610,7 @@ const Order = () => {
   useEffect(() => {
     (async () => {
       try {
-        const resp = await getSavedKOTs({ isBilled: 0 });
+        const resp = await OrderService.getSavedKOTs({ isBilled: 0 });
         const list = resp?.data || resp;
         if (Array.isArray(list)) setSavedKOTs(list);
       } catch (err) {
@@ -1062,7 +1060,7 @@ const Order = () => {
     (async () => {
       try {
         console.log('Fetching taxes for:', { selectedDeptId, selectedOutletId });
-        const resp = await getTaxesByOutletAndDepartment({ outletid: selectedOutletId ?? undefined, departmentid: selectedDeptId });
+        const resp = await OrderService.getTaxesByOutletAndDepartment({ outletid: selectedOutletId ?? undefined, departmentid: selectedDeptId });
         console.log('Tax API response:', resp);
         if (resp?.success && resp?.data?.taxes) {
           const t = resp.data.taxes;
@@ -1513,7 +1511,7 @@ const Order = () => {
       // For non-dine-in tabs, ensure tax rates are loaded for the resolved department
       if (['Pickup', 'Delivery', 'Quick Bill'].includes(activeTab) && resolvedOutletId && resolvedDeptId) {
         try {
-          const taxResp = await getTaxesByOutletAndDepartment({
+          const taxResp = await OrderService.getTaxesByOutletAndDepartment({
             outletid: resolvedOutletId,
             departmentid: resolvedDeptId
           });
@@ -1640,7 +1638,7 @@ const Order = () => {
 
       console.log('TxnDatetime from useAuthContext:', user?.curr_date);
       console.log('Sending payload to createKOT:', JSON.stringify(kotPayload, null, 2));
-      const resp = await createKOT(kotPayload);
+      const resp = await OrderService.createKOT(kotPayload);
       if (resp?.success) {
         // Debugging: Log the entire data response to check field names
         console.log("KOT SAVE RESPONSE: ", resp.data);
@@ -1653,10 +1651,10 @@ const Order = () => {
           setOrderNo(orderNo ?? null);
           setCurrentTxnId(TxnID ?? null);
           // Robustly set KOT number, checking for different possible casings
-          const receivedKotNo = resp.data.kotNo ??
+          const receivedKotNo = resp.data.KOTNo ??
             resp.data.KOTNo ??
-            resp.data.kotno ??
-            resp.data.kot_no ??
+            resp.data.KOTNo ??
+            resp.data.KOTNo ??
             null;
           setCurrentKOTNo(receivedKotNo);
 
@@ -1734,7 +1732,7 @@ const Order = () => {
         }
 
         // Refresh saved KOTs list in the background without blocking UI
-        getSavedKOTs({ isBilled: 0 })
+        OrderService.getSavedKOTs({ isBilled: 0 })
           .then(listResp => {
             const list = listResp?.data || listResp;
             if (Array.isArray(list)) setSavedKOTs(list);
@@ -2614,7 +2612,7 @@ const Order = () => {
     setLoadingPending(true);
     setErrorPending(null);
     try {
-      const data = await getPendingOrders(type);
+      const data = await OrderService.getPendingOrders(type);
       if (data.success) {
         setPendingOrders(data.data);
       } else {
@@ -4206,7 +4204,7 @@ const Order = () => {
           </div>
           <Modal show={showSavedKOTsModal} onHide={() => setShowSavedKOTsModal(false)} centered size="lg" onShow={async () => {
             try {
-              const resp = await getSavedKOTs({ isBilled: 0 })
+              const resp = await OrderService.getSavedKOTs({ isBilled: 0 })
               const list = resp?.data || resp
               if (Array.isArray(list)) setSavedKOTs(list)
             } catch (err) {

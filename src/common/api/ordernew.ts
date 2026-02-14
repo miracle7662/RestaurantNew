@@ -15,6 +15,7 @@ export type Bill = {
   message: string
   data: {
   TxnID: number
+  TxnNo: number
   TableID: number
   Amount: number
   status?: number
