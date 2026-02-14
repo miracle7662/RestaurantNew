@@ -650,10 +650,12 @@ const ModernBill = () => {
     try {
       // STEP 1: try billed bill first
       try {
-        const billedBillRes = await OrdernewService.getBilledBillByTable(tableIdNum);
-        const billedBillData = billedBillRes.data;
-         if (billedBillData && billedBillData.details && billedBillData.header) {
-          const header = billedBillData.header;
+        const billedBillRes = await OrderService.getBilledBillByTable(tableIdNum);
+        // Handle both response formats: nested data or direct data
+        const billedBillData = billedBillRes.data || billedBillRes.data;
+         if (billedBillData && billedBillData.details) {
+          // Header properties are at top level (spread from ...bill in backend)
+          const header = billedBillData.header || billedBillData;
           const details = billedBillData.details;
             const fetchedItems: FetchedItem[] = details
               .map((item: any) => ({
@@ -729,7 +731,7 @@ const ModernBill = () => {
             setPax(header.pax || header.PAX || 1);
             setTableNo(header.table_name || tableName);
             if (header.RevKOTNo) {
-              setRevKotNo(header.RevKOTNo);
+              setRevKotNo(Number(header.RevKOTNo));
             }
             if (header.CustomerName) setCustomerName(header.CustomerName);
             if (header.MobileNo) setCustomerNo(header.MobileNo);
@@ -808,7 +810,7 @@ const ModernBill = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await OrdernewService.getBillById(Number(orderId));
+      const response = await OrderService.getBillById(Number(orderId));
       
       const data = response.data?.data || response.data;
       if (!data) {

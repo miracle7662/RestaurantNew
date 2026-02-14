@@ -312,8 +312,9 @@ const Order = () => {
 
       if (billedBillRes.success && billedBillRes.data) {
         const billedBillData = billedBillRes.data;
-        if (billedBillData.details && billedBillData.header) {
-          const header = billedBillData.header;
+        if (billedBillData.details) {
+          // Header properties are at top level (spread from ...bill in backend)
+          const header = billedBillData.header || billedBillData;
           const details = billedBillData.details;
           const fetchedItems: MenuItem[] = details.map((item: any) => {
             const originalQty = Number(item.Qty) || 0;
