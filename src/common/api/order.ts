@@ -503,7 +503,7 @@ const OrderService = {
    * Get outlet settings
    */
   getOutletSettings: (outletId: number): Promise<ApiResponse<OutletSettings>> =>
-    HttpClient.get<ApiResponse<OutletSettings>>(`/outlets/outlet-settings`, { params: { outletid: outletId } }),
+    HttpClient.get<ApiResponse<OutletSettings>>(`/outlets/outlet-settings/${outletId}`),
 
   /**
    * Get payment modes by outlet

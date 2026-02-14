@@ -595,7 +595,6 @@ const ModernBill = () => {
     toast.error("Transaction ID not found. Cannot reverse bill.");
     return;
   }
-
   try {
     const reverseResponse = await OrderService.reverseBill(txnId, {
       userId: user.id
@@ -612,7 +611,6 @@ const ModernBill = () => {
           )
         );
       }
-
       resetBillState();
       setItems([]);
       setReversedItems([]);
@@ -1063,7 +1061,7 @@ const ModernBill = () => {
           setDiscount(data.header.Discount || 0);
           setDiscPer(data.header.DiscPer || 0);
         setDiscountInputValue(
-  (data.header.DiscountType === 1 ? data.header.DiscPer : data.header.Discount || 0) as number
+       (data.header.DiscountType === 1 ? data.header.DiscPer : data.header.Discount || 0) as number
 );
           setDiscountType(data.header.DiscountType ?? 1);
         } else {
@@ -1291,8 +1289,10 @@ const ModernBill = () => {
       const fetchReverseQtySetting = async () => {
         try {
           const response = await OrderService.getOutletSettings(selectedOutletId);
-          if (response.success && response.data) {
-            const settings = response.data;
+          // Handle both response formats: { success: true, data: {...} } or direct {...}
+          const settings = response.data || response;
+          
+          if (settings && typeof settings === 'object') {
             setReverseQtyConfig(settings.ReverseQtyMode === 1 ? 'PasswordRequired' : 'NoPassword');
             setRoundOffEnabled(!!settings.bill_round_off);
             // include_tax_in_invoice may be returned with different casing
@@ -1305,6 +1305,7 @@ const ModernBill = () => {
 
             // Debug console for tax mode
             console.log("Include Tax in Invoice:", Number(incFlag) === 1 ? "Inclusive" : "Exclusive");
+            console.log("Outlet Settings fetched:", settings);
           } else {
             setReverseQtyConfig('PasswordRequired'); // Default to password required
             setIncludeTaxInInvoice(false);
