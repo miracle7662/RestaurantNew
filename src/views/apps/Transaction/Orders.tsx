@@ -71,10 +71,10 @@ interface DepartmentItem {
   outletid: number;
 }
 interface PaymentMode {
-  id: number;
-  paymenttypeid: number;
-  mode_name: string;
-  payment_mode_name: string;
+  id?: number;
+  paymenttypeid?: number;
+  mode_name?: string;
+  payment_mode_name?: string;
 }
 interface FormData {
   show_new_order_tag?: boolean;
@@ -294,10 +294,10 @@ const Order = () => {
   const showKotButton = (selectedTable || ['Pickup', 'Delivery', 'Quick Bill'].includes(activeTab)) && hasModifications;
   const fetchAllBills = async () => {
     try {
-      const res = await fetch("http://localhost:3001/api/TAxnTrnbill/all");
-      const data = await res.json();
-      if (data.success) {
-        setAllBills(data.data);
+     const response = await OrderService.getAllBills();
+      const data = response.data;
+      if (response.success) {
+        setAllBills(data);
       }
     } catch (err) {
       console.error("Error fetching all bills:", err);
@@ -532,11 +532,10 @@ const Order = () => {
               let billPrintedDate: Date | null = null;
 
               // Fetch bill status for each table from backend
-              const res = await fetch(`http://localhost:3001/api/TAxnTrnbill/bill-status/${item.tableid}`);
-              const data = await res.json();
+              const res = await OrderService.getBillStatus(item.tableid);
 
-              if (data.success && data.data) {
-                const { isBilled, isSetteled, TxnNo, Amount, BilledDate } = data.data;
+              if (res.success && res.data) {
+                const { isBilled, isSetteled, TxnNo, Amount, BilledDate } = res.data;
 
                 if (isBilled === 1 && isSetteled !== 1) {
                   status = 2; // 🔴 red when billed but not settled
@@ -861,12 +860,11 @@ const Order = () => {
 
   const fetchQuickBillData = async () => {
     try {
-      const res = await fetch("http://localhost:3001/api/TAxnTrnbill/by-type/Quick Bill");
-      const data = await res.json();
-      if (data.success) {
-        setQuickBillData(data.data);
+      const response = await OrderService.getQuickBills();
+      if (response.success) {
+        setQuickBillData(response.data);
       } else {
-        toast.error(data.message || "Failed to fetch quick bill data");
+        toast.error(response.message || "Failed to fetch quick bill data");
       }
     } catch (err) {
       console.error("Failed to fetch quick bill data", err);
@@ -1241,10 +1239,10 @@ const Order = () => {
     if (selectedOutletId) {
       const fetchPaymentModes = async () => {
         try { // The URL was incorrect, it should be a query parameter
-          const res = await fetch(`http://localhost:3001/api/payment-modes/by-outlet?outletid=${selectedOutletId}`);
-          if (res.ok) {
-            const data = await res.json();
-            setOutletPaymentModes(data);
+          const res = await OrderService.getPaymentModesByOutlet(selectedOutletId);
+
+          if (res.success) {
+            setOutletPaymentModes(res.data);
           } else {
             setOutletPaymentModes([]);
           }
@@ -1269,9 +1267,9 @@ const Order = () => {
       // Fetch outlet settings for default waiter and pax
       const fetchOutletSettings = async () => {
         try {
-          const res = await fetch(`http://localhost:3001/api/outlets/outlet-settings/${selectedOutletId}`);
-          if (res.ok) {
-            const settings = await res.json();
+          const res = await OrderService.getOutletSettings(selectedOutletId);
+          if (res.success) {
+            const settings = res.data;
             setDefaultWaiterId(settings.default_waiter_id || null);
             setDefaultPax(settings.pax || 1);
           } else {
