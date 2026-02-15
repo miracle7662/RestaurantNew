@@ -2026,7 +2026,7 @@ const ModernBill = () => {
 
       const result = response.data;
 
-      
+    
 
       toast.success('Discount applied successfully!');
       setShowDiscountModal(false);

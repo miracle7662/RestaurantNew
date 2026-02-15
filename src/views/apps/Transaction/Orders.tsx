@@ -2391,14 +2391,19 @@ const Order = () => {
           PaymentTypeID: paymentModeDetails?.paymenttypeid,
           PaymentType: s.PaymentType,
           Amount: s.Amount,
-          OrderNo: orderNo,
+          OrderNo: orderNo ?? undefined,
           HotelID: user?.hotelid,
           Name: user?.name, // Cashier/User name
         };
       });
 
       // 2. Call the settlement endpoint using OrderService
-      const result = await OrderService.settleBill(currentTxnId, settlementsPayload);
+      const result = await OrderService.settleBill(currentTxnId, {
+        bill_amount: payableTotal,
+        total_received: totalPaid,
+        total_refund: Math.max(0, totalPaid - payableTotal),
+        settlements: settlementsPayload
+      });
 
       if (!result.success) {
         throw new Error(result.message || 'Failed to settle bill.');
