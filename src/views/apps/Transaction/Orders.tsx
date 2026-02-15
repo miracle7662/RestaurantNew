@@ -1199,28 +1199,23 @@ const Order = () => {
       // Fetch outlet settings for Reverse Qty Mode
       const fetchReverseQtySetting = async () => {
         try {
-          const res = await fetch(`http://localhost:3001/api/outlets/outlet-settings/${selectedOutletId}`);
-          if (res.ok) {
-            const settings = await res.json();
-            if (settings) {
-              setReverseQtyConfig(settings.ReverseQtyMode === 1 ? 'PasswordRequired' : 'NoPassword');
-              setRoundOffEnabled(!!settings.bill_round_off);
-              setRoundOffTo(settings.bill_round_off_to || 1);
+          const res = await OrderService.getOutletSettings(selectedOutletId);
+          if (res.success && res.data) {
+            const settings = res.data;
+            setReverseQtyConfig(settings.ReverseQtyMode === 1 ? 'PasswordRequired' : 'NoPassword');
+            setRoundOffEnabled(!!settings.bill_round_off);
+            setRoundOffTo(settings.bill_round_off_to || 1);
 
-              // include_tax_in_invoice may be returned with different casing
-              const incFlag =
-                settings.include_tax_in_invoice ??
-                (settings as any).IncludeTaxInInvoice ??
-                (settings as any).includeTaxInInvoice ??
-                (settings as any).includeTaxInInvoice;
-              setIncludeTaxInInvoice(Number(incFlag) === 1 ? 1 : 0);
+            // include_tax_in_invoice may be returned with different casing
+            const incFlag =
+              settings.include_tax_in_invoice ??
+              (settings as any).IncludeTaxInInvoice ??
+              (settings as any).includeTaxInInvoice ??
+              (settings as any).includeTaxInInvoice;
+            setIncludeTaxInInvoice(Number(incFlag) === 1 ? 1 : 0);
 
-              // Debug console for tax mode
-              console.log("Include Tax in Invoice:", Number(incFlag) === 1 ? "Inclusive" : "Exclusive");
-            } else {
-              setReverseQtyConfig('PasswordRequired'); // Default to password required
-              setIncludeTaxInInvoice(0);
-            }
+            // Debug console for tax mode
+            console.log("Include Tax in Invoice:", Number(incFlag) === 1 ? "Inclusive" : "Exclusive");
           } else {
             setReverseQtyConfig('PasswordRequired'); // Default to password required
             setIncludeTaxInInvoice(0);
@@ -1347,18 +1342,12 @@ const Order = () => {
     setLoading(true);
     try {
       // 1. Call the new endpoint to mark the bill as billed
-      const printResponse = await fetch(`http://localhost:3001/api/TAxnTrnbill/${currentTxnId}/mark-billed`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          outletId: selectedOutletId || Number(user?.outletid),
-          customerName: customerName || null,
-          mobileNo: mobileNumber || null,
-          customerid: customerid || null,
-        }),
+      const printResult = await OrderService.markBillAsBilled(currentTxnId, {
+        outletId: selectedOutletId || Number(user?.outletid),
+        customerName: customerName || null,
+        mobileNo: mobileNumber || null,
+        customerid: customerid || null,
       });
-
-      const printResult = await printResponse.json();
 
       if (!printResult.success) {
         throw new Error(printResult.message || 'Failed to mark bill as printed.');
@@ -1386,11 +1375,7 @@ const Order = () => {
           // If discount applied, set green (status=1), else red (status=2)
           const newStatus = 2; // Always set to 2 (billed/red) on printing
 
-          await fetch(`http://localhost:3001/api/tablemanagement/${tableToUpdate.tableid}/status`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ status: newStatus }),
-          });
+          await OrderService.updateTableStatus(tableToUpdate.tableid, newStatus);
 
           // Update UI immediately
           setTableItems(prevTables =>
@@ -2056,18 +2041,10 @@ const Order = () => {
     setF9BilledPasswordLoading(true);
     setF9BilledPasswordError('');
     try {
-      const response = await fetch('http://localhost:3001/api/auth/verify-creator-password', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${user.token}`
-        },
-        body: JSON.stringify({ password })
-      });
+      // Verify creator password using OrderService
+      const verifyRes = await OrderService.verifyCreatorPassword(password);
 
-      const data = await response.json();
-
-      if (response.ok && data.success) {
+      if (verifyRes.success) {
         // Password verified, now call the bill reversal endpoint
         if (!currentTxnId) {
           setF9BilledPasswordError("Transaction ID not found. Cannot reverse bill.");
@@ -2075,18 +2052,10 @@ const Order = () => {
         }
 
         try {
-          const reverseResponse = await fetch(`http://localhost:3001/api/TAxnTrnbill/${currentTxnId}/reverse`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${user.token}`
-            },
-            body: JSON.stringify({ userId: user.id }) // Pass admin's ID for logging
-          });
+          // Reverse bill using OrderService
+          const reverseRes = await OrderService.reverseBill(currentTxnId, { userId: user.id });
 
-          const reverseData = await reverseResponse.json();
-
-          if (reverseResponse.ok && reverseData.success) {
+          if (reverseRes.success) {
             toast.success('Bill reversed successfully!');
             setShowCtrlF9BilledPasswordModal(false);
 
@@ -2111,13 +2080,13 @@ const Order = () => {
             setCurrentKOTNos([]);
             setSourceTableId(null);
           } else {
-            setF9BilledPasswordError(reverseData.message || 'Failed to reverse the bill.');
+            setF9BilledPasswordError(reverseRes.message || 'Failed to reverse the bill.');
           }
         } catch (reverseError) {
           setF9BilledPasswordError('An error occurred while reversing the bill.');
         }
       } else {
-        setF9BilledPasswordError(data.message || 'Invalid password');
+        setF9BilledPasswordError(verifyRes.message || 'Invalid password');
       }
     } catch (error) {
       setF9BilledPasswordError('An error occurred. Please try again.');
@@ -2335,21 +2304,14 @@ const Order = () => {
     setLoading(true);
     setDiscount(appliedDiscount); // Ensure the discount state is updated
     try {
-      const payload = {
+      // Apply discount using OrderService
+      const result = await OrderService.applyDiscount(currentTxnId, {
         discount: appliedDiscount,
         discPer: appliedDiscPer,
         discountType: DiscountType,
-        tableId: sourceTableId,
+        tableId: sourceTableId || 0,
         items: items, // Send current items to recalculate on backend
-      };
-
-      const response = await fetch(`http://localhost:3001/api/TAxnTrnbill/${currentTxnId}/discount`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
       });
-
-      const result = await response.json();
 
       if (!result.success) {
         throw new Error(result.message || 'Failed to apply discount.');
@@ -2697,10 +2659,9 @@ const Order = () => {
 
   const fetchPaymentModesForOutlet = async (outletId: number) => {
     try {
-      const res = await fetch(`http://localhost:3001/api/payment-modes/by-outlet?outletid=${outletId}`);
-      if (res.ok) {
-        const data = await res.json();
-        setOutletPaymentModes(data);
+      const res = await OrderService.getPaymentModesByOutlet(outletId);
+      if (res.success) {
+        setOutletPaymentModes(res.data);
       } else {
         setOutletPaymentModes([]);
       }
