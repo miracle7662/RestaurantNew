@@ -2459,11 +2459,7 @@ const Order = () => {
       if (selectedTable) {
         const tableToUpdate = tableItems.find(t => t.table_name === selectedTable);
         if (tableToUpdate) {
-          await fetch(`http://localhost:3001/api/tablemanagement/${tableToUpdate.tableid}/status`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ status: 0 }), // 0 for Vacant
-          });
+          await OrderService.updateTableStatus(tableToUpdate.tableid, { status: 1 });
         }
       }
       fetchTableManagement(); // Refresh table statuses
@@ -2514,17 +2510,9 @@ const Order = () => {
 
     setLoading(true);
     try {
-      const response = await fetch(
-        `http://localhost:3001/api/TAxnTrnbill/${currentTxnId}/apply-nckot`,
-        {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ NCName: ncName, NCPurpose: ncPurpose }),
-        }
-      );
-
-      const result = await response.json();
-
+      const result = await OrderService.applyNCKOT(currentTxnId, { NCName: ncName, NCPurpose: ncPurpose, userId: user?.id });
+    
+        
       if (result.success) {
         toast.success('NCKOT applied successfully to all items.');
 
