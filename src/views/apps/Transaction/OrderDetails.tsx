@@ -47,7 +47,7 @@ interface TableItem {
   isActive: boolean;
   isCommonToAllDepartments: boolean;
   departmentid?: number;
-  tableid?: string;
+  tableid: number;
 }
 
 // Interface for component props

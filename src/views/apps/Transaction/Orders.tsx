@@ -59,7 +59,7 @@ interface TableItem {
   isActive: boolean;
   isCommonToAllDepartments: boolean;
   departmentid?: number;
-  tableid?: string;
+  tableid: number;
   billNo?: string | null;
   billAmount?: number | null;
   billPrintedTime?: string | null;
@@ -126,7 +126,7 @@ const Order = () => {
   const [givenBy, setGivenBy] = useState<string>(user?.name || '');
   const [reason, setReason] = useState<string>('');
   const [persistentTxnId, setPersistentTxnId] = useState<number | null>(null);
-  const [persistentTableId, setPersistentTableId] = useState<number | null>(null);
+  const [persistentTableId, setPersistentTableId] = useState<number>(0);
   const [DiscountType, setDiscountType] = useState<number>(1); // 1 for percentage, 0 for amount
   const [discountInputValue, setDiscountInputValue] = useState<number>(0);
   const [currentKOTNo, setCurrentKOTNo] = useState<number | null>(null);
@@ -262,7 +262,7 @@ const Order = () => {
     setNetAmount(null);
     setCurrentTxnId(null);
     setPersistentTxnId(null);
-    setPersistentTableId(null);
+    setPersistentTableId(0);
 
     setCurrentKOTNo(null);
     setCurrentKOTNos([]);
@@ -1374,9 +1374,7 @@ const Order = () => {
         if (tableToUpdate) {
           // If discount applied, set green (status=1), else red (status=2)
           const newStatus = 2; // Always set to 2 (billed/red) on printing
-
-          await OrderService.updateTableStatus(tableToUpdate.tableid, newStatus);
-
+          await OrderService.updateTableStatus(tableToUpdate.tableid, { status: newStatus });
           // Update UI immediately
           setTableItems(prevTables =>
             prevTables.map(table =>
@@ -1680,7 +1678,7 @@ const Order = () => {
 
         // IMPORTANT
         setPersistentTxnId(null);
-        setPersistentTableId(null);
+        setPersistentTableId(0);
         setSourceTableId(null);
         // ✅ Clear customer details after KOT save for Dine-in, Pickup, Delivery
         if (['Dine-in', 'Pickup', 'Delivery'].includes(activeTab)) {
@@ -1750,26 +1748,20 @@ const Order = () => {
     }
     setLoading(true);
     try {
-      // 1️⃣ Mark as Billed (Generate TxnNo)
-      const billedRes = await fetch(
-        `http://localhost:3001/api/TAxnTrnbill/${currentTxnId}/mark-billed`,
-        {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            outletId: selectedOutletId || Number(user?.outletid),
-          }),
-        }
-      );
+      // 1️⃣ Mark as Billed (Generate TxnNo) using OrderService
+      const billedRes = await OrderService.markBillAsBilled(currentTxnId, {
+        outletId: selectedOutletId || Number(user?.outletid),
+        customerName: customerName || null,
+        mobileNo: mobileNumber || null,
+        customerid: customerid || null,
+      });
 
-      const billedData = await billedRes.json();
-
-      if (!billedData.success) {
-        throw new Error(billedData.message || 'Failed to mark as billed.');
+      if (!billedRes.success) {
+        throw new Error(billedRes.message || 'Failed to mark as billed.');
       }
 
       // 2️⃣ Set Order / Txn No (VERY IMPORTANT)
-      const txnNo = billedData?.data?.TxnNo || billedData?.TxnNo;
+      const txnNo = billedRes.data?.TxnNo;
       if (!txnNo) {
         toast.error('TxnNo not generated');
         return;
@@ -1835,7 +1827,7 @@ const Order = () => {
               return revItem ? (item.qty - (revItem.revQty ?? 0)) <= 0 : item.qty <= 0;
             });
             const newStatus = allReversed ? 0 : 1; // 0 = Vacant, 1 = Running
-await OrderService.updateTableStatus(tableToUpdate.tableid, newStatus);
+            await OrderService.updateTableStatus(tableToUpdate.tableid, { status: newStatus });
 
           }
         }
@@ -1881,12 +1873,12 @@ await OrderService.updateTableStatus(tableToUpdate.tableid, newStatus);
 
         // 🔴 VERY IMPORTANT (transaction lifecycle reset)
         setPersistentTxnId(null);
-        setPersistentTableId(null);
+        setPersistentTableId(0);
 
         fetchTableManagement();
 
       } else {
-        throw new Error(result.message || 'Failed to process reverse KOT.');
+        throw new Error(response.message || 'Failed to process reverse KOT.');
       }
     } catch (error: any) {
       toast.error(error.message || 'Error while saving reversal.');
@@ -2394,14 +2386,8 @@ await OrderService.updateTableStatus(tableToUpdate.tableid, newStatus);
         };
       });
 
-      // 2. Call the settlement endpoint
-      const response = await fetch(`http://localhost:3001/api/TAxnTrnbill/${currentTxnId}/settle`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ settlements: settlementsPayload }),
-      });
-
-      const result = await response.json();
+      // 2. Call the settlement endpoint using OrderService
+      const result = await OrderService.settleBill(currentTxnId, settlementsPayload);
 
       if (!result.success) {
         throw new Error(result.message || 'Failed to settle bill.');
