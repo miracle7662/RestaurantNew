@@ -412,9 +412,8 @@ const Order = () => {
             kotNo: item.kotNo,
           };
         });
-        setCurrentKOTNo(unbilledItemsRes.data.kotNo);
-
-        setPersistentTxnId(unbilledItemsRes.data.items.length > 0 ? unbilledItemsRes.data.items[0].txnId : null);
+        setCurrentKOTNo(unbilledItemsRes.data.kotNo ?? null);
+        setPersistentTxnId(unbilledItemsRes.data.items.length > 0 ? unbilledItemsRes.data.items[0].txnId ?? null : null);
         setPersistentTableId(tableIdNum);
         // Set reversed items from the new API response field
         const fetchedReversedItems: ReversedMenuItem[] = (unbilledItemsRes.data.reversedItems || []).map((item: any) => ({
@@ -426,6 +425,7 @@ const Order = () => {
           isReversed: true,
           reversalLogId: item.reversalLogId,
           status: 'Reversed',
+          
         }));
         setReversedItems(fetchedReversedItems);
         setItems(fetchedItems);
@@ -1469,7 +1469,7 @@ const Order = () => {
         || (Array.isArray(tableItems) ? tableItems.find((t: any) => t && t.table_name && selectedTable && t.table_name.toLowerCase() === selectedTable.toLowerCase()) : undefined);
 
       let resolvedTableId = selectedTableRecord ? Number((selectedTableRecord as any).tableid || (selectedTableRecord as any).tablemanagementid) : null;
-      let resolvedDeptId = selectedTableRecord ? Number((selectedTableRecord as any).departmentid) || selectedDeptId : undefined;
+      let resolvedDeptId = selectedTableRecord ? Number((selectedTableRecord as any).departmentid) || selectedDeptId : null;
       let resolvedOutletId = selectedTableRecord?.outletid ? Number(selectedTableRecord.outletid) : (selectedOutletId || Number(user?.outletid) || null);
 
       // For non-dine-in tabs, explicitly set outlet and department.

@@ -1899,7 +1899,7 @@ const ModernBill = () => {
         customerid: customerId || null,
       });
 
-      const txnNo = response.data?.data?.TxnNo;
+      const txnNo = response.data?.TxnNo;
       if (!txnNo) {
         toast.error('TxnNo not generated');
         return;

@@ -66,6 +66,7 @@ export interface BillItem {
   price?: number
   itemId?: number
   reversalLogId?: number
+  txnId?: number
  
   
 }
@@ -197,7 +198,7 @@ export interface CreateKOTPayload {
   customerid?: number | null
   Steward?: string
   PAX?: number | null
-  DeptID?: number
+  DeptID?: number | null
   
 }
 
@@ -253,6 +254,8 @@ export interface WaiterUser {
 export interface Bill {
   success: boolean
   message: string
+  TxnID?: number
+  TxnNo?: string
   data: {
     TxnID: number
     TableID: number
