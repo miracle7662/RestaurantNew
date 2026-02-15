@@ -1813,20 +1813,15 @@ const Order = () => {
     setIsSaveReverseDisabled(true);
 
     try {
-      const response = await fetch('http://localhost:3001/api/TAxnTrnbill/create-reverse-kot', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          txnId: persistentTxnId,
-          tableId: persistentTableId,
-          reversedItems: reverseQtyItems.map(item => ({ ...item, item_no: item.item_no, itemName: item.name })),
-          userId: user?.id,
-          reversalReason: 'Full Reverse from UI' // You can add a specific reason here if needed
-        }),
+           const response = await OrderService.createReverseKOT({
+        txnId: persistentTxnId,
+        tableId: persistentTableId,
+        reversedItems: reverseQtyItems.map(item => ({ ...item, item_no: item.item_no, itemName: item.name })),
+        userId: user?.id,
+        reversalReason: 'Full Reverse from UI' // You can add a specific reason here if needed
       });
 
-      const result = await response.json();
-      if (result.success) {
+      if (response.success) {
         toast.success('Reverse KOT processed successfully.');
 
         // 2️⃣ Table status update API call (green)
@@ -1840,7 +1835,7 @@ const Order = () => {
               return revItem ? (item.qty - (revItem.revQty ?? 0)) <= 0 : item.qty <= 0;
             });
             const newStatus = allReversed ? 0 : 1; // 0 = Vacant, 1 = Running
-            await OrderService.updateTableStatus(tableToUpdate.tableid, newStatus);``
+await OrderService.updateTableStatus(tableToUpdate.tableid, newStatus);
 
           }
         }
@@ -1972,17 +1967,16 @@ const Order = () => {
   const handleLoadQuickBill = async (bill: any) => {
     try {
       setLoading(true);
-      // 1. Fetch full bill details from the backend
-      const res = await fetch(`http://localhost:3001/api/TAxnTrnbill/${bill.TxnID}`);
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.message || 'Failed to fetch bill details.');
+      // 1. Fetch full bill details from the backend using OrderService
+      const res = await OrderService.getBillById(bill.TxnID);
+
+      if (!res.success) {
+        throw new Error(res.message || 'Failed to fetch bill details.');
       }
-      const billDetailsData = await res.json();
 
-      if (billDetailsData.success && billDetailsData.data) {
-        const fullBill = billDetailsData.data;
+      const fullBill = res.data;
 
+      if (fullBill && fullBill.details) {
         // 2. Map the fetched items to the MenuItem interface
         const fetchedItems: MenuItem[] = fullBill.details.map((item: any) => ({
           id: item.ItemID,
