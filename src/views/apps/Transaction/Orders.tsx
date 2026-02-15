@@ -3898,9 +3898,9 @@ await OrderService.updateTableStatus(tableToUpdate.tableid, newStatus);
                             const fetchLatestReverseQtySetting = async () => {
                               try {
                                 if (selectedOutletId) {
-                                  const res = await fetch(`http://localhost:3001/api/outlets/outlet-settings/${selectedOutletId}`);
-                                  if (res.ok) {
-                                    const settings = await res.json();
+                                  const res = await OrderService.getOutletSettings(selectedOutletId);
+                                  if (res.success) {
+                                    const settings = res.data;
                                     if (settings && settings.ReverseQtyMode !== undefined) {
                                       const currentConfig = settings.ReverseQtyMode === 1 ? 'PasswordRequired' : 'NoPassword';
                                       setReverseQtyConfig(currentConfig);
