@@ -1839,14 +1839,8 @@ const Order = () => {
               const revItem = reverseQtyItems.find(r => r.item_no === item.item_no);
               return revItem ? (item.qty - (revItem.revQty ?? 0)) <= 0 : item.qty <= 0;
             });
-
             const newStatus = allReversed ? 0 : 1; // 0 = Vacant, 1 = Running
-
-            await fetch(`http://localhost:3001/api/tablemanagement/${tableToUpdate.tableid}/status`, {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ status: newStatus }),
-            });
+            await OrderService.updateTableStatus(tableToUpdate.tableid, newStatus);``
 
           }
         }
@@ -1927,21 +1921,9 @@ const Order = () => {
     setF8PasswordLoading(true);
     setF8PasswordError('');
     try {
-      const response = await fetch('http://localhost:3001/api/auth/verify-bill-creator-password', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${user.token}`
-        },
-        body: JSON.stringify({
-          password,
-          txnId: finalTxnId
-        })
-      });
+      const response = await OrderService.verifyBillCreatorPassword(password, finalTxnId);
 
-      const data = await response.json();
-
-      if (response.ok && data.success) {
+      if (response.success) {
         setShowF8PasswordModal(false);
         // Proceed with F8 action: activate reverse mode, set expanded view, refresh items, initialize reverseQtyItems
         setReverseQtyMode(true);
@@ -2163,9 +2145,9 @@ const Order = () => {
         const fetchLatestReverseQtySettingForUnbilled = async () => {
           try {
             if (selectedOutletId) {
-              const res = await fetch(`http://localhost:3001/api/outlets/outlet-settings/${selectedOutletId}`);
-              if (res.ok) {
-                const settings = await res.json();
+              const res = await OrderService.getOutletSettings(selectedOutletId);
+              if (res.success && res.data) {
+                const settings = res.data;
                 if (settings && settings.ReverseQtyMode !== undefined) {
                   const currentConfig = settings.ReverseQtyMode === 1 ? 'PasswordRequired' : 'NoPassword';
                   setReverseQtyConfig(currentConfig);
@@ -2511,8 +2493,6 @@ const Order = () => {
     setLoading(true);
     try {
       const result = await OrderService.applyNCKOT(currentTxnId, { NCName: ncName, NCPurpose: ncPurpose, userId: user?.id });
-    
-        
       if (result.success) {
         toast.success('NCKOT applied successfully to all items.');
 
