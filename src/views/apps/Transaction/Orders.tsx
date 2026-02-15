@@ -17,6 +17,8 @@ import { fetchWaiterUsers, WaiterUser } from '@/services/user.service';
 import TableManagementService from '@/common/api/tablemanagement';
 import TableDepartmentService from '@/common/api/tabledepartment';
 import OrderService from "@/common/api/order";
+
+
 interface MenuItem {
   id: number;
   name: string;
@@ -1908,7 +1910,9 @@ const Order = () => {
     setF8PasswordLoading(true);
     setF8PasswordError('');
     try {
-      const response = await OrderService.verifyBillCreatorPassword(password, finalTxnId);
+      const response = await OrderService.verifyBillCreatorPassword(password, finalTxnId.toString());
+
+      const data = response.data;
 
       if (response.success) {
         setShowF8PasswordModal(false);
@@ -1989,8 +1993,8 @@ const Order = () => {
         setActiveTab('Quick Bill');
         // setShowOrderDetails(true); // Keep the quick bill list visible
         setItems(fetchedItems);
-        setCurrentTxnId(fullBill.TxnID);
-        setOrderNo(fullBill.TxnNo);
+        setCurrentTxnId(fullBill.header.TxnID);
+        setOrderNo(fullBill.header.TxnNo);
         setBillActionState('printOrSettle'); // The bill is already created
       }
     } catch (error: any) {
@@ -2259,7 +2263,8 @@ const Order = () => {
         return;
       }
       appliedDiscPer = discountInputValue;
-      appliedDiscount = (taxCalc.subtotal * discountInputValue) / 100;
+      appliedDiscount = parseFloat(((taxCalc.subtotal * discountInputValue) / 100).toFixed(2));
+
     } else { // Amount
       if (discountInputValue <= 0 || discountInputValue > taxCalc.subtotal || isNaN(discountInputValue)) {
         toast.error(`Discount amount must be > 0 and <= subtotal (${taxCalc.subtotal.toFixed(2)})`);
@@ -2278,7 +2283,13 @@ const Order = () => {
         discPer: appliedDiscPer,
         discountType: DiscountType,
         tableId: sourceTableId || 0,
-        items: items, // Send current items to recalculate on backend
+        items: items.map(item => ({
+          ItemID: item.id,
+          Name: item.name,
+          Qty: item.qty,
+          RuntimeRate: item.price,
+          Amount: item.qty * item.price,
+        })), // Map MenuItem to BillItem for the API
       });
 
       if (!result.success) {
@@ -4406,7 +4417,7 @@ const Order = () => {
               setReverseQtyMode(false);
               setIsGroupedView(true);
               setPersistentTxnId(null);
-              setPersistentTableId(null);
+              setPersistentTableId(0);
               setSourceTableId(null);
               setCurrentKOTNo(null);
               setCurrentKOTNos([]);

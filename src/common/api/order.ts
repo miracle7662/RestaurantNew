@@ -542,7 +542,7 @@ const OrderService = {
   verifyBillCreatorPassword: (
     password: string,
     txnId: string
-  ): Promise<ApiResponse<{ verified: boolean }>> =>
+  ):Promise<ApiResponse<{ verified: boolean; message?: string }>> =>
     HttpClient.post<ApiResponse<{ verified: boolean }>>('/auth/verify-bill-creator-password', {
       password,
       txnId
