@@ -381,6 +381,10 @@ const Order = () => {
             ReversalLogID: item.ReversalLogID,
             status: 'Reversed',
             kotNo: item.KOTNo,
+            isBilled: item.isBilled ?? 0,
+            isNCKOT: item.isNCKOT ?? 0,
+            NCName: item.NCName || '',
+            NCPurpose: item.NCPurpose || '',
           }));
           setReversedItems(fetchedReversedItems);
 
@@ -425,7 +429,10 @@ const Order = () => {
           isReversed: true,
           reversalLogId: item.reversalLogId,
           status: 'Reversed',
-          
+          isBilled: item.isBilled ?? 0,
+          isNCKOT: item.isNCKOT ?? 0,
+          NCName: item.NCName || '',
+          NCPurpose: item.NCPurpose || '',
         }));
         setReversedItems(fetchedReversedItems);
         setItems(fetchedItems);
