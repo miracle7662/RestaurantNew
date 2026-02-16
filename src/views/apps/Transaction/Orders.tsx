@@ -1998,6 +1998,11 @@ const Order = () => {
         setCurrentTxnId(fullBill.header.TxnID);
         setOrderNo(fullBill.header.TxnNo);
         setBillActionState('printOrSettle'); // The bill is already created
+        
+        // Set the outlet ID from the bill to ensure payment modes are fetched
+        if (fullBill.header.outletid) {
+          setSelectedOutletId(Number(fullBill.header.outletid));
+        }
       }
     } catch (error: any) {
       toast.error(error.message || 'An error occurred while loading the bill.');
