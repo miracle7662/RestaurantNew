@@ -1214,11 +1214,21 @@ const handleTabClick = (tab: string) => {
     let finalGrandTotal = grandTotal;
     let appliedRoundOff = 0;
 
+    // Always calculate roundoff value for display purposes
+    // Apply roundoff to grandTotal only when settings are loaded AND enabled
+    // This ensures the UI shows correct roundoff value while preventing incorrect calculations
     if (roundOffEnabled) {
+      // Settings are loaded and enabled - use the configured roundTo value
       const { roundedAmount, roundOffValue } = applyRoundOff(grandTotal, roundOffTo);
       finalGrandTotal = roundedAmount;
       appliedRoundOff = roundOffValue;
+    } else if (!roundOffSettingsLoaded) {
+      // Settings not yet loaded - use default rounding (round to nearest 1) to prevent showing incorrect amounts like 241.50
+      const { roundedAmount, roundOffValue } = applyRoundOff(grandTotal, 1);
+      finalGrandTotal = roundedAmount;
+      appliedRoundOff = roundOffValue;
     }
+    // Always update the roundoff value state so it displays correctly
     setRoundOffValue(appliedRoundOff);
 
     setTaxCalc({
@@ -1252,6 +1262,7 @@ const handleTabClick = (tab: string) => {
             setReverseQtyConfig(settings.data.ReverseQtyMode === 1 ? 'PasswordRequired' : 'NoPassword');
             setRoundOffEnabled(!!settings.data.bill_round_off);
             setRoundOffTo(settings.data.bill_round_off_to || 1);
+            setRoundOffSettingsLoaded(true); // Mark round off settings as loaded
 
             // include_tax_in_invoice may be returned with different casing
             const incFlag =
@@ -1266,11 +1277,13 @@ const handleTabClick = (tab: string) => {
           } else {
             setReverseQtyConfig('PasswordRequired'); // Default to password required
             setIncludeTaxInInvoice(0);
+            setRoundOffSettingsLoaded(true); // Mark as loaded even if settings not found
           }
         } catch (error) {
           console.error("Failed to fetch outlet settings for Reverse Qty Mode", error);
           setReverseQtyConfig('PasswordRequired'); // Default to password required
           setIncludeTaxInInvoice(0);
+          setRoundOffSettingsLoaded(true); // Mark as loaded even on error
         }
       };
       fetchReverseQtySetting();
@@ -4105,7 +4118,7 @@ const handleTabClick = (tab: string) => {
                       <span>- {discount.toFixed(2)}</span>
                     </div>
                   )}
-                  {roundOffEnabled && roundOffValue !== 0 && (
+                  {roundOffValue !== 0 && (
                     <div className="d-flex justify-content-between">
                       <span>Round Off. ({roundOffTo})</span>
                       <span>{roundOffValue >= 0 ? '+' : ''}{roundOffValue.toFixed(2)}</span>
