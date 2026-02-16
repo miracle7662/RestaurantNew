@@ -2450,7 +2450,7 @@ const ModernBill = () => {
         }
 
         .modern-table {
-          font-size: 1.1rem;
+          font-size: 0.85rem;
           margin-bottom: 0;
         }
 
