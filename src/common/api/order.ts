@@ -571,7 +571,7 @@ const OrderService = {
    * Get waiter users by outlet
    */
   getWaiterUsers: (outletId: number): Promise<ApiResponse<WaiterUser[]>> =>
-    HttpClient.get<ApiResponse<WaiterUser[]>>('/users/waiters', { params: { outletid: outletId } }),
+    HttpClient.get<ApiResponse<WaiterUser[]>>(`/outlet-users/waiters/${outletId}`),
 
   /**
    * Get pending orders by type

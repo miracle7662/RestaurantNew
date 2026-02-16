@@ -227,11 +227,11 @@ const [roundOffEnabled, setRoundOffEnabled] = useState<boolean>(false);
   // Set default waiter and pax when modal opens
   useEffect(() => {
     if (showWaiterPaxModal) {
-      // Set default waiter
+      // Set default waiter - use employee_name if available, else username (matching dropdown value)
       if (defaultWaiterId) {
         const defaultWaiter = waiterUsers.find(waiter => waiter.userId === defaultWaiterId);
         if (defaultWaiter) {
-          setSelectedWaiter(defaultWaiter.username);
+          setSelectedWaiter(defaultWaiter.employee_name || defaultWaiter.username);
         }
       } else {
         setSelectedWaiter('');
