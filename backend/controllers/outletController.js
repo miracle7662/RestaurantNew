@@ -1005,30 +1005,34 @@ exports.getOutletSettings = (req, res) => {
   try {
     const { outletid } = req.params
 
-    // Validate outletid
     if (!outletid || isNaN(outletid)) {
       return res.status(400).json({ error: 'Valid outlet ID is required' })
     }
 
     const settings = db
-      .prepare(
-        `
-        SELECT * FROM mstoutlet_settings 
-        WHERE outletid = ?
-        `
-      )
+      .prepare(`SELECT * FROM mstoutlet_settings WHERE outletid = ?`)
       .get(outletid)
 
     if (!settings) {
       return res.status(404).json({ error: 'Outlet settings not found' })
     }
 
-    res.json(settings)
+    // Wrap the actual data
+    res.json({
+      success: true,
+      message: 'Outlet settings fetched successfully',
+      data: settings
+    })
   } catch (error) {
     console.error('Error fetching outlet settings:', error)
-    res.status(500).json({ error: 'Failed to fetch outlet settings' })
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch outlet settings',
+      data: null
+    })
   }
 }
+
 
 // Update outlet settings by outletid
 exports.updateOutletSettings = (req, res) => {

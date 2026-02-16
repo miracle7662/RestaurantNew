@@ -1265,8 +1265,8 @@ const Order = () => {
         try {
           const settings = await OrderService.getOutletSettings(selectedOutletId);
           if (settings) {
-            setDefaultWaiterId(settings. default_waiter_id || null);
-            setDefaultPax(settings.pax || 1);
+            setDefaultWaiterId(settings.data.default_waiter_id || null);
+            setDefaultPax(settings.data.pax || 1);
           } else {
             setDefaultWaiterId(null);
             setDefaultPax(1);
