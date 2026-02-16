@@ -140,9 +140,9 @@ exports.getPaymentModesByOutlet = (req, res) => {
     sql += ' GROUP BY pt.paymenttypeid, pt.mode_name ORDER BY sequence, pt.mode_name';
 
     const rows = db.prepare(sql).all(...params);
-    res.json(rows);
+    res.json({ success: true, data: rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, error: err.message });
   }
 };
 
