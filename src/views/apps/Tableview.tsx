@@ -396,7 +396,7 @@ export default function App() {
   };
 
   const handleTableClick = (table: Table) => {
-    if (table.status === 'printed') {
+    if (table.status === 'printed' || (table.status === 'running-kot' && table.billNo)) {
       setSelectedTable(table);
       setShowModal(true);
     } else {
@@ -411,7 +411,7 @@ export default function App() {
         const tables = selectedDepartmentId === 'all' ? allTables : tablesByDepartment[selectedDepartmentId] || [];
         const table = tables.find(t => t.name === input);
         if (table) {
-          if (table.status === 'printed') {
+          if (table.status === 'printed' || (table.status === 'running-kot' && table.billNo)) {
             setSelectedTable(table);
             setShowModal(true);
           } else {

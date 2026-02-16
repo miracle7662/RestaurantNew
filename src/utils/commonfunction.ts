@@ -783,15 +783,13 @@ export const fetchCustomerByMobile = async (
     if (res.ok) {
       const response = await res.json();
       console.log('Customer API response:', response);
-      if (response.customerid && response.name) {
-        setCustomerName(response.name);
-        setCustomerId(response.customerid);
-        setCustomerAddress(`${response.address1 || ''} ${response.address2 || ''}`.trim());
-      } else if (response.success && response.data && response.data.length > 0) {
-        const customer = response.data[0];
+      // Check for successful response - API returns {success: true, data: {customer object}, message: "Customer found"}
+      if (response.success === true && response.data && response.data.customerid) {
+        const customer = response.data;
         setCustomerName(customer.name);
         setCustomerId(customer.customerid);
         setCustomerAddress(`${customer.address1 || ''} ${customer.address2 || ''}`.trim());
+        console.log('Customer found:', customer.name);
       } else {
         setCustomerName('');
         setCustomerAddress('');
