@@ -2366,12 +2366,13 @@ const handleTabClick = (tab: string) => {
         discountType: DiscountType,
         tableId: sourceTableId || 0,
         items: items.map(item => ({
+          txnDetailId: item.txnDetailId,
           ItemID: item.id,
           Name: item.name,
           Qty: item.qty,
           RuntimeRate: item.price,
           Amount: item.qty * item.price,
-        })), // Map MenuItem to BillItem for the API
+        })),
       });
 
       if (!result.success) {
@@ -3950,12 +3951,12 @@ const handleTabClick = (tab: string) => {
                           </svg>
                         </Button>
 
-                        {/* Discount Button */}
+{/* Discount Button */}
                         <Button
                           variant="success"
                           className="rounded-circle p-0 d-flex justify-content-center align-items-center"
                           style={{ width: '32px', height: '32px' }}
-                          disabled={!sourceTableId || items.length === 0}
+                          disabled={(!sourceTableId && !currentTxnId) || items.length === 0}
                           onClick={() => {
                             setShowOptions(false);
                             setShowDiscountModal(true);
