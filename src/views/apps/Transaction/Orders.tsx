@@ -1394,6 +1394,11 @@ const Order = () => {
       // 6. Refresh the table list to show the new 'billed' status (red color)
       fetchTableManagement();
 
+      // 7. Refresh Quick Bill list if we're in Quick Bill tab
+      if (activeTab === 'Quick Bill') {
+        fetchQuickBillData();
+      }
+
 
     } catch (error: any) {
       console.error('Error printing bill:', error);
