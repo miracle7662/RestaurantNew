@@ -1201,16 +1201,15 @@ const Order = () => {
       // Fetch outlet settings for Reverse Qty Mode
       const fetchReverseQtySetting = async () => {
         try {
-          const res = await OrderService.getOutletSettings(selectedOutletId);
-          if (res.success && res.data) {
-            const settings = res.data;
-            setReverseQtyConfig(settings.ReverseQtyMode === 1 ? 'PasswordRequired' : 'NoPassword');
-            setRoundOffEnabled(!!settings.bill_round_off);
-            setRoundOffTo(settings.bill_round_off_to || 1);
+          const settings = await OrderService.getOutletSettings(selectedOutletId);
+          if (settings) {
+            setReverseQtyConfig(settings.data.ReverseQtyMode === 1 ? 'PasswordRequired' : 'NoPassword');
+            setRoundOffEnabled(!!settings.data.bill_round_off);
+            setRoundOffTo(settings.data.bill_round_off_to || 1);
 
             // include_tax_in_invoice may be returned with different casing
             const incFlag =
-              settings.include_tax_in_invoice ??
+              settings.data.include_tax_in_invoice ??
               (settings as any).IncludeTaxInInvoice ??
               (settings as any).includeTaxInInvoice ??
               (settings as any).includeTaxInInvoice;
@@ -1264,10 +1263,9 @@ const Order = () => {
       // Fetch outlet settings for default waiter and pax
       const fetchOutletSettings = async () => {
         try {
-          const res = await OrderService.getOutletSettings(selectedOutletId);
-          if (res.success) {
-            const settings = res.data;
-            setDefaultWaiterId(settings.default_waiter_id || null);
+          const settings = await OrderService.getOutletSettings(selectedOutletId);
+          if (settings) {
+            setDefaultWaiterId(settings. default_waiter_id || null);
             setDefaultPax(settings.pax || 1);
           } else {
             setDefaultWaiterId(null);
