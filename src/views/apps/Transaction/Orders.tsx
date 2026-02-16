@@ -1052,6 +1052,11 @@ const Order = () => {
     }
   };
   useEffect(() => {
+    // Don't reset department/outlet for Pickup/Delivery/Quick Bill tabs - they should keep their settings
+    if (['Pickup', 'Delivery', 'Quick Bill'].includes(activeTab)) {
+      return; 
+    }
+    
     const selectedDepartment = departments.find(d => d.department_name === activeNavTab) || null;
     if (selectedDepartment) {
       setSelectedDeptId(Number(selectedDepartment.departmentid));
@@ -1062,7 +1067,7 @@ const Order = () => {
       setSelectedDeptId(null);
       setSelectedOutletId(null);
     }
-  }, [activeNavTab, departments]);
+  }, [activeNavTab, departments, activeTab]);
 
   useEffect(() => {
     if (!selectedDeptId) {
