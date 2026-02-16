@@ -897,7 +897,18 @@ const Order = () => {
 
       // Ensure outlet ID is set for Pickup, Delivery, Quick Bill
       if (['Pickup', 'Delivery', 'Quick Bill'].includes(tab)) {
-        setSelectedOutletId(Number(user?.outletid));
+        const outletId = Number(user?.outletid);
+        setSelectedOutletId(outletId);
+        
+        // Set default department for Pickup/Delivery/Quick Bill to ensure tax calculation works
+        // Find the first department that belongs to the selected outlet
+        const defaultDept = departments.find(d => d.outletid === outletId);
+        if (defaultDept) {
+          setSelectedDeptId(defaultDept.departmentid);
+        } else if (departments.length > 0) {
+          // Fallback: use the first available department
+          setSelectedDeptId(departments[0].departmentid);
+        }
       }
 
       setShowOrderDetails(true);

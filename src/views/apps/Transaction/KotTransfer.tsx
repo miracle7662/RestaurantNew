@@ -489,11 +489,8 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
       } else if (event.key === 'Enter') {
         event.preventDefault();
         if (selectedOption === 'no') {
-          // No selected: Close modal and save
+          // No selected: Close modal
           setShowConfirmModal(false);
-          setTimeout(() => {
-            handleSave();
-          }, 100);
         } else if (selectedOption === 'yes') {
           // Yes selected: Close modal, check for remaining KOTs
           setShowConfirmModal(false);
@@ -956,9 +953,6 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
             variant={selectedOption === 'no' ? 'primary' : 'secondary'}
             onClick={async () => {
               setShowConfirmModal(false);
-              setTimeout(() => {
-                handleSave();
-              }, 100);
             }}
             autoFocus={selectedOption === 'no'}
           >
