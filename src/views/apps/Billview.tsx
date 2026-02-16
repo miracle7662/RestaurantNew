@@ -510,122 +510,122 @@ const ModernBill = () => {
   }, [showSettlementModal, outletPaymentModes]);
 
 
- const handleCustomerNoChange = async (value: string) => {
-  setCustomerNo(value);
+  const handleCustomerNoChange = async (value: string) => {
+    setCustomerNo(value);
 
-  if (!value.trim()) {
-    setCustomerName('');
-    setCustomerId(null);
-    return;
-  }
+    if (!value.trim()) {
+      setCustomerName('');
+      setCustomerId(null);
+      return;
+    }
 
-  try {
-    const res = await OrderService.getCustomerByMobile(value.trim());
+    try {
+      const res = await OrderService.getCustomerByMobile(value.trim());
 
-    if (res.success && res.data) {
-      setCustomerName(res.data.name || '');
-      setCustomerId(res.data.customerid || null);
-    } else {
+      if (res.success && res.data) {
+        setCustomerName(res.data.name || '');
+        setCustomerId(res.data.customerid || null);
+      } else {
+        setCustomerName('');
+        setCustomerId(null);
+      }
+    } catch (err) {
+      console.error("Customer fetch error:", err);
       setCustomerName('');
       setCustomerId(null);
     }
-  } catch (err) {
-    console.error("Customer fetch error:", err);
-    setCustomerName('');
-    setCustomerId(null);
-  }
-};
+  };
 
 
   const handleF9PasswordSubmit = async (password: string) => {
-  if (!(user as any)?.token) {
-    toast.error("Authentication token not found. Please log in again.");
-    return;
-  }
-
-  setF9BilledPasswordLoading(true);
-  setF9BilledPasswordError('');
-
-  try {
-    const response = await OrderService.verifyCreatorPassword(password);
-
-    if (response.success) {
-      setShowF9BilledPasswordModal(false);
-      setShowReverseBillConfirmationModal(true);
-    } else {
-      setF9BilledPasswordError(response.message || 'Invalid password');
+    if (!(user as any)?.token) {
+      toast.error("Authentication token not found. Please log in again.");
+      return;
     }
-  } catch (error: any) {
-    setF9BilledPasswordError(error.message || 'An error occurred. Please try again.');
-  } finally {
-    setF9BilledPasswordLoading(false);
-  }
-};
 
- const handleF8RevKotPasswordSubmit = async (password: string) => {
-  if (!(user as any)?.token) {
-    toast.error("Authentication token not found. Please log in again.");
-    return;
-  }
+    setF9BilledPasswordLoading(true);
+    setF9BilledPasswordError('');
 
-  setF8RevKotPasswordLoading(true);
-  setF8RevKotPasswordError('');
+    try {
+      const response = await OrderService.verifyCreatorPassword(password);
 
-  try {
-    const response = await OrderService.verifyCreatorPassword(password);
-
-    if (response.success) {
-      setShowF8RevKotPasswordModal(false);
-      setShowReverseKot(true);
-    } else {
-      setF8RevKotPasswordError(response.message || 'Invalid password');
-    }
-  } catch (error: any) {
-    setF8RevKotPasswordError(error.message || 'An error occurred. Please try again.');
-  } finally {
-    setF8RevKotPasswordLoading(false);
-  }
-};
-
-
- const handleReverseBillConfirmation = async () => {
-  setShowReverseBillConfirmationModal(false);
-
-  if (!txnId) {
-    toast.error("Transaction ID not found. Cannot reverse bill.");
-    return;
-  }
-  try {
-    const reverseResponse = await OrderService.reverseBill(txnId, {
-      userId: user.id
-    });
-
-    if (reverseResponse.success) {
-      toast.success('Bill reversed successfully!');
-
-      // Optimistic UI update
-      if (tableName) {
-        setTableItems(prev =>
-          prev.map(t =>
-            t.table_name === tableName ? { ...t, status: 0 } : t
-          )
-        );
+      if (response.success) {
+        setShowF9BilledPasswordModal(false);
+        setShowReverseBillConfirmationModal(true);
+      } else {
+        setF9BilledPasswordError(response.message || 'Invalid password');
       }
-      resetBillState();
-      setItems([]);
-      setReversedItems([]);
-      setSelectedTable(null);
-      setCurrentKOTNos([]);
-      setOrderNo(null);
-
-      navigate('/apps/Tableview');
-    } else {
-      toast.error(reverseResponse.message || 'Failed to reverse the bill.');
+    } catch (error: any) {
+      setF9BilledPasswordError(error.message || 'An error occurred. Please try again.');
+    } finally {
+      setF9BilledPasswordLoading(false);
     }
-  } catch (err: any) {
-    toast.error(err.message || 'An error occurred while reversing the bill.');
-  }
-};
+  };
+
+  const handleF8RevKotPasswordSubmit = async (password: string) => {
+    if (!(user as any)?.token) {
+      toast.error("Authentication token not found. Please log in again.");
+      return;
+    }
+
+    setF8RevKotPasswordLoading(true);
+    setF8RevKotPasswordError('');
+
+    try {
+      const response = await OrderService.verifyCreatorPassword(password);
+
+      if (response.success) {
+        setShowF8RevKotPasswordModal(false);
+        setShowReverseKot(true);
+      } else {
+        setF8RevKotPasswordError(response.message || 'Invalid password');
+      }
+    } catch (error: any) {
+      setF8RevKotPasswordError(error.message || 'An error occurred. Please try again.');
+    } finally {
+      setF8RevKotPasswordLoading(false);
+    }
+  };
+
+
+  const handleReverseBillConfirmation = async () => {
+    setShowReverseBillConfirmationModal(false);
+
+    if (!txnId) {
+      toast.error("Transaction ID not found. Cannot reverse bill.");
+      return;
+    }
+    try {
+      const reverseResponse = await OrderService.reverseBill(txnId, {
+        userId: user.id
+      });
+
+      if (reverseResponse.success) {
+        toast.success('Bill reversed successfully!');
+
+        // Optimistic UI update
+        if (tableName) {
+          setTableItems(prev =>
+            prev.map(t =>
+              t.table_name === tableName ? { ...t, status: 0 } : t
+            )
+          );
+        }
+        resetBillState();
+        setItems([]);
+        setReversedItems([]);
+        setSelectedTable(null);
+        setCurrentKOTNos([]);
+        setOrderNo(null);
+
+        navigate('/apps/Tableview');
+      } else {
+        toast.error(reverseResponse.message || 'Failed to reverse the bill.');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'An error occurred while reversing the bill.');
+    }
+  };
   // Outlet selection states
   const selectedOutletId = outletIdFromState || user?.outletid || 1;
   // Tax details state
@@ -640,7 +640,7 @@ const ModernBill = () => {
   const reasonRef = useRef<HTMLTextAreaElement>(null);
 
   // Load bill for table: try billed first, then unbilled
-   const loadBillForTable = async (tableIdNum: number) => {
+  const loadBillForTable = async (tableIdNum: number) => {
     setLoading(true);
     setError(null);
     try {
@@ -649,146 +649,146 @@ const ModernBill = () => {
         const billedBillRes = await OrderService.getBilledBillByTable(tableIdNum);
         // Handle both response formats: nested data or direct data
         const billedBillData = billedBillRes.data || billedBillRes.data;
-         if (billedBillData && billedBillData.details) {
+        if (billedBillData && billedBillData.details) {
           // Header properties are at top level (spread from ...bill in backend)
           const header = billedBillData.header || billedBillData;
           const details = billedBillData.details;
-            const fetchedItems: FetchedItem[] = details
-              .map((item: any) => ({
-                id: item.ItemID,
-                txnDetailId: item.TXnDetailID,
-                item_no: item.item_no,
-                name: item.ItemName || 'Unknown Item',
-                price: item.RuntimeRate,
-                qty: Number(item.Qty) || 0,
-                revQty: Number(item.RevQty) || 0,
-                isNCKOT: item.isNCKOT,
-                isNew: false,
-                originalQty: item.Qty,
-                kotNo: item.KOTNo,
-                RevKOT: item.RevKOT
-              }))
-              .filter((item: FetchedItem) => (item.qty - item.revQty) > 0);
+          const fetchedItems: FetchedItem[] = details
+            .map((item: any) => ({
+              id: item.ItemID,
+              txnDetailId: item.TXnDetailID,
+              item_no: item.item_no,
+              name: item.ItemName || 'Unknown Item',
+              price: item.RuntimeRate,
+              qty: Number(item.Qty) || 0,
+              revQty: Number(item.RevQty) || 0,
+              isNCKOT: item.isNCKOT,
+              isNew: false,
+              originalQty: item.Qty,
+              kotNo: item.KOTNo,
+              RevKOT: item.RevKOT
+            }))
+            .filter((item: FetchedItem) => (item.qty - item.revQty) > 0);
 
-            // Map to billItems
-            const mappedItems: BillItem[] = fetchedItems.map((item: any) => {
-              const netQty = item.qty - item.revQty;
-              const total = netQty * item.price;
-              const cgst = total * (cgstRate / 100);
-              const sgst = total * (sgstRate / 100);
-              return {
-                itemCode: item.item_no.toString(),
-                itemgroupid: item.id,
-                itemId: item.id,
-                item_no: item.item_no,
-                itemName: item.name,
-                qty: netQty,
-                rate: item.price,
-                total,
-                cgst,
-                sgst,
-                igst: 0,
-                cess: 0,
-                mkotNo: item.kotNo ? item.kotNo.toString() : '',
-                specialInstructions: '',
-                isBilled: 1,
-                txnDetailId: item.txnDetailId,
-                isFetched: true,
-                revQty: item.revQty,
-                revKotNo: item.RevKOTNo || 0,
-                RevKOT: item.RevKOT
-
-              };
-            });
-
-            // Add blank row for new item entry
-            mappedItems.push({
-              itemCode: '',
-              itemgroupid: 0,
-              itemId: 0,
-              item_no: 0,
-              itemName: '',
-              qty: 1,
-              rate: 0,
-              total: 0,
-              cgst: 0,
-              sgst: 0,
+          // Map to billItems
+          const mappedItems: BillItem[] = fetchedItems.map((item: any) => {
+            const netQty = item.qty - item.revQty;
+            const total = netQty * item.price;
+            const cgst = total * (cgstRate / 100);
+            const sgst = total * (sgstRate / 100);
+            return {
+              itemCode: item.item_no.toString(),
+              itemgroupid: item.id,
+              itemId: item.id,
+              item_no: item.item_no,
+              itemName: item.name,
+              qty: netQty,
+              rate: item.price,
+              total,
+              cgst,
+              sgst,
               igst: 0,
               cess: 0,
-              mkotNo: '',
+              mkotNo: item.kotNo ? item.kotNo.toString() : '',
               specialInstructions: '',
-              isFetched: false
-            });
+              isBilled: 1,
+              txnDetailId: item.txnDetailId,
+              isFetched: true,
+              revQty: item.revQty,
+              revKotNo: item.RevKOTNo || 0,
+              RevKOT: item.RevKOT
 
-            setBillItems(mappedItems);
-            setTxnId((header as any).TxnID || (header as any).txnId || null);
-            setOrderNo(header.TxnNo);
-            setWaiter(header.waiter || 'ASD');
-            setPax(header.pax || header.PAX || 1);
-            setTableNo(header.table_name || tableName);
-            if (header.RevKOTNo) {
-              setRevKotNo(Number(header.RevKOTNo));
-            }
-            if (header.CustomerName) setCustomerName(header.CustomerName);
-            if (header.MobileNo) setCustomerNo(header.MobileNo);
-            if (header.customerid) setCustomerId(header.customerid);
-            setCurrentKOTNos(
-              Array.from(new Set(fetchedItems.map((i: FetchedItem) => i.kotNo))).sort((a: number, b: number) => a - b)
-            );
+            };
+          });
 
-            // Set activeTab based on Order_Type from database
-            if (header.Order_Type) {
-              setActiveTab(header.Order_Type);
-            } else {
-              setActiveTab('Dine-in'); // Default for table orders
-            }
+          // Add blank row for new item entry
+          mappedItems.push({
+            itemCode: '',
+            itemgroupid: 0,
+            itemId: 0,
+            item_no: 0,
+            itemName: '',
+            qty: 1,
+            rate: 0,
+            total: 0,
+            cgst: 0,
+            sgst: 0,
+            igst: 0,
+            cess: 0,
+            mkotNo: '',
+            specialInstructions: '',
+            isFetched: false
+          });
 
-            // Fetch outlet details for restaurant and outlet names
-            if (header.outletid) {
-              await fetchOutletDetails(header.outletid);
-            }
+          setBillItems(mappedItems);
+          setTxnId((header as any).TxnID || (header as any).txnId || null);
+          setOrderNo(header.TxnNo);
+          setWaiter(header.waiter || 'ASD');
+          setPax(header.pax || header.PAX || 1);
+          setTableNo(header.table_name || tableName);
+          if (header.RevKOTNo) {
+            setRevKotNo(Number(header.RevKOTNo));
+          }
+          if (header.CustomerName) setCustomerName(header.CustomerName);
+          if (header.MobileNo) setCustomerNo(header.MobileNo);
+          if (header.customerid) setCustomerId(header.customerid);
+          setCurrentKOTNos(
+            Array.from(new Set(fetchedItems.map((i: FetchedItem) => i.kotNo))).sort((a: number, b: number) => a - b)
+          );
 
-            // restore discount
-            if (header.Discount || header.DiscPer) {
-              setDiscount(header.Discount || 0);
-             setDiscountInputValue(header.DiscountType === 1 ? (header.DiscPer || 0) : (header.Discount ?? 0));
-              setDiscountType(header.DiscountType ?? 1);
-            } else {
-              setDiscount(0);
-              setDiscountInputValue(0);
-            }
-            setReversedItems(
-              (billedBillData.reversedItems || []).map((item: any) => ({
-                ...item,
-                name: item.ItemName || 'Unknown Item',
-                id: item.ItemID,
-                price: item.RuntimeRate || 0,
-                qty: Math.abs(item.Qty) || 1,
-                isReversed: true,
-                status: 'Reversed',
-                kotNo: item.RevKOTNo,
-                RevKOT: item.RevKOT
+          // Set activeTab based on Order_Type from database
+          if (header.Order_Type) {
+            setActiveTab(header.Order_Type);
+          } else {
+            setActiveTab('Dine-in'); // Default for table orders
+          }
 
-              }))
-            );
-            const totalRev = (billedBillData.reversedItems || []).reduce((acc: number, item: any) => acc + ((item.Qty || 0) * (item.price || 0)), 0);
-            setRevKOT(header.RevKOT ?? totalRev);
-            // Compute max RevKOTNo from details
-            const reversedDetails = details.filter((d: any) => d.RevQty > 0);
-            const maxRevKotNo = reversedDetails.length > 0 ? Math.max(...reversedDetails.map((d: any) => d.RevKOTNo || 0)) : 0;
-            setRevKotNo(maxRevKotNo);
+          // Fetch outlet details for restaurant and outlet names
+          if (header.outletid) {
+            await fetchOutletDetails(header.outletid);
+          }
 
-            // Set tax values from header for billed bills
-            if (header.CGST !== undefined) setCgst(header.CGST);
-            if (header.SGST !== undefined) setSgst(header.SGST);
-            if (header.IGST !== undefined) setIgst(header.IGST);
-            if (header.CESS !== undefined) setCess(header.CESS);
+          // restore discount
+          if (header.Discount || header.DiscPer) {
+            setDiscount(header.Discount || 0);
+            setDiscountInputValue(header.DiscountType === 1 ? (header.DiscPer || 0) : (header.Discount ?? 0));
+            setDiscountType(header.DiscountType ?? 1);
+          } else {
+            setDiscount(0);
+            setDiscountInputValue(0);
+          }
+          setReversedItems(
+            (billedBillData.reversedItems || []).map((item: any) => ({
+              ...item,
+              name: item.ItemName || 'Unknown Item',
+              id: item.ItemID,
+              price: item.RuntimeRate || 0,
+              qty: Math.abs(item.Qty) || 1,
+              isReversed: true,
+              status: 'Reversed',
+              kotNo: item.RevKOTNo,
+              RevKOT: item.RevKOT
 
-            calculateTotals(mappedItems);
-            setOriginalTableStatus(2); // Set to billed status for order_tag logic
-            setLoading(false);
-            return;
-       
+            }))
+          );
+          const totalRev = (billedBillData.reversedItems || []).reduce((acc: number, item: any) => acc + ((item.Qty || 0) * (item.price || 0)), 0);
+          setRevKOT(header.RevKOT ?? totalRev);
+          // Compute max RevKOTNo from details
+          const reversedDetails = details.filter((d: any) => d.RevQty > 0);
+          const maxRevKotNo = reversedDetails.length > 0 ? Math.max(...reversedDetails.map((d: any) => d.RevKOTNo || 0)) : 0;
+          setRevKotNo(maxRevKotNo);
+
+          // Set tax values from header for billed bills
+          if (header.CGST !== undefined) setCgst(header.CGST);
+          if (header.SGST !== undefined) setSgst(header.SGST);
+          if (header.IGST !== undefined) setIgst(header.IGST);
+          if (header.CESS !== undefined) setCess(header.CESS);
+
+          calculateTotals(mappedItems);
+          setOriginalTableStatus(2); // Set to billed status for order_tag logic
+          setLoading(false);
+          return;
+
         }
       } catch (billedErr) {
         console.log('Billed bill not found or error, falling back to unbilled items');
@@ -807,7 +807,7 @@ const ModernBill = () => {
     setError(null);
     try {
       const response = await OrderService.getBillById(Number(orderId));
-      
+
       const data = response.data || response;
       if (!data) {
         throw new Error('No data received from server');
@@ -916,9 +916,9 @@ const ModernBill = () => {
         if (data.header.Discount || data.header.DiscPer) {
           setDiscount(data.header.Discount || 0);
           setDiscPer(data.header.DiscPer || 0);
-         setDiscountInputValue(
-  data.header.DiscountType === 1 ? data.header.DiscPer ?? 0 : data.header.Discount ?? 0
-);
+          setDiscountInputValue(
+            data.header.DiscountType === 1 ? data.header.DiscPer ?? 0 : data.header.Discount ?? 0
+          );
           setDiscountType(data.header.DiscountType ?? 1);
         } else {
           setDiscount(0);
@@ -968,8 +968,8 @@ const ModernBill = () => {
     setError(null);
     try {
       const response = await OrderService.getUnbilledItemsByTable(tableIdNum);
-     
-        const data = response.data || response;
+
+      const data = response.data || response;
       if (!data) {
         throw new Error('No data received from server');
       }
@@ -1060,9 +1060,9 @@ const ModernBill = () => {
         if (data.header.Discount || data.header.DiscPer) {
           setDiscount(data.header.Discount || 0);
           setDiscPer(data.header.DiscPer || 0);
-        setDiscountInputValue(
-       (data.header.DiscountType === 1 ? data.header.DiscPer : data.header.Discount || 0) as number
-);
+          setDiscountInputValue(
+            (data.header.DiscountType === 1 ? data.header.DiscPer : data.header.Discount || 0) as number
+          );
           setDiscountType(data.header.DiscountType ?? 1);
         } else {
           setDiscount(0);
@@ -1203,52 +1203,52 @@ const ModernBill = () => {
       setOutletName(user?.outlet_name || 'Outlet Name');
     }
   };
- 
+
   // Fetch payment modes based on selected outlet
   useEffect(() => {
-  const fetchPaymentModes = async () => {
-    try {
-      if (!selectedOutletId) return;
+    const fetchPaymentModes = async () => {
+      try {
+        if (!selectedOutletId) return;
 
-      const response = await OrderService.getPaymentModesByOutlet(selectedOutletId);
+        const response = await OrderService.getPaymentModesByOutlet(selectedOutletId);
 
-      if (Array.isArray(response)) {
-        setOutletPaymentModes(response);
-      } else if (response?.data) {
-        setOutletPaymentModes(response.data);
-      } else {
+        if (Array.isArray(response)) {
+          setOutletPaymentModes(response);
+        } else if (response?.data) {
+          setOutletPaymentModes(response.data);
+        } else {
+          setOutletPaymentModes([]);
+        }
+
+      } catch (error) {
+        console.error('Failed to fetch payment modes:', error);
         setOutletPaymentModes([]);
       }
+    };
 
-    } catch (error) {
-      console.error('Failed to fetch payment modes:', error);
-      setOutletPaymentModes([]);
-    }
-  };
-
-  fetchPaymentModes();
-}, [selectedOutletId]);
+    fetchPaymentModes();
+  }, [selectedOutletId]);
 
 
   // Fetch global KOT number based on selected outlet
- useEffect(() => {
-  const fetchGlobalKOT = async () => {
-    try {
-      if (!selectedOutletId) return;
+  useEffect(() => {
+    const fetchGlobalKOT = async () => {
+      try {
+        if (!selectedOutletId) return;
 
-      const response = await OrderService.getGlobalKOTNumber(selectedOutletId);
+        const response = await OrderService.getGlobalKOTNumber(selectedOutletId);
 
-      const nextKOT = response.data.nextKOT; // ✅ FIXED
+        const nextKOT = response.data.nextKOT; // ✅ FIXED
 
-      setDefaultKot(nextKOT);
-      setEditableKot(nextKOT);
-    } catch (error) {
-      console.error('Failed to fetch global KOT number:', error);
-    }
-  };
+        setDefaultKot(nextKOT);
+        setEditableKot(nextKOT);
+      } catch (error) {
+        console.error('Failed to fetch global KOT number:', error);
+      }
+    };
 
-  fetchGlobalKOT();
-}, [selectedOutletId]);
+    fetchGlobalKOT();
+  }, [selectedOutletId]);
 
   // Fetch tax details based on selected outlet
   useEffect(() => {
@@ -1291,7 +1291,7 @@ const ModernBill = () => {
           const response = await OrderService.getOutletSettings(selectedOutletId);
           // Handle both response formats: { success: true, data: {...} } or direct {...}
           const settings = response.data || response;
-          
+
           if (settings && typeof settings === 'object') {
             setReverseQtyConfig(settings.ReverseQtyMode === 1 ? 'PasswordRequired' : 'NoPassword');
             setRoundOffEnabled(!!settings.bill_round_off);
@@ -1608,8 +1608,8 @@ const ModernBill = () => {
         Order_Type: isTakeaway ? (deliveryType === 'pickup' ? 'Pickup' : 'Delivery') : 'Dine-in',
         Steward: waiter,
         PAX: pax,
-        CustomerName: customerName ,
-        MobileNo: customerNo ,
+        CustomerName: customerName,
+        MobileNo: customerNo,
         customerid: customerId,
         discount: discount,
         discPer: discountInputValue,
@@ -1679,7 +1679,7 @@ const ModernBill = () => {
       // Set table status to occupied (green)
       if (tableId) {
         try {
-         await OrderService.updateTableStatus(tableId, { status: 1 });
+          await OrderService.updateTableStatus(tableId, { status: 1 });
         } catch (error) {
           console.error('Error updating table status:', error);
         }
@@ -1764,69 +1764,69 @@ const ModernBill = () => {
     }
   };
   const handleReverseKotSave = async (
-  reverseItemsFromModal: ReverseModalItem[]
-) => {
-  if (!txnId) {
-    toast.error('Transaction not found');
-    return;
-  }
-
-  if (!reverseItemsFromModal.length) {
-    toast.error('No items selected for reverse');
-    return;
-  }
-
-  console.log('Modal sending:', reverseItemsFromModal);
-
-  try {
-    const result = await OrderService.createReverseKOT({
-      txnId,
-      tableId,
-      kotType: 'REVERSE',
-      isReverseKot: 1,
-      reversedItems: reverseItemsFromModal.map(item => ({
-        txnDetailId: item.txnDetailId,
-        item_no: item.item_no,
-        name: item.itemName,
-        qty: item.cancelQty,
-        price: item.rate,
-      })),
-      userId: user?.id,
-      reversalReason: 'Reverse from Billview',
-    });                 
-    console.log('Reverse KOT API response:', result);
-
-    // Since HttpClient returns response.data directly
-    if (!result?.success) {
-      toast.error('Reverse failed');
+    reverseItemsFromModal: ReverseModalItem[]
+  ) => {
+    if (!txnId) {
+      toast.error('Transaction not found');
       return;
     }
 
-    const reverseKotNo = result?.data?.revkotNo;
-
-    toast.success(`Reverse KOT ${reverseKotNo ?? ''} saved`);
-
-    if (reverseKotNo) {
-      setRevKotNo(reverseKotNo);
+    if (!reverseItemsFromModal.length) {
+      toast.error('No items selected for reverse');
+      return;
     }
 
-    // Update table status to occupied
+    console.log('Modal sending:', reverseItemsFromModal);
+
     try {
-       await OrderService.updateTableStatus(tableId, { status: 1 });
-    } catch (error) {
-      console.error('Error updating table status:', error);
+      const result = await OrderService.createReverseKOT({
+        txnId,
+        tableId,
+        kotType: 'REVERSE',
+        isReverseKot: 1,
+        reversedItems: reverseItemsFromModal.map(item => ({
+          txnDetailId: item.txnDetailId,
+          item_no: item.item_no,
+          name: item.itemName,
+          qty: item.cancelQty,
+          price: item.rate,
+        })),
+        userId: user?.id,
+        reversalReason: 'Reverse from Billview',
+      });
+      console.log('Reverse KOT API response:', result);
+
+      // Since HttpClient returns response.data directly
+      if (!result?.success) {
+        toast.error('Reverse failed');
+        return;
+      }
+
+      const reverseKotNo = result?.data?.revkotNo;
+
+      toast.success(`Reverse KOT ${reverseKotNo ?? ''} saved`);
+
+      if (reverseKotNo) {
+        setRevKotNo(reverseKotNo);
+      }
+
+      // Update table status to occupied
+      try {
+        await OrderService.updateTableStatus(tableId, { status: 1 });
+      } catch (error) {
+        console.error('Error updating table status:', error);
+      }
+
+      await loadBillDetails();
+      await fetchTableManagement();
+
+      navigate('/apps/Tableview');
+
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err?.message || 'Reverse failed');
     }
-
-    await loadBillDetails();
-    await fetchTableManagement();
-
-    navigate('/apps/Tableview');
-
-  } catch (err: any) {
-    console.error(err);
-    toast.error(err?.message || 'Reverse failed');
-  }
-};
+  };
 
   const printKOT = async (kotNo: number) => {
     try {
@@ -1935,18 +1935,18 @@ const ModernBill = () => {
   };
 
   const fetchTableManagement = async () => {
-  try {
-    const response = await TableManagementService.list();
-    const tableManagementData = response.data.map(table => ({
-      ...table,
-      tablemanagementid: table.tableid || 0, // Add the missing property
-      // Add any other required properties here
-    }));
-    setTableItems(tableManagementData);
-  } catch (error) {
-    console.error('Error fetching table management:', error);
-  }
-};
+    try {
+      const response = await TableManagementService.list();
+      const tableManagementData = response.data.map(table => ({
+        ...table,
+        tablemanagementid: table.tableid || 0, // Add the missing property
+        // Add any other required properties here
+      }));
+      setTableItems(tableManagementData);
+    } catch (error) {
+      console.error('Error fetching table management:', error);
+    }
+  };
 
 
 
@@ -2013,20 +2013,21 @@ const ModernBill = () => {
         discountType: DiscountType,
         tableId: tableId,
         items: billItems.filter(item => item.itemId > 0).map(item => ({
-    ItemID: item.itemId,
-    Name: item.itemName,
-    Qty: item.qty,
-    RuntimeRate: item.rate,
-    Amount: item.total,
-    ...item, // include all other properties
-  })),      };
+          ItemID: item.itemId,
+          Name: item.itemName,
+          Qty: item.qty,
+          RuntimeRate: item.rate,
+          Amount: item.total,
+          ...item, // include all other properties
+        })),
+      };
 
       const response = await OrderService.applyDiscount(txnId, payload);
       console.log('Apply Discount API response:', response);
 
       const result = response.data;
 
-    
+
 
       toast.success('Discount applied successfully!');
       setShowDiscountModal(false);
@@ -2058,7 +2059,7 @@ const ModernBill = () => {
       setLoading(false);
       setReason('');
     }
-  }; 
+  };
 
   const handleSettleAndPrint = async (settlements: any[], tip?: number) => {
     if (!txnId) {
@@ -2088,14 +2089,14 @@ const ModernBill = () => {
       }));
 
       // 2. Call the settlement endpoint
-     await OrderService.settleBill(txnId, {
-  bill_amount: taxCalc.grandTotal,
-  total_received: totalReceived,
-  total_refund: refundAmount,
-  settlements: settlementsPayload
+      await OrderService.settleBill(txnId, {
+        bill_amount: taxCalc.grandTotal,
+        total_received: totalReceived,
+        total_refund: refundAmount,
+        settlements: settlementsPayload
       });
 
-     
+
 
       toast.success('Settlement successful and bill printed!');
 
@@ -2474,11 +2475,10 @@ const ModernBill = () => {
           vertical-align: middle;
         }
         .form-control-sm1 {
-  font-size: 1.1rem;
-  font-weight: 600;   /* semi-bold */
-}
+         font-size: 1.1rem;
+         font-weight: 600;   /* semi-bold */}
         .modern-table.table-bordered td, .modern-table.table-bordered th {
-          border: 1px solid #ced4da;
+         border: 1px solid #ced4da;
         }
 
         .modern-table input[type="text"]:focus {
@@ -2488,113 +2488,113 @@ const ModernBill = () => {
 
       
 
-/* KOT No. special styling */
-.info-box .bg-light {
-  background-color: #f9fafb !important;
-  border: 1px solid #d1d5db !important;
-}
+          /* KOT No. special styling */
+          .info-box .bg-light {
+          background-color: #f9fafb !important;
+          border: 1px solid #d1d5db !important;
+          }
 
-/* Input fields styling */
-.info-box input {
-  border: none;
-  outline: none;
-  background: transparent;
-  color: #333;
-  font-weight: 600;
-  letter-spacing: 0.5px;
-}
+          /* Input fields styling */
+          .info-box input {
+          border: none;
+          outline: none;
+          background: transparent;
+          color: #333;
+          font-weight: 600;
+          letter-spacing: 0.5px;
+          }
 
-.info-box input:focus {
-  background: rgba(59, 130, 246, 0.05);
-}
+          .info-box input:focus {
+          background: rgba(59, 130, 246, 0.05);
+          }
 
-.info-box input[type="number"] {
-  -moz-appearance: textfield;
-}
+          .info-box input[type="number"] {
+          -moz-appearance: textfield;
+          }
 
-.info-box input[type="number"]::-webkit-outer-spin-button,
-.info-box input[type="number"]::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
+          .info-box input[type="number"]::-webkit-outer-spin-button,
+          .info-box input[type="number"]::-webkit-inner-spin-button {
+          -webkit-appearance: none;
+          margin: 0;
+          }
 
-/* Total Amount box */
-.total-box {
-  border: none !important;
-  box-shadow: none !important;
-  min-height: 90px;
-}
+          /* Total Amount box */
+          .total-box {
+          border: none !important;
+          box-shadow: none !important;
+          min-height: 90px;
+          }
 
-.total-box .text-white-50 {
-  opacity: 0.8;
-  letter-spacing: 0.5px;
-}
+          .total-box .text-white-50 {
+          opacity: 0.8;
+          letter-spacing: 0.5px;
+          }
 
-.total-box .text-white {
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-}
+          .total-box .text-white {
+          text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+          }
 
-/* Text styling */
-.text-uppercase {
-  letter-spacing: 0.5px;
-  font-size: 0.75rem;
-}
+          /* Text styling */
+          .text-uppercase {
+          letter-spacing: 0.5px;
+          font-size: 0.75rem;
+          }
 
-.fw-bold.fs-4 {
-  font-size: 1.75rem !important;
-  line-height: 1.2;
-}
+          .fw-bold.fs-4 {
+          font-size: 1.75rem !important;
+          line-height: 1.2;
+          }
 
-.fw-bold.fs-5 {
-  font-size: 1.25rem !important;
-  line-height: 1.2;
-}
+          .fw-bold.fs-5 {
+          font-size: 1.25rem !important;
+          line-height: 1.2;
+          }
 
-.fw-bold.fs-3 {
-  font-size: 1.875rem !important;
-  line-height: 1.2;
-}
+          .fw-bold.fs-3 {
+          font-size: 1.875rem !important;
+          line-height: 1.2;
+          }
 
-/* Ensure all content is properly centered */
-.d-flex.flex-column.justify-content-center {
-  min-height: 100%;
-}
+          /* Ensure all content is properly centered */
+          .d-flex.flex-column.justify-content-center {
+          min-height: 100%;
+          }
 
-/* Responsive adjustments */
-@media (max-width: 768px) {
-  .info-box, .total-box {
-    margin-bottom: 10px;
-    min-height: 80px;
-  }
-  
-  .fw-bold.fs-4 {
-    font-size: 1.5rem !important;
-  }
-  
-  .fw-bold.fs-5 {
-    font-size: 1.125rem !important;
-  }
-  
-  .fw-bold.fs-3 {
-    font-size: 1.5rem !important;
-  }
-}
-/* Datalist arrow styling */
-.info-card input::-webkit-calendar-picker-indicator {
-  filter: invert(1);
-  cursor: pointer;
-  opacity: 0.8;
-}
+          /* Responsive adjustments */
+          @media (max-width: 768px) {
+          .info-box, .total-box {
+          margin-bottom: 10px;
+          min-height: 80px;
+          }
 
-/* Autofill fix */
-.info-card input:-webkit-autofill,
-.info-card input:-webkit-autofill:hover, 
-.info-card input:-webkit-autofill:focus, 
-.info-card input:-webkit-autofill:active{
-    -webkit-box-shadow: 0 0 0 30px linear-gradient(135deg, #2563eb 0%, #1e40af 100%); inset !important;
-    -webkit-text-fill-color: white !important;
-    transition: background-color 5000s ease-in-out 0s;
-}
+          .fw-bold.fs-4 {
+          font-size: 1.5rem !important;
+          }
+
+          .fw-bold.fs-5 {
+          font-size: 1.125rem !important;
+          }
+
+          .fw-bold.fs-3 {
+          font-size: 1.5rem !important;
+          }
+          }
+          /* Datalist arrow styling */
+          .info-card input::-webkit-calendar-picker-indicator {
+          filter: invert(1);
+          cursor: pointer;
+          opacity: 0.8;
+          }
+
+          /* Autofill fix */
+          .info-card input:-webkit-autofill,
+          .info-card input:-webkit-autofill:hover, 
+          .info-card input:-webkit-autofill:focus, 
+          .info-card input:-webkit-autofill:active{
+          -webkit-box-shadow: 0 0 0 30px linear-gradient(135deg, #2563eb 0%, #1e40af 100%); inset !important;
+          -webkit-text-fill-color: white !important;
+          transition: background-color 5000s ease-in-out 0s;
+          }
         .total-card {
           background: #28a745; /* Solid green background */
           border: none;
@@ -2606,23 +2606,23 @@ const ModernBill = () => {
           background: #f8f9fa;
         }
 
-       .function-btn {
-  border-radius: 20px;              /* thoda zyada rounded, jaise screenshot */
-  font-size: 0.99rem;               /* perfect size */
-  padding: 6px 22px;                /* vertical thoda zyada, horizontal balanced */
-  min-width: 95px;                  /* sab buttons almost same width */
-  background: #e3f2fd;
-  border: 1.6px solid #2196f3;      /* thodi bold border */
-  color: #1976d2;
-  font-weight: 800;
-  white-space: nowrap;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1); /* subtle shadow for depth */
-}
+        .function-btn {
+        border-radius: 20px;              /* thoda zyada rounded, jaise screenshot */
+        font-size: 0.99rem;               /* perfect size */
+        padding: 6px 22px;                /* vertical thoda zyada, horizontal balanced */
+        min-width: 95px;                  /* sab buttons almost same width */
+        background: #e3f2fd;
+        border: 1.6px solid #2196f3;      /* thodi bold border */
+        color: #1976d2;
+        font-weight: 800;
+        white-space: nowrap;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1); /* subtle shadow for depth */
+      }
 
-.function-btn:hover {
-  background: #bbdefb;
-  transform: translateY(-1px);
-}
+      .function-btn:hover {
+        background: #bbdefb;
+        transform: translateY(-1px);
+      }
 
         .bill-header h2 {
           font-weight: 700;
@@ -2711,16 +2711,18 @@ const ModernBill = () => {
             {/* Card Layout for Header Information */}
             <Row className="mb-3 g-2 align-items-stretch">
               {/* Table No / Order No - Left aligned */}
-              <Col md={1}>
-                <div className="info-box p-2 h-100 border rounded text-center d-flex flex-column justify-content-center">
-                  <div className="text-uppercase text-secondary small mb-1 fw-semibold">
-                    Table No
-                  </div>
-                  <div className="fw-bold fs-4" style={{ color: '#333' }}>
-                    {isTakeaway ? '--' : (tableNo || '--')}
-                  </div>
-                </div>
-              </Col>
+              {/* Table No / Order No - Left aligned */}
+<Col md={2}>
+  <div className="info-box p-2 h-100 border rounded text-center d-flex flex-column justify-content-center">
+    <div className="text-uppercase text-secondary small mb-1 fw-semibold">
+      Table No
+    </div>
+    <div className="fw-bold fs-4" style={{ color: '#333' }}>
+      {isTakeaway ? (orderNo || '--') : (tableNo || '--')}
+    </div>
+  </div>
+</Col>
+
 
               {/* Waiter - Centered */}
               <Col md={1}>
@@ -2736,7 +2738,7 @@ const ModernBill = () => {
                     style={{ color: '#333' }}
                   />
                   <datalist id="waiters">
-                   
+
                     {waiterUsers.map((user) => (
                       <option key={user.userId} value={user.username} />
                     ))}
@@ -2809,22 +2811,7 @@ const ModernBill = () => {
 
 
               {/* Date - Centered */}
-              <Col md={1}>
-                <div className="info-box p-2 h-100 border rounded text-center d-flex flex-column justify-content-center">
-                  <div className="text-uppercase text-secondary small mb-1 fw-semibold">
-                    Date
-                  </div>
-                  <div className="fw-bold fs-6" style={{ color: '#333' }}>
-                    {user?.currDate
-                      ? new Date(user.currDate).toLocaleDateString('en-GB', {
-                        day: '2-digit',
-                        month: '2-digit',
-                        year: 'numeric',
-                      })
-                      : '--/--/----'}
-                  </div>
-                </div>
-              </Col>
+              
 
 
               {isTakeaway && (

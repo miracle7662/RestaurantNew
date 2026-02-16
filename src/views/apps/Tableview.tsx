@@ -743,7 +743,6 @@ export default function App() {
           </div>
         )}
       </div>
-
       {/* Modal */}
       <Modal show={showModal} onHide={() => setShowModal(false)} centered size="sm">
         <Modal.Header closeButton>
