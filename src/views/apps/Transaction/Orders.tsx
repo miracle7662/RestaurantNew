@@ -1213,12 +1213,11 @@ const handleTabClick = (tab: string) => {
 
     let finalGrandTotal = grandTotal;
     let appliedRoundOff = 0;
-
+    
     // Always calculate roundoff value for display purposes
     // Apply roundoff to grandTotal only when settings are loaded AND enabled
-    // This ensures the UI shows correct roundoff value while preventing incorrect calculations
+
     if (roundOffEnabled) {
-      // Settings are loaded and enabled - use the configured roundTo value
       const { roundedAmount, roundOffValue } = applyRoundOff(grandTotal, roundOffTo);
       finalGrandTotal = roundedAmount;
       appliedRoundOff = roundOffValue;
@@ -1228,7 +1227,6 @@ const handleTabClick = (tab: string) => {
       finalGrandTotal = roundedAmount;
       appliedRoundOff = roundOffValue;
     }
-    // Always update the roundoff value state so it displays correctly
     setRoundOffValue(appliedRoundOff);
 
     setTaxCalc({
@@ -1263,7 +1261,6 @@ const handleTabClick = (tab: string) => {
             setRoundOffEnabled(!!settings.data.bill_round_off);
             setRoundOffTo(settings.data.bill_round_off_to || 1);
             setRoundOffSettingsLoaded(true); // Mark round off settings as loaded
-
             // include_tax_in_invoice may be returned with different casing
             const incFlag =
               settings.data.include_tax_in_invoice ??
@@ -2367,7 +2364,7 @@ const handleTabClick = (tab: string) => {
           Qty: item.qty,
           RuntimeRate: item.price,
           Amount: item.qty * item.price,
-        })),
+        })), // Map MenuItem to BillItem for the API
       });
 
       if (!result.success) {
@@ -3946,7 +3943,7 @@ const handleTabClick = (tab: string) => {
                           </svg>
                         </Button>
 
-{/* Discount Button */}
+                        {/* Discount Button */}
                         <Button
                           variant="success"
                           className="rounded-circle p-0 d-flex justify-content-center align-items-center"
