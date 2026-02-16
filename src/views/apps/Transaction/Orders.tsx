@@ -17,8 +17,6 @@ import { fetchWaiterUsers, WaiterUser } from '@/services/user.service';
 import TableManagementService from '@/common/api/tablemanagement';
 import TableDepartmentService from '@/common/api/tabledepartment';
 import OrderService from "@/common/api/order";
-
-
 interface MenuItem {
   id: number;
   name: string;
@@ -113,8 +111,6 @@ const Order = () => {
   const [mobileNumber, setMobileNumber] = useState<string>('');
   const [customerName, setCustomerName] = useState<string>('');
   const [customerid, setCustomerId] = useState<number | null>(null);
-
-
   const [customerAddress, setCustomerAddress] = useState<string>('');
   const [taxRates, setTaxRates] = useState<{ cgst: number; sgst: number; igst: number; cess: number }>({ cgst: 0, sgst: 0, igst: 0, cess: 0 });
   const [taxCalc, setTaxCalc] = useState<{ subtotal: number; cgstAmt: number; sgstAmt: number; igstAmt: number; cessAmt: number; grandTotal: number }>({ subtotal: 0, cgstAmt: 0, sgstAmt: 0, igstAmt: 0, cessAmt: 0, grandTotal: 0 });
@@ -683,8 +679,6 @@ const Order = () => {
     setLoading(false);
   }
 };
-
-
   const fetchOutletsData = async () => {
     console.log('Full user object:', JSON.stringify(user, null, 2));
     if (!user || !user.id) {
@@ -4449,10 +4443,12 @@ const Order = () => {
                   setShowOrderDetails(false);
                   setSelectedTable(null);
                 }
-              } else if (activeTab === 'Pickup' || activeTab === 'Delivery') {
+            } else if (activeTab === 'Pickup' || activeTab === 'Delivery') {
                 // Navigate back to table page for Pickup/Delivery
                 setActiveTab('Dine-in');
+                setActiveNavTab('ALL');
                 setShowOrderDetails(false);
+                setShowPendingOrdersView(false);
                 setMobileNumber('');
                 setCustomerName('');
                 setCustomerId(null);
