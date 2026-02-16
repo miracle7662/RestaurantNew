@@ -729,7 +729,7 @@ export default function App() {
                         {order.customer?.name || 'N/A'}
                       </div>
                       <div className="fw-semibold">
-                        ₹{order.total}
+                        ₹{Math.round(order.total)}
                       </div>
                       {maxKot && (
                         <div className="small text-primary">
