@@ -803,14 +803,6 @@ exports.settleBill = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Bill not found', data: null })
     console.log('Found bill:', JSON.stringify(bill, null, 2))
 
-    // Generate TxnNo if it doesn't exist (for quick bill settlement scenarios)
-    let txnNo = bill.TxnNo
-    if (!txnNo && bill.outletid) {
-      txnNo = generateTxnNo(bill.outletid)
-      // Update the bill with the generated TxnNo before settlement
-      db.prepare('UPDATE TAxnTrnbill SET TxnNo = ? WHERE TxnID = ?').run(txnNo, Number(id))
-    }
-
     const tx = db.transaction(() => {
       const ins = db.prepare(`
 INSERT INTO TrnSettlement (PaymentTypeID, PaymentType, Amount, Batch, Name, OrderNo, HotelID, TxnNo, UserId, CustomerName, MobileNo, Receive, Refund, isSettled)
