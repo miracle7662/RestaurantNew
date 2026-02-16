@@ -32,7 +32,7 @@ interface MenuItem {
   isNew?: boolean; // Added to track new items not yet sent to KOT
   alternativeItem?: string;
   modifier?: string[];
-  item_no?: string;
+  item_no?: number;
   originalQty?: number; // To track the original quantity from database
   kotNo?: number;
   txnDetailId?: number;
@@ -1810,7 +1810,17 @@ const Order = () => {
            const response = await OrderService.createReverseKOT({
         txnId: persistentTxnId,
         tableId: persistentTableId,
-        reversedItems: reverseQtyItems.map(item => ({ ...item, item_no: item.item_no, itemName: item.name })),
+        kotType: 'Reverse',
+        isReverseKot: 1,
+        reversedItems: reverseQtyItems.map(item => ({
+          txnDetailId: item.txnDetailId ?? 0,
+          item_no: String(item.item_no ?? ''),
+          name: item.name,
+          qty: item.qty,
+          price: item.price,
+          itemId: item.id,
+          itemName: item.name
+        })),
         userId: user?.id,
         reversalReason: 'Full Reverse from UI' // You can add a specific reason here if needed
       });
@@ -1976,7 +1986,7 @@ const Order = () => {
         // 2. Map the fetched items to the MenuItem interface
         const fetchedItems: MenuItem[] = fullBill.details.map((item: any) => ({
           id: item.ItemID,
-          txnDetailId: item.TXnDetailID,
+          txnDetailId: item.TxnDetailID,
           name: item.ItemName || 'Unknown Item',
           price: item.RuntimeRate,
           qty: (Number(item.Qty) || 0) - (Number(item.RevQty) || 0),

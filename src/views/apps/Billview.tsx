@@ -3401,7 +3401,7 @@ const ModernBill = () => {
             isNCKOT: 0,
             NCName: '',
             NCPurpose: '',
-            item_no: item.item_no.toString(),
+            item_no: item.item_no || 0,
             kotNo: currentKotNoForPrint || undefined,
             txnDetailId: item.txnDetailId,
             isNew: true

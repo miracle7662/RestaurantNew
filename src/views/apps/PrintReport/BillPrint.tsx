@@ -18,7 +18,7 @@ interface MenuItem {
   isNew?: boolean;
   alternativeItem?: string;
   modifier?: string[];
-  item_no?: string;
+   item_no?: number;
   originalQty?: number;
   kotNo?: number;
   txnDetailId?: number;
