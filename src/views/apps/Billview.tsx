@@ -2712,16 +2712,16 @@ const ModernBill = () => {
             <Row className="mb-3 g-2 align-items-stretch">
               {/* Table No / Order No - Left aligned */}
               {/* Table No / Order No - Left aligned */}
-<Col md={2}>
-  <div className="info-box p-2 h-100 border rounded text-center d-flex flex-column justify-content-center">
-    <div className="text-uppercase text-secondary small mb-1 fw-semibold">
-      Table No
-    </div>
-    <div className="fw-bold fs-4" style={{ color: '#333' }}>
-      {isTakeaway ? (orderNo || '--') : (tableNo || '--')}
-    </div>
-  </div>
-</Col>
+              <Col md={2}>
+                <div className="info-box p-2 h-100 border rounded text-center d-flex flex-column justify-content-center">
+                  <div className="text-uppercase text-secondary small mb-1 fw-semibold">
+                    Table No
+                  </div>
+                  <div className="fw-bold fs-4" style={{ color: '#333' }}>
+                    {isTakeaway ? (orderNo || '--') : (tableNo || '--')}
+                  </div>
+                </div>
+              </Col>
 
 
               {/* Waiter - Centered */}
@@ -2811,7 +2811,7 @@ const ModernBill = () => {
 
 
               {/* Date - Centered */}
-              
+
 
 
               {isTakeaway && (
