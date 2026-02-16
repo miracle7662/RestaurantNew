@@ -128,9 +128,10 @@ const Order = () => {
   const [DiscountType, setDiscountType] = useState<number>(1); // 1 for percentage, 0 for amount
   const [discountInputValue, setDiscountInputValue] = useState<number>(0);
   const [currentKOTNo, setCurrentKOTNo] = useState<number | null>(null);
-  const [roundOffEnabled, setRoundOffEnabled] = useState<boolean>(false);
+const [roundOffEnabled, setRoundOffEnabled] = useState<boolean>(false);
   const [roundOffTo, setRoundOffTo] = useState<number>(1); // Default to 1
   const [roundOffValue, setRoundOffValue] = useState<number>(0); // To store the calculated round-off value
+  const [roundOffSettingsLoaded, setRoundOffSettingsLoaded] = useState<boolean>(false); // To track if round off settings are loaded
   const [currentKOTNos, setCurrentKOTNos] = useState<number[]>([]);
   const [currentTxnId, setCurrentTxnId] = useState<number | null>(null);
   const [orderNo, setOrderNo] = useState<string | null>(null); // New state for displaying Bill No
@@ -286,6 +287,15 @@ const Order = () => {
     const roundedAmount = Math.round(amount / roundTo) * roundTo;
     const roundOffValue = roundedAmount - amount;
     return { roundedAmount, roundOffValue };
+  };
+
+  // Shared calculation function for round-off
+  const calculateRoundOff = (grandTotal: number, roundOffEnabled: boolean, roundOffTo: number) => {
+    if (roundOffEnabled) {
+      const { roundedAmount, roundOffValue } = applyRoundOff(grandTotal, roundOffTo);
+      return { finalGrandTotal: roundedAmount, appliedRoundOff: roundOffValue };
+    }
+    return { finalGrandTotal: grandTotal, appliedRoundOff: 0 };
   };
 
   const hasModifications = items.some(item => item.isNew) || reverseQtyItems.length > 0;
@@ -868,7 +878,7 @@ const Order = () => {
     }
   };
 
-  const handleTabClick = (tab: string) => {
+const handleTabClick = (tab: string) => {
     console.log('Tab clicked:', tab);
     setActiveTab(tab);
     setActiveNavTab('ALL'); // Reset main nav tab to avoid conflicts
@@ -903,11 +913,34 @@ const Order = () => {
         // Set default department for Pickup/Delivery/Quick Bill to ensure tax calculation works
         // Find the first department that belongs to the selected outlet
         const defaultDept = departments.find(d => d.outletid === outletId);
+        let newDeptId: number | null = null;
         if (defaultDept) {
-          setSelectedDeptId(defaultDept.departmentid);
+          newDeptId = defaultDept.departmentid;
         } else if (departments.length > 0) {
           // Fallback: use the first available department
-          setSelectedDeptId(departments[0].departmentid);
+          newDeptId = departments[0].departmentid;
+        }
+        setSelectedDeptId(newDeptId);
+        
+        // Force reload outlet settings immediately after setting department
+        // This ensures round off settings are loaded before any order is created
+        if (outletId && newDeptId) {
+          loadOutletSettings(outletId);
+          // Also fetch and set round off settings immediately
+          const fetchRoundOffSettings = async () => {
+            try {
+              const settings = await OrderService.getOutletSettings(outletId);
+              if (settings && settings.data) {
+                setRoundOffEnabled(!!settings.data.bill_round_off);
+                setRoundOffTo(settings.data.bill_round_off_to || 1);
+                setRoundOffSettingsLoaded(true); // Mark settings as loaded
+              }
+            } catch (error) {
+              console.error('Error fetching round off settings:', error);
+              setRoundOffSettingsLoaded(true); // Mark as loaded even on error to prevent hanging
+            }
+          };
+          fetchRoundOffSettings();
         }
       }
 
@@ -1192,7 +1225,7 @@ const Order = () => {
       subtotal: finalSubtotal, cgstAmt, sgstAmt, igstAmt, cessAmt, grandTotal: finalGrandTotal
     });
 
-  }, [items, reversedItems, taxRates, includeTaxInInvoice, discount, roundOffEnabled, roundOffTo]);
+  }, [items, reversedItems, taxRates, includeTaxInInvoice, discount, roundOffEnabled, roundOffTo, roundOffSettingsLoaded]);
 
   const loadOutletSettings = async (outletId: number) => {
     try {
@@ -1205,6 +1238,9 @@ const Order = () => {
     }
   };
 
+  // Fetch outlet settings whenever selectedOutletId, activeTab, or selectedDeptId changes
+  // This ensures round-off settings are loaded for all order types (Dine-In, Pickup, Delivery, QuickBill)
+  // and when department changes
   useEffect(() => {
     if (selectedOutletId) {
       loadOutletSettings(selectedOutletId);
@@ -1239,7 +1275,7 @@ const Order = () => {
       };
       fetchReverseQtySetting();
     }
-  }, [selectedOutletId]);
+  }, [selectedOutletId, activeTab, selectedDeptId]);
 
   useEffect(() => {
     if (selectedOutletId) {
@@ -4071,7 +4107,7 @@ const Order = () => {
                   )}
                   {roundOffEnabled && roundOffValue !== 0 && (
                     <div className="d-flex justify-content-between">
-                      <span>Round Off ({roundOffTo})</span>
+                      <span>Round Off. ({roundOffTo})</span>
                       <span>{roundOffValue >= 0 ? '+' : ''}{roundOffValue.toFixed(2)}</span>
                     </div>
                   )}
