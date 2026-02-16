@@ -2160,7 +2160,12 @@ const handleTabClick = (tab: string) => {
       }
       if (e.key === "F9" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
         e.preventDefault();
-        handlePrintAndSaveKOT();
+        // If in Quick Bill tab and showPrintBoth is true, print both KOT and Bill
+        if (activeTab === 'Quick Bill' && showPrintBoth) {
+          handlePrintKotAndBill();
+        } else {
+          handlePrintAndSaveKOT();
+        }
         return;
       }
       if (e.key === "F11" && !e.ctrlKey && !e.altKey && !e.shiftKey) {
