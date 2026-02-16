@@ -2656,8 +2656,7 @@ const ModernBill = () => {
         }
 
         .bottom-content {
-          padding: 0.5rem;
-          flex: 1;
+          padding: 0.1rem;
           display: flex;
           flex-direction: column;
           justify-content: space-between;
@@ -2698,14 +2697,7 @@ const ModernBill = () => {
         {/* Header */}
         <div className="full-screen-header">
           <div className="container-fluid  px-2">
-            <div className="d-flex justify-content-between align-items-center mb-1">
-              <h2 className="text-primary mb-0">{isTakeaway && orderNo ? ` - ${orderNo}` : ''}</h2>
-
-              <span className="badge bg-light text-dark border">
-                Group Items: <strong>Ctrl + G</strong> &nbsp;|&nbsp;
-                Special Instructions: <strong>F4</strong>
-              </span>
-            </div>
+            
 
 
             {/* Card Layout for Header Information */}
@@ -2910,9 +2902,7 @@ const ModernBill = () => {
               <Col md={2} className="ms-auto">
                 <div className="p-2 h-100 d-flex flex-column justify-content-center text-center
                   bg-success rounded text-white">
-                  <div className="text-uppercase text-white-50 small mb-1 fw-semibold">
-                    Total Amount
-                  </div>
+                  
                   <div className="fw-bold fs-3">
                     ₹{finalAmount.toFixed(2)}
                   </div>
@@ -2920,14 +2910,8 @@ const ModernBill = () => {
               </Col>
 
             </Row>
-            {/* Datalist for Waiters */}
-            <datalist id="waiters">
-              <option value="ASD" />
-              <option value="John" />
-              <option value="Mary" />
-              <option value="David" />
-              <option value="Sarah" />
-            </datalist>
+            
+           
 
             {/* Datalist for Item Names */}
             <datalist id="itemNames">
@@ -2969,7 +2953,13 @@ const ModernBill = () => {
                         <th className="text-end" style={{ width: '100px' }}>Rate</th>
                         <th className="text-end" style={{ width: '150px' }}>Total</th>
                         <th className="text-center">MkotNo/Time</th>
-                        <th>Special Instructions</th>
+                        <th>
+  Special Instructions: 
+  <strong style={{ color: "#007bff", marginLeft: "5px" }}>
+    (F4)
+  </strong>
+</th>
+
                       </tr>
                     </thead >
                     <tbody>
