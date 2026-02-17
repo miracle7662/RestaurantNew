@@ -3057,17 +3057,17 @@ const ModernBill = () => {
                 <Table responsive bordered className="modern-table">
                   <thead>
                     <tr>
-                      <th>Discount (F3)</th>
-                      <th className="text-end">Gross Amt</th>
-                      <th className="text-end">Rev KOT(+)</th>
-                      <th className="text-center">Disc(+)</th>
-                      <th className="text-end">CGST (+)</th>
-                      <th className="text-end">SGST (+)</th>
-                      <th className="text-end">IGST (+)</th>
-                      <th className="text-end">CESS (+)</th>
-                      <th className="text-end">R. Off (+)</th>
-                      <th className="text-center">Ser Chg (+)</th>
-                      <th className="text-end">Final Amount</th>
+                      <th style={{ width: '120px' }}>Discount (F3)</th>
+                      <th style={{ width: '120px' }} className="text-end">Gross Amt</th>
+                      <th style={{ width: '120px' }} className="text-end">Rev KOT(+)</th>
+                      <th style={{ width: '120px' }} className="text-center">Disc(+)</th>
+                      <th style={{ width: '120px' }} className="text-end">CGST (+)</th>
+                      <th style={{ width: '120px' }} className="text-end">SGST (+)</th>
+                      <th style={{ width: '120px' }} className="text-end">IGST (+)</th>
+                      <th style={{ width: '120px' }} className="text-end">CESS (+)</th>
+                      <th style={{ width: '120px' }} className="text-end">R. Off (+)</th>
+                      <th style={{ width: '120px' }} className="text-center">Ser Chg (+)</th>
+                      <th style={{ width: '150px' }} className="text-end">Final Amount</th>
                     </tr>
                   </thead>
                   <tbody>
