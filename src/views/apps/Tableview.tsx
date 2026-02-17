@@ -64,7 +64,7 @@ const TableCard: React.FC<{ table: Table; onClick: () => void }> = ({ table, onC
       {(table.status === 'printed' || table.status === 'running-kot') && table.billNo && table.billAmount && table.billPrintedTime && (
         <div className="d-flex flex-column align-items-center" style={{ fontSize: '10px', lineHeight: '1', color: 'white' }}>
           <span>{table.billNo}</span>
-          <span>₹{table.billAmount}</span>
+          <span>₹{Math.round(table.billAmount || 0)}</span>
           <span>{table.billPrintedTime}</span>
         </div>
       )}
