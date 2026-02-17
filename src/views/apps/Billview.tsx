@@ -2653,6 +2653,7 @@ const ModernBill = () => {
         .summary-section .modern-table th {
           color: #1976d2;
           border-bottom: 1px solid #ced4da;
+          background-color: #6c757d;
         }
 
         .bottom-content {
