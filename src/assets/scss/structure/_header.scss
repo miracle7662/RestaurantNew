@@ -17,10 +17,10 @@
   .header-inner {
     width: 100%;
     position: relative;
-    height: 1.5rem;
+    height: 2.75rem;
     min-height: 1.5rem;
     border-bottom: 1px solid var(--#{$prefix}border-color);
-    background-color: var(--#{$prefix}tertiary-bg);
+    background-color: firebrick;
     display: flex;
   align-items: left;
      justify-content: space-between;
@@ -29,7 +29,7 @@
       z-index: 1;
       padding: 0 0;
       min-width: 42px;
-      height: $header-height;
+     
       border: none;
       line-height: 0;
       font-size: 15px;

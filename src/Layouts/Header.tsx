@@ -88,9 +88,17 @@ const Header = ({ toggleMenu, navOpen }: HeaderProps) => {
         <div className="header-inner px-2 px-md-3">
           {/* header-left */}
           <div className="header-left d-flex align-items-center">
-          {user?.currDate && (
-              <div className="header-btn px-2">
-                <span className="text-muted small">Business Date: {user.currDate}</span>
+          {(user?.hotel_name || user?.username || user?.currDate) && (
+              <div className="header-btn px-2 d-flex align-items-center gap-2">
+                {user?.hotel_name && (
+                  <span className="text-primary fw-bold">{user.hotel_name}</span>
+                )}
+                {user?.username && (
+                  <span className="text-muted small">({user.username})</span>
+                )}
+                {user?.currDate && (
+                  <span className="text-muted small border-start ps-2">Business Date: {user.currDate}</span>
+                )}
               </div>
             )}
            
