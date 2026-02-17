@@ -737,9 +737,15 @@ export default function App() {
       </div>
       {/* Modal */}
       <Modal show={showModal} onHide={() => setShowModal(false)} centered size="sm">
-        <Modal.Header closeButton>
-          <Modal.Title>Next Process</Modal.Title>
-        </Modal.Header>
+       <Modal.Header
+  closeButton
+  className="py-2 px-3"   // 👈 padding kam
+>
+  <Modal.Title className="fs-6 mb-0">
+    Next Process
+  </Modal.Title>
+</Modal.Header>
+
         <Modal.Body className="d-flex justify-content-center align-items-center text-center" style={{ minHeight: '120px' }}>
           <div>
 

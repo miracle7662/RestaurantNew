@@ -516,7 +516,7 @@ const [roundOffEnabled, setRoundOffEnabled] = useState<boolean>(false);
       case 1: return 'btn-success'; // KOT saved/occupied (green)
       case 0: return 'btn-outline-success'; // Default background (white/grey)
       case 2: return 'btn-danger'; // Billed/Printed (red)
-      case 4: return 'btn-warning'; // Pending (orange)
+      case 4: return 'table-pending-custom'; // Pending (#de3ef0)
       default: return 'btn-outline-success';
     }
   };
