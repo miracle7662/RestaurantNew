@@ -3049,11 +3049,12 @@ const handleTabClick = (tab: string) => {
                                           handleTableClick(table.table_name);
                                         }}
                                       >
-                                        <span className="text-dark fw-bold" style={{ fontSize: '11px', lineHeight: '1.1' }}>{table.table_name}</span>
+                                        <span className="text-dark fw-bold" style={{ fontSize: '15px', lineHeight: '1.1' }}>{table.table_name}</span>
                                         {(table.status === 2 || table.status === 4) && (
-                                          <div className="d-flex flex-column align-items-center" style={{ fontSize: '8px', lineHeight: '1', color: 'white' }}>
+                                          <div className="d-flex flex-column align-items-center" style={{ fontSize: '11px', lineHeight: '1', color: 'white' }}>
                                             <span>{table.billNo || 'N/A'}</span>
-                                            <span>₹{table.billAmount || 0}</span>
+                                            <span>₹{Math.round(table.billAmount || 0)}</span>
+
                                             <span>{table.billPrintedTime || 'N/A'}</span>
                                           </div>
                                         )}
@@ -3125,11 +3126,12 @@ const handleTabClick = (tab: string) => {
                                 handleTableClick(table.table_name);
                               }}
                             >
-                              <span className="text-dark fw-bold" style={{ fontSize: '11px', lineHeight: '1.1' }}>{table.table_name}</span>
+                              <span className="text-dark fw-bold" style={{ fontSize: '13px', lineHeight: '1.1' }}>{table.table_name}</span>
                               {(table.status === 2 || table.status === 4) && (
-                                <div className="d-flex flex-column align-items-center" style={{ fontSize: '8px', lineHeight: '1', color: 'white' }}>
+                                <div className="d-flex flex-column align-items-center" style={{ fontSize: '11px', lineHeight: '1', color: 'white' }}>
                                   <span>{table.billNo || 'N/A'}</span>
-                                  <span>₹{table.billAmount || 0}</span>
+                                 <span>₹{Math.round(table.billAmount || 0)}</span>
+
                                   <span>{table.billPrintedTime || 'N/A'}</span>
                                 </div>
                               )}
