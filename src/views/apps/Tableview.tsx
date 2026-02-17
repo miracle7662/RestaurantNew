@@ -487,7 +487,6 @@ export default function App() {
           cursor: pointer;
         }
         .full-screen-header {
-          position: fixed;
           top: 0;
           left: 0;
           right: 0;
@@ -496,7 +495,6 @@ export default function App() {
           border-bottom: 1px solid #dee2e6;
         }
         .full-screen-toolbar {
-         
           top: 60px;
           left: 0;
           right: 0;
@@ -505,7 +503,6 @@ export default function App() {
           border-bottom: 1px solid #dee2e6;
         }
         .full-screen-content {
-        
           top: 120px;
           left: 0;
           right: 0;
@@ -525,15 +522,10 @@ export default function App() {
           margin-bottom: 10px;
           justify-content: start;
         }
-          .full-screen-toolbar input[placeholder="Table No"] {
-          height: 40px;
-          border: 2px solid #007bff;
-          background-color: #e7f3ff;
-          box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
+
+        
+          
       `}</style>
-
-      
-
       {/* Toolbar */}
       {/* Toolbar */}
 <div className="full-screen-toolbar">
@@ -549,13 +541,14 @@ export default function App() {
             value={tableInput}
             onChange={e => setTableInput(e.target.value)}
             onKeyDown={handleTableInputEnter}
-            style={{ width: '130px', fontWeight: 'bold', fontSize: '25px', height: '60px' }}
+            style={{ width: '130px', fontWeight: 'bold', fontSize: '20px', height: '40px', border: '2px solid #0d6efd',
+        backgroundColor: '#fff3cd',}}
           />
           <select
             className="form-select form-select-sm"
             value={selectedDepartmentId}
             onChange={e => setSelectedDepartmentId(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-            style={{ width: '290px', fontWeight: 'bold', fontSize: '20px' }}
+            style={{ width: '290px', fontWeight: 'bold', fontSize: '20px', height: '40px' }}
           >
             <option value="all">All Departments</option>
             {departments.map(department => (
