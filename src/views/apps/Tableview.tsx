@@ -495,13 +495,12 @@ export default function App() {
           border-bottom: 1px solid #dee2e6;
         }
         .full-screen-toolbar {
-          top: 60px;
-          left: 0;
-          right: 0;
-          z-index: 1049;
-          background: white;
-          border-bottom: 1px solid #dee2e6;
-        }
+  height: 50px;
+  padding: 0 15px;
+  background: #fff;
+  border-bottom: 1px solid #dee2e6;
+}
+
         .full-screen-content {
           top: 120px;
           left: 0;
@@ -737,14 +736,14 @@ export default function App() {
       </div>
       {/* Modal */}
       <Modal show={showModal} onHide={() => setShowModal(false)} centered size="sm">
-       <Modal.Header
-  closeButton
-  className="py-2 px-3"   // 👈 padding kam
->
-  <Modal.Title className="fs-6 mb-0">
-    Next Process
-  </Modal.Title>
-</Modal.Header>
+        <Modal.Header
+          closeButton
+          className="py-2 px-3"   // 👈 padding kam
+        >
+          <Modal.Title className="fs-6 mb-0">
+            Next Process
+          </Modal.Title>
+        </Modal.Header>
 
         <Modal.Body className="d-flex justify-content-center align-items-center text-center" style={{ minHeight: '120px' }}>
           <div>
