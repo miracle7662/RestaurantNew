@@ -142,70 +142,70 @@ export default function App() {
         const response = await TableManagementService.list();
         console.log('TableManagement API response:', response);
         if (response.success && Array.isArray(response.data)) {
-            const filteredData = response.data.filter((t: any) => t.hotelid === user.hotelid);
-            if (filteredData.length > 0) {
-              const formattedData = await Promise.all(
-                filteredData.map(async (item: any) => {
-                  let status = Number(item.status);
+          const filteredData = response.data.filter((t: any) => t.hotelid === user.hotelid);
+          if (filteredData.length > 0) {
+            const formattedData = await Promise.all(
+              filteredData.map(async (item: any) => {
+                let status = Number(item.status);
 
-                  // Fetch bill status for each table from backend using OrderService
-                  const response = await OrderService.getBillStatus(item.tableid);
-                  const data = response;
-                  console.log(`Bill status for table ${item.tableid}:`, data);
+                // Fetch bill status for each table from backend using OrderService
+                const response = await OrderService.getBillStatus(item.tableid);
+                const data = response;
+                console.log(`Bill status for table ${item.tableid}:`, data);
 
-                  let txnId: number | null = null;
-                  let billNo: string | null = null;
-                  let billAmount: number | null = null;
-                  let billPrintedTime: string | null = null;
-                  let billPrintedDate: Date | null = null;
-                  if (data.success && data.data) {
-                    const { isBilled, isSetteled, TxnID, TxnNo, Amount, BilledDate } = data.data;
-                    txnId = TxnID || null;
-                    billNo = TxnNo || null;
-                    billAmount = Amount || null;
-                    if (BilledDate) {
-                      const date = new Date(BilledDate);
-                      billPrintedDate = new Date(date.getTime() + (5.5 * 60 * 60 * 1000)); // Convert to IST
-                      billPrintedTime = billPrintedDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-                    }
-
-                    if (isBilled === 1 && isSetteled !== 1) status = 2; // 🔴 red when billed but not settled
-                    if (isSetteled === 1) status = 0; // ⚪ vacant when settled
+                let txnId: number | null = null;
+                let billNo: string | null = null;
+                let billAmount: number | null = null;
+                let billPrintedTime: string | null = null;
+                let billPrintedDate: Date | null = null;
+                if (data.success && data.data) {
+                  const { isBilled, isSetteled, TxnID, TxnNo, Amount, BilledDate } = data.data;
+                  txnId = TxnID || null;
+                  billNo = TxnNo || null;
+                  billAmount = Amount || null;
+                  if (BilledDate) {
+                    const date = new Date(BilledDate);
+                    billPrintedDate = new Date(date.getTime() + (5.5 * 60 * 60 * 1000)); // Convert to IST
+                    billPrintedTime = billPrintedDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
                   }
 
-                  let statusString: TableStatus;
-                  switch (status) {
-                    case 0: statusString = 'available'; break;
-                    case 1: statusString = 'running'; break;
-                    case 2: statusString = 'printed'; break;
-                    case 3: statusString = 'paid'; break;
-                    case 4: statusString = 'running-kot'; break;
-                    default: statusString = 'available'; break;
+                  if (isBilled === 1 && isSetteled !== 1) status = 2; // 🔴 red when billed but not settled
+                  if (isSetteled === 1) status = 0; // ⚪ vacant when settled
+                }
+
+                let statusString: TableStatus;
+                switch (status) {
+                  case 0: statusString = 'available'; break;
+                  case 1: statusString = 'running'; break;
+                  case 2: statusString = 'printed'; break;
+                  case 3: statusString = 'paid'; break;
+                  case 4: statusString = 'running-kot'; break;
+                  default: statusString = 'available'; break;
+                }
+
+                // Check if printed bill is 10+ minutes old, change to pending
+                if (statusString === 'printed' && billPrintedDate) {
+                  const now = new Date();
+                  const diffMinutes = (now.getTime() - billPrintedDate.getTime()) / (1000 * 60);
+                  if (diffMinutes >= 10) {
+                    statusString = 'running-kot'; // Mark as pending
                   }
+                }
 
-                  // Check if printed bill is 10+ minutes old, change to pending
-                  if (statusString === 'printed' && billPrintedDate) {
-                    const now = new Date();
-                    const diffMinutes = (now.getTime() - billPrintedDate.getTime()) / (1000 * 60);
-                    if (diffMinutes >= 10) {
-                      statusString = 'running-kot'; // Mark as pending
-                    }
-                  }
+                return { id: item.tableid, name: item.table_name, status: statusString, outletid: item.outletid, departmentid: item.departmentid, department_name: item.department_name, txnId, billNo, billAmount, billPrintedTime, billPrintedDate };
+              })
+            );
 
-                  return { id: item.tableid, name: item.table_name, status: statusString, outletid: item.outletid, departmentid: item.departmentid, department_name: item.department_name, txnId, billNo, billAmount, billPrintedTime, billPrintedDate };
-                })
-              );
-
-              setAllTables(formattedData);
-              setError('');
-            } else {
-              setError('No tables found in TableManagement API.');
-              setAllTables([]);
-            }
+            setAllTables(formattedData);
+            setError('');
           } else {
-            setError('Invalid data format received from TableManagement API.');
+            setError('No tables found in TableManagement API.');
             setAllTables([]);
           }
+        } else {
+          setError('Invalid data format received from TableManagement API.');
+          setAllTables([]);
+        }
       } catch (err) {
         console.error('Table fetch error:', err);
         setError('Failed to fetch tables. Please check the API endpoint.');
@@ -528,52 +528,54 @@ export default function App() {
       `}</style>
       {/* Toolbar */}
       {/* Toolbar */}
-<div className="full-screen-toolbar">
-  <div className="container-fluid">
-    <div className="row align-items-center">
-      <div className="col-auto">
-        <div className="d-flex gap-2">
-          <input
-            ref={tableInputRef}
-            type="number"
-            className="form-control form-control-sm"
-            placeholder="Table"
-            value={tableInput}
-            onChange={e => setTableInput(e.target.value)}
-            onKeyDown={handleTableInputEnter}
-            style={{ width: '130px', fontWeight: 'bold', fontSize: '20px', height: '40px', border: '2px solid #0d6efd',
-        backgroundColor: '#fff3cd',}}
-          />
-          <select
-            className="form-select form-select-sm"
-            value={selectedDepartmentId}
-            onChange={e => setSelectedDepartmentId(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-            style={{ width: '290px', fontWeight: 'bold', fontSize: '20px', height: '40px' }}
-          >
-            <option value="all">All Departments</option>
-            {departments.map(department => (
-              <option key={department.departmentid} value={department.departmentid}>
-                {department.department_name}
-              </option>
-            ))}
-          </select>
+      <div className="full-screen-toolbar">
+        <div className="container-fluid">
+          <div className="row align-items-center">
+            <div className="col-auto">
+              <div className="d-flex gap-2">
+                <input
+                  ref={tableInputRef}
+                  type="number"
+                  className="form-control form-control-sm"
+                  placeholder="Table"
+                  value={tableInput}
+                  onChange={e => setTableInput(e.target.value)}
+                  onKeyDown={handleTableInputEnter}
+                  style={{
+                    width: '130px', fontWeight: 'bold', fontSize: '20px', height: '40px', border: '2px solid #0d6efd',
+                    backgroundColor: '#fff3cd',
+                  }}
+                />
+                <select
+                  className="form-select form-select-sm"
+                  value={selectedDepartmentId}
+                  onChange={e => setSelectedDepartmentId(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+                  style={{ width: '290px', fontWeight: 'bold', fontSize: '20px', height: '40px' }}
+                >
+                  <option value="all">All Departments</option>
+                  {departments.map(department => (
+                    <option key={department.departmentid} value={department.departmentid}>
+                      {department.department_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="col d-flex justify-content-end align-items-center gap-2">
+              <Legend statusCounts={statusCounts} />
+
+              <button className="btn btn-outline-secondary btn-sm" onClick={handleRefresh}>
+                <RefreshCw size={16} />
+              </button>
+              <button className="btn btn-danger btn-sm">Delivery</button>
+              <button className="btn btn-danger btn-sm" onClick={handleTakeAwayClick}>
+                Take Away
+              </button>
+            </div>
+          </div>
         </div>
       </div>
-
-      <div className="col d-flex justify-content-end align-items-center gap-2">
-        <Legend statusCounts={statusCounts} />
-
-        <button className="btn btn-outline-secondary btn-sm" onClick={handleRefresh}>
-          <RefreshCw size={16} />
-        </button>
-        <button className="btn btn-danger btn-sm">Delivery</button>
-        <button className="btn btn-danger btn-sm" onClick={handleTakeAwayClick}>
-          Take Away
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
 
 
       {/* Main Content */}
@@ -610,43 +612,44 @@ export default function App() {
         {takeawayOrders.length > 0 && (
           <div className="mt-1 p-1 ms-3 ">
             {/* POS-style Header */}
-          <div className="d-flex align-items-center gap-3 mb-3">
-  <h6 className="mb-0 fw-semibold">Takeaway Orders</h6>
+            <div className="d-flex align-items-center gap-3 mb-3">
+              <h6 className="mb-0 fw-semibold">Takeaway Orders</h6>
 
-  <div className="d-flex gap-2">
-    <button
-      className={`btn btn-sm px-3 d-flex align-items-center gap-1
+              <div className="d-flex gap-2">
+                <button
+                  className={`btn btn-sm px-3 d-flex align-items-center gap-1
         ${activeFilter === 'All'
-          ? 'btn-primary'
-          : 'btn-outline-secondary text-primary'}`}
-      onClick={() => setActiveFilter('All')}
-    >
-      <i className="fi fi-rr-list"></i>
-    </button>
+                      ? 'btn-danger'
+                      : 'btn-outline-danger text-muted'}`}
+                  onClick={() => setActiveFilter('All')}
+                >
+                  <i className="fi fi-rr-apps"></i>
 
-    <button
-      className={`btn btn-sm px-3 d-flex align-items-center gap-1
+                </button>
+
+                <button
+                  className={`btn btn-sm px-3 d-flex align-items-center gap-1
         ${activeFilter === 'Pickup'
-          ? 'btn-primary'
-          : 'btn-outline-secondary text-muted'}`}
-      onClick={() => setActiveFilter('Pickup')}
-    >
-      <i className="fi fi-rr-shopping-bag"></i>
-      Pickup
-    </button>
+                      ? 'btn-primary'
+                      : 'btn-outline-danger text-muted'}`}
+                  onClick={() => setActiveFilter('Pickup')}
+                >
+                  <i className="fi fi-rr-shopping-bag"></i>
+                  Pickup
+                </button>
 
-    <button
-      className={`btn btn-sm px-3 d-flex align-items-center gap-1
+                <button
+                  className={`btn btn-sm px-3 d-flex align-items-center gap-1
         ${activeFilter === 'Delivery'
-          ? 'btn-primary'
-          : 'btn-outline-secondary text-muted'}`}
-      onClick={() => setActiveFilter('Delivery')}
-    >
-      <i className="fi fi-rr-truck-moving"></i>
-      Delivery
-    </button>
-  </div>
-</div>
+                      ? 'btn-primary'
+                      : 'btn-outline-danger text-muted'}`}
+                  onClick={() => setActiveFilter('Delivery')}
+                >
+                  <i className="fi fi-rr-truck-moving"></i>
+                  Delivery
+                </button>
+              </div>
+            </div>
 
             <div className="d-flex gap-2 flex-wrap">
               {takeawayOrders
@@ -737,13 +740,23 @@ export default function App() {
         <Modal.Header closeButton>
           <Modal.Title>Next Process</Modal.Title>
         </Modal.Header>
-        <Modal.Body>
-          <p className="mt-2">
-            Select <strong>Yes</strong> Do you want to open the bill for settlement.
-            <br />
-            Select <strong>No</strong> Do you want to Modify the bill.
-          </p>
+        <Modal.Body className="d-flex justify-content-center align-items-center text-center" style={{ minHeight: '120px' }}>
+          <div>
+
+            <div className="mb-3">
+              <div className="fs-5">Do you want to settle the bill?</div>
+              <div className="fw-bold fs-5 mt-1">Yes</div>
+            </div>
+
+            <div>
+              <div className="fs-5">Do you want to Modify the bill?</div>
+              <div className="fw-bold fs-5 mt-1">No</div>
+            </div>
+
+          </div>
         </Modal.Body>
+
+
         <Modal.Footer>
 
           <Button ref={yesButtonRef} variant="primary" onClick={() => {

@@ -545,7 +545,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
                     <span className="navbar-toggler-icon"></span>
                   </button>
                   <div className="collapse navbar-collapse" id="navbarNav">
-                    <ul className="navbar-nav me-auto mb-2 mb-lg-0">
+                    {/* <ul className="navbar-nav me-auto mb-2 mb-lg-0">
                       <li className="nav-item">
                         <button
                           className="btn btn-sm btn-outline-secondary"
@@ -554,7 +554,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
                           Show Item Groups
                         </button>
                       </li>
-                    </ul>
+                    </ul> */}
                     <ul className="navbar-nav mx-auto mb-2 mb-lg-0 d-flex gap-2">
                       <li className="nav-item">
                         <button className="btn btn-sm btn-outline-secondary" onClick={onChangeTable}>
