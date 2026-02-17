@@ -2385,7 +2385,7 @@ const ModernBill = () => {
         }
 
         .full-screen-header {
-          position: fixed;
+        
           top: 0;
           left: 0;
           right: 0;
@@ -2395,7 +2395,7 @@ const ModernBill = () => {
         }
 
         .full-screen-toolbar {
-          position: fixed;
+          
           left: 0;
           right: 0;
           z-index: 1049;
@@ -2406,7 +2406,7 @@ const ModernBill = () => {
         }
 
         .full-screen-content {
-          position: fixed;
+         
           left: 0;
           right: 0;
           bottom: 150px;
