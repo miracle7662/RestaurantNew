@@ -950,28 +950,24 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
         </Modal.Body>
         <Modal.Footer>
           <Button
-            variant={selectedOption === 'no' ? 'primary' : 'secondary'}
-            onClick={async () => {
-              setShowConfirmModal(false);
-            }}
-            autoFocus={selectedOption === 'no'}
-          >
-            No
-          </Button>
-          <Button
             variant={selectedOption === 'yes' ? 'primary' : 'secondary'}
             onClick={() => {
               setShowConfirmModal(false);
-              if (availableKOTs.length > 0) {
-                setPendingFocus('kot');
-              } else {
-                setTimeout(() => {
-                  handleSave();
-                }, 100);
-              }
+              // Yes button - just closes modal without saving
             }}
+            autoFocus={selectedOption === 'yes'}
           >
             Yes
+          </Button>
+          <Button
+            variant={selectedOption === 'no' ? 'primary' : 'secondary'}
+            onClick={() => {
+              setShowConfirmModal(false);
+              // No button - just closes modal without saving
+              // User should click Save (F9) button to save the transfer
+            }}
+          >
+            No
           </Button>
         </Modal.Footer>
       </Modal>
