@@ -19,8 +19,8 @@ import OrderService from '@/common/api/order';
 
 
 const KOT_COLORS = [
-  '#E8F5E9', // Green 50
-  '#FFF3E0', // Orange 50 
+  '#e3f2fd', // Green 50
+  '#fff9db', // Orange 50 
 ];
 const getRowColor = (kotNo: string | number | null | undefined) => {
   if (!kotNo) return '#ffffff';
@@ -3053,7 +3053,7 @@ const ModernBill = () => {
           <div className="bottom-bar">
             <div className="bottom-content">
               {/* Summary Section */}
-              <div className="summary-section mb-1">
+              <div className="summary-section ">
                 <Table responsive bordered className="modern-table">
                   <thead>
                     <tr>
