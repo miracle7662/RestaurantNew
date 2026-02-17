@@ -496,7 +496,7 @@ export default function App() {
           border-bottom: 1px solid #dee2e6;
         }
         .full-screen-toolbar {
-          position: fixed;
+         
           top: 60px;
           left: 0;
           right: 0;
@@ -505,7 +505,7 @@ export default function App() {
           border-bottom: 1px solid #dee2e6;
         }
         .full-screen-content {
-          position: fixed;
+        
           top: 120px;
           left: 0;
           right: 0;
@@ -522,7 +522,7 @@ export default function App() {
           display: grid;
           grid-template-columns: repeat(auto-fill, 100px);
           gap: 10px;
-          margin-bottom: 20px;
+          margin-bottom: 10px;
           justify-content: start;
         }
           .full-screen-toolbar input[placeholder="Table No"] {
@@ -532,60 +532,56 @@ export default function App() {
           box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
       `}</style>
 
-      {/* Header */}
-      <div className="full-screen-header">
-        <div className="container-fluid py-2 px-3">
-          <div className="d-flex justify-content-between align-items-center">
-            <h5 className="mb-0 fw-semibold">Table View</h5>
-            <div className="d-flex gap-2">
-              <button className="btn btn-outline-secondary btn-sm" onClick={handleRefresh}>
-                <RefreshCw size={16} />
-              </button>
-              <button className="btn btn-danger btn-sm">Delivery</button>
-              <button className="btn btn-danger btn-sm" onClick={handleTakeAwayClick}>Take Away</button>
-            </div>
-          </div>
-        </div>
-      </div>
+      
 
       {/* Toolbar */}
-      <div className="full-screen-toolbar">
-        <div className="container-fluid  ">
-          <div className="row align-items-center">
-            <div className="col-auto">
-              <div className="d-flex gap-2">
-                <input
-                  ref={tableInputRef}
-                  type="number"
-                  className="form-control form-control-sm"
-                  placeholder="Table"
-                  value={tableInput}
-                  onChange={e => setTableInput(e.target.value)}
-                  onKeyDown={handleTableInputEnter}
-                  style={{ width: '130px', fontWeight: 'bold', fontSize: '25px', height: '60px' }}
-                />
-                <select
-                  className="form-select form-select-sm"
-                  value={selectedDepartmentId}
-                  onChange={e => setSelectedDepartmentId(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-                  style={{ width: '290px', fontWeight: 'bold', fontSize: '20px' }}
-                >
-                  <option value="all">All Departments</option>
-                  {departments.map(department => (
-                    <option key={department.departmentid} value={department.departmentid}>
-                      {department.department_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="col d-flex justify-content-end">
-              <Legend statusCounts={statusCounts} />
-            </div>
-          </div>
+      {/* Toolbar */}
+<div className="full-screen-toolbar">
+  <div className="container-fluid">
+    <div className="row align-items-center">
+      <div className="col-auto">
+        <div className="d-flex gap-2">
+          <input
+            ref={tableInputRef}
+            type="number"
+            className="form-control form-control-sm"
+            placeholder="Table"
+            value={tableInput}
+            onChange={e => setTableInput(e.target.value)}
+            onKeyDown={handleTableInputEnter}
+            style={{ width: '130px', fontWeight: 'bold', fontSize: '25px', height: '60px' }}
+          />
+          <select
+            className="form-select form-select-sm"
+            value={selectedDepartmentId}
+            onChange={e => setSelectedDepartmentId(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+            style={{ width: '290px', fontWeight: 'bold', fontSize: '20px' }}
+          >
+            <option value="all">All Departments</option>
+            {departments.map(department => (
+              <option key={department.departmentid} value={department.departmentid}>
+                {department.department_name}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
+
+      <div className="col d-flex justify-content-end align-items-center gap-2">
+        <Legend statusCounts={statusCounts} />
+
+        <button className="btn btn-outline-secondary btn-sm" onClick={handleRefresh}>
+          <RefreshCw size={16} />
+        </button>
+        <button className="btn btn-danger btn-sm">Delivery</button>
+        <button className="btn btn-danger btn-sm" onClick={handleTakeAwayClick}>
+          Take Away
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 
       {/* Main Content */}
       <div className="full-screen-content ">
@@ -594,12 +590,12 @@ export default function App() {
         ) : error ? (
           <div className="alert alert-danger m-3">{error}</div>
         ) : (
-          <div className="p-3">
+          <div className="p-1 ms-3">
             {displayedDepartments.map(department => {
               const tablesForDepartment = (tablesByDepartment[department.departmentid] || []).sort((a, b) => parseInt(a.name) - parseInt(b.name));
               return (
-                <div key={department.departmentid} id={`department-section-${department.departmentid}`} className="mb-4">
-                  <h6 className="fw-semibold mb-3 pb-2 border-bottom">{department.department_name}</h6>
+                <div key={department.departmentid} id={`department-section-${department.departmentid}`} className="mb-1">
+                  <h6 className="fw-semibold mb-2 pb-1 border-bottom">{department.department_name}</h6>
                   {tablesForDepartment.length > 0 ? (
                     <div className="table-grid">
                       {tablesForDepartment.map((table) => (
@@ -619,7 +615,7 @@ export default function App() {
 
         {/* Takeaway Orders Cards */}
         {takeawayOrders.length > 0 && (
-          <div className="mt-3 p-3">
+          <div className="mt-1 p-1 ms-3 ">
             {/* POS-style Header */}
           <div className="d-flex align-items-center gap-3 mb-3">
   <h6 className="mb-0 fw-semibold">Takeaway Orders</h6>
