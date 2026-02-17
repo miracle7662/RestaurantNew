@@ -530,8 +530,8 @@ export default function App() {
       <div className="full-screen-toolbar">
         <div className="container-fluid">
           <div className="row align-items-center">
-            <div className="col-auto">
-              <div className="d-flex gap-2">
+            <div className="col-12 col-sm-auto">
+              <div className="d-flex gap-2 flex-wrap flex-sm-nowrap align-items-center">
                 <input
                   ref={tableInputRef}
                   type="number"
@@ -541,7 +541,7 @@ export default function App() {
                   onChange={e => setTableInput(e.target.value)}
                   onKeyDown={handleTableInputEnter}
                   style={{
-                    width: '130px', fontWeight: 'bold', fontSize: '20px', height: '40px', border: '2px solid #0d6efd',
+                    minWidth: '100px', width: '100%', maxWidth: '150px', fontWeight: 'bold', fontSize: '1.1rem', height: '40px', border: '2px solid #0d6efd',
                     backgroundColor: '#fff3cd',
                   }}
                 />
@@ -549,7 +549,7 @@ export default function App() {
                   className="form-select form-select-sm"
                   value={selectedDepartmentId}
                   onChange={e => setSelectedDepartmentId(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-                  style={{ width: '290px', fontWeight: 'bold', fontSize: '20px', height: '40px' }}
+                  style={{ minWidth: '150px', width: '100%', maxWidth: '320px', fontWeight: 'bold', fontSize: '1.1rem', height: '40px' }}
                 >
                   <option value="all">All Departments</option>
                   {departments.map(department => (

@@ -516,7 +516,7 @@ const [roundOffEnabled, setRoundOffEnabled] = useState<boolean>(false);
       case 1: return 'btn-success'; // KOT saved/occupied (green)
       case 0: return 'btn-outline-success'; // Default background (white/grey)
       case 2: return 'btn-danger'; // Billed/Printed (red)
-      case 4: return 'table-pending-custom'; // Pending (#de3ef0)
+      case 4: return 'table-pending-danger'; // Pending (#de3ef0)
       default: return 'btn-outline-success';
     }
   };
@@ -2922,6 +2922,11 @@ const handleTabClick = (tab: string) => {
         }
         .receipt-preview-modal .modal-body {
             padding: 0;
+        }
+        .table-pending-danger {
+            background-color: #de3ef0 !important;
+            border-color: #de3ef0 !important;
+            color: white !important;
         }
         `}
       </style>
