@@ -2462,7 +2462,7 @@ const ModernBill = () => {
           background-color: #cccc !important;
         }
         .modern-table.table-bordered {
-          border: 1px solid #ced4da;
+          border: 1px solid #868e96;
         }
 
         .modern-table thead tr.table-primary th {
@@ -2478,7 +2478,7 @@ const ModernBill = () => {
          font-size: 1.1rem;
          font-weight: 600;   /* semi-bold */}
         .modern-table.table-bordered td, .modern-table.table-bordered th {
-         border: 1px solid #ced4da;
+         border: 1px solid #868e96 !important;
         }
 
         .modern-table input[type="text"]:focus {
