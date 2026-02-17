@@ -495,11 +495,11 @@ export default function App() {
           border-bottom: 1px solid #dee2e6;
         }
         .full-screen-toolbar {
-  height: 50px;
-  padding: 0 15px;
-  background: #fff;
-  border-bottom: 1px solid #dee2e6;
-}
+        height: 50px;
+        padding: 0 15px;
+        background: #fff;
+        border-bottom: 1px solid #dee2e6;
+        }
 
         .full-screen-content {
           top: 120px;
