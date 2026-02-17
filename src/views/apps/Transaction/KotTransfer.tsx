@@ -266,13 +266,9 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
   const updateSelectedItems = () => {
     if (transferMode === "table" || transferMode === "ORDER") {
       setSelectedItems(allItems.map(item => ({ ...item, selected: true })));
-    } else if (selectedKOT !== null && selectedKOT !== -1) {
-      const filteredItems = allItems.filter(item => item.kot === selectedKOT).map(item => ({ ...item, selected: true }));
-      setSelectedItems(filteredItems);
-    } else if (selectedKOT === -1) {
-      setSelectedItems(allItems.map(item => ({ ...item, selected: true })));
     } else {
-      setSelectedItems([]);
+      // In KOT mode, show ALL KOTs in the left table (not filtered by selected KOT)
+      setSelectedItems(allItems.map(item => ({ ...item, selected: true })));
     }
   };
 
@@ -344,7 +340,18 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
       return;
     }
 
-    const itemsToTransfer = selectedItems.map(item => ({ ...item, selected: false, media: proposedTable }));
+    // In KOT mode, only transfer items from the selected KOT
+    // In Table mode, transfer all items
+    let itemsToTransfer;
+    if (transferMode === "table" || transferMode === "ORDER") {
+      itemsToTransfer = selectedItems.map(item => ({ ...item, selected: false, media: proposedTable }));
+    } else {
+      // In KOT mode, filter to only transfer items from selectedKOT
+      const kotToTransfer = selectedKOT === -1 ? selectedItems[0]?.kot : selectedKOT;
+      itemsToTransfer = selectedItems
+        .filter(item => item.kot === kotToTransfer)
+        .map(item => ({ ...item, selected: false, media: proposedTable }));
+    }
 
     setSelectedItems([]);
     setProposedItems(prev => [...prev, ...itemsToTransfer]);
@@ -354,8 +361,10 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
       setAvailableKOTs([]);
       setLatestKOT(null);
     } else {
-      setAllItems(prev => prev.filter(item => item.kot !== selectedKOT));
-      const updatedAllItems = allItems.filter(item => item.kot !== selectedKOT);
+      // In KOT mode, remove only the transferred KOT from allItems
+      const kotToRemove = selectedKOT === -1 ? itemsToTransfer[0]?.kot : selectedKOT;
+      setAllItems(prev => prev.filter(item => item.kot !== kotToRemove));
+      const updatedAllItems = allItems.filter(item => item.kot !== kotToRemove);
       const uniqueKOTs = [...new Set(updatedAllItems.map(item => item.kot))].sort((a, b) => a - b);
       setAvailableKOTs(uniqueKOTs);
       setLatestKOT(uniqueKOTs.length > 0 ? Math.max(...uniqueKOTs) : null);
