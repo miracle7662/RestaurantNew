@@ -2420,7 +2420,7 @@ const ModernBill = () => {
           bottom: 0;
           left: 0;
           right: 0;
-          height: 150px;
+         
           background: white;
           border-top: 1px solid #ced4da;
           z-index: 1050;
@@ -2459,7 +2459,7 @@ const ModernBill = () => {
           position: sticky !important;
           top: 0 !important;
           z-index: 20 !important;
-          background-color: #f8f9fa !important;
+          background-color: #cccc !important;
         }
         .modern-table.table-bordered {
           border: 1px solid #ced4da;
@@ -2641,8 +2641,9 @@ const ModernBill = () => {
         }
 
         .summary-section .modern-table tbody tr {
-          background: white;
-          fount-size: 70px;
+          background: #f8ffa8;
+          font-size: 18px;
+          
         }
 
         .summary-section .modern-table td {
@@ -2651,9 +2652,9 @@ const ModernBill = () => {
         }
 
         .summary-section .modern-table th {
-          color: #1976d2;
+          color: #0c0c0c;
           border-bottom: 1px solid #ced4da;
-          background-color: #6c757d;
+          background-color: #777d6c;
         }
 
         .bottom-content {
@@ -2673,6 +2674,7 @@ const ModernBill = () => {
             padding: 0.1rem;
           }
              .modern-table tr, .modern-table th {
+
             padding: 0.1rem;
             height: 10px;
           }
