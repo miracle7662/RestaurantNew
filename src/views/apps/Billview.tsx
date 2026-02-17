@@ -2466,8 +2466,8 @@ const ModernBill = () => {
         }
 
         .modern-table thead tr.table-primary th {
-          background-color: #f8f9fa !important;
-          color: black !important;
+          background-color: #f82e2e !important;
+          color: #ffffff !important;
         }
 
         .modern-table td, .modern-table th {
@@ -2695,239 +2695,192 @@ const ModernBill = () => {
       `}</style>
 
         {/* Header */}
-        <div className="full-screen-header">
-          <div className="container-fluid  px-2">
-            
+      <div className="bg-light border-bottom py-2">
+  <div className="container-fluid px-2">
+    <Row className="g-2 align-items-stretch">
 
-
-            {/* Card Layout for Header Information */}
-            <Row className="mb-3 g-2 align-items-stretch">
-              {/* Table No / Order No - Left aligned */}
-              {/* Table No / Order No - Left aligned */}
-              <Col md={2}>
-                <div className="info-box p-2 h-100 border rounded text-center d-flex flex-column justify-content-center">
-                  <div className="text-uppercase text-secondary small mb-1 fw-semibold">
-                    Table No
-                  </div>
-                  <div className="fw-bold fs-4" style={{ color: '#333' }}>
-                    {isTakeaway ? (orderNo || '--') : (tableNo || '--')}
-                  </div>
-                </div>
-              </Col>
-
-
-              {/* Waiter - Centered */}
-              <Col md={1}>
-                <div className="info-box p-2 h-100 border rounded text-center d-flex flex-column justify-content-center">
-                  <div className="text-uppercase text-secondary small mb-1 fw-semibold">Waiter</div>
-                  <input
-                    type="text"
-                    value={waiter}
-                    onChange={(e) => setWaiter(e.target.value)}
-                    className="w-100 border-0 fw-bold fs-5 p-0 bg-transparent text-center"
-                    placeholder="Name"
-                    list="waiters"
-                    style={{ color: '#333' }}
-                  />
-                  <datalist id="waiters">
-
-                    {waiterUsers.map((user) => (
-                      <option key={user.userId} value={user.username} />
-                    ))}
-                  </datalist>
-                </div>
-              </Col>
-
-              {/* PAX - Centered */}
-              <Col md={1}>
-                <div className="info-box p-2 h-100 border rounded text-center d-flex flex-column justify-content-center">
-                  <div className="text-uppercase text-secondary small mb-1 fw-semibold">PAX</div>
-                  <input
-                    type="number"
-                    value={pax}
-                    onChange={(e) => setPax(Number(e.target.value))}
-                    className="w-100 border-0 fw-bold fs-5 p-0 bg-transparent text-center"
-                    style={{ color: '#343434ff' }}
-                    placeholder="0"
-                    min="1"
-                  />
-                </div>
-              </Col>
-
-              {/* KOT No - Editable input */}
-              <Col md={2}>
-                <div className="info-box p-2 h-100 border rounded text-center d-flex flex-column justify-content-center">
-                  <div className="text-uppercase text-secondary small mb-1 fw-semibold">
-                    KOT No.
-                  </div>
-
-                  <div
-                    className="d-flex align-items-center justify-content-center border rounded bg-light mx-auto"
-                    style={{ maxWidth: '140px' }}
-                  >
-                    {/* USED KOT (LEFT) */}
-                    <div
-                      className="fw-bold fs-5 px-2 py-1"
-                      style={{
-                        color: '#333',
-                        borderRight: '1px solid #dee2e6',
-                        minWidth: '100px'
-                      }}
-                    >
-                      {defaultKot || '--'}
-                    </div>
-
-                    {/* EDITABLE KOT (RIGHT) */}
-                    <input
-                      type="number"
-                      value={editableKot || ''}
-                      onChange={(e) =>
-                        setEditableKot(e.target.value ? Number(e.target.value) : null)
-                      }
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          const firstQtyRef = inputRefs.current[0]?.[1];
-                          if (firstQtyRef) {
-                            firstQtyRef.focus();
-                            firstQtyRef.select();
-                          }
-                        }
-                      }}
-                      className="border-0 fw-bold text-center bg-transparent"
-                      style={{ width: '100px', color: '#333' }}
-
-                    />
-                  </div>
-                </div>
-              </Col>
-
-
-              {/* Date - Centered */}
-
-
-
-              {isTakeaway && (
-                <>
-                  {/* Delivery Type - Radio Buttons */}
-                  <Col md={2}>
-                    <div className="border rounded p-2 h-100">
-                      <div className="text-uppercase text-secondary small fw-semibold text-center mb-2">
-                        Delivery
-                      </div>
-
-                      <div className="btn-group w-100" role="group">
-                        {/* Pickup */}
-                        <input
-                          type="radio"
-                          className="btn-check"
-                          name="deliveryType"
-                          id="pickup"
-                          value="pickup"
-                          checked={deliveryType === 'pickup'}
-                          onChange={(e) =>
-                            setDeliveryType(e.target.value as 'pickup' | 'homedelivery')
-                          }
-                        />
-                        <label
-                          className="btn btn-outline-primary btn-sm d-flex align-items-center justify-content-center gap-1"
-                          htmlFor="pickup"
-                        >
-                          <i className="fi fi-rr-shopping-bag"></i>
-                          Pickup
-                        </label>
-
-                        {/* Home Delivery */}
-                        <input
-                          type="radio"
-                          className="btn-check"
-                          name="deliveryType"
-                          id="homedelivery"
-                          value="homedelivery"
-                          checked={deliveryType === 'homedelivery'}
-                          onChange={(e) =>
-                            setDeliveryType(e.target.value as 'pickup' | 'homedelivery')
-                          }
-                        />
-                        <label
-                          className="btn btn-outline-primary btn-sm d-flex align-items-center justify-content-center gap-1"
-                          htmlFor="homedelivery"
-                        >
-                          <i className="fi fi-rr-truck-moving"></i>
-                          Delivery
-                        </label>
-                      </div>
-                    </div>
-                  </Col>
-                </>
-              )}
-              {/* MO No / Name */}
-              <Col md={2}>
-                <div className="info-box p-2 h-100 border rounded d-flex flex-column justify-content-center">
-
-
-                  {/* Customer No */}
-                  <input
-                    type="text"
-                    placeholder="MO.no"
-                    value={customerNo}
-                    onChange={(e) => handleCustomerNoChange(e.target.value)}
-                    className="border rounded px-2 py-1 mb-1 text-center"
-                    style={{ fontSize: '13px' }}
-                  />
-
-                  {/* Name + Plus */}
-                  <div className="d-flex align-items-center gap-1">
-                    <input
-                      type="text"
-                      placeholder="Name"
-                      value={customerName}
-                      readOnly
-                      className="border rounded px-2 py-1 flex-grow-1 text-center bg-light"
-                      style={{ fontSize: '13px' }}
-                    />
-
-                    <button
-                      type="button"
-                      onClick={() => setShowCustomerModal(true)}
-                      className="border rounded fw-bold"
-                      style={{ width: '32px', height: '32px', background: '#fff' }}
-                    >
-                      +
-                    </button>
-                  </div>
-                </div>
-              </Col>
-
-              {/* Total Amount - Centered with black background */}
-              <Col md={2} className="ms-auto">
-                <div className="p-2 h-100 d-flex flex-column justify-content-center text-center
-                  bg-success rounded text-white">
-                  
-                  <div className="fw-bold fs-3">
-                    ₹{finalAmount.toFixed(2)}
-                  </div>
-                </div>
-              </Col>
-
-            </Row>
-            
-           
-
-            {/* Datalist for Item Names */}
-            <datalist id="itemNames">
-              {menuItems.map(item => (
-                <option key={item.restitemid} value={item.short_name ? `${item.item_name} (${item.short_name})` : item.item_name} />
-              ))}
-            </datalist>
-
-            {/* Datalist for Item Codes */}
-            <datalist id="itemNos">
-              {menuItems.map(item => (
-                <option key={item.restitemid} value={item.item_no.toString()} />
-              ))}
-            </datalist>
+      {/* Table / Order */}
+      <Col md={2}>
+        <div className="bg-white border rounded shadow-sm py-1 px-2 h-100">
+          <div className="text-uppercase small fw-semibold text-secondary mb-1">
+            <i className="fi fi-rr-table me-1"></i>
+            {isTakeaway ? 'Order No' : 'Table No'}
+          </div>
+          <div className="fw-bold fs-6 text-dark">
+            {isTakeaway ? (orderNo || '--') : (tableNo || '--')}
           </div>
         </div>
+      </Col>
+
+      {/* Waiter */}
+      <Col md={1}>
+        <div className="bg-white border rounded shadow-sm py-1 px-2 h-100">
+          <div className="text-uppercase small fw-semibold text-secondary mb-1">
+            <i className="fi fi-rr-user me-1"></i> Waiter
+          </div>
+          <input
+            type="text"
+            value={waiter}
+            onChange={(e) => setWaiter(e.target.value)}
+            className="form-control form-control-sm text-center fw-semibold"
+            placeholder="Name"
+            list="waiters"
+          />
+          <datalist id="waiters">
+            {waiterUsers.map((user) => (
+              <option key={user.userId} value={user.username} />
+            ))}
+          </datalist>
+        </div>
+      </Col>
+
+      {/* PAX */}
+      <Col md={1}>
+        <div className="bg-white border rounded shadow-sm py-1 px-2 h-100">
+          <div className="text-uppercase small fw-semibold text-secondary mb-1">
+            <i className="fi fi-rr-people me-1"></i> PAX
+          </div>
+          <input
+            type="number"
+            value={pax}
+            onChange={(e) => setPax(Number(e.target.value))}
+            className="form-control form-control-sm text-center fw-semibold"
+            placeholder="0"
+            min="1"
+          />
+        </div>
+      </Col>
+
+      {/* KOT */}
+      <Col md={2}>
+        <div className="bg-white border rounded shadow-sm py-1 px-2 h-100">
+          <div className="text-uppercase small fw-semibold text-secondary mb-1">
+            <i className="fi fi-rr-document me-1"></i> KOT No
+          </div>
+
+          <div className="input-group input-group-sm">
+            <span className="input-group-text fw-semibold">
+              {defaultKot || '--'}
+            </span>
+            <input
+              type="number"
+              value={editableKot || ''}
+              onChange={(e) =>
+                setEditableKot(e.target.value ? Number(e.target.value) : null)
+              }
+              className="form-control text-center fw-semibold"
+              placeholder="Edit"
+            />
+          </div>
+        </div>
+      </Col>
+
+      {/* Delivery Type (Takeaway Only) */}
+      {isTakeaway && (
+        <Col md={2}>
+          <div className="bg-white border rounded shadow-sm py-1 px-2 h-100">
+            <div className="text-uppercase small fw-semibold text-secondary text-center mb-1">
+              <i className="fi fi-rr-shopping-cart me-1"></i> Delivery
+            </div>
+
+            <div className="btn-group w-100">
+              <input
+                type="radio"
+                className="btn-check"
+                name="deliveryType"
+                id="pickup"
+                value="pickup"
+                checked={deliveryType === 'pickup'}
+                onChange={(e) =>
+                  setDeliveryType(e.target.value as 'pickup' | 'homedelivery')
+                }
+              />
+              <label className="btn btn-outline-primary btn-sm" htmlFor="pickup">
+                Pickup
+              </label>
+
+              <input
+                type="radio"
+                className="btn-check"
+                name="deliveryType"
+                id="homedelivery"
+                value="homedelivery"
+                checked={deliveryType === 'homedelivery'}
+                onChange={(e) =>
+                  setDeliveryType(e.target.value as 'pickup' | 'homedelivery')
+                }
+              />
+              <label className="btn btn-outline-primary btn-sm" htmlFor="homedelivery">
+                Delivery
+              </label>
+            </div>
+          </div>
+        </Col>
+      )}
+
+      {/* Customer */}
+      <Col md={2}>
+        <div className="bg-white border rounded shadow-sm py-1 px-2 h-100">
+          <input
+            type="text"
+            placeholder="Mobile No."
+            value={customerNo}
+            onChange={(e) => handleCustomerNoChange(e.target.value)}
+            className="form-control form-control-sm text-center mb-1"
+          />
+
+          <div className="input-group input-group-sm">
+            <input
+              type="text"
+              placeholder="Customer Name"
+              value={customerName}
+              readOnly
+              className="form-control text-center"
+            />
+            <button
+              type="button"
+              onClick={() => setShowCustomerModal(true)}
+              className="btn btn-primary btn-sm"
+            >
+              +
+            </button>
+          </div>
+        </div>
+      </Col>
+
+      {/* Total */}
+      <Col md={2} className="ms-auto">
+        <div className="bg-success text-white rounded shadow-sm py-1 px-2 text-center h-100 d-flex flex-column justify-content-center">
+          <div className="small text-uppercase">Total</div>
+          <div className="fw-bold fs-5">
+            ₹{finalAmount.toFixed(2)}
+          </div>
+        </div>
+      </Col>
+
+    </Row>
+
+    {/* Datalist Item Names */}
+    <datalist id="itemNames">
+      {menuItems.map(item => (
+        <option
+          key={item.restitemid}
+          value={item.short_name
+            ? `${item.item_name} (${item.short_name})`
+            : item.item_name}
+        />
+      ))}
+    </datalist>
+
+    {/* Datalist Item Codes */}
+    <datalist id="itemNos">
+      {menuItems.map(item => (
+        <option key={item.restitemid} value={item.item_no.toString()} />
+      ))}
+    </datalist>
+
+  </div>
+</div>
         {/* Main Content */}
         <div className="full-screen-content px-2" style={{ top: `${headerHeight + toolbarHeight}px` }}>
           <div className="content-wrapper">
@@ -2945,7 +2898,7 @@ const ModernBill = () => {
               ) : (
                 <div className="items-table">
                   <Table responsive bordered className="modern-table">
-                    <thead>
+                    <thead  >
                       <tr className="table-primary">
                         <th style={{ width: '80px' }}> Code</th>
                         <th style={{ width: '400px' }}>Item Name</th >
