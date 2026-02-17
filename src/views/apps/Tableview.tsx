@@ -78,7 +78,7 @@ const Legend: React.FC<{ statusCounts: { vacant: number; occupied: number; print
     { label: 'Vacant', color: '#f0f0f0', border: true, count: statusCounts.vacant },
     { label: 'Occupied', color: '#17af68', count: statusCounts.occupied },
     { label: 'Printed', color: '#dc3545', count: statusCounts.printed },
-    { label: 'Pending', color: '#E6E6FA', count: statusCounts.pending },
+    { label: 'Pending', color: '#de3ef0', count: statusCounts.pending },
   ];
 
   return (
@@ -475,7 +475,7 @@ export default function App() {
           box-shadow: 0 4px 8px rgba(0,0,0,0.1);
         }
         .bg-warning-orange {
-          background-color: #fd7e14 !important;
+          background-color: #de3ef0 !important;
         }
         .main-content {
           flex: 1;
