@@ -2657,6 +2657,25 @@ const ModernBill = () => {
           background-color: #777d6c;
         }
 
+        .summary-section .modern-table td,
+        .summary-section .modern-table th {
+          border-left: 2px solid #868e96 !important;
+          border-right: 2px solid 868e96 !important;
+        }
+
+        .summary-section .modern-table tr:first-child td,
+        .summary-section .modern-table tr:first-child th {
+          border-top: 2px solid #868e96 !important;
+        }
+
+        .summary-section .modern-table tbody tr {
+          border-bottom: 2px solid #868e96 !important;
+        }
+
+        .summary-section .modern-table thead th {
+          border-bottom: 2px solid #868e96 !important;
+        }
+
         .bottom-content {
           padding: 0.1rem;
           display: flex;
