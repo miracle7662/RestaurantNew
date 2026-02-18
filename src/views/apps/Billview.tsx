@@ -3249,7 +3249,15 @@ const ModernBill = () => {
           <Modal.Title>KOT Transfer</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <KotTransfer transferSource={transferSource} sourceTableId={tableId} onCancel={() => setShowKotTransferModal(false)} />
+          <KotTransfer 
+            transferSource={transferSource} 
+            sourceTableId={tableId} 
+            onCancel={() => setShowKotTransferModal(false)} 
+            onSuccess={() => {
+              setShowKotTransferModal(false);
+              navigate('/apps/Tableview');
+            }}
+          />
         </Modal.Body>
       </Modal>
       {/* Reverse Bill Confirmation Modal (After Password) */}
