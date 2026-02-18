@@ -37,7 +37,7 @@ const Helpdesk = () => {
           className="arrow-none header-btn"
           role="button"
           onClick={toggleDropDown}>
-          <i className="fi fi-rr-interrogation" />
+          <i className="fi fi-rr-interrogation text-white" />
         </Dropdown.Toggle>
         <Dropdown.Menu align="end" className="dropdown-xl py-0 px-0 overflow-hidden">
           <div

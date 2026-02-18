@@ -47,7 +47,7 @@ const Notifications = () => {
           role="button"
           onClick={toggleDropDown}
         >
-          <i className="fi fi-rr-bell" />
+          <i className="fi fi-rr-bell text-white" />
           <Badge
             bg="primary"
             className="rounded-circle position-absolute translate-middle-y top-30 start-40"

@@ -1,8 +1,5 @@
 import { ReactNode } from 'react'
-import { Breadcrumb } from 'react-bootstrap'
 import { Helmet } from 'react-helmet'
-import { Link } from 'react-router-dom'
-import { useAuthContext } from '@/common/context/useAuthContext'
 
 interface PageTitleProps {
   subName?: string
@@ -10,18 +7,17 @@ interface PageTitleProps {
   addedChild?: ReactNode
 }
 const PageBreadcrumb = ({ subName, title, addedChild }: PageTitleProps) => {
-  const { user } = useAuthContext()
-
+ 
   return (
     <>
       <Helmet>
-        <title>{title}   Miracle-Infotech & Dashboard | {user?.currDate ? `| Business Date: ${user.currDate}` : ''} </title>
+        <title>{title}   </title>
       </Helmet>
       {subName && (
         <div className="mt-2 mb-4 mb-md-6">
           <h4 className="fw-semibold">{title}</h4>
           {addedChild}
-          <div className="page-title-right">
+          {/* <div className="page-title-right">
             <ol className="breadcrumb m-0">
               <Link to="/" className="breadcrumb-item">
                 Home
@@ -29,7 +25,7 @@ const PageBreadcrumb = ({ subName, title, addedChild }: PageTitleProps) => {
               <Breadcrumb.Item>{subName}</Breadcrumb.Item>
               <Breadcrumb.Item active>{title}</Breadcrumb.Item>
             </ol>
-          </div>
+          </div> */}
         </div>
       )}
     </>

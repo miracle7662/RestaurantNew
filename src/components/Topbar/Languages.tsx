@@ -26,7 +26,7 @@ const Languages = () => {
             alt="flag"
             width={20}
             height={20}
-            className="img-fluid rounded-circle"
+            className="img-fluid rounded-circle border border-white shadow-sm"
           />
         </Dropdown.Toggle>
         <Dropdown.Menu align="end">

@@ -345,12 +345,19 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
     let itemsToTransfer;
     if (transferMode === "table" || transferMode === "ORDER") {
       itemsToTransfer = selectedItems.map(item => ({ ...item, selected: false, media: proposedTable }));
-    } else {
-      // In KOT mode, filter to only transfer items from selectedKOT
-      const kotToTransfer = selectedKOT === -1 ? selectedItems[0]?.kot : selectedKOT;
-      itemsToTransfer = selectedItems
-        .filter(item => item.kot === kotToTransfer)
-        .map(item => ({ ...item, selected: false, media: proposedTable }));
+  } else {
+      // In KOT mode, transfer items based on selectedKOT
+      // If "All KOTs" is selected (selectedKOT === -1), transfer ALL items
+      // Otherwise, transfer only items from the selected KOT
+      if (selectedKOT === -1) {
+        // Transfer all items from all KOTs
+        itemsToTransfer = selectedItems.map(item => ({ ...item, selected: false, media: proposedTable }));
+      } else {
+        // Transfer only items from the selected KOT
+        itemsToTransfer = selectedItems
+          .filter(item => item.kot === selectedKOT)
+          .map(item => ({ ...item, selected: false, media: proposedTable }));
+      }
     }
 
     setSelectedItems([]);
