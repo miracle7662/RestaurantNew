@@ -29,6 +29,10 @@ const flaticonRegularData = [
   { iconClass: 'fi fi-rr-angle-circle-down', label: 'fi-rr-angle-circle-down' },
   { iconClass: 'fi fi-rr-angle-circle-left', label: 'fi-rr-angle-circle-left' },
   { iconClass: 'fi fi-rr-angle-circle-right', label: 'fi-rr-angle-circle-right' },
+  { iconClass: 'fi fi-rr-angle-circle-up', label: 'fi-rr-angle-circle-up' },
+  { iconClass: 'fi fi-rr-phone-call', label: 'fi-rr-phone-call' },
+  
+
   // Add more icons and labels as needed
 ]
 export { flaticonRegularData }

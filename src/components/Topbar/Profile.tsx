@@ -48,17 +48,12 @@ const Profile = () => {
     <>
       <Dropdown show={dropDownOpen} onToggle={toggleDropDown}>
         <Dropdown.Toggle
-          className="arrow-none header-btn px-2"
+          className="arrow-none header-btn px-2 d-flex align-items-center justify-content-center"
           as="a"
           role="button"
           onClick={toggleDropDown}
         >
-          <Avatar type="image" src={profilePic} size="md">
-            <div
-              className={`avatar-status bg-${statusOptions.find((opt) => opt.label === status)
-                ?.color}`}
-            ></div>
-          </Avatar>
+          <i className="fi fi-rr-user text-white fs-5"></i>
         </Dropdown.Toggle>
         <Dropdown.Menu align="end" className="dropdown-md px-0 py-0">
           <div className="px-4 py-3 d-flex border-bottom">
