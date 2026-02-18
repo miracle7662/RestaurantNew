@@ -51,7 +51,6 @@ const AccountNatureRoutes = require('./routes/AccountNatureRoutes');
 const AccountTypeRoutes = require('./routes/AccountTypeRoutes');  // New import
 
 const KitchenAllocationRoutes = require('./routes/KitchenAllocationRoutes');
-// const SubTableRoutes = require('./routes/SubTableRoutes');
 
 
 
@@ -103,7 +102,6 @@ app.use('/api/warehouse', WarehouseRoutes); // Register warehouse routes
 app.use('/api/reports', ReportRoutes); // Register report routes
 app.use('/api/kitchen-allocation', KitchenAllocationRoutes); // Register kitchen allocation routes
 app.use("/api/settings", settingsRoutes);
-// app.use('/api/sub-tables', SubTableRoutes); // Register sub-table routes
 
 app.use('/api/account-ledger', authenticateToken, AccountLedgerRoutes);
 app.use('/api/accountnature', authenticateToken, AccountNatureRoutes);
