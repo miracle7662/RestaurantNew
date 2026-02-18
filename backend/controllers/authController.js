@@ -22,15 +22,15 @@ exports.login = async (req, res) => {
         if (email) {
             // Login with email (for SuperAdmin)
             user = db.prepare(`
-            SELECT u.*, 
+             SELECT u.*, 
                    b.hotel_name as brand_name,
                    h.hotel_name as hotel_name,
-                   uom.outletid
+                   u.outletid
                   
             FROM mst_users u
-            LEFT JOIN msthotelmasters b ON u.brand_id = b.hotelid
-            LEFT JOIN user_outlet_mapping uom ON u.userid = uom.userid
-            LEFT JOIN msthotelmasters h ON uom.outletid = h.hotelid
+            LEFT JOIN mst_outlets d ON u.outletid = d.outletid
+            LEFT JOIN msthotelmasters h ON u.hotelid = h.hotelid
+            LEFT JOIN msthotelmasters b ON b.hotelid = h.hotelid   
             WHERE u.email = ? AND u.status = 0
              
             `).get(email);
@@ -40,11 +40,11 @@ exports.login = async (req, res) => {
             SELECT u.*, 
                    b.hotel_name as brand_name,
                    h.hotel_name as hotel_name,
-                   uom.outletid                  
+                   u.outletid                  
             FROM mst_users u
-            LEFT JOIN msthotelmasters b ON u.brand_id = b.hotelid
-            LEFT JOIN user_outlet_mapping uom ON u.userid = uom.userid
-            LEFT JOIN msthotelmasters h ON uom.outletid = h.hotelid
+           LEFT JOIN mst_outlets d ON u.outletid = d.outletid
+            LEFT JOIN msthotelmasters h ON u.hotelid = h.hotelid
+            LEFT JOIN msthotelmasters b ON b.hotelid = h.hotelid 
             WHERE u.username = ? AND u.status = 0
               
             `).get(username);
@@ -145,12 +145,11 @@ exports.getCurrentUser = async (req, res) => {
                   
                    b.hotel_name AS brand_name,
                    h.hotel_name AS hotel_name,
-                   uom.outletid
+                   u.outletid
             FROM mst_users u
-            LEFT JOIN msthotelmasters b ON u.brand_id = b.hotelid
-            LEFT JOIN user_outlet_mapping uom ON u.userid = uom.userid
-            LEFT JOIN msthotelmasters h ON uom.outletid = h.hotelid
-            LEFT JOIN mst_outlets d ON uom.outletid = d.outletid
+             LEFT JOIN mst_outlets d ON u.outletid = d.outletid
+            LEFT JOIN msthotelmasters h ON u.hotelid = h.hotelid
+            LEFT JOIN msthotelmasters b ON b.hotelid = h.hotelid            
             WHERE u.userid = ? AND u.status = 0
            
         `).get(decoded.userid);
