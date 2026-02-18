@@ -91,20 +91,22 @@ const Header = ({ toggleMenu, navOpen }: HeaderProps) => {
           {(user?.brand_name || user?.username || user?.currDate) && (
               <div className="header-btn px-2 d-flex align-items-center gap-2">
                 {user?.brand_name && (
-                  <span className="text-primary fw-bold">{user.brand_name}</span>
+                  <span className="text-white fw-bold fs-3">{user.brand_name}</span>
                 )}
                 {user?.username && (
-                  <span className="text-muted small">({user.username})</span>
+                  <span className="text-white fw-bold small"> User ({user.username})</span>
                 )}
-                {user?.currDate && (
-                  <span className="text-muted small border-start ps-2">Business Date: {user.currDate}</span>
-                )}
+               
               </div>
             )}
            
           </div>
           {/* header-right */}
           <div className="header-right d-flex align-items-center justify-content-center">
+
+             {user?.currDate && (
+                  <span className="text-white fw-bold -start ps-2"> Date: {user.currDate}</span>
+                )}
             
             <DarkLight />
             <Languages />
