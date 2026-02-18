@@ -88,24 +88,25 @@ const Header = ({ toggleMenu, navOpen }: HeaderProps) => {
         <div className="header-inner px-2 px-md-3">
           {/* header-left */}
           <div className="header-left d-flex align-items-center">
-          {(user?.brand_name || user?.username || user?.currDate) && (
+          {user?.brand_name && (
               <div className="header-btn px-2 d-flex align-items-center gap-2">
-                {user?.brand_name && (
-                  <span className="text-white fw-bold fs-3">{user.brand_name}</span>
-                )}
-                {user?.username && (
-                  <span className="text-white fw-bold small"> User ({user.username})</span>
-                )}
-               
+                <span className="text-white fw-bold fs-3">{user.brand_name}</span>
               </div>
             )}
-           
           </div>
+          
+          {/* header-center - for username */}
+          <div className="header-center d-flex align-items-center justify-content-center flex-grow-1">
+            {user?.username && (
+              <span className="text-white fw-bold fs-5">User ({user.username})</span>
+            )}
+          </div>
+          
           {/* header-right */}
           <div className="header-right d-flex align-items-center justify-content-center">
 
              {user?.currDate && (
-                  <span className="text-white fw-bold -start ps-2"> Date: {user.currDate}</span>
+                  <span className="text-white fw-bold -start ps-2">Date: {user.currDate}</span>
                 )}
             
             <DarkLight />
