@@ -179,6 +179,11 @@ const ModernBill = () => {
 
   const [isTableOccupied, setIsTableOccupied] = useState(false);
 
+  // New Bill Mode - for creating split tables
+  const [isNewBillMode, setIsNewBillMode] = useState(false);
+  const [tempTableId, setTempTableId] = useState<number | null>(null);
+  const [tempTableCreated, setTempTableCreated] = useState(false);
+
   // Set deliveryType based on location.state?.orderType or loaded order's Order_Type
   useEffect(() => {
     if (location.state?.orderType) {
@@ -2269,7 +2274,9 @@ const ModernBill = () => {
 
           case 'F6':
             event.preventDefault();
-            resetBillState();
+            // Activate new bill mode and navigate to Tableview to select a table
+            setIsNewBillMode(true);
+            navigate('/apps/Tableview', { state: { newBillMode: true } });
             return;
 
           case 'F7':

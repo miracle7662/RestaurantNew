@@ -396,7 +396,13 @@ export default function App() {
   };
 
   const handleTableClick = (table: Table) => {
-    if (table.status === 'printed' || (table.status === 'running-kot' && table.billNo)) {
+    // Check if we're in new bill mode (coming from F6 button)
+    const isNewBillMode = location.state?.newBillMode;
+
+    if (isNewBillMode) {
+      // Generate next available table name (e.g., 2A, 2B, 2C...)
+      generateAndCreateSplitTable(table);
+    } else if (table.status === 'printed' || (table.status === 'running-kot' && table.billNo)) {
       setSelectedTable(table);
       setShowModal(true);
     } else {
