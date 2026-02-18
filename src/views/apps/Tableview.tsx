@@ -395,6 +395,81 @@ export default function App() {
     });
   };
 
+const generateAndCreateSplitTable = (baseTable: Table) => {
+    // Find all tables in the same department with names starting with the base table name
+    const baseName = baseTable.name;
+    const departmentTables = allTables.filter(t => 
+      t.departmentid === baseTable.departmentid && 
+      t.name.startsWith(baseName)
+    );
+    
+    // If no split tables exist yet, create the first one (e.g., 2A)
+    if (departmentTables.length === 0 || !baseTablesHaveSplits(departmentTables, baseName)) {
+      // First split table, e.g., 2A
+      const newTableName = `${baseName}A`;
+      navigate('/apps/Billview', {
+        state: {
+          mode: 'dinein',
+          tableId: baseTable.id,
+          tableName: newTableName,
+          outletId: baseTable.outletid,
+          departmentId: baseTable.departmentid,
+          isSplitTable: true,
+          parentTableId: baseTable.id,
+          parentTableName: baseName
+        }
+      });
+      return;
+    }
+    
+    // Find the next available split letter
+    const usedLetters = new Set(
+      departmentTables
+        .map(t => t.name.replace(baseName, ''))
+        .filter(name => name.length === 1 && /^[A-Z]$/.test(name))
+    );
+    
+    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    let nextLetter = '';
+    for (const letter of alphabet) {
+      if (!usedLetters.has(letter)) {
+        nextLetter = letter;
+        break;
+      }
+    }
+    
+    if (nextLetter) {
+      const newTableName = `${baseName}${nextLetter}`;
+      navigate('/apps/Billview', {
+        state: {
+          mode: 'dinein',
+          tableId: baseTable.id,
+          tableName: newTableName,
+          outletId: baseTable.outletid,
+          departmentId: baseTable.departmentid,
+          isSplitTable: true,
+          parentTableId: baseTable.id,
+          parentTableName: baseName
+        }
+      });
+    } else {
+      // All letters used, navigate to the base table
+      navigate('/apps/Billview', {
+        state: {
+          tableId: baseTable.id,
+          tableName: baseTable.name,
+          outletId: baseTable.outletid,
+          departmentId: baseTable.departmentid
+        }
+      });
+    }
+  };
+
+  // Helper function to check if base table has any split tables
+  const baseTablesHaveSplits = (tables: Table[], baseName: string): boolean => {
+    return tables.some(t => t.name.length > baseName.length && t.name.startsWith(baseName));
+  };
+
   const handleTableClick = (table: Table) => {
     // Check if we're in new bill mode (coming from F6 button)
     const isNewBillMode = location.state?.newBillMode;
