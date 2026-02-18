@@ -1,19 +1,22 @@
-# Task: Fix Runtime Calculations for Pickup/Delivery/QuickBill
+# Sub-Table Implementation Plan
 
-## Problem Statement
-In Dine-In, when a table is clicked and items are added, all runtime calculations work correctly (subtotal, tax, discount, round-off, final total).
-In Pickup / Delivery / QuickBill, when the tab is selected and items are added, items get added correctly BUT runtime calculations do NOT trigger automatically.
+## Tasks:
+1. [x] Read subtable API file to understand frontend integration
+2. [ ] Add SubTable Selection Modal to Billview.tsx
+3. [ ] Add state variables for sub-table handling
+4. [ ] Add ESC key handler to cancel sub-table creation
+5. [ ] Update settlement handler to release sub-tables
+6. [ ] Test the implementation
 
-## Root Cause
-The tax calculation useEffect in Orders.tsx has dependencies on `[items, reversedItems, taxRates, includeTaxInInvoice, discount, roundOffEnabled, roundOffTo]` but is NOT triggered when:
-1. The order type changes (activeTab changes from Dine-In to Pickup/Delivery/QuickBill)
-2. The tax rates change after switching order types
+## Implementation Details:
 
-## Solution Plan
-- [ ] 1. Identify the tax calculation useEffect in Orders.tsx
-- [ ] 2. Add `activeTab` to the useEffect dependencies
-- [ ] 3. Add `selectedDeptId` and `selectedOutletId` to ensure calculations use the correct tax rates
-- [ ] 4. Verify the fix works correctly
+### 1. Sub-Table Modal
+- Show when clicking on a table to create new bill
+- Display sub-tables (2A to 2Z) for the selected parent table
+- Allow user to select a sub-table
+- ESC key should close modal without creating table
 
-## Files to Edit
-- `src/views/apps/Transaction/Orders.tsx` - Add dependencies to the tax calculation useEffect
+### 2. Settlement Handling
+- When settling a bill that has a sub-table
+- Call the release sub-table API
+- This will remove the sub-table and free it for reuse

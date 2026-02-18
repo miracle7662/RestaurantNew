@@ -90,7 +90,7 @@ const Header = ({ toggleMenu, navOpen }: HeaderProps) => {
           <div className="header-left d-flex align-items-center">
           {user?.brand_name && (
               <div className="header-btn px-2 d-flex align-items-center gap-2">
-                <span className="text-white fw-bold fs-3">{user.brand_name}</span>
+                <span className="text-white fw-bold fs-4">{user.brand_name}</span>
               </div>
             )}
           </div>
@@ -98,7 +98,7 @@ const Header = ({ toggleMenu, navOpen }: HeaderProps) => {
           {/* header-center - for username */}
           <div className="header-center d-flex align-items-center justify-content-center flex-grow-1">
             {user?.username && (
-              <span className="text-white fw-bold fs-5">User ({user.username})</span>
+              <span className="text-white fw-bold ">User ({user.username})</span>
             )}
           </div>
           
@@ -128,5 +128,4 @@ const Header = ({ toggleMenu, navOpen }: HeaderProps) => {
     </>
   )
 }
-
 export default Header

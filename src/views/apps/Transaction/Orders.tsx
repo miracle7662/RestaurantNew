@@ -2992,7 +2992,7 @@ const handleTabClick = (tab: string) => {
                           style={{ border: 'none', borderRadius: '5px', padding: '8px 12px', fontSize: '14px', fontWeight: 500, textAlign: 'center' }}
                         >
                           {department.department_name}
-                          {user?.role_level === 'outlet_user' && ' (Assigned)'}
+                          {user?.role_level === 'outlet_user'}
                         </button>
                       </li>
                     ))

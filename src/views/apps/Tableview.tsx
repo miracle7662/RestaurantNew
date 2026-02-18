@@ -411,23 +411,39 @@ export default function App() {
   };
 
   const handleTableInputEnter = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      const input = tableInput.trim();
-      if (input) {
-        const tables = selectedDepartmentId === 'all' ? allTables : tablesByDepartment[selectedDepartmentId] || [];
-        const table = tables.find(t => t.name === input);
-        if (table) {
-          if (table.status === 'printed' || (table.status === 'running-kot' && table.billNo)) {
-            setSelectedTable(table);
-            setShowModal(true);
-          } else {
-            navigate('/apps/Billview', { state: { tableId: table.id, tableName: table.name, outletId: table.outletid } });
-          }
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    e.stopPropagation();   // 🔥 IMPORTANT
+
+    const input = tableInput.trim();
+    if (input) {
+      const tables = selectedDepartmentId === 'all'
+        ? allTables
+        : tablesByDepartment[selectedDepartmentId] || [];
+
+      const table = tables.find(t => t.name === input);
+
+      if (table) {
+        if (table.status === 'printed' || 
+           (table.status === 'running-kot' && table.billNo)) {
+
+          setSelectedTable(table);
+          setShowModal(true);
+        } else {
+          navigate('/apps/Billview', {
+            state: {
+              tableId: table.id,
+              tableName: table.name,
+              outletId: table.outletid
+            }
+          });
         }
       }
-      setTableInput('');
     }
-  };
+    setTableInput('');
+  }
+};
+
 
   const fetchTakeawayOrders = async () => {
     try {
