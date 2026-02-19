@@ -31,19 +31,19 @@ export default function useLogin() {
       toast.success('Login successful!')
 
       setTimeout(async () => {
-        if (res.token) {
-          try {
-            // Fetch the business date after login
-            const currDateData = await getLatestCurrDate(res.token, res.outletid, res.hotelid)
-            // Include currDate in the session
-            saveSession({ ...res, currDate: currDateData.curr_date })
-          } catch (dateError) {
-            // If fetching currDate fails, still save the session without it
-            console.error('Failed to fetch business date:', dateError)
-            saveSession(res)
-          }
-          navigate(redirectUrl)
-        }
+       if (res.token) {
+  try {
+    const currDateData = await getLatestCurrDate(res.token, res.outletid, res.hotelid)
+    saveSession({ ...res, currDate: currDateData.curr_date })
+  } catch (dateError) {
+    console.error('Failed to fetch business date:', dateError)
+    saveSession(res)
+  }
+
+  // ✅ Go to Opening Balance page first
+ navigate('/apps/OpeningBalancePage')
+}
+
       }, 1500)
     } catch (error) {
       setLoading(false)
@@ -76,7 +76,8 @@ export default function useLogin() {
             console.error('Failed to fetch business date:', dateError)
             saveSession(res)
           }
-          navigate(redirectUrl)
+          navigate('/apps/OpeningBalancePage')
+
         }
       }, 1500)
     } catch (error) {

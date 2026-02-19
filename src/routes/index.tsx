@@ -34,6 +34,8 @@ const Contact = React.lazy(() => import('./../views/apps/Contact'))
 const Tableview = React.lazy(() => import('../views/apps/Tableview'))
 const Billview = React.lazy(() => import('../views/apps/Billview'))
 const Settings = React.lazy(() => import('../views/apps/Settings'))
+const OpeningBalancePage = React.lazy(() => import('../views/apps/OpeningBalancePage')) // Updated to use <OpeningBalancePage /> component'@/pages/opening-balance/OpeningBalancePage'
+
 
 
 // Update the path below to the correct location and casing of your Orders component file
@@ -243,6 +245,13 @@ const appsRoutes: RoutesProps = {
       path: '/apps/invoice',
       name: 'Invoice',
       element: <Invoice />,
+      route: PrivateRoute,
+    },
+
+     {
+      path: '/apps/OpeningBalancePage',
+      name: 'OpeningBalancePage',
+      element: <OpeningBalancePage />,
       route: PrivateRoute,
     },
    
