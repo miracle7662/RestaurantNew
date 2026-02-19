@@ -1583,7 +1583,7 @@ const ModernBill = () => {
         return;
       }
 
-      // --- SUB-TABLE LOGIC START ---
+// --- SUB-TABLE LOGIC START ---
       // If we are saving a KOT for a table that is already occupied (originalTableStatus !== 0)
       // AND we don't have a current transaction ID (meaning it's a "New Bill"),
       // we should create a sub-table (e.g., 2A) to avoid merging with the existing bill.
@@ -1592,14 +1592,14 @@ const ModernBill = () => {
 
       if (!isTakeaway && !txnId && originalTableStatus !== 0 && tableId) {
         try {
-          const subTableRes = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/tablemanagement/sub-table`, {
+          const subTableRes = await TableManagementService.createSubTable({
             parentTableId: tableId,
             userId: user.id
           });
 
-          if (subTableRes.data.success) {
-            targetTableId = subTableRes.data.data.tableid;
-            targetTableName = subTableRes.data.data.table_name;
+          if (subTableRes.success) {
+            targetTableId = subTableRes.data.tableid;
+            targetTableName = subTableRes.data.table_name;
             setTableNo(targetTableName); // Update UI
             toast.success(`Created sub-table ${targetTableName}`);
           }

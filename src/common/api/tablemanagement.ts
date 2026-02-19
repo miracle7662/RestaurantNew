@@ -47,6 +47,12 @@ export interface TableManagementPayload {
   updated_date?: string
 }
 
+/** Sub-table creation payload */
+export interface SubTablePayload {
+  parentTableId: number
+  userId: string | number
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════════
  * Table Management Service
  * ═══════════════════════════════════════════════════════════════════════════════ */
@@ -74,11 +80,17 @@ const TableManagementService = {
   update: (id: number, payload: TableManagementPayload): Promise<ApiResponse<Table>> =>
     HttpClient.put<ApiResponse<Table>>(`/tablemanagement/${id}`, payload),
 
-  /**
+/**
    * Delete a table
    */
   remove: (id: number): Promise<ApiResponse<null>> =>
-    HttpClient.delete<ApiResponse<null>>(`/tablemanagement/${id}`)
+    HttpClient.delete<ApiResponse<null>>(`/tablemanagement/${id}`),
+
+  /**
+   * Create a sub-table for an existing table
+   */
+  createSubTable: (payload: SubTablePayload): Promise<ApiResponse<Table>> =>
+    HttpClient.post<ApiResponse<Table>>('/tablemanagement/sub-table', payload)
 }
 
 export default TableManagementService
