@@ -585,7 +585,7 @@ const OrderService = {
   getQuickBills: (): Promise<ApiResponse<any[]>> =>
     HttpClient.get<ApiResponse<any[]>>('/TAxnTrnbill/by-type/Quick Bill'),
 
-  /**
+/**
    * Get global KOT number
    */
   getGlobalKOTNumber: (outletId: number): Promise<ApiResponse<{ nextKOT: number }>> =>
@@ -593,5 +593,7 @@ const OrderService = {
       params: { outletid: outletId }
     })
 }
+
+ 
 
 export default OrderService

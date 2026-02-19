@@ -14,4 +14,8 @@ router.delete("/:tableid", TableManagementController.deleteTable); // Delete tab
 // Get all tables with their associated outlet names
 router.get("/with-outlets", TableManagementController.getAllTablesWithOutlets);
 
+// Create sub-table (e.g. 2A, 2B)
+router.post("/sub-table", TableManagementController.createSubTable);
+
+
 module.exports = router;

@@ -138,7 +138,6 @@ const ModernBill = () => {
 
   console.log('Table ID:', tableId);
   console.log('Table Name:', tableName);
-  console.log('Location state:', location.state);
   console.log('ORDER MODE', {
     isTakeaway,
     tableId,
@@ -148,10 +147,7 @@ const ModernBill = () => {
 
   const [waiter, setWaiter] = useState('ASD');
   const [pax, setPax] = useState(1);
-  // Initialize tableNo from location.state.tableName - this ensures proper display of table number (e.g., 2A, 2B)
-  const [tableNo, setTableNo] = useState(tableName || '');
-  const [tableNoLoading, setTableNoLoading] = useState(!tableName);
-
+  const [tableNo, setTableNo] = useState(tableName || 'Loading...');
   const [defaultKot, setDefaultKot] = useState<number | null>(null); // last / system KOT
   const [editableKot, setEditableKot] = useState<number | null>(null); // user editable
   const [loading, setLoading] = useState(false);
@@ -182,11 +178,6 @@ const ModernBill = () => {
   const [deliveryType, setDeliveryType] = useState<'pickup' | 'homedelivery'>('pickup');
 
   const [isTableOccupied, setIsTableOccupied] = useState(false);
-
-  // New Bill Mode - for creating split tables
-  const [isNewBillMode, setIsNewBillMode] = useState(false);
-  const [tempTableId, setTempTableId] = useState<number | null>(null);
-  const [tempTableCreated, setTempTableCreated] = useState(false);
 
   // Set deliveryType based on location.state?.orderType or loaded order's Order_Type
   useEffect(() => {
@@ -1058,13 +1049,8 @@ const ModernBill = () => {
         setTxnId(data.header.TxnID);
         setWaiter(data.header.waiter || 'ASD');
         setPax(data.header.pax || data.header.PAX || 1);
-        // Use table_name from API if available, otherwise fall back to location.state.tableName
         if (data.header.table_name) {
           setTableNo(data.header.table_name);
-        } else if (tableName) {
-          // For new split tables (2A, 2B), table_name might not be in API response yet
-          // So use the tableName from location.state which was passed from Tableview
-          setTableNo(tableName);
         }
         if (data.header.CustomerName) setCustomerName(data.header.CustomerName);
         if (data.header.MobileNo) setCustomerNo(data.header.MobileNo);
@@ -1342,30 +1328,6 @@ const ModernBill = () => {
     }
   }, [tableId, isTakeaway, takeawayOrderId]);
 
-  // Fetch table name if not provided in location state
-  useEffect(() => {
-    const fetchTableName = async () => {
-      if (tableId && !tableNo && tableNoLoading) {
-        try {
-          const response = await TableManagementService.list();
-          if (response.success && response.data) {
-            const table = response.data.find((t: any) => t.tableid === tableId);
-            if (table) {
-              setTableNo(table.table_name || `Table ${tableId}`);
-            }
-          }
-        } catch (error) {
-          console.error('Error fetching table name:', error);
-          setTableNo(`Table ${tableId}`);
-        } finally {
-          setTableNoLoading(false);
-        }
-      }
-    };
-
-    fetchTableName();
-  }, [tableId, tableNo, tableNoLoading]);
-
 
 
   // Check for openSettlement flag and open settlement modal
@@ -1621,6 +1583,33 @@ const ModernBill = () => {
         return;
       }
 
+      // --- SUB-TABLE LOGIC START ---
+      // If we are saving a KOT for a table that is already occupied (originalTableStatus !== 0)
+      // AND we don't have a current transaction ID (meaning it's a "New Bill"),
+      // we should create a sub-table (e.g., 2A) to avoid merging with the existing bill.
+      let targetTableId = tableId;
+      let targetTableName = tableName;
+
+      if (!isTakeaway && !txnId && originalTableStatus !== 0 && tableId) {
+        try {
+          const subTableRes = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/tablemanagement/sub-table`, {
+            parentTableId: tableId,
+            userId: user.id
+          });
+
+          if (subTableRes.data.success) {
+            targetTableId = subTableRes.data.data.tableid;
+            targetTableName = subTableRes.data.data.table_name;
+            setTableNo(targetTableName); // Update UI
+            toast.success(`Created sub-table ${targetTableName}`);
+          }
+        } catch (subTableErr) {
+          console.error("Failed to create sub-table:", subTableErr);
+          // Fallback: proceed with original table (might merge bill depending on backend logic)
+        }
+      }
+      // --- SUB-TABLE LOGIC END ---
+
       const validItems = billItems.filter(
         item =>
           item.itemId > 0 &&
@@ -1638,8 +1627,8 @@ const ModernBill = () => {
       }
       const payload = {
         outletid: outletId,
-        tableId: isTakeaway ? null : tableId,
-        table_name: tableName,
+        tableId: isTakeaway ? null : targetTableId, // Use targetTableId
+        table_name: targetTableName, // Use targetTableName
         userId: user.id,
         hotelId: user.hotelid,
         KOTNo: editableKot, // Use editableKot if set, else null for backend to generate
@@ -1715,9 +1704,9 @@ const ModernBill = () => {
       toast.success('KOT saved successfully');
 
       // Set table status to occupied (green)
-      if (tableId) {
+      if (targetTableId) {
         try {
-          await OrderService.updateTableStatus(tableId, { status: 1 });
+          await OrderService.updateTableStatus(targetTableId, { status: 1 });
         } catch (error) {
           console.error('Error updating table status:', error);
         }
@@ -1751,8 +1740,8 @@ const ModernBill = () => {
       }
 
       // 🔥 AFTER KOT SAVE / PRINT
-      if (tableId) {
-        await loadBillForTable(tableId);
+      if (targetTableId) {
+        await loadBillForTable(targetTableId);
       }
     } catch (error) {
       console.error('Error saving KOT:', error);
@@ -2307,7 +2296,6 @@ const ModernBill = () => {
 
           case 'F6':
             event.preventDefault();
-            // Just reset the bill state - same as clicking the New Bill button
             resetBillState();
             return;
 
