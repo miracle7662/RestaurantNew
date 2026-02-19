@@ -138,6 +138,7 @@ const ModernBill = () => {
 
   console.log('Table ID:', tableId);
   console.log('Table Name:', tableName);
+  console.log('Location state:', location.state);
   console.log('ORDER MODE', {
     isTakeaway,
     tableId,
@@ -147,7 +148,10 @@ const ModernBill = () => {
 
   const [waiter, setWaiter] = useState('ASD');
   const [pax, setPax] = useState(1);
-  const [tableNo, setTableNo] = useState(tableName || 'Loading...');
+  // Initialize tableNo from location.state.tableName - this ensures proper display of table number (e.g., 2A, 2B)
+  const [tableNo, setTableNo] = useState(tableName || '');
+  const [tableNoLoading, setTableNoLoading] = useState(!tableName);
+
   const [defaultKot, setDefaultKot] = useState<number | null>(null); // last / system KOT
   const [editableKot, setEditableKot] = useState<number | null>(null); // user editable
   const [loading, setLoading] = useState(false);
@@ -1054,8 +1058,13 @@ const ModernBill = () => {
         setTxnId(data.header.TxnID);
         setWaiter(data.header.waiter || 'ASD');
         setPax(data.header.pax || data.header.PAX || 1);
+        // Use table_name from API if available, otherwise fall back to location.state.tableName
         if (data.header.table_name) {
           setTableNo(data.header.table_name);
+        } else if (tableName) {
+          // For new split tables (2A, 2B), table_name might not be in API response yet
+          // So use the tableName from location.state which was passed from Tableview
+          setTableNo(tableName);
         }
         if (data.header.CustomerName) setCustomerName(data.header.CustomerName);
         if (data.header.MobileNo) setCustomerNo(data.header.MobileNo);
@@ -1332,6 +1341,30 @@ const ModernBill = () => {
       loadTakeawayOrder(takeawayOrderId);
     }
   }, [tableId, isTakeaway, takeawayOrderId]);
+
+  // Fetch table name if not provided in location state
+  useEffect(() => {
+    const fetchTableName = async () => {
+      if (tableId && !tableNo && tableNoLoading) {
+        try {
+          const response = await TableManagementService.list();
+          if (response.success && response.data) {
+            const table = response.data.find((t: any) => t.tableid === tableId);
+            if (table) {
+              setTableNo(table.table_name || `Table ${tableId}`);
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching table name:', error);
+          setTableNo(`Table ${tableId}`);
+        } finally {
+          setTableNoLoading(false);
+        }
+      }
+    };
+
+    fetchTableName();
+  }, [tableId, tableNo, tableNoLoading]);
 
 
 
@@ -2274,9 +2307,8 @@ const ModernBill = () => {
 
           case 'F6':
             event.preventDefault();
-            // Activate new bill mode and navigate to Tableview to select a table
-            setIsNewBillMode(true);
-            navigate('/apps/Tableview', { state: { newBillMode: true } });
+            // Just reset the bill state - same as clicking the New Bill button
+            resetBillState();
             return;
 
           case 'F7':
