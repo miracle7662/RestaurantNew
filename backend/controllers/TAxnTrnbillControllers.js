@@ -857,7 +857,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 
         // Delete all sub-tables (temporary tables) associated with this parent table
         console.log(`Deleting sub-tables for parent table ${parentTableIdToUse}`)
-        db.prepare(`DELETE FROM msttablemanagement WHERE tableid = ? AND isTemporary = 1`).run(parentTableIdToUse)
+        db.prepare(`DELETE FROM msttablemanagement WHERE parentTableId = ? AND isTemporary = 1`).run(parentTableIdToUse)
       }
     })
 
@@ -3213,11 +3213,24 @@ exports.reverseBill = async (req, res) => {
 
       // ✅ If the bill had a table, update its status to vacant (0)
       if (bill.TableID) {
+        // Get the table info to check if it's a sub-table
+        const tableInfo = db.prepare(`SELECT * FROM msttablemanagement WHERE tableid = ?`).get(bill.TableID);
+        
+        // Determine the parent table ID - if this table is a sub-table, use its parentTableId, otherwise use its own tableid
+        const parentTableIdToUse = tableInfo && tableInfo.parentTableId ? tableInfo.parentTableId : bill.TableID;
+        
+        console.log(`ReverseBill - Using parentTableId: ${parentTableIdToUse} for deleting sub-tables`);
+        
+        // Update the main table status to vacant
         const updateTableStmt = db.prepare(`
           UPDATE msttablemanagement 
           SET status = 0 
           WHERE tableid = ?`)
         updateTableStmt.run(bill.TableID)
+
+        // Delete all sub-tables (temporary tables) associated with this parent table
+        console.log(`ReverseBill - Deleting sub-tables for parent table ${parentTableIdToUse}`)
+        db.prepare(`DELETE FROM msttablemanagement WHERE tableid = ? AND isTemporary = 1`).run(parentTableIdToUse)
       }
     })
 
