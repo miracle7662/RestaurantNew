@@ -758,10 +758,53 @@ function generateNCKOTSalesSummaryHTML(ncKOTs) {
   return html;
 }
 
+const getClosingBalance = (req, res) => {
+  try {
+    const { outlet_id, hotel_id } = req.query;
+
+    if (!hotel_id) {
+      return res.status(400).json({ success: false, message: 'hotel_id is required' });
+    }
+
+    // Get the last dayend record for the outlet/hotel
+    const lastDayend = db.prepare(`
+      SELECT closing_balance, dayend_date, curr_date 
+      FROM trn_dayend
+      WHERE outlet_id = ? AND hotel_id = ?
+      ORDER BY id DESC LIMIT 1
+    `).get(outlet_id || null, hotel_id);
+
+    if (lastDayend) {
+      res.json({
+        success: true,
+        data: {
+          closing_balance: lastDayend.closing_balance || 0,
+          dayend_date: lastDayend.dayend_date,
+          curr_date: lastDayend.curr_date
+        }
+      });
+    } else {
+      // No previous dayend found - return 0 as opening balance
+      res.json({
+        success: true,
+        data: {
+          closing_balance: 0,
+          dayend_date: null,
+          curr_date: null
+        }
+      });
+    }
+  } catch (error) {
+    console.error('Error fetching closing balance:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch closing balance' });
+  }
+};
+
 module.exports = {
   getDayendData,
   saveDayEndCashDenomination,
   saveDayEnd,
   getLatestCurrDate,
+  getClosingBalance,
   generateDayEndReportHTML,
 };

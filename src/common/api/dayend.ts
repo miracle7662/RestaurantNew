@@ -174,9 +174,14 @@ const DayendService = {
   getLatestCurrDate: (params?: { brandId?: number; hotelid?: number }): Promise<ApiResponse<LatestCurrDateData>> =>
     HttpClient.get<ApiResponse<LatestCurrDateData>>('/dayend/latest-currdate', { params }),
 
- 
+  /**
+   * Get closing balance from last dayend (to be used as opening balance)
+   */
+  getClosingBalance: (params?: { outlet_id?: number; hotel_id: number }): Promise<ApiResponse<ClosingBalanceData>> =>
+    HttpClient.get<ApiResponse<ClosingBalanceData>>('/dayend/closing-balance', { params }),
 
-  /* ═══════════════════════════════════════════════════════════════════════════
+
+  /*
    * Mutation Operations
    * ═══════════════════════════════════════════════════════════════════════════ */
 
@@ -209,19 +214,19 @@ export default DayendService
  * Get latest curr_date - backward compatible version
  * @deprecated Use DayendService.getLatestCurrDate instead
  */
-export const getLatestCurrDate = async (
-  token: string,
-  outletid?: number,
-  hotelid?: number
-): Promise<ApiResponse<LatestCurrDateData>> => {
-  const params = new URLSearchParams()
-  if (outletid) params.append('brandId', outletid.toString())
-  if (hotelid) params.append('hotelid', hotelid.toString())
+      export const getLatestCurrDate = async (
+        token: string,
+        outletid?: number,
+        hotelid?: number
+      ): Promise<ApiResponse<LatestCurrDateData>> => {
+        const params = new URLSearchParams()
+        if (outletid) params.append('brandId', outletid.toString())
+        if (hotelid) params.append('hotelid', hotelid.toString())
 
-  return HttpClient.get<ApiResponse<LatestCurrDateData>>(
-    `/dayend/latest-currdate?${params.toString()}`
-  )
-}
+        return HttpClient.get<ApiResponse<LatestCurrDateData>>(
+          `/dayend/latest-currdate?${params.toString()}`
+        )
+      }
 
 /**
  * Get closing balance - backward compatible version
