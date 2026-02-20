@@ -7,8 +7,8 @@ const TableManagementController = require("../controllers/TableManagementControl
 // CRUD Routes
 router.get("/", TableManagementController.getAllTables);           // Get all tables
 router.post("/", TableManagementController.createTable);           // Create new table
+router.put("/:tableid/status", TableManagementController.updateTableStatus); // Update table status (must be before /:tableid)
 router.put("/:tableid", TableManagementController.updateTable);    // Update table
-router.put("/:tableid/status", TableManagementController.updateTableStatus); // Update table status
 router.delete("/:tableid", TableManagementController.deleteTable); // Delete table
 
 // Get all tables with their associated outlet names

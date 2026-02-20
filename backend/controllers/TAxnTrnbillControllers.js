@@ -857,7 +857,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 
         // Delete all sub-tables (temporary tables) associated with this parent table
         console.log(`Deleting sub-tables for parent table ${parentTableIdToUse}`)
-        db.prepare(`DELETE FROM msttablemanagement WHERE parentTableId = ? AND isTemporary = 1`).run(parentTableIdToUse)
+        db.prepare(`DELETE FROM msttablemanagement WHERE tableid = ? AND isTemporary = 1`).run(parentTableIdToUse)
       }
     })
 
