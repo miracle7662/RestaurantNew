@@ -3838,7 +3838,11 @@ exports.transferTable = (req, res) => {
         recalculateBillTotals(targetBill.TxnID)
         return
       }
+ 
 
+       
+
+      
       /* =================================================
          CASE B: TARGET VACANT
          → MOVE ENTIRE BILL TO TARGET TABLE
