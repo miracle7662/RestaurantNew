@@ -23,12 +23,12 @@ export default function OpeningBalancePage() {
   }
 
   return (
-    <OpeningBalanceModal
-      show={show}
-      onSubmit={handleSubmit}
-      onClose={() => {}}
-      outlet_id={user?.outletid ? Number(user.outletid) : undefined}
-      hotel_id={user?.hotelid ? Number(user.hotelid) : 0}
-    />
+  <OpeningBalanceModal
+  show={show}
+  onSubmit={handleSubmit}
+  onClose={() => {}}
+  outlet_id={Number(user.outletid)}
+  hotel_id={Number(user.hotelid)}
+/>
   )
 }

@@ -241,6 +241,49 @@ const saveDayEnd = async (req, res) => {
     console.log("Outlet:", outlet_id, "Hotel:", hotel_id, "User:", created_by_id, "Amount:", dayend_total_amt);
 
     // ===========================================
+    // ✅ CALCULATE CLOSING BALANCE (Cash received during the day)
+    // ===========================================
+    const cashSummary = db.prepare(`
+      SELECT 
+        COALESCE(SUM(
+          CAST(
+            REPLACE(
+              SUBSTR(s.Amount, 1, INSTR(s.Amount || '.', '.') - 1),
+              COALESCE(SUBSTR(s.Amount, 1, INSTR(s.Amount, '.') - 1), ''),
+              ''
+            ) AS REAL
+          ), 0)
+        ) as totalCash
+      FROM TrnSettlement s
+      JOIN TAxnTrnbill t ON s.OrderNo = t.TxnNo
+      WHERE t.isDayEnd = 0 
+        AND t.isCancelled = 0 
+        AND (t.isBilled = 1 OR t.isSetteled = 1)
+        AND s.isSettled = 1
+        AND LOWER(s.PaymentType) LIKE '%cash%'
+    `).get();
+
+    // Alternative: Get cash from settlements using a simpler approach
+    const cashFromSettlements = db.prepare(`
+      SELECT s.Amount, s.PaymentType
+      FROM TrnSettlement s
+      JOIN TAxnTrnbill t ON s.OrderNo = t.TxnNo
+      WHERE t.isDayEnd = 0 
+        AND t.isCancelled = 0 
+        AND (t.isBilled = 1 OR t.isSetteled = 1)
+        AND s.isSettled = 1
+    `).all();
+
+    let totalCashAmount = 0;
+    cashFromSettlements.forEach(settlement => {
+      if (settlement.PaymentType && settlement.PaymentType.toLowerCase().includes('cash')) {
+        totalCashAmount += parseFloat(settlement.Amount) || 0;
+      }
+    });
+
+    console.log("💰 Calculated Closing Balance (Cash):", totalCashAmount);
+
+    // ===========================================
     // ✅ STEP 1: CHECK PENDING TABLES BEFORE DAYEND
     // ===========================================
     const pendingTables = db.prepare(`
@@ -343,14 +386,14 @@ console.log("Lock DateTime selected:", lock_datetime);
 
     console.log("Inserting new dayend record...");
 
-    // Insert the dayend record
+    // Insert the dayend record with closing_balance
     const result = db.prepare(`
       INSERT INTO trn_dayend (
         dayend_date, curr_date, system_datetime, lock_datetime,
-        outlet_id, hotel_id, dayend_total_amt, created_by_id
+        outlet_id, hotel_id, dayend_total_amt, closing_balance, created_by_id
       ) VALUES (
         @dayend_date, @curr_date, @system_datetime, @lock_datetime,
-        @outlet_id, @hotel_id, @dayend_total_amt, @created_by_id
+        @outlet_id, @hotel_id, @dayend_total_amt, @closing_balance, @created_by_id
       )
     `).run({
       dayend_date,
@@ -360,6 +403,7 @@ console.log("Lock DateTime selected:", lock_datetime);
       outlet_id,
       hotel_id,
       dayend_total_amt: dayend_total_amt || 0,
+      closing_balance: totalCashAmount || 0,
       created_by_id
     });
 
@@ -767,12 +811,27 @@ const getClosingBalance = (req, res) => {
     }
 
     // Get the last dayend record for the outlet/hotel
-    const lastDayend = db.prepare(`
-      SELECT closing_balance, dayend_date, curr_date 
-      FROM trn_dayend
-      WHERE outlet_id = ? AND hotel_id = ?
-      ORDER BY id DESC LIMIT 1
-    `).get(outlet_id || null, hotel_id);
+    // Handle both cases: when outlet_id is provided and when it's not
+    let lastDayend;
+    
+    if (outlet_id) {
+      // If outlet_id is provided, match both hotel_id and outlet_id
+      lastDayend = db.prepare(`
+        SELECT closing_balance, dayend_date, curr_date 
+        FROM trn_dayend
+        WHERE outlet_id = ? AND hotel_id = ?
+        ORDER BY id DESC LIMIT 1
+      `).get(outlet_id, hotel_id);
+    } else {
+      // If outlet_id is not provided, just match by hotel_id
+      // This will get the most recent dayend record for this hotel (regardless of outlet)
+      lastDayend = db.prepare(`
+        SELECT closing_balance, dayend_date, curr_date 
+        FROM trn_dayend
+        WHERE hotel_id = ?
+        ORDER BY id DESC LIMIT 1
+      `).get(hotel_id);
+    }
 
     if (lastDayend) {
       res.json({
