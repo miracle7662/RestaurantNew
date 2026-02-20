@@ -158,9 +158,9 @@ export interface LatestCurrDateData {
  * ═══════════════════════════════════════════════════════════════════════════════ */
 
 const DayendService = {
-  /* ═══════════════════════════════════════════════════════════════════════════
+  /* ═══════════════════════════════════════════════════════════════════════════════
    * Query Operations
-   * ═══════════════════════════════════════════════════════════════════════════ */
+   * ═══════════════════════════════════════════════════════════════════════════════ */
 
   /**
    * Get dayend data (transactions and summary)
@@ -174,15 +174,15 @@ const DayendService = {
   getLatestCurrDate: (params?: { brandId?: number; hotelid?: number }): Promise<ApiResponse<LatestCurrDateData>> =>
     HttpClient.get<ApiResponse<LatestCurrDateData>>('/dayend/latest-currdate', { params }),
 
- 
   /**
    * Get closing balance from last dayend (to be used as opening balance)
    */
-    getClosingBalance: (params: { outlet_id?: number; hotel_id: number }): Promise<ApiResponse<ClosingBalanceData>> =>
+  getClosingBalance: (params: { outlet_id?: number; hotel_id: number }): Promise<ApiResponse<ClosingBalanceData>> =>
     HttpClient.get<ApiResponse<ClosingBalanceData>>('/dayend/closing-balance', { params }),
-  /* ═══════════════════════════════════════════════════════════════════════════
+
+  /* ═══════════════════════════════════════════════════════════════════════════════
    * Mutation Operations
-   * ═══════════════════════════════════════════════════════════════════════════ */
+   * ═══════════════════════════════════════════════════════════════════════════════ */
 
   /**
    * Save dayend cash denomination
@@ -200,7 +200,13 @@ const DayendService = {
    * Generate dayend report HTML
    */
   generateReportHTML: (payload: DayendReportPayload): Promise<ApiResponse<{ html: string }>> =>
-    HttpClient.post<ApiResponse<{ html: string }>>('/dayend/generate-report-html', payload)
+    HttpClient.post<ApiResponse<{ html: string }>>('/dayend/generate-report-html', payload),
+
+  /**
+   * Save opening balance for the day
+   */
+  saveOpeningBalance: (payload: { opening_balance: number; outlet_id?: number; hotel_id: number; user_id: number }): Promise<ApiResponse<{ id: number; opening_balance: number; dayend_date: string; curr_date: string }>> =>
+    HttpClient.post<ApiResponse<{ id: number; opening_balance: number; dayend_date: string; curr_date: string }>>('/dayend/save-opening-balance', payload)
 }
 
 export default DayendService
