@@ -854,10 +854,11 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         
         // Update the main table status to vacant
         db.prepare(`UPDATE msttablemanagement SET status = 0 WHERE tableid = ?`).run(bill.TableID)
+        db.prepare(`DELETE FROM msttablemanagement WHERE tableid = ? AND isTemporary = 1`).run(bill.TableID)
 
-        // Delete all sub-tables (temporary tables) associated with this parent table
-        console.log(`Deleting sub-tables for parent table ${parentTableIdToUse}`)
-        db.prepare(`DELETE FROM msttablemanagement WHERE tableid = ? AND isTemporary = 1`).run(parentTableIdToUse)
+        // // Delete all sub-tables (temporary tables) associated with this parent table
+        // console.log(`Deleting sub-tables for parent table ${parentTableIdToUse}`)
+        // db.prepare(`DELETE FROM msttablemanagement WHERE tableid = ? AND isTemporary = 1`).run(parentTableIdToUse)
       }
     })
 
@@ -2663,30 +2664,29 @@ exports.applyNCKOT = async (req, res) => {
 
       // Show the UPDATE statement for table status
       console.log(`UPDATE msttablemanagement SET Status = 0 WHERE TableID = ${bill.TableID}`)
-
-      if (bill.TableID) {
-
-          db.prepare(
+ db.prepare(
           `
           UPDATE msttablemanagement
           SET status = 0
           WHERE tableid = ?
         `,
-        ).run(bill.TableID)
-        // Get the table info to check if it's a sub-table
-        const tableInfo = db.prepare(`SELECT * FROM msttablemanagement WHERE tableid = ?`).get(bill.TableID);
+        ).run(bill.TableID)   
+      // if (bill.TableID) {
+
+           
+      //  // db.prepare(`DELETE FROM msttablemanagement WHERE tableid = ? AND isTemporary = 1`).run(bill.TableID)
+      //   // Get the table info to check if it's a sub-table
+      //   // const tableInfo = db.prepare(`SELECT * FROM msttablemanagement WHERE tableid = ?`).get(bill.TableID);
         
-        // Determine the parent table ID - if this table is a sub-table, use its parentTableId, otherwise use its own tableid
-        const parentTableIdToUse = tableInfo && tableInfo.parentTableId ? tableInfo.parentTableId : bill.TableID;
+      //   // // Determine the parent table ID - if this table is a sub-table, use its parentTableId, otherwise use its own tableid
+      //   // const parentTableIdToUse = tableInfo && tableInfo.parentTableId ? tableInfo.parentTableId : bill.TableID;
         
-        console.log(`ApplyNCKOT - Using parentTableId: ${parentTableIdToUse} for deleting sub-tables`);
+      //   // console.log(`ApplyNCKOT - Using parentTableId: ${parentTableIdToUse} for deleting sub-tables`);
         
        
 
-        // Delete only the specific sub-table (temporary table) associated with this table
-        console.log(`ApplyNCKOT - Deleting sub-table for table ${bill.TableID}`)
-        db.prepare(`DELETE FROM msttablemanagement WHERE parentTableId = ? AND tableid = ? AND isTemporary = 1`).run(parentTableIdToUse, bill.TableID)
-      }
+      // }
+        db.prepare(`DELETE FROM msttablemanagement WHERE tableid = ? AND isTemporary = 1`).run(bill.TableID)
     })
 
     tx()
@@ -3241,10 +3241,11 @@ exports.reverseBill = async (req, res) => {
           SET status = 0 
           WHERE tableid = ?`)
         updateTableStmt.run(bill.TableID)
+        db.prepare(`DELETE FROM msttablemanagement WHERE tableid = ? AND isTemporary = 1`).run(bill.TableID)
 
         // Delete all sub-tables (temporary tables) associated with this parent table
-        console.log(`ReverseBill - Deleting sub-tables for parent table ${parentTableIdToUse}`)
-        db.prepare(`DELETE FROM msttablemanagement WHERE parentTableId = ? AND isTemporary = 1`).run(parentTableIdToUse)
+        // console.log(`ReverseBill - Deleting sub-tables for parent table ${parentTableIdToUse}`)
+        
       }
     })
 
