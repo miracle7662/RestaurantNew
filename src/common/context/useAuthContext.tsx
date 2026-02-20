@@ -76,7 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const currDateData = await getLatestCurrDate(parsedUser.token, currentUser.outletid, currentUser.hotelid)
             console.log('Current user data:', currentUser)
             console.log('Curr date data:', currDateData)
-            saveSession({ ...currentUser, token: parsedUser.token, currDate: currDateData.curr_date })
+            saveSession({ ...currentUser, token: parsedUser.token, currDate: currDateData.data.curr_date })
             console.log('User session restored from localStorage.')
           } else {
             removeSession()

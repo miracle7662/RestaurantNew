@@ -240,6 +240,49 @@ const saveDayEnd = async (req, res) => {
     console.log("=== DAY END PROCESS ===");
     console.log("Outlet:", outlet_id, "Hotel:", hotel_id, "User:", created_by_id, "Amount:", dayend_total_amt);
 
+    // // ===========================================
+    // // ✅ CALCULATE CLOSING BALANCE (Cash received during the day)
+    // // ===========================================
+    // const cashSummary = db.prepare(`
+    //   SELECT 
+    //     COALESCE(SUM(
+    //       CAST(
+    //         REPLACE(
+    //           SUBSTR(s.Amount, 1, INSTR(s.Amount || '.', '.') - 1),
+    //           COALESCE(SUBSTR(s.Amount, 1, INSTR(s.Amount, '.') - 1), ''),
+    //           ''
+    //         ) AS REAL
+    //       ), 0)
+    //     ) as totalCash
+    //   FROM TrnSettlement s
+    //   JOIN TAxnTrnbill t ON s.OrderNo = t.TxnNo
+    //   WHERE t.isDayEnd = 0 
+    //     AND t.isCancelled = 0 
+    //     AND (t.isBilled = 1 OR t.isSetteled = 1)
+    //     AND s.isSettled = 1
+    //     AND LOWER(s.PaymentType) LIKE '%cash%'
+    // `).get();
+
+    // // Alternative: Get cash from settlements using a simpler approach
+    // const cashFromSettlements = db.prepare(`
+    //   SELECT s.Amount, s.PaymentType
+    //   FROM TrnSettlement s
+    //   JOIN TAxnTrnbill t ON s.OrderNo = t.TxnNo
+    //   WHERE t.isDayEnd = 0 
+    //     AND t.isCancelled = 0 
+    //     AND (t.isBilled = 1 OR t.isSetteled = 1)
+    //     AND s.isSettled = 1
+    // `).all();
+
+    // let totalCashAmount = 0;
+    // cashFromSettlements.forEach(settlement => {
+    //   if (settlement.PaymentType && settlement.PaymentType.toLowerCase().includes('cash')) {
+    //     totalCashAmount += parseFloat(settlement.Amount) || 0;
+    //   }
+    // });
+
+    // console.log("💰 Calculated Closing Balance (Cash):", totalCashAmount);
+
     // ===========================================
     // ✅ STEP 1: CHECK PENDING TABLES BEFORE DAYEND
     // ===========================================
@@ -343,14 +386,14 @@ console.log("Lock DateTime selected:", lock_datetime);
 
     console.log("Inserting new dayend record...");
 
-    // Insert the dayend record
+    // Insert the dayend record with closing_balance
     const result = db.prepare(`
       INSERT INTO trn_dayend (
         dayend_date, curr_date, system_datetime, lock_datetime,
-        outlet_id, hotel_id, dayend_total_amt, created_by_id
+        outlet_id, hotel_id, dayend_total_amt,  created_by_id
       ) VALUES (
         @dayend_date, @curr_date, @system_datetime, @lock_datetime,
-        @outlet_id, @hotel_id, @dayend_total_amt, @created_by_id
+        @outlet_id, @hotel_id, @dayend_total_amt,  @created_by_id
       )
     `).run({
       dayend_date,
@@ -767,12 +810,27 @@ const getClosingBalance = (req, res) => {
     }
 
     // Get the last dayend record for the outlet/hotel
-    const lastDayend = db.prepare(`
-      SELECT closing_balance, dayend_date, curr_date 
-      FROM trn_dayend
-      WHERE outlet_id = ? AND hotel_id = ?
-      ORDER BY id DESC LIMIT 1
-    `).get(outlet_id || null, hotel_id);
+    // Handle both cases: when outlet_id is provided and when it's not
+    let lastDayend;
+    
+    if (outlet_id) {
+      // If outlet_id is provided, match both hotel_id and outlet_id
+      lastDayend = db.prepare(`
+        SELECT closing_balance, dayend_date, curr_date 
+        FROM trn_dayend
+        WHERE outlet_id = ? AND hotel_id = ?
+        ORDER BY id DESC LIMIT 1
+      `).get(outlet_id, hotel_id);
+    } else {
+      // If outlet_id is not provided, just match by hotel_id
+      // This will get the most recent dayend record for this hotel (regardless of outlet)
+      lastDayend = db.prepare(`
+        SELECT closing_balance, dayend_date, curr_date 
+        FROM trn_dayend
+        WHERE hotel_id = ?
+        ORDER BY id DESC LIMIT 1
+      `).get(hotel_id);
+    }
 
     if (lastDayend) {
       res.json({
@@ -800,11 +858,129 @@ const getClosingBalance = (req, res) => {
   }
 };
 
+const saveOpeningBalance = (req, res) => {
+  try {
+    const { opening_balance, outlet_id, hotel_id, user_id } = req.body;
+
+    // Validate required fields - handle NaN values
+    const validHotelId = Number(hotel_id);
+    const validUserId = Number(user_id);
+    
+    if (!validHotelId || !validUserId || isNaN(validHotelId) || isNaN(validUserId)) {
+      return res.status(400).json({ success: false, message: 'hotel_id and user_id are required' });
+    }
+
+    // Handle outlet_id - use 0 or null based on database constraint
+    // If outlet_id is undefined/null/NaN, we'll use null for the database
+    let validOutletId = outlet_id ? Number(outlet_id) : null;
+    if (isNaN(validOutletId)) {
+      validOutletId = null;
+    }
+
+    console.log("=== SAVE OPENING BALANCE ===");
+    console.log("Outlet:", validOutletId, "Hotel:", validHotelId, "User:", validUserId, "Opening Balance:", opening_balance);
+
+    // Get current business date
+    const now = new Date();
+    const indiaTime = new Date(now.getTime() + (5.5 * 60 * 60 * 1000));
+    const currentHour = indiaTime.getHours();
+
+    let businessDate = new Date(indiaTime);
+    if (currentHour < 6) {
+      businessDate.setDate(businessDate.getDate() - 1);
+    }
+
+    const curr_date = `${businessDate.getFullYear()}-${String(businessDate.getMonth() + 1).padStart(2, '0')}-${String(businessDate.getDate()).padStart(2, '0')}`;
+    const nextDay = new Date(businessDate);
+    nextDay.setDate(nextDay.getDate() + 1);
+    const next_date = `${nextDay.getFullYear()}-${String(nextDay.getMonth() + 1).padStart(2, '0')}-${String(nextDay.getDate()).padStart(2, '0')}`;
+
+    const formattedIndiaTime = indiaTime.toISOString().replace('T', ' ').slice(0, 19);
+
+    // Check if a record already exists for this outlet/hotel
+    const existingRecord = db.prepare(`
+      SELECT id, dayend_date, curr_date FROM trn_dayend
+      WHERE ${validOutletId ? 'outlet_id = ? AND' : ''} hotel_id = ?
+      ORDER BY id DESC LIMIT 1
+    `).get(...(validOutletId ? [validOutletId, validHotelId] : [validHotelId]));
+
+    let result;
+    if (existingRecord) {
+      // Update existing record with new opening balance
+      db.prepare(`
+        UPDATE trn_dayend
+        SET opening_balance = ?, dayend_date = ?, curr_date = ?, system_datetime = ?
+        WHERE id = ?
+      `).run(
+        opening_balance || 0,
+        existingRecord.curr_date,
+        next_date,
+        formattedIndiaTime,
+        existingRecord.id
+      );
+      
+      console.log("✅ Updated existing record with opening balance:", existingRecord.id);
+      
+      result = {
+        id: existingRecord.id,
+        opening_balance: opening_balance,
+        dayend_date: existingRecord.curr_date,
+        curr_date: next_date
+      };
+    } else {
+      // Insert new record - if outlet_id is required, we need a valid value
+      // Check if the table has a NOT NULL constraint on outlet_id
+      // For now, we'll use 0 as a placeholder if outlet_id is not provided
+      const outletIdToInsert = validOutletId !== null ? validOutletId : 0;
+      
+      const insertResult = db.prepare(`
+        INSERT INTO trn_dayend (
+          dayend_date, curr_date, system_datetime, lock_datetime,
+          outlet_id, hotel_id, opening_balance, closing_balance, created_by_id
+        ) VALUES (
+          @dayend_date, @curr_date, @system_datetime, @lock_datetime,
+          @outlet_id, @hotel_id, @opening_balance, 0, @created_by_id
+        )
+      `).run({
+        dayend_date: curr_date,
+        curr_date: next_date,
+        system_datetime: formattedIndiaTime,
+        lock_datetime: formattedIndiaTime,
+        outlet_id: outletIdToInsert,
+        hotel_id: validHotelId,
+        opening_balance: opening_balance || 0,
+        created_by_id: validUserId
+      });
+
+      console.log("✅ Created new record with opening balance:", insertResult.lastInsertRowid);
+      
+      result = {
+        id: insertResult.lastInsertRowid,
+        opening_balance: opening_balance,
+        dayend_date: curr_date,
+        curr_date: next_date
+      };
+    }
+
+    return res.json({
+      success: true,
+      message: 'Opening balance saved successfully',
+      data: result
+    });
+
+  } catch (error) {
+    console.error('Error saving opening balance:', error);
+    res.status(500).json({ success: false, message: 'Failed to save opening balance' });
+  }
+};
+
+
 module.exports = {
   getDayendData,
   saveDayEndCashDenomination,
   saveDayEnd,
   getLatestCurrDate,
   getClosingBalance,
+  saveOpeningBalance,
   generateDayEndReportHTML,
 };
