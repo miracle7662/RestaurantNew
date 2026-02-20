@@ -1577,8 +1577,27 @@ exports.createReverseKOT = async (req, res) => {
           WHERE TxnID = ?
         `,
         ).run(txnId)
-        // Only update table status if a tableId was provided (for Dine-in)
+        
+        // Only update table status and delete temporary table if a tableId was provided (for Dine-in)
         if (tableId) {
+          // Check if there are any other pending items for the same table from other transactions
+          const otherPendingItemsCheck = db
+            .prepare(
+              `
+            SELECT SUM(d.Qty - COALESCE(d.RevQty, 0)) as netQty
+            FROM TAxnTrnbilldetails d
+            JOIN TAxnTrnbill b ON d.TxnID = b.TxnID
+            WHERE b.TableID = ? AND b.isCancelled = 0 AND b.TxnID != ?
+          `,
+            )
+            .get(tableId, txnId)
+
+          // Only delete temporary table if there are NO other pending items from other transactions
+          if (!otherPendingItemsCheck || !otherPendingItemsCheck.netQty || otherPendingItemsCheck.netQty <= 0) {
+            db.prepare(`DELETE FROM msttablemanagement WHERE tableid = ? AND isTemporary = 1`).run(tableId)
+          }
+          
+          // Update table status to vacant
           db.prepare(
             `
             UPDATE msttablemanagement
@@ -1587,6 +1606,7 @@ exports.createReverseKOT = async (req, res) => {
           `,
           ).run(tableId)
         }
+        
         isFullReverse = true
       }
 
@@ -3500,7 +3520,10 @@ exports.transferKOT = (req, res) => {
           `
           UPDATE msttablemanagement SET status=0 WHERE tableid=?
         `,
-        ).run(sourceTableId)
+        ).run(sourceTableId)       
+
+        // Delete temporary tables (sub-tables) associated with source table
+        db.prepare(`DELETE FROM msttablemanagement WHERE tableid = ? AND isTemporary = 1`).run(sourceTableId)
 
         // Recalculate target bill only
         recalculateBillTotals(targetBill.TxnID)
@@ -3539,6 +3562,10 @@ exports.transferKOT = (req, res) => {
         ).run(proposedTableId, targetTableName, sourceTxnId)
 
         db.prepare(`UPDATE msttablemanagement SET status=0 WHERE tableid=?`).run(sourceTableId)
+        
+        // Delete temporary tables (sub-tables) associated with source table
+        db.prepare(`DELETE FROM msttablemanagement WHERE tableid = ? AND isTemporary = 1`).run(sourceTableId)
+        
         db.prepare(`UPDATE msttablemanagement SET status=1 WHERE tableid=?`).run(proposedTableId)
         return
       }
@@ -3572,6 +3599,9 @@ exports.transferKOT = (req, res) => {
         ).run(newTxnId, proposedTableId, targetTableName, ...ids)
 
         db.prepare(`UPDATE msttablemanagement SET status=1 WHERE tableid=?`).run(proposedTableId)
+
+        // Delete temporary tables (sub-tables) associated with source table
+        
 
         recalculateBillTotals(newTxnId)
         recalculateBillTotals(sourceTxnId)
@@ -3799,13 +3829,12 @@ exports.transferTable = (req, res) => {
         ).run(sourceTxnId)
 
         // Source table vacant
-        db.prepare(
-          `
-          UPDATE msttablemanagement SET status=0 WHERE tableid=?
-        `,
-        ).run(sourceTableId)
+        db.prepare(`UPDATE msttablemanagement SET status=0 WHERE tableid=?`).run(sourceTableId)
+        
+        // Delete temporary tables (sub-tables) associated with source table
+        db.prepare(`DELETE FROM msttablemanagement WHERE tableid = ? AND isTemporary = 1`).run(sourceTableId)
 
-        // Recalculate target bill only
+        // Reconcalculate target bill only
         recalculateBillTotals(targetBill.TxnID)
         return
       }
@@ -3846,9 +3875,12 @@ exports.transferTable = (req, res) => {
         ).run(targetTableId, targetTableInfo.table_name, sourceTxnId)
 
         // Update table statuses
+        // Delete temporary tables (sub-tables) associated with source table
+        db.prepare(`DELETE FROM msttablemanagement WHERE tableid = ? AND isTemporary = 1`).run(sourceTableId)
+        
         db.prepare(`UPDATE msttablemanagement SET status=0 WHERE tableid=?`).run(sourceTableId)
         db.prepare(`UPDATE msttablemanagement SET status=1 WHERE tableid=?`).run(targetTableId)
-
+        
         // Recalculate bill totals
         recalculateBillTotals(sourceTxnId)
         return
