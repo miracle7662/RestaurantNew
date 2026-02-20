@@ -3349,7 +3349,7 @@ exports.saveFullReverse = async (req, res) => {
 /* 23) transferKOT → Transfer KOT/items between tables (FINAL FIXED VERSION)   */
 /* -------------------------------------------------------------------------- */
 exports.transferKOT = (req, res) => {
-  const { sourceTableId, proposedTableId, targetTableName, selectedItems, outletid } = req.body
+  const { sourceTableId, proposedTableId, targetTableName, selectedItems } = req.body
 
   if (!selectedItems || selectedItems.length === 0) {
     return res.json({ success: false, message: 'No items selected' })
@@ -3360,283 +3360,186 @@ exports.transferKOT = (req, res) => {
   }
 
   try {
-    /* ================= BILL RECALC ================= */
-    const recalculateBillTotals = (txnId) => {
-      const billHeader = db
-        .prepare(
-          `
-        SELECT Discount, outletid 
-        FROM TAxnTrnbill 
-        WHERE TxnID = ?
-      `,
-        )
-        .get(txnId)
-      if (!billHeader) return
-
-      const details = db
-        .prepare(
-          `
-        SELECT * FROM TAxnTrnbilldetails
-        WHERE TxnID = ? AND isCancelled = 0
-      `,
-        )
-        .all(txnId)
-      if (details.length === 0) return
-
-      const outlet =
-        db
-          .prepare(
-            `
-        SELECT include_tax_in_invoice, bill_round_off, bill_round_off_to
-        FROM mstoutlet_settings WHERE outletid = ?
-      `,
-          )
-          .get(billHeader.outletid) || {}
-
-      let gross = 0,
-        taxable = 0,
-        cgst = 0,
-        sgst = 0,
-        igst = 0,
-        cess = 0
-      const includeTax = outlet.include_tax_in_invoice || 0
-
-      for (const d of details) {
-        const lineGross = (Number(d.Qty) || 0) * (Number(d.RuntimeRate) || 0)
-        gross += lineGross
-
-        const cg = Number(d.CGST) || 0
-        const sg = Number(d.SGST) || 0
-        const ig = Number(d.IGST) || 0
-        const ce = Number(d.CESS) || 0
-
-        if (includeTax === 1) {
-          const per = cg + sg + ig + ce
-          const base = per > 0 ? lineGross / (1 + per / 100) : lineGross
-          taxable += base
-          cgst += (base * cg) / 100
-          sgst += (base * sg) / 100
-          igst += (base * ig) / 100
-          cess += (base * ce) / 100
-        } else {
-          taxable += lineGross
-          cgst += (lineGross * cg) / 100
-          sgst += (lineGross * sg) / 100
-          igst += (lineGross * ig) / 100
-          cess += (lineGross * ce) / 100
-        }
-      }
-
-      const discount = Number(billHeader.Discount) || 0
-      const discountedTaxable = Math.max(0, taxable - discount)
-
-      let amount = discountedTaxable + cgst + sgst + igst + cess
-      let roundOff = 0
-
-      if (outlet.bill_round_off && outlet.bill_round_off_to > 0) {
-        const rounded = Math.round(amount / outlet.bill_round_off_to) * outlet.bill_round_off_to
-        roundOff = rounded - amount
-        amount = rounded
-      }
-
-      db.prepare(
-        `
-        UPDATE TAxnTrnbill
-        SET GrossAmt=?, CGST=?, SGST=?, IGST=?, CESS=?, Amount=?, RoundOFF=?
-        WHERE TxnID=?
-      `,
-      ).run(gross, cgst, sgst, igst, cess, amount, roundOff, txnId)
-    }
-
-    /* ================= TRANSACTION ================= */
     const trx = db.transaction(() => {
-      /* ---------- SOURCE BILL ---------- */
-      const sourceBill = db
-        .prepare(
-          `
-        SELECT TxnID, outletid, HotelID FROM TAxnTrnbill
+
+      /* ================= SOURCE BILL ================= */
+      const sourceBill = db.prepare(`
+        SELECT TxnID, outletid, HotelID
+        FROM TAxnTrnbill
         WHERE TableID = ? AND isSetteled = 0
-      `,
-        )
-        .get(sourceTableId)
+      `).get(sourceTableId)
 
       if (!sourceBill) throw new Error('Source bill not found')
-      const sourceTxnId = sourceBill.TxnID
-      const sourceOutletId = sourceBill.outletid
-      const sourceHotelId = sourceBill.HotelID
 
-      /* ---------- TARGET STATUS ---------- */
-      const targetRow = db
-        .prepare(
-          `
-        SELECT status FROM msttablemanagement WHERE tableid = ?
-      `,
-        )
-        .get(proposedTableId)
+      const sourceTxnId = sourceBill.TxnID
+
+      /* ================= TARGET STATUS ================= */
+      const targetRow = db.prepare(`
+        SELECT status FROM msttablemanagement
+        WHERE tableid = ?
+      `).get(proposedTableId)
 
       if (!targetRow) throw new Error('Target table not found')
-      const targetStatus = targetRow.status // 0 vacant, 1 occupied
+
+      const targetStatus = targetRow.status
 
       const targetBill =
         targetStatus === 1
-          ? db
-              .prepare(
-                `
-            SELECT TxnID FROM TAxnTrnbill
-            WHERE TableID = ? AND isSetteled = 0
-          `,
-              )
-              .get(proposedTableId)
+          ? db.prepare(`
+              SELECT TxnID FROM TAxnTrnbill
+              WHERE TableID = ? AND isSetteled = 0
+            `).get(proposedTableId)
           : null
 
-      const ids = selectedItems.map((i) => i.txnDetailId)
+      const ids = selectedItems.map(i => i.txnDetailId)
+      if (!ids.length) throw new Error('No valid items')
 
       /* =================================================
-         CASE A: TARGET OCCUPIED (Single OR Multiple KOT)
-         → ALWAYS MERGE INTO TARGET
-         → ALWAYS DELETE SOURCE BILL
+         CASE 1: TARGET OCCUPIED → MERGE
       ================================================= */
       if (targetStatus === 1) {
-        if (!targetBill) throw new Error('Target bill not found')
 
-        // Move selected/all items to target Txn
-        db.prepare(
-          `
+        db.prepare(`
           UPDATE TAxnTrnbilldetails
           SET TxnID=?, TableID=?, table_name=?
           WHERE TXnDetailID IN (${ids.map(() => '?').join(',')})
-        `,
-        ).run(targetBill.TxnID, proposedTableId, targetTableName, ...ids)
+        `).run(targetBill.TxnID, proposedTableId, targetTableName, ...ids)
 
-        // Delete source bill completely
-        db.prepare(
-          `
-          DELETE FROM TAxnTrnbill WHERE TxnID=?
-        `,
-        ).run(sourceTxnId)
+        /* ---- delete source bill if empty ---- */
+        const remaining =
+          db.prepare(`
+            SELECT COUNT(*) as count
+            FROM TAxnTrnbilldetails
+            WHERE TxnID = ? AND isCancelled = 0
+          `).get(sourceTxnId).count
 
-        // Source table vacant
-        db.prepare(
-          `
-          UPDATE msttablemanagement SET status=0 WHERE tableid=?
-        `,
-        ).run(sourceTableId)       
+        if (remaining === 0) {
+          db.prepare(`DELETE FROM TAxnTrnbill WHERE TxnID = ?`)
+            .run(sourceTxnId)
+        }
 
-        // Delete temporary tables (sub-tables) associated with source table
-        db.prepare(`DELETE FROM msttablemanagement WHERE parentTableId = ? AND isTemporary = 1`).run(sourceTableId)
-
-        // Recalculate target bill only
-        recalculateBillTotals(targetBill.TxnID)
         return
       }
 
       /* =================================================
-         CASE B: TARGET VACANT + SINGLE KOT
-         → MOVE FULL BILL
+         CASE 2: TARGET VACANT
       ================================================= */
-      const kotCount = db
-        .prepare(
-          `
-        SELECT COUNT(DISTINCT KOTNo) AS cnt
-        FROM TAxnTrnbilldetails
-        WHERE TxnID = ? AND isCancelled = 0
-      `,
+
+      // Create new bill for target
+      const newBill = db.prepare(`
+        INSERT INTO TAxnTrnbill (
+          TableID, table_name, PrevTableID,
+          outletid, HotelID,
+          isSetteled, isBilled, isTrnsfered,
+          TxnDatetime
         )
-        .get(sourceTxnId).cnt
+        SELECT ?, ?, ?, outletid, HotelID,
+               0, 0, 1, CURRENT_TIMESTAMP
+        FROM TAxnTrnbill
+        WHERE TxnID=?
+      `).run(proposedTableId, targetTableName, sourceTableId, sourceTxnId)
 
-      if (targetStatus === 0 && kotCount === 1) {
-        db.prepare(
-          `
-          UPDATE TAxnTrnbill
-          SET TableID=?, table_name=?
-          WHERE TxnID=?
-        `,
-        ).run(proposedTableId, targetTableName, sourceTxnId)
+      const newTxnId = newBill.lastInsertRowid
 
-        db.prepare(
-          `
-          UPDATE TAxnTrnbilldetails
-          SET TableID=?, table_name=?
-          WHERE TxnID=?
-        `,
-        ).run(proposedTableId, targetTableName, sourceTxnId)
+      db.prepare(`
+        UPDATE TAxnTrnbilldetails
+        SET TxnID=?, TableID=?, table_name=?
+        WHERE TXnDetailID IN (${ids.map(() => '?').join(',')})
+      `).run(newTxnId, proposedTableId, targetTableName, ...ids)
 
-        db.prepare(`UPDATE msttablemanagement SET status=0 WHERE tableid=?`).run(sourceTableId)
-        
-        // Delete temporary tables (sub-tables) associated with source table
-        db.prepare(`DELETE FROM msttablemanagement WHERE parentTableId = ? AND isTemporary = 1`).run(sourceTableId)
-        
-        db.prepare(`UPDATE msttablemanagement SET status=1 WHERE tableid=?`).run(proposedTableId)
-        return
+      db.prepare(`UPDATE msttablemanagement SET status=1 WHERE tableid=?`)
+        .run(proposedTableId)
+
+      /* ---- delete source bill if empty ---- */
+      const remaining =
+        db.prepare(`
+          SELECT COUNT(*) as count
+          FROM TAxnTrnbilldetails
+          WHERE TxnID = ? AND isCancelled = 0
+        `).get(sourceTxnId).count
+
+      if (remaining === 0) {
+        db.prepare(`DELETE FROM TAxnTrnbill WHERE TxnID = ?`)
+          .run(sourceTxnId)
       }
 
-      /* =================================================
-         CASE C: TARGET VACANT + MULTIPLE KOT
-         → CREATE NEW BILL
-      ================================================= */
-      if (targetStatus === 0 && kotCount > 1) {
-        const newBill = db
-          .prepare(
-            `
-          INSERT INTO TAxnTrnbill (
-            TableID, table_name, PrevTableID, outletid, HotelID,
-            isSetteled, isBilled, isTrnsfered, TxnDatetime
-          )
-          SELECT ?, ?, ?, outletid, HotelID, 0, 0, 1, CURRENT_TIMESTAMP
-          FROM TAxnTrnbill WHERE TxnID=?
-        `,
-          )
-          .run(proposedTableId, targetTableName, sourceTableId, sourceTxnId)
-
-        const newTxnId = newBill.lastInsertRowid
-
-        db.prepare(
-          `
-          UPDATE TAxnTrnbilldetails
-          SET TxnID=?, TableID=?, table_name=?
-          WHERE TXnDetailID IN (${ids.map(() => '?').join(',')})
-        `,
-        ).run(newTxnId, proposedTableId, targetTableName, ...ids)
-
-        db.prepare(`UPDATE msttablemanagement SET status=1 WHERE tableid=?`).run(proposedTableId)
-
-        // Delete temporary tables (sub-tables) associated with source table
-        db.prepare(`DELETE FROM msttablemanagement WHERE parentTableId = ? AND isTemporary = 1`).run(sourceTableId)
-
-        recalculateBillTotals(newTxnId)
-        recalculateBillTotals(sourceTxnId)
-        return
-      }
     })
 
     trx()
 
-    // Check and clean up source table if no active items
-    const hasActiveItems =
-      db
-        .prepare(
-          `
-      SELECT COUNT(*) as count
-      FROM TAxnTrnbill b
-      JOIN TAxnTrnbilldetails d ON b.TxnID = d.TxnID
-      WHERE b.TableID = ? AND b.isSetteled = 0 AND b.isCancelled = 0 AND d.isSetteled = 0 AND d.isCancelled = 0 AND (d.Qty - COALESCE(d.RevQty, 0)) > 0
-    `,
-        )
-        .get(sourceTableId).count > 0
+    /* =================================================
+       FINAL CLEANUP FOR SOURCE TABLE
+    ================================================= */
 
-    if (!hasActiveItems) {
-      db.prepare(`UPDATE msttablemanagement SET status = 0 WHERE tableid = ?`).run(sourceTableId)
-      // Delete all unsettled bills for the table
-      const unsettledTxnIds = db
-        .prepare(`SELECT TxnID FROM TAxnTrnbill WHERE TableID = ? AND isSetteled = 0`)
-        .all(sourceTableId)
-      for (const { TxnID } of unsettledTxnIds) {
-        db.prepare('DELETE FROM TAxnTrnbilldetails WHERE TxnID = ?').run(TxnID)
-        db.prepare('DELETE FROM TAxnTrnbill WHERE TxnID = ?').run(TxnID)
+    // Get the source table info to check if it's a sub-table
+    const sourceTableInfo = db.prepare(`
+      SELECT * FROM msttablemanagement
+      WHERE tableid = ?
+    `).get(sourceTableId)
+
+    // Check if source is a sub-table (has parentTableId)
+    const isSubTable = sourceTableInfo && sourceTableInfo.parentTableId
+
+    if (isSubTable) {
+      // For sub-tables, check if there are any remaining items on the PARENT table
+      const parentTableId = sourceTableInfo.parentTableId
+      
+      // Check if there are any remaining items/bills for the parent table
+      const remainingParentBills = db.prepare(`
+        SELECT COUNT(*) as count
+        FROM TAxnTrnbill
+        WHERE TableID = ? AND isSetteled = 0 AND isCancelled = 0
+      `).get(parentTableId).count
+
+      if (remainingParentBills === 0) {
+        // Parent table also has no remaining bills, make parent table vacant
+        db.prepare(`
+          UPDATE msttablemanagement
+          SET status = 0
+          WHERE tableid = ?
+        `).run(parentTableId)
+      }
+
+      // Delete the temporary sub-table (10A)
+      db.prepare(`
+        DELETE FROM msttablemanagement
+        WHERE tableid = ? AND isTemporary = 1
+      `).run(sourceTableId)
+      
+      // Make the sub-table vacant as well
+      db.prepare(`
+        UPDATE msttablemanagement
+        SET status = 0
+        WHERE tableid = ?
+      `).run(sourceTableId)
+    } else {
+      // For regular tables
+      const remainingBills =
+        db.prepare(`
+          SELECT COUNT(*) as count
+          FROM TAxnTrnbill
+          WHERE TableID = ? AND isSetteled = 0 AND isCancelled = 0
+        `).get(sourceTableId).count
+
+      if (remainingBills === 0) {
+
+        // Make table vacant
+        db.prepare(`
+          UPDATE msttablemanagement
+          SET status = 0
+          WHERE tableid = ?
+        `).run(sourceTableId)
+
+        // Delete temporary sub tables (10A,10B,10C type) if any
+        db.prepare(`
+          DELETE FROM msttablemanagement
+          WHERE parentTableId = ? AND isTemporary = 1
+        `).run(sourceTableId)
       }
     }
 
     res.json({ success: true, message: 'KOT transfer completed successfully' })
+
   } catch (err) {
     console.error('KOT Transfer Error:', err)
     res.status(500).json({
@@ -3646,7 +3549,6 @@ exports.transferKOT = (req, res) => {
     })
   }
 }
-
 /* -------------------------------------------------------------------------- */
 /* 24) transferTable → Transfer all items from source table to target table  */
 /* -------------------------------------------------------------------------- */
@@ -3832,13 +3734,17 @@ exports.transferTable = (req, res) => {
         db.prepare(`UPDATE msttablemanagement SET status=0 WHERE tableid=?`).run(sourceTableId)
         
         // Delete temporary tables (sub-tables) associated with source table
-        db.prepare(`DELETE FROM msttablemanagement WHERE parentTableId = ? AND isTemporary = 1`).run(sourceTableId)
+        db.prepare(`DELETE FROM msttablemanagement WHERE tableid = ? AND isTemporary = 1`).run(sourceTableId)
 
         // Reconcalculate target bill only
         recalculateBillTotals(targetBill.TxnID)
         return
       }
+ 
 
+       
+
+      
       /* =================================================
          CASE B: TARGET VACANT
          → MOVE ENTIRE BILL TO TARGET TABLE
@@ -3876,7 +3782,7 @@ exports.transferTable = (req, res) => {
 
         // Update table statuses
         // Delete temporary tables (sub-tables) associated with source table
-        db.prepare(`DELETE FROM msttablemanagement WHERE parentTableId = ? AND isTemporary = 1`).run(sourceTableId)
+        db.prepare(`DELETE FROM msttablemanagement WHERE tableid = ? AND isTemporary = 1`).run(sourceTableId)
         
         db.prepare(`UPDATE msttablemanagement SET status=0 WHERE tableid=?`).run(sourceTableId)
         db.prepare(`UPDATE msttablemanagement SET status=1 WHERE tableid=?`).run(targetTableId)
