@@ -175,10 +175,39 @@ const ReportPage = () => {
     fetchPaymentModes();
   }, [filters.outlet]);
 
-  const loadBills = async () => {
+  const loadBills = async (startDate?: string, endDate?: string) => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:3001/api/reports', );
+      // Build query params with dates
+      const params = new URLSearchParams();
+      
+      // Determine date range based on reportType if not explicitly provided
+      let start = startDate;
+      let end = endDate;
+      
+      if (!start || !end) {
+        const today = new Date();
+        if (reportType === "daily") {
+          start = today.toISOString().split('T')[0];
+          end = start;
+        } else if (reportType === "monthly") {
+          const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+          const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+          start = firstDay.toISOString().split('T')[0];
+          end = lastDay.toISOString().split('T')[0];
+        } else if (reportType === "custom" && customRange.start && customRange.end) {
+          start = customRange.start;
+          end = customRange.end;
+        } else {
+          start = today.toISOString().split('T')[0];
+          end = start;
+        }
+      }
+      
+      if (start) params.append('start', start);
+      if (end) params.append('end', end);
+      
+      const response = await fetch(`http://localhost:3001/api/reports?${params.toString()}`);
       if (!response.ok) {
         throw new Error('Failed to fetch report data');
       }
@@ -458,7 +487,14 @@ const ReportPage = () => {
   const billReprinted = calculateBillReprinted();
   const kotUsedSummary = calculateKotUsedSummary();
 
-  const handleCustomFilter = () => filterBills(bills);
+  const handleCustomFilter = () => {
+    // Reload data with custom date range if provided
+    if (customRange.start && customRange.end) {
+      loadBills(customRange.start, customRange.end);
+    } else {
+      filterBills(bills);
+    }
+  };
 
   const handleResetFilters = () => {
     setFilters({ orderType: "", paymentMode: "", outlet: "" });
@@ -471,9 +507,12 @@ const ReportPage = () => {
     // 1. Get hotel info from user context
     console.log("User context data:", user);
 
-const hotel_name = hotelDetails?.hotel_name || user?.hotel_name || 'Hotel Name Not Found';
-const hotelAddress = hotelDetails?.address || 'Address not available';
-const hotelPhone = hotelDetails?.phone || 'Phone not available';
+    // Ensure dynamicPaymentModes is always an array to prevent errors
+    const paymentModes = Array.isArray(dynamicPaymentModes) ? dynamicPaymentModes : [];
+
+    const hotel_name = hotelDetails?.hotel_name || user?.hotel_name || 'Hotel Name Not Found';
+    const hotelAddress = hotelDetails?.address || 'Address not available';
+    const hotelPhone = hotelDetails?.phone || 'Phone not available';
 
 
     // 2. Determine date range for the report title
@@ -1230,26 +1269,29 @@ const hotelPhone = hotelDetails?.phone || 'Phone not available';
     doc.save(`restaurant-${reportCategory}-report-${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
-  // Render sections remain the same, as they use calculated data
+// Render sections remain the same, as they use calculated data
   const renderBillSummarySection = () => {
+    // Ensure dynamicPaymentModes is always an array to prevent reduce/map errors
+    const paymentModes = Array.isArray(dynamicPaymentModes) ? dynamicPaymentModes : [];
+    
     const initialTotals: { [key: string]: number } = {
-  grossAmount: 0, 
-  discount: 0, 
-  amount: 0, 
-  cgst: 0, 
-  sgst: 0, 
-  igst: 0, 
-  roundOff: 0,
-  revAmt: 0, 
-  serviceCharge_Amount: 0, 
-  totalAmount: 0, 
-  cardAmount: 0,
-  ...dynamicPaymentModes.reduce((acc, mode) => {
-    const modeKey = mode.mode_name.toLowerCase().replace(/[^a-z0-9]/gi, '');
-    acc[modeKey] = 0;
-    return acc;
-  }, {} as { [key: string]: number })
-};
+      grossAmount: 0, 
+      discount: 0, 
+      amount: 0, 
+      cgst: 0, 
+      sgst: 0, 
+      igst: 0, 
+      roundOff: 0,
+      revAmt: 0, 
+      serviceCharge_Amount: 0, 
+      totalAmount: 0, 
+      cardAmount: 0,
+      ...paymentModes.reduce((acc, mode) => {
+        const modeKey = mode.mode_name.toLowerCase().replace(/[^a-z0-9]/gi, '');
+        acc[modeKey] = 0;
+        return acc;
+      }, {} as { [key: string]: number })
+    };
     const totals = billSummaryData.reduce((acc, bill) => {
       acc.totalAmount += bill.totalAmount || 0;
       acc.discount += bill.discount || 0;
@@ -1261,7 +1303,7 @@ const hotelPhone = hotelDetails?.phone || 'Phone not available';
       acc.revAmt += bill.revAmt || 0;
       acc.igst += bill.igst || 0;
       acc.serviceCharge_Amount += bill.serviceCharge_Amount || 0;
-      dynamicPaymentModes.forEach(pm => {
+      paymentModes.forEach(pm => {
         const modeKey = pm.mode_name.toLowerCase().replace(/[^a-z0-9]/gi, '');
         acc[modeKey] += (bill as any)[modeKey] || 0;
       });
@@ -1280,7 +1322,7 @@ const hotelPhone = hotelDetails?.phone || 'Phone not available';
               <tr>
                 {[
                   "Bill No", "Sale Amt (₹)", "Discount (₹)", "Net Amt (₹)", "CGST (₹)", "SGST (₹)", "Round Off", "Gross Total (₹)",
-                  ...dynamicPaymentModes.map(pm => `${pm.mode_name} (₹)`),
+                  ...paymentModes.map(pm => `${pm.mode_name} (₹)`),
                   "Customer Name", "Bill Date", "KOT No", "Rev KOT No", "Rev Amt", "Payment Mode", "Waiter", "Captain", "User", "Order Type", "Card Number", "Bank", "Card Amount (₹)", "Outlet Name", "Table Name", "Department Name",
                   "Discount %", "Discount Type", "IGST (₹)", "Service Charge (₹)", "PAX",
                   "Home Delivery", "Pickup", "Cancelled", "NC KOT", "NC Name", "NC Purpose",
@@ -1301,7 +1343,7 @@ const hotelPhone = hotelDetails?.phone || 'Phone not available';
                   <td className="text-end">{b.sgst?.toFixed(2) || '0.00'}</td>                      {/* SGST */}
                   <td className="text-end">{b.roundOff?.toFixed(2) || '0.00'}</td>                  {/* R.Off */}
                   <td className="text-end">{b.grossAmount?.toFixed(2) || '0.00'}</td>              {/* GrossTotal */}
-                  {dynamicPaymentModes.map(pm => {
+                  {paymentModes.map(pm => {
                     const modeKey = pm.mode_name.toLowerCase().replace(/[^a-z0-9]/gi, '');
                     let amount = 0;
                     if (modeKey.includes('cash')) amount = b.cash ?? 0;
@@ -1369,7 +1411,7 @@ const hotelPhone = hotelDetails?.phone || 'Phone not available';
                   <td className="text-end">{totals.roundOff.toFixed(2)}</td>
                   <td className="text-end">{totals.grossAmount.toFixed(2)}</td>
                   {/* Dynamic colspan for payment modes */}
-                  {dynamicPaymentModes.map(pm => {
+                  {paymentModes.map(pm => {
                     const modeKey = pm.mode_name.toLowerCase().replace(/[^a-z0-9]/gi, '');
                     return <td key={`total-${pm.id}`} className="text-end">{(totals as any)[modeKey]?.toFixed(2) || '0.00'}</td>;
                   })}

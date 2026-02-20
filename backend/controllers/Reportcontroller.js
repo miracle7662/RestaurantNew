@@ -67,7 +67,7 @@ const getReportData = (req, res) => {
       LEFT JOIN msttablemanagement mt ON t.TableID = mt.tableid
       LEFT JOIN mst_outlets mo ON mt.outletid = mo.outletid
       LEFT JOIN msttable_department d ON mt.departmentid = d.departmentid
-      WHERE ((t.isCancelled = 0 AND (t.isBilled = 1 OR t.isSetteled = 1)) OR t.isreversebill = 1)
+      WHERE t.isCancelled = 0
         AND DATE(t.TxnDatetime) BETWEEN ? AND ?
       GROUP BY t.TxnID, t.TxnNo
       ORDER BY t.TxnDatetime DESC;
@@ -77,7 +77,8 @@ const getReportData = (req, res) => {
     const transactions = {};
 
     rows.forEach(row => {
-      if (!row.Settlements && !row.isSetteled && !row.isreversebill) return;
+      // Include all rows - remove the restrictive filter
+      // if (!row.Settlements && !row.isSetteled && !row.isreversebill) return;
 
       const settlements = (row.Settlements || '').split(',');
       const paymentBreakdown = { cash: 0, card: 0, gpay: 0, phonepe: 0, qrcode: 0, credit: 0 };
