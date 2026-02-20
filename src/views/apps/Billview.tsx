@@ -1768,16 +1768,30 @@ const ModernBill = () => {
 
         // ✅ 1️⃣ TABLE KO VACANT KARO (FRONTEND)
         // Explicitly set table status to vacant (0) after NCKOT
+        // Try to update table status, but continue even if it fails
         if (tableId) {
-          await OrderService.updateTableStatus(tableId, { status: 0 });
+          try {
+            await OrderService.updateTableStatus(tableId, { status: 0 });
+          } catch (statusError) {
+            console.error('Error updating table status:', statusError);
+            // Continue even if table status update fails - the table may have been deleted already
+          }
         }
-        await fetchTableManagement();
+
+        // Refresh table management data
+        try {
+          await fetchTableManagement();
+        } catch (fetchError) {
+          console.error('Error fetching table management:', fetchError);
+        }
 
         // ✅ 2️⃣ UI CLEAR (already correct)
         setItems([]);
         setSelectedTable(null);
         setShowOrderDetails(false);
         setShowNCKOTModal(false);
+        
+        // ✅ 3️⃣ NAVIGATE TO TABLEVIEW - Always navigate regardless of table status update
         navigate('/apps/Tableview');
       } else {
         throw new Error(result.message || 'Failed to apply NCKOT.');

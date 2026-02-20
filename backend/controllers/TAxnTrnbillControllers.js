@@ -2664,29 +2664,10 @@ exports.applyNCKOT = async (req, res) => {
 
       // Show the UPDATE statement for table status
       console.log(`UPDATE msttablemanagement SET Status = 0 WHERE TableID = ${bill.TableID}`)
- db.prepare(
-          `
-          UPDATE msttablemanagement
-          SET status = 0
-          WHERE tableid = ?
-        `,
-        ).run(bill.TableID)   
-      // if (bill.TableID) {
-
-           
-      //  // db.prepare(`DELETE FROM msttablemanagement WHERE tableid = ? AND isTemporary = 1`).run(bill.TableID)
-      //   // Get the table info to check if it's a sub-table
-      //   // const tableInfo = db.prepare(`SELECT * FROM msttablemanagement WHERE tableid = ?`).get(bill.TableID);
+      db.prepare(`UPDATE msttablemanagement SET status = 0 WHERE tableid = ? `).run(bill.TableID)  
+      db.prepare(`DELETE FROM msttablemanagement WHERE tableid = ? AND isTemporary = 1`).run(bill.TableID)
+         
         
-      //   // // Determine the parent table ID - if this table is a sub-table, use its parentTableId, otherwise use its own tableid
-      //   // const parentTableIdToUse = tableInfo && tableInfo.parentTableId ? tableInfo.parentTableId : bill.TableID;
-        
-      //   // console.log(`ApplyNCKOT - Using parentTableId: ${parentTableIdToUse} for deleting sub-tables`);
-        
-       
-
-      // }
-        db.prepare(`DELETE FROM msttablemanagement WHERE tableid = ? AND isTemporary = 1`).run(bill.TableID)
     })
 
     tx()

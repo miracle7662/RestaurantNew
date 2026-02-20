@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { useAuthContext } from '@/common';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -343,22 +343,29 @@ export default function App() {
     };
   }, [departments]);
 
-  // Filter tables to only show specified statuses
-  const filteredTables = allTables.filter(table =>
-    table.status === 'available' || table.status === 'running' || table.status === 'printed' || table.status === 'running-kot'
+  // Filter tables to only show specified statuses - memoized to prevent infinite loops
+  const filteredTables = useMemo(() => 
+    allTables.filter(table =>
+      table.status === 'available' || table.status === 'running' || table.status === 'printed' || table.status === 'running-kot'
+    ), 
+    [allTables]
   );
 
-  // Compute status counts
-  useEffect(() => {
-    const counts = filteredTables.reduce((acc, table) => {
+  // Compute status counts - memoized to prevent infinite loops
+  const computedStatusCounts = useMemo(() => {
+    return filteredTables.reduce((acc, table) => {
       if (table.status === 'available') acc.vacant++;
       else if (table.status === 'running') acc.occupied++;
       else if (table.status === 'printed') acc.printed++;
       else if (table.status === 'running-kot') acc.pending++;
       return acc;
     }, { vacant: 0, occupied: 0, printed: 0, pending: 0 });
-    setStatusCounts(counts);
   }, [filteredTables]);
+
+  // Sync computed status counts to state
+  useEffect(() => {
+    setStatusCounts(computedStatusCounts);
+  }, [computedStatusCounts]);
 
   // Group tables by their departmentid
   const tablesByDepartment = filteredTables.reduce((acc, table) => {
