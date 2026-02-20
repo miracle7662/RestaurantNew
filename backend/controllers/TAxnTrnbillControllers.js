@@ -3523,7 +3523,7 @@ exports.transferKOT = (req, res) => {
         ).run(sourceTableId)       
 
         // Delete temporary tables (sub-tables) associated with source table
-        db.prepare(`DELETE FROM msttablemanagement WHERE tableid = ? AND isTemporary = 1`).run(sourceTableId)
+        db.prepare(`DELETE FROM msttablemanagement WHERE parentTableId = ? AND isTemporary = 1`).run(sourceTableId)
 
         // Recalculate target bill only
         recalculateBillTotals(targetBill.TxnID)
@@ -3564,7 +3564,7 @@ exports.transferKOT = (req, res) => {
         db.prepare(`UPDATE msttablemanagement SET status=0 WHERE tableid=?`).run(sourceTableId)
         
         // Delete temporary tables (sub-tables) associated with source table
-        db.prepare(`DELETE FROM msttablemanagement WHERE tableid = ? AND isTemporary = 1`).run(sourceTableId)
+        db.prepare(`DELETE FROM msttablemanagement WHERE parentTableId = ? AND isTemporary = 1`).run(sourceTableId)
         
         db.prepare(`UPDATE msttablemanagement SET status=1 WHERE tableid=?`).run(proposedTableId)
         return
@@ -3601,7 +3601,7 @@ exports.transferKOT = (req, res) => {
         db.prepare(`UPDATE msttablemanagement SET status=1 WHERE tableid=?`).run(proposedTableId)
 
         // Delete temporary tables (sub-tables) associated with source table
-        
+        db.prepare(`DELETE FROM msttablemanagement WHERE parentTableId = ? AND isTemporary = 1`).run(sourceTableId)
 
         recalculateBillTotals(newTxnId)
         recalculateBillTotals(sourceTxnId)
@@ -3832,17 +3832,13 @@ exports.transferTable = (req, res) => {
         db.prepare(`UPDATE msttablemanagement SET status=0 WHERE tableid=?`).run(sourceTableId)
         
         // Delete temporary tables (sub-tables) associated with source table
-        db.prepare(`DELETE FROM msttablemanagement WHERE tableid = ? AND isTemporary = 1`).run(sourceTableId)
+        db.prepare(`DELETE FROM msttablemanagement WHERE parentTableId = ? AND isTemporary = 1`).run(sourceTableId)
 
         // Reconcalculate target bill only
         recalculateBillTotals(targetBill.TxnID)
         return
       }
- 
 
-       
-
-      
       /* =================================================
          CASE B: TARGET VACANT
          → MOVE ENTIRE BILL TO TARGET TABLE
@@ -3880,7 +3876,7 @@ exports.transferTable = (req, res) => {
 
         // Update table statuses
         // Delete temporary tables (sub-tables) associated with source table
-        db.prepare(`DELETE FROM msttablemanagement WHERE tableid = ? AND isTemporary = 1`).run(sourceTableId)
+        db.prepare(`DELETE FROM msttablemanagement WHERE parentTableId = ? AND isTemporary = 1`).run(sourceTableId)
         
         db.prepare(`UPDATE msttablemanagement SET status=0 WHERE tableid=?`).run(sourceTableId)
         db.prepare(`UPDATE msttablemanagement SET status=1 WHERE tableid=?`).run(targetTableId)
