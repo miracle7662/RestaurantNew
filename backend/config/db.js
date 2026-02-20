@@ -975,6 +975,8 @@ CREATE TABLE IF NOT EXISTS trn_dayend (
   outlet_id INTEGER NOT NULL,
   hotel_id INTEGER NOT NULL,
   dayend_total_amt DECIMAL(15,2) DEFAULT 0.00,
+  closing_balance DECIMAL(15,2) DEFAULT 0.00,
+  opening_balance DECIMAL(15,2) DEFAULT 0.00,
   created_by_id INTEGER
 );
 
