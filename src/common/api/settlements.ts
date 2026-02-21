@@ -19,6 +19,7 @@ type ReplaceSettlementPayload = {
   }>
   HotelID: string
   EditedBy: any
+  InsertDate: string
 }
 
 function SettlementService() {

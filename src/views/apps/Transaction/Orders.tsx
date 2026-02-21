@@ -1682,6 +1682,7 @@ const handleTabClick = (tab: string) => {
         Steward: selectedWaiter, // Add selected waiter name
         PAX: pax || 1, // Use the PAX value from the input field
         TxnDatetime: user?.currDate, // Pass curr_date from useAuthContext
+        KOTUsedDate: user?.currDate,
 
       };
 

@@ -242,7 +242,28 @@ exports.replaceSettlement = async (req, res) => {
     // 3️⃣ Hard delete all existing settlements for the OrderNo
     db.prepare(`DELETE FROM TrnSettlement WHERE OrderNo = ?`).run(OrderNo);
 
-    // 4️⃣ Insert new settlements
+    // 4️⃣ Get the original settlement data to preserve TxnNo, UserId, Name, CustomerName, MobileNo
+    // Use the first existing settlement as reference (or fetch from TAxnTrnbill if no settlement exists)
+    let originalSettlement = existingSettlements.length > 0 ? existingSettlements[0] : null;
+    
+    let txnNo = originalSettlement?.TxnNo || null;
+    let userId = originalSettlement?.UserId || null;
+    let name = originalSettlement?.Name || null;
+    let customerName = originalSettlement?.CustomerName || null;
+    let mobileNo = originalSettlement?.MobileNo || null;
+    
+    // If no settlement exists, try to get data from TAxnTrnbill
+    if (!txnNo || !userId) {
+      const bill = db.prepare(`SELECT TxnNo, UserId, CustomerName, MobileNo FROM TAxnTrnbill WHERE orderNo = ? OR TxnNo = ?`).get(OrderNo, OrderNo);
+      if (bill) {
+        txnNo = txnNo || bill.TxnNo || null;
+        userId = userId || bill.UserId || null;
+        customerName = customerName || bill.CustomerName || null;
+        mobileNo = mobileNo || bill.MobileNo || null;
+      }
+    }
+
+    // 5️⃣ Insert new settlements with preserved fields
     for (const s of newSettlements) {
       if (!s.PaymentType || s.Amount == null) continue;
 
@@ -269,16 +290,30 @@ exports.replaceSettlement = async (req, res) => {
           PaymentType,
           Amount,
           HotelID,
+          TxnNo,
+          UserId,
+          Name,
+          CustomerName,
+          MobileNo,
+          Receive,
+          Refund,
           isSettled,
           InsertDate
         )
-        VALUES (?, ?, ?, ?, ?, 1, datetime('now'))
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, datetime('now'))
       `).run(
         OrderNo,
         paymentTypeID,
         s.PaymentType,
         Number(s.Amount),
-        HotelID
+        HotelID,
+        txnNo,
+        userId,
+        name,
+        customerName,
+        mobileNo,
+        Number(s.Amount) || 0, // Receive = Amount
+        0 // Refund = 0
       );
     }
 

@@ -466,7 +466,7 @@ exports.createBill = async (req, res) => {
             d.HotelID ?? null,
             rate,
             Number(d.RevQty) || 0,
-            d.KOTUsedDate || new Date().toISOString(), // KOTUsedDate
+            d.KOTUsedDate || null, // KOTUsedDate
             0, // isBilled default to 0
             d.item_no ?? null,
             d.item_name || null,
@@ -736,7 +736,7 @@ exports.updateBill = async (req, res) => {
             d.HotelID ?? null,
             rate,
             Number(d.RevQty) || 0,
-            d.KOTUsedDate || new Date().toISOString(), // KOTUsedDate
+            d.KOTUsedDate || null, // KOTUsedDate
             0, // isBilled default to 0
           )
         }
@@ -790,7 +790,7 @@ exports.settleBill = async (req, res) => {
     console.log('Request Body (settlements):', JSON.stringify(req.body, null, 2))
 
     const { id } = req.params
-    const { settlements = [] } = req.body
+    const { settlements = [], curr_date } = req.body
 
     if (!Array.isArray(settlements) || settlements.length === 0) {
       return res
@@ -992,7 +992,7 @@ exports.createKOT = async (req, res) => {
   try {
     console.log('Received createKOT body:', JSON.stringify(req.body, null, 2))
     // Correctly destructure from the frontend payload which uses camelCase (e.g., tableId, userId)
-  const {
+    const {
     outletid,
     tableId: TableID,
     table_name,
@@ -1010,6 +1010,7 @@ exports.createKOT = async (req, res) => {
     PAX,
     Steward,
     TxnDatetime,
+    KOTUsedDate,
 
     items: details = [],
   } = req.body
@@ -1180,7 +1181,7 @@ exports.createKOT = async (req, res) => {
           item_no, item_name, order_tag
         ) VALUES (
           @TxnID, @outletid, @ItemID, @TableID, @table_name, @Qty, @RuntimeRate, @DeptID, @HotelID,
-          1, 1, datetime('now'), 0, 0, 0, @isNCKOT,
+          1, 1, @KOTUsedDate, 0, 0, 0, @isNCKOT,
           @CGST, @CGST_AMOUNT, @SGST, @SGST_AMOUNT, @IGST, @IGST_AMOUNT, @CESS, @CESS_AMOUNT, @Discount_Amount, @KOTNo,
           @item_no, @item_name, @order_tag
         )
@@ -1250,6 +1251,7 @@ exports.createKOT = async (req, res) => {
           item_no: itemNo,
           item_name: item.item_name,
           order_tag: order_tag,
+          KOTUsedDate: KOTUsedDate || null,
         })
       }
 
@@ -1401,7 +1403,7 @@ exports.createReverseKOT = async (req, res) => {
         `
       SELECT MAX(RevKOTNo) as maxRevKOT 
       FROM TAxnTrnbilldetails
-      WHERE outletid = ? AND date(KOTUsedDate) = date('now')
+      WHERE outletid = ? AND date(KOTUsedDate) = ?
     `,
       )
       .get(outletid)
@@ -1413,7 +1415,7 @@ exports.createReverseKOT = async (req, res) => {
       let isFullReverse = false
       const updateDetailStmt = db.prepare(`
         UPDATE TAxnTrnbilldetails 
-        SET RevQty = COALESCE(RevQty, 0) + ?, RevKOTNo = ?, KOTUsedDate = datetime('now')
+        SET RevQty = COALESCE(RevQty, 0) + ?, RevKOTNo = ?, KOTUsedDate = ?
         WHERE TXnDetailID = ?
       `)
 
@@ -1790,7 +1792,7 @@ exports.getUnbilledItemsByTable = async (req, res) => {
           `
         SELECT MAX(RevKOTNo) as maxRevKOT
         FROM TAxnTrnbilldetails
-        WHERE outletid = ? AND date(KOTUsedDate) = date('now')
+        WHERE outletid = ? AND date(KOTUsedDate) = ?
       `,
         )
         .get(bill.outletid)
@@ -3822,7 +3824,7 @@ exports.getGlobalKOTNumber = async (req, res) => {
         `
       SELECT MAX(KOTNo) as maxKOT
       FROM TAxnTrnbilldetails
-      WHERE outletid = ? AND date(KOTUsedDate) = date('now')
+      WHERE outletid = ? AND date(KOTUsedDate) = ?
 
     `,
       )
@@ -3859,7 +3861,7 @@ exports.getGlobalReverseKOTNumber = async (req, res) => {
         `
       SELECT MAX(RevKOTNo) as maxRevKOT
       FROM TAxnTrnbilldetails
-      WHERE outletid = ? AND date(KOTUsedDate) = date('now')
+      WHERE outletid = ? AND date(KOTUsedDate) = ?
     `,
       )
       .get(Number(outletid))

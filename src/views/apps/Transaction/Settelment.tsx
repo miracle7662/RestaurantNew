@@ -211,6 +211,7 @@ const EditSettlementPage: React.FC = () => {
         newSettlements: newSettlements.filter(s => s.Amount > 0),
         HotelID: editing.HotelID,
         EditedBy: currentUser,
+         InsertDate: user?.currDate,
       });
 
       setNotification({
