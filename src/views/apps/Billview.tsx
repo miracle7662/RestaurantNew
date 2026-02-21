@@ -1651,6 +1651,7 @@ const ModernBill = () => {
         items: validItems.map(item => ({
           ItemID: item.itemId,
           Name: item.itemName,
+          item_name: item.itemName,  // Add item_name for backend
           Qty: item.qty,
           RuntimeRate: item.rate,
           Amount: item.qty * item.rate,
