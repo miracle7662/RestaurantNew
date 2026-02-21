@@ -816,19 +816,23 @@ const getClosingBalance = (req, res) => {
     if (outlet_id) {
       // If outlet_id is provided, match both hotel_id and outlet_id
       lastDayend = db.prepare(`
-        SELECT closing_balance, dayend_date, curr_date 
-        FROM trn_dayend
-        WHERE outlet_id = ? AND hotel_id = ?
-        ORDER BY id DESC LIMIT 1
+        SELECT closing_balance
+FROM trn_dayend
+WHERE  hotel_id = ?
+  AND dayend_date < curr_date
+ORDER BY dayend_date DESC
+LIMIT 1 OFFSET 1;
       `).get(outlet_id, hotel_id);
     } else {
       // If outlet_id is not provided, just match by hotel_id
       // This will get the most recent dayend record for this hotel (regardless of outlet)
       lastDayend = db.prepare(`
-        SELECT closing_balance, dayend_date, curr_date 
-        FROM trn_dayend
-        WHERE hotel_id = ?
-        ORDER BY id DESC LIMIT 1
+        SELECT closing_balance
+FROM trn_dayend
+WHERE  hotel_id = ?
+  AND dayend_date < curr_date
+ORDER BY dayend_date DESC
+LIMIT 1 OFFSET 1;
       `).get(hotel_id);
     }
 
