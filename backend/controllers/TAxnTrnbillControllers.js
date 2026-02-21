@@ -1294,11 +1294,13 @@ exports.createKOT = async (req, res) => {
       const cessPer = Number(firstDetail.CESS) || 0
 
       let totalBeforeRoundOff = 0
+      let finalTaxableValue = 0
 
       if (includeTaxInInvoice === 1) {
         const combinedPer = cgstPer + sgstPer + igstPer + cessPer
         const preTaxBase = combinedPer > 0 ? totalGross / (1 + combinedPer / 100) : totalGross
         const newTaxableValue = preTaxBase - discountAmount
+        finalTaxableValue = newTaxableValue
 
         totalCgst = (newTaxableValue * cgstPer) / 100
         totalSgst = (newTaxableValue * sgstPer) / 100
@@ -1307,6 +1309,7 @@ exports.createKOT = async (req, res) => {
         totalBeforeRoundOff = newTaxableValue + totalCgst + totalSgst + totalIgst + totalCess
       } else {
         const taxableValue = totalGross - discountAmount
+        finalTaxableValue = taxableValue
         // Recalculate taxes based on the post-discount taxable value
         totalCgst = (taxableValue * cgstPer) / 100
         totalSgst = (taxableValue * sgstPer) / 100
@@ -1333,7 +1336,7 @@ exports.createKOT = async (req, res) => {
       db.prepare(
         `
           UPDATE TAxnTrnbill
-          SET GrossAmt = ?, Discount = ?, CGST = ?, SGST = ?, IGST = ?, CESS = ?, Amount = ?, RoundOFF = ?
+          SET GrossAmt = ?, Discount = ?, CGST = ?, SGST = ?, IGST = ?, CESS = ?, Amount = ?, RoundOFF = ?, TaxableValue = ?
           WHERE TxnID = ?
       `,
       ).run(
@@ -1345,6 +1348,7 @@ exports.createKOT = async (req, res) => {
         totalCess,
         finalAmount,
         finalRoundOff,
+        finalTaxableValue,
         txnId,
       )
       return { txnId, kotNo }
@@ -1509,11 +1513,13 @@ exports.createReverseKOT = async (req, res) => {
       const igstPer = Number(firstDetail.IGST) || 0
       const cessPer = Number(firstDetail.CESS) || 0
       let totalBeforeRoundOff = 0
+      let finalTaxableValue = 0
 
       if (includeTaxInInvoice === 1) {
         const combinedPer = cgstPer + sgstPer + igstPer + cessPer
         const preTaxBase = combinedPer > 0 ? totalGross / (1 + combinedPer / 100) : totalGross
         const newTaxableValue = preTaxBase - discountAmount
+        finalTaxableValue = newTaxableValue
         totalCgst = (newTaxableValue * cgstPer) / 100
         totalSgst = (newTaxableValue * sgstPer) / 100
         totalIgst = (newTaxableValue * igstPer) / 100
@@ -1521,6 +1527,7 @@ exports.createReverseKOT = async (req, res) => {
         totalBeforeRoundOff = newTaxableValue + totalCgst + totalSgst + totalIgst + totalCess
       } else {
         const taxableValue = totalGross - discountAmount
+        finalTaxableValue = taxableValue
         totalCgst = (taxableValue * cgstPer) / 100
         totalSgst = (taxableValue * sgstPer) / 100
         totalIgst = (taxableValue * igstPer) / 100
@@ -1551,7 +1558,7 @@ exports.createReverseKOT = async (req, res) => {
       db.prepare(
         `
         UPDATE TAxnTrnbill
-        SET GrossAmt = ?, CGST = ?, SGST = ?, IGST = ?, CESS = ?, Amount = ?, RoundOFF = ?
+        SET GrossAmt = ?, CGST = ?, SGST = ?, IGST = ?, CESS = ?, Amount = ?, RoundOFF = ?, TaxableValue = ?
         WHERE TxnID = ?
       `,
       ).run(
@@ -1562,6 +1569,7 @@ exports.createReverseKOT = async (req, res) => {
         totalCess,
         finalAmount,
         finalRoundOff,
+        finalTaxableValue,
         txnId,
       )
 
@@ -2797,11 +2805,13 @@ exports.applyDiscountToBill = async (req, res) => {
       const igstPer = Number(firstDetail.IGST) || 0
       const cessPer = Number(firstDetail.CESS) || 0
       let totalBeforeRoundOff = 0
+      let finalTaxableValue = 0
 
       if (includeTaxInInvoice === 1) {
         const combinedPer = cgstPer + sgstPer + igstPer + cessPer
         const preTaxBase = combinedPer > 0 ? totalGross / (1 + combinedPer / 100) : totalGross
         const newTaxableValue = preTaxBase - finalDiscount
+        finalTaxableValue = newTaxableValue
 
         totalCgst = (newTaxableValue * cgstPer) / 100
         totalSgst = (newTaxableValue * sgstPer) / 100
@@ -2810,6 +2820,7 @@ exports.applyDiscountToBill = async (req, res) => {
         totalBeforeRoundOff = newTaxableValue + totalCgst + totalSgst + totalIgst + totalCess
       } else {
         const taxableValue = totalGross - finalDiscount
+        finalTaxableValue = taxableValue
         totalCgst = (taxableValue * cgstPer) / 100
         totalSgst = (taxableValue * sgstPer) / 100
         totalIgst = (taxableValue * igstPer) / 100
@@ -2836,7 +2847,7 @@ exports.applyDiscountToBill = async (req, res) => {
       db.prepare(
         /*sql*/ `
         UPDATE TAxnTrnbill
-        SET Amount = ?, Discount = ?, DiscPer = ?, DiscountType = ?, CGST = ?, SGST = ?, IGST = ?, CESS = ?, RoundOFF = ?, isBilled = 0
+        SET Amount = ?, Discount = ?, DiscPer = ?, DiscountType = ?, CGST = ?, SGST = ?, IGST = ?, CESS = ?, RoundOFF = ?, isBilled = 0, TaxableValue = ?
         WHERE TxnID = ?
       `,
       ).run(
@@ -2849,6 +2860,7 @@ exports.applyDiscountToBill = async (req, res) => {
         totalIgst,
         totalCess,
         finalRoundOff,
+        finalTaxableValue,
         Number(id),
       )
 

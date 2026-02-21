@@ -113,7 +113,7 @@ const Order = () => {
   const [customerid, setCustomerId] = useState<number | null>(null);
   const [customerAddress, setCustomerAddress] = useState<string>('');
   const [taxRates, setTaxRates] = useState<{ cgst: number; sgst: number; igst: number; cess: number }>({ cgst: 0, sgst: 0, igst: 0, cess: 0 });
-  const [taxCalc, setTaxCalc] = useState<{ subtotal: number; cgstAmt: number; sgstAmt: number; igstAmt: number; cessAmt: number; grandTotal: number }>({ subtotal: 0, cgstAmt: 0, sgstAmt: 0, igstAmt: 0, cessAmt: 0, grandTotal: 0 });
+  const [taxCalc, setTaxCalc] = useState<{ subtotal: number; taxableValue: number; cgstAmt: number; sgstAmt: number; igstAmt: number; cessAmt: number; grandTotal: number }>({ subtotal: 0, taxableValue: 0, cgstAmt: 0, sgstAmt: 0, igstAmt: 0, cessAmt: 0, grandTotal: 0 });
   // 0 = exclusive (default), 1 = inclusive
   const [includeTaxInInvoice, setIncludeTaxInInvoice] = useState<number>(0);
   const [selectedDeptId, setSelectedDeptId] = useState<number | null>(null);
@@ -1160,6 +1160,7 @@ const handleTabClick = (tab: string) => {
 
       setTaxCalc({
         subtotal: baseAmount,
+        taxableValue: baseAmount,
         cgstAmt,
         sgstAmt,
         igstAmt,
@@ -1174,7 +1175,7 @@ const handleTabClick = (tab: string) => {
     const activeItems = items.filter(item => !item.isReverse);
     const lineTotal = activeItems.reduce((sum, item) => sum + item.price * item.qty, 0);
 
-    let finalSubtotal: number, cgstAmt: number, sgstAmt: number, igstAmt: number, cessAmt: number, grandTotal: number;
+    let finalSubtotal: number, taxableValue: number, cgstAmt: number, sgstAmt: number, igstAmt: number, cessAmt: number, grandTotal: number;
 
     if (includeTaxInInvoice === 1) {
       // Inclusive Tax: Prices include tax.
@@ -1184,6 +1185,7 @@ const handleTabClick = (tab: string) => {
       // 2. Discount is applied on the pre-tax base to get the new taxable value.
       const discountAmount = discount;
       const newTaxableValue = preTaxBase - discountAmount;
+      taxableValue = newTaxableValue;
 
       // 3. Recalculate taxes on the new taxable value.
       cgstAmt = (newTaxableValue * cgstPer) / 100;
@@ -1198,16 +1200,17 @@ const handleTabClick = (tab: string) => {
     } else {
       // Exclusive Tax: Prices do not include tax.
       // 1. Apply discount to the subtotal (lineTotal) to get the taxable value.
-      const taxableValue = lineTotal - discount;
+      const currentTaxableValue = lineTotal - discount;
+      taxableValue = currentTaxableValue;
 
       // 2. Add tax on the discounted value.
-      cgstAmt = (taxableValue * cgstPer) / 100;
-      sgstAmt = (taxableValue * sgstPer) / 100;
-      igstAmt = (taxableValue * igstPer) / 100;
-      cessAmt = (taxableValue * cessPer) / 100;
+      cgstAmt = (currentTaxableValue * cgstPer) / 100;
+      sgstAmt = (currentTaxableValue * sgstPer) / 100;
+      igstAmt = (currentTaxableValue * igstPer) / 100;
+      cessAmt = (currentTaxableValue * cessPer) / 100;
 
       // 3. Final bill is the taxable value plus all taxes.
-      grandTotal = taxableValue + cgstAmt + sgstAmt + igstAmt + cessAmt;
+      grandTotal = currentTaxableValue + cgstAmt + sgstAmt + igstAmt + cessAmt;
       finalSubtotal = lineTotal; // Subtotal should reflect the base amount before discount.
     }
 
@@ -1230,7 +1233,7 @@ const handleTabClick = (tab: string) => {
     setRoundOffValue(appliedRoundOff);
 
     setTaxCalc({
-      subtotal: finalSubtotal, cgstAmt, sgstAmt, igstAmt, cessAmt, grandTotal: finalGrandTotal
+      subtotal: finalSubtotal, taxableValue, cgstAmt, sgstAmt, igstAmt, cessAmt, grandTotal: finalGrandTotal
     });
 
   }, [items, reversedItems, taxRates, includeTaxInInvoice, discount, roundOffEnabled, roundOffTo, roundOffSettingsLoaded]);
@@ -4124,6 +4127,10 @@ const handleTabClick = (tab: string) => {
                     </Button>
                   )}
 
+                  <div className="d-flex justify-content-between">
+                    <span>Taxable Value</span>
+                    <span>{taxCalc.taxableValue.toFixed(2)}</span>
+                  </div>
                   {discount > 0 && (
                     <div className="d-flex justify-content-between">
                       <span>Discount ({DiscountType === 1 ? `${DiscPer}%` : 'Amt'})</span>
@@ -4357,6 +4364,7 @@ const handleTabClick = (tab: string) => {
                     <thead>
                       <tr>
                         <th>Subtotal</th>
+                        <th>Taxable Value</th>
                         {taxRates.cgst > 0 && <th>CGST ({taxRates.cgst}%)</th>}
                         {taxRates.sgst > 0 && <th>SGST ({taxRates.sgst}%)</th>}
                         {taxRates.igst > 0 && <th>IGST ({taxRates.igst}%)</th>}
@@ -4366,6 +4374,7 @@ const handleTabClick = (tab: string) => {
                     <tbody>
                       <tr>
                         <td>{taxCalc.subtotal.toFixed(2)}</td>
+                        <td>{taxCalc.taxableValue.toFixed(2)}</td>
                         {taxRates.cgst > 0 && <td>{taxCalc.cgstAmt.toFixed(2)}</td>}
                         {taxRates.sgst > 0 && <td>{taxCalc.sgstAmt.toFixed(2)}</td>}
                         {taxRates.igst > 0 && <td>{taxCalc.igstAmt.toFixed(2)}</td>}

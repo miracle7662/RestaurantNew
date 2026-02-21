@@ -816,6 +816,7 @@ CREATE TABLE IF NOT EXISTS TAxnTrnbill (
     Extra1 TEXT,
     Extra2 TEXT,
     Extra3 TEXT,
+    TaxableValue REAL DEFAULT 0,
 
     FOREIGN KEY (HotelID) REFERENCES msthotelmasters(HotelID) ON DELETE SET NULL ON UPDATE CASCADE,
     FOREIGN KEY (outletid) REFERENCES mst_outlets(outletid) ON DELETE SET NULL ON UPDATE CASCADE,
