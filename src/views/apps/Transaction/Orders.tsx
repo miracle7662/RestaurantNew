@@ -1682,7 +1682,7 @@ const handleTabClick = (tab: string) => {
         Steward: selectedWaiter, // Add selected waiter name
         PAX: pax || 1, // Use the PAX value from the input field
         TxnDatetime: user?.currDate, // Pass curr_date from useAuthContext
-        KOTUsedDate: user?.currDate,
+        KOTUsedDate: `${user?.currDate} ${new Date().toLocaleTimeString()}`,
 
       };
 
@@ -2475,6 +2475,7 @@ const handleTabClick = (tab: string) => {
           OrderNo: orderNo ?? undefined,
           HotelID: user?.hotelid,
           Name: user?.name, // Cashier/User name
+          InsertDate: `${user?.currDate} ${new Date().toTimeString().split(' ')[0]}`, // Use curr_date from useAuthContext
         };
       });
 

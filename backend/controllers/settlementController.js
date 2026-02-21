@@ -134,7 +134,8 @@ exports.createSettlement = async (req, res) => {
       PaymentType,   // "Cash", "UPI"
       Amount,
       HotelID,
-      EditedBy
+      EditedBy,
+      InsertDate
     } = req.body;
 
     if (!OrderNo || !PaymentType || !Amount || !HotelID) {
@@ -161,7 +162,8 @@ exports.createSettlement = async (req, res) => {
     // ✅ FIXED LINE
     const paymentTypeID = paymentMode.paymenttypeid;
 
-    // 🔹 Insert settlement
+    
+
     db.prepare(`
       INSERT INTO TrnSettlement (
         OrderNo,
@@ -172,13 +174,14 @@ exports.createSettlement = async (req, res) => {
         isSettled,
         InsertDate
       )
-      VALUES (?, ?, ?, ?, ?, 1, datetime('now'))
+      VALUES (?, ?, ?, ?, ?, 1, ?)
     `).run(
       OrderNo,
       paymentTypeID,
       PaymentType,
       Number(Amount),
-      HotelID
+      HotelID,
+      insertDate
     );
 
     res.json({
@@ -197,7 +200,7 @@ exports.createSettlement = async (req, res) => {
 // Replace settlements for an OrderNo
 exports.replaceSettlement = async (req, res) => {
   try {
-    const { OrderNo, newSettlements, HotelID, EditedBy } = req.body;
+    const { OrderNo, newSettlements, HotelID, EditedBy, InsertDate } = req.body;
 
     if (!OrderNo || !Array.isArray(newSettlements) || !HotelID) {
       return res.status(400).json({
@@ -211,6 +214,9 @@ exports.replaceSettlement = async (req, res) => {
       typeof EditedBy === 'object'
         ? JSON.stringify(EditedBy)
         : EditedBy ?? null;
+
+    // Use InsertDate from request body if provided, otherwise use current datetime
+    const insertDate = InsertDate ? InsertDate : new Date().toISOString().replace('T', ' ').substring(0, 19);
 
     // 1️⃣ Fetch all existing settlements for the OrderNo
     const existingSettlements = db.prepare(
@@ -300,7 +306,7 @@ exports.replaceSettlement = async (req, res) => {
           isSettled,
           InsertDate
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, datetime('now'))
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
       `).run(
         OrderNo,
         paymentTypeID,
@@ -313,7 +319,8 @@ exports.replaceSettlement = async (req, res) => {
         customerName,
         mobileNo,
         Number(s.Amount) || 0, // Receive = Amount
-        0 // Refund = 0
+        0, // Refund = 0
+        insertDate
       );
     }
 
