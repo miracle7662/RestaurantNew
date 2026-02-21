@@ -145,7 +145,8 @@ const ModernBill = () => {
     departmentIdFromState
   });
 
-  const [waiter, setWaiter] = useState('ASD');
+  const [defaultWaiterId, setDefaultWaiterId] = useState<number | null>(null);
+  const [waiter, setWaiter] = useState('');
   const [pax, setPax] = useState(1);
   const [tableNo, setTableNo] = useState(tableName || 'Loading...');
   const [defaultKot, setDefaultKot] = useState<number | null>(null); // last / system KOT
@@ -723,7 +724,7 @@ const ModernBill = () => {
           setBillItems(mappedItems);
           setTxnId((header as any).TxnID || (header as any).txnId || null);
           setOrderNo(header.TxnNo);
-          setWaiter(header.waiter || 'ASD');
+          setWaiter(header.waiter || '');
           setPax(header.pax || header.PAX || 1);
           setTableNo(header.table_name || tableName);
           if (header.RevKOTNo) {
@@ -891,7 +892,7 @@ const ModernBill = () => {
       if (data.header) {
         setTxnId(data.header.TxnID);
         setOrderNo(data.header.TxnNo ?? data.header.orderNo);
-        setWaiter(data.header.waiter || 'ASD');
+        setWaiter(data.header.waiter || '');
         setPax(data.header.pax || data.header.PAX || 1);
         if (data.header.CustomerName) setCustomerName(data.header.CustomerName);
         if (data.header.MobileNo) setCustomerNo(data.header.MobileNo);
@@ -1047,7 +1048,7 @@ const ModernBill = () => {
       console.log('API Response Header:', data.header);
       if (data.header) {
         setTxnId(data.header.TxnID);
-        setWaiter(data.header.waiter || 'ASD');
+        setWaiter(data.header.waiter || '');
         setPax(data.header.pax || data.header.PAX || 1);
         if (data.header.table_name) {
           setTableNo(data.header.table_name);
@@ -1295,6 +1296,8 @@ const ModernBill = () => {
           if (settings && typeof settings === 'object') {
             setReverseQtyConfig(settings.ReverseQtyMode === 1 ? 'PasswordRequired' : 'NoPassword');
             setRoundOffEnabled(!!settings.bill_round_off);
+            // Set default waiter from outlet settings
+            setDefaultWaiterId(settings.default_waiter_id || null);
             // include_tax_in_invoice may be returned with different casing
             const incFlag =
               settings.include_tax_in_invoice ??
@@ -1373,7 +1376,19 @@ const ModernBill = () => {
     fetchWaiters();
   }, [selectedOutletId]);
 
+  // Set default waiter from outlet settings when waiterUsers are loaded
   useEffect(() => {
+    if (defaultWaiterId && waiterUsers.length > 0 && !waiter) {
+      const defaultWaiter = waiterUsers.find(w => w.userId === defaultWaiterId);
+      if (defaultWaiter) {
+        // Use employee_name if available, else username (matching dropdown value)
+        setWaiter(defaultWaiter.employee_name || defaultWaiter.username);
+      }
+    }
+  }, [defaultWaiterId, waiterUsers, waiter]);
+
+  useEffect(() => {
+    
     calculateTotals(billItems);
 
     // Remove padding or margin from layout containers
@@ -1968,7 +1983,7 @@ const ModernBill = () => {
   const resetBillState = () => {
     setBillItems([{ itemCode: '', itemgroupid: 0, item_no: 0, itemId: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '', isFetched: false }]);
     setTxnId(null);
-    setWaiter('ASD');
+    setWaiter('');
     setPax(1);
     setTableNo('Loading...');
     setDefaultKot(null);
