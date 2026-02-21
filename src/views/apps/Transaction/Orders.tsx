@@ -1175,6 +1175,11 @@ const handleTabClick = (tab: string) => {
     const activeItems = items.filter(item => !item.isReverse);
     const lineTotal = activeItems.reduce((sum, item) => sum + item.price * item.qty, 0);
 
+    
+  /* ═══════════════════════════════════════════════════════════════════════════════
+ * Discount Check 
+ * ═══════════════════════════════════════════════════════════════════════════════ */
+
     let finalSubtotal: number, taxableValue: number, cgstAmt: number, sgstAmt: number, igstAmt: number, cessAmt: number, grandTotal: number;
 
     if (includeTaxInInvoice === 1) {

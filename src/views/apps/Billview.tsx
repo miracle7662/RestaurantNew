@@ -323,6 +323,10 @@ const ModernBill = () => {
     }
   }, [billItems, groupBy, cgstRate, sgstRate, igstRate, cessRate, includeTaxInInvoice]);
 
+  /* ═══════════════════════════════════════════════════════════════════════════════
+ * Discount Check 
+ * ═══════════════════════════════════════════════════════════════════════════════ */
+
   // Calculate totals based on displayed items
   useEffect(() => {
     const gross = displayedItems.reduce((sum, item) => sum + (item.qty * item.rate), 0);
@@ -337,7 +341,7 @@ const ModernBill = () => {
     if (includeTaxInInvoice) {
       const totalTaxRate = cgstRate + sgstRate + igstRate + cessRate;
       const preTaxBase = totalTaxRate > 0 ? gross / (1 + totalTaxRate / 100) : gross;
-      taxableValue = preTaxBase - discountAmount;
+      taxableValue = preTaxBase  - discountAmount;
 
       cgstTotal = (taxableValue * cgstRate) / 100;
       sgstTotal = (taxableValue * sgstRate) / 100;
