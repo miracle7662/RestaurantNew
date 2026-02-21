@@ -340,8 +340,10 @@ const ModernBill = () => {
 
     if (includeTaxInInvoice) {
       const totalTaxRate = cgstRate + sgstRate + igstRate + cessRate;
-      const preTaxBase = totalTaxRate > 0 ? gross / (1 + totalTaxRate / 100) : gross;
-      taxableValue = preTaxBase  - discountAmount;
+      // First subtract discount from gross, then calculate pre-tax base
+      const discountedGross = gross - discountAmount;
+      const preTaxBase = totalTaxRate > 0 ? discountedGross / (1 + totalTaxRate / 100) : discountedGross;
+      taxableValue = preTaxBase;
 
       cgstTotal = (taxableValue * cgstRate) / 100;
       sgstTotal = (taxableValue * sgstRate) / 100;
@@ -1167,8 +1169,10 @@ const ModernBill = () => {
 
     if (includeTaxInInvoice) {
       const totalTaxRate = cgstRate + sgstRate + igstRate + cessRate;
-      const preTaxBase = totalTaxRate > 0 ? gross / (1 + totalTaxRate / 100) : gross;
-      taxableValue = preTaxBase - discountAmount;
+      // First subtract discount from gross, then calculate pre-tax base
+      const discountedGross = gross - discountAmount;
+      const preTaxBase = totalTaxRate > 0 ? discountedGross / (1 + totalTaxRate / 100) : discountedGross;
+      taxableValue = preTaxBase;
     } else {
       taxableValue = gross - discountAmount;
     }
