@@ -1185,21 +1185,25 @@ const handleTabClick = (tab: string) => {
     if (includeTaxInInvoice === 1) {
       // Inclusive Tax: Prices include tax.
       const combinedPer = cgstPer + sgstPer + igstPer + cessPer;
-      const preTaxBase = combinedPer > 0 ? lineTotal / (1 + combinedPer / 100) : lineTotal;
-
-      // 2. Discount is applied on the pre-tax base to get the new taxable value.
+      
+      // Step 1: Calculate discount on gross amount (lineTotal)
       const discountAmount = discount;
-      const newTaxableValue = preTaxBase - discountAmount;
-      taxableValue = newTaxableValue;
+      
+      // Step 2: Get discounted gross amount
+      const discountedGross = lineTotal - discountAmount;
+      
+      // Step 3: Extract pre-tax base from discounted gross amount
+      const preTaxBase = combinedPer > 0 ? discountedGross / (1 + combinedPer / 100) : discountedGross;
+      taxableValue = preTaxBase > 0 ? preTaxBase : 0; // Ensure non-negative
 
-      // 3. Recalculate taxes on the new taxable value.
-      cgstAmt = (newTaxableValue * cgstPer) / 100;
-      sgstAmt = (newTaxableValue * sgstPer) / 100;
-      igstAmt = (newTaxableValue * igstPer) / 100;
-      cessAmt = (newTaxableValue * cessPer) / 100;
+      // 4. Recalculate taxes on the new taxable value.
+      cgstAmt = (taxableValue * cgstPer) / 100;
+      sgstAmt = (taxableValue * sgstPer) / 100;
+      igstAmt = (taxableValue * igstPer) / 100;
+      cessAmt = (taxableValue * cessPer) / 100;
 
-      // 4. Final bill is the new taxable value plus the new taxes.
-      grandTotal = newTaxableValue + cgstAmt + sgstAmt + igstAmt + cessAmt;
+      // 5. Final bill is the new taxable value plus the new taxes.
+      grandTotal = taxableValue + cgstAmt + sgstAmt + igstAmt + cessAmt;
       finalSubtotal = preTaxBase; // Subtotal should reflect the pre-tax base before discount.
 
     } else {
@@ -1733,14 +1737,30 @@ const handleTabClick = (tab: string) => {
             )
           );
         }
-        setIsPrintMode(false);
-        // 🔥 HARD RESET after KOT save
-        setItems([]);
-        setPrintItems([]);
-        setReverseQtyItems([]);
-        setReversedItems([]);
-        setReverseQtyMode(false);
-        setIsGroupedView(true);
+        
+        // 🔥 FIX: When discount is applied and new items are added, refresh from backend
+        // This ensures the discount is properly recalculated for all items (old + new)
+        if (discount > 0 && resolvedTableId) {
+          // Refresh items from backend to get correct discount calculation
+          await refreshItemsForTable(resolvedTableId);
+          // Don't do the hard reset - let the refresh handle the state update
+          setIsPrintMode(false);
+          setPrintItems([]);
+          setReverseQtyItems([]);
+          setReversedItems([]);
+          setReverseQtyMode(false);
+          setIsGroupedView(true);
+        } else {
+          // Original flow when no discount
+          setIsPrintMode(false);
+          // 🔥 HARD RESET after KOT save
+          setItems([]);
+          setPrintItems([]);
+          setReverseQtyItems([]);
+          setReversedItems([]);
+          setReverseQtyMode(false);
+          setIsGroupedView(true);
+        }
         // setCurrentKOTNo(null);
         // setCurrentKOTNos([]);
         // setCurrentTxnId(null);
@@ -2337,6 +2357,10 @@ const handleTabClick = (tab: string) => {
       return;
     }
 
+    // Calculate lineTotal for discount calculation
+    const activeItems = items.filter(item => !item.isReverse);
+    const lineTotal = activeItems.reduce((sum, item) => sum + item.price * item.qty, 0);
+
     let appliedDiscount = 0;
     let appliedDiscPer = 0;
 
@@ -2351,11 +2375,13 @@ const handleTabClick = (tab: string) => {
         return;
       }
       appliedDiscPer = discountInputValue;
-      appliedDiscount = parseFloat(((taxCalc.subtotal * discountInputValue) / 100).toFixed(2));
+      // Use lineTotal (gross amount) for percentage discount calculation
+      appliedDiscount = parseFloat(((lineTotal * discountInputValue) / 100).toFixed(2));
 
     } else { // Amount
-      if (discountInputValue <= 0 || discountInputValue > taxCalc.subtotal || isNaN(discountInputValue)) {
-        toast.error(`Discount amount must be > 0 and <= subtotal (${taxCalc.subtotal.toFixed(2)})`);
+      // Use lineTotal for amount discount validation
+      if (discountInputValue <= 0 || discountInputValue > lineTotal || isNaN(discountInputValue)) {
+        toast.error(`Discount amount must be > 0 and <= gross total (${lineTotal.toFixed(2)})`);
         return;
       }
       appliedDiscPer = 0;

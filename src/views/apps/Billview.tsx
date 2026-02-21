@@ -1177,7 +1177,8 @@ const ModernBill = () => {
       taxableValue = gross - discountAmount;
     }
 
-    const totalBeforeRoundOff = gross + cgstTotal + sgstTotal + igstTotal + cessTotal;
+    // When includeTaxInInvoice is true, use taxableValue (preTaxBase), not gross
+    const totalBeforeRoundOff = taxableValue + cgstTotal + sgstTotal + igstTotal + cessTotal;
     const roundedFinalAmount = Math.round(totalBeforeRoundOff);
     const ro = roundedFinalAmount - totalBeforeRoundOff;
 
