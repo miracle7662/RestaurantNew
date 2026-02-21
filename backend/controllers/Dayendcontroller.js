@@ -819,9 +819,10 @@ const getClosingBalance = (req, res) => {
         SELECT closing_balance
 FROM trn_dayend
 WHERE  hotel_id = ?
-  AND dayend_date < curr_date
+  AND  curr_date
 ORDER BY dayend_date DESC
 LIMIT 1 OFFSET 1;
+
       `).get(outlet_id, hotel_id);
     } else {
       // If outlet_id is not provided, just match by hotel_id
@@ -830,7 +831,7 @@ LIMIT 1 OFFSET 1;
         SELECT closing_balance
 FROM trn_dayend
 WHERE  hotel_id = ?
-  AND dayend_date < curr_date
+  AND  curr_date
 ORDER BY dayend_date DESC
 LIMIT 1 OFFSET 1;
       `).get(hotel_id);
