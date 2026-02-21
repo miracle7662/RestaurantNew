@@ -378,6 +378,10 @@ const [roundOffEnabled, setRoundOffEnabled] = useState<boolean>(false);
           setCustomerName(header.CustomerName || '');
           setMobileNumber(header.MobileNo || '');
           if (header.customerid) setCustomerId(header.customerid);
+          // ✅ Restore waiter details from billed transaction
+          if (header.Steward) {
+            setSelectedWaiter(header.Steward);
+          }
           // Also fetch and set reversed items for the billed transaction
           const fetchedReversedItems: ReversedMenuItem[] = (billedBillData.reversedItems || []).map((item: any) => ({
             ...item,
@@ -485,6 +489,10 @@ const [roundOffEnabled, setRoundOffEnabled] = useState<boolean>(false);
         setCustomerName(header.CustomerName || '');
         setMobileNumber(header.MobileNo || '');
         if (header.customerid) setCustomerId(header.customerid);
+        // ✅ Restore waiter details from unbilled transaction
+        if (header.Steward) {
+          setSelectedWaiter(header.Steward);
+        }
       } else {
         setItems([]);
         setReversedItems([]);

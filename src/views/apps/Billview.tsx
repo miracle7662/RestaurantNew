@@ -736,7 +736,7 @@ const ModernBill = () => {
           setBillItems(mappedItems);
           setTxnId((header as any).TxnID || (header as any).txnId || null);
           setOrderNo(header.TxnNo);
-          setWaiter(header.waiter || '');
+          setWaiter(header.Steward || header.waiter || '');
           setPax(header.pax || header.PAX || 1);
           setTableNo(header.table_name || tableName);
           if (header.RevKOTNo) {
@@ -1060,7 +1060,8 @@ const ModernBill = () => {
       console.log('API Response Header:', data.header);
       if (data.header) {
         setTxnId(data.header.TxnID);
-        setWaiter(data.header.waiter || '');
+        // Map Steward from backend to waiter in frontend
+        setWaiter(data.header.Steward || data.header.waiter || '');
         setPax(data.header.pax || data.header.PAX || 1);
         if (data.header.table_name) {
           setTableNo(data.header.table_name);
