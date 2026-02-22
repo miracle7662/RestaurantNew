@@ -1695,8 +1695,8 @@ const handleTabClick = (tab: string) => {
         // Add NCName and NCPurpose to the main payload for the TAxnTrnbill header
         NCName: firstNCItem ? firstNCItem.NCName : null,
         NCPurpose: firstNCItem ? firstNCItem.NCPurpose : null,
-        DiscPer: DiscPer,
-        Discount: discount,
+        DiscPer: DiscountType === 1 ? discountInputValue : 0,
+        Discount: DiscountType === 0 ? discountInputValue : discount,
         DiscountType: DiscountType,
         CustomerName: customerName,
         MobileNo: mobileNumber,
