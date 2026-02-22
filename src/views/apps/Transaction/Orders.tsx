@@ -1221,7 +1221,7 @@ const handleTabClick = (tab: string) => {
     } else {
       // Exclusive Tax: Prices do not include tax.
       // 1. Apply discount to the subtotal (lineTotal) to get the taxable value.
-      const currentTaxableValue = lineTotal - discount;
+      const currentTaxableValue = lineTotal - discountAmount;
       taxableValue = currentTaxableValue;
 
       // 2. Add tax on the discounted value.

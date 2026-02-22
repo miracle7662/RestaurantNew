@@ -1298,15 +1298,16 @@ exports.createKOT = async (req, res) => {
 
       if (includeTaxInInvoice === 1) {
         const combinedPer = cgstPer + sgstPer + igstPer + cessPer
-        const preTaxBase = combinedPer > 0 ? totalGross / (1 + combinedPer / 100) : totalGross
-        const newTaxableValue = preTaxBase - discountAmount
-        finalTaxableValue = newTaxableValue
+        // FIX: Apply discount BEFORE extracting pre-tax base (matching frontend logic)
+        const discountedGross = totalGross - discountAmount
+        const preTaxBase = combinedPer > 0 ? discountedGross / (1 + combinedPer / 100) : discountedGross
+        finalTaxableValue = preTaxBase > 0 ? preTaxBase : 0
 
-        totalCgst = (newTaxableValue * cgstPer) / 100
-        totalSgst = (newTaxableValue * sgstPer) / 100
-        totalIgst = (newTaxableValue * igstPer) / 100
-        totalCess = (newTaxableValue * cessPer) / 100
-        totalBeforeRoundOff = newTaxableValue + totalCgst + totalSgst + totalIgst + totalCess
+        totalCgst = (finalTaxableValue * cgstPer) / 100
+        totalSgst = (finalTaxableValue * sgstPer) / 100
+        totalIgst = (finalTaxableValue * igstPer) / 100
+        totalCess = (finalTaxableValue * cessPer) / 100
+        totalBeforeRoundOff = finalTaxableValue + totalCgst + totalSgst + totalIgst + totalCess
       } else {
         const taxableValue = totalGross - discountAmount
         finalTaxableValue = taxableValue
@@ -1517,14 +1518,16 @@ exports.createReverseKOT = async (req, res) => {
 
       if (includeTaxInInvoice === 1) {
         const combinedPer = cgstPer + sgstPer + igstPer + cessPer
-        const preTaxBase = combinedPer > 0 ? totalGross / (1 + combinedPer / 100) : totalGross
-        const newTaxableValue = preTaxBase - discountAmount
-        finalTaxableValue = newTaxableValue
-        totalCgst = (newTaxableValue * cgstPer) / 100
-        totalSgst = (newTaxableValue * sgstPer) / 100
-        totalIgst = (newTaxableValue * igstPer) / 100
-        totalCess = (newTaxableValue * cessPer) / 100
-        totalBeforeRoundOff = newTaxableValue + totalCgst + totalSgst + totalIgst + totalCess
+        // FIX: Apply discount BEFORE extracting pre-tax base (matching frontend logic)
+        const discountedGross = totalGross - discountAmount
+        const preTaxBase = combinedPer > 0 ? discountedGross / (1 + combinedPer / 100) : discountedGross
+        finalTaxableValue = preTaxBase > 0 ? preTaxBase : 0
+
+        totalCgst = (finalTaxableValue * cgstPer) / 100
+        totalSgst = (finalTaxableValue * sgstPer) / 100
+        totalIgst = (finalTaxableValue * igstPer) / 100
+        totalCess = (finalTaxableValue * cessPer) / 100
+        totalBeforeRoundOff = finalTaxableValue + totalCgst + totalSgst + totalIgst + totalCess
       } else {
         const taxableValue = totalGross - discountAmount
         finalTaxableValue = taxableValue
@@ -2809,15 +2812,16 @@ exports.applyDiscountToBill = async (req, res) => {
 
       if (includeTaxInInvoice === 1) {
         const combinedPer = cgstPer + sgstPer + igstPer + cessPer
-        const preTaxBase = combinedPer > 0 ? totalGross / (1 + combinedPer / 100) : totalGross
-        const newTaxableValue = preTaxBase - finalDiscount
-        finalTaxableValue = newTaxableValue
+        // FIX: Apply discount BEFORE extracting pre-tax base (matching frontend logic)
+        const discountedGross = totalGross - finalDiscount
+        const preTaxBase = combinedPer > 0 ? discountedGross / (1 + combinedPer / 100) : discountedGross
+        finalTaxableValue = preTaxBase > 0 ? preTaxBase : 0
 
-        totalCgst = (newTaxableValue * cgstPer) / 100
-        totalSgst = (newTaxableValue * sgstPer) / 100
-        totalIgst = (newTaxableValue * igstPer) / 100
-        totalCess = (newTaxableValue * cessPer) / 100
-        totalBeforeRoundOff = newTaxableValue + totalCgst + totalSgst + totalIgst + totalCess
+        totalCgst = (finalTaxableValue * cgstPer) / 100
+        totalSgst = (finalTaxableValue * sgstPer) / 100
+        totalIgst = (finalTaxableValue * igstPer) / 100
+        totalCess = (finalTaxableValue * cessPer) / 100
+        totalBeforeRoundOff = finalTaxableValue + totalCgst + totalSgst + totalIgst + totalCess
       } else {
         const taxableValue = totalGross - finalDiscount
         finalTaxableValue = taxableValue

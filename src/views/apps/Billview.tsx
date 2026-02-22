@@ -1142,56 +1142,75 @@ const ModernBill = () => {
     }
   };
 
-  const calculateTotals = (items: BillItem[]) => {
-    const updatedItems = items.map(item => {
-      const total = item.qty * item.rate;
-      let cgst = 0;
-      let sgst = 0;
-      let igst = 0;
-      let cess = 0;
-      if (!includeTaxInInvoice) {
-        cgst = total * (cgstRate / 100);
-        sgst = total * (sgstRate / 100);
-        igst = total * (igstRate / 100);
-        cess = total * (cessRate / 100);
-      }
-      return { ...item, total, cgst, sgst, igst, cess };
-    });
+ const calculateTotals = (items: BillItem[]) => {
 
-    const gross = updatedItems.reduce((sum, item) => sum + item.total, 0);
-    const cgstTotal = updatedItems.reduce((sum, item) => sum + item.cgst, 0);
-    const sgstTotal = updatedItems.reduce((sum, item) => sum + item.sgst, 0);
-    const igstTotal = updatedItems.reduce((sum, item) => sum + item.igst, 0);
-    const cessTotal = updatedItems.reduce((sum, item) => sum + item.cess, 0);
+  const updatedItems = items.map(item => {
+    const total = item.qty * item.rate;
+    return { ...item, total };
+  });
 
-    const discountAmount = DiscountType === 1 ? (gross * discountInputValue) / 100 : discountInputValue;
-    let taxableValue = 0;
+  const gross = updatedItems.reduce((sum, item) => sum + item.total, 0);
 
-    if (includeTaxInInvoice) {
-      const totalTaxRate = cgstRate + sgstRate + igstRate + cessRate;
-      // First subtract discount from gross, then calculate pre-tax base
-      const discountedGross = gross - discountAmount;
-      const preTaxBase = totalTaxRate > 0 ? discountedGross / (1 + totalTaxRate / 100) : discountedGross;
-      taxableValue = preTaxBase;
-    } else {
-      taxableValue = gross - discountAmount;
-    }
+  // Discount
+  const discountAmount =
+    DiscountType === 1
+      ? (gross * discountInputValue) / 100
+      : discountInputValue;
 
-    // When includeTaxInInvoice is true, use taxableValue (preTaxBase), not gross
-    const totalBeforeRoundOff = taxableValue + cgstTotal + sgstTotal + igstTotal + cessTotal;
-    const roundedFinalAmount = Math.round(totalBeforeRoundOff);
-    const ro = roundedFinalAmount - totalBeforeRoundOff;
+  const discountedGross = gross - discountAmount;
 
-    setGrossAmount(gross);
-    setCgst(cgstTotal);
-    setSgst(sgstTotal);
-    setIgst(igstTotal);
-    setTotalCess(cessTotal);
-    setFinalAmount(roundedFinalAmount);
-    setRoundOff(ro);
-    setBillItems(updatedItems);
-    setTaxCalc({ grandTotal: roundedFinalAmount, subtotal: gross, taxableValue });
-  };
+  let taxableValue = 0;
+  let cgstTotal = 0;
+  let sgstTotal = 0;
+  let igstTotal = 0;
+  let cessTotal = 0;
+
+  const totalTaxRate = cgstRate + sgstRate + igstRate + cessRate;
+
+  if (includeTaxInInvoice) {
+    // 🔹 TAX INCLUSIVE
+
+    taxableValue =
+      totalTaxRate > 0
+        ? discountedGross / (1 + totalTaxRate / 100)
+        : discountedGross;
+
+    cgstTotal = taxableValue * (cgstRate / 100);
+    sgstTotal = taxableValue * (sgstRate / 100);
+    igstTotal = taxableValue * (igstRate / 100);
+    cessTotal = taxableValue * (cessRate / 100);
+
+  } else {
+    // 🔹 TAX EXCLUSIVE
+
+    taxableValue = discountedGross;
+
+    cgstTotal = taxableValue * (cgstRate / 100);
+    sgstTotal = taxableValue * (sgstRate / 100);
+    igstTotal = taxableValue * (igstRate / 100);
+    cessTotal = taxableValue * (cessRate / 100);
+  }
+
+  const totalBeforeRoundOff =
+    taxableValue + cgstTotal + sgstTotal + igstTotal + cessTotal;
+
+  const roundedFinalAmount = Math.round(totalBeforeRoundOff);
+  const ro = roundedFinalAmount - totalBeforeRoundOff;
+
+  setGrossAmount(gross);
+  setCgst(cgstTotal);
+  setSgst(sgstTotal);
+  setIgst(igstTotal);
+  setTotalCess(cessTotal);
+  setFinalAmount(roundedFinalAmount);
+  setRoundOff(ro);
+  setBillItems(updatedItems);
+  setTaxCalc({
+    grandTotal: roundedFinalAmount,
+    subtotal: gross,
+    taxableValue,
+  });
+};
 
   // Fetch outlets and set default restaurant/outlet names
   useEffect(() => {
