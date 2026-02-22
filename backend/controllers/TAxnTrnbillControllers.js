@@ -1413,7 +1413,7 @@ exports.createReverseKOT = async (req, res) => {
         `
       SELECT MAX(RevKOTNo) as maxRevKOT 
       FROM TAxnTrnbilldetails
-      WHERE outletid = ? AND date(KOTUsedDate) = ?
+      WHERE outletid = ? AND date(KOTUsedDate) = date('now')
     `,
       )
       .get(outletid)
@@ -1446,7 +1446,7 @@ exports.createReverseKOT = async (req, res) => {
           .get(item.txnDetailId)
         if (detail) {
           const newRevQty = (detail.RevQty || 0) + item.qty
-          updateDetailStmt.run(item.qty, newRevKOTNo, item.txnDetailId) // KOTUsedDate is updated here
+          updateDetailStmt.run(item.qty, newRevKOTNo, item.KOTUsedDate || null, item.txnDetailId)
 
           const remainingQty = detail.Qty - newRevQty
           logReversalStmt.run(
@@ -3845,8 +3845,7 @@ exports.getGlobalKOTNumber = async (req, res) => {
         `
       SELECT MAX(KOTNo) as maxKOT
       FROM TAxnTrnbilldetails
-      WHERE outletid = ? AND date(KOTUsedDate) = ?
-
+      WHERE outletid = ? AND date(KOTUsedDate) = date('now')
     `,
       )
       .get(Number(outletid))
@@ -3882,7 +3881,7 @@ exports.getGlobalReverseKOTNumber = async (req, res) => {
         `
       SELECT MAX(RevKOTNo) as maxRevKOT
       FROM TAxnTrnbilldetails
-      WHERE outletid = ? AND date(KOTUsedDate) = ?
+      WHERE outletid = ? AND date(KOTUsedDate) = date('now')
     `,
       )
       .get(Number(outletid))

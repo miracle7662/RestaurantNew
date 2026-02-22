@@ -1933,9 +1933,9 @@ const ModernBill = () => {
 
   const printKOT = async (kotNo: number) => {
     try {
-      const response = await axios.post(`/api/kot/print/${kotNo}`, {
-        CustomerName: customerName || null,
-        MobileNo: customerNo || null,
+      const response = await OrderService.printKOT(kotNo, {
+        CustomerName: customerName || undefined,
+        MobileNo: customerNo || undefined,
       });
       toast.success('KOT printed successfully');
       // Handle print data if needed
@@ -1955,18 +1955,15 @@ const ModernBill = () => {
     }
 
     try {
-      // 1️⃣ Generate TxnNo (Bill No)
-      const response = await axios.put(
-        `/api/TAxnTrnbill/${txnId}/mark-billed`,
-        {
-          outletId: selectedOutletId || Number(user?.outletid),
-          customerName: customerName || null,
-          mobileNo: customerNo || null,
-          customerid: customerId || null,
-        }
-      );
+      // 1️⃣ Generate TxnNo (Bill No) using common API service
+      const response = await OrderService.markBillAsBilled(txnId, {
+        outletId: selectedOutletId || Number(user?.outletid),
+        customerName: customerName || null,
+        mobileNo: customerNo || null,
+        customerid: customerId || null,
+      });
 
-      const txnNo = response.data?.data?.TxnNo;
+      const txnNo = response.data?.TxnNo;
       if (!txnNo) {
         toast.error('TxnNo not generated');
         return;
