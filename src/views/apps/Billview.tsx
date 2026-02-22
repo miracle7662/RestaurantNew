@@ -847,7 +847,6 @@ const ModernBill = () => {
           sgst: item.sgst ?? (total * 0.025),           // 2.5% default fallback
           igst: item.igst ?? 0,
           cess: item.cess ?? 0,
-
           mkotNo: item.kotNo ? item.kotNo.toString() : (item.KOTNo ? item.KOTNo.toString() : ''),
           specialInstructions: item.specialInstructions || item.SpecialInst || '',
           isBilled: 0,

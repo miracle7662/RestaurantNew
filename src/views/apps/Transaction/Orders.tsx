@@ -1185,8 +1185,13 @@ const handleTabClick = (tab: string) => {
 
     
   /* ═══════════════════════════════════════════════════════════════════════════════
- * Discount Check 
+ * Discount Check - Runtime Calculation (Similar to Billview.tsx)
  * ═══════════════════════════════════════════════════════════════════════════════ */
+
+    // Calculate runtime discount based on discountInputValue and DiscountType
+    const discountAmount = DiscountType === 1 
+      ? (lineTotal * discountInputValue) / 100 
+      : discountInputValue;
 
     let finalSubtotal: number, taxableValue: number, cgstAmt: number, sgstAmt: number, igstAmt: number, cessAmt: number, grandTotal: number;
 
@@ -1194,8 +1199,7 @@ const handleTabClick = (tab: string) => {
       // Inclusive Tax: Prices include tax.
       const combinedPer = cgstPer + sgstPer + igstPer + cessPer;
       
-      // Step 1: Calculate discount on gross amount (lineTotal)
-      const discountAmount = discount;
+      // Step 1: Calculate discount on gross amount (lineTotal) - using runtime discountAmount
       
       // Step 2: Get discounted gross amount
       const discountedGross = lineTotal - discountAmount;
@@ -1253,7 +1257,7 @@ const handleTabClick = (tab: string) => {
       subtotal: finalSubtotal, taxableValue, cgstAmt, sgstAmt, igstAmt, cessAmt, grandTotal: finalGrandTotal
     });
 
-  }, [items, reversedItems, taxRates, includeTaxInInvoice, discount, roundOffEnabled, roundOffTo, roundOffSettingsLoaded]);
+  }, [items, reversedItems, taxRates, includeTaxInInvoice, discount, discountInputValue, DiscountType, roundOffEnabled, roundOffTo, roundOffSettingsLoaded]);
 
   const loadOutletSettings = async (outletId: number) => {
     try {
@@ -1745,30 +1749,14 @@ const handleTabClick = (tab: string) => {
             )
           );
         }
-        
-        // 🔥 FIX: When discount is applied and new items are added, refresh from backend
-        // This ensures the discount is properly recalculated for all items (old + new)
-        if (discount > 0 && resolvedTableId) {
-          // Refresh items from backend to get correct discount calculation
-          await refreshItemsForTable(resolvedTableId);
-          // Don't do the hard reset - let the refresh handle the state update
-          setIsPrintMode(false);
-          setPrintItems([]);
-          setReverseQtyItems([]);
-          setReversedItems([]);
-          setReverseQtyMode(false);
-          setIsGroupedView(true);
-        } else {
-          // Original flow when no discount
-          setIsPrintMode(false);
-          // 🔥 HARD RESET after KOT save
-          setItems([]);
-          setPrintItems([]);
-          setReverseQtyItems([]);
-          setReversedItems([]);
-          setReverseQtyMode(false);
-          setIsGroupedView(true);
-        }
+        setIsPrintMode(false);
+        // 🔥 HARD RESET after KOT save
+        setItems([]);
+        setPrintItems([]);
+        setReverseQtyItems([]);
+        setReversedItems([]);
+        setReverseQtyMode(false);
+        setIsGroupedView(true);
         // setCurrentKOTNo(null);
         // setCurrentKOTNos([]);
         // setCurrentTxnId(null);
@@ -4170,12 +4158,20 @@ const handleTabClick = (tab: string) => {
                     <span>Taxable Value</span>
                     <span>{taxCalc.taxableValue.toFixed(2)}</span>
                   </div>
-                  {discount > 0 && (
+                  {/* Runtime discount calculation for display */}
+                  {discountInputValue > 0 && (
                     <div className="d-flex justify-content-between">
-                      <span>Discount ({DiscountType === 1 ? `${DiscPer}%` : 'Amt'})</span>
-                      <span>- {discount.toFixed(2)}</span>
+                      <span>Discount ({DiscountType === 1 ? `${discountInputValue}%` : 'Amt'})</span>
+                      <span>- {(() => {
+                        const activeItems = items.filter(item => !item.isReverse);
+                        const lineTotal = activeItems.reduce((sum, item) => sum + item.price * item.qty, 0);
+                        return DiscountType === 1
+                          ? ((lineTotal * discountInputValue) / 100).toFixed(2)
+                          : discountInputValue.toFixed(2);
+                      })()}</span>
                     </div>
                   )}
+                  
                   {roundOffValue !== 0 && (
                     <div className="d-flex justify-content-between">
                       <span>Round Off. ({roundOffTo})</span>
