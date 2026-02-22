@@ -1185,7 +1185,7 @@ const handleTabClick = (tab: string) => {
 
     
   /* ═══════════════════════════════════════════════════════════════════════════════
- * Discount Check - Runtime Calculation (Similar to Billview.tsx)
+ * - Runtime Calculation 
  * ═══════════════════════════════════════════════════════════════════════════════ */
 
     // Calculate runtime discount based on discountInputValue and DiscountType
