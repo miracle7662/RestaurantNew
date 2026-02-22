@@ -1273,11 +1273,14 @@ exports.createKOT = async (req, res) => {
         .get(billHeader.outletid)
       const includeTaxInInvoice = outletSettings ? outletSettings.include_tax_in_invoice : 0
 
+      // FIX: Calculate totalGross considering RevQty (reversed quantity) to get net quantity
       let totalGross = 0
       for (const d of allDetails) {
         const qty = Number(d.Qty) || 0
+        const revQty = Number(d.RevQty) || 0
+        const netQty = qty - revQty // Net quantity after reversal
         const rate = Number(d.RuntimeRate) || 0
-        totalGross += qty * rate
+        totalGross += netQty * rate
       }
 
       let totalCgst = 0,
@@ -1483,11 +1486,23 @@ exports.createReverseKOT = async (req, res) => {
       }
 
       // --- Recalculate Bill Totals After Reversal ---
+      // Fetch all details for this transaction
       const allDetails = db
         .prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? AND isCancelled = 0')
         .all(txnId)
+      
+      // Get the original gross (before any reversal) for discount proportional calculation
+      let originalGross = 0
+      let totalGross = 0
+      for (const d of allDetails) {
+        const originalQty = Number(d.Qty) || 0
+        const netQty = originalQty - (Number(d.RevQty) || 0)
+        originalGross += originalQty * (Number(d.RuntimeRate) || 0)
+        totalGross += netQty * (Number(d.RuntimeRate) || 0)
+      }
+
       const billHeader = db
-        .prepare('SELECT Discount, outletid FROM TAxnTrnbill WHERE TxnID = ?')
+        .prepare('SELECT Discount, DiscPer, DiscountType, outletid FROM TAxnTrnbill WHERE TxnID = ?')
         .get(txnId)
       const outletSettings = db
         .prepare(
@@ -1496,17 +1511,29 @@ exports.createReverseKOT = async (req, res) => {
         .get(billHeader.outletid)
       const includeTaxInInvoice = outletSettings ? outletSettings.include_tax_in_invoice : 0
 
-      let totalGross = 0
-      for (const d of allDetails) {
-        const netQty = (Number(d.Qty) || 0) - (Number(d.RevQty) || 0)
-        totalGross += netQty * (Number(d.RuntimeRate) || 0)
-      }
-
       let totalCgst = 0,
         totalSgst = 0,
         totalIgst = 0,
         totalCess = 0
-      const discountAmount = Number(billHeader.Discount) || 0
+
+      // Get discount info
+      const discountType = Number(billHeader.DiscountType) || 0
+      const discPer = Number(billHeader.DiscPer) || 0
+      const originalDiscount = Number(billHeader.Discount) || 0
+
+      // Calculate discount proportionally based on the remaining gross vs original gross
+      // This ensures that when items are reversed, the discount is also proportionally reduced
+      let discountAmount = 0
+      if (originalGross > 0 && originalDiscount > 0) {
+        const grossRatio = totalGross / originalGross
+        if (discountType === 1) {
+          // Percentage discount - apply same percentage to new gross
+          discountAmount = (totalGross * discPer) / 100
+        } else {
+          // Fixed amount discount - distribute proportionally
+          discountAmount = originalDiscount * grossRatio
+        }
+      }
 
       const firstDetail = allDetails[0] || {}
       const cgstPer = Number(firstDetail.CGST) || 0
@@ -1561,11 +1588,12 @@ exports.createReverseKOT = async (req, res) => {
       db.prepare(
         `
         UPDATE TAxnTrnbill
-        SET GrossAmt = ?, CGST = ?, SGST = ?, IGST = ?, CESS = ?, Amount = ?, RoundOFF = ?, TaxableValue = ?
+        SET GrossAmt = ?, Discount = ?, CGST = ?, SGST = ?, IGST = ?, CESS = ?, Amount = ?, RoundOFF = ?, TaxableValue = ?
         WHERE TxnID = ?
       `,
       ).run(
         totalGross,
+        discountAmount,
         totalCgst,
         totalSgst,
         totalIgst,
