@@ -34,6 +34,7 @@ import { Pie } from 'react-chartjs-2';
 import { useAuthContext } from '@/common/context/useAuthContext';
 import { useNavigate } from 'react-router-dom';
 import HandoverPasswordModal from "../../../components/HandoverPasswordModal.tsx";
+import HandoverService from '@/common/api/handover';
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
@@ -114,17 +115,13 @@ const HandoverPage = () => {
   useEffect(() => {
     const fetchHandoverData = async () => {
       try {
-        const response = await fetch('http://localhost:3001/api/handover/data');
-        if (!response.ok) {
-          throw new Error('Failed to fetch handover data');
-        }
-        const data = await response.json();
-        if (data.success) {
-          console.log("Fetched orders data:", data.data.orders); // Debug log to check revKotNo presence
-          console.log("RevKOT numbers in orders:", data.data.orders.map((order: any) => order.revKotNo));
-          setOrders(data.data.orders);
+        const response = await HandoverService.getHandoverData();
+        if (response.success) {
+          console.log("Fetched orders data:", response.data.orders);
+          console.log("RevKOT numbers in orders:", response.data.orders.map((order: any) => order.revKotNo));
+          setOrders(response.data.orders);
         } else {
-          throw new Error(data.message || 'Failed to fetch data');
+          throw new Error(response.message || 'Failed to fetch data');
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred');
@@ -135,31 +132,25 @@ const HandoverPage = () => {
 
     const fetchHandoverUsers = async () => {
       try {
-        // Assuming API endpoint for fetching outlet users (based on provided controller)
-        // Adjust the URL and params as per your routing (e.g., /api/outlet-users)
-        const params = new URLSearchParams({
-          currentUserId: user?.userid?.toString() || '',
-          roleLevel: user?.role_level || '',
-          hotelid: user?.hotelid?.toString() || '',
-        });
-        const response = await fetch(`http://localhost:3001/api/outlet-users?${params}`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch handover users');
-        }
-        const data = await response.json();
-        console.log('Fetched handover users data:', data); // Debug log
-        let filteredUsers = (data || []).filter((u: HandoverUser) => 
+        const params = {
+          currentUserId: user?.userid,
+          roleLevel: user?.role_level,
+          hotelid: user?.hotelid,
+        };
+        const response = await HandoverService.getHandoverUsers(params);
+        console.log('Fetched handover users data:', response.data);
+        let filteredUsers = (response.data || []).filter((u: HandoverUser) => 
           u.role_level === 'outlet_user' && u.status === 0 && u.userid !== user?.userid
         );
         // If current user is outlet_user, filter by same outlet
         if (user?.role_level === 'outlet_user' && user?.outletid) {
           filteredUsers = filteredUsers.filter((u: HandoverUser) => u.outletid === user.outletid);
         }
-        console.log('Filtered handover users:', filteredUsers); // Debug log
+        console.log('Filtered handover users:', filteredUsers);
         setHandoverUsers(filteredUsers);
       } catch (err) {
         console.error('Error fetching handover users:', err);
-        setHandoverUsers([]); // Fallback to empty array
+        setHandoverUsers([]);
       }
     };
 
@@ -293,24 +284,16 @@ const HandoverPage = () => {
     }
 
     try {
-      const response = await fetch('http://localhost:3001/api/handover/save', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ 
-          handoverToUserId: parseInt(handoverToUserId),
-          handoverByUserId: user?.id 
-        }),
+      const response = await HandoverService.saveHandover({
+        handoverToUserId: parseInt(handoverToUserId),
+        handoverByUserId: user?.userid
       });
 
-      const data = await response.json();
-
-      if (data.success) {
+      if (response.data.success) {
         alert('Handover completed successfully!');
-        navigate('/apps/Orders'); // Or wherever you want to redirect after handover
+        navigate('/apps/Orders');
       } else {
-        throw new Error(data.message || 'Failed to complete handover');
+        throw new Error(response.data.message || 'Failed to complete handover');
       }
     } catch (error) {
       console.error('Error during handover:', error);
@@ -337,51 +320,36 @@ const HandoverPage = () => {
   };
 
 
-  const handleSaveCashDenomination = () => {
+  const handleSaveCashDenomination = async () => {
     const payload = {
       denominations: cashDenominations,
       total: countedCashTotal,
-      expected: totalCash, // totalCash from sales is the expected amount
+      expected: totalCash,
       difference: countedCashTotal - totalCash,
       reason: reason,
       handoverTo: handoverToUserId,
       handoverBy: handoverBy,
-      // In a real app, you'd get the current user's ID
-      userId: 1,
+      userId: user?.userid || 1,
     };
 
-    fetch('http://localhost:3001/api/handover/cash-denomination', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (data.success) {
-          alert(`Cash Denomination saved successfully! Total Counted Cash: ₹${countedCashTotal.toLocaleString()}`);
-          handleCloseCashModal();
-        } else {
-          alert(`Error: ${data.message}`);
-        }
-      })
-      .catch(err => {
-        console.error("Error saving cash denomination:", err);
-        alert("An error occurred while saving. Please check the console.");
-      });
+    try {
+      const response = await HandoverService.saveCashDenomination(payload);
+      if (response.data.success) {
+        alert(`Cash Denomination saved successfully! Total Counted Cash: ₹${countedCashTotal.toLocaleString()}`);
+        handleCloseCashModal();
+      } else {
+        alert(`Error: ${response.data.message}`);
+      }
+    } catch (err) {
+      console.error("Error saving cash denomination:", err);
+      alert("An error occurred while saving. Please check the console.");
+    }
   };
 
   const handlePasswordVerify = async (password: string): Promise<boolean> => {
     try {
-      const response = await fetch('http://localhost:3001/api/auth/verify-password', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${user?.token}`,
-        },
-        body: JSON.stringify({ password }),
-      });
-      const data = await response.json();
-      if (data.success) {
+      const response = await HandoverService.verifyPassword({ password });
+      if (response.data.success) {
         setPasswordVerified(true);
         setShowPasswordModal(false);
         return true;
