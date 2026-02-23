@@ -304,7 +304,7 @@ const DayEnd = () => {
       // Backend may return pending table info
       toast.error(response.message || "❌ Day-End failed!");
 
-      if (response.data?.pendingTables?.length) {
+       if (response.data?.pendingTables?.length) {
   toast(
     `⚠️ Pending Tables: ${response.data.pendingTables.join(", ")}`,
     { icon: "🪑" }

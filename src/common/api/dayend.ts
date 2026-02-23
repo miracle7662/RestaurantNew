@@ -141,6 +141,7 @@ export interface DayendSaveResponse {
   pendingTables?: number[]
 }
 
+
 /** Report generation payload */
 export interface DayendReportPayload {
   DayEndEmpID: number
