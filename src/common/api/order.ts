@@ -612,17 +612,17 @@ const OrderService = {
 /**
    * Get global KOT number
    */
-  getGlobalKOTNumber: (outletId: number): Promise<ApiResponse<{ nextKOT: number }>> =>
+  getGlobalKOTNumber: (outletId: number, currDate?: string): Promise<ApiResponse<{ nextKOT: number }>> =>
     HttpClient.get<ApiResponse<{ nextKOT: number }>>('/TAxnTrnbill/global-kot-number', {
-      params: { outletid: outletId }
+      params: { outletid: outletId, curr_date: currDate }
     }),
 
   /**
    * Get global reverse KOT number
    */
-  fetchGlobalReverseKOTNumber: (outletId: number): Promise<ApiResponse<{ nextRevKOT: number }>> =>
+  fetchGlobalReverseKOTNumber: (outletId: number, currDate?: string): Promise<ApiResponse<{ nextRevKOT: number }>> =>
     HttpClient.get<ApiResponse<{ nextRevKOT: number }>>('/TAxnTrnbill/global-reverse-kot-number', {
-      params: { outletid: outletId }
+      params: { outletid: outletId, curr_date: currDate }
     }),
 
   /* ═══════════════════════════════════════════════════════════════════════════════
