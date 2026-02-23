@@ -86,6 +86,12 @@ const HandoverPage = () => {
   const { user } = useAuthContext();
   const navigate = useNavigate();
 
+  // Helper to get userid - handles both 'id' and 'userid' formats
+  const getUserId = () => user?.userid ?? user?.id;
+  const getRoleLevel = () => user?.role_level ?? user?.role;
+  const getHotelId = () => user?.hotelid;
+  const getOutletId = () => user?.outletid;
+
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [showDetailsModal, setShowDetailsModal] = useState(false);
@@ -133,19 +139,29 @@ const HandoverPage = () => {
 
     const fetchHandoverUsers = async () => {
       try {
+        const currentUserId = getUserId();
+        const roleLevel = getRoleLevel();
+        const hotelid = getHotelId();
+        
+        console.log('Fetching handover users with params:', { currentUserId, roleLevel, hotelid });
+        
         const params = {
-          currentUserId: user?.userid,
-          roleLevel: user?.role_level,
-          hotelid: user?.hotelid,
+          currentUserId: currentUserId,
+          roleLevel: roleLevel,
+          hotelid: hotelid,
         };
         const response = await HandoverService.getHandoverUsers(params);
+        console.log('Fetched handover users response:', response);
         console.log('Fetched handover users data:', response.data);
+        
         let filteredUsers = (response.data || []).filter((u: HandoverUser) => 
-          u.role_level === 'outlet_user' && u.status === 0 && u.userid !== user?.userid
+          u.role_level === 'outlet_user' && u.status === 0 && u.userid !== currentUserId
         );
+        
         // If current user is outlet_user, filter by same outlet
-        if (user?.role_level === 'outlet_user' && user?.outletid) {
-          filteredUsers = filteredUsers.filter((u: HandoverUser) => u.outletid === user.outletid);
+        const outletId = getOutletId();
+        if (roleLevel === 'outlet_user' && outletId) {
+          filteredUsers = filteredUsers.filter((u: HandoverUser) => u.outletid === outletId);
         }
         console.log('Filtered handover users:', filteredUsers);
         setHandoverUsers(filteredUsers);
@@ -156,7 +172,7 @@ const HandoverPage = () => {
     };
 
     fetchHandoverData();
-    if (user?.hotelid) {
+    if (getHotelId()) {
       fetchHandoverUsers();
     }
   }, [user]);
@@ -330,16 +346,16 @@ const HandoverPage = () => {
       reason: reason,
       handoverTo: handoverToUserId,
       handoverBy: handoverBy,
-      userId: user?.userid || 1,
+      userId: getUserId() || 1,
     };
 
     try {
       const response = await HandoverService.saveCashDenomination(payload);
-      if (response.data.success) {
+      if (response.success) {
         alert(`Cash Denomination saved successfully! Total Counted Cash: ₹${countedCashTotal.toLocaleString()}`);
         handleCloseCashModal();
       } else {
-        alert(`Error: ${response.data.message}`);
+        alert(`Error: ${response.message}`);
       }
     } catch (err) {
       console.error("Error saving cash denomination:", err);
@@ -1235,17 +1251,17 @@ const HandoverPage = () => {
             <div className="d-flex justify-content-between py-1">
               <span className="fw-bold text-dark">Handover Expected:</span>
               <span className="fw-semibold text-primary">
-                {totalSales.toLocaleString()}
+                {totalCash.toLocaleString()}
               </span>
             </div>
 
             <div className="d-flex justify-content-between py-1 border-top mt-1">
               <span className="fw-bold text-dark">Surplus / Deficit:</span>
               <span
-                className={`fw-bold ${countedCashTotal - totalSales >= 0 ? 'text-success' : 'text-danger'
+                className={`fw-bold ${countedCashTotal - totalCash >= 0 ? 'text-success' : 'text-danger'
                   }`}
               >
-                {(countedCashTotal - totalSales).toLocaleString()}
+                {(countedCashTotal - totalCash).toLocaleString()}
               </span>
             </div>
 
@@ -1272,7 +1288,7 @@ const HandoverPage = () => {
               variant="success"
               size="sm"
               onClick={handleSaveCashDenomination}
-              disabled={!reason && countedCashTotal !== totalSales} // reason required if mismatch
+              disabled={countedCashTotal === 0} // Enable when user has entered at least some cash denominations
             >
               💾 Save
             </Button>
