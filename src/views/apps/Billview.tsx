@@ -2005,7 +2005,7 @@ const KOTUsedDate = `${user?.currDate} ${time}`;
         customerName: customerName || null,
         mobileNo: customerNo || null,
         customerid: customerId || null,
-        
+
       });
 
       const txnNo = response.data?.TxnNo;
@@ -2018,10 +2018,12 @@ const KOTUsedDate = `${user?.currDate} ${time}`;
       setOrderNo(txnNo);
       toast.success('Bill printed successfully');
 
-      // 4️⃣ Table status update
-      await OrderService.updateTableStatus(tableId, { status: 1 });
+      // 3️⃣ Table status update (only for dine-in orders)
+      if (!isTakeaway && tableId) {
+        await OrderService.updateTableStatus(tableId, { status: 1 });
+      }
 
-      // 5️⃣ Open Settlement Modal with all values
+      // 4️⃣ Open Settlement Modal with all values
       setShowSettlementModal(true);
 
     } catch (error) {
