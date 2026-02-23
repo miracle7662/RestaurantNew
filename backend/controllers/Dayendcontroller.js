@@ -481,7 +481,7 @@ const getLatestCurrDate = (req, res) => {
       currDate = `${businessDate.getFullYear()}-${String(businessDate.getMonth() + 1).padStart(2, '0')}-${String(businessDate.getDate()).padStart(2, '0')}`;
     }
 
-    res.json({ success: true, curr_date: currDate });
+    res.json({ success: true, data: { curr_date: currDate } });
   } catch (error) {
     console.error('Error fetching latest curr_date:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch latest curr_date' });

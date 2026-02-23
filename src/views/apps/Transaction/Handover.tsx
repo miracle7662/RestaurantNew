@@ -35,6 +35,7 @@ import { useAuthContext } from '@/common/context/useAuthContext';
 import { useNavigate } from 'react-router-dom';
 import HandoverPasswordModal from "../../../components/HandoverPasswordModal.tsx";
 import HandoverService from '@/common/api/handover';
+import OrderService from '@/common/api/order.ts';
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
@@ -348,8 +349,8 @@ const HandoverPage = () => {
 
   const handlePasswordVerify = async (password: string): Promise<boolean> => {
     try {
-      const response = await HandoverService.verifyPassword({ password });
-      if (response.data.success) {
+     const response = await OrderService.verifyCreatorPassword(password);
+      if (response.success) {
         setPasswordVerified(true);
         setShowPasswordModal(false);
         return true;

@@ -77,6 +77,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               brandId: currentUser.outletid,   // agar backend me brandId = outletid hai
               hotelid: currentUser.hotelid
             })  
+            if (currDateData.success) {
+  const currDate = currDateData.data.curr_date
+  console.log("Business Date:", currDate)
+}
              console.log('Current user data:', currentUser)
             console.log('Curr date data:', currDateData)
             saveSession({ ...currentUser, token: parsedUser.token, currDate: currDateData.data.curr_date })
