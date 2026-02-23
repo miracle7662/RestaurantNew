@@ -2,8 +2,8 @@ import React from 'react';
 import { Modal, Button, Spinner } from 'react-bootstrap';
 import { toast } from 'react-hot-toast';
 import { OutletSettings } from 'src/utils/applyOutletSettings';
-import {fetchBillSettings} from '@/services/outletSettings.service';
-import {applyBillSettings} from '@/utils/applyOutletSettings';
+import { applyBillSettings } from '@/utils/applyOutletSettings';
+import BillPrintService from '@/common/api/billPrint';
 
 interface MenuItem {
   id: number;
@@ -125,7 +125,12 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
   const loadOutletSettings = async (outletId: number) => {
     try {
       console.log('BillPrint: Loading outlet settings for outletId:', outletId);
-      const { billPreviewSettings, billPrintSettings } = await fetchBillSettings(outletId);
+      const [billPreviewRes, billPrintRes] = await Promise.all([
+        BillPrintService.getBillPreviewSettings(outletId),
+        BillPrintService.getBillPrintSettings(outletId)
+      ]);
+      const billPreviewSettings = billPreviewRes?.data || billPreviewRes;
+      const billPrintSettings = billPrintRes?.data || billPrintRes;
       console.log('BillPrint: Fetched billPreviewSettings:', billPreviewSettings);
       console.log('BillPrint: Fetched billPrintSettings:', billPrintSettings);
       const newFormData = applyBillSettings(localFormData, billPreviewSettings, billPrintSettings);
@@ -162,14 +167,8 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
       console.log('Fetching printer for outletId:', outletId);
 
       try {
-        const res = await fetch(
-          `http://localhost:3001/api/settings/bill-printer-settings/${outletId}`
-        );
-        console.log('API response status:', res.status);
-        if (!res.ok) {
-          throw new Error('Failed to fetch printers');
-        }
-        const data = await res.json();
+        const res = await BillPrintService.getBillPrinterSettings(outletId);
+        const data = res?.data || res;
         console.log('API response data:', data);
         const printer = data?.printer_name || null;
         console.log('Setting printerName to:', printer);
@@ -198,14 +197,11 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
       if (!restaurantName || restaurantName.trim() === '' || restaurantName === 'Restaurant Name' ||
           !outletName || outletName.trim() === '' || outletName === 'Outlet Name') {
         try {
-          const outletRes = await fetch(`http://localhost:3001/api/outlets/${outletId}`);
-          if (outletRes.ok) {
-            const outletData = await outletRes.json();
-            const data = outletData.data || outletData;
-            if (data) {
-              setLocalRestaurantName(data.brand_name || data.hotel_name || 'Restaurant Name');
-              setLocalOutletName(data.outlet_name || 'Outlet Name');
-            }
+          const outletRes = await BillPrintService.getOutletDetails(outletId);
+          const data = outletRes?.data || outletRes;
+          if (data) {
+            setLocalRestaurantName(data.brand_name || data.hotel_name || 'Restaurant Name');
+            setLocalOutletName(data.outlet_name || 'Outlet Name');
           }
         } catch (error) {
           console.error('Error fetching outlet details:', error);
