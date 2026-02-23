@@ -1,8 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 import { Card, Row, Col, Form, Button, Table, Badge,  Modal } from "react-bootstrap";
 import { getUnbilledItemsByTable  } from "@/common/api/orders_old";
+import OrderService, { TransferTablePayload, TransferKOTPayload } from "@/common/api/order";
 import { useAuthContext } from "@/common";
 import { toast } from 'react-hot-toast';
+import TableDepartmentService from '@/common/api/tabledepartment';
+import TableManagementService from '@/common/api/tablemanagement';
+
+
 
 const KOT_COLORS = [
   '#E8F5E9', // Green 50
@@ -101,8 +106,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
 
   const fetchDepartments = async () => {
     try {
-      const response = await fetch('http://localhost:3001/api/table-department');
-      const data = await response.json();
+      const data = await TableDepartmentService.list();
       if (data.success) {
         setDepartments(data.data);
       } else {
@@ -115,10 +119,9 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
 
   const fetchTables = async () => {
     try {
-      const tablesResponse = await fetch('http://localhost:3001/api/tablemanagement');
-      const tablesData = await tablesResponse.json();
-      if (tablesData.success && Array.isArray(tablesData.data)) {
-        const mappedTables: TableData[] = tablesData.data.map((table: any) => ({
+     const response = await TableManagementService.list();
+      if (response.success && Array.isArray(response.data)) {
+        const mappedTables: TableData[] = response.data.map((table: any) => ({
           id: table.tableid.toString(),
           name: table.table_name,
           status: table.status === 1 ? 'Occupied' : table.status === 2 ? 'printed' : table.status === 3 ? 'paid' : table.status === 4 ? 'running-kot' : 'available',
@@ -142,8 +145,8 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
       try {
         await fetchDepartments();
 
-        const tablesResponse = await fetch('http://localhost:3001/api/tablemanagement');
-        const tablesData = await tablesResponse.json();
+        const tablesResponse = await TableManagementService.list();
+        const tablesData = tablesResponse;
         if (tablesData.success && Array.isArray(tablesData.data)) {
           const mappedTables: TableData[] = tablesData.data.map((table: any) => ({
             id: table.tableid.toString(),
@@ -427,20 +430,20 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
       const proposedTableData = tables.find(t => t.id === proposedTableId?.toString());
       const tableOutletId = proposedTableData?.outletid;
 
-      let payload;
-      let endpoint;
+      let result;
 
       if (transferMode === "table" || transferMode === "ORDER") {
-        payload = {
+        const payload: TransferTablePayload = {
           sourceTableId: selectedTableId,
           targetTableId: proposedTableId,
           PAX: proposedPax,
           hotelid: user?.hotelid || user?.hotelId,
           outletid: tableOutletId || user?.outletid || user?.outletId
         };
-        endpoint = 'transfer-table';
+        console.log('SAVE PAYLOAD:', payload);
+        result = await OrderService.transferTable(payload);
       } else {
-        payload = {
+        const payload: TransferKOTPayload = {
           sourceTableId: selectedTableId,
           proposedTableId,
           targetTableName: proposedTable,
@@ -455,21 +458,9 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
           hotelid: user?.hotelid || user?.hotelId,
           outletid: tableOutletId || user?.outletid || user?.outletId
         };
-        endpoint = 'transfer-kot';
+        console.log('SAVE PAYLOAD:', payload);
+        result = await OrderService.transferKOT(payload);
       }
-
-      console.log('SAVE PAYLOAD:', payload);
-
-      const response = await fetch(
-        `http://localhost:3001/api/TAxnTrnbill/${endpoint}`,
-        {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        }
-      );
-
-      const result = await response.json();
 
       if (!result.success) {
         toast.error(result.message || 'Transfer failed');

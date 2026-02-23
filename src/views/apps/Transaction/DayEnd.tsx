@@ -42,6 +42,9 @@ import { Pie } from 'react-chartjs-2';
 import { useAuthContext } from '@/common/context/useAuthContext';
 import { useNavigate } from 'react-router-dom';
 import HandoverPasswordModal from "../../../components/HandoverPasswordModal.tsx";
+import DayendService from '@/common/api/dayend';
+import OrderService from '@/common/api/order.ts';
+
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
@@ -131,17 +134,17 @@ const DayEnd = () => {
   useEffect(() => {
     const fetchdayendData = async () => {
       try {
-        const response = await fetch('http://localhost:3001/api/dayend/data');
-        if (!response.ok) {
-          throw new Error('Failed to fetch dayend data');
+        const response = await DayendService.getDayendData();
+        if (!response.success) {
+          throw new Error('Network response was not ok');
         }
-        const data = await response.json();
-        if (data.success) {
-          console.log("Fetched orders data:", data.data.orders); // Debug log to check revKotNo presence
-          console.log("RevKOT numbers in orders:", data.data.orders.map((order: any) => order.revKotNo));
-          setOrders(data.data.orders);
+        
+        if (response.success) {
+          console.log("Fetched orders data:", response.data.orders); // Debug log to check revKotNo presence
+          console.log("RevKOT numbers in orders:", response.data.orders.map((order: any) => order.revKotNo));
+          setOrders(response.data.orders);
         } else {
-          throw new Error(data.message || 'Failed to fetch data');
+          throw new Error(response.message || 'Failed to fetch data');
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred');
@@ -285,36 +288,28 @@ const DayEnd = () => {
   console.log("Frontend sending payload:", payload);
 
   try {
-    const response = await fetch('http://localhost:3001/api/dayend/save-dayend', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${user?.token}`,
-      },
-      body: JSON.stringify(payload),
-    });
+    const response = await DayendService.saveDayEnd(payload);
+   
+    console.log("Backend response:", response);
 
-    const data = await response.json();
-    console.log("Backend response:", data);
-
-    if (response.ok && data.success) {
-      toast.success(data.message || "✅ Day-End saved successfully!");
+    if (response.success && response.success) {
+      toast.success(response.message || "✅ Day-End saved successfully!");
       setOrders([]); // Clear the orders table after successful day-end
       // Update reportDate to the actual dayend_date from backend
-      if (data.data && data.data.dayend_date) {
-        setReportDate(data.data.dayend_date);
+      if (response.data && response.data.dayend_date) {
+        setReportDate(response.data.dayend_date);
       }
       setShowReportModal(true);
     } else {
       // Backend may return pending table info
-      toast.error(data.message || "❌ Day-End failed!");
+      toast.error(response.message || "❌ Day-End failed!");
 
-      if (data.pendingTables?.length) {
-        toast(`⚠️ Pending Tables: ${data.pendingTables.join(", ")}`, {
-          icon: "🪑",
-          duration: 5000,
-        });
-      }
+       if (response.data?.pendingTables?.length) {
+  toast(
+    `⚠️ Pending Tables: ${response.data.pendingTables.join(", ")}`,
+    { icon: "🪑" }
+  );
+}
     }
   } catch (error) {
     console.error("Error saving day-end:", error);
@@ -342,39 +337,39 @@ const DayEnd = () => {
   };
 
 
-  const handleSaveCashDenomination = () => {
-    const payload = {
-      denominations: cashDenominations,
-      total: countedCashTotal,
-      expected: totalCash, // totalCash from sales is the expected amount
-      difference: countedCashTotal - totalCash,
-      reason: reason,
-      DayEndBy: DayEndBy,
-   
-     
-      // In a real app, you'd get the current user's ID
-      userId: 1,
-    };
-
-    fetch('http://localhost:3001/api/dayend/dayend-cash-denomination', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (data.success) {
-          alert(`Day-End Cash Denomination saved successfully! Total Counted Cash: ₹${countedCashTotal.toLocaleString()}`);
-          handleCloseCashModal();
-        } else {
-          alert(`Error: ${data.message}`);
-        }
-      })
-      .catch(err => {
-        console.error("Error saving cash denomination:", err);
-        alert("An error occurred while saving. Please check the console.");
-      });
+  const handleSaveCashDenomination = async () => {
+  const payload = {
+    denominations: cashDenominations,
+    total: countedCashTotal,
+    expected: totalCash,
+    difference: countedCashTotal - totalCash,
+    reason,
+    DayEndBy,
+    userId: user?.id, // NEVER hardcode 1
   };
+
+  try {
+    setLoading(true);
+
+    const response = await DayendService.saveDayEndCashDenomination(payload);
+
+    if (!response || !response.success || !response.data) {
+      throw new Error(response?.message || "Failed to save cash denomination");
+    }
+
+    alert(
+      `Day-End Cash Denomination saved successfully! Total Counted Cash: ₹${countedCashTotal.toLocaleString()}`
+    );
+
+    handleCloseCashModal();
+
+  } catch (err) {
+    console.error("Error saving cash denomination:", err);
+    alert("An error occurred while saving. Please try again.");
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handlePasswordVerify = async (password: string): Promise<boolean> => {
     try {
@@ -383,16 +378,8 @@ const DayEnd = () => {
         // Optionally, display a user-friendly message here, e.g., toast.error('Authentication required. Please log in again.');
         return false;
       }
-      const response = await fetch('http://localhost:3001/api/auth/verify-password', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${user?.token}`,
-        },
-        body: JSON.stringify({ password }),
-      });
-      const data = await response.json();
-      if (data.success) {
+      const response = await OrderService.verifyCreatorPassword(password);
+      if (response.success) {
         setPasswordVerified(true);
         setShowPasswordModal(false);
         return true;

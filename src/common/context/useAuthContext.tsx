@@ -9,7 +9,7 @@ import {
 } from 'react'
 import { Preloader, PreloaderFull } from '@/components/Misc/Preloader'
 import { getCurrentUser } from '@/common/api/auth'
-import { getLatestCurrDate } from '@/common/api/dayend'
+import DayendService from '@/common/api/dayend'
 
 type User = {
   id: number
@@ -72,9 +72,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           const parsedUser = JSON.parse(storedUser)
           if (parsedUser && parsedUser.token) {
-          const currentUser = await getCurrentUser(parsedUser.token)
-            const currDateData = await getLatestCurrDate(parsedUser.token, currentUser.outletid, currentUser.hotelid)
-            console.log('Current user data:', currentUser)
+            const currentUser = await getCurrentUser(parsedUser.token)
+            const currDateData = await DayendService.getLatestCurrDate({
+              brandId: currentUser.outletid,   // agar backend me brandId = outletid hai
+              hotelid: currentUser.hotelid
+            })  
+            if (currDateData.success) {
+  const currDate = currDateData.data.curr_date
+  console.log("Business Date:", currDate)
+}
+             console.log('Current user data:', currentUser)
             console.log('Curr date data:', currDateData)
             saveSession({ ...currentUser, token: parsedUser.token, currDate: currDateData.data.curr_date })
             console.log('User session restored from localStorage.')

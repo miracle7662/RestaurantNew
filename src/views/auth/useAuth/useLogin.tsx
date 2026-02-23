@@ -1,6 +1,6 @@
 import { useAuthContext } from '@/common'
 import { loginUserWithEmail, loginUserWithUsername } from '@/common/api/auth'
-import { getLatestCurrDate } from '@/common/api/dayend'
+import DayendService from '@/common/api/dayend'
 import { useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { toast } from 'react-hot-toast'
@@ -33,8 +33,11 @@ export default function useLogin() {
       setTimeout(async () => {
        if (res.token) {
   try {
-    const currDateData = await getLatestCurrDate(res.token, res.outletid, res.hotelid)
-    saveSession({ ...res, currDate: currDateData.curr_date })
+   const currDateData = await DayendService.getLatestCurrDate({
+  brandId: res.outletid,
+  hotelid: res.hotelid
+})
+    saveSession({ ...res, currDate: currDateData.data.curr_date })
   } catch (dateError) {
     console.error('Failed to fetch business date:', dateError)
     saveSession(res)
@@ -68,9 +71,16 @@ export default function useLogin() {
         if (res.token) {
           try {
             // Fetch the business date after login
-            const currDateData = await getLatestCurrDate(res.token, res.outletid, res.hotelid)
+            const currDateData = await DayendService.getLatestCurrDate({
+              brandId: res.outletid,
+              hotelid: res.hotelid
+            })
+            if (currDateData.success) {
+  const currDate = currDateData.data.curr_date
+  console.log("Business Date:", currDate)
+}
             // Include currDate in the session
-            saveSession({ ...res, currDate: currDateData.curr_date })
+            saveSession({ ...res, currDate: currDateData.data.curr_date })
           } catch (dateError) {
             // If fetching currDate fails, still save the session without it
             console.error('Failed to fetch business date:', dateError)

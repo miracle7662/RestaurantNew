@@ -446,23 +446,16 @@ export default function App() {
 };
 
 
-  const fetchTakeawayOrders = async () => {
+const fetchTakeawayOrders = async () => {
     try {
       console.log('Fetching takeaway orders for outletId:', user?.outletid);
-      const res = await fetch(`http://localhost:3001/api/TAxnTrnbill/pending-orders?type=takeaway&outletId=${user?.outletid}`);
-      console.log('Takeaway orders response status:', res.status);
-      if (res.ok) {
-        const data = await res.json();
-        console.log('Takeaway orders response data:', data);
-        if (data.success) {
-          console.log('Setting takeaway orders:', data.data);
-          setTakeawayOrders(data.data || []);
-        } else {
-          console.error('API returned success=false:', data.message);
-          setTakeawayOrders([]);
-        }
+      const response = await OrderService.getPendingOrders('takeaway', user?.outletid);
+      console.log('Takeaway orders response:', response);
+      if (response.success) {
+        console.log('Setting takeaway orders:', response.data);
+        setTakeawayOrders(response.data || []);
       } else {
-        console.error('API request failed with status:', res.status);
+        console.error('API returned success=false:', response.message);
         setTakeawayOrders([]);
       }
     } catch (error) {

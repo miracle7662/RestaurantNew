@@ -134,6 +134,14 @@ export interface DayendSavePayload {
   created_by_id: number
 }
 
+export interface DayendSaveResponse {
+  id?: number
+  dayend_date?: string
+  curr_date?: string
+  pendingTables?: number[]
+}
+
+
 /** Report generation payload */
 export interface DayendReportPayload {
   DayEndEmpID: number
@@ -193,8 +201,13 @@ const DayendService = {
   /**
    * Save dayend (complete dayend process)
    */
-  saveDayEnd: (payload: DayendSavePayload): Promise<ApiResponse<{ id: number; dayend_date: string; curr_date: string }>> =>
-    HttpClient.post<ApiResponse<{ id: number; dayend_date: string; curr_date: string }>>('/dayend/save-dayend', payload),
+  saveDayEnd: (
+  payload: DayendSavePayload
+): Promise<ApiResponse<DayendSaveResponse>> =>
+  HttpClient.post<ApiResponse<DayendSaveResponse>>(
+    '/dayend/save-dayend',
+    payload
+  ),
 
   /**
    * Generate dayend report HTML
@@ -210,43 +223,3 @@ const DayendService = {
 }
 
 export default DayendService
-
-/* ═══════════════════════════════════════════════════════════════════════════════
- * Backward Compatible Named Exports (for existing code)
- * ═══════════════════════════════════════════════════════════════════════════════ */
-
-/**
- * Get latest curr_date - backward compatible version
- * @deprecated Use DayendService.getLatestCurrDate instead
- */
-export const getLatestCurrDate = async (
-  token: string,
-  outletid?: number,
-  hotelid?: number
-): Promise<ApiResponse<LatestCurrDateData>> => {
-  const params = new URLSearchParams()
-  if (outletid) params.append('brandId', outletid.toString())
-  if (hotelid) params.append('hotelid', hotelid.toString())
-
-  return HttpClient.get<ApiResponse<LatestCurrDateData>>(
-    `/dayend/latest-currdate?${params.toString()}`
-  )
-}
-
-/**
- * Get closing balance - backward compatible version
- * @deprecated Use DayendService.getClosingBalance instead
- */
-export const getClosingBalance = async (
-  token: string,
-  outletid?: number,
-  hotelid?: number
-): Promise<ApiResponse<ClosingBalanceData>> => {
-  const params = new URLSearchParams()
-  if (outletid) params.append('outlet_id', outletid.toString())
-  if (hotelid) params.append('hotel_id', hotelid.toString())
-
-  return HttpClient.get<ApiResponse<ClosingBalanceData>>(
-    `/dayend/closing-balance?${params.toString()}`
-  )
-}

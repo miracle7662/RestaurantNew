@@ -136,6 +136,12 @@ const ModernBill = () => {
   const takeawayOrderId = location.state?.orderId;
   const { user } = useAuthContext();
 
+const now = new Date();
+
+const time = now.toTimeString().split(' ')[0]; // HH:MM:SS
+
+const KOTUsedDate = `${user?.currDate} ${time}`;
+
   console.log('Table ID:', tableId);
   console.log('Table Name:', tableName);
   console.log('ORDER MODE', {
@@ -847,7 +853,6 @@ const ModernBill = () => {
           sgst: item.sgst ?? (total * 0.025),           // 2.5% default fallback
           igst: item.igst ?? 0,
           cess: item.cess ?? 0,
-
           mkotNo: item.kotNo ? item.kotNo.toString() : (item.KOTNo ? item.KOTNo.toString() : ''),
           specialInstructions: item.specialInstructions || item.SpecialInst || '',
           isBilled: 0,
@@ -1143,56 +1148,75 @@ const ModernBill = () => {
     }
   };
 
-  const calculateTotals = (items: BillItem[]) => {
-    const updatedItems = items.map(item => {
-      const total = item.qty * item.rate;
-      let cgst = 0;
-      let sgst = 0;
-      let igst = 0;
-      let cess = 0;
-      if (!includeTaxInInvoice) {
-        cgst = total * (cgstRate / 100);
-        sgst = total * (sgstRate / 100);
-        igst = total * (igstRate / 100);
-        cess = total * (cessRate / 100);
-      }
-      return { ...item, total, cgst, sgst, igst, cess };
-    });
+ const calculateTotals = (items: BillItem[]) => {
 
-    const gross = updatedItems.reduce((sum, item) => sum + item.total, 0);
-    const cgstTotal = updatedItems.reduce((sum, item) => sum + item.cgst, 0);
-    const sgstTotal = updatedItems.reduce((sum, item) => sum + item.sgst, 0);
-    const igstTotal = updatedItems.reduce((sum, item) => sum + item.igst, 0);
-    const cessTotal = updatedItems.reduce((sum, item) => sum + item.cess, 0);
+  const updatedItems = items.map(item => {
+    const total = item.qty * item.rate;
+    return { ...item, total };
+  });
 
-    const discountAmount = DiscountType === 1 ? (gross * discountInputValue) / 100 : discountInputValue;
-    let taxableValue = 0;
+  const gross = updatedItems.reduce((sum, item) => sum + item.total, 0);
 
-    if (includeTaxInInvoice) {
-      const totalTaxRate = cgstRate + sgstRate + igstRate + cessRate;
-      // First subtract discount from gross, then calculate pre-tax base
-      const discountedGross = gross - discountAmount;
-      const preTaxBase = totalTaxRate > 0 ? discountedGross / (1 + totalTaxRate / 100) : discountedGross;
-      taxableValue = preTaxBase;
-    } else {
-      taxableValue = gross - discountAmount;
-    }
+  // Discount
+  const discountAmount =
+    DiscountType === 1
+      ? (gross * discountInputValue) / 100
+      : discountInputValue;
 
-    // When includeTaxInInvoice is true, use taxableValue (preTaxBase), not gross
-    const totalBeforeRoundOff = taxableValue + cgstTotal + sgstTotal + igstTotal + cessTotal;
-    const roundedFinalAmount = Math.round(totalBeforeRoundOff);
-    const ro = roundedFinalAmount - totalBeforeRoundOff;
+  const discountedGross = gross - discountAmount;
 
-    setGrossAmount(gross);
-    setCgst(cgstTotal);
-    setSgst(sgstTotal);
-    setIgst(igstTotal);
-    setTotalCess(cessTotal);
-    setFinalAmount(roundedFinalAmount);
-    setRoundOff(ro);
-    setBillItems(updatedItems);
-    setTaxCalc({ grandTotal: roundedFinalAmount, subtotal: gross, taxableValue });
-  };
+  let taxableValue = 0;
+  let cgstTotal = 0;
+  let sgstTotal = 0;
+  let igstTotal = 0;
+  let cessTotal = 0;
+
+  const totalTaxRate = cgstRate + sgstRate + igstRate + cessRate;
+
+  if (includeTaxInInvoice) {
+    // 🔹 TAX INCLUSIVE
+
+    taxableValue =
+      totalTaxRate > 0
+        ? discountedGross / (1 + totalTaxRate / 100)
+        : discountedGross;
+
+    cgstTotal = taxableValue * (cgstRate / 100);
+    sgstTotal = taxableValue * (sgstRate / 100);
+    igstTotal = taxableValue * (igstRate / 100);
+    cessTotal = taxableValue * (cessRate / 100);
+
+  } else {
+    // 🔹 TAX EXCLUSIVE
+
+    taxableValue = discountedGross;
+
+    cgstTotal = taxableValue * (cgstRate / 100);
+    sgstTotal = taxableValue * (sgstRate / 100);
+    igstTotal = taxableValue * (igstRate / 100);
+    cessTotal = taxableValue * (cessRate / 100);
+  }
+
+  const totalBeforeRoundOff =
+    taxableValue + cgstTotal + sgstTotal + igstTotal + cessTotal;
+
+  const roundedFinalAmount = Math.round(totalBeforeRoundOff);
+  const ro = roundedFinalAmount - totalBeforeRoundOff;
+
+  setGrossAmount(gross);
+  setCgst(cgstTotal);
+  setSgst(sgstTotal);
+  setIgst(igstTotal);
+  setTotalCess(cessTotal);
+  setFinalAmount(roundedFinalAmount);
+  setRoundOff(ro);
+  setBillItems(updatedItems);
+  setTaxCalc({
+    grandTotal: roundedFinalAmount,
+    subtotal: gross,
+    taxableValue,
+  });
+};
 
   // Fetch outlets and set default restaurant/outlet names
   useEffect(() => {
@@ -1687,7 +1711,7 @@ const ModernBill = () => {
         DiscPer: DiscountType === 1 ? discountInputValue : 0,
         DiscountType: DiscountType,
         TxnDatetime: user?.currDate,
-        KOTUsedDate: `${user?.currDate} ${new Date().toLocaleTimeString()}`, // Pass curr_date for KOTUsedDate similar to TxnDatetime
+       KOTUsedDate: `${user?.currDate} ${new Date().toTimeString().split(' ')[0]}`, // Pass curr_date for KOTUsedDate similar to TxnDatetime
         ...(txnId ? { txnId } : {}),
         ...(isNoCharge ? { NCName: ncName, NCPurpose: ncPurpose } : {}),
         items: validItems.map(item => ({
@@ -1875,6 +1899,7 @@ const ModernBill = () => {
           name: item.itemName,
           qty: item.cancelQty,
           price: item.rate,
+          KOTUsedDate: `${user?.currDate} ${new Date().toTimeString().split(' ')[0]}`,
         })),
         userId: user?.id,
         reversalReason: 'Reverse from Billview',
@@ -1915,9 +1940,9 @@ const ModernBill = () => {
 
   const printKOT = async (kotNo: number) => {
     try {
-      const response = await axios.post(`/api/kot/print/${kotNo}`, {
-        CustomerName: customerName || null,
-        MobileNo: customerNo || null,
+      const response = await OrderService.printKOT(kotNo, {
+        CustomerName: customerName || undefined,
+        MobileNo: customerNo || undefined,
       });
       toast.success('KOT printed successfully');
       // Handle print data if needed
@@ -1937,18 +1962,15 @@ const ModernBill = () => {
     }
 
     try {
-      // 1️⃣ Generate TxnNo (Bill No)
-      const response = await axios.put(
-        `/api/TAxnTrnbill/${txnId}/mark-billed`,
-        {
-          outletId: selectedOutletId || Number(user?.outletid),
-          customerName: customerName || null,
-          mobileNo: customerNo || null,
-          customerid: customerId || null,
-        }
-      );
+      // 1️⃣ Generate TxnNo (Bill No) using common API service
+      const response = await OrderService.markBillAsBilled(txnId, {
+        outletId: selectedOutletId || Number(user?.outletid),
+        customerName: customerName || null,
+        mobileNo: customerNo || null,
+        customerid: customerId || null,
+      });
 
-      const txnNo = response.data?.data?.TxnNo;
+      const txnNo = response.data?.TxnNo;
       if (!txnNo) {
         toast.error('TxnNo not generated');
         return;
