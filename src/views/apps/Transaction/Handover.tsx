@@ -133,14 +133,20 @@ const HandoverPage = () => {
 
     const fetchHandoverUsers = async () => {
       try {
-        const params = {
-          currentUserId: user?.userid,
-          roleLevel: user?.role_level,
-          hotelid: user?.hotelid,
-        };
-        const response = await HandoverService.getHandoverUsers(params);
-        console.log('Fetched handover users data:', response.data);
-        let filteredUsers = (response.data || []).filter((u: HandoverUser) => 
+         // Assuming API endpoint for fetching outlet users (based on provided controller)
+        // Adjust the URL and params as per your routing (e.g., /api/outlet-users)
+        const params = new URLSearchParams({
+          currentUserId: user?.userid?.toString() || '',
+          roleLevel: user?.role_level || '',
+          hotelid: user?.hotelid?.toString() || '',
+        });
+        const response = await fetch(`http://localhost:3001/api/outlet-users?${params}`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch handover users');
+        }
+        const data = await response.json();
+        console.log('Fetched handover users data:', data); // Debug log
+        let filteredUsers = (data || []).filter((u: HandoverUser) =>
           u.role_level === 'outlet_user' && u.status === 0 && u.userid !== user?.userid
         );
         // If current user is outlet_user, filter by same outlet
@@ -287,14 +293,14 @@ const HandoverPage = () => {
     try {
       const response = await HandoverService.saveHandover({
         handoverToUserId: parseInt(handoverToUserId),
-        handoverByUserId: user?.userid
+        handoverByUserId: user?.id
       });
 
-      if (response.data.success) {
+      if (response.success) {
         alert('Handover completed successfully!');
         navigate('/apps/Orders');
       } else {
-        throw new Error(response.data.message || 'Failed to complete handover');
+        throw new Error(response.message || 'Failed to complete handover');
       }
     } catch (error) {
       console.error('Error during handover:', error);

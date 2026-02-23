@@ -353,7 +353,7 @@ const DayEnd = () => {
 
     const response = await DayendService.saveDayEndCashDenomination(payload);
 
-    if (!response || !response.success || !response.data) {
+    if (!response || !response.success ) {
       throw new Error(response?.message || "Failed to save cash denomination");
     }
 
