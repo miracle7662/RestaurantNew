@@ -86,12 +86,6 @@ const HandoverPage = () => {
   const { user } = useAuthContext();
   const navigate = useNavigate();
 
-  // Helper to get userid - handles both 'id' and 'userid' formats
-  const getUserId = () => user?.userid ?? user?.id;
-  const getRoleLevel = () => user?.role_level ?? user?.role;
-  const getHotelId = () => user?.hotelid;
-  const getOutletId = () => user?.outletid;
-
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [showDetailsModal, setShowDetailsModal] = useState(false);
@@ -139,29 +133,19 @@ const HandoverPage = () => {
 
     const fetchHandoverUsers = async () => {
       try {
-        const currentUserId = getUserId();
-        const roleLevel = getRoleLevel();
-        const hotelid = getHotelId();
-        
-        console.log('Fetching handover users with params:', { currentUserId, roleLevel, hotelid });
-        
         const params = {
-          currentUserId: currentUserId,
-          roleLevel: roleLevel,
-          hotelid: hotelid,
+          currentUserId: user?.userid,
+          roleLevel: user?.role_level,
+          hotelid: user?.hotelid,
         };
         const response = await HandoverService.getHandoverUsers(params);
-        console.log('Fetched handover users response:', response);
         console.log('Fetched handover users data:', response.data);
-        
         let filteredUsers = (response.data || []).filter((u: HandoverUser) => 
-          u.role_level === 'outlet_user' && u.status === 0 && u.userid !== currentUserId
+          u.role_level === 'outlet_user' && u.status === 0 && u.userid !== user?.userid
         );
-        
         // If current user is outlet_user, filter by same outlet
-        const outletId = getOutletId();
-        if (roleLevel === 'outlet_user' && outletId) {
-          filteredUsers = filteredUsers.filter((u: HandoverUser) => u.outletid === outletId);
+        if (user?.role_level === 'outlet_user' && user?.outletid) {
+          filteredUsers = filteredUsers.filter((u: HandoverUser) => u.outletid === user.outletid);
         }
         console.log('Filtered handover users:', filteredUsers);
         setHandoverUsers(filteredUsers);
@@ -172,7 +156,7 @@ const HandoverPage = () => {
     };
 
     fetchHandoverData();
-    if (getHotelId()) {
+    if (user?.hotelid) {
       fetchHandoverUsers();
     }
   }, [user]);
@@ -346,7 +330,7 @@ const HandoverPage = () => {
       reason: reason,
       handoverTo: handoverToUserId,
       handoverBy: handoverBy,
-      userId: getUserId() || 1,
+      userId: user?.userid || 1,
     };
 
     try {
@@ -1251,17 +1235,17 @@ const HandoverPage = () => {
             <div className="d-flex justify-content-between py-1">
               <span className="fw-bold text-dark">Handover Expected:</span>
               <span className="fw-semibold text-primary">
-                {totalCash.toLocaleString()}
+                {totalSales.toLocaleString()}
               </span>
             </div>
 
             <div className="d-flex justify-content-between py-1 border-top mt-1">
               <span className="fw-bold text-dark">Surplus / Deficit:</span>
               <span
-                className={`fw-bold ${countedCashTotal - totalCash >= 0 ? 'text-success' : 'text-danger'
+                className={`fw-bold ${countedCashTotal - totalSales >= 0 ? 'text-success' : 'text-danger'
                   }`}
               >
-                {(countedCashTotal - totalCash).toLocaleString()}
+                {(countedCashTotal - totalSales).toLocaleString()}
               </span>
             </div>
 
@@ -1288,7 +1272,7 @@ const HandoverPage = () => {
               variant="success"
               size="sm"
               onClick={handleSaveCashDenomination}
-              disabled={countedCashTotal === 0} // Enable when user has entered at least some cash denominations
+              disabled={!reason && countedCashTotal !== totalSales} // reason required if mismatch
             >
               💾 Save
             </Button>
