@@ -1899,6 +1899,7 @@ const KOTUsedDate = `${user?.currDate} ${time}`;
           name: item.itemName,
           qty: item.cancelQty,
           price: item.rate,
+          KOTUsedDate: `${user?.currDate} ${new Date().toTimeString().split(' ')[0]}`,
         })),
         userId: user?.id,
         reversalReason: 'Reverse from Billview',

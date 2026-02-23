@@ -134,6 +134,13 @@ export interface DayendSavePayload {
   created_by_id: number
 }
 
+export interface DayendSaveResponse {
+  id?: number
+  dayend_date?: string
+  curr_date?: string
+  pendingTables?: number[]
+}
+
 /** Report generation payload */
 export interface DayendReportPayload {
   DayEndEmpID: number
@@ -193,8 +200,13 @@ const DayendService = {
   /**
    * Save dayend (complete dayend process)
    */
-  saveDayEnd: (payload: DayendSavePayload): Promise<ApiResponse<{ id: number; dayend_date: string; curr_date: string }>> =>
-    HttpClient.post<ApiResponse<{ id: number; dayend_date: string; curr_date: string }>>('/dayend/save-dayend', payload),
+  saveDayEnd: (
+  payload: DayendSavePayload
+): Promise<ApiResponse<DayendSaveResponse>> =>
+  HttpClient.post<ApiResponse<DayendSaveResponse>>(
+    '/dayend/save-dayend',
+    payload
+  ),
 
   /**
    * Generate dayend report HTML

@@ -19,6 +19,7 @@ export interface Table {
   outletid: number
   hotelid: number
   departmentid: number
+  department_name?: string
   marketid: number
   status: number
   capacity?: number
