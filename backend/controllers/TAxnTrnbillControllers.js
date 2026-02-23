@@ -1164,11 +1164,23 @@ exports.createKOT = async (req, res) => {
         console.log(`Created new bill. TxnID: ${txnId}. Updated table ${TableID} status.`)
       }
 
-      // 2. Generate a new KOT number by finding the max KOT for the current day for that outlet.
+      // 2. Fetch outlet-specific tax rates
+      const taxSettings = db
+        .prepare('SELECT cgst_rate, sgst_rate, igst_rate, cess_rate FROM mstoutlet_settings WHERE outletid = ?')
+        .get(outletid) || { cgst_rate: 2.5, sgst_rate: 2.5, igst_rate: 0, cess_rate: 0 }
+
+      const outletCgstRate = Number(taxSettings.cgst_rate) || 2.5
+      const outletSgstRate = Number(taxSettings.sgst_rate) || 2.5
+      const outletIgstRate = Number(taxSettings.igst_rate) || 0
+      const outletCessRate = Number(taxSettings.cess_rate) || 0
+
+      console.log(`Using outlet tax rates - CGST: ${outletCgstRate}%, SGST: ${outletSgstRate}%, IGST: ${outletIgstRate}%, CESS: ${outletCessRate}%`)
+
+      // 3. Generate a new KOT number by finding the max KOT for the current day for that outlet.
       const maxKOTResult = db
         .prepare(
           `
-        SELECT MAX(KOTNo) as maxKOT 
+        SELECT MAX(KOTNo) as maxKOT
         FROM TAxnTrnbilldetails
         WHERE outletid = ? AND date(KOTUsedDate) = date('now')
       `,
@@ -1194,6 +1206,15 @@ exports.createKOT = async (req, res) => {
 
       const getItemStmt = db.prepare('SELECT item_no FROM mstrestmenu WHERE restitemid = ?')
 
+      // Calculate totalGross for discount distribution ONCE before processing items
+      let totalGrossForDiscount = 0
+      for (const d of details) {
+        const itemQty = Number(d.Qty) || 0
+        const itemRate = Number(d.RuntimeRate) || 0
+        totalGrossForDiscount += itemQty * itemRate
+      }
+      console.log('Total gross for discount calculation:', totalGrossForDiscount)
+
       for (const item of details) {
         const qty = Number(item.Qty) || 0
 
@@ -1205,10 +1226,10 @@ exports.createKOT = async (req, res) => {
         }
         const rate = Number(item.RuntimeRate) || 0
         const lineSubtotal = qty * rate
-        const cgstPer = Number(item.CGST) || 0
-        const sgstPer = Number(item.SGST) || 0
-        const igstPer = Number(item.IGST) || 0
-        const cessPer = Number(item.CESS) || 0
+        const cgstPer = Number(item.CGST) || outletCgstRate
+        const sgstPer = Number(item.SGST) || outletSgstRate
+        const igstPer = Number(item.IGST) || outletIgstRate
+        const cessPer = Number(item.CESS) || outletCessRate
         const cgstAmt = Number(item.CGST_AMOUNT) || (lineSubtotal * cgstPer) / 100
         const sgstAmt = Number(item.SGST_AMOUNT) || (lineSubtotal * sgstPer) / 100
         const igstAmt = Number(item.IGST_AMOUNT) || (lineSubtotal * igstPer) / 100
@@ -1216,13 +1237,17 @@ exports.createKOT = async (req, res) => {
         const isNCKOT = toBool(item.isNCKOT)
         const order_tag = item.order_tag || ''
 
+        // Fixed discount distribution - calculate proportionally based on item's line subtotal
         let itemDiscountAmount = 0
         if (finalDiscountType === 1) {
-          // Percentage
+          // Percentage discount - apply percentage to each item's line subtotal
           itemDiscountAmount = (lineSubtotal * finalDiscPer) / 100
-        } else {
-          // Fixed amount
-          itemDiscountAmount = finalDiscount
+        } else if (finalDiscountType === 0 && finalDiscount > 0) {
+          // Fixed amount discount - distribute proportionally based on item's line subtotal relative to total
+          if (totalGrossForDiscount > 0) {
+            const proportion = lineSubtotal / totalGrossForDiscount
+            itemDiscountAmount = finalDiscount * proportion
+          }
         }
 
         let itemNo = item.item_no
@@ -1260,76 +1285,53 @@ exports.createKOT = async (req, res) => {
         })
       }
 
-      // Manually recalculate and update bill totals to ensure accuracy,
-      // as relying on triggers can be inconsistent.
-      const allDetails = db
+      // Fetch all details for this transaction to get the actual saved values
+      const savedDetails = db
         .prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? AND isCancelled = 0')
         .all(txnId)
-      const billHeader = db
-        .prepare('SELECT RoundOFF, Discount, outletid FROM TAxnTrnbill WHERE TxnID = ?')
-        .get(txnId)
-      const outletSettings = db
-        .prepare('SELECT include_tax_in_invoice FROM mstoutlet_settings WHERE outletid = ?')
-        .get(billHeader.outletid)
-      const includeTaxInInvoice = outletSettings ? outletSettings.include_tax_in_invoice : 0
-
+      
+      // Sum up the actual values from the detail records
       let totalGross = 0
-      for (const d of allDetails) {
+      let totalDiscount = 0
+      let totalCgst = 0
+      let totalSgst = 0
+      let totalIgst = 0
+      let totalCess = 0
+      
+      for (const d of savedDetails) {
         const qty = Number(d.Qty) || 0
         const rate = Number(d.RuntimeRate) || 0
-        totalGross += qty * rate
+        const lineGross = qty * rate
+        const discountAmt = Number(d.Discount_Amount) || 0
+        const cgstAmt = Number(d.CGST_AMOUNT) || 0
+        const sgstAmt = Number(d.SGST_AMOUNT) || 0
+        const igstAmt = Number(d.IGST_AMOUNT) || 0
+        const cessAmt = Number(d.CESS_AMOUNT) || 0
+        
+        totalGross += lineGross
+        totalDiscount += discountAmt
+        totalCgst += cgstAmt
+        totalSgst += sgstAmt
+        totalIgst += igstAmt
+        totalCess += cessAmt
       }
 
-      let totalCgst = 0,
-        totalSgst = 0,
-        totalIgst = 0,
-        totalCess = 0
-      const discountAmount = Number(billHeader.Discount) || 0
+      // Taxable value = Gross - Discount
+      const finalTaxableValue = totalGross - totalDiscount
+      const totalBeforeRoundOff = finalTaxableValue + totalCgst + totalSgst + totalIgst + totalCess
 
-      // Use tax percentages from the first item as they are consistent for the bill.
-      const firstDetail = allDetails[0] || {}
-      const cgstPer = Number(firstDetail.CGST) || 0
-      const sgstPer = Number(firstDetail.SGST) || 0
-      const igstPer = Number(firstDetail.IGST) || 0
-      const cessPer = Number(firstDetail.CESS) || 0
-
-      let totalBeforeRoundOff = 0
-      let finalTaxableValue = 0
-
-      if (includeTaxInInvoice === 1) {
-        const combinedPer = cgstPer + sgstPer + igstPer + cessPer
-        const preTaxBase = combinedPer > 0 ? totalGross / (1 + combinedPer / 100) : totalGross
-        const newTaxableValue = preTaxBase - discountAmount
-        finalTaxableValue = newTaxableValue
-
-        totalCgst = (newTaxableValue * cgstPer) / 100
-        totalSgst = (newTaxableValue * sgstPer) / 100
-        totalIgst = (newTaxableValue * igstPer) / 100
-        totalCess = (newTaxableValue * cessPer) / 100
-        totalBeforeRoundOff = newTaxableValue + totalCgst + totalSgst + totalIgst + totalCess
-      } else {
-        const taxableValue = totalGross - discountAmount
-        finalTaxableValue = taxableValue
-        // Recalculate taxes based on the post-discount taxable value
-        totalCgst = (taxableValue * cgstPer) / 100
-        totalSgst = (taxableValue * sgstPer) / 100
-        totalIgst = (taxableValue * igstPer) / 100
-        totalCess = (taxableValue * cessPer) / 100
-        totalBeforeRoundOff = taxableValue + totalCgst + totalSgst + totalIgst + totalCess
-      }
-
-      // Apply rounding on the backend to ensure consistency
-      const { bill_round_off, bill_round_off_to } =
-        db
-          .prepare(
-            'SELECT bill_round_off, bill_round_off_to FROM mstoutlet_settings WHERE outletid = ?',
-          )
-          .get(billHeader.outletid) || {}
+      // Apply rounding
+      const outletSettings = db
+        .prepare(
+          'SELECT bill_round_off, bill_round_off_to FROM mstoutlet_settings WHERE outletid = ?',
+        )
+        .get(outletid) || {}
+      
       let finalAmount = totalBeforeRoundOff
       let finalRoundOff = 0
 
-      if (bill_round_off && bill_round_off_to > 0) {
-        finalAmount = Math.round(totalBeforeRoundOff / bill_round_off_to) * bill_round_off_to
+      if (outletSettings.bill_round_off && outletSettings.bill_round_off_to > 0) {
+        finalAmount = Math.round(totalBeforeRoundOff / outletSettings.bill_round_off_to) * outletSettings.bill_round_off_to
         finalRoundOff = finalAmount - totalBeforeRoundOff
       }
 
@@ -1341,7 +1343,7 @@ exports.createKOT = async (req, res) => {
       `,
       ).run(
         totalGross,
-        discountAmount,
+        totalDiscount,
         totalCgst,
         totalSgst,
         totalIgst,
