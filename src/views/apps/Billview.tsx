@@ -136,6 +136,12 @@ const ModernBill = () => {
   const takeawayOrderId = location.state?.orderId;
   const { user } = useAuthContext();
 
+const now = new Date();
+
+const time = now.toTimeString().split(' ')[0]; // HH:MM:SS
+
+const KOTUsedDate = `${user?.currDate} ${time}`;
+
   console.log('Table ID:', tableId);
   console.log('Table Name:', tableName);
   console.log('ORDER MODE', {
@@ -1705,7 +1711,7 @@ const ModernBill = () => {
         DiscPer: DiscountType === 1 ? discountInputValue : 0,
         DiscountType: DiscountType,
         TxnDatetime: user?.currDate,
-        KOTUsedDate: `${user?.currDate} ${new Date().toLocaleTimeString()}`, // Pass curr_date for KOTUsedDate similar to TxnDatetime
+       KOTUsedDate: `${user?.currDate} ${new Date().toTimeString().split(' ')[0]}`, // Pass curr_date for KOTUsedDate similar to TxnDatetime
         ...(txnId ? { txnId } : {}),
         ...(isNoCharge ? { NCName: ncName, NCPurpose: ncPurpose } : {}),
         items: validItems.map(item => ({

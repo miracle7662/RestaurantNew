@@ -591,6 +591,14 @@ const OrderService = {
   getGlobalKOTNumber: (outletId: number): Promise<ApiResponse<{ nextKOT: number }>> =>
     HttpClient.get<ApiResponse<{ nextKOT: number }>>('/TAxnTrnbill/global-kot-number', {
       params: { outletid: outletId }
+    }),
+
+  /**
+   * Get global reverse KOT number
+   */
+  fetchGlobalReverseKOTNumber: (outletId: number): Promise<ApiResponse<{ nextRevKOT: number }>> =>
+    HttpClient.get<ApiResponse<{ nextRevKOT: number }>>('/TAxnTrnbill/global-reverse-kot-number', {
+      params: { outletid: outletId }
     })
 }
 
