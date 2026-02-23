@@ -597,11 +597,11 @@ const OrderService = {
   getWaiterUsers: (outletId: number): Promise<ApiResponse<WaiterUser[]>> =>
     HttpClient.get<ApiResponse<WaiterUser[]>>(`/outlet-users/waiters/${outletId}`),
 
-  /**
+/**
    * Get pending orders by type
    */
-  getPendingOrders: (type: 'pickup' | 'delivery'): Promise<ApiResponse<PendingOrder[]>> =>
-    HttpClient.get<ApiResponse<PendingOrder[]>>('/TAxnTrnbill/pending-orders', { params: { type } }),
+  getPendingOrders: (type: 'pickup' | 'delivery' | 'takeaway', outletId?: number): Promise<ApiResponse<PendingOrder[]>> =>
+    HttpClient.get<ApiResponse<PendingOrder[]>>('/TAxnTrnbill/pending-orders', { params: { type, outletId } }),
 
   /**
    * Get quick bills
