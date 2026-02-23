@@ -1987,6 +1987,7 @@ const KOTUsedDate = `${user?.currDate} ${time}`;
       toast.error('Error printing bill');
     }
   };
+  
 
   const PrintAndSettle = async () => {
     if (!txnId) return;
