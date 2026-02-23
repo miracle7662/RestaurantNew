@@ -2549,7 +2549,7 @@ const handleTabClick = (tab: string) => {
       if (selectedTable) {
         const tableToUpdate = tableItems.find(t => t.table_name === selectedTable);
         if (tableToUpdate) {
-          await OrderService.updateTableStatus(tableToUpdate.tableid, { status: 1 });
+          await OrderService.updateTableStatus(tableToUpdate.tableid, { status: 0 });
         }
       }
       fetchTableManagement(); // Refresh table statuses

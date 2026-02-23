@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Card, Row, Col, Form, Button, Table, Badge,  Modal } from "react-bootstrap";
 import { getUnbilledItemsByTable  } from "@/common/api/orders_old";
+import OrderService, { TransferTablePayload, TransferKOTPayload } from "@/common/api/order";
 import { useAuthContext } from "@/common";
 import { toast } from 'react-hot-toast';
 import TableDepartmentService from '@/common/api/tabledepartment';
@@ -429,20 +430,20 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
       const proposedTableData = tables.find(t => t.id === proposedTableId?.toString());
       const tableOutletId = proposedTableData?.outletid;
 
-      let payload;
-      let endpoint;
+      let result;
 
       if (transferMode === "table" || transferMode === "ORDER") {
-        payload = {
+        const payload: TransferTablePayload = {
           sourceTableId: selectedTableId,
           targetTableId: proposedTableId,
           PAX: proposedPax,
           hotelid: user?.hotelid || user?.hotelId,
           outletid: tableOutletId || user?.outletid || user?.outletId
         };
-        endpoint = 'transfer-table';
+        console.log('SAVE PAYLOAD:', payload);
+        result = await OrderService.transferTable(payload);
       } else {
-        payload = {
+        const payload: TransferKOTPayload = {
           sourceTableId: selectedTableId,
           proposedTableId,
           targetTableName: proposedTable,
@@ -457,21 +458,9 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
           hotelid: user?.hotelid || user?.hotelId,
           outletid: tableOutletId || user?.outletid || user?.outletId
         };
-        endpoint = 'transfer-kot';
+        console.log('SAVE PAYLOAD:', payload);
+        result = await OrderService.transferKOT(payload);
       }
-
-      console.log('SAVE PAYLOAD:', payload);
-
-      const response = await fetch(
-        `http://localhost:3001/api/TAxnTrnbill/${endpoint}`,
-        {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        }
-      );
-
-      const result = await response.json();
 
       if (!result.success) {
         toast.error(result.message || 'Transfer failed');

@@ -325,6 +325,30 @@ export interface PendingOrder {
   [key: string]: any
 }
 
+/** Transfer table payload */
+export interface TransferTablePayload {
+  sourceTableId: number
+  targetTableId: number
+  PAX?: number
+  hotelid?: number
+  outletid?: number
+}
+
+/** Transfer KOT payload */
+export interface TransferKOTPayload {
+  sourceTableId: number
+  proposedTableId: number
+  targetTableName: string
+  billDate?: string
+  KOTNo?: number
+  selectedItems: { txnDetailId: number }[]
+  transferMode: string
+  PAX?: number
+  userId?: number
+  hotelid?: number
+  outletid?: number
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════════
  * Order Service
  * ═══════════════════════════════════════════════════════════════════════════════ */
@@ -599,7 +623,41 @@ const OrderService = {
   fetchGlobalReverseKOTNumber: (outletId: number): Promise<ApiResponse<{ nextRevKOT: number }>> =>
     HttpClient.get<ApiResponse<{ nextRevKOT: number }>>('/TAxnTrnbill/global-reverse-kot-number', {
       params: { outletid: outletId }
-    })
+    }),
+
+  /* ═══════════════════════════════════════════════════════════════════════════════
+   * Transfer Operations
+   * ═══════════════════════════════════════════════════════════════════════════════ */
+
+  /**
+   * Transfer entire table (all items) from source to target table
+   */
+  transferTable: (payload: {
+    sourceTableId: number
+    targetTableId: number
+    PAX?: number
+    hotelid?: number
+    outletid?: number
+  }): Promise<ApiResponse<{ success: boolean; message: string }>> =>
+    HttpClient.put<ApiResponse<{ success: boolean; message: string }>>('/TAxnTrnbill/transfer-table', payload),
+
+  /**
+   * Transfer KOT/items between tables (selected items only)
+   */
+  transferKOT: (payload: {
+    sourceTableId: number
+    proposedTableId: number
+    targetTableName: string
+    billDate?: string
+    KOTNo?: number
+    selectedItems: { txnDetailId: number }[]
+    transferMode: string
+    PAX?: number
+    userId?: number
+    hotelid?: number
+    outletid?: number
+  }): Promise<ApiResponse<{ success: boolean; message: string }>> =>
+    HttpClient.put<ApiResponse<{ success: boolean; message: string }>>('/TAxnTrnbill/transfer-kot', payload)
 }
 
  
