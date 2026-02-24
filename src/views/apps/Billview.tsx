@@ -1896,7 +1896,8 @@ const ModernBill = () => {
           name: item.itemName,
           qty: item.cancelQty,
           price: item.rate,
-          KOTUsedDate: `${user?.currDate} ${new Date().toTimeString().split(' ')[0]}`,
+          curr_date: user?.currDate, 
+          KOTUsedDate: user?.currDate ,
         })),
         userId: user?.id,
         reversalReason: 'Reverse from Billview',
@@ -3454,6 +3455,8 @@ const ModernBill = () => {
         persistentTxnId={txnId}
         persistentTableId={tableId}
         outletid={selectedOutletId}
+        currDate={user?.currDate}
+        
       />
       <KotPreviewPrint
         show={showKotPrintModal}

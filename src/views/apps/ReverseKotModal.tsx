@@ -36,6 +36,7 @@ interface ReverseKotModalProps {
     persistentTxnId: number | null;
     persistentTableId: number;
     outletid?: number | null | undefined;
+    currDate?: string;
 }
 
 const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
@@ -50,7 +51,8 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
     date,
     persistentTxnId,
     persistentTableId,
-    outletid
+    outletid,
+    currDate
 }) => {
     const [items, setItems] = useState<any[]>([]);
     const [nextRevKotNo, setNextRevKotNo] = useState<number>((revKotNo ?? 0) + 1);
@@ -60,7 +62,7 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
     const reasonRefs = useRef<(HTMLInputElement | null)[]>([]);
 
     // Function to fetch global reverse KOT number
-    const fetchGlobalReverseKOTNumber = async (outletid: number) => {
+    const fetchGlobalReverseKOTNumber = async (outletid: number, currDate?: string) => {
         try {
             const response = await axios.get(`/api/TAxnTrnbill/global-reverse-kot-number?outletid=${outletid}`);
             return response.data.data.nextRevKOT;
@@ -74,15 +76,18 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
     // Fetch next reverse KOT number when modal opens
     useEffect(() => {
         const fetchNextRevKot = async () => {
-            if (show && persistentTxnId && outletid) {
+            // Fetch reverse KOT number when modal opens - we need outletid
+            if (show && outletid) {
+                console.log('Fetching next reverse KOT for outlet:', outletid);
                 const next = await fetchGlobalReverseKOTNumber(outletid);
+                console.log('Next reverse KOT received:', next);
                 if (next !== null) {
                     setNextRevKotNo(next);
                 }
             }
         };
         fetchNextRevKot();
-    }, [show, persistentTxnId, outletid]);
+    }, [show, outletid]);
 
 useEffect(() => {
   const initialized = kotItems.map(item => {
