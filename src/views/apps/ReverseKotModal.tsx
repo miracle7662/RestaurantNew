@@ -64,7 +64,7 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
     // Function to fetch global reverse KOT number
     const fetchGlobalReverseKOTNumber = async (outletid: number, currDate?: string) => {
         try {
-            const response = await axios.get(`/api/TAxnTrnbill/global-reverse-kot-number?outletid=${outletid}`);
+            const response = await axios.get(`/api/TAxnTrnbill/global-reverse-kot-number?outletid=${outletid}&curr_date=${currDate}`);
             return response.data.data.nextRevKOT;
         } catch (error) {
             console.error('Error fetching global reverse KOT number:', error);
@@ -79,7 +79,7 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
             // Fetch reverse KOT number when modal opens - we need outletid
             if (show && outletid) {
                 console.log('Fetching next reverse KOT for outlet:', outletid);
-                const next = await fetchGlobalReverseKOTNumber(outletid);
+                const next = await fetchGlobalReverseKOTNumber(outletid, currDate);
                 console.log('Next reverse KOT received:', next);
                 if (next !== null) {
                     setNextRevKotNo(next);
@@ -209,7 +209,7 @@ useEffect(() => {
                         { label: 'REV KOT NO', value: nextRevKotNo },
                         { label: 'WAITER', value: waiter },
                         { label: 'PAX', value: pax },
-                        { label: 'DATE', value: date }
+{ label: 'DATE', value: currDate || date }
                     ].map((info, idx) => (
                         <Col key={idx}>
                             <Card

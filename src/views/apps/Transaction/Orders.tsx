@@ -1682,6 +1682,11 @@ const handleTabClick = (tab: string) => {
 
       // Find the first NCKOT item to get the overall NCName and NCPurpose for the bill header
       const firstNCItem = newKotItemsPayload.find(item => item.isNCKOT);
+
+      const activeItemsForDiscount = items.filter(item => !item.isReverse);
+      const lineTotalForDiscount = activeItemsForDiscount.reduce((sum, item) => sum + item.price * item.qty, 0);
+      const calculatedDiscountAmount = DiscountType === 1 ? (lineTotalForDiscount * discountInputValue) / 100 : discountInputValue;
+
       const kotPayload = {
         txnId: currentTxnId || 0,
         tableId: resolvedTableId,
@@ -1696,7 +1701,7 @@ const handleTabClick = (tab: string) => {
         NCName: firstNCItem ? firstNCItem.NCName : null,
         NCPurpose: firstNCItem ? firstNCItem.NCPurpose : null,
         DiscPer: DiscountType === 1 ? discountInputValue : 0,
-        Discount: DiscountType === 0 ? discountInputValue : discount,
+        Discount: calculatedDiscountAmount,
         DiscountType: DiscountType,
         CustomerName: customerName,
         MobileNo: mobileNumber,

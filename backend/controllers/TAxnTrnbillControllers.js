@@ -1398,7 +1398,7 @@ exports.createKOT = async (req, res) => {
 /* -------------------------------------------------------------------------- */
 exports.createReverseKOT = async (req, res) => {
   try {
-    const { txnId, tableId, reversedItems, userId, reversalReason, curr_date } = req.body
+    const { txnId, tableId, reversedItems, userId, reversalReason, ReversalDate, curr_date } = req.body
 
     if (!txnId || !Array.isArray(reversedItems) || reversedItems.length === 0) {
       return res
@@ -1441,8 +1441,8 @@ exports.createReverseKOT = async (req, res) => {
       const logReversalStmt = db.prepare(`
         INSERT INTO TAxnTrnReversalLog (
           TxnDetailID, TxnID, KOTNo, RevKOTNo, ItemID, ItemName, ActualQty, ReversedQty, RemainingQty,
-          IsBeforeBill, IsAfterBill, ReversedByUserID, ApprovedByAdmin, HotelID, ReversalReason
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          IsBeforeBill, IsAfterBill, ReversedByUserID, ApprovedByAdmin, HotelID, ReversalReason, ReversalDate
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
 
       let totalReverseAmount = 0
@@ -1455,7 +1455,7 @@ exports.createReverseKOT = async (req, res) => {
           .get(item.txnDetailId)
         if (detail) {
           const newRevQty = (detail.RevQty || 0) + item.qty
-          updateDetailStmt.run(item.qty, newRevKOTNo, item.KOTUsedDate || null, item.txnDetailId)
+          updateDetailStmt.run(item.qty, newRevKOTNo, kotDate, item.txnDetailId)
 
           const remainingQty = detail.Qty - newRevQty
           logReversalStmt.run(
@@ -1474,6 +1474,7 @@ exports.createReverseKOT = async (req, res) => {
             null, // ApprovedByAdmin
             detail.HotelID, // HotelID
             reversalReason || 'Item Reversed', // ReversalReason
+            ReversalDate || null, // ReversalDate
           )
 
           totalReverseAmount += (Number(detail.RuntimeRate) || 0) * item.qty
@@ -3930,6 +3931,7 @@ exports.getGlobalReverseKOTNumber = async (req, res) => {
     const nextRevKOT = (result?.maxRevKOT || 0) + 1
 
     res.json(ok('Fetched next global reverse KOT number', { nextRevKOT }))
+    console.log(nextRevKOT)
   } catch (error) {
     res
       .status(500)

@@ -898,7 +898,7 @@ CREATE TABLE IF NOT EXISTS TAxnTrnReversalLog (
     ApprovedByAdmin   INTEGER,
     HotelID           INTEGER,
     ReversalReason    TEXT,
-    ReversalDate      DATETIME DEFAULT CURRENT_TIMESTAMP
+    ReversalDate      DATETIME 
 );
 
 CREATE TABLE IF NOT EXISTS trn_cashdenomination (

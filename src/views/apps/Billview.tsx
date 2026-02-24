@@ -1898,6 +1898,7 @@ const ModernBill = () => {
           price: item.rate,
           curr_date: user?.currDate, 
           KOTUsedDate: user?.currDate ,
+          ReversalDate: user?.currDate
         })),
         userId: user?.id,
         reversalReason: 'Reverse from Billview',
