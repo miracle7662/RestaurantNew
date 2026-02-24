@@ -1016,6 +1016,7 @@ exports.createKOT = async (req, res) => {
     Steward,
     TxnDatetime,
     KOTUsedDate,
+    curr_date,
 
     items: details = [],
   } = req.body
@@ -1165,15 +1166,17 @@ exports.createKOT = async (req, res) => {
       }
 
       // 2. Generate a new KOT number by finding the max KOT for the current day for that outlet.
+       // Use curr_date from request body if provided, otherwise use system date
+      const kotDate = curr_date || new Date().toISOString().split('T')[0];
       const maxKOTResult = db
         .prepare(
           `
         SELECT MAX(KOTNo) as maxKOT 
         FROM TAxnTrnbilldetails
-        WHERE outletid = ? AND date(KOTUsedDate) = date('now')
+        WHERE outletid = ? AND date(KOTUsedDate) = date(?)
       `,
         )
-        .get(outletid)
+        .get(outletid, kotDate)
 
       const kotNo = (maxKOTResult?.maxKOT || 0) + 1
       console.log(`Generated KOT number: ${kotNo} (maxKOT was ${maxKOTResult?.maxKOT || 0})`)
