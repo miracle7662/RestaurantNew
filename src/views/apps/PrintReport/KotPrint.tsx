@@ -8,6 +8,7 @@ import {
 import {
   applyKotSettings,
 } from "@/utils/applyOutletSettings";
+import PrintService from "@/common/api/print";
 
 
 interface MenuItem {
@@ -138,22 +139,15 @@ const [, setLoadingSetting] = useState(true);
     }
   }, [show]);
 
-  // Fetch printer settings and outlet details for the outlet
-  useEffect(() => {
-    const fetchPrinterAndOutlet = async () => {
+const fetchPrinterAndOutlet = async () => {
       if (!outletId) return;
 
       setIsLoadingNames(true);
 
       try {
-         const res = await fetch(
-          `http://localhost:3001/api/settings/kot-printer-settings/${outletId}`
-        );
-        if (!res.ok) {
-          throw new Error('Failed to fetch printers');
-        }
-        const data = await res.json();
-        setPrinterName(data?.printer_name || null);
+        // Use PrintService for KOT printer settings
+        const printerRes = await PrintService.getKotPrinterSettings(outletId);
+        setPrinterName(printerRes.data?.printer_name || null);
       } catch (err) {
         console.error('Error fetching printer:', err);
         toast.error('Failed to load printer settings.');
@@ -164,14 +158,12 @@ const [, setLoadingSetting] = useState(true);
       if (!restaurantName || restaurantName.trim() === '' || restaurantName === 'Restaurant Name' ||
           !outletName || outletName.trim() === '' || outletName === 'Outlet Name') {
         try {
-          const outletRes = await fetch(`http://localhost:3001/api/outlets/${outletId}`);
-          if (outletRes.ok) {
-            const outletData = await outletRes.json();
-            const data = outletData.data || outletData;
-            if (data) {
-              setLocalRestaurantName(data.brand_name || data.hotel_name || 'Restaurant Name');
-              setLocalOutletName(data.outlet_name || 'Outlet Name');
-            }
+          // Use PrintService for outlet details
+          const outletRes = await PrintService.getOutletDetails(outletId);
+          const data = outletRes.data;
+          if (data) {
+            setLocalRestaurantName(data.brand_name || data.hotel_name || 'Restaurant Name');
+            setLocalOutletName(data.outlet_name || 'Outlet Name');
           }
         } catch (error) {
           console.error('Error fetching outlet details:', error);
@@ -184,7 +176,6 @@ const [, setLoadingSetting] = useState(true);
     };
 
     fetchPrinterAndOutlet();
-  }, [outletId, restaurantName, outletName, user]);
 
   // Auto-print logic (if enabled)
   useEffect(() => {
