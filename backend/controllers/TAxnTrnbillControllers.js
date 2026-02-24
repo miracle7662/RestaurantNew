@@ -1173,7 +1173,7 @@ exports.createKOT = async (req, res) => {
           `
         SELECT MAX(KOTNo) as maxKOT 
         FROM TAxnTrnbilldetails
-        WHERE outletid = ? 
+        WHERE outletid = ? AND date(KOTUsedDate) = date(?)
       `,
         )
         .get(outletid, kotDate)
@@ -3883,10 +3883,9 @@ exports.getGlobalKOTNumber = async (req, res) => {
         `
       SELECT MAX(KOTNo) as maxKOT
       FROM TAxnTrnbilldetails
-      WHERE outletid = ? 
+      WHERE outletid = ? AND date(KOTUsedDate) = date(?)
     `,
       )
-      .get(Number(outletid), kotDate)
 
     const nextKOT = (result?.maxKOT || 0) + 1
 
