@@ -139,7 +139,8 @@ const [, setLoadingSetting] = useState(true);
     }
   }, [show]);
 
-const fetchPrinterAndOutlet = async () => {
+useEffect(() => {
+    const fetchPrinterAndOutlet = async () => {
       if (!outletId) return;
 
       setIsLoadingNames(true);
@@ -176,6 +177,7 @@ const fetchPrinterAndOutlet = async () => {
     };
 
     fetchPrinterAndOutlet();
+  }, [outletId, restaurantName, outletName, user]);
 
   // Auto-print logic (if enabled)
   useEffect(() => {
@@ -192,13 +194,10 @@ const fetchPrinterAndOutlet = async () => {
 
   const fetchKotSetting = async () => {
     try {
-      const res = await fetch(
-        `http://localhost:3001/api/settings/kot-printer-settings/${outletId}`
-      );
-      const data = await res.json();
-
-      // 👇 IMPORTANT: backend sends 0 / 1
-      setEnableKotPrint(Number(data?.enableKotPrint) || 0);
+      // Use PrintService for KOT printer settings
+      const printerRes = await PrintService.getKotPrinterSettings(outletId);
+      // IMPORTANT: backend sends 0 / 1
+      setEnableKotPrint(Number(printerRes.data?.enableKotPrint) || 0);
     } catch (err) {
       console.error("KOT setting fetch failed", err);
       setEnableKotPrint(0);
