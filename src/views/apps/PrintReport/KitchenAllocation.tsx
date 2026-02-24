@@ -1,28 +1,12 @@
-import React, { useState, useEffect, useMemo } from 'react';
+ import React, { useState, useEffect, useMemo } from 'react';
 import { Card, Row, Col, Form, Button, Table, Alert, Modal } from 'react-bootstrap';
 import { useAuthContext } from '@/common';
 import { toast } from 'react-hot-toast';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
+import KitchenAllocationService, { KitchenAllocationData, ItemDetailData } from '@/common/api/kitchenallocation';
 // import { Eye } from 'react-feather';
-
-interface KitchenAllocationData {
-  item_no: string;
-  item_name: string;
-  TotalQty: number;
-  Amount: number;
-}
-
-interface ItemDetailData {
-  item_name: string;
-  Qty: number;
-  Amount: number;
-  KOTNo: number | null;
-  TxnDatetime: string;
-  table_name: string | null;
-  TableID: number | null;
-}
 
 interface FilterOption {
   [key: string]: any;
@@ -141,7 +125,7 @@ const KitchenAllocation: React.FC = () => {
     fetchPrinterAndOutlet();
   }, [user]);
 
-  // Fetch data
+  // Fetch data using KitchenAllocationService
   const fetchData = async () => {
     if (!fromDate || !toDate) {
       setError('Please select both From Date and To Date.');
@@ -178,24 +162,23 @@ const KitchenAllocation: React.FC = () => {
       const startDate = fromDate < toDate ? fromDate : toDate;
       const endDate = fromDate < toDate ? toDate : fromDate;
 
-      const params = new URLSearchParams({
+      // Using KitchenAllocationService instead of direct fetch
+      const result = await KitchenAllocationService.getAllocationData({
         fromDate: startDate,
         toDate: endDate,
         hotelId: user.hotelid.toString(),
-        ...(user.outletid && { outletId: user.outletid.toString() }),
-        ...(filterType && { filterType, filterId })
+        outletId: user.outletid?.toString(),
+        filterType,
+        filterId
       });
-
-      const response = await fetch(`http://localhost:3001/api/kitchen-allocation?${params}`);
-      const result = await response.json();
 
       if (result.success) {
         setData(result.data);
       } else {
         setError(result.message || 'Failed to fetch data');
       }
-    } catch (err) {
-      setError('Error fetching data');
+    } catch (err: any) {
+      setError(err.message || 'Error fetching data');
       console.error(err);
     } finally {
       setLoading(false);
@@ -353,50 +336,39 @@ const KitchenAllocation: React.FC = () => {
     );
   }, [data, searchTerm]);
 
-  // Handle eye icon click
+  // Handle eye icon click using KitchenAllocationService
   const handleEyeClick = async (item: KitchenAllocationData) => {
-  setSelectedItem(item.item_name);
-  setShowModal(true);
-  setModalLoading(true);
+    setSelectedItem(item.item_name);
+    setShowModal(true);
+    setModalLoading(true);
 
-  try {
-    const startDate = fromDate <= toDate ? fromDate : toDate;
-    const endDate = fromDate <= toDate ? toDate : fromDate;
+    try {
+      const startDate = fromDate <= toDate ? fromDate : toDate;
+      const endDate = fromDate <= toDate ? toDate : fromDate;
 
-    const params = new URLSearchParams();
-    params.append('fromDate', startDate);
-    params.append('toDate', endDate);
-    params.append('hotelId', String(user?.hotelid));
+      // Using KitchenAllocationService instead of direct fetch
+      const result = await KitchenAllocationService.getItemDetails(item.item_no, {
+        fromDate: startDate,
+        toDate: endDate,
+        hotelId: String(user?.hotelid),
+        outletId: user?.outletid?.toString()
+      });
 
-    if (user?.outletid) {
-      params.append('outletId', String(user.outletid));
-    }
+      if (result?.success) {
+        setModalData(result.data);
+      } else {
+        setModalData([]);
+        toast.error(result?.message || 'No item details found');
+      }
 
-    const response = await fetch(
-      `http://localhost:3001/api/kitchen-allocation/item-details/${item.item_no}?${params.toString()}`
-    );
-
-    if (!response.ok) {
-      throw new Error(`HTTP error ${response.status}`);
-    }
-
-    const result = await response.json();
-
-    if (result?.success) {
-      setModalData(result.data);
-    } else {
+    } catch (error: any) {
+      console.error('Error fetching item details:', error);
       setModalData([]);
-      toast.error(result?.message || 'No item details found');
+      toast.error(error.message || 'Failed to fetch item details');
+    } finally {
+      setModalLoading(false);
     }
-
-  } catch (error) {
-    console.error('Error fetching item details:', error);
-    setModalData([]);
-    toast.error('Failed to fetch item details');
-  } finally {
-    setModalLoading(false);
-  }
-};
+  };
 
 
   return (
