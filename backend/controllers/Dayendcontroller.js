@@ -745,7 +745,8 @@ function generateDiscountSummaryHTML(transactions) {
   let totalDiscount = 0;
 
   transactions.filter(t => t.discount > 0).forEach(t => {
-    html += `${t.billNo.padEnd(8)} ${t.discountReason.substring(0,20).padEnd(20)} ${t.discount.toFixed(2).padStart(6)}\n`;
+    const discountReason = String(t.discountReason || 'N/A');
+    html += `${t.billNo.padEnd(8)} ${discountReason.substring(0,20).padEnd(20)} ${t.discount.toFixed(2).padStart(6)}\n`;
     totalDiscount += t.discount;
   });
 
@@ -762,7 +763,9 @@ function generateReverseKOTsSummaryHTML(reverseKOTs) {
 
   reverseKOTs.forEach(r => {
     const timeStr = new Date(r.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
-    html += `${r.kotNo.padEnd(7)} ${String(r.tableNo).padEnd(6)} ${r.itemName.substring(0,18).padEnd(18)} ${String(r.quantity).padStart(4)} ${r.reason.substring(0,9).padEnd(9)} ${timeStr}\n`;
+    const itemName = String(r.itemName || 'N/A');
+    const reason = String(r.reason || 'N/A');
+    html += `${r.kotNo.padEnd(7)} ${String(r.tableNo).padEnd(6)} ${itemName.substring(0,18).padEnd(18)} ${String(r.quantity).padStart(4)} ${reason.substring(0,9).padEnd(9)} ${timeStr}\n`;
   });
 
   html += '\n';

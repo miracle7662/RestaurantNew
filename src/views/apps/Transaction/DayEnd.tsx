@@ -394,9 +394,6 @@ const DayEnd = () => {
 
   const handleGenerateReports = async () => {
     try {
-      console.log('User object:', user); // Debug log
-      console.log('User outletid:', user?.outletid); // Debug log
-
       const selectedReportKeys = Object.keys(selectedReports).filter(key => selectedReports[key as keyof typeof selectedReports]);
 
       if (selectedReportKeys.length === 0) {
@@ -409,51 +406,25 @@ const DayEnd = () => {
         return;
       }
 
-
-      if (!user.token) {
-        toast.error("Authentication token is missing. Please log in again.");
-        return;
-      }
-
       const payload = {
-        DayEndEmpID: user?.id,
-        businessDate: reportDate, // Already in yyyy-mm-dd format
+        DayEndEmpID: user.id,
+        businessDate: reportDate,
         selectedReports: selectedReportKeys,
       };
 
-      console.log('Sending payload:', payload); // Debug log
+      const response = await DayendService.generateReportHTML(payload);
 
-      const response = await fetch('http://localhost:3001/api/dayend/generate-report-html', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${user.token}`,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      console.log('Response status:', response.status); // Debug log
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Response error text:', errorText); // Debug log
-        toast.error(`Failed to generate reports: ${response.status} ${response.statusText}`);
-        return;
-      }
-
-      const data = await response.json();
-      console.log('Response data:', data); // Debug log
-
-      if (data.success) {
+      if (response.success) {
         // Store the HTML in sessionStorage for the preview page
-        sessionStorage.setItem('dayEndReportHTML', data.html);
+        // Note: Backend returns { success: true, html } not { success: true, data: { html } }
+        sessionStorage.setItem('dayEndReportHTML', response.html);
         // Store the outletId for printer settings
         const outletId = orders[0]?.outletid || user?.outletid;
         sessionStorage.setItem('dayEndReportOutletId', outletId?.toString() || '');
         // Navigate to the preview page
         navigate('/apps/Masters/Reports/DayEndReportPreview');
       } else {
-        toast.error(data.message || "Failed to generate reports.");
+        toast.error(response.message || "Failed to generate reports.");
       }
     } catch (error) {
       console.error('Error generating reports:', error);

@@ -211,9 +211,10 @@ const DayendService = {
 
   /**
    * Generate dayend report HTML
+   * Backend returns { success: true, html: string } directly (not wrapped in data)
    */
-  generateReportHTML: (payload: DayendReportPayload): Promise<ApiResponse<{ html: string }>> =>
-    HttpClient.post<ApiResponse<{ html: string }>>('/dayend/generate-report-html', payload),
+  generateReportHTML: (payload: DayendReportPayload): Promise<{ success: boolean; html: string; message?: string }> =>
+    HttpClient.post<{ success: boolean; html: string; message?: string }>('/dayend/generate-report-html', payload),
 
   /**
    * Save opening balance for the day
