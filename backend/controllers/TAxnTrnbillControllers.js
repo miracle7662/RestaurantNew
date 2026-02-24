@@ -2267,6 +2267,7 @@ exports.reverseQuantity = async (req, res) => {
         data: null,
       })
     }
+    
 
     // Get current item details
     const item = db
