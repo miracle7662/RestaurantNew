@@ -4,6 +4,7 @@ import { Printer, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { useAuthContext } from '@/common/context/useAuthContext';
+import SettingsService from '@/common/api/settings';
 
 
 const DayEndReportPreview: React.FC = () => {
@@ -26,7 +27,6 @@ const DayEndReportPreview: React.FC = () => {
   }, [navigate]);
 
   // Fetch printer settings and outlet details
-  // Fetch printer settings and outlet details
     useEffect(() => {
       const fetchPrinterAndOutlet = async () => {
         // Get outletId from user outletid, then hotelid
@@ -37,14 +37,8 @@ const DayEndReportPreview: React.FC = () => {
         setOutletId(Number(outletIdToUse));
   
         try {
-          const res = await fetch(
-            `http://localhost:3001/api/settings/report-printer/${outletIdToUse}`
-          );
-          if (!res.ok) {
-            throw new Error('Failed to fetch printers');
-          }
-          const data = await res.json();
-          setPrinterName(data[0]?.printer_name || null);
+          const printerData = await SettingsService.getReportPrinterById(Number(outletIdToUse));
+          setPrinterName(printerData[0]?.printer_name || null);
         } catch (err) {
           console.error('Error fetching printer:', err);
           toast.error('Failed to load printer settings.');

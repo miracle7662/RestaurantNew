@@ -131,6 +131,16 @@ const SettingsService = {
   listReportPrinters: (params?: { q?: string }) => {
     return HttpClient.get('/settings/report-printer', { params })
   },
+  getReportPrinterById: (id: number) => {
+    return HttpClient.get<Array<{
+      id: number
+      printer_name: string
+      paper_size: string
+      auto_print: boolean
+      outletid: number
+      hotelid: string
+    }>>(`/settings/report-printer/${id}`)
+  },
   createReportPrinter: (payload: ReportPrinterPayload) => {
     return HttpClient.post('/settings/report-printer', payload)
   },
