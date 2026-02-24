@@ -1890,15 +1890,13 @@ const ModernBill = () => {
         tableId,
         kotType: 'REVERSE',
         isReverseKot: 1,
+        
         reversedItems: reverseItemsFromModal.map(item => ({
           txnDetailId: item.txnDetailId,
           item_no: item.item_no,
           name: item.itemName,
           qty: item.cancelQty,
           price: item.rate,
-          curr_date: user?.currDate, 
-          KOTUsedDate: user?.currDate ,
-          ReversalDate: user?.currDate
         })),
         userId: user?.id,
         reversalReason: 'Reverse from Billview',
