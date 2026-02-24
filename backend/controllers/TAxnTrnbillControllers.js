@@ -1398,7 +1398,7 @@ exports.createKOT = async (req, res) => {
 /* -------------------------------------------------------------------------- */
 exports.createReverseKOT = async (req, res) => {
   try {
-    const { txnId, tableId, reversedItems, userId, reversalReason } = req.body
+    const { txnId, tableId, reversedItems, userId, reversalReason, curr_date } = req.body
 
     if (!txnId || !Array.isArray(reversedItems) || reversedItems.length === 0) {
       return res
@@ -1413,16 +1413,19 @@ exports.createReverseKOT = async (req, res) => {
     }
     const outletid = bill.outletid
 
+    // Use curr_date from request if provided, otherwise use system date
+    const kotDate = curr_date || new Date().toISOString().split('T')[0];
+
     // Find the maximum existing RevKOTNo for the current day for the outlet to generate a new one
     const maxRevKOTResult = db
       .prepare(
         `
       SELECT MAX(RevKOTNo) as maxRevKOT 
       FROM TAxnTrnbilldetails
-      WHERE outletid = ? AND date(KOTUsedDate) = date('now')
+      WHERE outletid = ? AND date(KOTUsedDate) = date(?)
     `,
       )
-      .get(outletid)
+      .get(outletid, kotDate)
 
     const newRevKOTNo = (maxRevKOTResult?.maxRevKOT || 0) + 1
     console.log(`Generated RevKOT number: ${newRevKOTNo} for outlet ${outletid}`)
@@ -3905,21 +3908,24 @@ exports.getGlobalKOTNumber = async (req, res) => {
 /* -------------------------------------------------------------------------- */
 exports.getGlobalReverseKOTNumber = async (req, res) => {
   try {
-    const { outletid } = req.query
+    const { outletid, curr_date } = req.query
 
     if (!outletid) {
       return res.status(400).json({ success: false, message: 'outletid is required', data: null })
     }
+
+    // Use curr_date from request if provided, otherwise use system date
+    const kotDate = curr_date || new Date().toISOString().split('T')[0];
 
     const result = db
       .prepare(
         `
       SELECT MAX(RevKOTNo) as maxRevKOT
       FROM TAxnTrnbilldetails
-      WHERE outletid = ? AND date(KOTUsedDate) = date('now')
+      WHERE outletid = ? AND date(KOTUsedDate) = date(?)
     `,
       )
-      .get(Number(outletid))
+      .get(Number(outletid), kotDate)
 
     const nextRevKOT = (result?.maxRevKOT || 0) + 1
 
