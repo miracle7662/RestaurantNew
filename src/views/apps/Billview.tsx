@@ -136,11 +136,7 @@ const ModernBill = () => {
   const takeawayOrderId = location.state?.orderId;
   const { user } = useAuthContext();
 
-const now = new Date();
 
-const time = now.toTimeString().split(' ')[0]; // HH:MM:SS
-
-const KOTUsedDate = `${user?.currDate} ${time}`;
 
   console.log('Table ID:', tableId);
   console.log('Table Name:', tableName);
@@ -1288,7 +1284,7 @@ const KOTUsedDate = `${user?.currDate} ${time}`;
       try {
         if (!selectedOutletId) return;
 
-        const response = await OrderService.getGlobalKOTNumber(selectedOutletId);
+        const response = await OrderService.getGlobalKOTNumber(selectedOutletId, user?.currDate);
 
         const nextKOT = response.data.nextKOT; // ✅ FIXED
 

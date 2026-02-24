@@ -3866,21 +3866,24 @@ exports.transferTable = (req, res) => {
 /* -------------------------------------------------------------------------- */
 exports.getGlobalKOTNumber = async (req, res) => {
   try {
-    const { outletid } = req.query
+    const { outletid, curr_date } = req.query
 
     if (!outletid) {
       return res.status(400).json({ success: false, message: 'outletid is required', data: null })
     }
 
+    // Use curr_date from request if provided, otherwise use system date
+    const kotDate = curr_date || new Date().toISOString().split('T')[0];
+    
     const result = db
       .prepare(
         `
       SELECT MAX(KOTNo) as maxKOT
       FROM TAxnTrnbilldetails
-      WHERE outletid = ? AND date(KOTUsedDate) = date('now')
+      WHERE outletid = ? AND date(KOTUsedDate) = date(?)
     `,
       )
-      .get(Number(outletid))
+      .get(Number(outletid), kotDate)
 
     const nextKOT = (result?.maxKOT || 0) + 1
 
