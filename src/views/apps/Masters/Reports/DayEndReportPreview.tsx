@@ -35,7 +35,6 @@ const DayEndReportPreview: React.FC = () => {
         if (!outletIdToUse) return;
   
         setOutletId(Number(outletIdToUse));
-  
         try {
           const printerData = await SettingsService.getReportPrinterById(Number(outletIdToUse));
           setPrinterName(printerData[0]?.printer_name || null);
