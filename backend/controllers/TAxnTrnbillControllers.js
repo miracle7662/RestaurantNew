@@ -1171,15 +1171,15 @@ exports.createKOT = async (req, res) => {
       const maxKOTResult = db
         .prepare(
           `
-        SELECT MAX(KOTNo) as maxKOT 
-        FROM TAxnTrnbilldetails
-        WHERE outletid = ? AND date(KOTUsedDate) = date(?)
+       SELECT COALESCE(MAX(KOTNo), 0) + 1 AS nextKOT
+FROM TAxnTrnbilldetails
+WHERE outletid = ? AND date(KOTUsedDate) = date(?)
       `,
         )
         .get(outletid, kotDate)
 
-      const kotNo = (maxKOTResult?.maxKOT || 0) + 1
-      console.log(`Generated KOT number: ${kotNo} (maxKOT was ${maxKOTResult?.maxKOT || 0})`)
+      // const kotNo = (maxKOTResult?.maxKOT || 0) + 1
+      console.log(`Generated KOT number: ${kotNo} (maxKOT was ${maxKOTResult?.nextKOT || 0})`)
 
       const insertDetailStmt = db.prepare(`
         INSERT INTO TAxnTrnbilldetails (
@@ -3881,13 +3881,12 @@ exports.getGlobalKOTNumber = async (req, res) => {
     const result = db
       .prepare(
         `
-      SELECT MAX(KOTNo) as maxKOT
-      FROM TAxnTrnbilldetails
-      WHERE outletid = ? AND date(KOTUsedDate) = date(?)
+    SELECT COALESCE(MAX(KOTNo), 0) + 1 AS nextKOT
+FROM TAxnTrnbilldetails
+WHERE outletid = ? AND date(KOTUsedDate) = date(?)
     `,
       )
 
-    const nextKOT = (result?.maxKOT || 0) + 1
 
     res.json(ok('Fetched next global KOT number', { nextKOT }))
   } catch (error) {
