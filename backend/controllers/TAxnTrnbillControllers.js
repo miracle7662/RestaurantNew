@@ -1683,6 +1683,9 @@ exports.createReverseKOT = async (req, res) => {
         ? 'Full bill reversed and table cleared successfully.'
         : 'Reversed items processed successfully.',
       fullReverse,
+      data: {
+        revKotNo: newRevKOTNo
+      }
     })
   } catch (error) {
     console.error('Error in createReverseKOT:', error)

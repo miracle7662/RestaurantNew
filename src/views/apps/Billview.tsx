@@ -1900,6 +1900,7 @@ const ModernBill = () => {
         })),
         userId: user?.id,
         reversalReason: 'Reverse from Billview',
+        curr_date: user?.currDate,
       });
       console.log('Reverse KOT API response:', result);
 
@@ -1909,6 +1910,7 @@ const ModernBill = () => {
         return;
       }
 
+      // Get the revKotNo from result.data.revKotNo (backend now returns it in this format)
       const reverseKotNo = result?.data?.revkotNo;
 
       toast.success(`Reverse KOT ${reverseKotNo ?? ''} saved`);

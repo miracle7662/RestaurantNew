@@ -456,6 +456,7 @@ const OrderService = {
     reversedItems: ReverseKOTItem[]
     userId: number
     reversalReason: string
+    curr_date?: string
   }): Promise<ApiResponse<ReverseKOTItem>> =>
     HttpClient.post<ApiResponse<ReverseKOTItem>>('/TAxnTrnbill/create-reverse-kot', payload),
 
