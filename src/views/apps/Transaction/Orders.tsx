@@ -4180,7 +4180,7 @@ const handleTabClick = (tab: string) => {
                     </div>
                   )}
                   
-                  {Math.abs(roundOffValue) >= 0.01 && (
+                   {roundOffValue !== 0 && (
                     <div className="d-flex justify-content-between">
                       <span>Round Off ({roundOffTo})</span>
                       <span>{roundOffValue >= 0 ? '+' : ''}{roundOffValue.toFixed(2)}</span>
