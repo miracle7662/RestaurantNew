@@ -1727,15 +1727,15 @@ const ModernBill = () => {
         TxnDatetime: user?.currDate,
         curr_date: user?.currDate, // Pass curr_date for KOT number generation based on business date
         KOTUsedDate: user?.currDate , // Pass curr_date for KOTUsedDate similar to TxnDatetime
-        // Frontend calculated totals - send to backend
-        GrossAmt: grossAmount,
-        TaxableValue: taxCalc.taxableValue,
-        CGST: cgst,
-        SGST: sgst,
-        IGST: igst,
-        CESS: totalCess,
-        RoundOFF: roundOff,
-        Amount: finalAmount,
+        // Frontend calculated totals - send to backend (rounded to 2 decimal places)
+        GrossAmt: Number(grossAmount.toFixed(2)),
+        TaxableValue: Number(taxCalc.taxableValue.toFixed(2)),
+        CGST: Number(cgst.toFixed(2)),
+        SGST: Number(sgst.toFixed(2)),
+        IGST: Number(igst.toFixed(2)),
+        CESS: Number(totalCess.toFixed(2)),
+        RoundOFF: Number(roundOff.toFixed(2)),
+        Amount: Number(finalAmount.toFixed(2)),
         ...(txnId ? { txnId } : {}),
         ...(isNoCharge ? { NCName: ncName, NCPurpose: ncPurpose } : {}),
         items: validItems.map(item => {
