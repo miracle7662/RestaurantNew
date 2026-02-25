@@ -11,7 +11,7 @@ import {
    
 } from 'react-bootstrap';
 import { toast } from 'react-toastify';
-import axios from 'axios';
+import OrderService from '@/common/api/order';
 
 const KOT_COLORS = ['#E8F5E9', '#FFF3E0'];
 
@@ -61,35 +61,26 @@ const ReverseKotModal: React.FC<ReverseKotModalProps> = ({
     const cancelRefs = useRef<(HTMLInputElement | null)[]>([]);
     const reasonRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-    // Function to fetch global reverse KOT number
-    const fetchGlobalReverseKOTNumber = async (outletid: number, currDate?: string) => {
-        try {
-            const response = await axios.get(`/api/TAxnTrnbill/global-reverse-kot-number?outletid=${outletid}&curr_date=${currDate}`);
-            return response.data.data.nextRevKOT;
-        } catch (error) {
-            console.error('Error fetching global reverse KOT number:', error);
-            toast.error('Failed to fetch reverse KOT number');
-            return null;
-        }
-    };
-
     // Fetch next reverse KOT number when modal opens
     useEffect(() => {
         const fetchNextRevKot = async () => {
-            // Fetch reverse KOT number when modal opens - we need outletid
             if (show && outletid) {
                 console.log('Fetching next reverse KOT for outlet:', outletid);
-                const next = await fetchGlobalReverseKOTNumber(outletid, currDate);
-                console.log('Next reverse KOT received:', next);
-                if (next !== null) {
-                    setNextRevKotNo(next);
+                try {
+                    const response = await OrderService.fetchGlobalReverseKOTNumber(outletid, currDate);
+                    if (response.data?.nextRevKOT) {
+                        setNextRevKotNo(response.data.nextRevKOT);
+                    }
+                } catch (error) {
+                    console.error('Error fetching global reverse KOT number:', error);
+                    toast.error('Failed to fetch reverse KOT number');
                 }
             }
         };
         fetchNextRevKot();
-    }, [show, outletid]);
+    }, [show, outletid, currDate]);
 
-useEffect(() => {
+  useEffect(() => {
   const initialized = kotItems.map(item => {
     const rev = Number(item.revQty ?? item.RevQty ?? 0);
     const rate = Number(item.rate ?? item.RuntimeRate ?? 0);
