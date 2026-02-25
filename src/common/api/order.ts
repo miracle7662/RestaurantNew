@@ -200,6 +200,17 @@ export interface CreateKOTPayload {
   PAX?: number | null
   DeptID?: number | null
   
+  // Frontend calculated values - use these directly in backend
+  GrossAmt?: number
+  TaxableValue?: number
+  CGST?: number
+  SGST?: number
+  IGST?: number
+  CESS?: number
+  RoundOFF?: number
+  Amount?: number
+  curr_date?: string
+  KOTUsedDate?: string
 }
 
 /** Reverse KOT item */
