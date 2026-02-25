@@ -1209,10 +1209,10 @@ const handleTabClick = (tab: string) => {
       taxableValue = preTaxBase > 0 ? preTaxBase : 0; // Ensure non-negative
 
       // 4. Recalculate taxes on the new taxable value.
-      cgstAmt = (taxableValue * cgstPer) / 100;
-      sgstAmt = (taxableValue * sgstPer) / 100;
-      igstAmt = (taxableValue * igstPer) / 100;
-      cessAmt = (taxableValue * cessPer) / 100;
+      cgstAmt = Number(((taxableValue * cgstPer) / 100).toFixed(2));
+      sgstAmt = Number(((taxableValue * sgstPer) / 100).toFixed(2));
+      igstAmt = Number(((taxableValue * igstPer) / 100).toFixed(2));
+      cessAmt = Number(((taxableValue * cessPer) / 100).toFixed(2));
 
       // 5. Final bill is the new taxable value plus the new taxes.
       grandTotal = taxableValue + cgstAmt + sgstAmt + igstAmt + cessAmt;
@@ -1225,10 +1225,10 @@ const handleTabClick = (tab: string) => {
       taxableValue = currentTaxableValue;
 
       // 2. Add tax on the discounted value.
-      cgstAmt = (currentTaxableValue * cgstPer) / 100;
-      sgstAmt = (currentTaxableValue * sgstPer) / 100;
-      igstAmt = (currentTaxableValue * igstPer) / 100;
-      cessAmt = (currentTaxableValue * cessPer) / 100;
+      cgstAmt = Number(((currentTaxableValue * cgstPer) / 100).toFixed(2));
+      sgstAmt = Number(((currentTaxableValue * sgstPer) / 100).toFixed(2));
+      igstAmt = Number(((currentTaxableValue * igstPer) / 100).toFixed(2));
+      cessAmt = Number(((currentTaxableValue * cessPer) / 100).toFixed(2));
 
       // 3. Final bill is the taxable value plus all taxes.
       grandTotal = currentTaxableValue + cgstAmt + sgstAmt + igstAmt + cessAmt;
@@ -1628,6 +1628,9 @@ const handleTabClick = (tab: string) => {
         const igstAmt = (lineSubtotal * igstPer) / 100;
         const cessAmt = (lineSubtotal * cessPer) / 100; // This tax calculation is for bill, not KOT. KOT only needs item and quantity.
 
+        // Calculate item level discount if percentage
+        const itemDiscountAmount = DiscountType === 1 ? (lineSubtotal * discountInputValue) / 100 : 0;
+
         return {
           ItemID: i.id,
           item_no: i.item_no,
@@ -1714,6 +1717,15 @@ const handleTabClick = (tab: string) => {
         curr_date: user?.currDate, // Pass curr_date for KOT number generation based on business date
         KOTUsedDate: user?.currDate ,
 
+        // Frontend calculated totals - send to backend
+        GrossAmt: Number(taxCalc.subtotal.toFixed(2)),
+        TaxableValue: Number(taxCalc.taxableValue.toFixed(2)),
+        CGST: Number(taxCalc.cgstAmt.toFixed(2)),
+        SGST: Number(taxCalc.sgstAmt.toFixed(2)),
+        IGST: Number(taxCalc.igstAmt.toFixed(2)),
+        CESS: Number(taxCalc.cessAmt.toFixed(2)),
+        RoundOFF: Number(roundOffValue.toFixed(2)),
+        Amount: Number(taxCalc.grandTotal.toFixed(2)),
       };
 
       console.log('TxnDatetime from useAuthContext:', user?.curr_date);

@@ -1373,29 +1373,30 @@ exports.createReverseKOT = async (req, res) => {
       let totalBeforeRoundOff = 0
       let finalTaxableValue = 0
 
+      const round2 = (val) => Number(val.toFixed(2)); 
       if (includeTaxInInvoice === 1) {
         const combinedPer = cgstPer + sgstPer + igstPer + cessPer
         // FIX: Apply discount BEFORE extracting pre-tax base (matching frontend logic)
-        const discountedGross = totalGross - discountAmount
+        const discountedGross = round2(totalGross - discountAmount);
         const preTaxBase = combinedPer > 0 ? discountedGross / (1 + combinedPer / 100) : discountedGross
-        finalTaxableValue = preTaxBase > 0 ? preTaxBase : 0
+        finalTaxableValue = round2(preTaxBase > 0 ? preTaxBase : 0);
 
-        totalCgst = (finalTaxableValue * cgstPer) / 100
-        totalSgst = (finalTaxableValue * sgstPer) / 100
-        totalIgst = (finalTaxableValue * igstPer) / 100
-        totalCess = (finalTaxableValue * cessPer) / 100
-        totalBeforeRoundOff = finalTaxableValue + totalCgst + totalSgst + totalIgst + totalCess
+       totalCgst = round2((finalTaxableValue * cgstPer) / 100);
+       totalSgst = round2((finalTaxableValue * sgstPer) / 100);
+       totalIgst = round2((finalTaxableValue * igstPer) / 100);
+       totalCess = round2((finalTaxableValue * cessPer) / 100);
+       totalBeforeRoundOff = round2(finalTaxableValue + totalCgst + totalSgst + totalIgst + totalCess );
       } else {
-        const taxableValue = totalGross - discountAmount
-        finalTaxableValue = taxableValue
-        totalCgst = (taxableValue * cgstPer) / 100
-        totalSgst = (taxableValue * sgstPer) / 100
-        totalIgst = (taxableValue * igstPer) / 100
-        totalCess = (taxableValue * cessPer) / 100
-        totalBeforeRoundOff = taxableValue + totalCgst + totalSgst + totalIgst + totalCess
+        const taxableValue = round2(totalGross - discountAmount);
+        finalTaxableValue = taxableValue;
+        totalCgst = round2((taxableValue * cgstPer) / 100);
+        totalSgst = round2((taxableValue * sgstPer) / 100);
+        totalIgst = round2((taxableValue * igstPer) / 100);
+        totalCess = round2((taxableValue * cessPer) / 100);
+        totalBeforeRoundOff = round2(taxableValue + totalCgst + totalSgst + totalIgst + totalCess );
       }
 
-      let finalAmount = totalBeforeRoundOff
+      let finalAmount = round2(totalBeforeRoundOff);
       let finalRoundOff = 0
       if (outletSettings && outletSettings.bill_round_off && outletSettings.bill_round_off_to > 0) {
         finalAmount =
