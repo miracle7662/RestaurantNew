@@ -219,6 +219,7 @@ exports.createBill = async (req, res) => {
       CESS,
       RoundOFF,
       Amount,
+      TaxableValue,
       isHomeDelivery,
       DriverID,
       CustomerName,
@@ -260,68 +261,20 @@ exports.createBill = async (req, res) => {
 
     console.log('NCName:', NCName)
     console.log('NCPurpose:', NCPurpose)
-
-    // Always compute totals from details if provided, to ensure accuracy
-    const isArray = Array.isArray(details) && details.length > 0
-    let computedGross = 0,
-      computedCgstAmt = 0,
-      computedSgstAmt = 0,
-      computedIgstAmt = 0,
-      computedCessAmt = 0,
-      computedRevKOT = 0
-    if (isArray) {
-      for (const d of details) {
-        const qty = Number(d.Qty) || 0
-        const rate = Number(d.RuntimeRate) || 0
-        const revQty = Number(d.RevQty) || 0
-        const lineSubtotal = qty * rate
-        const cgstPer = Number(d.CGST) || 0
-        const sgstPer = Number(d.SGST) || 0
-        const igstPer = Number(d.IGST) || 0
-        const cessPer = Number(d.CESS) || 0
-        const cgstAmt = Number(d.CGST_AMOUNT) || (lineSubtotal * cgstPer) / 100
-        const sgstAmt = Number(d.SGST_AMOUNT) || (lineSubtotal * sgstPer) / 100
-        const igstAmt = Number(d.IGST_AMOUNT) || (lineSubtotal * igstPer) / 100
-        const cessAmt = Number(d.CESS_AMOUNT) || (lineSubtotal * cessPer) / 100
-        computedGross += lineSubtotal
-        computedCgstAmt += cgstAmt
-        computedSgstAmt += sgstAmt
-        computedIgstAmt += igstAmt
-        computedCessAmt += cessAmt
-        computedRevKOT += revQty * rate
-      }
-    }
-
-    // Prioritize backend calculation if details are provided
-    const finalGross = isArray ? computedGross : Number(GrossAmt) || 0
-    const finalRevKOT = isArray ? computedRevKOT : Number(RevKOT) || 0
-    const finalCgst = isArray ? computedCgstAmt : Number(CGST) || 0
-    const finalSgst = isArray ? computedSgstAmt : Number(SGST) || 0
-    const finalIgst = isArray ? computedIgstAmt : Number(IGST) || 0
-    const finalCess = isArray ? computedCessAmt : Number(CESS) || 0
+    
+    // Use frontend calculated values directly
+    const finalGross = Number(GrossAmt) || 0
+    const finalRevKOT = Number(RevKOT) || 0
+    const finalCgst = Number(CGST) || 0
+    const finalSgst = Number(SGST) || 0
+    const finalIgst = Number(IGST) || 0
+    const finalCess = Number(CESS) || 0
     const finalDiscount = Number(Discount) || 0
+    const finalRoundOff = Number(RoundOFF) || 0
+    const finalAmount = Number(Amount) || 0
+    const finalTaxableValue = Number(TaxableValue) || 0
 
-    // Recalculate total before rounding
-    let totalBeforeRoundOff =
-      finalGross - finalDiscount + finalCgst + finalSgst + finalIgst + finalCess
-
-    // Apply rounding on the backend to ensure consistency
-    const { bill_round_off, bill_round_off_to } =
-      db
-        .prepare(
-          'SELECT bill_round_off, bill_round_off_to FROM mstoutlet_settings WHERE outletid = ?',
-        )
-        .get(outletid) || {}
-
-    let finalAmount = totalBeforeRoundOff
-    let finalRoundOff = 0
-
-    if (bill_round_off && bill_round_off_to > 0) {
-      finalAmount = Math.round(totalBeforeRoundOff / bill_round_off_to) * bill_round_off_to
-      finalRoundOff = finalAmount - totalBeforeRoundOff
-    }
-
-    console.log('Details length:', details.length)
+    console.log('Using frontend values - Gross:', finalGross, 'Amount:', finalAmount)
 
     const trx = db.transaction(() => {
       let txnNo = TxnNo
@@ -332,12 +285,12 @@ exports.createBill = async (req, res) => {
       const stmt = db.prepare(`
         INSERT INTO TAxnTrnbill (
           outletid, TxnNo, TableID, Steward, PAX, AutoKOT, ManualKOT, TxnDatetime,
-          GrossAmt, RevKOT, Discount, CGST, SGST, IGST, CESS, RoundOFF, Amount, table_name,
+          GrossAmt, RevKOT, Discount, CGST, SGST, IGST, CESS, RoundOFF, Amount, TaxableValue, table_name,
           isHomeDelivery, DriverID, CustomerName, MobileNo, Address, Landmark,
           orderNo, isPickup, HotelID, customerid, DiscRefID, DiscPer, DiscountType, UserId,
           BatchNo, PrevTableID, PrevDeptId, isTrnsfered, isChangeTrfAmt,
           ServiceCharge, ServiceCharge_Amount, Extra1, Extra2, Extra3, NCName, NCPurpose, isNCKOT, DeptID
-        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
   `)
 
       const result = stmt.run(
@@ -359,6 +312,7 @@ exports.createBill = async (req, res) => {
         finalCess,
         finalRoundOff,
         finalAmount,
+        finalTaxableValue,
         toBool(isHomeDelivery),
         DriverID ?? null,
         CustomerName || null,
@@ -391,6 +345,7 @@ exports.createBill = async (req, res) => {
 
       const txnId = result.lastInsertRowid
 
+      const isArray = Array.isArray(details) && details.length > 0
       if (isArray) {
         const dStmt = db.prepare(`
           INSERT INTO TAxnTrnbilldetails (
@@ -403,38 +358,19 @@ exports.createBill = async (req, res) => {
           ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         `)
 
-        const billDiscountType = Number(DiscountType) || 0
-        const billDiscPer = Number(DiscPer) || 0
-        const billDiscount = Number(Discount) || 0
-
         for (const d of details) {
-          const qty = Number(d.Qty) || 0
-          const rate = Number(d.RuntimeRate) || 0
-          const lineSubtotal = qty * rate
+          // Use frontend calculated values directly
           const cgstPer = Number(d.CGST) || 0
+          const cgstAmt = Number(d.CGST_AMOUNT) || 0
           const sgstPer = Number(d.SGST) || 0
+          const sgstAmt = Number(d.SGST_AMOUNT) || 0
           const igstPer = Number(d.IGST) || 0
+          const igstAmt = Number(d.IGST_AMOUNT) || 0
           const cessPer = Number(d.CESS) || 0
-          const cgstAmt = Number(d.CGST_AMOUNT) || (lineSubtotal * cgstPer) / 100
-          const sgstAmt = Number(d.SGST_AMOUNT) || (lineSubtotal * sgstPer) / 100
-          const igstAmt = Number(d.IGST_AMOUNT) || (lineSubtotal * igstPer) / 100
-          const cessAmt = Number(d.CESS_AMOUNT) || (lineSubtotal * cessPer) / 100
-
-          // Distribute discount proportionally based on the line item's value relative to the total gross amount
-          let itemDiscountAmount = 0
-          if (finalGross > 0) {
-            // Avoid division by zero
-            if (billDiscountType === 1) {
-              // Percentage discount
-              // The discount percentage is applied to each item's subtotal
-              itemDiscountAmount = (lineSubtotal * billDiscPer) / 100
-            } else if (billDiscountType === 0 && billDiscount > 0) {
-              // Fixed amount discount
-              // Distribute the fixed discount proportionally
-              const proportion = lineSubtotal / finalGross
-              itemDiscountAmount = billDiscount * proportion
-            }
-          }
+          const cessAmt = Number(d.CESS_AMOUNT) || 0
+          
+          // Use frontend calculated discount amount
+          const itemDiscountAmount = Number(d.Discount_Amount) || 0
 
           const isNCKOT = toBool(d.isNCKOT)
 
@@ -445,15 +381,15 @@ exports.createBill = async (req, res) => {
             d.TableID ?? null,
             table_name || null,
             cgstPer,
-            Number(cgstAmt) || 0,
+            cgstAmt,
             sgstPer,
-            Number(sgstAmt) || 0,
+            sgstAmt,
             igstPer,
-            Number(igstAmt) || 0,
+            igstAmt,
             cessPer,
-            Number(cessAmt) || 0,
+            cessAmt,
             itemDiscountAmount,
-            qty,
+            Number(d.Qty) || 0,
             d.KOTNo ?? null,
             toBool(d.AutoKOT),
             toBool(d.ManualKOT),
@@ -464,7 +400,7 @@ exports.createBill = async (req, res) => {
             toBool(d.isCancelled),
             d.DeptID ?? null,
             d.HotelID ?? null,
-            rate,
+            Number(d.RuntimeRate) || 0,
             Number(d.RevQty) || 0,
             d.KOTUsedDate || null, // KOTUsedDate
             0, // isBilled default to 0
@@ -515,6 +451,7 @@ exports.updateBill = async (req, res) => {
       CESS,
       RoundOFF,
       Amount,
+      TaxableValue,
       isHomeDelivery,
       DriverID,
       CustomerName,
@@ -543,71 +480,25 @@ exports.updateBill = async (req, res) => {
       details = [],
     } = req.body
 
-    // Always compute totals from details if provided, to ensure accuracy
-    const isArray = Array.isArray(details) && details.length > 0
-    let computedGross = 0,
-      computedCgstAmt = 0,
-      computedSgstAmt = 0,
-      computedIgstAmt = 0,
-      computedCessAmt = 0,
-      computedRevKOT = 0
-    if (isArray) {
-      for (const d of details) {
-        const qty = Number(d.Qty) || 0
-        const rate = Number(d.RuntimeRate) || 0
-        const revQty = Number(d.RevQty) || 0
-        const lineSubtotal = qty * rate
-        const cgstPer = Number(d.CGST) || 0
-        const sgstPer = Number(d.SGST) || 0
-        const igstPer = Number(d.IGST) || 0
-        const cessPer = Number(d.CESS) || 0
-        const cgstAmt = Number(d.CGST_AMOUNT) || (lineSubtotal * cgstPer) / 100
-        const sgstAmt = Number(d.SGST_AMOUNT) || (lineSubtotal * sgstPer) / 100
-        const igstAmt = Number(d.IGST_AMOUNT) || (lineSubtotal * igstPer) / 100
-        const cessAmt = Number(d.CESS_AMOUNT) || (lineSubtotal * cessPer) / 100
-        computedGross += lineSubtotal
-        computedCgstAmt += cgstAmt
-        computedSgstAmt += sgstAmt
-        computedIgstAmt += igstAmt
-        computedCessAmt += cessAmt
-        computedRevKOT += revQty * rate
-      }
-    }
-
-    // Prioritize backend calculation if details are provided
-    const finalGross = isArray ? computedGross : Number(GrossAmt) || 0
-    const finalRevKOT = isArray ? computedRevKOT : Number(RevKOT) || 0
-    const finalCgst = isArray ? computedCgstAmt : Number(CGST) || 0
-    const finalSgst = isArray ? computedSgstAmt : Number(SGST) || 0
-    const finalIgst = isArray ? computedIgstAmt : Number(IGST) || 0
-    const finalCess = isArray ? computedCessAmt : Number(CESS) || 0
+    // Use frontend calculated values directly
+    const finalGross = Number(GrossAmt) || 0
+    const finalRevKOT = Number(RevKOT) || 0
+    const finalCgst = Number(CGST) || 0
+    const finalSgst = Number(SGST) || 0
+    const finalIgst = Number(IGST) || 0
+    const finalCess = Number(CESS) || 0
     const finalDiscount = Number(Discount) || 0
+    const finalRoundOff = Number(RoundOFF) || 0
+    const finalAmount = Number(Amount) || 0
+    const finalTaxableValue = Number(TaxableValue) || 0
 
-    // Recalculate total before rounding
-    let totalBeforeRoundOff =
-      finalGross - finalDiscount + finalCgst + finalSgst + finalIgst + finalCess
-
-    // Apply rounding on the backend to ensure consistency
-    const { bill_round_off, bill_round_off_to } =
-      db
-        .prepare(
-          'SELECT bill_round_off, bill_round_off_to FROM mstoutlet_settings WHERE outletid = ?',
-        )
-        .get(outletid) || {}
-
-    let finalAmount = totalBeforeRoundOff
-    let finalRoundOff = 0
-
-    if (bill_round_off && bill_round_off_to > 0) {
-      finalAmount = Math.round(totalBeforeRoundOff / bill_round_off_to) * bill_round_off_to
-      finalRoundOff = finalAmount - totalBeforeRoundOff
-    }
+    console.log('Using frontend values for updateBill - Gross:', finalGross, 'Amount:', finalAmount)
 
     const txn = db.transaction(() => {
       const u = db.prepare(`
         UPDATE TAxnTrnbill SET
           outletid=?, TxnNo=?, TableID=?, table_name=?, Steward=?, PAX=?, AutoKOT=?, ManualKOT=?, TxnDatetime=?,
-          GrossAmt=?, RevKOT=?, Discount=?, CGST=?, SGST=?, IGST=?, CESS=?, RoundOFF=?, Amount=?,
+          GrossAmt=?, RevKOT=?, Discount=?, CGST=?, SGST=?, IGST=?, CESS=?, RoundOFF=?, Amount=?, TaxableValue=?,
           isHomeDelivery=?, DriverID=?, CustomerName=?, MobileNo=?, Address=?, Landmark=?,
           orderNo=?, isPickup=?, HotelID=?, customerid=?, DiscRefID=?, DiscPer=?, DiscountType=?, UserId=?,
           BatchNo=?, PrevTableID=?, PrevDeptId=?, isTrnsfered=?, isChangeTrfAmt=?,
@@ -634,6 +525,7 @@ exports.updateBill = async (req, res) => {
         finalCess,
         finalRoundOff,
         finalAmount,
+        finalTaxableValue,
         toBool(isHomeDelivery),
         DriverID ?? null,
         CustomerName || null,
@@ -663,7 +555,8 @@ exports.updateBill = async (req, res) => {
 
       db.prepare('DELETE FROM TAxnTrnbilldetails WHERE TxnID = ?').run(Number(id))
 
-      if (Array.isArray(details) && details.length > 0) {
+      const isArray = Array.isArray(details) && details.length > 0
+      if (isArray) {
         const ins = db.prepare(`
           INSERT INTO TAxnTrnbilldetails (
             TxnID, outletid, ItemID, TableID, table_name,
@@ -674,38 +567,20 @@ exports.updateBill = async (req, res) => {
             isBilled
           ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         `)
-        const billDiscountType = Number(DiscountType) || 0
-        const billDiscPer = Number(DiscPer) || 0
-        const billDiscount = Number(Discount) || 0
 
         for (const d of details) {
-          const qty = Number(d.Qty) || 0
-          const rate = Number(d.RuntimeRate) || 0
-          const lineSubtotal = qty * rate
+          // Use frontend calculated values directly
           const cgstPer = Number(d.CGST) || 0
+          const cgstAmt = Number(d.CGST_AMOUNT) || 0
           const sgstPer = Number(d.SGST) || 0
+          const sgstAmt = Number(d.SGST_AMOUNT) || 0
           const igstPer = Number(d.IGST) || 0
+          const igstAmt = Number(d.IGST_AMOUNT) || 0
           const cessPer = Number(d.CESS) || 0
-          const cgstAmt = Number(d.CGST_AMOUNT) || (lineSubtotal * cgstPer) / 100
-          const sgstAmt = Number(d.SGST_AMOUNT) || (lineSubtotal * sgstPer) / 100
-          const igstAmt = Number(d.IGST_AMOUNT) || (lineSubtotal * igstPer) / 100
-          const cessAmt = Number(d.CESS_AMOUNT) || (lineSubtotal * cessPer) / 100
+          const cessAmt = Number(d.CESS_AMOUNT) || 0
 
-          // Distribute discount proportionally based on the line item's value relative to the total gross amount
-          let itemDiscountAmount = 0
-          if (finalGross > 0) {
-            // Avoid division by zero
-            if (billDiscountType === 1) {
-              // Percentage discount
-              // The discount percentage is applied to each item's subtotal
-              itemDiscountAmount = (lineSubtotal * billDiscPer) / 100
-            } else if (billDiscountType === 0 && billDiscount > 0) {
-              // Fixed amount discount
-              // Distribute the fixed discount proportionally
-              const proportion = lineSubtotal / finalGross
-              itemDiscountAmount = billDiscount * proportion
-            }
-          }
+          // Use frontend calculated discount amount
+          const itemDiscountAmount = Number(d.Discount_Amount) || 0
 
           const isNCKOT = toBool(d.isNCKOT)
           ins.run(
@@ -723,7 +598,7 @@ exports.updateBill = async (req, res) => {
             cessPer,
             cessAmt,
             itemDiscountAmount,
-            qty,
+            Number(d.Qty) || 0,
             d.KOTNo ?? null,
             toBool(d.AutoKOT),
             toBool(d.ManualKOT),
@@ -734,7 +609,7 @@ exports.updateBill = async (req, res) => {
             toBool(d.isCancelled),
             d.DeptID ?? null,
             d.HotelID ?? null,
-            rate,
+            Number(d.RuntimeRate) || 0,
             Number(d.RevQty) || 0,
             d.KOTUsedDate || null, // KOTUsedDate
             0, // isBilled default to 0
@@ -1018,10 +893,21 @@ exports.createKOT = async (req, res) => {
     KOTUsedDate,
     curr_date,
 
+    // Frontend calculated values - use directly
+    GrossAmt,
+    TaxableValue,
+    CGST,
+    SGST,
+    IGST,
+    CESS,
+    RoundOFF,
+    Amount,
+
     items: details = [],
   } = req.body
 
     console.log('Received Discount Data for KOT:', { DiscPer, Discount, DiscountType })
+    console.log('Received Calculated Values from Frontend:', { GrossAmt, TaxableValue, CGST, SGST, IGST, CESS, RoundOFF, Amount })
     let order_tag = req.body.order_tag
 
     if (!Array.isArray(details) || details.length === 0) {
@@ -1049,7 +935,7 @@ exports.createKOT = async (req, res) => {
         // For Pickup/Delivery or subsequent KOTs for Dine-in, find the bill by its TxnID
         existingBill = db
           .prepare(
-            'SELECT TxnID, DiscPer, Discount, DiscountType, isNCKOT, isBilled FROM TAxnTrnbill WHERE TxnID = ?',
+            'SELECT TxnID, DiscPer, Discount, DiscountType, isNCKOT, isBilled, GrossAmt, TaxableValue, CGST, SGST, IGST, CESS, RoundOFF, Amount FROM TAxnTrnbill WHERE TxnID = ?',
           )
           .get(payloadTxnId)
         console.log('Existing bill found by TxnID:', existingBill)
@@ -1057,13 +943,23 @@ exports.createKOT = async (req, res) => {
         existingBill = db
           .prepare(
             `
-          SELECT TxnID, DiscPer, Discount, DiscountType, isNCKOT, isBilled FROM TAxnTrnbill
+          SELECT TxnID, DiscPer, Discount, DiscountType, isNCKOT, isBilled, GrossAmt, TaxableValue, CGST, SGST, IGST, CESS, RoundOFF, Amount FROM TAxnTrnbill
           WHERE TableID = ? AND isCancelled = 0 AND isSetteled = 0 ORDER BY TxnID DESC LIMIT 1
         `,
           )
           .get(Number(TableID))
         console.log('Existing bill found by TableID:', existingBill)
       }
+
+      // Use frontend calculated values or fall back to existing/0
+      let finalGrossAmt = Number(GrossAmt) || (existingBill ? Number(existingBill.GrossAmt) : 0) || 0
+      let finalTaxableValue = Number(TaxableValue) || (existingBill ? Number(existingBill.TaxableValue) : 0) || 0
+      let finalCgst = Number(CGST) || (existingBill ? Number(existingBill.CGST) : 0) || 0
+      let finalSgst = Number(SGST) || (existingBill ? Number(existingBill.SGST) : 0) || 0
+      let finalIgst = Number(IGST) || (existingBill ? Number(existingBill.IGST) : 0) || 0
+      let finalCess = Number(CESS) || (existingBill ? Number(existingBill.CESS) : 0) || 0
+      let finalRoundOff = Number(RoundOFF) || (existingBill ? Number(existingBill.RoundOFF) : 0) || 0
+      let finalAmount = Number(Amount) || (existingBill ? Number(existingBill.Amount) : 0) || 0
 
       if (existingBill) {
         txnId = existingBill.TxnID
@@ -1075,6 +971,7 @@ exports.createKOT = async (req, res) => {
         }
         // Always update the bill header with the latest information, including table_name.
         // Use new discount/NC info if provided, otherwise fall back to existing values.
+        // Also update with frontend calculated values
         db.prepare(
           `
             UPDATE TAxnTrnbill
@@ -1091,7 +988,15 @@ exports.createKOT = async (req, res) => {
               isNCKOT = ?,
               CustomerName = COALESCE(?, CustomerName),
               MobileNo = COALESCE(?, MobileNo),
-              customerid = CASE WHEN ? IS NOT NULL THEN ? ELSE customerid END
+              customerid = CASE WHEN ? IS NOT NULL THEN ? ELSE customerid END,
+              GrossAmt = ?,
+              TaxableValue = ?,
+              CGST = ?,
+              SGST = ?,
+              IGST = ?,
+              CESS = ?,
+              RoundOFF = ?,
+              Amount = ?
             WHERE TxnID = ?
         `,
         ).run(
@@ -1109,6 +1014,14 @@ exports.createKOT = async (req, res) => {
           MobileNo,
           customerid,
           customerid,
+          finalGrossAmt,
+          finalTaxableValue,
+          finalCgst,
+          finalSgst,
+          finalIgst,
+          finalCess,
+          finalRoundOff,
+          finalAmount,
           txnId,
         )
       } else {
@@ -1132,8 +1045,9 @@ exports.createKOT = async (req, res) => {
           INSERT INTO TAxnTrnbill (
             outletid, TxnNo, TableID, table_name, Steward, PAX, UserId, HotelID, TxnDatetime,
             isBilled, isCancelled, isSetteled, status, AutoKOT, CustomerName, MobileNo, customerid, Order_Type, orderNo,
-            NCName, NCPurpose, DiscPer, Discount, DiscountType, isNCKOT, DeptID
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 1, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            NCName, NCPurpose, DiscPer, Discount, DiscountType, isNCKOT, DeptID,
+            GrossAmt, TaxableValue, CGST, SGST, IGST, CESS, RoundOFF, Amount
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 1, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `)
         const result = insertHeaderStmt.run(
           headerOutletId,
@@ -1157,6 +1071,14 @@ exports.createKOT = async (req, res) => {
           finalDiscountType,
           toBool(isHeaderNCKOT),
           DeptID,
+          finalGrossAmt,
+          finalTaxableValue,
+          finalCgst,
+          finalSgst,
+          finalIgst,
+          finalCess,
+          finalRoundOff,
+          finalAmount,
         )
         txnId = result.lastInsertRowid
         db.prepare('UPDATE msttablemanagement SET status = 1 WHERE tableid = ?').run(
@@ -1207,26 +1129,21 @@ exports.createKOT = async (req, res) => {
           continue
         }
         const rate = Number(item.RuntimeRate) || 0
-        const lineSubtotal = qty * rate
+        
+        // Use frontend calculated values directly
         const cgstPer = Number(item.CGST) || 0
+        const cgstAmt = Number(item.CGST_AMOUNT) || 0
         const sgstPer = Number(item.SGST) || 0
+        const sgstAmt = Number(item.SGST_AMOUNT) || 0
         const igstPer = Number(item.IGST) || 0
+        const igstAmt = Number(item.IGST_AMOUNT) || 0
         const cessPer = Number(item.CESS) || 0
-        const cgstAmt = Number(item.CGST_AMOUNT) || (lineSubtotal * cgstPer) / 100
-        const sgstAmt = Number(item.SGST_AMOUNT) || (lineSubtotal * sgstPer) / 100
-        const igstAmt = Number(item.IGST_AMOUNT) || (lineSubtotal * igstPer) / 100
-        const cessAmt = Number(item.CESS_AMOUNT) || (lineSubtotal * cessPer) / 100
+        const cessAmt = Number(item.CESS_AMOUNT) || 0
         const isNCKOT = toBool(item.isNCKOT)
         const order_tag = item.order_tag || ''
 
-        let itemDiscountAmount = 0
-        if (finalDiscountType === 1) {
-          // Percentage
-          itemDiscountAmount = (lineSubtotal * finalDiscPer) / 100
-        } else {
-          // Fixed amount
-          itemDiscountAmount = finalDiscount
-        }
+        // Use frontend calculated discount amount directly
+        let itemDiscountAmount = Number(item.Discount_Amount) || 0
 
         let itemNo = item.item_no
         if (!itemNo && item.ItemID) {
@@ -1263,101 +1180,7 @@ exports.createKOT = async (req, res) => {
         })
       }
 
-      // Manually recalculate and update bill totals to ensure accuracy,
-      // as relying on triggers can be inconsistent.
-      const allDetails = db
-        .prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? AND isCancelled = 0')
-        .all(txnId)
-      const billHeader = db
-        .prepare('SELECT RoundOFF, Discount, outletid FROM TAxnTrnbill WHERE TxnID = ?')
-        .get(txnId)
-      const outletSettings = db
-        .prepare('SELECT include_tax_in_invoice FROM mstoutlet_settings WHERE outletid = ?')
-        .get(billHeader.outletid)
-      const includeTaxInInvoice = outletSettings ? outletSettings.include_tax_in_invoice : 0
-
-      // FIX: Calculate totalGross considering RevQty (reversed quantity) to get net quantity
-      let totalGross = 0
-      for (const d of allDetails) {
-        const qty = Number(d.Qty) || 0
-        const revQty = Number(d.RevQty) || 0
-        const netQty = qty - revQty // Net quantity after reversal
-        const rate = Number(d.RuntimeRate) || 0
-        totalGross += netQty * rate
-      }
-
-      let totalCgst = 0,
-        totalSgst = 0,
-        totalIgst = 0,
-        totalCess = 0
-      const discountAmount = Number(billHeader.Discount) || 0
-
-      // Use tax percentages from the first item as they are consistent for the bill.
-      const firstDetail = allDetails[0] || {}
-      const cgstPer = Number(firstDetail.CGST) || 0
-      const sgstPer = Number(firstDetail.SGST) || 0
-      const igstPer = Number(firstDetail.IGST) || 0
-      const cessPer = Number(firstDetail.CESS) || 0
-
-      let totalBeforeRoundOff = 0
-      let finalTaxableValue = 0
-
-      if (includeTaxInInvoice === 1) {
-        const combinedPer = cgstPer + sgstPer + igstPer + cessPer
-        // FIX: Apply discount BEFORE extracting pre-tax base (matching frontend logic)
-        const discountedGross = totalGross - discountAmount
-        const preTaxBase = combinedPer > 0 ? discountedGross / (1 + combinedPer / 100) : discountedGross
-        finalTaxableValue = preTaxBase > 0 ? preTaxBase : 0
-
-        totalCgst = (finalTaxableValue * cgstPer) / 100
-        totalSgst = (finalTaxableValue * sgstPer) / 100
-        totalIgst = (finalTaxableValue * igstPer) / 100
-        totalCess = (finalTaxableValue * cessPer) / 100
-        totalBeforeRoundOff = finalTaxableValue + totalCgst + totalSgst + totalIgst + totalCess
-      } else {
-        const taxableValue = totalGross - discountAmount
-        finalTaxableValue = taxableValue
-        // Recalculate taxes based on the post-discount taxable value
-        totalCgst = (taxableValue * cgstPer) / 100
-        totalSgst = (taxableValue * sgstPer) / 100
-        totalIgst = (taxableValue * igstPer) / 100
-        totalCess = (taxableValue * cessPer) / 100
-        totalBeforeRoundOff = taxableValue + totalCgst + totalSgst + totalIgst + totalCess
-      }
-
-      // Apply rounding on the backend to ensure consistency
-      const { bill_round_off, bill_round_off_to } =
-        db
-          .prepare(
-            'SELECT bill_round_off, bill_round_off_to FROM mstoutlet_settings WHERE outletid = ?',
-          )
-          .get(billHeader.outletid) || {}
-      let finalAmount = totalBeforeRoundOff
-      let finalRoundOff = 0
-
-      if (bill_round_off && bill_round_off_to > 0) {
-        finalAmount = Math.round(totalBeforeRoundOff / bill_round_off_to) * bill_round_off_to
-        finalRoundOff = finalAmount - totalBeforeRoundOff
-      }
-
-      db.prepare(
-        `
-          UPDATE TAxnTrnbill
-          SET GrossAmt = ?, Discount = ?, CGST = ?, SGST = ?, IGST = ?, CESS = ?, Amount = ?, RoundOFF = ?, TaxableValue = ?
-          WHERE TxnID = ?
-      `,
-      ).run(
-        totalGross,
-        discountAmount,
-        totalCgst,
-        totalSgst,
-        totalIgst,
-        totalCess,
-        finalAmount,
-        finalRoundOff,
-        finalTaxableValue,
-        txnId,
-      )
+      // No backend recalculation - use frontend values directly
       return { txnId, kotNo }
     })() // Immediately invoke the transaction
 
