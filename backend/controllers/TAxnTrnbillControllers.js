@@ -1019,16 +1019,6 @@ exports.createKOT = async (req, res) => {
     curr_date,
 
     items: details = [],
-
-    // Pre-calculated header values from frontend - use these directly
-    GrossAmt: frontEndGrossAmt,
-    TaxableValue: frontEndTaxableValue,
-    CGST: frontEndCGST,
-    SGST: frontEndSGST,
-    IGST: frontEndIGST,
-    CESS: frontEndCESS,
-    RoundOFF: frontEndRoundOFF,
-    Amount: frontEndAmount,
   } = req.body
 
     console.log('Received Discount Data for KOT:', { DiscPer, Discount, DiscountType })
