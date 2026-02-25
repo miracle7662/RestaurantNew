@@ -2028,6 +2028,8 @@ exports.handleF8KeyPress = async (req, res) => {
         `,
         ).run(totalReverseAmount, billTxnId)
       }
+
+    
     })
 
     transaction()
@@ -2628,7 +2630,7 @@ exports.applyDiscountToBill = async (req, res) => {
         if (finalDiscountType === 1) {
           // Percentage
           // Use the percentage from the request to calculate discount per item
-          itemDiscountAmount = (lineSubtotal * finalDiscPer) / 100
+          itemDiscountAmount = parseFloat(((lineSubtotal * finalDiscPer) / 100).toFixed(2))
         } else {
           // Fixed amount - distribute proportionally
           const subtotalOfAllItems = items.reduce(
@@ -2636,7 +2638,7 @@ exports.applyDiscountToBill = async (req, res) => {
             0,
           )
           if (subtotalOfAllItems > 0) {
-            itemDiscountAmount = (lineSubtotal / subtotalOfAllItems) * finalDiscount
+            itemDiscountAmount = parseFloat(((lineSubtotal / subtotalOfAllItems) * finalDiscount).toFixed(2))
           }
         }
 
@@ -2677,21 +2679,21 @@ exports.applyDiscountToBill = async (req, res) => {
         // FIX: Apply discount BEFORE extracting pre-tax base (matching frontend logic)
         const discountedGross = totalGross - finalDiscount
         const preTaxBase = combinedPer > 0 ? discountedGross / (1 + combinedPer / 100) : discountedGross
-        finalTaxableValue = preTaxBase > 0 ? preTaxBase : 0
+        finalTaxableValue = preTaxBase > 0 ? parseFloat(preTaxBase.toFixed(2)) : 0
 
-        totalCgst = (finalTaxableValue * cgstPer) / 100
-        totalSgst = (finalTaxableValue * sgstPer) / 100
-        totalIgst = (finalTaxableValue * igstPer) / 100
-        totalCess = (finalTaxableValue * cessPer) / 100
-        totalBeforeRoundOff = finalTaxableValue + totalCgst + totalSgst + totalIgst + totalCess
+        totalCgst = parseFloat(((finalTaxableValue * cgstPer) / 100).toFixed(2))
+        totalSgst = parseFloat(((finalTaxableValue * sgstPer) / 100).toFixed(2))
+        totalIgst = parseFloat(((finalTaxableValue * igstPer) / 100).toFixed(2))
+        totalCess = parseFloat(((finalTaxableValue * cessPer) / 100).toFixed(2))
+        totalBeforeRoundOff = parseFloat((finalTaxableValue + totalCgst + totalSgst + totalIgst + totalCess).toFixed(2))
       } else {
         const taxableValue = totalGross - finalDiscount
-        finalTaxableValue = taxableValue
-        totalCgst = (taxableValue * cgstPer) / 100
-        totalSgst = (taxableValue * sgstPer) / 100
-        totalIgst = (taxableValue * igstPer) / 100
-        totalCess = (taxableValue * cessPer) / 100
-        totalBeforeRoundOff = taxableValue + totalCgst + totalSgst + totalIgst + totalCess
+        finalTaxableValue = parseFloat(taxableValue.toFixed(2))
+        totalCgst = parseFloat(((taxableValue * cgstPer) / 100).toFixed(2))
+        totalSgst = parseFloat(((taxableValue * sgstPer) / 100).toFixed(2))
+        totalIgst = parseFloat(((taxableValue * igstPer) / 100).toFixed(2))
+        totalCess = parseFloat(((taxableValue * cessPer) / 100).toFixed(2))
+        totalBeforeRoundOff = parseFloat((taxableValue + totalCgst + totalSgst + totalIgst + totalCess).toFixed(2))
       }
 
       // Apply rounding on the backend to ensure consistency
