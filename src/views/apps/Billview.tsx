@@ -347,16 +347,16 @@ const ModernBill = () => {
       const preTaxBase = totalTaxRate > 0 ? discountedGross / (1 + totalTaxRate / 100) : discountedGross;
       taxableValue = preTaxBase;
 
-      cgstTotal = (taxableValue * cgstRate) / 100;
-      sgstTotal = (taxableValue * sgstRate) / 100;
-      igstTotal = (taxableValue * igstRate) / 100;
-      cessTotal = (taxableValue * cessRate) / 100;
+      cgstTotal = Number(((taxableValue * cgstRate) / 100).toFixed(2));
+      sgstTotal = Number(((taxableValue * sgstRate) / 100).toFixed(2));
+      igstTotal = Number(((taxableValue * igstRate) / 100).toFixed(2));
+      cessTotal = Number(((taxableValue * cessRate) / 100).toFixed(2));
     } else {
       taxableValue = gross - discountAmount;
-      cgstTotal = (taxableValue * cgstRate) / 100;
-      sgstTotal = (taxableValue * sgstRate) / 100;
-      igstTotal = (taxableValue * igstRate) / 100;
-      cessTotal = (taxableValue * cessRate) / 100;
+      cgstTotal = Number(((taxableValue * cgstRate) / 100).toFixed(2));
+      sgstTotal = Number(((taxableValue * sgstRate) / 100).toFixed(2));
+      igstTotal = Number(((taxableValue * igstRate) / 100).toFixed(2));
+      cessTotal = Number(((taxableValue * cessRate) / 100).toFixed(2));
     }
 
     const totalBeforeRoundOff = taxableValue + cgstTotal + sgstTotal + igstTotal + cessTotal;
@@ -369,7 +369,7 @@ const ModernBill = () => {
     setIgst(igstTotal);
     setTotalCess(cessTotal);
     setFinalAmount(roundedFinalAmount);
-    setRoundOff(ro);
+    setRoundOff(Number(ro.toFixed(2)));
     setDiscount(discountAmount);
     setTaxCalc({ grandTotal: roundedFinalAmount, subtotal: gross, taxableValue });
   }, [displayedItems, cgstRate, sgstRate, igstRate, cessRate, includeTaxInInvoice, discountInputValue, DiscountType]);
@@ -1144,75 +1144,75 @@ const ModernBill = () => {
     }
   };
 
- const calculateTotals = (items: BillItem[]) => {
+  const calculateTotals = (items: BillItem[]) => {
 
-  const updatedItems = items.map(item => {
-    const total = item.qty * item.rate;
-    return { ...item, total };
-  });
+    const updatedItems = items.map(item => {
+      const total = item.qty * item.rate;
+      return { ...item, total };
+    });
 
-  const gross = updatedItems.reduce((sum, item) => sum + item.total, 0);
+    const gross = updatedItems.reduce((sum, item) => sum + item.total, 0);
 
-  // Discount
-  const discountAmount =
-    DiscountType === 1
-      ? (gross * discountInputValue) / 100
-      : discountInputValue;
+    // Discount
+    const discountAmount =
+      DiscountType === 1
+        ? (gross * discountInputValue) / 100
+        : discountInputValue;
 
-  const discountedGross = gross - discountAmount;
+    const discountedGross = gross - discountAmount;
 
-  let taxableValue = 0;
-  let cgstTotal = 0;
-  let sgstTotal = 0;
-  let igstTotal = 0;
-  let cessTotal = 0;
+    let taxableValue = 0;
+    let cgstTotal = 0;
+    let sgstTotal = 0;
+    let igstTotal = 0;
+    let cessTotal = 0;
 
-  const totalTaxRate = cgstRate + sgstRate + igstRate + cessRate;
+    const totalTaxRate = cgstRate + sgstRate + igstRate + cessRate;
 
-  if (includeTaxInInvoice) {
-    // 🔹 TAX INCLUSIVE
+    if (includeTaxInInvoice) {
+      // 🔹 TAX INCLUSIVE
 
-    taxableValue =
-      totalTaxRate > 0
-        ? discountedGross / (1 + totalTaxRate / 100)
-        : discountedGross;
+      taxableValue =
+        totalTaxRate > 0
+          ? discountedGross / (1 + totalTaxRate / 100)
+          : discountedGross;
 
-    cgstTotal = taxableValue * (cgstRate / 100);
-    sgstTotal = taxableValue * (sgstRate / 100);
-    igstTotal = taxableValue * (igstRate / 100);
-    cessTotal = taxableValue * (cessRate / 100);
+      cgstTotal = taxableValue * (cgstRate / 100); Number(grossAmount.toFixed(2)),
+        sgstTotal = taxableValue * (sgstRate / 100);
+      igstTotal = taxableValue * (igstRate / 100);
+      cessTotal = taxableValue * (cessRate / 100);
 
-  } else {
-    // 🔹 TAX EXCLUSIVE
+    } else {
+      // 🔹 TAX EXCLUSIVE
 
-    taxableValue = discountedGross;
+      taxableValue = discountedGross;
 
-    cgstTotal = taxableValue * (cgstRate / 100);
-    sgstTotal = taxableValue * (sgstRate / 100);
-    igstTotal = taxableValue * (igstRate / 100);
-    cessTotal = taxableValue * (cessRate / 100);
-  }
+      cgstTotal = taxableValue * (cgstRate / 100);
+      sgstTotal = taxableValue * (sgstRate / 100);
+      igstTotal = taxableValue * (igstRate / 100);
+      cessTotal = taxableValue * (cessRate / 100);
+    }
 
-  const totalBeforeRoundOff =
-    taxableValue + cgstTotal + sgstTotal + igstTotal + cessTotal;
+    const totalBeforeRoundOff =
+      taxableValue + cgstTotal + sgstTotal + igstTotal + cessTotal;
 
-  const roundedFinalAmount = Math.round(totalBeforeRoundOff);
-  const ro = roundedFinalAmount - totalBeforeRoundOff;
+    const roundedFinalAmount = Math.round(totalBeforeRoundOff);
+    const ro = roundedFinalAmount - totalBeforeRoundOff;
 
-  setGrossAmount(gross);
-  setCgst(cgstTotal);
-  setSgst(sgstTotal);
-  setIgst(igstTotal);
-  setTotalCess(cessTotal);
-  setFinalAmount(roundedFinalAmount);
-  setRoundOff(ro);
-  setBillItems(updatedItems);
-  setTaxCalc({
-    grandTotal: roundedFinalAmount,
-    subtotal: gross,
-    taxableValue,
-  });
-};
+    setGrossAmount(gross);
+    setCgst(cgstTotal);
+    setSgst(sgstTotal);
+    setIgst(igstTotal);
+    setTotalCess(cessTotal);
+    setFinalAmount(roundedFinalAmount);
+    setRoundOff(Number(ro.toFixed(2)));
+    setBillItems(updatedItems);
+    setTaxCalc({
+      grandTotal: roundedFinalAmount,
+      subtotal: gross,
+      taxableValue,
+    });
+  };
 
   // Fetch outlets and set default restaurant/outlet names
   useEffect(() => {
@@ -1453,7 +1453,7 @@ const ModernBill = () => {
   }, [defaultWaiterId, waiterUsers, waiter]);
 
   useEffect(() => {
-    
+
     calculateTotals(billItems);
 
     // Remove padding or margin from layout containers
@@ -1663,7 +1663,7 @@ const ModernBill = () => {
         return;
       }
 
-// --- SUB-TABLE LOGIC START ---
+      // --- SUB-TABLE LOGIC START ---
       // If we are saving a KOT for a table that is already occupied (originalTableStatus !== 0)
       // AND we don't have a current transaction ID (meaning it's a "New Bill"),
       // we should create a sub-table (e.g., 2A) to avoid merging with the existing bill.
@@ -1726,7 +1726,7 @@ const ModernBill = () => {
         DiscountType: DiscountType,
         TxnDatetime: user?.currDate,
         curr_date: user?.currDate, // Pass curr_date for KOT number generation based on business date
-        KOTUsedDate: user?.currDate , // Pass curr_date for KOTUsedDate similar to TxnDatetime
+        KOTUsedDate: user?.currDate, // Pass curr_date for KOTUsedDate similar to TxnDatetime
         // Frontend calculated totals - send to backend (rounded to 2 decimal places)
         GrossAmt: Number(grossAmount.toFixed(2)),
         TaxableValue: Number(taxCalc.taxableValue.toFixed(2)),
@@ -1744,7 +1744,7 @@ const ModernBill = () => {
           const sgstAmount = itemTotal * (sgstRate / 100);
           const igstAmount = itemTotal * (igstRate / 100);
           const cessAmount = itemTotal * (cessRate / 100);
-          
+
           return {
             ItemID: item.itemId,
             Name: item.itemName,
@@ -1894,7 +1894,7 @@ const ModernBill = () => {
         setSelectedTable(null);
         setShowOrderDetails(false);
         setShowNCKOTModal(false);
-        
+
         // ✅ 3️⃣ NAVIGATE TO TABLEVIEW - Always navigate regardless of table status update
         navigate('/apps/Tableview');
       } else {
@@ -1929,7 +1929,7 @@ const ModernBill = () => {
         tableId,
         kotType: 'REVERSE',
         isReverseKot: 1,
-        
+
         reversedItems: reverseItemsFromModal.map(item => ({
           txnDetailId: item.txnDetailId,
           item_no: item.item_no,
@@ -2025,7 +2025,7 @@ const ModernBill = () => {
       toast.error('Error printing bill');
     }
   };
-  
+
 
   const PrintAndSettle = async () => {
     if (!txnId) return;
@@ -3400,10 +3400,10 @@ const ModernBill = () => {
           <Modal.Title>KOT Transfer</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <KotTransfer 
-            transferSource={transferSource} 
-            sourceTableId={tableId} 
-            onCancel={() => setShowKotTransferModal(false)} 
+          <KotTransfer
+            transferSource={transferSource}
+            sourceTableId={tableId}
+            onCancel={() => setShowKotTransferModal(false)}
             onSuccess={() => {
               setShowKotTransferModal(false);
               navigate('/apps/Tableview');
@@ -3496,7 +3496,7 @@ const ModernBill = () => {
         persistentTableId={tableId}
         outletid={selectedOutletId}
         currDate={user?.currDate}
-        
+
       />
       <KotPreviewPrint
         show={showKotPrintModal}

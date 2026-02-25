@@ -285,7 +285,7 @@ const [roundOffEnabled, setRoundOffEnabled] = useState<boolean>(false);
   const applyRoundOff = (amount: number, roundTo: number) => {
     if (roundTo <= 0) return { roundedAmount: amount, roundOffValue: 0 };
     const roundedAmount = Math.round(amount / roundTo) * roundTo;
-    const roundOffValue = roundedAmount - amount;
+    const roundOffValue = Number((roundedAmount - amount).toFixed(2));
     return { roundedAmount, roundOffValue };
   };
 
@@ -4180,9 +4180,9 @@ const handleTabClick = (tab: string) => {
                     </div>
                   )}
                   
-                  {roundOffValue !== 0 && (
+                  {Math.abs(roundOffValue) >= 0.01 && (
                     <div className="d-flex justify-content-between">
-                      <span>Round Off. ({roundOffTo})</span>
+                      <span>Round Off ({roundOffTo})</span>
                       <span>{roundOffValue >= 0 ? '+' : ''}{roundOffValue.toFixed(2)}</span>
                     </div>
                   )}
