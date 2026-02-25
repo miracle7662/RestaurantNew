@@ -1912,7 +1912,9 @@ const handleTabClick = (tab: string) => {
           itemName: item.name
         })),
         userId: user?.id,
-        reversalReason: 'Full Reverse from UI' // You can add a specific reason here if needed
+        reversalReason: 'Full Reverse from UI', // You can add a specific reason here if needed
+        curr_date: user?.currDate,
+        
       });
 
       if (response.success) {
