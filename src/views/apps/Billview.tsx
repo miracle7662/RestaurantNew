@@ -213,8 +213,8 @@ const ModernBill = () => {
   const [formData, setFormData] = useState<FormData>({} as FormData);
 
   // Tax rates states
-  const [cgstRate, setCgstRate] = useState(2.5);
-  const [sgstRate, setSgstRate] = useState(2.5);
+  const [cgstRate, setCgstRate] = useState(0);
+  const [sgstRate, setSgstRate] = useState(0);
   const [igstRate, setIgstRate] = useState(0);
   const [cessRate, setCessRate] = useState(0);
   const [includeTaxInInvoice, setIncludeTaxInInvoice] = useState(false);
@@ -845,8 +845,8 @@ const ModernBill = () => {
           total: total,
 
           // New tax fields - use from API if available, otherwise calculate fallback
-          cgst: item.cgst ?? (total * 0.025),           // 2.5% default fallback
-          sgst: item.sgst ?? (total * 0.025),           // 2.5% default fallback
+          cgst: item.cgst ?? 0,
+          sgst: item.sgst ?? 0,
           igst: item.igst ?? 0,
           cess: item.cess ?? 0,
           mkotNo: item.kotNo ? item.kotNo.toString() : (item.KOTNo ? item.KOTNo.toString() : ''),
@@ -1005,8 +1005,8 @@ const ModernBill = () => {
           total: total,
 
           // New tax fields - use from API if available, otherwise calculate fallback
-          cgst: item.cgst ?? (total * 0.025),           // 2.5% default fallback
-          sgst: item.sgst ?? (total * 0.025),           // 2.5% default fallback
+          cgst: item.cgst ?? 0,
+          sgst: item.sgst ?? 0,
           igst: item.igst ?? 0,
           cess: item.cess ?? 0,
 
@@ -1298,26 +1298,44 @@ const ModernBill = () => {
     fetchGlobalKOT();
   }, [selectedOutletId]);
 
-  // Fetch tax details based on selected outlet
+  // Fetch tax details based on selected outlet and department (matching Orders.tsx)
   useEffect(() => {
     const fetchTaxDetails = async () => {
-      if (!selectedOutletId) return;
+      if (!selectedOutletId || !departmentIdFromState) return;
 
       try {
-        const response = await OrderService.getTaxDetails(selectedOutletId);
-        setCgstRate(response.data.cgst_rate || 2.5);
-        setSgstRate(response.data.sgst_rate || 2.5);
-        setIgstRate(response.data.igst_rate || 0);
-        setCessRate(response.data.cess_rate || 0);
-        setIncludeTaxInInvoice(response.data.include_tax_in_invoice || false);
+        // Use getTaxesByOutletAndDepartment like Orders.tsx
+        const response = await OrderService.getTaxesByOutletAndDepartment({
+          outletid: selectedOutletId,
+          departmentid: departmentIdFromState
+        });
+
+        if (response?.success && response?.data?.taxes) {
+          const t = response.data.taxes;
+          setCgstRate(Number(t.cgst) || 0);
+          setSgstRate(Number(t.sgst) || 0);
+          setIgstRate(Number(t.igst) || 0);
+          setCessRate(Number(t.cess) || 0);
+        } else {
+          // Fallback to 0 if no tax data
+          setCgstRate(0);
+          setSgstRate(0);
+          setIgstRate(0);
+          setCessRate(0);
+        }
         console.log('Tax details:', response.data);
       } catch (error) {
         console.error('Error fetching tax details:', error);
+        // Fallback to 0 on error
+        setCgstRate(0);
+        setSgstRate(0);
+        setIgstRate(0);
+        setCessRate(0);
       }
     };
 
     fetchTaxDetails();
-  }, [selectedOutletId]);
+  }, [selectedOutletId, departmentIdFromState]);
 
   const loadOutletSettings = async (outletId: number) => {
     try {
@@ -1709,27 +1727,48 @@ const ModernBill = () => {
         TxnDatetime: user?.currDate,
         curr_date: user?.currDate, // Pass curr_date for KOT number generation based on business date
         KOTUsedDate: user?.currDate , // Pass curr_date for KOTUsedDate similar to TxnDatetime
+        // Frontend calculated totals - send to backend
+        GrossAmt: grossAmount,
+        TaxableValue: taxCalc.taxableValue,
+        CGST: cgst,
+        SGST: sgst,
+        IGST: igst,
+        CESS: totalCess,
+        RoundOFF: roundOff,
+        Amount: finalAmount,
         ...(txnId ? { txnId } : {}),
         ...(isNoCharge ? { NCName: ncName, NCPurpose: ncPurpose } : {}),
-        items: validItems.map(item => ({
-          ItemID: item.itemId,
-          Name: item.itemName,
-          item_name: item.itemName,  // Add item_name for backend
-          Qty: item.qty,
-          RuntimeRate: item.rate,
-          Amount: item.qty * item.rate,
-          CGST: 2.5,
-          SGST: 2.5,
-          IGST: 0,
-          CESS: 0,
-          Discount_Amount: 0,
-          isNCKOT: isNoCharge,
-          isbilled: print ? 1 : 0,
-          DeptID: departmentIdFromState && departmentIdFromState > 0 ? departmentIdFromState : null,
-          SpecialInst: item.specialInstructions || null,
-          item_no: item.item_no,
-          order_tag: order_tag
-        }))
+        items: validItems.map(item => {
+          const itemTotal = item.qty * item.rate;
+          const cgstAmount = itemTotal * (cgstRate / 100);
+          const sgstAmount = itemTotal * (sgstRate / 100);
+          const igstAmount = itemTotal * (igstRate / 100);
+          const cessAmount = itemTotal * (cessRate / 100);
+          
+          return {
+            ItemID: item.itemId,
+            Name: item.itemName,
+            item_name: item.itemName,  // Add item_name for backend
+            Qty: item.qty,
+            RuntimeRate: item.rate,
+            Amount: itemTotal,
+            CGST: cgstRate,
+            CGST_AMOUNT: cgstAmount,
+            SGST: sgstRate,
+            SGST_AMOUNT: sgstAmount,
+            IGST: igstRate,
+            IGST_AMOUNT: igstAmount,
+            CESS: cessRate,
+            CESS_AMOUNT: cessAmount,
+            Discount_Amount: 0,
+            isNCKOT: isNoCharge,
+            isbilled: print ? 1 : 0,
+            DeptID: departmentIdFromState && departmentIdFromState > 0 ? departmentIdFromState : null,
+            SpecialInst: item.specialInstructions || null,
+            item_no: item.item_no,
+            order_tag: order_tag
+          };
+        })
       };
 
       console.log("📤 KOT Payload being sent:", payload);

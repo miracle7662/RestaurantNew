@@ -995,340 +995,411 @@ exports.updateBillItemsIsBilled = async (req, res) => {
 /* -------------------------------------------------------------------------- */
 exports.createKOT = async (req, res) => {
   try {
+    console.log('Received createKOT body:', JSON.stringify(req.body, null, 2))
+    // Correctly destructure from the frontend payload which uses camelCase (e.g., tableId, userId)
     const {
-      outletid,
-      tableId,
-      table_name,
-      userId,
-      hotelId,
-      TxnDatetime,
-      Order_Type,
-      PAX,
-      Steward,
-      DeptID,
+    outletid,
+    tableId: TableID,
+    table_name,
+    userId: UserId,
+    hotelId: HotelID,
+    NCName,
+    NCPurpose,
+    DiscPer,
+    Discount,
+    DiscountType,
+    CustomerName,
+    MobileNo,
+    customerid,
+    Order_Type,
+    PAX,
+    Steward,
+    TxnDatetime,
+    KOTUsedDate,
+    curr_date,
 
-      // FRONTEND TOTALS (trusted)
-      GrossAmt = 0,
-      DiscPer = 0,
-      Discount = 0,
-      DiscountType = 0,
-      TaxableValue = 0,
-      CGST = 0,
-      SGST = 0,
-      IGST = 0,
-      CESS = 0,
-      RoundOFF = 0,
-      Amount = 0,
+    items: details = [],
 
-      CustomerName,
-      MobileNo,
-      customerid,
-      NCName,
-      NCPurpose,
+    // Pre-calculated header values from frontend - use these directly
+    GrossAmt: frontEndGrossAmt,
+    TaxableValue: frontEndTaxableValue,
+    CGST: frontEndCGST,
+    SGST: frontEndSGST,
+    IGST: frontEndIGST,
+    CESS: frontEndCESS,
+    RoundOFF: frontEndRoundOFF,
+    Amount: frontEndAmount,
+  } = req.body
 
-      curr_date,
-      txnId: payloadTxnId,
-      items = []
-    } = req.body
+    console.log('Received Discount Data for KOT:', { DiscPer, Discount, DiscountType })
+    let order_tag = req.body.order_tag
 
-    if (!Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Items are required"
-      })
+    if (!Array.isArray(details) || details.length === 0) {
+      console.log('Details array is empty or not an array')
+      return res.status(400).json({ success: false, message: 'details array is required' })
     }
 
-    const result = db.transaction(() => {
-
+    const trx = db.transaction(() => {
       let txnId
-      let isNewBill = false
+      // 1. Find or create the bill header for the table
 
-      // =====================================================
-      // 1️⃣ FIND EXISTING ACTIVE BILL
-      // =====================================================
+      let finalDiscPer = Number(DiscPer) || 0
+      let finalDiscount = Number(Discount) || 0
+      let finalDiscountType = Number(DiscountType) || 0
+      const isHeaderNCKOT = details.some((item) => toBool(item.isNCKOT))
+
+      // Use the provided txnId from the payload if it exists
+      const { txnId: payloadTxnId } = req.body
 
       let existingBill = null
-
-      if (payloadTxnId && payloadTxnId !== 0) {
-        existingBill = db.prepare(`
-          SELECT TxnID FROM TAxnTrnbill
-          WHERE TxnID = ?
-          AND isCancelled = 0
-          AND isSetteled = 0
-        `).get(payloadTxnId)
-      } else {
-        existingBill = db.prepare(`
-          SELECT TxnID FROM TAxnTrnbill
-          WHERE TableID = ?
-          AND outletid = ?
-          AND isCancelled = 0
-          AND isSetteled = 0
-          ORDER BY TxnID DESC
-          LIMIT 1
-        `).get(Number(tableId), outletid)
+      // Search for an existing bill by TableID (for Dine-in) or by TxnID (for Pickup/Delivery)
+      // ✅ Modified to find billed but unsettled bills as well
+      if (payloadTxnId) {
+        // This check is now first
+        // For Pickup/Delivery or subsequent KOTs for Dine-in, find the bill by its TxnID
+        existingBill = db
+          .prepare(
+            'SELECT TxnID, DiscPer, Discount, DiscountType, isNCKOT, isBilled FROM TAxnTrnbill WHERE TxnID = ?',
+          )
+          .get(payloadTxnId)
+        console.log('Existing bill found by TxnID:', existingBill)
+      } else if (TableID && TableID > 0) {
+        existingBill = db
+          .prepare(
+            `
+          SELECT TxnID, DiscPer, Discount, DiscountType, isNCKOT, isBilled FROM TAxnTrnbill
+          WHERE TableID = ? AND isCancelled = 0 AND isSetteled = 0 ORDER BY TxnID DESC LIMIT 1
+        `,
+          )
+          .get(Number(TableID))
+        console.log('Existing bill found by TableID:', existingBill)
       }
-
-      // =====================================================
-      // 2️⃣ UPDATE HEADER IF EXISTS
-      // =====================================================
 
       if (existingBill) {
-
         txnId = existingBill.TxnID
+        console.log(`Using existing unbilled transaction. TxnID: ${txnId} for TableID: ${TableID}`)
 
-        db.prepare(`
-          UPDATE TAxnTrnbill SET
-            table_name = ?,
-            Steward = COALESCE(?, Steward),
-            PAX = COALESCE(?, PAX),
-            Order_Type = ?,
-            DiscPer = ?,
-            Discount = ?,
-            DiscountType = ?,
-            GrossAmt = ?,
-            TaxableValue = ?,
-            CGST = ?,
-            SGST = ?,
-            IGST = ?,
-            CESS = ?,
-            RoundOFF = ?,
-            Amount = ?,
-            CustomerName = COALESCE(?, CustomerName),
-            MobileNo = COALESCE(?, MobileNo),
-            customerid = COALESCE(?, customerid),
-            NCName = ?,
-            NCPurpose = ?
-          WHERE TxnID = ?
-        `).run(
+        // ✅ If the existing bill was already billed, reset its status to allow for re-billing.
+        if (existingBill.isBilled === 1) {
+          db.prepare('UPDATE TAxnTrnbill SET isBilled = 0 WHERE TxnID = ?').run(txnId)
+        }
+        // Always update the bill header with the latest information, including table_name.
+        // Use new discount/NC info if provided, otherwise fall back to existing values.
+        db.prepare(
+          `
+            UPDATE TAxnTrnbill
+            SET
+              table_name = ?,
+              Steward = ?,
+              PAX = ?,
+              DiscPer = ?,
+              Discount = ?,
+              DiscountType = ?,
+              Order_Type = ?,
+              NCName = ?,
+              NCPurpose = ?,
+              isNCKOT = ?,
+              CustomerName = COALESCE(?, CustomerName),
+              MobileNo = COALESCE(?, MobileNo),
+              customerid = CASE WHEN ? IS NOT NULL THEN ? ELSE customerid END
+            WHERE TxnID = ?
+        `,
+        ).run(
           table_name,
           Steward || null,
           PAX ?? null,
+          finalDiscPer,
+          finalDiscount,
+          finalDiscountType,
           Order_Type,
-          DiscPer,
-          Discount,
-          DiscountType,
-          GrossAmt,
-          TaxableValue,
-          CGST,
-          SGST,
-          IGST,
-          CESS,
-          RoundOFF,
-          Amount,
-          CustomerName || null,
-          MobileNo || null,
-          customerid || null,
           NCName || null,
           NCPurpose || null,
-          txnId
+          toBool(isHeaderNCKOT || existingBill.isNCKOT),
+          CustomerName,
+          MobileNo,
+          customerid,
+          customerid,
+          txnId,
         )
-
       } else {
+        console.log(`No existing bill for table ${TableID}. Creating a new one.`)
+        // For Pickup/Delivery, outletid comes from the payload, not a table.
+        const headerOutletId = outletid || (details.length > 0 ? details[0].outletid : null)
+        let txnNo = null
+        if (headerOutletId) {
+          txnNo = generateTxnNo(headerOutletId)
+        }
+        // Generate OrderNo only for Pickup, Delivery, Quick Bill, or Take Away
+        let newOrderNo = null
+        const orderTypesToGenerateNo = ['Pickup', 'Delivery', 'Quick Bill', 'Take Away', 'TAKEAWAY']
+        if (Order_Type && orderTypesToGenerateNo.includes(Order_Type)) {
+          newOrderNo = generateOrderNo(headerOutletId)
+        }
 
-        // =====================================================
-        // 3️⃣ INSERT NEW HEADER
-        // =====================================================
+        const DeptID = details.length > 0 ? details[0].DeptID : null
 
-        isNewBill = true
-
-        const insertHeader = db.prepare(`
+        const insertHeaderStmt = db.prepare(`
           INSERT INTO TAxnTrnbill (
-            outletid,
-            TableID,
-            table_name,
-            Steward,
-            PAX,
-            UserId,
-            HotelID,
-            TxnDatetime,
-            Order_Type,
-            DiscPer,
-            Discount,
-            DiscountType,
-            GrossAmt,
-            TaxableValue,
-            CGST,
-            SGST,
-            IGST,
-            CESS,
-            RoundOFF,
-            Amount,
-            CustomerName,
-            MobileNo,
-            customerid,
-            NCName,
-            NCPurpose,
-            DeptID,
-            isBilled,
-            isCancelled,
-            isSetteled,
-            status
-          )
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 1)
+            outletid, TxnNo, TableID, table_name, Steward, PAX, UserId, HotelID, TxnDatetime,
+            isBilled, isCancelled, isSetteled, status, AutoKOT, CustomerName, MobileNo, customerid, Order_Type, orderNo,
+            NCName, NCPurpose, DiscPer, Discount, DiscountType, isNCKOT, DeptID
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 1, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `)
-
-        const insertResult = insertHeader.run(
-          outletid,
-          Number(tableId),
+        const result = insertHeaderStmt.run(
+          headerOutletId,
+          null,
+          Number(TableID),
           table_name,
           Steward || null,
           PAX ?? null,
-          userId,
-          hotelId,
+          UserId,
+          HotelID,
           TxnDatetime,
+          CustomerName,
+          MobileNo,
+          customerid,
           Order_Type,
-          DiscPer,
-          Discount,
-          DiscountType,
-          GrossAmt,
-          TaxableValue,
-          CGST,
-          SGST,
-          IGST,
-          CESS,
-          RoundOFF,
-          Amount,
-          CustomerName || null,
-          MobileNo || null,
-          customerid || null,
+          newOrderNo,
           NCName || null,
           NCPurpose || null,
-          DeptID || null
+          finalDiscPer,
+          finalDiscount,
+          finalDiscountType,
+          toBool(isHeaderNCKOT),
+          DeptID,
         )
-
-        txnId = insertResult.lastInsertRowid
-
-        // Mark table occupied
-        db.prepare(`
-          UPDATE msttablemanagement
-          SET status = 1
-          WHERE tableid = ?
-        `).run(Number(tableId))
+        txnId = result.lastInsertRowid
+        db.prepare('UPDATE msttablemanagement SET status = 1 WHERE tableid = ?').run(
+          Number(TableID),
+        )
+        console.log(`Created new bill. TxnID: ${txnId}. Updated table ${TableID} status.`)
       }
 
-      // =====================================================
-      // 4️⃣ GENERATE SAFE KOT NUMBER (BUSINESS DATE BASED)
-      // =====================================================
-
-      const businessDate =
-        curr_date || new Date().toISOString().split("T")[0]
-
-      const maxKOT = db.prepare(`
-        SELECT MAX(KOTNo) as maxKOT
+      // 2. Generate a new KOT number by finding the max KOT for the current day for that outlet.
+       // Use curr_date from request body if provided, otherwise use system date
+      const kotDate = curr_date || new Date().toISOString().split('T')[0];
+      const maxKOTResult = db
+        .prepare(
+          `
+        SELECT MAX(KOTNo) as maxKOT 
         FROM TAxnTrnbilldetails
-        WHERE outletid = ?
-        AND date(KOTUsedDate) = date(?)
-      `).get(outletid, businessDate)
-
-      const kotNo = (maxKOT?.maxKOT || 0) + 1
-
-      // =====================================================
-      // 5️⃣ INSERT DETAIL ROWS
-      // =====================================================
-
-      const insertDetail = db.prepare(`
-        INSERT INTO TAxnTrnbilldetails (
-          TxnID,
-          outletid,
-          ItemID,
-          TableID,
-          table_name,
-          Qty,
-          RuntimeRate,
-          CGST,
-          CGST_AMOUNT,
-          SGST,
-          SGST_AMOUNT,
-          IGST,
-          IGST_AMOUNT,
-          CESS,
-          CESS_AMOUNT,
-          Discount_Amount,
-          KOTNo,
-          item_no,
-          item_name,
-          KOTUsedDate,
-          DeptID,
-          HotelID,
-          isNCKOT,
-          isKOTGenerate,
-          isSetteled,
-          isCancelled
+        WHERE outletid = ? AND date(KOTUsedDate) = date(?)
+      `,
         )
-        VALUES (
-          @TxnID,
-          @outletid,
-          @ItemID,
-          @TableID,
-          @table_name,
-          @Qty,
-          @RuntimeRate,
-          @CGST,
-          @CGST_AMOUNT,
-          @SGST,
-          @SGST_AMOUNT,
-          @IGST,
-          @IGST_AMOUNT,
-          @CESS,
-          @CESS_AMOUNT,
-          @Discount_Amount,
-          @KOTNo,
-          @item_no,
-          @item_name,
-          @KOTUsedDate,
-          @DeptID,
-          @HotelID,
-          @isNCKOT,
-          1,
-          0,
-          0
+        .get(outletid, kotDate)
+
+      const kotNo = (maxKOTResult?.maxKOT || 0) + 1
+      console.log(`Generated KOT number: ${kotNo} (maxKOT was ${maxKOTResult?.maxKOT || 0})`)
+
+      const insertDetailStmt = db.prepare(`
+        INSERT INTO TAxnTrnbilldetails (
+          TxnID, outletid, ItemID, TableID, table_name, Qty, RuntimeRate, DeptID, HotelID,
+          isKOTGenerate, AutoKOT, KOTUsedDate, isBilled, isCancelled, isSetteled, isNCKOT,
+          CGST, CGST_AMOUNT, SGST, SGST_AMOUNT, IGST, IGST_AMOUNT, CESS, CESS_AMOUNT, Discount_Amount, KOTNo,
+          item_no, item_name, order_tag
+        ) VALUES (
+          @TxnID, @outletid, @ItemID, @TableID, @table_name, @Qty, @RuntimeRate, @DeptID, @HotelID,
+          1, 1, @KOTUsedDate, 0, 0, 0, @isNCKOT,
+          @CGST, @CGST_AMOUNT, @SGST, @SGST_AMOUNT, @IGST, @IGST_AMOUNT, @CESS, @CESS_AMOUNT, @Discount_Amount, @KOTNo,
+          @item_no, @item_name, @order_tag
         )
       `)
 
-      for (const item of items) {
-        insertDetail.run({
+      const getItemStmt = db.prepare('SELECT item_no FROM mstrestmenu WHERE restitemid = ?')
+
+      for (const item of details) {
+        const qty = Number(item.Qty) || 0
+
+        // If quantity is negative, it's a reversal for Re-KOT printing.
+        // The actual DB update was already handled by the /reverse-quantity endpoint.
+        // We skip it here to prevent inserting a new row with a negative quantity.
+        if (qty < 0) {
+          continue
+        }
+        const rate = Number(item.RuntimeRate) || 0
+        const lineSubtotal = qty * rate
+        const cgstPer = Number(item.CGST) || 0
+        const sgstPer = Number(item.SGST) || 0
+        const igstPer = Number(item.IGST) || 0
+        const cessPer = Number(item.CESS) || 0
+        const cgstAmt = Number(item.CGST_AMOUNT) || (lineSubtotal * cgstPer) / 100
+        const sgstAmt = Number(item.SGST_AMOUNT) || (lineSubtotal * sgstPer) / 100
+        const igstAmt = Number(item.IGST_AMOUNT) || (lineSubtotal * igstPer) / 100
+        const cessAmt = Number(item.CESS_AMOUNT) || (lineSubtotal * cessPer) / 100
+        const isNCKOT = toBool(item.isNCKOT)
+        const order_tag = item.order_tag || ''
+
+        let itemDiscountAmount = 0
+        if (finalDiscountType === 1) {
+          // Percentage
+          itemDiscountAmount = (lineSubtotal * finalDiscPer) / 100
+        } else {
+          // Fixed amount
+          itemDiscountAmount = finalDiscount
+        }
+
+        let itemNo = item.item_no
+        if (!itemNo && item.ItemID) {
+          const menuData = getItemStmt.get(item.ItemID)
+          if (menuData) itemNo = menuData.item_no
+        }
+
+        console.log('Inserting item with order_tag:', order_tag)
+        insertDetailStmt.run({
           TxnID: txnId,
-          outletid,
+          outletid: outletid,
           ItemID: item.ItemID,
-          TableID: tableId,
-          table_name,
-          Qty: item.Qty,
-          RuntimeRate: item.RuntimeRate,
-          CGST: item.CGST || 0,
-          CGST_AMOUNT: item.CGST_AMOUNT || 0,
-          SGST: item.SGST || 0,
-          SGST_AMOUNT: item.SGST_AMOUNT || 0,
-          IGST: item.IGST || 0,
-          IGST_AMOUNT: item.IGST_AMOUNT || 0,
-          CESS: item.CESS || 0,
-          CESS_AMOUNT: item.CESS_AMOUNT || 0,
-          Discount_Amount: item.Discount_Amount || 0,
+          TableID: TableID,
+          table_name: table_name,
+          Qty: qty,
+          RuntimeRate: rate,
+          DeptID: item.DeptID,
+          HotelID: HotelID,
+          isNCKOT: isNCKOT,
+          CGST: cgstPer,
+          CGST_AMOUNT: cgstAmt,
+          SGST: sgstPer,
+          SGST_AMOUNT: sgstAmt,
+          IGST: igstPer,
+          IGST_AMOUNT: igstAmt,
+          CESS: cessPer,
+          CESS_AMOUNT: cessAmt,
+          Discount_Amount: itemDiscountAmount,
           KOTNo: kotNo,
-          item_no: item.item_no,
+          item_no: itemNo,
           item_name: item.item_name,
-          KOTUsedDate: businessDate,
-          DeptID: item.DeptID || DeptID || null,
-          HotelID: hotelId,
-          isNCKOT: item.isNCKOT ? 1 : 0
+          order_tag: order_tag,
+          KOTUsedDate: KOTUsedDate || null,
         })
       }
 
-      return { txnId, kotNo, isNewBill }
-    })()
+      // Manually recalculate and update bill totals to ensure accuracy,
+      // as relying on triggers can be inconsistent.
+      const allDetails = db
+        .prepare('SELECT * FROM TAxnTrnbilldetails WHERE TxnID = ? AND isCancelled = 0')
+        .all(txnId)
+      const billHeader = db
+        .prepare('SELECT RoundOFF, Discount, outletid FROM TAxnTrnbill WHERE TxnID = ?')
+        .get(txnId)
+      const outletSettings = db
+        .prepare('SELECT include_tax_in_invoice FROM mstoutlet_settings WHERE outletid = ?')
+        .get(billHeader.outletid)
+      const includeTaxInInvoice = outletSettings ? outletSettings.include_tax_in_invoice : 0
 
-    res.json({
-      success: true,
-      message: "KOT saved successfully",
-      data: result
-    })
+      // FIX: Calculate totalGross considering RevQty (reversed quantity) to get net quantity
+      let totalGross = 0
+      for (const d of allDetails) {
+        const qty = Number(d.Qty) || 0
+        const revQty = Number(d.RevQty) || 0
+        const netQty = qty - revQty // Net quantity after reversal
+        const rate = Number(d.RuntimeRate) || 0
+        totalGross += netQty * rate
+      }
 
+      let totalCgst = 0,
+        totalSgst = 0,
+        totalIgst = 0,
+        totalCess = 0
+      const discountAmount = Number(billHeader.Discount) || 0
+
+      // Use tax percentages from the first item as they are consistent for the bill.
+      const firstDetail = allDetails[0] || {}
+      const cgstPer = Number(firstDetail.CGST) || 0
+      const sgstPer = Number(firstDetail.SGST) || 0
+      const igstPer = Number(firstDetail.IGST) || 0
+      const cessPer = Number(firstDetail.CESS) || 0
+
+      let totalBeforeRoundOff = 0
+      let finalTaxableValue = 0
+
+      if (includeTaxInInvoice === 1) {
+        const combinedPer = cgstPer + sgstPer + igstPer + cessPer
+        // FIX: Apply discount BEFORE extracting pre-tax base (matching frontend logic)
+        const discountedGross = totalGross - discountAmount
+        const preTaxBase = combinedPer > 0 ? discountedGross / (1 + combinedPer / 100) : discountedGross
+        finalTaxableValue = preTaxBase > 0 ? preTaxBase : 0
+
+        totalCgst = (finalTaxableValue * cgstPer) / 100
+        totalSgst = (finalTaxableValue * sgstPer) / 100
+        totalIgst = (finalTaxableValue * igstPer) / 100
+        totalCess = (finalTaxableValue * cessPer) / 100
+        totalBeforeRoundOff = finalTaxableValue + totalCgst + totalSgst + totalIgst + totalCess
+      } else {
+        const taxableValue = totalGross - discountAmount
+        finalTaxableValue = taxableValue
+        // Recalculate taxes based on the post-discount taxable value
+        totalCgst = (taxableValue * cgstPer) / 100
+        totalSgst = (taxableValue * sgstPer) / 100
+        totalIgst = (taxableValue * igstPer) / 100
+        totalCess = (taxableValue * cessPer) / 100
+        totalBeforeRoundOff = taxableValue + totalCgst + totalSgst + totalIgst + totalCess
+      }
+
+      // Apply rounding on the backend to ensure consistency
+      const { bill_round_off, bill_round_off_to } =
+        db
+          .prepare(
+            'SELECT bill_round_off, bill_round_off_to FROM mstoutlet_settings WHERE outletid = ?',
+          )
+          .get(billHeader.outletid) || {}
+      let finalAmount = totalBeforeRoundOff
+      let finalRoundOff = 0
+
+      if (bill_round_off && bill_round_off_to > 0) {
+        finalAmount = Math.round(totalBeforeRoundOff / bill_round_off_to) * bill_round_off_to
+        finalRoundOff = finalAmount - totalBeforeRoundOff
+      }
+
+      db.prepare(
+        `
+          UPDATE TAxnTrnbill
+          SET GrossAmt = ?, Discount = ?, CGST = ?, SGST = ?, IGST = ?, CESS = ?, Amount = ?, RoundOFF = ?, TaxableValue = ?
+          WHERE TxnID = ?
+      `,
+      ).run(
+        totalGross,
+        discountAmount,
+        totalCgst,
+        totalSgst,
+        totalIgst,
+        totalCess,
+        finalAmount,
+        finalRoundOff,
+        finalTaxableValue,
+        txnId,
+      )
+      return { txnId, kotNo }
+    })() // Immediately invoke the transaction
+
+    const { txnId, kotNo } = trx
+    const header = db.prepare('SELECT * FROM TAxnTrnbill WHERE TxnID = ?').get(txnId) // Fetch header
+    const items = db
+      .prepare(
+        `
+      SELECT d.*, m.item_name as ItemName, m.item_no as MenuItemNo
+      FROM TAxnTrnbilldetails d 
+      LEFT JOIN mstrestmenu m ON d.ItemID = m.restitemid
+      WHERE d.TxnID = ? AND d.isCancelled = 0 ORDER BY d.TXnDetailID
+    `,
+      )
+      .all(txnId) // Fetch details with item_name
+
+    const mappedItems = items.map((i) => ({
+      ...i,
+      item_no: i.item_no || i.MenuItemNo,
+    }))
+
+    res.json(ok('KOT processed successfully', { ...header, customerid: header.customerid, details: mappedItems, KOTNo: kotNo }))
   } catch (error) {
-    console.error("createKOT error:", error)
-    res.status(500).json({
-      success: false,
-      message: "Failed to save KOT",
-      error: error.message
-    })
+    console.error('Error in createKOT:', error)
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: 'Failed to create/update KOT',
+        data: null,
+        error: error.message,
+      })
   }
 }
 
