@@ -1235,26 +1235,14 @@ const handleTabClick = (tab: string) => {
       finalSubtotal = lineTotal; // Subtotal should reflect the base amount before discount.
     }
 
-    let finalGrandTotal = grandTotal;
-    let appliedRoundOff = 0;
+    // Simple roundoff logic similar to Billview.tsx
+    const roundedFinalAmount = Math.round(grandTotal);
+    const appliedRoundOff = Number((roundedFinalAmount - grandTotal).toFixed(2));
     
-    // Always calculate roundoff value for display purposes
-    // Apply roundoff to grandTotal only when settings are loaded AND enabled
-
-    if (roundOffEnabled) {
-      const { roundedAmount, roundOffValue } = applyRoundOff(grandTotal, roundOffTo);
-      finalGrandTotal = roundedAmount;
-      appliedRoundOff = roundOffValue;
-    } else if (!roundOffSettingsLoaded) {
-      // Settings not yet loaded - use default rounding (round to nearest 1) to prevent showing incorrect amounts like 241.50
-      const { roundedAmount, roundOffValue } = applyRoundOff(grandTotal, 1);
-      finalGrandTotal = roundedAmount;
-      appliedRoundOff = roundOffValue;
-    }
     setRoundOffValue(appliedRoundOff);
 
     setTaxCalc({
-      subtotal: finalSubtotal, taxableValue, cgstAmt, sgstAmt, igstAmt, cessAmt, grandTotal: finalGrandTotal
+      subtotal: finalSubtotal, taxableValue, cgstAmt, sgstAmt, igstAmt, cessAmt, grandTotal: roundedFinalAmount
     });
 
   }, [items, reversedItems, taxRates, includeTaxInInvoice, discount, discountInputValue, DiscountType, roundOffEnabled, roundOffTo, roundOffSettingsLoaded]);
