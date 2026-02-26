@@ -73,6 +73,8 @@ interface DepartmentRate {
   departmentid: number;
   departmentName: string;
   rate: number;
+  half_rate: number;
+  full_rate: number;
   unitid: number | null;
   servingunitid: number | null;
   IsConversion: number;
@@ -642,19 +644,31 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
 
   useEffect(() => {
     const fetchDepartmentsForOutlet = async () => {
-      if (selectedOutlet === null) {
+      if (selectedOutlet === null && selectedBrand === null) {
         setDepartments([]);
         setNewItem((prev) => ({ ...prev, departmentRates: [] }));
         return;
       }
       setLoading(true);
       try {
-        const res = await fetch(
-          `http://localhost:3001/api/table-department?userid=${user?.id || 70}&outletid=${selectedOutlet}`,
-          {
-            headers: { 'Content-Type': 'application/json' },
-          }
-        );
+        let apiUrl = '';
+        
+        // If "Is Common to All Departments" is checked, fetch by hotelid
+        // Otherwise, fetch by outletid
+        if (isCommonToAllDepartments && selectedBrand) {
+          apiUrl = `http://localhost:3001/api/table-department?userid=${user?.id || 70}&hotelid=${selectedBrand}`;
+        } else if (selectedOutlet) {
+          apiUrl = `http://localhost:3001/api/table-department?userid=${user?.id || 70}&outletid=${selectedOutlet}`;
+        } else {
+          setDepartments([]);
+          setNewItem((prev) => ({ ...prev, departmentRates: [] }));
+          return;
+        }
+
+        const res = await fetch(apiUrl, {
+          headers: { 'Content-Type': 'application/json' },
+        });
+        
         if (res.ok) {
           const data = await res.json();
           if (data.success) {
@@ -665,9 +679,17 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
             }));
             setDepartments(formattedDepartments);
 
-            const filteredDepartments = formattedDepartments.filter(
-              (dept) => Number(dept.outletid) === selectedOutlet
-            );
+            // Filter departments based on the mode
+            let filteredDepartments: DepartmentItem[] = [];
+            if (isCommonToAllDepartments && selectedBrand) {
+              // Show all hotel departments when "Is Common to All Departments" is checked
+              filteredDepartments = formattedDepartments;
+            } else if (selectedOutlet) {
+              // Show only selected outlet departments
+              filteredDepartments = formattedDepartments.filter(
+                (dept) => Number(dept.outletid) === selectedOutlet
+              );
+            }
 
             let initialDepartmentRates: DepartmentRate[] = [];
             if (isEdit && mstmenu?.restitemid) {
@@ -688,6 +710,8 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                       departmentid: detail.departmentid,
                       departmentName: detail.department_name || filteredDepartments.find((d) => d.departmentid === detail.departmentid)?.department_name || '',
                       rate: detail.item_rate || 0,
+                      half_rate: detail.half_rate || 0,
+                      full_rate: detail.full_rate || 0,
                       unitid: detail.unitid || null,
                       servingunitid: detail.servingunitid || null,
                       IsConversion: detail.IsConversion || 0,
@@ -704,6 +728,8 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                 departmentid: dept.departmentid,
                 departmentName: dept.department_name,
                 rate: 0,
+                half_rate: 0,
+                full_rate: 0,
                 unitid: null,
                 servingunitid: null,
                 IsConversion: 0,
@@ -734,7 +760,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
       }
     };
     fetchDepartmentsForOutlet();
-  }, [selectedOutlet, user, isEdit, mstmenu]);
+  }, [selectedOutlet, selectedBrand, user, isEdit, mstmenu, isCommonToAllDepartments]);
 
   const handleRemoveDepartmentRate = (departmentid: number | undefined) => {
     setNewItem((prev) => ({
