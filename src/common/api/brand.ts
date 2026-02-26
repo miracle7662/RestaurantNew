@@ -24,15 +24,16 @@ export interface Brand {
   panno: string
   website: string
   address: string
+  cityid: string;
   stateid: string
   hoteltypeid: string
-  Masteruserid?: string
+  Masteruserid: string
   status: string
   created_by_id: string
   created_date: string
   updated_by_id: string
   updated_date: string
-  market_name?: string
+  market_name: string
 }
 
 /** Brand payload for create/update */
@@ -82,8 +83,9 @@ const BrandService = {
   /**
    * Get all brands with optional filters
    */
-  getBrands: (params?: { role_level?: string; hotelid?: string }): Promise<ApiResponse<Brand[]>> =>
-    HttpClient.get<ApiResponse<Brand[]>>('/HotelMasters', { params }),
+  getBrands: (params?: { role_level?: string; hotelid?: string }): 
+  Promise<Brand[]> =>
+  HttpClient.get<Brand[]>('/HotelMasters', { params }),
 
   /**
    * Get brand by ID

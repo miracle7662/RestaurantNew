@@ -26,11 +26,9 @@ import Swal from 'sweetalert2';
 
 // Define brand data type
 interface HotelMastersItem {
-  id: string;
-  Hotel_name: string;
   hotel_name?: string; // Backend returns hotel_name (lowercase)
   hotelid: string; // Changed from Hotelid to hotelid to match backend
-  Hotelid?: string; // Keep for backward compatibility
+  // Keep for backward compatibility
   marketid: string;
   market_name: string;
   short_name: string;
@@ -100,9 +98,9 @@ const RegisterUserModal: React.FC<RegisterUserModalProps> = ({ show, onHide, bra
         return;
       }
 
-      const response = await BrandService.getBrandById(hotelid);
-      console.log('Fetched hotel data:', response.data);
-      setHotelData(response.data);
+      const hotelDataResult = await BrandService.getBrandById(hotelid);
+      console.log('Fetched hotel data:', hotelDataResult);
+      setHotelData(hotelDataResult);
     } catch (err: any) {
       console.error('Error fetching hotel data:', err);
       toast.error(err.message || 'Error fetching hotel data');
@@ -210,7 +208,7 @@ const RegisterUserModal: React.FC<RegisterUserModalProps> = ({ show, onHide, bra
           <input
             type="text"
             className="form-control"
-            value={hotelData?.hotel_name || hotelData?.Hotel_name || brand?.hotel_name || brand?.Hotel_name || ''}
+            value={hotelData?.hotel_name || hotelData?.hotel_name || brand?.hotel_name || brand?.hotel_name || ''}
             readOnly
             style={{ backgroundColor: '#f8f9fa' }}
           />
@@ -272,7 +270,7 @@ const RegisterUserModal: React.FC<RegisterUserModalProps> = ({ show, onHide, bra
 
         <div className="alert alert-info">
           <i className="fi fi-rr-info me-2"></i>
-          This will create a Hotel Admin user for {hotelData?.hotel_name || hotelData?.Hotel_name || brand?.hotel_name || brand?.Hotel_name} with the following details:
+          This will create a Hotel Admin user for {hotelData?.hotel_name || hotelData?.hotel_name || brand?.hotel_name || brand?.hotel_name} with the following details:
           <ul className="mt-2 mb-0">
             <li><strong>Email:</strong> {hotelData?.email || 'Not available'}</li>
             <li><strong>Phone:</strong> {hotelData?.phone || 'Not available'}</li>
@@ -325,12 +323,13 @@ const BrandList: React.FC = () => {
         params.hotelid = user.hotelid.toString();
       }
 
-      const response = await BrandService.getBrands(params);
-      const data = response as HotelMastersItem[];
-      console.log('Fetched HotelMasters:', data); // Debug log to inspect backend data
-      console.log('Sample hotel data:', data[0]); // Log first item to see structure
-      setHotelMastersItem(data);
-      setFilteredHotelMasters(data);
+      const brands = await BrandService.getBrands(params);
+
+
+      console.log('Fetched HotelMasters:', brands); // Debug log to inspect backend data
+      console.log('Sample hotel data:', brands); // Log first item to see structure
+      setHotelMastersItem(brands);
+      setFilteredHotelMasters(brands);
     } catch (err) {
       toast.error('Failed to fetch HotelMasters');
     } finally {
@@ -361,7 +360,7 @@ const BrandList: React.FC = () => {
       },
       {
         accessorKey: 'hotel_name',
-        header: 'Hotel_name ',
+        header: 'hotel_name ',
         size: 200,
         cell: (info) => <div style={{ textAlign: 'center' }}>{info.getValue<string>() || '-'}</div>,
       },
@@ -518,7 +517,7 @@ const BrandList: React.FC = () => {
     });
     if (res.isConfirmed) {
       try {
-        await BrandService.deleteBrand(HotelMasters.Hotelid || HotelMasters.hotelid);
+        await BrandService.deleteBrand(HotelMasters.hotelid || HotelMasters.hotelid);
         toast.success('Deleted successfully');
         fetchHotelMasters();
         setSelectedHotelMasters(null);
@@ -676,9 +675,9 @@ const BrandList: React.FC = () => {
         onUpdateSelectedHotelMasters={setSelectedHotelMasters}
         user={user}
       />
-      <BannerManagementModal show={showBannerModal} onHide={() => setShowBannerModal(false)} brandId={selectedBrand?.id || ''} />
-      <SettingsModal show={showSettingsModal} onHide={() => setShowSettingsModal(false)} brandId={selectedBrand?.id || ''} />
-      <DigitalOrderModal show={showDigitalOrderModal} onHide={() => setShowDigitalOrderModal(false)} brandId={selectedBrand?.id || ''} />
+      <BannerManagementModal show={showBannerModal} onHide={() => setShowBannerModal(false)} brandId={selectedBrand?.hotelid || ''} />
+      <SettingsModal show={showSettingsModal} onHide={() => setShowSettingsModal(false)} brandId={selectedBrand?.hotelid || ''} />
+      <DigitalOrderModal show={showDigitalOrderModal} onHide={() => setShowDigitalOrderModal(false)} brandId={selectedBrand?.hotelid || ''} />
       <UserManagementModal
         show={showUserManagementModal}
         onHide={() => setShowUserManagementModal(false)}
@@ -1584,8 +1583,8 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({ show, onHide,
     try {
       setLoading(true);
       const brandId = brand.hotelid || brand.hotelid;
-      const response = await BrandService.getUsers({ brand_id: brandId });
-      setUsers(Array.isArray(response.data) ? response.data : []);
+      const usersData = await BrandService.getUsers({ brand_id: brandId });
+      setUsers(Array.isArray(usersData) ? usersData : []);
     } catch (err: any) {
       toast.error(err.message || 'Failed to fetch users');
       setUsers([]);
@@ -1628,7 +1627,7 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({ show, onHide,
         }}
       >
         <div className="d-flex justify-content-between align-items-center mb-3">
-          <h5 className="mb-0">User Management - {brand.Hotel_name}</h5>
+          <h5 className="mb-0">User Management - {brand.hotel_name}</h5>
           <button className="btn-close" onClick={onHide}></button>
         </div>
 
@@ -1804,7 +1803,7 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ show, onHide, brand, onSucc
         }}
       >
         <div className="d-flex justify-content-between align-items-center mb-3">
-          <h5 className="mb-0">Add Hotel Admin - {brand.Hotel_name}</h5>
+          <h5 className="mb-0">Add Hotel Admin - {brand.hotel_name}</h5>
           <button className="btn-close" onClick={onHide}></button>
         </div>
 
