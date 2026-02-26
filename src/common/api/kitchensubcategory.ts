@@ -1,33 +1,75 @@
-import { HttpClient } from '../helpers'
+/**
+ * Kitchen Sub Category Service - Clean API service for kitchen sub category management operations
+ * Uses HttpClient with interceptors for authentication
+ * Returns ApiResponse<T> for consistent response handling
+ */
 
-type KitchenSubCategoryPayload = {
-  Kitchen_sub_category: string
+import HttpClient from '../helpers/httpClient'
+import { ApiResponse } from '@/types/api'
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+ * Type Definitions
+ * ═══════════════════════════════════════════════════════════════════════════════ */
+
+/** Kitchen Sub Category information */
+export interface KitchenSubCategory {
+  kitchensubcategoryid: number
+  sub_category_name: string
+  sub_category_code: string
   kitchencategoryid: number
-  kitchenmaingroupid: number
   status: number
   created_by_id?: string
   created_date?: string
   updated_by_id?: string
   updated_date?: string
-  hotelid?: string
-  marketid?: string
 }
 
-function KitchenSubCategoryService() {
-  return {
-    list: (params?: { q?: string }) => {
-      return HttpClient.get('/KitchenSubCategory', { params })
-    },
-    create: (payload: KitchenSubCategoryPayload) => {
-      return HttpClient.post('/KitchenSubCategory', payload)
-    },
-    update: (id: string, payload: Partial<KitchenSubCategoryPayload>) => {
-      return HttpClient.put(`/KitchenSubCategory/${id}`, payload)
-    },
-    remove: (id: string) => {
-      return HttpClient.delete(`/KitchenSubCategory/${id}`)
-    },
-  }
+/** Kitchen Sub Category payload for create/update */
+export interface KitchenSubCategoryPayload {
+  kitchensubcategoryid?: number
+  sub_category_name: string
+  sub_category_code: string
+  kitchencategoryid: number
+  status: number
+  created_by_id?: string
+  created_date?: string
+  updated_by_id?: string
+  updated_date?: string
 }
 
-export default KitchenSubCategoryService()
+/* ═══════════════════════════════════════════════════════════════════════════════
+ * Kitchen Sub Category Service
+ * ═══════════════════════════════════════════════════════════════════════════════ */
+
+const KitchenSubCategoryService = {
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+   * CRUD Operations
+   * ═══════════════════════════════════════════════════════════════════════════ */
+
+  /**
+   * Get all kitchen sub categories with optional search
+   */
+  list: (params?: { q?: string }): Promise<ApiResponse<KitchenSubCategory[]>> =>
+    HttpClient.get<ApiResponse<KitchenSubCategory[]>>('/kitchensubcategory', { params }),
+
+  /**
+   * Create a new kitchen sub category
+   */
+  create: (payload: KitchenSubCategoryPayload): Promise<ApiResponse<KitchenSubCategory>> =>
+    HttpClient.post<ApiResponse<KitchenSubCategory>>('/kitchensubcategory', payload),
+
+  /**
+   * Update an existing kitchen sub category
+   */
+  update: (id: number, payload: KitchenSubCategoryPayload): Promise<ApiResponse<KitchenSubCategory>> =>
+    HttpClient.put<ApiResponse<KitchenSubCategory>>(`/kitchensubcategory/${id}`, payload),
+
+  /**
+   * Delete a kitchen sub category
+   */
+  remove: (id: number): Promise<ApiResponse<null>> =>
+    HttpClient.delete<ApiResponse<null>>(`/kitchensubcategory/${id}`)
+}
+
+export default KitchenSubCategoryService

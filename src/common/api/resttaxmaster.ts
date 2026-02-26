@@ -1,39 +1,79 @@
-import { HttpClient } from '../helpers'
+/**
+ * Restaurant Tax Master Service - Clean API service for restaurant tax master management operations
+ * Uses HttpClient with interceptors for authentication
+ * Returns ApiResponse<T> for consistent response handling
+ */
 
-type RestTaxMasterPayload = {
-  resttaxid?: number
+import HttpClient from '../helpers/httpClient'
+import { ApiResponse } from '@/types/api'
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+ * Type Definitions
+ * ═══════════════════════════════════════════════════════════════════════════════ */
+
+/** Restaurant Tax Master information */
+export interface RestTaxMaster {
+  taxmasterid: number
+  tax_name: string
+  tax_percentage: number
+  tax_type?: string
   hotelid: number
-  outletid?: number | null
-  isapplicablealloutlet: number
-  resttax_name: string
-  resttax_value: number
-  restcgst: number
-  restsgst: number
-  restigst: number
-  restcess: number
-  taxgroupid: number
+  outletid?: number
   status: number
-  created_by_id?: number
-  updated_by_id?: number
+  created_by_id?: string
   created_date?: string
+  updated_by_id?: string
   updated_date?: string
 }
 
-function RestTaxMasterService() {
-  return {
-    list: (params?: { q?: string }) => {
-      return HttpClient.get('/resttaxmaster', { params })
-    },
-    create: (payload: RestTaxMasterPayload) => {
-      return HttpClient.post('/resttaxmaster', payload)
-    },
-    update: (id: number, payload: RestTaxMasterPayload) => {
-      return HttpClient.put(`/resttaxmaster/${id}`, payload)
-    },
-    remove: (id: number) => {
-      return HttpClient.delete(`/resttaxmaster/${id}`)
-    },
-  }
+/** Restaurant Tax Master payload for create/update */
+export interface RestTaxMasterPayload {
+  taxmasterid?: number
+  tax_name: string
+  tax_percentage: number
+  tax_type?: string
+  hotelid: number
+  outletid?: number
+  status: number
+  created_by_id?: string
+  created_date?: string
+  updated_by_id?: string
+  updated_date?: string
 }
 
-export default RestTaxMasterService()
+/* ═══════════════════════════════════════════════════════════════════════════════
+ * Restaurant Tax Master Service
+ * ═══════════════════════════════════════════════════════════════════════════════ */
+
+const RestTaxMasterService = {
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+   * CRUD Operations
+   * ═══════════════════════════════════════════════════════════════════════════ */
+
+  /**
+   * Get all restaurant tax masters with optional search
+   */
+  list: (params?: { q?: string }): Promise<ApiResponse<RestTaxMaster[]>> =>
+    HttpClient.get<ApiResponse<RestTaxMaster[]>>('/resttaxmaster', { params }),
+
+  /**
+   * Create a new restaurant tax master
+   */
+  create: (payload: RestTaxMasterPayload): Promise<ApiResponse<RestTaxMaster>> =>
+    HttpClient.post<ApiResponse<RestTaxMaster>>('/resttaxmaster', payload),
+
+  /**
+   * Update an existing restaurant tax master
+   */
+  update: (id: number, payload: RestTaxMasterPayload): Promise<ApiResponse<RestTaxMaster>> =>
+    HttpClient.put<ApiResponse<RestTaxMaster>>(`/resttaxmaster/${id}`, payload),
+
+  /**
+   * Delete a restaurant tax master
+   */
+  remove: (id: number): Promise<ApiResponse<null>> =>
+    HttpClient.delete<ApiResponse<null>>(`/resttaxmaster/${id}`)
+}
+
+export default RestTaxMasterService

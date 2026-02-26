@@ -39,7 +39,7 @@ interface ImportMeta {
 
 interface Window {
   electronAPI: {
-    getInstalledPrinters: () => Promise<Array<{ name: string; displayName: string }>>;
+    getInstalledPrinters: () => Promise<Array<{ name: string; displayName: string; isDefault?: boolean }>>;
     directPrint: (html: string, printerName: string) => Promise<void>;
   };
 }

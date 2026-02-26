@@ -303,7 +303,14 @@ useEffect(() => {
       }
 
       // Get system printers via Electron API (asynchronous)
-      const systemPrintersRaw = await (window as any).electronAPI?.getInstalledPrinters?.() || [];
+      // Handle case when running in browser (not Electron)
+      if (!window.electronAPI?.getInstalledPrinters) {
+        toast.error("Printer functionality is only available in the desktop app.");
+        setLoading(false);
+        return;
+      }
+      
+      const systemPrintersRaw = await window.electronAPI?.getInstalledPrinters?.() || [];
       const systemPrinters = Array.isArray(systemPrintersRaw) ? systemPrintersRaw : [];
       console.log("System Printers:", systemPrinters);
 
@@ -316,7 +323,7 @@ useEffect(() => {
         s.toLowerCase().replace(/\s+/g, "").trim();
 
       // Try to match the configured printer (case-insensitive, partial match)
-      const matchedPrinter = systemPrinters.find((p: any) =>
+      const matchedPrinter = systemPrinters.find((p) =>
         normalize(p.name).includes(normalize(printerName)) ||
         normalize(p.displayName || "").includes(normalize(printerName))
       );
@@ -328,7 +335,7 @@ useEffect(() => {
         finalPrinterName = matchedPrinter.name;
       } else {
         // Fallback: Use default printer or first available printer
-        const defaultPrinter = systemPrinters.find((p: any) => p.isDefault);
+        const defaultPrinter = systemPrinters.find((p) => p.isDefault);
         const fallbackPrinter = defaultPrinter || systemPrinters[0];
 
         if (fallbackPrinter) {
@@ -357,8 +364,8 @@ useEffect(() => {
       const kotHTML = generateKOTHTML();
 
       // Print using Electron API
-      if ((window as any).electronAPI?.directPrint) {
-        await (window as any).electronAPI.directPrint(kotHTML, finalPrinterName);
+      if (window.electronAPI?.directPrint) {
+        await window.electronAPI.directPrint(kotHTML, finalPrinterName);
         toast.success("KOT Printed Successfully!");
 
         // Call onPrint callback if provided

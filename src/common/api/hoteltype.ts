@@ -1,9 +1,20 @@
-import { HttpClient } from '../helpers'
+/**
+ * Hotel Type Service - Clean API service for hotel type management operations
+ * Uses HttpClient with interceptors for authentication
+ * Returns ApiResponse<T> for consistent response handling
+ */
 
-type HoteltypePayload = {
-  hoteltypeid?: number
-  hotelid?: string
-  hotel_type: string
+import HttpClient from '../helpers/httpClient'
+import { ApiResponse } from '@/types/api'
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+ * Type Definitions
+ * ═══════════════════════════════════════════════════════════════════════════════ */
+
+/** Hotel Type information */
+export interface HotelType {
+  hoteltypeid: number
+  hotel_type_name: string
   status: number
   created_by_id?: string
   created_date?: string
@@ -11,21 +22,50 @@ type HoteltypePayload = {
   updated_date?: string
 }
 
-function HotelTypeService() {
-  return {
-    list: (params?: { q?: string }) => {
-      return HttpClient.get('/hoteltype', { params })
-    },
-    create: (payload: HoteltypePayload) => {
-      return HttpClient.post('/hoteltype', payload)
-    },
-    update: (id: number, payload: HoteltypePayload) => {
-      return HttpClient.put(`/hoteltype/${id}`, payload)
-    },
-    remove: (id: number) => {
-      return HttpClient.delete(`/hoteltype/${id}`)
-    },
-  }
+/** Hotel Type payload for create/update */
+export interface HotelTypePayload {
+  hoteltypeid?: number
+  hotel_type_name: string
+  status: number
+  created_by_id?: string
+  created_date?: string
+  updated_by_id?: string
+  updated_date?: string
 }
 
-export default HotelTypeService()
+/* ═══════════════════════════════════════════════════════════════════════════════
+ * Hotel Type Service
+ * ═══════════════════════════════════════════════════════════════════════════════ */
+
+const HotelTypeService = {
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+   * CRUD Operations
+   * ═══════════════════════════════════════════════════════════════════════════ */
+
+  /**
+   * Get all hotel types with optional search
+   */
+  list: (params?: { q?: string }): Promise<ApiResponse<HotelType[]>> =>
+    HttpClient.get<ApiResponse<HotelType[]>>('/hoteltype', { params }),
+
+  /**
+   * Create a new hotel type
+   */
+  create: (payload: HotelTypePayload): Promise<ApiResponse<HotelType>> =>
+    HttpClient.post<ApiResponse<HotelType>>('/hoteltype', payload),
+
+  /**
+   * Update an existing hotel type
+   */
+  update: (id: number, payload: HotelTypePayload): Promise<ApiResponse<HotelType>> =>
+    HttpClient.put<ApiResponse<HotelType>>(`/hoteltype/${id}`, payload),
+
+  /**
+   * Delete a hotel type
+   */
+  remove: (id: number): Promise<ApiResponse<null>> =>
+    HttpClient.delete<ApiResponse<null>>(`/hoteltype/${id}`)
+}
+
+export default HotelTypeService

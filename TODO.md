@@ -1,27 +1,41 @@
-# Billview Discount & Tax Calculation Fixes
+# API Files Conversion Task
 
-## Issues Fixed
+## Target Format: order.ts format
+- Use HttpClient from '../helpers/httpClient'
+- Use ApiResponse from '@/types/api'
+- Add comprehensive type definitions
+- Use const Service pattern with Promise<ApiResponse<T>> return types
 
-### 1. Fixed Discount Distribution Logic
-- **Problem**: Fixed amount discounts were being applied to each item individually instead of being distributed proportionally
-- **Solution**: Calculate total gross amount first, then distribute fixed discount proportionally based on each item's line subtotal relative to total gross
-- **Location**: `backend/controllers/TAxnTrnbillControllers.js` - `createKOT` function
+## Files to Convert (25 total)
 
-### 2. Outlet-Specific Tax Rates
-- **Problem**: Backend was using hardcoded 2.5% CGST/SGST rates instead of outlet-specific rates
-- **Solution**: Fetch tax rates from `mstoutlet_settings` table for each outlet
-- **Location**: `backend/controllers/TAxnTrnbillControllers.js` - `createKOT` function
+### Using `function Service()` pattern (21 files):
+- [x] cities.ts
+- [x] countries.ts
+- [x] hotels.ts
+- [x] hoteltype.ts
+- [x] itemgroup.ts
+- [x] itemmaingroup.ts
+- [x] kitchencategory.ts
+- [x] kitchenmaingroup.ts
+- [x] kitchensubcategory.ts
+- [x] markets.ts
+- [x] menu.ts
+- [x] outletdesignation.ts
+- [x] outletpaymentmode.ts
+- [x] profile.ts
+- [x] resttaxmaster.ts
+- [x] settlements.ts
+- [x] states.ts
+- [x] taxgroups.ts
+- [x] unitmaster.ts
+- [x] usertype.ts
+- [x] warehouses.ts
 
-### 3. Variable Scoping Fix
-- **Problem**: `totalGrossForDiscount` was being recalculated inside the item processing loop, causing incorrect discount calculations
-- **Solution**: Calculate `totalGrossForDiscount` once before processing items
-- **Location**: `backend/controllers/TAxnTrnbillControllers.js` - `createKOT` function
+### Using `new APICore()` pattern (4 files):
+- [x] brand.ts
+- [x] masterData.ts
+- [x] outlet.ts
+- [x] outletUser.ts
 
-## Testing Required
-- [ ] Test fixed discount distribution with multiple items
-- [ ] Test percentage discount distribution
-- [ ] Test tax calculations with different outlet settings
-- [ ] Verify database values match frontend display values
-
-## Files Modified
-- `backend/controllers/TAxnTrnbillControllers.js`
+## Summary
+All 25 API files have been successfully converted to the order.ts format!

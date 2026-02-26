@@ -1,32 +1,73 @@
-import { HttpClient } from '../helpers'
+ /**
+ * Kitchen Main Group Service - Clean API service for kitchen main group management operations
+ * Uses HttpClient with interceptors for authentication
+ * Returns ApiResponse<T> for consistent response handling
+ */
 
-type KitchenMainGroupPayload = {
-  kitchenmaingroupid?: number
-  Kitchen_main_Group: string
+import HttpClient from '../helpers/httpClient'
+import { ApiResponse } from '@/types/api'
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+ * Type Definitions
+ * ═══════════════════════════════════════════════════════════════════════════════ */
+
+/** Kitchen Main Group information */
+export interface KitchenMainGroup {
+  kitchen_maingroupid: number
+  kitchen_maigroup_name: string
+  code: string
   status: number
   created_by_id?: string
   created_date?: string
   updated_by_id?: string
   updated_date?: string
-  hotelid: string
-  marketid: string
 }
 
-function KitchenMainGroupService() {
-  return {
-    list: (params?: { q?: string }) => {
-      return HttpClient.get('/KitchenMainGroup', { params })
-    },
-    create: (payload: KitchenMainGroupPayload) => {
-      return HttpClient.post('/KitchenMainGroup', payload)
-    },
-    update: (id: number, payload: KitchenMainGroupPayload) => {
-      return HttpClient.put(`/KitchenMainGroup/${id}`, payload)
-    },
-    remove: (id: number) => {
-      return HttpClient.delete(`/KitchenMainGroup/${id}`)
-    },
-  }
+/** Kitchen Main Group payload for create/update */
+export interface KitchenMainGroupPayload {
+  kitchen_maingroupid?: number
+  kitchen_maigroup_name: string
+  code: string
+  status: number
+  created_by_id?: string
+  created_date?: string
+  updated_by_id?: string
+  updated_date?: string
 }
 
-export default KitchenMainGroupService()
+/* ═══════════════════════════════════════════════════════════════════════════════
+ * Kitchen Main Group Service
+ * ═══════════════════════════════════════════════════════════════════════════════ */
+
+const KitchenMainGroupService = {
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+   * CRUD Operations
+   * ═══════════════════════════════════════════════════════════════════════════ */
+
+  /**
+   * Get all kitchen main groups with optional search
+   */
+  list: (params?: { q?: string }): Promise<ApiResponse<KitchenMainGroup[]>> =>
+    HttpClient.get<ApiResponse<KitchenMainGroup[]>>('/kitchenmaingroup', { params }),
+
+  /**
+   * Create a new kitchen main group
+   */
+  create: (payload: KitchenMainGroupPayload): Promise<ApiResponse<KitchenMainGroup>> =>
+    HttpClient.post<ApiResponse<KitchenMainGroup>>('/kitchenmaingroup', payload),
+
+  /**
+   * Update an existing kitchen main group
+   */
+  update: (id: number, payload: KitchenMainGroupPayload): Promise<ApiResponse<KitchenMainGroup>> =>
+    HttpClient.put<ApiResponse<KitchenMainGroup>>(`/kitchenmaingroup/${id}`, payload),
+
+  /**
+   * Delete a kitchen main group
+   */
+  remove: (id: number): Promise<ApiResponse<null>> =>
+    HttpClient.delete<ApiResponse<null>>(`/kitchenmaingroup/${id}`)
+}
+
+export default KitchenMainGroupService

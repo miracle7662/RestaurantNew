@@ -1,9 +1,18 @@
-import { APICore } from './apiCore'
+/**
+ * Brand Service - Clean API service for brand/hotel management operations
+ * Uses HttpClient with interceptors for authentication
+ * Returns ApiResponse<T> for consistent response handling
+ */
 
-const api = new APICore()
+import HttpClient from '../helpers/httpClient'
+import { ApiResponse } from '@/types/api'
 
-// interface for brand data
-export interface BrandData {
+/* ═══════════════════════════════════════════════════════════════════════════════
+ * Type Definitions
+ * ═══════════════════════════════════════════════════════════════════════════════ */
+
+/** Brand information */
+export interface Brand {
   hotelid: string
   hotel_name: string
   marketid: string
@@ -17,62 +26,103 @@ export interface BrandData {
   address: string
   stateid: string
   hoteltypeid: string
-  Masteruserid: string
+  Masteruserid?: string
   status: string
   created_by_id: string
   created_date: string
   updated_by_id: string
   updated_date: string
-  market_name: string
+  market_name?: string
 }
 
-class BrandService {
-  // Get all brands
-  getBrands(params?: { role_level?: string; hotelid?: string }) {
-    const queryParams: any = {}
-    if (params?.role_level) {
-      queryParams.role_level = params.role_level
-    }
-    if (params?.hotelid) {
-      queryParams.hotelid = params.hotelid
-    }
-    
-    return api.get('/api/HotelMasters', queryParams)
-  }
-
-  // Get brand by ID
-  getBrandById(id: string) {
-    return api.get(`/api/HotelMasters/${id}`, {})
-  }
-
-  // Add new brand
-  addBrand(brandData: Partial<BrandData>) {
-    return api.create('/api/HotelMasters', brandData)
-  }
-
-  // Update brand
-  updateBrand(id: string, brandData: Partial<BrandData>) {
-    return api.update(`/api/HotelMasters/${id}`, brandData)
-  }
-
-  // Delete brand
-  deleteBrand(id: string) {
-    return api.delete(`/api/HotelMasters/${id}`)
-  }
-
-  // Get users by brand_id
-  getUsers(params?: { brand_id?: string }) {
-    const queryParams: any = {}
-    if (params?.brand_id) {
-      queryParams.brand_id = params.brand_id
-    }
-    return api.get('/api/users', queryParams)
-  }
-
-  // Create a new user
-  createUser(userData: any) {
-    return api.create('/api/users', userData)
-  }
+/** Brand payload for create/update */
+export interface BrandPayload {
+  hotelid?: string
+  hotel_name: string
+  marketid: string
+  short_name: string
+  phone: string
+  email: string
+  fssai_no: string
+  trn_gstno: string
+  panno: string
+  website: string
+  address: string
+  stateid: string
+  hoteltypeid: string
+  Masteruserid?: string
+  status: string
+  created_by_id?: string
+  created_date?: string
+  updated_by_id?: string
+  updated_date?: string
 }
 
-export default new BrandService()
+/** User data for brand */
+export interface BrandUser {
+  userid?: number
+  username: string
+  email: string
+  mobile: string
+  hotelid?: string
+  [key: string]: any
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+ * Brand Service
+ * ═══════════════════════════════════════════════════════════════════════════════ */
+
+const BrandService = {
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+   * Brand Operations
+   * ═══════════════════════════════════════════════════════════════════════════ */
+
+  /**
+   * Get all brands with optional filters
+   */
+  getBrands: (params?: { role_level?: string; hotelid?: string }): Promise<ApiResponse<Brand[]>> =>
+    HttpClient.get<ApiResponse<Brand[]>>('/api/HotelMasters', { params }),
+
+  /**
+   * Get brand by ID
+   */
+  getBrandById: (id: string): Promise<ApiResponse<Brand>> =>
+    HttpClient.get<ApiResponse<Brand>>(`/api/HotelMasters/${id}`),
+
+  /**
+   * Add new brand
+   */
+  addBrand: (brandData: BrandPayload): Promise<ApiResponse<Brand>> =>
+    HttpClient.post<ApiResponse<Brand>>('/api/HotelMasters', brandData),
+
+  /**
+   * Update brand
+   */
+  updateBrand: (id: string, brandData: BrandPayload): Promise<ApiResponse<Brand>> =>
+    HttpClient.put<ApiResponse<Brand>>(`/api/HotelMasters/${id}`, brandData),
+
+  /**
+   * Delete brand
+   */
+  deleteBrand: (id: string): Promise<ApiResponse<null>> =>
+    HttpClient.delete<ApiResponse<null>>(`/api/HotelMasters/${id}`),
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+   * User Operations
+   * ═══════════════════════════════════════════════════════════════════════════ */
+
+  /**
+   * Get users by brand_id
+   */
+  getUsers: (params?: { brand_id?: string }): Promise<ApiResponse<any[]>> =>
+    HttpClient.get<ApiResponse<any[]>>('/api/users', { params }),
+
+  /**
+   * Create a new user
+   */
+  createUser: (userData: BrandUser): Promise<ApiResponse<any>> =>
+    HttpClient.post<ApiResponse<any>>('/api/users', userData)
+}
+
+export default BrandService

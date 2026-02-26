@@ -88,11 +88,9 @@ const RegisterUserModal: React.FC<RegisterUserModalProps> = ({ show, onHide, bra
 
     console.log('Brand object:', brand);
     console.log('Brand.hotelid:', brand.hotelid);
-    console.log('Brand.hotelid:', brand.hotelid);
 
     setFetchingHotelData(true);
     try {
-      // The backend returns 'Hotelid' (uppercase), so we should use that
       const hotelid = brand.hotelid || brand.hotelid;
       console.log('Using hotel ID:', hotelid);
 
@@ -102,21 +100,12 @@ const RegisterUserModal: React.FC<RegisterUserModalProps> = ({ show, onHide, bra
         return;
       }
 
-      const res = await fetch(`http://localhost:3001/api/HotelMasters/${hotelid}`);
-      console.log('Response status:', res.status);
-
-      if (res.ok) {
-        const data = await res.json();
-        console.log('Fetched hotel data:', data);
-        setHotelData(data);
-      } else {
-        const errorText = await res.text();
-        console.error('Failed to fetch hotel data. Status:', res.status, 'Response:', errorText);
-        toast.error(`Failed to fetch hotel data: ${res.status}`);
-      }
-    } catch (err) {
+      const response = await BrandService.getBrandById(hotelid);
+      console.log('Fetched hotel data:', response.data);
+      setHotelData(response.data);
+    } catch (err: any) {
       console.error('Error fetching hotel data:', err);
-      toast.error('Error fetching hotel data');
+      toast.error(err.message || 'Error fetching hotel data');
     } finally {
       setFetchingHotelData(false);
     }
@@ -152,30 +141,20 @@ const RegisterUserModal: React.FC<RegisterUserModalProps> = ({ show, onHide, bra
         phone: hotelInfo.phone || '',
         role_level: 'hotel_admin',
         brand_id: hotelid,
-        hotelid: hotelid, // Changed from hotel_id to hotelid
-        parent_user_id: 1, // SuperAdmin ID as parent
-        created_by_id: 1 // SuperAdmin ID
+        hotelid: hotelid,
+        parent_user_id: 1,
+        created_by_id: 1
       };
 
       console.log('Creating user with payload:', payload);
 
-      const res = await fetch('http://localhost:3001/api/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      if (res.ok) {
-        toast.success('Hotel Admin created successfully!');
-        toast.success(`Username: ${username}, Password: ${password}`);
-        setUsername('');
-        setPassword('');
-        onSuccess();
-        onHide();
-      } else {
-        const error = await res.json();
-        toast.error(error.message || 'Failed to create user');
-      }
+      await BrandService.createUser(payload);
+      toast.success('Hotel Admin created successfully!');
+      toast.success(`Username: ${username}, Password: ${password}`);
+      setUsername('');
+      setPassword('');
+      onSuccess();
+      onHide();
     } catch (err) {
       console.error('Error creating user:', err);
       toast.error('Something went wrong');
@@ -347,7 +326,7 @@ const BrandList: React.FC = () => {
       }
 
       const response = await BrandService.getBrands(params);
-      const data = response.data;
+      const data = response.data as HotelMastersItem[];
       console.log('Fetched HotelMasters:', data); // Debug log to inspect backend data
       console.log('Sample hotel data:', data[0]); // Log first item to see structure
       setHotelMastersItem(data);
@@ -1604,11 +1583,11 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({ show, onHide,
 
     try {
       setLoading(true);
-      const res = await fetch(`http://localhost:3001/api/users?brand_id=${brand.hotelid || brand.hotelid}`);
-      const data = await res.json();
-      setUsers(Array.isArray(data) ? data : []);
-    } catch (err) {
-      toast.error('Failed to fetch users');
+      const brandId = brand.hotelid || brand.hotelid;
+      const response = await BrandService.getUsers({ brand_id: brandId });
+      setUsers(Array.isArray(response.data) ? response.data : []);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to fetch users');
       setUsers([]);
     } finally {
       setLoading(false);
@@ -1776,31 +1755,21 @@ const AddUserModal: React.FC<AddUserModalProps> = ({ show, onHide, brand, onSucc
         phone,
         role_level: 'hotel_admin',
         brand_id: hotelId,
-        hotelid: hotelId, // Changed from hotel_id to hotelid
-        parent_user_id: user?.id || 1, // Current user ID as parent
-        created_by_id: user?.id || 1 // Current user ID
+        hotelid: hotelId,
+        parent_user_id: user?.id || 1,
+        created_by_id: user?.id || 1
       };
 
-      const res = await fetch('http://localhost:3001/api/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      if (res.ok) {
-        toast.success('Hotel Admin created successfully!');
-        toast.success(`Username: ${username}, Password: ${password}`);
-        setUsername('');
-        setEmail('');
-        setPassword('');
-        setFullName('');
-        setPhone('');
-        onSuccess();
-        onHide();
-      } else {
-        const error = await res.json();
-        toast.error(error.message || 'Failed to create user');
-      }
+      await BrandService.createUser(payload);
+      toast.success('Hotel Admin created successfully!');
+      toast.success(`Username: ${username}, Password: ${password}`);
+      setUsername('');
+      setEmail('');
+      setPassword('');
+      setFullName('');
+      setPhone('');
+      onSuccess();
+      onHide();
     } catch (err) {
       toast.error('Something went wrong');
     } finally {

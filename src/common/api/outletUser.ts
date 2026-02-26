@@ -1,9 +1,18 @@
-import { APICore } from './apiCore'
+/**
+ * Outlet User Service - Clean API service for outlet user management operations
+ * Uses HttpClient with interceptors for authentication
+ * Returns ApiResponse<T> for consistent response handling
+ */
 
-const api = new APICore()
+import HttpClient from '../helpers/httpClient'
+import { ApiResponse } from '@/types/api'
 
-// Interface for outlet user data
-export interface OutletUserData {
+/* ═══════════════════════════════════════════════════════════════════════════════
+ * Type Definitions
+ * ═══════════════════════════════════════════════════════════════════════════════ */
+
+/** Outlet User information */
+export interface OutletUser {
   userid?: number
   username: string
   email: string
@@ -11,7 +20,7 @@ export interface OutletUserData {
   full_name: string
   phone?: string
   role_level: string
-  outletid?: number; // Changed to outletid
+  outletid?: number
   Designation?: string
   designationid?: number
   user_type?: string
@@ -44,8 +53,45 @@ export interface OutletUserData {
   user_type_name?: string
 }
 
-// Interface for hotel admin data
-export interface HotelAdminData {
+/** Outlet User payload for create/update */
+export interface OutletUserPayload {
+  userid?: number
+  username: string
+  email: string
+  password?: string
+  full_name: string
+  phone?: string
+  role_level: string
+  outletid?: number
+  Designation?: string
+  designationid?: number
+  user_type?: string
+  usertypeid?: number
+  shift_time?: string
+  mac_address?: string
+  assign_warehouse?: string
+  language_preference?: string
+  address?: string
+  city?: string
+  sub_locality?: string
+  web_access?: boolean
+  self_order?: boolean
+  captain_app?: boolean
+  kds_app?: boolean
+  captain_old_kot_access?: string
+  verify_mac_ip?: boolean
+  brand_id?: number
+  hotelid?: number
+  parent_user_id?: number
+  status?: number
+  created_by_id?: number
+  created_date?: string
+  updated_by_id?: number
+  updated_date?: string
+}
+
+/** Hotel Admin information */
+export interface HotelAdmin {
   userid?: number
   username?: string
   email?: string
@@ -61,85 +107,116 @@ export interface HotelAdminData {
   last_login?: string
 }
 
-// Interface for dropdown options
+/** Hotel Admin payload for update */
+export interface HotelAdminPayload {
+  userid?: number
+  username?: string
+  email?: string
+  full_name: string
+  phone?: string
+  role_level?: string
+  brand_id?: number
+  hotel_id?: number
+  status?: number
+}
+
+/** Dropdown option */
 export interface DropdownOption {
   id: number
   name: string
 }
 
-class OutletUserService {
-  // Get outlet users (filtered by role)
-  getOutletUsers = (params?: { 
-    currentUserId?: number; 
-    roleLevel?: string; 
-    brandId?: number; 
-    hotelId?: number; 
-    outletid?: number;
-    created_by_id?: number;
-    
-  }) => {
-    return api.get('/api/outlet-users', params || {})
-  }
+/* ═══════════════════════════════════════════════════════════════════════════════
+ * Outlet User Service
+ * ═══════════════════════════════════════════════════════════════════════════════ */
 
-  // Get hotel admins specifically
-  getHotelAdmins = (params?: { 
-    currentUserId?: number; 
-    roleLevel?: string; 
-    brandId?: number; 
-    hotelid?: number 
-    
-  }) => {
-    return api.get('/api/outlet-users/hotel-admins', params || {})
-  }
+const OutletUserService = {
 
-  // Get outlets for dropdown (filtered by role)
-  getOutletsForDropdown = (params?: { 
-    roleLevel?: string; 
-    brandId?: number; 
-    hotelid?: number 
-  }) => {
-    return api.get('/api/outlet-users/outlets', params || {})
-  }
+  /* ═══════════════════════════════════════════════════════════════════════════
+   * User Operations
+   * ═══════════════════════════════════════════════════════════════════════════ */
 
-  // Get designations for dropdown
-  getDesignations = () => {
-    return api.get('/api/outlet-users/designations', {})
-  }
+  /**
+   * Get outlet users (filtered by role)
+   */
+  getOutletUsers: (params?: {
+    currentUserId?: number
+    roleLevel?: string
+    brandId?: number
+    hotelId?: number
+    outletid?: number
+    created_by_id?: number
+  }): Promise<ApiResponse<OutletUser[]>> =>
+    HttpClient.get<ApiResponse<OutletUser[]>>('/api/outlet-users', { params }),
 
-  // Get user types for dropdown
-  getUserTypes = () => {
-    return api.get('/api/outlet-users/user-types', {})
-  }
+  /**
+   * Get hotel admins specifically
+   */
+  getHotelAdmins: (params?: {
+    currentUserId?: number
+    roleLevel?: string
+    brandId?: number
+    hotelid?: number
+  }): Promise<ApiResponse<HotelAdmin[]>> =>
+    HttpClient.get<ApiResponse<HotelAdmin[]>>('/api/outlet-users/hotel-admins', { params }),
 
-  // Get outlet user by ID
-  getOutletUserById = (id: number) => {
-    return api.get(`/api/outlet-users/${id}`, {})
-  }
+  /**
+   * Get outlets for dropdown (filtered by role)
+   */
+  getOutletsForDropdown: (params?: {
+    roleLevel?: string
+    brandId?: number
+    hotelid?: number
+  }): Promise<ApiResponse<any[]>> =>
+    HttpClient.get<ApiResponse<any[]>>('/api/outlet-users/outlets', { params }),
 
-  // Get hotel admin by ID
-  getHotelAdminById = (id: number) => {
-    return api.get(`/api/outlet-users/hotel-admin/${id}`, {})
-  }
+  /**
+   * Get designations for dropdown
+   */
+  getDesignations: (): Promise<ApiResponse<DropdownOption[]>> =>
+    HttpClient.get<ApiResponse<DropdownOption[]>>('/api/outlet-users/designations'),
 
-  // Create new outlet user
-  createOutletUser = (data: OutletUserData) => {
-    return api.create('/api/outlet-users', data)
-  }
+  /**
+   * Get user types for dropdown
+   */
+  getUserTypes: (): Promise<ApiResponse<DropdownOption[]>> =>
+    HttpClient.get<ApiResponse<DropdownOption[]>>('/api/outlet-users/user-types'),
 
-  // Update outlet user
-  updateOutletUser = (id: number, data: OutletUserData) => {
-    return api.update(`/api/outlet-users/${id}`, data)
-  }
+  /**
+   * Get outlet user by ID
+   */
+  getOutletUserById: (id: number): Promise<ApiResponse<OutletUser>> =>
+    HttpClient.get<ApiResponse<OutletUser>>(`/api/outlet-users/${id}`),
 
-  // Update hotel admin
-  updateHotelAdmin = (id: number, data: HotelAdminData) => {
-    return api.update(`/api/outlet-users/hotel-admin/${id}`, data)
-  }
+  /**
+   * Get hotel admin by ID
+   */
+  getHotelAdminById: (id: number): Promise<ApiResponse<HotelAdmin>> =>
+    HttpClient.get<ApiResponse<HotelAdmin>>(`/api/outlet-users/hotel-admin/${id}`),
 
-  // Delete outlet user (soft delete)
-  deleteOutletUser = (id: number, data: { updated_by_id: number }) => {
-    return api.update(`/api/outlet-users/${id}`, { is_active: 0, ...data })
-  }
+  /**
+   * Create new outlet user
+   */
+  createOutletUser: (data: OutletUserPayload): Promise<ApiResponse<OutletUser>> =>
+    HttpClient.post<ApiResponse<OutletUser>>('/api/outlet-users', data),
+
+  /**
+   * Update outlet user
+   */
+  updateOutletUser: (id: number, data: OutletUserPayload): Promise<ApiResponse<OutletUser>> =>
+    HttpClient.put<ApiResponse<OutletUser>>(`/api/outlet-users/${id}`, data),
+
+  /**
+   * Update hotel admin
+   */
+  updateHotelAdmin: (id: number, data: HotelAdminPayload): Promise<ApiResponse<HotelAdmin>> =>
+    HttpClient.put<ApiResponse<HotelAdmin>>(`/api/outlet-users/hotel-admin/${id}`, data),
+
+  /**
+   * Delete outlet user (soft delete)
+   */
+  deleteOutletUser: (id: number, data: { updated_by_id: number }): Promise<ApiResponse<null>> =>
+    HttpClient.put<ApiResponse<null>>(`/api/outlet-users/${id}`, { is_active: 0, ...data })
 }
 
-export default new OutletUserService() 
+export default OutletUserService
