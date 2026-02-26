@@ -73,7 +73,7 @@ exports.getOutlets = (req, res) => {
     const outlets = db.prepare(query).all(...params);
     console.log('Found outlets:', outlets);
 
-    res.json(outlets);
+    res.status(200).json ({success: true, message: 'Outlets fetched successfully',data: outlets})
   } catch (error) {
     console.error('Error fetching outlets:', error);
     res.status(500).json({ message: 'Internal server error', error: error.message });
