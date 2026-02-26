@@ -25,10 +25,11 @@ exports.getStartTimes = (req, res) => {
             { time_id: 19, time_value: '00:00', time_label: '12:00 AM' }
         ];
         
-        res.json(startTimes);
+        // Return in ApiResponse format matching frontend expectations
+        res.json({ data: startTimes, success: true, message: 'Start times fetched successfully' });
     } catch (error) {
         console.error('Error fetching start times:', error);
-        res.status(500).json({ error: 'Failed to fetch start times' });
+        res.status(500).json({ data: [], success: false, message: 'Failed to fetch start times' });
     }
 };
 
@@ -57,9 +58,10 @@ exports.getCloseTimes = (req, res) => {
             { time_id: 19, time_value: '12:00', time_label: '12:00 PM' }
         ];
         
-        res.json(closeTimes);
+        // Return in ApiResponse format matching frontend expectations
+        res.json({ data: closeTimes, success: true, message: 'Close times fetched successfully' });
     } catch (error) {
         console.error('Error fetching close times:', error);
-        res.status(500).json({ error: 'Failed to fetch close times' });
+        res.status(500).json({ data: [], success: false, message: 'Failed to fetch close times' });
     }
-}; 
+};

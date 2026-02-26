@@ -130,7 +130,7 @@ export interface DropdownOption {
  * Outlet User Service
  * ═══════════════════════════════════════════════════════════════════════════════ */
 
-const OutletUserService = {
+const OutletUserService =  {
 
   /* ═══════════════════════════════════════════════════════════════════════════
    * User Operations
@@ -218,5 +218,15 @@ const OutletUserService = {
   deleteOutletUser: (id: number, data: { updated_by_id: number }): Promise<ApiResponse<null>> =>
     HttpClient.put<ApiResponse<null>>(`/outlet-users/${id}`, { is_active: 0, ...data })
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+ * Type Aliases for backward compatibility
+ * ═══════════════════════════════════════════════════════════════════════════════ */
+
+/** @deprecated Use OutletUser instead */
+export type OutletUserData = OutletUser
+
+/** @deprecated Use HotelAdmin instead */
+export type HotelAdminData = HotelAdmin
 
 export default OutletUserService

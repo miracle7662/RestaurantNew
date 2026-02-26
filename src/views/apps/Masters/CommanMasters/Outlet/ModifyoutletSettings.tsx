@@ -180,7 +180,9 @@ const ModifyOutletSettingsModal: React.FC<{
             headers: { 'Content-Type': 'application/json' },
           });
           if (res.ok) {
-            const data: OutletSettings = await res.json();
+            const response = await res.json();
+            // Backend returns { success, message, data } - extract data
+            const data: OutletSettings = response.data || response;
             setFormData({
               ...data,
               outletid: selectedOutlet.outletid!,
@@ -190,7 +192,7 @@ const ModifyOutletSettingsModal: React.FC<{
             toast.success('Outlet settings fetched successfully!');
           } else {
             const errorData = await res.json();
-            toast.error(`Failed to fetch outlet settings: ${errorData.message || 'Unknown error'}`);
+            toast.error(`Failed to fetch outlet settings: ${errorData.message || errorData.error || 'Unknown error'}`);
           }
         } catch (error) {
           console.error('Error fetching outlet settings:', error);

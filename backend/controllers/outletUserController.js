@@ -32,16 +32,16 @@ exports.getOutletUsers = (req, res) => {
         params.push(hotelid);
         break;
       default:
-        return res.status(403).json({ message: 'Insufficient permissions' });
+        return res.status(403).json({ success: false, message: 'Insufficient permissions' });
     }
 
     query += " ORDER BY CASE WHEN u.role_level = 'hotel_admin' THEN 0 ELSE 1 END, u.created_date DESC";
 
     const users = db.prepare(query).all(...params);
-    res.json(users);
+    res.json({ success: true, data: users });
   } catch (error) {
     console.error('Error fetching outlet users:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
 
@@ -72,16 +72,16 @@ exports.getOutletsForDropdown = (req, res) => {
         params.push(brandId)
         break
       default:
-        return res.status(403).json({ message: 'Insufficient permissions' })
+        return res.status(403).json({ success: false, message: 'Insufficient permissions' })
     }
 
     query += ' ORDER BY o.outlet_name'
 
     const outlets = db.prepare(query).all(...params)
-    res.json(outlets)
+    res.json({ success: true, data: outlets })
   } catch (error) {
     console.error('Error fetching outlets for dropdown:', error)
-    res.status(500).json({ message: 'Internal server error' })
+    res.status(500).json({ success: false, message: 'Internal server error' })
   }
 }
 
