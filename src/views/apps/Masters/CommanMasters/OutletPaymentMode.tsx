@@ -9,8 +9,13 @@ import OutletPaymentModeService from '@/common/api/outletpaymentmode';
 interface PaymentMode {
   id?: number;
   outletid: number;
+  hotelid?: number;
+  paymenttypeid?: number;
   mode_name: string;
-  is_active: number;
+  is_active: number | null;
+  sequence?: number;
+  created_at?: string;
+  updated_at?: string;
 }
 
 
@@ -37,11 +42,11 @@ const PaymentModes: React.FC = () => {
   const [adding, setAdding] = useState(false);
   const [removing, setRemoving] = useState(false);
 
- // Fetch payment types
+// Fetch payment types
 const fetchPaymentTypes = async () => {
   try {
     const response = await OutletPaymentModeService.types();
-    const data = response;
+    const data = response.data;
     if (!Array.isArray(data)) {
       throw new Error('Expected an array of payment types');
     }
@@ -56,18 +61,24 @@ const fetchPaymentTypes = async () => {
 const fetchPaymentModes = async () => {
   try {
     const response = await OutletPaymentModeService.list({ outletid: selectedOutlet });
-    const data = response;
+    const data = response.data;
     if (!Array.isArray(data)) {
       throw new Error('Expected an array of payment modes');
     }
-    setPaymentModes(
-      data
-        .filter((mode) => mode && mode.mode_name)
-        .map((mode) => ({
-          ...mode,
-          is_active: mode.is_active ?? 1,
-        }))
-    );
+    const modes: PaymentMode[] = data
+      .filter((mode) => mode && mode.mode_name)
+      .map((mode): PaymentMode => ({
+        id: mode.id,
+        outletid: mode.outletid,
+        hotelid: mode.hotelid,
+        paymenttypeid: mode.paymenttypeid,
+        mode_name: mode.mode_name,
+        is_active: mode.is_active ?? 1,
+        sequence: mode.sequence,
+        created_at: mode.created_at,
+        updated_at: mode.updated_at
+      }));
+    setPaymentModes(modes);
   } catch (error: any) {
     // console.error('Error fetching payment modes:', error);
     toast.error('Failed to fetch payment modes');
