@@ -63,8 +63,9 @@ export interface BrandUser {
   userid?: number
   username: string
   email: string
-  mobile: string
-  hotelid?: string
+  mobile?: string
+  phone?: string
+  hotelid?: number
   [key: string]: any
 }
 
