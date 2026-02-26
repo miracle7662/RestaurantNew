@@ -131,7 +131,7 @@ const OutletService = {
    * Get brands/hotels for dropdown
    */
   getBrands: (params?: { role_level?: string; hotelid?: number }): Promise<ApiResponse<any[]>> =>
-    HttpClient.get<ApiResponse<any[]>>('/api/outlets/brands', { params }),
+    HttpClient.get<ApiResponse<any[]>>('/outlets/brands', { params }),
 
   /* ═══════════════════════════════════════════════════════════════════════════
    * Outlet Operations
@@ -147,31 +147,31 @@ const OutletService = {
     created_by_id?: number
     outletid?: number
   }): Promise<ApiResponse<Outlet[]>> =>
-    HttpClient.get<ApiResponse<Outlet[]>>('/api/outlets', { params }),
+    HttpClient.get<ApiResponse<Outlet[]>>('/outlets', { params }),
 
   /**
    * Get outlet by ID
    */
   getOutletById: (id: number): Promise<ApiResponse<Outlet>> =>
-    HttpClient.get<ApiResponse<Outlet>>(`/api/outlets/${id}`),
+    HttpClient.get<ApiResponse<Outlet>>(`/outlets/${id}`),
 
   /**
    * Add new outlet
    */
   addOutlet: (data: OutletPayload): Promise<ApiResponse<Outlet>> =>
-    HttpClient.post<ApiResponse<Outlet>>('/api/outlets', data),
+    HttpClient.post<ApiResponse<Outlet>>('/outlets', data),
 
   /**
    * Update outlet
    */
   updateOutlet: (id: number, data: OutletPayload): Promise<ApiResponse<Outlet>> =>
-    HttpClient.put<ApiResponse<Outlet>>(`/api/outlets/${id}`, data),
+    HttpClient.put<ApiResponse<Outlet>>(`/outlets/${id}`, data),
 
   /**
    * Delete outlet
    */
   deleteOutlet: (id: number): Promise<ApiResponse<null>> =>
-    HttpClient.delete<ApiResponse<null>>(`/api/outlets/${id}`),
+    HttpClient.delete<ApiResponse<null>>(`/outlets/${id}`),
 
   /**
    * Get outlets for dropdown
@@ -181,7 +181,7 @@ const OutletService = {
     hotelid?: number
     brandId?: number
   }): Promise<ApiResponse<Outlet[]>> =>
-    HttpClient.get<ApiResponse<Outlet[]>>('/api/outlets', { params })
+    HttpClient.get<ApiResponse<Outlet[]>>('/outlets', { params })
 }
 
 export default OutletService

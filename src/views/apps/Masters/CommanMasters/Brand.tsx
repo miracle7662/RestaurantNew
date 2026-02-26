@@ -326,7 +326,7 @@ const BrandList: React.FC = () => {
       }
 
       const response = await BrandService.getBrands(params);
-      const data = response.data as HotelMastersItem[];
+      const data = response as HotelMastersItem[];
       console.log('Fetched HotelMasters:', data); // Debug log to inspect backend data
       console.log('Sample hotel data:', data[0]); // Log first item to see structure
       setHotelMastersItem(data);

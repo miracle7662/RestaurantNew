@@ -147,7 +147,7 @@ const OutletUserService = {
     outletid?: number
     created_by_id?: number
   }): Promise<ApiResponse<OutletUser[]>> =>
-    HttpClient.get<ApiResponse<OutletUser[]>>('/api/outlet-users', { params }),
+    HttpClient.get<ApiResponse<OutletUser[]>>('/outlet-users', { params }),
 
   /**
    * Get hotel admins specifically
@@ -158,7 +158,7 @@ const OutletUserService = {
     brandId?: number
     hotelid?: number
   }): Promise<ApiResponse<HotelAdmin[]>> =>
-    HttpClient.get<ApiResponse<HotelAdmin[]>>('/api/outlet-users/hotel-admins', { params }),
+    HttpClient.get<ApiResponse<HotelAdmin[]>>('/outlet-users/hotel-admins', { params }),
 
   /**
    * Get outlets for dropdown (filtered by role)
@@ -168,55 +168,55 @@ const OutletUserService = {
     brandId?: number
     hotelid?: number
   }): Promise<ApiResponse<any[]>> =>
-    HttpClient.get<ApiResponse<any[]>>('/api/outlet-users/outlets', { params }),
+    HttpClient.get<ApiResponse<any[]>>('/outlet-users/outlets', { params }),
 
   /**
    * Get designations for dropdown
    */
   getDesignations: (): Promise<ApiResponse<DropdownOption[]>> =>
-    HttpClient.get<ApiResponse<DropdownOption[]>>('/api/outlet-users/designations'),
+    HttpClient.get<ApiResponse<DropdownOption[]>>('/outlet-users/designations'),
 
   /**
    * Get user types for dropdown
    */
   getUserTypes: (): Promise<ApiResponse<DropdownOption[]>> =>
-    HttpClient.get<ApiResponse<DropdownOption[]>>('/api/outlet-users/user-types'),
+    HttpClient.get<ApiResponse<DropdownOption[]>>('/outlet-users/user-types'),
 
   /**
    * Get outlet user by ID
    */
   getOutletUserById: (id: number): Promise<ApiResponse<OutletUser>> =>
-    HttpClient.get<ApiResponse<OutletUser>>(`/api/outlet-users/${id}`),
+    HttpClient.get<ApiResponse<OutletUser>>(`/outlet-users/${id}`),
 
   /**
    * Get hotel admin by ID
    */
   getHotelAdminById: (id: number): Promise<ApiResponse<HotelAdmin>> =>
-    HttpClient.get<ApiResponse<HotelAdmin>>(`/api/outlet-users/hotel-admin/${id}`),
+    HttpClient.get<ApiResponse<HotelAdmin>>(`/outlet-users/hotel-admin/${id}`),
 
   /**
    * Create new outlet user
    */
   createOutletUser: (data: OutletUserPayload): Promise<ApiResponse<OutletUser>> =>
-    HttpClient.post<ApiResponse<OutletUser>>('/api/outlet-users', data),
+    HttpClient.post<ApiResponse<OutletUser>>('/outlet-users', data),
 
   /**
    * Update outlet user
    */
   updateOutletUser: (id: number, data: OutletUserPayload): Promise<ApiResponse<OutletUser>> =>
-    HttpClient.put<ApiResponse<OutletUser>>(`/api/outlet-users/${id}`, data),
+    HttpClient.put<ApiResponse<OutletUser>>(`/outlet-users/${id}`, data),
 
   /**
    * Update hotel admin
    */
   updateHotelAdmin: (id: number, data: HotelAdminPayload): Promise<ApiResponse<HotelAdmin>> =>
-    HttpClient.put<ApiResponse<HotelAdmin>>(`/api/outlet-users/hotel-admin/${id}`, data),
+    HttpClient.put<ApiResponse<HotelAdmin>>(`/outlet-users/hotel-admin/${id}`, data),
 
   /**
    * Delete outlet user (soft delete)
    */
   deleteOutletUser: (id: number, data: { updated_by_id: number }): Promise<ApiResponse<null>> =>
-    HttpClient.put<ApiResponse<null>>(`/api/outlet-users/${id}`, { is_active: 0, ...data })
+    HttpClient.put<ApiResponse<null>>(`/outlet-users/${id}`, { is_active: 0, ...data })
 }
 
 export default OutletUserService
