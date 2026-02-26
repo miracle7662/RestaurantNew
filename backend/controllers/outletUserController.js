@@ -513,10 +513,10 @@ exports.getUserTypes = (req, res) => {
     const userTypes = db
       .prepare('SELECT usertypeid, User_type FROM mstuserType WHERE status = 0 ORDER BY User_type')
       .all()
-    res.json(userTypes)
+    res.status(200).json({success: true, message: 'User types fetched successfully', data: userTypes})
   } catch (error) {
     console.error('Error fetching user types:', error)
-    res.status(500).json({ message: 'Internal server error' })
+    res.status(500).json({ success: false, message: 'Internal server error', data: null})
   }
 }
 
@@ -555,10 +555,10 @@ exports.getHotelAdmins = (req, res) => {
     query += ' ORDER BY u.created_date DESC'
 
     const hotelAdmins = db.prepare(query).all(...params)
-    res.json(hotelAdmins)
+    res.status(200).json({ success: true, message: 'Hotel admin fetched successfully', data: hotelAdmins })
   } catch (error) {
     console.error('Error fetching hotel admins:', error)
-    res.status(500).json({ message: 'Internal server error' })
+    res.status(500).json({ success: false, message: 'Internal server error' })
   }
 }
 
@@ -619,14 +619,22 @@ exports.getHotelAdminById = (req, res) => {
       )
       .get(id)
 
-    if (!hotelAdmin) {
-      return res.status(404).json({ error: 'Hotel admin not found' })
+   if (!hotelAdmin) {
+      return res.status(404).json({
+        success: false,
+        message: 'Hotel admin not found',
+        data: null
+      })
     }
 
-    res.json(hotelAdmin)
+    res.status(200).json({
+      success: true,
+      message: 'Hotel admin fetched successfully',
+      data: hotelAdmin
+    })
   } catch (error) {
     console.error('Error fetching hotel admin:', error)
-    res.status(500).json({ error: 'Failed to fetch hotel admin' })
+    res.status(500).json({success: false, error: 'Failed to fetch hotel admin' })
   }
 }
 
@@ -664,9 +672,9 @@ exports.updateHotelAdmin = async (req, res) => {
     const stmt = db.prepare(`UPDATE mst_users SET ${updateFields.join(', ')} WHERE userid = ?`)
     stmt.run(...params)
 
-    res.json({ message: 'Hotel admin updated successfully' })
+     res.status(200).json({success: true, message: 'Hotel admin updated successfully',data: null })
   } catch (error) {
     console.error('Error updating hotel admin:', error)
-    res.status(500).json({ message: 'Internal server error' })
+     res.status(500).json({ success: false, message: 'Internal server error', data: null})
   }
 }
