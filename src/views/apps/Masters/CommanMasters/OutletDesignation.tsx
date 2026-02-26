@@ -13,19 +13,10 @@ import {
   ColumnDef,
   flexRender,
 } from '@tanstack/react-table';
-import OutletDesignationService from '@/common/api/outletdesignation';
+import OutletDesignationService, { OutletDesignation } from '@/common/api/outletdesignation';
 
-interface DesignationItem {
-  Designation: string;
-  designationid: string;
-  status: string;
-  created_by_id: string;
-  created_date: string;
-  updated_by_id: string;
-  updated_date: string;
-  hotelid: string;
-  marketid: string;
-}
+// Use type from API service
+type DesignationItem = OutletDesignation;
 
 interface DesignationModalProps {
   show: boolean;
@@ -60,18 +51,20 @@ const Designation: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [selectedDesignation, setSelectedDesignation] = useState<DesignationItem | null>(null);
 
-  const fetchDesignation = async () => {
-    try {
-      setLoading(true);
-      const data = await OutletDesignationService.list() as unknown as DesignationItem[];
-      // console.log('Fetched Designation:', data);
-      setDesignationItem(data);
-    } catch (err) {
-      toast.error('Failed to fetch Designation');
-    } finally {
-      setLoading(false);
-    }
-  };
+ const fetchDesignation = async () => {
+  try {
+    setLoading(true);
+
+    const response = await OutletDesignationService.list();
+    
+    setDesignationItem(response.data);
+
+  } catch (err) {
+    toast.error('Failed to fetch Designation');
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     fetchDesignation();
@@ -134,7 +127,7 @@ const Designation: React.FC = () => {
 
   // Initialize react-table with pagination and filtering
   const table = useReactTable({
-    data: designationItem,
+    data: designationItem || [],
     columns,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
@@ -276,11 +269,11 @@ const Designation: React.FC = () => {
 
         toast.success(`Designation ${isEditMode ? 'updated' : 'added'} successfully`);
         if (isEditMode && designation && onUpdateSelectedDesignation) {
-          const updatedDesignation = {
+          const updatedDesignation: DesignationItem = {
             ...designation,
             Designation: designationName,
-            status: statusValue.toString(),
-            updated_by_id: userId,
+            status: statusValue,
+            updated_by_id: Number(userId),
             updated_date: currentDate,
             designationid: designation.designationid,
           };
@@ -412,7 +405,7 @@ const Designation: React.FC = () => {
                       <option value="50">50</option>
                     </Form.Select>
                     <span className="text-muted">
-                      Showing {table.getRowModel().rows.length} of {designationItem.length} entries
+                      Showing {table.getRowModel().rows.length} of {designationItem?.length || 0} entries
                     </span>
                   </div>
                   <Pagination>
