@@ -12,6 +12,9 @@ import { ApiResponse } from '@/types/api'
  * ═══════════════════════════════════════════════════════════════════════════════ */
 
 /** Outlet information */
+export type OutletData = Outlet;
+
+/** Outlet information */
 export interface Outlet {
   outletid?: number
   outlet_name: string

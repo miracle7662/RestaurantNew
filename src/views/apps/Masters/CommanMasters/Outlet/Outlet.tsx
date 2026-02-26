@@ -187,10 +187,10 @@ const OutletList: React.FC = () => {
       });
 
       const response = await outletService.getOutlets(params);
-      // console.log("Outlet response data:", response.data); // Debugging log
+      // console.log("Outlet response data:", response); // Debugging log
       // console.log('Outlet response:', response);
-      if (response && response.data) {
-        const sortedOutlets = response.data.sort((a: OutletData, b: OutletData) => {
+      if (response && Array.isArray(response)) {
+        const sortedOutlets = response.sort((a: OutletData, b: OutletData) => {
           return new Date(a.registered_at || '').getTime() - new Date(b.registered_at || '').getTime();
         });
         setOutlets(sortedOutlets);

@@ -49,7 +49,7 @@ const MasterDataService = {
    * Get all countries
    */
   getCountries: (): Promise<ApiResponse<Country[]>> =>
-    HttpClient.get<ApiResponse<Country[]>>('/api/countries'),
+    HttpClient.get<ApiResponse<Country[]>>('/countries'),
 
   /* ═══════════════════════════════════════════════════════════════════════════
    * Timezone Operations
@@ -59,7 +59,7 @@ const MasterDataService = {
    * Get timezones (optionally filtered by country)
    */
   getTimezones: (country_code?: string): Promise<ApiResponse<Timezone[]>> =>
-    HttpClient.get<ApiResponse<Timezone[]>>('/api/timezones', { params: { country_code } }),
+    HttpClient.get<ApiResponse<Timezone[]>>('/timezones', { params: { country_code } }),
 
   /* ═══════════════════════════════════════════════════════════════════════════
    * Time Operations
@@ -69,13 +69,13 @@ const MasterDataService = {
    * Get start times
    */
   getStartTimes: (): Promise<ApiResponse<TimeOption[]>> =>
-    HttpClient.get<ApiResponse<TimeOption[]>>('/api/times/start-times'),
+    HttpClient.get<ApiResponse<TimeOption[]>>('/times/start-times'),
 
   /**
    * Get close times
    */
   getCloseTimes: (): Promise<ApiResponse<TimeOption[]>> =>
-    HttpClient.get<ApiResponse<TimeOption[]>>('/api/times/close-times')
+    HttpClient.get<ApiResponse<TimeOption[]>>('/times/close-times')
 }
 
 export default MasterDataService
