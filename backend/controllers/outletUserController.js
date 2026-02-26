@@ -263,17 +263,20 @@ exports.createOutletUser = async (req, res) => {
     const userid = result.lastInsertRowid
 
     res.json({
-      userid,
-      username,
-      email,
-      full_name,
-      role_level: 'outlet_user',
-      outletid: outletId,
-      hotelid: finalHotelId,
+      success: true,
+      data: {
+        userid,
+        username,
+        email,
+        full_name,
+        role_level: 'outlet_user',
+        outletid: outletId,
+        hotelid: finalHotelId,
+      }
     })
   } catch (error) {
     console.error('Error creating outlet user:', error)
-    res.status(500).json({ message: 'Internal server error', error: error.message })
+    res.status(500).json({ success: false, message: 'Internal server error', error: error.message })
   }
 }
 
@@ -430,10 +433,10 @@ exports.updateOutletUser = async (req, res) => {
       }
     }
 
-    res.json({ message: 'Outlet user updated successfully' });
+    res.json({ success: true, message: 'Outlet user updated successfully' });
   } catch (error) {
     console.error('Error updating outlet user:', error);
-    res.status(500).json({ message: 'Internal server error', error: error.message });
+    res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
   }
 };
 
@@ -448,10 +451,10 @@ exports.deleteOutletUser = (req, res) => {
     )
     stmt.run(updated_by_id, userid)
 
-    res.json({ message: 'Outlet user deleted successfully' })
+    res.json({ success: true, message: 'Outlet user deleted successfully' })
   } catch (error) {
     console.error('Error deleting outlet user:', error)
-    res.status(500).json({ message: 'Internal server error' })
+    res.status(500).json({ success: false, message: 'Internal server error' })
   }
 }
 
@@ -477,15 +480,15 @@ exports.getOutletUserById = (req, res) => {
       .get(id)
 
     if (!user) {
-      return res.status(404).json({ error: 'Outlet user not found' })
+      return res.status(404).json({ success: false, error: 'Outlet user not found' })
     }
 
     // Convert outletid to array for consistency
     user.outletid = user.outletid ? [user.outletid] : []
-    res.json(user)
+    res.json({ success: true, data: user })
   } catch (error) {
     console.error('Error fetching outlet user:', error)
-    res.status(500).json({ error: 'Failed to fetch outlet user' })
+    res.status(500).json({ success: false, error: 'Failed to fetch outlet user' })
   }
 }
 
@@ -497,10 +500,10 @@ exports.getDesignations = (req, res) => {
         'SELECT designationid, Designation FROM mstdesignation WHERE status = 0 ORDER BY Designation',
       )
       .all()
-    res.json(designations)
+    res.json({ success: true, data: designations })
   } catch (error) {
     console.error('Error fetching designations:', error)
-    res.status(500).json({ message: 'Internal server error' })
+    res.status(500).json({ success: false, message: 'Internal server error' })
   }
 }
 
