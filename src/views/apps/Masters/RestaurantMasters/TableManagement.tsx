@@ -99,10 +99,14 @@ const TableManagement: React.FC = () => {
   };
 
   // Fetch table data
-  const fetchTableManagement = async (search: string = '') => {
+  const fetchTableManagement = async (search: string = '', hotelId?: number, outletId?: number) => {
     setLoading(true);
     try {
-      const data = await TableManagementService.list({ search });
+      const data = await TableManagementService.list({ 
+        search,
+        hotelid: hotelId,
+        outletid: outletId
+      });
       const formattedData = data.data.map((item: any) => ({
         ...item,
         status: Number(item.status),
@@ -118,7 +122,11 @@ const TableManagement: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchTableManagement();
+    if (user?.hotelid) {
+      fetchTableManagement('', Number(user.hotelid));
+    } else {
+      fetchTableManagement();
+    }
     fetchBrands(user, setBrands);
     fetchOutletsForDropdown(user, setOutlets, setLoading);
     fetchDepartments(); // Fetch departments on component mount
@@ -235,9 +243,9 @@ const TableManagement: React.FC = () => {
   const handleSearch = useCallback(
     debounce((value: string) => {
       setSearchTerm(value);
-      fetchTableManagement(value);
+      fetchTableManagement(value, user?.hotelid ? Number(user.hotelid) : undefined);
     }, 300),
-    []
+    [user]
   );
 
   // Handle outlet filter change
@@ -284,7 +292,7 @@ const TableManagement: React.FC = () => {
       try {
         await TableManagementService.remove(Number(table.tableid));
         toast.success('Table deleted successfully');
-        fetchTableManagement(searchTerm);
+        fetchTableManagement(searchTerm, user?.hotelid ? Number(user.hotelid) : undefined);
         setSelectedTable(null);
       } catch (err: any) {
         toast.error(err.response?.data?.message || 'Failed to delete table');
@@ -632,7 +640,7 @@ const TableManagement: React.FC = () => {
           setSelectedTable(null);
         }}
         tableItem={selectedTable}
-        onSuccess={() => fetchTableManagement(searchTerm)}
+        onSuccess={() => fetchTableManagement(searchTerm, user?.hotelid ? Number(user.hotelid) : undefined)}
         onUpdateSelectedTable={setSelectedTable}
       />
     </>

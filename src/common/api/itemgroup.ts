@@ -18,24 +18,24 @@ export interface ItemGroup {
   code: string
   kitchencategoryid: string
   status: number
-  created_by_id?: string
-  created_date?: string
-  updated_by_id?: string
-  updated_date?: string
+  created_by_id: number
+  created_date: string
+  updated_by_id: number
+  updated_date: string
   hotelid: string
   marketid: string
 }
 
 /** Item Group payload for create/update */
 export interface ItemGroupPayload {
-  item_groupid?: string
+  item_groupid: number
   itemgroupname: string
   code: string
   kitchencategoryid: string
   status: number
-  created_by_id?: string
+  created_by_id: number
   created_date?: string
-  updated_by_id?: string
+  updated_by_id: number
   updated_date?: string
   hotelid: string
   marketid: string
@@ -72,7 +72,7 @@ const ItemGroupService = {
   /**
    * Delete an item group
    */
-  remove: (id: string): Promise<ApiResponse<null>> =>
+  remove: (id: number): Promise<ApiResponse<null>> =>
     HttpClient.delete<ApiResponse<null>>(`/ItemGroup/${id}`)
 }
 

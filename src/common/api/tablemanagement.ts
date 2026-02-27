@@ -66,7 +66,7 @@ const TableManagementService = {
   /**
    * Get all tables with optional filters
    */
-  list: (params?: { q?: string; search?: string }): Promise<ApiResponse<Table[]>> =>
+  list: (params?: { q?: string; search?: string; hotelid?: number; outletid?: number }): Promise<ApiResponse<Table[]>> =>
     HttpClient.get<ApiResponse<Table[]>>('/tablemanagement', { params }),
 
   /**

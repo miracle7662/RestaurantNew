@@ -27,7 +27,7 @@ runMigrations();
 // Get all table records with search and pagination
 exports.getAllTables = (req, res) => {
   try {
-    const { search } = req.query;
+    const { search, hotelid, outletid } = req.query;
     let sql = `
       SELECT
         t.*,
@@ -41,11 +41,26 @@ exports.getAllTables = (req, res) => {
       LEFT JOIN msthotelmasters h ON t.hotelid = h.hotelid
     `;
     let params = [];
-    if (search) {
-      sql += ` WHERE (t.table_name LIKE ? OR o.outlet_name LIKE ? OR h.hotel_name LIKE ?)`;
-      const searchParam = `%${search}%`;
-      params = [searchParam, searchParam, searchParam];
+    let conditions = [];
+
+    if (hotelid) {
+      conditions.push('t.hotelid = ?');
+      params.push(hotelid);
     }
+    if (outletid) {
+      conditions.push('t.outletid = ?');
+      params.push(outletid);
+    }
+    if (search) {
+      conditions.push('(t.table_name LIKE ? OR o.outlet_name LIKE ? OR h.hotel_name LIKE ?)');
+      const searchParam = `%${search}%`;
+      params.push(searchParam, searchParam, searchParam);
+    }
+
+    if (conditions.length > 0) {
+      sql += ` WHERE ${conditions.join(' AND ')}`;
+    }
+
     const rows = db.prepare(sql).all(...params);
 
     res.json({

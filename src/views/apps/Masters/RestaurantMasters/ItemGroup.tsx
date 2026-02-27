@@ -20,15 +20,14 @@ import ItemGroupService from '@/common/api/itemgroup';
 
 // Interfaces
 interface ItemGroupItem {
-  item_groupid: string;
-  
+  item_groupid: number;
   itemgroupname: string;
   code: string;
   kitchencategoryid: string;
   status: string | number;
-  created_by_id: string;
+  created_by_id: number;
   created_date: string;
-  updated_by_id: string;
+  updated_by_id: number;
   updated_date: string;
   hotelid: string;
   marketid: string;
