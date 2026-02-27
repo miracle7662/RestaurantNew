@@ -9,17 +9,23 @@ exports.getAllDepartments = (req, res) => {
       FROM msttable_department d
       LEFT JOIN mst_outlets o ON d.outletid = o.outletid
       LEFT JOIN msthotelmasters h ON o.hotelid = h.hotelid
-      WHERE d.status = 1
     `;
     const params = [];
+    const conditions = [];
+    
     if (hotelid) {
-      query += ' AND o.hotelid = ?';
+      conditions.push('o.hotelid = ?');
       params.push(hotelid);
     }
     if (outletid) {
-      query += ' AND d.outletid = ?';
+      conditions.push('d.outletid = ?');
       params.push(outletid);
     }
+    
+    if (conditions.length > 0) {
+      query += ' WHERE ' + conditions.join(' AND ');
+    }
+    
     query += ' ORDER BY d.department_name';
     const rows = db.prepare(query).all(...params);
 
