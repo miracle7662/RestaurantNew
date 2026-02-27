@@ -2,7 +2,12 @@ const db = require('../config/db');
 
 exports.getCities = (req, res) => {
     const cities = db.prepare('SELECT * FROM mstcitymaster').all();
-    res.json(cities);
+    res.json({
+            success: true,
+            message: "Cities fetched successfully",
+            data: cities,
+            error: null
+        });
 };
 
 exports.addCity = (req, res) => {

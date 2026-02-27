@@ -22,14 +22,14 @@ import CountryService from '@/common/api/countries';
 
 // Interfaces
 interface CountryItem {
-  countryid: string;
+  countryid: number;
   country_name: string;
   country_code: string;
-  country_capital: string;
+  country_capital?: string; //
   status: number;
-  created_by_id: string;
+  created_by_id: number;
   created_date: string;
-  updated_by_id: string;
+  updated_by_id: number;
   updated_date: string;
 }
 
@@ -92,10 +92,15 @@ const Country: React.FC = () => {
   const fetchCountries = async () => {
     setLoading(true);
     try {
-      const data = await CountryService.list() as unknown as CountryItem[];
-      setCountryItems(data);
-      setFilteredCountries(data);
-    } catch {
+      const response = await CountryService.list();
+      // Handle ApiResponse format: { success, message, data, error }
+      if (response.success && response.data) {
+        setCountryItems(response.data);
+        setFilteredCountries(response.data);
+      } else {
+        toast.error(response.message || 'Failed to fetch countries');
+      }
+    } catch (error) {
       toast.error('Failed to fetch countries');
     } finally {
       setLoading(false);
@@ -216,7 +221,7 @@ const Country: React.FC = () => {
         return (
           item.country_name.toLowerCase().includes(searchValue) ||
           item.country_code.toLowerCase().includes(searchValue) ||
-          item.country_capital.toLowerCase().includes(searchValue)
+          item.country_capital?.toLowerCase().includes(searchValue)
         );
       });
       setFilteredCountries(filtered);
@@ -254,13 +259,18 @@ const Country: React.FC = () => {
 
     if (result.isConfirmed) {
       try {
-        await CountryService.remove(Number(country.countryid));
-        toast.success('Country deleted successfully');
-        fetchCountries();
-        setSelectedCountry(null);
-        setContainerToggle(false);
-      } catch (err: any) {
-        toast.error(err?.response?.data?.message || 'Failed to delete country');
+        const response = await CountryService.remove(Number(country.countryid));
+        // Handle ApiResponse format: { success, message, data, error }
+        if (response.success) {
+          toast.success('Country deleted successfully');
+          fetchCountries();
+          setSelectedCountry(null);
+          setContainerToggle(false);
+        } else {
+          toast.error(response.message || 'Failed to delete country');
+        }
+      } catch (error) {
+        toast.error('Failed to delete country');
       }
     }
   };
@@ -510,12 +520,12 @@ const CountryModal: React.FC<CountryModalProps> = ({ show, onHide, onSuccess, co
         created_date: isEditMode ? country!.created_date : currentDate,
         updated_by_id: 2,
         updated_date: currentDate,
-        ...(isEditMode ? { countryid: parseInt(country!.countryid) } : {}),
+       ...(isEditMode ? { countryid: country!.countryid } : {}),
       };
 
       try {
         if (isEditMode) {
-          await CountryService.update(parseInt(country!.countryid), payload);
+          await CountryService.update(country.countryid, payload);
         } else {
           await CountryService.create(payload);
         }

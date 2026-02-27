@@ -183,7 +183,8 @@ export const fetchCountries = async (
 ) => {
   try {
     const res = await fetch('http://localhost:3001/api/countries')
-    const data: CountryItem[] = await res.json()
+    const response = await res.json()
+    const data = Array.isArray(response) ? response : response.data || []
     setCountryItems(data)
     if (data.length > 0 && !currentCountryId) {
       setCountryId(data[0].countryid)
@@ -191,6 +192,7 @@ export const fetchCountries = async (
   } catch (err) {
     toast.error('Failed to fetch countries')
     console.error('Fetch countries error:', err)
+    setCountryItems([])
   }
 }
 

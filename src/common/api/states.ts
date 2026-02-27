@@ -15,13 +15,14 @@ import { ApiResponse } from '@/types/api'
 export interface State {
   stateid: number
   state_name: string
+  state_capital: string
   state_code: string
   countryid: number
   status: number
-  created_by_id?: string
-  created_date?: string
-  updated_by_id?: string
-  updated_date?: string
+  created_by_id: number
+  created_date: string
+  updated_by_id: number
+  updated_date: string
 }
 
 /** State payload for create/update */
@@ -29,12 +30,13 @@ export interface StatePayload {
   stateid?: number
   state_name: string
   state_code: string
+  state_capital: string
   countryid: number
   status: number
-  created_by_id?: string
-  created_date?: string
-  updated_by_id?: string
-  updated_date?: string
+  created_by_id: number
+  created_date: string
+  updated_by_id: number
+  updated_date: string
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════

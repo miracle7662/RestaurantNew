@@ -2,7 +2,8 @@ const db = require('../config/db');
 
 exports.getStates = (req, res) => {
     const states = db.prepare('SELECT S.stateid, S.state_name,S.state_code,S.state_capital,s.countryid,C.country_name,S.status, S.created_by_id,S.created_date,S.updated_by_id,S.updated_date  FROM mststatemaster S inner join mstcountrymaster C on C.countryid = S.countryid').all();
-    res.json(states);
+    res.status(200).json({success: true,message: "Data fetched successfully", data: states
+});
 };
 
 exports.addState = (req, res) => {

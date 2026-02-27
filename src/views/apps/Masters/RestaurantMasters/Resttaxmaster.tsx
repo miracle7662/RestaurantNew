@@ -11,7 +11,7 @@ interface RestTaxMaster {
   resttaxid: number;
   hotelid: number;
   hotel_name: string;
-  outletid: number | null;
+  outletid: number;
   isapplicablealloutlet: number;
   resttax_name: string;
   resttax_value: number;
@@ -79,7 +79,7 @@ const RestTaxMaster: React.FC = () => {
       await fetchBrands(user, setBrands);
       const taxGroupsRes = await TaxGroupService.list();
      
-      setTaxGroups(Array.isArray(taxGroupsRes.data?.taxGroups) ? taxGroupsRes.data.taxGroups : []);
+      setTaxGroups(Array.isArray(taxGroupsRes.data) ? taxGroupsRes.data : []);
     } catch (err: any) {
       setError('Failed to fetch data: ' + (err.response?.data?.message || err.message));
 
@@ -169,8 +169,8 @@ const RestTaxMaster: React.FC = () => {
       hotelid: hotelIdNum,
       outletid: formData.outletid ? parseInt(formData.outletid) : null,
       isapplicablealloutlet: formData.isapplicablealloutlet ? 1 : 0,
-      resttax_name: formData.resttax_name,
-      resttax_value: taxValueNum,
+      tax_name: formData.resttax_name,
+      tax_percentage: taxValueNum,
       restcgst: cgstNum,
       restsgst: sgstNum,
       restigst: igstNum,

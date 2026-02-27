@@ -16,14 +16,15 @@ export interface Country {
   countryid: number
   country_name: string
   country_code: string
+  country_capital?: string
   phone_code?: string
   currency?: string
   currency_symbol?: string
-  status?: number
-  created_by_id?: string
-  created_date?: string
-  updated_by_id?: string
-  updated_date?: string
+  status: number
+  created_by_id: number
+  created_date: string
+  updated_by_id: number
+  updated_date: string
 }
 
 /** Country payload for create/update */
@@ -34,11 +35,11 @@ export interface CountryPayload {
   phone_code?: string
   currency?: string
   currency_symbol?: string
-  status?: number
+  status: number
   created_by_id?: string
-  created_date?: string
+  created_date: string
   updated_by_id?: string
-  updated_date?: string
+  updated_date: string
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════

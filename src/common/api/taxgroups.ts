@@ -20,9 +20,9 @@ export interface TaxGroup {
   igst_rate: number
   cess_rate: number
   status: number
-  created_by_id?: string
+  created_by_id?: number
   created_date?: string
-  updated_by_id?: string
+  updated_by_id?: number
   updated_date?: string
 }
 
@@ -36,9 +36,9 @@ export interface TaxGroupPayload {
   igst_rate: number
   cess_rate: number
   status: number
-  created_by_id?: string
+  created_by_id?: number
   created_date?: string
-  updated_by_id?: string
+  updated_by_id?: number
   updated_date?: string
 }
 

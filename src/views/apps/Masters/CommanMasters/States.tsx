@@ -22,22 +22,22 @@ import CountryService from '@/common/api/countries';
 
 // Interfaces
 interface CountryItem {
-  countryid: string;
+  countryid: number;
   country_name: string;
   status: number;
 }
 // Interfaces
 interface StateItem {
-  stateid: string;
+  stateid: number;
   state_name: string;
   state_code: string;
   state_capital: string;
-  countryid: string;
+  countryid: number;
   country_name?: string;
   status: number;
-  created_by_id: string;
+  created_by_id: number;
   created_date: string;
-  updated_by_id: string;
+  updated_by_id: number;
   updated_date: string;
 }
 
@@ -97,18 +97,28 @@ const States: React.FC = () => {
   const [containerToggle, setContainerToggle] = useState<boolean>(false);
 
   // Fetch states from API
-  const fetchStates = async () => {
-    setLoading(true);
-    try {
-      const data = await StateService.list() as unknown as StateItem[];
-      setStateItems(data);
-      setFilteredStates(data);
-    } catch {
-      toast.error('Failed to fetch states');
-    } finally {
-      setLoading(false);
+ const fetchStates = async () => {
+  setLoading(true);
+  try {
+    const response = await StateService.list();
+
+    console.log("STATE RESPONSE:", response);
+
+    if (response.success && response.data) {
+      setStateItems(response.data);
+      setFilteredStates(response.data);
+    } else {
+      toast.error(response.message || "Failed to fetch states");
     }
-  };
+
+  } catch (error: any) {
+    console.log("FULL ERROR:", error);
+    console.log("BACKEND ERROR:", error.response?.data);
+    toast.error('Failed to fetch states');
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     fetchStates();
@@ -515,16 +525,23 @@ const StateModal = forwardRef<StateModalRef, StateModalProps>(({ show, onHide, o
   const isEditMode = !!state;
 
   useEffect(() => {
-    const fetchCountries = async () => {
-      try {
-        const data = await CountryService.list() as unknown as CountryItem[];
-        setCountryItems(data);
-      } catch {
-        toast.error('Failed to fetch countries');
+  const fetchCountries = async () => {
+    try {
+      const response = await CountryService.list();
+
+      if (response.success && response.data) {
+        setCountryItems(response.data);
+      } else {
+        toast.error(response.message || "Failed to fetch countries");
       }
-    };
-    fetchCountries();
-  }, []);
+
+    } catch {
+      toast.error('Failed to fetch countries');
+    }
+  };
+
+  fetchCountries();
+}, []);
 
   const initialValues = {
     state_name: state?.state_name || '',
@@ -554,7 +571,7 @@ const StateModal = forwardRef<StateModalRef, StateModalProps>(({ show, onHide, o
 
       try {
         if (isEditMode) {
-          await StateService.update(parseInt(state!.stateid), payload);
+          await StateService.update(state!.stateid, payload);
         } else {
           await StateService.create(payload);
         }
@@ -566,9 +583,9 @@ const StateModal = forwardRef<StateModalRef, StateModalProps>(({ show, onHide, o
             state_name: values.state_name,
             state_code: values.state_code,
             state_capital: values.state_capital,
-            countryid: String(values.countryId),
+            countryid: Number(values.countryId),
             status: statusValue,
-            updated_by_id: '2',
+            updated_by_id: 2,
             updated_date: currentDate
           });
         }

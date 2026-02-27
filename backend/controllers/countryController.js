@@ -1,7 +1,7 @@
 const db = require('../config/db');
 exports.getCountries = (req, res) => {
     const countries = db.prepare('SELECT * FROM mstcountrymaster').all();
-    res.json(countries);
+   res.json({success: true, message: "Data fetched successfully", data: countries});
 };
 
 exports.addCountry = (req, res) => {

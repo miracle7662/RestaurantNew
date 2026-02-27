@@ -40,7 +40,7 @@ interface CityItem {
 }
 
 interface StateItem {
-  stateid: string;
+  stateid: number;
   state_name: string;
   status: number;
 }
@@ -94,15 +94,20 @@ const City: React.FC = () => {
   const fetchCities = async () => {
     setLoading(true);
     try {
-      const data = await CityService.list() as unknown as CityItem[];
-      // Map city_Code to city_code for frontend consistency
-      const mappedData = data.map((item: any) => ({
-        ...item,
-        city_code: item.city_Code,
-      }));
-      setCityItems(mappedData);
-      setFilteredCities(mappedData);
-    } catch {
+      const response = await CityService.list();
+      // Handle ApiResponse format: { success, message, data, error }
+      if (response.success && response.data) {
+        // Map city_Code to city_code for frontend consistency
+        const mappedData = response.data.map((item: any) => ({
+          ...item,
+          city_code: item.city_Code,
+        }));
+        setCityItems(mappedData);
+        setFilteredCities(mappedData);
+      } else {
+        toast.error(response.message || 'Failed to fetch cities');
+      }
+    } catch (error) {
       toast.error('Failed to fetch cities');
     } finally {
       setLoading(false);
@@ -228,11 +233,15 @@ const City: React.FC = () => {
 
     if (result.isConfirmed) {
       try {
-        await CityService.remove(parseInt(city.cityid));
-        toast.success('City deleted successfully');
-        fetchCities();
-        setSelectedCity(null);
-        setContainerToggle(false);
+        const response = await CityService.remove(parseInt(city.cityid));
+        if (response.success) {
+          toast.success('City deleted successfully');
+          fetchCities();
+          setSelectedCity(null);
+          setContainerToggle(false);
+        } else {
+          toast.error(response.message || 'Failed to delete city');
+        }
       } catch {
         toast.error('Failed to delete city');
       }
@@ -467,18 +476,30 @@ const CityModal = forwardRef<CityModalRef, CityModalProps>(({ show, onHide, onSu
 
   const isEditMode = !!city;
 
-  useEffect(() => {
-    const fetchStates = async () => {
-      try {
-        const data = await StateService.list() as unknown as StateItem[];
-        setStateItems(data);
-      } catch {
-        toast.error('Failed to fetch states');
-      }
-    };
-    fetchStates();
-  }, []);
+ useEffect(() => {
+  const fetchStates = async () => {
+    setLoading(true);
+    try {
+      const response = await StateService.list();
 
+      // ApiResponse check
+      if (response.success && Array.isArray(response.data)) {
+        setStateItems(response.data);
+       
+      } else {
+        toast.error(response.message || "Invalid state data format");
+      }
+
+    } catch (error: any) {
+      console.error("Fetch States Error:", error);
+      toast.error('Failed to fetch states');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchStates();
+}, []);
   const initialValues = {
     city_name: city?.city_name || '',
     city_code: city?.city_code || '',
@@ -512,12 +533,18 @@ const CityModal = forwardRef<CityModalRef, CityModalProps>(({ show, onHide, onSu
       };
 
       try {
+        let response;
         if (isEditMode) {
-          await CityService.update(parseInt(city!.cityid), payload);
+          response = await CityService.update(parseInt(city!.cityid), payload);
         } else {
-          await CityService.create(payload);
+          response = await CityService.create(payload);
         }
-        toast.success(`City ${isEditMode ? 'updated' : 'added'} successfully`);
+        
+        if (response.success) {
+          toast.success(response.message || `City ${isEditMode ? 'updated' : 'added'} successfully`);
+        } else {
+          toast.error(response.message || `Failed to ${isEditMode ? 'update' : 'add'} city`);
+        }
 
         if (isEditMode && city && onUpdateSelectedCity) {
           onUpdateSelectedCity({
