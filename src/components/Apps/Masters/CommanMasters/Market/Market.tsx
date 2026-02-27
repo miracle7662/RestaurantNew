@@ -4,7 +4,7 @@ import { toast } from 'react-hot-toast';
 import { Preloader } from '@/components/Misc/Preloader';
 import { Button, Card, Stack, Table } from 'react-bootstrap';
 import TitleHelmet from '@/components/Common/TitleHelmet';
-import MarketService from '@/common/api/markets';
+import MarketService, { Market } from '@/common/api/markets';
 import {
   useReactTable,
   getCoreRowModel,
@@ -18,16 +18,7 @@ interface MarketItem {
   id: string;
   marketId: string;
   marketName: string;
-  status?: number;
 }
-
-// Helper function to map API response to MarketItem
-const mapApiResponseToMarketItem = (market: { marketid: number; market_name: string; status?: number }): MarketItem => ({
-  id: market.marketid.toString(),
-  marketId: market.marketid.toString(),
-  marketName: market.market_name,
-  status: market.status,
-});
 
 // Initial empty array - data will be fetched from API
 const initialMarketItems: MarketItem[] = [];
@@ -131,18 +122,17 @@ const MarketList: React.FC = () => {
     const fetchMarkets = async () => {
       setLoading(true);
       try {
-        console.log('Fetching markets...');
         const response = await MarketService.list();
-        console.log('Market response:', response);
-
-        if (response.success) {
-          // Map API response to MarketItem format
-          const mappedData = response.data.map(mapApiResponseToMarketItem);
-          console.log('Mapped data:', mappedData);
-          setMarketItems(mappedData);
-        } else {
-          console.error('API error:', response.message);
-          toast.error(response.message);
+        const marketsData = response.data
+        
+        if (Array.isArray(marketsData)) {
+          // Map API response to component interface
+          const mappedMarkets: MarketItem[] = marketsData.map((market: Market) => ({
+            id: market.marketid?.toString() || '',
+            marketId: market.marketid?.toString() || '',
+            marketName: market.market_name || '',
+          }));
+          setMarketItems(mappedMarkets);
         }
       } catch (error) {
         console.error('Failed to fetch markets:', error);
