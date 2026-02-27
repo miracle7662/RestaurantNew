@@ -4,7 +4,6 @@ import { toast } from 'react-hot-toast';
 import { Preloader } from '@/components/Misc/Preloader';
 import { Button, Card, Stack, Table } from 'react-bootstrap';
 import TitleHelmet from '@/components/Common/TitleHelmet';
-import MarketService, { Market } from '@/common/api/markets';
 import {
   useReactTable,
   getCoreRowModel,
@@ -12,79 +11,49 @@ import {
   ColumnDef,
   flexRender,
 } from '@tanstack/react-table';
+import MarketService from '@/common/api/markets';
 
-// Define market data type (matching API response)
+// Define market data type matching API response
 interface MarketItem {
-  id: string;
-  marketId: string;
-  marketName: string;
+  marketid: number;
+  market_name: string;
+  status: number;
+  created_by_id?: string;
+  created_date?: string;
+  updated_by_id?: string;
+  updated_date?: string;
 }
 
-// Initial empty array - data will be fetched from API
-const initialMarketItems: MarketItem[] = [];
-
-// Combined MarketModal component for Add and Edit
-type ModalMode = 'add' | 'edit';
-
-interface MarketModalProps {
+// AddMarketModal component
+const AddMarketModal: React.FC<{
   show: boolean;
   onHide: () => void;
-  mode: ModalMode;
-  market: MarketItem | null;
-  onSave: (id: string | null, marketData: Omit<MarketItem, 'id'>) => void;
-}
-
-const MarketModal: React.FC<MarketModalProps> = ({ show, onHide, mode, market, onSave }) => {
-  const [marketId, setMarketId] = useState<string>('');
+  onAddMarket: (marketName: string, status: number) => void;
+}> = ({ show, onHide, onAddMarket }) => {
   const [marketName, setMarketName] = useState<string>('');
-
-  useEffect(() => {
-    if (mode === 'edit' && market) {
-      setMarketId(market.marketId);
-      setMarketName(market.marketName);
-    } else if (mode === 'add') {
-      // Reset form for add mode
-      setMarketId('');
-      setMarketName('');
-    }
-  }, [mode, market, show]);
+  const [status, setStatus] = useState<number>(0);
 
   if (!show) return null;
 
-  const handleSave = () => {
-    if (!marketId.trim() || !marketName.trim()) {
-      toast.error('Market ID and Market Name are required');
+  const handleAdd = () => {
+    if (!marketName.trim()) {
+      toast.error('Market Name is required');
       return;
     }
 
-    if (mode === 'edit' && market) {
-      onSave(market.id, { marketId, marketName });
-    } else {
-      onSave(null, { marketId, marketName });
-    }
+    onAddMarket(marketName, status);
 
     // Reset form
-    setMarketId('');
     setMarketName('');
+    setStatus(0);
     onHide();
   };
 
   return (
     <div className="modal" style={{ display: 'block', background: 'rgba(0,0,0,0.5)', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
       <div className="modal-content" style={{ background: 'white', padding: '20px', maxWidth: '500px', margin: '100px auto', borderRadius: '8px' }}>
-        <h3>{mode === 'add' ? 'Add New Market' : 'Edit Market'}</h3>
-        {/* Row 1: Market ID */}
-        <div className="mb-3">
-          <label className="form-label">Market ID</label>
-          <input
-            type="text"
-            className="form-control"
-            value={marketId}
-            onChange={(e) => setMarketId(e.target.value)}
-            placeholder="e.g., 66922908"
-          />
-        </div>
-        {/* Row 2: Market Name */}
+        <h3>Add New Market</h3>
+        {/* Row 1: Market Name */}
         <div className="mb-3">
           <label className="form-label">Market Name</label>
           <input
@@ -95,12 +64,24 @@ const MarketModal: React.FC<MarketModalProps> = ({ show, onHide, mode, market, o
             placeholder="e.g., India"
           />
         </div>
+        {/* Row 2: Status */}
+        <div className="mb-3">
+          <label className="form-label">Status</label>
+          <select
+            className="form-control"
+            value={status}
+            onChange={(e) => setStatus(Number(e.target.value))}
+          >
+            <option value={0}>Active</option>
+            <option value={1}>Inactive</option>
+          </select>
+        </div>
         <div className="d-flex justify-content-end">
           <button className="btn btn-outline-secondary me-2" onClick={onHide}>
             Cancel
           </button>
-          <button className="btn btn-primary" onClick={handleSave}>
-            {mode === 'add' ? 'Add' : 'Save'}
+          <button className="btn btn-primary" onClick={handleAdd}>
+            Add
           </button>
         </div>
       </div>
@@ -108,41 +89,118 @@ const MarketModal: React.FC<MarketModalProps> = ({ show, onHide, mode, market, o
   );
 };
 
-const MarketList: React.FC = () => {
-  const [marketItems, setMarketItems] = useState<MarketItem[]>(initialMarketItems);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [marketModalState, setMarketModalState] = useState<{ show: boolean; mode: 'add' | 'edit'; market: MarketItem | null }>({
-    show: false,
-    mode: 'add',
-    market: null,
-  });
+// EditMarketModal component
+const EditMarketModal: React.FC<{
+  show: boolean;
+  onHide: () => void;
+  market: MarketItem | null;
+  onEditMarket: (id: number, marketName: string, status: number) => void;
+}> = ({ show, onHide, market, onEditMarket }) => {
+  const [marketName, setMarketName] = useState<string>('');
+  const [status, setStatus] = useState<number>(0);
 
-  // Fetch markets from API on component mount
   useEffect(() => {
-    const fetchMarkets = async () => {
+    if (market) {
+      setMarketName(market.market_name);
+      setStatus(market.status);
+    }
+  }, [market]);
+
+  if (!show || !market) return null;
+
+  const handleEdit = () => {
+    if (!marketName.trim()) {
+      toast.error('Market Name is required');
+      return;
+    }
+
+    onEditMarket(market.marketid, marketName, status);
+
+    onHide();
+  };
+
+  return (
+    <div className="modal" style={{ display: 'block', background: 'rgba(0,0,0,0.5)', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
+      <div className="modal-content" style={{ background: 'white', padding: '20px', maxWidth: '500px', margin: '100px auto', borderRadius: '8px' }}>
+        <h3>Edit Market</h3>
+        {/* Row 1: Market Name */}
+        <div className="mb-3">
+          <label className="form-label">Market Name</label>
+          <input
+            type="text"
+            className="form-control"
+            value={marketName}
+            onChange={(e) => setMarketName(e.target.value)}
+            placeholder="e.g., India"
+          />
+        </div>
+        {/* Row 2: Status */}
+        <div className="mb-3">
+          <label className="form-label">Status</label>
+          <select
+            className="form-control"
+            value={status}
+            onChange={(e) => setStatus(Number(e.target.value))}
+          >
+            <option value={0}>Active</option>
+            <option value={1}>Inactive</option>
+          </select>
+        </div>
+        <div className="d-flex justify-content-end">
+          <button className="btn btn-outline-secondary me-2" onClick={onHide}>
+            Cancel
+          </button>
+          <button className="btn btn-primary" onClick={handleEdit}>
+            Save
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const getStatusBadge = (status: number) => {
+  return status === 0 ? (
+    <span className="badge bg-success">Active</span>
+  ) : (
+    <span className="badge bg-danger">Inactive</span>
+  );
+};
+
+const MarketList: React.FC = () => {
+  const [marketItems, setMarketItems] = useState<MarketItem[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [showAddMarketModal, setShowAddMarketModal] = useState(false);
+  const [showEditMarketModal, setShowEditMarketModal] = useState(false);
+  const [selectedMarket, setSelectedMarket] = useState<MarketItem | null>(null);
+
+  // Fetch markets from API
+  const fetchMarkets = useCallback(async () => {
+    try {
       setLoading(true);
-      try {
-        const response = await MarketService.list();
-        const marketsData = response.data
-        
-        if (Array.isArray(marketsData)) {
-          // Map API response to component interface
-          const mappedMarkets: MarketItem[] = marketsData.map((market: Market) => ({
-            id: market.marketid?.toString() || '',
-            marketId: market.marketid?.toString() || '',
-            marketName: market.market_name || '',
-          }));
-          setMarketItems(mappedMarkets);
-        }
-      } catch (error) {
-        console.error('Failed to fetch markets:', error);
-        toast.error('Failed to load markets');
-      } finally {
-        setLoading(false);
+      console.log('Fetching markets...');
+      const response = await MarketService.list();
+      console.log('Market response:', response);
+      
+      if (response.success && response.data) {
+        setMarketItems(response.data);
+        console.log('Markets set:', response.data);
+      } else {
+        console.log('Response not successful:', response);
+        toast.error(response.message || 'Failed to fetch markets');
       }
-    };
-    fetchMarkets();
+    } catch (error: any) {
+      console.error('Error fetching markets:', error);
+      toast.error(error.message || 'Failed to fetch markets');
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  // Fetch markets on component mount
+  useEffect(() => {
+    fetchMarkets();
+  }, [fetchMarkets]);
 
   // Define columns for react-table
   const columns = React.useMemo<ColumnDef<MarketItem>[]>(
@@ -171,22 +229,22 @@ const MarketList: React.FC = () => {
         ),
       },
       {
-        accessorKey: 'id',
+        accessorKey: 'marketid',
         header: () => <div style={{ textAlign: 'center' }}>#</div>,
         size: 50,
-        cell: (info) => <div style={{ textAlign: 'center' }}>{info.getValue<string>()}</div>,
+        cell: (info) => <div style={{ textAlign: 'center' }}>{info.getValue<number>()}</div>,
       },
       {
-        accessorKey: 'marketId',
-        header: () => <div style={{ textAlign: 'center' }}>Market Id</div>,
-        size: 150,
-        cell: (info) => <div style={{ textAlign: 'center' }}>{info.getValue<string>()}</div>,
-      },
-      {
-        accessorKey: 'marketName',
+        accessorKey: 'market_name',
         header: () => <div style={{ textAlign: 'center' }}>Market Name</div>,
         size: 150,
         cell: (info) => <div style={{ textAlign: 'center' }}>{info.getValue<string>()}</div>,
+      },
+      {
+        accessorKey: 'status',
+        header: () => <div style={{ textAlign: 'center' }}>Status</div>,
+        size: 100,
+        cell: (info) => <div style={{ textAlign: 'center' }}>{getStatusBadge(info.getValue<number>())}</div>,
       },
     ],
     []
@@ -200,50 +258,55 @@ const MarketList: React.FC = () => {
     getFilteredRowModel: getFilteredRowModel(),
   });
 
-  // Handle save market - API call
-  const handleSaveMarket = useCallback(async (id: string | null, marketData: Omit<MarketItem, 'id'>) => {
+  const handleAddMarket = useCallback(async (marketName: string, status: number) => {
     try {
-      if (id) {
-        // Edit mode - update existing market via API
-        await MarketService.update(parseInt(id), {
-          market_name: marketData.marketName,
-          status: 1,
-        });
-        
-        // Update local state
-        setMarketItems(prev => prev.map(item => 
-          item.id === id 
-            ? { ...item, marketId: marketData.marketId, marketName: marketData.marketName }
-            : item
-        ));
-        toast.success('Market updated successfully');
+      const payload = {
+        market_name: marketName,
+        status: status,
+        created_by_id: '1',
+        created_date: new Date().toISOString(),
+      };
+
+      const response = await MarketService.create(payload);
+
+      if (response.success) {
+        toast.success(response.message || 'Market added successfully');
+        fetchMarkets();
       } else {
-        // Add mode - create new market via API
-        const response = await MarketService.create({
-          market_name: marketData.marketName,
-          status: 1,
-        });
-        
-        const newMarket: MarketItem = {
-          id: response.data?.marketid?.toString() || Date.now().toString(),
-          marketId: response.data?.marketid?.toString() || '',
-          marketName: marketData.marketName,
-        };
-        
-        setMarketItems(prev => [...prev, newMarket]);
-        toast.success('Market added successfully');
+        toast.error(response.message || 'Failed to add market');
       }
-    } catch (error) {
-      console.error('Failed to save market:', error);
-      toast.error('Failed to save market');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to add market');
     }
-  }, []);
+  }, [fetchMarkets]);
 
   const handleEditMarketClick = useCallback((market: MarketItem) => {
-    setMarketModalState({ show: true, mode: 'edit', market });
+    setSelectedMarket(market);
+    setShowEditMarketModal(true);
   }, []);
 
-  // Handle delete market - API call
+  const handleEditMarket = useCallback(async (id: number, marketName: string, status: number) => {
+    try {
+      const payload = {
+        market_name: marketName,
+        status: status,
+        updated_by_id: '1',
+        updated_date: new Date().toISOString(),
+      };
+
+      const response = await MarketService.update(id, payload);
+
+      if (response.success) {
+        toast.success(response.message || 'Market updated successfully');
+        fetchMarkets();
+      } else {
+        toast.error(response.message || 'Failed to update market');
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to update market');
+    }
+  }, [fetchMarkets]);
+
   const handleDeleteMarket = useCallback((marketItem: MarketItem) => {
     Swal.fire({
       title: 'Are you sure?',
@@ -255,28 +318,21 @@ const MarketList: React.FC = () => {
       confirmButtonText: 'Yes, delete it!',
     }).then(async (result) => {
       if (result.isConfirmed) {
-        setLoading(true);
         try {
-          await MarketService.remove(parseInt(marketItem.id));
+          const response = await MarketService.remove(marketItem.marketid);
           
-          // Update local state
-          const updatedMarkets = marketItems.filter((item) => item.id !== marketItem.id);
-          setMarketItems(updatedMarkets);
-          
-          if (marketModalState.market?.id === marketItem.id) {
-            setMarketModalState({ show: false, mode: 'add', market: null });
+          if (response.success) {
+            toast.success(response.message || 'Market deleted successfully');
+            fetchMarkets();
+          } else {
+            toast.error(response.message || 'Failed to delete market');
           }
-          
-          toast.success('Market deleted successfully');
-        } catch (error) {
-          console.error('Failed to delete market:', error);
-          toast.error('Failed to delete market');
-        } finally {
-          setLoading(false);
+        } catch (error: any) {
+          toast.error(error.message || 'Failed to delete market');
         }
       }
     });
-  }, [marketItems, marketModalState]);
+  }, [fetchMarkets]);
 
   return (
     <>
@@ -285,7 +341,7 @@ const MarketList: React.FC = () => {
         <div className="d-flex justify-content-between align-items-center p-3 border-bottom">
           <h4 className="mb-0">Market List</h4>
           <div style={{ display: 'flex', gap: '4px' }}>
-            <Button variant="success" className="me-1" onClick={() => setMarketModalState({ show: true, mode: 'add', market: null })}>
+            <Button variant="success" className="me-1" onClick={() => setShowAddMarketModal(true)}>
               <i className="bi bi-plus"></i> Add Market
             </Button>
           </div>
@@ -295,6 +351,10 @@ const MarketList: React.FC = () => {
             <Stack className="align-items-center justify-content-center flex-grow-1 h-100">
               <Preloader />
             </Stack>
+          ) : marketItems.length === 0 ? (
+            <div className="text-center p-4">
+              <p className="text-muted">No markets found. Click "Add Market" to create one.</p>
+            </div>
           ) : (
             <div style={{ width: '100%', overflowX: 'auto' }}>
               <Table responsive className="mb-0" style={{ tableLayout: 'auto', width: '100%' }}>
@@ -343,12 +403,16 @@ const MarketList: React.FC = () => {
           )}
         </div>
       </Card>
-      <MarketModal
-        show={marketModalState.show}
-        onHide={() => setMarketModalState({ show: false, mode: 'add', market: null })}
-        mode={marketModalState.mode}
-        market={marketModalState.market}
-        onSave={handleSaveMarket}
+      <AddMarketModal
+        show={showAddMarketModal}
+        onHide={() => setShowAddMarketModal(false)}
+        onAddMarket={handleAddMarket}
+      />
+      <EditMarketModal
+        show={showEditMarketModal}
+        onHide={() => setShowEditMarketModal(false)}
+        market={selectedMarket}
+        onEditMarket={handleEditMarket}
       />
     </>
   );

@@ -29,6 +29,7 @@ export interface TaxGroup {
 /** Tax Group payload for create/update */
 export interface TaxGroupPayload {
   taxgroupid?: number
+  hotelid: number
   taxgroup_name: string
   cgst_rate: number
   sgst_rate: number
