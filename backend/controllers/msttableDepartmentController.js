@@ -9,7 +9,7 @@ exports.getAllDepartments = (req, res) => {
       FROM msttable_department d
       LEFT JOIN mst_outlets o ON d.outletid = o.outletid
       LEFT JOIN msthotelmasters h ON o.hotelid = h.hotelid
-      WHERE d.status = 1
+      WHERE d.status in (1,0)
     `;
     const params = [];
     if (hotelid) {

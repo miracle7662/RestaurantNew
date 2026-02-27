@@ -17,9 +17,6 @@ export interface Country {
   country_name: string
   country_code: string
   country_capital?: string
-  phone_code?: string
-  currency?: string
-  currency_symbol?: string
   status: number
   created_by_id: number
   created_date: string
@@ -32,9 +29,6 @@ export interface CountryPayload {
   countryid?: number
   country_name: string
   country_code: string
-  phone_code?: string
-  currency?: string
-  currency_symbol?: string
   status: number
   created_by_id?: string
   created_date: string

@@ -22,15 +22,15 @@ interface KitchenCategoryItem {
   Description: string;
   alternative_category_Description: string;
   alternative_category_name: string;
-  digital_order_image: File | null;
+  digital_order_image?: File | string | null;
   categorycolor: string;
   status: number;
-  created_by_id: string;
-  created_date: string;
-  updated_by_id: string;
-  updated_date: string;
-  hotelid: string;
-  marketid: string;
+  created_by_id: number;
+  created_date: number;
+  updated_by_id: number;
+  updated_date: number;
+  hotelid: number;
+  marketid: number;
   kitchenmaingroupid?: number;
 }
 
@@ -76,23 +76,17 @@ const KitchenCategory: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [selectedKitchenCategory, setSelectedKitchenCategory] = useState<KitchenCategoryItem | null>(null);
 
-  const fetchKitchenCategory = async () => {
-    try {
-      setLoading(true);
-      const data = await KitchenCategoryService.list() as unknown as KitchenCategoryItem[];
-      // console.log('Fetched KitchenCategory:', data);
-      // Ensure status is treated as a number
-      const formattedData = data.map((item: any) => ({
-        ...item,
-        status: Number(item.status),
-      }));
-      setKitchenCategoryItems(formattedData);
-    } catch (err) {
-      toast.error('Failed to fetch KitchenCategory');
-    } finally {
-      setLoading(false);
-    }
-  };
+const fetchKitchenCategory = async () => {
+  try {
+    setLoading(true);
+    const response = await KitchenCategoryService.list();
+    setKitchenCategoryItems(response.data);
+  } catch (err) {
+    toast.error('Failed to fetch KitchenCategory');
+  } finally {
+    setLoading(false);
+  }
+};
 
   const fetchKitchenGroups = async () => {
     try {

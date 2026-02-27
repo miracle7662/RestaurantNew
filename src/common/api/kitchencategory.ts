@@ -13,28 +13,40 @@ import { ApiResponse } from '@/types/api'
 
 /** Kitchen Category information */
 export interface KitchenCategory {
-  kitchencategoryid: number
-  category_name: string
-  category_code: string
-  kitchen_maingroupid: number
-  status: number
-  created_by_id?: string
-  created_date?: string
-  updated_by_id?: string
-  updated_date?: string
+  kitchencategoryid: number;
+  Kitchen_Category: string;
+  alternative_category_name: string;
+  Description: string;
+  alternative_category_Description: string;
+  digital_order_image?: File | string | null;
+  categorycolor: string;
+  status: number;
+  created_by_id: number;
+  created_date: number;
+  updated_by_id: number;
+  updated_date: number;
+  hotelid: number;
+  marketid: number;
+  kitchenmaingroupid: number;
 }
 
 /** Kitchen Category payload for create/update */
 export interface KitchenCategoryPayload {
-  kitchencategoryid?: number
-  category_name: string
-  category_code: string
-  kitchen_maingroupid: number
-  status: number
-  created_by_id?: string
-  created_date?: string
-  updated_by_id?: string
-  updated_date?: string
+  kitchencategoryid?: number;
+  Kitchen_Category: string;
+  alternative_category_name: string;
+  Description: string;
+  alternative_category_Description: string;
+  digital_order_image?: File | string | null;
+  categorycolor: string;
+  status: number;
+  hotelid: number;
+  marketid: number;
+  kitchenmaingroupid: number;
+  created_by_id?: number;
+  created_date?: number;
+  updated_by_id?: number;
+  updated_date?: number;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
