@@ -14,14 +14,13 @@ import { ApiResponse } from '@/types/api'
 /** Tax Group information */
 export interface TaxGroup {
   taxgroupid: number
+  hotelid: number
+  outletid: number
   taxgroup_name: string
-  cgst_rate: number
-  sgst_rate: number
-  igst_rate: number
-  cess_rate: number
   status: number
-  created_by_id?: number
-  created_date?: string
+  hotel_name: string;
+  created_by_id: number
+  created_date: string
   updated_by_id?: number
   updated_date?: string
 }
@@ -30,11 +29,8 @@ export interface TaxGroup {
 export interface TaxGroupPayload {
   taxgroupid?: number
   hotelid: number
+  outletid?: number
   taxgroup_name: string
-  cgst_rate: number
-  sgst_rate: number
-  igst_rate: number
-  cess_rate: number
   status: number
   created_by_id?: number
   created_date?: string
@@ -55,8 +51,8 @@ const TaxGroupService = {
   /**
    * Get all tax groups with optional search
    */
-  list: (params?: { q?: string }): Promise<ApiResponse<TaxGroup[]>> =>
-    HttpClient.get<ApiResponse<TaxGroup[]>>('/taxgroup', { params }),
+  list: (params?: { q?: string }): Promise<ApiResponse<{ taxGroups: TaxGroup[]; count: number }>> =>
+    HttpClient.get<ApiResponse<{ taxGroups: TaxGroup[]; count: number }>>('/taxgroup', { params }),
 
   /**
    * Create a new tax group

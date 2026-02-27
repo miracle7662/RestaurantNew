@@ -12,7 +12,7 @@ interface TaxGroup {
   outletid: number;
   hotel_name: string;
   status: number;
-  created_by_id: string;
+  created_by_id: number;
   created_date: string;
   created_by?: string; // Optional, if you want to show created by user name
 }
@@ -38,24 +38,29 @@ const TaxProductGroup: React.FC = () => {
   });
 
   // Fetch tax groups and hotels
-  const fetchData = async () => {
-    try {
-      setLoading(true);
+const fetchData = async () => {
+  setLoading(true);
+  setError('');
 
-      // Fetch tax groups using taxGroupsService
-      const taxGroupsRes = await taxGroupsService.list();
-      setTaxGroups(taxGroupsRes.data?.taxGroups || []);
-      setFilteredTaxGroups(taxGroupsRes.data?.taxGroups || []);
+  try {
+    // Fetch tax groups
+    const taxGroupsRes = await taxGroupsService.list();
+    const taxGroupsData = taxGroupsRes.data.taxGroups ?? []; // data is { taxGroups: [...], count: X }
+    setTaxGroups(taxGroupsData);
+    setFilteredTaxGroups(taxGroupsData);
 
-      // Fetch hotels using the common fetchBrands function
+    // Fetch brands/hotels
+    if (user) {
       await fetchBrands(user, setBrands);
-
-    } catch (err) {
-      setError('Failed to fetch data');
-    } finally {
-      setLoading(false);
     }
-  };
+
+  } catch (err: any) {
+    console.error('Error fetching data:', err);
+    setError('Failed to fetch data');
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     fetchData();
