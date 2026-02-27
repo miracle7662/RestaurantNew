@@ -21,18 +21,61 @@ const db = require('../config/db');
 
 
 exports.getItemGroup = (req, res) => {
-    const query = `
+  try {
+    const { hotelid } = req.query;
+    console.log('ItemGroup - Received hotelid:', hotelid);
+    
+    // If no hotelid provided, return empty array - must have hotelid to view items
+    if (!hotelid || hotelid === 'undefined' || hotelid === '' || hotelid === 'null') {
+      console.log('ItemGroup - No valid hotelid provided, returning empty array');
+      return res.status(200).json({
+        success: true,
+        message: "Item Groups fetched successfully",
+        data: [],
+        error: null
+      });
+    }
+    
+    let query = `
       SELECT ig.*, img.item_group_name AS item_maingroup_name
       FROM mst_Item_Group ig
       LEFT JOIN mst_Item_Main_Group img ON ig.kitchencategoryid = img.item_maingroupid
     `;
-    const ItemGroup = db.prepare(query).all();
+    const params = [];
+    
+    // Strict filtering: only show items for the specified hotel
+    // Handle both string and numeric hotelid values
+    query += ' WHERE (ig.hotelid = ? OR ig.hotelid = ?)';
+    params.push(String(hotelid));  // As string
+    params.push(Number(hotelid));  // As number
+    
+    query += ' ORDER BY ig.itemgroupname';
+    
+    console.log('ItemGroup - SQL Query:', query);
+    console.log('ItemGroup - SQL Params:', params);
+    
+    const ItemGroup = db.prepare(query).all(...params);
+    console.log('ItemGroup - Fetched count:', ItemGroup.length);
+    if (ItemGroup.length > 0) {
+      console.log('ItemGroup - First item hotelid:', ItemGroup[0].hotelid);
+      console.log('ItemGroup - Last item hotelid:', ItemGroup[ItemGroup.length - 1].hotelid);
+    }
+    
     res.status(200).json({
-  success: true,
-  message: "Item Groups fetched successfully",
-  data: ItemGroup,
-  error: null
-});
+      success: true,
+      message: "Item Groups fetched successfully",
+      data: ItemGroup,
+      error: null
+    });
+  } catch (error) {
+    console.error('Error fetching Item Groups:', error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch Item Groups",
+      data: null,
+      error: error.message
+    });
+  }
 };
 
 exports.addItemGroup = (req, res) => {

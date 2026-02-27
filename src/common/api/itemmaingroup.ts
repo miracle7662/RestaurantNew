@@ -50,9 +50,9 @@ const ItemMainGroupService = {
    * ═══════════════════════════════════════════════════════════════════════════ */
 
   /**
-   * Get all item main groups with optional search
+   * Get all item main groups with optional search and hotelid filter
    */
-  list: (params?: { q?: string }): Promise<ApiResponse<ItemMainGroup[]>> =>
+  list: (params?: { q?: string; hotelid?: string }): Promise<ApiResponse<ItemMainGroup[]>> =>
     HttpClient.get<ApiResponse<ItemMainGroup[]>>('/ItemMainGroup', { params }),
 
   /**

@@ -84,32 +84,35 @@ const ItemMainGroup: React.FC = () => {
   const [sidebarMiniToggle, setSidebarMiniToggle] = useState<boolean>(false);
   const [containerToggle, setContainerToggle] = useState<boolean>(false);
 
+  const { user } = useAuthContext();
+
   // Fetch ItemMainGroup from API
-const fetchItemMainGroup = async () => {
-  setLoading(true);
-  try {
-    const response = await ItemMainGroupService.list();
+  const fetchItemMainGroup = async () => {
+    setLoading(true);
+    try {
+      const hotelid = user?.hotelid;
+      const response = await ItemMainGroupService.list({ hotelid });
 
-    if (response.success) {
-      const groups = response.data ?? [];
+      if (response.success) {
+        const groups = response.data ?? [];
 
-      setItemMainGroupItems(groups);
-      setFilteredItemMainGroup(groups);
-    } else {
-      toast.error(response.message || "Failed to fetch Item Main Group");
+        setItemMainGroupItems(groups);
+        setFilteredItemMainGroup(groups);
+      } else {
+        toast.error(response.message || "Failed to fetch Item Main Group");
+      }
+
+    } catch (error) {
+      console.error("Fetch ItemMainGroup Error:", error);
+      toast.error("Failed to fetch Item Main Group");
+    } finally {
+      setLoading(false);
     }
-
-  } catch (error) {
-    console.error("Fetch ItemMainGroup Error:", error);
-    toast.error("Failed to fetch Item Main Group");
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   useEffect(() => {
     fetchItemMainGroup();
-  }, []);
+  }, [user?.hotelid]);
 
   // Table columns
   const columns = useMemo<ColumnDef<ItemMainGroupItem>[]>(() => [

@@ -88,32 +88,35 @@ const ItemGroup: React.FC = () => {
   const [sidebarMiniToggle, setSidebarMiniToggle] = useState<boolean>(false);
   const [containerToggle, setContainerToggle] = useState<boolean>(false);
 
+  const { user } = useAuthContext();
+
   // Fetch ItemGroup from API
   const fetchItemGroup = async () => {
-  setLoading(true);
-  try {
-    const response = await ItemGroupService.list();
+    setLoading(true);
+    try {
+      const hotelid = user?.hotelid;
+      const response = await ItemGroupService.list({ hotelid });
 
-    if (response.success) {
-      const itemGroups = response.data ?? [];
+      if (response.success) {
+        const itemGroups = response.data ?? [];
 
-      setItemGroupItems(itemGroups);
-      setFilteredItemGroup(itemGroups);
-    } else {
-      toast.error(response.message || "Failed to fetch Item Groups");
+        setItemGroupItems(itemGroups);
+        setFilteredItemGroup(itemGroups);
+      } else {
+        toast.error(response.message || "Failed to fetch Item Groups");
+      }
+
+    } catch (error) {
+      console.error("ItemGroup Fetch Error:", error);
+      toast.error("Failed to fetch Item Groups");
+    } finally {
+      setLoading(false);
     }
-
-  } catch (error) {
-    console.error("ItemGroup Fetch Error:", error);
-    toast.error("Failed to fetch Item Groups");
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   useEffect(() => {
     fetchItemGroup();
-  }, []);
+  }, [user?.hotelid]);
 
   // Table columns
   const columns: ColumnDef<ItemGroupItem>[] = [

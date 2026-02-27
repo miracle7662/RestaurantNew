@@ -5,9 +5,40 @@ const db = require('../config/db');
 ═══════════════════════════════════════ */
 exports.getItemMainGroup = (req, res) => {
   try {
-    const rows = db.prepare(`
-      SELECT * FROM mst_Item_Main_Group
-    `).all();
+    const { hotelid } = req.query;
+    console.log('ItemMainGroup - Received hotelid:', hotelid);
+    
+    // If no hotelid provided, return empty array - must have hotelid to view items
+    if (!hotelid || hotelid === 'undefined' || hotelid === '' || hotelid === 'null') {
+      console.log('ItemMainGroup - No valid hotelid provided, returning empty array');
+      return res.status(200).json({
+        success: true,
+        message: "Item Main Groups fetched successfully",
+        data: [],
+        error: null
+      });
+    }
+    
+    let query = `SELECT * FROM mst_Item_Main_Group`;
+    const params = [];
+    
+    // Strict filtering: only show items for the specified hotel
+    // Handle both string and numeric hotelid values
+    query += ' WHERE (hotelid = ? OR hotelid = ?)';
+    params.push(String(hotelid));  // As string
+    params.push(Number(hotelid));  // As number
+    
+    query += ' ORDER BY item_group_name';
+    
+    console.log('ItemMainGroup - SQL Query:', query);
+    console.log('ItemMainGroup - SQL Params:', params);
+    
+    const rows = db.prepare(query).all(...params);
+    console.log('ItemMainGroup - Fetched count:', rows.length);
+    if (rows.length > 0) {
+      console.log('ItemMainGroup - First item hotelid:', rows[0].hotelid);
+      console.log('ItemMainGroup - Last item hotelid:', rows[rows.length - 1].hotelid);
+    }
 
     res.status(200).json({
       success: true,
@@ -17,6 +48,7 @@ exports.getItemMainGroup = (req, res) => {
     });
 
   } catch (error) {
+    console.error('Error fetching Item Main Groups:', error);
     res.status(500).json({
       success: false,
       message: "Failed to fetch Item Main Groups",
