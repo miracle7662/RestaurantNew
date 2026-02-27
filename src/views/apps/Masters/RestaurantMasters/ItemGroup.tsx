@@ -91,17 +91,26 @@ const ItemGroup: React.FC = () => {
 
   // Fetch ItemGroup from API
   const fetchItemGroup = async () => {
-    setLoading(true);
-    try {
-      const data = await ItemGroupService.list() as unknown as ItemGroupItem[];
-      setItemGroupItems(data);
-      setFilteredItemGroup(data);
-    } catch {
-      toast.error('Failed to fetch ItemGroup');
-    } finally {
-      setLoading(false);
+  setLoading(true);
+  try {
+    const response = await ItemGroupService.list();
+
+    if (response.success) {
+      const itemGroups = response.data ?? [];
+
+      setItemGroupItems(itemGroups);
+      setFilteredItemGroup(itemGroups);
+    } else {
+      toast.error(response.message || "Failed to fetch Item Groups");
     }
-  };
+
+  } catch (error) {
+    console.error("ItemGroup Fetch Error:", error);
+    toast.error("Failed to fetch Item Groups");
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     fetchItemGroup();

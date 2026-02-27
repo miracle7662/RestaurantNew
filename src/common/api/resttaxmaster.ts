@@ -14,11 +14,11 @@ import { ApiResponse } from '@/types/api'
 /** Restaurant Tax Master information */
 export interface RestTaxMaster {
   taxmasterid: number
-  tax_name: string
-  tax_percentage: number
+  resttax_name: string;
+  resttax_value: number;
   tax_type?: string
   hotelid: number
-  outletid?: number
+  outletid: number
   status: number
   created_by_id?: string
   created_date?: string
@@ -29,11 +29,11 @@ export interface RestTaxMaster {
 /** Restaurant Tax Master payload for create/update */
 export interface RestTaxMasterPayload {
   taxmasterid?: number
-  tax_name: string
-  tax_percentage: number
+  resttax_name: string;
+  resttax_value: number;
   tax_type?: string
   hotelid: number
-  outletid?: number
+  outletid: number
   status: number
   created_by_id?: string
   created_date?: string

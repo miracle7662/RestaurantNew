@@ -78,8 +78,8 @@ const RestTaxMaster: React.FC = () => {
       setFilteredRestTaxes(taxes);
       await fetchBrands(user, setBrands);
       const taxGroupsRes = await TaxGroupService.list();
-     
-      setTaxGroups(Array.isArray(taxGroupsRes.data) ? taxGroupsRes.data : []);
+
+      setTaxGroups(Array.isArray(taxGroupsRes.data.taxGroups) ? taxGroupsRes.data.taxGroups : []);
     } catch (err: any) {
       setError('Failed to fetch data: ' + (err.response?.data?.message || err.message));
 
@@ -167,10 +167,10 @@ const RestTaxMaster: React.FC = () => {
 
     const payload = {
       hotelid: hotelIdNum,
-      outletid: formData.outletid ? parseInt(formData.outletid) : null,
+       outletid: formData.outletid ? Number(formData.outletid) : 0,
       isapplicablealloutlet: formData.isapplicablealloutlet ? 1 : 0,
-      tax_name: formData.resttax_name,
-      tax_percentage: taxValueNum,
+      resttax_name: formData.resttax_name,
+      resttax_value: taxValueNum,
       restcgst: cgstNum,
       restsgst: sgstNum,
       restigst: igstNum,

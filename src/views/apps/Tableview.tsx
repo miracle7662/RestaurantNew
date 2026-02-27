@@ -220,7 +220,8 @@ export default function App() {
         if (!user) {
           throw new Error('User not authenticated');
         }
-        const data = await TableDepartmentService.list();
+        const params = { hotelid: user?.hotelid };
+        const data = await TableDepartmentService.list(params);
         setDepartments(data.data || data);
       } catch (err: any) {
         setError(err.message);

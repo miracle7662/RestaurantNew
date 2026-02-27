@@ -68,7 +68,8 @@ const TableDepartment: React.FC = () => {
   const fetchTableDepartment = async () => {
     setLoading(true);
     try {
-      const data = await TableDepartmentService.list();
+      const params = { hotelid: user?.hotelid };
+      const data = await TableDepartmentService.list(params);
       const formattedData = data.data.map((item: any) => ({
         ...item,
         status: Number(item.status),
