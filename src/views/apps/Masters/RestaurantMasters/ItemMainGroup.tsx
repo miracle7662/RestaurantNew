@@ -18,15 +18,15 @@ import ItemMainGroupService from '@/common/api/itemmaingroup';
 
 // Interfaces
 interface ItemMainGroupItem {
-  item_maingroupid: string;
+  item_maingroupid: number;
   item_group_name: string;
   status: number;
-  created_by_id: string;
-  created_date: string;
-  updated_by_id: string;
+  created_by_id: number;
+  created_date: number;
+  updated_by_id: number;
   updated_date: string;
-  hotelid: string;
-  marketid: string;
+  hotelid: number;
+  marketid: number;
 }
 
 interface Category {
@@ -85,18 +85,27 @@ const ItemMainGroup: React.FC = () => {
   const [containerToggle, setContainerToggle] = useState<boolean>(false);
 
   // Fetch ItemMainGroup from API
-  const fetchItemMainGroup = async () => {
-    setLoading(true);
-    try {
-      const data = await ItemMainGroupService.list() as unknown as ItemMainGroupItem[];
-      setItemMainGroupItems(data);
-      setFilteredItemMainGroup(data);
-    } catch {
-      toast.error('Failed to fetch ItemMainGroup');
-    } finally {
-      setLoading(false);
+const fetchItemMainGroup = async () => {
+  setLoading(true);
+  try {
+    const response = await ItemMainGroupService.list();
+
+    if (response.success) {
+      const groups = response.data ?? [];
+
+      setItemMainGroupItems(groups);
+      setFilteredItemMainGroup(groups);
+    } else {
+      toast.error(response.message || "Failed to fetch Item Main Group");
     }
-  };
+
+  } catch (error) {
+    console.error("Fetch ItemMainGroup Error:", error);
+    toast.error("Failed to fetch Item Main Group");
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     fetchItemMainGroup();

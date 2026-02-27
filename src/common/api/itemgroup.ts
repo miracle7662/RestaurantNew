@@ -28,14 +28,14 @@ export interface ItemGroup {
 
 /** Item Group payload for create/update */
 export interface ItemGroupPayload {
-  item_groupid: number
+  item_groupid?: number
   itemgroupname: string
   code: string
   kitchencategoryid: string
   status: number
-  created_by_id: number
+  created_by_id?: number
   created_date?: string
-  updated_by_id: number
+  updated_by_id?: number
   updated_date?: string
   hotelid: string
   marketid: string
@@ -66,7 +66,7 @@ const ItemGroupService = {
   /**
    * Update an existing item group
    */
-  update: (id: string, payload: ItemGroupPayload): Promise<ApiResponse<ItemGroup>> =>
+  update: (id: number, payload: ItemGroupPayload): Promise<ApiResponse<ItemGroup>> =>
     HttpClient.put<ApiResponse<ItemGroup>>(`/ItemGroup/${id}`, payload),
 
   /**

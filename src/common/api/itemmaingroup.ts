@@ -14,24 +14,28 @@ import { ApiResponse } from '@/types/api'
 /** Item Main Group information */
 export interface ItemMainGroup {
   item_maingroupid: number
-  item_maigroup_name: string
+  item_group_name: string
   code: string
   status: number
-  created_by_id?: string
-  created_date?: string
-  updated_by_id?: string
-  updated_date?: string
+  hotelid: number
+  marketid: number
+  created_by_id: number
+  created_date: number
+  updated_by_id: number
+  updated_date: string
 }
 
 /** Item Main Group payload for create/update */
 export interface ItemMainGroupPayload {
   item_maingroupid?: number
-  item_maigroup_name: string
-  code: string
+  item_group_name: string
+  code?: string
   status: number
-  created_by_id?: string
+  hotelid: number
+  marketid: number
+  created_by_id?: number
   created_date?: string
-  updated_by_id?: string
+  updated_by_id?: number
   updated_date?: string
 }
 

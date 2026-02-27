@@ -424,7 +424,8 @@ export const fetchUserType = async (
 ) => {
   try {
     const res = await fetch('http://localhost:3001/api/UserType')
-    const data: UserTypeItem[] = await res.json()
+    const response = await res.json()
+    const data: UserTypeItem[] = response.data || []
     setUserType(data)
     if (data.length > 0 && !currentusertypeid) {
       setusertypeid(data[0].usertypeid)
@@ -435,6 +436,7 @@ export const fetchUserType = async (
     setUserType([])
   }
 }
+
 
 
 export const fetchMenu = async (
