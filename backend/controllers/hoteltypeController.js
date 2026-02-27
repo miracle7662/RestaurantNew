@@ -2,34 +2,32 @@ const db = require('../config/db');
 
 // Get all hotel types with optional filtering
 exports.gethoteltype = (req, res) => {
-    try {
-        const { status, search } = req.query;
-        let query = 'SELECT * FROM msthoteltype WHERE 1=1';
-        let params = [];
+  try {
+    const { status, search } = req.query;
+    let query = 'SELECT * FROM msthoteltype WHERE 1=1';
+    const params = [];
 
-        if (status !== undefined) {
-            query += ' AND status = ?';
-            params.push(status);
-        }
-
-        if (search) {
-            query += ' AND hotel_type LIKE ?';
-            params.push(`%${search}%`);
-        }
-
-        query += ' ORDER BY hotel_type ASC';
-
-        // Fix: Ensure proper JSON formatting by returning array of objects
-        const hoteltype = db.prepare(query).all(...params);
-
-        // Manually fix any malformed data if needed (example placeholder)
-        // Here assuming db.prepare().all() returns proper array of objects
-
-        res.json(hoteltype);
-    } catch (error) {
-        console.error('Error fetching hotel types:', error);
-        res.status(500).json({ error: 'Failed to fetch hotel types' });
+    if (status !== undefined) {
+      query += ' AND status = ?';
+      params.push(status);
     }
+    if (search) {
+      query += ' AND hotel_type LIKE ?';
+      params.push(`%${search}%`);
+    }
+    query += ' ORDER BY hotel_type ASC';
+
+    const hoteltypes = db.prepare(query).all(...params);
+
+    res.json({
+      success: true,
+      count: hoteltypes.length,
+      data: hoteltypes
+    });
+  } catch (error) {
+    console.error('Error fetching hotel types:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch hotel types', data: [] });
+  }
 };
 
 // Add new hotel type
@@ -55,11 +53,11 @@ exports.addhoteltype = (req, res) => {
             hotelid: null // Default hotelid, adjust as necessary
         };
         
-        res.status(201).json(newHoteltype);
-    } catch (error) {
-        console.error('Error adding hotel type:', error);
-        res.status(500).json({ error: 'Failed to add hotel type' });
-    }
+          res.status(201).json({ success: true, data: newHoteltype });
+  } catch (error) {
+    console.error('Error adding hotel type:', error);
+    res.status(500).json({ success: false, message: 'Failed to add hotel type', data: null });
+  }
 };
 
 // Update hotel type
@@ -88,11 +86,11 @@ exports.updatehoteltype = (req, res) => {
             hotelid: null // Default hotelid, adjust as necessary
         };
         
-        res.json(updatedHoteltype);
-    } catch (error) {
-        console.error('Error updating hotel type:', error);
-        res.status(500).json({ error: 'Failed to update hotel type' });
-    }
+        res.json({ success: true, data: updatedHoteltype });
+  } catch (error) {
+    console.error('Error updating hotel type:', error);
+    res.status(500).json({ success: false, message: 'Failed to update hotel type', data: null });
+  }
 };
 
 // Delete hotel type
@@ -106,28 +104,28 @@ exports.deletehoteltype = (req, res) => {
             return res.status(404).json({ error: 'Hotel type not found' });
         }
         
-        res.json({ message: 'Hotel type deleted successfully' });
-    } catch (error) {
-        console.error('Error deleting hotel type:', error);
-        res.status(500).json({ error: 'Failed to delete hotel type' });
-    }
+        res.json({ success: true, data: { hoteltypeid: Number(id) }, message: 'Hotel type deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting hotel type:', error);
+    res.status(500).json({ success: false, message: 'Failed to delete hotel type', data: null });
+  }
 };
 
 // Get hotel type by ID
 exports.gethoteltypeById = (req, res) => {
-    try {
-        const { id } = req.params;
-        const hoteltype = db.prepare('SELECT * FROM msthoteltype WHERE hoteltypeid = ?').get(id);
-        
-        if (!hoteltype) {
-            return res.status(404).json({ error: 'Hotel type not found' });
-        }
-        
-        res.json(hoteltype);
-    } catch (error) {
-        console.error('Error fetching hotel type:', error);
-        res.status(500).json({ error: 'Failed to fetch hotel type' });
+  try {
+    const { id } = req.params;
+    const hoteltype = db.prepare('SELECT * FROM msthoteltype WHERE hoteltypeid = ?').get(id);
+
+    if (!hoteltype) {
+      return res.status(404).json({ success: false, message: 'Hotel type not found', data: null });
     }
+
+    res.json({ success: true, data: hoteltype });
+  } catch (error) {
+    console.error('Error fetching hotel type:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch hotel type', data: null });
+  }
 };
 
 // Get hotel types count

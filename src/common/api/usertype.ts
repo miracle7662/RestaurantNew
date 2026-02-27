@@ -14,13 +14,14 @@ import { ApiResponse } from '@/types/api'
 /** User Type information */
 export interface UserType {
   usertypeid: number
-  hotelid?: string
+  hotelid: number
   User_type: string
   status: number
-  created_by_id?: string
-  created_date?: string
-  updated_by_id?: string
-  updated_date?: string
+  created_by_id: number
+  created_date: string
+  updated_by_id: number
+  updated_date: string
+  marketid?: string
 }
 
 /** User Type payload for create/update */
@@ -29,10 +30,11 @@ export interface UserTypePayload {
   hotelid?: string
   User_type: string
   status: number
-  created_by_id?: string
+  created_by_id?: number
   created_date?: string
-  updated_by_id?: string
+  updated_by_id?: number
   updated_date?: string
+  marketid?: string
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════

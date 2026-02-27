@@ -18,13 +18,13 @@ import {
 interface UserTypeItem {
   User_type: string;
   usertypeid: number;
-  status: string;
+  status: number;
   created_by_id: number;
   created_date: string;
-  Updated_by_id: number;
+  Updated_by_id?: number;
   updated_date: string;
   hotelid: number;
-  marketid: string;
+  marketid?: string;
 }
 
 interface UserTypeModalProps {
@@ -54,17 +54,23 @@ const UserType: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [selectedUserType, setSelectedUserType] = useState<UserTypeItem | null>(null);
 
-  const fetchUserType = async () => {
-    try {
-      setLoading(true);
-      const data = await UserTypeService.list() as unknown as UserTypeItem[];
-      setUserTypeItem(data);
-    } catch (err) {
-      toast.error('Failed to fetch UserType');
-    } finally {
-      setLoading(false);
+const fetchUserType = async () => {
+  try {
+    setLoading(true);
+    const response = await UserTypeService.list();
+
+    if (response.success) {
+      setUserTypeItem(response.data); // This is the array of UserTypeItem
+    } else {
+      toast.error(response.message || 'Failed to fetch user types');
     }
-  };
+  } catch (err) {
+    console.error(err);
+    toast.error('Failed to fetch user types');
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     fetchUserType();
@@ -311,7 +317,7 @@ const UserTypeModal = ({ show, onHide, onSuccess, userType, onUpdateSelectedUser
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     User_type: userType?.User_type || '',
-    status: userType ? (userType.status === '0' ? 'Active' : 'Inactive') : 'Active',
+    status: userType ? (Number(userType.status) === 0 ? 'Active' : 'Inactive') : 'Active'
   });
   const { user } = useAuthContext();
 
@@ -320,7 +326,7 @@ const UserTypeModal = ({ show, onHide, onSuccess, userType, onUpdateSelectedUser
   useEffect(() => {
     setFormData({
       User_type: userType?.User_type || '',
-      status: userType ? (userType.status === '0' ? 'Active' : 'Inactive') : 'Active',
+      status: userType ? (Number(userType.status) === 0 ? 'Active' : 'Inactive') : 'Active'
     });
   }, [userType]);
 
@@ -365,7 +371,7 @@ const UserTypeModal = ({ show, onHide, onSuccess, userType, onUpdateSelectedUser
           onUpdateSelectedUserType({
             ...userType,
             User_type: formData.User_type,
-            status: statusValue.toString(),
+            status: statusValue,
             Updated_by_id: userId,
             updated_date: currentDate,
           });

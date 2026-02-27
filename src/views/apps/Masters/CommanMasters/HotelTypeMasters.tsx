@@ -18,13 +18,13 @@ import {
 
 // Interfaces
 interface HoteltypeItem {
-  hoteltypeid: string;
-  hotelid: string;
+  hoteltypeid: number;
+  hotelid: number;
   hotel_type: string;
   status: number;
-  created_by_id: string;
+  created_by_id: number;
   created_date: string;
-  updated_by_id: string;
+  updated_by_id: number;
   updated_date: string;
 }
 
@@ -56,23 +56,29 @@ const HoteltypeMasters: React.FC = () => {
   const [selectedHoteltype, setSelectedHoteltype] = useState<HoteltypeItem | null>(null);
   const { user } = useAuthContext();
 
-  // Fetch hotel types from API
-  const fetchHoteltypes = async () => {
-    try {
-      setLoading(true);
-      const data = await HotelTypeService.list() as unknown as HoteltypeItem[];
-      setHoteltypeItems(data);
-    } catch (err) {
-      toast.error('Failed to fetch hotel types');
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Fetch hotel types on component mount
   useEffect(() => {
     fetchHoteltypes();
   }, []);
 
+  // Fetch hotel types from API
+ const fetchHoteltypes = async () => {
+  try {
+    setLoading(true);
+    const response = await HotelTypeService.list(); // returns { success, count, data }
+
+    if (response.success) {
+      setHoteltypeItems(response.data); // data is HotelType[]
+    } else {
+      toast.error(response.message || 'Failed to fetch hotel types');
+    }
+  } catch (err) {
+    console.error(err);
+    toast.error('Failed to fetch hotel types');
+  } finally {
+    setLoading(false);
+  }
+};
   // Define columns for react-table with explicit widths
   const columns = useMemo<ColumnDef<HoteltypeItem>[]>(() => [
     {
@@ -168,7 +174,7 @@ const HoteltypeMasters: React.FC = () => {
     });
     if (res.isConfirmed) {
       try {
-        await HotelTypeService.remove(parseInt(hoteltype.hoteltypeid));
+        await HotelTypeService.remove(hoteltype.hoteltypeid);
         toast.success('Deleted successfully');
         fetchHoteltypes();
         setSelectedHoteltype(null);
@@ -252,7 +258,7 @@ const HoteltypeMasters: React.FC = () => {
 
         try {
           if (isEditMode) {
-            await HotelTypeService.update(parseInt(hoteltype!.hoteltypeid), payload);
+            await HotelTypeService.update(hoteltype!.hoteltypeid, payload);
           } else {
             await HotelTypeService.create(payload);
           }

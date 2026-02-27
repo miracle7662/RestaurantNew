@@ -14,23 +14,25 @@ import { ApiResponse } from '@/types/api'
 /** Hotel Type information */
 export interface HotelType {
   hoteltypeid: number
-  hotel_type_name: string
+  hotelid: number
+  hotel_type: string
   status: number
-  created_by_id?: string
-  created_date?: string
-  updated_by_id?: string
-  updated_date?: string
+  created_by_id: number
+  created_date: string
+  updated_by_id: number
+  updated_date: string
 }
 
 /** Hotel Type payload for create/update */
 export interface HotelTypePayload {
-  hoteltypeid?: number
-  hotel_type_name: string
-  status: number
-  created_by_id?: string
-  created_date?: string
-  updated_by_id?: string
-  updated_date?: string
+  hoteltypeid?: number;           // optional for create
+  hotelid: number;
+  hotel_type: string;
+  status: number;
+  created_by_id?: number;         // optional
+  created_date?: string;          // optional
+  updated_by_id?: number;         // optional
+  updated_date?: string;          // optional
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
