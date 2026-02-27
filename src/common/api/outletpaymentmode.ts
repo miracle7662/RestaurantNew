@@ -11,31 +11,29 @@ import { ApiResponse } from '@/types/api'
  * Type Definitions
  * ═══════════════════════════════════════════════════════════════════════════════ */
 
-/** Outlet Payment Mode information */
-export interface OutletPaymentMode {
+/** Payment Mode data from database (with mode_name from join) */
+export interface PaymentModeData {
   id: number
   outletid: number
-  paymentmodeid: number
-  payment_mode_name?: string
-  status: number
-  is_default?: number
-  created_by_id?: string
-  created_date?: string
-  updated_by_id?: string
-  updated_date?: string
+  hotelid: number
+  paymenttypeid: number
+  sequence?: number
+  is_active: number | null
+  created_at?: string
+  updated_at?: string
+  mode_name: string
 }
 
-/** Outlet Payment Mode payload for create/update */
-export interface OutletPaymentModePayload {
-  id?: number
-  outletid: number
-  paymentmodeid: number
-  status: number
-  is_default?: number
-  created_by_id?: string
-  created_date?: string
-  updated_by_id?: string
-  updated_date?: string
+/** Payment Type information */
+export interface PaymentTypeInfo {
+  paymenttypeid: number
+  mode_name: string
+}
+
+/** List params for payment modes */
+export interface PaymentModeListParams {
+  q?: string
+  outletid?: string
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
@@ -51,26 +49,33 @@ const OutletPaymentModeService = {
   /**
    * Get all outlet payment modes with optional search
    */
-  list: (params?: { q?: string }): Promise<ApiResponse<OutletPaymentMode[]>> =>
-    HttpClient.get<ApiResponse<OutletPaymentMode[]>>('/outlet-payment-mode', { params }),
+  list: (params?: PaymentModeListParams): Promise<ApiResponse<PaymentModeData[]>> =>
+    HttpClient.get<ApiResponse<PaymentModeData[]>>('/payment-modes', { params }),
 
   /**
    * Create a new outlet payment mode
    */
-  create: (payload: OutletPaymentModePayload): Promise<ApiResponse<OutletPaymentMode>> =>
-    HttpClient.post<ApiResponse<OutletPaymentMode>>('/outlet-payment-mode', payload),
+  create: (payload: any): Promise<ApiResponse<PaymentModeData>> =>
+    HttpClient.post<ApiResponse<PaymentModeData>>('/payment-modes', payload),
 
   /**
    * Update an existing outlet payment mode
    */
-  update: (id: number, payload: OutletPaymentModePayload): Promise<ApiResponse<OutletPaymentMode>> =>
-    HttpClient.put<ApiResponse<OutletPaymentMode>>(`/outlet-payment-mode/${id}`, payload),
+  update: (id: number, payload: any): Promise<ApiResponse<PaymentModeData>> =>
+    HttpClient.put<ApiResponse<PaymentModeData>>(`/payment-modes/${id}`, payload),
 
   /**
    * Delete an outlet payment mode
    */
   remove: (id: number): Promise<ApiResponse<null>> =>
-    HttpClient.delete<ApiResponse<null>>(`/outlet-payment-mode/${id}`)
+    HttpClient.delete<ApiResponse<null>>(`/payment-modes/${id}`),
+
+  /**
+   * Get all payment types (master list)
+   * Now returns ApiResponse with data array
+   */
+  types: (): Promise<ApiResponse<PaymentTypeInfo[]>> =>
+    HttpClient.get<ApiResponse<PaymentTypeInfo[]>>('/payment-modes/types')
 }
 
 export default OutletPaymentModeService

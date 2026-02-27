@@ -402,7 +402,8 @@ export const fetchDesignation = async (
 ) => {
   try {
     const res = await fetch('http://localhost:3001/api/Designation')
-    const data: DesignationItem[] = await res.json()
+    const response = await res.json()
+    const data: DesignationItem[] = response.data || []
     setDesignation(data)
     if (data.length > 0 && !currentdesignationid) {
       setdesignationid(data[0].designationid)

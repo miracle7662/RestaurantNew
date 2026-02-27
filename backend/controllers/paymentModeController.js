@@ -1,7 +1,6 @@
 const db = require("../config/db");
 
 // Create a payment mode
-// Create a payment mode
 exports.createPaymentMode = (req, res) => {
   try {
     const { outletid, hotelid, paymenttypeid, is_active } = req.body;
@@ -13,11 +12,19 @@ exports.createPaymentMode = (req, res) => {
       typeof paymenttypeid !== 'number' ||
       (is_active !== undefined && typeof is_active !== 'number')
     ) {
-      return res.status(400).json({ error: "Invalid data types for required fields" });
+      return res.status(400).json({
+        success: false,
+        message: "Invalid data types for required fields",
+        error: "Invalid data types for required fields"
+      });
     }
 
     if (!outletid || !hotelid || !paymenttypeid) {
-      return res.status(400).json({ error: "Outlet ID, Hotel ID and Payment Type ID are required" });
+      return res.status(400).json({
+        success: false,
+        message: "Outlet ID, Hotel ID and Payment Type ID are required",
+        error: "Outlet ID, Hotel ID and Payment Type ID are required"
+      });
     }
 
     const stmt = db.prepare(
@@ -26,18 +33,30 @@ exports.createPaymentMode = (req, res) => {
     );
     const result = stmt.run(outletid, hotelid, paymenttypeid, is_active ?? 1);
 
-    res.json({
-      id: result.lastInsertRowid,
-      outletid,
-      hotelid,
-      paymenttypeid,
-      is_active: is_active ?? 1,
+    res.status(201).json({
+      success: true,
+      message: "Payment mode created successfully",
+      data: {
+        id: result.lastInsertRowid,
+        outletid,
+        hotelid,
+        paymenttypeid,
+        is_active: is_active ?? 1,
+      }
     });
   } catch (err) {
     if (err.code === 'SQLITE_CONSTRAINT') {
-      res.status(400).json({ error: "Invalid foreign key or duplicate entry" });
+      res.status(400).json({
+        success: false,
+        message: "Invalid foreign key or duplicate entry",
+        error: "Invalid foreign key or duplicate entry"
+      });
     } else {
-      res.status(500).json({ error: err.message });
+      res.status(500).json({
+        success: false,
+        message: "Internal server error",
+        error: err.message
+      });
     }
   }
 };
@@ -67,9 +86,17 @@ exports.getAllPaymentModes = (req, res) => {
     }
 
     const rows = db.prepare(sql).all(...params);
-    res.json(rows);
+    res.status(200).json({
+      success: true,
+      message: "Payment modes fetched successfully",
+      data: rows
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: err.message
+    });
   }
 };
 
@@ -81,7 +108,11 @@ exports.updatePaymentModeSequence = (req, res) => {
 
     outletid = parseInt(outletid);
     if (isNaN(outletid) || outletid <= 0 || !Array.isArray(orderedPaymentTypeIds) || orderedPaymentTypeIds.length === 0) {
-      return res.status(400).json({ error: "Valid outlet ID and non-empty array of ordered payment type IDs are required" });
+      return res.status(400).json({
+        success: false,
+        message: "Valid outlet ID and non-empty array of ordered payment type IDs are required",
+        error: "Valid outlet ID and non-empty array of ordered payment type IDs are required"
+      });
     }
 
     const transaction = db.transaction(() => {
@@ -108,9 +139,17 @@ exports.updatePaymentModeSequence = (req, res) => {
         JOIN payment_types pt ON pm.paymenttypeid = pt.paymenttypeid
         WHERE pm.outletid = ? AND pm.sequence > 0 ORDER BY pm.sequence ASC`).all(outletid);
 
-    res.json(updatedModes);
+    res.status(200).json({
+      success: true,
+      message: "Payment mode sequence updated successfully",
+      data: updatedModes
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: err.message
+    });
   }
 };
 
@@ -140,9 +179,17 @@ exports.getPaymentModesByOutlet = (req, res) => {
     sql += ' GROUP BY pt.paymenttypeid, pt.mode_name ORDER BY sequence, pt.mode_name';
 
     const rows = db.prepare(sql).all(...params);
-    res.json({ success: true, data: rows });
+    res.status(200).json({
+      success: true,
+      message: "Payment modes fetched successfully",
+      data: rows
+    });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: err.message
+    });
   }
 };
 
@@ -153,7 +200,11 @@ exports.updatePaymentMode = (req, res) => {
     const { outletid, hotelid, paymenttypeid, is_active } = req.body;
 
     if (!id || !paymenttypeid) {
-      return res.status(400).json({ error: "ID and paymenttypeid are required" });
+      return res.status(400).json({
+        success: false,
+        message: "ID and paymenttypeid are required",
+        error: "ID and paymenttypeid are required"
+      });
     }
 
     if (
@@ -162,7 +213,11 @@ exports.updatePaymentMode = (req, res) => {
       typeof paymenttypeid !== 'number' ||
       (is_active !== undefined && typeof is_active !== 'number')
     ) {
-      return res.status(400).json({ error: "Invalid data types for required fields" });
+      return res.status(400).json({
+        success: false,
+        message: "Invalid data types for required fields",
+        error: "Invalid data types for required fields"
+      });
     }
 
     const stmt = db.prepare(`
@@ -173,15 +228,31 @@ exports.updatePaymentMode = (req, res) => {
     const result = stmt.run(outletid, hotelid, paymenttypeid, is_active ?? 1, id);
 
     if (result.changes === 0) {
-      return res.status(404).json({ message: "Payment mode not found" });
+      return res.status(404).json({
+        success: false,
+        message: "Payment mode not found",
+        error: "Payment mode not found"
+      });
     }
 
-    res.json({ message: "Payment mode updated successfully" });
+    res.status(200).json({
+      success: true,
+      message: "Payment mode updated successfully",
+      data: { id, outletid, hotelid, paymenttypeid, is_active: is_active ?? 1 }
+    });
   } catch (err) {
     if (err.code === 'SQLITE_CONSTRAINT') {
-      res.status(400).json({ error: "Invalid foreign key or duplicate entry" });
+      res.status(400).json({
+        success: false,
+        message: "Invalid foreign key or duplicate entry",
+        error: "Invalid foreign key or duplicate entry"
+      });
     } else {
-      res.status(500).json({ error: err.message });
+      res.status(500).json({
+        success: false,
+        message: "Internal server error",
+        error: err.message
+      });
     }
   }
 };
@@ -193,9 +264,17 @@ exports.deletePaymentMode = (req, res) => {
     const stmt = db.prepare("DELETE FROM payment_modes WHERE id = ?");
     const result = stmt.run(id);
 
-    res.json({ message: "Payment mode deleted", changes: result.changes });
+    res.status(200).json({
+      success: true,
+      message: "Payment mode deleted successfully",
+      data: { changes: result.changes }
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: err.message
+    });
   }
 };
 
@@ -203,8 +282,16 @@ exports.deletePaymentMode = (req, res) => {
 exports.getPaymentTypes = (req, res) => {
   try {
     const rows = db.prepare("SELECT * FROM payment_types").all();
-    res.json(rows);
+    res.status(200).json({
+      success: true,
+      message: "Payment types fetched successfully",
+      data: rows
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: err.message
+    });
   }
 };
