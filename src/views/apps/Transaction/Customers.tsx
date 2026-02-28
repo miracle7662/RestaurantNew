@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { toast } from "react-hot-toast";
 import { useAuthContext } from "@/common";
-import CustomerService from "../../../common/api/customers";
+import CustomerService, { Customer } from "../../../common/api/customers";
 
 import {
   StateItem,
@@ -14,6 +14,7 @@ interface CustomerFormData {
   mobile1: string;
   mobile2: string;
   email: string;
+  
   name: string;
   add2: string;
   add1: string;
@@ -28,34 +29,6 @@ interface CustomerFormData {
   state: string;
   birthday: string;
   anniversary: string;
-}
-
-interface Customer {
-  customerid: number;
-  name: string;
-  countryCode: string;
-  mobile: string;
-  mail: string;
-  cityid: string;
-  city_name: string;
-  address1: string;
-  address2?: string;
-  stateid: string;
-  state_name: string;
-  pincode?: string;
-  gstNo?: string;
-  fssai?: string;
-  panNo?: string;
-  aadharNo?: string;
-  birthday?: string;
-  anniversary?: string;
-  customerType?: string;
-  status?: number;
-  createWallet?: boolean;
-  created_by_id?: number;
-  created_date?: string;
-  updated_by_id?: number;
-  updated_date?: string;
 }
 
 interface LabelProps {
@@ -185,19 +158,20 @@ function Customers() {
   const todayStr = new Date().toISOString().split('T')[0];
 
   // Fetch customer data (READ)
-  const fetchCustomers = async () => {
-    setLoading(true);
-    try {
-      const response = await CustomerService.list();
-      const responseData = response.data || response;
-      const customerList = Array.isArray(responseData) ? responseData : (responseData.data || []);
-      setCustomers(customerList);
-    } catch (err) {
-      toast.error('Error fetching customer data');
-    } finally {
-      setLoading(false);
-    }
-  };
+ const fetchCustomers = async () => {
+  setLoading(true);
+  try {
+    const response = await CustomerService.list();
+
+    // ✅ Extract actual customer array - with guard for undefined
+    setCustomers(response?.data || []);
+
+  } catch (err) {
+    toast.error('Error fetching customer data');
+  } finally {
+    setLoading(false);
+  }
+};
 
   // Fetch hotelmaster data for default state and city
   
@@ -336,13 +310,14 @@ function Customers() {
         updated_date: currentDate,
       };
       const response = selectedCustomerId ? await CustomerService.update(selectedCustomerId, payload) : await CustomerService.create(payload);
-      const data = response.data || response;
+      // Extract the Customer from CustomerResponse
+      const customerData = (response.data as any)?.data || response.data;
       const message = selectedCustomerId ? 'Customer updated successfully' : 'Customer added successfully';
       toast.success(message);
       if (selectedCustomerId) {
-        setCustomers((prev) => prev.map((c) => (c.customerid === selectedCustomerId ? data : c)));
+        setCustomers((prev) => prev.map((c) => (c.customerid === selectedCustomerId ? customerData : c)));
       } else {
-        setCustomers((prev) => [...prev, data]);
+        setCustomers((prev) => [...prev, customerData]);
       }
       handleClear();
     } catch (err) {
@@ -403,9 +378,12 @@ function Customers() {
   };
 
   const filteredCustomers = useMemo(() => {
+    if (!customers || !Array.isArray(customers)) {
+      return [];
+    }
     return customers.filter((customer) =>
-      customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      customer.mobile.toLowerCase().includes(searchTerm.toLowerCase())
+      customer.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      customer.mobile?.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [customers, searchTerm]);
 
@@ -487,7 +465,7 @@ function Customers() {
                     name="state"
                     value={formData.state}
                     onChange={(e) => {
-                      const selectedState = states.find(s => s.state_name === e.target.value);
+                      const selectedState = states?.find(s => s.state_name === e.target.value);
                       setStateId(selectedState ? selectedState.stateid : null);
                       setFormData(prev => ({ ...prev, state: e.target.value, city: '' }));
                       setCityId(null);
@@ -495,7 +473,7 @@ function Customers() {
                     disabled={loading}
                   >
                     <option value="">Select State</option>
-                    {states.map(state => (
+                    {Array.isArray(states) && states.map(state => (
                       <option key={state.stateid} value={state.state_name}>{state.state_name}</option>
                     ))}
                   </Field>
@@ -504,14 +482,14 @@ function Customers() {
                     name="city"
                     value={formData.city}
                     onChange={(e) => {
-                      const selectedCity = cities.find(c => c.city_name === e.target.value);
+                      const selectedCity = cities?.find(c => c.city_name === e.target.value);
                       setCityId(selectedCity ? selectedCity.cityid : null);
                       setFormData(prev => ({ ...prev, city: e.target.value }));
                     }}
                     disabled={loading || !stateid}
                   >
                     <option value="">Select City</option>
-                    {cities.map(city => (
+                    {Array.isArray(cities) && cities.map(city => (
                       <option key={city.cityid} value={city.city_name}>{city.city_name}</option>
                     ))}
                   </Field>

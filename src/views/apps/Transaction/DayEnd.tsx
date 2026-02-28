@@ -50,7 +50,7 @@ ChartJS.register(ArcElement, Tooltip, Legend);
 
 interface Order {
   orderNo: string;
-  table: string;
+  table: number;
   waiter: string;
   amount: number;
   type: string;
@@ -61,16 +61,16 @@ interface Order {
   revKotNo: string;
   discount: number;
   ncKot: string;
-  ncName: string;
+  ncName?: string;
   cgst: number;
   sgst: number;
   grossAmount: number;
   roundOff: number;
-  revAmt: number;
+  revAmt?: number;
   reverseBill: number | string; // Can be 0/1 from DB
-  water: number;
-  captain: string;
-  user: string;
+  water?: number;
+  captain?: string;
+  user?: string;
   date: string;
   paymentType?: string;
   cash?: number;
@@ -257,7 +257,8 @@ const DayEnd = () => {
 
   const filteredOrders = orders.filter(order => {
     const matchesSearch = (order.orderNo || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (order.table || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+     order.table.toString().toLowerCase()
+  .includes(searchTerm.toLowerCase()) ||
       (order.waiter || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (order.captain || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (order.user || '').toLowerCase().includes(searchTerm.toLowerCase());

@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom'
 import { langData } from './data/langData'
 
 const Languages = () => {
-  const lang = langData[0] || {}
+
   const [dropDownOpen, setDropDownOpen] = useState<boolean>(false)
 
   const toggleDropDown = () => {

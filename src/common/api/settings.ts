@@ -51,38 +51,6 @@ type DepartmentPrinterPayload = {
   hotelid: string
 }
 
-type TableWiseKotPayload = {
-  id?: number
-  table_no: string
-  printer_name: string
-  size: string
-  copies: number
-}
-
-type TableWiseBillPayload = {
-  id?: number
-  table_no: string
-  printer_name: string
-  size: string
-  copies: number
-}
-
-type CategoryPrinterPayload = {
-  id?: number
-  category: string
-  printer_name: string
-  order_type: string
-  size: string
-  copies: number
-}
-
-type KDSUserPayload = {
-  id?: number
-  department: string
-  user: string
-  is_active: boolean
-  updated_at: string
-}
 
 const SettingsService = {
   // KOT Printers

@@ -46,7 +46,7 @@ export interface CustomerPayload {
   name: string
   countryCode: string
   mobile: string
-  mail?: string
+  mail?: string;
   cityid: string
   city_name: string
   address1: string

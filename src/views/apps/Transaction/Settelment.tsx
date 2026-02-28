@@ -84,7 +84,8 @@ const EditSettlementPage: React.FC = () => {
     const fetchPaymentModes = async () => {
       try {
         const response = await OutletPaymentModeService.list({ outletid: selectedOutletId?.toString() || ''});
-        const data = response;
+        // Handle ApiResponse format - response.data contains the array
+        const data = response.data;
         if (!Array.isArray(data)) {
           throw new Error('Expected an array of payment modes');
         }
