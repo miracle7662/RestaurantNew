@@ -13,7 +13,7 @@ import { ApiResponse } from '@/types/api'
 
 /** Kitchen Main Group information */
 export interface KitchenMainGroup {
-  kitchen_maingroupid: number
+  kitchenmaingroupid: number
   Kitchen_main_Group: string
   code: string
   status: number
@@ -25,7 +25,7 @@ export interface KitchenMainGroup {
 
 /** Kitchen Main Group payload for create/update */
 export interface KitchenMainGroupPayload {
-  kitchen_maingroupid?: number
+  kitchenmaingroupid?: number
   Kitchen_main_Group: string
   code: string
   status: number

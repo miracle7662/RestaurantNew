@@ -287,7 +287,9 @@ export const fetchKitchenCategory = async (
   try {
     const url = hotelid ? `http://localhost:3001/api/KitchenCategory?hotelid=${hotelid}` : 'http://localhost:3001/api/KitchenCategory'
     const res = await fetch(url)
-    const data: KitchenCategoryItem[] = await res.json()
+    const response = await res.json()
+    // Handle both direct array and wrapped response { success, message, data }
+    const data: KitchenCategoryItem[] = Array.isArray(response) ? response : (response.data || [])
     setKitchen_Category(data)
     if (data.length > 0) {
       if (currentkitchencategoryid) {
@@ -299,6 +301,7 @@ export const fetchKitchenCategory = async (
   } catch (err) {
     toast.error('Failed to fetch kitchen categories')
     console.error('Fetch kitchen categories error:', err)
+    setKitchen_Category([])
   }
 }
 
@@ -309,14 +312,21 @@ export const fetchKitchenMainGroup = async (
 ) => {
   try {
     const res = await fetch('http://localhost:3001/api/KitchenMainGroup')
-    const data: KitchenMainGroupItem[] = await res.json()
+    const response = await res.json()
+    // Handle both direct array and wrapped response { success, message, data }
+    const data: KitchenMainGroupItem[] = Array.isArray(response) ? response : (response.data || [])
     setKitchen_main_Group(data)
-    if (data.length > 0 && !currentkitchenmaingroupid) {
-      setkitchenmaingroupid(data[0].kitchenmaingroupid)
+    if (data.length > 0) {
+      if (currentkitchenmaingroupid) {
+        setkitchenmaingroupid(Number(currentkitchenmaingroupid))
+      } else {
+        setkitchenmaingroupid(data[0].kitchenmaingroupid)
+      }
     }
   } catch (err) {
     toast.error('Failed to fetch kitchen main groups')
     console.error('Fetch kitchen main groups error:', err)
+    setKitchen_main_Group([])
   }
 }
 

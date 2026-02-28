@@ -14,8 +14,8 @@ import { ApiResponse } from '@/types/api'
 /** Kitchen Sub Category information */
 export interface KitchenSubCategory {
   kitchensubcategoryid: number
-  sub_category_name: string
-  sub_category_code: string
+  Kitchen_sub_category: string
+  kitchenmaingroupid: string
   kitchencategoryid: number
   status: number
   created_by_id?: string
@@ -27,8 +27,8 @@ export interface KitchenSubCategory {
 /** Kitchen Sub Category payload for create/update */
 export interface KitchenSubCategoryPayload {
   kitchensubcategoryid?: number
-  sub_category_name: string
-  sub_category_code: string
+  Kitchen_sub_category: string
+  kitchenmaingroupid: string
   kitchencategoryid: number
   status: number
   created_by_id?: string

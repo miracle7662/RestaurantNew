@@ -65,7 +65,7 @@ const fetchKitchenMainGroup = async () => {
     const response = await KitchenMainGroupService.list();
 // Map API response to component's expected format
     const mappedData: KitchenMainGroupItem[] = response.data.map((item: KitchenMainGroupApiType) => ({
-      kitchenmaingroupid: item.kitchen_maingroupid,
+      kitchenmaingroupid: item.kitchenmaingroupid,
       Kitchen_main_Group: item.Kitchen_main_Group,
       status: item.status,
       created_by_id: item.created_by_id || '',

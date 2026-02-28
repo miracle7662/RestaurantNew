@@ -97,7 +97,7 @@ const EditSettlementPage: React.FC = () => {
     fetchPaymentModes();
   }, []);
 
-  // Fetch settlements list
+  // Fetch settlements list - using proper API response format like other pages
   const fetchSettlements = async () => {
     try {
       const params: any = { ...filters };
@@ -106,10 +106,16 @@ const EditSettlementPage: React.FC = () => {
       }
       const res = await SettlementService.list(params);
 
-      const data = res.data?.data ?? res.data;
-      const settlementsData = Array.isArray(data.settlements) ? data.settlements : data;
-
-      setSettlements(settlementsData);
+      // Check for success response - matching other pages API response format
+      if (res.success) {
+        const data = res.data;
+        const settlementsData = Array.isArray(data) ? data : [];
+        // Cast to local Settlement interface type
+        setSettlements(settlementsData as unknown as Settlement[]);
+      } else {
+        setNotification({ show: true, message: res.message || 'Failed to fetch settlements', type: 'danger' });
+        setSettlements([]);
+      }
     } catch (err) {
       console.error(err);
       setNotification({ show: true, message: 'Failed to fetch settlements', type: 'danger' });
@@ -211,7 +217,7 @@ const EditSettlementPage: React.FC = () => {
         newSettlements: newSettlements.filter(s => s.Amount > 0),
         HotelID: editing.HotelID,
         EditedBy: currentUser,
-         InsertDate: user?.currDate,
+        InsertDate: user?.currDate,
       });
 
       setNotification({
@@ -233,28 +239,6 @@ const EditSettlementPage: React.FC = () => {
       setLoading(false);
     }
   };
-
-
-
-
-
-  // const handleDeleteSettlement = async (id: number) => {
-  //   if (!window.confirm('Delete this settlement permanently?')) return;
-
-  //   try {
-  //     await axios.delete(`http://localhost:3001/api/settlements/${id}`, {
-  //       data: { EditedBy: currentUser },
-  //     });
-  //     setNotification({ show: true, message: 'Settlement deleted successfully', type: 'success' });
-  //     fetchSettlements();
-  //   } catch (err: any) {
-  //     setNotification({
-  //       show: true,
-  //       message: err.response?.data?.message || 'Failed to delete settlement',
-  //       type: 'danger',
-  //     });
-  //   }
-  // };
 
   // ── UI ────────────────────────────────────────────────────────────
   return (
@@ -307,7 +291,7 @@ const EditSettlementPage: React.FC = () => {
             </Form.Select>
           </Col>
           <Col md={2}>
-            <Button variant="primary" onClick={fetchSettlements} className="w-100">
+            <Button variant="primary" onClick={() => fetchSettlements()} className="w-100">
               Search
             </Button>
           </Col>
@@ -348,16 +332,7 @@ const EditSettlementPage: React.FC = () => {
               <td>
                 <Button size="sm" variant="primary" onClick={() => handleEdit(group)}>
                   Edit
-                </Button>{' '}
-                {/* {role === 'Admin' && (
-                  <Button
-                    size="sm"
-                    variant="danger"
-                    onClick={() => handleDeleteSettlement(group.SettlementIDs![0])}
-                  >
-                    Delete
-                  </Button>
-                )} */}
+                </Button>
               </td>
             </tr>
           ))}

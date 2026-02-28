@@ -15,7 +15,7 @@ import { ApiResponse } from '@/types/api'
 export interface UnitMaster {
   unitid: number
   unit_name: string
-  unit_code: string
+  client_code: string
   status: number
   created_by_id?: string
   created_date?: string
@@ -27,7 +27,7 @@ export interface UnitMaster {
 export interface UnitMasterPayload {
   unitid?: number
   unit_name: string
-  unit_code: string
+  client_code?: string
   status: number
   created_by_id?: string
   created_date?: string

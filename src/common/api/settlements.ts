@@ -81,7 +81,22 @@ const SettlementService = {
    * Delete a settlement
    */
   remove: (id: number): Promise<ApiResponse<null>> =>
-    HttpClient.delete<ApiResponse<null>>(`/settlement/${id}`)
+    HttpClient.delete<ApiResponse<null>>(`/settlement/${id}`),
+
+  /**
+   * Replace settlements for an OrderNo (delete all and insert new)
+   */
+  replace: (payload: {
+    OrderNo: string;
+    newSettlements: Array<{
+      PaymentType: string;
+      Amount: number;
+    }>;
+    HotelID: string | number;
+    EditedBy?: any;
+    InsertDate?: string;
+  }): Promise<ApiResponse<null>> =>
+    HttpClient.post<ApiResponse<null>>('/settlement/replace', payload)
 }
 
 export default SettlementService

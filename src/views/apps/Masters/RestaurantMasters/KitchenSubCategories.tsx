@@ -87,9 +87,14 @@ const KitchenSubCategory: React.FC = () => {
   const fetchKitchenSubCategory = async () => {
     setLoading(true);
     try {
-      const data = await KitchenSubCategoryService.list() as unknown as KitchenSubCategoryItem[];
-      setKitchenSubCategoryItem(data);
-      setFilteredKitchenSubCategory(data);
+      const response = await KitchenSubCategoryService.list();
+      if (response.success) {
+        const data = response.data as unknown as KitchenSubCategoryItem[];
+        setKitchenSubCategoryItem(data);
+        setFilteredKitchenSubCategory(data);
+      } else {
+        toast.error(response.message || 'Failed to fetch KitchenSubCategory');
+      }
     } catch (err) {
       toast.error('Failed to fetch KitchenSubCategory');
     } finally {
@@ -237,16 +242,20 @@ const KitchenSubCategory: React.FC = () => {
 
     if (res.isConfirmed) {
       try {
-        await KitchenSubCategoryService.remove(kitchenSubCategory.kitchensubcategoryid);
-        setSelectedKitchenSubCategory(null);
-        setContainerToggle(false);
-        setKitchenSubCategoryItem((prev) => prev.filter((s) => s.kitchensubcategoryid !== kitchenSubCategory.kitchensubcategoryid));
-        setFilteredKitchenSubCategory((prev) => prev.filter((s) => s.kitchensubcategoryid !== kitchenSubCategory.kitchensubcategoryid));
-        if (selectedKitchenSubCategory && selectedKitchenSubCategory.kitchensubcategoryid === kitchenSubCategory.kitchensubcategoryid) {
-          setSelectedKitchenSubCategoryIndex(-1);
+        const response = await KitchenSubCategoryService.remove(Number(kitchenSubCategory.kitchensubcategoryid));
+        if (response.success) {
+          setSelectedKitchenSubCategory(null);
+          setContainerToggle(false);
+          setKitchenSubCategoryItem((prev) => prev.filter((s) => s.kitchensubcategoryid !== kitchenSubCategory.kitchensubcategoryid));
+          setFilteredKitchenSubCategory((prev) => prev.filter((s) => s.kitchensubcategoryid !== kitchenSubCategory.kitchensubcategoryid));
+          if (selectedKitchenSubCategory && selectedKitchenSubCategory.kitchensubcategoryid === kitchenSubCategory.kitchensubcategoryid) {
+            setSelectedKitchenSubCategoryIndex(-1);
+          }
+          toast.success('KitchenSubCategory deleted successfully');
+          await fetchKitchenSubCategory();
+        } else {
+          toast.error(response.message || 'Failed to delete KitchenSubCategory');
         }
-        toast.success('KitchenSubCategory deleted successfully');
-        await fetchKitchenSubCategory();
       } catch (error) {
         toast.error('Failed to delete KitchenSubCategory');
         // console.error('Deletion error:', error);
@@ -671,7 +680,7 @@ const KitchenSubCategoryModal: React.FC<KitchenSubCategoryModalProps> = ({
       const payload = {
         Kitchen_sub_category: kitchenSubCategoryName,
         kitchencategoryid,
-        kitchenmaingroupid,
+        kitchenmaingroupid: String(kitchenmaingroupid),
         status: statusValue,
         ...(isEditMode
           ? {
@@ -689,11 +698,14 @@ const KitchenSubCategoryModal: React.FC<KitchenSubCategoryModalProps> = ({
       };
       // console.log('Sending to backend:', payload);
 
-      const res = isEditMode
-        ? await KitchenSubCategoryService.update(kitchenSubCategory!.kitchensubcategoryid, payload)
-        : await KitchenSubCategoryService.create(payload);
+      let res;
+      if (isEditMode) {
+        res = await KitchenSubCategoryService.update(Number(kitchenSubCategory!.kitchensubcategoryid), payload);
+      } else {
+        res = await KitchenSubCategoryService.create(payload);
+      }
 
-      if (res) {
+      if (res && res.success) {
         toast.success(`Kitchen Subcategory ${isEditMode ? 'updated' : 'added'} successfully`);
         if (isEditMode && kitchenSubCategory) {
           const updatedKitchenSubCategory = {
@@ -710,7 +722,7 @@ const KitchenSubCategoryModal: React.FC<KitchenSubCategoryModalProps> = ({
         onSuccess();
         onHide();
       } else {
-        toast.error(`Failed to ${isEditMode ? 'update' : 'add'} Kitchen Subcategory`);
+        toast.error(res?.message || `Failed to ${isEditMode ? 'update' : 'add'} Kitchen Subcategory`);
       }
     } catch (err) {
       toast.error('Something went wrong');

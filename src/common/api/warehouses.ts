@@ -18,27 +18,34 @@ export interface Warehouse {
   warehouse_code: string
   hotelid: number
   outletid?: number
+  location: string
+  total_items: number
+  client_code: number
   address?: string
   status: number
-  created_by_id?: string
-  created_date?: string
-  updated_by_id?: string
-  updated_date?: string
+  created_by_id: number
+  created_date: number
+  updated_by_id: number
+  updated_date: number
+  marketid: number
 }
 
 /** Warehouse payload for create/update */
 export interface WarehousePayload {
   warehouseid?: number
   warehouse_name: string
-  warehouse_code: string
   hotelid: number
   outletid?: number
   address?: string
+  location: string
+  total_items?: number
+  client_code?: number
   status: number
-  created_by_id?: string
+  created_by_id?: number
   created_date?: string
-  updated_by_id?: string
+  updated_by_id?: number
   updated_date?: string
+  marketid: number
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════

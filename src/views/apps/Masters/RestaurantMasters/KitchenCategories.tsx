@@ -94,7 +94,7 @@ const fetchKitchenCategory = async () => {
     const response = await KitchenMainGroupService.list();
     // Map API response to match KitchenGroupItem interface
     const mappedGroups: KitchenGroupItem[] = response.data.map((item) => ({
-      kitchenmaingroupid: item.kitchen_maingroupid,
+      kitchenmaingroupid: item.kitchenmaingroupid,
       Kitchen_main_Group: item.Kitchen_main_Group,
       status: item.status,
     }));

@@ -17,17 +17,17 @@ import WarehouseService from '@/common/api/warehouses';
 
 interface warehouseItem {
     warehouse_name: string;
-    warehouseid: string;
+    warehouseid: number;
     location: string;
     total_items: number;
-    status: string;
-    created_by_id: string;
-    created_date: string;
-    updated_by_id: string;
-    updated_date: string;
-    hotelid: string;
-    client_code: string;
-    marketid: string;
+    status: number;
+    created_by_id: number;
+    created_date: number;
+    updated_by_id: number;
+    updated_date: number;
+    hotelid: number;
+    client_code: number;
+    marketid: number;
 }
 
 interface WarehouseModalProps {
@@ -65,17 +65,23 @@ const Warehouse: React.FC = () => {
     const [showDetails, setShowDetails] = useState(false);
 
     const fetchWarehouse = async () => {
-        try {
-            setLoading(true);
-           const data = await WarehouseService.list() as unknown as warehouseItem[];
-            const response = { data };
-            setWarehouseItem(response.data);
-        } catch (err) {
-            toast.error('Failed to fetch Warehouse');
-        } finally {
-            setLoading(false);
+    try {
+        setLoading(true);
+
+        const response = await WarehouseService.list();
+
+        if (response.success) {
+            setWarehouseItem(response.data);   // ✅ array
+        } else {
+            toast.error(response.message || "Failed to fetch Warehouse");
         }
-    };
+
+    } catch (err) {
+        toast.error('Failed to fetch Warehouse');
+    } finally {
+        setLoading(false);
+    }
+};
 
     useEffect(() => {
         fetchWarehouse();
@@ -307,7 +313,7 @@ const Warehouse: React.FC = () => {
                         ...warehouse,
                         warehouse_name,
                         location,
-                        status: statusValue.toString(),
+                        status: statusValue,           // ✅ cleanest
                         updated_by_id: userId,
                         updated_date: currentDate,
                         warehouseid: warehouse.warehouseid,

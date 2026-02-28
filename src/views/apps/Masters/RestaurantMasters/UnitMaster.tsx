@@ -62,17 +62,23 @@ const Unitmaster: React.FC = () => {
   const [selectedunitmaster, setSelectedunitmaster] = useState<unitmasterItem | null>(null);
 
   const fetchunitmaster = async () => {
-    try {
-      setLoading(true);
-      const data = await UnitmasterService.list() as unknown as unitmasterItem[];
-      // console.log('Fetched unitmaster:', data);
-      setunitmasterItem(data);
-    } catch (err) {
-      toast.error('Failed to fetch Unitmaster');
-    } finally {
-      setLoading(false);
-    }
-  };
+  try {
+    setLoading(true);
+
+    const response = await UnitmasterService.list();
+
+    // If API returns { success, data }
+    const units = (response as any).data || [];
+
+    setunitmasterItem(units);
+
+  } catch (err) {
+    console.error(err);
+    toast.error('Failed to fetch Unitmaster');
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     fetchunitmaster();
