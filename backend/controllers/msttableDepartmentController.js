@@ -4,31 +4,56 @@ const db = require("../config/db");
 exports.getAllDepartments = (req, res) => {
   try {
     const { hotelid, outletid } = req.query;
+
     let query = `
-      SELECT d.*, o.outlet_name, h.hotel_name, h.hotelid
+      SELECT 
+        d.*, 
+        o.outlet_name, 
+        o.hotelid AS outlet_hotelid,
+        h.hotel_name
       FROM msttable_department d
       LEFT JOIN mst_outlets o ON d.outletid = o.outletid
       LEFT JOIN msthotelmasters h ON o.hotelid = h.hotelid
       WHERE d.status in (1,0)
     `;
+
     const params = [];
+
+    // ✅ Hotel wise filtering
     if (hotelid) {
-      query += ' AND o.hotelid = ?';
-      params.push(hotelid);
+      query += ` AND h.hotelid = ?`;
+      params.push(Number(hotelid));
     }
+
+    // ✅ Outlet wise filtering
     if (outletid) {
-      query += ' AND d.outletid = ?';
-      params.push(outletid);
+      query += ` AND d.outletid = ?`;
+      params.push(Number(outletid));
     }
-    query += ' ORDER BY d.department_name';
+
+    query += ` ORDER BY d.department_name ASC`;
+
+    console.log("Final Query:", query);
+    console.log("Params:", params);
+
     const rows = db.prepare(query).all(...params);
 
-    res.status(200).json({ success: true, data: rows });
+    res.status(200).json({
+      success: true,
+      count: rows.length,
+      data: rows
+    });
+
   } catch (error) {
     console.error('Error fetching departments:', error);
-    res.status(500).json({ success: false, message: "Failed to fetch departments", error: error.message });
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch departments",
+      error: error.message
+    });
   }
-};
+};  
+
 
 // Get a single department by ID
 exports.getDepartmentById = (req, res) => {
