@@ -80,7 +80,7 @@ const fetchKitchenCategory = async () => {
   try {
     setLoading(true);
     const response = await KitchenCategoryService.list();
-    setKitchenCategoryItems(response.data);
+    setKitchenCategoryItems(response.data || []);
   } catch (err) {
     toast.error('Failed to fetch KitchenCategory');
   } finally {
@@ -88,14 +88,23 @@ const fetchKitchenCategory = async () => {
   }
 };
 
-  const fetchKitchenGroups = async () => {
-    try {
-      const data = await KitchenMainGroupService.list() as unknown as KitchenGroupItem[];
-      setKitchenGroups(data);
-    } catch (err) {
-      toast.error('Failed to fetch Kitchen Groups');
-    }
-  };
+ const fetchKitchenGroups = async () => {
+  try {
+    setLoading(true);
+    const response = await KitchenMainGroupService.list();
+    // Map API response to match KitchenGroupItem interface
+    const mappedGroups: KitchenGroupItem[] = response.data.map((item) => ({
+      kitchenmaingroupid: item.kitchen_maingroupid,
+      Kitchen_main_Group: item.Kitchen_main_Group,
+      status: item.status,
+    }));
+    setKitchenGroups(mappedGroups);
+  } catch (err) {
+    toast.error('Failed to fetch Kitchen Groups');
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     fetchKitchenCategory();
@@ -315,7 +324,14 @@ const fetchKitchenCategory = async () => {
         setDescription(KitchenCategory.Description);
         setalternative_category_Description(KitchenCategory.alternative_category_Description);
         setcategorycolor(KitchenCategory.categorycolor);
-        setdigital_order_image(KitchenCategory.digital_order_image);
+        // Handle the case where digital_order_image is string or undefined - convert to null
+        const imageValue = KitchenCategory.digital_order_image;
+        if (imageValue && imageValue instanceof File) {
+          setdigital_order_image(imageValue);
+        } else {
+          // If it's a string URL/path or null/undefined, set to null since state only accepts File | null
+          setdigital_order_image(null);
+        }
         setStatus(KitchenCategory.status === 0 ? 'Active' : 'Inactive');
       } else {
         setKitchen_Category('');
@@ -341,7 +357,7 @@ const fetchKitchenCategory = async () => {
       setLoading(true);
       try {
         const statusValue = status === 'Active' ? 0 : 1;
-        const currentDate = new Date().toISOString();
+        const currentDate = Date.now(); // Use timestamp (number) instead of ISO string
         const payload = {
           Kitchen_Category,
           alternative_category_name,
@@ -372,7 +388,7 @@ const fetchKitchenCategory = async () => {
           : await KitchenCategoryService.create(payload);
         toast.success(`KitchenCategory ${KitchenCategory ? 'updated' : 'added'} successfully`);
         if (KitchenCategory) {
-          const updatedKitchenCategory = {
+          const updatedKitchenCategory: KitchenCategoryItem = {
             ...KitchenCategory,
             Kitchen_Category,
             alternative_category_name,

@@ -14,7 +14,7 @@ import { ApiResponse } from '@/types/api'
 /** Kitchen Main Group information */
 export interface KitchenMainGroup {
   kitchen_maingroupid: number
-  kitchen_maigroup_name: string
+  Kitchen_main_Group: string
   code: string
   status: number
   created_by_id?: string
@@ -26,7 +26,7 @@ export interface KitchenMainGroup {
 /** Kitchen Main Group payload for create/update */
 export interface KitchenMainGroupPayload {
   kitchen_maingroupid?: number
-  kitchen_maigroup_name: string
+  Kitchen_main_Group: string
   code: string
   status: number
   created_by_id?: string

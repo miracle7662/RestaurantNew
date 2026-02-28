@@ -5,7 +5,7 @@ import { Preloader } from '@/components/Misc/Preloader';
 import { Button, Card, Stack, Pagination, Table, Form } from 'react-bootstrap';
 import TitleHelmet from '@/components/Common/TitleHelmet';
 import { useAuthContext } from '../../../../common/context/useAuthContext';
-import KitchenMainGroupService from '@/common/api/kitchenmaingroup';
+import KitchenMainGroupService, { type KitchenMainGroup as KitchenMainGroupApiType } from '@/common/api/kitchenmaingroup';
 
 import {
   useReactTable,
@@ -59,19 +59,29 @@ const KitchenMainGroup: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [selectedKitchenMainGroup, setSelectedKitchenMainGroup] = useState<KitchenMainGroupItem | null>(null);
 
-  const fetchKitchenMainGroup = async () => {
-    try {
-      setLoading(true);
-      const data = await KitchenMainGroupService.list() as unknown as KitchenMainGroupItem[];
-      // console.log('Fetched KitchenMainGroup:', data);
-      setKitchenMainGroupItem(data);
-    } catch (err) {
-      toast.error('Failed to fetch KitchenMainGroup');
-    } finally {
-      setLoading(false);
-    }
-  };
-
+const fetchKitchenMainGroup = async () => {
+  try {
+    setLoading(true);
+    const response = await KitchenMainGroupService.list();
+// Map API response to component's expected format
+    const mappedData: KitchenMainGroupItem[] = response.data.map((item: KitchenMainGroupApiType) => ({
+      kitchenmaingroupid: item.kitchen_maingroupid,
+      Kitchen_main_Group: item.Kitchen_main_Group,
+      status: item.status,
+      created_by_id: item.created_by_id || '',
+      created_date: item.created_date || '',
+      updated_by_id: item.updated_by_id || '',
+      updated_date: item.updated_date || '',
+      hotelid: '',
+      marketid: '',
+    }));
+    setKitchenMainGroupItem(mappedData);
+  } catch (err) {
+    toast.error('Failed to fetch KitchenMainGroup');
+  } finally {
+    setLoading(false);
+  }
+};
   useEffect(() => {
     fetchKitchenMainGroup();
   }, []);
@@ -233,7 +243,7 @@ const KitchenMainGroup: React.FC = () => {
       }
     }, [KitchenMainGroup, isEditMode]);
 
-    const handleSubmit = async () => {
+const handleSubmit = async () => {
       if (!kitchenMainGroupName || !status) {
         toast.error('Kitchen Main Group Name and Status are required');
         return;
@@ -248,15 +258,14 @@ const KitchenMainGroup: React.FC = () => {
         const statusValue = status === 'Active' ? 0 : 1;
         const currentDate = new Date().toISOString();
         const payload = {
-          Kitchen_main_Group: kitchenMainGroupName,
+         Kitchen_main_Group: kitchenMainGroupName,
+          code: isEditMode ? '' : '',
           status: statusValue,
           ...(isEditMode
             ? {
-                kitchenmaingroupid: KitchenMainGroup!.kitchenmaingroupid,
+                kitchen_maingroupid: KitchenMainGroup!.kitchenmaingroupid,
                 updated_by_id: userId,
                 updated_date: currentDate,
-                hotelid: KitchenMainGroup!.hotelid || hotelId,
-                marketid: KitchenMainGroup!.marketid || marketId
               }
             : {
                 created_by_id: userId,
