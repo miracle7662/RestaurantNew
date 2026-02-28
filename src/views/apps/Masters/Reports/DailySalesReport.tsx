@@ -508,7 +508,7 @@ const ReportPage = () => {
     console.log("User context data:", user);
 
     // Ensure dynamicPaymentModes is always an array to prevent errors
-    const paymentModes = Array.isArray(dynamicPaymentModes) ? dynamicPaymentModes : [];
+    // const paymentModes = Array.isArray(dynamicPaymentModes) ? dynamicPaymentModes : [];
 
     const hotel_name = hotelDetails?.hotel_name || user?.hotel_name || 'Hotel Name Not Found';
     const hotelAddress = hotelDetails?.address || 'Address not available';

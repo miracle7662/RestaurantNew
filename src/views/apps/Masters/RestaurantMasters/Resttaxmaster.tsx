@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, Col, Row, Button, Form, Table, Modal, Alert } from 'react-bootstrap';
 import { useAuthContext } from '@/common/context/useAuthContext';
 import { fetchBrands, fetchOutletsForDropdown } from '@/utils/commonfunction';
@@ -190,7 +190,7 @@ const RestTaxMaster: React.FC = () => {
         response = await RestTaxMasterService.create(payload);
         setSuccess('Rest tax created successfully');
       }
-      
+      console.log(response);
       setShowModal(false);
       resetForm();
       await fetchData();
@@ -223,11 +223,13 @@ const RestTaxMaster: React.FC = () => {
     if (window.confirm('Are you sure you want to delete this rest tax?')) {
       try {
         const response = await RestTaxMasterService.remove(id);
+        console.log(response);
         setSuccess('Rest tax deleted successfully');
         await fetchData();
       } catch (err: any) {
         setError(err.response?.data?.message || 'Failed to delete rest tax');
       }
+      
     }
   };
 

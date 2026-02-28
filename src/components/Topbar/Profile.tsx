@@ -16,14 +16,14 @@ const Profile = () => {
     setDropDownOpen(!dropDownOpen)
   }
   const [status, setStatus] = useState('Online')
-  const statusOptions = [
-    { label: 'Busy', color: 'warning' },
-    { label: 'Online', color: 'success' },
-    { label: 'Offline', color: 'secondary' },
-    { label: 'Inactive', color: 'danger' },
-    { label: 'Invisible', color: 'black' },
-    { label: 'Always', color: 'info' },
-  ]
+  // const statusOptions = [
+  //   { label: 'Busy', color: 'warning' },
+  //   { label: 'Online', color: 'success' },
+  //   { label: 'Offline', color: 'secondary' },
+  //   { label: 'Inactive', color: 'danger' },
+  //   { label: 'Invisible', color: 'black' },
+  //   { label: 'Always', color: 'info' },
+  // ]
   const handleStatusChange = (newStatus: string) => {
     setStatus(newStatus)
   }

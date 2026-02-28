@@ -525,7 +525,7 @@ const ItemMainGroupModal: React.FC<ItemMainGroupModalProps> = ({ show, onHide, o
         ? await ItemMainGroupService.update(itemMainGroup!.item_maingroupid, payload)
         : await ItemMainGroupService.create(payload);
 
-      toast.success(`ItemMainGroup ${isEditMode ? 'updated' : 'added'} successfully`);
+      toast.success(`ItemMainGroup ${isEditMode ? 'updated' : 'added'} successfully: ${res.message}`);
       if (isEditMode && itemMainGroup && onUpdateSelectedItemMainGroup) {
         const updatedItemMainGroup = {
           ...itemMainGroup,

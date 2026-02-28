@@ -123,7 +123,7 @@ const ModernBill = () => {
   const [cgst, setCgst] = useState<number>(0);
   const [sgst, setSgst] = useState<number>(0);
   const [igst, setIgst] = useState<number>(0);
-  const [cess, setCess] = useState<number>(0);
+  const [, setCess] = useState<number>(0);
 
   const [finalAmount, setFinalAmount] = useState(0);
   const navigate = useNavigate();
@@ -165,13 +165,7 @@ const ModernBill = () => {
   const [RevKOT, setRevKOT] = useState(0);
   const [items, setItems] = useState<any[]>([]);
   const [reversedItems, setReversedItems] = useState<any[]>([]);
-
-  const totalRevKotAmount = useMemo(() => {
-    return reversedItems.reduce((acc, item) => acc + ((item.qty || 0) * (item.price || 0)), 0);
-  }, [reversedItems]);
-
   const [tableItems, setTableItems] = useState([] as TableManagement[]);
-
   const [currentKOTNos, setCurrentKOTNos] = useState<number[]>([]);
   const [orderNo, setOrderNo] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('Dine-in');
@@ -179,7 +173,6 @@ const ModernBill = () => {
   const [outletName, setOutletName] = useState<string>('');
   const [groupBy, setGroupBy] = useState<'none' | 'item' | 'group' | 'kot'>('group');
   const [deliveryType, setDeliveryType] = useState<'pickup' | 'homedelivery'>('pickup');
-
   const [isTableOccupied, setIsTableOccupied] = useState(false);
 
   // Set deliveryType based on location.state?.orderType or loaded order's Order_Type
@@ -412,10 +405,10 @@ const ModernBill = () => {
       ? totalReceived - taxCalc.grandTotal
       : 0;
 
-  const [activePaymentIndex, setActivePaymentIndex] = useState(0);
+  const [, setActivePaymentIndex] = useState(0);
   const [totalCess, setTotalCess] = useState(0);
-  const [showOrderDetails, setShowOrderDetails] = useState(false);
-  const [showPendingOrdersView, setShowPendingOrdersView] = useState(false);
+  const [, setShowOrderDetails] = useState(false);
+  const [, setShowPendingOrdersView] = useState(false);
 
   // Reverse KOT modal data
   const [showReverseKot, setShowReverseKot] = useState(false);
@@ -2176,8 +2169,10 @@ const ModernBill = () => {
 
       const result = response.data;
 
-
-
+      if (result.error) {
+        toast.error(result.error);
+        return;
+      }
       toast.success('Discount applied successfully!');
       setShowDiscountModal(false);
       // Instead of clearing the table, just refresh its data to show the discount.

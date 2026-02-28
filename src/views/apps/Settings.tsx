@@ -100,7 +100,7 @@ function SettingsPage() {
   const { user } = useAuthContext();
   const [outlets, setOutlets] = useState<OutletData[]>([]);
   const [loading, setLoading] = useState(false);
-  const [outletsLoaded, setOutletsLoaded] = useState(false);
+  // const [outletsLoaded, setOutletsLoaded] = useState(false);
 
   // Don't render if user is not available
  
@@ -111,11 +111,11 @@ function SettingsPage() {
   const [selectedBillPrinter, setSelectedBillPrinter] = useState("");
   const [kotEnablePrint, setKotEnablePrint] = useState(true);
   const [billEnablePrint, setBillEnablePrint] = useState(true);
-  const [selectedKotSource, setSelectedKotSource] = useState("");
+  const [, setSelectedKotSource] = useState("");
   const [selectedKotOrderType, setSelectedKotOrderType] = useState("");
   const [selectedKotSize, setSelectedKotSize] = useState("");
   const [kotCopies, setKotCopies] = useState("");
-  const [selectedBillSource, setSelectedBillSource] = useState("");
+  const [, setSelectedBillSource] = useState("");
   const [selectedBillOrderType, setSelectedBillOrderType] = useState("");
   const [selectedBillSize, setSelectedBillSize] = useState("");
   const [billCopies, setBillCopies] = useState("");
@@ -130,10 +130,10 @@ function SettingsPage() {
   const [labelPrinters, setLabelPrinters] = useState<LabelPrinterSetting[]>([]);
   const [reportPrinters, setReportPrinters] = useState<ReportPrinterSetting[]>([]);
   const [departmentPrinters, setDepartmentPrinters] = useState<DepartmentWisePrinter[]>([]);
-  const [tableWiseKot, setTableWiseKot] = useState<TableWiseKot[]>([]);
-  const [tableWiseBill, setTableWiseBill] = useState<TableWiseBill[]>([]);
-  const [categoryPrinters, setCategoryPrinters] = useState<CategoryWisePrinter[]>([]);
-  const [, setKdsUsers] = useState<KDSUser[]>([]);
+  const [tableWiseKot, ] = useState<TableWiseKot[]>([]);
+  const [tableWiseBill, ] = useState<TableWiseBill[]>([]);
+  const [categoryPrinters, ] = useState<CategoryWisePrinter[]>([]);
+  const [, ] = useState<KDSUser[]>([]);
   const [, setEditingKotId] = useState<number | null>(null);
   const [, setEditingBillId] = useState<number | null>(null);
   const [reportPrinterName, setReportPrinterName] = useState("");
@@ -261,45 +261,45 @@ function SettingsPage() {
     }
   };
 
-  const fetchTableWiseKot = async () => {
-    try {
-      const response = await SettingsService.listTableWiseKot();
-      const data = response.data || [];
-      setTableWiseKot(data);
-    } catch (error) {
-      console.error('Failed to fetch table wise KOT:', error);
-    }
-  };
+  // const fetchTableWiseKot = async () => {
+  //   try {
+  //     const response = await SettingsService.listTableWiseKot();
+  //     const data = response.data || [];
+  //     setTableWiseKot(data);
+  //   } catch (error) {
+  //     console.error('Failed to fetch table wise KOT:', error);
+  //   }
+  // };
 
-  const fetchTableWiseBill = async () => {
-    try {
-      const response = await SettingsService.listTableWiseBill();
-      const data = response.data;
-      setTableWiseBill(data);
-    } catch (error) {
-      console.error('Failed to fetch table wise bill:', error);
-    }
-  };
+  // const fetchTableWiseBill = async () => {
+  //   try {
+  //     const response = await SettingsService.listTableWiseBill();
+  //     const data = response.data;
+  //     setTableWiseBill(data);
+  //   } catch (error) {
+  //     console.error('Failed to fetch table wise bill:', error);
+  //   }
+  // };
 
-  const fetchCategoryPrinters = async () => {
-    try {
-      const response = await SettingsService.listCategoryPrinters();
-      const data = response.data || [];
-      setCategoryPrinters(data);
-    } catch (error) {
-      console.error('Failed to fetch category printers:', error);
-    }
-  };
+  // const fetchCategoryPrinters = async () => {
+  //   try {
+  //     const response = await SettingsService.listCategoryPrinters();
+  //     const data = response.data || [];
+  //     setCategoryPrinters(data);
+  //   } catch (error) {
+  //     console.error('Failed to fetch category printers:', error);
+  //   }
+  // };
 
-  const fetchKdsUsers = async () => {
-    try {
-      const response = await SettingsService.listKdsUsers();
-      const data = response.data || [];
-      setKdsUsers(data);
-    } catch (error) {
-      console.error('Failed to fetch KDS users:', error);
-    }
-  };
+  // const fetchKdsUsers = async () => {
+  //   try {
+  //     const response = await SettingsService.listKdsUsers();
+  //     const data = response.data || [];
+  //     setKdsUsers(data);
+  //   } catch (error) {
+  //     console.error('Failed to fetch KDS users:', error);
+  //   }
+  // };
 
   // Load all data when printer tab is active
   useEffect(() => {
@@ -309,10 +309,10 @@ function SettingsPage() {
      fetchLabelPrinters();
 -      fetchReportPrinters();
       fetchDepartmentPrinters();
-      fetchTableWiseKot();
-      fetchTableWiseBill();
-      fetchCategoryPrinters();
-      fetchKdsUsers();
+      // fetchTableWiseKot();
+      // fetchTableWiseBill();
+      // fetchCategoryPrinters();
+      // fetchKdsUsers();
     }
   }, [activeTab]);
 

@@ -1,41 +1,24 @@
-# API Files Conversion Task
+# TODO List - Fix TypeScript Errors in Settings.tsx
 
-## Target Format: order.ts format
-- Use HttpClient from '../helpers/httpClient'
-- Use ApiResponse from '@/types/api'
-- Add comprehensive type definitions
-- Use const Service pattern with Promise<ApiResponse<T>> return types
+## Task: Fix "'response' is of type 'unknown'" TypeScript errors
 
-## Files to Convert (25 total)
+### Steps:
+- [x] 1. Analyze the issue - API methods in settings.ts don't specify return types
+- [x] 2. Confirm the plan with user
+- [ ] 3. Update src/common/api/settings.ts with proper return types
+- [ ] 4. Verify the fix resolves the TypeScript errors
 
-### Using `function Service()` pattern (21 files):
-- [x] cities.ts
-- [x] countries.ts
-- [x] hotels.ts
-- [x] hoteltype.ts
-- [x] itemgroup.ts
-- [x] itemmaingroup.ts
-- [x] kitchencategory.ts
-- [x] kitchenmaingroup.ts
-- [x] kitchensubcategory.ts
-- [x] markets.ts
-- [x] menu.ts
-- [x] outletdesignation.ts
-- [x] outletpaymentmode.ts
-- [x] profile.ts
-- [x] resttaxmaster.ts
-- [x] settlements.ts
-- [x] states.ts
-- [x] taxgroups.ts
-- [x] unitmaster.ts
-- [x] usertype.ts
-- [x] warehouses.ts
+### Details:
+The issue is that HttpClient methods return `Promise<unknown>` when no type is specified.
+The fix is to add generic type parameters to all API methods in settings.ts.
 
-### Using `new APICore()` pattern (4 files):
-- [x] brand.ts
-- [x] masterData.ts
-- [x] outlet.ts
-- [x] outletUser.ts
-
-## Summary
-All 25 API files have been successfully converted to the order.ts format!
+Methods to fix:
+- listKotPrinters: HttpClient.get<KotPrinterPayload[]>
+- listBillPrinters: HttpClient.get<BillPrinterPayload[]>
+- listLabelPrinters: HttpClient.get<LabelPrinterPayload[]>
+- listReportPrinters: HttpClient.get<ReportPrinterPayload[]>
+- listDepartmentPrinters: HttpClient.get<DepartmentPrinterPayload[]>
+- listTableWiseKot: HttpClient.get<TableWiseKotPayload[]>
+- listTableWiseBill: HttpClient.get<TableWiseBillPayload[]>
+- listCategoryPrinters: HttpClient.get<CategoryPrinterPayload[]>
+- listKdsUsers: HttpClient.get<KDSUserPayload[]>

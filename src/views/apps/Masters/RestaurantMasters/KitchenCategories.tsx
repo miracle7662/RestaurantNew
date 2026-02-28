@@ -386,7 +386,7 @@ const fetchKitchenCategory = async () => {
         const res = KitchenCategory
           ? await KitchenCategoryService.update(KitchenCategory.kitchencategoryid, payload)
           : await KitchenCategoryService.create(payload);
-        toast.success(`KitchenCategory ${KitchenCategory ? 'updated' : 'added'} successfully`);
+        toast.success(`KitchenCategory ${KitchenCategory ? 'updated' : 'added'} successfully: ${res.data}`);
         if (KitchenCategory) {
           const updatedKitchenCategory: KitchenCategoryItem = {
             ...KitchenCategory,

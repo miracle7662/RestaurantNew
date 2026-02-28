@@ -322,18 +322,18 @@ const OutletUserList: React.FC = () => {
       try {
         if (modalType === 'Edit Outlet User' && selectedUser) {
           const response = await outletUserService.updateOutletUser(selectedUser.userid!, userData);
-          // console.log('Update response:', response.data);
+          console.log('Update response:', response.data);
           toast.success('Outlet user updated successfully!');
         } else {
           const response = await outletUserService.createOutletUser(userData);
-          // console.log('Create response:', response.data);
+          console.log('Create response:', response.data);
           toast.success('Outlet user added successfully!');
         }
         fetchOutletUsers();
         handleCloseModal();
       } catch (error: any) {
         // console.error('Full error object:', error);
-        const status = error.response?.status;
+        // const status = error.response?.status;
         const errorData = error.response?.data || error.message;
         const errorMessage = errorData?.message || (modalType === 'Edit Outlet User' ? 'Failed to update outlet user' : 'Failed to add outlet user');
         const invalidOutletId = errorData?.invalidOutletId || [];

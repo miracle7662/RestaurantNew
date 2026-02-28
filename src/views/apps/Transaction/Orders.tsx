@@ -111,7 +111,7 @@ const Order = () => {
   const [mobileNumber, setMobileNumber] = useState<string>('');
   const [customerName, setCustomerName] = useState<string>('');
   const [customerid, setCustomerId] = useState<number | null>(null);
-  const [customerAddress, setCustomerAddress] = useState<string>('');
+  const [, setCustomerAddress] = useState<string>('');
   const [taxRates, setTaxRates] = useState<{ cgst: number; sgst: number; igst: number; cess: number }>({ cgst: 0, sgst: 0, igst: 0, cess: 0 });
   const [taxCalc, setTaxCalc] = useState<{ subtotal: number; taxableValue: number; cgstAmt: number; sgstAmt: number; igstAmt: number; cessAmt: number; grandTotal: number }>({ subtotal: 0, taxableValue: 0, cgstAmt: 0, sgstAmt: 0, igstAmt: 0, cessAmt: 0, grandTotal: 0 });
   // 0 = exclusive (default), 1 = inclusive
@@ -135,8 +135,8 @@ const [roundOffEnabled, setRoundOffEnabled] = useState<boolean>(false);
   const [currentKOTNos, setCurrentKOTNos] = useState<number[]>([]);
   const [currentTxnId, setCurrentTxnId] = useState<number | null>(null);
   const [orderNo, setOrderNo] = useState<string | null>(null); // New state for displaying Bill No
-  const [billPrintedTime, setBillPrintedTime] = useState<string | null>(null); // New state for Bill Printed Time
-  const [netAmount, setNetAmount] = useState<number | null>(null); // New state for Net Amount
+  const [, setBillPrintedTime] = useState<string | null>(null); // New state for Bill Printed Time
+  const [, setNetAmount] = useState<number | null>(null); // New state for Net Amount
   const [formData, setFormData] = useState<FormData>({} as FormData);
   // New state for F8 password modal on billed tables
   const [showPrintBoth, setShowPrintBoth] = useState(false);
@@ -290,7 +290,8 @@ const [roundOffEnabled, setRoundOffEnabled] = useState<boolean>(false);
   };
 
   // Shared calculation function for round-off
-  const calculateRoundOff = (grandTotal: number, roundOffEnabled: boolean, roundOffTo: number) => {
+  const calculateRoundOff = (grandTotal: number, roundOffTo: number, roundOffEnabled: boolean) => {
+    console.log('Calculating round-off...', grandTotal, roundOffTo, roundOffEnabled, calculateRoundOff );
     if (roundOffEnabled) {
       const { roundedAmount, roundOffValue } = applyRoundOff(grandTotal, roundOffTo);
       return { finalGrandTotal: roundedAmount, appliedRoundOff: roundOffValue };
@@ -1617,7 +1618,8 @@ const handleTabClick = (tab: string) => {
         const cessAmt = (lineSubtotal * cessPer) / 100; // This tax calculation is for bill, not KOT. KOT only needs item and quantity.
 
         // Calculate item level discount if percentage
-        const itemDiscountAmount = DiscountType === 1 ? (lineSubtotal * discountInputValue) / 100 : 0;
+        const itemLevelDiscount = DiscountType === 1 ? (lineSubtotal * discountInputValue) / 100 : 0;
+        console.log('itemLevelDiscount:', itemLevelDiscount);
 
         return {
           ItemID: i.id,

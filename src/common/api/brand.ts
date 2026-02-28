@@ -70,6 +70,9 @@ export interface BrandUser {
   [key: string]: any
 }
 
+/** BrandData - Alias for Brand interface for compatibility */
+export type BrandData = Brand;
+
 /* ═══════════════════════════════════════════════════════════════════════════════
  * Brand Service
  * ═══════════════════════════════════════════════════════════════════════════════ */
