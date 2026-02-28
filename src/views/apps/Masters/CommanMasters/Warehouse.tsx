@@ -22,9 +22,9 @@ interface warehouseItem {
     total_items: number;
     status: number;
     created_by_id: number;
-    created_date: number;
+    created_date: number | string;
     updated_by_id: number;
-    updated_date: number;
+    updated_date: number | string;
     hotelid: number;
     client_code: number;
     marketid: number;

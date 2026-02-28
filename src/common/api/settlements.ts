@@ -57,31 +57,31 @@ const SettlementService = {
    * Get all settlements with optional filters
    */
   list: (params?: { q?: string; outletid?: number; hotelid?: number }): Promise<ApiResponse<Settlement[]>> =>
-    HttpClient.get<ApiResponse<Settlement[]>>('/settlement', { params }),
+    HttpClient.get<ApiResponse<Settlement[]>>('/settlements', { params }),
 
   /**
    * Get settlement by ID
    */
   getById: (id: number): Promise<ApiResponse<Settlement>> =>
-    HttpClient.get<ApiResponse<Settlement>>(`/settlement/${id}`),
+    HttpClient.get<ApiResponse<Settlement>>(`/settlements/${id}`),
 
   /**
    * Create a new settlement
    */
   create: (payload: SettlementPayload): Promise<ApiResponse<Settlement>> =>
-    HttpClient.post<ApiResponse<Settlement>>('/settlement', payload),
+    HttpClient.post<ApiResponse<Settlement>>('/settlements', payload),
 
   /**
    * Update an existing settlement
    */
   update: (id: number, payload: SettlementPayload): Promise<ApiResponse<Settlement>> =>
-    HttpClient.put<ApiResponse<Settlement>>(`/settlement/${id}`, payload),
+    HttpClient.put<ApiResponse<Settlement>>(`/settlements/${id}`, payload),
 
   /**
    * Delete a settlement
    */
   remove: (id: number): Promise<ApiResponse<null>> =>
-    HttpClient.delete<ApiResponse<null>>(`/settlement/${id}`),
+    HttpClient.delete<ApiResponse<null>>(`/settlements/${id}`),
 
   /**
    * Replace settlements for an OrderNo (delete all and insert new)
@@ -96,7 +96,7 @@ const SettlementService = {
     EditedBy?: any;
     InsertDate?: string;
   }): Promise<ApiResponse<null>> =>
-    HttpClient.post<ApiResponse<null>>('/settlement/replace', payload)
+    HttpClient.post<ApiResponse<null>>('/settlements/replace', payload)
 }
 
 export default SettlementService
