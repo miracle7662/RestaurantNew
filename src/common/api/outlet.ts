@@ -631,6 +631,6 @@ const OutletService = {
     HttpClient.get<ApiResponse<OutletBillingSettings>>(`/outlets/settings/${outletId}`)
 }
 
-
+export { OutletService }
 
 export default OutletService
