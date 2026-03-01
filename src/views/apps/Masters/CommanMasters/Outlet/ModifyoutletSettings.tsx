@@ -5,6 +5,22 @@ import { useAuthContext } from '@/common';
 import { OutletData, OutletSettings, OutletService } from '@/common/api/outlet';
 import { fetchWaiterUsers, WaiterUser } from '@/services/user.service';
 
+const convertBooleansToNumbers = (data: Record<string, any>) => {
+  const result: Record<string, any> = {};
+
+  Object.keys(data).forEach((key) => {
+    const value = data[key];
+
+    if (typeof value === 'boolean') {
+      result[key] = value ? 1 : 0;
+    } else {
+      result[key] = value;
+    }
+  });
+
+  return result;
+};
+
 const ModifyOutletSettingsModal: React.FC<{
   show: boolean;
   onHide: () => void;
@@ -152,75 +168,20 @@ const ModifyOutletSettingsModal: React.FC<{
 
     setLoading(true);
     try {
-      // Convert boolean fields to 1/0 for the backend
-      const payload = {
+      const basePayload = {
         ...formData,
         outletid: selectedOutlet.outletid,
         hotelid: selectedOutlet.hotelid,
         updated_at: new Date().toISOString(),
         updated_by_id: user?.id ?? '1',
-        bill_round_off: formData.bill_round_off ? 1 : 0,
-        enable_loyalty: formData.enable_loyalty ? 1 : 0,
-        multiple_price_setting: formData.multiple_price_setting ? 1 : 0,
-        bill_round_off_to: formData.bill_round_off_to,
-        include_tax_in_invoice: formData.include_tax_in_invoice ? 1 : 0,
         service_charges: formData.service_charges || 0,
-        verify_pos_system_login: formData.verify_pos_system_login ? 1 : 0,
-        table_reservation: formData.table_reservation ? 1 : 0,
-        auto_update_pos: formData.auto_update_pos ? 1 : 0,
-        send_report_email: formData.send_report_email ? 1 : 0,
-        send_report_whatsapp: formData.send_report_whatsapp ? 1 : 0,
-        allow_multiple_tax: formData.allow_multiple_tax ? 1 : 0,
-        enable_call_center: formData.enable_call_center ? 1 : 0,
         invoice_message: formData.invoice_message || '',
-        bharatpe_integration: formData.bharatpe_integration ? 1 : 0,
-        phonepe_integration: formData.phonepe_integration ? 1 : 0,
-        reelo_integration: formData.reelo_integration ? 1 : 0,
-        tally_integration: formData.tally_integration ? 1 : 0,
-        sunmi_integration: formData.sunmi_integration ? 1 : 0,
-        zomato_pay_integration: formData.zomato_pay_integration ? 1 : 0,
-        zomato_enabled: formData.zomato_enabled ? 1 : 0,
-        swiggy_enabled: formData.swiggy_enabled ? 1 : 0,
-        rafeeq_enabled: formData.rafeeq_enabled ? 1 : 0,
-        noon_food_enabled: formData.noon_food_enabled ? 1 : 0,
-        magicpin_enabled: formData.magicpin_enabled ? 1 : 0,
-        dotpe_enabled: formData.dotpe_enabled ? 1 : 0,
-        cultfit_enabled: formData.cultfit_enabled ? 1 : 0,
-        ubereats_enabled: formData.ubereats_enabled ? 1 : 0,
-        scooty_enabled: formData.scooty_enabled ? 1 : 0,
-        dunzo_enabled: formData.dunzo_enabled ? 1 : 0,
-        foodpanda_enabled: formData.foodpanda_enabled ? 1 : 0,
-        amazon_enabled: formData.amazon_enabled ? 1 : 0,
-        talabat_enabled: formData.talabat_enabled ? 1 : 0,
-        deliveroo_enabled: formData.deliveroo_enabled ? 1 : 0,
-        careem_enabled: formData.careem_enabled ? 1 : 0,
-        jahez_enabled: formData.jahez_enabled ? 1 : 0,
-        eazydiner_enabled: formData.eazydiner_enabled ? 1 : 0,
-        radyes_enabled: formData.radyes_enabled ? 1 : 0,
-        goshop_enabled: formData.goshop_enabled ? 1 : 0,
-        chatfood_enabled: formData.chatfood_enabled ? 1 : 0,
-        jubeat_enabled: formData.jubeat_enabled ? 1 : 0,
-        thrive_enabled: formData.thrive_enabled ? 1 : 0,
-        fidoo_enabled: formData.fidoo_enabled ? 1 : 0,
-        mrsool_enabled: formData.mrsool_enabled ? 1 : 0,
-        swiggystore_enabled: formData.swiggystore_enabled ? 1 : 0,
-        zomatormarket_enabled: formData.zomatormarket_enabled ? 1 : 0,
-        hungerstation_enabled: formData.hungerstation_enabled ? 1 : 0,
-        instashop_enabled: formData.instashop_enabled ? 1 : 0,
-        eteasy_enabled: formData.eteasy_enabled ? 1 : 0,
-        smiles_enabled: formData.smiles_enabled ? 1 : 0,
-        toyou_enabled: formData.toyou_enabled ? 1 : 0,
-        dca_enabled: formData.dca_enabled ? 1 : 0,
-        ordable_enabled: formData.ordable_enabled ? 1 : 0,
-        beanz_enabled: formData.beanz_enabled ? 1 : 0,
-        cari_enabled: formData.cari_enabled ? 1 : 0,
-        the_chefz_enabled: formData.the_chefz_enabled ? 1 : 0,
-        keeta_enabled: formData.keeta_enabled ? 1 : 0,
-        default_waiter_id: formData.default_waiter_id,
-        pax: formData.pax ? 1 : 0,
+        pax: Number(formData.pax) || 1,
       };
 
-      const response = await OutletService.updateOutletSettings(selectedOutlet.outletid!, payload);
+      const payload = convertBooleansToNumbers(basePayload);
+
+      const response = await OutletService.updateOutletSettings(selectedOutlet.outletid!, payload as any);
       if (response.success) {
         await handleUpdate(selectedOutlet.outletid, selectedOutlet.hotelid);
         toast.success('Outlet settings updated successfully!');

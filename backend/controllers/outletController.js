@@ -1432,9 +1432,10 @@ const insertStmt = db.prepare(`
       .get(outletid)
 
     res.json({
-      message: 'Outlet settings updated successfully',
-      settings: updatedSettings
-    })
+    success: true,
+    message: 'Outlet settings updated successfully',
+    settings: updatedSettings
+})
 
   } catch (error) {
     // Rollback transaction on error
