@@ -25,17 +25,17 @@ import PaginationComponent from '@/components/Common/PaginationComponent';
 
 interface warehouseItem {
   warehouse_name: string;
-  warehouseid: string;
+  warehouseid: number;
   location: string;
   total_items: number;
-  status: string;
-  created_by_id: string;
-  created_date: string;
-  updated_by_id: string;
-  updated_date: string;
-  hotelid: string;
-  client_code: string;
-  marketid: string;
+  status: number;
+  created_by_id: number;
+  created_date: number;
+  updated_by_id: number;
+  updated_date: number;
+  hotelid: number;
+  client_code: number;
+  marketid: number;
 }
 
 // Debounce utility function
@@ -104,14 +104,17 @@ const OutletList: React.FC = () => {
   const [selectedWarehouseForm, setSelectedWarehouseForm] = useState<string>('');
   const [fssaiNo, setFssaiNo] = useState<string>('');
 
-  const fetchWarehouses = async () => {
-    try {
-     const data = await WarehouseService.list() as unknown as warehouseItem[];
-      setWarehouses(data);
-    } catch (err) {
-      toast.error('Failed to fetch Warehouses');
+const fetchWarehouses = async () => {
+  try {
+    const response = await WarehouseService.list();
+
+    if (response.data) {
+      setWarehouses(response.data);
     }
-  };
+  } catch (error) {
+    toast.error("Failed to fetch warehouses");
+  }
+};
 
   useEffect(() => {
     // console.log('OutletList component mounted');

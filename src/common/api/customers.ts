@@ -69,19 +69,10 @@ export interface CustomerPayload {
 }
 
 /** Customer list response */
-export interface CustomerListResponse {
-  data: Customer[]
-  success: boolean
-  message?: string
-}
+
 
 /** Customer create response */
-export interface CustomerResponse {
-  success: boolean
-  message: string
-  data?: Customer
-  error?: string
-}
+
 
 /* ═══════════════════════════════════════════════════════════════════════════════
  * Customer Service
@@ -114,14 +105,14 @@ const CustomerService = {
   /**
    * Create a new customer
    */
-  create: (payload: CustomerPayload): Promise<ApiResponse<CustomerResponse>> =>
-    HttpClient.post<ApiResponse<CustomerResponse>>('/customer', payload),
+  create: (payload: CustomerPayload): Promise<ApiResponse<Customer>> =>
+    HttpClient.post<ApiResponse<Customer>>('/customer', payload),
 
   /**
    * Update an existing customer
    */
-  update: (id: number, payload: CustomerPayload): Promise<ApiResponse<CustomerResponse>> =>
-    HttpClient.put<ApiResponse<CustomerResponse>>(`/customer/${id}`, payload),
+  update: (id: number, payload: CustomerPayload): Promise<ApiResponse<Customer>> =>
+    HttpClient.put<ApiResponse<Customer>>(`/customer/${id}`, payload),
 
   /**
    * Delete a customer

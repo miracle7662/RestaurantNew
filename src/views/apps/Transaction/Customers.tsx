@@ -164,7 +164,7 @@ function Customers() {
     const response = await CustomerService.list();
 
     // ✅ Extract actual customer array - with guard for undefined
-    setCustomers(response?.data || []);
+    setCustomers(response.data || []);
 
   } catch (err) {
     toast.error('Error fetching customer data');
@@ -309,9 +309,11 @@ function Customers() {
         updated_by_id: user?.id || 1,
         updated_date: currentDate,
       };
-      const response = selectedCustomerId ? await CustomerService.update(selectedCustomerId, payload) : await CustomerService.create(payload);
-      // Extract the Customer from CustomerResponse
-      const customerData = (response.data as any)?.data || response.data;
+      const response = selectedCustomerId
+  ? await CustomerService.update(selectedCustomerId, payload)
+  : await CustomerService.create(payload);
+
+   const customerData = response.data;
       const message = selectedCustomerId ? 'Customer updated successfully' : 'Customer added successfully';
       toast.success(message);
       if (selectedCustomerId) {

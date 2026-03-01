@@ -722,11 +722,14 @@ export const fetchWarehouses = async (
   try {
     setLoading(true)
     const res = await fetch('http://localhost:3001/api/warehouse')
-    const data: WarehouseItem[] = await res.json()
+    const response = await res.json()
+    // Handle both direct array and wrapped response { success, data } or { data }
+    const data: WarehouseItem[] = Array.isArray(response) ? response : (response.data || [])
     setWarehouses(data)
   } catch (err) {
     toast.error('Failed to fetch warehouses')
     console.error('Fetch warehouses error:', err)
+    setWarehouses([])
   } finally {
     setLoading(false)
   }
