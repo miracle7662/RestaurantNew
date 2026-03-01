@@ -152,6 +152,16 @@ export interface DayendReportPayload {
 /** Closing balance response */
 export interface ClosingBalanceData {
   closing_balance: number
+  opening_balance: number | null
+  dayend_date: string | null
+  curr_date: string | null
+}
+
+/** Check opening balance required response */
+export interface CheckOpeningBalanceRequiredData {
+  required: boolean
+  reason: string
+  opening_balance: number
   dayend_date: string | null
   curr_date: string | null
 }
@@ -187,6 +197,12 @@ const DayendService = {
    */
   getClosingBalance: (params: { outlet_id?: number; hotel_id: number }): Promise<ApiResponse<ClosingBalanceData>> =>
     HttpClient.get<ApiResponse<ClosingBalanceData>>('/dayend/closing-balance', { params }),
+
+  /**
+   * Check if opening balance is required (returns true if opening_balance is NULL)
+   */
+  checkOpeningBalanceRequired: (params: { outlet_id?: number; hotel_id: number }): Promise<ApiResponse<CheckOpeningBalanceRequiredData>> =>
+    HttpClient.get<ApiResponse<CheckOpeningBalanceRequiredData>>('/dayend/check-opening-balance-required', { params }),
 
   /* ═══════════════════════════════════════════════════════════════════════════════
    * Mutation Operations

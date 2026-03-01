@@ -43,8 +43,22 @@ export default function useLogin() {
     saveSession(res)
   }
 
-  // ✅ Go to Opening Balance page first
- navigate('/apps/OpeningBalancePage')
+  // ✅ Check if opening balance is required
+  try {
+    const openingBalanceCheck = await DayendService.checkOpeningBalanceRequired({
+      outlet_id: res.outletid ? Number(res.outletid) : undefined,
+      hotel_id: Number(res.hotelid)
+    });
+    
+    if (openingBalanceCheck.data?.required) {
+      navigate('/apps/OpeningBalancePage');
+    } else {
+      navigate('/'); // Go directly to dashboard
+    }
+  } catch (error) {
+    // If check fails, go to dashboard
+    navigate('/');
+  }
 }
 
       }, 1500)
@@ -76,9 +90,9 @@ export default function useLogin() {
               hotelid: res.hotelid
             })
             if (currDateData.success) {
-  const currDate = currDateData.data.curr_date
-  console.log("Business Date:", currDate)
-}
+              const currDate = currDateData.data.curr_date
+              console.log("Business Date:", currDate)
+            }
             // Include currDate in the session
             saveSession({ ...res, currDate: currDateData.data.curr_date })
           } catch (dateError) {
@@ -86,7 +100,23 @@ export default function useLogin() {
             console.error('Failed to fetch business date:', dateError)
             saveSession(res)
           }
-          navigate('/apps/OpeningBalancePage')
+
+          // ✅ Check if opening balance is required
+          try {
+            const openingBalanceCheck = await DayendService.checkOpeningBalanceRequired({
+              outlet_id: res.outletid ? Number(res.outletid) : undefined,
+              hotel_id: Number(res.hotelid)
+            });
+            
+            if (openingBalanceCheck.data?.required) {
+              navigate('/apps/OpeningBalancePage');
+            } else {
+              navigate('/'); // Go directly to dashboard
+            }
+          } catch (error) {
+            // If check fails, go to dashboard
+            navigate('/');
+          }
 
         }
       }, 1500)

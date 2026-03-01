@@ -985,6 +985,7 @@ module.exports = {
   saveDayEnd,
   getLatestCurrDate,
   getClosingBalance,
+  checkOpeningBalanceRequired,
   saveOpeningBalance,
   generateDayEndReportHTML,
 };
