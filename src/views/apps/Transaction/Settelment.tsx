@@ -79,17 +79,18 @@ const EditSettlementPage: React.FC = () => {
     type: 'success',
   });
 
-  // Fetch all available payment modes - only when selectedOutletId is valid
+  // Fetch all available payment modes - using outletid from useAuthContext
   useEffect(() => {
     const fetchPaymentModes = async () => {
-      // Only fetch if we have a valid outlet ID
-      if (!selectedOutletId || selectedOutletId === null) {
+      // Only fetch if we have a valid outlet ID from context
+      const outletId = user?.outletid;
+      if (!outletId || outletId === null) {
         setOutletPaymentModes([]);
         return;
       }
       
       try {
-        const response = await OutletPaymentModeService.list({ outletid: selectedOutletId.toString() });
+        const response = await OutletPaymentModeService.list({ outletid: outletId.toString() });
         // Handle ApiResponse format - response.data contains the array
         const data = response.data;
         if (!Array.isArray(data)) {
@@ -102,7 +103,7 @@ const EditSettlementPage: React.FC = () => {
       }
     };
     fetchPaymentModes();
-  }, [selectedOutletId]);
+  }, [user?.outletid]);
 
   // Fetch settlements list - using proper API response format like other pages
   const fetchSettlements = async () => {

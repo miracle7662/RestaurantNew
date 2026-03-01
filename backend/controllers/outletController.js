@@ -1522,27 +1522,31 @@ exports.updateBillPreviewSettings = (req, res) => {
       outletid
     );
 
-    res.json({
-      outletid,
-      outlet_name,
-      email,
-      website,
-      upi_id,
-      bill_prefix,
-      secondary_bill_prefix,
-      bar_bill_prefix,
-      show_upi_qr: !!show_upi_qr,
-      enabled_bar_section: !!enabled_bar_section,
-      show_phone_on_bill,
-      note,
-      footer_note,
-      field1,
-      field2,
-      field3,
-      field4,
-      fssai_no,
-      
+    return res.json({
+      success: true,
+      message: "Bill preview settings updated successfully",
+      data: {
+        outletid,
+        outlet_name,
+        email,
+        website,
+        upi_id,
+        bill_prefix,
+        secondary_bill_prefix,
+        bar_bill_prefix,
+        show_upi_qr: !!show_upi_qr,
+        enabled_bar_section: !!enabled_bar_section,
+        show_phone_on_bill: !!show_phone_on_bill,
+        note,
+        footer_note,
+        field1,
+        field2,
+        field3,
+        field4,
+        fssai_no,
+      },
     });
+
   } catch (error) {
     console.error("Error updating bill preview settings:", error);
     res
