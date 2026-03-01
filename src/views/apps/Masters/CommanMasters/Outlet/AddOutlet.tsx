@@ -5,47 +5,23 @@ import { Alert, Button, } from 'react-bootstrap';
 
 import { useAuthContext } from '@/common/context/useAuthContext'; // Adjust path as needed
 import { OutletData } from '@/common/api/outlet'; // Adjust the import path as necessary
-import  OutletService  from '@/common/api/outlet';
+import  OutletService from '@/common/api/outlet';
 
 interface AddOutletProps {
   Outlet: OutletData | null;
   onBack: () => void;
 }
+const convertToBoolean = (value: any): boolean => {
+  return !!value;
+}
 
-// --- Helper Functions for Safe Type Conversion ---
-const safeBool = (val: any, defaultVal = false): boolean => {
-  if (typeof val === 'boolean') return val;
-  if (typeof val === 'number') return val === 1;
-  if (typeof val === 'string') {
-    const lower = val.trim().toLowerCase();
-    return lower === '1' || lower === 'true';
+function parseJsonSafely(jsonString: string, defaultValue: any) {
+  try {
+    return JSON.parse(jsonString);
+  } catch (error) {
+    return defaultValue;
   }
-  return defaultVal;
-};
-
-const safeStr = (val: any, defaultVal = ''): string => {
-  if (val === null || val === undefined) return defaultVal;
-  if (typeof val === 'object') return ''; // Prevent [object Object]
-  return String(val);
-};
-
-const safeNum = (val: any, defaultVal = 0): number => {
-  if (val === null || val === undefined) return defaultVal;
-  const num = Number(val);
-  return isNaN(num) ? defaultVal : num;
-};
-
-const safeJson = <T>(val: any, defaultVal: T): T => {
-  if (val && typeof val === 'object') return val as T;
-  if (typeof val === 'string') {
-    try {
-      return JSON.parse(val) as T;
-    } catch {
-      return defaultVal;
-    }
-  }
-  return defaultVal;
-};
+}
 
 interface OutletSettings {
   outletid: number;
@@ -267,225 +243,9 @@ interface OutletSettings {
   updated_date?: string;
 }
 
-// --- Mapper Function: Backend DTO -> Frontend UI Model ---
-const mapApiToUi = (data: any, userId: string): OutletSettings => {
-  const billPreview = data.bill_preview_settings || {};
-  const kotPrint = data.kot_print_settings || {};
-  const billPrint = data.bill_print_settings || {};
-  const general = data.general_settings || {};
-  const onlineOrders = data.online_orders_settings || {};
-
-  return {
-    // Top-level fields
-    outletid: safeNum(data.outletid),
-    hotelid: safeNum(data.hotelid),
-    outlet_name: safeStr(data.outlet_name),
-
-    // Bill Preview Settings
-    email: safeStr(billPreview.email),
-    website: safeStr(billPreview.website),
-    upi_id: safeStr(billPreview.upi_id),
-    bill_prefix: safeStr(billPreview.bill_prefix),
-    secondary_bill_prefix: safeStr(billPreview.secondary_bill_prefix),
-    bar_bill_prefix: safeStr(billPreview.bar_bill_prefix),
-    show_upi_qr: safeBool(billPreview.show_upi_qr),
-    enabled_bar_section: safeBool(billPreview.enabled_bar_section),
-    show_phone_on_bill: safeStr(billPreview.show_phone_on_bill),
-    note: safeStr(billPreview.note),
-    footer_note: safeStr(billPreview.footer_note),
-    field1: safeStr(billPreview.field1),
-    field2: safeStr(billPreview.field2),
-    field3: safeStr(billPreview.field3),
-    field4: safeStr(billPreview.field4),
-    fssai_no: safeStr(billPreview.fssai_no),
-
-    // KOT Print Settings
-    customer_on_kot_dine_in: safeBool(kotPrint.customer_on_kot_dine_in),
-    customer_on_kot_pickup: safeBool(kotPrint.customer_on_kot_pickup),
-    customer_on_kot_delivery: safeBool(kotPrint.customer_on_kot_delivery),
-    customer_on_kot_quick_bill: safeBool(kotPrint.customer_on_kot_quick_bill),
-    customer_kot_display_option: safeStr(kotPrint.customer_kot_display_option, 'NAME_ONLY'),
-    group_kot_items_by_category: safeBool(kotPrint.group_kot_items_by_category),
-    hide_table_name_quick_bill: safeBool(kotPrint.hide_table_name_quick_bill),
-    show_new_order_tag: safeBool(kotPrint.show_new_order_tag, true),
-    new_order_tag_label: safeStr(kotPrint.new_order_tag_label, 'New'),
-    show_running_order_tag: safeBool(kotPrint.show_running_order_tag, true),
-    running_order_tag_label: safeStr(kotPrint.running_order_tag_label, 'Running'),
-    dine_in_kot_no: safeStr(kotPrint.dine_in_kot_no),
-    pickup_kot_no: safeStr(kotPrint.pickup_kot_no),
-    delivery_kot_no: safeStr(kotPrint.delivery_kot_no),
-    quick_bill_kot_no: safeStr(kotPrint.quick_bill_kot_no),
-    modifier_default_option: safeBool(kotPrint.modifier_default_option),
-    print_kot_both_languages: safeBool(kotPrint.print_kot_both_languages),
-    show_alternative_item: safeBool(kotPrint.show_alternative_item),
-    show_captain_username: safeBool(kotPrint.show_captain_username),
-    show_covers_as_guest: safeBool(kotPrint.show_covers_as_guest),
-    show_item_price: safeBool(kotPrint.show_item_price, true),
-    show_kot_no_quick_bill: safeBool(kotPrint.show_kot_no_quick_bill),
-    show_kot_note: safeBool(kotPrint.show_kot_note, true),
-    show_online_order_otp: safeBool(kotPrint.show_online_order_otp),
-    show_order_id_quick_bill: safeBool(kotPrint.show_order_id_quick_bill),
-    show_order_id_online_order: safeBool(kotPrint.show_order_id_online_order),
-    show_order_no_quick_bill_section: safeBool(kotPrint.show_order_no_quick_bill_section),
-    show_order_type_symbol: safeBool(kotPrint.show_order_type_symbol, true),
-    show_store_name: safeBool(kotPrint.show_store_name, true),
-    show_terminal_username: safeBool(kotPrint.show_terminal_username),
-    show_username: safeBool(kotPrint.show_username),
-    show_waiter: safeBool(kotPrint.show_waiter, true),
-    hide_item_Amt_column: safeBool(kotPrint.hide_item_Amt_column),
-
-    // Bill Print Settings
-    bill_title_dine_in: safeBool(billPrint.bill_title_dine_in, true),
-    bill_title_pickup: safeBool(billPrint.bill_title_pickup, true),
-    bill_title_delivery: safeBool(billPrint.bill_title_delivery, true),
-    bill_title_quick_bill: safeBool(billPrint.bill_title_quick_bill, true),
-    mask_order_id: safeBool(billPrint.mask_order_id),
-    modifier_default_option_bill: safeBool(billPrint.modifier_default_option_bill),
-    print_bill_both_languages: safeBool(billPrint.print_bill_both_languages),
-    show_alt_item_title_bill: safeBool(billPrint.show_alt_item_title_bill),
-    show_alt_name_bill: safeBool(billPrint.show_alt_name_bill),
-    show_bill_amount_words: safeBool(billPrint.show_bill_amount_words),
-    show_bill_no_bill: safeBool(billPrint.show_bill_no_bill, true),
-    show_bill_number_prefix_bill: safeBool(billPrint.show_bill_number_prefix_bill, true),
-    show_bill_print_count: safeBool(billPrint.show_bill_print_count),
-    show_brand_name_bill: safeBool(billPrint.show_brand_name_bill, true),
-    show_captain_bill: safeBool(billPrint.show_captain_bill),
-    show_covers_bill: safeBool(billPrint.show_covers_bill, true),
-    show_custom_qr_codes_bill: safeBool(billPrint.show_custom_qr_codes_bill),
-    show_customer_gst_bill: safeBool(billPrint.show_customer_gst_bill),
-    show_customer_bill: safeBool(billPrint.show_customer_bill, true),
-    show_customer_paid_amount: safeBool(billPrint.show_customer_paid_amount, true),
-    show_date_bill: safeBool(billPrint.show_date_bill, true),
-    show_default_payment: safeBool(billPrint.show_default_payment, true),
-    show_discount_reason_bill: safeBool(billPrint.show_discount_reason_bill),
-    show_due_amount_bill: safeBool(billPrint.show_due_amount_bill, true),
-    show_ebill_invoice_qrcode: safeBool(billPrint.show_ebill_invoice_qrcode),
-    show_item_hsn_code_bill: safeBool(billPrint.show_item_hsn_code_bill),
-    show_item_level_charges_separately: safeBool(billPrint.show_item_level_charges_separately),
-    show_item_note_bill: safeBool(billPrint.show_item_note_bill, true),
-    show_items_sequence_bill: safeBool(billPrint.show_items_sequence_bill, true),
-    show_kot_number_bill: safeBool(billPrint.show_kot_number_bill),
-    show_logo_bill: safeBool(billPrint.show_logo_bill, true),
-    show_order_id_bill: safeBool(billPrint.show_order_id_bill),
-    show_order_no_bill: safeBool(billPrint.show_order_no_bill, true),
-    show_order_note_bill: safeBool(billPrint.show_order_note_bill, true),
-    order_type_dine_in: safeBool(billPrint.order_type_dine_in, true),
-    order_type_pickup: safeBool(billPrint.order_type_pickup, true),
-    order_type_delivery: safeBool(billPrint.order_type_delivery, true),
-    order_type_quick_bill: safeBool(billPrint.order_type_quick_bill, true),
-    show_outlet_name_bill: safeBool(billPrint.show_outlet_name_bill, true),
-    payment_mode_dine_in: safeBool(billPrint.payment_mode_dine_in, true),
-    payment_mode_pickup: safeBool(billPrint.payment_mode_pickup, true),
-    payment_mode_delivery: safeBool(billPrint.payment_mode_delivery, true),
-    payment_mode_quick_bill: safeBool(billPrint.payment_mode_quick_bill, true),
-    table_name_dine_in: safeBool(billPrint.table_name_dine_in, true),
-    table_name_pickup: safeBool(billPrint.table_name_pickup),
-    table_name_delivery: safeBool(billPrint.table_name_delivery),
-    table_name_quick_bill: safeBool(billPrint.table_name_quick_bill),
-    show_tax_charge_bill: safeBool(billPrint.show_tax_charge_bill, true),
-    show_username_bill: safeBool(billPrint.show_username_bill),
-    show_waiter_bill: safeBool(billPrint.show_waiter_bill, true),
-    show_zatca_invoice_qr: safeBool(billPrint.show_zatca_invoice_qr),
-    show_customer_address_pickup_bill: safeBool(billPrint.show_customer_address_pickup_bill),
-    show_order_placed_time: safeBool(billPrint.show_order_placed_time, true),
-    hide_item_quantity_column: safeBool(billPrint.hide_item_quantity_column),
-    hide_item_rate_column: safeBool(billPrint.hide_item_rate_column),
-    hide_item_total_column: safeBool(billPrint.hide_item_total_column),
-    hide_total_without_tax: safeBool(billPrint.hide_total_without_tax),
-
-    // General Settings
-    customize_url_links: safeStr(general.customize_url_links),
-    allow_charges_after_bill_print: safeBool(general.allow_charges_after_bill_print),
-    allow_discount_after_bill_print: safeBool(general.allow_discount_after_bill_print),
-    allow_discount_before_save: safeBool(general.allow_discount_before_save),
-    allow_pre_order_tahd: safeBool(general.allow_pre_order_tahd),
-    ask_covers: safeJson(general.ask_covers, { dine_in: false, pickup: false, delivery: false, quick_bill: false }),
-    ask_covers_captain: safeBool(general.ask_covers_captain),
-    ask_custom_order_id_quick_bill: safeBool(general.ask_custom_order_id_quick_bill),
-    ask_custom_order_type_quick_bill: safeBool(general.ask_custom_order_type_quick_bill),
-    ask_payment_mode_on_save_bill: safeBool(general.ask_payment_mode_on_save_bill),
-    ask_waiter: safeJson(general.ask_waiter, { dine_in: false, pickup: false, delivery: false, quick_bill: false }),
-    ask_otp_change_order_status_order_window: safeBool(general.ask_otp_change_order_status_order_window),
-    ask_otp_change_order_status_receipt_section: safeBool(general.ask_otp_change_order_status_receipt_section),
-    auto_accept_remote_kot: safeBool(general.auto_accept_remote_kot),
-    auto_out_of_stock: safeBool(general.auto_out_of_stock),
-    auto_sync: safeBool(general.auto_sync),
-    category_time_for_pos: safeStr(general.category_time_for_pos),
-    count_sales_after_midnight: safeBool(general.count_sales_after_midnight),
-    customer_display: safeJson(general.customer_display, null),
-    customer_mandatory: safeJson(general.customer_mandatory, { dine_in: false, pickup: false, delivery: false, quick_bill: false }),
-    default_ebill_check: safeBool(general.default_ebill_check),
-    default_send_delivery_boy_check: safeBool(general.default_send_delivery_boy_check),
-    edit_customize_order_number: safeStr(general.edit_customize_order_number),
-    enable_backup_notification_service: safeBool(general.enable_backup_notification_service),
-    enable_customer_display_access: safeBool(general.enable_customer_display_access),
-    filter_items_by_order_type: safeBool(general.filter_items_by_order_type),
-    generate_reports_start_close_dates: safeBool(general.generate_reports_start_close_dates),
-    hide_clear_data_check_logout: safeBool(general.hide_clear_data_check_logout),
-    hide_item_price_options: safeBool(general.hide_item_price_options),
-    hide_load_menu_button: safeBool(general.hide_load_menu_button),
-    make_cancel_delete_reason_compulsory: safeBool(general.make_cancel_delete_reason_compulsory),
-    make_discount_reason_mandatory: safeBool(general.make_discount_reason_mandatory),
-    make_free_cancel_bill_reason_mandatory: safeBool(general.make_free_cancel_bill_reason_mandatory),
-    make_payment_ref_number_mandatory: safeBool(general.make_payment_ref_number_mandatory),
-    mandatory_delivery_boy_selection: safeBool(general.mandatory_delivery_boy_selection),
-    mark_order_as_transfer_order: safeBool(general.mark_order_as_transfer_order),
-    online_payment_auto_settle: safeBool(general.online_payment_auto_settle),
-    order_sync_settings: safeJson(general.order_sync_settings, { auto_sync_interval: '5', sync_batch_packet_size: '10' }),
-    separate_billing_by_section: safeBool(general.separate_billing_by_section),
-    set_entered_amount_as_opening: safeBool(general.set_entered_amount_as_opening),
-    show_alternative_item_report_print: safeBool(general.show_alternative_item_report_print),
-    show_clear_sales_report_logout: safeBool(general.show_clear_sales_report_logout),
-    show_order_no_label_pos: safeBool(general.show_order_no_label_pos),
-    show_payment_history_button: safeBool(general.show_payment_history_button),
-    show_remote_kot_option: safeBool(general.show_remote_kot_option),
-    show_send_payment_link: safeBool(general.show_send_payment_link),
-    stock_availability_display: safeBool(general.stock_availability_display),
-    todays_report: safeJson(general.todays_report, {
-      sales_summary: false,
-      order_type_summary: false,
-      payment_type_summary: false,
-      discount_summary: false,
-      expense_summary: false,
-      bill_summary: false,
-      delivery_boy_summary: false,
-      waiter_summary: false,
-      kitchen_department_summary: false,
-      category_summary: false,
-      sold_items_summary: false,
-      cancel_items_summary: false,
-      wallet_summary: false,
-      due_payment_received_summary: false,
-      due_payment_receivable_summary: false,
-      payment_variance_summary: false,
-      currency_denominations_summary: false,
-    }),
-    upi_payment_sound_notification: safeBool(general.upi_payment_sound_notification),
-    use_separate_bill_numbers_online: safeBool(general.use_separate_bill_numbers_online),
-    when_send_todays_report: safeStr(general.when_send_todays_report),
-    enable_currency_conversion: safeBool(general.enable_currency_conversion),
-    enable_user_login_validation: safeBool(general.enable_user_login_validation),
-    allow_closing_shift_despite_bills: safeBool(general.allow_closing_shift_despite_bills),
-    show_real_time_kot_bill_notifications: safeBool(general.show_real_time_kot_bill_notifications),
-
-    // Online Orders Settings
-    show_in_preparation_kds: safeBool(onlineOrders.show_in_preparation_kds),
-    auto_accept_online_order: safeBool(onlineOrders.auto_accept_online_order),
-    customize_order_preparation_time: safeBool(onlineOrders.customize_order_preparation_time),
-    online_orders_time_delay: safeStr(onlineOrders.online_orders_time_delay, '0'),
-    pull_order_on_accept: safeBool(onlineOrders.pull_order_on_accept),
-    show_addons_separately: safeBool(onlineOrders.show_addons_separately),
-    show_complete_online_order_id: safeBool(onlineOrders.show_complete_online_order_id, true),
-    show_online_order_preparation_time: safeBool(onlineOrders.show_online_order_preparation_time, true),
-    update_food_ready_status_kds: safeBool(onlineOrders.update_food_ready_status_kds, true),
-
-    // Metadata
-    created_by_id: safeStr(general.created_by_id, userId),
-    created_date: safeStr(general.created_at, new Date().toISOString()),
-    updated_by_id: safeStr(general.updated_by_id, userId),
-    updated_date: safeStr(general.updated_at, new Date().toISOString()),
-  };
-};
+// const snakeToCamel = (str: string): string => {
+//   return str.replace(/(_\w)/g, (match) => match[1].toUpperCase());
+// };
 
 const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
   const { user } = useAuthContext();
@@ -745,8 +505,236 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
         // Log the response for debugging
         console.log('Backend Response:', JSON.stringify(data, null, 2));
 
-        // Use the mapper to safely convert backend response to frontend state
-        const allFormData = mapApiToUi(data, user?.id?.toString() || '1');
+        // Parse nested JSON fields and map to formData
+        const allFormData: OutletSettings = {
+          // Top-level fields
+          outletid: data.outletid || 0,
+          hotelid: data.hotelid || 0,
+          outlet_name: data.outlet_name || '',
+
+
+          // Bill Preview Settings
+          email: data.bill_preview_settings?.email || '',
+          website: data.bill_preview_settings?.website || '',
+          upi_id: data.bill_preview_settings?.upi_id || '',
+          bill_prefix: data.bill_preview_settings?.bill_prefix || '',
+          secondary_bill_prefix: data.bill_preview_settings?.secondary_bill_prefix || '',
+          bar_bill_prefix: data.bill_preview_settings?.bar_bill_prefix || '',
+          show_upi_qr: convertToBoolean(data.bill_preview_settings?.show_upi_qr ?? false),
+          enabled_bar_section: convertToBoolean(data.bill_preview_settings?.enabled_bar_section ?? false),
+          show_phone_on_bill: data.bill_preview_settings?.show_phone_on_bill || '',
+          note: data.bill_preview_settings?.note || '',
+          footer_note: data.bill_preview_settings?.footer_note || '',
+          field1: data.bill_preview_settings?.field1 || '',
+          field2: data.bill_preview_settings?.field2 || '',
+          field3: data.bill_preview_settings?.field3 || '',
+          field4: data.bill_preview_settings?.field4 || '',
+          fssai_no: data.bill_preview_settings?.fssai_no || '',
+
+          // KOT Print Settings
+          customer_on_kot_dine_in: convertToBoolean(data.kot_print_settings?.customer_on_kot_dine_in ?? false),
+          customer_on_kot_pickup: convertToBoolean(data.kot_print_settings?.customer_on_kot_pickup ?? false),
+          customer_on_kot_delivery: convertToBoolean(data.kot_print_settings?.customer_on_kot_delivery ?? false),
+          customer_on_kot_quick_bill: convertToBoolean(data.kot_print_settings?.customer_on_kot_quick_bill ?? false),
+          customer_kot_display_option: data.kot_print_settings?.customer_kot_display_option || 'NAME_ONLY',
+          group_kot_items_by_category: convertToBoolean(data.kot_print_settings?.group_kot_items_by_category ?? false),
+          hide_table_name_quick_bill: convertToBoolean(data.kot_print_settings?.hide_table_name_quick_bill ?? false),
+          show_new_order_tag: convertToBoolean(data.kot_print_settings?.show_new_order_tag ?? true),
+          new_order_tag_label: data.kot_print_settings?.new_order_tag_label || 'New',
+          show_running_order_tag: convertToBoolean(data.kot_print_settings?.show_running_order_tag ?? true),
+          running_order_tag_label: data.kot_print_settings?.running_order_tag_label || 'Running',
+          dine_in_kot_no: data.kot_print_settings?.dine_in_kot_no || '',
+          pickup_kot_no: data.kot_print_settings?.pickup_kot_no || '',
+          delivery_kot_no: data.kot_print_settings?.delivery_kot_no || '',
+          quick_bill_kot_no: data.kot_print_settings?.quick_bill_kot_no || '',
+          modifier_default_option: convertToBoolean(data.kot_print_settings?.modifier_default_option ?? false),
+          print_kot_both_languages: convertToBoolean(data.kot_print_settings?.print_kot_both_languages ?? false),
+          show_alternative_item: convertToBoolean(data.kot_print_settings?.show_alternative_item ?? false),
+          show_captain_username: convertToBoolean(data.kot_print_settings?.show_captain_username ?? false),
+          show_covers_as_guest: convertToBoolean(data.kot_print_settings?.show_covers_as_guest ?? false),
+          show_item_price: convertToBoolean(data.kot_print_settings?.show_item_price ?? true),
+          show_kot_no_quick_bill: convertToBoolean(data.kot_print_settings?.show_kot_no_quick_bill ?? false),
+          show_kot_note: convertToBoolean(data.kot_print_settings?.show_kot_note ?? true),
+          show_online_order_otp: convertToBoolean(data.kot_print_settings?.show_online_order_otp ?? false),
+          show_order_id_quick_bill: convertToBoolean(data.kot_print_settings?.show_order_id_quick_bill ?? false),
+          show_order_id_online_order: convertToBoolean(data.kot_print_settings?.show_order_id_online_order ?? false),
+          show_order_no_quick_bill_section: convertToBoolean(data.kot_print_settings?.show_order_no_quick_bill_section ?? false),
+          show_order_type_symbol: convertToBoolean(data.kot_print_settings?.show_order_type_symbol ?? true),
+          show_store_name: convertToBoolean(data.kot_print_settings?.show_store_name ?? true),
+          show_terminal_username: convertToBoolean(data.kot_print_settings?.show_terminal_username ?? false),
+          show_username: convertToBoolean(data.kot_print_settings?.show_username ?? false),
+          show_waiter: convertToBoolean(data.kot_print_settings?.show_waiter ?? true),
+          hide_item_Amt_column: convertToBoolean(data.kot_print_settings?.hide_item_Amt_column ?? false),
+
+          // Bill Print Settings
+          bill_title_dine_in: convertToBoolean(data.bill_print_settings?.bill_title_dine_in ?? true),
+          bill_title_pickup: convertToBoolean(data.bill_print_settings?.bill_title_pickup ?? true),
+          bill_title_delivery: convertToBoolean(data.bill_print_settings?.bill_title_delivery ?? true),
+          bill_title_quick_bill: convertToBoolean(data.bill_print_settings?.bill_title_quick_bill ?? true),
+          mask_order_id: convertToBoolean(data.bill_print_settings?.mask_order_id ?? false),
+          modifier_default_option_bill: convertToBoolean(data.bill_print_settings?.modifier_default_option_bill ?? false),
+          print_bill_both_languages: convertToBoolean(data.bill_print_settings?.print_bill_both_languages ?? false),
+          show_alt_item_title_bill: convertToBoolean(data.bill_print_settings?.show_alt_item_title_bill ?? false),
+          show_alt_name_bill: convertToBoolean(data.bill_print_settings?.show_alt_name_bill ?? false),
+          show_bill_amount_words: convertToBoolean(data.bill_print_settings?.show_bill_amount_words ?? false),
+          show_bill_no_bill: convertToBoolean(data.bill_print_settings?.show_bill_no_bill ?? true),
+          show_bill_number_prefix_bill: convertToBoolean(data.bill_print_settings?.show_bill_number_prefix_bill ?? true),
+          show_bill_print_count: convertToBoolean(data.bill_print_settings?.show_bill_print_count ?? false),
+          show_brand_name_bill: convertToBoolean(data.bill_print_settings?.show_brand_name_bill ?? true),
+          show_captain_bill: convertToBoolean(data.bill_print_settings?.show_captain_bill ?? false),
+          show_covers_bill: convertToBoolean(data.bill_print_settings?.show_covers_bill ?? true),
+          show_custom_qr_codes_bill: convertToBoolean(data.bill_print_settings?.show_custom_qr_codes_bill ?? false),
+          show_customer_gst_bill: convertToBoolean(data.bill_print_settings?.show_customer_gst_bill ?? false),
+          show_customer_bill: convertToBoolean(data.bill_print_settings?.show_customer_bill ?? true),
+          show_customer_paid_amount: convertToBoolean(data.bill_print_settings?.show_customer_paid_amount ?? true),
+          show_date_bill: convertToBoolean(data.bill_print_settings?.show_date_bill ?? true),
+          show_default_payment: convertToBoolean(data.bill_print_settings?.show_default_payment ?? true),
+          show_discount_reason_bill: convertToBoolean(data.bill_print_settings?.show_discount_reason_bill ?? false),
+          show_due_amount_bill: convertToBoolean(data.bill_print_settings?.show_due_amount_bill ?? true),
+          show_ebill_invoice_qrcode: convertToBoolean(data.bill_print_settings?.show_ebill_invoice_qrcode ?? false),
+          show_item_hsn_code_bill: convertToBoolean(data.bill_print_settings?.show_item_hsn_code_bill ?? false),
+          show_item_level_charges_separately: convertToBoolean(data.bill_print_settings?.show_item_level_charges_separately ?? false),
+          show_item_note_bill: convertToBoolean(data.bill_print_settings?.show_item_note_bill ?? true),
+          show_items_sequence_bill: convertToBoolean(data.bill_print_settings?.show_items_sequence_bill ?? true),
+          show_kot_number_bill: convertToBoolean(data.bill_print_settings?.show_kot_number_bill ?? false),
+          show_logo_bill: convertToBoolean(data.bill_print_settings?.show_logo_bill ?? true),
+          show_order_id_bill: convertToBoolean(data.bill_print_settings?.show_order_id_bill ?? false),
+          show_order_no_bill: convertToBoolean(data.bill_print_settings?.show_order_no_bill ?? true),
+          show_order_note_bill: convertToBoolean(data.bill_print_settings?.show_order_note_bill ?? true),
+          order_type_dine_in: convertToBoolean(data.bill_print_settings?.order_type_dine_in ?? true),
+          order_type_pickup: convertToBoolean(data.bill_print_settings?.order_type_pickup ?? true),
+          order_type_delivery: convertToBoolean(data.bill_print_settings?.order_type_delivery ?? true),
+          order_type_quick_bill: convertToBoolean(data.bill_print_settings?.order_type_quick_bill ?? true),
+          show_outlet_name_bill: convertToBoolean(data.bill_print_settings?.show_outlet_name_bill ?? true),
+          payment_mode_dine_in: convertToBoolean(data.bill_print_settings?.payment_mode_dine_in ?? true),
+          payment_mode_pickup: convertToBoolean(data.bill_print_settings?.payment_mode_pickup ?? true),
+          payment_mode_delivery: convertToBoolean(data.bill_print_settings?.payment_mode_delivery ?? true),
+          payment_mode_quick_bill: convertToBoolean(data.bill_print_settings?.payment_mode_quick_bill ?? true),
+          table_name_dine_in: convertToBoolean(data.bill_print_settings?.table_name_dine_in ?? true),
+          table_name_pickup: convertToBoolean(data.bill_print_settings?.table_name_pickup ?? false),
+          table_name_delivery: convertToBoolean(data.bill_print_settings?.table_name_delivery ?? false),
+          table_name_quick_bill: convertToBoolean(data.bill_print_settings?.table_name_quick_bill ?? false),
+          show_tax_charge_bill: convertToBoolean(data.bill_print_settings?.show_tax_charge_bill ?? true),
+          show_username_bill: convertToBoolean(data.bill_print_settings?.show_username_bill ?? false),
+          show_waiter_bill: convertToBoolean(data.bill_print_settings?.show_waiter_bill ?? true),
+          show_zatca_invoice_qr: convertToBoolean(data.bill_print_settings?.show_zatca_invoice_qr ?? false),
+          show_customer_address_pickup_bill: convertToBoolean(data.bill_print_settings?.show_customer_address_pickup_bill ?? false),
+          show_order_placed_time: convertToBoolean(data.bill_print_settings?.show_order_placed_time ?? true),
+          hide_item_quantity_column: convertToBoolean(data.bill_print_settings?.hide_item_quantity_column ?? false),
+          hide_item_rate_column: convertToBoolean(data.bill_print_settings?.hide_item_rate_column ?? false),
+          hide_item_total_column: convertToBoolean(data.bill_print_settings?.hide_item_total_column ?? false),
+          hide_total_without_tax: convertToBoolean(data.bill_print_settings?.hide_total_without_tax ?? false),
+
+          // General Settings
+          customize_url_links: data.general_settings?.customize_url_links || '',
+          allow_charges_after_bill_print: convertToBoolean(data.general_settings?.allow_charges_after_bill_print ?? false),
+          allow_discount_after_bill_print: convertToBoolean(data.general_settings?.allow_discount_after_bill_print ?? false),
+          allow_discount_before_save: convertToBoolean(data.general_settings?.allow_discount_before_save ?? false),
+          allow_pre_order_tahd: convertToBoolean(data.general_settings?.allow_pre_order_tahd ?? false),
+          ask_covers: parseJsonSafely(data.general_settings?.ask_covers, {
+            dine_in: false,
+            pickup: false,
+            delivery: false,
+            quick_bill: false,
+          }),
+          ask_covers_captain: convertToBoolean(data.general_settings?.ask_covers_captain ?? false),
+          ask_custom_order_id_quick_bill: convertToBoolean(data.general_settings?.ask_custom_order_id_quick_bill ?? false),
+          ask_custom_order_type_quick_bill: convertToBoolean(data.general_settings?.ask_custom_order_type_quick_bill ?? false),
+          ask_payment_mode_on_save_bill: convertToBoolean(data.general_settings?.ask_payment_mode_on_save_bill ?? false),
+          ask_waiter: parseJsonSafely(data.general_settings?.ask_waiter, {
+            dine_in: false,
+            pickup: false,
+            delivery: false,
+            quick_bill: false,
+          }),
+          ask_otp_change_order_status_order_window: convertToBoolean(data.general_settings?.ask_otp_change_order_status_order_window ?? false),
+          ask_otp_change_order_status_receipt_section: convertToBoolean(data.general_settings?.ask_otp_change_order_status_receipt_section ?? false),
+          auto_accept_remote_kot: convertToBoolean(data.general_settings?.auto_accept_remote_kot ?? false),
+          auto_out_of_stock: convertToBoolean(data.general_settings?.auto_out_of_stock ?? false),
+          auto_sync: convertToBoolean(data.general_settings?.auto_sync ?? false),
+          category_time_for_pos: data.general_settings?.category_time_for_pos || '',
+          count_sales_after_midnight: convertToBoolean(data.general_settings?.count_sales_after_midnight ?? false),
+          customer_display: parseJsonSafely(data.general_settings?.customer_display, null),
+          customer_mandatory: parseJsonSafely(data.general_settings?.customer_mandatory, {
+            dine_in: false,
+            pickup: false,
+            delivery: false,
+            quick_bill: false,
+          }),
+          default_ebill_check: convertToBoolean(data.general_settings?.default_ebill_check ?? false),
+          default_send_delivery_boy_check: convertToBoolean(data.general_settings?.default_send_delivery_boy_check ?? false),
+          edit_customize_order_number: data.general_settings?.edit_customize_order_number || '',
+          enable_backup_notification_service: convertToBoolean(data.general_settings?.enable_backup_notification_service ?? false),
+          enable_customer_display_access: convertToBoolean(data.general_settings?.enable_customer_display_access ?? false),
+          filter_items_by_order_type: convertToBoolean(data.general_settings?.filter_items_by_order_type ?? false),
+          generate_reports_start_close_dates: convertToBoolean(data.general_settings?.generate_reports_start_close_dates ?? false),
+          hide_clear_data_check_logout: convertToBoolean(data.general_settings?.hide_clear_data_check_logout ?? false),
+          hide_item_price_options: convertToBoolean(data.general_settings?.hide_item_price_options ?? false),
+          hide_load_menu_button: convertToBoolean(data.general_settings?.hide_load_menu_button ?? false),
+          make_cancel_delete_reason_compulsory: convertToBoolean(data.general_settings?.make_cancel_delete_reason_compulsory ?? false),
+          make_discount_reason_mandatory: convertToBoolean(data.general_settings?.make_discount_reason_mandatory ?? false),
+          make_free_cancel_bill_reason_mandatory: convertToBoolean(data.general_settings?.make_free_cancel_bill_reason_mandatory ?? false),
+          make_payment_ref_number_mandatory: convertToBoolean(data.general_settings?.make_payment_ref_number_mandatory ?? false),
+          mandatory_delivery_boy_selection: convertToBoolean(data.general_settings?.mandatory_delivery_boy_selection ?? false),
+          mark_order_as_transfer_order: convertToBoolean(data.general_settings?.mark_order_as_transfer_order ?? false),
+          online_payment_auto_settle: convertToBoolean(data.general_settings?.online_payment_auto_settle ?? false),
+          order_sync_settings: parseJsonSafely(data.general_settings?.order_sync_settings, {
+            auto_sync_interval: '5',
+            sync_batch_packet_size: '10',
+          }),
+          separate_billing_by_section: convertToBoolean(data.general_settings?.separate_billing_by_section ?? false),
+          set_entered_amount_as_opening: convertToBoolean(data.general_settings?.set_entered_amount_as_opening ?? false),
+          show_alternative_item_report_print: convertToBoolean(data.general_settings?.show_alternative_item_report_print ?? false),
+          show_clear_sales_report_logout: convertToBoolean(data.general_settings?.show_clear_sales_report_logout ?? false),
+          show_order_no_label_pos: convertToBoolean(data.general_settings?.show_order_no_label_pos ?? false),
+          show_payment_history_button: convertToBoolean(data.general_settings?.show_payment_history_button ?? false),
+          show_remote_kot_option: convertToBoolean(data.general_settings?.show_remote_kot_option ?? false),
+          show_send_payment_link: convertToBoolean(data.general_settings?.show_send_payment_link ?? false),
+          stock_availability_display: convertToBoolean(data.general_settings?.stock_availability_display ?? false),
+          todays_report: parseJsonSafely(data.general_settings?.todays_report, {
+            sales_summary: false,
+            order_type_summary: false,
+            payment_type_summary: false,
+            discount_summary: false,
+            expense_summary: false,
+            bill_summary: false,
+            delivery_boy_summary: false,
+            waiter_summary: false,
+            kitchen_department_summary: false,
+            category_summary: false,
+            sold_items_summary: false,
+            cancel_items_summary: false,
+            wallet_summary: false,
+            due_payment_received_summary: false,
+            due_payment_receivable_summary: false,
+            payment_variance_summary: false,
+            currency_denominations_summary: false,
+          }),
+          upi_payment_sound_notification: convertToBoolean(data.general_settings?.upi_payment_sound_notification ?? false),
+          use_separate_bill_numbers_online: convertToBoolean(data.general_settings?.use_separate_bill_numbers_online ?? false),
+          when_send_todays_report: data.general_settings?.when_send_todays_report || '',
+          enable_currency_conversion: convertToBoolean(data.general_settings?.enable_currency_conversion ?? false),
+          enable_user_login_validation: convertToBoolean(data.general_settings?.enable_user_login_validation ?? false),
+          allow_closing_shift_despite_bills: convertToBoolean(data.general_settings?.allow_closing_shift_despite_bills ?? false),
+          show_real_time_kot_bill_notifications: convertToBoolean(data.general_settings?.show_real_time_kot_bill_notifications ?? false),
+
+          // Online Orders Settings
+          show_in_preparation_kds: convertToBoolean(data.online_orders_settings?.show_in_preparation_kds ?? false),
+          auto_accept_online_order: convertToBoolean(data.online_orders_settings?.auto_accept_online_order ?? false),
+          customize_order_preparation_time: convertToBoolean(data.online_orders_settings?.customize_order_preparation_time ?? false),
+          online_orders_time_delay: data.online_orders_settings?.online_orders_time_delay || '0',
+          pull_order_on_accept: convertToBoolean(data.online_orders_settings?.pull_order_on_accept ?? false),
+          show_addons_separately: convertToBoolean(data.online_orders_settings?.show_addons_separately ?? false),
+          show_complete_online_order_id: convertToBoolean(data.online_orders_settings?.show_complete_online_order_id ?? true),
+          show_online_order_preparation_time: convertToBoolean(data.online_orders_settings?.show_online_order_preparation_time ?? true),
+          update_food_ready_status_kds: convertToBoolean(data.online_orders_settings?.update_food_ready_status_kds ?? true),
+
+          // Metadata
+          created_by_id: data.general_settings?.created_by_id || user?.id?.toString() || '1',
+          created_date: data.general_settings?.created_at || new Date().toISOString(),
+          updated_by_id: data.general_settings?.updated_by_id || user?.id?.toString() || '1',
+          updated_date: data.general_settings?.updated_at || new Date().toISOString(),
+        };
 
         setFormData(allFormData);
         setSuccess('Outlet settings fetched successfully.');
