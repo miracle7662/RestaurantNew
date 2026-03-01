@@ -200,7 +200,97 @@ const OutletService = {
    * Update outlet settings
    */
   updateOutletSettings: (outletId: number, data: OutletSettings): Promise<ApiResponse<OutletSettings>> =>
-    HttpClient.put<ApiResponse<OutletSettings>>(`/outlets/outlet-settings/${outletId}`, data)
+    HttpClient.put<ApiResponse<OutletSettings>>(`/outlets/outlet-settings/${outletId}`, data),
+
+  /* ═══════════════════════════════════════════════════════════════════════════════
+   * Bill Preview Settings Operations
+   * ═══════════════════════════════════════════════════════════════════════════════ */
+
+  /**
+   * Get bill preview settings by outlet ID
+   */
+  getBillPreviewSettings: (outletId: number): Promise<ApiResponse<any>> =>
+    HttpClient.get<ApiResponse<any>>(`/outlets/bill-preview-settings/${outletId}`),
+
+  /**
+   * Update bill preview settings
+   */
+  updateBillPreviewSettings: (outletId: number, data: any): Promise<ApiResponse<any>> =>
+    HttpClient.put<ApiResponse<any>>(`/outlets/bill-preview-settings/${outletId}`, data),
+
+  /* ═══════════════════════════════════════════════════════════════════════════════
+   * KOT Print Settings Operations
+   * ═══════════════════════════════════════════════════════════════════════════════ */
+
+  /**
+   * Get KOT print settings by outlet ID
+   */
+  getKotPrintSettings: (outletId: number): Promise<ApiResponse<any>> =>
+    HttpClient.get<ApiResponse<any>>(`/outlets/kot-print-settings/${outletId}`),
+
+  /**
+   * Update KOT print settings
+   */
+  updateKotPrintSettings: (outletId: number, data: any): Promise<ApiResponse<any>> =>
+    HttpClient.put<ApiResponse<any>>(`/outlets/kot-print-settings/${outletId}`, data),
+
+  /* ═══════════════════════════════════════════════════════════════════════════════
+   * Bill Print Settings Operations
+   * ═══════════════════════════════════════════════════════════════════════════════ */
+
+  /**
+   * Get bill print settings by outlet ID
+   */
+  getBillPrintSettings: (outletId: number): Promise<ApiResponse<any>> =>
+    HttpClient.get<ApiResponse<any>>(`/outlets/bill-print-settings/${outletId}`),
+
+  /**
+   * Update bill print settings
+   */
+  updateBillPrintSettings: (outletId: number, data: any): Promise<ApiResponse<any>> =>
+    HttpClient.put<ApiResponse<any>>(`/outlets/bill-print-settings/${outletId}`, data),
+
+  /* ═══════════════════════════════════════════════════════════════════════════════
+   * General Settings Operations
+   * ═══════════════════════════════════════════════════════════════════════════════ */
+
+  /**
+   * Get general settings by outlet ID
+   */
+  getGeneralSettings: (outletId: number): Promise<ApiResponse<any>> =>
+    HttpClient.get<ApiResponse<any>>(`/outlets/general-settings/${outletId}`),
+
+  /**
+   * Update general settings
+   */
+  updateGeneralSettings: (outletId: number, data: any): Promise<ApiResponse<any>> =>
+    HttpClient.put<ApiResponse<any>>(`/outlets/general-settings/${outletId}`, data),
+
+  /* ═══════════════════════════════════════════════════════════════════════════════
+   * Online Orders Settings Operations
+   * ═══════════════════════════════════════════════════════════════════════════════ */
+
+  /**
+   * Get online orders settings by outlet ID
+   */
+  getOnlineOrdersSettings: (outletId: number): Promise<ApiResponse<any>> =>
+    HttpClient.get<ApiResponse<any>>(`/outlets/online-orders-settings/${outletId}`),
+
+  /**
+   * Update online orders settings
+   */
+  updateOnlineOrdersSettings: (outletId: number, data: any): Promise<ApiResponse<any>> =>
+    HttpClient.put<ApiResponse<any>>(`/outlets/online-orders-settings/${outletId}`, data),
+
+  /* ═══════════════════════════════════════════════════════════════════════════════
+   * Get All Settings (Combined)
+   * ═══════════════════════════════════════════════════════════════════════════════ */
+
+  /**
+   * Get all settings for an outlet (combined)
+   */
+  getOutletBillingSettings: (outletId: number): Promise<ApiResponse<any>> =>
+    HttpClient.get<ApiResponse<any>>(`/outlets/settings/${outletId}`)
 }
 
 export { OutletService }

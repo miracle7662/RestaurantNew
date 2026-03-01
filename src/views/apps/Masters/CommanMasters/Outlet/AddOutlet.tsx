@@ -3,11 +3,8 @@ import { toast } from 'react-toastify'; // Import toast for notifications
 import { useNavigate } from 'react-router-dom';
 import { Alert, Button, } from 'react-bootstrap';
 
-
-
-import axios from 'axios';
 import { useAuthContext } from '@/common/context/useAuthContext'; // Adjust path as needed
-import { OutletData } from '@/common/api/outlet'; // Adjust the import path as necessary
+import { OutletData, OutletService } from '@/common/api/outlet'; // Adjust the import path as necessary
 
 interface AddOutletProps {
   Outlet: OutletData | null;
@@ -24,8 +21,6 @@ function parseJsonSafely(jsonString: string, defaultValue: any) {
     return defaultValue;
   }
 }
-
-
 
 interface OutletSettings {
   outletid: number;
@@ -499,7 +494,7 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
       setSuccess(null);
 
       try {
-        const response = await axios.get(`${baseUrl}/api/outlets/settings/${Outlet.outletid}`);
+        const response = await OutletService.getOutletBillingSettings(Outlet.outletid);
         const data = response.data;
 
         if (!data) {
@@ -1030,21 +1025,11 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
 
       // Perform separate PUT requests for each section with error handling
       const requests = [
-        axios.put(`${baseUrl}/api/outlets/bill-preview-settings/${outletid}`, billPreviewPayload, {
-          headers: { 'Content-Type': 'application/json' },
-        }),
-        axios.put(`${baseUrl}/api/outlets/kot-print-settings/${outletid}`, kotPrintPayload, {
-          headers: { 'Content-Type': 'application/json' },
-        }),
-        axios.put(`${baseUrl}/api/outlets/bill-print-settings/${outletid}`, billPrintPayload, {
-          headers: { 'Content-Type': 'application/json' },
-        }),
-        axios.put(`${baseUrl}/api/outlets/general-settings/${outletid}`, generalPayload, {
-          headers: { 'Content-Type': 'application/json' },
-        }),
-        axios.put(`${baseUrl}/api/outlets/online-orders-settings/${outletid}`, onlineOrdersPayload, {
-          headers: { 'Content-Type': 'application/json' },
-        }),
+        OutletService.updateBillPreviewSettings(outletid, billPreviewPayload),
+        OutletService.updateKotPrintSettings(outletid, kotPrintPayload),
+        OutletService.updateBillPrintSettings(outletid, billPrintPayload),
+        OutletService.updateGeneralSettings(outletid, generalPayload),
+        OutletService.updateOnlineOrdersSettings(outletid, onlineOrdersPayload),
       ];
 
       // Wait for all requests to complete
