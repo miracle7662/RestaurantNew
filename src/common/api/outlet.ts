@@ -264,7 +264,7 @@ export interface BillPrintSettings {
 /** General Settings interface */
 export interface GeneralSettings {
   outletid?: number
-  customize_url_links: string | string[]
+  customize_url_links: string 
   allow_charges_after_bill_print: boolean
   allow_discount_after_bill_print: boolean
   allow_discount_before_save: boolean

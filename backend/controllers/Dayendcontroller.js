@@ -240,48 +240,27 @@ const saveDayEnd = async (req, res) => {
     console.log("=== DAY END PROCESS ===");
     console.log("Outlet:", outlet_id, "Hotel:", hotel_id, "User:", created_by_id, "Amount:", dayend_total_amt);
 
-    // // ===========================================
-    // // ✅ CALCULATE CLOSING BALANCE (Cash received during the day)
-    // // ===========================================
-    // const cashSummary = db.prepare(`
-    //   SELECT 
-    //     COALESCE(SUM(
-    //       CAST(
-    //         REPLACE(
-    //           SUBSTR(s.Amount, 1, INSTR(s.Amount || '.', '.') - 1),
-    //           COALESCE(SUBSTR(s.Amount, 1, INSTR(s.Amount, '.') - 1), ''),
-    //           ''
-    //         ) AS REAL
-    //       ), 0)
-    //     ) as totalCash
-    //   FROM TrnSettlement s
-    //   JOIN TAxnTrnbill t ON s.OrderNo = t.TxnNo
-    //   WHERE t.isDayEnd = 0 
-    //     AND t.isCancelled = 0 
-    //     AND (t.isBilled = 1 OR t.isSetteled = 1)
-    //     AND s.isSettled = 1
-    //     AND LOWER(s.PaymentType) LIKE '%cash%'
-    // `).get();
+    // ===========================================
+    // ✅ CALCULATE CLOSING BALANCE (Cash received during the day)
+    // ===========================================
+    const cashFromSettlements = db.prepare(`
+      SELECT s.Amount, s.PaymentType
+      FROM TrnSettlement s
+      JOIN TAxnTrnbill t ON s.OrderNo = t.TxnNo
+      WHERE t.isDayEnd = 0 
+        AND t.isCancelled = 0 
+        AND (t.isBilled = 1 OR t.isSetteled = 1)
+        AND s.isSettled = 1
+    `).all();
 
-    // // Alternative: Get cash from settlements using a simpler approach
-    // const cashFromSettlements = db.prepare(`
-    //   SELECT s.Amount, s.PaymentType
-    //   FROM TrnSettlement s
-    //   JOIN TAxnTrnbill t ON s.OrderNo = t.TxnNo
-    //   WHERE t.isDayEnd = 0 
-    //     AND t.isCancelled = 0 
-    //     AND (t.isBilled = 1 OR t.isSetteled = 1)
-    //     AND s.isSettled = 1
-    // `).all();
+    let closing_balance = 0;
+    cashFromSettlements.forEach(settlement => {
+      if (settlement.PaymentType && settlement.PaymentType.toLowerCase().includes('cash')) {
+        closing_balance += parseFloat(settlement.Amount) || 0;
+      }
+    });
 
-    // let totalCashAmount = 0;
-    // cashFromSettlements.forEach(settlement => {
-    //   if (settlement.PaymentType && settlement.PaymentType.toLowerCase().includes('cash')) {
-    //     totalCashAmount += parseFloat(settlement.Amount) || 0;
-    //   }
-    // });
-
-    // console.log("💰 Calculated Closing Balance (Cash):", totalCashAmount);
+    console.log("💰 Calculated Closing Balance (Cash):", closing_balance);
 
     // ===========================================
     // ✅ STEP 1: CHECK PENDING TABLES BEFORE DAYEND
@@ -390,10 +369,10 @@ console.log("Lock DateTime selected:", lock_datetime);
     const result = db.prepare(`
       INSERT INTO trn_dayend (
         dayend_date, curr_date, system_datetime, lock_datetime,
-        outlet_id, hotel_id, dayend_total_amt,  created_by_id
+        outlet_id, hotel_id, dayend_total_amt, closing_balance, created_by_id
       ) VALUES (
         @dayend_date, @curr_date, @system_datetime, @lock_datetime,
-        @outlet_id, @hotel_id, @dayend_total_amt,  @created_by_id
+        @outlet_id, @hotel_id, @dayend_total_amt, @closing_balance, @created_by_id
       )
     `).run({
       dayend_date,
@@ -403,6 +382,7 @@ console.log("Lock DateTime selected:", lock_datetime);
       outlet_id,
       hotel_id,
       dayend_total_amt: dayend_total_amt || 0,
+      closing_balance: closing_balance || 0,
       created_by_id
     });
 
@@ -419,7 +399,7 @@ console.log("Lock DateTime selected:", lock_datetime);
 
     // Verify the inserted data
     const storedData = db.prepare(`
-      SELECT id, dayend_date, curr_date, system_datetime, lock_datetime FROM trn_dayend WHERE id = ?
+      SELECT id, dayend_date, curr_date, system_datetime, lock_datetime, closing_balance FROM trn_dayend WHERE id = ?
     `).get(lastInsertId);
 
     console.log("✅ Dayend completed successfully:", storedData);
@@ -427,7 +407,10 @@ console.log("Lock DateTime selected:", lock_datetime);
     return res.json({
       success: true,
       message: `Day End for ${dayend_date} completed successfully ✅`,
-      data: storedData
+      data: {
+        ...storedData,
+        closing_balance: closing_balance
+      }
     });
 
   } catch (e) {
@@ -819,24 +802,23 @@ const getClosingBalance = (req, res) => {
     if (outlet_id) {
       // If outlet_id is provided, match both hotel_id and outlet_id
       lastDayend = db.prepare(`
-        SELECT closing_balance
-FROM trn_dayend
-WHERE  hotel_id = ?
-  AND  curr_date
-ORDER BY dayend_date DESC
-LIMIT 1 OFFSET 1;
-
-      `).get(outlet_id, hotel_id);
+        SELECT closing_balance, opening_balance, dayend_date, curr_date
+        FROM trn_dayend
+        WHERE hotel_id = ?
+          AND curr_date IS NOT NULL
+        ORDER BY dayend_date DESC, id DESC
+        LIMIT 1
+      `).get(outlet_id);
     } else {
       // If outlet_id is not provided, just match by hotel_id
       // This will get the most recent dayend record for this hotel (regardless of outlet)
       lastDayend = db.prepare(`
-        SELECT closing_balance
-FROM trn_dayend
-WHERE  hotel_id = ?
-  AND  curr_date
-ORDER BY dayend_date DESC
-LIMIT 1 OFFSET 1;
+        SELECT closing_balance, opening_balance, dayend_date, curr_date
+        FROM trn_dayend
+        WHERE hotel_id = ?
+          AND curr_date IS NOT NULL
+        ORDER BY dayend_date DESC, id DESC
+        LIMIT 1
       `).get(hotel_id);
     }
 
@@ -845,6 +827,7 @@ LIMIT 1 OFFSET 1;
         success: true,
         data: {
           closing_balance: lastDayend.closing_balance || 0,
+          opening_balance: lastDayend.opening_balance,
           dayend_date: lastDayend.dayend_date,
           curr_date: lastDayend.curr_date
         }
@@ -855,6 +838,7 @@ LIMIT 1 OFFSET 1;
         success: true,
         data: {
           closing_balance: 0,
+          opening_balance: null,
           dayend_date: null,
           curr_date: null
         }
@@ -863,6 +847,69 @@ LIMIT 1 OFFSET 1;
   } catch (error) {
     console.error('Error fetching closing balance:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch closing balance' });
+  }
+};
+
+// New endpoint to check if opening balance is required
+const checkOpeningBalanceRequired = (req, res) => {
+  try {
+    const { outlet_id, hotel_id } = req.query;
+
+    if (!hotel_id) {
+      return res.status(400).json({ success: false, message: 'hotel_id is required' });
+    }
+
+    // Get the last dayend record with curr_date not null
+    let lastDayend;
+    
+    if (outlet_id) {
+      lastDayend = db.prepare(`
+        SELECT opening_balance, closing_balance, dayend_date, curr_date
+        FROM trn_dayend
+        WHERE hotel_id = ?
+          AND curr_date IS NOT NULL
+        ORDER BY dayend_date DESC, id DESC
+        LIMIT 1
+      `).get(outlet_id);
+    } else {
+      lastDayend = db.prepare(`
+        SELECT opening_balance, closing_balance, dayend_date, curr_date
+        FROM trn_dayend
+        WHERE hotel_id = ?
+          AND curr_date IS NOT NULL
+        ORDER BY dayend_date DESC, id DESC
+        LIMIT 1
+      `).get(hotel_id);
+    }
+
+    // If no record found, opening balance is NOT required (first time login)
+    if (!lastDayend) {
+      return res.json({
+        success: true,
+        data: {
+          required: false,
+          reason: 'No previous dayend record found',
+          opening_balance: 0
+        }
+      });
+    }
+
+    // Check if opening_balance is NULL
+    const isRequired = lastDayend.opening_balance === null || lastDayend.opening_balance === undefined;
+
+    res.json({
+      success: true,
+      data: {
+        required: isRequired,
+        reason: isRequired ? 'Opening balance is NULL' : 'Opening balance already set',
+        opening_balance: lastDayend.opening_balance || lastDayend.closing_balance || 0,
+        dayend_date: lastDayend.dayend_date,
+        curr_date: lastDayend.curr_date
+      }
+    });
+  } catch (error) {
+    console.error('Error checking opening balance requirement:', error);
+    res.status(500).json({ success: false, message: 'Failed to check opening balance requirement' });
   }
 };
 

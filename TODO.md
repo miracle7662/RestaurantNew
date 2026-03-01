@@ -1,9 +1,20 @@
-# Task: ModifyoutletSettings - Common API Implementation
+# Opening Balance Modal Control - Implementation Plan
 
-## Steps:
-- [x] Understand the task and gather information
-- [ ] Add OutletSettings interface and API methods to outlet.ts
-- [ ] Update ModifyoutletSettings.tsx to use common API
-- [ ] Test the implementation
+## Task
+Make opening balance modal appear ONLY when opening_balance is NULL in trn_dayend table, otherwise skip to dashboard.
 
-## Current Status: In Progress
+## Changes Required:
+
+### 1. Backend - Dayendcontroller.js
+- [ ] Fix the SQL query in `getClosingBalance` function to properly check `curr_date IS NOT NULL`
+- [ ] Add a new endpoint to check if opening_balance is required
+
+### 2. Frontend - useLogin.tsx
+- [ ] Add API call to check if opening_balance is NULL
+- [ ] Only navigate to OpeningBalancePage if opening_balance is NULL
+
+### 3. Frontend - dayend.ts (API)
+- [ ] Add new API function for checking opening balance requirement
+
+## Progress:
+- [ ] Started implementation
