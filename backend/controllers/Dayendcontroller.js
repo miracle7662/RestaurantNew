@@ -516,7 +516,7 @@ const generateDayEndReportHTML = (req, res) => {
           t.isDayEnd,
           t.DayEndEmpID,
           SUM(td.Qty) as TotalItems,
-          GROUP_CONCAT(DISTINCT td.ItemID || ':' || td.Qty || ':' || td.RuntimeRate || ':'  || ':' || td.isNCKOT || ':' || td.RevKOTNo) as ItemDetails
+          GROUP_CONCAT(DISTINCT td.ItemID || ':' || td.Qty || ':' || td.RuntimeRate   || ':' || td.isNCKOT || ':' || td.RevKOTNo) as ItemDetails
       FROM TAxnTrnbill t
       LEFT JOIN TAxnTrnbilldetails td ON t.TxnID = td.TxnID
       LEFT JOIN mst_users u ON t.UserId = u.userid
