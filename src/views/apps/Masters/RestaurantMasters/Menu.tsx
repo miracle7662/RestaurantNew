@@ -140,7 +140,7 @@ const Menu: React.FC = () => {
   const [variantTypes, setVariantTypes] = useState<VariantType[]>([]); // State for variant types
   const { user } = useAuthContext();
 
- 
+
   const fetchMenu = async () => {
     try {
       setLoading(true);
@@ -225,84 +225,84 @@ const Menu: React.FC = () => {
   };
 
   // Updated handleToggleStatus function in Menu.tsx
-const handleToggleStatus = async (itemId: string) => {
-  const item = data.find((p) => p.restitemid === Number(itemId));
-  if (item) {
-    const newStatus = item.status === 1 ? 0 : 1;
-    try {
-      const res = await fetch(`http://localhost:3001/api/menu/${itemId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus, updated_by_id: user?.id }),
-      });
-      if (!res.ok) {
-        throw new Error('Failed to update status');
-      }
-      // Update local state after successful API call
-      const updatedItem = { ...item, status: newStatus };
-      setData((prev) => prev.map((i) => (i.restitemid === Number(itemId) ? updatedItem : i)));
-      setCardItems((prev) =>
-        prev.map((card) =>
-          card.userId === itemId
-            ? { ...card, cardStatus: newStatus === 1 ? '✅ Available' : '❌ Unavailable' }
-            : card
-        )
-      );
-      toast.success('Status updated successfully');
-    } catch (err) {
-      console.error('Error updating status:', err);
-      toast.error('Failed to update status');
-    }
-  }
-};
-
-// Updated handleToggleGroupStatus function in Menu.tsx
-const handleToggleGroupStatus = async (groupId: number) => {
-  const groupItems = menuItems.filter(item => item.item_group_id === groupId);
-  if (groupItems.length > 0) {
-    const currentStatus = groupItems[0].status; // Assuming all have the same status
-    const newStatus = currentStatus === 1 ? 0 : 1;
-    try {
-      const promises = groupItems.map(item =>
-        fetch(`http://localhost:3001/api/menu/${item.restitemid}`, {
+  const handleToggleStatus = async (itemId: string) => {
+    const item = data.find((p) => p.restitemid === Number(itemId));
+    if (item) {
+      const newStatus = item.status === 1 ? 0 : 1;
+      try {
+        const res = await fetch(`http://localhost:3001/api/menu/${itemId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ status: newStatus, updated_by_id: user?.id }),
-        })
-      );
-      const responses = await Promise.all(promises);
-      if (responses.some(res => !res.ok)) {
-        throw new Error('Failed to update some items');
+        });
+        if (!res.ok) {
+          throw new Error('Failed to update status');
+        }
+        // Update local state after successful API call
+        const updatedItem = { ...item, status: newStatus };
+        setData((prev) => prev.map((i) => (i.restitemid === Number(itemId) ? updatedItem : i)));
+        setCardItems((prev) =>
+          prev.map((card) =>
+            card.userId === itemId
+              ? { ...card, cardStatus: newStatus === 1 ? '✅ Available' : '❌ Unavailable' }
+              : card
+          )
+        );
+        toast.success('Status updated successfully');
+      } catch (err) {
+        console.error('Error updating status:', err);
+        toast.error('Failed to update status');
       }
-      // Update local state after successful API calls
-      const updatedItems = menuItems.map((item) =>
-        item.item_group_id === groupId ? { ...item, status: newStatus } : item
-      );
-      setMenuItems(updatedItems);
-      const updatedData = data.map((item) =>
-        updatedItems.find((ui) => ui.restitemid === item.restitemid)
-          ? { ...item, status: updatedItems.find((ui) => ui.restitemid === item.restitemid)!.status }
-          : item
-      );
-      setData(updatedData);
-      setCardItems((prev) =>
-        prev.map((card) => {
-          const updatedItem = updatedData.find((item) => item.restitemid === Number(card.userId));
-          return updatedItem
-            ? {
+    }
+  };
+
+  // Updated handleToggleGroupStatus function in Menu.tsx
+  const handleToggleGroupStatus = async (groupId: number) => {
+    const groupItems = menuItems.filter(item => item.item_group_id === groupId);
+    if (groupItems.length > 0) {
+      const currentStatus = groupItems[0].status; // Assuming all have the same status
+      const newStatus = currentStatus === 1 ? 0 : 1;
+      try {
+        const promises = groupItems.map(item =>
+          fetch(`http://localhost:3001/api/menu/${item.restitemid}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: newStatus, updated_by_id: user?.id }),
+          })
+        );
+        const responses = await Promise.all(promises);
+        if (responses.some(res => !res.ok)) {
+          throw new Error('Failed to update some items');
+        }
+        // Update local state after successful API calls
+        const updatedItems = menuItems.map((item) =>
+          item.item_group_id === groupId ? { ...item, status: newStatus } : item
+        );
+        setMenuItems(updatedItems);
+        const updatedData = data.map((item) =>
+          updatedItems.find((ui) => ui.restitemid === item.restitemid)
+            ? { ...item, status: updatedItems.find((ui) => ui.restitemid === item.restitemid)!.status }
+            : item
+        );
+        setData(updatedData);
+        setCardItems((prev) =>
+          prev.map((card) => {
+            const updatedItem = updatedData.find((item) => item.restitemid === Number(card.userId));
+            return updatedItem
+              ? {
                 ...card,
                 cardStatus: updatedItem.status === 1 ? '✅ Available' : '❌ Unavailable',
               }
-            : card;
-        })
-      );
-      toast.success('Group status updated successfully');
-    } catch (err) {
-      console.error('Error updating group status:', err);
-      toast.error('Failed to update group status');
+              : card;
+          })
+        );
+        toast.success('Group status updated successfully');
+      } catch (err) {
+        console.error('Error updating group status:', err);
+        toast.error('Failed to update group status');
+      }
     }
-  }
-};
+  };
 
   const handleSuccess = () => {
     fetchMenu();
@@ -352,101 +352,101 @@ const handleToggleGroupStatus = async (groupId: number) => {
           </div>
         </div>
       </Navbar>
-      
+
       <div className="d-flex flex-column flex-lg-row">
-       <Offcanvas
-  show={showSidebar}
-  onHide={() => setShowSidebar(false)}
-  responsive="lg"
-  placement="start"
-  className="bg-white shadow-sm border-end"
-  style={{ width: '250px', minWidth: '250px', maxWidth: '250px', overflowX: 'hidden' }}
->
-  <Offcanvas.Header closeButton className="border-bottom">
-    <Offcanvas.Title as="h6" className="fw-bold mb-0">Item Groups</Offcanvas.Title>
-  </Offcanvas.Header>
-  <Offcanvas.Body className="p-3" style={{ overflowY: 'auto', overflowX: 'hidden' }}>
-    {loading ? (
-      <p className="text-muted">Loading item groups...</p>
-    ) : error ? (
-      <p className="text-muted">Error: {error}</p>
-    ) : menuItems.length === 0 ? (
-      <p className="text-muted">No item groups available.</p>
-    ) : (
-      <Table striped bordered hover size="sm" style={{ marginBottom: 0, tableLayout: 'fixed', width: '100%' }}>
-        <thead>
-          <tr>
-            <th style={{ width: '70%', padding: '8px', backgroundColor: '#f8f9fa', fontWeight: '600', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Item Group</th>
-            <th style={{ width: '30%', padding: '8px', backgroundColor: '#f8f9fa', fontWeight: '600', textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            style={{ backgroundColor: !data.length ? '#e9ecef' : 'transparent', color: '#2d3748' }}
-            onClick={() => {
-              setSelectedItemGroup(null);
-              setShowSidebar(false);
-            }}
-          >
-            <td style={{ padding: '8px', verticalAlign: 'middle', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>All</td>
-            <td style={{ padding: '8px', verticalAlign: 'middle', textAlign: 'center' }}>
-              <Button
-                variant="outline-success"
-                size="sm"
-                disabled
-                style={{ borderRadius: '15px', width: '40px', height: '20px', padding: '0', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', backgroundColor: '#28a745' }}
-              >
-                <div style={{ width: '16px', height: '16px', backgroundColor: 'white', borderRadius: '50%', margin: '2px' }} />
-              </Button>
-            </td>
-          </tr>
-          {Array.from(new Set(menuItems
-            .filter((item) => item.item_group_id !== null)
-            .map(item => item.item_group_id as number)))
-            .map(groupId => {
-              const groupItems = menuItems.filter(item => item.item_group_id === groupId);
-              const groupName = groupItems[0].groupname || `Group ${groupId}`;
-              const groupStatus = groupItems[0].status; // Use the status of the first item, assuming all are the same after toggle
-              return (
-                <tr
-                  key={groupId}
-                  style={{ backgroundColor: groupStatus === 0 ? '#e9ecef' : 'transparent', color: '#2d3748' }}
-                  onClick={() => {
-                    setSelectedItemGroup(groupId);
-                    setShowSidebar(false);
-                  }}
-                >
-                  <td style={{ padding: '8px', verticalAlign: 'middle', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {groupName}
-                  </td>
-                  <td style={{ padding: '8px', verticalAlign: 'middle', textAlign: 'center' }}>
-                    <Button
-                      variant="outline-success"
-                      size="sm"
-                      onClick={() => handleToggleGroupStatus(groupId)}
-                      style={{
-                        borderRadius: '15px',
-                        width: '40px',
-                        height: '20px',
-                        padding: '0',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: groupStatus === 0 ? 'flex-start' : 'flex-end',
-                        backgroundColor: groupStatus === 0 ? '#6c757d' : '#28a745',
-                        border: 'none',
-                      }}
-                    >
-                      <div style={{ width: '16px', height: '16px', backgroundColor: 'white', borderRadius: '50%', margin: '2px' }} />
-                    </Button>
-                  </td>
-                </tr>
-              );
-            })}
-        </tbody>
-      </Table>
-    )}
-  </Offcanvas.Body>
-</Offcanvas>
+        <Offcanvas
+          show={showSidebar}
+          onHide={() => setShowSidebar(false)}
+          responsive="lg"
+          placement="start"
+          className="bg-white shadow-sm border-end"
+          style={{ width: '250px', minWidth: '250px', maxWidth: '250px', overflowX: 'hidden' }}
+        >
+          <Offcanvas.Header closeButton className="border-bottom">
+            <Offcanvas.Title as="h6" className="fw-bold mb-0">Item Groups</Offcanvas.Title>
+          </Offcanvas.Header>
+          <Offcanvas.Body className="p-3" style={{ overflowY: 'auto', overflowX: 'hidden' }}>
+            {loading ? (
+              <p className="text-muted">Loading item groups...</p>
+            ) : error ? (
+              <p className="text-muted">Error: {error}</p>
+            ) : menuItems.length === 0 ? (
+              <p className="text-muted">No item groups available.</p>
+            ) : (
+              <Table striped bordered hover size="sm" style={{ marginBottom: 0, tableLayout: 'fixed', width: '100%' }}>
+                <thead>
+                  <tr>
+                    <th style={{ width: '70%', padding: '8px', backgroundColor: '#f8f9fa', fontWeight: '600', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Item Group</th>
+                    <th style={{ width: '30%', padding: '8px', backgroundColor: '#f8f9fa', fontWeight: '600', textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    style={{ backgroundColor: !data.length ? '#e9ecef' : 'transparent', color: '#2d3748' }}
+                    onClick={() => {
+                      setSelectedItemGroup(null);
+                      setShowSidebar(false);
+                    }}
+                  >
+                    <td style={{ padding: '8px', verticalAlign: 'middle', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>All</td>
+                    <td style={{ padding: '8px', verticalAlign: 'middle', textAlign: 'center' }}>
+                      <Button
+                        variant="outline-success"
+                        size="sm"
+                        disabled
+                        style={{ borderRadius: '15px', width: '40px', height: '20px', padding: '0', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', backgroundColor: '#28a745' }}
+                      >
+                        <div style={{ width: '16px', height: '16px', backgroundColor: 'white', borderRadius: '50%', margin: '2px' }} />
+                      </Button>
+                    </td>
+                  </tr>
+                  {Array.from(new Set(menuItems
+                    .filter((item) => item.item_group_id !== null)
+                    .map(item => item.item_group_id as number)))
+                    .map(groupId => {
+                      const groupItems = menuItems.filter(item => item.item_group_id === groupId);
+                      const groupName = groupItems[0].groupname || `Group ${groupId}`;
+                      const groupStatus = groupItems[0].status; // Use the status of the first item, assuming all are the same after toggle
+                      return (
+                        <tr
+                          key={groupId}
+                          style={{ backgroundColor: groupStatus === 0 ? '#e9ecef' : 'transparent', color: '#2d3748' }}
+                          onClick={() => {
+                            setSelectedItemGroup(groupId);
+                            setShowSidebar(false);
+                          }}
+                        >
+                          <td style={{ padding: '8px', verticalAlign: 'middle', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {groupName}
+                          </td>
+                          <td style={{ padding: '8px', verticalAlign: 'middle', textAlign: 'center' }}>
+                            <Button
+                              variant="outline-success"
+                              size="sm"
+                              onClick={() => handleToggleGroupStatus(groupId)}
+                              style={{
+                                borderRadius: '15px',
+                                width: '40px',
+                                height: '20px',
+                                padding: '0',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: groupStatus === 0 ? 'flex-start' : 'flex-end',
+                                backgroundColor: groupStatus === 0 ? '#6c757d' : '#28a745',
+                                border: 'none',
+                              }}
+                            >
+                              <div style={{ width: '16px', height: '16px', backgroundColor: 'white', borderRadius: '50%', margin: '2px' }} />
+                            </Button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </Table>
+            )}
+          </Offcanvas.Body>
+        </Offcanvas>
 
         <div className="flex-grow-1 p-3">
           <div style={{ maxHeight: 'calc(100vh - 80px)', paddingRight: '10px' }}>
@@ -689,7 +689,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
       setLoading(true);
       try {
         let apiUrl = '';
-        
+
         // If "Is Common to All Departments" is checked, fetch by hotelid
         // Otherwise, fetch by outletid
         if (isCommonToAllDepartments && selectedBrand) {
@@ -705,7 +705,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
         const res = await fetch(apiUrl, {
           headers: { 'Content-Type': 'application/json' },
         });
-        
+
         if (res.ok) {
           const data = await res.json();
           if (data.success) {
@@ -976,7 +976,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
               </Form.Group>
             </Col>
           </Row>
-           <Row className="mb-3">
+          <Row className="mb-3">
             <Col xs={12} sm={6}>
               <Form.Group as={Row} className="align-items-center">
                 <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Item Main Group</Form.Label>
@@ -1018,7 +1018,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
               </Form.Group>
             </Col>
           </Row>
-           <Row className="mb-3">
+          <Row className="mb-3">
             <Col xs={12} sm={4}>
               <Form.Group as={Row} className="align-items-center">
                 <Form.Label column sm={6} className="text-sm font-medium text-gray-700">Kitchen Main Group</Form.Label>
@@ -1081,9 +1081,9 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
             </Col>
           </Row>
           <Row className="mb-3">
-            
-            
-          
+
+
+
 
             <Col xs={12} sm={4}>
               <Form.Group as={Row} className="align-items-center">
@@ -1161,352 +1161,352 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
           </Row>
 
           {/* ────── New Pricing Tabs Section ────── */}
-      {/* ────── Pricing Tabs Section (replaced the previous one) ────── */}
-<Row className="mb-4">
-  <Col xs={12}>
-    <h6 className="mb-3 fw-semibold text-gray-800">Pricing Details</h6>
+          {/* ────── Pricing Tabs Section (replaced the previous one) ────── */}
+          <Row className="mb-4">
+            <Col xs={12}>
+              <h6 className="mb-3 fw-semibold text-gray-800">Pricing Details</h6>
 
-    <Tabs defaultActiveKey="singlePrice" id="pricingTabs" className="mb-3">
-      <Tab eventKey="singlePrice" title="Single Price">
-        <div className="table-responsive mb-3">
-          <Table bordered hover size="sm" className="mb-0">
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="text-sm font-medium text-gray-700">Department</th>
-                <th className="text-sm font-medium text-gray-700">Price</th>
-                <th className="text-sm font-medium text-gray-700">Tax Group</th>
-                <th className="text-sm font-medium text-gray-700">Final Price</th>
-              </tr>
-            </thead>
-            <tbody>
-              {newItem.departmentRates.length > 0 ? (
-                newItem.departmentRates.map((deptRate, index) => (
-                  <tr key={`dept-${deptRate.departmentid}-${index}`}>
-                    <td className="text-sm text-gray-600">
-                      {deptRate.departmentName}
-                    </td>
-                    <td>
-                      <Form.Control
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={deptRate.rate}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                          const updatedRates = [...newItem.departmentRates];
-                          updatedRates[index].rate = e.target.value ? parseFloat(e.target.value) : 0;
-                          setNewItem({ ...newItem, departmentRates: updatedRates });
-                        }}
-                        placeholder="Enter price"
-                        className="rounded-lg"
-                      />
-                    </td>
-                    <td>
+              <Tabs defaultActiveKey="singlePrice" id="pricingTabs" className="mb-3">
+                <Tab eventKey="singlePrice" title="Single Price">
+                  <div className="table-responsive mb-3">
+                    <Table bordered hover size="sm" className="mb-0">
+                      <thead className="bg-gray-100">
+                        <tr>
+                          <th className="text-sm font-medium text-gray-700">Department</th>
+                          <th className="text-sm font-medium text-gray-700">Price</th>
+                          <th className="text-sm font-medium text-gray-700">Tax Group</th>
+                          <th className="text-sm font-medium text-gray-700">Final Price</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {newItem.departmentRates.length > 0 ? (
+                          newItem.departmentRates.map((deptRate, index) => (
+                            <tr key={`dept-${deptRate.departmentid}-${index}`}>
+                              <td className="text-sm text-gray-600">
+                                {deptRate.departmentName}
+                              </td>
+                              <td>
+                                <Form.Control
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  value={deptRate.rate}
+                                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                                    const updatedRates = [...newItem.departmentRates];
+                                    updatedRates[index].rate = e.target.value ? parseFloat(e.target.value) : 0;
+                                    setNewItem({ ...newItem, departmentRates: updatedRates });
+                                  }}
+                                  placeholder="Enter price"
+                                  className="rounded-lg"
+                                />
+                              </td>
+                              <td>
+                                <Form.Select
+                                  value={taxgroupid ?? ''}
+                                  onChange={(e) => setTaxgroupid(e.target.value ? Number(e.target.value) : null)}
+                                  className="rounded-lg"
+                                  disabled={loading}
+                                >
+                                  <option value="">Select Tax Group</option>
+                                  {taxGroups.map((taxGroup) => (
+                                    <option key={taxGroup.taxgroupid} value={taxGroup.taxgroupid}>
+                                      {taxGroup.taxgroup_name}
+                                    </option>
+                                  ))}
+                                </Form.Select>
+                              </td>
+                              <td>
+                                <Form.Control
+                                  type="text"
+                                  value={deptRate.rate ? (Number(deptRate.rate) * 1.18).toFixed(2) : '—'}
+                                  readOnly
+                                  className="rounded-lg bg-light"
+                                />
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan={4} className="text-center text-sm text-gray-600 py-3">
+                              No departments found. Please select an outlet first.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </Table>
+                  </div>
+                </Tab>
+
+                <Tab eventKey="multiplePrice" title="Multiple Price">
+                  <p className="text-sm text-gray-600 mb-3">
+                    Define department-wise multiple pricing
+                  </p>
+
+                  {/* Variant Type Selector - Using fetched variantTypes */}
+                  <div className="row mb-3 align-items-center">
+                    <div className="col-md-4">
                       <Form.Select
-                        value={taxgroupid ?? ''}
-                        onChange={(e) => setTaxgroupid(e.target.value ? Number(e.target.value) : null)}
+                        value={selectedVariantType}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setSelectedVariantType(value);
+                          setSelectedVariantValues([]);
+
+                          // Only open modal if real variant selected
+                          if (value && value !== "simple") {
+                            setShowVariantValueModal(true);
+                          }
+                        }}
                         className="rounded-lg"
-                        disabled={loading}
                       >
-                        <option value="">Select Tax Group</option>
-                        {taxGroups.map((taxGroup) => (
-                          <option key={taxGroup.taxgroupid} value={taxGroup.taxgroupid}>
-                            {taxGroup.taxgroup_name}
+                        <option value="">Select Variant Type</option>
+
+                        {/* ✅ NEW: Simple Product Option */}
+                        <option value="simple">Simple Product </option>
+
+                        {variantTypes.map((vt) => (
+                          <option key={vt.variant_type_id} value={vt.variant_type_name}>
+                            {vt.variant_type_name}
                           </option>
                         ))}
                       </Form.Select>
-                    </td>
-                    <td>
-                      <Form.Control
-                        type="text"
-                        value={deptRate.rate ? (Number(deptRate.rate) * 1.18).toFixed(2) : '—'}
-                        readOnly
-                        className="rounded-lg bg-light"
-                      />
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={4} className="text-center text-sm text-gray-600 py-3">
-                    No departments found. Please select an outlet first.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </Table>
-        </div>
-      </Tab>
+                    </div>
+                    {selectedVariantValues.length > 0 && (
+                      <div className="col-md-4">
+                        <span className="text-muted small">
+                          {selectedVariantValues.length} column(s) selected
+                        </span>
+                      </div>
+                    )}
+                  </div>
 
-     <Tab eventKey="multiplePrice" title="Multiple Price">
-  <p className="text-sm text-gray-600 mb-3">
-    Define department-wise multiple pricing
-  </p>
+                  <div className="table-responsive">
+                    <Table bordered hover size="sm" className="mb-0">
+                      <thead className="bg-gray-100">
+                        <tr>
+                          <th>Department</th>
 
-  {/* Variant Type Selector - Using fetched variantTypes */}
-  <div className="row mb-3 align-items-center">
-    <div className="col-md-4">
-     <Form.Select
-  value={selectedVariantType}
-  onChange={(e) => {
-    const value = e.target.value;
-    setSelectedVariantType(value);
-    setSelectedVariantValues([]);
+                          {/* ===== SIMPLE MODE ===== */}
+                          {(!selectedVariantType || selectedVariantType === "simple") && (
+                            <th>Price</th>
+                          )}
 
-    // Only open modal if real variant selected
-    if (value && value !== "simple") {
-      setShowVariantValueModal(true);
-    }
-  }}
-  className="rounded-lg"
->
-  <option value="">Select Variant Type</option>
+                          {/* ===== VARIANT MODE WITH SELECTED COLUMNS ===== */}
+                          {selectedVariantType &&
+                            selectedVariantType !== "simple" &&
+                            selectedVariantValues.length > 0 &&
+                            variantTypes
+                              .find((vt) => vt.variant_type_name === selectedVariantType)
+                              ?.values
+                              .filter((value) =>
+                                selectedVariantValues.includes(value.variant_value_id)
+                              )
+                              .map((value) => (
+                                <th key={value.variant_value_id}>{value.value_name}</th>
+                              ))}
 
-  {/* ✅ NEW: Simple Product Option */}
-  <option value="simple">Simple Product </option>
+                          {/* ===== VARIANT MODE BUT NO VALUES SELECTED ===== */}
+                          {selectedVariantType &&
+                            selectedVariantType !== "simple" &&
+                            selectedVariantValues.length === 0 && (
+                              <th className="text-muted text-center">
+                                Select columns to display
+                              </th>
+                            )}
 
-  {variantTypes.map((vt) => (
-    <option key={vt.variant_type_id} value={vt.variant_type_name}>
-      {vt.variant_type_name}
-    </option>
-  ))}
-</Form.Select>
-    </div>
-    {selectedVariantValues.length > 0 && (
-      <div className="col-md-4">
-        <span className="text-muted small">
-          {selectedVariantValues.length} column(s) selected
-        </span>
-      </div>
-    )}
-  </div>
+                          <th>Tax Group</th>
+                          <th>Final Price</th>
+                        </tr>
+                      </thead>
 
-  <div className="table-responsive">
-    <Table bordered hover size="sm" className="mb-0">
-     <thead className="bg-gray-100">
-  <tr>
-    <th>Department</th>
+                      <tbody>
+                        {newItem.departmentRates.length > 0 ? (
+                          newItem.departmentRates.map((deptRate, deptIndex) => {
 
-{/* ===== SIMPLE MODE ===== */}
-{(!selectedVariantType || selectedVariantType === "simple") && (
-  <th>Price</th>
-)}
+                            const isSimpleMode =
+                              !selectedVariantType || selectedVariantType === "simple";
 
-{/* ===== VARIANT MODE WITH SELECTED COLUMNS ===== */}
-{selectedVariantType &&
-  selectedVariantType !== "simple" &&
-  selectedVariantValues.length > 0 &&
-  variantTypes
-    .find((vt) => vt.variant_type_name === selectedVariantType)
-    ?.values
-    .filter((value) =>
-      selectedVariantValues.includes(value.variant_value_id)
-    )
-    .map((value) => (
-      <th key={value.variant_value_id}>{value.value_name}</th>
-    ))}
+                            const selectedVariantObject = variantTypes.find(
+                              (vt) => vt.variant_type_name === selectedVariantType
+                            );
 
-{/* ===== VARIANT MODE BUT NO VALUES SELECTED ===== */}
-{selectedVariantType &&
-  selectedVariantType !== "simple" &&
-  selectedVariantValues.length === 0 && (
-    <th className="text-muted text-center">
-      Select columns to display
-    </th>
-)}
+                            const activeVariantValues =
+                              selectedVariantObject?.values.filter((value) =>
+                                selectedVariantValues.includes(value.variant_value_id)
+                              ) || [];
 
-<th>Tax Group</th>
-<th>Final Price</th>
-  </tr>
-</thead>
+                            return (
+                              <tr key={`multi-${deptRate.departmentid}-${deptIndex}`}>
 
-     <tbody>
-  {newItem.departmentRates.length > 0 ? (
-    newItem.departmentRates.map((deptRate, deptIndex) => {
-      
-      const isSimpleMode =
-        !selectedVariantType || selectedVariantType === "simple";
+                                {/* Department */}
+                                <td>{deptRate.departmentName}</td>
 
-      const selectedVariantObject = variantTypes.find(
-        (vt) => vt.variant_type_name === selectedVariantType
-      );
+                                {/* ================= SIMPLE MODE ================= */}
+                                {isSimpleMode && (
+                                  <td>
+                                    <Form.Control
+                                      type="number"
+                                      step="0.01"
+                                      min="0"
+                                      placeholder="0.00"
+                                      className="rounded-lg"
+                                    />
+                                  </td>
+                                )}
 
-      const activeVariantValues =
-        selectedVariantObject?.values.filter((value) =>
-          selectedVariantValues.includes(value.variant_value_id)
-        ) || [];
+                                {/* ================= VARIANT MODE ================= */}
+                                {!isSimpleMode && activeVariantValues.length > 0 &&
+                                  activeVariantValues.map((value) => (
+                                    <td key={value.variant_value_id}>
+                                      <Form.Control
+                                        type="number"
+                                        step="0.01"
+                                        min="0"
+                                        placeholder="0.00"
+                                        className="rounded-lg"
+                                      />
+                                    </td>
+                                  ))}
 
-      return (
-        <tr key={`multi-${deptRate.departmentid}-${deptIndex}`}>
-          
-          {/* Department */}
-          <td>{deptRate.departmentName}</td>
+                                {/* If Variant Selected but No Columns Chosen */}
+                                {!isSimpleMode && activeVariantValues.length === 0 && (
+                                  <td className="text-muted text-center">—</td>
+                                )}
 
-          {/* ================= SIMPLE MODE ================= */}
-          {isSimpleMode && (
-            <td>
-              <Form.Control
-                type="number"
-                step="0.01"
-                min="0"
-                placeholder="0.00"
-                className="rounded-lg"
-              />
-            </td>
-          )}
+                                {/* Tax Group */}
+                                <td>
+                                  <Form.Select className="rounded-lg">
+                                    <option value="">Select</option>
+                                    {taxGroups.map((tg) => (
+                                      <option key={tg.taxgroupid} value={tg.taxgroupid}>
+                                        {tg.taxgroup_name}
+                                      </option>
+                                    ))}
+                                  </Form.Select>
+                                </td>
 
-          {/* ================= VARIANT MODE ================= */}
-          {!isSimpleMode && activeVariantValues.length > 0 &&
-            activeVariantValues.map((value) => (
-              <td key={value.variant_value_id}>
-                <Form.Control
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="0.00"
-                  className="rounded-lg"
-                />
-              </td>
-            ))}
+                                {/* Final Price */}
+                                <td>
+                                  <Form.Control
+                                    type="text"
+                                    readOnly
+                                    value="—"
+                                    className="rounded-lg bg-light"
+                                  />
+                                </td>
 
-          {/* If Variant Selected but No Columns Chosen */}
-          {!isSimpleMode && activeVariantValues.length === 0 && (
-            <td className="text-muted text-center">—</td>
-          )}
+                              </tr>
+                            );
+                          })
+                        ) : (
+                          <tr>
+                            <td colSpan={6} className="text-center py-3">
+                              No departments found. Please select an outlet first.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </Table>
+                  </div>
 
-          {/* Tax Group */}
-          <td>
-            <Form.Select className="rounded-lg">
-              <option value="">Select</option>
-              {taxGroups.map((tg) => (
-                <option key={tg.taxgroupid} value={tg.taxgroupid}>
-                  {tg.taxgroup_name}
-                </option>
-              ))}
-            </Form.Select>
-          </td>
+                  {/* Small Modal for Variant Value Selection */}
+                  <Modal
+                    show={showVariantValueModal}
+                    onHide={() => setShowVariantValueModal(false)}
+                    size="sm"
+                    centered
+                  >
+                    <Modal.Header closeButton className="py-2">
+                      <Modal.Title className="fs-6">Select Variant Values</Modal.Title>
+                    </Modal.Header>
+                    <Modal.Body className="py-2">
+                      {selectedVariantType && (
+                        <div>
+                          {variantTypes.filter(vt => vt.variant_type_name === selectedVariantType)[0]?.values.map((value) => (
+                            <Form.Check
+                              key={value.variant_value_id}
+                              type="checkbox"
+                              id={`variant-${value.variant_value_id}`}
+                              label={value.value_name}
+                              checked={selectedVariantValues.includes(value.variant_value_id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedVariantValues([...selectedVariantValues, value.variant_value_id]);
+                                } else {
+                                  setSelectedVariantValues(selectedVariantValues.filter(id => id !== value.variant_value_id));
+                                }
+                              }}
+                              className="mb-2"
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </Modal.Body>
+                    <Modal.Footer className="py-2">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => setShowVariantValueModal(false)}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={() => setShowVariantValueModal(false)}
+                      >
+                        Apply
+                      </Button>
+                    </Modal.Footer>
+                  </Modal>
+                </Tab>
 
-          {/* Final Price */}
-          <td>
-            <Form.Control
-              type="text"
-              readOnly
-              value="—"
-              className="rounded-lg bg-light"
-            />
-          </td>
+                <Tab eventKey="stock" title="Stock">
+                  <Row>
+                    <Col xs={12} sm={6} lg={4}>
+                      <Form.Group as={Row} className="align-items-center mb-3">
+                        <Form.Label column sm={5} className="text-sm font-medium text-gray-700">
+                          Stock Unit
+                        </Form.Label>
+                        <Col sm={7}>
+                          <Form.Select
+                            value={stockUnit ?? ''}
+                            onChange={(e) => setStockUnit(e.target.value ? Number(e.target.value) : null)}
+                            className="rounded-lg"
+                            disabled={loading}
+                          >
+                            <option value="">Select Stock Unit</option>
+                            {stockUnits.map((unit) => (
+                              <option key={unit.unitid} value={unit.unitid}>
+                                {unit.unit_name}
+                              </option>
+                            ))}
+                          </Form.Select>
+                        </Col>
+                      </Form.Group>
+                    </Col>
 
-        </tr>
-      );
-    })
-  ) : (
-    <tr>
-      <td colSpan={6} className="text-center py-3">
-        No departments found. Please select an outlet first.
-      </td>
-    </tr>
-  )}
-</tbody>
-    </Table>
-  </div>
+                    <Col xs={12} sm={6} lg={4}>
+                      <Form.Group className="mb-3">
+                        <Form.Label className="text-sm font-medium text-gray-700">
+                          Opening Stock
+                        </Form.Label>
+                        <Form.Control
+                          type="number"
+                          min="0"
+                          step="0.001"
+                          placeholder="0.00"
+                          className="rounded-lg"
+                        />
+                      </Form.Group>
+                    </Col>
+                  </Row>
+                </Tab>
 
-  {/* Small Modal for Variant Value Selection */}
-  <Modal 
-    show={showVariantValueModal} 
-    onHide={() => setShowVariantValueModal(false)}
-    size="sm"
-    centered
-  >
-    <Modal.Header closeButton className="py-2">
-      <Modal.Title className="fs-6">Select Variant Values</Modal.Title>
-    </Modal.Header>
-    <Modal.Body className="py-2">
-      {selectedVariantType && (
-        <div>
-          {variantTypes.filter(vt => vt.variant_type_name === selectedVariantType)[0]?.values.map((value) => (
-            <Form.Check
-              key={value.variant_value_id}
-              type="checkbox"
-              id={`variant-${value.variant_value_id}`}
-              label={value.value_name}
-              checked={selectedVariantValues.includes(value.variant_value_id)}
-              onChange={(e) => {
-                if (e.target.checked) {
-                  setSelectedVariantValues([...selectedVariantValues, value.variant_value_id]);
-                } else {
-                  setSelectedVariantValues(selectedVariantValues.filter(id => id !== value.variant_value_id));
-                }
-              }}
-              className="mb-2"
-            />
-          ))}
-        </div>
-      )}
-    </Modal.Body>
-    <Modal.Footer className="py-2">
-      <Button 
-        variant="secondary" 
-        size="sm"
-        onClick={() => setShowVariantValueModal(false)}
-      >
-        Cancel
-      </Button>
-      <Button 
-        variant="primary" 
-        size="sm"
-        onClick={() => setShowVariantValueModal(false)}
-      >
-        Apply
-      </Button>
-    </Modal.Footer>
-  </Modal>
-</Tab>
+              </Tabs>
+            </Col>
+          </Row>
 
-      <Tab eventKey="stock" title="Stock">
-        <Row>
-          <Col xs={12} sm={6} lg={4}>
-            <Form.Group as={Row} className="align-items-center mb-3">
-              <Form.Label column sm={5} className="text-sm font-medium text-gray-700">
-                Stock Unit
-              </Form.Label>
-              <Col sm={7}>
-                <Form.Select
-                  value={stockUnit ?? ''}
-                  onChange={(e) => setStockUnit(e.target.value ? Number(e.target.value) : null)}
-                  className="rounded-lg"
-                  disabled={loading}
-                >
-                  <option value="">Select Stock Unit</option>
-                  {stockUnits.map((unit) => (
-                    <option key={unit.unitid} value={unit.unitid}>
-                      {unit.unit_name}
-                    </option>
-                  ))}
-                </Form.Select>
-              </Col>
-            </Form.Group>
-          </Col>
-
-          <Col xs={12} sm={6} lg={4}>
-            <Form.Group className="mb-3">
-              <Form.Label className="text-sm font-medium text-gray-700">
-                Opening Stock
-              </Form.Label>
-              <Form.Control
-                type="number"
-                min="0"
-                step="0.001"
-                placeholder="0.00"
-                className="rounded-lg"
-              />
-            </Form.Group>
-          </Col>
-        </Row>
-      </Tab>
-    
-    </Tabs> 
-  </Col>
-</Row>
-         
           <Row className="mb-3">
             <Col xs={12} sm={6}>
               <Form.Group as={Row} className="align-items-center">
@@ -1568,7 +1568,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
               </Form.Group>
             </Col>
           </Row>
-         
+
           <Row className="mb-3">
             <Col xs={12} sm={6}>
               <Form.Group as={Row} className="align-items-center">
