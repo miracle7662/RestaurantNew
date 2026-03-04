@@ -273,7 +273,8 @@ export const fetchMarkets = async (
   try {
     const response = await MarketsService.list()
     // HttpClient returns the unwrapped response due to interceptor
-    const data: MarketItem[] = Array.isArray(response.data) ? response.data : (response as any).data || []
+    // response is already the array directly, not wrapped in an object
+    const data: MarketItem[] = Array.isArray(response) ? response : []
     setMarkets(data)
     if (data.length > 0 && !currentMarketId) {
       setMarketId(data[0].marketid)

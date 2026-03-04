@@ -104,9 +104,13 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
     }
   }, [effectiveSource, latestKOT]);
 
-  const fetchDepartments = async () => {
+  const fetchDepartments = async (outletId?: number) => {
     try {
-      const data = await TableDepartmentService.list();
+      const params: { outletid?: number } = {};
+      if (outletId) {
+        params.outletid = outletId;
+      }
+      const data = await TableDepartmentService.list(params);
       if (data.success) {
         setDepartments(data.data);
       } else {
@@ -119,7 +123,8 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
 
   const fetchTables = async () => {
     try {
-     const response = await TableManagementService.list();
+      const hotelId = user?.hotelid;
+      const response = await TableManagementService.list({ hotelid: hotelId });
       if (response.success && Array.isArray(response.data)) {
         const mappedTables: TableData[] = response.data.map((table: any) => ({
           id: table.tableid.toString(),
@@ -143,9 +148,8 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
       if (!user) return;
 
       try {
-        await fetchDepartments();
-
-        const tablesResponse = await TableManagementService.list();
+        const hotelId = user?.hotelid;
+        const tablesResponse = await TableManagementService.list({ hotelid: hotelId });
         const tablesData = tablesResponse;
         if (tablesData.success && Array.isArray(tablesData.data)) {
           const mappedTables: TableData[] = tablesData.data.map((table: any) => ({
@@ -167,6 +171,11 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
           setSelectedTableId(Number(defaultTable.id));
           setSelectedTable(defaultTable.name);
           setSelectedDepartment(defaultTable.department);
+          
+          // Fetch departments based on the source table's outlet ID
+          const sourceOutletId = defaultTable.outletid || user?.outletid;
+          await fetchDepartments(sourceOutletId);
+          
           await fetchItemsForTable(Number(defaultTable.id), 'selected');
         }
 
@@ -323,6 +332,11 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
     const srcTable = tables.find(t => t.id === tableId);
     setSelectedTable(srcTable?.name || '');
     setSelectedDepartment(srcTable?.department || '');
+    
+    // Refetch departments based on the new source table's outlet ID
+    const sourceOutletId = srcTable?.outletid || user?.outletid;
+    await fetchDepartments(sourceOutletId);
+    
     await fetchItemsForTable(numericTableId, 'selected');
   };
 

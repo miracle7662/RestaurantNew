@@ -71,7 +71,7 @@ const WeeklyStatsCard: React.FC = () => {
     },
   }
 
-  const series: ApexAxisChartSeries | ApexNonAxisChartSeries | undefined = [
+  const series =[
     {
       name: 'Total Sales',
       data: [300, 325, 280, 350, 320, 315, 320],

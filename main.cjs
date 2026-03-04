@@ -63,12 +63,16 @@ ipcMain.handle("direct-print", (event, { html, printerName }) => {
    ========================= */
 function startBackend() {
   const isDev = !app.isPackaged;
-
   const backendPath = isDev
     ? path.join(__dirname, "backend", "server.js")
     : path.join(process.resourcesPath, "backend", "server.js");
 
-   // Pass userData path to backend for uploads
+  // 🔥 DEBUG LOGS - Yeh console mein dikhega
+  console.log('🔍 isPackaged:', app.isPackaged);
+  console.log('🔍 Backend Path:', backendPath);
+  console.log('🔍 Path exists:', require('fs').existsSync(backendPath));
+  console.log('🔍 ResourcesPath:', process.resourcesPath);
+
   const env = { ...process.env };
   if (!isDev) {
     env.ELECTRON_USER_DATA_PATH = app.getPath("userData");
@@ -77,12 +81,16 @@ function startBackend() {
   backendProcess = spawn('node', [backendPath], {
     cwd: path.dirname(backendPath),
     stdio: "inherit",
-    windowsHide: true,
+    windowsHide: false,  // 🔥 SHOW console for debug
     env: env,
   });
 
   backendProcess.on("close", (code) => {
     console.log(`Backend exited with code ${code}`);
+  });
+
+  backendProcess.on("error", (err) => {
+    console.error(`Backend spawn ERROR:`, err.message);
   });
 }
 
@@ -125,28 +133,19 @@ function createWindow() {
 }
 
 /* =========================
-   App Events
+   App Events - FIXED
    ========================= */
-app.whenReady().then(() => {
-  startBackend();   // ✅ backend auto-start
+app.whenReady().then(async () => {
+  console.log('🚀 App starting...');
+  
+  // 1. Pehle backend start
+  startBackend();
+  
+  // 2. 4 second wait backend ready hone tak
+  console.log('⏳ Waiting for backend (4 sec)...');
+  await new Promise(resolve => setTimeout(resolve, 4000));
+  
+  // 3. Ab window banao
+  console.log('✅ Creating window...');
   createWindow();
 });
-
-app.on("window-all-closed", () => {
-  if (backendProcess) backendProcess.kill();
-  if (process.platform !== "darwin") app.quit();
-});
-
-app.on("activate", () => {
-  if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow();
-  }
-});
-
-app.on(
-  "certificate-error",
-  (event, webContents, url, error, certificate, callback) => {
-    event.preventDefault();
-    callback(true);
-  }
-);
