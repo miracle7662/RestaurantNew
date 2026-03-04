@@ -1245,24 +1245,31 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
   {/* Variant Type Selector - Using fetched variantTypes */}
   <div className="row mb-3 align-items-center">
     <div className="col-md-4">
-      <Form.Select
-        value={selectedVariantType}
-        onChange={(e) => {
-          setSelectedVariantType(e.target.value);
-          setSelectedVariantValues([]); // Reset selected values when variant type changes
-          if (e.target.value) {
-            setShowVariantValueModal(true); // Open modal automatically when variant type is selected
-          }
-        }}
-        className="rounded-lg"
-      >
-        <option value="">Select Variant Type</option>
-        {variantTypes.map((vt) => (
-          <option key={vt.variant_type_id} value={vt.variant_type_name}>
-            {vt.variant_type_name}
-          </option>
-        ))}
-      </Form.Select>
+     <Form.Select
+  value={selectedVariantType}
+  onChange={(e) => {
+    const value = e.target.value;
+    setSelectedVariantType(value);
+    setSelectedVariantValues([]);
+
+    // Only open modal if real variant selected
+    if (value && value !== "simple") {
+      setShowVariantValueModal(true);
+    }
+  }}
+  className="rounded-lg"
+>
+  <option value="">Select Variant Type</option>
+
+  {/* ✅ NEW: Simple Product Option */}
+  <option value="simple">Simple Product </option>
+
+  {variantTypes.map((vt) => (
+    <option key={vt.variant_type_id} value={vt.variant_type_name}>
+      {vt.variant_type_name}
+    </option>
+  ))}
+</Form.Select>
     </div>
     {selectedVariantValues.length > 0 && (
       <div className="col-md-4">
@@ -1279,54 +1286,77 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
   <tr>
     <th>Department</th>
 
-    {/* If No Variant Selected → Show Single Price */}
-    {!selectedVariantType && <th>Price</th>}
+{/* ===== SIMPLE MODE ===== */}
+{(!selectedVariantType || selectedVariantType === "simple") && (
+  <th>Price</th>
+)}
 
-    {/* If Variant Selected → Show only SELECTED columns */}
-    {selectedVariantType && selectedVariantValues.length > 0 && 
-      variantTypes.filter(vt => vt.variant_type_name === selectedVariantType)[0]?.values
-        .filter(value => selectedVariantValues.includes(value.variant_value_id))
-        .map((value) => (
-          <th key={value.variant_value_id}>{value.value_name}</th>
-        ))
-    }
+{/* ===== VARIANT MODE WITH SELECTED COLUMNS ===== */}
+{selectedVariantType &&
+  selectedVariantType !== "simple" &&
+  selectedVariantValues.length > 0 &&
+  variantTypes
+    .find((vt) => vt.variant_type_name === selectedVariantType)
+    ?.values
+    .filter((value) =>
+      selectedVariantValues.includes(value.variant_value_id)
+    )
+    .map((value) => (
+      <th key={value.variant_value_id}>{value.value_name}</th>
+    ))}
 
-    {/* If Variant Selected but NO columns selected → Show hint */}
-    {selectedVariantType && selectedVariantValues.length === 0 && (
-      <th className="text-muted text-center">Select columns to display</th>
-    )}
+{/* ===== VARIANT MODE BUT NO VALUES SELECTED ===== */}
+{selectedVariantType &&
+  selectedVariantType !== "simple" &&
+  selectedVariantValues.length === 0 && (
+    <th className="text-muted text-center">
+      Select columns to display
+    </th>
+)}
 
-    <th>Tax Group</th>
-    <th>Final Price</th>
+<th>Tax Group</th>
+<th>Final Price</th>
   </tr>
 </thead>
 
-      <tbody>
+     <tbody>
   {newItem.departmentRates.length > 0 ? (
-    newItem.departmentRates.map((deptRate, deptIndex) => (
-      <tr key={`multi-${deptRate.departmentid}-${deptIndex}`}>
-        
-        {/* Department */}
-        <td>{deptRate.departmentName}</td>
+    newItem.departmentRates.map((deptRate, deptIndex) => {
+      
+      const isSimpleMode =
+        !selectedVariantType || selectedVariantType === "simple";
 
-        {/* SINGLE PRICE MODE */}
-        {!selectedVariantType && (
-          <td>
-            <Form.Control
-              type="number"
-              step="0.01"
-              min="0"
-              placeholder="0.00"
-              className="rounded-lg"
-            />
-          </td>
-        )}
+      const selectedVariantObject = variantTypes.find(
+        (vt) => vt.variant_type_name === selectedVariantType
+      );
 
-        {/* MULTIPLE VARIANT MODE - Show only SELECTED columns */}
-        {selectedVariantType && selectedVariantValues.length > 0 && 
-          variantTypes.filter(vt => vt.variant_type_name === selectedVariantType)[0]?.values
-            .filter(value => selectedVariantValues.includes(value.variant_value_id))
-            .map((value) => (
+      const activeVariantValues =
+        selectedVariantObject?.values.filter((value) =>
+          selectedVariantValues.includes(value.variant_value_id)
+        ) || [];
+
+      return (
+        <tr key={`multi-${deptRate.departmentid}-${deptIndex}`}>
+          
+          {/* Department */}
+          <td>{deptRate.departmentName}</td>
+
+          {/* ================= SIMPLE MODE ================= */}
+          {isSimpleMode && (
+            <td>
+              <Form.Control
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="0.00"
+                className="rounded-lg"
+              />
+            </td>
+          )}
+
+          {/* ================= VARIANT MODE ================= */}
+          {!isSimpleMode && activeVariantValues.length > 0 &&
+            activeVariantValues.map((value) => (
               <td key={value.variant_value_id}>
                 <Form.Control
                   type="number"
@@ -1336,38 +1366,38 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                   className="rounded-lg"
                 />
               </td>
-            ))
-        }
-
-        {/* If Variant Selected but NO columns selected */}
-        {selectedVariantType && selectedVariantValues.length === 0 && (
-          <td className="text-muted text-center">—</td>
-        )}
-
-        {/* Tax Group */}
-        <td>
-          <Form.Select className="rounded-lg">
-            <option value="">Select</option>
-            {taxGroups.map((tg) => (
-              <option key={tg.taxgroupid} value={tg.taxgroupid}>
-                {tg.taxgroup_name}
-              </option>
             ))}
-          </Form.Select>
-        </td>
 
-        {/* Final Price */}
-        <td>
-          <Form.Control
-            type="text"
-            readOnly
-            value="—"
-            className="rounded-lg bg-light"
-          />
-        </td>
+          {/* If Variant Selected but No Columns Chosen */}
+          {!isSimpleMode && activeVariantValues.length === 0 && (
+            <td className="text-muted text-center">—</td>
+          )}
 
-      </tr>
-    ))
+          {/* Tax Group */}
+          <td>
+            <Form.Select className="rounded-lg">
+              <option value="">Select</option>
+              {taxGroups.map((tg) => (
+                <option key={tg.taxgroupid} value={tg.taxgroupid}>
+                  {tg.taxgroup_name}
+                </option>
+              ))}
+            </Form.Select>
+          </td>
+
+          {/* Final Price */}
+          <td>
+            <Form.Control
+              type="text"
+              readOnly
+              value="—"
+              className="rounded-lg bg-light"
+            />
+          </td>
+
+        </tr>
+      );
+    })
   ) : (
     <tr>
       <td colSpan={6} className="text-center py-3">
