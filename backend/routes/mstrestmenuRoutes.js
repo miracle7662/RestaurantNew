@@ -4,11 +4,11 @@ const menuController = require("../controllers/mstrestmenuController");
 
 // Get all + Get by ID
 router.get("/", menuController.getAllMenuItems);
-router.get("/:id", menuController.getMenuItemById);
 
-// Variant Types and Values
-
+// Variant Types and Values - MUST be before /:id route
 router.get("/variant-types-with-values", menuController.getAllVariantTypesWithValues);
+
+router.get("/:id", menuController.getMenuItemById);
 
 // Create & Update with details
 router.post("/", menuController.createMenuItemWithDetails);

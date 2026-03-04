@@ -97,6 +97,16 @@ interface VariantValue {
   active: number;
 }
 
+interface VariantType {
+  variant_type_id: number;
+  variant_type_name: string;
+  hotelid: number | null;
+  outletid: number | null;
+  sort_order: number;
+  active: number;
+  values: VariantValue[];
+}
+
 interface ModalProps {
   show: boolean;
   onHide: () => void;
@@ -104,6 +114,7 @@ interface ModalProps {
   setData: React.Dispatch<React.SetStateAction<MenuItem[]>>;
   setCardItems: React.Dispatch<React.SetStateAction<CardItem[]>>;
   mstmenu?: MenuItem;
+  variantTypes: VariantType[];
 }
 
 interface ItemModalProps extends ModalProps {
@@ -126,6 +137,7 @@ const Menu: React.FC = () => {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]); // State for sidebar menu items
   const [selectedItemGroup, setSelectedItemGroup] = useState<number | null>(null); // State for selected item group filter
   const [error, setError] = useState<string | null>(null); // State for error handling
+  const [variantTypes, setVariantTypes] = useState<VariantType[]>([]); // State for variant types
   const { user } = useAuthContext();
 
  
@@ -191,7 +203,21 @@ const Menu: React.FC = () => {
     fetchOutletsForDropdown(user, setOutlets, setLoading);
     fetchBrands(user, setBrands);
     fetchMenuItems(user?.hotelid, user?.outletid); // Fetch menu items for sidebar
+    fetchVariantTypes(); // Fetch variant types
   }, [user]);
+
+  // Fetch variant types from API
+  const fetchVariantTypes = async () => {
+    try {
+      const res = await fetch('http://localhost:3001/api/menu/variant-types-with-values');
+      if (!res.ok) throw new Error('Failed to fetch variant types');
+      const data: VariantType[] = await res.json();
+      setVariantTypes(data);
+      console.log('Fetched variant types:', data);
+    } catch (err) {
+      console.error('Error fetching variant types:', err);
+    }
+  };
 
   const handleEditItem = (item: MenuItem) => {
     setEditItem(item);
@@ -509,6 +535,7 @@ const handleToggleGroupStatus = async (groupId: number) => {
           onSuccess={handleSuccess}
           setData={setData}
           setCardItems={setCardItems}
+          variantTypes={variantTypes}
           isEdit={false}
         />
         <ItemModal
@@ -518,13 +545,14 @@ const handleToggleGroupStatus = async (groupId: number) => {
           setData={setData}
           setCardItems={setCardItems}
           mstmenu={editItem ?? undefined}
+          variantTypes={variantTypes}
           isEdit={true}
         />
       </div>
     </div>
   );
 };
-const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData, setCardItems, mstmenu, isEdit }) => {
+const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData, setCardItems, mstmenu, variantTypes, isEdit }) => {
   const [selectedOutlet, setSelectedOutlet] = useState<number | null>(mstmenu?.outletid || null);
   const [selectedBrand, setSelectedBrand] = useState<number | null>(mstmenu?.hotelid || null);
   const [itemNo, setItemNo] = useState<string | null>(mstmenu?.item_no || null);
@@ -778,11 +806,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
     }));
   };
 
-  const variantTypeConfig: Record<string, string[]> = {
-  portion: ["Half", "Full", "Quarter"],
-  size: ["Small", "Medium", "Large", "Extra Large"],
-  bar: ["30 ml", "60 ml", "90 ml", "180 ml", "Bottle"]
-};
+
 
   const [selectedVariantType, setSelectedVariantType] = useState<string>("");
 
@@ -1216,7 +1240,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
     Define department-wise multiple pricing
   </p>
 
-  {/* Variant Type Selector */}
+  {/* Variant Type Selector - Using fetched variantTypes */}
   <div className="row mb-3">
     <div className="col-md-4">
       <Form.Select
@@ -1225,9 +1249,11 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
         className="rounded-lg"
       >
         <option value="">Select Variant Type</option>
-        <option value="portion">Portion</option>
-        <option value="size">Size</option>
-        <option value="bar">Bar</option>
+        {variantTypes.map((vt) => (
+          <option key={vt.variant_type_id} value={vt.variant_type_name}>
+            {vt.variant_type_name}
+          </option>
+        ))}
       </Form.Select>
     </div>
   </div>
@@ -1241,10 +1267,9 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
     {/* If No Variant Selected → Show Single Price */}
     {!selectedVariantType && <th>Price</th>}
 
-    {/* If Variant Selected → Show Dynamic Columns */}
-    {selectedVariantType &&
-      variantTypeConfig[selectedVariantType].map((variant) => (
-        <th key={variant}>{variant}</th>
+    {/* If Variant Selected → Show Dynamic Columns from fetched data */}
+    {selectedVariantType && variantTypes.filter(vt => vt.variant_type_name === selectedVariantType)[0]?.values.map((value) => (
+        <th key={value.variant_value_id}>{value.value_name}</th>
       ))}
 
     <th>Tax Group</th>
@@ -1273,10 +1298,9 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
           </td>
         )}
 
-        {/* MULTIPLE VARIANT MODE */}
-        {selectedVariantType &&
-          variantTypeConfig[selectedVariantType].map((variant) => (
-            <td key={variant}>
+        {/* MULTIPLE VARIANT MODE - Using fetched variantTypes */}
+        {selectedVariantType && variantTypes.filter(vt => vt.variant_type_name === selectedVariantType)[0]?.values.map((value) => (
+            <td key={value.variant_value_id}>
               <Form.Control
                 type="number"
                 step="0.01"
