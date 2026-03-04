@@ -403,9 +403,10 @@ export const fetchItemMainGroup = async (
   setItemMainGroup: (data: ItemMainGroupItem[]) => void,
   setitemmaingroupid: (id: number) => void,
   currentitemmaingroupid?: string,
+  hotelid?: number,
 ) => {
   try {
-    const response = await ItemMainGroupService.list()
+    const response = await ItemMainGroupService.list({ hotelid: hotelid?.toString() })
     // HttpClient returns the unwrapped response due to interceptor
     const data: ItemMainGroupItem[] = Array.isArray(response.data) ? response.data : (response as any).data || []
     setItemMainGroup(data)
