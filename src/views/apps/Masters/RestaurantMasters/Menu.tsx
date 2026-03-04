@@ -1166,77 +1166,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
             <Col xs={12}>
               <h6 className="mb-3 fw-semibold text-gray-800">Pricing Details</h6>
 
-              <Tabs defaultActiveKey="singlePrice" id="pricingTabs" className="mb-3">
-                <Tab eventKey="singlePrice" title="Single Price">
-                  <div className="table-responsive mb-3">
-                    <Table bordered hover size="sm" className="mb-0">
-                      <thead className="bg-gray-100">
-                        <tr>
-                          <th className="text-sm font-medium text-gray-700">Department</th>
-                          <th className="text-sm font-medium text-gray-700">Price</th>
-                          <th className="text-sm font-medium text-gray-700">Tax Group</th>
-                          <th className="text-sm font-medium text-gray-700">Final Price</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {newItem.departmentRates.length > 0 ? (
-                          newItem.departmentRates.map((deptRate, index) => (
-                            <tr key={`dept-${deptRate.departmentid}-${index}`}>
-                              <td className="text-sm text-gray-600">
-                                {deptRate.departmentName}
-                              </td>
-                              <td>
-                                <Form.Control
-                                  type="number"
-                                  step="0.01"
-                                  min="0"
-                                  value={deptRate.rate}
-                                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                                    const updatedRates = [...newItem.departmentRates];
-                                    updatedRates[index].rate = e.target.value ? parseFloat(e.target.value) : 0;
-                                    setNewItem({ ...newItem, departmentRates: updatedRates });
-                                  }}
-                                  placeholder="Enter price"
-                                  className="rounded-lg"
-                                />
-                              </td>
-                              <td>
-                                <Form.Select
-                                  value={taxgroupid ?? ''}
-                                  onChange={(e) => setTaxgroupid(e.target.value ? Number(e.target.value) : null)}
-                                  className="rounded-lg"
-                                  disabled={loading}
-                                >
-                                  <option value="">Select Tax Group</option>
-                                  {taxGroups.map((taxGroup) => (
-                                    <option key={taxGroup.taxgroupid} value={taxGroup.taxgroupid}>
-                                      {taxGroup.taxgroup_name}
-                                    </option>
-                                  ))}
-                                </Form.Select>
-                              </td>
-                              <td>
-                                <Form.Control
-                                  type="text"
-                                  value={deptRate.rate ? (Number(deptRate.rate) * 1.18).toFixed(2) : '—'}
-                                  readOnly
-                                  className="rounded-lg bg-light"
-                                />
-                              </td>
-                            </tr>
-                          ))
-                        ) : (
-                          <tr>
-                            <td colSpan={4} className="text-center text-sm text-gray-600 py-3">
-                              No departments found. Please select an outlet first.
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </Table>
-                  </div>
-                </Tab>
-
+              <Tabs defaultActiveKey="multiplePrice" id="pricingTabs" className="mb-3">              
                 <Tab eventKey="multiplePrice" title="Multiple Price">
                   <p className="text-sm text-gray-600 mb-3">
                     Define department-wise multiple pricing
@@ -1315,7 +1245,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                             )}
 
                           <th>Tax Group</th>
-                          <th>Final Price</th>
+                          
                         </tr>
                       </thead>
 
@@ -1385,16 +1315,8 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                                   </Form.Select>
                                 </td>
 
-                                {/* Final Price */}
-                                <td>
-                                  <Form.Control
-                                    type="text"
-                                    readOnly
-                                    value="—"
-                                    className="rounded-lg bg-light"
-                                  />
-                                </td>
-
+                                
+                               
                               </tr>
                             );
                           })
@@ -1462,45 +1384,70 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                 </Tab>
 
                 <Tab eventKey="stock" title="Stock">
-                  <Row>
-                    <Col xs={12} sm={6} lg={4}>
-                      <Form.Group as={Row} className="align-items-center mb-3">
-                        <Form.Label column sm={5} className="text-sm font-medium text-gray-700">
-                          Stock Unit
-                        </Form.Label>
-                        <Col sm={7}>
-                          <Form.Select
-                            value={stockUnit ?? ''}
-                            onChange={(e) => setStockUnit(e.target.value ? Number(e.target.value) : null)}
-                            className="rounded-lg"
-                            disabled={loading}
-                          >
-                            <option value="">Select Stock Unit</option>
-                            {stockUnits.map((unit) => (
-                              <option key={unit.unitid} value={unit.unitid}>
-                                {unit.unit_name}
-                              </option>
-                            ))}
-                          </Form.Select>
-                        </Col>
-                      </Form.Group>
-                    </Col>
+                 {/* ================= DECIDE INGREDIENTS ================= */}
+<Row className="mb-3">
+  <Col xs={12}>
+    <Form.Check
+      type="checkbox"
+      label="Decide Ingredients for This Item"
+    />
+  </Col>
+</Row>
 
-                    <Col xs={12} sm={6} lg={4}>
-                      <Form.Group className="mb-3">
-                        <Form.Label className="text-sm font-medium text-gray-700">
-                          Opening Stock
-                        </Form.Label>
-                        <Form.Control
-                          type="number"
-                          min="0"
-                          step="0.001"
-                          placeholder="0.00"
-                          className="rounded-lg"
-                        />
-                      </Form.Group>
-                    </Col>
-                  </Row>
+{/* ================= STORE NAME ================= */}
+<Row className="mb-3 align-items-center">
+  <Col xs={12} md={2}>
+    <Form.Label className="mb-0">Store Name</Form.Label>
+  </Col>
+  <Col xs={12} md={4}>
+    <Form.Select>
+      <option>BAR COUNTER</option>
+      <option>MAIN STORE</option>
+    </Form.Select>
+  </Col>
+</Row>
+
+{/* ================= CONSUME RAW MATERIALS BOX ================= */}
+<Row className="mb-3">
+  <Col xs={12} md={6}>
+    <fieldset className="border p-3 rounded">
+      <legend className="float-none w-auto px-2 small">
+        Consume Raw Materials
+      </legend>
+
+      <Form.Check
+        type="radio"
+        name="consumeType"
+        label="Consume Raw Materials on Bill"
+        className="mb-2"
+      />
+
+      <Form.Check
+        type="radio"
+        name="consumeType"
+        label="Consume Raw Materials on KOT"
+      />
+    </fieldset>
+  </Col>
+</Row>
+
+{/* ================= OTHER OPTIONS ================= */}
+<Row>
+  <Col xs={12} md={6}>
+    <Form.Check
+      type="checkbox"
+      label="Reverse Stock During Cancel KOT"
+      className="mb-2"
+    />
+  </Col>
+
+  <Col xs={12} md={6}>
+    <Form.Check
+      type="checkbox"
+      label="Allow Negative Raw Material Stock"
+    />
+  </Col>
+</Row>
                 </Tab>
 
               </Tabs>
@@ -1601,139 +1548,6 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
               </Form.Group>
             </Col>
           </Row>
-          {/* <Row className="mb-3">
-            <Col sm={12}>
-              <div
-                style={{
-                  maxHeight: '150px',
-                  overflowY: 'auto',
-                  width: '100%',
-                  border: '1px solid #dee2e6',
-                  borderRadius: '4px',
-                  scrollbarWidth: 'thin',
-                  scrollbarColor: '#adb5bd #f8f9fa',
-                }}
-              >
-                <style>
-                  {`
-                    div::-webkit-scrollbar {
-                      width: 8px;
-                    }
-                    div::-webkit-scrollbar-track {
-                      background: #f8f9fa;
-                      borderRadius: 4px;
-                    }
-                    div::-webkit-scrollbar-thumb {
-                      background: #adb5bd;
-                      borderRadius: 4px;
-                    }
-                    div::-webkit-scrollbar-thumb:hover {
-                      background: #6c757d;
-                    }
-                  `}
-                </style>
-                <Table bordered size="sm" className="m-0">
-                  <thead className="bg-gray-100">
-                    <tr>
-                      <th className="text-sm font-medium text-gray-700 py-2">Department Name</th>
-                      <th className="text-sm font-medium text-gray-700 py-2">Rate</th>
-                      <th className="text-sm font-medium text-gray-700 py-2">Unit</th>
-                      <th className="text-sm font-medium text-gray-700 py-2">Serving Unit</th>
-                      <th className="text-sm font-medium text-gray-700 py-2">Conversion</th>
-                      <th className="text-sm font-medium text-gray-700 py-2">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {newItem.departmentRates.length > 0 ? (
-                      newItem.departmentRates.map((department, index) => (
-                        <tr key={`department-${department.departmentid}-${index}`}>
-                          <td className="text-sm text-gray-600 py-2">{department.departmentName}</td>
-                          <td>
-                            <Form.Control
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              value={department.rate}
-                              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                                const updatedRates = [...newItem.departmentRates];
-                                updatedRates[index].rate = e.target.value ? parseFloat(e.target.value) : 0;
-                                setNewItem({ ...newItem, departmentRates: updatedRates });
-                              }}
-                              placeholder="Enter rate"
-                              className="rounded-lg"
-                            />
-                          </td>
-                          <td>
-                            <Form.Select
-                              value={department.unitid ?? ''}
-                              onChange={(e) => {
-                                const updatedRates = [...newItem.departmentRates];
-                                updatedRates[index].unitid = e.target.value ? Number(e.target.value) : null;
-                                setNewItem({ ...newItem, departmentRates: updatedRates });
-                              }}
-                              className="rounded-lg"
-                            >
-                              <option value="">Select Unit</option>
-                              {stockUnits.map((unit) => (
-                                <option key={unit.unitid} value={unit.unitid}>
-                                  {unit.unit_name}
-                                </option>
-                              ))}
-                            </Form.Select>
-                          </td>
-                          <td>
-                            <Form.Select
-                              value={department.servingunitid ?? ''}
-                              onChange={(e) => {
-                                const updatedRates = [...newItem.departmentRates];
-                                updatedRates[index].servingunitid = e.target.value ? Number(e.target.value) : null;
-                                setNewItem({ ...newItem, departmentRates: updatedRates });
-                              }}
-                              className="rounded-lg"
-                            >
-                              <option value="">Select Serving Unit</option>
-                              {stockUnits.map((unit) => (
-                                <option key={unit.unitid} value={unit.unitid}>
-                                  {unit.unit_name}
-                                </option>
-                              ))}
-                            </Form.Select>
-                          </td>
-                          <td>
-                            <Form.Check
-                              type="checkbox"
-                              checked={department.IsConversion === 1}
-                              onChange={(e) => {
-                                const updatedRates = [...newItem.departmentRates];
-                                updatedRates[index].IsConversion = e.target.checked ? 1 : 0;
-                                setNewItem({ ...newItem, departmentRates: updatedRates });
-                              }}
-                            />
-                          </td>
-                          <td>
-                            <Button
-                              variant="outline-danger"
-                              size="sm"
-                              onClick={() => handleRemoveDepartmentRate(department.departmentid)}
-                              title="Remove Department"
-                            >
-                              Remove
-                            </Button>
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan={6} className="text-center text-sm text-gray-600 py-2">
-                          No departments assigned to the selected outlet
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </Table>
-              </div>
-            </Col>
-          </Row> */}
           <Row className="mb-3 align-items-center">
             <Col xs={12} sm={4}>
               <Form.Group as={Row} className="align-items-center">
