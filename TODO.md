@@ -1,31 +1,21 @@
-# Task: Add + Icon Column in Multiple Price Tab for Half/Full Selection
+# TODO - Column Selection for Multiple Price Tab
 
-## Status: COMPLETED ✅ (Fixed)
+## Task: Select Variant Type → Small Modal Opens → Checkbox list of variant values → User selects values → Click Apply → Table shows selected columns only
 
-## Information Gathered:
-- Current file: `src/views/apps/Masters/RestaurantMasters/Menu.tsx`
-- Already has `DepartmentRate` interface with `half_rate` and `full_rate` fields
-- The Multiple Price tab is inside the ItemModal component
-- **Issue Found**: The dropdown was using native Bootstrap JS (`data-bs-toggle="dropdown"`) which was not loaded in the React app
+### Steps:
+- [x] 1. Read and understand the current Menu.tsx implementation
+- [x] 2. Add state for selected variant values (checkboxes)
+- [x] 3. Create a small Modal component for checkbox list of variant values
+- [x] 4. Add a button to open the modal (next to Select Variant Type dropdown)
+- [x] 5. Update the table columns in Multiple Price tab to show only selected columns
+- [x] 6. Test the implementation
 
-## Implementation Steps Completed:
-1. ✅ Added `Dropdown` import from react-bootstrap
-2. ✅ Replaced native Bootstrap dropdown with React Bootstrap's `<Dropdown>` component
-3. ✅ Used `<Dropdown.Toggle>` for the "+" button
-4. ✅ Used `<Dropdown.Menu>` and `<Dropdown.Item>` for Half/Full options
-5. ✅ Dropdown now works properly without requiring Bootstrap JS
+### Implementation Details:
+- Add `selectedVariantValues` state (array of selected variant value IDs)
+- Add `showVariantValueModal` state for controlling modal visibility
+- Create a small Modal with checkboxes for variant values
+- Add "Select Columns" button that opens the modal
+- Filter table columns based on selected variant values
 
-## Changes Made:
-- `src/views/apps/Masters/RestaurantMasters/Menu.tsx`:
-  - Added `Dropdown` to imports: `import { Button, Modal, Form, Row, Col, Card, Table, Navbar, Offcanvas, Tabs, Tab, Dropdown } from 'react-bootstrap';`
-  - Replaced the native `<div className="dropdown">` with React Bootstrap's `<Dropdown align="end">`
-  - Used `<Dropdown.Toggle>` with a styled "+" span instead of `<button>`
-  - Used `<Dropdown.Menu>` with `<Dropdown.Item>` for Half/Full options
-
-## Dependent Files Edited:
-- `src/views/apps/Masters/RestaurantMasters/Menu.tsx` (the main file)
-
-## Followup Steps:
-- Test the Half/Full selection functionality
-- The dropdown should now open properly when clicking the + icon
+### Status: ✅ COMPLETED
 

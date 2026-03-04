@@ -809,6 +809,8 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
 
 
   const [selectedVariantType, setSelectedVariantType] = useState<string>("");
+  const [showVariantValueModal, setShowVariantValueModal] = useState<boolean>(false);
+  const [selectedVariantValues, setSelectedVariantValues] = useState<number[]>([]);
 
   const handleSubmit = async () => {
     if (!itemName || !price || !selectedBrand || !selectedOutlet) {
@@ -1241,11 +1243,17 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
   </p>
 
   {/* Variant Type Selector - Using fetched variantTypes */}
-  <div className="row mb-3">
+  <div className="row mb-3 align-items-center">
     <div className="col-md-4">
       <Form.Select
         value={selectedVariantType}
-        onChange={(e) => setSelectedVariantType(e.target.value)}
+        onChange={(e) => {
+          setSelectedVariantType(e.target.value);
+          setSelectedVariantValues([]); // Reset selected values when variant type changes
+          if (e.target.value) {
+            setShowVariantValueModal(true); // Open modal automatically when variant type is selected
+          }
+        }}
         className="rounded-lg"
       >
         <option value="">Select Variant Type</option>
@@ -1256,6 +1264,13 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
         ))}
       </Form.Select>
     </div>
+    {selectedVariantValues.length > 0 && (
+      <div className="col-md-4">
+        <span className="text-muted small">
+          {selectedVariantValues.length} column(s) selected
+        </span>
+      </div>
+    )}
   </div>
 
   <div className="table-responsive">
@@ -1267,10 +1282,19 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
     {/* If No Variant Selected → Show Single Price */}
     {!selectedVariantType && <th>Price</th>}
 
-    {/* If Variant Selected → Show Dynamic Columns from fetched data */}
-    {selectedVariantType && variantTypes.filter(vt => vt.variant_type_name === selectedVariantType)[0]?.values.map((value) => (
-        <th key={value.variant_value_id}>{value.value_name}</th>
-      ))}
+    {/* If Variant Selected → Show only SELECTED columns */}
+    {selectedVariantType && selectedVariantValues.length > 0 && 
+      variantTypes.filter(vt => vt.variant_type_name === selectedVariantType)[0]?.values
+        .filter(value => selectedVariantValues.includes(value.variant_value_id))
+        .map((value) => (
+          <th key={value.variant_value_id}>{value.value_name}</th>
+        ))
+    }
+
+    {/* If Variant Selected but NO columns selected → Show hint */}
+    {selectedVariantType && selectedVariantValues.length === 0 && (
+      <th className="text-muted text-center">Select columns to display</th>
+    )}
 
     <th>Tax Group</th>
     <th>Final Price</th>
@@ -1298,18 +1322,27 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
           </td>
         )}
 
-        {/* MULTIPLE VARIANT MODE - Using fetched variantTypes */}
-        {selectedVariantType && variantTypes.filter(vt => vt.variant_type_name === selectedVariantType)[0]?.values.map((value) => (
-            <td key={value.variant_value_id}>
-              <Form.Control
-                type="number"
-                step="0.01"
-                min="0"
-                placeholder="0.00"
-                className="rounded-lg"
-              />
-            </td>
-          ))}
+        {/* MULTIPLE VARIANT MODE - Show only SELECTED columns */}
+        {selectedVariantType && selectedVariantValues.length > 0 && 
+          variantTypes.filter(vt => vt.variant_type_name === selectedVariantType)[0]?.values
+            .filter(value => selectedVariantValues.includes(value.variant_value_id))
+            .map((value) => (
+              <td key={value.variant_value_id}>
+                <Form.Control
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                  className="rounded-lg"
+                />
+              </td>
+            ))
+        }
+
+        {/* If Variant Selected but NO columns selected */}
+        {selectedVariantType && selectedVariantValues.length === 0 && (
+          <td className="text-muted text-center">—</td>
+        )}
 
         {/* Tax Group */}
         <td>
@@ -1345,6 +1378,57 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
 </tbody>
     </Table>
   </div>
+
+  {/* Small Modal for Variant Value Selection */}
+  <Modal 
+    show={showVariantValueModal} 
+    onHide={() => setShowVariantValueModal(false)}
+    size="sm"
+    centered
+  >
+    <Modal.Header closeButton className="py-2">
+      <Modal.Title className="fs-6">Select Variant Values</Modal.Title>
+    </Modal.Header>
+    <Modal.Body className="py-2">
+      {selectedVariantType && (
+        <div>
+          {variantTypes.filter(vt => vt.variant_type_name === selectedVariantType)[0]?.values.map((value) => (
+            <Form.Check
+              key={value.variant_value_id}
+              type="checkbox"
+              id={`variant-${value.variant_value_id}`}
+              label={value.value_name}
+              checked={selectedVariantValues.includes(value.variant_value_id)}
+              onChange={(e) => {
+                if (e.target.checked) {
+                  setSelectedVariantValues([...selectedVariantValues, value.variant_value_id]);
+                } else {
+                  setSelectedVariantValues(selectedVariantValues.filter(id => id !== value.variant_value_id));
+                }
+              }}
+              className="mb-2"
+            />
+          ))}
+        </div>
+      )}
+    </Modal.Body>
+    <Modal.Footer className="py-2">
+      <Button 
+        variant="secondary" 
+        size="sm"
+        onClick={() => setShowVariantValueModal(false)}
+      >
+        Cancel
+      </Button>
+      <Button 
+        variant="primary" 
+        size="sm"
+        onClick={() => setShowVariantValueModal(false)}
+      >
+        Apply
+      </Button>
+    </Modal.Footer>
+  </Modal>
 </Tab>
 
       <Tab eventKey="stock" title="Stock">
