@@ -1186,6 +1186,29 @@ CREATE TABLE IF NOT EXISTS TrnSettlementLog (
     InsertDate DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS mst_variant_types (
+  variant_type_id INTEGER PRIMARY KEY AUTOINCREMENT,
+  variant_type_name TEXT NOT NULL,
+  hotelid INTEGER NOT NULL,
+  outletid INTEGER NOT NULL,
+  sort_order INTEGER DEFAULT 0,
+  active INTEGER DEFAULT 1,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME
+);
+
+
+CREATE TABLE IF NOT EXISTS mst_variant_values (
+  variant_value_id INTEGER PRIMARY KEY AUTOINCREMENT,
+  variant_type_id INTEGER NOT NULL,
+  value_name TEXT NOT NULL,
+  sort_order INTEGER DEFAULT 0,
+  active INTEGER DEFAULT 1,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME,
+  FOREIGN KEY (variant_type_id) REFERENCES mst_variant_types(variant_type_id)
+);
+
 
 
 

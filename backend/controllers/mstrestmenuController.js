@@ -475,3 +475,63 @@ exports.deleteMenuItem = (req, res) => {
         res.status(500).json({ message: 'Internal server error', details: error.message });
     }
 };
+
+
+// Get all variant types with values (without hotelid/outletid parameters)
+exports.getAllVariantTypesWithValues = (req, res) => {
+    try {
+        // Query to fetch variant types with their values
+        const query = `
+            SELECT 
+                vt.variant_type_id,
+                vt.variant_type_name,
+                vt.hotelid,
+                vt.outletid,
+                vt.sort_order AS type_sort_order,
+                vt.active AS type_active,
+                vv.variant_value_id,
+                vv.value_name,
+                vv.sort_order AS value_sort_order,
+                vv.active AS value_active
+            FROM mst_variant_types vt
+            LEFT JOIN mst_variant_values vv ON vt.variant_type_id = vv.variant_type_id AND vv.active = 1
+            WHERE vt.active = 1
+            ORDER BY vt.sort_order ASC, vt.variant_type_name ASC, vv.sort_order ASC, vv.value_name ASC
+        `;
+
+        const results = db.prepare(query).all();
+
+        // Group results by variant_type_id
+        const variantTypesMap = new Map();
+        
+        for (const row of results) {
+            if (!variantTypesMap.has(row.variant_type_id)) {
+                variantTypesMap.set(row.variant_type_id, {
+                    variant_type_id: row.variant_type_id,
+                    variant_type_name: row.variant_type_name,
+                    hotelid: row.hotelid,
+                    outletid: row.outletid,
+                    sort_order: row.type_sort_order,
+                    active: row.type_active,
+                    values: []
+                });
+            }
+            
+            // Add variant value if it exists
+            if (row.variant_value_id) {
+                variantTypesMap.get(row.variant_type_id).values.push({
+                    variant_value_id: row.variant_value_id,
+                    value_name: row.value_name,
+                    sort_order: row.value_sort_order,
+                    active: row.value_active
+                });
+            }
+        }
+
+        const variantTypesWithValues = Array.from(variantTypesMap.values());
+        res.json(variantTypesWithValues);
+    } catch (error) {
+        console.error('Error fetching variant types with values:', error);
+        res.status(500).json({ message: 'Internal server error', details: error.message });
+    }
+};

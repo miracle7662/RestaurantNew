@@ -6,6 +6,10 @@ const menuController = require("../controllers/mstrestmenuController");
 router.get("/", menuController.getAllMenuItems);
 router.get("/:id", menuController.getMenuItemById);
 
+// Variant Types and Values
+
+router.get("/variant-types-with-values", menuController.getAllVariantTypesWithValues);
+
 // Create & Update with details
 router.post("/", menuController.createMenuItemWithDetails);
 router.put("/:id", menuController.updateMenuItemWithDetails);

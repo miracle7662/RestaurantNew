@@ -90,6 +90,13 @@ interface DepartmentItem {
   outletid: number;
 }
 
+interface VariantValue {
+  variant_value_id: number;
+  value_name: string;
+  sort_order: number;
+  active: number;
+}
+
 interface ModalProps {
   show: boolean;
   onHide: () => void;
@@ -121,6 +128,7 @@ const Menu: React.FC = () => {
   const [error, setError] = useState<string | null>(null); // State for error handling
   const { user } = useAuthContext();
 
+ 
   const fetchMenu = async () => {
     try {
       setLoading(true);
@@ -770,6 +778,14 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
     }));
   };
 
+  const variantTypeConfig: Record<string, string[]> = {
+  portion: ["Half", "Full", "Quarter"],
+  size: ["Small", "Medium", "Large", "Extra Large"],
+  bar: ["30 ml", "60 ml", "90 ml", "180 ml", "Bottle"]
+};
+
+  const [selectedVariantType, setSelectedVariantType] = useState<string>("");
+
   const handleSubmit = async () => {
     if (!itemName || !price || !selectedBrand || !selectedOutlet) {
       toast.error('Please fill in all required fields: Item Name, Price, Hotel, and Outlet');
@@ -1195,90 +1211,117 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
         </div>
       </Tab>
 
-      <Tab eventKey="multiplePrice" title="Multiple Price">
-        <p className="text-sm text-gray-600 mb-3">
-          Define different prices for portion sizes (Half/Full) or regular sizes (Small/Medium/Large/etc.)
-        </p>
+     <Tab eventKey="multiplePrice" title="Multiple Price">
+  <p className="text-sm text-gray-600 mb-3">
+    Define department-wise multiple pricing
+  </p>
 
-        <div className="table-responsive">
-          <Table bordered hover size="sm" className="mb-0">
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="text-sm font-medium text-gray-700">Variation</th>
-                <th className="text-sm font-medium text-gray-700">Price</th>
-                <th className="text-sm font-medium text-gray-700">Tax Group</th>
-                <th className="text-sm font-medium text-gray-700">Final Price</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>
-                  <Form.Select className="rounded-lg" defaultValue="Half">
-                    <option>Half</option>
-                    <option>Full</option>
-                    <option>Quarter</option>
-                  </Form.Select>
-                </td>
-                <td>
-                  <Form.Control type="number" step="0.01" min="0" placeholder="0.00" className="rounded-lg" />
-                </td>
-                <td>
-                  <Form.Select className="rounded-lg">
-                    <option value="">Select</option>
-                    {taxGroups.map((tg) => (
-                      <option key={tg.taxgroupid} value={tg.taxgroupid}>
-                        {tg.taxgroup_name}
-                      </option>
-                    ))}
-                  </Form.Select>
-                </td>
-                <td>
-                  <Form.Control type="text" readOnly value="—" className="rounded-lg bg-light" />
-                </td>
-              </tr>
+  {/* Variant Type Selector */}
+  <div className="row mb-3">
+    <div className="col-md-4">
+      <Form.Select
+        value={selectedVariantType}
+        onChange={(e) => setSelectedVariantType(e.target.value)}
+        className="rounded-lg"
+      >
+        <option value="">Select Variant Type</option>
+        <option value="portion">Portion</option>
+        <option value="size">Size</option>
+        <option value="bar">Bar</option>
+      </Form.Select>
+    </div>
+  </div>
 
-              <tr>
-                <td>
-                  <Form.Select className="rounded-lg" defaultValue="Small">
-                    <option>Small</option>
-                    <option>Medium</option>
-                    <option>Large</option>
-                    <option>Extra Large</option>
-                  </Form.Select>
-                </td>
-                <td>
-                  <Form.Control type="number" step="0.01" min="0" placeholder="0.00" className="rounded-lg" />
-                </td>
-                <td>
-                  <Form.Select className="rounded-lg">
-                    <option value="">Select</option>
-                    {taxGroups.map((tg) => (
-                      <option key={tg.taxgroupid} value={tg.taxgroupid}>
-                        {tg.taxgroup_name}
-                      </option>
-                    ))}
-                  </Form.Select>
-                </td>
-                <td>
-                  <Form.Control type="text" readOnly value="—" className="rounded-lg bg-light" />
-                </td>
-              </tr>
-            </tbody>
-          </Table>
-        </div>
+  <div className="table-responsive">
+    <Table bordered hover size="sm" className="mb-0">
+     <thead className="bg-gray-100">
+  <tr>
+    <th>Department</th>
 
-        <div className="mt-3">
-          <Button variant="outline-primary" size="sm">
-            + Add Variation
-          </Button>
-        </div>
+    {/* If No Variant Selected → Show Single Price */}
+    {!selectedVariantType && <th>Price</th>}
 
-        <div className="alert alert-light mt-3 mb-0">
-          <small className="text-muted">
-            Tip: Use this for thali (half/full), beverages (small/medium/large), or combo variations.
-          </small>
-        </div>
-      </Tab>
+    {/* If Variant Selected → Show Dynamic Columns */}
+    {selectedVariantType &&
+      variantTypeConfig[selectedVariantType].map((variant) => (
+        <th key={variant}>{variant}</th>
+      ))}
+
+    <th>Tax Group</th>
+    <th>Final Price</th>
+  </tr>
+</thead>
+
+      <tbody>
+  {newItem.departmentRates.length > 0 ? (
+    newItem.departmentRates.map((deptRate, deptIndex) => (
+      <tr key={`multi-${deptRate.departmentid}-${deptIndex}`}>
+        
+        {/* Department */}
+        <td>{deptRate.departmentName}</td>
+
+        {/* SINGLE PRICE MODE */}
+        {!selectedVariantType && (
+          <td>
+            <Form.Control
+              type="number"
+              step="0.01"
+              min="0"
+              placeholder="0.00"
+              className="rounded-lg"
+            />
+          </td>
+        )}
+
+        {/* MULTIPLE VARIANT MODE */}
+        {selectedVariantType &&
+          variantTypeConfig[selectedVariantType].map((variant) => (
+            <td key={variant}>
+              <Form.Control
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="0.00"
+                className="rounded-lg"
+              />
+            </td>
+          ))}
+
+        {/* Tax Group */}
+        <td>
+          <Form.Select className="rounded-lg">
+            <option value="">Select</option>
+            {taxGroups.map((tg) => (
+              <option key={tg.taxgroupid} value={tg.taxgroupid}>
+                {tg.taxgroup_name}
+              </option>
+            ))}
+          </Form.Select>
+        </td>
+
+        {/* Final Price */}
+        <td>
+          <Form.Control
+            type="text"
+            readOnly
+            value="—"
+            className="rounded-lg bg-light"
+          />
+        </td>
+
+      </tr>
+    ))
+  ) : (
+    <tr>
+      <td colSpan={6} className="text-center py-3">
+        No departments found. Please select an outlet first.
+      </td>
+    </tr>
+  )}
+</tbody>
+    </Table>
+  </div>
+</Tab>
 
       <Tab eventKey="stock" title="Stock">
         <Row>
