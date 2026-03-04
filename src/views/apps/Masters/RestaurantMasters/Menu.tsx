@@ -3,7 +3,7 @@ import { toast } from 'react-hot-toast';
 import { useAuthContext } from '@/common';
 import { OutletData } from "@/common/api/outlet";
 
-import { Button, Modal, Form, Row, Col, Card, Table, Navbar, Offcanvas } from 'react-bootstrap';
+import { Button, Modal, Form, Row, Col, Card, Table, Navbar, Offcanvas, Tabs, Tab } from 'react-bootstrap';
 import {
   fetchKitchenCategory,
   fetchKitchenMainGroup,
@@ -531,6 +531,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
   const [stockUnit, setStockUnit] = useState<number | null>(mstmenu?.stock_unit ? Number(mstmenu.stock_unit) : null);
   const [price, setPrice] = useState<string>(mstmenu?.price ? mstmenu.price.toString() : '');
   const [taxgroupid, setTaxgroupid] = useState<number | null>(mstmenu?.taxgroupid || null);
+  const [selectedDepartment, setSelectedDepartment] = useState<number | null>(null);
   const [runtimeRates, setRuntimeRates] = useState(!!mstmenu?.is_runtime_rates);
   const [isCommonToAllDepartments, setIsCommonToAllDepartments] = useState(!!mstmenu?.is_common_to_all_departments);
   const [itemDescription, setItemDescription] = useState<string | null>(mstmenu?.item_description || null);
@@ -869,14 +870,28 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
   };
 
   return (
-    <Modal show={show} onHide={onHide} size="lg" centered className="shadow-lg">
+    <Modal show={show} onHide={onHide} size="xl" centered className="shadow-lg">
       <Modal.Header closeButton className="bg-white border-bottom-0 py-1">
         <Modal.Title className="fs-5 fw-semibold text-gray-800">{isEdit ? 'Edit Item' : 'Add Item'}</Modal.Title>
       </Modal.Header>
       <Modal.Body className="bg-white p-3 p-md-3">
         <Form>
           <Row className="mb-3">
-            <Col xs={12} sm={6}>
+            <Col xs={12} sm={4}>
+              <Form.Group as={Row} className="align-items-center">
+                <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Item Number</Form.Label>
+                <Col sm={8}>
+                  <Form.Control
+                    type="text"
+                    value={itemNo ?? ''}
+                    onChange={(e) => setItemNo(e.target.value || null)}
+                    placeholder="Enter item number"
+                    className="rounded-lg"
+                  />
+                </Col>
+              </Form.Group>
+            </Col>
+            <Col xs={12} sm={4}>
               <Form.Group as={Row} className="align-items-center">
                 <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Outlet</Form.Label>
                 <Col sm={8}>
@@ -897,7 +912,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                 </Col>
               </Form.Group>
             </Col>
-            <Col xs={12} sm={6}>
+            <Col xs={12} sm={4}>
               <Form.Group as={Row} className="align-items-center">
                 <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Hotel Name</Form.Label>
                 <Col sm={8}>
@@ -919,68 +934,49 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
               </Form.Group>
             </Col>
           </Row>
-          <Row className="mb-3">
+           <Row className="mb-3">
             <Col xs={12} sm={6}>
               <Form.Group as={Row} className="align-items-center">
-                <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Item Number</Form.Label>
+                <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Item Main Group</Form.Label>
                 <Col sm={8}>
-                  <Form.Control
-                    type="text"
-                    value={itemNo ?? ''}
-                    onChange={(e) => setItemNo(e.target.value || null)}
-                    placeholder="Enter item number"
+                  <Form.Select
+                    value={itemMainGroupId ?? ''}
+                    onChange={(e) => setItemMainGroupId(e.target.value === '' ? null : Number(e.target.value))}
                     className="rounded-lg"
-                  />
+                    disabled={loading}
+                  >
+                    <option value="">Select Item Main Group</option>
+                    {itemMainGroup.filter((group) => String(group.status) === '0').map((group) => (
+                      <option key={group.item_maingroupid} value={group.item_maingroupid}>
+                        {group.item_group_name}
+                      </option>
+                    ))}
+                  </Form.Select>
                 </Col>
               </Form.Group>
             </Col>
             <Col xs={12} sm={6}>
               <Form.Group as={Row} className="align-items-center">
-                <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Item Name</Form.Label>
+                <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Item Group</Form.Label>
                 <Col sm={8}>
-                  <Form.Control
-                    type="text"
-                    value={itemName}
-                    onChange={(e) => setItemName(e.target.value)}
-                    placeholder="Enter item name"
+                  <Form.Select
+                    value={itemGroupId ?? ''}
+                    onChange={(e) => setItemGroupId(e.target.value === '' ? null : Number(e.target.value))}
                     className="rounded-lg"
-                    required
-                  />
-                </Col>
-              </Form.Group>
-            </Col>
-          </Row>
-          <Row className="mb-3">
-            <Col xs={12} sm={6}>
-              <Form.Group as={Row} className="align-items-center">
-                <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Print Name</Form.Label>
-                <Col sm={8}>
-                  <Form.Control
-                    type="text"
-                    value={printName ?? ''}
-                    onChange={(e) => setPrintName(e.target.value || null)}
-                    placeholder="Enter print name"
-                    className="rounded-lg"
-                  />
-                </Col>
-              </Form.Group>
-            </Col>
-            <Col xs={12} sm={6}>
-              <Form.Group as={Row} className="align-items-center">
-                <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Short Name</Form.Label>
-                <Col sm={8}>
-                  <Form.Control
-                    type="text"
-                    value={shortName ?? ''}
-                    onChange={(e) => setShortName(e.target.value || null)}
-                    placeholder="Enter short name"
-                    className="rounded-lg"
-                  />
+                    disabled={loading}
+                  >
+                    <option value="">Select Item Group</option>
+                    {itemGroup.filter((group) => String(group.status) === '0').map((group) => (
+                      <option key={group.item_groupid} value={group.item_groupid}>
+                        {group.itemgroupname}
+                      </option>
+                    ))}
+                  </Form.Select>
                 </Col>
               </Form.Group>
             </Col>
           </Row>
-          <Row className="mb-3">
+           <Row className="mb-3">
             <Col xs={12} sm={4}>
               <Form.Group as={Row} className="align-items-center">
                 <Form.Label column sm={6} className="text-sm font-medium text-gray-700">Kitchen Main Group</Form.Label>
@@ -1043,47 +1039,293 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
             </Col>
           </Row>
           <Row className="mb-3">
-            <Col xs={12} sm={6}>
+            
+            
+          
+
+            <Col xs={12} sm={4}>
               <Form.Group as={Row} className="align-items-center">
-                <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Item Main Group</Form.Label>
+                <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Item Name</Form.Label>
                 <Col sm={8}>
-                  <Form.Select
-                    value={itemMainGroupId ?? ''}
-                    onChange={(e) => setItemMainGroupId(e.target.value === '' ? null : Number(e.target.value))}
+                  <Form.Control
+                    type="text"
+                    value={itemName}
+                    onChange={(e) => setItemName(e.target.value)}
+                    placeholder="Enter item name"
                     className="rounded-lg"
-                    disabled={loading}
-                  >
-                    <option value="">Select Item Main Group</option>
-                    {itemMainGroup.filter((group) => String(group.status) === '0').map((group) => (
-                      <option key={group.item_maingroupid} value={group.item_maingroupid}>
-                        {group.item_group_name}
-                      </option>
-                    ))}
-                  </Form.Select>
+                    required
+                  />
                 </Col>
               </Form.Group>
             </Col>
-            <Col xs={12} sm={6}>
+            <Col xs={12} sm={4}>
               <Form.Group as={Row} className="align-items-center">
-                <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Item Group</Form.Label>
+                <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Print Name</Form.Label>
                 <Col sm={8}>
-                  <Form.Select
-                    value={itemGroupId ?? ''}
-                    onChange={(e) => setItemGroupId(e.target.value === '' ? null : Number(e.target.value))}
+                  <Form.Control
+                    type="text"
+                    value={printName ?? ''}
+                    onChange={(e) => setPrintName(e.target.value || null)}
+                    placeholder="Enter print name"
                     className="rounded-lg"
-                    disabled={loading}
-                  >
-                    <option value="">Select Item Group</option>
-                    {itemGroup.filter((group) => String(group.status) === '0').map((group) => (
-                      <option key={group.item_groupid} value={group.item_groupid}>
-                        {group.itemgroupname}
-                      </option>
-                    ))}
-                  </Form.Select>
+                  />
+                </Col>
+              </Form.Group>
+            </Col>
+            <Col xs={12} sm={4}>
+              <Form.Group as={Row} className="align-items-center">
+                <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Short Name</Form.Label>
+                <Col sm={8}>
+                  <Form.Control
+                    type="text"
+                    value={shortName ?? ''}
+                    onChange={(e) => setShortName(e.target.value || null)}
+                    placeholder="Enter short name"
+                    className="rounded-lg"
+                  />
                 </Col>
               </Form.Group>
             </Col>
           </Row>
+          <Row className="mb-3">
+            <Col xs={12} sm={6}>
+              <Form.Group as={Row} className="align-items-center">
+                <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Item Description</Form.Label>
+                <Col sm={8}>
+                  <Form.Control
+                    type="text"
+                    value={itemDescription ?? ''}
+                    onChange={(e) => setItemDescription(e.target.value || null)}
+                    placeholder="Enter item description"
+                    className="rounded-lg"
+                  />
+                </Col>
+              </Form.Group>
+            </Col>
+            <Col xs={12} sm={6}>
+              <Form.Group as={Row} className="align-items-center">
+                <Form.Label column sm={4} className="text-sm font-medium text-gray-700">HSN Code</Form.Label>
+                <Col sm={8}>
+                  <Form.Control
+                    type="text"
+                    value={itemHsncode ?? ''}
+                    onChange={(e) => setItemHsncode(e.target.value || null)}
+                    placeholder="Enter HSN code"
+                    className="rounded-lg"
+                  />
+                </Col>
+              </Form.Group>
+            </Col>
+          </Row>
+
+          {/* ────── New Pricing Tabs Section ────── */}
+      {/* ────── Pricing Tabs Section (replaced the previous one) ────── */}
+<Row className="mb-4">
+  <Col xs={12}>
+    <h6 className="mb-3 fw-semibold text-gray-800">Pricing Details</h6>
+
+    <Tabs defaultActiveKey="singlePrice" id="pricingTabs" className="mb-3">
+      <Tab eventKey="singlePrice" title="Single Price">
+        <div className="table-responsive mb-3">
+          <Table bordered hover size="sm" className="mb-0">
+            <thead className="bg-gray-100">
+              <tr>
+                <th className="text-sm font-medium text-gray-700">Department</th>
+                <th className="text-sm font-medium text-gray-700">Price</th>
+                <th className="text-sm font-medium text-gray-700">Tax Group</th>
+                <th className="text-sm font-medium text-gray-700">Final Price</th>
+              </tr>
+            </thead>
+            <tbody>
+              {newItem.departmentRates.length > 0 ? (
+                newItem.departmentRates.map((deptRate, index) => (
+                  <tr key={`dept-${deptRate.departmentid}-${index}`}>
+                    <td className="text-sm text-gray-600">
+                      {deptRate.departmentName}
+                    </td>
+                    <td>
+                      <Form.Control
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={deptRate.rate}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                          const updatedRates = [...newItem.departmentRates];
+                          updatedRates[index].rate = e.target.value ? parseFloat(e.target.value) : 0;
+                          setNewItem({ ...newItem, departmentRates: updatedRates });
+                        }}
+                        placeholder="Enter price"
+                        className="rounded-lg"
+                      />
+                    </td>
+                    <td>
+                      <Form.Select
+                        value={taxgroupid ?? ''}
+                        onChange={(e) => setTaxgroupid(e.target.value ? Number(e.target.value) : null)}
+                        className="rounded-lg"
+                        disabled={loading}
+                      >
+                        <option value="">Select Tax Group</option>
+                        {taxGroups.map((taxGroup) => (
+                          <option key={taxGroup.taxgroupid} value={taxGroup.taxgroupid}>
+                            {taxGroup.taxgroup_name}
+                          </option>
+                        ))}
+                      </Form.Select>
+                    </td>
+                    <td>
+                      <Form.Control
+                        type="text"
+                        value={deptRate.rate ? (Number(deptRate.rate) * 1.18).toFixed(2) : '—'}
+                        readOnly
+                        className="rounded-lg bg-light"
+                      />
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={4} className="text-center text-sm text-gray-600 py-3">
+                    No departments found. Please select an outlet first.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </Table>
+        </div>
+      </Tab>
+
+      <Tab eventKey="multiplePrice" title="Multiple Price">
+        <p className="text-sm text-gray-600 mb-3">
+          Define different prices for portion sizes (Half/Full) or regular sizes (Small/Medium/Large/etc.)
+        </p>
+
+        <div className="table-responsive">
+          <Table bordered hover size="sm" className="mb-0">
+            <thead className="bg-gray-100">
+              <tr>
+                <th className="text-sm font-medium text-gray-700">Variation</th>
+                <th className="text-sm font-medium text-gray-700">Price</th>
+                <th className="text-sm font-medium text-gray-700">Tax Group</th>
+                <th className="text-sm font-medium text-gray-700">Final Price</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <Form.Select className="rounded-lg" defaultValue="Half">
+                    <option>Half</option>
+                    <option>Full</option>
+                    <option>Quarter</option>
+                  </Form.Select>
+                </td>
+                <td>
+                  <Form.Control type="number" step="0.01" min="0" placeholder="0.00" className="rounded-lg" />
+                </td>
+                <td>
+                  <Form.Select className="rounded-lg">
+                    <option value="">Select</option>
+                    {taxGroups.map((tg) => (
+                      <option key={tg.taxgroupid} value={tg.taxgroupid}>
+                        {tg.taxgroup_name}
+                      </option>
+                    ))}
+                  </Form.Select>
+                </td>
+                <td>
+                  <Form.Control type="text" readOnly value="—" className="rounded-lg bg-light" />
+                </td>
+              </tr>
+
+              <tr>
+                <td>
+                  <Form.Select className="rounded-lg" defaultValue="Small">
+                    <option>Small</option>
+                    <option>Medium</option>
+                    <option>Large</option>
+                    <option>Extra Large</option>
+                  </Form.Select>
+                </td>
+                <td>
+                  <Form.Control type="number" step="0.01" min="0" placeholder="0.00" className="rounded-lg" />
+                </td>
+                <td>
+                  <Form.Select className="rounded-lg">
+                    <option value="">Select</option>
+                    {taxGroups.map((tg) => (
+                      <option key={tg.taxgroupid} value={tg.taxgroupid}>
+                        {tg.taxgroup_name}
+                      </option>
+                    ))}
+                  </Form.Select>
+                </td>
+                <td>
+                  <Form.Control type="text" readOnly value="—" className="rounded-lg bg-light" />
+                </td>
+              </tr>
+            </tbody>
+          </Table>
+        </div>
+
+        <div className="mt-3">
+          <Button variant="outline-primary" size="sm">
+            + Add Variation
+          </Button>
+        </div>
+
+        <div className="alert alert-light mt-3 mb-0">
+          <small className="text-muted">
+            Tip: Use this for thali (half/full), beverages (small/medium/large), or combo variations.
+          </small>
+        </div>
+      </Tab>
+
+      <Tab eventKey="stock" title="Stock">
+        <Row>
+          <Col xs={12} sm={6} lg={4}>
+            <Form.Group as={Row} className="align-items-center mb-3">
+              <Form.Label column sm={5} className="text-sm font-medium text-gray-700">
+                Stock Unit
+              </Form.Label>
+              <Col sm={7}>
+                <Form.Select
+                  value={stockUnit ?? ''}
+                  onChange={(e) => setStockUnit(e.target.value ? Number(e.target.value) : null)}
+                  className="rounded-lg"
+                  disabled={loading}
+                >
+                  <option value="">Select Stock Unit</option>
+                  {stockUnits.map((unit) => (
+                    <option key={unit.unitid} value={unit.unitid}>
+                      {unit.unit_name}
+                    </option>
+                  ))}
+                </Form.Select>
+              </Col>
+            </Form.Group>
+          </Col>
+
+          <Col xs={12} sm={6} lg={4}>
+            <Form.Group className="mb-3">
+              <Form.Label className="text-sm font-medium text-gray-700">
+                Opening Stock
+              </Form.Label>
+              <Form.Control
+                type="number"
+                min="0"
+                step="0.001"
+                placeholder="0.00"
+                className="rounded-lg"
+              />
+            </Form.Group>
+          </Col>
+        </Row>
+      </Tab>
+    
+    </Tabs> 
+  </Col>
+</Row>
+         
           <Row className="mb-3">
             <Col xs={12} sm={6}>
               <Form.Group as={Row} className="align-items-center">
@@ -1145,36 +1387,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
               </Form.Group>
             </Col>
           </Row>
-          <Row className="mb-3">
-            <Col xs={12} sm={6}>
-              <Form.Group as={Row} className="align-items-center">
-                <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Item Description</Form.Label>
-                <Col sm={8}>
-                  <Form.Control
-                    type="text"
-                    value={itemDescription ?? ''}
-                    onChange={(e) => setItemDescription(e.target.value || null)}
-                    placeholder="Enter item description"
-                    className="rounded-lg"
-                  />
-                </Col>
-              </Form.Group>
-            </Col>
-            <Col xs={12} sm={6}>
-              <Form.Group as={Row} className="align-items-center">
-                <Form.Label column sm={4} className="text-sm font-medium text-gray-700">HSN Code</Form.Label>
-                <Col sm={8}>
-                  <Form.Control
-                    type="text"
-                    value={itemHsncode ?? ''}
-                    onChange={(e) => setItemHsncode(e.target.value || null)}
-                    placeholder="Enter HSN code"
-                    className="rounded-lg"
-                  />
-                </Col>
-              </Form.Group>
-            </Col>
-          </Row>
+         
           <Row className="mb-3">
             <Col xs={12} sm={6}>
               <Form.Group as={Row} className="align-items-center">
@@ -1207,7 +1420,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
               </Form.Group>
             </Col>
           </Row>
-          <Row className="mb-3">
+          {/* <Row className="mb-3">
             <Col sm={12}>
               <div
                 style={{
@@ -1339,7 +1552,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                 </Table>
               </div>
             </Col>
-          </Row>
+          </Row> */}
           <Row className="mb-3 align-items-center">
             <Col xs={12} sm={4}>
               <Form.Group as={Row} className="align-items-center">
