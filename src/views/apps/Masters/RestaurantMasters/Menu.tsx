@@ -644,7 +644,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
       setItemHsncode(null);
       setStatus(1);
       setNewItem({ departmentRates: [] });
-      
+
       // Fetch max item number for auto-generation when adding new item
       if (!isEdit) {
         await fetchMaxItemNo();
@@ -870,13 +870,13 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
 
     // Determine if this is a variant product
     const isVariantProduct = selectedVariantType && selectedVariantType !== "simple" && selectedVariantValues.length > 0;
-    
+
     // Get the variant type ID
     const currentVariantType = getCurrentVariantType();
     const variantTypeId = isVariantProduct && currentVariantType ? currentVariantType.variant_type_id : null;
 
     setLoading(true);
-    
+
     // Build department details based on product type
     let departmentDetailsPayload;
     if (isVariantProduct) {
@@ -1448,20 +1448,11 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                                       type="number"
                                       step="0.01"
                                       min="0"
-                                      placeholder="0.00"
+                                      value={price}
+                                      onChange={(e) => setPrice(e.target.value)}
+                                      placeholder="Enter price"
                                       className="rounded-lg"
-                                      value={deptRate.rate || ''}
-                                      onChange={(e) => {
-                                        const newRate = parseFloat(e.target.value) || 0;
-                                        setNewItem((prev) => ({
-                                          ...prev,
-                                          departmentRates: prev.departmentRates.map((dr) =>
-                                            dr.departmentid === deptRate.departmentid
-                                              ? { ...dr, rate: newRate }
-                                              : dr
-                                          ),
-                                        }));
-                                      }}
+                                      required
                                     />
                                   </td>
                                 )}
@@ -1483,13 +1474,13 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                                             ...prev,
                                             departmentRates: prev.departmentRates.map((dr) =>
                                               dr.departmentid === deptRate.departmentid
-                                                ? { 
-                                                    ...dr, 
-                                                    variant_rates: {
-                                                      ...(dr.variant_rates || {}),
-                                                      [value.variant_value_id]: newRate
-                                                    }
+                                                ? {
+                                                  ...dr,
+                                                  variant_rates: {
+                                                    ...(dr.variant_rates || {}),
+                                                    [value.variant_value_id]: newRate
                                                   }
+                                                }
                                                 : dr
                                             ),
                                           }));
