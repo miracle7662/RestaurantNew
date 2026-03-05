@@ -67,7 +67,7 @@ exports.getMenuItemById = (req, res) => {
         
         const menuItem = db.prepare(`
             SELECT m.*, 
-                   md.itemdetailsid, md.item_rate, md.unitid, md.servingunitid, md.IsConversion,
+                   md.itemdetailsid, md.item_rate, md.unitid, md.servingunitid, md.IsConversion, md.variant_value_id, md.value_name,
                    o.outlet_name,
                    h.hotel_name,
                    d.department_name
@@ -219,8 +219,8 @@ exports.createMenuItemWithDetails = async (req, res) => {
             if (department_details && department_details.length > 0) {
                 const insertDetailStmt = db.prepare(`
                     INSERT INTO mstrestmenudetails (
-                        restitemid, departmentid, item_rate, unitid, servingunitid, IsConversion, hotelid, variant_value_id, taxgroupid
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        restitemid, departmentid, item_rate, unitid, servingunitid, IsConversion, hotelid, variant_value_id, value_name, taxgroupid
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 `);
 
                 for (const detail of department_details) {
@@ -235,6 +235,11 @@ exports.createMenuItemWithDetails = async (req, res) => {
                             // Only insert if rate is provided and is a valid number greater than 0
                             if (variantRate !== undefined && variantRate !== null && variantRate !== '' && !isNaN(parseFloat(variantRate)) && parseFloat(variantRate) > 0) {
                                 const parsedRate = parseFloat(variantRate);
+                                
+                                // Get value_name from mst_variant_values
+                                const variantValue = db.prepare('SELECT value_name FROM mst_variant_values WHERE variant_value_id = ?').get(variantValueId);
+                                const valueName = variantValue ? variantValue.value_name : null;
+                                
                                 console.log('Inserting mstrestmenudetails (variant):', {
                                     restitemid,
                                     departmentid: parsedDepartmentId,
@@ -244,6 +249,7 @@ exports.createMenuItemWithDetails = async (req, res) => {
                                     IsConversion: detail.IsConversion || 0,
                                     hotelid: parsedHotelId,
                                     variant_value_id: variantValueId,
+                                    value_name: valueName,
                                     taxgroupid: detail.taxgroupid ? parseInt(detail.taxgroupid) : null
                                 });
                                 insertDetailStmt.run(
@@ -255,6 +261,7 @@ exports.createMenuItemWithDetails = async (req, res) => {
                                     detail.IsConversion || 0,
                                     parsedHotelId,
                                     variantValueId,
+                                    valueName,
                                     detail.taxgroupid ? parseInt(detail.taxgroupid) : null
                                 );
                             }
@@ -271,6 +278,7 @@ exports.createMenuItemWithDetails = async (req, res) => {
                             IsConversion: detail.IsConversion || 0,
                             hotelid: parsedHotelId,
                             variant_value_id: null,
+                            value_name: null,
                             taxgroupid: detail.taxgroupid ? parseInt(detail.taxgroupid) : null
                         });
                         insertDetailStmt.run(
@@ -282,6 +290,7 @@ exports.createMenuItemWithDetails = async (req, res) => {
                             detail.IsConversion || 0,
                             parsedHotelId,
                             null,
+                            null,
                             detail.taxgroupid ? parseInt(detail.taxgroupid) : null
                         );
                     }
@@ -291,7 +300,7 @@ exports.createMenuItemWithDetails = async (req, res) => {
             // Fetch the created item with joins for response
             const createdItem = db.prepare(`
                 SELECT m.*, 
-                       md.itemdetailsid, md.item_rate, md.unitid, md.servingunitid, md.IsConversion, md.variant_value_id,
+                       md.itemdetailsid, md.item_rate, md.unitid, md.servingunitid, md.IsConversion, md.variant_value_id, md.value_name,
                        o.outlet_name,
                        h.hotel_name,
                        d.department_name,
@@ -517,8 +526,8 @@ exports.updateMenuItemWithDetails = async (req, res) => {
 // Insert new details - with variant support
                 const insertDetailStmt = db.prepare(`
                     INSERT INTO mstrestmenudetails (
-                        restitemid, departmentid, item_rate, unitid, servingunitid, IsConversion, hotelid, variant_value_id, taxgroupid
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        restitemid, departmentid, item_rate, unitid, servingunitid, IsConversion, hotelid, variant_value_id, value_name, taxgroupid
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 `);
 
                 for (const detail of department_details) {
@@ -533,6 +542,11 @@ exports.updateMenuItemWithDetails = async (req, res) => {
                             // Only insert if rate is provided and is a valid number greater than 0
                             if (variantRate !== undefined && variantRate !== null && variantRate !== '' && !isNaN(parseFloat(variantRate)) && parseFloat(variantRate) > 0) {
                                 const parsedRate = parseFloat(variantRate);
+                                
+                                // Get value_name from mst_variant_values
+                                const variantValue = db.prepare('SELECT value_name FROM mst_variant_values WHERE variant_value_id = ?').get(variantValueId);
+                                const valueName = variantValue ? variantValue.value_name : null;
+                                
                                 console.log('Updating mstrestmenudetails (variant):', {
                                     restitemid: parseInt(id),
                                     departmentid: parsedDepartmentId,
@@ -542,6 +556,7 @@ exports.updateMenuItemWithDetails = async (req, res) => {
                                     IsConversion: detail.IsConversion || 0,
                                     hotelid: parsedHotelId,
                                     variant_value_id: variantValueId,
+                                    value_name: valueName,
                                     taxgroupid: detail.taxgroupid ? parseInt(detail.taxgroupid) : null
                                 });
                                 insertDetailStmt.run(
@@ -553,6 +568,7 @@ exports.updateMenuItemWithDetails = async (req, res) => {
                                     detail.IsConversion || 0,
                                     parsedHotelId,
                                     variantValueId,
+                                    valueName,
                                     detail.taxgroupid ? parseInt(detail.taxgroupid) : null
                                 );
                             }
@@ -569,6 +585,7 @@ exports.updateMenuItemWithDetails = async (req, res) => {
                             IsConversion: detail.IsConversion || 0,
                             hotelid: parsedHotelId,
                             variant_value_id: null,
+                            value_name: null,
                             taxgroupid: detail.taxgroupid ? parseInt(detail.taxgroupid) : null
                         });
                         insertDetailStmt.run(
@@ -579,6 +596,7 @@ exports.updateMenuItemWithDetails = async (req, res) => {
                             detail.servingunitid ? parseInt(detail.servingunitid) : null,
                             detail.IsConversion || 0,
                             parsedHotelId,
+                            null,
                             null,
                             detail.taxgroupid ? parseInt(detail.taxgroupid) : null
                         );

@@ -82,6 +82,7 @@ interface DepartmentRate {
   IsConversion: number;
   variant_rates: { [variant_value_id: number]: number };
   taxgroupid: number | null;
+  value_name: string | null;
 }
 
 interface NewItem {
@@ -811,6 +812,7 @@ if (initialDepartmentRates.length === 0) {
                 servingunitid: null,
                 IsConversion: 0,
                 variant_rates: {},
+                value_name: null,
                 taxgroupid: null,
               }));
             }
@@ -892,6 +894,7 @@ if (initialDepartmentRates.length === 0) {
         servingunitid,
         IsConversion,
         variant_rates: variant_rates || {}, // Object with variant_value_id -> rate mapping
+        value_name: variant_rates ? Object.keys(variant_rates)[0] : null,
         taxgroupid
       }));
     } else {

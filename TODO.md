@@ -1,14 +1,17 @@
-# TODO: Implement Per-Department Tax Group Feature
+# TODO: Add value_name field to mstrestmenudetails
 
-## Task: Add taxgroupid to department details in Multiple Price section
+## Plan
+1. Add `value_name` column to `mstrestmenudetails` table in db.js
+2. Update controller to insert `value_name` when saving menu item details
 
-### Plan:
-1. [x] **Frontend - Update DepartmentRate interface**: Add `taxgroupid` property
-2. [x] **Frontend - Update initial department rates**: Include `taxgroupid` when fetching existing details
-3. [x] **Frontend - Update Tax Group dropdown**: Connect to state to save selected value per department
-4. [x] **Frontend - Update payload**: Pass `taxgroupid` in department_details array
-5. [ ] **Backend - Update create query**: Add `taxgroupid` to INSERT for mstrestmenudetails
-6. [ ] **Backend - Update update query**: Add `taxgroupid` to INSERT when updating details
+## Steps Completed:
+- [x] 1. Add value_name column to mstrestmenudetails table schema in db.js
+- [x] 2. Update createMenuItemWithDetails to insert value_name
+- [x] 3. Update updateMenuItemWithDetails to insert value_name
+- [x] 4. Update getMenuItemById to include value_name in response
+- [x] 5. Update SELECT queries to include md.value_name in response
 
-### Status: Backend in Progress
+## Files Edited:
+- backend/config/db.js - Added value_name column
+- backend/controllers/mstrestmenuController.js - Updated INSERT and SELECT statements
 
