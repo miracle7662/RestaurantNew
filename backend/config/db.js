@@ -453,7 +453,9 @@ CREATE TABLE IF NOT EXISTS mstrestmenudetails (
     unitid        INTEGER,
     servingunitid INTEGER,
     IsConversion  INTEGER DEFAULT 0,  -- 0 = No, 1 = Yes
-    hotelid       INTEGER 
+    hotelid       INTEGER,
+    variant_value_id INTEGER,
+    FOREIGN KEY (variant_value_id) REFERENCES mst_variant_values(variant_value_id)
 );
 
 -- Bill Preview Settings, KOT Print Settings, Bill Print Settings, General Settings, Online Orders Settings

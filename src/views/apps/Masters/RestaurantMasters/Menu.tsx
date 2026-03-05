@@ -80,6 +80,7 @@ interface DepartmentRate {
   unitid: number | null;
   servingunitid: number | null;
   IsConversion: number;
+  variant_rates: { [variant_value_id: number]: number };
 }
 
 interface NewItem {
@@ -807,6 +808,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                 unitid: null,
                 servingunitid: null,
                 IsConversion: 0,
+                variant_rates: {},
               }));
             }
 
@@ -846,10 +848,15 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
 
 
   const [selectedVariantType, setSelectedVariantType] = useState<string>("");
+  const [selectedVariantTypeId, setSelectedVariantTypeId] = useState<number | null>(null);
   const [showVariantValueModal, setShowVariantValueModal] = useState<boolean>(false);
   const [selectedVariantValues, setSelectedVariantValues] = useState<number[]>([]);
   const [openingStock, setOpeningStock] = useState(0);
 
+  // Helper to get current variant type object
+  const getCurrentVariantType = () => {
+    return variantTypes.find(vt => vt.variant_type_name === selectedVariantType);
+  };
 
   const handleSubmit = async () => {
     if (!itemName || !price || !selectedBrand || !selectedOutlet) {
@@ -860,7 +867,41 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
       toast.error('Price must be a valid non-negative number');
       return;
     }
+
+    // Determine if this is a variant product
+    const isVariantProduct = selectedVariantType && selectedVariantType !== "simple" && selectedVariantValues.length > 0;
+    
+    // Get the variant type ID
+    const currentVariantType = getCurrentVariantType();
+    const variantTypeId = isVariantProduct && currentVariantType ? currentVariantType.variant_type_id : null;
+
     setLoading(true);
+    
+    // Build department details based on product type
+    let departmentDetailsPayload;
+    if (isVariantProduct) {
+      // For variant products: send variant_rates for each department
+      departmentDetailsPayload = newItem.departmentRates.map(({ departmentid, rate, unitid, IsConversion, servingunitid, variant_rates }) => ({
+        departmentid,
+        department_name: departments.find((d) => d.departmentid === departmentid)?.department_name || '',
+        item_rate: rate || 0, // fallback rate
+        unitid,
+        servingunitid,
+        IsConversion,
+        variant_rates: variant_rates || {} // Object with variant_value_id -> rate mapping
+      }));
+    } else {
+      // For simple products: send regular rate
+      departmentDetailsPayload = newItem.departmentRates.map(({ departmentid, rate, unitid, servingunitid, IsConversion }) => ({
+        departmentid,
+        department_name: departments.find((d) => d.departmentid === departmentid)?.department_name || '',
+        item_rate: rate && rate > 0 ? rate : (price),
+        unitid,
+        servingunitid,
+        IsConversion,
+      }));
+    }
+
     const payload = {
       hotelid: selectedBrand,
       outletid: selectedOutlet,
@@ -883,14 +924,11 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
       status,
       updated_by_id: user?.id || 2,
       created_by_id: user?.id || 2,
-      department_details: newItem.departmentRates.map(({ departmentid, rate, unitid, servingunitid, IsConversion }) => ({
-        departmentid,
-        department_name: departments.find((d) => d.departmentid === departmentid)?.department_name || '',
-        item_rate: rate||0,
-        unitid,
-        servingunitid,
-        IsConversion,
-      })),
+      // Variant information
+      variant_type_id: variantTypeId,
+      variant_values: isVariantProduct ? selectedVariantValues : [],
+      // Department details
+      department_details: departmentDetailsPayload,
     };
 
     try {
@@ -1438,14 +1476,20 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                                         min="0"
                                         placeholder="0.00"
                                         className="rounded-lg"
-                                        value={deptRate.rate || ''}
+                                        value={deptRate.variant_rates?.[value.variant_value_id] ?? ''}
                                         onChange={(e) => {
                                           const newRate = parseFloat(e.target.value) || 0;
                                           setNewItem((prev) => ({
                                             ...prev,
                                             departmentRates: prev.departmentRates.map((dr) =>
                                               dr.departmentid === deptRate.departmentid
-                                                ? { ...dr, rate: newRate }
+                                                ? { 
+                                                    ...dr, 
+                                                    variant_rates: {
+                                                      ...(dr.variant_rates || {}),
+                                                      [value.variant_value_id]: newRate
+                                                    }
+                                                  }
                                                 : dr
                                             ),
                                           }));

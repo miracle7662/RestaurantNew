@@ -103,7 +103,8 @@ exports.createMenuItemWithDetails = async (req, res) => {
             hotelid, outletid, item_no, item_name, print_name, short_name, kitchen_category_id,
             kitchen_sub_category_id, kitchen_main_group_id, item_group_id, item_main_group_id,
             stock_unit, price, taxgroupid, is_runtime_rates, is_common_to_all_departments,
-            item_description, item_hsncode, created_by_id, department_details
+            item_description, item_hsncode, created_by_id, department_details,
+            variant_type_id, variant_values
         } = req.body;
 
         // Validate required fields
@@ -160,6 +161,40 @@ exports.createMenuItemWithDetails = async (req, res) => {
 
         }
 
+        // Validate variant_type_id if provided
+        if (variant_type_id) {
+            const parsedVariantTypeId = parseInt(variant_type_id);
+            const variantType = db.prepare('SELECT variant_type_id FROM mst_variant_types WHERE variant_type_id = ? AND active = 1').get(parsedVariantTypeId);
+            if (!variantType) {
+                return res.status(400).json({ message: `Invalid variant_type_id: ${variant_type_id}` });
+            }
+        }
+
+        // Validate variant_values if provided
+        if (variant_values && !Array.isArray(variant_values)) {
+            return res.status(400).json({ message: 'variant_values must be an array' });
+        }
+
+        if (variant_values && variant_values.length > 0 && !variant_type_id) {
+            return res.status(400).json({ message: 'variant_type_id is required when variant_values are provided' });
+        }
+
+        // Validate variant_values exist and belong to the variant_type_id
+        if (variant_values && variant_values.length > 0 && variant_type_id) {
+            const parsedVariantTypeId = parseInt(variant_type_id);
+            const variantValueIds = variant_values.map(v => parseInt(v)).filter(id => !isNaN(id));
+            const validVariantValues = db.prepare(
+                'SELECT variant_value_id FROM mst_variant_values WHERE variant_type_id = ? AND variant_value_id IN (' + variantValueIds.map(() => '?').join(',') + ') AND active = 1'
+            ).all(parsedVariantTypeId, ...variantValueIds);
+            
+            if (validVariantValues.length !== variantValueIds.length) {
+                return res.status(400).json({ message: 'One or more variant_values are invalid or do not belong to the variant_type_id' });
+            }
+        }
+
+        // Determine if this is a variant product
+        const isVariantProduct = variant_type_id && variant_values && variant_values.length > 0;
+
         // Insert into mstrestmenu with transaction
         db.transaction(() => {
             const stmt = db.prepare(`
@@ -184,48 +219,92 @@ exports.createMenuItemWithDetails = async (req, res) => {
             if (department_details && department_details.length > 0) {
                 const insertDetailStmt = db.prepare(`
                     INSERT INTO mstrestmenudetails (
-                        restitemid, departmentid, item_rate, unitid, servingunitid, IsConversion, hotelid
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                        restitemid, departmentid, item_rate, unitid, servingunitid, IsConversion, hotelid, variant_value_id
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 `);
 
                 for (const detail of department_details) {
-                    console.log('Inserting mstrestmenudetails:', {
-                        restitemid,
-                        departmentid: parseInt(detail.departmentid),
-                        item_rate: detail.item_rate,
-                        unitid: detail.unitid ? parseInt(detail.unitid) : null,
-                        servingunitid: detail.servingunitid ? parseInt(detail.servingunitid) : null,
-                        IsConversion: detail.IsConversion || 0,
-                        hotelid: parsedHotelId
-                    });
-                    insertDetailStmt.run(
-                        restitemid,
-                        parseInt(detail.departmentid),
-                        detail.item_rate,
-                        detail.unitid ? parseInt(detail.unitid) : null,
-                        detail.servingunitid ? parseInt(detail.servingunitid) : null,
-                        detail.IsConversion || 0,
-                        parsedHotelId
-                    );
+                    const parsedDepartmentId = parseInt(detail.departmentid);
+                    
+                    if (isVariantProduct && detail.variant_rates) {
+                        // For variant products: insert one row per variant value per department
+                        for (const variantValueId of variant_values) {
+                            const variantRate = detail.variant_rates[variantValueId] || 0;
+                            console.log('Inserting mstrestmenudetails (variant):', {
+                                restitemid,
+                                departmentid: parsedDepartmentId,
+                                item_rate: variantRate,
+                                unitid: detail.unitid ? parseInt(detail.unitid) : null,
+                                servingunitid: detail.servingunitid ? parseInt(detail.servingunitid) : null,
+                                IsConversion: detail.IsConversion || 0,
+                                hotelid: parsedHotelId,
+                                variant_value_id: variantValueId
+                            });
+                            insertDetailStmt.run(
+                                restitemid,
+                                parsedDepartmentId,
+                                variantRate,
+                                detail.unitid ? parseInt(detail.unitid) : null,
+                                detail.servingunitid ? parseInt(detail.servingunitid) : null,
+                                detail.IsConversion || 0,
+                                parsedHotelId,
+                                variantValueId
+                            );
+                        }
+                    } else {
+                        // For simple products: insert one row per department
+                        const itemRate = detail.item_rate || detail.rate || 0;
+                        console.log('Inserting mstrestmenudetails (simple):', {
+                            restitemid,
+                            departmentid: parsedDepartmentId,
+                            item_rate: itemRate,
+                            unitid: detail.unitid ? parseInt(detail.unitid) : null,
+                            servingunitid: detail.servingunitid ? parseInt(detail.servingunitid) : null,
+                            IsConversion: detail.IsConversion || 0,
+                            hotelid: parsedHotelId,
+                            variant_value_id: null
+                        });
+                        insertDetailStmt.run(
+                            restitemid,
+                            parsedDepartmentId,
+                            itemRate,
+                            detail.unitid ? parseInt(detail.unitid) : null,
+                            detail.servingunitid ? parseInt(detail.servingunitid) : null,
+                            detail.IsConversion || 0,
+                            parsedHotelId,
+                            null
+                        );
+                    }
                 }
             }
 
             // Fetch the created item with joins for response
             const createdItem = db.prepare(`
                 SELECT m.*, 
-                       md.itemdetailsid, md.item_rate, md.unitid, md.servingunitid, md.IsConversion,
+                       md.itemdetailsid, md.item_rate, md.unitid, md.servingunitid, md.IsConversion, md.variant_value_id,
                        o.outlet_name,
                        h.hotel_name,
-                       d.department_name
+                       d.department_name,
+                       vv.value_name as variant_value_name
                 FROM mstrestmenu m
                 LEFT JOIN mstrestmenudetails md ON m.restitemid = md.restitemid
                 LEFT JOIN mst_outlets o ON m.outletid = o.outletid
                 LEFT JOIN msthotelmasters h ON m.hotelid = h.hotelid
                 LEFT JOIN msttable_department d ON md.departmentid = d.departmentid
+                LEFT JOIN mst_variant_values vv ON md.variant_value_id = vv.variant_value_id
                 WHERE m.restitemid = ? AND m.status = 1
             `).get(restitemid);
 
-            res.json(createdItem);
+            // Fetch all details for the response
+            const allDetails = db.prepare(`
+                SELECT md.*, d.department_name, vv.value_name as variant_value_name
+                FROM mstrestmenudetails md
+                LEFT JOIN msttable_department d ON md.departmentid = d.departmentid
+                LEFT JOIN mst_variant_values vv ON md.variant_value_id = vv.variant_value_id
+                WHERE md.restitemid = ?
+            `).all(restitemid);
+
+            res.json({ ...createdItem, department_details: allDetails });
         })();
     } catch (error) {
         console.error('Error creating menu item with details:', error);
@@ -247,7 +326,8 @@ exports.updateMenuItemWithDetails = async (req, res) => {
             outletid, item_no, item_name, print_name, short_name, kitchen_category_id,
             kitchen_sub_category_id, kitchen_main_group_id, item_group_id, item_main_group_id,
             stock_unit, price, taxgroupid, is_runtime_rates, is_common_to_all_departments,
-            item_description, item_hsncode, status, updated_by_id, department_details
+            item_description, item_hsncode, status, updated_by_id, department_details,
+            variant_type_id, variant_values
         } = req.body;
 
         // Validate existing menu item
@@ -418,54 +498,101 @@ exports.updateMenuItemWithDetails = async (req, res) => {
 
             // Update department details if provided
             if (department_details && department_details.length > 0) {
+                // Determine if this is a variant product
+                const isVariantProduct = variant_type_id && variant_values && variant_values.length > 0;
+                
                 // Delete existing details
                 db.prepare('DELETE FROM mstrestmenudetails WHERE restitemid = ?').run(parseInt(id));
 
-                // Insert new details
+                // Insert new details - with variant support
                 const insertDetailStmt = db.prepare(`
                     INSERT INTO mstrestmenudetails (
-                        restitemid, departmentid, item_rate, unitid, servingunitid, IsConversion, hotelid
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                        restitemid, departmentid, item_rate, unitid, servingunitid, IsConversion, hotelid, variant_value_id
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 `);
 
                 for (const detail of department_details) {
-                    console.log('Inserting mstrestmenudetails:', {
-                        restitemid: parseInt(id),
-                        departmentid: parseInt(detail.departmentid),
-                        item_rate: detail.item_rate,
-                        unitid: detail.unitid ? parseInt(detail.unitid) : null,
-                        servingunitid: detail.servingunitid ? parseInt(detail.servingunitid) : null,
-                        IsConversion: detail.IsConversion || 0,
-                        hotelid: parsedHotelId
-                    });
-                    insertDetailStmt.run(
-                        parseInt(id),
-                        parseInt(detail.departmentid),
-                        detail.item_rate,
-                        detail.unitid ? parseInt(detail.unitid) : null,
-                        detail.servingunitid ? parseInt(detail.servingunitid) : null,
-                        detail.IsConversion || 0,
-                        parsedHotelId
-                    );
+                    const parsedDepartmentId = parseInt(detail.departmentid);
+                    
+                    if (isVariantProduct && detail.variant_rates && variant_values.length > 0) {
+                        // For variant products: insert one row per variant value per department
+                        for (const variantValueId of variant_values) {
+                            const variantRate = detail.variant_rates[variantValueId] || 0;
+                            console.log('Updating mstrestmenudetails (variant):', {
+                                restitemid: parseInt(id),
+                                departmentid: parsedDepartmentId,
+                                item_rate: variantRate,
+                                unitid: detail.unitid ? parseInt(detail.unitid) : null,
+                                servingunitid: detail.servingunitid ? parseInt(detail.servingunitid) : null,
+                                IsConversion: detail.IsConversion || 0,
+                                hotelid: parsedHotelId,
+                                variant_value_id: variantValueId
+                            });
+                            insertDetailStmt.run(
+                                parseInt(id),
+                                parsedDepartmentId,
+                                variantRate,
+                                detail.unitid ? parseInt(detail.unitid) : null,
+                                detail.servingunitid ? parseInt(detail.servingunitid) : null,
+                                detail.IsConversion || 0,
+                                parsedHotelId,
+                                variantValueId
+                            );
+                        }
+                    } else {
+                        // For simple products: insert one row per department
+                        const itemRate = detail.item_rate || detail.rate || 0;
+                        console.log('Updating mstrestmenudetails (simple):', {
+                            restitemid: parseInt(id),
+                            departmentid: parsedDepartmentId,
+                            item_rate: itemRate,
+                            unitid: detail.unitid ? parseInt(detail.unitid) : null,
+                            servingunitid: detail.servingunitid ? parseInt(detail.servingunitid) : null,
+                            IsConversion: detail.IsConversion || 0,
+                            hotelid: parsedHotelId,
+                            variant_value_id: null
+                        });
+                        insertDetailStmt.run(
+                            parseInt(id),
+                            parsedDepartmentId,
+                            itemRate,
+                            detail.unitid ? parseInt(detail.unitid) : null,
+                            detail.servingunitid ? parseInt(detail.servingunitid) : null,
+                            detail.IsConversion || 0,
+                            parsedHotelId,
+                            null
+                        );
+                    }
                 }
             }
 
             // Fetch the updated item with joins for response
             const updatedItem = db.prepare(`
                 SELECT m.*, 
-                       md.itemdetailsid, md.item_rate, md.unitid, md.servingunitid, md.IsConversion,
+                       md.itemdetailsid, md.item_rate, md.unitid, md.servingunitid, md.IsConversion, md.variant_value_id,
                        o.outlet_name,
                        h.hotel_name,
-                       d.department_name
+                       d.department_name,
+                       vv.value_name as variant_value_name
                 FROM mstrestmenu m
                 LEFT JOIN mstrestmenudetails md ON m.restitemid = md.restitemid
                 LEFT JOIN mst_outlets o ON m.outletid = o.outletid
                 LEFT JOIN msthotelmasters h ON m.hotelid = h.hotelid
                 LEFT JOIN msttable_department d ON md.departmentid = d.departmentid
+                LEFT JOIN mst_variant_values vv ON md.variant_value_id = vv.variant_value_id
                 WHERE m.restitemid = ? AND m.status = 1
             `).get(parseInt(id));
 
-            res.json(updatedItem);
+            // Fetch all details for the response
+            const allDetails = db.prepare(`
+                SELECT md.*, d.department_name, vv.value_name as variant_value_name
+                FROM mstrestmenudetails md
+                LEFT JOIN msttable_department d ON md.departmentid = d.departmentid
+                LEFT JOIN mst_variant_values vv ON md.variant_value_id = vv.variant_value_id
+                WHERE md.restitemid = ?
+            `).all(parseInt(id));
+
+            res.json({ ...updatedItem, department_details: allDetails });
         })();
     } catch (error) {
         console.error('Error updating menu item with details:', error);
