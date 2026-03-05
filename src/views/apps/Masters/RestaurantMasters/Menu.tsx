@@ -1601,17 +1601,10 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                       />
                     </Col>
                   </Row>
-
                 </Tab>
-
               </Tabs>
             </Col>
           </Row>
-
-
-
-
-
           <Row className="mb-3 align-items-center">
             <Col xs={12} sm={4}>
               <Form.Group as={Row} className="align-items-center">

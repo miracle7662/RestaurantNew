@@ -1,4 +1,4 @@
- import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card, Row, Col, Form, Button, Table, Alert, Modal } from 'react-bootstrap';
 import { useAuthContext } from '@/common';
 import { toast } from 'react-hot-toast';
@@ -6,6 +6,10 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import KitchenAllocationService, { KitchenAllocationData, ItemDetailData } from '@/common/api/kitchenallocation';
+import ItemGroupService from '@/common/api/itemgroup';
+import KitchenMainGroupService from '@/common/api/kitchenmaingroup';
+import TableDepartmentService from '@/common/api/tabledepartment';
+import OutletUserService from '@/common/api/outletUser';
 // import { Eye } from 'react-feather';
 
 interface FilterOption {
@@ -45,41 +49,30 @@ const KitchenAllocation: React.FC = () => {
   useEffect(() => {
     const fetchFilterOptions = async () => {
       try {
-          // Use correct API endpoints that match backend routes
-        const userParams = new URLSearchParams({
-          currentUserId: user?.id?.toString() || '',
-          roleLevel: user?.role || '',
-          brandId: user?.hotelid?.toString() || '',
-          hotelid: user?.hotelid?.toString() || ''
-        });
+        // Using common API services instead of direct fetch calls
+        const userParams = {
+          currentUserId: user?.id,
+          roleLevel: user?.role,
+          brandId: user?.hotelid,
+          hotelid: user?.hotelid
+        };
 
-        const departmentParams = new URLSearchParams({
-          hotelid: user?.hotelid?.toString() || ''
-        });
+        const departmentParams = {
+          hotelid: user?.hotelid
+        };
 
         const [usersRes, itemGroupsRes, departmentsRes, kitchenMainGroupsRes] = await Promise.all([
-          fetch(`http://localhost:3001/api/users?${userParams}`),
-          fetch('http://localhost:3001/api/ItemGroup'),
-          fetch(`http://localhost:3001/api/table-department?${departmentParams}`),
-
-          fetch('http://localhost:3001/api/KitchenMainGroup')
+          OutletUserService.getOutletUsers(userParams),
+          ItemGroupService.list({ hotelid: user?.hotelid }),
+          TableDepartmentService.list(departmentParams),
+          KitchenMainGroupService.list()
         ]);
 
-        if (!usersRes.ok) throw new Error(`Failed to fetch users: ${usersRes.status} ${usersRes.statusText}`);
-        if (!itemGroupsRes.ok) throw new Error(`Failed to fetch item groups: ${itemGroupsRes.status} ${itemGroupsRes.statusText}`);
-        if (!departmentsRes.ok) throw new Error(`Failed to fetch departments: ${departmentsRes.status} ${departmentsRes.statusText}`);
-        if (!kitchenMainGroupsRes.ok) throw new Error(`Failed to fetch kitchen main groups: ${kitchenMainGroupsRes.status} ${kitchenMainGroupsRes.statusText}`);
-
-        const usersData = await usersRes.json();
-        const itemGroupsData = await itemGroupsRes.json();
-        const departmentsData = await departmentsRes.json();
-        const kitchenMainGroupsData = await kitchenMainGroupsRes.json();
-
-        // Handle different response formats
-        setUsers(Array.isArray(usersData) ? usersData : []);
-        setItemGroups(Array.isArray(itemGroupsData) ? itemGroupsData : itemGroupsData.data || []);
-        setDepartments(Array.isArray(departmentsData.data) ? departmentsData.data : []);
-        setKitchenMainGroups(Array.isArray(kitchenMainGroupsData) ? kitchenMainGroupsData : kitchenMainGroupsData.data || []);
+        // Handle different response formats from API services
+        setUsers(Array.isArray(usersRes.data) ? usersRes.data : []);
+        setItemGroups(Array.isArray(itemGroupsRes.data) ? itemGroupsRes.data : []);
+        setDepartments(Array.isArray(departmentsRes.data) ? departmentsRes.data : []);
+        setKitchenMainGroups(Array.isArray(kitchenMainGroupsRes.data) ? kitchenMainGroupsRes.data : []);
       } catch (err) {
         console.error('Error fetching filter options:', err);
         setError('Failed to load filter options. Please check your connection.');
@@ -87,7 +80,7 @@ const KitchenAllocation: React.FC = () => {
     };
 
     fetchFilterOptions();
-  }, []);
+  }, [user]);
 
   // Fetch data on component mount with current date
   useEffect(() => {
