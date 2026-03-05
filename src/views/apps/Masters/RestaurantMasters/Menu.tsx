@@ -815,6 +815,8 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
   const [selectedVariantType, setSelectedVariantType] = useState<string>("");
   const [showVariantValueModal, setShowVariantValueModal] = useState<boolean>(false);
   const [selectedVariantValues, setSelectedVariantValues] = useState<number[]>([]);
+  const [openingStock, setOpeningStock] = useState(0);
+
 
   const handleSubmit = async () => {
     if (!itemName || !price || !selectedBrand || !selectedOutlet) {
@@ -1163,6 +1165,99 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
               </Form.Group>
             </Col>
           </Row>
+          <Row className="mb-3">
+            <Col xs={12} sm={6}>
+              <Form.Group as={Row} className="align-items-center">
+                <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Stock Unit</Form.Label>
+                <Col sm={8}>
+                  <Form.Select
+                    value={stockUnit ?? ''}
+                    onChange={(e) => setStockUnit(e.target.value ? Number(e.target.value) : null)}
+                    className="rounded-lg"
+                    disabled={loading}
+                  >
+                    <option value="">Select Stock Unit</option>
+                    {stockUnits.map((unit) => (
+                      <option key={unit.unitid} value={unit.unitid}>
+                        {unit.unit_name}
+                      </option>
+                    ))}
+                  </Form.Select>
+                </Col>
+              </Form.Group>
+            </Col>
+            <Col xs={12} sm={6}>
+              <Form.Group as={Row} className="align-items-center">
+                <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Price</Form.Label>
+                <Col sm={8}>
+                  <Form.Control
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={price}
+                    onChange={(e) => setPrice(e.target.value)}
+                    placeholder="Enter price"
+                    className="rounded-lg"
+                    required
+                  />
+                </Col>
+              </Form.Group>
+            </Col>
+          </Row>
+          <Row className="mb-3">
+            <Col xs={12} sm={6}>
+              <Form.Group as={Row} className="align-items-center">
+                <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Tax Group</Form.Label>
+                <Col sm={8}>
+                  <Form.Select
+                    value={taxgroupid ?? ''}
+                    onChange={(e) => setTaxgroupid(e.target.value ? Number(e.target.value) : null)}
+                    className="rounded-lg"
+                    disabled={loading}
+                  >
+                    <option value="">Select Tax Group</option>
+                    {taxGroups.map((taxGroup) => (
+                      <option key={taxGroup.taxgroupid} value={taxGroup.taxgroupid}>
+                        {taxGroup.taxgroup_name}
+                      </option>
+                    ))}
+                  </Form.Select>
+                </Col>
+              </Form.Group>
+            </Col>
+          </Row>
+          <Row className="mb-3">
+            <Col xs={12} sm={6}>
+              <Form.Group as={Row} className="align-items-center">
+                <Col sm={12}>
+                  <label className="d-flex align-items-center gap-2 cursor-pointer">
+                    <Form.Check
+                      type="checkbox"
+                      checked={runtimeRates}
+                      onChange={(e) => setRuntimeRates(e.target.checked)}
+                      className="mt-0"
+                    />
+                    <span className="text-sm text-gray-700">Runtime Rates</span>
+                  </label>
+                </Col>
+              </Form.Group>
+            </Col>
+            <Col xs={12} sm={6}>
+              <Form.Group as={Row} className="align-items-center">
+                <Col sm={12}>
+                  <label className="d-flex align-items-center gap-2 cursor-pointer">
+                    <Form.Check
+                      type="checkbox"
+                      checked={isCommonToAllDepartments}
+                      onChange={(e) => setIsCommonToAllDepartments(e.target.checked)}
+                      className="mt-0"
+                    />
+                    <span className="text-sm text-gray-600">Is Common to All Departments</span>
+                  </label>
+                </Col>
+              </Form.Group>
+            </Col>
+          </Row>
 
           {/* ────── New Pricing Tabs Section ────── */}
           {/* ────── Pricing Tabs Section (replaced the previous one) ────── */}
@@ -1388,7 +1483,8 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                 </Tab>
 
                 <Tab eventKey="stock" title="Stock">
-                 {/* ================= DECIDE INGREDIENTS ================= */}
+
+{/* ================= DECIDE INGREDIENTS ================= */}
 <Row className="mb-3">
   <Col xs={12}>
     <Form.Check
@@ -1403,6 +1499,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
   <Col xs={12} md={2}>
     <Form.Label className="mb-0">Store Name</Form.Label>
   </Col>
+
   <Col xs={12} md={4}>
     <Form.Select className="rounded-lg">
       <option value="">Select Store</option>
@@ -1415,7 +1512,43 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
   </Col>
 </Row>
 
+{/* ================= OPENING STOCK ================= */}
+<Row className="mb-3 align-items-center">
 
+  <Col xs={12} md={2}>
+    <Form.Label className="mb-0">Opening Stock</Form.Label>
+  </Col>
+
+  {/* Opening Quantity */}
+  <Col xs={6} md={2}>
+    <Form.Control
+      type="number"
+      placeholder="0"
+      value={openingStock}
+      onChange={(e) => setOpeningStock(Number(e.target.value))}
+    />
+  </Col>
+
+  {/* Unit Dropdown (Fetch from DB) */}
+  <Col xs={6} md={2}>
+    <Form.Select
+      value={stockUnit ?? ""}
+      onChange={(e) =>
+        setStockUnit(e.target.value ? Number(e.target.value) : null)
+      }
+    >
+      <option value="">Select Unit</option>
+
+      {stockUnits.map((unit) => (
+        <option key={unit.unitid} value={unit.unitid}>
+          {unit.unit_name}
+        </option>
+      ))}
+
+    </Form.Select>
+  </Col>
+
+</Row>
 
 {/* ================= CONSUME RAW MATERIALS BOX ================= */}
 <Row className="mb-3">
@@ -1458,106 +1591,17 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
     />
   </Col>
 </Row>
-                </Tab>
+
+</Tab>
 
               </Tabs>
             </Col>
           </Row>
 
-          <Row className="mb-3">
-            <Col xs={12} sm={6}>
-              <Form.Group as={Row} className="align-items-center">
-                <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Stock Unit</Form.Label>
-                <Col sm={8}>
-                  <Form.Select
-                    value={stockUnit ?? ''}
-                    onChange={(e) => setStockUnit(e.target.value ? Number(e.target.value) : null)}
-                    className="rounded-lg"
-                    disabled={loading}
-                  >
-                    <option value="">Select Stock Unit</option>
-                    {stockUnits.map((unit) => (
-                      <option key={unit.unitid} value={unit.unitid}>
-                        {unit.unit_name}
-                      </option>
-                    ))}
-                  </Form.Select>
-                </Col>
-              </Form.Group>
-            </Col>
-            <Col xs={12} sm={6}>
-              <Form.Group as={Row} className="align-items-center">
-                <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Price</Form.Label>
-                <Col sm={8}>
-                  <Form.Control
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={price}
-                    onChange={(e) => setPrice(e.target.value)}
-                    placeholder="Enter price"
-                    className="rounded-lg"
-                    required
-                  />
-                </Col>
-              </Form.Group>
-            </Col>
-          </Row>
-          <Row className="mb-3">
-            <Col xs={12} sm={6}>
-              <Form.Group as={Row} className="align-items-center">
-                <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Tax Group</Form.Label>
-                <Col sm={8}>
-                  <Form.Select
-                    value={taxgroupid ?? ''}
-                    onChange={(e) => setTaxgroupid(e.target.value ? Number(e.target.value) : null)}
-                    className="rounded-lg"
-                    disabled={loading}
-                  >
-                    <option value="">Select Tax Group</option>
-                    {taxGroups.map((taxGroup) => (
-                      <option key={taxGroup.taxgroupid} value={taxGroup.taxgroupid}>
-                        {taxGroup.taxgroup_name}
-                      </option>
-                    ))}
-                  </Form.Select>
-                </Col>
-              </Form.Group>
-            </Col>
-          </Row>
+          
+          
 
-          <Row className="mb-3">
-            <Col xs={12} sm={6}>
-              <Form.Group as={Row} className="align-items-center">
-                <Col sm={12}>
-                  <label className="d-flex align-items-center gap-2 cursor-pointer">
-                    <Form.Check
-                      type="checkbox"
-                      checked={runtimeRates}
-                      onChange={(e) => setRuntimeRates(e.target.checked)}
-                      className="mt-0"
-                    />
-                    <span className="text-sm text-gray-700">Runtime Rates</span>
-                  </label>
-                </Col>
-              </Form.Group>
-            </Col>
-            <Col xs={12} sm={6}>
-              <Form.Group as={Row} className="align-items-center">
-                <Col sm={12}>
-                  <label className="d-flex align-items-center gap-2 cursor-pointer">
-                    <Form.Check
-                      type="checkbox"
-                      checked={isCommonToAllDepartments}
-                      onChange={(e) => setIsCommonToAllDepartments(e.target.checked)}
-                      className="mt-0"
-                    />
-                    <span className="text-sm text-gray-600">Is Common to All Departments</span>
-                  </label>
-                </Col>
-              </Form.Group>
-            </Col>
-          </Row>
+          
           <Row className="mb-3 align-items-center">
             <Col xs={12} sm={4}>
               <Form.Group as={Row} className="align-items-center">
