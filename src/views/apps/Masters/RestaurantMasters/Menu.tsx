@@ -1265,7 +1265,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
             <Col xs={12}>
               <h6 className="mb-3 fw-semibold text-gray-800">Pricing Details</h6>
 
-              <Tabs defaultActiveKey="multiplePrice" id="pricingTabs" className="mb-3">              
+              <Tabs defaultActiveKey="multiplePrice" id="pricingTabs" className="mb-3">
                 <Tab eventKey="multiplePrice" title="Multiple Price">
                   <p className="text-sm text-gray-600 mb-3">
                     Define department-wise multiple pricing
@@ -1344,7 +1344,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                             )}
 
                           <th>Tax Group</th>
-                          
+
                         </tr>
                       </thead>
 
@@ -1414,8 +1414,8 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                                   </Form.Select>
                                 </td>
 
-                                
-                               
+
+
                               </tr>
                             );
                           })
@@ -1484,124 +1484,124 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
 
                 <Tab eventKey="stock" title="Stock">
 
-{/* ================= DECIDE INGREDIENTS ================= */}
-<Row className="mb-3">
-  <Col xs={12}>
-    <Form.Check
-      type="checkbox"
-      label="Decide Ingredients for This Item"
-    />
-  </Col>
-</Row>
+                  {/* ================= DECIDE INGREDIENTS ================= */}
+                  <Row className="mb-3">
+                    <Col xs={12}>
+                      <Form.Check
+                        type="checkbox"
+                        label="Decide Ingredients for This Item"
+                      />
+                    </Col>
+                  </Row>
 
-{/* ================= STORE NAME ================= */}
-<Row className="mb-3 align-items-center">
-  <Col xs={12} md={2}>
-    <Form.Label className="mb-0">Store Name</Form.Label>
-  </Col>
+                  {/* ================= STORE NAME ================= */}
+                  <Row className="mb-3 align-items-center">
+                    <Col xs={12} md={2}>
+                      <Form.Label className="mb-0">Store Name</Form.Label>
+                    </Col>
 
-  <Col xs={12} md={4}>
-    <Form.Select className="rounded-lg">
-      <option value="">Select Store</option>
-      {warehouses.map((warehouse) => (
-        <option key={warehouse.warehouseid} value={warehouse.warehouseid}>
-          {warehouse.warehouse_name}
-        </option>
-      ))}
-    </Form.Select>
-  </Col>
-</Row>
+                    <Col xs={12} md={4}>
+                      <Form.Select className="rounded-lg">
+                        <option value="">Select Store</option>
+                        {warehouses.map((warehouse) => (
+                          <option key={warehouse.warehouseid} value={warehouse.warehouseid}>
+                            {warehouse.warehouse_name}
+                          </option>
+                        ))}
+                      </Form.Select>
+                    </Col>
+                  </Row>
 
-{/* ================= OPENING STOCK ================= */}
-<Row className="mb-3 align-items-center">
+                  {/* ================= OPENING STOCK ================= */}
+                  <Row className="mb-3 align-items-center">
 
-  <Col xs={12} md={2}>
-    <Form.Label className="mb-0">Opening Stock</Form.Label>
-  </Col>
+                    <Col xs={12} md={2}>
+                      <Form.Label className="mb-0">Opening Stock</Form.Label>
+                    </Col>
 
-  {/* Opening Quantity */}
-  <Col xs={6} md={2}>
-    <Form.Control
-      type="number"
-      placeholder="0"
-      value={openingStock}
-      onChange={(e) => setOpeningStock(Number(e.target.value))}
-    />
-  </Col>
+                    {/* Opening Quantity */}
+                    <Col xs={6} md={2}>
+                      <Form.Control
+                        type="number"
+                        placeholder="0"
+                        value={openingStock}
+                        onChange={(e) => setOpeningStock(Number(e.target.value))}
+                      />
+                    </Col>
 
-  {/* Unit Dropdown (Fetch from DB) */}
-  <Col xs={6} md={2}>
-    <Form.Select
-      value={stockUnit ?? ""}
-      onChange={(e) =>
-        setStockUnit(e.target.value ? Number(e.target.value) : null)
-      }
-    >
-      <option value="">Select Unit</option>
+                    {/* Unit Dropdown (Fetch from DB) */}
+                    <Col xs={6} md={2}>
+                      <Form.Select
+                        value={stockUnit ?? ""}
+                        onChange={(e) =>
+                          setStockUnit(e.target.value ? Number(e.target.value) : null)
+                        }
+                      >
+                        <option value="">Select Unit</option>
 
-      {stockUnits.map((unit) => (
-        <option key={unit.unitid} value={unit.unitid}>
-          {unit.unit_name}
-        </option>
-      ))}
+                        {stockUnits.map((unit) => (
+                          <option key={unit.unitid} value={unit.unitid}>
+                            {unit.unit_name}
+                          </option>
+                        ))}
 
-    </Form.Select>
-  </Col>
+                      </Form.Select>
+                    </Col>
 
-</Row>
+                  </Row>
 
-{/* ================= CONSUME RAW MATERIALS BOX ================= */}
-<Row className="mb-3">
-  <Col xs={12} md={6}>
-    <fieldset className="border p-3 rounded">
-      <legend className="float-none w-auto px-2 small">
-        Consume Raw Materials
-      </legend>
+                  {/* ================= CONSUME RAW MATERIALS BOX ================= */}
+                  <Row className="mb-3">
+                    <Col xs={12} md={6}>
+                      <fieldset className="border p-3 rounded">
+                        <legend className="float-none w-auto px-2 small">
+                          Consume Raw Materials
+                        </legend>
 
-      <Form.Check
-        type="radio"
-        name="consumeType"
-        label="Consume Raw Materials on Bill"
-        className="mb-2"
-      />
+                        <Form.Check
+                          type="radio"
+                          name="consumeType"
+                          label="Consume Raw Materials on Bill"
+                          className="mb-2"
+                        />
 
-      <Form.Check
-        type="radio"
-        name="consumeType"
-        label="Consume Raw Materials on KOT"
-      />
-    </fieldset>
-  </Col>
-</Row>
+                        <Form.Check
+                          type="radio"
+                          name="consumeType"
+                          label="Consume Raw Materials on KOT"
+                        />
+                      </fieldset>
+                    </Col>
+                  </Row>
 
-{/* ================= OTHER OPTIONS ================= */}
-<Row>
-  <Col xs={12} md={6}>
-    <Form.Check
-      type="checkbox"
-      label="Reverse Stock During Cancel KOT"
-      className="mb-2"
-    />
-  </Col>
+                  {/* ================= OTHER OPTIONS ================= */}
+                  <Row>
+                    <Col xs={12} md={6}>
+                      <Form.Check
+                        type="checkbox"
+                        label="Reverse Stock During Cancel KOT"
+                        className="mb-2"
+                      />
+                    </Col>
 
-  <Col xs={12} md={6}>
-    <Form.Check
-      type="checkbox"
-      label="Allow Negative Raw Material Stock"
-    />
-  </Col>
-</Row>
+                    <Col xs={12} md={6}>
+                      <Form.Check
+                        type="checkbox"
+                        label="Allow Negative Raw Material Stock"
+                      />
+                    </Col>
+                  </Row>
 
-</Tab>
+                </Tab>
 
               </Tabs>
             </Col>
           </Row>
 
-          
-          
 
-          
+
+
+
           <Row className="mb-3 align-items-center">
             <Col xs={12} sm={4}>
               <Form.Group as={Row} className="align-items-center">
