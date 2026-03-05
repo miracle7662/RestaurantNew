@@ -66,16 +66,18 @@ exports.getMenuItemById = (req, res) => {
         const { id } = req.params;
         
         const menuItem = db.prepare(`
-            SELECT m.*, 
-                   md.itemdetailsid, md.item_rate, md.unitid, md.servingunitid, md.IsConversion, md.variant_value_id, md.value_name,
+      SELECT m.*, 
+                   md.itemdetailsid, md.item_rate, md.unitid, md.servingunitid, md.IsConversion,
                    o.outlet_name,
                    h.hotel_name,
-                   d.department_name
+                   d.department_name,
+                   vv.value_name
             FROM mstrestmenu m
             LEFT JOIN mstrestmenudetails md ON m.restitemid = md.restitemid
             LEFT JOIN mst_outlets o ON m.outletid = o.outletid
             LEFT JOIN msthotelmasters h ON m.hotelid = h.hotelid
             LEFT JOIN msttable_department d ON md.departmentid = d.departmentid
+            LEFT JOIN mst_variant_values vv ON md.variant_value_id = vv.variant_value_id
             WHERE m.restitemid = ? AND m.status = 1
         `).get(parseInt(id));
         
