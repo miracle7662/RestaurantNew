@@ -81,6 +81,7 @@ interface DepartmentRate {
   servingunitid: number | null;
   IsConversion: number;
   variant_rates: { [variant_value_id: number]: number };
+  taxgroupid: number | null;
 }
 
 interface NewItem {
@@ -644,7 +645,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
       setItemHsncode(null);
       setStatus(1);
       setNewItem({ departmentRates: [] });
-
+      
       // Fetch max item number for auto-generation when adding new item
       if (!isEdit) {
         await fetchMaxItemNo();
@@ -777,7 +778,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                 );
                 if (itemDetailsRes.ok) {
                   const itemDetails = await itemDetailsRes.json();
-                  initialDepartmentRates = itemDetails.department_details
+initialDepartmentRates = itemDetails.department_details
                     ?.filter((detail: any) =>
                       filteredDepartments.some((dept) => dept.departmentid === detail.departmentid)
                     )
@@ -790,6 +791,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                       unitid: detail.unitid || null,
                       servingunitid: detail.servingunitid || null,
                       IsConversion: detail.IsConversion || 0,
+                      taxgroupid: detail.taxgroupid || null,
                     })) || [];
                 }
               } catch (err) {
@@ -798,7 +800,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
               }
             }
 
-            if (initialDepartmentRates.length === 0) {
+if (initialDepartmentRates.length === 0) {
               initialDepartmentRates = filteredDepartments.map((dept: DepartmentItem) => ({
                 departmentid: dept.departmentid,
                 departmentName: dept.department_name,
@@ -809,6 +811,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                 servingunitid: null,
                 IsConversion: 0,
                 variant_rates: {},
+                taxgroupid: null,
               }));
             }
 
@@ -870,35 +873,37 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
 
     // Determine if this is a variant product
     const isVariantProduct = selectedVariantType && selectedVariantType !== "simple" && selectedVariantValues.length > 0;
-
+    
     // Get the variant type ID
     const currentVariantType = getCurrentVariantType();
     const variantTypeId = isVariantProduct && currentVariantType ? currentVariantType.variant_type_id : null;
 
     setLoading(true);
-
-    // Build department details based on product type
+    
+// Build department details based on product type
     let departmentDetailsPayload;
     if (isVariantProduct) {
       // For variant products: send variant_rates for each department
-      departmentDetailsPayload = newItem.departmentRates.map(({ departmentid, rate, unitid, IsConversion, servingunitid, variant_rates }) => ({
+      departmentDetailsPayload = newItem.departmentRates.map(({ departmentid, rate, unitid, IsConversion, servingunitid, variant_rates, taxgroupid }) => ({
         departmentid,
         department_name: departments.find((d) => d.departmentid === departmentid)?.department_name || '',
         item_rate: rate || 0, // fallback rate
         unitid,
         servingunitid,
         IsConversion,
-        variant_rates: variant_rates || {} // Object with variant_value_id -> rate mapping
+        variant_rates: variant_rates || {}, // Object with variant_value_id -> rate mapping
+        taxgroupid
       }));
     } else {
       // For simple products: send regular rate
-      departmentDetailsPayload = newItem.departmentRates.map(({ departmentid, rate, unitid, servingunitid, IsConversion }) => ({
+      departmentDetailsPayload = newItem.departmentRates.map(({ departmentid, rate, unitid, servingunitid, IsConversion, taxgroupid }) => ({
         departmentid,
         department_name: departments.find((d) => d.departmentid === departmentid)?.department_name || '',
         item_rate: rate && rate > 0 ? rate : (price),
         unitid,
         servingunitid,
         IsConversion,
+        taxgroupid
       }));
     }
 
@@ -1448,11 +1453,20 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                                       type="number"
                                       step="0.01"
                                       min="0"
-                                      value={price}
-                                      onChange={(e) => setPrice(e.target.value)}
-                                      placeholder="Enter price"
+                                      placeholder="0.00"
                                       className="rounded-lg"
-                                      required
+                                      value={deptRate.rate || ''}
+                                      onChange={(e) => {
+                                        const newRate = parseFloat(e.target.value) || 0;
+                                        setNewItem((prev) => ({
+                                          ...prev,
+                                          departmentRates: prev.departmentRates.map((dr) =>
+                                            dr.departmentid === deptRate.departmentid
+                                              ? { ...dr, rate: newRate }
+                                              : dr
+                                          ),
+                                        }));
+                                      }}
                                     />
                                   </td>
                                 )}
@@ -1474,13 +1488,13 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                                             ...prev,
                                             departmentRates: prev.departmentRates.map((dr) =>
                                               dr.departmentid === deptRate.departmentid
-                                                ? {
-                                                  ...dr,
-                                                  variant_rates: {
-                                                    ...(dr.variant_rates || {}),
-                                                    [value.variant_value_id]: newRate
+                                                ? { 
+                                                    ...dr, 
+                                                    variant_rates: {
+                                                      ...(dr.variant_rates || {}),
+                                                      [value.variant_value_id]: newRate
+                                                    }
                                                   }
-                                                }
                                                 : dr
                                             ),
                                           }));
@@ -1494,9 +1508,22 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                                   <td className="text-muted text-center">—</td>
                                 )}
 
-                                {/* Tax Group */}
+{/* Tax Group */}
                                 <td>
-                                  <Form.Select className="rounded-lg">
+                                  <Form.Select 
+                                    className="rounded-lg"
+                                    value={deptRate.taxgroupid ?? ''}
+                                    onChange={(e) => {
+                                      setNewItem((prev) => ({
+                                        ...prev,
+                                        departmentRates: prev.departmentRates.map((dr) =>
+                                          dr.departmentid === deptRate.departmentid
+                                            ? { ...dr, taxgroupid: e.target.value ? Number(e.target.value) : null }
+                                            : dr
+                                        ),
+                                      }));
+                                    }}
+                                  >
                                     <option value="">Select</option>
                                     {taxGroups.map((tg) => (
                                       <option key={tg.taxgroupid} value={tg.taxgroupid}>

@@ -455,6 +455,7 @@ CREATE TABLE IF NOT EXISTS mstrestmenudetails (
     IsConversion  INTEGER DEFAULT 0,  -- 0 = No, 1 = Yes
     hotelid       INTEGER,
     variant_value_id INTEGER,
+    taxgroupid    INTEGER REFERENCES msttaxgroup (taxgroupid),
     FOREIGN KEY (variant_value_id) REFERENCES mst_variant_values(variant_value_id)
 );
 

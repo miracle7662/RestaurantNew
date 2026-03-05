@@ -215,12 +215,12 @@ exports.createMenuItemWithDetails = async (req, res) => {
 
             const restitemid = result.lastInsertRowid;
 
-            // Insert department details if provided
+// Insert department details if provided
             if (department_details && department_details.length > 0) {
                 const insertDetailStmt = db.prepare(`
                     INSERT INTO mstrestmenudetails (
-                        restitemid, departmentid, item_rate, unitid, servingunitid, IsConversion, hotelid, variant_value_id
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        restitemid, departmentid, item_rate, unitid, servingunitid, IsConversion, hotelid, variant_value_id, taxgroupid
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 `);
 
                 for (const detail of department_details) {
@@ -243,7 +243,8 @@ exports.createMenuItemWithDetails = async (req, res) => {
                                     servingunitid: detail.servingunitid ? parseInt(detail.servingunitid) : null,
                                     IsConversion: detail.IsConversion || 0,
                                     hotelid: parsedHotelId,
-                                    variant_value_id: variantValueId
+                                    variant_value_id: variantValueId,
+                                    taxgroupid: detail.taxgroupid ? parseInt(detail.taxgroupid) : null
                                 });
                                 insertDetailStmt.run(
                                     restitemid,
@@ -253,7 +254,8 @@ exports.createMenuItemWithDetails = async (req, res) => {
                                     detail.servingunitid ? parseInt(detail.servingunitid) : null,
                                     detail.IsConversion || 0,
                                     parsedHotelId,
-                                    variantValueId
+                                    variantValueId,
+                                    detail.taxgroupid ? parseInt(detail.taxgroupid) : null
                                 );
                             }
                         }
@@ -268,7 +270,8 @@ exports.createMenuItemWithDetails = async (req, res) => {
                             servingunitid: detail.servingunitid ? parseInt(detail.servingunitid) : null,
                             IsConversion: detail.IsConversion || 0,
                             hotelid: parsedHotelId,
-                            variant_value_id: null
+                            variant_value_id: null,
+                            taxgroupid: detail.taxgroupid ? parseInt(detail.taxgroupid) : null
                         });
                         insertDetailStmt.run(
                             restitemid,
@@ -278,7 +281,8 @@ exports.createMenuItemWithDetails = async (req, res) => {
                             detail.servingunitid ? parseInt(detail.servingunitid) : null,
                             detail.IsConversion || 0,
                             parsedHotelId,
-                            null
+                            null,
+                            detail.taxgroupid ? parseInt(detail.taxgroupid) : null
                         );
                     }
                 }
@@ -510,11 +514,11 @@ exports.updateMenuItemWithDetails = async (req, res) => {
                 // Delete existing details
                 db.prepare('DELETE FROM mstrestmenudetails WHERE restitemid = ?').run(parseInt(id));
 
-                // Insert new details - with variant support
+// Insert new details - with variant support
                 const insertDetailStmt = db.prepare(`
                     INSERT INTO mstrestmenudetails (
-                        restitemid, departmentid, item_rate, unitid, servingunitid, IsConversion, hotelid, variant_value_id
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        restitemid, departmentid, item_rate, unitid, servingunitid, IsConversion, hotelid, variant_value_id, taxgroupid
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 `);
 
                 for (const detail of department_details) {
@@ -537,7 +541,8 @@ exports.updateMenuItemWithDetails = async (req, res) => {
                                     servingunitid: detail.servingunitid ? parseInt(detail.servingunitid) : null,
                                     IsConversion: detail.IsConversion || 0,
                                     hotelid: parsedHotelId,
-                                    variant_value_id: variantValueId
+                                    variant_value_id: variantValueId,
+                                    taxgroupid: detail.taxgroupid ? parseInt(detail.taxgroupid) : null
                                 });
                                 insertDetailStmt.run(
                                     parseInt(id),
@@ -547,7 +552,8 @@ exports.updateMenuItemWithDetails = async (req, res) => {
                                     detail.servingunitid ? parseInt(detail.servingunitid) : null,
                                     detail.IsConversion || 0,
                                     parsedHotelId,
-                                    variantValueId
+                                    variantValueId,
+                                    detail.taxgroupid ? parseInt(detail.taxgroupid) : null
                                 );
                             }
                         }
@@ -562,7 +568,8 @@ exports.updateMenuItemWithDetails = async (req, res) => {
                             servingunitid: detail.servingunitid ? parseInt(detail.servingunitid) : null,
                             IsConversion: detail.IsConversion || 0,
                             hotelid: parsedHotelId,
-                            variant_value_id: null
+                            variant_value_id: null,
+                            taxgroupid: detail.taxgroupid ? parseInt(detail.taxgroupid) : null
                         });
                         insertDetailStmt.run(
                             parseInt(id),
@@ -572,7 +579,8 @@ exports.updateMenuItemWithDetails = async (req, res) => {
                             detail.servingunitid ? parseInt(detail.servingunitid) : null,
                             detail.IsConversion || 0,
                             parsedHotelId,
-                            null
+                            null,
+                            detail.taxgroupid ? parseInt(detail.taxgroupid) : null
                         );
                     }
                 }
