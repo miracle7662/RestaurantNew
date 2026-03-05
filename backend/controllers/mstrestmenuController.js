@@ -555,3 +555,29 @@ exports.getAllVariantTypesWithValues = (req, res) => {
         res.status(500).json({ message: 'Internal server error', details: error.message });
     }
 };
+
+// Get max item number for auto-generation
+exports.getMaxItemNo = (req, res) => {
+  try {
+    const { hotelid } = req.query;
+
+    let query = `
+      SELECT IFNULL(MAX(item_no),0) + 1 AS nextItemNo
+      FROM mstrestmenu
+    `;
+
+    let row;
+
+    if (hotelid) {
+      query += ` WHERE hotelid = ?`;
+      row = db.prepare(query).get(hotelid);
+    } else {
+      row = db.prepare(query).get();
+    }
+
+    res.json({ nextItemNo: row.nextItemNo });
+  } catch (error) {
+    console.error("Error fetching max item number:", error);
+    res.status(500).json({ error: error.message });
+  }
+};

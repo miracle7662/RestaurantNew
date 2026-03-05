@@ -603,8 +603,26 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
   const [loading, setLoading] = useState(false);
   const { user } = useAuthContext();
 
+  // Fetch max item number when Add modal opens
+  const fetchMaxItemNo = async () => {
+    try {
+      const hotelid = user?.hotelid || selectedBrand;
+      let url = 'http://localhost:3001/api/menu/max-item-no';
+      if (hotelid) {
+        url += `?hotelid=${hotelid}`;
+      }
+      const res = await fetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        setItemNo(data.nextItemNo || null);
+      }
+    } catch (err) {
+      console.error('Error fetching max item number:', err);
+    }
+  };
+
   useEffect(() => {
-    const resetForm = () => {
+    const resetForm = async () => {
       setSelectedOutlet(user?.outletid ? Number(user.outletid) : null);
       setSelectedBrand(user?.hotelid ? Number(user.hotelid) : null);
       setItemNo(null);
@@ -625,6 +643,11 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
       setItemHsncode(null);
       setStatus(1);
       setNewItem({ departmentRates: [] });
+      
+      // Fetch max item number for auto-generation when adding new item
+      if (!isEdit) {
+        await fetchMaxItemNo();
+      }
     };
 
     if (show && !isEdit) {

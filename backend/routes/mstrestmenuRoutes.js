@@ -5,6 +5,9 @@ const menuController = require("../controllers/mstrestmenuController");
 // Get all + Get by ID
 router.get("/", menuController.getAllMenuItems);
 
+// Get max item number for auto-generation - MUST be before /:id route
+router.get("/max-item-no", menuController.getMaxItemNo);
+
 // Variant Types and Values - MUST be before /:id route
 router.get("/variant-types-with-values", menuController.getAllVariantTypesWithValues);
 
