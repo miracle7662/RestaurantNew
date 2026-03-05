@@ -886,7 +886,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
       department_details: newItem.departmentRates.map(({ departmentid, rate, unitid, servingunitid, IsConversion }) => ({
         departmentid,
         department_name: departments.find((d) => d.departmentid === departmentid)?.department_name || '',
-        item_rate: rate,
+        item_rate: rate||0,
         unitid,
         servingunitid,
         IsConversion,
@@ -1412,6 +1412,18 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                                       min="0"
                                       placeholder="0.00"
                                       className="rounded-lg"
+                                      value={deptRate.rate || ''}
+                                      onChange={(e) => {
+                                        const newRate = parseFloat(e.target.value) || 0;
+                                        setNewItem((prev) => ({
+                                          ...prev,
+                                          departmentRates: prev.departmentRates.map((dr) =>
+                                            dr.departmentid === deptRate.departmentid
+                                              ? { ...dr, rate: newRate }
+                                              : dr
+                                          ),
+                                        }));
+                                      }}
                                     />
                                   </td>
                                 )}
@@ -1426,6 +1438,18 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                                         min="0"
                                         placeholder="0.00"
                                         className="rounded-lg"
+                                        value={deptRate.rate || ''}
+                                        onChange={(e) => {
+                                          const newRate = parseFloat(e.target.value) || 0;
+                                          setNewItem((prev) => ({
+                                            ...prev,
+                                            departmentRates: prev.departmentRates.map((dr) =>
+                                              dr.departmentid === deptRate.departmentid
+                                                ? { ...dr, rate: newRate }
+                                                : dr
+                                            ),
+                                          }));
+                                        }}
                                       />
                                     </td>
                                   ))}
