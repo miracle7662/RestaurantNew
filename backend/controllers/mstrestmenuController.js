@@ -228,28 +228,34 @@ exports.createMenuItemWithDetails = async (req, res) => {
                     
                     if (isVariantProduct && detail.variant_rates) {
                         // For variant products: insert one row per variant value per department
+                        // Only insert where rate is actually provided (not 0, null, or empty)
                         for (const variantValueId of variant_values) {
-                            const variantRate = detail.variant_rates[variantValueId] || 0;
-                            console.log('Inserting mstrestmenudetails (variant):', {
-                                restitemid,
-                                departmentid: parsedDepartmentId,
-                                item_rate: variantRate,
-                                unitid: detail.unitid ? parseInt(detail.unitid) : null,
-                                servingunitid: detail.servingunitid ? parseInt(detail.servingunitid) : null,
-                                IsConversion: detail.IsConversion || 0,
-                                hotelid: parsedHotelId,
-                                variant_value_id: variantValueId
-                            });
-                            insertDetailStmt.run(
-                                restitemid,
-                                parsedDepartmentId,
-                                variantRate,
-                                detail.unitid ? parseInt(detail.unitid) : null,
-                                detail.servingunitid ? parseInt(detail.servingunitid) : null,
-                                detail.IsConversion || 0,
-                                parsedHotelId,
-                                variantValueId
-                            );
+                            const variantRate = detail.variant_rates[variantValueId];
+                            
+                            // Only insert if rate is provided and is a valid number greater than 0
+                            if (variantRate !== undefined && variantRate !== null && variantRate !== '' && !isNaN(parseFloat(variantRate)) && parseFloat(variantRate) > 0) {
+                                const parsedRate = parseFloat(variantRate);
+                                console.log('Inserting mstrestmenudetails (variant):', {
+                                    restitemid,
+                                    departmentid: parsedDepartmentId,
+                                    item_rate: parsedRate,
+                                    unitid: detail.unitid ? parseInt(detail.unitid) : null,
+                                    servingunitid: detail.servingunitid ? parseInt(detail.servingunitid) : null,
+                                    IsConversion: detail.IsConversion || 0,
+                                    hotelid: parsedHotelId,
+                                    variant_value_id: variantValueId
+                                });
+                                insertDetailStmt.run(
+                                    restitemid,
+                                    parsedDepartmentId,
+                                    parsedRate,
+                                    detail.unitid ? parseInt(detail.unitid) : null,
+                                    detail.servingunitid ? parseInt(detail.servingunitid) : null,
+                                    detail.IsConversion || 0,
+                                    parsedHotelId,
+                                    variantValueId
+                                );
+                            }
                         }
                     } else {
                         // For simple products: insert one row per department
@@ -516,28 +522,34 @@ exports.updateMenuItemWithDetails = async (req, res) => {
                     
                     if (isVariantProduct && detail.variant_rates && variant_values.length > 0) {
                         // For variant products: insert one row per variant value per department
+                        // Only insert where rate is actually provided (not 0, null, or empty)
                         for (const variantValueId of variant_values) {
-                            const variantRate = detail.variant_rates[variantValueId] || 0;
-                            console.log('Updating mstrestmenudetails (variant):', {
-                                restitemid: parseInt(id),
-                                departmentid: parsedDepartmentId,
-                                item_rate: variantRate,
-                                unitid: detail.unitid ? parseInt(detail.unitid) : null,
-                                servingunitid: detail.servingunitid ? parseInt(detail.servingunitid) : null,
-                                IsConversion: detail.IsConversion || 0,
-                                hotelid: parsedHotelId,
-                                variant_value_id: variantValueId
-                            });
-                            insertDetailStmt.run(
-                                parseInt(id),
-                                parsedDepartmentId,
-                                variantRate,
-                                detail.unitid ? parseInt(detail.unitid) : null,
-                                detail.servingunitid ? parseInt(detail.servingunitid) : null,
-                                detail.IsConversion || 0,
-                                parsedHotelId,
-                                variantValueId
-                            );
+                            const variantRate = detail.variant_rates[variantValueId];
+                            
+                            // Only insert if rate is provided and is a valid number greater than 0
+                            if (variantRate !== undefined && variantRate !== null && variantRate !== '' && !isNaN(parseFloat(variantRate)) && parseFloat(variantRate) > 0) {
+                                const parsedRate = parseFloat(variantRate);
+                                console.log('Updating mstrestmenudetails (variant):', {
+                                    restitemid: parseInt(id),
+                                    departmentid: parsedDepartmentId,
+                                    item_rate: parsedRate,
+                                    unitid: detail.unitid ? parseInt(detail.unitid) : null,
+                                    servingunitid: detail.servingunitid ? parseInt(detail.servingunitid) : null,
+                                    IsConversion: detail.IsConversion || 0,
+                                    hotelid: parsedHotelId,
+                                    variant_value_id: variantValueId
+                                });
+                                insertDetailStmt.run(
+                                    parseInt(id),
+                                    parsedDepartmentId,
+                                    parsedRate,
+                                    detail.unitid ? parseInt(detail.unitid) : null,
+                                    detail.servingunitid ? parseInt(detail.servingunitid) : null,
+                                    detail.IsConversion || 0,
+                                    parsedHotelId,
+                                    variantValueId
+                                );
+                            }
                         }
                     } else {
                         // For simple products: insert one row per department
