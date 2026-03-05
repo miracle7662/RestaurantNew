@@ -10,6 +10,7 @@ import ItemGroupService from '@/common/api/itemgroup';
 import KitchenMainGroupService from '@/common/api/kitchenmaingroup';
 import TableDepartmentService from '@/common/api/tabledepartment';
 import OutletUserService from '@/common/api/outletUser';
+import SettingsService from '@/common/api/settings';
 // import { Eye } from 'react-feather';
 
 interface FilterOption {
@@ -90,33 +91,28 @@ const KitchenAllocation: React.FC = () => {
   }, [user]);
 
   // Fetch printer settings and outlet details
-  useEffect(() => {
-    const fetchPrinterAndOutlet = async () => {
-      // Get outletId from user outletid, then hotelid
-      const outletIdToUse = user?.outletid || user?.hotelid;
+ useEffect(() => {
+  const fetchPrinterAndOutlet = async () => {
+    const outletIdToUse = user?.outletid || user?.hotelid;
 
-      if (!outletIdToUse) return;
+    if (!outletIdToUse) return;
 
-      setOutletId(Number(outletIdToUse));
+    setOutletId(Number(outletIdToUse));
 
-      try {
-        const res = await fetch(
-          `http://localhost:3001/api/settings/report-printer/${outletIdToUse}`
-        );
-        if (!res.ok) {
-          throw new Error('Failed to fetch printers');
-        }
-        const data = await res.json();
-        setPrinterName(data[0]?.printer_name || null);
-      } catch (err) {
-        console.error('Error fetching printer:', err);
-        toast.error('Failed to load printer settings.');
-        setPrinterName(null);
-      }
-    };
+    try {
+      const res = await SettingsService.getReportPrinterById(Number(outletIdToUse));
 
-    fetchPrinterAndOutlet();
-  }, [user]);
+      setPrinterName(res?.[0]?.printer_name || null);
+
+    } catch (err) {
+      console.error('Error fetching printer:', err);
+      toast.error('Failed to load printer settings.');
+      setPrinterName(null);
+    }
+  };
+
+  fetchPrinterAndOutlet();
+}, [user]);
 
   // Fetch data using KitchenAllocationService
   const fetchData = async () => {
