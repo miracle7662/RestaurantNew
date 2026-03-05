@@ -146,7 +146,17 @@ const Menu: React.FC = () => {
   const fetchMenu = async () => {
     try {
       setLoading(true);
-      const res = await fetch('http://localhost:3001/api/menu');
+      let url = 'http://localhost:3001/api/menu';
+      const params: string[] = [];
+
+      if (user?.hotelid) params.push(`hotelid=${user.hotelid}`);
+      if (user?.outletid) params.push(`outletid=${user.outletid}`);
+
+      if (params.length > 0) {
+        url += `?${params.join('&')}`;
+      }
+
+      const res = await fetch(url);
       if (!res.ok) throw new Error('Failed to fetch menu');
       const menuData: MenuItem[] = await res.json();
       setData(menuData);

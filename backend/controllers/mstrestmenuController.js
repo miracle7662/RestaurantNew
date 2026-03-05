@@ -20,13 +20,33 @@ exports.getAllMenuItems = (req, res) => {
         
         const params = [];
         
+        // ✅ Hotel wise filtering - filter by hotelid
         if (hotelid) {
             query += ' AND m.hotelid = ?';
             params.push(parseInt(hotelid));
         }
+        
+        // ✅ Outlet wise filtering
+        // If outletid is provided, get menu items for:
+        // 1. Items that belong to that outlet directly (m.outletid = outletid)
+        // 2. Items that belong to the hotel the outlet belongs to (but have no specific outlet)
         if (outletid) {
-            query += ' AND m.outletid = ?';
-            params.push(parseInt(outletid));
+            const parsedOutletId = parseInt(outletid);
+            
+            // First, get the hotelid from the outlet
+            const outlet = db.prepare('SELECT hotelid FROM mst_outlets WHERE outletid = ?').get(parsedOutletId);
+            
+            if (outlet) {
+                // Include items where:
+                // - outletid matches directly OR
+                // - hotelid matches the outlet's hotel AND outletid is null (common items for the hotel)
+                query += ' AND (m.outletid = ? OR (m.hotelid = ? AND m.outletid IS NULL))';
+                params.push(parsedOutletId, outlet.hotelid);
+            } else {
+                // If outlet not found, just filter by outletid directly
+                query += ' AND m.outletid = ?';
+                params.push(parsedOutletId);
+            }
         }
         
         query += ' ORDER BY m.created_date DESC';
