@@ -14,6 +14,7 @@ import {
   fetchunitmaster,
   fetchBrands,
   fetchOutletsForDropdown,
+  fetchWarehouses,
   KitchenCategoryItem,
   KitchenMainGroupItem,
   KitchenSubCategoryItem,
@@ -21,6 +22,7 @@ import {
   ItemMainGroupItem,
   TaxGroup,
   unitmasterItem,
+  WarehouseItem,
 } from '@/utils/commonfunction';
 
 interface MenuItem {
@@ -587,6 +589,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
   const [taxGroups, setTaxGroups] = useState<TaxGroup[]>([]);
   const [stockUnits, setStockUnits] = useState<unitmasterItem[]>([]);
   const [departments, setDepartments] = useState<DepartmentItem[]>([]);
+  const [warehouses, setWarehouses] = useState<WarehouseItem[]>([]);
   const [loading, setLoading] = useState(false);
   const { user } = useAuthContext();
 
@@ -668,6 +671,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
           fetchData(setTaxGroups, setTaxgroupid, mstmenu?.taxgroupid?.toString()),
           fetchunitmaster(setStockUnits, setStockUnit, mstmenu?.stock_unit?.toString()),
           fetchOutletsForDropdown(user, uniqueOutletsCallback, setLoading),
+          fetchWarehouses(setWarehouses, setLoading),
         ]);
       } catch (err) {
         console.error('Error loading data:', err);
@@ -1400,12 +1404,18 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
     <Form.Label className="mb-0">Store Name</Form.Label>
   </Col>
   <Col xs={12} md={4}>
-    <Form.Select>
-      <option>BAR COUNTER</option>
-      <option>MAIN STORE</option>
+    <Form.Select className="rounded-lg">
+      <option value="">Select Store</option>
+      {warehouses.map((warehouse) => (
+        <option key={warehouse.warehouseid} value={warehouse.warehouseid}>
+          {warehouse.warehouse_name}
+        </option>
+      ))}
     </Form.Select>
   </Col>
 </Row>
+
+
 
 {/* ================= CONSUME RAW MATERIALS BOX ================= */}
 <Row className="mb-3">
