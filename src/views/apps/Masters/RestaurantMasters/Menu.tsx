@@ -1011,324 +1011,388 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
       {/* Gradient Header - Reduced Height */}
       <div className="modal-header-gradient">
         <div className="w-100 d-flex justify-content-between align-items-center px-3 py-2">
-          <h5 className="modal-title text-white fw-bold mb-0">
-            <i className="fi fi-rr-utensils me-2"></i>
+          <h5 className="modal-title text-dark fw-bold mb-0">
+            <i className="fi fi-rr-utensils me-2" style={{ color: '#3b82f6' }}></i>
             {isEdit ? 'Edit Item' : 'Add New Item'}
           </h5>
-          <button type="button" className="btn-close btn-close-white" onClick={onHide} aria-label="Close"></button>
+          <button type="button" className="btn-close btn-close-dark" onClick={onHide} aria-label="Close"></button>
         </div>
       </div>
       
       <Modal.Body className="bg-light p-2">
         <Form>
 {/* Section 1: Basic Information */}
-          <Card className="mb-1 border-0 shadow-sm" style={{ borderRadius: '12px', backgroundColor: '#f0f7ff' }}>
-            <Card.Body className="p-2">
-              <Row className="g-0 align-items-center">
-                <Col xs={12} md={2}>
-                  <Form.Group className="mb-0">
-                    <Form.Label className="text-muted small fw-medium mb-0 d-block">Item Number</Form.Label>
-                  </Form.Group>
+          <Card className="mb-3 border-0 shadow-sm" style={{ borderRadius: '12px', backgroundColor: '#ffffff' }}>
+            <Card.Body className="p-3">
+              <Row className="g-3">
+                {/* Row 1 - 3 fields */}
+                <Col xs={12} md={4}>
+                  <Row className="align-items-center">
+                    <Col xs={4} md={4}>
+                      <Form.Group className="mb-0">
+                        <Form.Label className="text-muted small fw-medium mb-0 d-block">Item Number</Form.Label>
+                      </Form.Group>
+                    </Col>
+                    <Col xs={8} md={8}>
+                      <Form.Control
+                        type="text"
+                        value={itemNo ?? ''}
+                        onChange={(e) => setItemNo(e.target.value || null)}
+                        placeholder="Auto-generated"
+                        className="border-0 shadow-sm rounded-3"
+                        style={{ backgroundColor: '#ffffff' }}
+                      />
+                    </Col>
+                  </Row>
                 </Col>
-                <Col xs={12} md={2}>
-                  <Form.Control
-                    type="text"
-                    value={itemNo ?? ''}
-                    onChange={(e) => setItemNo(e.target.value || null)}
-                    placeholder="Auto-generated"
-                    className="border-0 shadow-sm rounded-3"
-                    style={{ backgroundColor: '#ffffff' }}
-                  />
+                <Col xs={12} md={4}>
+                  <Row className="align-items-center">
+                    <Col xs={4} md={4}>
+                      <Form.Group className="mb-0">
+                        <Form.Label className="text-muted small fw-medium mb-0 d-block">Outlet <span className="text-danger">*</span></Form.Label>
+                      </Form.Group>
+                    </Col>
+                    <Col xs={8} md={8}>
+                      <Form.Select
+                        value={selectedOutlet || ''}
+                        onChange={(e) => setSelectedOutlet(e.target.value ? Number(e.target.value) : null)}
+                        disabled={loading || !outletsLoaded}
+                        className="border-0 shadow-sm rounded-3"
+                        style={{ backgroundColor: '#ffffff' }}
+                        required
+                      >
+                        <option value="">Select Outlet</option>
+                        {outlets.map((outlet) => (
+                          <option key={outlet.outletid} value={outlet.outletid}>
+                            {outlet.outlet_name}
+                          </option>
+                        ))}
+                      </Form.Select>
+                    </Col>
+                  </Row>
                 </Col>
-                <Col xs={12} md={2}>
-                  <Form.Group className="mb-0">
-                    <Form.Label className="text-muted small fw-medium mb-0 d-block">Outlet <span className="text-danger">*</span></Form.Label>
-                  </Form.Group>
-                </Col>
-                <Col xs={12} md={2}>
-                  <Form.Select
-                    value={selectedOutlet || ''}
-                    onChange={(e) => setSelectedOutlet(e.target.value ? Number(e.target.value) : null)}
-                    disabled={loading || !outletsLoaded}
-                    className="border-0 shadow-sm rounded-3"
-                    style={{ backgroundColor: '#ffffff' }}
-                    required
-                  >
-                    <option value="">Select Outlet</option>
-                    {outlets.map((outlet) => (
-                      <option key={outlet.outletid} value={outlet.outletid}>
-                        {outlet.outlet_name}
-                      </option>
-                    ))}
-                  </Form.Select>
-                </Col>
-                <Col xs={12} md={2}>
-                  <Form.Group className="mb-0">
-                    <Form.Label className="text-muted small fw-medium mb-0 d-block">Hotel / Brand <span className="text-danger">*</span></Form.Label>
-                  </Form.Group>
-                </Col>
-                <Col xs={12} md={2}>
-                  <Form.Select
-                    value={selectedBrand || ''}
-                    onChange={(e) => setSelectedBrand(e.target.value ? Number(e.target.value) : null)}
-                    disabled={loading}
-                    className="border-0 shadow-sm rounded-3"
-                    style={{ backgroundColor: '#ffffff' }}
-                    required
-                  >
-                    <option value="">Select Hotel</option>
-                    {brands.map((brand) => (
-                      <option key={brand.hotelid} value={brand.hotelid}>
-                        {brand.hotel_name}
-                      </option>
-                    ))}
-                  </Form.Select>
+                <Col xs={12} md={4}>
+                  <Row className="align-items-center">
+                    <Col xs={4} md={4}>
+                      <Form.Group className="mb-0">
+                        <Form.Label className="text-muted small fw-medium mb-0 d-block">Hotel / Brand <span className="text-danger">*</span></Form.Label>
+                      </Form.Group>
+                    </Col>
+                    <Col xs={8} md={8}>
+                      <Form.Select
+                        value={selectedBrand || ''}
+                        onChange={(e) => setSelectedBrand(e.target.value ? Number(e.target.value) : null)}
+                        disabled={loading}
+                        className="border-0 shadow-sm rounded-3"
+                        style={{ backgroundColor: '#ffffff' }}
+                        required
+                      >
+                        <option value="">Select Hotel</option>
+                        {brands.map((brand) => (
+                          <option key={brand.hotelid} value={brand.hotelid}>
+                            {brand.hotel_name}
+                          </option>
+                        ))}
+                      </Form.Select>
+                    </Col>
+                  </Row>
                 </Col>
               </Row>
             </Card.Body>
           </Card>
 
-{/* Section 2: Item Details - Label Left, Field Right (like Section 1) */}
-          <Card className="mb-1 border-0 shadow-sm" style={{ borderRadius: '12px', backgroundColor: '#f0fff4' }}>
-            <Card.Body className="p-2">
-              <Row className="g-0 align-items-center">
-                <Col xs={12} md={2}>
-                  <Form.Group className="mb-0">
-                    <Form.Label className="text-muted small fw-medium mb-0 d-block">Item Name <span className="text-danger">*</span></Form.Label>
-                  </Form.Group>
+{/* Section 2: Item Details */}
+          <Card className="mb-3 border-0 shadow-sm" style={{ borderRadius: '12px', backgroundColor: '#ffffff' }}>
+            <Card.Body className="p-3">
+              <Row className="g-3">
+                {/* Row 1 - Item Name (wider), Print Name, Short Name */}
+                <Col xs={12} md={5}>
+                  <Row className="align-items-center">
+                    <Col xs={3} md={3}>
+                      <Form.Group className="mb-0">
+                        <Form.Label className="text-muted small fw-medium mb-0 d-block">Item Name <span className="text-danger">*</span></Form.Label>
+                      </Form.Group>
+                    </Col>
+                    <Col xs={8} md={8}>
+                      <Form.Control
+                        type="text"
+                        value={itemName}
+                        onChange={(e) => setItemName(e.target.value)}
+                        placeholder="Enter item name"
+                        className="border-0 shadow-sm rounded-3"
+                        style={{ backgroundColor: '#ffffff' }}
+                        required
+                      />
+                    </Col>
+                  </Row>
+                </Col>
+                <Col xs={12} md={4}>
+                  <Row className="align-items-center">
+                    <Col xs={3} md={3}>
+                      <Form.Group className="mb-0">
+                        <Form.Label className="text-muted small fw-medium mb-0 d-block">Print Name</Form.Label>
+                      </Form.Group>
+                    </Col>
+                    <Col xs={8} md={8}>
+                      <Form.Control
+                        type="text"
+                        value={printName ?? ''}
+                        onChange={(e) => setPrintName(e.target.value || null)}
+                        placeholder="Name for print"
+                        className="border-0 shadow-sm rounded-3"
+                        style={{ backgroundColor: '#ffffff' }}
+                      />
+                    </Col>
+                  </Row>
+                </Col>
+                <Col xs={12} md={3}>
+                  <Row className="align-items-center">
+                    <Col xs={4} md={4}>
+                      <Form.Group className="mb-0">
+                        <Form.Label className="text-muted small fw-medium mb-0 d-block">Short Name</Form.Label>
+                      </Form.Group>
+                    </Col>
+                    <Col xs={8} md={8}>
+                      <Form.Control
+                        type="text"
+                        value={shortName ?? ''}
+                        onChange={(e) => setShortName(e.target.value || null)}
+                        placeholder="Short name"
+                        className="border-0 shadow-sm rounded-3"
+                        style={{ backgroundColor: '#ffffff' }}
+                      />
+                    </Col>
+                  </Row>
+                </Col>
+                {/* Row 2 - 3 fields: Description, HSN Code, Base Price */}
+                <Col xs={12} md={5}>
+                  <Row className="align-items-center">
+                    <Col xs={3} md={3}>
+                      <Form.Group className="mb-0">
+                        <Form.Label className="text-muted small fw-medium mb-0 d-block">Description</Form.Label>
+                      </Form.Group>
+                    </Col>
+                    <Col xs={8} md={8}>
+                      <Form.Control
+                        as="textarea"
+                        rows={1}
+                        value={itemDescription ?? ''}
+                        onChange={(e) => setItemDescription(e.target.value || null)}
+                        placeholder="Item description"
+                        className="border-0 shadow-sm rounded-3"
+                        style={{ backgroundColor: '#ffffff' }}
+                      />
+                    </Col>
+                  </Row>
+                </Col>
+                <Col xs={12} md={3}>
+                  <Row className="align-items-center">
+                    <Col xs={4} md={4}>
+                      <Form.Group className="mb-0">
+                        <Form.Label className="text-muted small fw-medium mb-0 d-block">HSN Code</Form.Label>
+                      </Form.Group>
+                    </Col>
+                    <Col xs={8} md={8}>
+                      <Form.Control
+                        type="text"
+                        value={itemHsncode ?? ''}
+                        onChange={(e) => setItemHsncode(e.target.value || null)}
+                        placeholder="HSN code"
+                        className="border-0 shadow-sm rounded-3"
+                        style={{ backgroundColor: '#ffffff' }}
+                      />
+                    </Col>
+                  </Row>
                 </Col>
                 <Col xs={12} md={2}>
-                  <Form.Control
-                    type="text"
-                    value={itemName}
-                    onChange={(e) => setItemName(e.target.value)}
-                    placeholder="Enter item name"
-                    className="border-0 shadow-sm rounded-3"
-                    style={{ backgroundColor: '#ffffff' }}
-                    required
-                  />
+                  <Row className="align-items-center">
+                    <Col xs={4} md={4}>
+                      <Form.Group className="mb-0">
+                        <Form.Label className="text-muted small fw-medium mb-0 d-block">Base Price </Form.Label>
+                      </Form.Group>
+                    </Col>
+                    <Col xs={8} md={8}>
+                      <Form.Control
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={price}
+                        onChange={(e) => setPrice(e.target.value)}
+                        placeholder="0.00"
+                        className="border-0 shadow-sm rounded-3"
+                        style={{ backgroundColor: '#ffffff' }}
+                        required
+                      />
+                    </Col>
+                  </Row>
                 </Col>
                 <Col xs={12} md={2}>
-                  <Form.Group className="mb-0">
-                    <Form.Label className="text-muted small fw-medium mb-0 d-block">Print Name</Form.Label>
-                  </Form.Group>
-                </Col>
-                <Col xs={12} md={2}>
-                  <Form.Control
-                    type="text"
-                    value={printName ?? ''}
-                    onChange={(e) => setPrintName(e.target.value || null)}
-                    placeholder="Name for print"
-                    className="border-0 shadow-sm rounded-3"
-                    style={{ backgroundColor: '#ffffff' }}
-                  />
-                </Col>
-                <Col xs={12} md={2}>
-                  <Form.Group className="mb-0">
-                    <Form.Label className="text-muted small fw-medium mb-0 d-block">Short Name</Form.Label>
-                  </Form.Group>
-                </Col>
-                <Col xs={12} md={2}>
-                  <Form.Control
-                    type="text"
-                    value={shortName ?? ''}
-                    onChange={(e) => setShortName(e.target.value || null)}
-                    placeholder="Short name"
-                    className="border-0 shadow-sm rounded-3"
-                    style={{ backgroundColor: '#ffffff' }}
-                  />
-                </Col>
-                <Col xs={12} md={2}>
-                  <Form.Group className="mb-0">
-                    <Form.Label className="text-muted small fw-medium mb-0 d-block">Description</Form.Label>
-                  </Form.Group>
-                </Col>
-                <Col xs={12} md={2}>
-                  <Form.Control
-                    as="textarea"
-                    rows={1}
-                    value={itemDescription ?? ''}
-                    onChange={(e) => setItemDescription(e.target.value || null)}
-                    placeholder="Item description"
-                    className="border-0 shadow-sm rounded-3"
-                    style={{ backgroundColor: '#ffffff' }}
-                  />
-                </Col>
-                <Col xs={12} md={2}>
-                  <Form.Group className="mb-0">
-                    <Form.Label className="text-muted small fw-medium mb-0 d-block">HSN Code</Form.Label>
-                  </Form.Group>
-                </Col>
-                <Col xs={12} md={2}>
-                  <Form.Control
-                    type="text"
-                    value={itemHsncode ?? ''}
-                    onChange={(e) => setItemHsncode(e.target.value || null)}
-                    placeholder="HSN code"
-                    className="border-0 shadow-sm rounded-3"
-                    style={{ backgroundColor: '#ffffff' }}
-                  />
-                </Col>
-                <Col xs={12} md={2}>
-                  <Form.Group className="mb-0">
-                    <Form.Label className="text-muted small fw-medium mb-0 d-block">Base Price <span className="text-danger">*</span></Form.Label>
-                  </Form.Group>
-                </Col>
-                <Col xs={12} md={2}>
-                  <Form.Control
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={price}
-                    onChange={(e) => setPrice(e.target.value)}
-                    placeholder="0.00"
-                    className="border-0 shadow-sm rounded-3"
-                    style={{ backgroundColor: '#ffffff' }}
-                    required
-                  />
+                  <Row className="align-items-center">
+                    <Col xs={4} md={4}>
+                      <Form.Group className="mb-0">
+                        <Form.Label className="text-muted small fw-medium mb-0 d-block">Tax Group</Form.Label>
+                      </Form.Group>
+                    </Col>
+                    <Col xs={8} md={8}>
+                      <Form.Select
+                        value={taxgroupid ?? ''}
+                        onChange={(e) => setTaxgroupid(e.target.value ? Number(e.target.value) : null)}
+                        className="border-0 shadow-sm rounded-3"
+                        style={{ backgroundColor: '#f8fafc' }}
+                        disabled={loading}
+                      >
+                        <option value="">Select Tax Group</option>
+                        {taxGroups.map((taxGroup) => (
+                          <option key={taxGroup.taxgroupid} value={taxGroup.taxgroupid}>
+                            {taxGroup.taxgroup_name}
+                          </option>
+                        ))}
+                      </Form.Select>
+                    </Col>
+                  </Row>
                 </Col>
               </Row>
             </Card.Body>
           </Card>
 
 {/* Section 3: Category & Classification */}
-          <Card className="mb-4 border-0 shadow-sm" style={{ borderRadius: '12px', backgroundColor: '#f5f3ff' }}>
-            <Card.Body className="p-4">
-              <Row className="g-0 align-items-center">
-                <Col xs={12} md={2}>
-                  <Form.Group className="mb-0">
-                    <Form.Label className="text-muted small fw-medium mb-0 d-block">Item Main Group</Form.Label>
-                  </Form.Group>
+          <Card className="mb-3 border-0 shadow-sm" style={{ borderRadius: '12px', backgroundColor: '#ffffff' }}>
+            <Card.Body className="p-3">
+              <Row className="g-3">
+                {/* Row 1 - 2 fields: Item Main Group, Item Group */}
+                <Col xs={12} md={5}>
+                  <Row className="align-items-center">
+                    <Col xs={3} md={3}>
+                      <Form.Group className="mb-0">
+                        <Form.Label className="text-muted small fw-medium mb-0 d-block">Item Main Group</Form.Label>
+                      </Form.Group>
+                    </Col>
+                    <Col xs={8} md={8}>
+                      <Form.Select
+                        value={itemMainGroupId ?? ''}
+                        onChange={(e) => setItemMainGroupId(e.target.value === '' ? null : Number(e.target.value))}
+                        className="border-0 shadow-sm rounded-3"
+                        style={{ backgroundColor: '#f8fafc' }}
+                        disabled={loading}
+                      >
+                        <option value="">Select Main Group</option>
+                        {itemMainGroup.filter((group) => String(group.status) === '0').map((group) => (
+                          <option key={group.item_maingroupid} value={group.item_maingroupid}>
+                            {group.item_group_name}
+                          </option>
+                        ))}
+                      </Form.Select>
+                    </Col>
+                  </Row>
                 </Col>
-                <Col xs={12} md={2}>
-                  <Form.Select
-                    value={itemMainGroupId ?? ''}
-                    onChange={(e) => setItemMainGroupId(e.target.value === '' ? null : Number(e.target.value))}
-                    className="border-0 shadow-sm rounded-3"
-                    style={{ backgroundColor: '#f8fafc' }}
-                    disabled={loading}
-                  >
-                    <option value="">Select Main Group</option>
-                    {itemMainGroup.filter((group) => String(group.status) === '0').map((group) => (
-                      <option key={group.item_maingroupid} value={group.item_maingroupid}>
-                        {group.item_group_name}
-                      </option>
-                    ))}
-                  </Form.Select>
+                <Col xs={12} md={5}>
+                  <Row className="align-items-center">
+                    <Col xs={3} md={3}>
+                      <Form.Group className="mb-0">
+                        <Form.Label className="text-muted small fw-medium mb-0 d-block">Item Group</Form.Label>
+                      </Form.Group>
+                    </Col>
+                    <Col xs={8} md={8}>
+                      <Form.Select
+                        value={itemGroupId ?? ''}
+                        onChange={(e) => setItemGroupId(e.target.value === '' ? null : Number(e.target.value))}
+                        className="border-0 shadow-sm rounded-3"
+                        style={{ backgroundColor: '#f8fafc' }}
+                        disabled={loading}
+                      >
+                        <option value="">Select Group</option>
+                        {itemGroup.filter((group) => String(group.status) === '0').map((group) => (
+                          <option key={group.item_groupid} value={group.item_groupid}>
+                            {group.itemgroupname}
+                          </option>
+                        ))}
+                      </Form.Select>
+                    </Col>
+                  </Row>
                 </Col>
-                <Col xs={12} md={2}>
-                  <Form.Group className="mb-0">
-                    <Form.Label className="text-muted small fw-medium mb-0 d-block">Item Group</Form.Label>
-                  </Form.Group>
+                {/* Row 2 - 3 fields: Kitchen Main Group, Kitchen Category, Kitchen Sub Category */}
+                <Col xs={12} md={5}>
+                  <Row className="align-items-center">
+                    <Col xs={3} md={3}>
+                      <Form.Group className="mb-0">
+                        <Form.Label className="text-muted small fw-medium mb-0 d-block">Kitchen Main Group</Form.Label>
+                      </Form.Group>
+                    </Col>
+                    <Col xs={8} md={8}>
+                      <Form.Select
+                        value={kitchenMainGroupId ?? ''}
+                        onChange={(e) => setKitchenMainGroupId(e.target.value === '' ? null : Number(e.target.value))}
+                        className="border-0 shadow-sm rounded-3"
+                        style={{ backgroundColor: '#f8fafc' }}
+                        disabled={loading}
+                      >
+                        <option value="">Select Kitchen Main Group</option>
+                        {kitchenMainGroup.filter((group) => String(group.status) === '0').map((group) => (
+                          <option key={group.kitchenmaingroupid} value={group.kitchenmaingroupid}>
+                            {group.Kitchen_main_Group}
+                          </option>
+                        ))}
+                      </Form.Select>
+                    </Col>
+                  </Row>
                 </Col>
-                <Col xs={12} md={2}>
-                  <Form.Select
-                    value={itemGroupId ?? ''}
-                    onChange={(e) => setItemGroupId(e.target.value === '' ? null : Number(e.target.value))}
-                    className="border-0 shadow-sm rounded-3"
-                    style={{ backgroundColor: '#f8fafc' }}
-                    disabled={loading}
-                  >
-                    <option value="">Select Group</option>
-                    {itemGroup.filter((group) => String(group.status) === '0').map((group) => (
-                      <option key={group.item_groupid} value={group.item_groupid}>
-                        {group.itemgroupname}
-                      </option>
-                    ))}
-                  </Form.Select>
+                <Col xs={12} md={3}>
+                  <Row className="align-items-center">
+                    <Col xs={4} md={4}>
+                      <Form.Group className="mb-0">
+                        <Form.Label className="text-muted small fw-medium mb-0 d-block">Kitchen Category</Form.Label>
+                      </Form.Group>
+                    </Col>
+                    <Col xs={8} md={8}>
+                      <Form.Select
+                        value={kitchenCategoryId ?? ''}
+                        onChange={(e) => setKitchenCategoryId(e.target.value === '' ? null : Number(e.target.value))}
+                        className="border-0 shadow-sm rounded-3"
+                        style={{ backgroundColor: '#f8fafc' }}
+                        disabled={loading}
+                      >
+                        <option value="">Select Category</option>
+                        {kitchenCategory.filter((category) => String(category.status) === '0').map((category) => (
+                          <option key={category.kitchencategoryid} value={category.kitchencategoryid}>
+                            {category.Kitchen_Category}
+                          </option>
+                        ))}
+                      </Form.Select>
+                    </Col>
+                  </Row>
                 </Col>
-                <Col xs={12} md={2}>
-                  <Form.Group className="mb-0">
-                    <Form.Label className="text-muted small fw-medium mb-0 d-block">Kitchen Main Group</Form.Label>
-                  </Form.Group>
-                </Col>
-                <Col xs={12} md={2}>
-                  <Form.Select
-                    value={kitchenMainGroupId ?? ''}
-                    onChange={(e) => setKitchenMainGroupId(e.target.value === '' ? null : Number(e.target.value))}
-                    className="border-0 shadow-sm rounded-3"
-                    style={{ backgroundColor: '#f8fafc' }}
-                    disabled={loading}
-                  >
-                    <option value="">Select Kitchen Main Group</option>
-                    {kitchenMainGroup.filter((group) => String(group.status) === '0').map((group) => (
-                      <option key={group.kitchenmaingroupid} value={group.kitchenmaingroupid}>
-                        {group.Kitchen_main_Group}
-                      </option>
-                    ))}
-                  </Form.Select>
-                </Col>
-                <Col xs={12} md={2}>
-                  <Form.Group className="mb-0">
-                    <Form.Label className="text-muted small fw-medium mb-0 d-block">Kitchen Category</Form.Label>
-                  </Form.Group>
-                </Col>
-                <Col xs={12} md={2}>
-                  <Form.Select
-                    value={kitchenCategoryId ?? ''}
-                    onChange={(e) => setKitchenCategoryId(e.target.value === '' ? null : Number(e.target.value))}
-                    className="border-0 shadow-sm rounded-3"
-                    style={{ backgroundColor: '#f8fafc' }}
-                    disabled={loading}
-                  >
-                    <option value="">Select Category</option>
-                    {kitchenCategory.filter((category) => String(category.status) === '0').map((category) => (
-                      <option key={category.kitchencategoryid} value={category.kitchencategoryid}>
-                        {category.Kitchen_Category}
-                      </option>
-                    ))}
-                  </Form.Select>
-                </Col>
-                <Col xs={12} md={2}>
-                  <Form.Group className="mb-0">
-                    <Form.Label className="text-muted small fw-medium mb-0 d-block">Kitchen Sub Category</Form.Label>
-                  </Form.Group>
-                </Col>
-                <Col xs={12} md={2}>
-                  <Form.Select
-                    value={kitchenSubCategoryId ?? ''}
-                    onChange={(e) => setKitchenSubCategoryId(e.target.value === '' ? null : Number(e.target.value))}
-                    className="border-0 shadow-sm rounded-3"
-                    style={{ backgroundColor: '#f8fafc' }}
-                    disabled={loading}
-                  >
-                    <option value="">Select Sub Category</option>
-                    {kitchenSubCategory.filter((subCategory) => String(subCategory.status) === '0').map((subCategory) => (
-                      <option key={subCategory.kitchensubcategoryid} value={subCategory.kitchensubcategoryid}>
-                        {subCategory.Kitchen_sub_category}
-                      </option>
-                    ))}
-                  </Form.Select>
-                </Col>
-<Col xs={12} md={2}>
-                  <Form.Group className="mb-0">
-                    <Form.Label className="text-muted small fw-medium mb-0 d-block">Tax Group</Form.Label>
-                  </Form.Group>
-                </Col>
-                <Col xs={12} md={2}>
-                  <Form.Select
-                    value={taxgroupid ?? ''}
-                    onChange={(e) => setTaxgroupid(e.target.value ? Number(e.target.value) : null)}
-                    className="border-0 shadow-sm rounded-3"
-                    style={{ backgroundColor: '#f8fafc' }}
-                    disabled={loading}
-                  >
-                    <option value="">Select Tax Group</option>
-                    {taxGroups.map((taxGroup) => (
-                      <option key={taxGroup.taxgroupid} value={taxGroup.taxgroupid}>
-                        {taxGroup.taxgroup_name}
-                      </option>
-                    ))}
-                  </Form.Select>
+                <Col xs={12} md={4}>
+                  <Row className="align-items-center">
+                    <Col xs={4} md={4}>
+                      <Form.Group className="mb-0">
+                        <Form.Label className="text-muted small fw-medium mb-0 d-block">Kitchen Sub Category</Form.Label>
+                      </Form.Group>
+                    </Col>
+                    <Col xs={8} md={8}>
+                      <Form.Select
+                        value={kitchenSubCategoryId ?? ''}
+                        onChange={(e) => setKitchenSubCategoryId(e.target.value === '' ? null : Number(e.target.value))}
+                        className="border-0 shadow-sm rounded-3"
+                        style={{ backgroundColor: '#f8fafc' }}
+                        disabled={loading}
+                      >
+                        <option value="">Select Sub Category</option>
+                        {kitchenSubCategory.filter((subCategory) => String(subCategory.status) === '0').map((subCategory) => (
+                          <option key={subCategory.kitchensubcategoryid} value={subCategory.kitchensubcategoryid}>
+                            {subCategory.Kitchen_sub_category}
+                          </option>
+                        ))}
+                      </Form.Select>
+                    </Col>
+                  </Row>
                 </Col>
               </Row>
-            
             </Card.Body>
           </Card>
 
-          {/* Section 4: Pricing Details */}
-          <Card className="mb-4 border-0 shadow-sm" style={{ borderRadius: '12px' }}>
-            <Card.Body className="p-2">
+{/* Section 4: Pricing Details */}
+          <Card className="mb-4 border-0 shadow-sm" style={{ borderRadius: '12px', backgroundColor: '#ffffff' }}>
+            <Card.Body className="p-2" style={{ maxHeight: '400px', overflowX: 'auto', overflowY: 'hidden' }}>
               {/* Header removed as per request */}
 
               {/* Vertical Tabs Layout */}
@@ -1754,22 +1818,20 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
         </Form>
       </Modal.Body>
 
-      {/* Footer - Reduced Height with Status on Left */}
+      {/* Footer - Status Label Left, Dropdown Right */}
       <div className="modal-footer bg-white px-3 py-2 border-top">
         <div className="d-flex align-items-center justify-content-between w-100">
           <div className="d-flex align-items-center">
-            <Form.Group as={Row} className="align-items-center mb-0">
-              <Form.Label className="mb-0 me-2 text-sm font-medium text-gray-700">Status:</Form.Label>
-              <Form.Select
-                value={status === 1 ? 'Active' : 'Inactive'}
-                onChange={(e) => setStatus(e.target.value === 'Active' ? 1 : 0)}
-                className="rounded-lg"
-                style={{ width: '120px' }}
-              >
-                <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
-              </Form.Select>
-            </Form.Group>
+            <span className="text-sm font-medium text-gray-700 me-2">Status:</span>
+            <Form.Select
+              value={status === 1 ? 'Active' : 'Inactive'}
+              onChange={(e) => setStatus(e.target.value === 'Active' ? 1 : 0)}
+              className="rounded-lg"
+              style={{ width: '120px' }}
+            >
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+            </Form.Select>
           </div>
           <div className="d-flex gap-2">
             <Button
@@ -1814,7 +1876,8 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
         }
         
         .modal-header-gradient {
-          background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
+          background: #f8fafc;
+          border-bottom: 1px solid #e2e8f0;
         }
         
         .form-control:focus, .form-select:focus {
