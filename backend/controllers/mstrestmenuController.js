@@ -52,10 +52,10 @@ exports.getAllMenuItems = (req, res) => {
         query += ' ORDER BY m.created_date DESC';
         
         const menuItems = db.prepare(query).all(...params);
-        res.json(menuItems);
+        res.json({ success: true, data: menuItems, count: menuItems.length });
     } catch (error) {
         console.error('Error fetching menu items:', error);
-        res.status(500).json({ message: 'Internal server error', details: error.message });
+        res.status(500).json({ success: false, message: 'Internal server error', details: error.message, data: null });
     }
 };
 
@@ -82,7 +82,7 @@ exports.getMenuItemById = (req, res) => {
         `).get(parseInt(id));
         
         if (!menuItem) {
-            return res.status(404).json({ message: 'Menu item not found' });
+            return res.status(404).json({ success: false, message: 'Menu item not found', data: null });
         }
         
         // Fetch all department details for the item
@@ -94,10 +94,10 @@ exports.getMenuItemById = (req, res) => {
             WHERE md.restitemid = ?
         `).all(parseInt(id));
         
-        res.json({ ...menuItem, department_details: allDetails });
+        res.json({ success: true, data: { ...menuItem, department_details: allDetails }, message: 'Menu item fetched successfully' });
     } catch (error) {
         console.error('Error fetching menu item:', error);
-        res.status(500).json({ message: 'Failed to fetch menu item', details: error.message });
+        res.status(500).json({ success: false, message: 'Failed to fetch menu item', details: error.message, data: null });
     }
 };
 
@@ -334,11 +334,11 @@ exports.createMenuItemWithDetails = async (req, res) => {
                 WHERE md.restitemid = ?
             `).all(restitemid);
 
-            res.json({ ...createdItem, department_details: allDetails });
+            res.json({ success: true, data: { ...createdItem, department_details: allDetails }, message: 'Menu item created successfully' });
         })();
     } catch (error) {
         console.error('Error creating menu item with details:', error);
-        res.status(500).json({ message: 'Internal server error', details: error.message });
+        res.status(500).json({ success: false, message: 'Internal server error', details: error.message, data: null });
     }
 };
 
@@ -641,11 +641,11 @@ exports.updateMenuItemWithDetails = async (req, res) => {
                 WHERE md.restitemid = ?
             `).all(parseInt(id));
 
-            res.json({ ...updatedItem, department_details: allDetails });
+            res.json({ success: true, data: { ...updatedItem, department_details: allDetails }, message: 'Menu item updated successfully' });
         })();
     } catch (error) {
         console.error('Error updating menu item with details:', error);
-        res.status(500).json({ message: 'Internal server error', details: error.message });
+        res.status(500).json({ success: false, message: 'Internal server error', details: error.message, data: null });
     }
 };
 
@@ -657,7 +657,7 @@ exports.deleteMenuItem = (req, res) => {
 
         const existingItem = db.prepare('SELECT restitemid FROM mstrestmenu WHERE restitemid = ? AND status = 1').get(parseInt(id));
         if (!existingItem) {
-            return res.status(404).json({ message: 'Menu item not found or already deleted' });
+            return res.status(404).json({ success: false, message: 'Menu item not found or already deleted', data: null });
         }
 
         db.transaction(() => {
@@ -665,10 +665,10 @@ exports.deleteMenuItem = (req, res) => {
             db.prepare('DELETE FROM mstrestmenudetails WHERE restitemid = ?').run(parseInt(id));
         })();
 
-        res.json({ message: 'Menu item deleted successfully' });
+        res.json({ success: true, message: 'Menu item deleted successfully', data: { restitemid: parseInt(id) } });
     } catch (error) {
         console.error('Error deleting menu item:', error);
-        res.status(500).json({ message: 'Internal server error', details: error.message });
+        res.status(500).json({ success: false, message: 'Internal server error', details: error.message, data: null });
     }
 };
 
@@ -725,10 +725,10 @@ exports.getAllVariantTypesWithValues = (req, res) => {
         }
 
         const variantTypesWithValues = Array.from(variantTypesMap.values());
-        res.json(variantTypesWithValues);
+        res.json({ success: true, data: variantTypesWithValues, count: variantTypesWithValues.length });
     } catch (error) {
         console.error('Error fetching variant types with values:', error);
-        res.status(500).json({ message: 'Internal server error', details: error.message });
+        res.status(500).json({ success: false, message: 'Internal server error', details: error.message, data: null });
     }
 };
 
@@ -751,9 +751,9 @@ exports.getMaxItemNo = (req, res) => {
       row = db.prepare(query).get();
     }
 
-    res.json({ nextItemNo: row.nextItemNo });
+    res.json({ success: true, data: { nextItemNo: row.nextItemNo } });
   } catch (error) {
     console.error("Error fetching max item number:", error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, message: 'Failed to fetch max item number', error: error.message, data: null });
   }
 };

@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { useAuthContext } from '@/common';
 import { OutletData } from "@/common/api/outlet";
+import MenuService from '@/common/api/menu';
+import TableDepartmentService from '@/common/api/tabledepartment';
 
 import { Button, Modal, Form, Row, Col, Card, Table, Navbar, Offcanvas, Tabs, Tab } from 'react-bootstrap';
 import {
@@ -149,33 +151,28 @@ const Menu: React.FC = () => {
   const fetchMenu = async () => {
     try {
       setLoading(true);
-      let url = 'http://localhost:3001/api/menu';
-      const params: string[] = [];
+      const response = await MenuService.list({
+        hotelid: user?.hotelid,
+        outletid: user?.outletid
+      });
+      
+      if (response.success) {
+        const menuData = response.data || [];
+        setData(menuData);
+        setMenuItems(menuData);
 
-      if (user?.hotelid) params.push(`hotelid=${user.hotelid}`);
-      if (user?.outletid) params.push(`outletid=${user.outletid}`);
+        const updatedCardItems = menuData.map((item) => ({
+          userId: String(item.restitemid),
+          itemId: item.item_no || '',
+          ItemName: item.item_name,
+          aliasName: item.short_name || '',
+          price: item.price || 0,
+          visits: 0,
+          cardStatus: item.status === 1 ? '✅ Available' : '❌ Unavailable',
+        }));
 
-      if (params.length > 0) {
-        url += `?${params.join('&')}`;
+        setCardItems(updatedCardItems);
       }
-
-      const res = await fetch(url);
-      if (!res.ok) throw new Error('Failed to fetch menu');
-      const menuData: MenuItem[] = await res.json();
-      setData(menuData);
-      setMenuItems(menuData);
-
-      const updatedCardItems = menuData.map((item) => ({
-        userId: String(item.restitemid),
-        itemId: item.item_no || '',
-        ItemName: item.item_name,
-        aliasName: item.short_name || '',
-        price: item.price || 0,
-        visits: 0,
-        cardStatus: item.status === 1 ? '✅ Available' : '❌ Unavailable',
-      }));
-
-      setCardItems(updatedCardItems);
     } catch (err) {
       console.error('Fetch Menu error:', err);
       toast.error('Failed to fetch menu');
@@ -189,21 +186,12 @@ const Menu: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      let url = 'http://localhost:3001/api/menu';
-      const params: string[] = [];
-
-      if (hotelid) params.push(`hotelid=${hotelid}`);
-      if (outletid) params.push(`outletid=${outletid}`);
-
-      if (params.length > 0) {
-        url += `?${params.join('&')}`;
+      const response = await MenuService.list({ hotelid, outletid });
+      
+      if (response.success) {
+        console.log('Fetched menu items:', response.data);
+        setMenuItems(response.data || []);
       }
-
-      const res = await fetch(url);
-      if (!res.ok) throw new Error('Failed to fetch menu items');
-      const data = await res.json();
-      console.log('Fetched menu items:', data);
-      setMenuItems(data);
     } catch (err: any) {
       setError(err.message || 'Failed to fetch menu items');
       toast.error('Failed to fetch Menu Items');
@@ -224,11 +212,11 @@ const Menu: React.FC = () => {
   // Fetch variant types from API
   const fetchVariantTypes = async () => {
     try {
-      const res = await fetch('http://localhost:3001/api/menu/variant-types-with-values');
-      if (!res.ok) throw new Error('Failed to fetch variant types');
-      const data: VariantType[] = await res.json();
-      setVariantTypes(data);
-      console.log('Fetched variant types:', data);
+      const response = await MenuService.getVariantTypes();
+      if (response.success) {
+        setVariantTypes(response.data || []);
+        console.log('Fetched variant types:', response.data);
+      }
     } catch (err) {
       console.error('Error fetching variant types:', err);
     }
@@ -245,25 +233,20 @@ const Menu: React.FC = () => {
     if (item) {
       const newStatus = item.status === 1 ? 0 : 1;
       try {
-        const res = await fetch(`http://localhost:3001/api/menu/${itemId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status: newStatus, updated_by_id: user?.id }),
-        });
-        if (!res.ok) {
-          throw new Error('Failed to update status');
+        const response = await MenuService.updateStatus(Number(itemId), newStatus, user?.id);
+        if (response.success) {
+          // Update local state after successful API call
+          const updatedItem = { ...item, status: newStatus };
+          setData((prev) => prev.map((i) => (i.restitemid === Number(itemId) ? updatedItem : i)));
+          setCardItems((prev) =>
+            prev.map((card) =>
+              card.userId === itemId
+                ? { ...card, cardStatus: newStatus === 1 ? '✅ Available' : '❌ Unavailable' }
+                : card
+            )
+          );
+          toast.success('Status updated successfully');
         }
-        // Update local state after successful API call
-        const updatedItem = { ...item, status: newStatus };
-        setData((prev) => prev.map((i) => (i.restitemid === Number(itemId) ? updatedItem : i)));
-        setCardItems((prev) =>
-          prev.map((card) =>
-            card.userId === itemId
-              ? { ...card, cardStatus: newStatus === 1 ? '✅ Available' : '❌ Unavailable' }
-              : card
-          )
-        );
-        toast.success('Status updated successfully');
       } catch (err) {
         console.error('Error updating status:', err);
         toast.error('Failed to update status');
@@ -275,20 +258,21 @@ const Menu: React.FC = () => {
   const handleToggleGroupStatus = async (groupId: number) => {
     const groupItems = menuItems.filter(item => item.item_group_id === groupId);
     if (groupItems.length > 0) {
-      const currentStatus = groupItems[0].status; // Assuming all have the same status
+      const currentStatus = groupItems[0].status;
       const newStatus = currentStatus === 1 ? 0 : 1;
       try {
+        // Update all items in the group
         const promises = groupItems.map(item =>
-          fetch(`http://localhost:3001/api/menu/${item.restitemid}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ status: newStatus, updated_by_id: user?.id }),
-          })
+          MenuService.updateStatus(item.restitemid, newStatus, user?.id)
         );
         const responses = await Promise.all(promises);
-        if (responses.some(res => !res.ok)) {
+        
+        // Check if all updates were successful
+        const allSuccess = responses.every(res => res.success);
+        if (!allSuccess) {
           throw new Error('Failed to update some items');
         }
+        
         // Update local state after successful API calls
         const updatedItems = menuItems.map((item) =>
           item.item_group_id === groupId ? { ...item, status: newStatus } : item
@@ -610,14 +594,9 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
   const fetchMaxItemNo = async () => {
     try {
       const hotelid = user?.hotelid || selectedBrand;
-      let url = 'http://localhost:3001/api/menu/max-item-no';
-      if (hotelid) {
-        url += `?hotelid=${hotelid}`;
-      }
-      const res = await fetch(url);
-      if (res.ok) {
-        const data = await res.json();
-        setItemNo(data.nextItemNo || null);
+      const response = await MenuService.getMaxItemNo(hotelid ? Number(hotelid) : undefined);
+      if (response.success) {
+        setItemNo(response.data?.nextItemNo || null);
       }
     } catch (err) {
       console.error('Error fetching max item number:', err);
@@ -734,169 +713,153 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
       }
       setLoading(true);
       try {
-        let apiUrl = '';
-
         // If "Is Common to All Departments" is checked, fetch by hotelid
         // Otherwise, fetch by outletid
+        let deptResponse;
         if (isCommonToAllDepartments && selectedBrand) {
-          apiUrl = `http://localhost:3001/api/table-department?userid=${user?.id || 70}&hotelid=${selectedBrand}`;
+          deptResponse = await TableDepartmentService.list({ hotelid: selectedBrand });
         } else if (selectedOutlet) {
-          apiUrl = `http://localhost:3001/api/table-department?userid=${user?.id || 70}&outletid=${selectedOutlet}`;
+          deptResponse = await TableDepartmentService.list({ outletid: selectedOutlet });
         } else {
           setDepartments([]);
           setNewItem((prev) => ({ ...prev, departmentRates: [] }));
           return;
         }
 
-        const res = await fetch(apiUrl, {
-          headers: { 'Content-Type': 'application/json' },
-        });
+        if (deptResponse.success) {
+          const formattedDepartments: DepartmentItem[] = deptResponse.data.map((item) => ({
+            departmentid: item.departmentid,
+            department_name: item.department_name,
+            outletid: item.outletid,
+          }));
+          setDepartments(formattedDepartments);
 
-        if (res.ok) {
-          const data = await res.json();
-          if (data.success) {
-            const formattedDepartments: DepartmentItem[] = data.data.map((item: any) => ({
-              departmentid: item.departmentid,
-              department_name: item.department_name,
-              outletid: item.outletid,
-            }));
-            setDepartments(formattedDepartments);
+          // Filter departments based on the mode
+          let filteredDepartments: DepartmentItem[] = [];
+          if (isCommonToAllDepartments && selectedBrand) {
+            // Show all hotel departments when "Is Common to All Departments" is checked
+            filteredDepartments = formattedDepartments;
+          } else if (selectedOutlet) {
+            // Show only selected outlet departments
+            filteredDepartments = formattedDepartments.filter(
+              (dept) => Number(dept.outletid) === selectedOutlet
+            );
+          }
 
-            // Filter departments based on the mode
-            let filteredDepartments: DepartmentItem[] = [];
-            if (isCommonToAllDepartments && selectedBrand) {
-              // Show all hotel departments when "Is Common to All Departments" is checked
-              filteredDepartments = formattedDepartments;
-            } else if (selectedOutlet) {
-              // Show only selected outlet departments
-              filteredDepartments = formattedDepartments.filter(
-                (dept) => Number(dept.outletid) === selectedOutlet
-              );
-            }
-
-            let initialDepartmentRates: DepartmentRate[] = [];
-            
-            // Create a map of existing department rates for quick lookup
-            const existingRatesMap: { [deptId: number]: any } = {};
-            
-            if (isEdit && mstmenu?.restitemid) {
-              try {
-                const itemDetailsRes = await fetch(
-                  `http://localhost:3001/api/menu/${mstmenu.restitemid}`,
-                  {
-                    headers: { 'Content-Type': 'application/json' },
-                  }
-                );
-                if (itemDetailsRes.ok) {
-                  const itemDetails = await itemDetailsRes.json();
+          let initialDepartmentRates: DepartmentRate[] = [];
+          
+          // Create a map of existing department rates for quick lookup
+          const existingRatesMap: { [deptId: number]: any } = {};
+          
+          if (isEdit && mstmenu?.restitemid) {
+            try {
+              const itemDetailsResponse = await MenuService.getById(mstmenu.restitemid);
+              
+              if (itemDetailsResponse.success) {
+                const itemDetails = itemDetailsResponse.data;
+                
+                console.log('Item details fetched:', itemDetails);
+                
+                // Extract variant values from department_details
+                const existingVariantValueIds: number[] = [];
+                if (itemDetails.department_details) {
+                  itemDetails.department_details.forEach((detail: any) => {
+                    if (detail.variant_value_id && !existingVariantValueIds.includes(detail.variant_value_id)) {
+                      existingVariantValueIds.push(detail.variant_value_id);
+                    }
+                  });
+                }
+                
+                // Set selected variant values if any
+                if (existingVariantValueIds.length > 0) {
+                  setSelectedVariantValues(existingVariantValueIds);
                   
-                  console.log('Item details fetched:', itemDetails);
-                  
-                  // Extract variant values from department_details
-                  const existingVariantValueIds: number[] = [];
-                  if (itemDetails.department_details) {
-                    itemDetails.department_details.forEach((detail: any) => {
-                      if (detail.variant_value_id && !existingVariantValueIds.includes(detail.variant_value_id)) {
-                        existingVariantValueIds.push(detail.variant_value_id);
-                      }
-                    });
-                  }
-                  
-                  // Set selected variant values if any
-                  if (existingVariantValueIds.length > 0) {
-                    setSelectedVariantValues(existingVariantValueIds);
-                    
-                    // Try to find the variant type from the variant values
-                    for (const vt of variantTypes) {
-                      const matchingValue = vt.values.find(v => existingVariantValueIds.includes(v.variant_value_id));
-                      if (matchingValue) {
-                        setSelectedVariantType(vt.variant_type_name);
-                        break;
-                      }
+                  // Try to find the variant type from the variant values
+                  for (const vt of variantTypes) {
+                    const matchingValue = vt.values.find(v => existingVariantValueIds.includes(v.variant_value_id));
+                    if (matchingValue) {
+                      setSelectedVariantType(vt.variant_type_name);
+                      break;
                     }
                   }
-                  
-                  // Group department details by departmentid to create variant_rates
-                  if (itemDetails.department_details) {
-                    itemDetails.department_details.forEach((detail: any) => {
-                      const deptId = detail.departmentid;
-                      if (!existingRatesMap[deptId]) {
-                        existingRatesMap[deptId] = {
-                          departmentid: deptId,
-                          departmentName: detail.department_name || '',
-                          rate: 0,
-                          half_rate: 0,
-                          full_rate: 0,
-                          unitid: detail.unitid || null,
-                          servingunitid: detail.servingunitid || null,
-                          IsConversion: detail.IsConversion || 0,
-                          taxgroupid: detail.taxgroupid || null,
-                          variant_rates: {},
-                          value_name: null,
-                        };
-                      }
-                      // If variant, add to variant_rates
-                      if (detail.variant_value_id) {
-                        existingRatesMap[deptId].variant_rates[detail.variant_value_id] = detail.item_rate;
-                        existingRatesMap[deptId].value_name = detail.variant_value_name;
-                      } else {
-                        // For simple products
-                        existingRatesMap[deptId].rate = detail.item_rate || 0;
-                      }
-                    });
-                  }
                 }
-              } catch (err) {
-                console.error('Error fetching item details:', err);
-                toast.error('Failed to load existing department rates');
+                
+                // Group department details by departmentid to create variant_rates
+                if (itemDetails.department_details) {
+                  itemDetails.department_details.forEach((detail: any) => {
+                    const deptId = detail.departmentid;
+                    if (!existingRatesMap[deptId]) {
+                      existingRatesMap[deptId] = {
+                        departmentid: deptId,
+                        departmentName: detail.department_name || '',
+                        rate: 0,
+                        half_rate: 0,
+                        full_rate: 0,
+                        unitid: detail.unitid || null,
+                        servingunitid: detail.servingunitid || null,
+                        IsConversion: detail.IsConversion || 0,
+                        taxgroupid: detail.taxgroupid || null,
+                        variant_rates: {},
+                        value_name: null,
+                      };
+                    }
+                    // If variant, add to variant_rates
+                    if (detail.variant_value_id) {
+                      existingRatesMap[deptId].variant_rates[detail.variant_value_id] = detail.item_rate;
+                      existingRatesMap[deptId].value_name = detail.variant_value_name;
+                    } else {
+                      // For simple products
+                      existingRatesMap[deptId].rate = detail.item_rate || 0;
+                    }
+                  });
+                }
               }
+            } catch (err) {
+              console.error('Error fetching item details:', err);
+              toast.error('Failed to load existing department rates');
             }
-
-            // Show ALL departments from filteredDepartments, including those with null/0 values
-            initialDepartmentRates = filteredDepartments.map((dept: DepartmentItem) => {
-              const existingRate = existingRatesMap[dept.departmentid];
-              if (existingRate) {
-                return {
-                  departmentid: existingRate.departmentid,
-                  departmentName: existingRate.departmentName || dept.department_name,
-                  rate: existingRate.rate || 0,
-                  half_rate: existingRate.half_rate || 0,
-                  full_rate: existingRate.full_rate || 0,
-                  unitid: existingRate.unitid || null,
-                  servingunitid: existingRate.servingunitid || null,
-                  IsConversion: existingRate.IsConversion || 0,
-                  taxgroupid: existingRate.taxgroupid || null,
-                  variant_rates: existingRate.variant_rates || {},
-                  value_name: existingRate.value_name || null,
-                };
-              }
-              // Default values for departments without saved rates
-              return {
-                departmentid: dept.departmentid,
-                departmentName: dept.department_name,
-                rate: 0,
-                half_rate: 0,
-                full_rate: 0,
-                unitid: null,
-                servingunitid: null,
-                IsConversion: 0,
-                variant_rates: {},
-                value_name: null,
-                taxgroupid: null,
-              };
-            });
-
-            setNewItem((prev) => ({
-              ...prev,
-              departmentRates: initialDepartmentRates,
-            }));
-          } else {
-            toast.error(data.message || 'Failed to fetch departments');
-            setDepartments([]);
-            setNewItem((prev) => ({ ...prev, departmentRates: [] }));
           }
+
+          // Show ALL departments from filteredDepartments, including those with null/0 values
+          initialDepartmentRates = filteredDepartments.map((dept: DepartmentItem) => {
+            const existingRate = existingRatesMap[dept.departmentid];
+            if (existingRate) {
+              return {
+                departmentid: existingRate.departmentid,
+                departmentName: existingRate.departmentName || dept.department_name,
+                rate: existingRate.rate || 0,
+                half_rate: existingRate.half_rate || 0,
+                full_rate: existingRate.full_rate || 0,
+                unitid: existingRate.unitid || null,
+                servingunitid: existingRate.servingunitid || null,
+                IsConversion: existingRate.IsConversion || 0,
+                taxgroupid: existingRate.taxgroupid || null,
+                variant_rates: existingRate.variant_rates || {},
+                value_name: existingRate.value_name || null,
+              };
+            }
+            // Default values for departments without saved rates
+            return {
+              departmentid: dept.departmentid,
+              departmentName: dept.department_name,
+              rate: 0,
+              half_rate: 0,
+              full_rate: 0,
+              unitid: null,
+              servingunitid: null,
+              IsConversion: 0,
+              variant_rates: {},
+              value_name: null,
+              taxgroupid: null,
+            };
+          });
+
+          setNewItem((prev) => ({
+            ...prev,
+            departmentRates: initialDepartmentRates,
+          }));
         } else {
-          toast.error('Failed to fetch departments');
+          toast.error(deptResponse.message || 'Failed to fetch departments');
           setDepartments([]);
           setNewItem((prev) => ({ ...prev, departmentRates: [] }));
         }
@@ -965,7 +928,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
       departmentDetailsPayload = newItem.departmentRates.map(({ departmentid, rate, unitid, servingunitid, IsConversion, taxgroupid }) => ({
         departmentid,
         department_name: departments.find((d) => d.departmentid === departmentid)?.department_name || '',
-        item_rate: rate && rate > 0 ? rate : (price),
+        item_rate: rate && rate > 0 ? rate : parseFloat(price),
         unitid,
         servingunitid,
         IsConversion,
@@ -1003,28 +966,19 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
     };
 
     try {
-      let res;
+      let response;
       if (isEdit && mstmenu) {
-        res = await fetch(`http://localhost:3001/api/menu/${mstmenu.restitemid}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
+        response = await MenuService.update(mstmenu.restitemid, payload);
       } else {
-        res = await fetch('http://localhost:3001/api/menu', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
+        response = await MenuService.create(payload);
       }
 
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        toast.error(`Failed to ${isEdit ? 'update' : 'add'} item: ${errorData.message || `HTTP ${res.status}`}`);
+      if (!response.success) {
+        toast.error(`Failed to ${isEdit ? 'update' : 'add'} item: ${response.message || 'Unknown error'}`);
         return;
       }
 
-      const updatedItem: MenuItem = await res.json();
+      const updatedItem = response.data;
       toast.success(`Item ${isEdit ? 'updated' : 'added'} successfully`);
 
       const updatedCardItem = {
