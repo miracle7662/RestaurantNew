@@ -912,12 +912,6 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
     fetchDepartmentsForOutlet();
   }, [selectedOutlet, selectedBrand, user, isEdit, mstmenu, isCommonToAllDepartments, variantTypes]);
 
-/*************  ✨ Windsurf Command ⭐  *************/
-/**
- * Remove a department rate from the menu item
- * @param {number | undefined} departmentid - The department ID to remove the rate for, or undefined to remove all department rates
- */
-/*******  5278692f-0adb-4abe-ac67-bbe3a6be0a90  *******/
 
   const handleRemoveDepartmentRate = (departmentid: number | undefined) => {
     setNewItem((prev) => ({
