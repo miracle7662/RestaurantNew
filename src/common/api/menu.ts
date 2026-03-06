@@ -13,6 +13,7 @@ import { ApiResponse } from '@/types/api'
 
 export interface MenuItem {
   restitemid: number
+  menuid: number
   hotelid: number | null
   hotel_name: string | null
   item_no: string | null

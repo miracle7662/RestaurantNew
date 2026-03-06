@@ -16,6 +16,8 @@ import { fetchKotPrintSettings, } from '@/services/outletSettings.service';
 import { applyKotSettings, } from '@/utils/applyOutletSettings';
 import TableManagementService from '@/common/api/tablemanagement';
 import OrderService from '@/common/api/order';
+import MenuService from '@/common/api/menu';
+
 
 
 const KOT_COLORS = [
@@ -1400,20 +1402,32 @@ const ModernBill = () => {
 
   // Fetch menu items
   // Fetch menu items
-  useEffect(() => {
-    const fetchMenuItems = async () => {
-      try {
-        if (!user || !user.hotelid || !selectedOutletId) {
-          return;
-        }
-        const response = await axios.get(`/api/menu?outletid=${selectedOutletId}`);
-        setMenuItems(response.data.data || response.data);
-      } catch (error) {
-        console.error('Failed to fetch menu items:', error);
+ useEffect(() => {
+
+  const fetchMenuItems = async () => {
+    try {
+
+      if (!user?.hotelid || !selectedOutletId) return;
+
+      const response = await MenuService.list({
+        hotelid: user.hotelid,
+        outletid: selectedOutletId
+      });
+
+      if (response.success) {
+        setMenuItems(response.data || []);
       }
-    };
-    fetchMenuItems();
-  }, [selectedOutletId, user]);
+
+    } catch (error) {
+      console.error("Menu fetch failed:", error);
+      setMenuItems([]);
+    }
+
+  };
+
+  fetchMenuItems();
+
+}, [selectedOutletId, user]);
 
 
   // Fetch waiter users

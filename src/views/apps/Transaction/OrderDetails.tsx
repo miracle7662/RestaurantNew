@@ -1,8 +1,8 @@
 import React, { useState, useEffect, Dispatch, SetStateAction, useRef, useMemo, useCallback } from 'react';
 import { Row, Col, Card, Modal, Offcanvas, Table } from 'react-bootstrap';
 import { fetchMenu, MenuItem } from '@/utils/commonfunction';
+import MenuService from '@/common/api/menu';
 import CustomerModal from './Customers';
-// import { settleBill } from '@/common/api/orders';
 
 // Interface for menu items used in state
 interface MenuItemState {
@@ -205,33 +205,25 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
     }
   }, [searchTable, setSelectedTable, setInvalidTable, hasTyped, validTables, filteredTables, setSelectedDeptId, setSelectedOutletId, refreshItemsForTable, setItems, setReverseQtyMode]);
 
-  // Fetch menu items for sidebar and card items
+  // Fetch menu items for sidebar and card items using common MenuService API
   const fetchMenuItems = async (hotelid?: number, outletid?: number) => {
     try {
       setLoading(true);
       setError(null);
 
-      let url = 'http://localhost:3001/api/menu';
-      const params: string[] = [];
-
-      if (hotelid) params.push(`hotelid=${hotelid}`);
-      if (outletid) params.push(`outletid=${outletid}`);
-
-      if (params.length > 0) {
-        url += `?${params.join('&')}`;
-      }
-
-      const res = await fetch(url);
-      if (!res.ok) throw new Error('Failed to fetch menu items');
-      const data = await res.json();
-      console.log('Fetched menu items:', data);
-      setMenuItems(data);
+      // Use common MenuService API with optional filters
+      const response = await MenuService.list({ hotelid, outletid });
+      
+      // Handle different response formats based on HttpClient interceptor
+      const rawData = Array.isArray(response.data) ? response.data : (Array.isArray(response) ? response : []);
+      console.log('Fetched menu items:', rawData);
+      setMenuItems(rawData);
 
       // Map fetched menu items to card items
-      const mappedItems: CardItem[] = data
-        .filter((item: MenuItem) => item.status === 1)
-        .map((item: MenuItem) => ({
-          userId: String(item.menuid),
+      const mappedItems: CardItem[] = rawData
+        .filter((item: any) => item.status === 1)
+        .map((item: any) => ({
+          userId: String(item.restitemid || item.menuid),
           itemCode: String(item.item_no),
           ItemName: item.item_name,
           shortName: item.short_name || '',
@@ -260,6 +252,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
             const mappedItems: CardItem[] = data
               .filter((item) => item.status === 1)
               .map((item) => ({
+                 ItemID: item.restitemid || item.menuid,
                 userId: String(item.menuid),
                 itemCode: String(item.item_no),
                 ItemName: item.item_name,

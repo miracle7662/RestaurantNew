@@ -29,6 +29,7 @@ import RestTaxMasterService from '@/common/api/resttaxmaster'
 import CustomerService from '@/common/api/customers'
 import OutletUserService from '@/common/api/outletUser'
 
+
 // Type Definitions
 export interface CountryItem {
   countryid: number
@@ -129,11 +130,12 @@ export interface TableItem {
 }
 
 export interface MenuItem {
+  restitemid: number
   menuid: number
-  item_no: number
+  item_no: string | null
   item_name: string
-  print_name: string
-  short_name: string
+  print_name: string | null
+  short_name: string | null
   item_group_id: number | null
   groupname: string | null
   price: number
@@ -502,7 +504,7 @@ export const fetchMenu = async (
     }))
     setMenuCategory(data)
     if (data.length > 0 && !currentmenucategoryid) {
-      setmenuid(data[0].menuid)
+      setmenuid(data[0].restitemid)
     }
   } catch (err: any) {
     toast.error(err?.message || 'Failed to fetch menu categories')
