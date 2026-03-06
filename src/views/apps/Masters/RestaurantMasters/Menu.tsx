@@ -719,6 +719,12 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
     loadData();
   }, [user, mstmenu]);
 
+  const [selectedVariantType, setSelectedVariantType] = useState<string>("");
+  const [selectedVariantTypeId, setSelectedVariantTypeId] = useState<number | null>(null);
+  const [showVariantValueModal, setShowVariantValueModal] = useState<boolean>(false);
+  const [selectedVariantValues, setSelectedVariantValues] = useState<number[]>([]);
+  const [openingStock, setOpeningStock] = useState(0);
+
   useEffect(() => {
     const fetchDepartmentsForOutlet = async () => {
       if (selectedOutlet === null && selectedBrand === null) {
@@ -772,27 +778,87 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
             if (isEdit && mstmenu?.restitemid) {
               try {
                 const itemDetailsRes = await fetch(
-                  `http://localhost:3001/api/menu/${mstmenu.restitemid}/details`,
+                  `http://localhost:3001/api/menu/${mstmenu.restitemid}`,
                   {
                     headers: { 'Content-Type': 'application/json' },
                   }
                 );
                 if (itemDetailsRes.ok) {
                   const itemDetails = await itemDetailsRes.json();
-initialDepartmentRates = itemDetails.department_details
-                    ?.filter((detail: any) =>
+                  
+                  console.log('Item details fetched:', itemDetails);
+                  
+                  // Extract variant values from department_details
+                  const existingVariantValueIds: number[] = [];
+                  if (itemDetails.department_details) {
+                    itemDetails.department_details.forEach((detail: any) => {
+                      if (detail.variant_value_id && !existingVariantValueIds.includes(detail.variant_value_id)) {
+                        existingVariantValueIds.push(detail.variant_value_id);
+                      }
+                    });
+                  }
+                  
+                  // Set selected variant values if any
+                  if (existingVariantValueIds.length > 0) {
+                    setSelectedVariantValues(existingVariantValueIds);
+                    
+                    // Try to find the variant type from the variant values
+                    for (const vt of variantTypes) {
+                      const matchingValue = vt.values.find(v => existingVariantValueIds.includes(v.variant_value_id));
+                      if (matchingValue) {
+                        setSelectedVariantType(vt.variant_type_name);
+                        break;
+                      }
+                    }
+                  }
+                  
+                  // Group department details by departmentid to create variant_rates
+                  const groupedDetails: { [deptId: number]: any } = {};
+                  if (itemDetails.department_details) {
+                    itemDetails.department_details.forEach((detail: any) => {
+                      const deptId = detail.departmentid;
+                      if (!groupedDetails[deptId]) {
+                        groupedDetails[deptId] = {
+                          departmentid: deptId,
+                          departmentName: detail.department_name || '',
+                          rate: 0,
+                          half_rate: 0,
+                          full_rate: 0,
+                          unitid: detail.unitid || null,
+                          servingunitid: detail.servingunitid || null,
+                          IsConversion: detail.IsConversion || 0,
+                          taxgroupid: detail.taxgroupid || null,
+                          variant_rates: {},
+                          value_name: null,
+                        };
+                      }
+                      // If variant, add to variant_rates
+                      if (detail.variant_value_id) {
+                        groupedDetails[deptId].variant_rates[detail.variant_value_id] = detail.item_rate;
+                        groupedDetails[deptId].value_name = detail.variant_value_name;
+                      } else {
+                        // For simple products
+                        groupedDetails[deptId].rate = detail.item_rate || 0;
+                      }
+                    });
+                  }
+                  
+                  initialDepartmentRates = Object.values(groupedDetails)
+                    .filter((detail: any) =>
                       filteredDepartments.some((dept) => dept.departmentid === detail.departmentid)
                     )
                     .map((detail: any) => ({
                       departmentid: detail.departmentid,
-                      departmentName: detail.department_name || filteredDepartments.find((d) => d.departmentid === detail.departmentid)?.department_name || '',
-                      rate: detail.item_rate || 0,
+                      departmentName: detail.departmentName || filteredDepartments.find((d) => d.departmentid === detail.departmentid)?.department_name || '',
+                      rate: detail.rate || 0,
                       half_rate: detail.half_rate || 0,
                       full_rate: detail.full_rate || 0,
                       unitid: detail.unitid || null,
                       servingunitid: detail.servingunitid || null,
                       IsConversion: detail.IsConversion || 0,
                       taxgroupid: detail.taxgroupid || null,
+                      variant_rates: detail.variant_rates || {},
+                      value_name: detail.value_name || null,
                     })) || [];
                 }
               } catch (err) {
@@ -801,7 +867,7 @@ initialDepartmentRates = itemDetails.department_details
               }
             }
 
-if (initialDepartmentRates.length === 0) {
+            if (initialDepartmentRates.length === 0) {
               initialDepartmentRates = filteredDepartments.map((dept: DepartmentItem) => ({
                 departmentid: dept.departmentid,
                 departmentName: dept.department_name,
@@ -841,7 +907,7 @@ if (initialDepartmentRates.length === 0) {
       }
     };
     fetchDepartmentsForOutlet();
-  }, [selectedOutlet, selectedBrand, user, isEdit, mstmenu, isCommonToAllDepartments]);
+  }, [selectedOutlet, selectedBrand, user, isEdit, mstmenu, isCommonToAllDepartments, variantTypes]);
 
   const handleRemoveDepartmentRate = (departmentid: number | undefined) => {
     setNewItem((prev) => ({
@@ -849,14 +915,6 @@ if (initialDepartmentRates.length === 0) {
       departmentRates: prev.departmentRates.filter((rate) => rate.departmentid !== departmentid),
     }));
   };
-
-
-
-  const [selectedVariantType, setSelectedVariantType] = useState<string>("");
-  const [selectedVariantTypeId, setSelectedVariantTypeId] = useState<number | null>(null);
-  const [showVariantValueModal, setShowVariantValueModal] = useState<boolean>(false);
-  const [selectedVariantValues, setSelectedVariantValues] = useState<number[]>([]);
-  const [openingStock, setOpeningStock] = useState(0);
 
   // Helper to get current variant type object
   const getCurrentVariantType = () => {
@@ -1339,7 +1397,6 @@ if (initialDepartmentRates.length === 0) {
             </Col>
           </Row>
 
-          {/* ────── New Pricing Tabs Section ────── */}
           {/* ────── Pricing Tabs Section (replaced the previous one) ────── */}
           <Row className="mb-4">
             <Col xs={12}>

@@ -85,7 +85,16 @@ exports.getMenuItemById = (req, res) => {
             return res.status(404).json({ message: 'Menu item not found' });
         }
         
-        res.json(menuItem);
+        // Fetch all department details for the item
+        const allDetails = db.prepare(`
+            SELECT md.*, d.department_name, vv.value_name as variant_value_name
+            FROM mstrestmenudetails md
+            LEFT JOIN msttable_department d ON md.departmentid = d.departmentid
+            LEFT JOIN mst_variant_values vv ON md.variant_value_id = vv.variant_value_id
+            WHERE md.restitemid = ?
+        `).all(parseInt(id));
+        
+        res.json({ ...menuItem, department_details: allDetails });
     } catch (error) {
         console.error('Error fetching menu item:', error);
         res.status(500).json({ message: 'Failed to fetch menu item', details: error.message });
