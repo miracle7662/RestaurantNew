@@ -775,6 +775,10 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
             }
 
             let initialDepartmentRates: DepartmentRate[] = [];
+            
+            // Create a map of existing department rates for quick lookup
+            const existingRatesMap: { [deptId: number]: any } = {};
+            
             if (isEdit && mstmenu?.restitemid) {
               try {
                 const itemDetailsRes = await fetch(
@@ -813,12 +817,11 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                   }
                   
                   // Group department details by departmentid to create variant_rates
-                  const groupedDetails: { [deptId: number]: any } = {};
                   if (itemDetails.department_details) {
                     itemDetails.department_details.forEach((detail: any) => {
                       const deptId = detail.departmentid;
-                      if (!groupedDetails[deptId]) {
-                        groupedDetails[deptId] = {
+                      if (!existingRatesMap[deptId]) {
+                        existingRatesMap[deptId] = {
                           departmentid: deptId,
                           departmentName: detail.department_name || '',
                           rate: 0,
@@ -834,32 +837,14 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                       }
                       // If variant, add to variant_rates
                       if (detail.variant_value_id) {
-                        groupedDetails[deptId].variant_rates[detail.variant_value_id] = detail.item_rate;
-                        groupedDetails[deptId].value_name = detail.variant_value_name;
+                        existingRatesMap[deptId].variant_rates[detail.variant_value_id] = detail.item_rate;
+                        existingRatesMap[deptId].value_name = detail.variant_value_name;
                       } else {
                         // For simple products
-                        groupedDetails[deptId].rate = detail.item_rate || 0;
+                        existingRatesMap[deptId].rate = detail.item_rate || 0;
                       }
                     });
                   }
-                  
-                  initialDepartmentRates = Object.values(groupedDetails)
-                    .filter((detail: any) =>
-                      filteredDepartments.some((dept) => dept.departmentid === detail.departmentid)
-                    )
-                    .map((detail: any) => ({
-                      departmentid: detail.departmentid,
-                      departmentName: detail.departmentName || filteredDepartments.find((d) => d.departmentid === detail.departmentid)?.department_name || '',
-                      rate: detail.rate || 0,
-                      half_rate: detail.half_rate || 0,
-                      full_rate: detail.full_rate || 0,
-                      unitid: detail.unitid || null,
-                      servingunitid: detail.servingunitid || null,
-                      IsConversion: detail.IsConversion || 0,
-                      taxgroupid: detail.taxgroupid || null,
-                      variant_rates: detail.variant_rates || {},
-                      value_name: detail.value_name || null,
-                    })) || [];
                 }
               } catch (err) {
                 console.error('Error fetching item details:', err);
@@ -867,8 +852,26 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
               }
             }
 
-            if (initialDepartmentRates.length === 0) {
-              initialDepartmentRates = filteredDepartments.map((dept: DepartmentItem) => ({
+            // Show ALL departments from filteredDepartments, including those with null/0 values
+            initialDepartmentRates = filteredDepartments.map((dept: DepartmentItem) => {
+              const existingRate = existingRatesMap[dept.departmentid];
+              if (existingRate) {
+                return {
+                  departmentid: existingRate.departmentid,
+                  departmentName: existingRate.departmentName || dept.department_name,
+                  rate: existingRate.rate || 0,
+                  half_rate: existingRate.half_rate || 0,
+                  full_rate: existingRate.full_rate || 0,
+                  unitid: existingRate.unitid || null,
+                  servingunitid: existingRate.servingunitid || null,
+                  IsConversion: existingRate.IsConversion || 0,
+                  taxgroupid: existingRate.taxgroupid || null,
+                  variant_rates: existingRate.variant_rates || {},
+                  value_name: existingRate.value_name || null,
+                };
+              }
+              // Default values for departments without saved rates
+              return {
                 departmentid: dept.departmentid,
                 departmentName: dept.department_name,
                 rate: 0,
@@ -880,8 +883,8 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                 variant_rates: {},
                 value_name: null,
                 taxgroupid: null,
-              }));
-            }
+              };
+            });
 
             setNewItem((prev) => ({
               ...prev,
@@ -908,6 +911,13 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
     };
     fetchDepartmentsForOutlet();
   }, [selectedOutlet, selectedBrand, user, isEdit, mstmenu, isCommonToAllDepartments, variantTypes]);
+
+/*************  ✨ Windsurf Command ⭐  *************/
+/**
+ * Remove a department rate from the menu item
+ * @param {number | undefined} departmentid - The department ID to remove the rate for, or undefined to remove all department rates
+ */
+/*******  5278692f-0adb-4abe-ac67-bbe3a6be0a90  *******/
 
   const handleRemoveDepartmentRate = (departmentid: number | undefined) => {
     setNewItem((prev) => ({
