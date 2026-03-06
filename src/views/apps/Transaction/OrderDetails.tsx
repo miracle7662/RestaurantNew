@@ -3,6 +3,14 @@ import { Row, Col, Card, Modal, Offcanvas, Table } from 'react-bootstrap';
 import { fetchMenu, MenuItem } from '@/utils/commonfunction';
 import MenuService from '@/common/api/menu';
 import CustomerModal from './Customers';
+import VariantModal from '@/components/VariantModal';
+
+// Interface for variant options
+interface VariantOption {
+  variant_value_id: number;
+  value_name: string;
+  price: number;
+}
 
 // Interface for menu items used in state
 interface MenuItemState {
@@ -16,6 +24,9 @@ interface MenuItemState {
   NCPurpose: string;
   kotNo?: number;
   isNew?: boolean; // Added to track new items not yet sent to KOT
+  variantId?: number;
+  variantName?: string;
+  
 }
 
 // Interface for card items (aligned with Menu.tsx)
@@ -27,6 +38,7 @@ interface CardItem {
   price: number;
   cardStatus: string;
   item_group_id: number | null;
+  variants?: VariantOption[]; // Variants for this item
 }
 
 
@@ -105,9 +117,14 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
   const [showCustomerModal, setShowCustomerModal] = useState<boolean>(false);
   const [showSidebar, setShowSidebar] = useState(false);
   const [selectedItemGroup, setSelectedItemGroup] = useState<number | null>(null);
-  const [loading, setLoading] = useState(true);
+const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]); // State for sidebar menu items
+
+  // Variant modal state
+  const [showVariantModal, setShowVariantModal] = useState<boolean>(false);
+  const [selectedItemForVariant, setSelectedItemForVariant] = useState<CardItem | null>(null);
+  const [itemVariants, setItemVariants] = useState<VariantOption[]>([]);
 
   const tableInputRef = useRef<HTMLInputElement>(null);
   const codeInputRef = useRef<HTMLInputElement>(null);
@@ -506,9 +523,63 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
     window.location.reload();
   };
 
-  // Handle customer modal
+// Handle customer modal
   const handleShowCustomerModal = () => setShowCustomerModal(true);
   const handleCloseCustomerModal = () => setShowCustomerModal(false);
+
+  // Handle variant modal
+  const handleShowVariantModal = (item: CardItem) => {
+    setSelectedItemForVariant(item);
+    // Get variants from menuItems based on the item's restitemid
+    const menuItem = menuItems.find((m: any) => String(m.restitemid) === item.userId);
+    if (menuItem && menuItem.department_details && menuItem.department_details.length > 0) {
+      // Extract unique variants from department_details
+      const variantMap = new Map<number, VariantOption>();
+      menuItem.department_details.forEach((detail: any) => {
+        if (detail.variant_value_id && detail.variant_value_name) {
+          variantMap.set(detail.variant_value_id, {
+            variant_value_id: detail.variant_value_id,
+            value_name: detail.variant_value_name,
+            price: detail.item_rate || 0
+          });
+        }
+      });
+      const variants = Array.from(variantMap.values());
+      setItemVariants(variants);
+      if (variants.length > 0) {
+        setShowVariantModal(true);
+      } else {
+        // No variants, add directly
+        handleAddItem({ id: Number(item.userId), name: item.ItemName, price: item.price, isBilled: 0, isNCKOT: 0, NCName: '', NCPurpose: '' }, parseInt(quantity) || 1);
+      }
+    } else {
+      // No department_details, add directly with base price
+      handleAddItem({ id: Number(item.userId), name: item.ItemName, price: item.price, isBilled: 0, isNCKOT: 0, NCName: '', NCPurpose: '' }, parseInt(quantity) || 1);
+    }
+  };
+
+  const handleCloseVariantModal = () => {
+    setShowVariantModal(false);
+    setSelectedItemForVariant(null);
+    setItemVariants([]);
+  };
+
+  const handleVariantSelect = (variant: VariantOption) => {
+    if (selectedItemForVariant) {
+      handleAddItem({
+        id: Number(selectedItemForVariant.userId),
+        name: selectedItemForVariant.ItemName,
+        price: variant.price,
+        isBilled: 0,
+        isNCKOT: 0,
+        NCName: '',
+        NCPurpose: '',
+        variantId: variant.variant_value_id,
+        variantName: variant.value_name
+      }, parseInt(quantity) || 1);
+    }
+    handleCloseVariantModal();
+  };
 
   // Optional: billing trigger here if this component hosts a Billing action later
   // const handleBilling = async (billId?: number, total?: number) => {
@@ -877,7 +948,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
                               transition: 'transform 0.2s, box-shadow 0.2s',
                               minHeight: '120px',
                             }}
-                            onClick={() => !reverseQtyMode && handleAddItem({ id: Number(item.userId), name: item.ItemName, price: item.price, isBilled: 0, isNCKOT: 0, NCName: '', NCPurpose: '' }, parseInt(quantity) || 1)}
+                            onClick={() => !reverseQtyMode && handleShowVariantModal(item)}
                             onMouseEnter={(e) => {
                               e.currentTarget.style.transform = 'translateY(-4px)';
                               e.currentTarget.style.boxShadow = '0 8px 16px rgba(0, 0, 0, 0.1)';
@@ -920,7 +991,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
         </div>
       </div>
 
-      <Modal
+<Modal
         show={showCustomerModal}
         onHide={handleCloseCustomerModal}
         size="lg"
@@ -944,6 +1015,15 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
           </button>
         </Modal.Footer>
       </Modal>
+
+      {/* Variant Selection Modal */}
+      <VariantModal
+        show={showVariantModal}
+        onHide={handleCloseVariantModal}
+        itemName={selectedItemForVariant?.ItemName || ''}
+        variants={itemVariants}
+        onSelectVariant={handleVariantSelect}
+      />
     </div>
   );
 };

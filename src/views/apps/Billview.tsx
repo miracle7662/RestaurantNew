@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { Row, Col, Card, Table, Badge, Button, Form, Modal } from 'react-bootstrap';
-import axios from 'axios';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthContext } from '@/common';
 import KotTransfer from './Transaction/KotTransfer';
@@ -16,7 +15,7 @@ import { fetchKotPrintSettings, } from '@/services/outletSettings.service';
 import { applyKotSettings, } from '@/utils/applyOutletSettings';
 import TableManagementService from '@/common/api/tablemanagement';
 import OrderService from '@/common/api/order';
-import MenuService from '@/common/api/menu';
+import MenuService from "@/common/api/menu";
 
 
 
@@ -1414,12 +1413,19 @@ const ModernBill = () => {
         outletid: selectedOutletId
       });
 
-      if (response.success) {
-        setMenuItems(response.data || []);
+      if (response?.data) {
+
+        const mappedMenu = response.data.map((item) => ({
+          ...item,
+          item_no: item.item_no ?? "",   // null safe
+          short_name: item.short_name ?? "", 
+        }));
+
+        setMenuItems(mappedMenu);
       }
 
     } catch (error) {
-      console.error("Menu fetch failed:", error);
+      console.error("Failed to fetch menu items:", error);
       setMenuItems([]);
     }
 

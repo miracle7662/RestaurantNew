@@ -148,7 +148,9 @@ useEffect(() => {
       try {
         // Use PrintService for KOT printer settings
         const printerRes = await PrintService.getKotPrinterSettings(outletId);
-        setPrinterName(printerRes.data?.printer_name || null);
+        // Handle both wrapped (res?.data) and unwrapped (res) responses due to HttpClient interceptor
+        const data = printerRes?.data || printerRes;
+        setPrinterName(data?.printer_name || null);
       } catch (err) {
         console.error('Error fetching printer:', err);
         toast.error('Failed to load printer settings.');
@@ -161,7 +163,8 @@ useEffect(() => {
         try {
           // Use PrintService for outlet details
           const outletRes = await PrintService.getOutletDetails(outletId);
-          const data = outletRes.data;
+          // Handle both wrapped (res?.data) and unwrapped (res) responses due to HttpClient interceptor
+          const data = outletRes?.data || outletRes;
           if (data) {
             setLocalRestaurantName(data.brand_name || data.hotel_name || 'Restaurant Name');
             setLocalOutletName(data.outlet_name || 'Outlet Name');
@@ -196,8 +199,10 @@ useEffect(() => {
     try {
       // Use PrintService for KOT printer settings
       const printerRes = await PrintService.getKotPrinterSettings(outletId);
+      // Handle both wrapped (res?.data) and unwrapped (res) responses due to HttpClient interceptor
+      const data = printerRes?.data || printerRes;
       // IMPORTANT: backend sends 0 / 1
-      setEnableKotPrint(Number(printerRes.data?.enableKotPrint) || 0);
+      setEnableKotPrint(Number(data?.enableKotPrint) || 0);
     } catch (err) {
       console.error("KOT setting fetch failed", err);
       setEnableKotPrint(0);
