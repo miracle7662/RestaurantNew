@@ -1,36 +1,14 @@
-# TODO - POS Variant Selection Feature - COMPLETED
+# TODO - Show Variants in Code Dropdown
 
-## Implementation Plan
+## Task
+When user types Item Code in the search bar, if that item has multiple variants (Half / Full / Bar / etc.), the dropdown should show all variants instead of only the base item.
 
-### 1. Update Interfaces in OrderDetails.tsx
-- [x] Add variant properties to CardItem interface
-- [x] Add variantName property to MenuItemState interface
-- [x] Add department_details to MenuItem interface
-
-### 2. Create VariantModal Component
-- [x] Create small, centered modal component (already exists)
-- [x] Display item name at top
-- [x] Show variant buttons with prices
-- [x] Handle variant selection callback
-
-### 3. Update OrderDetails.tsx Logic
-- [x] Fetch variant types on component mount
-- [x] Check item variants when card is clicked
-- [x] Show modal for items with variants
-- [x] Add variant selection handler
-
-### 4. Update Billing Display
-- [x] Display variant name in billing panel
-- [x] Handle same item + variant quantity increment
-
-## Files Modified
-- src/views/apps/Transaction/OrderDetails.tsx
-- src/components/VariantModal.tsx (added default export)
-
-## Implementation Summary
-1. When clicking a menu card, the system checks if the item has variants in mstrestmenudetails
-2. If multiple variants exist, a modal pops up showing all variant options with prices
-3. If single variant exists, item is added directly with that variant's price
-4. If no variants, item is added with base price
-5. Selected variant name is stored with the item for billing display
+## Steps
+- [x] 1. Add state variables for code dropdown (showCodeDropdown, selectedCodeIndex)
+- [x] 2. Create interface for code search results with variant info
+- [x] 3. Modify filterDropdownItems to support 'code' type
+- [x] 4. Update handleCodeChange to find all matching items and extract variants
+- [x] 5. Add code dropdown UI in the JSX
+- [x] 6. Add keyboard navigation for code dropdown (handleCodeKeyDown)
+- [x] 7. Test the implementation
 
