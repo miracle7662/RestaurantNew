@@ -1,52 +1,35 @@
-# TODO: Redesign Item Modal for Modern POS UI
+# Task: Convert Horizontal Tabs to Vertical Tabs
 
-## Task
-Redesign the Add Item / Edit Item modal in Menu.tsx to look like a modern SaaS dashboard (Petpooja POS style)
+## Current State
+- Tabs are horizontal (top tabs) in the ItemModal component
+- Using React-Bootstrap `<Tabs>` component with `defaultActiveKey="multiplePrice"`
 
-## Plan Steps
+## Target State
+- Tabs navigation on the left side (vertical)
+- Tab content on the right side
+- Using flex layout so content gets full width
 
-### 1. Update Modal Component Structure
-- [x] Analyze existing code and understand current implementation
-- [ ] Redesign Modal with XL size, centered, rounded corners
-- [ ] Create gradient header (blue/indigo) with white text
+## Implementation Plan
 
-### 2. Create Card-Based Layout Sections
-- [ ] Section 1: Basic Information Card
-  - Item Number
-  - Outlet dropdown
-  - Hotel / Brand dropdown
-  
-- [ ] Section 2: Item Details Card
-  - Item Name
-  - Print Name
-  - Short Name
-  - Description
-  - HSN Code
-  - Base Price
+### Step 1: Modify Tabs to Vertical Layout
+- Replace `<Tabs>` with a flex container using `<div className="d-flex">`
+- Use `<Nav variant="pills" className="flex-column">` for vertical tabs on the left
+- Use `<Tab.Content>` and `<Tab.Pane>` for content on the right
+- Keep existing tab names: "Multiple Price" and "Stock"
 
-- [ ] Section 3: Pricing Details Card (with Tabs)
-  - Tab 1: Multiple Price (Department Name, Rate, Tax Group)
-  - Tab 2: Stock (Opening Stock, Stock Unit)
+### Step 2: Keep Existing Logic Intact
+- Do not modify any logic inside tab content
+- Keep all form fields, tables, and functionality unchanged
 
-- [ ] Section 4: Status Card
-  - Active / Inactive dropdown
+### Step 3: Apply Styling
+- Add appropriate styles for vertical tabs layout
+- Ensure responsive behavior
 
-### 3. Style Improvements
-- [ ] Use Bootstrap 5 cards with shadow-sm
-- [ ] Rounded inputs (rounded-lg)
-- [ ] Good spacing between elements
-- [ ] Clean modern layout
+## Files to Edit
+- `src/views/apps/Masters/RestaurantMasters/Menu.tsx` - Modify the Tabs section in ItemModal
 
-### 4. Footer Buttons
-- [ ] Cancel (light button)
-- [ ] Save Item (green button)
-
-### 5. Preserve Existing Logic
-- [ ] Keep all state variables unchanged
-- [ ] Keep all form handlers unchanged
-- [ ] Keep API calls and data handling
-
-## Implementation
-- Edit: src/views/apps/Masters/RestaurantMasters/Menu.tsx
-- Replace the ItemModal component's return statement (JSX)
+## Status
+- [ ] Read and understand the existing Tabs implementation
+- [ ] Implement vertical tabs with flex layout
+- [ ] Test that all existing functionality remains intact
 

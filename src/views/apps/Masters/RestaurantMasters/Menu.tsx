@@ -5,7 +5,7 @@ import { OutletData } from "@/common/api/outlet";
 import MenuService from '@/common/api/menu';
 import TableDepartmentService from '@/common/api/tabledepartment';
 
-import { Button, Modal, Form, Row, Col, Card, Table, Navbar, Offcanvas, Tabs, Tab } from 'react-bootstrap';
+import { Button, Modal, Form, Row, Col, Card, Table, Navbar, Offcanvas, Tab, Nav } from 'react-bootstrap';
 import {
   fetchKitchenCategory,
   fetchKitchenMainGroup,
@@ -566,7 +566,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
   const [stockUnit, setStockUnit] = useState<number | null>(mstmenu?.stock_unit ? Number(mstmenu.stock_unit) : null);
   const [price, setPrice] = useState<string>(mstmenu?.price ? mstmenu.price.toString() : '');
   const [taxgroupid, setTaxgroupid] = useState<number | null>(mstmenu?.taxgroupid || null);
-  const [selectedDepartment, setSelectedDepartment] = useState<number | null>(null);
+  const [, setSelectedDepartment] = useState<number | null>(null);
   const [runtimeRates, setRuntimeRates] = useState(!!mstmenu?.is_runtime_rates);
   const [isCommonToAllDepartments, setIsCommonToAllDepartments] = useState(!!mstmenu?.is_common_to_all_departments);
   const [itemDescription, setItemDescription] = useState<string | null>(mstmenu?.item_description || null);
@@ -699,10 +699,10 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
   }, [user, mstmenu]);
 
   const [selectedVariantType, setSelectedVariantType] = useState<string>("");
-  const [selectedVariantTypeId, setSelectedVariantTypeId] = useState<number | null>(null);
   const [showVariantValueModal, setShowVariantValueModal] = useState<boolean>(false);
   const [selectedVariantValues, setSelectedVariantValues] = useState<number[]>([]);
   const [openingStock, setOpeningStock] = useState(0);
+  const [activeTab, setActiveTab] = useState<string>('multiplePrice');
 
   useEffect(() => {
     const fetchDepartmentsForOutlet = async () => {
@@ -876,13 +876,6 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
   }, [selectedOutlet, selectedBrand, user, isEdit, mstmenu, isCommonToAllDepartments, variantTypes]);
 
 
-  const handleRemoveDepartmentRate = (departmentid: number | undefined) => {
-    setNewItem((prev) => ({
-      ...prev,
-      departmentRates: prev.departmentRates.filter((rate) => rate.departmentid !== departmentid),
-    }));
-  };
-
   // Helper to get current variant type object
   const getCurrentVariantType = () => {
     return variantTypes.find(vt => vt.variant_type_name === selectedVariantType);
@@ -1026,7 +1019,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
         </div>
       </div>
       
-<Modal.Body className="bg-light p-2">
+      <Modal.Body className="bg-light p-2">
         <Form>
 {/* Section 1: Basic Information */}
           <Card className="mb-1 border-0 shadow-sm" style={{ borderRadius: '12px', backgroundColor: '#f0f7ff' }}>
@@ -1351,10 +1344,34 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
             <Card.Body className="p-4">
               {/* Header removed as per request */}
 
-              <Tabs defaultActiveKey="multiplePrice" id="pricingTabs" className="modern-tabs mb-3">
-                  <p className="text-sm text-gray-600 mb-3">
-                    Define department-wise multiple pricing
-                  </p>
+              {/* Vertical Tabs Layout */}
+              <div className="d-flex">
+                <Nav variant="pills" className="flex-column" style={{ minWidth: '140px', borderRight: '1px solid #dee2e6' }}>
+                  <Nav.Item>
+                    <Nav.Link 
+                      eventKey="multiplePrice" 
+                      onClick={() => setActiveTab('multiplePrice')}
+                      className={activeTab === 'multiplePrice' ? 'active' : ''}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      Multiple Price
+                    </Nav.Link>
+                  </Nav.Item>
+                  <Nav.Item>
+                    <Nav.Link 
+                      eventKey="stock" 
+                      onClick={() => setActiveTab('stock')}
+                      className={activeTab === 'stock' ? 'active' : ''}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      Stock
+                    </Nav.Link>
+                  </Nav.Item>
+                </Nav>
+                
+                <Tab.Content className="flex-grow-1 ps-3">
+                  <Tab.Pane eventKey="multiplePrice" active={activeTab === 'multiplePrice'}>
+              
 
                   {/* Variant Type Selector - Using fetched variantTypes */}
                   <div className="row mb-3 align-items-center">
@@ -1386,13 +1403,33 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                       </Form.Select>
                     </div>
                     {selectedVariantValues.length > 0 && (
-                      <div className="col-md-4">
+                      <div className="col-md-3">
                         <span className="text-muted small">
                           {selectedVariantValues.length} column(s) selected
                         </span>
                       </div>
                     )}
+                    <div className="col-md-5">
+                      <Row>
+                        <Col xs={6}>
+                          <label className="d-flex align-items-center gap-2 cursor-pointer p-2 rounded" style={{ backgroundColor: '#f8fafc' }}>
+                            <Form.Check type="checkbox" checked={runtimeRates} onChange={(e) => setRuntimeRates(e.target.checked)} className="mt-0" />
+                            <span className="text-dark small">Runtime Rates</span>
+                          </label>
+                        </Col>
+                        <Col xs={6}>
+                          <label className="d-flex align-items-center gap-2 cursor-pointer p-2 rounded" style={{ backgroundColor: '#f8fafc' }}>
+                            <Form.Check type="checkbox" checked={isCommonToAllDepartments} onChange={(e) => setIsCommonToAllDepartments(e.target.checked)} className="mt-0" />
+                            <span className="text-dark small">Is Common to All Departments</span>
+                          </label>
+                        </Col>
+                      </Row>
+                    </div>
                   </div>
+
+                  <p className="text-sm text-gray-600 mb-3">
+                    Define department-wise multiple pricing
+                  </p>
 
                   <div className="table-responsive">
                     <Table bordered hover size="sm" className="mb-0">
@@ -1608,9 +1645,9 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                       </Button>
                     </Modal.Footer>
                   </Modal>
-                </Tab>
+                  </Tab.Pane>
 
-                <Tab eventKey="stock" title="Stock">
+                  <Tab.Pane eventKey="stock" active={activeTab === 'stock'}>
 
                   {/* ================= DECIDE INGREDIENTS ================= */}
                   <Row className="mb-3">
@@ -1719,28 +1756,11 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                       />
                     </Col>
                   </Row>
-                </Tab>
-              </Tabs>
+                  </Tab.Pane>
+                </Tab.Content>
+              </div>
             </Card.Body>
           </Card>
-
-          <Row className="mb-3 align-items-center">
-            <Col xs={12} sm={4}>
-              <Form.Group as={Row} className="align-items-center">
-                <Form.Label column sm={6} className="text-sm font-medium text-gray-700">Status</Form.Label>
-                <Col sm={6}>
-                  <Form.Select
-                    value={status === 1 ? 'Active' : 'Inactive'}
-                    onChange={(e) => setStatus(e.target.value === 'Active' ? 1 : 0)}
-                    className="rounded-lg"
-                  >
-                    <option value="Active">Active</option>
-                    <option value="Inactive">Inactive</option>
-                  </Form.Select>
-                </Col>
-              </Form.Group>
-            </Col>
-          </Row>
 
         </Form>
       </Modal.Body>
