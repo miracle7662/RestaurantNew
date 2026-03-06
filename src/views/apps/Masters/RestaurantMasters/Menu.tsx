@@ -1014,11 +1014,19 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
   };
 
   return (
-    <Modal show={show} onHide={onHide} size="xl" centered className="shadow-lg">
-      <Modal.Header closeButton className="bg-white border-bottom-0 py-1">
-        <Modal.Title className="fs-5 fw-semibold text-gray-800">{isEdit ? 'Edit Item' : 'Add Item'}</Modal.Title>
-      </Modal.Header>
-      <Modal.Body className="bg-white p-3 p-md-3">
+    <Modal show={show} onHide={onHide} size="xl" centered className="modern-pos-modal">
+      {/* Gradient Header */}
+      <div className="modal-header-gradient">
+        <div className="w-100 d-flex justify-content-between align-items-center px-4 py-3">
+          <h5 className="modal-title text-white fw-bold mb-0">
+            <i className="fi fi-rr-utensils me-2"></i>
+            {isEdit ? 'Edit Item' : 'Add New Item'}
+          </h5>
+          <button type="button" className="btn-close btn-close-white" onClick={onHide} aria-label="Close"></button>
+        </div>
+      </div>
+      
+      <Modal.Body className="bg-light p-4">
         <Form>
           <Row className="mb-3">
             <Col xs={12} sm={4}>
@@ -1743,35 +1751,74 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                     onChange={(e) => setStatus(e.target.value === 'Active' ? 1 : 0)}
                     className="rounded-lg"
                   >
-                    <option value="Active"> Active</option>
-                    <option value="Inactive"> Inactive</option>
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
                   </Form.Select>
                 </Col>
               </Form.Group>
-            </Col>
-            <Col xs={12} sm={4}></Col>
-            <Col xs={12} sm={4} className="d-flex justify-content-end gap-2">
-              <Button
-                variant="secondary"
-                onClick={onHide}
-                disabled={loading}
-                style={{ borderRadius: '8px', padding: '6px 16px', fontSize: '14px', fontWeight: '500', backgroundColor: '#e5e7eb', borderColor: '#e5e7eb', color: '#1a202c' }}
-              >
-                Back
-              </Button>
-              <Button
-                variant="primary"
-                onClick={handleSubmit}
-                disabled={loading}
-                style={{ borderRadius: '8px', padding: '6px 16px', fontSize: '14px', fontWeight: '500', backgroundColor: '#3b82f6', borderColor: '#3b82f6' }}
-              >
-                {loading ? 'Saving...' : 'Save Item'}
-              </Button>
             </Col>
           </Row>
 
         </Form>
       </Modal.Body>
+
+      {/* Footer */}
+      <div className="modal-footer bg-white px-4 py-3 border-top">
+        <div className="d-flex justify-content-end gap-3 w-100">
+          <Button
+            variant="outline-secondary"
+            onClick={onHide}
+            disabled={loading}
+            className="px-4"
+            style={{ borderRadius: '8px', fontWeight: '500' }}
+          >
+            <i className="fi fi-rr-cross me-2"></i>
+            Cancel
+          </Button>
+          <Button
+            variant="success"
+            onClick={handleSubmit}
+            disabled={loading}
+            className="px-4"
+            style={{ borderRadius: '8px', fontWeight: '500', backgroundColor: '#16a34a', borderColor: '#16a34a' }}
+          >
+            {loading ? (
+              <>
+                <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                Saving...
+              </>
+            ) : (
+              <>
+                <i className="fi fi-rr-check me-2"></i>
+                Save Item
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
+
+      {/* Custom Styles */}
+      <style>{`
+        .modern-pos-modal .modal-content {
+          border: none;
+          border-radius: 16px;
+          overflow: hidden;
+        }
+        
+        .modal-header-gradient {
+          background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
+        }
+        
+        .form-control:focus, .form-select:focus {
+          border-color: #3b82f6;
+          box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        
+        .btn-success:hover {
+          background-color: #15803d !important;
+          border-color: #15803d !important;
+        }
+      `}</style>
     </Modal>
   );
 };
