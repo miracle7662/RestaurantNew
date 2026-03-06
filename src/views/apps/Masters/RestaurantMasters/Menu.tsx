@@ -1328,7 +1328,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
 
           {/* Section 4: Pricing Details */}
           <Card className="mb-4 border-0 shadow-sm" style={{ borderRadius: '12px' }}>
-            <Card.Body className="p-4">
+            <Card.Body className="p-2">
               {/* Header removed as per request */}
 
               {/* Vertical Tabs Layout */}
@@ -1422,13 +1422,13 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
 
                   <div className="table-responsive">
                     <Table bordered hover size="sm" className="mb-0">
-                      <thead className="bg-gray-100">
+                      <thead style={{ backgroundColor: '#e3f2fd' }}>
                         <tr>
-                          <th>Department</th>
+                          <th style={{ padding: '4px 8px' }}>Department</th>
 
                           {/* ===== SIMPLE MODE ===== */}
                           {(!selectedVariantType || selectedVariantType === "simple") && (
-                            <th>Price</th>
+                            <th style={{ padding: '4px 8px' }}>Price</th>
                           )}
 
                           {/* ===== VARIANT MODE WITH SELECTED COLUMNS ===== */}
@@ -1442,19 +1442,19 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                                 selectedVariantValues.includes(value.variant_value_id)
                               )
                               .map((value) => (
-                                <th key={value.variant_value_id}>{value.value_name}</th>
+                                <th key={value.variant_value_id} style={{ padding: '4px 8px' }}>{value.value_name}</th>
                               ))}
 
                           {/* ===== VARIANT MODE BUT NO VALUES SELECTED ===== */}
                           {selectedVariantType &&
                             selectedVariantType !== "simple" &&
                             selectedVariantValues.length === 0 && (
-                              <th className="text-muted text-center">
+                              <th className="text-muted text-center" style={{ padding: '4px 8px' }}>
                                 Select columns to display
                               </th>
                             )}
 
-                          <th>Tax Group</th>
+                          <th style={{ padding: '4px 8px' }}>Tax Group</th>
 
                         </tr>
                       </thead>
@@ -1479,17 +1479,17 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                               <tr key={`multi-${deptRate.departmentid}-${deptIndex}`}>
 
                                 {/* Department */}
-                                <td>{deptRate.departmentName}</td>
+                                <td style={{ padding: '4px 8px' }}>{deptRate.departmentName}</td>
 
                                 {/* ================= SIMPLE MODE ================= */}
                                 {isSimpleMode && (
-                                  <td>
+                                  <td style={{ padding: '4px 8px' }}>
                                     <Form.Control
                                       type="number"
                                       step="0.01"
                                       min="0"
                                       placeholder="0.00"
-                                      className="rounded-lg"
+                                      className="rounded-lg py-1"
                                       value={deptRate.rate || ''}
                                       onChange={(e) => {
                                         const newRate = parseFloat(e.target.value) || 0;
@@ -1509,13 +1509,13 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                                 {/* ================= VARIANT MODE ================= */}
                                 {!isSimpleMode && activeVariantValues.length > 0 &&
                                   activeVariantValues.map((value) => (
-                                    <td key={value.variant_value_id}>
+                                    <td key={value.variant_value_id} style={{ padding: '4px 8px' }}>
                                       <Form.Control
                                         type="number"
                                         step="0.01"
                                         min="0"
                                         placeholder="0.00"
-                                        className="rounded-lg"
+                                        className="rounded-lg py-1"
                                         value={deptRate.variant_rates?.[value.variant_value_id] ?? ''}
                                         onChange={(e) => {
                                           const newRate = parseFloat(e.target.value) || 0;
@@ -1540,13 +1540,13 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
 
                                 {/* If Variant Selected but No Columns Chosen */}
                                 {!isSimpleMode && activeVariantValues.length === 0 && (
-                                  <td className="text-muted text-center">—</td>
+                                  <td className="text-muted text-center" style={{ padding: '4px 8px' }}>—</td>
                                 )}
 
 {/* Tax Group */}
-                                <td>
+                                <td style={{ padding: '4px 8px' }}>
                                   <Form.Select 
-                                    className="rounded-lg"
+                                    className="rounded-lg py-1"
                                     value={deptRate.taxgroupid ?? ''}
                                     onChange={(e) => {
                                       setNewItem((prev) => ({
