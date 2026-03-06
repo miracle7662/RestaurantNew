@@ -1015,9 +1015,9 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
 
   return (
     <Modal show={show} onHide={onHide} size="xl" centered className="modern-pos-modal">
-      {/* Gradient Header */}
+      {/* Gradient Header - Reduced Height */}
       <div className="modal-header-gradient">
-        <div className="w-100 d-flex justify-content-between align-items-center px-4 py-3">
+        <div className="w-100 d-flex justify-content-between align-items-center px-3 py-2">
           <h5 className="modal-title text-white fw-bold mb-0">
             <i className="fi fi-rr-utensils me-2"></i>
             {isEdit ? 'Edit Item' : 'Add New Item'}
@@ -1026,35 +1026,42 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
         </div>
       </div>
       
-      <Modal.Body className="bg-light p-4">
+<Modal.Body className="bg-light p-2">
         <Form>
-          <Row className="mb-3">
-            <Col xs={12} sm={4}>
-              <Form.Group as={Row} className="align-items-center">
-                <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Item Number</Form.Label>
-                <Col sm={8}>
+{/* Section 1: Basic Information */}
+          <Card className="mb-1 border-0 shadow-sm" style={{ borderRadius: '12px', backgroundColor: '#f0f7ff' }}>
+            <Card.Body className="p-2">
+              <Row className="g-0 align-items-center">
+                <Col xs={12} md={2}>
+                  <Form.Group className="mb-0">
+                    <Form.Label className="text-muted small fw-medium mb-0 d-block">Item Number</Form.Label>
+                  </Form.Group>
+                </Col>
+                <Col xs={12} md={2}>
                   <Form.Control
                     type="text"
                     value={itemNo ?? ''}
                     onChange={(e) => setItemNo(e.target.value || null)}
-                    placeholder="Enter item number"
-                    className="rounded-lg"
+                    placeholder="Auto-generated"
+                    className="border-0 shadow-sm rounded-3"
+                    style={{ backgroundColor: '#ffffff' }}
                   />
                 </Col>
-              </Form.Group>
-            </Col>
-            <Col xs={12} sm={4}>
-              <Form.Group as={Row} className="align-items-center">
-                <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Outlet</Form.Label>
-                <Col sm={8}>
+                <Col xs={12} md={2}>
+                  <Form.Group className="mb-0">
+                    <Form.Label className="text-muted small fw-medium mb-0 d-block">Outlet <span className="text-danger">*</span></Form.Label>
+                  </Form.Group>
+                </Col>
+                <Col xs={12} md={2}>
                   <Form.Select
                     value={selectedOutlet || ''}
                     onChange={(e) => setSelectedOutlet(e.target.value ? Number(e.target.value) : null)}
                     disabled={loading || !outletsLoaded}
-                    className="rounded-lg"
+                    className="border-0 shadow-sm rounded-3"
+                    style={{ backgroundColor: '#ffffff' }}
                     required
                   >
-                    <option value="">Select an outlet</option>
+                    <option value="">Select Outlet</option>
                     {outlets.map((outlet) => (
                       <option key={outlet.outletid} value={outlet.outletid}>
                         {outlet.outlet_name}
@@ -1062,17 +1069,18 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                     ))}
                   </Form.Select>
                 </Col>
-              </Form.Group>
-            </Col>
-            <Col xs={12} sm={4}>
-              <Form.Group as={Row} className="align-items-center">
-                <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Hotel Name</Form.Label>
-                <Col sm={8}>
+                <Col xs={12} md={2}>
+                  <Form.Group className="mb-0">
+                    <Form.Label className="text-muted small fw-medium mb-0 d-block">Hotel / Brand <span className="text-danger">*</span></Form.Label>
+                  </Form.Group>
+                </Col>
+                <Col xs={12} md={2}>
                   <Form.Select
                     value={selectedBrand || ''}
                     onChange={(e) => setSelectedBrand(e.target.value ? Number(e.target.value) : null)}
                     disabled={loading}
-                    className="rounded-lg"
+                    className="border-0 shadow-sm rounded-3"
+                    style={{ backgroundColor: '#ffffff' }}
                     required
                   >
                     <option value="">Select Hotel</option>
@@ -1083,21 +1091,131 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                     ))}
                   </Form.Select>
                 </Col>
-              </Form.Group>
-            </Col>
-          </Row>
-          <Row className="mb-3">
-            <Col xs={12} sm={6}>
-              <Form.Group as={Row} className="align-items-center">
-                <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Item Main Group</Form.Label>
-                <Col sm={8}>
+              </Row>
+            </Card.Body>
+          </Card>
+
+{/* Section 2: Item Details - Label Left, Field Right (like Section 1) */}
+          <Card className="mb-1 border-0 shadow-sm" style={{ borderRadius: '12px', backgroundColor: '#f0fff4' }}>
+            <Card.Body className="p-2">
+              <Row className="g-0 align-items-center">
+                <Col xs={12} md={2}>
+                  <Form.Group className="mb-0">
+                    <Form.Label className="text-muted small fw-medium mb-0 d-block">Item Name <span className="text-danger">*</span></Form.Label>
+                  </Form.Group>
+                </Col>
+                <Col xs={12} md={2}>
+                  <Form.Control
+                    type="text"
+                    value={itemName}
+                    onChange={(e) => setItemName(e.target.value)}
+                    placeholder="Enter item name"
+                    className="border-0 shadow-sm rounded-3"
+                    style={{ backgroundColor: '#ffffff' }}
+                    required
+                  />
+                </Col>
+                <Col xs={12} md={2}>
+                  <Form.Group className="mb-0">
+                    <Form.Label className="text-muted small fw-medium mb-0 d-block">Print Name</Form.Label>
+                  </Form.Group>
+                </Col>
+                <Col xs={12} md={2}>
+                  <Form.Control
+                    type="text"
+                    value={printName ?? ''}
+                    onChange={(e) => setPrintName(e.target.value || null)}
+                    placeholder="Name for print"
+                    className="border-0 shadow-sm rounded-3"
+                    style={{ backgroundColor: '#ffffff' }}
+                  />
+                </Col>
+                <Col xs={12} md={2}>
+                  <Form.Group className="mb-0">
+                    <Form.Label className="text-muted small fw-medium mb-0 d-block">Short Name</Form.Label>
+                  </Form.Group>
+                </Col>
+                <Col xs={12} md={2}>
+                  <Form.Control
+                    type="text"
+                    value={shortName ?? ''}
+                    onChange={(e) => setShortName(e.target.value || null)}
+                    placeholder="Short name"
+                    className="border-0 shadow-sm rounded-3"
+                    style={{ backgroundColor: '#ffffff' }}
+                  />
+                </Col>
+                <Col xs={12} md={2}>
+                  <Form.Group className="mb-0">
+                    <Form.Label className="text-muted small fw-medium mb-0 d-block">Description</Form.Label>
+                  </Form.Group>
+                </Col>
+                <Col xs={12} md={2}>
+                  <Form.Control
+                    as="textarea"
+                    rows={1}
+                    value={itemDescription ?? ''}
+                    onChange={(e) => setItemDescription(e.target.value || null)}
+                    placeholder="Item description"
+                    className="border-0 shadow-sm rounded-3"
+                    style={{ backgroundColor: '#ffffff' }}
+                  />
+                </Col>
+                <Col xs={12} md={2}>
+                  <Form.Group className="mb-0">
+                    <Form.Label className="text-muted small fw-medium mb-0 d-block">HSN Code</Form.Label>
+                  </Form.Group>
+                </Col>
+                <Col xs={12} md={2}>
+                  <Form.Control
+                    type="text"
+                    value={itemHsncode ?? ''}
+                    onChange={(e) => setItemHsncode(e.target.value || null)}
+                    placeholder="HSN code"
+                    className="border-0 shadow-sm rounded-3"
+                    style={{ backgroundColor: '#ffffff' }}
+                  />
+                </Col>
+                <Col xs={12} md={2}>
+                  <Form.Group className="mb-0">
+                    <Form.Label className="text-muted small fw-medium mb-0 d-block">Base Price <span className="text-danger">*</span></Form.Label>
+                  </Form.Group>
+                </Col>
+                <Col xs={12} md={2}>
+                  <Form.Control
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={price}
+                    onChange={(e) => setPrice(e.target.value)}
+                    placeholder="0.00"
+                    className="border-0 shadow-sm rounded-3"
+                    style={{ backgroundColor: '#ffffff' }}
+                    required
+                  />
+                </Col>
+              </Row>
+            </Card.Body>
+          </Card>
+
+{/* Section 3: Category & Classification */}
+          <Card className="mb-4 border-0 shadow-sm" style={{ borderRadius: '12px', backgroundColor: '#f5f3ff' }}>
+            <Card.Body className="p-4">
+              <Row className="g-0 align-items-center">
+                <Col xs={12} md={2}>
+                  <Form.Group className="mb-0">
+                    <Form.Label className="text-muted small fw-medium mb-0 d-block">Item Main Group</Form.Label>
+                  </Form.Group>
+                </Col>
+                <Col xs={12} md={2}>
                   <Form.Select
                     value={itemMainGroupId ?? ''}
                     onChange={(e) => setItemMainGroupId(e.target.value === '' ? null : Number(e.target.value))}
-                    className="rounded-lg"
+                    className="border-0 shadow-sm rounded-3"
+                    style={{ backgroundColor: '#f8fafc' }}
                     disabled={loading}
                   >
-                    <option value="">Select Item Main Group</option>
+                    <option value="">Select Main Group</option>
                     {itemMainGroup.filter((group) => String(group.status) === '0').map((group) => (
                       <option key={group.item_maingroupid} value={group.item_maingroupid}>
                         {group.item_group_name}
@@ -1105,19 +1223,20 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                     ))}
                   </Form.Select>
                 </Col>
-              </Form.Group>
-            </Col>
-            <Col xs={12} sm={6}>
-              <Form.Group as={Row} className="align-items-center">
-                <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Item Group</Form.Label>
-                <Col sm={8}>
+                <Col xs={12} md={2}>
+                  <Form.Group className="mb-0">
+                    <Form.Label className="text-muted small fw-medium mb-0 d-block">Item Group</Form.Label>
+                  </Form.Group>
+                </Col>
+                <Col xs={12} md={2}>
                   <Form.Select
                     value={itemGroupId ?? ''}
                     onChange={(e) => setItemGroupId(e.target.value === '' ? null : Number(e.target.value))}
-                    className="rounded-lg"
+                    className="border-0 shadow-sm rounded-3"
+                    style={{ backgroundColor: '#f8fafc' }}
                     disabled={loading}
                   >
-                    <option value="">Select Item Group</option>
+                    <option value="">Select Group</option>
                     {itemGroup.filter((group) => String(group.status) === '0').map((group) => (
                       <option key={group.item_groupid} value={group.item_groupid}>
                         {group.itemgroupname}
@@ -1125,18 +1244,17 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                     ))}
                   </Form.Select>
                 </Col>
-              </Form.Group>
-            </Col>
-          </Row>
-          <Row className="mb-3">
-            <Col xs={12} sm={4}>
-              <Form.Group as={Row} className="align-items-center">
-                <Form.Label column sm={6} className="text-sm font-medium text-gray-700">Kitchen Main Group</Form.Label>
-                <Col sm={6}>
+                <Col xs={12} md={2}>
+                  <Form.Group className="mb-0">
+                    <Form.Label className="text-muted small fw-medium mb-0 d-block">Kitchen Main Group</Form.Label>
+                  </Form.Group>
+                </Col>
+                <Col xs={12} md={2}>
                   <Form.Select
                     value={kitchenMainGroupId ?? ''}
                     onChange={(e) => setKitchenMainGroupId(e.target.value === '' ? null : Number(e.target.value))}
-                    className="rounded-lg"
+                    className="border-0 shadow-sm rounded-3"
+                    style={{ backgroundColor: '#f8fafc' }}
                     disabled={loading}
                   >
                     <option value="">Select Kitchen Main Group</option>
@@ -1147,19 +1265,20 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                     ))}
                   </Form.Select>
                 </Col>
-              </Form.Group>
-            </Col>
-            <Col xs={12} sm={4}>
-              <Form.Group as={Row} className="align-items-center">
-                <Form.Label column sm={6} className="text-sm font-medium text-gray-700">Kitchen Category</Form.Label>
-                <Col sm={6}>
+                <Col xs={12} md={2}>
+                  <Form.Group className="mb-0">
+                    <Form.Label className="text-muted small fw-medium mb-0 d-block">Kitchen Category</Form.Label>
+                  </Form.Group>
+                </Col>
+                <Col xs={12} md={2}>
                   <Form.Select
                     value={kitchenCategoryId ?? ''}
                     onChange={(e) => setKitchenCategoryId(e.target.value === '' ? null : Number(e.target.value))}
-                    className="rounded-lg"
+                    className="border-0 shadow-sm rounded-3"
+                    style={{ backgroundColor: '#f8fafc' }}
                     disabled={loading}
                   >
-                    <option value="">Select Kitchen Category</option>
+                    <option value="">Select Category</option>
                     {kitchenCategory.filter((category) => String(category.status) === '0').map((category) => (
                       <option key={category.kitchencategoryid} value={category.kitchencategoryid}>
                         {category.Kitchen_Category}
@@ -1167,19 +1286,20 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                     ))}
                   </Form.Select>
                 </Col>
-              </Form.Group>
-            </Col>
-            <Col xs={12} sm={4}>
-              <Form.Group as={Row} className="align-items-center">
-                <Form.Label column sm={6} className="text-sm font-medium text-gray-700">Kitchen Sub Category</Form.Label>
-                <Col sm={6}>
+                <Col xs={12} md={2}>
+                  <Form.Group className="mb-0">
+                    <Form.Label className="text-muted small fw-medium mb-0 d-block">Kitchen Sub Category</Form.Label>
+                  </Form.Group>
+                </Col>
+                <Col xs={12} md={2}>
                   <Form.Select
                     value={kitchenSubCategoryId ?? ''}
                     onChange={(e) => setKitchenSubCategoryId(e.target.value === '' ? null : Number(e.target.value))}
-                    className="rounded-lg"
+                    className="border-0 shadow-sm rounded-3"
+                    style={{ backgroundColor: '#f8fafc' }}
                     disabled={loading}
                   >
-                    <option value="">Select Kitchen Sub Category</option>
+                    <option value="">Select Sub Category</option>
                     {kitchenSubCategory.filter((subCategory) => String(subCategory.status) === '0').map((subCategory) => (
                       <option key={subCategory.kitchensubcategoryid} value={subCategory.kitchensubcategoryid}>
                         {subCategory.Kitchen_sub_category}
@@ -1187,136 +1307,17 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                     ))}
                   </Form.Select>
                 </Col>
-              </Form.Group>
-            </Col>
-          </Row>
-          <Row className="mb-3">
-
-
-
-
-            <Col xs={12} sm={4}>
-              <Form.Group as={Row} className="align-items-center">
-                <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Item Name</Form.Label>
-                <Col sm={8}>
-                  <Form.Control
-                    type="text"
-                    value={itemName}
-                    onChange={(e) => setItemName(e.target.value)}
-                    placeholder="Enter item name"
-                    className="rounded-lg"
-                    required
-                  />
+                <Col xs={12} md={2}>
+                  <Form.Group className="mb-0">
+                    <Form.Label className="text-muted small fw-medium mb-0 d-block">Tax Group</Form.Label>
+                  </Form.Group>
                 </Col>
-              </Form.Group>
-            </Col>
-            <Col xs={12} sm={4}>
-              <Form.Group as={Row} className="align-items-center">
-                <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Print Name</Form.Label>
-                <Col sm={8}>
-                  <Form.Control
-                    type="text"
-                    value={printName ?? ''}
-                    onChange={(e) => setPrintName(e.target.value || null)}
-                    placeholder="Enter print name"
-                    className="rounded-lg"
-                  />
-                </Col>
-              </Form.Group>
-            </Col>
-            <Col xs={12} sm={4}>
-              <Form.Group as={Row} className="align-items-center">
-                <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Short Name</Form.Label>
-                <Col sm={8}>
-                  <Form.Control
-                    type="text"
-                    value={shortName ?? ''}
-                    onChange={(e) => setShortName(e.target.value || null)}
-                    placeholder="Enter short name"
-                    className="rounded-lg"
-                  />
-                </Col>
-              </Form.Group>
-            </Col>
-          </Row>
-          <Row className="mb-3">
-            <Col xs={12} sm={6}>
-              <Form.Group as={Row} className="align-items-center">
-                <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Item Description</Form.Label>
-                <Col sm={8}>
-                  <Form.Control
-                    type="text"
-                    value={itemDescription ?? ''}
-                    onChange={(e) => setItemDescription(e.target.value || null)}
-                    placeholder="Enter item description"
-                    className="rounded-lg"
-                  />
-                </Col>
-              </Form.Group>
-            </Col>
-            <Col xs={12} sm={6}>
-              <Form.Group as={Row} className="align-items-center">
-                <Form.Label column sm={4} className="text-sm font-medium text-gray-700">HSN Code</Form.Label>
-                <Col sm={8}>
-                  <Form.Control
-                    type="text"
-                    value={itemHsncode ?? ''}
-                    onChange={(e) => setItemHsncode(e.target.value || null)}
-                    placeholder="Enter HSN code"
-                    className="rounded-lg"
-                  />
-                </Col>
-              </Form.Group>
-            </Col>
-          </Row>
-          <Row className="mb-3">
-            <Col xs={12} sm={6}>
-              <Form.Group as={Row} className="align-items-center">
-                <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Stock Unit</Form.Label>
-                <Col sm={8}>
-                  <Form.Select
-                    value={stockUnit ?? ''}
-                    onChange={(e) => setStockUnit(e.target.value ? Number(e.target.value) : null)}
-                    className="rounded-lg"
-                    disabled={loading}
-                  >
-                    <option value="">Select Stock Unit</option>
-                    {stockUnits.map((unit) => (
-                      <option key={unit.unitid} value={unit.unitid}>
-                        {unit.unit_name}
-                      </option>
-                    ))}
-                  </Form.Select>
-                </Col>
-              </Form.Group>
-            </Col>
-            <Col xs={12} sm={6}>
-              <Form.Group as={Row} className="align-items-center">
-                <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Price</Form.Label>
-                <Col sm={8}>
-                  <Form.Control
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={price}
-                    onChange={(e) => setPrice(e.target.value)}
-                    placeholder="Enter price"
-                    className="rounded-lg"
-                    required
-                  />
-                </Col>
-              </Form.Group>
-            </Col>
-          </Row>
-          <Row className="mb-3">
-            <Col xs={12} sm={6}>
-              <Form.Group as={Row} className="align-items-center">
-                <Form.Label column sm={4} className="text-sm font-medium text-gray-700">Tax Group</Form.Label>
-                <Col sm={8}>
+                <Col xs={12} md={2}>
                   <Form.Select
                     value={taxgroupid ?? ''}
                     onChange={(e) => setTaxgroupid(e.target.value ? Number(e.target.value) : null)}
-                    className="rounded-lg"
+                    className="border-0 shadow-sm rounded-3"
+                    style={{ backgroundColor: '#f8fafc' }}
                     disabled={loading}
                   >
                     <option value="">Select Tax Group</option>
@@ -1327,49 +1328,30 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                     ))}
                   </Form.Select>
                 </Col>
-              </Form.Group>
-            </Col>
-          </Row>
-          <Row className="mb-3">
-            <Col xs={12} sm={6}>
-              <Form.Group as={Row} className="align-items-center">
-                <Col sm={12}>
-                  <label className="d-flex align-items-center gap-2 cursor-pointer">
-                    <Form.Check
-                      type="checkbox"
-                      checked={runtimeRates}
-                      onChange={(e) => setRuntimeRates(e.target.checked)}
-                      className="mt-0"
-                    />
-                    <span className="text-sm text-gray-700">Runtime Rates</span>
+              </Row>
+              <Row className="mt-3">
+                <Col xs={12} md={6}>
+                  <label className="d-flex align-items-center gap-2 cursor-pointer p-2 rounded" style={{ backgroundColor: '#f8fafc' }}>
+                    <Form.Check type="checkbox" checked={runtimeRates} onChange={(e) => setRuntimeRates(e.target.checked)} className="mt-0" />
+                    <span className="text-dark small">Runtime Rates</span>
                   </label>
                 </Col>
-              </Form.Group>
-            </Col>
-            <Col xs={12} sm={6}>
-              <Form.Group as={Row} className="align-items-center">
-                <Col sm={12}>
-                  <label className="d-flex align-items-center gap-2 cursor-pointer">
-                    <Form.Check
-                      type="checkbox"
-                      checked={isCommonToAllDepartments}
-                      onChange={(e) => setIsCommonToAllDepartments(e.target.checked)}
-                      className="mt-0"
-                    />
-                    <span className="text-sm text-gray-600">Is Common to All Departments</span>
+                <Col xs={12} md={6}>
+                  <label className="d-flex align-items-center gap-2 cursor-pointer p-2 rounded" style={{ backgroundColor: '#f8fafc' }}>
+                    <Form.Check type="checkbox" checked={isCommonToAllDepartments} onChange={(e) => setIsCommonToAllDepartments(e.target.checked)} className="mt-0" />
+                    <span className="text-dark small">Is Common to All Departments</span>
                   </label>
                 </Col>
-              </Form.Group>
-            </Col>
-          </Row>
+              </Row>
+            </Card.Body>
+          </Card>
 
-          {/* ────── Pricing Tabs Section (replaced the previous one) ────── */}
-          <Row className="mb-4">
-            <Col xs={12}>
-              <h6 className="mb-3 fw-semibold text-gray-800">Pricing Details</h6>
+          {/* Section 4: Pricing Details */}
+          <Card className="mb-4 border-0 shadow-sm" style={{ borderRadius: '12px' }}>
+            <Card.Body className="p-4">
+              {/* Header removed as per request */}
 
-              <Tabs defaultActiveKey="multiplePrice" id="pricingTabs" className="mb-3">
-                <Tab eventKey="multiplePrice" title="Multiple Price">
+              <Tabs defaultActiveKey="multiplePrice" id="pricingTabs" className="modern-tabs mb-3">
                   <p className="text-sm text-gray-600 mb-3">
                     Define department-wise multiple pricing
                   </p>
@@ -1739,8 +1721,9 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                   </Row>
                 </Tab>
               </Tabs>
-            </Col>
-          </Row>
+            </Card.Body>
+          </Card>
+
           <Row className="mb-3 align-items-center">
             <Col xs={12} sm={4}>
               <Form.Group as={Row} className="align-items-center">
@@ -1762,38 +1745,54 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
         </Form>
       </Modal.Body>
 
-      {/* Footer */}
-      <div className="modal-footer bg-white px-4 py-3 border-top">
-        <div className="d-flex justify-content-end gap-3 w-100">
-          <Button
-            variant="outline-secondary"
-            onClick={onHide}
-            disabled={loading}
-            className="px-4"
-            style={{ borderRadius: '8px', fontWeight: '500' }}
-          >
-            <i className="fi fi-rr-cross me-2"></i>
-            Cancel
-          </Button>
-          <Button
-            variant="success"
-            onClick={handleSubmit}
-            disabled={loading}
-            className="px-4"
-            style={{ borderRadius: '8px', fontWeight: '500', backgroundColor: '#16a34a', borderColor: '#16a34a' }}
-          >
-            {loading ? (
-              <>
-                <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                Saving...
-              </>
-            ) : (
-              <>
-                <i className="fi fi-rr-check me-2"></i>
-                Save Item
-              </>
-            )}
-          </Button>
+      {/* Footer - Reduced Height with Status on Left */}
+      <div className="modal-footer bg-white px-3 py-2 border-top">
+        <div className="d-flex align-items-center justify-content-between w-100">
+          <div className="d-flex align-items-center">
+            <Form.Group as={Row} className="align-items-center mb-0">
+              <Form.Label className="mb-0 me-2 text-sm font-medium text-gray-700">Status:</Form.Label>
+              <Form.Select
+                value={status === 1 ? 'Active' : 'Inactive'}
+                onChange={(e) => setStatus(e.target.value === 'Active' ? 1 : 0)}
+                className="rounded-lg"
+                style={{ width: '120px' }}
+              >
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
+              </Form.Select>
+            </Form.Group>
+          </div>
+          <div className="d-flex gap-2">
+            <Button
+              variant="outline-secondary"
+              onClick={onHide}
+              disabled={loading}
+              className="px-3"
+              style={{ borderRadius: '8px', fontWeight: '500' }}
+            >
+              <i className="fi fi-rr-cross me-1"></i>
+              Cancel
+            </Button>
+            <Button
+              variant="success"
+              onClick={handleSubmit}
+              disabled={loading}
+              className="px-3"
+              style={{ borderRadius: '8px', fontWeight: '500', backgroundColor: '#16a34a', borderColor: '#16a34a' }}
+            >
+              {loading ? (
+                <>
+                  <span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <i className="fi fi-rr-check me-1"></i>
+                  Save Item
+                </>
+              )}
+            </Button>
+          </div>
         </div>
       </div>
 
