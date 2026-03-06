@@ -52,7 +52,21 @@ exports.getAllMenuItems = (req, res) => {
         query += ' ORDER BY m.created_date DESC';
         
         const menuItems = db.prepare(query).all(...params);
-        res.json({ success: true, data: menuItems, count: menuItems.length });
+        
+        // Fetch department_details for each menu item
+        const menuItemsWithDetails = menuItems.map(item => {
+            const allDetails = db.prepare(`
+                SELECT md.*, d.department_name, vv.value_name as variant_value_name
+                FROM mstrestmenudetails md
+                LEFT JOIN msttable_department d ON md.departmentid = d.departmentid
+                LEFT JOIN mst_variant_values vv ON md.variant_value_id = vv.variant_value_id
+                WHERE md.restitemid = ?
+            `).all(item.restitemid);
+            
+            return { ...item, department_details: allDetails };
+        });
+        
+        res.json({ success: true, data: menuItemsWithDetails, count: menuItemsWithDetails.length });
     } catch (error) {
         console.error('Error fetching menu items:', error);
         res.status(500).json({ success: false, message: 'Internal server error', details: error.message, data: null });
