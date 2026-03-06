@@ -1300,7 +1300,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                     ))}
                   </Form.Select>
                 </Col>
-                <Col xs={12} md={2}>
+<Col xs={12} md={2}>
                   <Form.Group className="mb-0">
                     <Form.Label className="text-muted small fw-medium mb-0 d-block">Tax Group</Form.Label>
                   </Form.Group>
@@ -1322,20 +1322,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                   </Form.Select>
                 </Col>
               </Row>
-              <Row className="mt-3">
-                <Col xs={12} md={6}>
-                  <label className="d-flex align-items-center gap-2 cursor-pointer p-2 rounded" style={{ backgroundColor: '#f8fafc' }}>
-                    <Form.Check type="checkbox" checked={runtimeRates} onChange={(e) => setRuntimeRates(e.target.checked)} className="mt-0" />
-                    <span className="text-dark small">Runtime Rates</span>
-                  </label>
-                </Col>
-                <Col xs={12} md={6}>
-                  <label className="d-flex align-items-center gap-2 cursor-pointer p-2 rounded" style={{ backgroundColor: '#f8fafc' }}>
-                    <Form.Check type="checkbox" checked={isCommonToAllDepartments} onChange={(e) => setIsCommonToAllDepartments(e.target.checked)} className="mt-0" />
-                    <span className="text-dark small">Is Common to All Departments</span>
-                  </label>
-                </Col>
-              </Row>
+            
             </Card.Body>
           </Card>
 
@@ -1406,7 +1393,11 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                       <div className="col-md-3">
                         <span className="text-muted small">
                           {selectedVariantValues.length} column(s) selected
+                          <p className="text-sm text-gray-600 mb-3">
+                    Define department-wise multiple pricing
+                  </p>
                         </span>
+                        
                       </div>
                     )}
                     <div className="col-md-5">
@@ -1427,9 +1418,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                     </div>
                   </div>
 
-                  <p className="text-sm text-gray-600 mb-3">
-                    Define department-wise multiple pricing
-                  </p>
+                  
 
                   <div className="table-responsive">
                     <Table bordered hover size="sm" className="mb-0">
