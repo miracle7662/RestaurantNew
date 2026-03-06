@@ -41,6 +41,18 @@ interface CardItem {
   variants?: VariantOption[]; // Variants for this item
 }
 
+// Interface for code search results (includes base items and variants)
+interface CodeSearchResult {
+  type: 'base' | 'variant';
+  userId: string;
+  itemCode: string;
+  ItemName: string;
+  shortName: string;
+  price: number;
+  variantId?: number;
+  variantName?: string;
+}
+
 
 // Interface for table items (from Orders.tsx)
 interface TableItem {
@@ -114,6 +126,10 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
   const [cardItems, setCardItems] = useState<CardItem[]>([]);
   const [showNameDropdown, setShowNameDropdown] = useState<boolean>(false);
   const [selectedNameIndex, setSelectedNameIndex] = useState(-1);
+  // Code dropdown state
+  const [showCodeDropdown, setShowCodeDropdown] = useState<boolean>(false);
+  const [selectedCodeIndex, setSelectedCodeIndex] = useState(-1);
+  const [codeSearchResults, setCodeSearchResults] = useState<CodeSearchResult[]>([]);
   const [showCustomerModal, setShowCustomerModal] = useState<boolean>(false);
   const [showSidebar, setShowSidebar] = useState(false);
   const [selectedItemGroup, setSelectedItemGroup] = useState<number | null>(null);
@@ -336,15 +352,38 @@ const [loading, setLoading] = useState(true);
   // Filter dropdown items for code or name
   const filterDropdownItems = useCallback(
     (type: 'code' | 'name') => {
+      // If there's a code search with results, show code search results with variants in name dropdown
+      if (searchCode && codeSearchResults.length > 0 && type === 'name') {
+        return codeSearchResults.map(result => ({
+          userId: result.userId,
+          itemCode: result.itemCode,
+          ItemName: result.ItemName,
+          shortName: result.shortName,
+          price: result.price,
+          item_group_id: null as number | null,
+          cardStatus: '',
+        }));
+      }
+      
       const baseItems = selectedItemGroup !== null
         ? cardItems.filter(item => item.item_group_id === selectedItemGroup)
         : allItems;
+      
+      // If no search text, show all items (limited to 7)
+      if (!searchName && !searchCode && type === 'name') {
+        return baseItems.slice(0, 7);
+      }
+      
       return baseItems
         .filter((item) => {
           if (type === 'code') {
             return searchCode
               ? item.itemCode.toLowerCase().includes(searchCode.toLowerCase())
               : false;
+          }
+          // For name dropdown - if there's a code search but no results, show all items
+          if (searchCode && codeSearchResults.length === 0 && type === 'name') {
+            return true;
           }
           return searchName
             ? item.ItemName.toLowerCase().includes(searchName.toLowerCase()) ||
@@ -353,7 +392,7 @@ const [loading, setLoading] = useState(true);
         })
         .slice(0, 7);
     },
-    [searchCode, searchName, allItems, selectedItemGroup]
+    [searchCode, searchName, allItems, selectedItemGroup, codeSearchResults]
   );
 
   useEffect(() => {
@@ -364,9 +403,81 @@ const [loading, setLoading] = useState(true);
   const handleCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const code = e.target.value;
     setSearchCode(code);
-    const matchedItem = cardItems.find((item) => item.itemCode.toLowerCase() === code.toLowerCase());
-    if (matchedItem) {
-      setSearchName(matchedItem.ItemName);
+    
+    // Find all items that match the code (prefix match)
+    const matchedItems = cardItems.filter((item) => 
+      item.itemCode.toLowerCase().includes(code.toLowerCase())
+    );
+    
+    console.log('Code search:', code, 'Matched items:', matchedItems.length);
+    console.log('MenuItems sample:', menuItems.slice(0, 2));
+    
+    // Build code search results including variants
+    const results: CodeSearchResult[] = [];
+    
+    matchedItems.forEach((item) => {
+      // Add base item first
+      results.push({
+        type: 'base',
+        userId: item.userId,
+        itemCode: item.itemCode,
+        ItemName: item.ItemName,
+        shortName: item.shortName,
+        price: item.price,
+      });
+      
+      // Get variants from menuItems
+      const menuItem = menuItems.find((m: any) => String(m.restitemid) === item.userId);
+      console.log('Menu item for', item.itemCode, ':', menuItem?.department_details?.length, 'details');
+      
+      if (menuItem && menuItem.department_details && menuItem.department_details.length > 0) {
+        // Extract unique variants from department_details
+        const variantMap = new Map<number, VariantOption>();
+        menuItem.department_details.forEach((detail: any) => {
+          if (detail.variant_value_id && detail.variant_value_name) {
+            variantMap.set(detail.variant_value_id, {
+              variant_value_id: detail.variant_value_id,
+              value_name: detail.variant_value_name,
+              price: detail.item_rate || 0
+            });
+          }
+        });
+        
+        // Add each variant
+        variantMap.forEach((variant) => {
+          results.push({
+            type: 'variant',
+            userId: item.userId,
+            itemCode: item.itemCode,
+            ItemName: item.ItemName,
+            shortName: item.shortName,
+            price: variant.price,
+            variantId: variant.variant_value_id,
+            variantName: variant.value_name,
+          });
+        });
+      }
+    });
+    
+    console.log('Total results:', results.length);
+    setCodeSearchResults(results.slice(0, 10)); // Limit to 10 results
+    
+    // Hide code dropdown - variants will show in name dropdown
+    setShowCodeDropdown(false);
+    setSelectedCodeIndex(-1);
+    
+    // If there's a search code, automatically show name dropdown with results (base + variants)
+    if (code.length > 0 && results.length > 0) {
+      setSearchName('');
+      setShowNameDropdown(true); // Automatically expand Name dropdown
+    } else {
+      setShowNameDropdown(false);
+    }
+    
+    // Set search name if exact match found
+    const exactMatch = matchedItems.find((item) => item.itemCode.toLowerCase() === code.toLowerCase());
+    if (exactMatch) {
+      setSearchName(exactMatch.ItemName);
     } else {
       setSearchName('');
     }
@@ -375,7 +486,8 @@ const [loading, setLoading] = useState(true);
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSearchName(value);
-    setShowNameDropdown(!!value);
+    // Always show dropdown when typing, even with empty value
+    setShowNameDropdown(true);
     setSelectedNameIndex(-1);
     if (value === '') {
       setSearchCode('');
@@ -395,8 +507,44 @@ const [loading, setLoading] = useState(true);
   const handleCodeSelect = (item: CardItem) => {
     setSearchCode(item.itemCode);
     setSearchName(item.ItemName);
-    setShowNameDropdown(false);
-    setSelectedNameIndex(-1);
+    setShowCodeDropdown(false);
+    setSelectedCodeIndex(-1);
+    if (quantityInputRef.current) {
+      quantityInputRef.current.focus();
+      quantityInputRef.current.select();
+    }
+  };
+
+  // Handle code selection with variant support
+  const handleCodeSelectWithVariant = (result: CodeSearchResult) => {
+    setSearchCode(result.itemCode);
+    setSearchName(result.ItemName);
+    setShowCodeDropdown(false);
+    setSelectedCodeIndex(-1);
+    
+    const qty = parseInt(quantity) || 1;
+    
+    if (result.type === 'variant' && result.variantId && result.variantName) {
+      // It's a variant - add with variant info
+      handleAddItem({
+        id: Number(result.userId),
+        name: result.ItemName,
+        price: result.price,
+        isBilled: 0,
+        isNCKOT: 0,
+        NCName: '',
+        NCPurpose: '',
+        variantId: result.variantId,
+        variantName: result.variantName
+      }, qty);
+    } else {
+      // Base item - show variant modal if has variants
+      const cardItem = cardItems.find(item => item.userId === result.userId);
+      if (cardItem) {
+        handleShowVariantModal(cardItem);
+      }
+    }
+    
     if (quantityInputRef.current) {
       quantityInputRef.current.focus();
       quantityInputRef.current.select();
@@ -404,6 +552,30 @@ const [loading, setLoading] = useState(true);
   };
 
   const handleNameSelect = (item: CardItem) => {
+    // Check if this item was from a code search with variants
+    const codeResult = codeSearchResults.find(r => r.userId === item.userId && r.ItemName === item.ItemName);
+    
+    if (codeResult && codeResult.type === 'variant' && codeResult.variantId && codeResult.variantName) {
+      // It's a variant from code search - add with variant info
+      handleAddItem({
+        id: Number(codeResult.userId),
+        name: codeResult.ItemName,
+        price: codeResult.price,
+        isBilled: 0,
+        isNCKOT: 0,
+        NCName: '',
+        NCPurpose: '',
+        variantId: codeResult.variantId,
+        variantName: codeResult.variantName
+      }, parseInt(quantity) || 1);
+    } else if (codeResult && codeResult.type === 'base') {
+      // Base item from code search - show variant modal
+      handleShowVariantModal(item);
+    } else {
+      // Regular name search - check if item has variants
+      handleShowVariantModal(item);
+    }
+    
     setSearchName(item.ItemName);
     setSearchCode(item.itemCode);
     setShowNameDropdown(false);
@@ -414,14 +586,33 @@ const [loading, setLoading] = useState(true);
     }
   };
 
-  // Handle keyboard events
+  // Handle keyboard events for code input
   const handleCodeKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
+    if (e.key === 'ArrowDown') {
       e.preventDefault();
-      const matchedItem = cardItems.find((item) => item.itemCode.toLowerCase() === searchCode.toLowerCase());
-      if (matchedItem) {
-        handleCodeSelect(matchedItem);
+      if (showCodeDropdown && codeSearchResults.length > 0) {
+        setSelectedCodeIndex((prev) => (prev < codeSearchResults.length - 1 ? prev + 1 : prev));
       }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (showCodeDropdown && codeSearchResults.length > 0) {
+        setSelectedCodeIndex((prev) => (prev > 0 ? prev - 1 : -1));
+      }
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (selectedCodeIndex >= 0 && showCodeDropdown && codeSearchResults[selectedCodeIndex]) {
+        const selected = codeSearchResults[selectedCodeIndex];
+        handleCodeSelectWithVariant(selected);
+      } else {
+        // Try exact match
+        const matchedItem = cardItems.find((item) => item.itemCode.toLowerCase() === searchCode.toLowerCase());
+        if (matchedItem) {
+          handleCodeSelect(matchedItem);
+        }
+      }
+    } else if (e.key === 'Escape') {
+      setShowCodeDropdown(false);
+      setSelectedCodeIndex(-1);
     }
   };
 
@@ -684,7 +875,6 @@ const [loading, setLoading] = useState(true);
                   }
                   .rounded-search {
                     border-radius: 20px !important;
-                    overflow: hidden;
                     position: relative;
                   }
                   .rounded-search .form-control {
@@ -761,18 +951,75 @@ const [loading, setLoading] = useState(true);
                     <div className="text-danger small text-center mt-1">Invalid Table</div>
                   )}
                 </div>
-                <div className="input-group rounded-search" style={{ maxWidth: '100px', position: 'relative' }}>
+                <div style={{ maxWidth: '100px', position: 'relative' }}>
                   <input
                     type="text"
-                    className="form-control"
+                    className="form-control rounded-start"
                     placeholder="Code"
                     value={searchCode}
                     onChange={handleCodeChange}
                     onKeyDown={handleCodeKeyDown}
+                    onFocus={() => {
+                      if (searchCode || codeSearchResults.length > 0) {
+                        setShowCodeDropdown(true);
+                      }
+                    }}
+                    onBlur={(e) => {
+                      const relatedTarget = e.relatedTarget as HTMLElement;
+                      if (!relatedTarget?.closest('.dropdown-item')) {
+                        setTimeout(() => {
+                          setShowCodeDropdown(false);
+                          setSelectedCodeIndex(-1);
+                        }, 200);
+                      }
+                    }}
                     ref={codeInputRef}
                     disabled={reverseQtyMode && isBilled}
-                    style={{ maxWidth: '100px', minHeight: '48px' }}
+                    style={{ minHeight: '48px', width: '100%' }}
                   />
+                  {showCodeDropdown && codeSearchResults.length > 0 && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: '100%',
+                        left: 0,
+                        zIndex: 1000,
+                        backgroundColor: '#fff',
+                        border: '1px solid #ced4da',
+                        borderRadius: '8px',
+                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
+                        maxHeight: '200px',
+                        overflowY: 'auto',
+                        width: '300px',
+                      }}
+                    >
+                      {codeSearchResults.slice(0, 7).map((result, index) => (
+                        <div
+                          key={`${result.userId}-${result.variantId || 'base'}`}
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            handleCodeSelectWithVariant(result);
+                          }}
+                          className={`dropdown-item ${index === selectedCodeIndex ? 'selected' : ''}`}
+                          style={{
+                            cursor: 'pointer',
+                            fontSize: '1rem',
+                            backgroundColor: index === selectedCodeIndex ? '#e9ecef' : 'transparent',
+                            borderBottom: '1px solid #f0f0f0',
+                          }}
+                          onMouseEnter={() => setSelectedCodeIndex(index)}
+                        >
+                          <strong>{result.ItemName}</strong>
+                          {result.type === 'variant' && (
+                            <span style={{ marginLeft: '8px', color: '#0d6efd', fontWeight: '500' }}>
+                              ({result.variantName})
+                            </span>
+                          )}
+                          {' | '}{result.shortName}{' | '}{result.itemCode}{' | '}₹{result.price.toFixed(2)}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div style={{ position: 'relative', width: '100%', maxWidth: '500px' }}>
                   <input
@@ -783,7 +1030,9 @@ const [loading, setLoading] = useState(true);
                     onChange={handleNameChange}
                     onKeyDown={handleNameKeyDown}
                     autoComplete="off"
-                    onFocus={() => setShowNameDropdown(true)}
+                    onFocus={() => {
+                      setShowNameDropdown(true);
+                    }}
                     onBlur={(e) => {
                       const relatedTarget = e.relatedTarget as HTMLElement;
                       if (!relatedTarget?.closest('.dropdown-item')) {
