@@ -135,6 +135,8 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
   const [selectedNameResult, setSelectedNameResult] = useState<CardItem | null>(null);
   const [selectedCodeIndex, setSelectedCodeIndex] = useState(-1);
   const [codeSearchResults, setCodeSearchResults] = useState<CodeSearchResult[]>([]);
+  // Add state for name search results with variants
+  const [nameSearchResults, setNameSearchResults] = useState<CodeSearchResult[]>([]);
   const [showCustomerModal, setShowCustomerModal] = useState<boolean>(false);
   const [showSidebar, setShowSidebar] = useState(false);
   const [selectedItemGroup, setSelectedItemGroup] = useState<number | null>(null);
@@ -526,6 +528,76 @@ const [loading, setLoading] = useState(true);
     setSearchName(value);
     setShowNameDropdown(!!value);
     setSelectedNameIndex(-1);
+    
+    // Build name search results including variants (department-wise)
+    let baseItems = selectedItemGroup !== null
+      ? cardItems.filter(item => item.item_group_id === selectedItemGroup)
+      : cardItems;
+    
+    // Filter by department: only show items that have price set for selected department
+    if (selectedDeptId) {
+      baseItems = baseItems.filter(item => hasDepartmentPrice(item.userId, selectedDeptId));
+    }
+    
+    // Find all items that match the name
+    const matchedItems = baseItems.filter((item) => 
+      item.ItemName.toLowerCase().includes(value.toLowerCase()) ||
+      item.shortName.toLowerCase().includes(value.toLowerCase())
+    );
+    
+    // Build name search results including variants
+    const results: CodeSearchResult[] = [];
+    
+    matchedItems.forEach((item) => {
+      // Add base item with department price
+      results.push({
+        type: 'base',
+        userId: item.userId,
+        itemCode: item.itemCode,
+        ItemName: item.ItemName,
+        shortName: item.shortName,
+        price: getDisplayPrice(item.userId, item.price, selectedDeptId),
+      });
+      
+      // Get variants from menuItems filtered by department
+      const menuItem = menuItems.find((m: any) => String(m.restitemid) === item.userId);
+      
+      if (menuItem && menuItem.department_details && menuItem.department_details.length > 0) {
+        // Filter variants by selected department
+        const deptDetails = selectedDeptId 
+          ? menuItem.department_details.filter((d: any) => d.departmentid === selectedDeptId)
+          : menuItem.department_details;
+        
+        // Extract unique variants from department_details
+        const variantMap = new Map<number, VariantOption>();
+        deptDetails.forEach((detail: any) => {
+          if (detail.variant_value_id && detail.variant_value_name) {
+            variantMap.set(detail.variant_value_id, {
+              variant_value_id: detail.variant_value_id,
+              value_name: detail.variant_value_name,
+              price: detail.item_rate || 0
+            });
+          }
+        });
+        
+        // Add each variant
+        variantMap.forEach((variant) => {
+          results.push({
+            type: 'variant',
+            userId: item.userId,
+            itemCode: item.itemCode,
+            ItemName: item.ItemName,
+            shortName: item.shortName,
+            price: variant.price,
+            variantId: variant.variant_value_id,
+            variantName: variant.value_name,
+          });
+        });
+      }
+    });
+    
+    setNameSearchResults(results.slice(0, 10));
+    
     if (value === '') {
       setSearchCode('');
     } else {
@@ -579,6 +651,24 @@ const [loading, setLoading] = useState(true);
     }
   };
 
+  // Handle name selection with variant support
+  const handleNameSelectWithVariant = (result: CodeSearchResult) => {
+    setSearchName(result.ItemName);
+    setSearchCode(result.itemCode);
+    setShowNameDropdown(false);
+    setSelectedNameIndex(-1);
+    
+    // Store the selected result for later use when qty is confirmed
+    setSelectedNameResult(null); // Clear the old CardItem result
+    setSelectedCodeResult(result); // Use the CodeSearchResult like code dropdown
+    
+    // Focus on qty field - don't add item yet
+    if (quantityInputRef.current) {
+      quantityInputRef.current.focus();
+      quantityInputRef.current.select();
+    }
+  };
+
   const handleNameSelect = (item: CardItem) => {
     setSearchName(item.ItemName);
     setSearchCode(item.itemCode);
@@ -623,24 +713,21 @@ const [loading, setLoading] = useState(true);
   };
 
   const handleNameKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    const dropdownItems = filterDropdownItems('name');
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      if (showNameDropdown && dropdownItems.length > 0) {
-        setSelectedNameIndex((prev) => (prev < dropdownItems.length - 1 ? prev + 1 : prev));
+      if (showNameDropdown && nameSearchResults.length > 0) {
+        setSelectedNameIndex((prev) => (prev < nameSearchResults.length - 1 ? prev + 1 : prev));
       }
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      if (showNameDropdown && dropdownItems.length > 0) {
+      if (showNameDropdown && nameSearchResults.length > 0) {
         setSelectedNameIndex((prev) => (prev > 0 ? prev - 1 : -1));
       }
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      if (selectedNameIndex >= 0 && showNameDropdown) {
-        const selectedItem = dropdownItems[selectedNameIndex];
-        if (selectedItem) {
-          handleNameSelect(selectedItem);
-        }
+      if (selectedNameIndex >= 0 && showNameDropdown && nameSearchResults[selectedNameIndex]) {
+        const selectedResult = nameSearchResults[selectedNameIndex];
+        handleNameSelectWithVariant(selectedResult);
       } else if (searchName) {
         const matchedItem = cardItems.find(
           (item) =>
@@ -722,8 +809,8 @@ const [loading, setLoading] = useState(true);
       setSelectedNameIndex(-1);
       setSelectedCodeIndex(-1);
       setCodeSearchResults([]);  // Clear search results
+      setNameSearchResults([]);  // Clear name search results
       setSelectedCodeResult(null);
-      setSelectedNameResult(null);
       
       if (codeInputRef.current) {
         codeInputRef.current.focus();
@@ -1165,15 +1252,15 @@ const [loading, setLoading] = useState(true);
                         width: '100%',
                       }}
                     >
-                      {filterDropdownItems('name')
-                        .filter((item) => item.ItemName !== searchName)
+                      {nameSearchResults
+                        .filter((result) => result.ItemName !== searchName)
                         .slice(0, 7)
-                        .map((item, index) => (
+                        .map((result, index) => (
                           <div
-                            key={item.userId}
+                            key={`${result.userId}-${result.variantId || 'base'}`}
                             onMouseDown={(e) => {
                               e.preventDefault();
-                              handleNameSelect(item);
+                              handleNameSelectWithVariant(result);
                             }}
                             className={`dropdown-item ${index === selectedNameIndex ? 'selected' : ''}`}
                             style={{
@@ -1183,10 +1270,18 @@ const [loading, setLoading] = useState(true);
                             }}
                             onMouseEnter={() => setSelectedNameIndex(index)}
                           >
-                            <strong>{item.ItemName}</strong> | {item.shortName} | {item.itemCode} | ₹{getDisplayPrice(item.userId, item.price, selectedDeptId).toFixed(2)}
+                            <strong>{result.ItemName}</strong>
+                            {result.type === 'variant' && (
+                              <span style={{ color: '#0d6efd', fontSize: '0.875rem' }}>
+                                ({result.variantName})
+                              </span>
+                            )}
+                            <span style={{ color: '#6b7280', fontSize: '0.875rem' }}>
+                              {' | '}{result.shortName}{' | '}{result.itemCode}{' | '}₹{result.price.toFixed(2)}
+                            </span>
                           </div>
                         ))}
-                      {filterDropdownItems('name').length === 0 && (
+                      {nameSearchResults.length === 0 && (
                         <div className="dropdown-item text-muted">No matches found</div>
                       )}
                     </div>

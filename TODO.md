@@ -1,24 +1,38 @@
-# TODO - Multi-Select Variant Feature
+# Task: Add Variant Filtering to Billview.tsx
 
-## Task
-Allow users to select multiple variants in the VariantModal, with each selected variant creating a separate row in the order.
+## Objective
+When clicking a table in Tableview.tsx and adding items in Billview.tsx, items with variant values for that table's department should show in the dropdown list.
 
-## Implementation Plan
+## Analysis Summary
 
-### Step 1: Update VariantModal.tsx
-- Add state to track selected variants (multi-select)
-- Modify variant buttons to toggle selection (not close modal on click)
-- Add visual feedback for selected variants (highlight/checkmark)
-- Add "Add to Order" button to confirm selections and close modal
-- Add "Clear All" button to reset selections
-- Display list of selected variants with ability to remove individual items
+### OrderDetails.tsx Implementation:
+1. `getDepartmentPrice` - Gets department-specific prices from `menuItem.department_details`
+2. `getDisplayPrice` - Returns department price if available, otherwise base price
+3. Filters items by department - only shows items with price for selected department
+4. Extracts variants from `menuItem.department_details` filtered by department
+5. Shows variants in code dropdown with type 'variant'
+6. Uses VariantModal for variant selection on card click
 
-### Step 2: Update OrderDetails.tsx
-- Modify handleVariantsSelect to handle array of selected variants
-- Update handleAddItem to add each variant as separate row
+### Billview.tsx Current State:
+- Already has VariantModal imported ✅
+- Already has VariantOption interface ✅
+- Has departmentIdFromState from location.state ✅
+- Fetches menu items using MenuService.list() ✅
 
-## Status
-- [x] Step 1: Update VariantModal.tsx
-- [x] Step 2: Update OrderDetails.tsx
-- [ ] Test the implementation
+### Completed Implementation in Billview.tsx:
+1. ✅ Added VariantOption interface
+2. ✅ Added CodeSearchResult interface
+3. ✅ Added helper functions: getDepartmentPrice, getDisplayPrice, hasDepartmentPrice
+4. ✅ Updated MenuItem interface to include variants field
+5. ✅ Added variant modal states: showVariantModal, selectedItemForVariant, itemVariants
+6. ✅ Updated handleItemChange to check for variants and show modal when item has variants
+7. ✅ Added VariantModal component to JSX with variant selection handler
 
+## Files Modified
+- `src/views/apps/Billview.tsx` - Main implementation
+
+## Testing
+- Test table selection in Tableview.tsx
+- Test item search in Billview.tsx
+- Test variant selection in dropdown
+- Test variant modal when clicking item card
