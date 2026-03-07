@@ -1,29 +1,17 @@
-# TODO: Menu Import/Export Feature
+# TODO - Department-based Price/Variant Filtering
 
-## Plan Overview
-Add menu import and export functionality to the Menu page to allow users to bulk manage menu items.
+## Task
+Display price and variant of the department that was selected when clicking on a department table. Items without price/variant for the selected department should not be shown.
 
-## Backend Tasks
-- [ ] 1. Create export API endpoint for menu items (Excel/CSV)
-- [ ] 2. Create import API endpoint for menu items (Excel)
-- [ ] 3. Add route for export/import in backend routes
-- [ ] 4. Test backend API endpoints
+## Implementation Steps
 
-## Frontend Tasks
-- [ ] 1. Add exportMenu and importMenu API methods in menu.ts service
-- [ ] 2. Add Import modal component in Menu.tsx
-- [ ] 3. Add Export/Import buttons in Menu page header
-- [ ] 4. Implement file upload and parsing logic
-- [ ] 5. Test the complete flow
+- [x] 1. Analyze the existing code structure
+- [ ] 2. Add selectedDeptId prop to OrderDetails interface
+- [ ] 3. Update filterItems function to filter by department
+- [ ] 4. Update code search to filter by department
+- [ ] 5. Update name search to filter by department
+- [ ] 6. Update card display to show department-specific prices
+- [ ] 7. Test the implementation
 
-## Implementation Details
-
-### Backend:
-- Export: GET /menu/export?hotelid=X&outletid=Y - returns Excel file
-- Import: POST /menu/import - accepts Excel file with menu items
-
-### Frontend:
-- Export button: Downloads current menu items as Excel
-- Import button: Opens modal to upload Excel file
-- Import Modal: Shows preview and confirm import options
+## Status: In Progress
 

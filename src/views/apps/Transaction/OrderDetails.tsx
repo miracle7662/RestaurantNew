@@ -86,6 +86,7 @@ interface OrderDetailsProps {
   filteredTables: TableItem[];
   setSelectedDeptId: Dispatch<SetStateAction<number | null>>;
   setSelectedOutletId: Dispatch<SetStateAction<number | null>>;
+  selectedDeptId: number | null; // Added: current selected department ID
   focusMode: boolean;
   setFocusMode: Dispatch<SetStateAction<boolean>>;
   triggerFocus: number;
@@ -107,6 +108,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
   filteredTables,
   setSelectedDeptId,
   setSelectedOutletId,
+  selectedDeptId, // Destructure the selected department ID
   focusMode,
   setFocusMode,
   triggerFocus,
@@ -334,12 +336,40 @@ const [loading, setLoading] = useState(true);
 
   // Toggle category dropdown (no longer needed for static categories)
 
+  // Helper function to get department-specific price from menuItems
+  const getDepartmentPrice = (itemId: string, deptId: number | null): number => {
+    if (!deptId) return 0;
+    const menuItem = menuItems.find((m: any) => String(m.restitemid) === itemId);
+    if (menuItem && menuItem.department_details && menuItem.department_details.length > 0) {
+      // Find the department detail matching the selected department
+      const deptDetail = menuItem.department_details.find((d: any) => 
+        d.departmentid === deptId
+      );
+      if (deptDetail) {
+        return deptDetail.item_rate || 0;
+      }
+    }
+    return 0;
+  };
 
-  // Filter items based on search and selected item group
+  // Helper function to check if item has price for selected department
+  const hasDepartmentPrice = (itemId: string, deptId: number | null): boolean => {
+    if (!deptId) return true; // If no department selected, show all
+    const price = getDepartmentPrice(itemId, deptId);
+    return price > 0;
+  };
+
+  // Filter items based on search, selected item group, AND selected department
   const filterItems = useCallback(() => {
-    const baseItems = selectedItemGroup !== null
+    let baseItems = selectedItemGroup !== null
       ? cardItems.filter(item => item.item_group_id === selectedItemGroup)
       : allItems;
+    
+    // Filter by department: only show items that have price set for selected department
+    if (selectedDeptId) {
+      baseItems = baseItems.filter(item => hasDepartmentPrice(item.userId, selectedDeptId));
+    }
+    
     return baseItems.filter((item) => {
       const matchesCode = searchCode
         ? item.itemCode.toLowerCase().includes(searchCode.toLowerCase())
@@ -350,14 +380,20 @@ const [loading, setLoading] = useState(true);
         : true;
       return matchesCode && matchesName;
     });
-  }, [searchCode, searchName, allItems, selectedItemGroup]);
+  }, [searchCode, searchName, allItems, selectedItemGroup, selectedDeptId, menuItems]);
 
-  // Filter dropdown items for code or name
+  // Filter dropdown items for code or name (with department filtering)
   const filterDropdownItems = useCallback(
     (type: 'code' | 'name') => {
-      const baseItems = selectedItemGroup !== null
+      let baseItems = selectedItemGroup !== null
         ? cardItems.filter(item => item.item_group_id === selectedItemGroup)
         : allItems;
+      
+      // Filter by department: only show items that have price set for selected department
+      if (selectedDeptId) {
+        baseItems = baseItems.filter(item => hasDepartmentPrice(item.userId, selectedDeptId));
+      }
+      
       return baseItems
         .filter((item) => {
           if (type === 'code') {
@@ -372,7 +408,7 @@ const [loading, setLoading] = useState(true);
         })
         .slice(0, 7);
     },
-    [searchCode, searchName, allItems, selectedItemGroup]
+    [searchCode, searchName, allItems, selectedItemGroup, selectedDeptId, menuItems]
   );
 
   useEffect(() => {
