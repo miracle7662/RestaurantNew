@@ -431,8 +431,18 @@ const [loading, setLoading] = useState(true);
     const code = e.target.value;
     setSearchCode(code);
     
+    // Start with all items and filter by department first
+    let baseItems = selectedItemGroup !== null
+      ? cardItems.filter(item => item.item_group_id === selectedItemGroup)
+      : cardItems;
+    
+    // Filter by department: only show items that have price set for selected department
+    if (selectedDeptId) {
+      baseItems = baseItems.filter(item => hasDepartmentPrice(item.userId, selectedDeptId));
+    }
+    
     // Find all items that match the code (prefix match)
-    const matchedItems = cardItems.filter((item) => 
+    const matchedItems = baseItems.filter((item) => 
       item.itemCode.toLowerCase().includes(code.toLowerCase())
     );
     
@@ -443,24 +453,29 @@ const [loading, setLoading] = useState(true);
     const results: CodeSearchResult[] = [];
     
     matchedItems.forEach((item) => {
-      // Add base item first
+      // Add base item with department price
       results.push({
         type: 'base',
         userId: item.userId,
         itemCode: item.itemCode,
         ItemName: item.ItemName,
         shortName: item.shortName,
-        price: item.price,
+        price: getDisplayPrice(item.userId, item.price, selectedDeptId),
       });
       
-      // Get variants from menuItems
+      // Get variants from menuItems filtered by department
       const menuItem = menuItems.find((m: any) => String(m.restitemid) === item.userId);
       console.log('Menu item for', item.itemCode, ':', menuItem?.department_details?.length, 'details');
       
       if (menuItem && menuItem.department_details && menuItem.department_details.length > 0) {
+        // Filter variants by selected department
+        const deptDetails = selectedDeptId 
+          ? menuItem.department_details.filter((d: any) => d.departmentid === selectedDeptId)
+          : menuItem.department_details;
+        
         // Extract unique variants from department_details
         const variantMap = new Map<number, VariantOption>();
-        menuItem.department_details.forEach((detail: any) => {
+        deptDetails.forEach((detail: any) => {
           if (detail.variant_value_id && detail.variant_value_name) {
             variantMap.set(detail.variant_value_id, {
               variant_value_id: detail.variant_value_id,
