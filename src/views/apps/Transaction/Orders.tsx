@@ -3536,6 +3536,7 @@ const handleTabClick = (tab: string) => {
                   filteredTables={filteredTables}
                   setSelectedDeptId={setSelectedDeptId}
                   setSelectedOutletId={setSelectedOutletId}
+                  selectedDeptId={selectedDeptId}
                   focusMode={focusMode}
                   setFocusMode={setFocusMode}
                   triggerFocus={triggerFocusInDetails}
