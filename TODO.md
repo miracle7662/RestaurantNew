@@ -1,28 +1,24 @@
-# TODO: Fix Department Price Not Being Used When Adding Items to Order
+# TODO - Multi-Select Variant Feature
 
 ## Task
-When items are added to the order, they use base price instead of department price. The `getDisplayPrice` function exists and is used for display, but not when adding items.
+Allow users to select multiple variants in the VariantModal, with each selected variant creating a separate row in the order.
 
-## Steps to Complete
+## Implementation Plan
 
-### Step 1: Fix handleQuantityKeyPress function
-- Location: Line ~480 in OrderDetails.tsx
-- Issue: Uses `selectedCodeResult.price` and `item.price` directly
-- Fix: Use `getDisplayPrice()` to get department price
-- Status: ✅ COMPLETED
+### Step 1: Update VariantModal.tsx
+- Add state to track selected variants (multi-select)
+- Modify variant buttons to toggle selection (not close modal on click)
+- Add visual feedback for selected variants (highlight/checkmark)
+- Add "Add to Order" button to confirm selections and close modal
+- Add "Clear All" button to reset selections
+- Display list of selected variants with ability to remove individual items
 
-### Step 2: Fix handleShowVariantModalForQty function
-- Location: Line ~520 in OrderDetails.tsx
-- Issue: Uses `item.price` directly when adding items
-- Fix: Use `getDisplayPrice()` to get department price
-- Status: ✅ COMPLETED
+### Step 2: Update OrderDetails.tsx
+- Modify handleVariantsSelect to handle array of selected variants
+- Update handleAddItem to add each variant as separate row
 
-### Step 3: Fix handleShowVariantModal function
-- Location: Line ~560 in OrderDetails.tsx
-- Issue: Uses `item.price` directly when adding items
-- Fix: Use `getDisplayPrice()` to get department price
-- Status: ✅ COMPLETED
-
-## Status: [COMPLETED]
-All three functions now use `getDisplayPrice(item.userId, item.price, selectedDeptId)` instead of directly using `item.price` when adding items to the order.
+## Status
+- [x] Step 1: Update VariantModal.tsx
+- [x] Step 2: Update OrderDetails.tsx
+- [ ] Test the implementation
 

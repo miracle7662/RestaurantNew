@@ -36,7 +36,9 @@ interface MenuItem {
   txnDetailId?: number;
   isReverse?: boolean; // Added for reverse quantity items
   revQty?: number;
-  order_tag?: string
+  order_tag?: string;
+  variantId?: number; // Variant ID for variant items
+  variantName?: string; // Variant name for variant items
 }
 interface ReversedMenuItem extends MenuItem {
   isReversed: true;
@@ -3626,7 +3628,7 @@ const handleTabClick = (tab: string) => {
                   const itemsToDisplay = isGroupedView
                     ? Object.values(
                       sortedItems.reduce((acc, item, index) => { // <-- 'index' is added here
-                        const key = item.isNew ? `new-${item.id}-${index}` : `${item.id}-${item.price}`;
+                        const key = item.isNew ? `new-${item.id}-${item.variantId || 'no-variant'}-${index}` : `${item.id}-${item.variantId || 'no-variant'}-${item.price}`;
                         if (!acc[key]) {
                           acc[key] = { ...item, displayQty: 0, canEdit: false, kotNo: item.kotNo };
                         }

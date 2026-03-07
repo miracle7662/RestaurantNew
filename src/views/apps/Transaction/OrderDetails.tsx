@@ -773,10 +773,11 @@ const [loading, setLoading] = useState(true);
     if (reverseQtyMode) {
       return; // Prevent adding new items in reverse qty mode
     }
-    // Always find and update quantity for existing new items, regardless of view mode.
+    // Always find and update quantity for existing new items with same id AND variant.
+    // This prevents merging different variants (Half, Full, Large) of the same item.
     setItems((prevItems) => {
       const existingNewItemIndex = prevItems.findIndex(
-        (item) => item.id === newItem.id && item.isNew
+        (item) => item.id === newItem.id && item.variantId === newItem.variantId && item.isNew
       );
 
       if (existingNewItemIndex > -1) {
