@@ -1,6 +1,11 @@
 const express = require("express");
 const router = express.Router();
 const menuController = require("../controllers/mstrestmenuController");
+const multer = require("multer");
+
+// Configure multer for file uploads
+const storage = multer.memoryStorage();
+const upload = multer({ storage: storage });
 
 // Get all + Get by ID
 router.get("/", menuController.getAllMenuItems);
@@ -10,6 +15,15 @@ router.get("/max-item-no", menuController.getMaxItemNo);
 
 // Variant Types and Values - MUST be before /:id route
 router.get("/variant-types-with-values", menuController.getAllVariantTypesWithValues);
+
+// Export menu items to Excel
+router.get("/export", menuController.exportMenuItems);
+
+// Download sample template for import
+router.get("/sample-template", menuController.downloadSampleTemplate);
+
+// Import menu items from Excel
+router.post("/import", upload.single("file"), menuController.importMenuItems);
 
 router.get("/:id", menuController.getMenuItemById);
 
@@ -21,3 +35,4 @@ router.put("/:id", menuController.updateMenuItemWithDetails);
 router.delete("/:id", menuController.deleteMenuItem);
 
 module.exports = router;
+

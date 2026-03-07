@@ -1,14 +1,29 @@
-# TODO - Show Variants in Code Dropdown
+# TODO: Menu Import/Export Feature
 
-## Task
-When user types Item Code in the search bar, if that item has multiple variants (Half / Full / Bar / etc.), the dropdown should show all variants instead of only the base item.
+## Plan Overview
+Add menu import and export functionality to the Menu page to allow users to bulk manage menu items.
 
-## Steps
-- [x] 1. Add state variables for code dropdown (showCodeDropdown, selectedCodeIndex)
-- [x] 2. Create interface for code search results with variant info
-- [x] 3. Modify filterDropdownItems to support 'code' type
-- [x] 4. Update handleCodeChange to find all matching items and extract variants
-- [x] 5. Add code dropdown UI in the JSX
-- [x] 6. Add keyboard navigation for code dropdown (handleCodeKeyDown)
-- [x] 7. Test the implementation
+## Backend Tasks
+- [ ] 1. Create export API endpoint for menu items (Excel/CSV)
+- [ ] 2. Create import API endpoint for menu items (Excel)
+- [ ] 3. Add route for export/import in backend routes
+- [ ] 4. Test backend API endpoints
+
+## Frontend Tasks
+- [ ] 1. Add exportMenu and importMenu API methods in menu.ts service
+- [ ] 2. Add Import modal component in Menu.tsx
+- [ ] 3. Add Export/Import buttons in Menu page header
+- [ ] 4. Implement file upload and parsing logic
+- [ ] 5. Test the complete flow
+
+## Implementation Details
+
+### Backend:
+- Export: GET /menu/export?hotelid=X&outletid=Y - returns Excel file
+- Import: POST /menu/import - accepts Excel file with menu items
+
+### Frontend:
+- Export button: Downloads current menu items as Excel
+- Import button: Opens modal to upload Excel file
+- Import Modal: Shows preview and confirm import options
 

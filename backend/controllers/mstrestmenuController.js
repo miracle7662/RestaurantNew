@@ -1,3 +1,4 @@
+
 const db = require('../config/db');
 
 // Get all menu items with joins
@@ -20,30 +21,18 @@ exports.getAllMenuItems = (req, res) => {
         
         const params = [];
         
-        // ✅ Hotel wise filtering - filter by hotelid
         if (hotelid) {
             query += ' AND m.hotelid = ?';
             params.push(parseInt(hotelid));
         }
         
-        // ✅ Outlet wise filtering
-        // If outletid is provided, get menu items for:
-        // 1. Items that belong to that outlet directly (m.outletid = outletid)
-        // 2. Items that belong to the hotel the outlet belongs to (but have no specific outlet)
         if (outletid) {
             const parsedOutletId = parseInt(outletid);
-            
-            // First, get the hotelid from the outlet
             const outlet = db.prepare('SELECT hotelid FROM mst_outlets WHERE outletid = ?').get(parsedOutletId);
-            
             if (outlet) {
-                // Include items where:
-                // - outletid matches directly OR
-                // - hotelid matches the outlet's hotel AND outletid is null (common items for the hotel)
                 query += ' AND (m.outletid = ? OR (m.hotelid = ? AND m.outletid IS NULL))';
                 params.push(parsedOutletId, outlet.hotelid);
             } else {
-                // If outlet not found, just filter by outletid directly
                 query += ' AND m.outletid = ?';
                 params.push(parsedOutletId);
             }
@@ -53,7 +42,6 @@ exports.getAllMenuItems = (req, res) => {
         
         const menuItems = db.prepare(query).all(...params);
         
-        // Fetch department_details for each menu item
         const menuItemsWithDetails = menuItems.map(item => {
             const allDetails = db.prepare(`
                 SELECT md.*, d.department_name, vv.value_name as variant_value_name
@@ -73,8 +61,6 @@ exports.getAllMenuItems = (req, res) => {
     }
 };
 
-
-// Get menu item by ID with joins
 exports.getMenuItemById = (req, res) => {
     try {
         const { id } = req.params;
@@ -99,7 +85,6 @@ exports.getMenuItemById = (req, res) => {
             return res.status(404).json({ success: false, message: 'Menu item not found', data: null });
         }
         
-        // Fetch all department details for the item
         const allDetails = db.prepare(`
             SELECT md.*, d.department_name, vv.value_name as variant_value_name
             FROM mstrestmenudetails md
@@ -115,14 +100,11 @@ exports.getMenuItemById = (req, res) => {
     }
 };
 
-// Create menu item with details
 exports.createMenuItemWithDetails = async (req, res) => {
     try {
         if (!req.body || Object.keys(req.body).length === 0) {
             return res.status(400).json({ message: 'Request body is missing or empty' });
         }
-
-        console.log('Request body:', req.body);
 
         const {
             hotelid, outletid, item_no, item_name, print_name, short_name, kitchen_category_id,
@@ -132,18 +114,15 @@ exports.createMenuItemWithDetails = async (req, res) => {
             variant_type_id, variant_values
         } = req.body;
 
-        // Validate required fields
         if (!item_name || !price || !hotelid) {
             return res.status(400).json({ message: 'Required fields missing', missing: { item_name, price, hotelid } });
         }
 
-        // Validate hotelid
         const parsedHotelId = parseInt(hotelid);
         if (isNaN(parsedHotelId) || !db.prepare('SELECT hotelid FROM msthotelmasters WHERE hotelid = ?').get(parsedHotelId)) {
             return res.status(400).json({ message: `Invalid hotelid: ${hotelid}` });
         }
 
-        // Validate outletid if provided
         if (outletid) {
             const parsedOutletId = parseInt(outletid);
             const outlet = db.prepare('SELECT outletid, hotelid FROM mst_outlets WHERE outletid = ? AND status = 0').get(parsedOutletId);
@@ -155,72 +134,8 @@ exports.createMenuItemWithDetails = async (req, res) => {
             }
         }
 
-        // Validate stock_unit
-        if (stock_unit) {
-            const parsedStockUnit = parseInt(stock_unit);
-            if (!db.prepare('SELECT unitid FROM mstunitmaster WHERE unitid = ?').get(parsedStockUnit)) {
-                return res.status(400).json({ message: `Invalid stock_unit: ${stock_unit}` });
-            }
-        }
-
-        // Validate department_details if provided
-        if (department_details && !Array.isArray(department_details)) {
-            return res.status(400).json({ message: 'Department details must be an array' });
-        }
-
-        // Validate departmentid and item_rate in department_details
-        if (department_details && department_details.length > 0) {
-            const departmentIds = department_details.map(detail => parseInt(detail.departmentid)).filter(id => !isNaN(id));
-            if (departmentIds.length === 0 || departmentIds.includes(null)) {
-                return res.status(400).json({ message: 'No valid department IDs provided or null departmentid detected' });
-            }
-
-            // Validate departmentid (removed status check to test; re-add if needed)
-            const departments = db.prepare('SELECT departmentid FROM msttable_department WHERE departmentid IN (' + departmentIds.map(() => '?').join(',') + ')').all(...departmentIds);
-            if (departments.length !== departmentIds.length) {
-                const foundDepartmentIds = departments.map(dept => dept.departmentid);
-                const invalidDepartmentIds = departmentIds.filter(id => !foundDepartmentIds.includes(id));
-                console.error('Invalid department IDs:', invalidDepartmentIds);
-                return res.status(400).json({ message: 'One or more department IDs are invalid', invalidDepartmentIds });
-            }
-
-        }
-
-        // Validate variant_type_id if provided
-        if (variant_type_id) {
-            const parsedVariantTypeId = parseInt(variant_type_id);
-            const variantType = db.prepare('SELECT variant_type_id FROM mst_variant_types WHERE variant_type_id = ? AND active = 1').get(parsedVariantTypeId);
-            if (!variantType) {
-                return res.status(400).json({ message: `Invalid variant_type_id: ${variant_type_id}` });
-            }
-        }
-
-        // Validate variant_values if provided
-        if (variant_values && !Array.isArray(variant_values)) {
-            return res.status(400).json({ message: 'variant_values must be an array' });
-        }
-
-        if (variant_values && variant_values.length > 0 && !variant_type_id) {
-            return res.status(400).json({ message: 'variant_type_id is required when variant_values are provided' });
-        }
-
-        // Validate variant_values exist and belong to the variant_type_id
-        if (variant_values && variant_values.length > 0 && variant_type_id) {
-            const parsedVariantTypeId = parseInt(variant_type_id);
-            const variantValueIds = variant_values.map(v => parseInt(v)).filter(id => !isNaN(id));
-            const validVariantValues = db.prepare(
-                'SELECT variant_value_id FROM mst_variant_values WHERE variant_type_id = ? AND variant_value_id IN (' + variantValueIds.map(() => '?').join(',') + ') AND active = 1'
-            ).all(parsedVariantTypeId, ...variantValueIds);
-            
-            if (validVariantValues.length !== variantValueIds.length) {
-                return res.status(400).json({ message: 'One or more variant_values are invalid or do not belong to the variant_type_id' });
-            }
-        }
-
-        // Determine if this is a variant product
         const isVariantProduct = variant_type_id && variant_values && variant_values.length > 0;
 
-        // Insert into mstrestmenu with transaction
         db.transaction(() => {
             const stmt = db.prepare(`
                 INSERT INTO mstrestmenu (
@@ -240,7 +155,6 @@ exports.createMenuItemWithDetails = async (req, res) => {
 
             const restitemid = result.lastInsertRowid;
 
-// Insert department details if provided
             if (department_details && department_details.length > 0) {
                 const insertDetailStmt = db.prepare(`
                     INSERT INTO mstrestmenudetails (
@@ -252,31 +166,14 @@ exports.createMenuItemWithDetails = async (req, res) => {
                     const parsedDepartmentId = parseInt(detail.departmentid);
                     
                     if (isVariantProduct && detail.variant_rates) {
-                        // For variant products: insert one row per variant value per department
-                        // Only insert where rate is actually provided (not 0, null, or empty)
                         for (const variantValueId of variant_values) {
                             const variantRate = detail.variant_rates[variantValueId];
                             
-                            // Only insert if rate is provided and is a valid number greater than 0
                             if (variantRate !== undefined && variantRate !== null && variantRate !== '' && !isNaN(parseFloat(variantRate)) && parseFloat(variantRate) > 0) {
                                 const parsedRate = parseFloat(variantRate);
-                                
-                                // Get value_name from mst_variant_values
                                 const variantValue = db.prepare('SELECT value_name FROM mst_variant_values WHERE variant_value_id = ?').get(variantValueId);
                                 const valueName = variantValue ? variantValue.value_name : null;
                                 
-                                console.log('Inserting mstrestmenudetails (variant):', {
-                                    restitemid,
-                                    departmentid: parsedDepartmentId,
-                                    item_rate: parsedRate,
-                                    unitid: detail.unitid ? parseInt(detail.unitid) : null,
-                                    servingunitid: detail.servingunitid ? parseInt(detail.servingunitid) : null,
-                                    IsConversion: detail.IsConversion || 0,
-                                    hotelid: parsedHotelId,
-                                    variant_value_id: variantValueId,
-                                    value_name: valueName,
-                                    taxgroupid: detail.taxgroupid ? parseInt(detail.taxgroupid) : null
-                                });
                                 insertDetailStmt.run(
                                     restitemid,
                                     parsedDepartmentId,
@@ -292,20 +189,7 @@ exports.createMenuItemWithDetails = async (req, res) => {
                             }
                         }
                     } else {
-                        // For simple products: insert one row per department
                         const itemRate = detail.item_rate || detail.rate || 0;
-                        console.log('Inserting mstrestmenudetails (simple):', {
-                            restitemid,
-                            departmentid: parsedDepartmentId,
-                            item_rate: itemRate,
-                            unitid: detail.unitid ? parseInt(detail.unitid) : null,
-                            servingunitid: detail.servingunitid ? parseInt(detail.servingunitid) : null,
-                            IsConversion: detail.IsConversion || 0,
-                            hotelid: parsedHotelId,
-                            variant_value_id: null,
-                            value_name: null,
-                            taxgroupid: detail.taxgroupid ? parseInt(detail.taxgroupid) : null
-                        });
                         insertDetailStmt.run(
                             restitemid,
                             parsedDepartmentId,
@@ -322,7 +206,6 @@ exports.createMenuItemWithDetails = async (req, res) => {
                 }
             }
 
-            // Fetch the created item with joins for response
             const createdItem = db.prepare(`
                 SELECT m.*, 
                        md.itemdetailsid, md.item_rate, md.unitid, md.servingunitid, md.IsConversion, md.variant_value_id, md.value_name,
@@ -339,7 +222,6 @@ exports.createMenuItemWithDetails = async (req, res) => {
                 WHERE m.restitemid = ? AND m.status = 1
             `).get(restitemid);
 
-            // Fetch all details for the response
             const allDetails = db.prepare(`
                 SELECT md.*, d.department_name, vv.value_name as variant_value_name
                 FROM mstrestmenudetails md
@@ -356,14 +238,11 @@ exports.createMenuItemWithDetails = async (req, res) => {
     }
 };
 
-// Update menu item with details
 exports.updateMenuItemWithDetails = async (req, res) => {
     try {
         if (!req.body || Object.keys(req.body).length === 0) {
             return res.status(400).json({ message: 'Request body is missing or empty' });
         }
-
-        console.log('Request body:', req.body);
 
         const { id } = req.params;
         const {
@@ -374,162 +253,35 @@ exports.updateMenuItemWithDetails = async (req, res) => {
             variant_type_id, variant_values
         } = req.body;
 
-        // Validate existing menu item
         const existingItem = db.prepare('SELECT restitemid, hotelid FROM mstrestmenu WHERE restitemid = ?').get(parseInt(id));
         if (!existingItem) {
             return res.status(404).json({ message: 'Menu item not found' });
         }
 
-        // Validate hotelid from existing item
         const parsedHotelId = parseInt(existingItem.hotelid);
-        if (isNaN(parsedHotelId) || !db.prepare('SELECT hotelid FROM msthotelmasters WHERE hotelid = ?').get(parsedHotelId)) {
-            return res.status(400).json({ message: `Invalid or missing hotelid in existing menu item: ${existingItem.hotelid}` });
-        }
 
-        // Validate outletid if provided
-        if (outletid) {
-            const parsedOutletId = parseInt(outletid);
-            const outlet = db.prepare('SELECT outletid, hotelid FROM mst_outlets WHERE outletid = ? AND status = 0').get(parsedOutletId);
-            if (!outlet) {
-                return res.status(400).json({ message: `Invalid or inactive outletid: ${outletid}` });
-            }
-            if (outlet.hotelid !== parsedHotelId) {
-                return res.status(400).json({ message: 'Outlet does not belong to the item\'s hotel', hotelid: parsedHotelId, outletHotelId: outlet.hotelid });
-            }
-        }
-
-        // Validate stock_unit
-        if (stock_unit) {
-            const parsedStockUnit = parseInt(stock_unit);
-            if (!db.prepare('SELECT unitid FROM mstunitmaster WHERE unitid = ?').get(parsedStockUnit)) {
-                return res.status(400).json({ message: `Invalid stock_unit: ${stock_unit}` });
-            }
-        }
-
-        // Validate department_details if provided
-        if (department_details && !Array.isArray(department_details)) {
-            return res.status(400).json({ message: 'Department details must be an array' });
-        }
-
-        // Validate departmentid and item_rate in department_details
-        if (department_details && department_details.length > 0) {
-            const departmentIds = department_details.map(detail => parseInt(detail.departmentid)).filter(id => !isNaN(id));
-            if (departmentIds.length === 0 || departmentIds.includes(null)) {
-                return res.status(400).json({ message: 'No valid department IDs provided or null departmentid detected' });
-            }
-
-            // Validate departmentid (removed status check to test; re-add if needed)
-            const departments = db.prepare('SELECT departmentid FROM msttable_department WHERE departmentid IN (' + departmentIds.map(() => '?').join(',') + ')').all(...departmentIds);
-            if (departments.length !== departmentIds.length) {
-                const foundDepartmentIds = departments.map(dept => dept.departmentid);
-                const invalidDepartmentIds = departmentIds.filter(id => !foundDepartmentIds.includes(id));
-                console.error('Invalid department IDs:', invalidDepartmentIds);
-                return res.status(400).json({ message: 'One or more department IDs are invalid', invalidDepartmentIds });
-            }
-
-            // Validate unitid and servingunitid
-            const unitIds = [...new Set(department_details.flatMap(detail => [detail.unitid, detail.servingunitid]).filter(id => id !== null && id !== undefined))];
-            if (unitIds.length > 0) {
-                const validUnits = db.prepare('SELECT unitid FROM mstunitmaster WHERE unitid IN (' + unitIds.map(() => '?').join(',') + ')').all(...unitIds);
-                const validUnitIds = validUnits.map(unit => unit.unitid);
-                const invalidUnitIds = unitIds.filter(id => !validUnitIds.includes(id));
-                if (invalidUnitIds.length > 0) {
-                    return res.status(400).json({ message: 'Invalid unit IDs', invalidUnitIds });
-                }
-            }
-
-            // Validate item_rate and unitid/servingunitid
-            for (const detail of department_details) {
-                if (detail.item_rate == null || isNaN(detail.item_rate)) {
-                    return res.status(400).json({ message: `Invalid or missing item_rate for departmentid: ${detail.departmentid}` });
-                }
-                // Assume unitid and servingunitid are required if provided
-                if (detail.unitid && !db.prepare('SELECT unitid FROM mstunitmaster WHERE unitid = ?').get(parseInt(detail.unitid))) {
-                    return res.status(400).json({ message: `Invalid unitid: ${detail.unitid}` });
-                }
-                if (detail.servingunitid && !db.prepare('SELECT unitid FROM mstunitmaster WHERE unitid = ?').get(parseInt(detail.servingunitid))) {
-                    return res.status(400).json({ message: `Invalid servingunitid: ${detail.servingunitid}` });
-                }
-            }
-        }
-
-        // Update mstrestmenu with transaction
         db.transaction(() => {
             const updateFields = [];
             const params = [];
 
-            if (outletid !== undefined) {
-                updateFields.push('outletid = ?');
-                params.push(parseInt(outletid));
-            }
-            if (item_no !== undefined) {
-                updateFields.push('item_no = ?');
-                params.push(item_no);
-            }
-            if (item_name) {
-                updateFields.push('item_name = ?');
-                params.push(item_name);
-            }
-            if (print_name !== undefined) {
-                updateFields.push('print_name = ?');
-                params.push(print_name);
-            }
-            if (short_name !== undefined) {
-                updateFields.push('short_name = ?');
-                params.push(short_name);
-            }
-            if (kitchen_category_id !== undefined) {
-                updateFields.push('kitchen_category_id = ?');
-                params.push(kitchen_category_id);
-            }
-            if (kitchen_sub_category_id !== undefined) {
-                updateFields.push('kitchen_sub_category_id = ?');
-                params.push(kitchen_sub_category_id);
-            }
-            if (kitchen_main_group_id !== undefined) {
-                updateFields.push('kitchen_main_group_id = ?');
-                params.push(kitchen_main_group_id);
-            }
-            if (item_group_id !== undefined) {
-                updateFields.push('item_group_id = ?');
-                params.push(item_group_id);
-            }
-            if (item_main_group_id !== undefined) {
-                updateFields.push('item_main_group_id = ?');
-                params.push(item_main_group_id);
-            }
-            if (stock_unit !== undefined) {
-                updateFields.push('stock_unit = ?');
-                params.push(parseInt(stock_unit));
-            }
-            if (price !== undefined) {
-                updateFields.push('price = ?');
-                params.push(price);
-            }
-            if (taxgroupid !== undefined) {
-                updateFields.push('taxgroupid = ?');
-                params.push(taxgroupid);
-            }
-            if (is_runtime_rates !== undefined) {
-                updateFields.push('is_runtime_rates = ?');
-                params.push(is_runtime_rates);
-            }
-            if (is_common_to_all_departments !== undefined) {
-                updateFields.push('is_common_to_all_departments = ?');
-                params.push(is_common_to_all_departments);
-            }
-            if (item_description !== undefined) {
-                updateFields.push('item_description = ?');
-                params.push(item_description);
-            }
-            if (item_hsncode !== undefined) {
-                updateFields.push('item_hsncode = ?');
-                params.push(item_hsncode);
-            }
-            if (status !== undefined) {
-                updateFields.push('status = ?');
-                params.push(status);
-            }
+            if (outletid !== undefined) { updateFields.push('outletid = ?'); params.push(parseInt(outletid)); }
+            if (item_no !== undefined) { updateFields.push('item_no = ?'); params.push(item_no); }
+            if (item_name) { updateFields.push('item_name = ?'); params.push(item_name); }
+            if (print_name !== undefined) { updateFields.push('print_name = ?'); params.push(print_name); }
+            if (short_name !== undefined) { updateFields.push('short_name = ?'); params.push(short_name); }
+            if (kitchen_category_id !== undefined) { updateFields.push('kitchen_category_id = ?'); params.push(kitchen_category_id); }
+            if (kitchen_sub_category_id !== undefined) { updateFields.push('kitchen_sub_category_id = ?'); params.push(kitchen_sub_category_id); }
+            if (kitchen_main_group_id !== undefined) { updateFields.push('kitchen_main_group_id = ?'); params.push(kitchen_main_group_id); }
+            if (item_group_id !== undefined) { updateFields.push('item_group_id = ?'); params.push(item_group_id); }
+            if (item_main_group_id !== undefined) { updateFields.push('item_main_group_id = ?'); params.push(item_main_group_id); }
+            if (stock_unit !== undefined) { updateFields.push('stock_unit = ?'); params.push(parseInt(stock_unit)); }
+            if (price !== undefined) { updateFields.push('price = ?'); params.push(price); }
+            if (taxgroupid !== undefined) { updateFields.push('taxgroupid = ?'); params.push(taxgroupid); }
+            if (is_runtime_rates !== undefined) { updateFields.push('is_runtime_rates = ?'); params.push(is_runtime_rates); }
+            if (is_common_to_all_departments !== undefined) { updateFields.push('is_common_to_all_departments = ?'); params.push(is_common_to_all_departments); }
+            if (item_description !== undefined) { updateFields.push('item_description = ?'); params.push(item_description); }
+            if (item_hsncode !== undefined) { updateFields.push('item_hsncode = ?'); params.push(item_hsncode); }
+            if (status !== undefined) { updateFields.push('status = ?'); params.push(status); }
 
             updateFields.push('updated_by_id = ?');
             updateFields.push('updated_date = datetime(\'now\')');
@@ -540,15 +292,11 @@ exports.updateMenuItemWithDetails = async (req, res) => {
                 stmt.run(...params);
             }
 
-            // Update department details if provided
             if (department_details && department_details.length > 0) {
-                // Determine if this is a variant product
                 const isVariantProduct = variant_type_id && variant_values && variant_values.length > 0;
                 
-                // Delete existing details
                 db.prepare('DELETE FROM mstrestmenudetails WHERE restitemid = ?').run(parseInt(id));
 
-// Insert new details - with variant support
                 const insertDetailStmt = db.prepare(`
                     INSERT INTO mstrestmenudetails (
                         restitemid, departmentid, item_rate, unitid, servingunitid, IsConversion, hotelid, variant_value_id, value_name, taxgroupid
@@ -559,31 +307,14 @@ exports.updateMenuItemWithDetails = async (req, res) => {
                     const parsedDepartmentId = parseInt(detail.departmentid);
                     
                     if (isVariantProduct && detail.variant_rates && variant_values.length > 0) {
-                        // For variant products: insert one row per variant value per department
-                        // Only insert where rate is actually provided (not 0, null, or empty)
                         for (const variantValueId of variant_values) {
                             const variantRate = detail.variant_rates[variantValueId];
                             
-                            // Only insert if rate is provided and is a valid number greater than 0
                             if (variantRate !== undefined && variantRate !== null && variantRate !== '' && !isNaN(parseFloat(variantRate)) && parseFloat(variantRate) > 0) {
                                 const parsedRate = parseFloat(variantRate);
-                                
-                                // Get value_name from mst_variant_values
                                 const variantValue = db.prepare('SELECT value_name FROM mst_variant_values WHERE variant_value_id = ?').get(variantValueId);
                                 const valueName = variantValue ? variantValue.value_name : null;
                                 
-                                console.log('Updating mstrestmenudetails (variant):', {
-                                    restitemid: parseInt(id),
-                                    departmentid: parsedDepartmentId,
-                                    item_rate: parsedRate,
-                                    unitid: detail.unitid ? parseInt(detail.unitid) : null,
-                                    servingunitid: detail.servingunitid ? parseInt(detail.servingunitid) : null,
-                                    IsConversion: detail.IsConversion || 0,
-                                    hotelid: parsedHotelId,
-                                    variant_value_id: variantValueId,
-                                    value_name: valueName,
-                                    taxgroupid: detail.taxgroupid ? parseInt(detail.taxgroupid) : null
-                                });
                                 insertDetailStmt.run(
                                     parseInt(id),
                                     parsedDepartmentId,
@@ -599,20 +330,7 @@ exports.updateMenuItemWithDetails = async (req, res) => {
                             }
                         }
                     } else {
-                        // For simple products: insert one row per department
                         const itemRate = detail.item_rate || detail.rate || 0;
-                        console.log('Updating mstrestmenudetails (simple):', {
-                            restitemid: parseInt(id),
-                            departmentid: parsedDepartmentId,
-                            item_rate: itemRate,
-                            unitid: detail.unitid ? parseInt(detail.unitid) : null,
-                            servingunitid: detail.servingunitid ? parseInt(detail.servingunitid) : null,
-                            IsConversion: detail.IsConversion || 0,
-                            hotelid: parsedHotelId,
-                            variant_value_id: null,
-                            value_name: null,
-                            taxgroupid: detail.taxgroupid ? parseInt(detail.taxgroupid) : null
-                        });
                         insertDetailStmt.run(
                             parseInt(id),
                             parsedDepartmentId,
@@ -629,7 +347,6 @@ exports.updateMenuItemWithDetails = async (req, res) => {
                 }
             }
 
-            // Fetch the updated item with joins for response
             const updatedItem = db.prepare(`
                 SELECT m.*, 
                        md.itemdetailsid, md.item_rate, md.unitid, md.servingunitid, md.IsConversion, md.variant_value_id,
@@ -646,7 +363,6 @@ exports.updateMenuItemWithDetails = async (req, res) => {
                 WHERE m.restitemid = ? AND m.status = 1
             `).get(parseInt(id));
 
-            // Fetch all details for the response
             const allDetails = db.prepare(`
                 SELECT md.*, d.department_name, vv.value_name as variant_value_name
                 FROM mstrestmenudetails md
@@ -663,7 +379,6 @@ exports.updateMenuItemWithDetails = async (req, res) => {
     }
 };
 
-// Delete menu item (soft delete)
 exports.deleteMenuItem = (req, res) => {
     try {
         const { id } = req.params;
@@ -686,11 +401,8 @@ exports.deleteMenuItem = (req, res) => {
     }
 };
 
-
-// Get all variant types with values (without hotelid/outletid parameters)
 exports.getAllVariantTypesWithValues = (req, res) => {
     try {
-        // Query to fetch variant types with their values
         const query = `
             SELECT 
                 vt.variant_type_id,
@@ -710,8 +422,6 @@ exports.getAllVariantTypesWithValues = (req, res) => {
         `;
 
         const results = db.prepare(query).all();
-
-        // Group results by variant_type_id
         const variantTypesMap = new Map();
         
         for (const row of results) {
@@ -727,7 +437,6 @@ exports.getAllVariantTypesWithValues = (req, res) => {
                 });
             }
             
-            // Add variant value if it exists
             if (row.variant_value_id) {
                 variantTypesMap.get(row.variant_type_id).values.push({
                     variant_value_id: row.variant_value_id,
@@ -746,28 +455,338 @@ exports.getAllVariantTypesWithValues = (req, res) => {
     }
 };
 
-// Get max item number for auto-generation
 exports.getMaxItemNo = (req, res) => {
   try {
     const { hotelid } = req.query;
-
-    let query = `
-      SELECT IFNULL(MAX(item_no),0) + 1 AS nextItemNo
-      FROM mstrestmenu
-    `;
-
+    let query = `SELECT IFNULL(MAX(item_no),0) + 1 AS nextItemNo FROM mstrestmenu`;
     let row;
-
     if (hotelid) {
       query += ` WHERE hotelid = ?`;
       row = db.prepare(query).get(hotelid);
     } else {
       row = db.prepare(query).get();
     }
-
     res.json({ success: true, data: { nextItemNo: row.nextItemNo } });
   } catch (error) {
     console.error("Error fetching max item number:", error);
     res.status(500).json({ success: false, message: 'Failed to fetch max item number', error: error.message, data: null });
+  }
+};
+
+exports.exportMenuItems = (req, res) => {
+  try {
+    const { hotelid, outletid } = req.query;
+    const XLSX = require('xlsx');
+    
+    let query = `
+      SELECT DISTINCT m.restitemid, m.item_no, m.item_name, m.print_name, m.short_name,
+             m.price, m.item_description, m.item_hsncode, m.status,
+             m.kitchen_category_id, m.kitchen_sub_category_id, m.kitchen_main_group_id,
+             m.item_group_id, m.item_main_group_id, m.stock_unit, m.taxgroupid,
+             m.is_runtime_rates, m.is_common_to_all_departments,
+             o.outlet_name, h.hotel_name,
+             ig.itemgroupname AS groupname,
+             kmg.Kitchen_main_Group AS kitchen_main_group_name,
+             kc.Kitchen_Category AS kitchen_category_name,
+             ksc.Kitchen_sub_category AS kitchen_sub_category_name,
+             tg.taxgroup_name
+      FROM mstrestmenu m
+      LEFT JOIN mst_outlets o ON m.outletid = o.outletid
+      LEFT JOIN msthotelmasters h ON m.hotelid = h.hotelid
+      LEFT JOIN mst_item_group ig ON m.item_group_id = ig.item_groupid
+      LEFT JOIN mst_kitchen_main_group kmg ON m.kitchen_main_group_id = kmg.kitchenmaingroupid
+      LEFT JOIN mst_kitchen_category kc ON m.kitchen_category_id = kc.kitchencategoryid
+      LEFT JOIN mst_kitchen_sub_category ksc ON m.kitchen_sub_category_id = ksc.kitchensubcategoryid
+      LEFT JOIN msttaxgroup tg ON m.taxgroupid = tg.taxgroupid
+      WHERE m.status IN (0,1)
+    `;
+    
+    const params = [];
+    
+    if (hotelid) {
+      query += ' AND m.hotelid = ?';
+      params.push(parseInt(hotelid));
+    }
+    
+    if (outletid) {
+      const parsedOutletId = parseInt(outletid);
+      const outlet = db.prepare('SELECT hotelid FROM mst_outlets WHERE outletid = ?').get(parsedOutletId);
+      if (outlet) {
+        query += ' AND (m.outletid = ? OR (m.hotelid = ? AND m.outletid IS NULL))';
+        params.push(parsedOutletId, outlet.hotelid);
+      } else {
+        query += ' AND m.outletid = ?';
+        params.push(parsedOutletId);
+      }
+    }
+    
+    query += ' ORDER BY m.item_name ASC';
+    
+    const menuItems = db.prepare(query).all(...params);
+    
+    const exportData = menuItems.map((item, index) => ({
+      'Sr.No': index + 1,
+      'Item No': item.item_no || '',
+      'Item Name': item.item_name || '',
+      'Print Name': item.print_name || '',
+      'Short Name': item.short_name || '',
+      'Price': item.price || 0,
+      'Description': item.item_description || '',
+      'HSN Code': item.item_hsncode || '',
+      'Status': item.status === 1 ? 'Active' : 'Inactive',
+      'Hotel': item.hotel_name || '',
+      'Outlet': item.outlet_name || '',
+      'Item Group': item.groupname || '',
+      'Kitchen Main Group': item.kitchen_main_group_name || '',
+      'Kitchen Category': item.kitchen_category_name || '',
+      'Kitchen Sub Category': item.kitchen_sub_category_name || '',
+      'Tax Group': item.taxgroup_name || '',
+      'Runtime Rates': item.is_runtime_rates === 1 ? 'Yes' : 'No',
+      'Common to All Departments': item.is_common_to_all_departments === 1 ? 'Yes' : 'No',
+    }));
+    
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    
+    ws['!cols'] = [
+      { wch: 5 }, { wch: 10 }, { wch: 25 }, { wch: 20 }, { wch: 15 },
+      { wch: 10 }, { wch: 30 }, { wch: 12 }, { wch: 10 }, { wch: 15 },
+      { wch: 15 }, { wch: 15 }, { wch: 18 }, { wch: 18 }, { wch: 20 },
+      { wch: 15 }, { wch: 15 }, { wch: 25 },
+    ];
+    
+    XLSX.utils.book_append_sheet(wb, ws, 'Menu Items');
+    
+    const buffer = XLSX.write(wb, { bookType: 'xlsx', type: 'buffer' });
+    
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=menu_items_export.xlsx');
+    res.send(buffer);
+    
+  } catch (error) {
+    console.error('Error exporting menu items:', error);
+    res.status(500).json({ success: false, message: 'Failed to export menu items', error: error.message, data: null });
+  }
+};
+
+// Import menu items from Excel
+exports.importMenuItems = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'No file uploaded' });
+    }
+    
+    const XLSX = require('xlsx');
+    const buffer = req.file.buffer;
+    const workbook = XLSX.read(buffer, { type: 'buffer' });
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+    const data = XLSX.utils.sheet_to_json(worksheet);
+    
+    if (!data || data.length === 0) {
+      return res.status(400).json({ success: false, message: 'No data found in Excel file' });
+    }
+    
+    const { hotelid, outletid, created_by_id } = req.body;
+    
+    if (!hotelid) {
+      return res.status(400).json({ success: false, message: 'hotelid is required' });
+    }
+    
+    const parsedHotelId = parseInt(hotelid);
+    const parsedOutletId = outletid ? parseInt(outletid) : null;
+    const parsedCreatedById = created_by_id ? parseInt(created_by_id) : 2;
+    
+    const hotel = db.prepare('SELECT hotelid, hotel_name FROM msthotelmasters WHERE hotelid = ?').get(parsedHotelId);
+    if (!hotel) {
+      return res.status(400).json({ success: false, message: `Invalid hotelid: ${hotelid}` });
+    }
+    
+    const itemGroups = db.prepare('SELECT item_groupid, itemgroupname FROM mst_item_group WHERE status = 0').all();
+    const itemGroupsMap = {};
+    itemGroups.forEach(ig => { itemGroupsMap[ig.itemgroupname.toLowerCase()] = ig.item_groupid; });
+    
+    const kitchenCategories = db.prepare('SELECT kitchencategoryid, Kitchen_Category FROM mst_kitchen_category WHERE status = 0').all();
+    const kitchenCategoriesMap = {};
+    kitchenCategories.forEach(kc => { kitchenCategoriesMap[kc.Kitchen_Category.toLowerCase()] = kc.kitchencategoryid; });
+    
+    const taxGroups = db.prepare('SELECT taxgroupid, taxgroup_name FROM msttaxgroup WHERE status = 0').all();
+    const taxGroupsMap = {};
+    taxGroups.forEach(tg => { taxGroupsMap[tg.taxgroup_name.toLowerCase()] = tg.taxgroupid; });
+    
+    let deptQuery = 'SELECT departmentid, department_name FROM msttable_department WHERE status = 0';
+    let deptParams = [];
+    if (parsedOutletId) {
+      const outlet = db.prepare('SELECT hotelid FROM mst_outlets WHERE outletid = ?').get(parsedOutletId);
+      if (outlet && outlet.hotelid === parsedHotelId) {
+        deptQuery += ' AND (outletid = ? OR outletid IS NULL)';
+        deptParams.push(parsedOutletId);
+      }
+    } else {
+      deptQuery += ' AND hotelid = ?';
+      deptParams.push(parsedHotelId);
+    }
+    const departments = db.prepare(deptQuery).all(...deptParams);
+    const departmentsMap = {};
+    departments.forEach(d => { departmentsMap[d.department_name.toLowerCase()] = d.departmentid; });
+    
+    const importedItems = [];
+    const errors = [];
+    
+    db.transaction(() => {
+      data.forEach((row, index) => {
+        try {
+          if (!row['Item Name']) {
+            errors.push({ row: index + 2, message: 'Item Name is required' });
+            return;
+          }
+          
+          const itemName = row['Item Name'].toString().trim();
+          const itemNo = row['Item No'] ? row['Item No'].toString().trim() : null;
+          const price = row['Price'] ? parseFloat(row['Price']) : 0;
+          
+          let itemGroupId = null;
+          if (row['Item Group']) {
+            const igName = row['Item Group'].toString().toLowerCase().trim();
+            itemGroupId = itemGroupsMap[igName] || null;
+          }
+          
+          let kitchenCategoryId = null;
+          if (row['Kitchen Category']) {
+            const kcName = row['Kitchen Category'].toString().toLowerCase().trim();
+            kitchenCategoryId = kitchenCategoriesMap[kcName] || null;
+          }
+          
+          let taxGroupId = null;
+          if (row['Tax Group']) {
+            const tgName = row['Tax Group'].toString().toLowerCase().trim();
+            taxGroupId = taxGroupsMap[tgName] || null;
+          }
+          
+          const status = row['Status'] && row['Status'].toString().toLowerCase() === 'active' ? 1 : 0;
+          const isRuntimeRates = row['Runtime Rates'] && row['Runtime Rates'].toString().toLowerCase() === 'yes' ? 1 : 0;
+          const isCommonToAll = row['Common to All Departments'] && row['Common to All Departments'].toString().toLowerCase() === 'yes' ? 1 : 0;
+          
+          const stmt = db.prepare(`
+            INSERT INTO mstrestmenu (
+              hotelid, outletid, item_no, item_name, print_name, short_name,
+              kitchen_category_id, item_group_id, stock_unit, price, taxgroupid,
+              is_runtime_rates, is_common_to_all_departments, item_description, item_hsncode,
+              status, created_by_id, created_date
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, datetime('now'))
+          `);
+          
+          const result = stmt.run(
+            parsedHotelId,
+            parsedOutletId,
+            itemNo,
+            itemName,
+            row['Print Name'] || null,
+            row['Short Name'] || null,
+            kitchenCategoryId,
+            itemGroupId,
+            null,
+            price,
+            taxGroupId,
+            isRuntimeRates,
+            isCommonToAll,
+            row['Description'] || null,
+            row['HSN Code'] || null,
+            status,
+            parsedCreatedById
+          );
+          
+          const restitemid = result.lastInsertRowid;
+          
+          if (departments.length > 0 && price > 0) {
+            const detailStmt = db.prepare(`
+              INSERT INTO mstrestmenudetails (restitemid, departmentid, item_rate, hotelid)
+              VALUES (?, ?, ?, ?)
+            `);
+            
+            departments.forEach(dept => {
+              detailStmt.run(restitemid, dept.departmentid, price, parsedHotelId);
+            });
+          }
+          
+          importedItems.push({ restitemid, item_name: itemName, item_no: itemNo });
+          
+        } catch (rowError) {
+          errors.push({ row: index + 2, message: rowError.message });
+        }
+      });
+    })();
+    
+    res.json({
+      success: true,
+      data: { imported: importedItems.length, errors: errors },
+      message: `Successfully imported ${importedItems.length} items${errors.length > 0 ? ` with ${errors.length} errors` : ''}`
+    });
+    
+  } catch (error) {
+    console.error('Error importing menu items:', error);
+    res.status(500).json({ success: false, message: 'Failed to import menu items', error: error.message, data: null });
+  }
+};
+
+// Download sample template for menu import
+exports.downloadSampleTemplate = (req, res) => {
+  try {
+    const XLSX = require('xlsx');
+    
+    // Sample data with examples (static template - no DB dependency to avoid errors)
+    const sampleData = [
+      {
+        'Item No': 'AUTO',
+        'Item Name': 'Example: Chicken Biryani',
+        'Print Name': 'CHICKEN BIRYANI',
+        'Short Name': 'C.BIRYANI',
+        'Price': 250.00,
+        'Description': 'Delicious chicken biryani with aromatic spices',
+        'HSN Code': '210690',
+        'Status': 'Active',
+        'Item Group': 'Main Course',
+        'Kitchen Category': 'Non-Veg',
+        'Tax Group': 'GST 18%',
+        'Runtime Rates': 'No',
+        'Common to All Departments': 'Yes'
+      },
+      {
+        'Item No': 'AUTO',
+        'Item Name': 'Example: Veg Pulao',
+        'Print Name': 'VEG PULAO',
+        'Short Name': 'V.PULAO',
+        'Price': 150.00,
+        'Description': 'Fragrant vegetable pulao',
+        'HSN Code': '210690',
+        'Status': 'Active',
+        'Item Group': 'Main Course',
+        'Kitchen Category': 'Veg',
+        'Tax Group': 'GST 18%',
+        'Runtime Rates': 'No',
+        'Common to All Departments': 'Yes'
+      }
+    ];
+    
+    const wb = XLSX.utils.book_new();
+    
+    // Create template sheet
+    const wsTemplate = XLSX.utils.json_to_sheet(sampleData);
+    wsTemplate['!cols'] = [
+      { wch: 10 }, { wch: 25 }, { wch: 20 }, { wch: 15 }, { wch: 10 },
+      { wch: 35 }, { wch: 12 }, { wch: 10 }, { wch: 18 }, { wch: 18 },
+      { wch: 20 }, { wch: 15 }, { wch: 25 }
+    ];
+    XLSX.utils.book_append_sheet(wb, wsTemplate, 'Import Template');
+    
+    const buffer = XLSX.write(wb, { bookType: 'xlsx', type: 'buffer' });
+    
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=menu_import_template.xlsx');
+    res.send(buffer);
+    
+  } catch (error) {
+    console.error('Error downloading sample template:', error);
+    res.status(500).json({ success: false, message: 'Failed to download sample template', error: error.message, data: null });
   }
 };

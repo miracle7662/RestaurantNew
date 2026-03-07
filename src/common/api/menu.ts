@@ -190,6 +190,40 @@ const MenuService = {
   getMaxItemNo: (hotelid?: number): Promise<ApiResponse<{ nextItemNo: string }>> =>
     HttpClient.get<ApiResponse<{ nextItemNo: string }>>('/menu/max-item-no', {
       params: hotelid ? { hotelid } : undefined
+    }),
+
+  /**
+   * Export menu items to Excel file
+   */
+  exportMenu: (hotelid?: number, outletid?: number): Promise<any> =>
+    HttpClient.get('/menu/export', { 
+      params: { hotelid, outletid },
+      responseType: 'blob'
+    }),
+
+  /**
+   * Import menu items from Excel file
+   */
+  importMenu: (file: File, hotelid: number, outletid?: number, created_by_id?: number): Promise<ApiResponse<any>> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (hotelid) formData.append('hotelid', hotelid.toString());
+    if (outletid) formData.append('outletid', outletid.toString());
+    if (created_by_id) formData.append('created_by_id', created_by_id.toString());
+    
+    return HttpClient.post<ApiResponse<any>>('/menu/import', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+  },
+
+  /**
+   * Download sample template for menu import
+   */
+  downloadSampleTemplate: (): Promise<any> =>
+    HttpClient.get('/menu/sample-template', { 
+      responseType: 'blob'
     })
 }
 
