@@ -641,16 +641,19 @@ const Menu: React.FC = () => {
                   <Button 
                     variant="link" 
                     size="sm" 
-                    onClick={async () => {
+                  onClick={async () => {
                       try {
                         const response: any = await MenuService.downloadSampleTemplate();
-                        const url = window.URL.createObjectURL(new Blob([response.data]));
+                        // Handle blob response - HttpClient interceptor returns response.data
+                        const blob = response instanceof Blob ? response : response.data;
+                        const url = window.URL.createObjectURL(blob);
                         const link = document.createElement('a');
                         link.href = url;
                         link.setAttribute('download', 'menu_import_template.xlsx');
                         document.body.appendChild(link);
                         link.click();
                         link.remove();
+                        window.URL.revokeObjectURL(url);
                         toast.success('Template downloaded successfully');
                       } catch (err) {
                         console.error('Template download error:', err);
