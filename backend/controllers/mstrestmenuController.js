@@ -779,10 +779,18 @@ exports.downloadSampleTemplate = (req, res) => {
     ];
     XLSX.utils.book_append_sheet(wb, wsTemplate, 'Import Template');
     
+    // Write to buffer - use 'buffer' type to get a proper Node.js Buffer
     const buffer = XLSX.write(wb, { bookType: 'xlsx', type: 'buffer' });
     
+    // Set proper headers for Excel file download
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', 'attachment; filename=menu_import_template.xlsx');
+    res.setHeader('Content-Length', buffer.length);
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    
+    // Send the buffer directly
     res.send(buffer);
     
   } catch (error) {
