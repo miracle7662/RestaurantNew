@@ -51,16 +51,17 @@ export interface MenuItem {
 
 export interface DepartmentDetail {
   departmentid: number
+  restitemid: number
   department_name: string
   item_rate: number
-  unitid: number | null
-  servingunitid: number | null
+  unitid: number 
+  servingunitid: number
   IsConversion: number
-  taxgroupid: number | null
+  taxgroupid: number 
   variant_value_id?: number
   variant_value_name?: string
   variant_rates?: { [variant_value_id: number]: number }
-  value_name?: string | null
+  value_name?: string 
 }
 
 export interface VariantValue {

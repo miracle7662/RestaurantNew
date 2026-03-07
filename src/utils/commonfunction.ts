@@ -140,6 +140,21 @@ export interface MenuItem {
   groupname: string | null
   price: number
   status: number
+  department_details?: Array<{
+    itemdetailsid?: number
+    restitemid: number
+    departmentid: number
+    department_name?: string
+    item_rate: number
+    unitid?: number
+    servingunitid?: number
+    IsConversion?: number
+    hotelid?: number
+    variant_value_id?: number
+    variant_value_name?: string
+    value_name?: string
+    taxgroupid?: number
+  }>
 }
 
 export interface HotelMasterItem {
