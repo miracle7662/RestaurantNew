@@ -128,6 +128,9 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
   const [selectedNameIndex, setSelectedNameIndex] = useState(-1);
   // Code dropdown state
   const [showCodeDropdown, setShowCodeDropdown] = useState<boolean>(false);
+  // Store selected code/name result for qty confirmation
+  const [selectedCodeResult, setSelectedCodeResult] = useState<CodeSearchResult | null>(null);
+  const [selectedNameResult, setSelectedNameResult] = useState<CardItem | null>(null);
   const [selectedCodeIndex, setSelectedCodeIndex] = useState(-1);
   const [codeSearchResults, setCodeSearchResults] = useState<CodeSearchResult[]>([]);
   const [showCustomerModal, setShowCustomerModal] = useState<boolean>(false);
@@ -481,6 +484,15 @@ const [loading, setLoading] = useState(true);
     setSearchName(item.ItemName);
     setShowCodeDropdown(false);
     setSelectedCodeIndex(-1);
+    // Store selected result for qty confirmation
+    setSelectedCodeResult({
+      type: 'base',
+      userId: item.userId,
+      itemCode: item.itemCode,
+      ItemName: item.ItemName,
+      shortName: item.shortName,
+      price: item.price,
+    });
     if (quantityInputRef.current) {
       quantityInputRef.current.focus();
       quantityInputRef.current.select();
@@ -488,35 +500,17 @@ const [loading, setLoading] = useState(true);
   };
 
   // Handle code selection with variant support
+  // Only set values and focus on qty - don't add item yet
   const handleCodeSelectWithVariant = (result: CodeSearchResult) => {
     setSearchCode(result.itemCode);
     setSearchName(result.ItemName);
     setShowCodeDropdown(false);
     setSelectedCodeIndex(-1);
     
-    const qty = parseInt(quantity) || 1;
+    // Store the selected result for later use when qty is confirmed
+    setSelectedCodeResult(result);
     
-    if (result.type === 'variant' && result.variantId && result.variantName) {
-      // It's a variant - add with variant info
-      handleAddItem({
-        id: Number(result.userId),
-        name: result.ItemName,
-        price: result.price,
-        isBilled: 0,
-        isNCKOT: 0,
-        NCName: '',
-        NCPurpose: '',
-        variantId: result.variantId,
-        variantName: result.variantName
-      }, qty);
-    } else {
-      // Base item - show variant modal if has variants
-      const cardItem = cardItems.find(item => item.userId === result.userId);
-      if (cardItem) {
-        handleShowVariantModal(cardItem);
-      }
-    }
-    
+    // Focus on qty field - don't add item yet
     if (quantityInputRef.current) {
       quantityInputRef.current.focus();
       quantityInputRef.current.select();
@@ -528,6 +522,8 @@ const [loading, setLoading] = useState(true);
     setSearchCode(item.itemCode);
     setShowNameDropdown(false);
     setSelectedNameIndex(-1);
+    // Store selected result for qty confirmation
+    setSelectedNameResult(item);
     if (quantityInputRef.current) {
       quantityInputRef.current.focus();
       quantityInputRef.current.select();
@@ -610,25 +606,96 @@ const [loading, setLoading] = useState(true);
   };
 
   const handleQuantityKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && (searchName || searchCode)) {
+    if (e.key === 'Enter' && (searchName || searchCode || selectedCodeResult || selectedNameResult)) {
       e.preventDefault();
-      const matchedItem = cardItems.find(
-        (item) =>
-          item.ItemName.toLowerCase() === searchName.toLowerCase() ||
-          item.itemCode.toLowerCase() === searchCode.toLowerCase()
-      );
-      if (matchedItem) {
-        const qty = parseInt(quantity) || 1;
-        handleAddItem({ id: Number(matchedItem.userId), name: matchedItem.ItemName, price: matchedItem.price, isBilled: 0, isNCKOT: 0, NCName: '', NCPurpose: '' }, qty);
-        setSearchCode('');
-        setSearchName('');
-        setQuantity('1');
-        setShowNameDropdown(false);
-        setSelectedNameIndex(-1);
-        if (codeInputRef.current) {
-          codeInputRef.current.focus();
+      const qty = parseInt(quantity) || 1;
+      
+      // Use stored selected results if available, otherwise fallback to search
+      if (selectedCodeResult) {
+        // Code dropdown item was selected
+        if (selectedCodeResult.type === 'variant' && selectedCodeResult.variantId && selectedCodeResult.variantName) {
+          // Variant item
+          handleAddItem({
+            id: Number(selectedCodeResult.userId),
+            name: selectedCodeResult.ItemName,
+            price: selectedCodeResult.price,
+            isBilled: 0,
+            isNCKOT: 0,
+            NCName: '',
+            NCPurpose: '',
+            variantId: selectedCodeResult.variantId,
+            variantName: selectedCodeResult.variantName
+          }, qty);
+        } else {
+          // Base item - check for variants or add directly
+          const cardItem = cardItems.find(item => item.userId === selectedCodeResult.userId);
+          if (cardItem) {
+            handleShowVariantModalForQty(cardItem, qty);
+          }
+        }
+      } else if (selectedNameResult) {
+        // Name dropdown item was selected
+        const cardItem = cardItems.find(item => item.userId === selectedNameResult.userId);
+        if (cardItem) {
+          handleShowVariantModalForQty(cardItem, qty);
+        }
+      } else {
+        // Fallback: try to find from search text
+        const matchedItem = cardItems.find(
+          (item) =>
+            item.ItemName.toLowerCase() === searchName.toLowerCase() ||
+            item.itemCode.toLowerCase() === searchCode.toLowerCase()
+        );
+        if (matchedItem) {
+          handleShowVariantModalForQty(matchedItem, qty);
         }
       }
+      
+      // Clear all states after adding
+      setSearchCode('');
+      setSearchName('');
+      setQuantity('1');
+      setShowCodeDropdown(false);
+      setShowNameDropdown(false);
+      setSelectedNameIndex(-1);
+      setSelectedCodeIndex(-1);
+      setCodeSearchResults([]);  // Clear search results
+      setSelectedCodeResult(null);
+      setSelectedNameResult(null);
+      
+      if (codeInputRef.current) {
+        codeInputRef.current.focus();
+      }
+    }
+  };
+  
+  // Handle variant modal from qty field (separate function)
+  const handleShowVariantModalForQty = (item: CardItem, qty: number) => {
+    const menuItem = menuItems.find((m: any) => String(m.restitemid) === item.userId);
+    if (menuItem && menuItem.department_details && menuItem.department_details.length > 0) {
+      const variantMap = new Map<number, VariantOption>();
+      menuItem.department_details.forEach((detail: any) => {
+        if (detail.variant_value_id && detail.variant_value_name) {
+          variantMap.set(detail.variant_value_id, {
+            variant_value_id: detail.variant_value_id,
+            value_name: detail.variant_value_name,
+            price: detail.item_rate || 0
+          });
+        }
+      });
+      const variants = Array.from(variantMap.values());
+      if (variants.length > 0) {
+        // Store item and qty for variant selection, then show modal
+        setSelectedItemForVariant(item);
+        setItemVariants(variants);
+        // Store qty to use when variant is selected
+        setQuantity(String(qty));
+        setShowVariantModal(true);
+      } else {
+        handleAddItem({ id: Number(item.userId), name: item.ItemName, price: item.price, isBilled: 0, isNCKOT: 0, NCName: '', NCPurpose: '' }, qty);
+      }
+    } else {
+      handleAddItem({ id: Number(item.userId), name: item.ItemName, price: item.price, isBilled: 0, isNCKOT: 0, NCName: '', NCPurpose: '' }, qty);
     }
   };
 
