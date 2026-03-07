@@ -352,6 +352,17 @@ const [loading, setLoading] = useState(true);
     return 0;
   };
 
+  // Helper function to get display price (department price if available, otherwise base price)
+  const getDisplayPrice = (itemId: string, basePrice: number, deptId: number | null): number => {
+    if (deptId) {
+      const deptPrice = getDepartmentPrice(itemId, deptId);
+      if (deptPrice > 0) {
+        return deptPrice;
+      }
+    }
+    return basePrice;
+  };
+
   // Helper function to check if item has price for selected department
   const hasDepartmentPrice = (itemId: string, deptId: number | null): boolean => {
     if (!deptId) return true; // If no department selected, show all
@@ -650,7 +661,7 @@ const [loading, setLoading] = useState(true);
       if (selectedCodeResult) {
         // Code dropdown item was selected
         if (selectedCodeResult.type === 'variant' && selectedCodeResult.variantId && selectedCodeResult.variantName) {
-          // Variant item
+          // Variant item - use the price from the variant (already department-specific)
           handleAddItem({
             id: Number(selectedCodeResult.userId),
             name: selectedCodeResult.ItemName,
@@ -663,7 +674,7 @@ const [loading, setLoading] = useState(true);
             variantName: selectedCodeResult.variantName
           }, qty);
         } else {
-          // Base item - check for variants or add directly
+          // Base item - check for variants or add directly with department price
           const cardItem = cardItems.find(item => item.userId === selectedCodeResult.userId);
           if (cardItem) {
             handleShowVariantModalForQty(cardItem, qty);
@@ -709,8 +720,13 @@ const [loading, setLoading] = useState(true);
   const handleShowVariantModalForQty = (item: CardItem, qty: number) => {
     const menuItem = menuItems.find((m: any) => String(m.restitemid) === item.userId);
     if (menuItem && menuItem.department_details && menuItem.department_details.length > 0) {
+      // Filter variants by selected department
+      const deptDetails = selectedDeptId 
+        ? menuItem.department_details.filter((d: any) => d.departmentid === selectedDeptId)
+        : menuItem.department_details;
+      
       const variantMap = new Map<number, VariantOption>();
-      menuItem.department_details.forEach((detail: any) => {
+      deptDetails.forEach((detail: any) => {
         if (detail.variant_value_id && detail.variant_value_name) {
           variantMap.set(detail.variant_value_id, {
             variant_value_id: detail.variant_value_id,
@@ -728,10 +744,12 @@ const [loading, setLoading] = useState(true);
         setQuantity(String(qty));
         setShowVariantModal(true);
       } else {
-        handleAddItem({ id: Number(item.userId), name: item.ItemName, price: item.price, isBilled: 0, isNCKOT: 0, NCName: '', NCPurpose: '' }, qty);
+        // No variants, add directly with department price
+        handleAddItem({ id: Number(item.userId), name: item.ItemName, price: getDisplayPrice(item.userId, item.price, selectedDeptId), isBilled: 0, isNCKOT: 0, NCName: '', NCPurpose: '' }, qty);
       }
     } else {
-      handleAddItem({ id: Number(item.userId), name: item.ItemName, price: item.price, isBilled: 0, isNCKOT: 0, NCName: '', NCPurpose: '' }, qty);
+      // No department_details, add directly with base price
+      handleAddItem({ id: Number(item.userId), name: item.ItemName, price: getDisplayPrice(item.userId, item.price, selectedDeptId), isBilled: 0, isNCKOT: 0, NCName: '', NCPurpose: '' }, qty);
     }
   };
 
@@ -775,9 +793,14 @@ const [loading, setLoading] = useState(true);
     // Get variants from menuItems based on the item's restitemid
     const menuItem = menuItems.find((m: any) => String(m.restitemid) === item.userId);
     if (menuItem && menuItem.department_details && menuItem.department_details.length > 0) {
+      // Filter variants by selected department
+      const deptDetails = selectedDeptId 
+        ? menuItem.department_details.filter((d: any) => d.departmentid === selectedDeptId)
+        : menuItem.department_details;
+      
       // Extract unique variants from department_details
       const variantMap = new Map<number, VariantOption>();
-      menuItem.department_details.forEach((detail: any) => {
+      deptDetails.forEach((detail: any) => {
         if (detail.variant_value_id && detail.variant_value_name) {
           variantMap.set(detail.variant_value_id, {
             variant_value_id: detail.variant_value_id,
@@ -791,12 +814,12 @@ const [loading, setLoading] = useState(true);
       if (variants.length > 0) {
         setShowVariantModal(true);
       } else {
-        // No variants, add directly
-        handleAddItem({ id: Number(item.userId), name: item.ItemName, price: item.price, isBilled: 0, isNCKOT: 0, NCName: '', NCPurpose: '' }, parseInt(quantity) || 1);
+        // No variants, add directly with department price
+        handleAddItem({ id: Number(item.userId), name: item.ItemName, price: getDisplayPrice(item.userId, item.price, selectedDeptId), isBilled: 0, isNCKOT: 0, NCName: '', NCPurpose: '' }, parseInt(quantity) || 1);
       }
     } else {
-      // No department_details, add directly with base price
-      handleAddItem({ id: Number(item.userId), name: item.ItemName, price: item.price, isBilled: 0, isNCKOT: 0, NCName: '', NCPurpose: '' }, parseInt(quantity) || 1);
+      // No department_details, add directly with department price
+      handleAddItem({ id: Number(item.userId), name: item.ItemName, price: getDisplayPrice(item.userId, item.price, selectedDeptId), isBilled: 0, isNCKOT: 0, NCName: '', NCPurpose: '' }, parseInt(quantity) || 1);
     }
   };
 
@@ -1074,7 +1097,7 @@ const [loading, setLoading] = useState(true);
                             </span>
                           )}
                           <div style={{ fontSize: '0.65rem', color: '#6b7280' }}>
-                            ₹{result.price.toFixed(0)}
+                            ₹{result.type === 'base' ? getDisplayPrice(result.userId, result.price, selectedDeptId).toFixed(0) : result.price.toFixed(0)}
                           </div>
                         </div>
                       ))}
@@ -1144,7 +1167,7 @@ const [loading, setLoading] = useState(true);
                             }}
                             onMouseEnter={() => setSelectedNameIndex(index)}
                           >
-                            <strong>{item.ItemName}</strong> | {item.shortName} | {item.itemCode} | ₹{item.price.toFixed(2)}
+                            <strong>{item.ItemName}</strong> | {item.shortName} | {item.itemCode} | ₹{getDisplayPrice(item.userId, item.price, selectedDeptId).toFixed(2)}
                           </div>
                         ))}
                       {filterDropdownItems('name').length === 0 && (
@@ -1275,8 +1298,8 @@ const [loading, setLoading] = useState(true);
                               <Card.Text style={{ fontSize: '12px', color: '#6b7280' }}>
                                 {item.itemCode} | {item.shortName}
                               </Card.Text>
-                              <Card.Text style={{ fontSize: '12px', color: '#6b7280' }}>
-                                ₹{item.price.toFixed(2)}
+                              <Card.Text style={{ fontSize: '12px', color: '#6b7280', fontWeight: 'bold' }}>
+                                ₹{getDisplayPrice(item.userId, item.price, selectedDeptId).toFixed(2)}
                               </Card.Text>
                               <Card.Text style={{ fontSize: '12px', color: '#6b7280' }}>
                                 {item.cardStatus}

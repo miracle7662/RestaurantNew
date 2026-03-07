@@ -1,17 +1,28 @@
-# TODO - Department-based Price/Variant Filtering
+# TODO: Fix Department Price Not Being Used When Adding Items to Order
 
 ## Task
-Display price and variant of the department that was selected when clicking on a department table. Items without price/variant for the selected department should not be shown.
+When items are added to the order, they use base price instead of department price. The `getDisplayPrice` function exists and is used for display, but not when adding items.
 
-## Implementation Steps
+## Steps to Complete
 
-- [x] 1. Analyze the existing code structure
-- [ ] 2. Add selectedDeptId prop to OrderDetails interface
-- [ ] 3. Update filterItems function to filter by department
-- [ ] 4. Update code search to filter by department
-- [ ] 5. Update name search to filter by department
-- [ ] 6. Update card display to show department-specific prices
-- [ ] 7. Test the implementation
+### Step 1: Fix handleQuantityKeyPress function
+- Location: Line ~480 in OrderDetails.tsx
+- Issue: Uses `selectedCodeResult.price` and `item.price` directly
+- Fix: Use `getDisplayPrice()` to get department price
+- Status: ✅ COMPLETED
 
-## Status: In Progress
+### Step 2: Fix handleShowVariantModalForQty function
+- Location: Line ~520 in OrderDetails.tsx
+- Issue: Uses `item.price` directly when adding items
+- Fix: Use `getDisplayPrice()` to get department price
+- Status: ✅ COMPLETED
+
+### Step 3: Fix handleShowVariantModal function
+- Location: Line ~560 in OrderDetails.tsx
+- Issue: Uses `item.price` directly when adding items
+- Fix: Use `getDisplayPrice()` to get department price
+- Status: ✅ COMPLETED
+
+## Status: [COMPLETED]
+All three functions now use `getDisplayPrice(item.userId, item.price, selectedDeptId)` instead of directly using `item.price` when adding items to the order.
 
