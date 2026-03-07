@@ -45,7 +45,7 @@ const Menu = React.lazy(() => import('../views/apps/Masters/RestaurantMasters/Me
 const Country = React.lazy(() => import('../views/apps/Masters/CommanMasters/Country')) // Updated to use <Country /> component
 const States = React.lazy(() => import('../views/apps/Masters/CommanMasters/States')) // Updated to use <States /> component
 const City = React.lazy(() => import('../views/apps/Masters/CommanMasters/City')) // Updated to use <City /> component
-const MessageMaster = React.lazy(() => import('../views/apps/Masters/CommanMasters/MessageMaster'))
+// const MessageMaster = React.lazy(() => import('../views/apps/Masters/CommanMasters/MessageMaster'))
 // OutletConfigration
 const Market = React.lazy(() => import('../views/apps/Masters/CommanMasters/Market'))
 const Brand = React.lazy(() => import('../views/apps/Masters/CommanMasters/Brand'))
@@ -405,12 +405,12 @@ const appsRoutes: RoutesProps = {
       element: <UnitMaster />,
       route: PrivateRoute,
     },
-    {
-      path: '/apps/MessageMaster',
-      name: 'MessageMaster',
-      element: <MessageMaster />,
-      route: PrivateRoute,
-    },
+    // {
+    //   path: '/apps/MessageMaster',
+    //   name: 'MessageMaster',
+    //   element: <MessageMaster />,
+    //   route: PrivateRoute,
+    // },
     { 
       path: '/apps/Warehouse',
       name: 'Warehouse',

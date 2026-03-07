@@ -1416,7 +1416,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                     </Col>
                   </Row>
                 </Col>
-                <Col xs={12} md={5}>
+                <Col xs={12} md={4}>
                   <Row className="align-items-center">
                     <Col xs={3} md={3}>
                       <Form.Group className="mb-0">

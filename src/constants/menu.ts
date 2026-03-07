@@ -381,12 +381,12 @@ const MENU_ITEMS: MenuItemTypes[] = [
         url: '/apps/UnitMaster',
         parentKey: 'apps',
       },
-      {
-        key: 'MessageMaster',
-        label: 'MessageMaster',
-        url: '/apps/MessageMaster',
-        parentKey: 'apps',
-      },
+      // {
+      //   key: 'MessageMaster',
+      //   label: 'MessageMaster',
+      //   url: '/apps/MessageMaster',
+      //   parentKey: 'apps',
+      // },
     ],
   },
 

@@ -128,6 +128,9 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
   const [selectedNameIndex, setSelectedNameIndex] = useState(-1);
   // Code dropdown state
   const [showCodeDropdown, setShowCodeDropdown] = useState<boolean>(false);
+  // Store selected code/name result for qty confirmation
+  const [selectedCodeResult, setSelectedCodeResult] = useState<CodeSearchResult | null>(null);
+  const [selectedNameResult, setSelectedNameResult] = useState<CardItem | null>(null);
   const [selectedCodeIndex, setSelectedCodeIndex] = useState(-1);
   const [codeSearchResults, setCodeSearchResults] = useState<CodeSearchResult[]>([]);
   const [showCustomerModal, setShowCustomerModal] = useState<boolean>(false);
@@ -352,38 +355,15 @@ const [loading, setLoading] = useState(true);
   // Filter dropdown items for code or name
   const filterDropdownItems = useCallback(
     (type: 'code' | 'name') => {
-      // If there's a code search with results, show code search results with variants in name dropdown
-      if (searchCode && codeSearchResults.length > 0 && type === 'name') {
-        return codeSearchResults.map(result => ({
-          userId: result.userId,
-          itemCode: result.itemCode,
-          ItemName: result.ItemName,
-          shortName: result.shortName,
-          price: result.price,
-          item_group_id: null as number | null,
-          cardStatus: '',
-        }));
-      }
-      
       const baseItems = selectedItemGroup !== null
         ? cardItems.filter(item => item.item_group_id === selectedItemGroup)
         : allItems;
-      
-      // If no search text, show all items (limited to 7)
-      if (!searchName && !searchCode && type === 'name') {
-        return baseItems.slice(0, 7);
-      }
-      
       return baseItems
         .filter((item) => {
           if (type === 'code') {
             return searchCode
               ? item.itemCode.toLowerCase().includes(searchCode.toLowerCase())
               : false;
-          }
-          // For name dropdown - if there's a code search but no results, show all items
-          if (searchCode && codeSearchResults.length === 0 && type === 'name') {
-            return true;
           }
           return searchName
             ? item.ItemName.toLowerCase().includes(searchName.toLowerCase()) ||
@@ -392,7 +372,7 @@ const [loading, setLoading] = useState(true);
         })
         .slice(0, 7);
     },
-    [searchCode, searchName, allItems, selectedItemGroup, codeSearchResults]
+    [searchCode, searchName, allItems, selectedItemGroup]
   );
 
   useEffect(() => {
@@ -462,17 +442,13 @@ const [loading, setLoading] = useState(true);
     console.log('Total results:', results.length);
     setCodeSearchResults(results.slice(0, 10)); // Limit to 10 results
     
-    // Hide code dropdown - variants will show in name dropdown
-    setShowCodeDropdown(false);
-    setSelectedCodeIndex(-1);
-    
-    // If there's a search code, automatically show name dropdown with results (base + variants)
+    // Always show dropdown when typing and there are results
     if (code.length > 0 && results.length > 0) {
-      setSearchName('');
-      setShowNameDropdown(true); // Automatically expand Name dropdown
+      setShowCodeDropdown(true);
     } else {
-      setShowNameDropdown(false);
+      setShowCodeDropdown(false);
     }
+    setSelectedCodeIndex(-1);
     
     // Set search name if exact match found
     const exactMatch = matchedItems.find((item) => item.itemCode.toLowerCase() === code.toLowerCase());
@@ -486,8 +462,7 @@ const [loading, setLoading] = useState(true);
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSearchName(value);
-    // Always show dropdown when typing, even with empty value
-    setShowNameDropdown(true);
+    setShowNameDropdown(!!value);
     setSelectedNameIndex(-1);
     if (value === '') {
       setSearchCode('');
@@ -509,6 +484,15 @@ const [loading, setLoading] = useState(true);
     setSearchName(item.ItemName);
     setShowCodeDropdown(false);
     setSelectedCodeIndex(-1);
+    // Store selected result for qty confirmation
+    setSelectedCodeResult({
+      type: 'base',
+      userId: item.userId,
+      itemCode: item.itemCode,
+      ItemName: item.ItemName,
+      shortName: item.shortName,
+      price: item.price,
+    });
     if (quantityInputRef.current) {
       quantityInputRef.current.focus();
       quantityInputRef.current.select();
@@ -516,35 +500,17 @@ const [loading, setLoading] = useState(true);
   };
 
   // Handle code selection with variant support
+  // Only set values and focus on qty - don't add item yet
   const handleCodeSelectWithVariant = (result: CodeSearchResult) => {
     setSearchCode(result.itemCode);
     setSearchName(result.ItemName);
     setShowCodeDropdown(false);
     setSelectedCodeIndex(-1);
     
-    const qty = parseInt(quantity) || 1;
+    // Store the selected result for later use when qty is confirmed
+    setSelectedCodeResult(result);
     
-    if (result.type === 'variant' && result.variantId && result.variantName) {
-      // It's a variant - add with variant info
-      handleAddItem({
-        id: Number(result.userId),
-        name: result.ItemName,
-        price: result.price,
-        isBilled: 0,
-        isNCKOT: 0,
-        NCName: '',
-        NCPurpose: '',
-        variantId: result.variantId,
-        variantName: result.variantName
-      }, qty);
-    } else {
-      // Base item - show variant modal if has variants
-      const cardItem = cardItems.find(item => item.userId === result.userId);
-      if (cardItem) {
-        handleShowVariantModal(cardItem);
-      }
-    }
-    
+    // Focus on qty field - don't add item yet
     if (quantityInputRef.current) {
       quantityInputRef.current.focus();
       quantityInputRef.current.select();
@@ -552,34 +518,12 @@ const [loading, setLoading] = useState(true);
   };
 
   const handleNameSelect = (item: CardItem) => {
-    // Check if this item was from a code search with variants
-    const codeResult = codeSearchResults.find(r => r.userId === item.userId && r.ItemName === item.ItemName);
-    
-    if (codeResult && codeResult.type === 'variant' && codeResult.variantId && codeResult.variantName) {
-      // It's a variant from code search - add with variant info
-      handleAddItem({
-        id: Number(codeResult.userId),
-        name: codeResult.ItemName,
-        price: codeResult.price,
-        isBilled: 0,
-        isNCKOT: 0,
-        NCName: '',
-        NCPurpose: '',
-        variantId: codeResult.variantId,
-        variantName: codeResult.variantName
-      }, parseInt(quantity) || 1);
-    } else if (codeResult && codeResult.type === 'base') {
-      // Base item from code search - show variant modal
-      handleShowVariantModal(item);
-    } else {
-      // Regular name search - check if item has variants
-      handleShowVariantModal(item);
-    }
-    
     setSearchName(item.ItemName);
     setSearchCode(item.itemCode);
     setShowNameDropdown(false);
     setSelectedNameIndex(-1);
+    // Store selected result for qty confirmation
+    setSelectedNameResult(item);
     if (quantityInputRef.current) {
       quantityInputRef.current.focus();
       quantityInputRef.current.select();
@@ -662,25 +606,96 @@ const [loading, setLoading] = useState(true);
   };
 
   const handleQuantityKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && (searchName || searchCode)) {
+    if (e.key === 'Enter' && (searchName || searchCode || selectedCodeResult || selectedNameResult)) {
       e.preventDefault();
-      const matchedItem = cardItems.find(
-        (item) =>
-          item.ItemName.toLowerCase() === searchName.toLowerCase() ||
-          item.itemCode.toLowerCase() === searchCode.toLowerCase()
-      );
-      if (matchedItem) {
-        const qty = parseInt(quantity) || 1;
-        handleAddItem({ id: Number(matchedItem.userId), name: matchedItem.ItemName, price: matchedItem.price, isBilled: 0, isNCKOT: 0, NCName: '', NCPurpose: '' }, qty);
-        setSearchCode('');
-        setSearchName('');
-        setQuantity('1');
-        setShowNameDropdown(false);
-        setSelectedNameIndex(-1);
-        if (codeInputRef.current) {
-          codeInputRef.current.focus();
+      const qty = parseInt(quantity) || 1;
+      
+      // Use stored selected results if available, otherwise fallback to search
+      if (selectedCodeResult) {
+        // Code dropdown item was selected
+        if (selectedCodeResult.type === 'variant' && selectedCodeResult.variantId && selectedCodeResult.variantName) {
+          // Variant item
+          handleAddItem({
+            id: Number(selectedCodeResult.userId),
+            name: selectedCodeResult.ItemName,
+            price: selectedCodeResult.price,
+            isBilled: 0,
+            isNCKOT: 0,
+            NCName: '',
+            NCPurpose: '',
+            variantId: selectedCodeResult.variantId,
+            variantName: selectedCodeResult.variantName
+          }, qty);
+        } else {
+          // Base item - check for variants or add directly
+          const cardItem = cardItems.find(item => item.userId === selectedCodeResult.userId);
+          if (cardItem) {
+            handleShowVariantModalForQty(cardItem, qty);
+          }
+        }
+      } else if (selectedNameResult) {
+        // Name dropdown item was selected
+        const cardItem = cardItems.find(item => item.userId === selectedNameResult.userId);
+        if (cardItem) {
+          handleShowVariantModalForQty(cardItem, qty);
+        }
+      } else {
+        // Fallback: try to find from search text
+        const matchedItem = cardItems.find(
+          (item) =>
+            item.ItemName.toLowerCase() === searchName.toLowerCase() ||
+            item.itemCode.toLowerCase() === searchCode.toLowerCase()
+        );
+        if (matchedItem) {
+          handleShowVariantModalForQty(matchedItem, qty);
         }
       }
+      
+      // Clear all states after adding
+      setSearchCode('');
+      setSearchName('');
+      setQuantity('1');
+      setShowCodeDropdown(false);
+      setShowNameDropdown(false);
+      setSelectedNameIndex(-1);
+      setSelectedCodeIndex(-1);
+      setCodeSearchResults([]);  // Clear search results
+      setSelectedCodeResult(null);
+      setSelectedNameResult(null);
+      
+      if (codeInputRef.current) {
+        codeInputRef.current.focus();
+      }
+    }
+  };
+  
+  // Handle variant modal from qty field (separate function)
+  const handleShowVariantModalForQty = (item: CardItem, qty: number) => {
+    const menuItem = menuItems.find((m: any) => String(m.restitemid) === item.userId);
+    if (menuItem && menuItem.department_details && menuItem.department_details.length > 0) {
+      const variantMap = new Map<number, VariantOption>();
+      menuItem.department_details.forEach((detail: any) => {
+        if (detail.variant_value_id && detail.variant_value_name) {
+          variantMap.set(detail.variant_value_id, {
+            variant_value_id: detail.variant_value_id,
+            value_name: detail.variant_value_name,
+            price: detail.item_rate || 0
+          });
+        }
+      });
+      const variants = Array.from(variantMap.values());
+      if (variants.length > 0) {
+        // Store item and qty for variant selection, then show modal
+        setSelectedItemForVariant(item);
+        setItemVariants(variants);
+        // Store qty to use when variant is selected
+        setQuantity(String(qty));
+        setShowVariantModal(true);
+      } else {
+        handleAddItem({ id: Number(item.userId), name: item.ItemName, price: item.price, isBilled: 0, isNCKOT: 0, NCName: '', NCPurpose: '' }, qty);
+      }
+    } else {
+      handleAddItem({ id: Number(item.userId), name: item.ItemName, price: item.price, isBilled: 0, isNCKOT: 0, NCName: '', NCPurpose: '' }, qty);
     }
   };
 
@@ -960,13 +975,14 @@ const [loading, setLoading] = useState(true);
                     onChange={handleCodeChange}
                     onKeyDown={handleCodeKeyDown}
                     onFocus={() => {
+                      // Show dropdown immediately when focusing on the input if there's search text or results
                       if (searchCode || codeSearchResults.length > 0) {
                         setShowCodeDropdown(true);
                       }
                     }}
                     onBlur={(e) => {
                       const relatedTarget = e.relatedTarget as HTMLElement;
-                      if (!relatedTarget?.closest('.dropdown-item')) {
+                      if (!relatedTarget?.closest('.code-dropdown-item')) {
                         setTimeout(() => {
                           setShowCodeDropdown(false);
                           setSelectedCodeIndex(-1);
@@ -975,10 +991,11 @@ const [loading, setLoading] = useState(true);
                     }}
                     ref={codeInputRef}
                     disabled={reverseQtyMode && isBilled}
-                    style={{ minHeight: '48px', width: '100%' }}
+                    style={{ minHeight: '48px', width: '100%', paddingRight: '24px' }}
                   />
                   {showCodeDropdown && codeSearchResults.length > 0 && (
                     <div
+                      className="code-dropdown"
                       style={{
                         position: 'absolute',
                         top: '100%',
@@ -986,36 +1003,43 @@ const [loading, setLoading] = useState(true);
                         zIndex: 1000,
                         backgroundColor: '#fff',
                         border: '1px solid #ced4da',
-                        borderRadius: '8px',
+                        borderRadius: '0 0 8px 8px',
                         boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
-                        maxHeight: '200px',
+                        maxHeight: '150px',
                         overflowY: 'auto',
-                        width: '300px',
+                        width: '100px',
+                        marginTop: '0px',
                       }}
                     >
-                      {codeSearchResults.slice(0, 7).map((result, index) => (
+                      {codeSearchResults.slice(0, 4).map((result, index) => (
                         <div
                           key={`${result.userId}-${result.variantId || 'base'}`}
+                          className="code-dropdown-item"
                           onMouseDown={(e) => {
                             e.preventDefault();
                             handleCodeSelectWithVariant(result);
                           }}
-                          className={`dropdown-item ${index === selectedCodeIndex ? 'selected' : ''}`}
                           style={{
                             cursor: 'pointer',
-                            fontSize: '1rem',
+                            padding: '4px 8px',
+                            fontSize: '0.75rem',
                             backgroundColor: index === selectedCodeIndex ? '#e9ecef' : 'transparent',
                             borderBottom: '1px solid #f0f0f0',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
                           }}
                           onMouseEnter={() => setSelectedCodeIndex(index)}
                         >
                           <strong>{result.ItemName}</strong>
                           {result.type === 'variant' && (
-                            <span style={{ marginLeft: '8px', color: '#0d6efd', fontWeight: '500' }}>
+                            <span style={{ color: '#0d6efd', fontSize: '0.65rem' }}>
                               ({result.variantName})
                             </span>
                           )}
-                          {' | '}{result.shortName}{' | '}{result.itemCode}{' | '}₹{result.price.toFixed(2)}
+                          <div style={{ fontSize: '0.65rem', color: '#6b7280' }}>
+                            ₹{result.price.toFixed(0)}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -1030,9 +1054,7 @@ const [loading, setLoading] = useState(true);
                     onChange={handleNameChange}
                     onKeyDown={handleNameKeyDown}
                     autoComplete="off"
-                    onFocus={() => {
-                      setShowNameDropdown(true);
-                    }}
+                    onFocus={() => setShowNameDropdown(true)}
                     onBlur={(e) => {
                       const relatedTarget = e.relatedTarget as HTMLElement;
                       if (!relatedTarget?.closest('.dropdown-item')) {

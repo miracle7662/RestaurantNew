@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react";
 import { Card, Row, Col, Form, Button, Table, Badge,  Modal } from "react-bootstrap";
-import { getUnbilledItemsByTable  } from "@/common/api/orders_old";
 import OrderService, { TransferTablePayload, TransferKOTPayload } from "@/common/api/order";
 import { useAuthContext } from "@/common";
 import { toast } from 'react-hot-toast';
@@ -248,7 +247,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
 
   const fetchItemsForTable = async (tableId: number, type: 'selected' | 'proposed') => {
     try {
-     const response = await getUnbilledItemsByTable(tableId);
+     const response = await OrderService.getUnbilledItemsByTable(tableId);
       const mappedItems: Item[] = response.data.items.map((item: any, index: number) => ({
         id: item.id || index,
         txnDetailId: item.txnDetailId || item.id || index,

@@ -20,7 +20,6 @@ const KitchenSubCategoryRoutes = require('./routes/KitchenSubCategoryRoutes');
 const HotelMastersRoutes = require('./routes/HotelMastersRoutes');
 const ItemMainGroupRoutes = require('./routes/ItemMainGroupRoutes');
 const ItemGroupRoutes = require('./routes/ItemGroupRoutes');
-const messagemasterRoutes = require('./routes/messagemasterRoutes');
 const menuRoutes = require("./routes/mstrestmenuRoutes");
 const outletRoutes = require('./routes/outletRoutes');
 const outletUserRoutes = require('./routes/outletUserRoutes');
@@ -76,7 +75,6 @@ app.use('/api/KitchenSubCategory', KitchenSubCategoryRoutes)
 app.use('/api/HotelMasters', HotelMastersRoutes);
 app.use('/api/ItemMainGroup', ItemMainGroupRoutes);
 app.use('/api/ItemGroup', ItemGroupRoutes);
-app.use('/api/messagemaster', messagemasterRoutes);
 app.use("/api/menu", menuRoutes);
 app.use('/api/outlets', outletRoutes);
 app.use('/api/outlet-users', outletUserRoutes);
