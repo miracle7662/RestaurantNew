@@ -1,30 +1,28 @@
-import axios from 'axios'
-
-const API_BASE_URL = 'http://localhost:3001/api'
+import HttpClient from '@/common/helpers/httpClient'
 
 // Login user with email (for SuperAdmin)
 export const loginUserWithEmail = async (email: string, password: string) => {
   try {
-    const response = await axios.post(`${API_BASE_URL}/auth/login`, {
+    const response = await HttpClient.post<any>('/auth/login', {
       email,
       password
     })
-    return response.data
+    return response
   } catch (error: any) {
-    throw new Error(error.response?.data?.message || 'Login failed')
+    throw new Error(error.message || 'Login failed')
   }
 }
 
 // Login user with username (for Hotel Admin)
 export const loginUserWithUsername = async (username: string, password: string) => {
   try {
-    const response = await axios.post(`${API_BASE_URL}/auth/login`, {
+    const response = await HttpClient.post<any>('/auth/login', {
       username,
       password
     })
-    return response.data
+    return response
   } catch (error: any) {
-    throw new Error(error.response?.data?.message || 'Login failed')
+    throw new Error(error.message || 'Login failed')
   }
 }
 
@@ -36,14 +34,10 @@ export const loginUser = async (email: string, password: string) => {
 // Get current user info
 export const getCurrentUser = async (token: string) => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/auth/me`, {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
-    })
-    return response.data
+    const response = await HttpClient.get<any>('/auth/me')
+    return response
   } catch (error: any) {
-    throw new Error(error.response?.data?.message || 'Failed to get user info')
+    throw new Error(error.message || 'Failed to get user info')
   }
 }
 

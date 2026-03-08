@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Button, Card, Table, Modal, Form, Alert } from 'react-bootstrap';
 import { toast } from 'react-hot-toast';
 import { useAuthContext } from '@/common/context/useAuthContext';
+import AccountTypeService from '@/common/api/accountType';
+import { type AccountType, type AccountTypePayload } from '@/common/api/accountType';
+import AccountNatureService from '@/common/api/accountNature';
 
 // Interfaces
 interface AccountTypeItem {
@@ -64,20 +67,8 @@ const AccountType: React.FC = () => {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch(`http://localhost:3001/api/accounttype`, {
-        headers: {
-          'Authorization': `Bearer ${session.token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({ message: 'Failed to fetch account types' }));
-        throw new Error(errorData.message || 'Failed to fetch account types');
-      }
-
-      const data = await res.json();
-      setAccountTypes(data);
+      const response = await AccountTypeService.list();
+      setAccountTypes(response.data || []);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch account types';
       setError(errorMessage);
@@ -92,19 +83,8 @@ const AccountType: React.FC = () => {
     if (isDisabled) return;
 
     try {
-      const res = await fetch(`http://localhost:3001/api/accountnature`, {
-        headers: {
-          'Authorization': `Bearer ${session.token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!res.ok) {
-        throw new Error('Failed to fetch account natures');
-      }
-
-      const data = await res.json();
-      setAccountNatures(data);
+      const response = await AccountNatureService.list();
+      setAccountNatures(response.data || []);
     } catch (err) {
       console.error('Failed to fetch account natures:', err);
     }
@@ -137,19 +117,7 @@ const AccountType: React.FC = () => {
     if (!window.confirm('Are you sure you want to delete this account type?')) return;
 
     try {
-      const res = await fetch(`http://localhost:3001/api/accounttype/${accountType.AccID}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${session.token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({ message: 'Failed to delete account type' }));
-        throw new Error(errorData.message || 'Failed to delete account type');
-      }
-
+      await AccountTypeService.remove(accountType.AccID);
       toast.success('Account type deleted successfully');
       fetchAccountTypes();
     } catch (err) {
@@ -464,8 +432,12 @@ const AccountTypeModal: React.FC<AccountTypeModalProps> = ({
     setLoading(true);
 
     try {
-      const payload = {
-        ...formData,
+      const payload: AccountTypePayload = {
+        AccName: formData.AccName,
+        UnderID: formData.UnderID,
+        NatureOfC: formData.NatureOfC,
+        status: formData.status,
+        countryid: formData.countryid,
         hotelid: session.hotelid,
         ...(isEdit
           ? {
@@ -478,22 +450,10 @@ const AccountTypeModal: React.FC<AccountTypeModalProps> = ({
             }),
       };
 
-      const url = isEdit
-        ? `http://localhost:3001/api/accounttype/${accountType!.AccID}`
-        : `http://localhost:3001/api/accounttype`;
-
-      const res = await fetch(url, {
-        method: isEdit ? 'PUT' : 'POST',
-        headers: {
-          'Authorization': `Bearer ${session.token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({ message: 'Failed to save account type' }));
-        throw new Error(errorData.message || 'Failed to save account type');
+      if (isEdit) {
+        await AccountTypeService.update(accountType!.AccID, payload);
+      } else {
+        await AccountTypeService.create(payload);
       }
 
       toast.success(`Account type ${isEdit ? 'updated' : 'created'} successfully`);

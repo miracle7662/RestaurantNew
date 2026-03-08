@@ -8,6 +8,7 @@ import { useAuthContext } from "@/common";
 import { fetchOutletsForDropdown } from "@/utils/commonfunction";
 import brandService, { BrandData } from "@/common/api/brand";
 import { OutletData } from "@/common/api/outlet";
+import ReportService from "@/common/api/report";
 
 interface Bill {
   [key: string]: any; // Index signature for dynamic property access in export functions
@@ -159,17 +160,12 @@ const ReportPage = () => {
   useEffect(() => {
     const fetchPaymentModes = async () => {
       try {
-        // The controller is updated to handle an empty outletid, returning all unique modes
-        const response = await fetch(`http://localhost:3001/api/payment-modes/by-outlet?outletid=${filters.outlet || ''}`);
-        if (response.ok) {
-          const data = await response.json();
-          setDynamicPaymentModes(data);
-        } else {
-          console.error("Failed to fetch payment modes");
-          setDynamicPaymentModes([]);
-        }
+        // Use ReportService for common API call
+        const data = await ReportService.getPaymentModesByOutlet(filters.outlet || '');
+        setDynamicPaymentModes(data);
       } catch (error) {
         console.error("Error fetching payment modes:", error);
+        setDynamicPaymentModes([]);
       }
     };
     fetchPaymentModes();
@@ -178,8 +174,6 @@ const ReportPage = () => {
   const loadBills = async (startDate?: string, endDate?: string) => {
     try {
       setLoading(true);
-      // Build query params with dates
-      const params = new URLSearchParams();
       
       // Determine date range based on reportType if not explicitly provided
       let start = startDate;
@@ -204,17 +198,12 @@ const ReportPage = () => {
         }
       }
       
-      if (start) params.append('start', start);
-      if (end) params.append('end', end);
+      // Use ReportService for common API call
+      const response = await ReportService.getDailySalesReport({ start, end });
       
-      const response = await fetch(`http://localhost:3001/api/reports?${params.toString()}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch report data');
-      }
-      const data = await response.json();
-      if (data.success) {
-        console.log("Fetched bills data:", data.data.orders);
-        const orders: any[] = data.data.orders || [];
+      if (response.success && response.data) {
+        console.log("Fetched bills data:", response.data.orders);
+        const orders: any[] = response.data.orders || [];
         const allBills: Bill[] = orders.map((order: any) => ({
           orderNo: order.orderNo,
           billNo: order.orderNo,
@@ -273,7 +262,7 @@ const ReportPage = () => {
         setBills(allBills);
         filterBills(allBills);
       } else {
-        throw new Error(data.message || 'Failed to fetch data');
+        throw new Error(response.message || 'Failed to fetch data');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');

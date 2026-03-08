@@ -144,6 +144,7 @@ const OutletUserService =  {
     roleLevel?: string
     brandId?: number
     hotelId?: number
+    hotelid?: number
     outletid?: number
     created_by_id?: number
   }): Promise<ApiResponse<OutletUser[]>> =>

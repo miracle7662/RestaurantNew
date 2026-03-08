@@ -1,5 +1,5 @@
 /**
- * City Service - Clean API service for city management operations
+ * Account Nature Service - Clean API service for account nature management operations
  * Uses HttpClient with interceptors for authentication
  * Returns ApiResponse<T> for consistent response handling
  */
@@ -11,30 +11,25 @@ import { ApiResponse } from '@/types/api'
  * Type Definitions
  * ═══════════════════════════════════════════════════════════════════════════════ */
 
-/** City information */
-export interface City {
-  cityid: number
-  city_name: string
-  city_Code: string
-  stateId?: number
-  countryid?: string
-  iscoastal: number
+/** Account Nature information */
+export interface AccountNature {
+  nature_id: number
+  accountnature: string
   status: number
-  created_by_id?: string
-  created_date?: string
+  hotelid: number
+  countryid: number
+  created_by_id: string
+  created_date: string
   updated_by_id?: string
   updated_date?: string
 }
 
-/** City payload for create/update */
-export interface CityPayload {
-  cityid?: number
-  city_name: string
-  city_Code: string
-  stateId?: number
-  countryid?: string
-  iscoastal: number
+/** Account Nature payload for create/update */
+export interface AccountNaturePayload {
+  accountnature: string
   status: number
+  hotelid?: number
+  countryid?: number
   created_by_id?: string
   created_date?: string
   updated_by_id?: string
@@ -42,44 +37,45 @@ export interface CityPayload {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
- * City Service
+ * Account Nature Service
  * ═══════════════════════════════════════════════════════════════════════════════ */
 
-const CityService = {
+const AccountNatureService = {
 
   /* ═══════════════════════════════════════════════════════════════════════════
    * CRUD Operations
    * ═══════════════════════════════════════════════════════════════════════════ */
 
   /**
-   * Get all cities with optional search
+   * Get all account natures
    */
-  list: (params?: { q?: string }): Promise<ApiResponse<City[]>> =>
-    HttpClient.get<ApiResponse<City[]>>('/cities', { params }),
+  list: (): Promise<ApiResponse<AccountNature[]>> =>
+    HttpClient.get<ApiResponse<AccountNature[]>>('/accountnature'),
 
   /**
-   * Get cities by state ID
+   * Get account nature by ID
    */
-  getByState: (stateId: number): Promise<City[]> =>
-    HttpClient.get<City[]>(`/cities/${stateId}`),
+  getById: (id: number): Promise<ApiResponse<AccountNature>> =>
+    HttpClient.get<ApiResponse<AccountNature>>(`/accountnature/${id}`),
 
   /**
-   * Create a new city
+   * Create a new account nature
    */
-  create: (payload: CityPayload): Promise<ApiResponse<City>> =>
-    HttpClient.post<ApiResponse<City>>('/cities', payload),
+  create: (payload: AccountNaturePayload): Promise<ApiResponse<AccountNature>> =>
+    HttpClient.post<ApiResponse<AccountNature>>('/accountnature', payload),
 
   /**
-   * Update an existing city
+   * Update an existing account nature
    */
-  update: (id: number, payload: CityPayload): Promise<ApiResponse<City>> =>
-    HttpClient.put<ApiResponse<City>>(`/cities/${id}`, payload),
+  update: (id: number, payload: AccountNaturePayload): Promise<ApiResponse<AccountNature>> =>
+    HttpClient.put<ApiResponse<AccountNature>>(`/accountnature/${id}`, payload),
 
   /**
-   * Delete a city
+   * Delete an account nature
    */
   remove: (id: number): Promise<ApiResponse<null>> =>
-    HttpClient.delete<ApiResponse<null>>(`/cities/${id}`)
+    HttpClient.delete<ApiResponse<null>>(`/accountnature/${id}`)
 }
 
-export default CityService
+export default AccountNatureService
+

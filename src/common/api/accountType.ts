@@ -1,5 +1,5 @@
 /**
- * City Service - Clean API service for city management operations
+ * Account Type Service - Clean API service for account type management operations
  * Uses HttpClient with interceptors for authentication
  * Returns ApiResponse<T> for consistent response handling
  */
@@ -11,30 +11,29 @@ import { ApiResponse } from '@/types/api'
  * Type Definitions
  * ═══════════════════════════════════════════════════════════════════════════════ */
 
-/** City information */
-export interface City {
-  cityid: number
-  city_name: string
-  city_Code: string
-  stateId?: number
-  countryid?: string
-  iscoastal: number
+/** Account Type information */
+export interface AccountType {
+  AccID: number
+  AccName: string
+  UnderID: number | null
+  NatureOfC: number | null
   status: number
-  created_by_id?: string
-  created_date?: string
+  hotelid: number
+  countryid: number
+  created_by_id: string
+  created_date: string
   updated_by_id?: string
   updated_date?: string
 }
 
-/** City payload for create/update */
-export interface CityPayload {
-  cityid?: number
-  city_name: string
-  city_Code: string
-  stateId?: number
-  countryid?: string
-  iscoastal: number
+/** Account Type payload for create/update */
+export interface AccountTypePayload {
+  AccName: string
+  UnderID: number | null
+  NatureOfC: number | null
   status: number
+  hotelid: number
+  countryid?: number
   created_by_id?: string
   created_date?: string
   updated_by_id?: string
@@ -42,44 +41,45 @@ export interface CityPayload {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
- * City Service
+ * Account Type Service
  * ═══════════════════════════════════════════════════════════════════════════════ */
 
-const CityService = {
+const AccountTypeService = {
 
   /* ═══════════════════════════════════════════════════════════════════════════
    * CRUD Operations
    * ═══════════════════════════════════════════════════════════════════════════ */
 
   /**
-   * Get all cities with optional search
+   * Get all account types
    */
-  list: (params?: { q?: string }): Promise<ApiResponse<City[]>> =>
-    HttpClient.get<ApiResponse<City[]>>('/cities', { params }),
+  list: (): Promise<ApiResponse<AccountType[]>> =>
+    HttpClient.get<ApiResponse<AccountType[]>>('/accounttype'),
 
   /**
-   * Get cities by state ID
+   * Get account type by ID
    */
-  getByState: (stateId: number): Promise<City[]> =>
-    HttpClient.get<City[]>(`/cities/${stateId}`),
+  getById: (id: number): Promise<ApiResponse<AccountType>> =>
+    HttpClient.get<ApiResponse<AccountType>>(`/accounttype/${id}`),
 
   /**
-   * Create a new city
+   * Create a new account type
    */
-  create: (payload: CityPayload): Promise<ApiResponse<City>> =>
-    HttpClient.post<ApiResponse<City>>('/cities', payload),
+  create: (payload: AccountTypePayload): Promise<ApiResponse<AccountType>> =>
+    HttpClient.post<ApiResponse<AccountType>>('/accounttype', payload),
 
   /**
-   * Update an existing city
+   * Update an existing account type
    */
-  update: (id: number, payload: CityPayload): Promise<ApiResponse<City>> =>
-    HttpClient.put<ApiResponse<City>>(`/cities/${id}`, payload),
+  update: (id: number, payload: AccountTypePayload): Promise<ApiResponse<AccountType>> =>
+    HttpClient.put<ApiResponse<AccountType>>(`/accounttype/${id}`, payload),
 
   /**
-   * Delete a city
+   * Delete an account type
    */
   remove: (id: number): Promise<ApiResponse<null>> =>
-    HttpClient.delete<ApiResponse<null>>(`/cities/${id}`)
+    HttpClient.delete<ApiResponse<null>>(`/accounttype/${id}`)
 }
 
-export default CityService
+export default AccountTypeService
+

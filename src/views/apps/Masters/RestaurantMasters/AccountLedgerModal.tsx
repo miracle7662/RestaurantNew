@@ -3,6 +3,10 @@ import { Modal, Form, Button } from 'react-bootstrap';
 import { toast } from 'react-hot-toast';
 import { useAuthContext } from '@/common/context/useAuthContext';
 import sanscript from 'sanscript';
+import AccountLedgerService from '@/common/api/accountLedger';
+import StateService from '@/common/api/states';
+import CityService from '@/common/api/cities';
+import AccountTypeService from '@/common/api/accountType';
 
 // Interfaces
 interface AccountLedgerItem {
@@ -82,43 +86,22 @@ const AccountLedgerModal: React.FC<AccountLedgerModalProps> = ({ show, onHide, o
   // Load states
   const loadStates = useCallback(async () => {
     try {
-
-      const res = await fetch(`http://localhost:3001/api/states`, {
-        headers: {
-          'Authorization': `Bearer ${user?.token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!res.ok) {
-        throw new Error('Failed to fetch states');
+      const response = await StateService.list();
+      if (response.data) {
+        setStates(response.data);
       }
-
-      const data = await res.json();
-      setStates(data);
     } catch (err) {
       console.error('Error loading states:', err);
       toast.error('Failed to load states');
     }
-  }, [user?.hotelid, user?.token, ]);
+  }, []);
 
   // Load cities for selected state
   const loadCities = useCallback(async (stateId: string) => {
     try {
       if (stateId) {
-        const res = await fetch(`http://localhost:3001/api/cities/${stateId}`, {
-          headers: {
-            'Authorization': `Bearer ${user?.token}`,
-            'Content-Type': 'application/json',
-          },
-        });
-
-        if (!res.ok) {
-          throw new Error('Failed to fetch cities');
-        }
-
-        const data = await res.json();
-        setCities(data);
+        const response = await CityService.getByState(Number(stateId));
+        setCities(response);
       } else {
         setCities([]);
       }
@@ -126,54 +109,34 @@ const AccountLedgerModal: React.FC<AccountLedgerModalProps> = ({ show, onHide, o
       console.error('Error loading cities:', err);
       toast.error('Failed to load cities');
     }
-  }, [user?.token]);
+  }, []);
 
   // Load account types
   const loadAccountTypes = useCallback(async () => {
     try {
-      const res = await fetch(`http://localhost:3001/api/accounttype`, {
-        headers: {
-          'Authorization': `Bearer ${user.token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!res.ok) {
-        throw new Error('Failed to fetch account types');
+      const response = await AccountTypeService.list();
+      if (response.data) {
+        setAccountTypes(response.data);
       }
-
-      const data = await res.json();
-      setAccountTypes(data);
     } catch (err) {
       console.error('Error loading account types:', err);
       toast.error('Failed to load account types');
     }
-  }, [user.token]);
+  }, []);
 
   // Get next ledger number
   const getNextLedgerNo = useCallback(async () => {
     try {
-      const res = await fetch(`http://localhost:3001/api/account-ledger/next-ledger-no`, {
-        headers: {
-          'Authorization': `Bearer ${user.token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!res.ok) {
-        throw new Error('Failed to fetch next ledger number');
-      }
-
-      const data = await res.json();
+      const response = await AccountLedgerService.getNextLedgerNo();
       setFormData(prev => ({
         ...prev,
-        LedgerNo: data.nextLedgerNo.toString(),
+        LedgerNo: response.nextLedgerNo.toString(),
       }));
     } catch (err) {
       console.error('Error getting next ledger number:', err);
       toast.error('Failed to get next ledger number');
     }
-  }, [user.token]);
+  }, []);
 
   useEffect(() => {
     if (show) {
@@ -256,22 +219,10 @@ const AccountLedgerModal: React.FC<AccountLedgerModalProps> = ({ show, onHide, o
           : { createdBy: user.userId }),
       };
 
-      const url = isEdit
-        ? `http://localhost:3001/api/account-ledger/${ledger!.LedgerId}`
-        : `http://localhost:3001/api/account-ledger`;
-      const method = isEdit ? 'PUT' : 'POST';
-
-      const res = await fetch(url, {
-        method,
-        headers: {
-          'Authorization': `Bearer ${user.token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!res.ok) {
-        throw new Error(`Failed to ${isEdit ? 'update' : 'add'} ledger`);
+      if (isEdit) {
+        await AccountLedgerService.update(ledger!.LedgerId!, payload);
+      } else {
+        await AccountLedgerService.create(payload);
       }
 
       toast.success(`Ledger ${isEdit ? 'updated' : 'added'} successfully`);

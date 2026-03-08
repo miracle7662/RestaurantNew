@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Button, Card, Table, Modal, Form, Alert } from 'react-bootstrap';
 import { toast } from 'react-hot-toast';
 import { useAuthContext } from '@/common/context/useAuthContext';
+import AccountNatureService, { AccountNaturePayload } from '@/common/api/accountNature';
 
 // Interfaces
 interface AccountNatureItem {
@@ -48,20 +49,8 @@ const AccountNature: React.FC = () => {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch(`http://localhost:3001/api/accountnature`, {
-        headers: {
-          'Authorization': `Bearer ${user?.token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({ message: 'Failed to fetch account natures' }));
-        throw new Error(errorData.message || 'Failed to fetch account natures');
-      }
-
-      const data = await res.json();
-      setAccountNatures(data);
+      const response = await AccountNatureService.list();
+      setAccountNatures(response.data || []);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch account natures';
       setError(errorMessage);
@@ -97,20 +86,7 @@ const AccountNature: React.FC = () => {
     if (!window.confirm('Are you sure you want to delete this account nature?')) return;
 
     try {
-     
-      const res = await fetch(`http://localhost:3001/api/accountnature/${accountNature.nature_id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${user?.token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({ message: 'Failed to delete account nature' }));
-        throw new Error(errorData.message || 'Failed to delete account nature');
-      }
-
+      await AccountNatureService.remove(accountNature.nature_id);
       toast.success('Account nature deleted successfully');
       fetchAccountNatures();
     } catch (err) {
@@ -393,8 +369,10 @@ const AccountNatureModal: React.FC<AccountNatureModalProps> = ({
     setLoading(true);
 
     try {
-      const payload = {
-        ...formData,
+      const payload: AccountNaturePayload = {
+        accountnature: formData.accountnature,
+        status: formData.status,
+        countryid: formData.countryid,
         hotelid: user?.hotelid,
         ...(isEdit
           ? {
@@ -407,22 +385,10 @@ const AccountNatureModal: React.FC<AccountNatureModalProps> = ({
             }),
       };
 
-      const url = isEdit
-        ? `http://localhost:3001/api/accountnature/${accountNature!.nature_id}`
-        : `http://localhost:3001/api/accountnature`;
-
-      const res = await fetch(url, {
-        method: isEdit ? 'PUT' : 'POST',
-        headers: {
-          'Authorization': `Bearer ${user?.token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({ message: 'Failed to save account nature' }));
-        throw new Error(errorData.message || 'Failed to save account nature');
+      if (isEdit) {
+        await AccountNatureService.update(accountNature!.nature_id, payload);
+      } else {
+        await AccountNatureService.create(payload);
       }
 
       toast.success(`Account nature ${isEdit ? 'updated' : 'created'} successfully`);

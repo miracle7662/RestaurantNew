@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+ import React, { useState, useEffect } from 'react';
 import { Button, Card, Table, Alert, Form, Pagination } from 'react-bootstrap';
 import { Plus, FileEarmarkPdf, FileEarmarkExcel, Trash, Pencil } from 'react-bootstrap-icons';
 import { toast } from 'react-hot-toast';
@@ -7,6 +7,7 @@ import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { useAuthContext } from '@/common/context/useAuthContext';
 import AccountLedgerModal from './AccountLedgerModal';
+import AccountLedgerService from '@/common/api/accountLedger';
 
 interface ILedger {
   LedgerId?: string;
@@ -96,19 +97,7 @@ const AccountLedger = () => {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch(`http://localhost:3001/api/account-ledger/ledger`, {
-        headers: {
-          'Authorization': `Bearer ${user?.token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({ message: 'Failed to fetch ledger data' }));
-        throw new Error(errorData.message || 'Failed to fetch ledger data');
-      }
-
-      const result = await res.json();
+      const result = await AccountLedgerService.list();
       setData(result);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch ledger data';
@@ -130,19 +119,7 @@ const AccountLedger = () => {
     if (!window.confirm('Are you sure you want to delete this ledger entry?')) return;
 
     try {
-      const res = await fetch(`http://localhost:3001/api/account-ledger/${item.LedgerId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${user?.token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({ message: 'Failed to delete ledger entry' }));
-        throw new Error(errorData.message || 'Failed to delete ledger entry');
-      }
-
+      await AccountLedgerService.remove(item.LedgerId!);
       toast.success('Ledger entry deleted successfully');
       fetchData();
     } catch (err) {

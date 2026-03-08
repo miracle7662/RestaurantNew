@@ -396,33 +396,7 @@ const [loading, setLoading] = useState(true);
   }, [searchCode, searchName, allItems, selectedItemGroup, selectedDeptId, menuItems]);
 
   // Filter dropdown items for code or name (with department filtering)
-  const filterDropdownItems = useCallback(
-    (type: 'code' | 'name') => {
-      let baseItems = selectedItemGroup !== null
-        ? cardItems.filter(item => item.item_group_id === selectedItemGroup)
-        : allItems;
-      
-      // Filter by department: only show items that have price set for selected department
-      if (selectedDeptId) {
-        baseItems = baseItems.filter(item => hasDepartmentPrice(item.userId, selectedDeptId));
-      }
-      
-      return baseItems
-        .filter((item) => {
-          if (type === 'code') {
-            return searchCode
-              ? item.itemCode.toLowerCase().includes(searchCode.toLowerCase())
-              : false;
-          }
-          return searchName
-            ? item.ItemName.toLowerCase().includes(searchName.toLowerCase()) ||
-            item.shortName.toLowerCase().includes(searchName.toLowerCase())
-            : false;
-        })
-        .slice(0, 7);
-    },
-    [searchCode, searchName, allItems, selectedItemGroup, selectedDeptId, menuItems]
-  );
+
 
   useEffect(() => {
     setFilteredItems(filterItems());
@@ -455,16 +429,6 @@ const [loading, setLoading] = useState(true);
     const results: CodeSearchResult[] = [];
     
     matchedItems.forEach((item) => {
-      // Add base item with department price
-      results.push({
-        type: 'base',
-        userId: item.userId,
-        itemCode: item.itemCode,
-        ItemName: item.ItemName,
-        shortName: item.shortName,
-        price: getDisplayPrice(item.userId, item.price, selectedDeptId),
-      });
-      
       // Get variants from menuItems filtered by department
       const menuItem = menuItems.find((m: any) => String(m.restitemid) === item.userId);
       console.log('Menu item for', item.itemCode, ':', menuItem?.department_details?.length, 'details');
@@ -1131,7 +1095,7 @@ const [loading, setLoading] = useState(true);
                 <div style={{ maxWidth: '100px', position: 'relative' }}>
                   <input
                     type="text"
-                    className="form-control rounded-start"
+                    className="form-control rounded-pill"
                     placeholder="Code"
                     value={searchCode}
                     onChange={handleCodeChange}
@@ -1153,7 +1117,7 @@ const [loading, setLoading] = useState(true);
                     }}
                     ref={codeInputRef}
                     disabled={reverseQtyMode && isBilled}
-                    style={{ minHeight: '48px', width: '100%', paddingRight: '24px' }}
+                    style={{ minHeight: '48px', width: '100%', paddingRight: '24px',borderRadius: '30px',border: '1px solid #ced4da',   }}
                   />
                   {showCodeDropdown && codeSearchResults.length > 0 && (
                     <div

@@ -36,6 +36,7 @@ import { useNavigate } from 'react-router-dom';
 import HandoverPasswordModal from "../../../components/HandoverPasswordModal.tsx";
 import HandoverService from '@/common/api/handover';
 import OrderService from '@/common/api/order.ts';
+import OutletUserService from '@/common/api/outletUser';
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
@@ -73,13 +74,12 @@ interface Order {
 }
 
 interface HandoverUser {
-  userid: number;
+  userid?: number;
   full_name: string;
   username: string;
   role_level: string;
-  status: number;
+  status?: number;
   outletid?: number;
-  // Add other fields as needed
 }
 
 const HandoverPage = () => {
@@ -133,28 +133,27 @@ const HandoverPage = () => {
 
     const fetchHandoverUsers = async () => {
       try {
-         // Assuming API endpoint for fetching outlet users (based on provided controller)
-        // Adjust the URL and params as per your routing (e.g., /api/outlet-users)
-        const params = new URLSearchParams({
-          currentUserId: user?.userid?.toString() || '',
-          roleLevel: user?.role_level || '',
-          hotelid: user?.hotelid?.toString() || '',
+        const response = await OutletUserService.getOutletUsers({
+          currentUserId: user?.userid,
+          roleLevel: user?.role_level,
+          hotelid: user?.hotelid,
         });
-        const response = await fetch(`http://localhost:3001/api/outlet-users?${params}`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch handover users');
+        
+        if (response.success) {
+          console.log('Fetched handover users data:', response.data);
+          let filteredUsers = (response.data || []).filter((u: HandoverUser) =>
+            u.role_level === 'outlet_user' && u.status === 0 && u.userid !== user?.userid
+          );
+          // If current user is outlet_user, filter by same outlet
+          if (user?.role_level === 'outlet_user' && user?.outletid) {
+            filteredUsers = filteredUsers.filter((u: HandoverUser) => u.outletid === user.outletid);
+          }
+          console.log('Filtered handover users:', filteredUsers);
+          setHandoverUsers(filteredUsers);
+        } else {
+          console.error('Failed to fetch handover users:', response.message);
+          setHandoverUsers([]);
         }
-        const data = await response.json();
-        console.log('Fetched handover users data:', data); // Debug log
-        let filteredUsers = (data || []).filter((u: HandoverUser) =>
-          u.role_level === 'outlet_user' && u.status === 0 && u.userid !== user?.userid
-        );
-        // If current user is outlet_user, filter by same outlet
-        if (user?.role_level === 'outlet_user' && user?.outletid) {
-          filteredUsers = filteredUsers.filter((u: HandoverUser) => u.outletid === user.outletid);
-        }
-        console.log('Filtered handover users:', filteredUsers);
-        setHandoverUsers(filteredUsers);
       } catch (err) {
         console.error('Error fetching handover users:', err);
         setHandoverUsers([]);
