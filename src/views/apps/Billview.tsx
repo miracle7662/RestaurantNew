@@ -10,7 +10,6 @@ import F8PasswordModal from '../../components/F8PasswordModal';
 import ReverseKotModal from './ReverseKotModal';
 import KotPreviewPrint from './PrintReport/KotPrint';
 import BillPreviewPrint from './PrintReport/BillPrint';
-import VariantModal from '@/components/VariantModal';
 import { OutletSettings } from '../../utils/applyOutletSettings';
 import { fetchKotPrintSettings, } from '@/services/outletSettings.service';
 import { applyKotSettings, } from '@/utils/applyOutletSettings';
@@ -36,24 +35,7 @@ const getRowColor = (kotNo: string | number | null | undefined) => {
   return KOT_COLORS[num % KOT_COLORS.length];
 };
 
-// Interface for variant options
-interface VariantOption {
-  variant_value_id: number;
-  value_name: string;
-  price: number;
-}
 
-// Interface for code search results (includes base items and variants)
-interface CodeSearchResult {
-  type: 'base' | 'variant';
-  userId: string;
-  itemCode: string;
-  ItemName: string;
-  shortName: string;
-  price: number;
-  variantId?: number;
-  variantName?: string;
-}
 
 interface BillItem {
   itemCode: string;
