@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+ import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { Row, Col, Card, Table, Badge, Button, Form, Modal } from 'react-bootstrap';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthContext } from '@/common';
@@ -10,12 +10,14 @@ import F8PasswordModal from '../../components/F8PasswordModal';
 import ReverseKotModal from './ReverseKotModal';
 import KotPreviewPrint from './PrintReport/KotPrint';
 import BillPreviewPrint from './PrintReport/BillPrint';
+import VariantModal from '@/components/VariantModal';
 import { OutletSettings } from '../../utils/applyOutletSettings';
 import { fetchKotPrintSettings, } from '@/services/outletSettings.service';
 import { applyKotSettings, } from '@/utils/applyOutletSettings';
 import TableManagementService from '@/common/api/tablemanagement';
 import OrderService from '@/common/api/order';
 import MenuService from "@/common/api/menu";
+import { DepartmentDetail } from "@/common/api/menu";
 
 
 
@@ -33,6 +35,25 @@ const getRowColor = (kotNo: string | number | null | undefined) => {
 
   return KOT_COLORS[num % KOT_COLORS.length];
 };
+
+// Interface for variant options
+interface VariantOption {
+  variant_value_id: number;
+  value_name: string;
+  price: number;
+}
+
+// Interface for code search results (includes base items and variants)
+interface CodeSearchResult {
+  type: 'base' | 'variant';
+  userId: string;
+  itemCode: string;
+  ItemName: string;
+  shortName: string;
+  price: number;
+  variantId?: number;
+  variantName?: string;
+}
 
 interface BillItem {
   itemCode: string;
@@ -56,6 +77,9 @@ interface BillItem {
   RevKOT?: number;
   revKotNo?: number;
   isValidCode?: boolean;
+  // Variant fields
+  variantId?: number;
+  variantName?: string;
 }
 interface MenuItem {
   restitemid: number;
@@ -64,7 +88,9 @@ interface MenuItem {
   short_name: string;
   price: number;
   itemgroupid?: number;
+  department_details?: DepartmentDetail[];
 }
+
 interface DisplayedItem extends BillItem {
   type?: 'header' | 'item';
   groupName?: string;
@@ -3058,11 +3084,32 @@ const ModernBill = () => {
               ))}
             </datalist>
 
-            {/* Datalist Item Codes */}
+            {/* Datalist Item Codes with Variants - Only show variants */}
             <datalist id="itemNos">
-              {menuItems.map(item => (
-                <option key={item.restitemid} value={item.item_no.toString()} />
-              ))}
+              {menuItems.flatMap(item => {
+                // Get unique variants for this item
+                const variants = (item.department_details || [])
+                  .filter((detail: any) => detail.variant_value_id && detail.variant_value_name)
+                  .map((detail: any) => ({
+                    variant_value_id: detail.variant_value_id,
+                    value_name: detail.variant_value_name,
+                    price: detail.item_rate || 0
+                  }))
+                  .filter((variant, index, self) => 
+                    index === self.findIndex(v => v.variant_value_id === variant.variant_value_id)
+                  );
+                
+                // Only include this item's variants if there are any
+                if (variants.length === 0) return null;
+                
+                return variants.map(variant => (
+                  <option 
+                    key={`${item.item_no.toString()}-${variant.variant_value_id}`} 
+                    value={item.item_no.toString()} 
+                    label={`${item.item_name} (${variant.value_name}) - ₹${variant.price}`} 
+                  />
+                ));
+              }).filter(Boolean)}
             </datalist>
 
           </div>
@@ -3124,6 +3171,7 @@ const ModernBill = () => {
                                   }
                                 }}
                                 className={`form-control ${item.isValidCode === false ? 'is-invalid' : ''}`}
+                                list="itemNos"
                                 style={{ width: '100%', fontSize: '16px', background: 'transparent', padding: '0' }}
                               />
                               {item.isValidCode === false && (
