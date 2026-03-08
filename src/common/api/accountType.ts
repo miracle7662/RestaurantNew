@@ -44,6 +44,20 @@ export interface AccountTypePayload {
  * Account Type Service
  * ═══════════════════════════════════════════════════════════════════════════════ */
 
+/**
+ * Helper function to extract data from response
+ * Handles both direct array responses and wrapped {data: [...]} responses
+ */
+const extractData = <T>(response: unknown): T => {
+  if (Array.isArray(response)) {
+    return response as T;
+  }
+  if (response && typeof response === 'object' && 'data' in response) {
+    return (response as { data: T }).data;
+  }
+  return response as T;
+};
+
 const AccountTypeService = {
 
   /* ═══════════════════════════════════════════════════════════════════════════
@@ -53,32 +67,41 @@ const AccountTypeService = {
   /**
    * Get all account types
    */
-  list: (): Promise<ApiResponse<AccountType[]>> =>
-    HttpClient.get<ApiResponse<AccountType[]>>('/accounttype'),
+  list: async (): Promise<AccountType[]> => {
+    const response = await HttpClient.get<AccountType[]>('/accounttype');
+    return extractData<AccountType[]>(response);
+  },
 
   /**
    * Get account type by ID
    */
-  getById: (id: number): Promise<ApiResponse<AccountType>> =>
-    HttpClient.get<ApiResponse<AccountType>>(`/accounttype/${id}`),
+  getById: async (id: number): Promise<AccountType> => {
+    const response = await HttpClient.get<AccountType>(`/accounttype/${id}`);
+    return extractData<AccountType>(response);
+  },
 
   /**
    * Create a new account type
    */
-  create: (payload: AccountTypePayload): Promise<ApiResponse<AccountType>> =>
-    HttpClient.post<ApiResponse<AccountType>>('/accounttype', payload),
+  create: async (payload: AccountTypePayload): Promise<AccountType> => {
+    const response = await HttpClient.post<AccountType>('/accounttype', payload);
+    return extractData<AccountType>(response);
+  },
 
   /**
    * Update an existing account type
    */
-  update: (id: number, payload: AccountTypePayload): Promise<ApiResponse<AccountType>> =>
-    HttpClient.put<ApiResponse<AccountType>>(`/accounttype/${id}`, payload),
+  update: async (id: number, payload: AccountTypePayload): Promise<AccountType> => {
+    const response = await HttpClient.put<AccountType>(`/accounttype/${id}`, payload);
+    return extractData<AccountType>(response);
+  },
 
   /**
    * Delete an account type
    */
-  remove: (id: number): Promise<ApiResponse<null>> =>
-    HttpClient.delete<ApiResponse<null>>(`/accounttype/${id}`)
+  remove: async (id: number): Promise<void> => {
+    await HttpClient.delete(`/accounttype/${id}`);
+  }
 }
 
 export default AccountTypeService

@@ -40,6 +40,20 @@ export interface AccountNaturePayload {
  * Account Nature Service
  * ═══════════════════════════════════════════════════════════════════════════════ */
 
+/**
+ * Helper function to extract data from response
+ * Handles both direct array responses and wrapped {data: [...]} responses
+ */
+const extractData = <T>(response: unknown): T => {
+  if (Array.isArray(response)) {
+    return response as T;
+  }
+  if (response && typeof response === 'object' && 'data' in response) {
+    return (response as { data: T }).data;
+  }
+  return response as T;
+};
+
 const AccountNatureService = {
 
   /* ═══════════════════════════════════════════════════════════════════════════
@@ -49,32 +63,41 @@ const AccountNatureService = {
   /**
    * Get all account natures
    */
-  list: (): Promise<ApiResponse<AccountNature[]>> =>
-    HttpClient.get<ApiResponse<AccountNature[]>>('/accountnature'),
+  list: async (): Promise<AccountNature[]> => {
+    const response = await HttpClient.get<AccountNature[]>('/accountnature');
+    return extractData<AccountNature[]>(response);
+  },
 
   /**
    * Get account nature by ID
    */
-  getById: (id: number): Promise<ApiResponse<AccountNature>> =>
-    HttpClient.get<ApiResponse<AccountNature>>(`/accountnature/${id}`),
+  getById: async (id: number): Promise<AccountNature> => {
+    const response = await HttpClient.get<AccountNature>(`/accountnature/${id}`);
+    return extractData<AccountNature>(response);
+  },
 
   /**
    * Create a new account nature
    */
-  create: (payload: AccountNaturePayload): Promise<ApiResponse<AccountNature>> =>
-    HttpClient.post<ApiResponse<AccountNature>>('/accountnature', payload),
+  create: async (payload: AccountNaturePayload): Promise<AccountNature> => {
+    const response = await HttpClient.post<AccountNature>('/accountnature', payload);
+    return extractData<AccountNature>(response);
+  },
 
   /**
    * Update an existing account nature
    */
-  update: (id: number, payload: AccountNaturePayload): Promise<ApiResponse<AccountNature>> =>
-    HttpClient.put<ApiResponse<AccountNature>>(`/accountnature/${id}`, payload),
+  update: async (id: number, payload: AccountNaturePayload): Promise<AccountNature> => {
+    const response = await HttpClient.put<AccountNature>(`/accountnature/${id}`, payload);
+    return extractData<AccountNature>(response);
+  },
 
   /**
    * Delete an account nature
    */
-  remove: (id: number): Promise<ApiResponse<null>> =>
-    HttpClient.delete<ApiResponse<null>>(`/accountnature/${id}`)
+  remove: async (id: number): Promise<void> => {
+    await HttpClient.delete(`/accountnature/${id}`);
+  }
 }
 
 export default AccountNatureService

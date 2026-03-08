@@ -50,7 +50,7 @@ const AccountNature: React.FC = () => {
     setError('');
     try {
       const response = await AccountNatureService.list();
-      setAccountNatures(response.data || []);
+      setAccountNatures(response || []);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch account natures';
       setError(errorMessage);

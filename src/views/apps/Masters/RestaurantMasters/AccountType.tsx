@@ -68,7 +68,7 @@ const AccountType: React.FC = () => {
     setError('');
     try {
       const response = await AccountTypeService.list();
-      setAccountTypes(response.data || []);
+      setAccountTypes(response || []);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch account types';
       setError(errorMessage);
@@ -84,7 +84,8 @@ const AccountType: React.FC = () => {
 
     try {
       const response = await AccountNatureService.list();
-      setAccountNatures(response.data || []);
+       console.log("API Response:", response);
+      setAccountNatures(response || []);
     } catch (err) {
       console.error('Failed to fetch account natures:', err);
     }
@@ -95,7 +96,7 @@ const AccountType: React.FC = () => {
       fetchAccountTypes();
       fetchAccountNatures();
     }
-  }, [session.hotelid]);
+  }, [user?.hotelid]);
 
   // Log session values when they change
   useEffect(() => {
