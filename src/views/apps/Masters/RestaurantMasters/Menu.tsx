@@ -58,7 +58,7 @@ interface MenuItem {
   outletid: number | null;
   outlet_name: string | null;
   item_rate: number | null;
-  unitid: number | null;
+  unitid:  number | null;
   servingunitid: number | null;
   IsConversion: number | null;
 }
@@ -700,7 +700,7 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
   const [stockUnit, setStockUnit] = useState<number | null>(mstmenu?.stock_unit ? Number(mstmenu.stock_unit) : null);
   const [price, setPrice] = useState<string>(mstmenu?.price ? mstmenu.price.toString() : '');
   const [taxgroupid, setTaxgroupid] = useState<number | null>(mstmenu?.taxgroupid || null);
-  const [, setSelectedDepartment] = useState<number | null>(null);
+  
   const [runtimeRates, setRuntimeRates] = useState(!!mstmenu?.is_runtime_rates);
   const [isCommonToAllDepartments, setIsCommonToAllDepartments] = useState(!!mstmenu?.is_common_to_all_departments);
   const [itemDescription, setItemDescription] = useState<string | null>(mstmenu?.item_description || null);
@@ -1039,27 +1039,30 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
     if (isVariantProduct) {
       // For variant products: send variant_rates for each department
       departmentDetailsPayload = newItem.departmentRates.map(({ departmentid, rate, unitid, IsConversion, servingunitid, variant_rates, taxgroupid }) => ({
+        restitemid: isEdit && mstmenu ? mstmenu.restitemid : 0,
         departmentid,
         department_name: departments.find((d) => d.departmentid === departmentid)?.department_name || '',
         item_rate: rate || 0, // fallback rate
-        unitid,
-        servingunitid,
+        unitid: unitid ?? stockUnit ?? 0,
+      
+        servingunitid: servingunitid ?? 0,
         IsConversion,
         variant_rates: variant_rates || {}, // Object with variant_value_id -> rate mapping
         value_name: variant_rates ? Object.keys(variant_rates)[0] : null,
 
-        taxgroupid
+        taxgroupid: taxgroupid ?? 0
       }));
     } else {
       // For simple products: send regular rate
       departmentDetailsPayload = newItem.departmentRates.map(({ departmentid, rate, unitid, servingunitid, IsConversion, taxgroupid }) => ({
+        restitemid: isEdit && mstmenu ? mstmenu.restitemid : 0,
         departmentid,
         department_name: departments.find((d) => d.departmentid === departmentid)?.department_name || '',
         item_rate: rate && rate > 0 ? rate : parseFloat(price),
-        unitid,
-        servingunitid,
+        unitid: unitid ?? stockUnit ?? 0,
+        servingunitid: servingunitid ?? 0,
         IsConversion,
-        taxgroupid
+        taxgroupid: taxgroupid ?? 0
       }));
     }
 
