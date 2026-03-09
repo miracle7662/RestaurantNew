@@ -22,10 +22,10 @@ exports.getBrands = (req, res) => {
     // If user is superadmin, show all hotels (no additional WHERE clause)
 
     const brands = db.prepare(query).all(...params)
-    res.json(brands)
+    res.json({ success: true, message: 'Brands fetched successfully', data: brands })
   } catch (error) {
     console.error('Error fetching brands:', error)
-    res.status(500).json({ error: 'Failed to fetch brands' })
+    res.status(500).json({ success: false, message: 'Failed to fetch brands', data: null })
   }
 }
 
@@ -85,7 +85,7 @@ exports.getOutletsByHotel = (req, res) => {
     const { hotelid } = req.query;
 
     if (!hotelid) {
-      return res.status(400).json({ message: 'Hotel ID is required' });
+      return res.status(400).json({ success: false, message: 'Hotel ID is required', data: null });
     }
 
     const query = `
@@ -100,10 +100,10 @@ exports.getOutletsByHotel = (req, res) => {
     const outlets = db.prepare(query).all(hotelid);
     console.log('Found outlets for hotel:', hotelid, outlets);
 
-    res.json(outlets);
+    res.json({ success: true, message: 'Outlets fetched successfully', data: outlets });
   } catch (error) {
     console.error('Error fetching outlets by hotel:', error);
-    res.status(500).json({ message: 'Internal server error', error: error.message });
+    res.status(500).json({ success: false, message: 'Internal server error', data: null });
   }
 };
 exports.addOutlet = (req, res) => {
@@ -768,51 +768,55 @@ generalSettingsStmt.run(
     // Commit the transaction
     db.exec('COMMIT');
 
-    res.json({
-      id: outletId,
-      outlet_name,
-      hotelid,
-      market_id,
-      outlet_code,
-      phone,
-      email,
-      website,
-      address,
-      city,
-      zip_code,
-      country,
-      timezone,
-      start_day_time,
-      close_day_time,
-      next_reset_bill_date,
-      next_reset_bill_days,
-      next_reset_kot_date,
-      next_reset_kot_days,
-      contact_phone,
-      notification_email,
-      description,
-      logo,
-      gst_no,
-      fssai_no,
-      status,
-      digital_order: digital_order || 0,
-      created_by_id,
-      created_date: new Date().toISOString(),
-      logout_pos: logout_pos == true || logout_pos == 1 ? 1 : 0,
-      password_protection: password_protection == true || password_protection == 1 ? 1 : 0,
-      send_payment_link: send_payment_link == true || send_payment_link == 1 ? 1 : 0,
-      send_ebill_whatsapp: send_ebill_whatsapp == true || send_ebill_whatsapp == 1 ? 1 : 0,
-      add_custom_qr: add_custom_qr == true || add_custom_qr == 1 ? 1 : 0,
-      start_time,
-      end_time,
-      warehouseid: warehouseid,
-      reduce_inventory: reduce_inventory == true || reduce_inventory == 1 ? 1 : 0,
+    res.json({ 
+      success: true,
+      message: 'Outlet added successfully',
+      data: {
+        id: outletId,
+        outlet_name,
+        hotelid,
+        market_id,
+        outlet_code,
+        phone,
+        email,
+        website,
+        address,
+        city,
+        zip_code,
+        country,
+        timezone,
+        start_day_time,
+        close_day_time,
+        next_reset_bill_date,
+        next_reset_bill_days,
+        next_reset_kot_date,
+        next_reset_kot_days,
+        contact_phone,
+        notification_email,
+        description,
+        logo,
+        gst_no,
+        fssai_no,
+        status,
+        digital_order: digital_order || 0,
+        created_by_id,
+        created_date: new Date().toISOString(),
+        logout_pos: logout_pos == true || logout_pos == 1 ? 1 : 0,
+        password_protection: password_protection == true || password_protection == 1 ? 1 : 0,
+        send_payment_link: send_payment_link == true || send_payment_link == 1 ? 1 : 0,
+        send_ebill_whatsapp: send_ebill_whatsapp == true || send_ebill_whatsapp == 1 ? 1 : 0,
+        add_custom_qr: add_custom_qr == true || add_custom_qr == 1 ? 1 : 0,
+        start_time,
+        end_time,
+        warehouseid: warehouseid,
+        reduce_inventory: reduce_inventory == true || reduce_inventory == 1 ? 1 : 0,
+      }
     })
   } catch (error) {
     // Rollback the transaction on error
     db.exec('ROLLBACK');
     console.error('Error adding outlet:', error)
-    res.status(500).json({ error: 'Failed to add outlet' })
+    res.status(500).json({ success: false, message: 'Failed to add outlet', data: null })
   }
 }
 exports.updateOutlet = (req, res) => {
@@ -859,7 +863,7 @@ exports.updateOutlet = (req, res) => {
 
     // Validate required fields
     if (!outlet_name) {
-      return res.status(400).json({ error: 'Outlet name is required' })
+      return res.status(400).json({ success: false, message: 'Outlet name is required', data: null })
     }
 
     const stmt = db.prepare(`
@@ -918,48 +922,52 @@ exports.updateOutlet = (req, res) => {
     )
 
     res.json({
-      id,
-      outlet_name,
-      hotelid,
-      market_id,
-      outlet_code,
-      phone,
-      email,
-      website,
-      address,
-      city,
-      zip_code,
-      country,
-      timezone,
-      start_day_time,
-      close_day_time,
-      next_reset_bill_date,
-      next_reset_bill_days,
-      next_reset_kot_date,
-      next_reset_kot_days,
-      contact_phone,
-      notification_email,
-      description,
-      logo,
-      gst_no,
-      fssai_no,
-      status,
-      digital_order,
-      logout_pos: logout_pos == true || logout_pos == 1 ? 1 : 0,
-      password_protection: password_protection == true || password_protection == 1 ? 1 : 0,
-      send_payment_link: send_payment_link == true || send_payment_link == 1 ? 1 : 0,
-      send_ebill_whatsapp: send_ebill_whatsapp == true || send_ebill_whatsapp == 1 ? 1 : 0,
-      add_custom_qr: add_custom_qr == true || add_custom_qr == 1 ? 1 : 0,
-      start_time,
-      end_time,
-      warehouseid,
-      reduce_inventory: reduce_inventory == true || reduce_inventory == 1 ? 1 : 0,
-      updated_by_id,
-      updated_date: new Date().toISOString(),
+      success: true,
+      message: 'Outlet updated successfully',
+      data: {
+        id,
+        outlet_name,
+        hotelid,
+        market_id,
+        outlet_code,
+        phone,
+        email,
+        website,
+        address,
+        city,
+        zip_code,
+        country,
+        timezone,
+        start_day_time,
+        close_day_time,
+        next_reset_bill_date,
+        next_reset_bill_days,
+        next_reset_kot_date,
+        next_reset_kot_days,
+        contact_phone,
+        notification_email,
+        description,
+        logo,
+        gst_no,
+        fssai_no,
+        status,
+        digital_order,
+        logout_pos: logout_pos == true || logout_pos == 1 ? 1 : 0,
+        password_protection: password_protection == true || password_protection == 1 ? 1 : 0,
+        send_payment_link: send_payment_link == true || send_payment_link == 1 ? 1 : 0,
+        send_ebill_whatsapp: send_ebill_whatsapp == true || send_ebill_whatsapp == 1 ? 1 : 0,
+        add_custom_qr: add_custom_qr == true || add_custom_qr == 1 ? 1 : 0,
+        start_time,
+        end_time,
+        warehouseid,
+        reduce_inventory: reduce_inventory == true || reduce_inventory == 1 ? 1 : 0,
+        updated_by_id,
+        updated_date: new Date().toISOString(),
+      }
     })
   } catch (error) {
     console.error('Error updating outlet:', error)
-    res.status(500).json({ error: 'Failed to update outlet' })
+    res.status(500).json({ success: false, message: 'Failed to update outlet', data: null })
   }
 }
 
@@ -968,10 +976,10 @@ exports.deleteOutlet = (req, res) => {
     const { id } = req.params
     const stmt = db.prepare('DELETE FROM mst_outlets WHERE outletid = ?')
     stmt.run(id)
-    res.json({ message: 'Outlet deleted successfully' })
+    res.json({ success: true, message: 'Outlet deleted successfully', data: null })
   } catch (error) {
     console.error('Error deleting outlet:', error)
-    res.status(500).json({ error: 'Failed to delete outlet' })
+    res.status(500).json({ success: false, message: 'Failed to delete outlet', data: null })
   }
 }
 
@@ -2276,7 +2284,13 @@ exports.getOutletBillingSettings = (req, res) => {
     `).get(outletid);
 
     if (!settings) {
-      return res.status(404).json({ error: 'Outlet settings not found' });
+      return res.status(404).json({
+  data: {
+    success: false,
+    message: 'Outlet settings not found',
+    data: null
+  }
+});;
     }
 
     // Convert INTEGER (0/1) to boolean for frontend and structure response
@@ -2476,7 +2490,13 @@ exports.getOutletBillingSettings = (req, res) => {
       } : null,
     };
 
-    res.json(response);
+    res.json({
+  data: {
+    success: true,
+    message: "Outlet billing settings fetched successfully",
+    data: response
+  }
+});
   } catch (error) {
     console.error('Error fetching outlet billing settings:', error);
     res.status(500).json({ error: 'Failed to fetch outlet billing settings' });
@@ -2490,7 +2510,7 @@ exports.getBillPreviewSettings = (req, res) => {
 
     // Validate outletid
     if (!outletid || isNaN(outletid)) {
-      return res.status(400).json({ error: 'Valid outlet ID is required' });
+      return res.status(400).json({ success: false, message: 'Valid outlet ID is required', data: null });
     }
 
     const settings = db
@@ -2498,7 +2518,7 @@ exports.getBillPreviewSettings = (req, res) => {
       .get(outletid);
 
     if (!settings) {
-      return res.status(404).json({ error: 'Bill preview settings not found' });
+      return res.status(404).json({ success: false, message: 'Bill preview settings not found', data: null });
     }
 
     // Convert integers to booleans
@@ -2524,10 +2544,14 @@ exports.getBillPreviewSettings = (req, res) => {
       fssai_no: settings.fssai_no,
     };
 
-    res.json(response);
+    res.json({
+      success: true,
+      message: "Bill preview settings fetched successfully",
+      data: response
+    });
   } catch (error) {
     console.error('Error fetching bill preview settings:', error);
-    res.status(500).json({ error: 'Failed to fetch bill preview settings' });
+    res.status(500).json({ success: false, message: 'Failed to fetch bill preview settings', data: null });
   }
 };
 
@@ -2536,7 +2560,7 @@ exports.getBillPrintSettings = (req, res) => {
     const { outletid } = req.params;
 
     if (!outletid || isNaN(outletid)) {
-      return res.status(400).json({ error: 'Valid outlet ID is required' });
+      return res.status(400).json({ success: false, message: 'Valid outlet ID is required', data: null });
     }
 
     const settings = db
@@ -2544,7 +2568,7 @@ exports.getBillPrintSettings = (req, res) => {
       .get(outletid);
 
     if (!settings) {
-      return res.status(404).json({ error: 'Bill print settings not found' });
+      return res.status(404).json({ success: false, message: 'Bill print settings not found', data: null });
     }
 
     // Convert all 0/1 fields → boolean
@@ -2619,10 +2643,14 @@ exports.getBillPrintSettings = (req, res) => {
       hide_total_without_tax: bool(settings.hide_total_without_tax),
     };
 
-    res.json(response);
+    res.json({
+      success: true,
+      message: "Bill print settings fetched successfully",
+      data: response
+    });
   } catch (error) {
     console.error('Error fetching bill print settings:', error);
-    res.status(500).json({ error: 'Failed to fetch bill print settings' });
+    res.status(500).json({ success: false, message: 'Failed to fetch bill print settings', data: null });
   }
 };
 
@@ -2634,7 +2662,7 @@ exports.getKotPrintSettings = (req, res) => {
 
     // Validate outletid
     if (!outletid || isNaN(outletid)) {
-      return res.status(400).json({ error: 'Valid outlet ID is required' });
+      return res.status(400).json({ success: false, message: 'Valid outlet ID is required', data: null });
     }
 
     const settings = db
@@ -2642,7 +2670,7 @@ exports.getKotPrintSettings = (req, res) => {
       .get(outletid);
 
     if (!settings) {
-      return res.status(404).json({ error: 'KOT print settings not found' });
+      return res.status(404).json({ success: false, message: 'KOT print settings not found', data: null });
     }
 
     // Convert integers to booleans
@@ -2684,10 +2712,14 @@ exports.getKotPrintSettings = (req, res) => {
       hide_item_Amt_column: !!settings.hide_item_Amt_column,
     };
 
-    res.json(response);
+    res.json({
+      success: true,
+      message: "KOT print settings fetched successfully",
+      data: response
+    });
   } catch (error) {
     console.error('Error fetching KOT print settings:', error);
-    res.status(500).json({ error: 'Failed to fetch KOT print settings' });
+    res.status(500).json({ success: false, message: 'Failed to fetch KOT print settings', data: null });
   }
 };
 
