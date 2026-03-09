@@ -33,7 +33,8 @@
     "backend": "cd backend && node server.js",
     "backend:install": "echo 'Backend dependencies are managed from root package.json'",
     "dev:full": "concurrently \"npm run dev\" \"npm run backend\"",
-    "build:win": "npm run build && electron-builder --win",
+    "build:win": "npm run build && electron-rebuild && electron-builder --win",
+     "postinstall": "electron-rebuild",
     "install:all": "npm install"
   },
   "dependencies": {
