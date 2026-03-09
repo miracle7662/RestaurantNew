@@ -124,7 +124,7 @@ export interface OutletPayload {
  * Bill Preview Settings Type Definition
  * ═══════════════════════════════════════════════════════════════════════════════ */
 
-/** Bill Preview Settings interface */
+/** Bill Preview Settings interface - uses number (0/1) for boolean fields to match backend DB */
 export interface BillPreviewSettings {
   billpreviewsetting_id?: number
   outletid?: number
@@ -135,8 +135,8 @@ export interface BillPreviewSettings {
   bill_prefix: string
   secondary_bill_prefix: string
   bar_bill_prefix: string
-  show_upi_qr: boolean
-  enabled_bar_section: boolean
+  show_upi_qr: number
+  enabled_bar_section: number
   show_phone_on_bill: string
   note: string
   footer_note: string
@@ -151,192 +151,202 @@ export interface BillPreviewSettings {
  * KOT Print Settings Type Definition
  * ═══════════════════════════════════════════════════════════════════════════════ */
 
-/** KOT Print Settings interface */
+/** KOT Print Settings interface - uses number (0/1) for boolean fields to match backend DB */
 export interface KotPrintSettings {
   kot_printsetting_id?: number
   outletid?: number
-  customer_on_kot_dine_in: boolean
-  customer_on_kot_pickup: boolean
-  customer_on_kot_delivery: boolean
-  customer_on_kot_quick_bill: boolean
+  customer_on_kot_dine_in: number
+  customer_on_kot_pickup: number
+  customer_on_kot_delivery: number
+  customer_on_kot_quick_bill: number
   customer_kot_display_option: string
-  group_kot_items_by_category: boolean
-  hide_table_name_quick_bill: boolean
-  show_new_order_tag: boolean
+  group_kot_items_by_category: number
+  hide_table_name_quick_bill: number
+  show_new_order_tag: number
   new_order_tag_label: string
-  show_running_order_tag: boolean
+  show_running_order_tag: number
   running_order_tag_label: string
   dine_in_kot_no: string
   pickup_kot_no: string
   delivery_kot_no: string
   quick_bill_kot_no: string
-  modifier_default_option: boolean
-  print_kot_both_languages: boolean
-  show_alternative_item: boolean
-  show_captain_username: boolean
-  show_covers_as_guest: boolean
-  show_item_price: boolean
-  show_kot_no_quick_bill: boolean
-  show_kot_note: boolean
-  show_online_order_otp: boolean
-  show_order_id_quick_bill: boolean
-  show_order_id_online_order: boolean
-  show_order_no_quick_bill_section: boolean
-  show_order_type_symbol: boolean
-  show_store_name: boolean
-  show_terminal_username: boolean
-  show_username: boolean
-  show_waiter: boolean
-  hide_item_Amt_column: boolean
+  modifier_default_option: number
+  print_kot_both_languages: number
+  show_alternative_item: number
+  show_captain_username: number
+  show_covers_as_guest: number
+  show_item_price: number
+  show_kot_no_quick_bill: number
+  show_kot_note: number
+  show_online_order_otp: number
+  show_order_id_quick_bill: number
+  show_order_id_online_order: number
+  show_order_no_quick_bill_section: number
+  show_order_type_symbol: number
+  show_store_name: number
+  show_terminal_username: number
+  show_username: number
+  show_waiter: number
+  hide_item_Amt_column: number
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
  * Bill Print Settings Type Definition
  * ═══════════════════════════════════════════════════════════════════════════════ */
 
-/** Bill Print Settings interface */
+/** Bill Print Settings interface - uses number (0/1) for boolean fields to match backend DB */
 export interface BillPrintSettings {
   billprintsetting_id?: number
   outletid?: number
-  bill_title_dine_in: boolean
-  bill_title_pickup: boolean
-  bill_title_delivery: boolean
-  bill_title_quick_bill: boolean
-  mask_order_id: boolean
-  modifier_default_option_bill: boolean
-  print_bill_both_languages: boolean
-  show_alt_item_title_bill: boolean
-  show_alt_name_bill: boolean
-  show_bill_amount_words: boolean
-  show_bill_no_bill: boolean
-  show_bill_number_prefix_bill: boolean
-  show_bill_print_count: boolean
-  show_brand_name_bill: boolean
-  show_captain_bill: boolean
-  show_covers_bill: boolean
-  show_custom_qr_codes_bill: boolean
-  show_customer_gst_bill: boolean
-  show_customer_bill: boolean
-  show_customer_paid_amount: boolean
-  show_date_bill: boolean
-  show_default_payment: boolean
-  show_discount_reason_bill: boolean
-  show_due_amount_bill: boolean
-  show_ebill_invoice_qrcode: boolean
-  show_item_hsn_code_bill: boolean
-  show_item_level_charges_separately: boolean
-  show_item_note_bill: boolean
-  show_items_sequence_bill: boolean
-  show_kot_number_bill: boolean
-  show_logo_bill: boolean
-  show_order_id_bill: boolean
-  show_order_no_bill: boolean
-  show_order_note_bill: boolean
-  order_type_dine_in: boolean
-  order_type_pickup: boolean
-  order_type_delivery: boolean
-  order_type_quick_bill: boolean
-  show_outlet_name_bill: boolean
-  payment_mode_dine_in: boolean
-  payment_mode_pickup: boolean
-  payment_mode_delivery: boolean
-  payment_mode_quick_bill: boolean
-  table_name_dine_in: boolean
-  table_name_pickup: boolean
-  table_name_delivery: boolean
-  table_name_quick_bill: boolean
-  show_tax_charge_bill: boolean
-  show_username_bill: boolean
-  show_waiter_bill: boolean
-  show_zatca_invoice_qr: boolean
-  show_customer_address_pickup_bill: boolean
-  show_order_placed_time: boolean
-  hide_item_quantity_column: boolean
-  hide_item_rate_column: boolean
-  hide_item_total_column: boolean
-  hide_total_without_tax: boolean
+  bill_title_dine_in: number
+  bill_title_pickup: number
+  bill_title_delivery: number
+  bill_title_quick_bill: number
+  mask_order_id: number
+  modifier_default_option_bill: number
+  print_bill_both_languages: number
+  show_alt_item_title_bill: number
+  show_alt_name_bill: number
+  show_bill_amount_words: number
+  show_bill_no_bill: number
+  show_bill_number_prefix_bill: number
+  show_bill_print_count: number
+  show_brand_name_bill: number
+  show_captain_bill: number
+  show_covers_bill: number
+  show_custom_qr_codes_bill: number
+  show_customer_gst_bill: number
+  show_customer_bill: number
+  show_customer_paid_amount: number
+  show_date_bill: number
+  show_default_payment: number
+  show_discount_reason_bill: number
+  show_due_amount_bill: number
+  show_ebill_invoice_qrcode: number
+  show_item_hsn_code_bill: number
+  show_item_level_charges_separately: number
+  show_item_note_bill: number
+  show_items_sequence_bill: number
+  show_kot_number_bill: number
+  show_logo_bill: number
+  show_order_id_bill: number
+  show_order_no_bill: number
+  show_order_note_bill: number
+  order_type_dine_in: number
+  order_type_pickup: number
+  order_type_delivery: number
+  order_type_quick_bill: number
+  show_outlet_name_bill: number
+  payment_mode_dine_in: number
+  payment_mode_pickup: number
+  payment_mode_delivery: number
+  payment_mode_quick_bill: number
+  table_name_dine_in: number
+  table_name_pickup: number
+  table_name_delivery: number
+  table_name_quick_bill: number
+  show_tax_charge_bill: number
+  show_username_bill: number
+  show_waiter_bill: number
+  show_zatca_invoice_qr: number
+  show_customer_address_pickup_bill: number
+  show_order_placed_time: number
+  hide_item_quantity_column: number
+  hide_item_rate_column: number
+  hide_item_total_column: number
+  hide_total_without_tax: number
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
  * General Settings Type Definition
  * ═══════════════════════════════════════════════════════════════════════════════ */
 
-/** General Settings interface */
+/** General Settings interface - uses number (0/1) for boolean fields to match backend DB */
 export interface GeneralSettings {
   outletid?: number
   customize_url_links: string 
-  allow_charges_after_bill_print: boolean
-  allow_discount_after_bill_print: boolean
-  allow_discount_before_save: boolean
-  allow_pre_order_tahd: boolean
-  ask_covers: string | { dineIn?: boolean; pickup?: boolean; delivery?: boolean; quickBill?: boolean }
-  ask_covers_captain: boolean
-  ask_custom_order_id_quick_bill: boolean
-  ask_custom_order_type_quick_bill: boolean
-  ask_payment_mode_on_save_bill: boolean
-  ask_waiter: string | { dineIn?: boolean; pickup?: boolean; delivery?: boolean; quickBill?: boolean }
-  ask_otp_change_order_status_order_window: boolean
-  ask_otp_change_order_status_receipt_section: boolean
-  auto_accept_remote_kot: boolean
-  auto_out_of_stock: boolean
-  auto_sync: boolean
+  allow_charges_after_bill_print: number
+  allow_discount_after_bill_print: number
+  allow_discount_before_save: number
+  allow_pre_order_tahd: number
+  ask_covers: string | {
+  dine_in: number
+  pickup: number
+  delivery: number
+  quick_bill: number
+}
+  ask_covers_captain: number
+  ask_custom_order_id_quick_bill: number
+  ask_custom_order_type_quick_bill: number
+  ask_payment_mode_on_save_bill: number
+  ask_waiter: string | { dine_in: number; pickup: number; delivery: number; quick_bill: number }
+  ask_otp_change_order_status_order_window: number
+  ask_otp_change_order_status_receipt_section: number
+  auto_accept_remote_kot: number
+  auto_out_of_stock: number
+  auto_sync: number
   category_time_for_pos: string
-  count_sales_after_midnight: boolean
+  count_sales_after_midnight: number
   customer_display: string | { media?: string[] }
-  customer_mandatory: string | { dineIn?: boolean; pickup?: boolean; delivery?: boolean; quickBill?: boolean }
-  default_ebill_check: boolean
-  default_send_delivery_boy_check: boolean
+  customer_mandatory: string | { dine_in: number; pickup: number; delivery: number; quick_bill: number }
+  default_ebill_check: number
+  default_send_delivery_boy_check: number
   edit_customize_order_number: string
-  enable_backup_notification_service: boolean
-  enable_customer_display_access: boolean
-  filter_items_by_order_type: boolean
-  generate_reports_start_close_dates: boolean
-  hide_clear_data_check_logout: boolean
-  hide_item_price_options: boolean
-  hide_load_menu_button: boolean
-  make_cancel_delete_reason_compulsory: boolean
-  make_discount_reason_mandatory: boolean
-  make_free_cancel_bill_reason_mandatory: boolean
-  make_payment_ref_number_mandatory: boolean
-  mandatory_delivery_boy_selection: boolean
-  mark_order_as_transfer_order: boolean
-  online_payment_auto_settle: boolean 
-  order_sync_settings: string | { autoSyncInterval?: string; syncBatchPacketSize?: string }
-  separate_billing_by_section: boolean
-  set_entered_amount_as_opening: boolean
-  show_alternative_item_report_print: boolean
-  show_clear_sales_report_logout: boolean
-  show_order_no_label_pos: boolean
-  show_payment_history_button: boolean
-  show_remote_kot_option: boolean
-  show_send_payment_link: boolean
-  stock_availability_display: boolean
+  enable_backup_notification_service: number
+  enable_customer_display_access: number
+  filter_items_by_order_type: number
+  generate_reports_start_close_dates: number
+  hide_clear_data_check_logout: number
+  hide_item_price_options: number
+  hide_load_menu_button: number
+  make_cancel_delete_reason_compulsory: number
+  make_discount_reason_mandatory: number
+  make_free_cancel_bill_reason_mandatory: number
+  make_payment_ref_number_mandatory: number
+  mandatory_delivery_boy_selection: number
+  mark_order_as_transfer_order: number
+  online_payment_auto_settle: number 
+  order_sync_settings: string | {
+  auto_sync_interval: string
+  sync_batch_packet_size: string
+}
+  separate_billing_by_section: number
+  set_entered_amount_as_opening: number
+  show_alternative_item_report_print: number
+  show_clear_sales_report_logout: number
+  show_order_no_label_pos: number
+  show_payment_history_button: number
+  show_remote_kot_option: number
+  show_send_payment_link: number
+  stock_availability_display: number
   todays_report: string | {
-    salesSummary?: boolean
-    orderTypeSummary?: boolean
-    paymentTypeSummary?: boolean
-    discountSummary?: boolean
-    expenseSummary?: boolean
-    billSummary?: boolean
-    deliveryBoySummary?: boolean
-    waiterSummary?: boolean
-    kitchenDepartmentSummary?: boolean
-    categorySummary?: boolean
-    soldItemsSummary?: boolean
-    cancelItemsSummary?: boolean
-    walletSummary?: boolean
-    duePaymentReceivedSummary?: boolean
-    duePaymentReceivableSummary?: boolean
-    paymentVarianceSummary?: boolean
-    currencyDenominationsSummary?: boolean
-  }
-  upi_payment_sound_notification: boolean
-  use_separate_bill_numbers_online: boolean
+  sales_summary: number
+  order_type_summary: number
+  payment_type_summary: number
+  discount_summary: number
+  expense_summary: number
+  bill_summary: number
+  delivery_boy_summary: number
+  waiter_summary: number
+  kitchen_department_summary: number
+  category_summary: number
+  sold_items_summary: number
+  cancel_items_summary: number
+  wallet_summary: number
+  due_payment_received_summary: number
+  due_payment_receivable_summary: number
+  payment_variance_summary: number
+  currency_denominations_summary: number
+}
+  upi_payment_sound_notification: number
+  use_separate_bill_numbers_online: number
   when_send_todays_report: string
-  enable_currency_conversion: boolean
-  enable_user_login_validation: boolean
-  allow_closing_shift_despite_bills: boolean
-  show_real_time_kot_bill_notifications: boolean
+  enable_currency_conversion: number
+  enable_user_login_validation: number
+  allow_closing_shift_despite_bills: number
+  show_real_time_kot_bill_notifications: number
+  created_by_id?: string
+  updated_by_id?: string
   created_at?: string
   updated_at?: string
 }
@@ -345,19 +355,19 @@ export interface GeneralSettings {
  * Online Orders Settings Type Definition
  * ═══════════════════════════════════════════════════════════════════════════════ */
 
-/** Online Orders Settings interface */
+/** Online Orders Settings interface - uses number (0/1) for boolean fields to match backend DB */
 export interface OnlineOrdersSettings {
   online_ordersetting_id?: number
   outletid?: number
-  show_in_preparation_kds: boolean
-  auto_accept_online_order: boolean
-  customize_order_preparation_time: boolean
+  show_in_preparation_kds: number
+  auto_accept_online_order: number
+  customize_order_preparation_time: number
   online_orders_time_delay: number | null
-  pull_order_on_accept: boolean
-  show_addons_separately: boolean
-  show_complete_online_order_id: boolean
-  show_online_order_preparation_time: boolean
-  update_food_ready_status_kds: boolean
+  pull_order_on_accept: number
+  show_addons_separately: number
+  show_complete_online_order_id: number
+  show_online_order_preparation_time: number
+  update_food_ready_status_kds: number
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════

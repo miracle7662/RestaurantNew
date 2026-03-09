@@ -18,7 +18,7 @@ export interface AccountLedger {
   address: string;
   stateid?: string;
   state?: string;
-  cityid?: string;
+  cityid?: number;
   city?: string;
   MobileNo: string;
   PhoneNo?: string;
