@@ -842,8 +842,9 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
       console.log('Updating settings for outletid:', outletid, 'hotelId:', hotelId); // Debug log
 
       // Bill Preview Settings Payload
+      // Use formData.outlet_name or fallback to Outlet.outlet_name if available
       const billPreviewPayload = {
-        outlet_name: formData.outlet_name,
+        outlet_name: formData.outlet_name || Outlet?.outlet_name || '',
         email: formData.email,
         website: formData.website,
         upi_id: formData.upi_id,

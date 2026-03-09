@@ -2285,12 +2285,10 @@ exports.getOutletBillingSettings = (req, res) => {
 
     if (!settings) {
       return res.status(404).json({
-  data: {
-    success: false,
-    message: 'Outlet settings not found',
-    data: null
-  }
-});;
+        success: false,
+        message: 'Outlet settings not found',
+        data: null
+      });
     }
 
     // Convert INTEGER (0/1) to boolean for frontend and structure response
@@ -2491,15 +2489,17 @@ exports.getOutletBillingSettings = (req, res) => {
     };
 
     res.json({
-  data: {
-    success: true,
-    message: "Outlet billing settings fetched successfully",
-    data: response
-  }
-});
+      success: true,
+      message: "Outlet billing settings fetched successfully",
+      data: response
+    });
   } catch (error) {
     console.error('Error fetching outlet billing settings:', error);
-    res.status(500).json({ error: 'Failed to fetch outlet billing settings' });
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to fetch outlet billing settings', 
+      data: null 
+    });
   }
 };
 
