@@ -5,7 +5,6 @@
  */
 
 import HttpClient from '../helpers/httpClient'
-import { ApiResponse } from '@/types/api'
 
 /* ═══════════════════════════════════════════════════════════════════════════════
  * Type Definitions

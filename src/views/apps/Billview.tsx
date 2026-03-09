@@ -210,6 +210,7 @@ const ModernBill = () => {
 
   const [reverseQtyConfig, setReverseQtyConfig] = useState('PasswordRequired');
   const [roundOffEnabled, setRoundOffEnabled] = useState(false);
+  const [itemCodeFilter, setItemCodeFilter] = useState('');
 
   // Form data for KOT settings
   const [formData, setFormData] = useState<FormData>({} as FormData);
@@ -1564,6 +1565,8 @@ const ModernBill = () => {
 
     if (field === 'itemCode') {
       currentItem.itemCode = value as string;
+      // Update filter for datalist - show variants for items matching the typed prefix
+      setItemCodeFilter(value as string);
       // 2. When item code is typed, find the item in the fetched menu list
       const found = menuItems.find(i => i.item_no.toString() === value);
       if (found) {
@@ -3066,32 +3069,49 @@ const ModernBill = () => {
               ))}
             </datalist>
 
-            {/* Datalist Item Codes with Variants - Only show variants */}
+            {/* Datalist Item Codes - Dynamic based on filter */}
             <datalist id="itemNos">
-              {menuItems.flatMap(item => {
-                // Get unique variants for this item
-                const variants = (item.department_details || [])
-                  .filter((detail: any) => detail.variant_value_id && detail.variant_value_name)
-                  .map((detail: any) => ({
-                    variant_value_id: detail.variant_value_id,
-                    value_name: detail.variant_value_name,
-                    price: detail.item_rate || 0
-                  }))
-                  .filter((variant, index, self) => 
-                    index === self.findIndex(v => v.variant_value_id === variant.variant_value_id)
+              {(() => {
+                // If there's a filter, only show variants for that item
+                if (itemCodeFilter) {
+                  const matchedItem = menuItems.find(item => 
+                    item.item_no.toString().toLowerCase().startsWith(itemCodeFilter.toLowerCase())
                   );
-                
-                // Only include this item's variants if there are any
-                if (variants.length === 0) return null;
-                
-                return variants.map(variant => (
-                  <option 
-                    key={`${item.item_no.toString()}-${variant.variant_value_id}`} 
-                    value={item.item_no.toString()} 
-                    label={`${item.item_name} (${variant.value_name}) - ₹${variant.price}`} 
-                  />
-                ));
-              }).filter(Boolean)}
+                  if (matchedItem && matchedItem.department_details) {
+                    const variants = matchedItem.department_details
+                      .filter((detail: any) => detail.variant_value_id && detail.variant_value_name)
+                      .map((detail: any) => ({
+                        variant_value_id: detail.variant_value_id,
+                        value_name: detail.variant_value_name,
+                        price: detail.item_rate || matchedItem.price || 0
+                      }))
+                      .filter((variant, index, self) => 
+                        index === self.findIndex(v => v.variant_value_id === variant.variant_value_id)
+                      );
+                    
+                    return variants.map(variant => (
+                      <option 
+                        key={`${matchedItem.item_no.toString()}-${variant.variant_value_id}`} 
+                        value={matchedItem.item_no.toString()} 
+                        label={`${matchedItem.item_name} (${variant.value_name}) - ₹${variant.price}`} 
+                      />
+                    ));
+                  }
+                  // If no variants, show base item
+                  if (matchedItem) {
+                    return (
+                      <option 
+                        key={matchedItem.item_no.toString()} 
+                        value={matchedItem.item_no.toString()} 
+                        label={`${matchedItem.item_name} - ₹${matchedItem.price}`} 
+                      />
+                    );
+                  }
+                  return null;
+                }
+                // If no filter, show nothing (user must type first)
+                return null;
+              })()}
             </datalist>
 
           </div>
