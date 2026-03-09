@@ -3087,16 +3087,46 @@ const ModernBill = () => {
 
             </Row>
 
-            {/* Datalist Item Names */}
+            {/* Datalist Item Names - Include variants from department_details */}
             <datalist id="itemNames">
-              {menuItems.map(item => (
-                <option
-                  key={item.restitemid}
-                  value={item.short_name
-                    ? `${item.item_name} (${item.short_name})`
-                    : item.item_name}
-                />
-              ))}
+              {menuItems.map(item => {
+                // Add base item
+                const baseOption = (
+                  <option
+                    key={item.restitemid}
+                    value={item.short_name
+                      ? `${item.item_name} (${item.short_name})`
+                      : item.item_name}
+                  />
+                );
+                
+                // Get variants from department_details if available
+                const variants: JSX.Element[] = [];
+                if (item.department_details && item.department_details.length > 0) {
+                  const variantMap = new Map<number, { value_name: string; price: number }>();
+                  
+                  item.department_details.forEach((detail: any) => {
+                    if (detail.variant_value_id && detail.variant_value_name) {
+                      variantMap.set(detail.variant_value_id, {
+                        value_name: detail.variant_value_name,
+                        price: detail.item_rate || item.price || 0
+                      });
+                    }
+                  });
+                  
+                  // Add each variant as separate option
+                  variantMap.forEach((variant, variantId) => {
+                    variants.push(
+                      <option
+                        key={`${item.restitemid}-variant-${variantId}`}
+                        value={`${item.item_name} (${variant.value_name})`}
+                      />
+                    );
+                  });
+                }
+                
+                return [baseOption, ...variants];
+              })}
             </datalist>
 
             {/* Datalist Item Codes - Dynamic based on filter */}
