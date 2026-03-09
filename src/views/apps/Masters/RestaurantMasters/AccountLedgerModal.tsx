@@ -4,9 +4,9 @@ import { toast } from 'react-hot-toast';
 import { useAuthContext } from '@/common/context/useAuthContext';
 import sanscript from 'sanscript';
 import AccountLedgerService from '@/common/api/accountLedger';
-import StateService from '@/common/api/states';
-import CityService from '@/common/api/cities';
-import AccountTypeService from '@/common/api/accountType';
+import StateService, { State } from '@/common/api/states';
+import CityService, { City } from '@/common/api/cities';
+import AccountTypeService, { AccountType } from '@/common/api/accountType';
 
 // Interfaces
 interface AccountLedgerItem {
@@ -17,7 +17,7 @@ interface AccountLedgerItem {
   address: string;
   stateid?: string;
   state?: string;
-  cityid: number;
+  cityid?: number;
   city?: string;
   MobileNo: string;
   PhoneNo?: string;
@@ -32,21 +32,6 @@ interface AccountLedgerItem {
   updatedbyid?: number;
   companyid?: number;
   yearid?: number;
-}
-
-interface AccountType {
-  AccID: string;
-  AccName: string;
-}
-
-interface State {
-  stateid: string;
-  state_name: string;
-}
-
-interface City {
-  cityid: string;
-  city_name: string;
 }
 
 interface AccountLedgerModalProps {
@@ -114,10 +99,8 @@ const AccountLedgerModal: React.FC<AccountLedgerModalProps> = ({ show, onHide, o
   // Load account types
   const loadAccountTypes = useCallback(async () => {
     try {
-      const response = await AccountTypeService.list();
-      if (response.data) {
-        setAccountTypes(response.data);
-      }
+      const data = await AccountTypeService.list();
+      setAccountTypes(data);
     } catch (err) {
       console.error('Error loading account types:', err);
       toast.error('Failed to load account types');
@@ -156,7 +139,7 @@ const AccountLedgerModal: React.FC<AccountLedgerModalProps> = ({ show, onHide, o
         MarathiName: ledger.MarathiName || '',
         address: ledger.address || '',
         stateid: ledger.stateid || '',
-        cityid: ledger.cityid || '',
+        cityid: String(ledger.cityid) || '',
         MobileNo: ledger.MobileNo || '',
         PhoneNo: ledger.PhoneNo || '',
         GstNo: ledger.GstNo || '',
@@ -332,7 +315,7 @@ const AccountLedgerModal: React.FC<AccountLedgerModalProps> = ({ show, onHide, o
                 >
                   <option value="">Select State</option>
                   {states.map((state) => (
-                    <option key={state.stateid} value={state.stateid}>
+                    <option key={state.stateid} value={String(state.stateid)}>
                       {state.state_name}
                     </option>
                   ))}
@@ -349,7 +332,7 @@ const AccountLedgerModal: React.FC<AccountLedgerModalProps> = ({ show, onHide, o
                 >
                   <option value="">Select City</option>
                   {cities.map((city) => (
-                    <option key={city.cityid} value={city.cityid}>
+                    <option key={city.cityid} value={String(city.cityid)}>
                       {city.city_name}
                     </option>
                   ))}
@@ -427,7 +410,7 @@ const AccountLedgerModal: React.FC<AccountLedgerModalProps> = ({ show, onHide, o
                 >
                   <option value="">Select Account Type</option>
                   {accountTypes.map((type) => (
-                    <option key={type.AccID} value={type.AccID}>
+                    <option key={type.AccID} value={String(type.AccID)}>
                       {type.AccName}
                     </option>
                   ))}

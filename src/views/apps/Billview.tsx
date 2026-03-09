@@ -1567,13 +1567,43 @@ const ModernBill = () => {
       currentItem.itemCode = value as string;
       // Update filter for datalist - show variants for items matching the typed prefix
       setItemCodeFilter(value as string);
-      // 2. When item code is typed, find the item in the fetched menu list
-      const found = menuItems.find(i => i.item_no.toString() === value);
+      
+      // Parse the value - it may contain variant info (item_no|variant_id)
+      const valueStr = value as string;
+      let itemCodeValue = valueStr;
+      let variantId: number | undefined = undefined;
+      
+      if (valueStr.includes('|')) {
+        const parts = valueStr.split('|');
+        itemCodeValue = parts[0];
+        variantId = parseInt(parts[1]) || undefined;
+      }
+      
+      // Find the menu item
+      const found = menuItems.find(i => i.item_no.toString() === itemCodeValue);
       if (found) {
         currentItem.itemName = found.item_name;
-        currentItem.rate = found.price;
         currentItem.itemId = found.restitemid;
         currentItem.isValidCode = true;
+        
+        // If variant was selected, use variant-specific rate
+        if (variantId && found.department_details) {
+          const variantDetail = found.department_details.find(
+            (d: any) => d.variant_value_id === variantId
+          );
+          if (variantDetail) {
+            currentItem.rate = variantDetail.item_rate || found.price;
+            currentItem.variantId = variantId;
+            currentItem.variantName = variantDetail.variant_value_name;
+            currentItem.itemName = `${found.item_name} (${variantDetail.variant_value_name})`;
+            // After selecting from datalist, update the Code field to show only item_no
+            currentItem.itemCode = itemCodeValue;
+          } else {
+            currentItem.rate = found.price;
+          }
+        } else {
+          currentItem.rate = found.price;
+        }
       } else {
         currentItem.itemName = "";
         currentItem.rate = 0;
@@ -3092,7 +3122,8 @@ const ModernBill = () => {
                     return variants.map(variant => (
                       <option 
                         key={`${matchedItem.item_no.toString()}-${variant.variant_value_id}`} 
-                        value={matchedItem.item_no.toString()} 
+                        // Store item_no and variant_id in value for parsing
+                        value={`${matchedItem.item_no.toString()}|${variant.variant_value_id}`} 
                         label={`${matchedItem.item_name} (${variant.value_name}) - ₹${variant.price}`} 
                       />
                     ));
