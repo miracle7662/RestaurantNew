@@ -3,11 +3,8 @@ import { toast } from 'react-toastify'; // Import toast for notifications
 import { useNavigate } from 'react-router-dom';
 import { Alert, Button, } from 'react-bootstrap';
 
-
-
-import axios from 'axios';
 import { useAuthContext } from '@/common/context/useAuthContext'; // Adjust path as needed
-import { OutletData } from '@/common/api/outlet'; // Adjust the import path as necessary
+import { OutletData, OutletService } from '@/common/api/outlet'; // Adjust the import path as necessary
 
 interface AddOutletProps {
   Outlet: OutletData | null;
@@ -17,13 +14,51 @@ const convertToBoolean = (value: any): boolean => {
   return !!value;
 }
 
-function parseJsonSafely(jsonString: string, defaultValue: any) {
+function convertToNumber(val: boolean | number | undefined): number {
+  if (typeof val === 'number') return val;
+  return val ? 1 : 0;
+}
+
+function parseJsonSafely<T>(value: string | T | undefined, defaultValue: T): T {
   try {
-    return JSON.parse(jsonString);
-  } catch (error) {
-    return defaultValue;
+    if (value === undefined || value === null) return defaultValue
+
+    if (typeof value === "string") {
+      const parsed = JSON.parse(value)
+      return parsed as T
+    }
+
+    return value
+  } catch {
+    return defaultValue
   }
 }
+
+function parseJsonSafelyBoolean<T extends Record<string, boolean>>(value: string | any | undefined, defaultValue: T): T {
+  try {
+    if (value === undefined || value === null) return defaultValue
+
+    let parsed: any
+    if (typeof value === "string") {
+      parsed = JSON.parse(value)
+    } else {
+      parsed = value
+    }
+
+    const result: any = {}
+    for (const key in defaultValue) {
+      result[key] = !!parsed[key]  // convert number/undefined/other to boolean
+    }
+
+    return result as T
+  } catch {
+    return defaultValue
+  }
+}
+
+
+
+
 
 
 
@@ -499,7 +534,7 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
       setSuccess(null);
 
       try {
-        const response = await axios.get(`${baseUrl}/api/outlets/settings/${Outlet.outletid}`);
+        const response = await OutletService.getOutletBillingSettings(Outlet.outletid);
         const data = response.data;
 
         if (!data) {
@@ -635,22 +670,24 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
           allow_discount_after_bill_print: convertToBoolean(data.general_settings?.allow_discount_after_bill_print ?? false),
           allow_discount_before_save: convertToBoolean(data.general_settings?.allow_discount_before_save ?? false),
           allow_pre_order_tahd: convertToBoolean(data.general_settings?.allow_pre_order_tahd ?? false),
-          ask_covers: parseJsonSafely(data.general_settings?.ask_covers, {
-            dine_in: false,
-            pickup: false,
-            delivery: false,
-            quick_bill: false,
-          }),
+          ask_covers: parseJsonSafelyBoolean(data.general_settings?.ask_covers, {
+  dine_in: false,
+  pickup: false,
+  delivery: false,
+  quick_bill: false,
+}),
           ask_covers_captain: convertToBoolean(data.general_settings?.ask_covers_captain ?? false),
           ask_custom_order_id_quick_bill: convertToBoolean(data.general_settings?.ask_custom_order_id_quick_bill ?? false),
           ask_custom_order_type_quick_bill: convertToBoolean(data.general_settings?.ask_custom_order_type_quick_bill ?? false),
           ask_payment_mode_on_save_bill: convertToBoolean(data.general_settings?.ask_payment_mode_on_save_bill ?? false),
-          ask_waiter: parseJsonSafely(data.general_settings?.ask_waiter, {
-            dine_in: false,
-            pickup: false,
-            delivery: false,
-            quick_bill: false,
-          }),
+         ask_waiter: parseJsonSafelyBoolean(data.general_settings?.ask_waiter, {
+  dine_in: false,
+  pickup: false,
+  delivery: false,
+  quick_bill: false,
+}),
+
+
           ask_otp_change_order_status_order_window: convertToBoolean(data.general_settings?.ask_otp_change_order_status_order_window ?? false),
           ask_otp_change_order_status_receipt_section: convertToBoolean(data.general_settings?.ask_otp_change_order_status_receipt_section ?? false),
           auto_accept_remote_kot: convertToBoolean(data.general_settings?.auto_accept_remote_kot ?? false),
@@ -658,12 +695,12 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
           auto_sync: convertToBoolean(data.general_settings?.auto_sync ?? false),
           category_time_for_pos: data.general_settings?.category_time_for_pos || '',
           count_sales_after_midnight: convertToBoolean(data.general_settings?.count_sales_after_midnight ?? false),
-          customer_display: parseJsonSafely(data.general_settings?.customer_display, null),
-          customer_mandatory: parseJsonSafely(data.general_settings?.customer_mandatory, {
-            dine_in: false,
-            pickup: false,
-            delivery: false,
-            quick_bill: false,
+          customer_display: Boolean(data.general_settings?.customer_display),
+          customer_mandatory: parseJsonSafelyBoolean(data.general_settings?.customer_mandatory, {
+          dine_in: false,
+          pickup: false,
+          delivery: false,
+          quick_bill: false,
           }),
           default_ebill_check: convertToBoolean(data.general_settings?.default_ebill_check ?? false),
           default_send_delivery_boy_check: convertToBoolean(data.general_settings?.default_send_delivery_boy_check ?? false),
@@ -682,10 +719,13 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
           mandatory_delivery_boy_selection: convertToBoolean(data.general_settings?.mandatory_delivery_boy_selection ?? false),
           mark_order_as_transfer_order: convertToBoolean(data.general_settings?.mark_order_as_transfer_order ?? false),
           online_payment_auto_settle: convertToBoolean(data.general_settings?.online_payment_auto_settle ?? false),
-          order_sync_settings: parseJsonSafely(data.general_settings?.order_sync_settings, {
-            auto_sync_interval: '5',
-            sync_batch_packet_size: '10',
-          }),
+        order_sync_settings: parseJsonSafely(
+  data.general_settings?.order_sync_settings,
+  {
+    auto_sync_interval: '5',
+    sync_batch_packet_size: '10',
+  }
+),
           separate_billing_by_section: convertToBoolean(data.general_settings?.separate_billing_by_section ?? false),
           set_entered_amount_as_opening: convertToBoolean(data.general_settings?.set_entered_amount_as_opening ?? false),
           show_alternative_item_report_print: convertToBoolean(data.general_settings?.show_alternative_item_report_print ?? false),
@@ -695,25 +735,25 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
           show_remote_kot_option: convertToBoolean(data.general_settings?.show_remote_kot_option ?? false),
           show_send_payment_link: convertToBoolean(data.general_settings?.show_send_payment_link ?? false),
           stock_availability_display: convertToBoolean(data.general_settings?.stock_availability_display ?? false),
-          todays_report: parseJsonSafely(data.general_settings?.todays_report, {
-            sales_summary: false,
-            order_type_summary: false,
-            payment_type_summary: false,
-            discount_summary: false,
-            expense_summary: false,
-            bill_summary: false,
-            delivery_boy_summary: false,
-            waiter_summary: false,
-            kitchen_department_summary: false,
-            category_summary: false,
-            sold_items_summary: false,
-            cancel_items_summary: false,
-            wallet_summary: false,
-            due_payment_received_summary: false,
-            due_payment_receivable_summary: false,
-            payment_variance_summary: false,
-            currency_denominations_summary: false,
-          }),
+       todays_report: parseJsonSafelyBoolean(data.general_settings?.todays_report, {
+  sales_summary: false,
+  order_type_summary: false,
+  payment_type_summary: false,
+  discount_summary: false,
+  expense_summary: false,
+  bill_summary: false,
+  delivery_boy_summary: false,
+  waiter_summary: false,
+  kitchen_department_summary: false,
+  category_summary: false,
+  sold_items_summary: false,
+  cancel_items_summary: false,
+  wallet_summary: false,
+  due_payment_received_summary: false,
+  due_payment_receivable_summary: false,
+  payment_variance_summary: false,
+  currency_denominations_summary: false,
+}),
           upi_payment_sound_notification: convertToBoolean(data.general_settings?.upi_payment_sound_notification ?? false),
           use_separate_bill_numbers_online: convertToBoolean(data.general_settings?.use_separate_bill_numbers_online ?? false),
           when_send_todays_report: data.general_settings?.when_send_todays_report || '',
@@ -726,7 +766,7 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
           show_in_preparation_kds: convertToBoolean(data.online_orders_settings?.show_in_preparation_kds ?? false),
           auto_accept_online_order: convertToBoolean(data.online_orders_settings?.auto_accept_online_order ?? false),
           customize_order_preparation_time: convertToBoolean(data.online_orders_settings?.customize_order_preparation_time ?? false),
-          online_orders_time_delay: data.online_orders_settings?.online_orders_time_delay || '0',
+          online_orders_time_delay: String(data.online_orders_settings?.online_orders_time_delay ?? 0 ),
           pull_order_on_accept: convertToBoolean(data.online_orders_settings?.pull_order_on_accept ?? false),
           show_addons_separately: convertToBoolean(data.online_orders_settings?.show_addons_separately ?? false),
           show_complete_online_order_id: convertToBoolean(data.online_orders_settings?.show_complete_online_order_id ?? true),
@@ -922,6 +962,7 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
 
       // General Settings Payload
       const generalPayload = {
+        customize_url_links: formData.customize_url_links,
         allow_charges_after_bill_print: formData.allow_charges_after_bill_print ? 1 : 0,
         allow_discount_after_bill_print: formData.allow_discount_after_bill_print ? 1 : 0,
         allow_discount_before_save: formData.allow_discount_before_save ? 1 : 0,
@@ -949,6 +990,7 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
         auto_sync: formData.auto_sync ? 1 : 0,
         category_time_for_pos: formData.category_time_for_pos,
         count_sales_after_midnight: formData.count_sales_after_midnight ? 1 : 0,
+        customer_display: JSON.stringify({ media: [] }),
         customer_mandatory: {
           dine_in: formData.customer_mandatory.dine_in ? 1 : 0,
           pickup: formData.customer_mandatory.pickup ? 1 : 0,
@@ -1030,21 +1072,11 @@ const AddOutlet: React.FC<AddOutletProps> = ({ Outlet, onBack }) => {
 
       // Perform separate PUT requests for each section with error handling
       const requests = [
-        axios.put(`${baseUrl}/api/outlets/bill-preview-settings/${outletid}`, billPreviewPayload, {
-          headers: { 'Content-Type': 'application/json' },
-        }),
-        axios.put(`${baseUrl}/api/outlets/kot-print-settings/${outletid}`, kotPrintPayload, {
-          headers: { 'Content-Type': 'application/json' },
-        }),
-        axios.put(`${baseUrl}/api/outlets/bill-print-settings/${outletid}`, billPrintPayload, {
-          headers: { 'Content-Type': 'application/json' },
-        }),
-        axios.put(`${baseUrl}/api/outlets/general-settings/${outletid}`, generalPayload, {
-          headers: { 'Content-Type': 'application/json' },
-        }),
-        axios.put(`${baseUrl}/api/outlets/online-orders-settings/${outletid}`, onlineOrdersPayload, {
-          headers: { 'Content-Type': 'application/json' },
-        }),
+       OutletService.updateBillPreviewSettings(outletid, billPreviewPayload),
+        OutletService.updateKotPrintSettings(outletid, kotPrintPayload),
+        OutletService.updateBillPrintSettings(outletid, billPrintPayload),
+        OutletService.updateGeneralSettings(outletid, generalPayload),
+        OutletService.updateOnlineOrdersSettings(outletid, onlineOrdersPayload),
       ];
 
       // Wait for all requests to complete
