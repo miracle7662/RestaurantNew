@@ -1134,7 +1134,37 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
       );
 
       onSuccess();
-      onHide();
+
+      // If editing, close modal. If adding new item, keep modal open and reset item-specific fields
+      if (isEdit) {
+        onHide();
+      } else {
+        // Reset item-specific fields but keep common fields (outlet, brand, categories, etc.)
+        setItemName('');
+        setPrintName(null);
+        setShortName(null);
+        setItemDescription(null);
+        setItemHsncode(null);
+        setPrice('');
+        // Note: Item Main Group, Item Group, Kitchen Main Group, Kitchen Category, Kitchen Sub Category
+        // are kept as per requirement - only reset when modal is closed
+        
+        // Reset department rates - keep the departments but reset rates
+        setNewItem((prev) => ({
+          ...prev,
+          departmentRates: prev.departmentRates.map((dr) => ({
+            ...dr,
+            rate: 0,
+            half_rate: 0,
+            full_rate: 0,
+            variant_rates: {},
+            value_name: null,
+          })),
+        }));
+        
+        // Generate new item number for the next item
+        await fetchMaxItemNo();
+      }
     } catch (err: any) {
       console.error(`${isEdit ? 'Update' : 'Add'} Item error:`, err);
       toast.error(`Failed to ${isEdit ? 'update' : 'add'} item: ${err.message || 'Unexpected error occurred'}`);

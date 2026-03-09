@@ -14,10 +14,7 @@ const convertToBoolean = (value: any): boolean => {
   return !!value;
 }
 
-function convertToNumber(val: boolean | number | undefined): number {
-  if (typeof val === 'number') return val;
-  return val ? 1 : 0;
-}
+
 
 function parseJsonSafely<T>(value: string | T | undefined, defaultValue: T): T {
   try {
