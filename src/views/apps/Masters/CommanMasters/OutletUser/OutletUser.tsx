@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Button, Modal, Form, Row, Col, Table, Tabs, Tab } from 'react-bootstrap';
 import { toast } from 'react-hot-toast';
 import { useAuthContext } from '@/common';
-import outletUserService, { OutletUserData, HotelAdminData } from '@/common/api/outletUser';
+import outletUserService, { OutletUser, HotelAdmin } from '@/common/api/outletUser';
 import { fetchDesignation, fetchUserType, fetchOutlets, fetchShiftTypes, ShiftTypeItem, fetchWarehouses, WarehouseItem } from '@/utils/commonfunction';
 import { OutletData } from '@/common/api/outlet';
 
@@ -11,10 +11,10 @@ const OutletUserList: React.FC = () => {
   const { user } = useAuthContext();
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState('');
-  const [selectedUser, setSelectedUser] = useState<OutletUserData | null>(null);
-  const [selectedHotelAdmin, setSelectedHotelAdmin] = useState<HotelAdminData | null>(null);
-  const [outletUsers, setOutletUsers] = useState<OutletUserData[]>([]);
-  const [hotelAdmins, setHotelAdmins] = useState<HotelAdminData[]>([]);
+  const [selectedUser, setSelectedUser] = useState<OutletUser | null>(null);
+  const [selectedHotelAdmin, setSelectedHotelAdmin] = useState<HotelAdmin | null>(null);
+  const [outletUsers, setOutletUsers] = useState<OutletUser[]>([]);
+  const [hotelAdmins, setHotelAdmins] = useState<HotelAdmin[]>([]);
   const [loading, setLoading] = useState(true);
   const [outlets, setOutlets] = useState<OutletData[]>([]);
   const [warehouses, setWarehouses] = useState<WarehouseItem[]>([]);
@@ -145,15 +145,15 @@ const OutletUserList: React.FC = () => {
     setStatus(true);
   };
 
-  const handleShowModal = (type: string, user?: OutletUserData | HotelAdminData) => {
+  const handleShowModal = (type: string, user?: OutletUser | HotelAdmin) => {
     setModalType(type);
-    setSelectedUser(user as OutletUserData || null);
-    setSelectedHotelAdmin(user as HotelAdminData || null);
+    setSelectedUser(user as OutletUser || null);
+    setSelectedHotelAdmin(user as HotelAdmin || null);
 
     if (user && type === 'Edit Outlet User') {
-      loadUserDataIntoForm(user as OutletUserData);
+      loadUserDataIntoForm(user as OutletUser);
     } else if (user && type === 'Edit Hotel Admin') {
-      loadHotelAdminDataIntoForm(user as HotelAdminData);
+      loadHotelAdminIntoForm(user as HotelAdmin);
     } else {
       resetFormFields();
     }
@@ -161,7 +161,7 @@ const OutletUserList: React.FC = () => {
     setShowModal(true);
   };
 
-  const loadUserDataIntoForm = (user: OutletUserData) => {
+  const loadUserDataIntoForm = (user: OutletUser) => {
     setUsername(user.username || '');
     setEmail(user.email || '');
     setFullName(user.full_name || '');
@@ -185,7 +185,7 @@ const OutletUserList: React.FC = () => {
     setStatus(user.status === 0);
   };
 
-  const loadHotelAdminDataIntoForm = (hotelAdmin: HotelAdminData) => {
+  const loadHotelAdminIntoForm = (hotelAdmin: HotelAdmin) => {
     setUsername(hotelAdmin.username || '');
     setEmail(hotelAdmin.email || '');
     setFullName(hotelAdmin.full_name || '');
@@ -230,7 +230,7 @@ const OutletUserList: React.FC = () => {
         return;
       }
 
-      const hotelAdminData: HotelAdminData = {
+      const hotelAdminData: HotelAdmin = {
         full_name: fullName,
         phone,
         status: status ? 0 : 1,
@@ -286,7 +286,7 @@ const OutletUserList: React.FC = () => {
         return;
       }
 
-      const userData: OutletUserData = {
+      const userData: OutletUser = {
         username,
         email,
         password: modalType === 'Add Outlet User' ? password : undefined,

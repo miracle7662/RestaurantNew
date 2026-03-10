@@ -224,10 +224,6 @@ const OutletUserService =  {
  * Type Aliases for backward compatibility
  * ═══════════════════════════════════════════════════════════════════════════════ */
 
-/** @deprecated Use OutletUser instead */
-export type OutletUserData = OutletUser
 
-/** @deprecated Use HotelAdmin instead */
-export type HotelAdminData = HotelAdmin
 
 export default OutletUserService

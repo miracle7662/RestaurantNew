@@ -4,6 +4,7 @@ import { toast } from 'react-hot-toast';
 import { Preloader } from '@/components/Misc/Preloader';
 import { Button, Card, Stack, Pagination, Table, Modal } from 'react-bootstrap';
 import { ContactSearchBar } from '@/components/Apps/Contact';
+import { useAuthContext } from '../../../../common/context/useAuthContext';
 import TitleHelmet from '@/components/Common/TitleHelmet';
 import {
   useReactTable,
@@ -473,6 +474,8 @@ const CityModal = forwardRef<CityModalRef, CityModalProps>(({ show, onHide, onSu
   const [loading, setLoading] = useState(false);
   const [stateItems, setStateItems] = useState<StateItem[]>([]);
   const formikRef = useRef<any>(null);
+  const { user } = useAuthContext();
+  
 
   const isEditMode = !!city;
 
@@ -512,6 +515,7 @@ const CityModal = forwardRef<CityModalRef, CityModalProps>(({ show, onHide, onSu
     try {
       const statusValue = values.status === 'Active' ? 0 : 1;
       const currentDate = new Date().toISOString();
+       const userId = user?.id || '1';
 
       // Map frontend fields to backend expected fields
       const payload = {
@@ -522,11 +526,11 @@ const CityModal = forwardRef<CityModalRef, CityModalProps>(({ show, onHide, onSu
         status: statusValue,
         ...(isEditMode
           ? {
-              updated_by_id: '2',
+              updated_by_id: userId,
               updated_date: currentDate
             }
           : {
-              created_by_id: '1',
+              created_by_id: userId,
               created_date: currentDate
             }
         ),
