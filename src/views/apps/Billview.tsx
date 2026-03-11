@@ -2287,10 +2287,7 @@ const ModernBill = () => {
 
     const totalReceived = settlements.reduce((sum, s) => sum + s.received_amount, 0) + (tip || 0);
 
-    if (totalReceived < taxCalc.grandTotal || totalReceived === 0) {
-      alert('Payment amount is less than the total due.');
-      return;
-    }
+   
     if (settlements.length === 0) {
       toast.error('Please select at least one payment mode.');
       return;
