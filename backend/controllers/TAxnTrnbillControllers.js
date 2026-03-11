@@ -1108,12 +1108,12 @@ exports.createKOT = async (req, res) => {
           TxnID, outletid, ItemID, TableID, table_name, Qty, RuntimeRate, DeptID, HotelID,
           isKOTGenerate, AutoKOT, KOTUsedDate, isBilled, isCancelled, isSetteled, isNCKOT,
           CGST, CGST_AMOUNT, SGST, SGST_AMOUNT, IGST, IGST_AMOUNT, CESS, CESS_AMOUNT, Discount_Amount, KOTNo,
-          item_no, item_name, order_tag
+          item_no, item_name, order_tag, VariantID, VariantName
         ) VALUES (
           @TxnID, @outletid, @ItemID, @TableID, @table_name, @Qty, @RuntimeRate, @DeptID, @HotelID,
           1, 1, @KOTUsedDate, 0, 0, 0, @isNCKOT,
           @CGST, @CGST_AMOUNT, @SGST, @SGST_AMOUNT, @IGST, @IGST_AMOUNT, @CESS, @CESS_AMOUNT, @Discount_Amount, @KOTNo,
-          @item_no, @item_name, @order_tag
+          @item_no, @item_name, @order_tag, @VariantID, @VariantName
         )
       `)
 
@@ -1177,6 +1177,8 @@ exports.createKOT = async (req, res) => {
           item_name: item.item_name,
           order_tag: order_tag,
           KOTUsedDate: KOTUsedDate || null,
+          VariantID: item.variantId || null,
+          VariantName: item.variantName || null,
         })
       }
 
@@ -1652,7 +1654,9 @@ exports.getUnbilledItemsByTable = async (req, res) => {
         d.RevKOTNo,
         m.item_no as MenuItemNo,
         m.item_group_id,
-        d.order_tag
+        d.order_tag,
+        d.VariantID,
+        d.VariantName
       FROM TAxnTrnbilldetails d
       LEFT JOIN msttablemanagement t ON d.TableID = t.tableid
       JOIN TAxnTrnbill b ON d.TxnID = b.TxnID
@@ -1731,6 +1735,8 @@ exports.getUnbilledItemsByTable = async (req, res) => {
       kotNo: r.KOTNo,
       itemgroupid: r.item_group_id,
       order_tag: r.order_tag || '',
+      VariantID: r.VariantID || null,
+      VariantName: r.VariantName || null,
     }))
 
     console.log('Unbilled items for tableId', tableId, ':', items)

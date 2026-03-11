@@ -684,7 +684,9 @@ const ModernBill = () => {
               isNew: false,
               originalQty: item.Qty,
               kotNo: item.KOTNo,
-              RevKOT: item.RevKOT
+              RevKOT: item.RevKOT,
+              variantId: item.VariantID || null,
+              variantName: item.VariantName || null,
             }))
             .filter((item: FetchedItem) => (item.qty - item.revQty) > 0);
 
@@ -714,8 +716,9 @@ const ModernBill = () => {
               isFetched: true,
               revQty: item.revQty,
               revKotNo: item.RevKOTNo || 0,
-              RevKOT: item.RevKOT
-
+              RevKOT: item.RevKOT,
+              variantId: item.variantId || null,
+              variantName: item.variantName || null
             };
           });
 
@@ -1820,7 +1823,10 @@ const ModernBill = () => {
             DeptID: departmentIdFromState && departmentIdFromState > 0 ? departmentIdFromState : null,
             SpecialInst: item.specialInstructions || null,
             item_no: item.item_no,
-            order_tag: order_tag
+            order_tag: order_tag,
+            // Variant fields
+            VariantID: item.variantId || null,
+            VariantName: item.variantName || null
           };
         })
       };

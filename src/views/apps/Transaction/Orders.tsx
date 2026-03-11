@@ -130,7 +130,7 @@ const Order = () => {
   const [DiscountType, setDiscountType] = useState<number>(1); // 1 for percentage, 0 for amount
   const [discountInputValue, setDiscountInputValue] = useState<number>(0);
   const [currentKOTNo, setCurrentKOTNo] = useState<number | null>(null);
-const [roundOffEnabled, setRoundOffEnabled] = useState<boolean>(false);
+  const [roundOffEnabled, setRoundOffEnabled] = useState<boolean>(false);
   const [roundOffTo, setRoundOffTo] = useState<number>(1); // Default to 1
   const [roundOffValue, setRoundOffValue] = useState<number>(0); // To store the calculated round-off value
   const [roundOffSettingsLoaded, setRoundOffSettingsLoaded] = useState<boolean>(false); // To track if round off settings are loaded
@@ -343,6 +343,8 @@ const [roundOffEnabled, setRoundOffEnabled] = useState<boolean>(false);
               isNew: false,
               originalQty: originalQty,
               kotNo: item.KOTNo,
+              variantId: item.VariantID || null,
+              variantName: item.VariantName || null,
             };
           });
 
@@ -429,6 +431,8 @@ const [roundOffEnabled, setRoundOffEnabled] = useState<boolean>(false);
             originalQty: item.qty,
             revQty: item.revQty,
             kotNo: item.kotNo,
+            variantId: item.VariantID || null,
+            variantName: item.VariantName || null,
           };
         });
         setCurrentKOTNo(unbilledItemsRes.data.kotNo ?? null);

@@ -90,7 +90,7 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
   const [selectedOption, setSelectedOption] = useState<'no' | 'yes'>('no');
   const [transferDone, setTransferDone] = useState(false);
   const [currentDate] = useState(new Date().toLocaleDateString('en-GB'));
-  const [proposedPax, setProposedPax] = useState<number>(0);
+const [proposedPax, setProposedPax] = useState<number>(1);
   const [currentFocus, setCurrentFocus] = useState<'table' | 'kot' | 'f7' | 'modal'>('table');
   const [pendingFocus, setPendingFocus] = useState<'table' | 'kot' | 'f7' | null>(null);
 

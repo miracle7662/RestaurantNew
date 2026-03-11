@@ -859,7 +859,8 @@ CREATE TABLE IF NOT EXISTS TAxnTrnbilldetails (
     RevQty REAL DEFAULT 0,
     KOTUsedDate DATETIME,
     isBilled BOOLEAN DEFAULT 0,
-    RevKOTNo INTEGER 
+    RevKOTNo INTEGER
+
 
 );
 
@@ -1223,4 +1224,27 @@ CREATE TABLE IF NOT EXISTS mst_variant_values (
 
 
 `)
+
+
+
+
+
+
+
+
+
+
+
+// Migration: Add VariantID and VariantName columns to TAxnTrnbilldetails if they don't exist
+try {
+  db.exec("ALTER TABLE TAxnTrnbilldetails ADD COLUMN VariantID INTEGER");
+} catch (e) {
+  // Column might already exist, ignore error
+}
+try {
+  db.exec("ALTER TABLE TAxnTrnbilldetails ADD COLUMN VariantName TEXT");
+} catch (e) {
+  // Column might already exist, ignore error
+}
+
 module.exports = db
