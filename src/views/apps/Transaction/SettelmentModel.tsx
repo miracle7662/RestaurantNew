@@ -60,6 +60,11 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
   const balanceDue = balance > 0 ? balance : 0;
   const [cashReceived, setCashReceived] = useState<number>(0);
 
+  // Calculate settlement amounts
+  const receivedAmount = cashReceived || 0;
+  const billAmount = grandTotal + (tip || 0);
+  const refundAmount = receivedAmount > billAmount ? receivedAmount - billAmount : 0;
+
   const getRemainingExcluding = (excludeMode?: string) => {
     if (!isMixedPayment) return grandTotal;
     const paidByOthers = selectedPaymentModes
@@ -191,6 +196,8 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
     const settlements = selectedPaymentModes.map(name => ({
       PaymentType: name,
       Amount: Number(paymentAmounts[name] || 0),
+      received_amount: receivedAmount, // Total amount given by customer
+      refund_amount: refundAmount, // Refund amount (only if received > bill, otherwise 0)
     }));
 
     try {

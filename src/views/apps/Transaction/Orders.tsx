@@ -2507,13 +2507,19 @@ const handleTabClick = (tab: string) => {
 
     setLoading(true);
     try {
-      // 1. Construct the settlements payload
+      // 1. Construct the settlements payload and extract totals from settlementsData
       const settlementsPayload = currentSettlements.map((s: any) => {
         const paymentModeDetails = outletPaymentModes.find(pm => pm.mode_name === s.PaymentType);
+        // Get received_amount and refund_amount from settlements data
+        const receivedAmount = s.received_amount || 0;
+        const refundAmount = s.refund_amount || 0;
+        
         return {
           PaymentTypeID: paymentModeDetails?.paymenttypeid,
           PaymentType: s.PaymentType,
           Amount: s.Amount,
+          received_amount: receivedAmount,
+          refund_amount: refundAmount,
           OrderNo: orderNo ?? undefined,
           HotelID: user?.hotelid,
           Name: user?.name, // Cashier/User name
@@ -2521,11 +2527,15 @@ const handleTabClick = (tab: string) => {
         };
       });
 
+      // Calculate total received and refund from settlements data
+      const totalReceived = currentSettlements.reduce((acc: number, s: any) => acc + (Number(s.received_amount) || 0), 0);
+      const totalRefund = currentSettlements.reduce((acc: number, s: any) => acc + (Number(s.refund_amount) || 0), 0);
+
       // 2. Call the settlement endpoint using OrderService
       const result = await OrderService.settleBill(currentTxnId, {
         bill_amount: payableTotal,
-        total_received: totalPaid,
-        total_refund: Math.max(0, totalPaid - payableTotal),
+        total_received: totalReceived,
+        total_refund: totalRefund,
         settlements: settlementsPayload
       });
 

@@ -270,6 +270,10 @@ exports.replaceSettlement = async (req, res) => {
     }
 
     // 5️⃣ Insert new settlements with preserved fields
+    // Get the total received and refund amounts from the first settlement (they should be the same for all)
+    const totalReceivedAmount = newSettlements.length > 0 ? Number(newSettlements[0].received_amount) || 0 : 0;
+    const totalRefundAmount = newSettlements.length > 0 ? Number(newSettlements[0].refund_amount) || 0 : 0;
+    
     for (const s of newSettlements) {
       if (!s.PaymentType || s.Amount == null) continue;
 
@@ -318,8 +322,8 @@ exports.replaceSettlement = async (req, res) => {
         name,
         customerName,
         mobileNo,
-        Number(s.Amount) || 0, // Receive = Amount
-        0, // Refund = 0
+        totalReceivedAmount, // Receive = total amount given by customer
+        totalRefundAmount, // Refund = calculated refund amount
         insertDate
       );
     }
