@@ -860,7 +860,10 @@ const ModernBill = () => {
           isBilled: 0,
           txnDetailId: item.txnDetailId,
           isFetched: true,
-          revQty: item.revQty || item.RevQty || 0
+          revQty: item.revQty || item.RevQty || 0,
+          // Variant fields
+          variantId: item.variantId || item.VariantID || null,
+          variantName: item.variantName || item.VariantName || null
         };
       });
 
@@ -1021,7 +1024,10 @@ const ModernBill = () => {
           isBilled: 0,
           txnDetailId: item.txnDetailId,
           isFetched: true,
-          revQty: item.revQty || item.RevQty || 0
+          revQty: item.revQty || item.RevQty || 0,
+          // Variant fields - use exact case from backend API
+          variantId: item.VariantID || item.variantId || null,
+          variantName: item.VariantName || item.variantName || null
         };
       });
 

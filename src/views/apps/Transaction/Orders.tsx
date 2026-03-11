@@ -1650,6 +1650,8 @@ const handleTabClick = (tab: string) => {
           NCName: i.isNCKOT ? i.NCName : null,
           NCPurpose: i.isNCKOT ? i.NCPurpose : null,
           order_tag: order_tag, // Add order tag to payload
+          variantId: i.variantId || null, // Add variant ID
+          variantName: i.variantName || null, // Add variant name
         };
       }).filter(Boolean) as any[];
 
