@@ -594,12 +594,10 @@ const KotTransfer = ({ onCancel, onSuccess, transferSource = "table", sourceTabl
                       <Form.Label className="fw-semibold" style={{ fontSize: "0.9rem", marginBottom: "4px" }}>Table</Form.Label>
                       <Form.Select
                         value={selectedTableId || ''}
-                        disabled
+                        onChange={(e) => handleSelectedTableChange(e.target.value)}
                         className="fw-bold"
                         style={{
                           fontSize: "0.9rem",
-                          backgroundColor: "#e9ecef",
-                          cursor: "not-allowed",
                         }}
                       >
                         {tables.map(t => (

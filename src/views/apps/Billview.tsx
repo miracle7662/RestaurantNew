@@ -1,4 +1,4 @@
- import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+  import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { Row, Col, Card, Table, Badge, Button, Form, Modal } from 'react-bootstrap';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthContext } from '@/common';
@@ -2292,6 +2292,8 @@ const ModernBill = () => {
         OrderNo: orderNo,
         HotelID: user?.hotelid,
         Name: user?.name, // Cashier/User name
+        received_amount: totalReceived, // Total amount received from customer
+        refund_amount: refundAmount, // Refund amount (change given back)
       }));
 
       // 2. Call the settlement endpoint

@@ -1,19 +1,27 @@
-# TODO - Billview Item Name with Variant
+# TODO - Fix Settlement Refund Issue
 
-## Task
-When typing in the item name dropdown, show item name with variant value and apply variant-specific rate when selected.
+## Issue
+When settling a bill with refund (where received amount > bill amount), the refund value is not being inserted into the backend database.
 
-## Steps to Complete:
-1. [x] Read and understand the current Billview.tsx implementation
-2. [ ] Update handleItemChange function to parse variant from itemName selection
-3. [ ] Apply variant-specific rate when variant is selected from dropdown
-4. [ ] Test the implementation
+## Root Cause
+The frontend settlement data doesn't properly include `received_amount` and `refund_amount` fields when calling the backend API.
 
-## Changes Needed:
-- File: src/views/apps/Billview.tsx
-- Function: handleItemChange
-- Logic: When itemName field is changed, parse the value to extract:
-  - Base item name (before ' (')
-  - Variant name (inside parentheses if present)
-  - Match with menu items and apply variant-specific rate from department_details
+## Files to Fix
+
+### 1. Billview.tsx
+- Update `handleSettleAndPrint` function to include `received_amount` and `refund_amount` in settlements
+
+### 2. Orders.tsx  
+- Update `handleSettleAndPrint` function to include `received_amount` and `refund_amount` in settlements
+
+## Fix Details
+In both files, the settlements need to be structured as:
+```javascript
+{
+  PaymentType: modeName,
+  Amount: parseFloat(paymentAmounts[modeName]) || 0,
+  received_amount: // total amount received from customer
+  refund_amount: // change given back to customer (totalReceived - grandTotal)
+}
+```
 
