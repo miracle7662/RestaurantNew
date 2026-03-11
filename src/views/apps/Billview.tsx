@@ -2228,7 +2228,8 @@ const ModernBill = () => {
       const response = await OrderService.applyDiscount(txnId, payload);
       console.log('Apply Discount API response:', response);
 
-      const result = response.data;
+      // HttpClient returns response.data directly due to interceptor, so response IS the result
+      const result = response;
 
       if (result.error) {
         toast.error(result.error);
@@ -3738,7 +3739,7 @@ const ModernBill = () => {
           sgst: sgstRate,
           igst: igstRate
         }}
-
+        discount={discount}
         roundOffEnabled={roundOffEnabled}
         roundOffValue={roundOff}
         selectedPaymentModes={selectedPaymentModes}

@@ -2480,7 +2480,7 @@ const handleTabClick = (tab: string) => {
       tipData
     });
 
-    const effectiveTip = tipData !== undefined ? tipData : tip;
+    
     let currentSettlements = [];
     let totalPaid = 0;
 
@@ -2492,7 +2492,7 @@ const handleTabClick = (tab: string) => {
       currentSettlements = selectedPaymentModes.map(modeName => ({ PaymentType: modeName, Amount: parseFloat(paymentAmounts[modeName]) || 0 }));
     }
 
-    const payableTotal = Number((taxCalc.grandTotal + (effectiveTip || 0)).toFixed(2));
+   const payableTotal = Number(taxCalc.grandTotal.toFixed(2));
     const difference = Number((payableTotal - totalPaid).toFixed(2));
 
     if (!currentTxnId) {

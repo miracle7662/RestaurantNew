@@ -1,20 +1,19 @@
-# TODO - Menu.tsx Item Modal Updates
+# TODO - Billview Item Name with Variant
 
-## Task: Keep modal open after saving item, retain dropdown values
+## Task
+When typing in the item name dropdown, show item name with variant value and apply variant-specific rate when selected.
 
-### Steps:
-1. [x] Read and understand the Menu.tsx code
-2. [x] Create plan and get user confirmation
-3. [x] Modify handleSubmit to not close modal when adding new item
-4. [x] Add logic to reset item-specific fields after save (keep common fields)
-5. [x] Keep Item Main Group, Item Group, Kitchen Main Group, Kitchen Category, Kitchen Sub Category after save
-6. [x] Only reset these when modal is closed
-7. [ ] Test the changes
+## Steps to Complete:
+1. [x] Read and understand the current Billview.tsx implementation
+2. [ ] Update handleItemChange function to parse variant from itemName selection
+3. [ ] Apply variant-specific rate when variant is selected from dropdown
+4. [ ] Test the implementation
 
-### Changes Summary:
-- In Add mode: After save, don't call onHide()
-- RESET after save: Item Name, Print Name, Short Name, Description, HSN Code, Base Price, department rates
-- KEEP after save: Outlet, Hotel/Brand, Item Main Group, Item Group, Kitchen Main Group, Kitchen Category, Kitchen Sub Category, Runtime Rates, Is Common to All Departments, Status, Variant Type
-- Generate new item number for next item
-- Full reset only when modal is closed
+## Changes Needed:
+- File: src/views/apps/Billview.tsx
+- Function: handleItemChange
+- Logic: When itemName field is changed, parse the value to extract:
+  - Base item name (before ' (')
+  - Variant name (inside parentheses if present)
+  - Match with menu items and apply variant-specific rate from department_details
 
