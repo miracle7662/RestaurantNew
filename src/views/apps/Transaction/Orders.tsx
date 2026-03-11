@@ -4568,7 +4568,7 @@ const handleTabClick = (tab: string) => {
             show={showKotPreviewModal}
             onHide={() => setShowKotPreviewModal(false)}
             onClose={() => {
-              setShowKotPreviewModal(false);
+              setShowKotPreviewModal(true);
               // Clear the order state after KOT print
               setItems([]);
               setPrintItems([]);
