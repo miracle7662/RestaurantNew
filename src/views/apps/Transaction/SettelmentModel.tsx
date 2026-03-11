@@ -188,6 +188,14 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
 
   const handleSettle = async () => {
     if (loading) return;
+
+    // Validate: Received amount must be >= Bill amount (including tip)
+    const billAmount = grandTotal + (tip || 0);
+    if (cashReceived < billAmount) {
+      toast.error(`Received amount (${cashReceived}) is less than bill amount (${billAmount}). Bill cannot be settled.`);
+      return;
+    }
+
     if (balanceDue > 0) {
       toast.error(`Balance due: ₹${balanceDue.toFixed(2)}`);
       return;

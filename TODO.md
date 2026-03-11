@@ -1,27 +1,22 @@
-# TODO - Fix Settlement Refund Issue
+# TODO - Settlement Validation Changes
 
-## Issue
-When settling a bill with refund (where received amount > bill amount), the refund value is not being inserted into the backend database.
+## Task: Add validation for received amount >= bill amount in settlement
 
-## Root Cause
-The frontend settlement data doesn't properly include `received_amount` and `refund_amount` fields when calling the backend API.
+### Steps:
+1. [x] Analyze codebase to understand settlement flow
+2. [ ] Add frontend validation in SettelmentModel.tsx
+3. [ ] Add backend validation in TAxnTrnbillControllers.js
+4. [ ] Test the changes
 
-## Files to Fix
+### Changes Made:
 
-### 1. Billview.tsx
-- Update `handleSettleAndPrint` function to include `received_amount` and `refund_amount` in settlements
+#### Frontend (src/views/apps/Transaction/SettelmentModel.tsx):
+- Added validation in handleSettle to check if cashReceived >= grandTotal + tip
+- Show error message: "Received amount (300) is less than bill amount (500). Bill cannot be settled."
 
-### 2. Orders.tsx  
-- Update `handleSettleAndPrint` function to include `received_amount` and `refund_amount` in settlements
+#### Backend (backend/controllers/TAxnTrnbillControllers.js):
+- Added validation in settleBill to check if total received >= bill amount
+- Return error if validation fails
 
-## Fix Details
-In both files, the settlements need to be structured as:
-```javascript
-{
-  PaymentType: modeName,
-  Amount: parseFloat(paymentAmounts[modeName]) || 0,
-  received_amount: // total amount received from customer
-  refund_amount: // change given back to customer (totalReceived - grandTotal)
-}
-```
+### Status: In Progress
 
