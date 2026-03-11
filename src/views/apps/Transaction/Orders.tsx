@@ -3699,6 +3699,11 @@ const handleTabClick = (tab: string) => {
                       >
                         <span className="item-name">
                           {item.name}
+                          {item.variantName && (
+                            <span className="text-primary ms-1" style={{ fontSize: '0.75rem' }}>
+                              ({item.variantName})
+                            </span>
+                          )}
 
                           {isExpanded && (item.revQty ?? 0) > 0 && (
                             <span className="text-muted ms-2">
