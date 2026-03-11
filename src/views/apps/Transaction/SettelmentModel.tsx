@@ -163,6 +163,7 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
       setSelectedPaymentModes([]);
       setPaymentAmounts({});
       setTip(0);
+      setCashReceived(0);   // ✅ Reset received field
       setActivePaymentIndex(0);
     }
   }, [show]);
@@ -190,9 +191,8 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
     if (loading) return;
 
     // Validate: Received amount must be >= Bill amount (including tip)
-     // ❌ Do not allow settlement if received < bill
-  if (receivedAmount < grandTotal) {
-    toast.error(`Received amount ₹${receivedAmount} is less than bill ₹${grandTotal}`);
+      if (cashReceived > 0 && cashReceived < grandTotal) {
+    toast.error(`Received amount ₹${cashReceived} is less than bill ₹${grandTotal}`);
     return;
   }
 

@@ -26,6 +26,8 @@ interface MenuItem {
   revQty?: number;
   hsn?: string;
   note?: string;
+  variantId?: number; // Variant ID for variant items
+  variantName?: string; // Variant name for variant items
 }
 
 interface TaxCalc {
@@ -425,6 +427,7 @@ ${(showAll || localFormData.show_kot_number_bill)
             <div style="display: grid; grid-template-columns: ${(showAll || localFormData.print_bill_both_languages) ? '3fr' : '2fr'} ${(showAll || !localFormData.hide_item_quantity_column) ? '30px' : ''} ${(showAll || !localFormData.hide_item_rate_column) ? '40px' : ''} ${(showAll || !localFormData.hide_item_total_column) ? '50px' : ''}; gap: 5px; padding: 2px 0; font-size: 9pt;">
               <div>
                 ${item.name}
+                ${item.variantName ? `<div style="font-size: 8pt; color: #0066cc; font-weight: bold;">(${item.variantName})</div>` : ''}
                 ${(showAll || (localFormData.print_bill_both_languages && localFormData.show_alt_name_bill && item.alternativeItem)) ? ` / ${item.alternativeItem || 'N/A'}` : ''}
                 ${(showAll || (localFormData.show_item_note_bill && item.note)) ? `<div style="font-size: 8pt; color: #6c757d;">${item.note || 'N/A'}</div>` : ''}
                 ${(showAll || (localFormData.modifier_default_option_bill && item.modifier)) ? `<div style="font-size: 8pt; color: #6c757d;">${item.modifier ? item.modifier.join(', ') : 'N/A'}</div>` : ''}

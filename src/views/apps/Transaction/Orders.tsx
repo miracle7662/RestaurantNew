@@ -1871,18 +1871,6 @@ const handleTabClick = (tab: string) => {
 
       setOrderNo(txnNo);
 
-      // 3️⃣ (Optional) Print Bill
-      const printWindow = window.open('', '_blank');
-      if (printWindow) {
-        const contentToPrint = document.getElementById('bill-preview');
-        if (contentToPrint) {
-          printWindow.document.write(contentToPrint.innerHTML);
-          printWindow.document.close();
-          printWindow.focus();
-          await new Promise(res => setTimeout(res, 500));
-          printWindow.print();
-        }
-      }
 
       toast.success('Bill printed successfully');
 

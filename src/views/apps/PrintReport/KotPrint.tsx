@@ -30,6 +30,8 @@ interface MenuItem {
   txnDetailId?: number;
   isReverse?: boolean;
   revQty?: number;
+  variantId?: number; // Variant ID for variant items
+  variantName?: string; // Variant name for variant items
 }
 
 interface KotPreviewPrintProps {
@@ -613,11 +615,13 @@ ${showCustomerMobile
       const qty = item.originalQty ? item.qty - item.originalQty : item.qty;
       const modifierHtml = modifierDefaultOption && item.modifier && item.modifier.length > 0 ? `<div style="font-size: 8pt; color: #666;">Modifiers: ${item.modifier.join(', ')}</div>` : '';
       const alternativeHtml = showAlternativeItem && item.alternativeItem ? `<div style="font-size: 8pt; color: #666;">Alt: ${item.alternativeItem}</div>` : '';
+      const variantHtml = item.variantName ? `<div style="font-size: 8pt; color: #0066cc; font-weight: bold;">(${item.variantName})</div>` : '';
       return `
       <div style="display: grid; grid-template-columns: ${gridTemplateColumns}; padding-bottom: 3px; margin-bottom: 3px; font-size: 10pt;">
         <div style="text-align: center">${qty}</div>
         <div style="text-align: center">
           ${item.name}
+          ${variantHtml}
           ${modifierHtml}
           ${alternativeHtml}
         </div>
