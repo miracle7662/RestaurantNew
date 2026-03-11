@@ -872,6 +872,7 @@ CREATE TABLE IF NOT EXISTS TrnSettlement (
     PaymentTypeID INTEGER NOT NULL,
     PaymentType TEXT NOT NULL,
     Amount REAL DEFAULT 0,
+    TipAmount REAL DEFAULT 0,
     Batch TEXT,
     Name TEXT,
     HotelID INTEGER,
@@ -1246,5 +1247,14 @@ try {
 } catch (e) {
   // Column might already exist, ignore error
 }
+
+// Migration: Add TipAmount column to TrnSettlement if it doesn't exist
+try {
+  db.exec("ALTER TABLE TrnSettlement ADD COLUMN TipAmount REAL DEFAULT 0");
+} catch (e) {
+  // Column might already exist, ignore error
+}
+
+
 
 module.exports = db

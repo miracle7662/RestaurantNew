@@ -665,7 +665,7 @@ exports.settleBill = async (req, res) => {
     console.log('Request Body (settlements):', JSON.stringify(req.body, null, 2))
 
     const { id } = req.params
-    const { settlements = [], curr_date } = req.body
+    const { settlements = [], curr_date, TipAmount } = req.body
 
     if (!Array.isArray(settlements) || settlements.length === 0) {
       return res
@@ -680,8 +680,8 @@ exports.settleBill = async (req, res) => {
 
     const tx = db.transaction(() => {
       const ins = db.prepare(`
-INSERT INTO TrnSettlement (PaymentTypeID, PaymentType, Amount, Batch, Name, OrderNo, HotelID, TxnNo, UserId, CustomerName, MobileNo, Receive, Refund, isSettled, InsertDate)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO TrnSettlement (PaymentTypeID, PaymentType, Amount, Batch, Name, OrderNo, HotelID, TxnNo, UserId, CustomerName, MobileNo, Receive, Refund, TipAmount, isSettled, InsertDate)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 
       `)
       for (const s of settlements) {
@@ -689,6 +689,9 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         
         // Use InsertDate from request body if provided, otherwise use current datetime
         const insertDate = s.InsertDate ? s.InsertDate : new Date().toISOString().replace('T', ' ').substring(0, 19);
+        
+        // Get TipAmount - default to 0 if not provided
+        const tipAmount = TipAmount != null ? Number(TipAmount) : 0;
         
         ins.run(
           s.PaymentTypeID ?? 1,
@@ -704,6 +707,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           bill.MobileNo,
           Number(s.received_amount) || 0, // Receive
           Number(s.refund_amount) || 0, // Refund
+          tipAmount, // TipAmount
           1, // isSettled
           insertDate // InsertDate
         )

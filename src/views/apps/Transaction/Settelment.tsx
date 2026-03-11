@@ -225,6 +225,7 @@ const EditSettlementPage: React.FC = () => {
         HotelID: editing.HotelID,
         EditedBy: currentUser,
         InsertDate: user?.currDate,
+        TipAmount: tip || 0,
       });
 
       setNotification({

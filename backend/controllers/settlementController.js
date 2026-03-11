@@ -200,7 +200,7 @@ exports.createSettlement = async (req, res) => {
 // Replace settlements for an OrderNo
 exports.replaceSettlement = async (req, res) => {
   try {
-    const { OrderNo, newSettlements, HotelID, EditedBy, InsertDate } = req.body;
+    const { OrderNo, newSettlements, HotelID, EditedBy, InsertDate, TipAmount } = req.body;
 
     if (!OrderNo || !Array.isArray(newSettlements) || !HotelID) {
       return res.status(400).json({
@@ -218,6 +218,9 @@ exports.replaceSettlement = async (req, res) => {
     // Use InsertDate from request body if provided, otherwise use current datetime
     const insertDate = InsertDate ? InsertDate : new Date().toISOString().replace('T', ' ').substring(0, 19);
 
+    // Get TipAmount - default to 0 if not provided
+    const tipAmount = TipAmount != null ? Number(TipAmount) : 0;
+
     // 1️⃣ Fetch all existing settlements for the OrderNo
     const existingSettlements = db.prepare(
       `SELECT * FROM TrnSettlement WHERE OrderNo = ?`
@@ -232,15 +235,18 @@ exports.replaceSettlement = async (req, res) => {
           OldAmount,
           NewPaymentType,
           NewAmount,
+          TipAmount ,
           EditedBy
         )
-        VALUES (?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?,  ?)
       `).run([
         Number(settlement.SettlementID),
         settlement.PaymentType ? String(settlement.PaymentType) : null,
         settlement.Amount != null ? Number(settlement.Amount) : null,
         null,
         null,
+        settlement.TipAmount != null ? Number(settlement.TipAmount) : 0,
+        tipAmount,
         editedBySafe
       ]);
     }
@@ -299,6 +305,7 @@ exports.replaceSettlement = async (req, res) => {
           PaymentTypeID,
           PaymentType,
           Amount,
+          TipAmount,
           HotelID,
           TxnNo,
           UserId,
@@ -310,12 +317,13 @@ exports.replaceSettlement = async (req, res) => {
           isSettled,
           InsertDate
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
       `).run(
         OrderNo,
         paymentTypeID,
         s.PaymentType,
         Number(s.Amount),
+        tipAmount,
         HotelID,
         txnNo,
         userId,

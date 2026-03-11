@@ -1,22 +1,19 @@
-# TODO - Settlement Validation Changes
+# TODO - Add Tip Amount Field to Backend
 
-## Task: Add validation for received amount >= bill amount in settlement
+## Task: Add tip amount field to backend for settlement tracking
 
 ### Steps:
-1. [x] Analyze codebase to understand settlement flow
-2. [ ] Add frontend validation in SettelmentModel.tsx
-3. [ ] Add backend validation in TAxnTrnbillControllers.js
-4. [ ] Test the changes
+- [x] 1. Analyze codebase and create plan
+- [x] 2. Add TipAmount column to TrnSettlement table in db.js
+- [x] 3. Add TipAmount to TrnSettlementLog table in db.js
+- [x] 4. Update settlementController.js to handle TipAmount
+- [x] 5. Update frontend API service (settlements.ts) to include tip in payload
+- [x] 6. Update Settelment.tsx to pass TipAmount to backend
+- [ ] 7. Test the implementation
 
-### Changes Made:
-
-#### Frontend (src/views/apps/Transaction/SettelmentModel.tsx):
-- Added validation in handleSettle to check if cashReceived >= grandTotal + tip
-- Show error message: "Received amount (300) is less than bill amount (500). Bill cannot be settled."
-
-#### Backend (backend/controllers/TAxnTrnbillControllers.js):
-- Added validation in settleBill to check if total received >= bill amount
-- Return error if validation fails
-
-### Status: In Progress
+### Files Edited:
+1. backend/config/db.js - Added TipAmount column to TrnSettlement and TrnSettlementLog tables + migration code
+2. backend/controllers/settlementController.js - Updated replaceSettlement to accept and save TipAmount
+3. src/common/api/settlements.ts - Added TipAmount to replace payload type
+4. src/views/apps/Transaction/Settelment.tsx - Pass TipAmount when calling replace API
 

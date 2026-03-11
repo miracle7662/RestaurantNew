@@ -2,8 +2,8 @@ import React from 'react';
 import { Modal, Button, Spinner } from 'react-bootstrap';
 import { toast } from 'react-hot-toast';
 import { OutletSettings } from 'src/utils/applyOutletSettings';
-import {fetchBillSettings} from '@/services/outletSettings.service';
-import {applyBillSettings} from '@/utils/applyOutletSettings';
+import { applyBillSettings } from '@/utils/applyOutletSettings';
+import BillPrintService from '@/common/api/billPrint';
 
 interface MenuItem {
   id: number;
@@ -18,7 +18,7 @@ interface MenuItem {
   isNew?: boolean;
   alternativeItem?: string;
   modifier?: string[];
-   item_no?: number;
+  item_no?: number;
   originalQty?: number;
   kotNo?: number;
   txnDetailId?: number;
@@ -26,6 +26,8 @@ interface MenuItem {
   revQty?: number;
   hsn?: string;
   note?: string;
+  variantId?: number; // Variant ID for variant items
+  variantName?: string; // Variant name for variant items
 }
 
 interface TaxCalc {
@@ -68,7 +70,7 @@ interface BillPreviewPrintProps {
   selectedOutletId?: number | null;
   restaurantName?: string;
   outletName?: string;
-
+  dialogClassName?: string;
 }
 
 const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
@@ -96,7 +98,8 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
   onClose,
   selectedOutletId,
   restaurantName,
-  outletName
+  outletName,
+  dialogClassName
 }) => {
   const [loading, setLoading] = React.useState(false);
   const [printerName, setPrinterName] = React.useState<string | null>(null);
@@ -125,7 +128,12 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
   const loadOutletSettings = async (outletId: number) => {
     try {
       console.log('BillPrint: Loading outlet settings for outletId:', outletId);
-      const { billPreviewSettings, billPrintSettings } = await fetchBillSettings(outletId);
+      const [billPreviewRes, billPrintRes] = await Promise.all([
+        BillPrintService.getBillPreviewSettings(outletId),
+        BillPrintService.getBillPrintSettings(outletId)
+      ]);
+      const billPreviewSettings = billPreviewRes?.data || billPreviewRes;
+      const billPrintSettings = billPrintRes?.data || billPrintRes;
       console.log('BillPrint: Fetched billPreviewSettings:', billPreviewSettings);
       console.log('BillPrint: Fetched billPrintSettings:', billPrintSettings);
       const newFormData = applyBillSettings(localFormData, billPreviewSettings, billPrintSettings);
@@ -153,7 +161,7 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
   React.useEffect(() => {
 
 
-   const fetchPrinter = async () => {
+    const fetchPrinter = async () => {
       if (!outletId) {
         console.log('No outletId, skipping fetch');
         return;
@@ -162,18 +170,12 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
       console.log('Fetching printer for outletId:', outletId);
 
       try {
-        const res = await fetch(
-          `http://localhost:3001/api/settings/bill-printer-settings/${outletId}`
-        );
-        console.log('API response status:', res.status);
-        if (!res.ok) {
-          throw new Error('Failed to fetch printers');
-        }
-        const data = await res.json();
+        const res = await BillPrintService.getBillPrinterSettings(outletId);
+        const data = res?.data || res;
         console.log('API response data:', data);
         const printer = data?.printer_name || null;
         console.log('Setting printerName to:', printer);
-       setPrinterName(printer);
+        setPrinterName(printer);
 
 
       } catch (err) {
@@ -196,16 +198,13 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
       setIsLoadingNames(true);
 
       if (!restaurantName || restaurantName.trim() === '' || restaurantName === 'Restaurant Name' ||
-          !outletName || outletName.trim() === '' || outletName === 'Outlet Name') {
+        !outletName || outletName.trim() === '' || outletName === 'Outlet Name') {
         try {
-          const outletRes = await fetch(`http://localhost:3001/api/outlets/${outletId}`);
-          if (outletRes.ok) {
-            const outletData = await outletRes.json();
-            const data = outletData.data || outletData;
-            if (data) {
-              setLocalRestaurantName(data.brand_name || data.hotel_name || 'Restaurant Name');
-              setLocalOutletName(data.outlet_name || 'Outlet Name');
-            }
+          const outletRes = await BillPrintService.getOutletDetails(outletId);
+          const data = outletRes?.data || outletRes;
+          if (data) {
+            setLocalRestaurantName(data.brand_name || data.hotel_name || 'Restaurant Name');
+            setLocalOutletName(data.outlet_name || 'Outlet Name');
           }
         } catch (error) {
           console.error('Error fetching outlet details:', error);
@@ -267,14 +266,14 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
   };
 
   const handlePrintBill = async () => {
-      console.log('Print Bill button clicked');
-      console.log('Current printerName:', printerName);
-      console.log('Current outletId:', outletId);
+    console.log('Print Bill button clicked');
+    console.log('Current printerName:', printerName);
+    console.log('Current outletId:', outletId);
 
-      try {
+    try {
       setLoading(true);
 
-    
+
 
       // Get system printers via Electron API (asynchronous)
       const systemPrintersRaw = await (window as any).electronAPI?.getInstalledPrinters?.() || [];
@@ -323,8 +322,8 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
       }
 
       if (usedFallback) {
-  console.log("Fallback printer used");
-}
+        console.log("Fallback printer used");
+      }
 
       // Generate KOT HTML for printing
       const kotHTML = generateBillHTML();
@@ -379,11 +378,10 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
         <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 10px; font-size: 9pt;">
         ${(showAll || localFormData.show_bill_no_bill) ? `<div><strong>Bill No:</strong><br />${(showAll || localFormData.show_bill_number_prefix_bill) ? (localFormData.dine_in_kot_no || '') : ''}${orderNo || ''}</div>` : ''}
 ${(showAll || localFormData.show_kot_number_bill)
-  ? `<div><strong>KOT No:</strong><br />${
-      allKOTNos.length > 0 ? allKOTNos.join(", ") : (currentKOTNo || "—")
-    }</div>`
-  : ""
-}      
+        ? `<div><strong>KOT No:</strong><br />${allKOTNos.length > 0 ? allKOTNos.join(", ") : (currentKOTNo || "—")
+        }</div>`
+        : ""
+      }      
           ${(showAll || localFormData.show_order_id_bill) ? `<div><strong>Order ID:</strong><br />${(showAll || !localFormData.mask_order_id) ? (currentTxnId || '—') : '****'}</div>` : ''}
           ${(showAll || ((activeTab === 'Dine-in' && localFormData.table_name_dine_in) || (activeTab === 'Pickup' && localFormData.table_name_pickup) || (activeTab === 'Delivery' && localFormData.table_name_delivery) || (activeTab === 'Quick Bill' && localFormData.table_name_quick_bill))) ? `<div><strong>Table:</strong><br />${selectedTable || '—'}</div>` : ''}
           ${(showAll || localFormData.show_date_bill) ? `<div><strong>Date:</strong><br />${new Date().toLocaleDateString('en-GB')}</div>` : ''}
@@ -421,14 +419,21 @@ ${(showAll || localFormData.show_kot_number_bill)
             ${(showAll || !localFormData.hide_item_total_column) ? '<div style="text-align: right;">Amount</div>' : ''}
           </div>
           ${Object.values(items.filter(i => i.qty > 0).reduce((acc: any, item: any) => {
-            const key = (showAll || localFormData.show_items_sequence_bill) ? `${item.id}-${item.price}` : String(item.id);
-            if (!acc[key]) acc[key] = { ...item, qty: 0 };
-            acc[key].qty += item.qty;
-            return acc;
-          }, {})).map((item: any, index: number) => `
+        const key = (showAll || localFormData.show_items_sequence_bill)
+          ? `${item.id}-${item.variantId || 0}-${item.price}`
+          : `${item.id}-${item.variantId || 0}`;
+
+        if (!acc[key]) {
+          acc[key] = { ...item, qty: 0 };
+        }
+
+        acc[key].qty += item.qty;
+
+        return acc;
+      }, {})).map((item: any, index: number) => `
             <div style="display: grid; grid-template-columns: ${(showAll || localFormData.print_bill_both_languages) ? '3fr' : '2fr'} ${(showAll || !localFormData.hide_item_quantity_column) ? '30px' : ''} ${(showAll || !localFormData.hide_item_rate_column) ? '40px' : ''} ${(showAll || !localFormData.hide_item_total_column) ? '50px' : ''}; gap: 5px; padding: 2px 0; font-size: 9pt;">
               <div>
-                ${item.name}
+               ${item.name} ${item.variantName ? `<span style="font-size:8pt; color:#0066cc; font-weight:bold;">(${item.variantName})</span>` : ''}
                 ${(showAll || (localFormData.print_bill_both_languages && localFormData.show_alt_name_bill && item.alternativeItem)) ? ` / ${item.alternativeItem || 'N/A'}` : ''}
                 ${(showAll || (localFormData.show_item_note_bill && item.note)) ? `<div style="font-size: 8pt; color: #6c757d;">${item.note || 'N/A'}</div>` : ''}
                 ${(showAll || (localFormData.modifier_default_option_bill && item.modifier)) ? `<div style="font-size: 8pt; color: #6c757d;">${item.modifier ? item.modifier.join(', ') : 'N/A'}</div>` : ''}
@@ -468,7 +473,8 @@ ${(showAll || localFormData.show_kot_number_bill)
           
           ${(showAll || localFormData.show_bill_amount_words) ? '<div>In Words: {/* TODO: Function to convert number to words needed */}</div>' : ''}
           ${(showAll || localFormData.show_customer_paid_amount) ? `<div>Paid: ₹${taxCalc.grandTotal.toFixed(2)}</div>` : ''}
-          ${(showAll || localFormData.show_due_amount_bill) ? '<div>Due: ₹0.00</div>' : ''}
+          ${(showAll || localFormData.show_due_amount_bill) && localFormData.due > 0 ? `<div>Due: ₹${localFormData.due.toFixed(2)}</div>` : ''}
+
         </div>
         ${(showAll || (localFormData.show_order_note_bill && localFormData.note)) ? `<div style="text-align: center; font-size: 8pt; margin-top: 5px;">${localFormData.note || 'N/A'}</div>` : ''}
         ${(showAll || (((activeTab === 'Dine-in' && localFormData.payment_mode_dine_in) || (activeTab === 'Pickup' && localFormData.payment_mode_pickup) || (activeTab === 'Delivery' && localFormData.payment_mode_delivery) || (activeTab === 'Quick Bill' && localFormData.payment_mode_quick_bill)) && localFormData.show_default_payment)) ? `
@@ -495,6 +501,7 @@ ${(showAll || localFormData.show_kot_number_bill)
       size="lg"
       centered
       backdrop="static"
+      dialogClassName={dialogClassName}
     >
       <Modal.Header closeButton>
         <Modal.Title>Bill Preview & Print</Modal.Title>
@@ -526,7 +533,7 @@ ${(showAll || localFormData.show_kot_number_bill)
                 />
               </div>
             )}
-           
+
           </div>
         )}
       </Modal.Body>
