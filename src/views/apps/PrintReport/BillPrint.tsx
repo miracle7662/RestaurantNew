@@ -70,7 +70,7 @@ interface BillPreviewPrintProps {
   selectedOutletId?: number | null;
   restaurantName?: string;
   outletName?: string;
-
+  dialogClassName?: string;
 }
 
 const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
@@ -98,7 +98,8 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
   onClose,
   selectedOutletId,
   restaurantName,
-  outletName
+  outletName,
+  dialogClassName
 }) => {
   const [loading, setLoading] = React.useState(false);
   const [printerName, setPrinterName] = React.useState<string | null>(null);
@@ -472,7 +473,8 @@ ${(showAll || localFormData.show_kot_number_bill)
           
           ${(showAll || localFormData.show_bill_amount_words) ? '<div>In Words: {/* TODO: Function to convert number to words needed */}</div>' : ''}
           ${(showAll || localFormData.show_customer_paid_amount) ? `<div>Paid: ₹${taxCalc.grandTotal.toFixed(2)}</div>` : ''}
-        ${(showAll || localFormData.show_due_amount_bill) && localFormData.due > 0 ? `<div>Due: ₹${localFormData.due.toFixed(2)}</div>` : ''}
+          ${(showAll || localFormData.show_due_amount_bill) && localFormData.due > 0 ? `<div>Due: ₹${localFormData.due.toFixed(2)}</div>` : ''}
+
         </div>
         ${(showAll || (localFormData.show_order_note_bill && localFormData.note)) ? `<div style="text-align: center; font-size: 8pt; margin-top: 5px;">${localFormData.note || 'N/A'}</div>` : ''}
         ${(showAll || (((activeTab === 'Dine-in' && localFormData.payment_mode_dine_in) || (activeTab === 'Pickup' && localFormData.payment_mode_pickup) || (activeTab === 'Delivery' && localFormData.payment_mode_delivery) || (activeTab === 'Quick Bill' && localFormData.payment_mode_quick_bill)) && localFormData.show_default_payment)) ? `
@@ -499,6 +501,7 @@ ${(showAll || localFormData.show_kot_number_bill)
       size="lg"
       centered
       backdrop="static"
+      dialogClassName={dialogClassName}
     >
       <Modal.Header closeButton>
         <Modal.Title>Bill Preview & Print</Modal.Title>

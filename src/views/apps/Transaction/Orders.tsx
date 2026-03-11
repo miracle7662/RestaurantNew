@@ -4467,19 +4467,53 @@ const handleTabClick = (tab: string) => {
             </Modal.Footer>
           </Modal>
           {/* Bill Preview Modal */}
-          <Modal
+          <BillPreviewPrint
             show={showBillPreviewModal}
             onHide={() => setShowBillPreviewModal(false)}
-            centered
-            dialogClassName="receipt-preview-modal"
-          >
-            <Modal.Header closeButton>
-              <Modal.Title>Bill Preview</Modal.Title>
-            </Modal.Header>
-            <Modal.Body>
-              <div dangerouslySetInnerHTML={{ __html: document.getElementById('bill-preview')?.innerHTML || '' }} />
-            </Modal.Body>
-          </Modal>
+            formData={formData}
+            user={user}
+            items={items}
+            currentKOTNos={currentKOTNos}
+            currentKOTNo={currentKOTNo}
+            orderNo={orderNo || undefined}
+            selectedTable={selectedTable}
+            activeTab={activeTab}
+            customerName={customerName}
+            mobileNumber={mobileNumber}
+            currentTxnId={currentTxnId ? currentTxnId.toString() : undefined}
+            taxCalc={taxCalc}
+            taxRates={taxRates}
+            discount={discount}
+            roundOffEnabled={roundOffEnabled}
+            roundOffValue={roundOffValue}
+            selectedPaymentModes={selectedPaymentModes}
+            selectedOutletId={selectedOutletId}
+            dialogClassName="bill-preview-80mm"
+          />
+          {/* Custom CSS for 80mm Bill Preview Modal */}
+         <style>{`
+.bill-preview-80mm .modal-dialog {
+  max-width: 320px;
+  margin: auto;
+}
+
+.bill-preview-80mm .modal-content {
+  width: 320px !important;
+  max-width: 320px !important;
+  margin: 0 auto;
+  overflow-x: hidden;
+}
+
+.bill-preview-80mm .modal-body {
+  padding: 0;
+  overflow-x: hidden;
+}
+
+/* Hide only footer buttons */
+.bill-preview-80mm .modal-footer {
+  display: none !important;
+}
+`}</style>
           {/* Settlement Modal */}
           <SettlementModal
             show={showSettlementModal}
