@@ -59,6 +59,7 @@ interface BillItem {
   RevKOT?: number;
   revKotNo?: number;
   isValidCode?: boolean;
+  needsVariantSelection?: boolean;
   // Variant fields
   variantId?: number;
   variantName?: string;
