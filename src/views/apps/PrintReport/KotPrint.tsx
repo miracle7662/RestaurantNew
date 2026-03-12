@@ -30,6 +30,8 @@ interface MenuItem {
   txnDetailId?: number;
   isReverse?: boolean;
   revQty?: number;
+  variantId?: number;
+  variantName?: string;
 }
 
 interface KotPreviewPrintProps {
@@ -616,10 +618,7 @@ ${showCustomerMobile
       return `
       <div style="display: grid; grid-template-columns: ${gridTemplateColumns}; padding-bottom: 3px; margin-bottom: 3px; font-size: 10pt;">
         <div style="text-align: center">${qty}</div>
-        <div style="text-align: center">
-          ${item.name}
-          ${modifierHtml}
-          ${alternativeHtml}
+        <div style="text-align: center">\n          ${item.name} ${item.variantName ? `<span style="font-size:8pt; color:#0066cc; font-weight:bold;">(${item.variantName})</span>` : ''}\n          ${modifierHtml}\n          ${alternativeHtml}
         </div>
         ${showRateColumn ? `<div style="text-align: right">${item.price.toFixed(2)}</div>` : ''}
         ${showAmountColumn ? `<div style="text-align: right">${(item.price * qty).toFixed(2)}</div>` : ''}

@@ -4607,8 +4607,8 @@ const handleTabClick = (tab: string) => {
           <KotPreviewPrint
             show={showKotPreviewModal}
             onHide={() => setShowKotPreviewModal(false)}
-            onClose={() => {
-              setShowKotPreviewModal(true);
+onClose={() => {
+              setShowKotPreviewModal(false);
               // Clear the order state after KOT print
               setItems([]);
               setPrintItems([]);
@@ -4661,7 +4661,7 @@ const handleTabClick = (tab: string) => {
             reverseQtyMode={reverseQtyMode}
             reverseQtyItems={reverseQtyItems}
             selectedOutletId={selectedOutletId}
-            autoPrint={true}
+            // autoPrint={true}
             kotNote={kotNote}
             orderNo={orderNo}
             date={user?.currDate}
