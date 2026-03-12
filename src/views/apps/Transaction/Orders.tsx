@@ -4692,6 +4692,7 @@ onClose={() => {
             roundOffEnabled={roundOffEnabled}
             roundOffValue={roundOffValue}
             selectedPaymentModes={selectedPaymentModes}
+            selectedWaiter={selectedWaiter}
             onPrint={() => {
               // Handle print callback if needed
             }}
