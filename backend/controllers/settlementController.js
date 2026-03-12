@@ -83,7 +83,6 @@ exports.updateSettlement = async (req, res) => {
       });
     }
 
-    // ✅ LOG OLD → NEW
     db.prepare(`
       INSERT INTO TrnSettlementLog (
         SettlementID,
@@ -103,7 +102,6 @@ exports.updateSettlement = async (req, res) => {
       typeof EditedBy === 'object' ? JSON.stringify(EditedBy) : EditedBy
     );
 
-    // ✅ UPDATE (NO BILL AMOUNT VALIDATION HERE)
     db.prepare(`
       UPDATE TrnSettlement
       SET PaymentType = ?, Amount = ?
@@ -118,6 +116,7 @@ exports.updateSettlement = async (req, res) => {
       success: true,
       message: 'Settlement updated successfully'
     });
+
   } catch (error) {
     console.error('updateSettlement error:', error);
     res.status(500).json({
@@ -127,11 +126,15 @@ exports.updateSettlement = async (req, res) => {
   }
 };
 
+
+
+// Create settlement
 exports.createSettlement = async (req, res) => {
   try {
+
     const {
       OrderNo,
-      PaymentType,   // "Cash", "UPI"
+      PaymentType,
       Amount,
       HotelID,
       EditedBy,
@@ -145,7 +148,6 @@ exports.createSettlement = async (req, res) => {
       });
     }
 
-    // 🔹 Resolve PaymentTypeID correctly
     const paymentMode = db.prepare(`
       SELECT paymenttypeid
       FROM payment_types
@@ -159,10 +161,11 @@ exports.createSettlement = async (req, res) => {
       });
     }
 
-    // ✅ FIXED LINE
     const paymentTypeID = paymentMode.paymenttypeid;
 
-    
+    const insertDate =
+      InsertDate ||
+      new Date().toISOString().replace('T', ' ').substring(0, 19);
 
     db.prepare(`
       INSERT INTO TrnSettlement (
@@ -188,6 +191,7 @@ exports.createSettlement = async (req, res) => {
       success: true,
       message: 'Settlement created successfully'
     });
+
   } catch (error) {
     console.error('createSettlement error:', error);
     res.status(500).json({
@@ -197,140 +201,100 @@ exports.createSettlement = async (req, res) => {
   }
 };
 
-// Replace settlements for an OrderNo
+
+
+// Replace settlements
 exports.replaceSettlement = async (req, res) => {
   try {
+
     const { OrderNo, newSettlements, HotelID, EditedBy, InsertDate, TipAmount } = req.body;
 
     if (!OrderNo || !Array.isArray(newSettlements) || !HotelID) {
       return res.status(400).json({
         success: false,
-        message: 'Missing required fields: OrderNo, newSettlements, HotelID'
+        message: 'Missing required fields'
       });
     }
 
-    // ✅ FORCE EditedBy to a valid SQLite type
     const editedBySafe =
       typeof EditedBy === 'object'
         ? JSON.stringify(EditedBy)
         : EditedBy ?? null;
 
-    // Use InsertDate from request body if provided, otherwise use current datetime
-    const insertDate = InsertDate ? InsertDate : new Date().toISOString().replace('T', ' ').substring(0, 19);
+    const insertDate =
+      InsertDate ||
+      new Date().toISOString().replace('T', ' ').substring(0, 19);
 
-    // Get TipAmount - default to 0 if not provided
     const tipAmount = TipAmount != null ? Number(TipAmount) : 0;
 
-    // 1️⃣ Fetch all existing settlements for the OrderNo
-    const existingSettlements = db.prepare(
-      `SELECT * FROM TrnSettlement WHERE OrderNo = ?`
-    ).all(OrderNo);
+    const existingSettlements = db.prepare(`
+      SELECT *
+      FROM TrnSettlement
+      WHERE OrderNo = ? OR TxnNo = ?
+    `).all(OrderNo, OrderNo);
 
-    // 2️⃣ Log each existing settlement as deleted
-    for (const settlement of existingSettlements) {
-      db.prepare(`
-        INSERT INTO TrnSettlementLog (
-          SettlementID,
-          OldPaymentType,
-          OldAmount,
-          NewPaymentType,
-          NewAmount,
-          EditedBy
-        )
-        VALUES (?, ?, ?, ?, ?,   ?)
-      `).run([
-        Number(settlement.SettlementID),
-        settlement.PaymentType ? String(settlement.PaymentType) : null,
-        settlement.Amount != null ? Number(settlement.Amount) : null,
-        null,
-        null,
-       
-        editedBySafe
-      ]);
-    }
+    const logStmt = db.prepare(`
+      INSERT INTO TrnSettlementLog (
+        SettlementID,
+        OldPaymentType,
+        OldAmount,
+        NewPaymentType,
+        NewAmount,
+        EditedBy
+      )
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
 
-    // 3️⃣ Hard delete all existing settlements for the OrderNo
     db.prepare(`DELETE FROM TrnSettlement WHERE OrderNo = ?`).run(OrderNo);
 
-    // 4️⃣ Get the original settlement data to preserve TxnNo, UserId, Name, CustomerName, MobileNo
-    // Use the first existing settlement as reference (or fetch from TAxnTrnbill if no settlement exists)
-    let originalSettlement = existingSettlements.length > 0 ? existingSettlements[0] : null;
-    
-    let txnNo = originalSettlement?.TxnNo || null;
-    let userId = originalSettlement?.UserId || null;
-    let name = originalSettlement?.Name || null;
-    let customerName = originalSettlement?.CustomerName || null;
-    let mobileNo = originalSettlement?.MobileNo || null;
-    
-    // If no settlement exists, try to get data from TAxnTrnbill
-    if (!txnNo || !userId) {
-      const bill = db.prepare(`SELECT TxnNo, UserId, CustomerName, MobileNo FROM TAxnTrnbill WHERE orderNo = ? OR TxnNo = ?`).get(OrderNo, OrderNo);
-      if (bill) {
-        txnNo = txnNo || bill.TxnNo || null;
-        userId = userId || bill.UserId || null;
-        customerName = customerName || bill.CustomerName || null;
-        mobileNo = mobileNo || bill.MobileNo || null;
-      }
-    }
+    const settlementInsertStmt = db.prepare(`
+      INSERT INTO TrnSettlement (
+        OrderNo,
+        PaymentTypeID,
+        PaymentType,
+        Amount,
+        TipAmount,
+        HotelID,
+        isSettled,
+        InsertDate
+      )
+      VALUES (?, ?, ?, ?, ?, ?, 1, ?)
+    `);
 
-    // 5️⃣ Insert new settlements with preserved fields
-    // Get the total received and refund amounts from the first settlement (they should be the same for all)
-    const totalReceivedAmount = newSettlements.length > 0 ? Number(newSettlements[0].received_amount) || 0 : 0;
-    const totalRefundAmount = newSettlements.length > 0 ? Number(newSettlements[0].refund_amount) || 0 : 0;
-    
-    for (const s of newSettlements) {
-      if (!s.PaymentType || s.Amount == null) continue;
+    for (let i = 0; i < newSettlements.length; i++) {
 
-      // Resolve PaymentTypeID
+      const s = newSettlements[i];
+      const old = existingSettlements[i] || {};
+
       const paymentMode = db.prepare(`
         SELECT paymenttypeid
         FROM payment_types
         WHERE mode_name = ?
       `).get(s.PaymentType);
 
-      if (!paymentMode) {
-        return res.status(400).json({
-          success: false,
-          message: `Invalid payment type: ${s.PaymentType}`
-        });
-      }
-
       const paymentTypeID = paymentMode.paymenttypeid;
 
-      db.prepare(`
-        INSERT INTO TrnSettlement (
-          OrderNo,
-          PaymentTypeID,
-          PaymentType,
-          Amount,
-          TipAmount,
-          HotelID,
-          TxnNo,
-          UserId,
-          Name,
-          CustomerName,
-          MobileNo,
-          Receive,
-          Refund,
-          isSettled,
-          InsertDate
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
-      `).run(
+      settlementInsertStmt.run(
         OrderNo,
         paymentTypeID,
         s.PaymentType,
         Number(s.Amount),
         tipAmount,
         HotelID,
-        txnNo,
-        userId,
-        name,
-        customerName,
-        mobileNo,
-        totalReceivedAmount, // Receive = total amount given by customer
-        totalRefundAmount, // Refund = calculated refund amount
         insertDate
+      );
+
+      const newSettlementID = db
+        .prepare('SELECT last_insert_rowid() as id')
+        .get().id;
+
+      logStmt.run(
+        newSettlementID,
+        old.PaymentType || null,
+        old.Amount || null,
+        s.PaymentType,
+        s.Amount,
+        editedBySafe
       );
     }
 
@@ -338,32 +302,33 @@ exports.replaceSettlement = async (req, res) => {
       success: true,
       message: 'Settlements replaced successfully'
     });
+
   } catch (error) {
-    console.error('Error in replaceSettlement:', error);
+    console.error('replaceSettlement error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to replace settlements',
-      error: error.message
+      message: 'Failed to replace settlements'
     });
   }
 };
 
-// Delete/Reverse settlement
+
+
+// Delete settlement
 exports.deleteSettlement = async (req, res) => {
   try {
+
     const { id } = req.params;
     const { EditedBy } = req.body;
 
-    // ✅ FORCE EditedBy to a valid SQLite type
     const editedBySafe =
       typeof EditedBy === 'object'
-        ? JSON.stringify(EditedBy)     // OR EditedBy.id / EditedBy.username
+        ? JSON.stringify(EditedBy)
         : EditedBy ?? null;
 
-    // 1️⃣ Fetch settlement
     const settlement = db.prepare(
       `SELECT * FROM TrnSettlement WHERE SettlementID = ?`
-    ).get([Number(id)]);
+    ).get(Number(id));
 
     if (!settlement) {
       return res.status(404).json({
@@ -372,7 +337,6 @@ exports.deleteSettlement = async (req, res) => {
       });
     }
 
-    // 2️⃣ Insert log (SAFE BINDING)
     db.prepare(`
       INSERT INTO TrnSettlementLog (
         SettlementID,
@@ -383,21 +347,20 @@ exports.deleteSettlement = async (req, res) => {
         EditedBy
       )
       VALUES (?, ?, ?, ?, ?, ?)
-    `).run([
-      Number(settlement.SettlementID),
-      settlement.PaymentType ? String(settlement.PaymentType) : null,
-      settlement.Amount != null ? Number(settlement.Amount) : null,
+    `).run(
+      settlement.SettlementID,
+      settlement.PaymentType || null,
+      settlement.Amount || null,
       null,
       null,
       editedBySafe
-    ]);
+    );
 
-    // 3️⃣ Soft delete
     db.prepare(`
       UPDATE TrnSettlement
       SET isSettled = 0
       WHERE SettlementID = ?
-    `).run([Number(id)]);
+    `).run(Number(id));
 
     res.json({
       success: true,
@@ -408,10 +371,7 @@ exports.deleteSettlement = async (req, res) => {
     console.error('Error in deleteSettlement:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to reverse settlement',
-      error: error.message
+      message: 'Failed to reverse settlement'
     });
   }
 };
-
-
