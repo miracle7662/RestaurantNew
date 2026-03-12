@@ -244,7 +244,7 @@ exports.replaceSettlement = async (req, res) => {
       InsertDate ||
       new Date().toISOString().replace('T', ' ').substring(0, 19);
 
-    const tipAmount = TipAmount != null ? Number(TipAmount) : 0;
+    // tipAmount set from payload above
 
     // 1️⃣ Fetch existing settlements
     const existingSettlements = db.prepare(`
@@ -256,13 +256,22 @@ exports.replaceSettlement = async (req, res) => {
     // Preserve original values
 let originalSettlement = existingSettlements.length > 0 ? existingSettlements[0] : {};
 
+// Extract updated values from first new settlement (has received_amount etc.)
+let receive = 0;
+let refund = 0;
+let tipAmountFromPayload = Number(TipAmount) || 0;
+
+if (newSettlements.length > 0) {
+  receive = Number(newSettlements[0].received_amount) || originalSettlement.Receive || 0;
+  refund = Number(newSettlements[0].refund_amount) || originalSettlement.Refund || 0;
+}
+
+// Preserve others from original
 let txnNo = originalSettlement?.TxnNo || null;
 let userId = originalSettlement?.UserId || null;
 let name = originalSettlement?.Name || null;
 let customerName = originalSettlement?.CustomerName || null;
 let mobileNo = originalSettlement?.MobileNo || null;
-let receive = originalSettlement?.Receive || 0;
-let refund = originalSettlement?.Refund || 0;
 
 // ✅ Fallback: get UserId from bill table if missing
 if (!userId) {
@@ -341,7 +350,7 @@ if (!userId) {
         paymentTypeID,
         s.PaymentType,
         Number(s.Amount),
-        tipAmount,
+        tipAmountFromPayload,
         HotelID,
         txnNo,
         userId,
