@@ -120,7 +120,7 @@ exports.updateSettlement = async (req, res) => {
       settlement.Amount,
       PaymentType,
       Amount,
-      typeof EditedBy === 'object' ? JSON.stringify(EditedBy) : EditedBy
+      EditedBy?.full_name || EditedBy?.username || EditedBy || 'Unknown'
     );
 
     db.prepare(`
@@ -238,10 +238,7 @@ exports.replaceSettlement = async (req, res) => {
       });
     }
 
-    const editedBySafe =
-      typeof EditedBy === 'object'
-        ? JSON.stringify(EditedBy)
-        : EditedBy ?? null;
+    const editedBySafe = EditedBy?.full_name || EditedBy?.username || EditedBy || 'Unknown';
 
     const insertDate =
       InsertDate ||
@@ -394,10 +391,7 @@ exports.deleteSettlement = async (req, res) => {
     const { id } = req.params;
     const { EditedBy } = req.body;
 
-    const editedBySafe =
-      typeof EditedBy === 'object'
-        ? JSON.stringify(EditedBy)
-        : EditedBy ?? null;
+    const editedBySafe = EditedBy?.full_name || EditedBy?.username || EditedBy || 'Unknown';
 
     const settlement = db.prepare(
       `SELECT * FROM TrnSettlement WHERE SettlementID = ?`
