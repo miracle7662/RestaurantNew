@@ -378,27 +378,33 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
         <hr style="border: none; border-top: 1px dashed #000; margin: 5px 0;" />
         <!-- ============ BILL INFO (with conditional rendering) ============ -->
         <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 10px; font-size: 9pt;">
-        ${(showAll || localFormData.show_bill_no_bill) ? `<div><strong>Bill No:</strong><br />${(showAll || localFormData.show_bill_number_prefix_bill) ? (localFormData.dine_in_kot_no || '') : ''}${orderNo || ''}</div>` : ''}
-${(showAll || localFormData.show_kot_number_bill)
-        ? `<div><strong>KOT No:</strong><br />${allKOTNos.length > 0 ? allKOTNos.join(", ") : (currentKOTNo || "—")
-        }</div>`
-        : ""
-      }      
+        ${(showAll || localFormData.show_bill_no_bill) ? `<div><strong>BillNo:</strong><br />${(showAll || localFormData.show_bill_number_prefix_bill) ? (localFormData.dine_in_kot_no || '') : ''}${orderNo || ''}</div>` : ''}
+    
           ${(showAll || localFormData.show_order_id_bill) ? `<div><strong>Order ID:</strong><br />${(showAll || !localFormData.mask_order_id) ? (currentTxnId || '—') : '****'}</div>` : ''}
           ${(showAll || ((activeTab === 'Dine-in' && localFormData.table_name_dine_in) || (activeTab === 'Pickup' && localFormData.table_name_pickup) || (activeTab === 'Delivery' && localFormData.table_name_delivery) || (activeTab === 'Quick Bill' && localFormData.table_name_quick_bill))) ? `<div><strong>Table:</strong><br />${selectedTable || '—'}</div>` : ''}
           ${(showAll || localFormData.show_date_bill) ? `<div><strong>Date:</strong><br />${new Date().toLocaleDateString('en-GB')}</div>` : ''}
-          ${(showAll || localFormData.show_order_placed_time) ? `<div><strong>Time:</strong><br />${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</div>` : ''}
-          ${(showAll || localFormData.show_waiter_bill) ? `<div><strong>Waiter:</strong><br />${selectedWaiter || user?.name || 'N/A'}</div>` : ''}
+${(showAll || localFormData.show_order_placed_time) ? 
+`<div style="white-space: nowrap;">
+<strong>Time:</strong><br />
+${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
+</div>` : ''}          ${(showAll || localFormData.show_waiter_bill) ? `<div><strong>Waiter:</strong><br />${selectedWaiter || user?.name || 'N/A'}</div>` : ''}
 
           ${(showAll || localFormData.show_captain_bill) ? `<div><strong>Captain:</strong><br />${user?.name || 'N/A'}</div>` : ''}
           ${(showAll || localFormData.show_covers_bill) ? `<div><strong>Covers:</strong><br />N/A</div>` : ''}
+          ${(showAll || localFormData.show_kot_number_bill)
+        ? `<div style="white-space: nowrap;">
+            <strong>KOT No:</strong> 
+            ${allKOTNos.length > 0 ? allKOTNos.join(", ") : (currentKOTNo || "—")}
+          </div>`
+        : ""
+             }
           ${(showAll || localFormData.show_bill_print_count) ? `<div><strong>Print Count:</strong><br />1</div>` : ''}
         </div>
         ${(showAll || localFormData.show_customer_bill) ? `
           <hr style="border: none; border-top: 1px dashed #000; margin: 5px 0;" />
           <div style="font-size: 9pt; margin-bottom: 8px;">
-            <div><strong>Customer:</strong> ${customerName || 'Guest'}</div>
-            <div><strong>Mobile:</strong> ${mobileNumber || 'N/A'}</div>
+            ${customerName ? `<div><strong>Customer:</strong> ${customerName}</div>` : ''}
+            ${mobileNumber ? `<div><strong>Mobile:</strong> ${mobileNumber}</div>` : ''}
             ${(showAll || localFormData.show_customer_gst_bill) ? `<div><strong>GSTIN:</strong> N/A</div>` : ''}
             ${(showAll || (activeTab === 'Pickup' && localFormData.show_customer_address_pickup_bill)) ? `<div><strong>Address:</strong> N/A</div>` : ''}
           </div>
