@@ -1595,6 +1595,7 @@ const ModernBill = () => {
         currentItem.itemName = found.item_name;
         currentItem.itemId = found.restitemid;
         currentItem.isValidCode = true;
+        currentItem.needsVariantSelection = false;
         
         // If variant was selected, use variant-specific rate
         if (variantId && found.department_details) {
@@ -1609,16 +1610,35 @@ const ModernBill = () => {
             // After selecting from datalist, update the Code field to show only item_no
             currentItem.itemCode = itemCodeValue;
           } else {
-            currentItem.rate = found.price;
+            // No specific variant found, fallback to first variant or base
+            if (found.department_details && found.department_details.length > 0) {
+              const firstVariant = found.department_details[0];
+              currentItem.rate = firstVariant.item_rate || found.price;
+              currentItem.variantId = firstVariant.variant_value_id;
+              currentItem.variantName = firstVariant.variant_value_name;
+              currentItem.itemName = `${found.item_name} (${firstVariant.variant_value_name})`;
+            } else {
+              currentItem.rate = found.price;
+            }
           }
         } else {
-          currentItem.rate = found.price;
+          // No variant selected - default to first variant if exists, else base price
+          if (found.department_details && found.department_details.length > 0) {
+            const firstVariant = found.department_details[0];
+            currentItem.rate = firstVariant.item_rate || found.price;
+            currentItem.variantId = firstVariant.variant_value_id;
+            currentItem.variantName = firstVariant.variant_value_name;
+            currentItem.itemName = `${found.item_name} (${firstVariant.variant_value_name})`;
+          } else {
+            currentItem.rate = found.price;
+          }
         }
       } else {
         currentItem.itemName = "";
         currentItem.rate = 0;
         currentItem.itemId = 0;
         currentItem.isValidCode = false;
+        currentItem.needsVariantSelection = false;
       }
     } else if (field === 'itemName') {
       currentItem.itemName = value as string;
@@ -3315,7 +3335,13 @@ const ModernBill = () => {
                                 }}
                                 className="form-control-sm1 text-end"
                                 style={{ width: '100%', fontSize: '16px', background: 'transparent', padding: '0', outline: 'none' }}
+                                title={item.variantName ? `Variant: ${item.variantName}` : ''}
                               />
+                              {item.variantName && (
+                                <small className="text-muted d-block text-end" style={{ fontSize: '12px' }}>
+                                  {item.variantName}
+                                </small>
+                              )}
                             </td>
                             <td className="text-end" style={{ width: '100px' }}>{item.total.toFixed(2)}</td>
                             <td className="text-center">
