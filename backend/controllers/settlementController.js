@@ -204,6 +204,7 @@ exports.createSettlement = async (req, res) => {
 
 
 // Replace settlements
+// Replace settlements
 exports.replaceSettlement = async (req, res) => {
   try {
 
@@ -227,12 +228,37 @@ exports.replaceSettlement = async (req, res) => {
 
     const tipAmount = TipAmount != null ? Number(TipAmount) : 0;
 
+    // 1️⃣ Fetch existing settlements
     const existingSettlements = db.prepare(`
       SELECT *
       FROM TrnSettlement
       WHERE OrderNo = ? OR TxnNo = ?
     `).all(OrderNo, OrderNo);
 
+    // Preserve original values
+let originalSettlement = existingSettlements.length > 0 ? existingSettlements[0] : {};
+
+let txnNo = originalSettlement?.TxnNo || null;
+let userId = originalSettlement?.UserId || null;
+let name = originalSettlement?.Name || null;
+let customerName = originalSettlement?.CustomerName || null;
+let mobileNo = originalSettlement?.MobileNo || null;
+let receive = originalSettlement?.Receive || 0;
+let refund = originalSettlement?.Refund || 0;
+
+// ✅ Fallback: get UserId from bill table if missing
+if (!userId) {
+  const bill = db.prepare(`
+    SELECT UserId
+    FROM TAxnTrnbill
+    WHERE OrderNo = ? OR TxnNo = ?
+  `).get(OrderNo, OrderNo);
+
+  if (bill) {
+    userId = bill.UserId;
+  }
+}
+    // 3️⃣ Log statement
     const logStmt = db.prepare(`
       INSERT INTO TrnSettlementLog (
         SettlementID,
@@ -245,8 +271,10 @@ exports.replaceSettlement = async (req, res) => {
       VALUES (?, ?, ?, ?, ?, ?)
     `);
 
+    // 4️⃣ Delete old settlements
     db.prepare(`DELETE FROM TrnSettlement WHERE OrderNo = ?`).run(OrderNo);
 
+    // 5️⃣ Insert new settlements
     const settlementInsertStmt = db.prepare(`
       INSERT INTO TrnSettlement (
         OrderNo,
@@ -255,10 +283,17 @@ exports.replaceSettlement = async (req, res) => {
         Amount,
         TipAmount,
         HotelID,
+        TxnNo,
+        UserId,
+        Name,
+        CustomerName,
+        MobileNo,
+        Receive,
+        Refund,
         isSettled,
         InsertDate
       )
-      VALUES (?, ?, ?, ?, ?, ?, 1, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
     `);
 
     for (let i = 0; i < newSettlements.length; i++) {
@@ -266,11 +301,20 @@ exports.replaceSettlement = async (req, res) => {
       const s = newSettlements[i];
       const old = existingSettlements[i] || {};
 
+      if (!s.PaymentType || s.Amount == null) continue;
+
       const paymentMode = db.prepare(`
         SELECT paymenttypeid
         FROM payment_types
         WHERE mode_name = ?
       `).get(s.PaymentType);
+
+      if (!paymentMode) {
+        return res.status(400).json({
+          success: false,
+          message: `Invalid payment type: ${s.PaymentType}`
+        });
+      }
 
       const paymentTypeID = paymentMode.paymenttypeid;
 
@@ -281,6 +325,13 @@ exports.replaceSettlement = async (req, res) => {
         Number(s.Amount),
         tipAmount,
         HotelID,
+        txnNo,
+        userId,
+        name,
+        customerName,
+        mobileNo,
+        receive,
+        refund,
         insertDate
       );
 
@@ -288,6 +339,7 @@ exports.replaceSettlement = async (req, res) => {
         .prepare('SELECT last_insert_rowid() as id')
         .get().id;
 
+      // 6️⃣ Log edit
       logStmt.run(
         newSettlementID,
         old.PaymentType || null,
