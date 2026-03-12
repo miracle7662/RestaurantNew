@@ -695,8 +695,10 @@ const ModernBill = () => {
           const mappedItems: BillItem[] = fetchedItems.map((item: any) => {
             const netQty = item.qty - item.revQty;
             const total = netQty * item.price;
-            const cgst = total * (cgstRate / 100);
-            const sgst = total * (sgstRate / 100);
+            const cgst = !includeTaxInInvoice ? (total * (cgstRate / 100)) : 0;
+            const sgst = !includeTaxInInvoice ? (total * (sgstRate / 100)) : 0;
+            const igst = !includeTaxInInvoice ? (total * (igstRate / 100)) : 0;
+            const cess_amt = !includeTaxInInvoice ? (total * (cessRate / 100)) : 0;
             return {
               itemCode: item.item_no.toString(),
               itemgroupid: item.id,
@@ -708,8 +710,8 @@ const ModernBill = () => {
               total,
               cgst,
               sgst,
-              igst: 0,
-              cess: 0,
+              igst,
+              cess: cess_amt,
               mkotNo: item.kotNo ? item.kotNo.toString() : '',
               specialInstructions: '',
               isBilled: 1,
@@ -840,6 +842,10 @@ const ModernBill = () => {
         const qty = item.netQty || item.Qty || 0;
         const rate = item.RuntimeRate || item.price || item.Price || item.Rate || 0;
         const total = qty * rate;
+        const cgst = !includeTaxInInvoice ? (total * (cgstRate / 100)) : (item.cgst ?? 0);
+        const sgst = !includeTaxInInvoice ? (total * (sgstRate / 100)) : (item.sgst ?? 0);
+        const igst = !includeTaxInInvoice ? (total * (igstRate / 100)) : (item.igst ?? 0);
+        const cess_amt = !includeTaxInInvoice ? (total * (cessRate / 100)) : (item.cess ?? 0);
 
         return {
           itemCode: (item.item_no || item.ItemNo || '').toString(),
@@ -850,12 +856,10 @@ const ModernBill = () => {
           qty: qty,
           rate: rate,
           total: total,
-
-          // New tax fields - use from API if available, otherwise calculate fallback
-          cgst: item.cgst ?? 0,
-          sgst: item.sgst ?? 0,
-          igst: item.igst ?? 0,
-          cess: item.cess ?? 0,
+          cgst,
+          sgst,
+          igst,
+          cess: cess_amt,
           mkotNo: item.kotNo ? item.kotNo.toString() : (item.KOTNo ? item.KOTNo.toString() : ''),
           specialInstructions: item.specialInstructions || item.SpecialInst || '',
           isBilled: 0,
@@ -1003,6 +1007,10 @@ const ModernBill = () => {
         const qty = item.netQty || item.Qty || 0;
         const rate = item.price || item.Price || item.Rate || 0;
         const total = qty * rate;
+        const cgst = !includeTaxInInvoice ? (total * (cgstRate / 100)) : (item.cgst ?? 0);
+        const sgst = !includeTaxInInvoice ? (total * (sgstRate / 100)) : (item.sgst ?? 0);
+        const igst = !includeTaxInInvoice ? (total * (igstRate / 100)) : (item.igst ?? 0);
+        const cess_amt = !includeTaxInInvoice ? (total * (cessRate / 100)) : (item.cess ?? 0);
 
         return {
           itemCode: (item.item_no || item.ItemNo || '').toString(),
@@ -1013,13 +1021,10 @@ const ModernBill = () => {
           qty: qty,
           rate: rate,
           total: total,
-
-          // New tax fields - use from API if available, otherwise calculate fallback
-          cgst: item.cgst ?? 0,
-          sgst: item.sgst ?? 0,
-          igst: item.igst ?? 0,
-          cess: item.cess ?? 0,
-
+          cgst,
+          sgst,
+          igst,
+          cess: cess_amt,
           mkotNo: item.kotNo ? item.kotNo.toString() : (item.KOTNo ? item.KOTNo.toString() : ''),
           specialInstructions: item.specialInstructions || item.SpecialInst || '',
           isBilled: 0,
@@ -1158,10 +1163,13 @@ const ModernBill = () => {
   };
 
   const calculateTotals = (items: BillItem[]) => {
-
     const updatedItems = items.map(item => {
       const total = item.qty * item.rate;
-      return { ...item, total };
+      const cgst = !includeTaxInInvoice ? (total * (cgstRate / 100)) : 0;
+      const sgst = !includeTaxInInvoice ? (total * (sgstRate / 100)) : 0;
+      const igst = !includeTaxInInvoice ? (total * (igstRate / 100)) : 0;
+      const cess = !includeTaxInInvoice ? (total * (cessRate / 100)) : 0;
+      return { ...item, total, cgst, sgst, igst, cess };
     });
 
     const gross = updatedItems.reduce((sum, item) => sum + item.total, 0);
@@ -1184,26 +1192,24 @@ const ModernBill = () => {
 
     if (includeTaxInInvoice) {
       // 🔹 TAX INCLUSIVE
-
       taxableValue =
         totalTaxRate > 0
           ? discountedGross / (1 + totalTaxRate / 100)
           : discountedGross;
 
-      cgstTotal = taxableValue * (cgstRate / 100); Number(grossAmount.toFixed(2)),
-        sgstTotal = taxableValue * (sgstRate / 100);
+      cgstTotal = taxableValue * (cgstRate / 100);
+      sgstTotal = taxableValue * (sgstRate / 100);
       igstTotal = taxableValue * (igstRate / 100);
       cessTotal = taxableValue * (cessRate / 100);
 
     } else {
       // 🔹 TAX EXCLUSIVE
-
       taxableValue = discountedGross;
 
-      cgstTotal = taxableValue * (cgstRate / 100);
-      sgstTotal = taxableValue * (sgstRate / 100);
-      igstTotal = taxableValue * (igstRate / 100);
-      cessTotal = taxableValue * (cessRate / 100);
+      cgstTotal = updatedItems.reduce((sum, item) => sum + item.cgst, 0);
+      sgstTotal = updatedItems.reduce((sum, item) => sum + item.sgst, 0);
+      igstTotal = updatedItems.reduce((sum, item) => sum + item.igst, 0);
+      cessTotal = updatedItems.reduce((sum, item) => sum + item.cess, 0);
     }
 
     const totalBeforeRoundOff =
