@@ -2301,6 +2301,8 @@ const ModernBill = () => {
         OrderNo: orderNo,
         HotelID: user?.hotelid,
         Name: user?.name, // Cashier/User name
+        InsertDate: `${user?.currDate} ${new Date().toTimeString().split(' ')[0]}`, // Use curr_date from useAuthContext
+
       }));
 
       // 2. Call the settlement endpoint
@@ -2308,6 +2310,7 @@ const ModernBill = () => {
         bill_amount: taxCalc.grandTotal,
         total_received: totalReceived,
         total_refund: refundAmount,
+        TipAmount: tip || 0,
         settlements: settlementsPayload
       });
 

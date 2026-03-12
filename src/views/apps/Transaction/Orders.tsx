@@ -1856,6 +1856,7 @@ const handleTabClick = (tab: string) => {
         customerName: customerName || null,
         mobileNo: mobileNumber || null,
         customerid: customerid || null,
+
       });
 
       if (!billedRes.success) {
@@ -2501,6 +2502,9 @@ const handleTabClick = (tab: string) => {
 
     setLoading(true);
     try {
+
+      const finalTip = tipData ?? tip ?? 0;
+
       // 1. Construct the settlements payload and extract totals from settlementsData
       const settlementsPayload = currentSettlements.map((s: any) => {
         const paymentModeDetails = outletPaymentModes.find(pm => pm.mode_name === s.PaymentType);
@@ -2514,7 +2518,8 @@ const handleTabClick = (tab: string) => {
           Amount: s.Amount,
           received_amount: receivedAmount,
           refund_amount: refundAmount,
-          OrderNo: orderNo ?? undefined,
+          TipAmount: finalTip,
+           OrderNo: orderNo ?? undefined,
           HotelID: user?.hotelid,
           Name: user?.name, // Cashier/User name
           InsertDate: `${user?.currDate} ${new Date().toTimeString().split(' ')[0]}`, // Use curr_date from useAuthContext
@@ -2530,9 +2535,10 @@ const handleTabClick = (tab: string) => {
         bill_amount: payableTotal,
         total_received: totalReceived,
         total_refund: totalRefund,
+         TipAmount: finalTip,
         settlements: settlementsPayload
       });
-
+      
       if (!result.success) {
         throw new Error(result.message || 'Failed to settle bill.');
       }

@@ -152,6 +152,7 @@ export interface SettleBillRequest {
   bill_amount: number
   total_received: number
   total_refund: number
+  TipAmount?: number
   settlements: SettlementPayload[]
 }
 

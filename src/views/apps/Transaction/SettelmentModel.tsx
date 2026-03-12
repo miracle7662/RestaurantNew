@@ -206,6 +206,7 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
       Amount: Number(paymentAmounts[name] || 0),
       received_amount: receivedAmount, // Total amount given by customer
       refund_amount: refundAmount, // Refund amount (only if received > bill, otherwise 0)
+      TipAmount: tip || 0,
     }));
 
     try {
