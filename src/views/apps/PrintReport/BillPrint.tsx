@@ -50,6 +50,7 @@ interface BillPreviewPrintProps {
   formData: OutletSettings;
   user: any;
   items: MenuItem[];
+  selectedWaiter?: string;
   currentKOTNos?: number[];
   currentKOTNo?: number | null;
   orderNo?: string;
@@ -79,6 +80,7 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
   formData,
   user,
   items,
+  selectedWaiter,
   currentKOTNos,
   currentKOTNo,
   orderNo,
@@ -386,7 +388,7 @@ ${(showAll || localFormData.show_kot_number_bill)
           ${(showAll || ((activeTab === 'Dine-in' && localFormData.table_name_dine_in) || (activeTab === 'Pickup' && localFormData.table_name_pickup) || (activeTab === 'Delivery' && localFormData.table_name_delivery) || (activeTab === 'Quick Bill' && localFormData.table_name_quick_bill))) ? `<div><strong>Table:</strong><br />${selectedTable || '—'}</div>` : ''}
           ${(showAll || localFormData.show_date_bill) ? `<div><strong>Date:</strong><br />${new Date().toLocaleDateString('en-GB')}</div>` : ''}
           ${(showAll || localFormData.show_order_placed_time) ? `<div><strong>Time:</strong><br />${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</div>` : ''}
-          ${(showAll || localFormData.show_waiter_bill) ? `<div><strong>Waiter:</strong><br />${user?.name || 'N/A'}</div>` : ''}
+${(showAll || localFormData.show_waiter_bill) ? `<div><strong>Waiter:</strong><br />${selectedWaiter || user?.name || 'N/A'}</div>` : ''}
           ${(showAll || localFormData.show_captain_bill) ? `<div><strong>Captain:</strong><br />${user?.name || 'N/A'}</div>` : ''}
           ${(showAll || localFormData.show_covers_bill) ? `<div><strong>Covers:</strong><br />N/A</div>` : ''}
           ${(showAll || localFormData.show_bill_print_count) ? `<div><strong>Print Count:</strong><br />1</div>` : ''}

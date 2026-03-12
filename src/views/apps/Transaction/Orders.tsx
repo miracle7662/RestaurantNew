@@ -4604,13 +4604,14 @@ const handleTabClick = (tab: string) => {
               />
             </Modal.Body>
           </Modal>
-          <KotPreviewPrint
+<KotPreviewPrint
             show={showKotPreviewModal}
+            selectedWaiter={selectedWaiter}
             onHide={() => setShowKotPreviewModal(false)}
 onClose={() => {
               setShowKotPreviewModal(false);
               // Clear the order state after KOT print
-              setItems([]);
+              setItems([]);  
               setPrintItems([]);
               setReverseQtyItems([]);
               setReversedItems([]);
@@ -4643,7 +4644,8 @@ onClose={() => {
                 setShowOrderDetails(false);
                 setShowPendingOrdersView(false);
                 setMobileNumber('');
-                setCustomerName('');
+                setCustomerName('')
+
                 setCustomerId(null);
                 setSelectedTable(null);
               }
@@ -4670,6 +4672,7 @@ onClose={() => {
           />
           <BillPreviewPrint
             show={showBillPrintModal}
+            
             onHide={() => setShowBillPrintModal(false)}
             formData={formData}
             user={user}
