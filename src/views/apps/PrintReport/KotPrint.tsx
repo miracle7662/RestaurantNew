@@ -36,6 +36,8 @@ interface MenuItem {
 
 interface KotPreviewPrintProps {
   show: boolean;
+  selectedWaiter?: string;
+
   onHide: () => void;
   printItems?: MenuItem[];
   items?: MenuItem[];
@@ -65,6 +67,7 @@ interface KotPreviewPrintProps {
 
 const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
   show,
+  selectedWaiter,
   onHide,
   printItems = [],
   items = [],
@@ -461,7 +464,8 @@ const dateTime = date ? new Date(date).toLocaleString('en-GB', {
 
     // Conditional rendering flags
     const showStoreName = localFormData.show_store_name;
-    const showWaiter = localFormData.show_waiter && user?.name;
+    const showWaiter = localFormData.show_waiter && (selectedWaiter || user?.name);
+
     const showUsername = localFormData.show_username && user?.username;
     const showTerminalUsername = localFormData.show_terminal_username && user?.terminal_username;
     const showCaptainUsername = localFormData.show_captain_username && user?.captain_username;
@@ -586,7 +590,8 @@ ${showCustomerMobile
 
     </div>
 
-    ${showWaiter ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Waiter:</strong> ${user.name}</div>` : ''}
+    ${showWaiter ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Waiter:</strong> ${selectedWaiter || user?.name || 'N/A'}</div>` : ''}
+
     ${showUsername ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Username:</strong> ${user.username}</div>` : ''}
     ${showTerminalUsername ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Terminal Username:</strong> ${user.terminal_username}</div>` : ''}
     ${showCaptainUsername ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Captain Username:</strong> ${user.captain_username}</div>` : ''}
