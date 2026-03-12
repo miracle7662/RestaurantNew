@@ -22,6 +22,7 @@ interface SettlementModalProps {
   initialPaymentAmounts?: { [key: string]: string };
   initialIsMixed?: boolean;
   initialTip?: number;
+  initialCashReceived?: number;  // FIXED: Added for received amount
 }
 
 const SettlementModal: React.FC<SettlementModalProps> = ({
@@ -36,6 +37,7 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
   initialPaymentAmounts = {},
   initialIsMixed = false,
   initialTip = 0,
+  initialCashReceived = 0,  // FIXED: Destructure the prop
 }) => {
 
 
@@ -59,6 +61,13 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
   const balance = grandTotal - totalReceived;
   const balanceDue = balance > 0 ? balance : 0;
   const [cashReceived, setCashReceived] = useState<number>(0);
+
+  // FIXED: Initialize cashReceived with prop value when modal opens
+  useEffect(() => {
+    if (show && initialCashReceived !== undefined) {
+      setCashReceived(initialCashReceived);
+    }
+  }, [show, initialCashReceived]);
 
   // Calculate settlement amounts
   const receivedAmount = cashReceived || 0;
@@ -163,7 +172,7 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
       setSelectedPaymentModes([]);
       setPaymentAmounts({});
       setTip(0);
-      setCashReceived(0);   // ✅ Reset received field
+      setCashReceived(0);
       setActivePaymentIndex(0);
     }
   }, [show]);

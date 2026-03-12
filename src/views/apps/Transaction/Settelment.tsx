@@ -19,6 +19,11 @@ interface Settlement {
   OrderNo: string;
   PaymentType: string;
   Amount: number;
+  TipAmount?: number;
+  Receive?: number;
+  Refund?: number;
+  CustomerName?: string;
+  MobileNo?: string;
   HotelID: string;
   InsertDate: string;
   isSettled: number;
@@ -64,6 +69,9 @@ const EditSettlementPage: React.FC = () => {
   const [initialSelectedModes, setInitialSelectedModes] = useState<string[]>([]);
   const [initialPaymentAmounts, setInitialPaymentAmounts] = useState<Record<string, string>>({});
   const [initialIsMixed, setInitialIsMixed] = useState(false);
+  // FIXED: Track initial tip and cash received for editing
+  const [initialTip, setInitialTip] = useState(0);
+  const [initialCashReceived, setInitialCashReceived] = useState(0);
 
   // ── Payment Modes ─────────────────────────────────────────────────
   const [outletPaymentModes, setOutletPaymentModes] = useState<any[]>([]);
@@ -208,6 +216,10 @@ const EditSettlementPage: React.FC = () => {
       setInitialSelectedModes([]);
       setInitialPaymentAmounts({});
     }
+
+    // FIXED: Pass actual tip and received amounts from fetched data
+    setInitialTip(group.TipAmount || 0);
+    setInitialCashReceived(group.Receive || 0);
 
     setShowSettlementModal(true);
   };
@@ -369,7 +381,8 @@ const EditSettlementPage: React.FC = () => {
         initialSelectedModes={initialSelectedModes}
         initialPaymentAmounts={initialPaymentAmounts}
         initialIsMixed={initialIsMixed}
-        initialTip={0}
+        initialTip={initialTip}
+        initialCashReceived={initialCashReceived}
       />
     </div>
   );

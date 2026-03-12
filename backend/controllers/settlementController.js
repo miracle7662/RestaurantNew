@@ -5,10 +5,10 @@ function ok(message, data) {
   return { success: true, message, data };
 }
 
-// Get settlements with filters
+// Get settlements with filters - FIXED: Include TipAmount, Receive, Refund + outletId support
 exports.getSettlements = async (req, res) => {
   try {
-    const { orderNo, hotelId, from, to, paymentType } = req.query;
+    const { orderNo, hotelId, outletId, from, to, paymentType } = req.query;
 
     let whereClauses = ['s.isSettled = 1'];
     const params = [];
@@ -21,6 +21,11 @@ exports.getSettlements = async (req, res) => {
     if (hotelId) {
       whereClauses.push('s.HotelID = ?');
       params.push(Number(hotelId));
+    }
+
+    if (outletId) {
+      whereClauses.push('b.outletid = ?');
+      params.push(Number(outletId));
     }
 
     if (from) {
@@ -43,8 +48,24 @@ exports.getSettlements = async (req, res) => {
       : '';
 
     const sql = `
-      SELECT s.*
+      SELECT 
+        s.SettlementID,
+        s.OrderNo,
+        s.PaymentType,
+        s.Amount,
+        s.TipAmount,
+        s.Receive,
+        s.Refund,
+        s.HotelID,
+        s.TxnNo,
+        s.UserId,
+        s.Name,
+        s.CustomerName,
+        s.MobileNo,
+        s.InsertDate,
+        s.isSettled
       FROM TrnSettlement s
+      LEFT JOIN TAxnTrnbill b ON s.OrderNo = b.OrderNo OR s.TxnNo = b.TxnNo
       ${whereSql}
       ORDER BY s.InsertDate DESC
     `;
