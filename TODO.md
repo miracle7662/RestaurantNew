@@ -1,19 +1,19 @@
-# TODO - Add Tip Amount Field to Backend
+# Fix: Settlement Edit Not Logging to TrnSettlementLog
 
-## Task: Add tip amount field to backend for settlement tracking
+## Plan Steps:
+- [ ] Step 1: Update backend/controllers/settlementController.js with transaction, logging, fixed EditedBy.
+- [x] Step 1: Update backend/controllers/settlementController.js with transaction, logging, fixed EditedBy.
+- [ ] Step 2: Add debug logging to frontend src/views/apps/Transaction/Settelment.tsx.
+- [ ] Step 3: Restart backend server.
+- [ ] Step 4: Test edit settlement → verify logs in DB, console.
+- [ ] Step 5: Query DB to confirm TrnSettlementLog entries created.
+- [ ] Complete: attempt_completion.
 
-### Steps:
-- [x] 1. Analyze codebase and create plan
-- [x] 2. Add TipAmount column to TrnSettlement table in db.js
-- [x] 3. Add TipAmount to TrnSettlementLog table in db.js
-- [x] 4. Update settlementController.js to handle TipAmount
-- [x] 5. Update frontend API service (settlements.ts) to include tip in payload
-- [x] 6. Update Settelment.tsx to pass TipAmount to backend
-- [ ] 7. Test the implementation
+**Status: Steps 1-2 ✅**
 
-### Files Edited:
-1. backend/config/db.js - Added TipAmount column to TrnSettlement and TrnSettlementLog tables + migration code
-2. backend/controllers/settlementController.js - Updated replaceSettlement to accept and save TipAmount
-3. src/common/api/settlements.ts - Added TipAmount to replace payload type
-4. src/views/apps/Transaction/Settelment.tsx - Pass TipAmount when calling replace API
+## Testing Steps:
+- [ ] Step 3: Restart backend server
+- [ ] Step 4: Test edit settlement → check browser/backend consoles
+- [ ] Step 5: Verify TrnSettlementLog entries created
 
+**Next:** Run backend server, test settlement edit, share console outputs + DB query results.

@@ -235,18 +235,16 @@ exports.replaceSettlement = async (req, res) => {
           OldAmount,
           NewPaymentType,
           NewAmount,
-          TipAmount ,
           EditedBy
         )
-        VALUES (?, ?, ?, ?, ?, ?,  ?)
+        VALUES (?, ?, ?, ?, ?,   ?)
       `).run([
         Number(settlement.SettlementID),
         settlement.PaymentType ? String(settlement.PaymentType) : null,
         settlement.Amount != null ? Number(settlement.Amount) : null,
         null,
         null,
-        settlement.TipAmount != null ? Number(settlement.TipAmount) : 0,
-        tipAmount,
+       
         editedBySafe
       ]);
     }
