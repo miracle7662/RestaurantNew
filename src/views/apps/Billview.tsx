@@ -244,12 +244,7 @@ const ModernBill = () => {
         groupKey = (item) => item.itemName;
         groupName = (key, item) => item.itemName;
       } else if (groupBy === 'group') {
-        groupKey = (item) => {
-          if (item.itemId) {
-            return item.variantId ? `${item.itemId}_${item.variantId}` : item.itemId.toString();
-          }
-          return item.itemName;
-        };
+        groupKey = (item) => (item.itemId ? item.itemId.toString() : item.itemName);
         groupName = (key, item) => item.itemName;
       } else if (groupBy === 'kot') {
         groupKey = (item) => item.mkotNo || '';
@@ -1600,9 +1595,6 @@ const ModernBill = () => {
         currentItem.itemId = found.restitemid;
         currentItem.isValidCode = true;
         
-        // 🔍 DEBUG VARIANT 1: Item Code Match
-        console.log('🔍 ITEM MATCH:', {itemCodeValue, itemId: found.restitemid, itemName: found.item_name});
-        
         // If variant was selected, use variant-specific rate
         if (variantId && found.department_details) {
           const variantDetail = found.department_details.find(
@@ -1650,19 +1642,16 @@ const ModernBill = () => {
       // Parse the value to extract item name if it includes code or short name
       const parsedValue = (value as string).includes(' (') ? (value as string).split(' (')[0] : value as string;
       // When item name is selected or typed, find the item by item_name or short_name (case-insensitive) and auto-fill itemCode and rate
-        const found = menuItems.find(i =>
-          i.item_name.toLowerCase() === parsedValue.toLowerCase() ||
-          i.short_name?.toLowerCase() === parsedValue.toLowerCase()
-        );
-        if (found) {
-          currentItem.itemCode = found.item_no.toString();
-          currentItem.rate = found.price;
-          currentItem.itemId = found.restitemid;
-          currentItem.itemName = found.item_name; // Ensure we set the full item name
-          currentItem.isValidCode = true;
-          
-          // 🔍 DEBUG VARIANT 2: Item Name Match
-          console.log('🔍 NAME MATCH:', {itemName: parsedValue, itemId: found.restitemid});
+      const found = menuItems.find(i =>
+        i.item_name.toLowerCase() === parsedValue.toLowerCase() ||
+        i.short_name?.toLowerCase() === parsedValue.toLowerCase()
+      );
+      if (found) {
+        currentItem.itemCode = found.item_no.toString();
+        currentItem.rate = found.price;
+        currentItem.itemId = found.restitemid;
+        currentItem.itemName = found.item_name; // Ensure we set the full item name
+        currentItem.isValidCode = true;
       } else {
         currentItem.itemCode = "";
         currentItem.rate = 0;
@@ -1674,20 +1663,6 @@ const ModernBill = () => {
     }
 
     updated[dataIndex] = currentItem;
-    
-    // 🔍 DEBUG FULL STATE
-    console.group('📊 BILL ITEMS STATE');
-    console.table(billItems.map((item, i) => ({
-      index: i,
-      code: item.itemCode,
-      id: item.itemId,
-      variantId: item.variantId,
-      name: item.itemName.slice(0,20),
-      qty: item.qty
-    })));
-    console.log('Total billItems length:', billItems.length, '→ expected +1:', billItems.length + 1);
-    console.groupEnd();
-    
     calculateTotals(updated);
   };
 
