@@ -1,4 +1,4 @@
- import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { Row, Col, Card, Table, Badge, Button, Form, Modal } from 'react-bootstrap';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthContext } from '@/common';
@@ -267,7 +267,7 @@ const ModernBill = () => {
       } else if (groupBy === 'varianttype') {
         groupKey = (item) => `${item.itemId}-${item.variantId || 0}`;
         groupName = (key, item) => {
-          
+
           const variantName = item.variantName || 'Standard';
           return `${item.itemName} (${variantName})`;
         };
@@ -1440,7 +1440,7 @@ const ModernBill = () => {
   }, [location.state]);
 
   // Fetch menu items
-// NEW: Filter menuItems by current department
+  // NEW: Filter menuItems by current department
   useEffect(() => {
     if (!departmentIdFromState || !menuItems.length) return;
 
@@ -1450,10 +1450,10 @@ const ModernBill = () => {
     // Clear billItems when department changes (prevent cross-dept mixing)
     if (prevDeptId && prevDeptId !== currDeptId) {
       console.log(`Dept changed ${prevDeptId} → ${currDeptId}. Clearing billItems.`);
-      setBillItems([{ 
-        itemCode: '', itemgroupid: 0, itemId: 0, item_no: 0, itemName: '', 
-        qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, 
-        mkotNo: '', specialInstructions: '', isFetched: false 
+      setBillItems([{
+        itemCode: '', itemgroupid: 0, itemId: 0, item_no: 0, itemName: '',
+        qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0,
+        mkotNo: '', specialInstructions: '', isFetched: false
       }]);
       setItemCodeFilter(''); // Clear search
     }
@@ -1463,7 +1463,7 @@ const ModernBill = () => {
       .filter(item => {
         // Item must have dept_details for this department
         const deptDetails = item.department_details || [];
-        return deptDetails.some((d: DepartmentDetail) => 
+        return deptDetails.some((d: DepartmentDetail) =>
           d.departmentid === currDeptId && d.item_rate && d.item_rate > 0
         );
       })
@@ -1471,7 +1471,7 @@ const ModernBill = () => {
         ...item,
         // Filter department_details to ONLY current dept
         department_details: (item.department_details || [])
-          .filter((d: DepartmentDetail) => 
+          .filter((d: DepartmentDetail) =>
             d.departmentid === currDeptId && d.item_rate && d.item_rate > 0
           )
       }));
@@ -1605,19 +1605,19 @@ const ModernBill = () => {
 
 
   // Focus only when page loads
-useEffect(() => {
-  if (!loading && displayedItems.length > 0) {
-    const blankRowItemCodeInput =
-      inputRefs.current[displayedItems.length - 1]?.[0];
+  useEffect(() => {
+    if (!loading && displayedItems.length > 0) {
+      const blankRowItemCodeInput =
+        inputRefs.current[displayedItems.length - 1]?.[0];
 
-    if (blankRowItemCodeInput) {
-      blankRowItemCodeInput.focus();
-      blankRowItemCodeInput.select();
+      if (blankRowItemCodeInput) {
+        blankRowItemCodeInput.focus();
+        blankRowItemCodeInput.select();
+      }
     }
-  }
-}, [loading]);
+  }, [loading]);
 
-      const handleItemChange = (index: number, field: keyof BillItem, value: string | number) => {
+  const handleItemChange = (index: number, field: keyof BillItem, value: string | number) => {
     const item = displayedItems[index];
     if (!item.isEditable) return;
 
@@ -1633,18 +1633,18 @@ useEffect(() => {
       currentItem.itemCode = value as string;
       // Update filter for datalist - show variants for items matching the typed prefix
       setItemCodeFilter(value as string);
-      
+
       // Parse the value - it may contain variant info (item_no|variant_id)
       const valueStr = value as string;
       let itemCodeValue = valueStr;
       let variantId: number | undefined = undefined;
-      
+
       if (valueStr.includes('|')) {
         const parts = valueStr.split('|');
         itemCodeValue = parts[0];
         variantId = parseInt(parts[1]) || undefined;
       }
-      
+
       // Find the menu item from dept-filtered list FIRST (prioritize current dept)
       let found = deptFilteredMenuItems.find(i => i.item_no.toString() === itemCodeValue);
       if (!found) {
@@ -1656,7 +1656,7 @@ useEffect(() => {
         currentItem.itemName = found.item_name; // Base name only
         currentItem.itemId = found.restitemid;
         currentItem.isValidCode = true;
-        
+
         // If variant was selected, use variant-specific rate & SET SEPARATE FIELDS
         if (variantId && found.department_details) {
           const variantDetail = found.department_details.find(
@@ -1704,85 +1704,85 @@ useEffect(() => {
       }
     } else if (field === "itemName") {
 
-  const valueStr = value as string;
-  currentItem.itemName = valueStr;
+      const valueStr = value as string;
+      currentItem.itemName = valueStr;
 
-  // allow clearing (backspace)
-  if (valueStr.trim() === "") {
-    currentItem.itemCode = "";
-    currentItem.rate = 0;
-    currentItem.itemId = 0;
-    currentItem.variantId = null;
-    currentItem.variantName = null;
-    currentItem.isValidCode = true;
-  } 
-  else {
-
-    // find base item
-    const baseName = valueStr.includes(" (")
-      ? valueStr.split(" (")[0]
-      : valueStr;
-
-    let found = deptFilteredMenuItems.find(
-      i =>
-        i.item_name.toLowerCase() === baseName.toLowerCase() ||
-        i.short_name?.toLowerCase() === baseName.toLowerCase()
-    );
-    if (!found) {
-      // Fallback to full menuItems
-      found = menuItems.find(
-        i =>
-          i.item_name.toLowerCase() === baseName.toLowerCase() ||
-          i.short_name?.toLowerCase() === baseName.toLowerCase()
-      );
-    }
-
-    if (found) {
-
-      currentItem.itemCode = found.item_no.toString();
-      currentItem.itemId = found.restitemid;
-      currentItem.rate = found.price;
-      currentItem.itemName = found.item_name;
-
-      // ⭐ VARIANT DETECTION
-      const variantMatch = valueStr.match(/\((.*?)\)/);
-
-      if (variantMatch && found.department_details?.length) {
-
-        const variantName = variantMatch[1];
-
-        const variantDetail = found.department_details.find(
-          (d: any) =>
-            d.variant_value_name?.toLowerCase() === variantName.toLowerCase()
-        );
-
-        if (variantDetail) {
-          currentItem.variantId = variantDetail.variant_value_id;
-          currentItem.variantName = variantDetail.variant_value_name;
-          currentItem.rate = variantDetail.item_rate || found.price;
-        }
-
-      } else {
-
+      // allow clearing (backspace)
+      if (valueStr.trim() === "") {
+        currentItem.itemCode = "";
+        currentItem.rate = 0;
+        currentItem.itemId = 0;
         currentItem.variantId = null;
         currentItem.variantName = null;
-
+        currentItem.isValidCode = true;
       }
+      else {
 
-      currentItem.isValidCode = true;
+        // find base item
+        const baseName = valueStr.includes(" (")
+          ? valueStr.split(" (")[0]
+          : valueStr;
 
+        let found = deptFilteredMenuItems.find(
+          i =>
+            i.item_name.toLowerCase() === baseName.toLowerCase() ||
+            i.short_name?.toLowerCase() === baseName.toLowerCase()
+        );
+        if (!found) {
+          // Fallback to full menuItems
+          found = menuItems.find(
+            i =>
+              i.item_name.toLowerCase() === baseName.toLowerCase() ||
+              i.short_name?.toLowerCase() === baseName.toLowerCase()
+          );
+        }
+
+        if (found) {
+
+          currentItem.itemCode = found.item_no.toString();
+          currentItem.itemId = found.restitemid;
+          currentItem.rate = found.price;
+          currentItem.itemName = found.item_name;
+
+          // ⭐ VARIANT DETECTION
+          const variantMatch = valueStr.match(/\((.*?)\)/);
+
+          if (variantMatch && found.department_details?.length) {
+
+            const variantName = variantMatch[1];
+
+            const variantDetail = found.department_details.find(
+              (d: any) =>
+                d.variant_value_name?.toLowerCase() === variantName.toLowerCase()
+            );
+
+            if (variantDetail) {
+              currentItem.variantId = variantDetail.variant_value_id;
+              currentItem.variantName = variantDetail.variant_value_name;
+              currentItem.rate = variantDetail.item_rate || found.price;
+            }
+
+          } else {
+
+            currentItem.variantId = null;
+            currentItem.variantName = null;
+
+          }
+
+          currentItem.isValidCode = true;
+
+        } else {
+
+          currentItem.itemCode = "";
+          currentItem.rate = 0;
+          currentItem.itemId = 0;
+          currentItem.variantId = null;
+          currentItem.variantName = null;
+          currentItem.isValidCode = false;
+
+        }
+      }
     } else {
-
-      currentItem.itemCode = "";
-      currentItem.rate = 0;
-      currentItem.itemId = 0;
-      currentItem.variantId = null;
-      currentItem.variantName = null;
-      currentItem.isValidCode = false;
-
-    }
-  }
-} else {
       (currentItem[field] as any) = value;
     }
 
@@ -2429,7 +2429,7 @@ useEffect(() => {
 
     const totalReceived = settlements.reduce((sum, s) => sum + s.received_amount, 0) + (tip || 0);
 
-   
+
     if (settlements.length === 0) {
       toast.error('Please select at least one payment mode.');
       return;
@@ -3082,20 +3082,20 @@ useEffect(() => {
             <Row className="g-2 align-items-stretch">
 
               {/* Table / Order */}
-             <Col style={{ flex: "0 0 150px", maxWidth: "150px" }}>
-  <div className="bg-white border rounded shadow-sm py-1 px-2 h-100 text-center">
-    
-    <div className="text-uppercase small fw-semibold text-secondary mb-1">
-      <i className="fi fi-rr-table me-1"></i>
-      {isTakeaway ? 'Order No' : 'Table No'}
-    </div>
+              <Col style={{ flex: "0 0 150px", maxWidth: "150px" }}>
+                <div className="bg-white border rounded shadow-sm py-1 px-2 h-100 text-center">
 
-    <div className="fw-bold fs-5 text-dark">
-      {isTakeaway ? (orderNo || '--') : (tableNo || '--')}
-    </div>
+                  <div className="text-uppercase small fw-semibold text-secondary mb-1">
+                    <i className="fi fi-rr-table me-1"></i>
+                    {isTakeaway ? 'Order No' : 'Table No'}
+                  </div>
 
-  </div>
-</Col>
+                  <div className="fw-bold fs-5 text-dark">
+                    {isTakeaway ? (orderNo || '--') : (tableNo || '--')}
+                  </div>
+
+                </div>
+              </Col>
 
               {/* Waiter */}
               <Col style={{ flex: "0 0 160px", maxWidth: "160px" }}>
@@ -3138,36 +3138,36 @@ useEffect(() => {
 
               {/* KOT */}
               <Col style={{ flex: "0 0 190px", maxWidth: "160px" }}>
-  <div className="bg-white border rounded shadow-sm py-1 px-2 h-100">
+                <div className="bg-white border rounded shadow-sm py-1 px-2 h-100">
 
-    <div className="text-uppercase small fw-semibold text-secondary mb-1">
-      <i className="fi fi-rr-document me-1"></i> KOT No
-    </div>
+                  <div className="text-uppercase small fw-semibold text-secondary mb-1">
+                    <i className="fi fi-rr-document me-1"></i> KOT No
+                  </div>
 
-    <div className="input-group input-group-sm">
-      
-      <span
-        className="input-group-text fw-semibold text-center"
-        style={{ width: "50%", justifyContent: "center" }}
-      >
-        {defaultKot || '--'}
-      </span>
+                  <div className="input-group input-group-sm">
 
-      <input
-        type="number"
-        value={editableKot || ''}
-        onChange={(e) =>
-          setEditableKot(e.target.value ? Number(e.target.value) : null)
-        }
-        className="form-control text-center fw-semibold"
-        placeholder="Edit"
-        style={{ width: "50%" }}
-      />
+                    <span
+                      className="input-group-text fw-semibold text-center"
+                      style={{ width: "50%", justifyContent: "center" }}
+                    >
+                      {defaultKot || '--'}
+                    </span>
 
-    </div>
+                    <input
+                      type="number"
+                      value={editableKot || ''}
+                      onChange={(e) =>
+                        setEditableKot(e.target.value ? Number(e.target.value) : null)
+                      }
+                      className="form-control text-center fw-semibold"
+                      placeholder="Edit"
+                      style={{ width: "50%" }}
+                    />
 
-  </div>
-</Col>
+                  </div>
+
+                </div>
+              </Col>
 
               {/* Delivery Type (Takeaway Only) */}
               {isTakeaway && (
@@ -3254,65 +3254,65 @@ useEffect(() => {
 
             </Row>
 
-           {/* Datalist Item Names */}
-<datalist id="itemNames">
-{(() => {
+            {/* Datalist Item Names */}
+            <datalist id="itemNames">
+              {(() => {
 
-  const results = deptFilteredMenuItems.flatMap(item => {
+                const results = deptFilteredMenuItems.flatMap(item => {
 
-    const variants = (item.department_details || []).filter((d: any) =>
-      d.departmentid === departmentIdFromState &&
-      d.item_rate > 0 &&
-      d.variant_value_id
-    );
+                  const variants = (item.department_details || []).filter((d: any) =>
+                    d.departmentid === departmentIdFromState &&
+                    d.item_rate > 0 &&
+                    d.variant_value_id
+                  );
 
-    // ✅ If variants exist → return variants
-    if (variants.length > 0) {
-      return variants.map((d: any) => ({
-        key: `${item.item_no}|${d.variant_value_id}`,
-        value: `${item.item_name} (${d.variant_value_name})`,
-        label: `${item.item_name} (${d.variant_value_name}) | ${item.short_name || ''} | ${item.item_no} | ₹${d.item_rate}`
-      }));
-    }
+                  // ✅ If variants exist → return variants
+                  if (variants.length > 0) {
+                    return variants.map((d: any) => ({
+                      key: `${item.item_no}|${d.variant_value_id}`,
+                      value: `${item.item_name} (${d.variant_value_name})`,
+                      label: `${item.item_name} (${d.variant_value_name}) | ${item.short_name || ''} | ${item.item_no} | ₹${d.item_rate}`
+                    }));
+                  }
 
-    // ✅ If no variants → return base item
-    const baseRate = (item.department_details || []).find((d: any) =>
-      d.departmentid === departmentIdFromState && d.item_rate > 0
-    );
+                  // ✅ If no variants → return base item
+                  const baseRate = (item.department_details || []).find((d: any) =>
+                    d.departmentid === departmentIdFromState && d.item_rate > 0
+                  );
 
-    if (baseRate) {
-      return [{
-        key: `${item.item_no}|base`,
-        value: `${item.item_name}`,
-        label: `${item.item_name} | ${item.short_name || ''} | ${item.item_no} | ₹${baseRate.item_rate}`
-      }];
-    }
+                  if (baseRate) {
+                    return [{
+                      key: `${item.item_no}|base`,
+                      value: `${item.item_name}`,
+                      label: `${item.item_name} | ${item.short_name || ''} | ${item.item_no} | ₹${baseRate.item_rate}`
+                    }];
+                  }
 
-    return [];
-  });
+                  return [];
+                });
 
-  const limited = results.slice(0, 50);
+                const limited = results.slice(0, 50);
 
-  return limited.map(opt => (
-    <option
-      key={opt.key}
-      value={opt.value}
-      label={opt.label}
-    />
-  ));
+                return limited.map(opt => (
+                  <option
+                    key={opt.key}
+                    value={opt.value}
+                    label={opt.label}
+                  />
+                ));
 
-})()}
-</datalist>
+              })()}
+            </datalist>
 
             {/* Datalist Item Codes - Dynamic based on filter */}
-<datalist id="itemNos">
+            <datalist id="itemNos">
               {(() => {
                 const deptVariants = deptFilteredMenuItems
                   .flatMap(item => {
                     return (item.department_details || [])
-                      .filter((d: any) => 
-                        d.departmentid === departmentIdFromState && 
-                        d.item_rate > 0 && 
+                      .filter((d: any) =>
+                        d.departmentid === departmentIdFromState &&
+                        d.item_rate > 0 &&
                         d.variant_value_id
                       )
                       .map((d: any) => ({
@@ -3326,15 +3326,15 @@ useEffect(() => {
                   });
 
                 // Filter by itemCodeFilter if typing
-                const filtered = itemCodeFilter 
-                  ? deptVariants.filter(v => 
-                      v.item_no.toString().toLowerCase().startsWith(itemCodeFilter.toLowerCase()) ||
-                      v.variant_value_name.toLowerCase().includes(itemCodeFilter.toLowerCase())
-                    )
+                const filtered = itemCodeFilter
+                  ? deptVariants.filter(v =>
+                    v.item_no.toString().toLowerCase().startsWith(itemCodeFilter.toLowerCase()) ||
+                    v.variant_value_name.toLowerCase().includes(itemCodeFilter.toLowerCase())
+                  )
                   : deptVariants.slice(0, 50); // Limit if no filter
 
                 return filtered.map(variant => (
-                  <option 
+                  <option
                     key={`${variant.item_no}|${variant.variant_value_id}`}
                     value={`${variant.item_no}|${variant.variant_value_id}`}
                     label={`${variant.item_name} (${variant.variant_value_name}) | ${variant.short_name} | ${variant.item_no} | ₹${variant.price}`}
@@ -3880,7 +3880,7 @@ useEffect(() => {
           isNCKOT: 0,
           NCName: '',
           NCPurpose: '',
-           item_no: item.item_no.toString(),
+          item_no: item.item_no.toString(),
           txnDetailId: item.txnDetailId,
           revQty: item.reversedQty || 0,
           kotNo: item.mkotNo ? parseInt(item.mkotNo.split('|')[0]) : undefined
