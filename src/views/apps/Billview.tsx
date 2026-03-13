@@ -3197,7 +3197,7 @@ useEffect(() => {
             </Row>
 
             {/* Datalist Item Names - Include variants from department_details */}
-           <datalist id="itemNames">
+          <datalist id="itemNames">
   {menuItems.map(item => {
     const variants: JSX.Element[] = [];
 
@@ -3209,24 +3209,31 @@ useEffect(() => {
     if (validVariants && validVariants.length > 0) {
       // Add each variant as separate option
       validVariants.forEach((variant) => {
+        const price = variant.item_rate || item.price || 0;
+
         variants.push(
           <option
             key={`${item.restitemid}-variant-${variant.variant_value_id}`}
-            value={`${item.item_name} (${variant.variant_value_name})${item.short_name ? ` (${item.short_name})` : ''}`}
+            value={`${item.item_name} (${variant.variant_value_name})${item.short_name ? ` (${item.short_name})` : ''} - ₹${price}`}
           />
         );
       });
+
       // If variants exist → return only variants
       return variants;
     }
 
     // No variants → return base item
+    const price = item.price || 0;
+
     return (
       <option
         key={item.restitemid}
-        value={item.short_name
-          ? `${item.item_name} (${item.short_name})`
-          : item.item_name}
+        value={
+          item.short_name
+            ? `${item.item_name} (${item.short_name}) - ₹${price}`
+            : `${item.item_name} - ₹${price}`
+        }
       />
     );
   })}
