@@ -256,7 +256,7 @@ const [groupBy, setGroupBy] = useState<'none' | 'item' | 'group' | 'kot' | 'vari
       } else if (groupBy === 'varianttype') {
         groupKey = (item) => `${item.itemId}-${item.variantId || 0}`;
         groupName = (key, item) => {
-          const [itemId, variantId] = key.split('-');
+          
           const variantName = item.variantName || 'Standard';
           return `${item.itemName} (${variantName})`;
         };
@@ -1558,18 +1558,18 @@ const [groupBy, setGroupBy] = useState<'none' | 'item' | 'group' | 'kot' | 'vari
 
 
 
-  // Focus on the blank row's item code input when the page opens or displayedItems change
-  useEffect(() => {
-    if (!loading && displayedItems.length > 0) {
-      setTimeout(() => {
-        const blankRowItemCodeInput = inputRefs.current[displayedItems.length - 1]?.[0];
-        if (blankRowItemCodeInput) {
-          blankRowItemCodeInput.focus();
-          blankRowItemCodeInput.select();
-        }
-      }, 200);
+  // Focus only when page loads
+useEffect(() => {
+  if (!loading && displayedItems.length > 0) {
+    const blankRowItemCodeInput =
+      inputRefs.current[displayedItems.length - 1]?.[0];
+
+    if (blankRowItemCodeInput) {
+      blankRowItemCodeInput.focus();
+      blankRowItemCodeInput.select();
     }
-  }, [displayedItems, loading]);
+  }
+}, [loading]);
 
       const handleItemChange = (index: number, field: keyof BillItem, value: string | number) => {
     const item = displayedItems[index];
