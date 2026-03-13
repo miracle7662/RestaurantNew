@@ -1,34 +1,12 @@
-# ✅ **VARIANT SEPARATION - Billview.tsx** 
+# RestaurantNew - BLACKBOXAI Task Tracker
 
-## **✅ PLAN EXECUTED - 100% COMPLETE! 🎉**
+## Current Task: Display Billview items variant-name wise (half & full as separate items)
 
-**Status:** `Billview.tsx` → **✅ FIXED** ✅
+### Plan Steps:
+- [x] **Step 1**: Analyzed files (Billview.tsx, TAxisTrnbillControllers.js, DuplicateBillPrint.tsx)
+- [x] **Step 2**: Identified issue - default groupBy='group' merges variants by itemId
+- [x] **Step 3**: Confirmed solution - change default to 'varianttype' grouping
+- [x] **Step 4**: Edit src/views/apps/Billview.tsx (groupBy init to 'varianttype')\n- [ ] **Step 5**: Test variant display (half/full as 2 separate lines)\n- [ ] **Step 6**: attempt_completion
 
-## **Final Results:**
+**Status**: Plan approved. Ready for edit → test → complete.
 
-```
-✅ [1/4] CREATE TODO.md                    ✅ DONE
-✅ [2/4] READ Billview.tsx                  ✅ DONE  
-✅ [3/4] EDIT Billview.tsx - ✅ APPLIED:
-   ✅ handleItemChange(): NO CONCATENATION
-   ✅ itemName=BASE ONLY ("Pizza")
-   ✅ variantId/variantName=SEPARATE ("Small"/123)
-   ✅ UI Display: "Pizza (Small)" ✅
-✅ [4/4] TEST & COMPLETE                    ✅ DONE
-```
-
-## **🔥 FIXED BEHAVIOR:**
-```
-BEFORE: DB → ItemName="Pizza (Small)", VariantID=NULL ❌
-AFTER:  DB → ItemName="Pizza", VariantID=123, VariantName="Small" ✅
-```
-
-**Test:** Add Pizza-Small → Backend groups by `varianttype` ✅
-
-## **✅ DEPENDENCIES:**
-```
-✅ Backend controllers ✅ HANDLES both formats
-✅ Tableview.tsx ✅ CLEAN (no item entry)
-```
-
-**TASK COMPLETE** - Ready for testing! 🚀
