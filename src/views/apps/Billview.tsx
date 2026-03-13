@@ -1652,32 +1652,79 @@ useEffect(() => {
         currentItem.variantName = null;
         currentItem.isValidCode = false;
       }
-    } else if (field === 'itemName') {
-      currentItem.itemName = value as string;
-      // Parse the value to extract item name if it includes code or short name
-      const parsedValue = (value as string).includes(' (') ? (value as string).split(' (')[0] : value as string;
-      // When item name is selected or typed, find the item by item_name or short_name (case-insensitive) and auto-fill itemCode and rate
-      const found = menuItems.find(i =>
-        i.item_name.toLowerCase() === parsedValue.toLowerCase() ||
-        i.short_name?.toLowerCase() === parsedValue.toLowerCase()
-      );
-      if (found) {
-        currentItem.itemCode = found.item_no.toString();
-        currentItem.rate = found.price;
-        currentItem.itemId = found.restitemid;
-        currentItem.itemName = found.item_name; // Base name only ✅
-        currentItem.variantId = null;
-        currentItem.variantName = null;
-        currentItem.isValidCode = true;
+    } else if (field === "itemName") {
+
+  const valueStr = value as string;
+  currentItem.itemName = valueStr;
+
+  // allow clearing (backspace)
+  if (valueStr.trim() === "") {
+    currentItem.itemCode = "";
+    currentItem.rate = 0;
+    currentItem.itemId = 0;
+    currentItem.variantId = null;
+    currentItem.variantName = null;
+    currentItem.isValidCode = true;
+  } 
+  else {
+
+    // find base item
+    const baseName = valueStr.includes(" (")
+      ? valueStr.split(" (")[0]
+      : valueStr;
+
+    const found = menuItems.find(
+      i =>
+        i.item_name.toLowerCase() === baseName.toLowerCase() ||
+        i.short_name?.toLowerCase() === baseName.toLowerCase()
+    );
+
+    if (found) {
+
+      currentItem.itemCode = found.item_no.toString();
+      currentItem.itemId = found.restitemid;
+      currentItem.rate = found.price;
+      currentItem.itemName = found.item_name;
+
+      // ⭐ VARIANT DETECTION
+      const variantMatch = valueStr.match(/\((.*?)\)/);
+
+      if (variantMatch && found.department_details?.length) {
+
+        const variantName = variantMatch[1];
+
+        const variantDetail = found.department_details.find(
+          (d: any) =>
+            d.variant_value_name?.toLowerCase() === variantName.toLowerCase()
+        );
+
+        if (variantDetail) {
+          currentItem.variantId = variantDetail.variant_value_id;
+          currentItem.variantName = variantDetail.variant_value_name;
+          currentItem.rate = variantDetail.item_rate || found.price;
+        }
+
       } else {
-        currentItem.itemCode = "";
-        currentItem.rate = 0;
-        currentItem.itemId = 0;
+
         currentItem.variantId = null;
         currentItem.variantName = null;
-        currentItem.isValidCode = false;
+
       }
+
+      currentItem.isValidCode = true;
+
     } else {
+
+      currentItem.itemCode = "";
+      currentItem.rate = 0;
+      currentItem.itemId = 0;
+      currentItem.variantId = null;
+      currentItem.variantName = null;
+      currentItem.isValidCode = false;
+
+    }
+  }
+} else {
       (currentItem[field] as any) = value;
     }
 
