@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 # ✅ **VARIANT SEPARATION - Billview.tsx** 
 
 ## **✅ PLAN EXECUTED - 100% COMPLETE! 🎉**
@@ -32,3 +33,24 @@ AFTER:  DB → ItemName="Pizza", VariantID=123, VariantName="Small" ✅
 ```
 
 **TASK COMPLETE** - Ready for testing! 🚀
+=======
+# RestaurantNew - Fix Item Variant Dropdown & Backend Name
+
+**Status: Implementation** ✅
+
+### Approved Plan:
+1. Fix dropdown: No "(null)" for base items, show clean names ✓
+2. Variants only when explicitly selected (item_no|variant_id)
+3. handleItemChange: baseItemName clean, itemName w/ suffix only if variant
+4. saveKOT: Send baseItemName to backend (Name/item_name)
+5. Test & Complete
+
+### Steps:
+- [x] Create this TODO.md
+- [ ] Update datalist itemNames: clean base names only
+- [ ] Fix handleItemChange(itemCode): parse |variant_id, no auto-default variant
+- [ ] Fix handleItemChange(itemName): clean matching
+- [ ] Update saveKOT payload: baseItemName
+- [ ] Test dropdown/UI/payload
+- [ ] attempt_completion
+>>>>>>> Stashed changes
