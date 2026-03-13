@@ -221,10 +221,7 @@ const ModernBill = () => {
   const [reverseQtyConfig, setReverseQtyConfig] = useState('PasswordRequired');
   const [roundOffEnabled, setRoundOffEnabled] = useState(false);
   // Dept-aware dropdown states (Step 1/8 ✓)
-  const [codeSearchResults, setCodeSearchResults] = useState([]);
-  const [nameSearchResults, setNameSearchResults] = useState([]);
-  const [selectedCodeIndex, setSelectedCodeIndex] = useState(-1);
-  const [selectedNameIndex, setSelectedNameIndex] = useState(-1);
+ 
   const [itemCodeFilter, setItemCodeFilter] = useState('');
 
   // Form data for KOT settings
