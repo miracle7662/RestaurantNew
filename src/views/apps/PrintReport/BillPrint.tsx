@@ -373,32 +373,24 @@ const BillPreviewPrint: React.FC<BillPreviewPrintProps> = ({
            ${(showAll || localFormData.show_item_hsn_code_bill) ? `<div>HSN: ${localFormData.hsn || 'N/A'}</div>` : ''}
            
           ${(showAll || localFormData.fssai_no) ? `<div style="font-size: 8pt;">FSSAI: ${localFormData.fssai_no || 'N/A'}</div>` : ''}
+           ${(showAll || localFormData.field1) ? `<div style="font-size: 8pt;">${localFormData.field1 || 'N/A'}</div>` : ''}
          
         </div>
         <hr style="border: none; border-top: 1px dashed #000; margin: 5px 0;" />
         <!-- ============ BILL INFO (with conditional rendering) ============ -->
-        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 10px; font-size: 9pt;">
-        ${(showAll || localFormData.show_bill_no_bill) ? `<div><strong>BillNo:</strong><br />${(showAll || localFormData.show_bill_number_prefix_bill) ? (localFormData.dine_in_kot_no || '') : ''}${orderNo || ''}</div>` : ''}
-    
-          ${(showAll || localFormData.show_order_id_bill) ? `<div><strong>Order ID:</strong><br />${(showAll || !localFormData.mask_order_id) ? (currentTxnId || '—') : '****'}</div>` : ''}
-          ${(showAll || ((activeTab === 'Dine-in' && localFormData.table_name_dine_in) || (activeTab === 'Pickup' && localFormData.table_name_pickup) || (activeTab === 'Delivery' && localFormData.table_name_delivery) || (activeTab === 'Quick Bill' && localFormData.table_name_quick_bill))) ? `<div><strong>Table:</strong><br />${selectedTable || '—'}</div>` : ''}
-          ${(showAll || localFormData.show_date_bill) ? `<div><strong>Date:</strong><br />${new Date().toLocaleDateString('en-GB')}</div>` : ''}
-${(showAll || localFormData.show_order_placed_time) ? 
-`<div style="white-space: nowrap;">
-<strong>Time:</strong><br />
-${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
-</div>` : ''}          ${(showAll || localFormData.show_waiter_bill) ? `<div><strong>Waiter:</strong><br />${selectedWaiter || user?.name || 'N/A'}</div>` : ''}
-
-          ${(showAll || localFormData.show_captain_bill) ? `<div><strong>Captain:</strong><br />${user?.name || 'N/A'}</div>` : ''}
-          ${(showAll || localFormData.show_covers_bill) ? `<div><strong>Covers:</strong><br />N/A</div>` : ''}
-          ${(showAll || localFormData.show_kot_number_bill)
-        ? `<div style="white-space: nowrap;">
-            <strong>KOT No:</strong> 
-            ${allKOTNos.length > 0 ? allKOTNos.join(", ") : (currentKOTNo || "—")}
-          </div>`
-        : ""
-             }
-          ${(showAll || localFormData.show_bill_print_count) ? `<div><strong>Print Count:</strong><br />1</div>` : ''}
+        <!-- Row 1: billno, table, date, time -->
+        <div style="display: flex; gap: 8px; margin-bottom: 5px; font-size: 9pt;">
+          <div style="flex: 1;"><strong>BillNo:</strong><br />${(localFormData.dine_in_kot_no || '')}${orderNo || ''}</div>
+          <div style="flex: 1;"><strong>Table:</strong><br />${selectedTable || '—'}</div>
+          <div style="flex: 1;"><strong>Date:</strong><br />${new Date().toLocaleDateString('en-GB')}</div>
+          <div style="flex: 1; white-space: nowrap;"><strong>Time:</strong><br />${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}</div>
+        </div>
+        <!-- Row 2: waiters, covers, kot no -->
+        <div style="display: flex; gap: 8px; margin-bottom: 10px; font-size: 9pt;">
+          <div style="flex: 1;"><strong>Waiter:</strong><br />${selectedWaiter || user?.name || 'N/A'}</div>
+          <div style="flex: 1;"><strong>Covers:</strong><br />N/A</div>
+          <div style="flex: 1; white-space: nowrap;"><strong>KOT No:</strong><br />${allKOTNos.length > 0 ? allKOTNos.join(", ") : (currentKOTNo || "—")}</div>
+          <div style="flex: 1;"></div>
         </div>
         ${(showAll || localFormData.show_customer_bill) ? `
           <hr style="border: none; border-top: 1px dashed #000; margin: 5px 0;" />
@@ -470,7 +462,7 @@ ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', h
           ` : ''}
           ${roundOffEnabled && roundOffValue !== 0 ? `<div>Round Off: ${roundOffValue > 0 ? '+' : ''}₹${roundOffValue.toFixed(2)}</div>` : ''}
 
-           ${(showAll || localFormData.field1) ? `<div style="font-size: 8pt;">${localFormData.field1 || 'N/A'}</div>` : ''}
+          
           ${(showAll || localFormData.field2) ? `<div style="font-size: 8pt;">${localFormData.field2 || 'N/A'}</div>` : ''}
           ${(showAll || localFormData.field3) ? `<div style="font-size: 8pt;">${localFormData.field3 || 'N/A'}</div>` : ''}
           ${(showAll || localFormData.field4) ? `<div style="font-size: 8pt;">${localFormData.field4 || 'N/A'}</div>` : ''}

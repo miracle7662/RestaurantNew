@@ -59,7 +59,6 @@ interface BillItem {
   RevKOT?: number;
   revKotNo?: number;
   isValidCode?: boolean;
-  needsVariantSelection?: boolean;
   // Variant fields
   variantId?: number;
   variantName?: string;
@@ -245,7 +244,12 @@ const ModernBill = () => {
         groupKey = (item) => item.itemName;
         groupName = (key, item) => item.itemName;
       } else if (groupBy === 'group') {
-        groupKey = (item) => (item.itemId ? item.itemId.toString() : item.itemName);
+        groupKey = (item) => {
+          if (item.itemId) {
+            return item.variantId ? `${item.itemId}_${item.variantId}` : item.itemId.toString();
+          }
+          return item.itemName;
+        };
         groupName = (key, item) => item.itemName;
       } else if (groupBy === 'kot') {
         groupKey = (item) => item.mkotNo || '';
@@ -695,10 +699,8 @@ const ModernBill = () => {
           const mappedItems: BillItem[] = fetchedItems.map((item: any) => {
             const netQty = item.qty - item.revQty;
             const total = netQty * item.price;
-            const cgst = !includeTaxInInvoice ? (total * (cgstRate / 100)) : 0;
-            const sgst = !includeTaxInInvoice ? (total * (sgstRate / 100)) : 0;
-            const igst = !includeTaxInInvoice ? (total * (igstRate / 100)) : 0;
-            const cess_amt = !includeTaxInInvoice ? (total * (cessRate / 100)) : 0;
+            const cgst = total * (cgstRate / 100);
+            const sgst = total * (sgstRate / 100);
             return {
               itemCode: item.item_no.toString(),
               itemgroupid: item.id,
@@ -710,8 +712,8 @@ const ModernBill = () => {
               total,
               cgst,
               sgst,
-              igst,
-              cess: cess_amt,
+              igst: 0,
+              cess: 0,
               mkotNo: item.kotNo ? item.kotNo.toString() : '',
               specialInstructions: '',
               isBilled: 1,
@@ -842,10 +844,6 @@ const ModernBill = () => {
         const qty = item.netQty || item.Qty || 0;
         const rate = item.RuntimeRate || item.price || item.Price || item.Rate || 0;
         const total = qty * rate;
-        const cgst = !includeTaxInInvoice ? (total * (cgstRate / 100)) : (item.cgst ?? 0);
-        const sgst = !includeTaxInInvoice ? (total * (sgstRate / 100)) : (item.sgst ?? 0);
-        const igst = !includeTaxInInvoice ? (total * (igstRate / 100)) : (item.igst ?? 0);
-        const cess_amt = !includeTaxInInvoice ? (total * (cessRate / 100)) : (item.cess ?? 0);
 
         return {
           itemCode: (item.item_no || item.ItemNo || '').toString(),
@@ -856,10 +854,12 @@ const ModernBill = () => {
           qty: qty,
           rate: rate,
           total: total,
-          cgst,
-          sgst,
-          igst,
-          cess: cess_amt,
+
+          // New tax fields - use from API if available, otherwise calculate fallback
+          cgst: item.cgst ?? 0,
+          sgst: item.sgst ?? 0,
+          igst: item.igst ?? 0,
+          cess: item.cess ?? 0,
           mkotNo: item.kotNo ? item.kotNo.toString() : (item.KOTNo ? item.KOTNo.toString() : ''),
           specialInstructions: item.specialInstructions || item.SpecialInst || '',
           isBilled: 0,
@@ -1007,10 +1007,6 @@ const ModernBill = () => {
         const qty = item.netQty || item.Qty || 0;
         const rate = item.price || item.Price || item.Rate || 0;
         const total = qty * rate;
-        const cgst = !includeTaxInInvoice ? (total * (cgstRate / 100)) : (item.cgst ?? 0);
-        const sgst = !includeTaxInInvoice ? (total * (sgstRate / 100)) : (item.sgst ?? 0);
-        const igst = !includeTaxInInvoice ? (total * (igstRate / 100)) : (item.igst ?? 0);
-        const cess_amt = !includeTaxInInvoice ? (total * (cessRate / 100)) : (item.cess ?? 0);
 
         return {
           itemCode: (item.item_no || item.ItemNo || '').toString(),
@@ -1021,10 +1017,13 @@ const ModernBill = () => {
           qty: qty,
           rate: rate,
           total: total,
-          cgst,
-          sgst,
-          igst,
-          cess: cess_amt,
+
+          // New tax fields - use from API if available, otherwise calculate fallback
+          cgst: item.cgst ?? 0,
+          sgst: item.sgst ?? 0,
+          igst: item.igst ?? 0,
+          cess: item.cess ?? 0,
+
           mkotNo: item.kotNo ? item.kotNo.toString() : (item.KOTNo ? item.KOTNo.toString() : ''),
           specialInstructions: item.specialInstructions || item.SpecialInst || '',
           isBilled: 0,
@@ -1163,13 +1162,10 @@ const ModernBill = () => {
   };
 
   const calculateTotals = (items: BillItem[]) => {
+
     const updatedItems = items.map(item => {
       const total = item.qty * item.rate;
-      const cgst = !includeTaxInInvoice ? (total * (cgstRate / 100)) : 0;
-      const sgst = !includeTaxInInvoice ? (total * (sgstRate / 100)) : 0;
-      const igst = !includeTaxInInvoice ? (total * (igstRate / 100)) : 0;
-      const cess = !includeTaxInInvoice ? (total * (cessRate / 100)) : 0;
-      return { ...item, total, cgst, sgst, igst, cess };
+      return { ...item, total };
     });
 
     const gross = updatedItems.reduce((sum, item) => sum + item.total, 0);
@@ -1192,24 +1188,26 @@ const ModernBill = () => {
 
     if (includeTaxInInvoice) {
       // 🔹 TAX INCLUSIVE
+
       taxableValue =
         totalTaxRate > 0
           ? discountedGross / (1 + totalTaxRate / 100)
           : discountedGross;
 
-      cgstTotal = taxableValue * (cgstRate / 100);
-      sgstTotal = taxableValue * (sgstRate / 100);
+      cgstTotal = taxableValue * (cgstRate / 100); Number(grossAmount.toFixed(2)),
+        sgstTotal = taxableValue * (sgstRate / 100);
       igstTotal = taxableValue * (igstRate / 100);
       cessTotal = taxableValue * (cessRate / 100);
 
     } else {
       // 🔹 TAX EXCLUSIVE
+
       taxableValue = discountedGross;
 
-      cgstTotal = updatedItems.reduce((sum, item) => sum + item.cgst, 0);
-      sgstTotal = updatedItems.reduce((sum, item) => sum + item.sgst, 0);
-      igstTotal = updatedItems.reduce((sum, item) => sum + item.igst, 0);
-      cessTotal = updatedItems.reduce((sum, item) => sum + item.cess, 0);
+      cgstTotal = taxableValue * (cgstRate / 100);
+      sgstTotal = taxableValue * (sgstRate / 100);
+      igstTotal = taxableValue * (igstRate / 100);
+      cessTotal = taxableValue * (cessRate / 100);
     }
 
     const totalBeforeRoundOff =
@@ -1601,7 +1599,9 @@ const ModernBill = () => {
         currentItem.itemName = found.item_name;
         currentItem.itemId = found.restitemid;
         currentItem.isValidCode = true;
-        currentItem.needsVariantSelection = false;
+        
+        // 🔍 DEBUG VARIANT 1: Item Code Match
+        console.log('🔍 ITEM MATCH:', {itemCodeValue, itemId: found.restitemid, itemName: found.item_name});
         
         // If variant was selected, use variant-specific rate
         if (variantId && found.department_details) {
@@ -1644,23 +1644,25 @@ const ModernBill = () => {
         currentItem.rate = 0;
         currentItem.itemId = 0;
         currentItem.isValidCode = false;
-        currentItem.needsVariantSelection = false;
       }
     } else if (field === 'itemName') {
       currentItem.itemName = value as string;
       // Parse the value to extract item name if it includes code or short name
       const parsedValue = (value as string).includes(' (') ? (value as string).split(' (')[0] : value as string;
       // When item name is selected or typed, find the item by item_name or short_name (case-insensitive) and auto-fill itemCode and rate
-      const found = menuItems.find(i =>
-        i.item_name.toLowerCase() === parsedValue.toLowerCase() ||
-        i.short_name?.toLowerCase() === parsedValue.toLowerCase()
-      );
-      if (found) {
-        currentItem.itemCode = found.item_no.toString();
-        currentItem.rate = found.price;
-        currentItem.itemId = found.restitemid;
-        currentItem.itemName = found.item_name; // Ensure we set the full item name
-        currentItem.isValidCode = true;
+        const found = menuItems.find(i =>
+          i.item_name.toLowerCase() === parsedValue.toLowerCase() ||
+          i.short_name?.toLowerCase() === parsedValue.toLowerCase()
+        );
+        if (found) {
+          currentItem.itemCode = found.item_no.toString();
+          currentItem.rate = found.price;
+          currentItem.itemId = found.restitemid;
+          currentItem.itemName = found.item_name; // Ensure we set the full item name
+          currentItem.isValidCode = true;
+          
+          // 🔍 DEBUG VARIANT 2: Item Name Match
+          console.log('🔍 NAME MATCH:', {itemName: parsedValue, itemId: found.restitemid});
       } else {
         currentItem.itemCode = "";
         currentItem.rate = 0;
@@ -1672,6 +1674,20 @@ const ModernBill = () => {
     }
 
     updated[dataIndex] = currentItem;
+    
+    // 🔍 DEBUG FULL STATE
+    console.group('📊 BILL ITEMS STATE');
+    console.table(billItems.map((item, i) => ({
+      index: i,
+      code: item.itemCode,
+      id: item.itemId,
+      variantId: item.variantId,
+      name: item.itemName.slice(0,20),
+      qty: item.qty
+    })));
+    console.log('Total billItems length:', billItems.length, '→ expected +1:', billItems.length + 1);
+    console.groupEnd();
+    
     calculateTotals(updated);
   };
 
@@ -3341,13 +3357,7 @@ const ModernBill = () => {
                                 }}
                                 className="form-control-sm1 text-end"
                                 style={{ width: '100%', fontSize: '16px', background: 'transparent', padding: '0', outline: 'none' }}
-                                title={item.variantName ? `Variant: ${item.variantName}` : ''}
                               />
-                              {item.variantName && (
-                                <small className="text-muted d-block text-end" style={{ fontSize: '12px' }}>
-                                  {item.variantName}
-                                </small>
-                              )}
                             </td>
                             <td className="text-end" style={{ width: '100px' }}>{item.total.toFixed(2)}</td>
                             <td className="text-center">
