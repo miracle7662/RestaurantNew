@@ -425,33 +425,36 @@ const [loading, setLoading] = useState(true);
     console.log('Code search:', code, 'Matched items:', matchedItems.length);
     console.log('MenuItems sample:', menuItems.slice(0, 2));
     
-    // Build code search results including variants
+    // Build code search results with variant priority logic
     const results: CodeSearchResult[] = [];
     
     matchedItems.forEach((item) => {
-      // Get variants from menuItems filtered by department
       const menuItem = menuItems.find((m: any) => String(m.restitemid) === item.userId);
       console.log('Menu item for', item.itemCode, ':', menuItem?.department_details?.length, 'details');
       
+      let hasValidVariants = false;
+      const validVariants: VariantOption[] = [];
+      
       if (menuItem && menuItem.department_details && menuItem.department_details.length > 0) {
-        // Filter variants by selected department
         const deptDetails = selectedDeptId 
           ? menuItem.department_details.filter((d: any) => d.departmentid === selectedDeptId)
           : menuItem.department_details;
         
-        // Extract unique variants from department_details
-        const variantMap = new Map<number, VariantOption>();
         deptDetails.forEach((detail: any) => {
-          if (detail.variant_value_id && detail.variant_value_name) {
-            variantMap.set(detail.variant_value_id, {
+          if (detail.variant_value_id && detail.variant_value_name && detail.item_rate > 0) {
+            validVariants.push({
               variant_value_id: detail.variant_value_id,
               value_name: detail.variant_value_name,
-              price: detail.item_rate || 0
+              price: detail.item_rate
             });
+            hasValidVariants = true;
           }
         });
-        
-        // Add each variant
+      }
+      
+      if (hasValidVariants) {
+        const variantMap = new Map<number, VariantOption>();
+        validVariants.forEach(v => variantMap.set(v.variant_value_id, v));
         variantMap.forEach((variant) => {
           results.push({
             type: 'variant',
@@ -464,8 +467,18 @@ const [loading, setLoading] = useState(true);
             variantName: variant.value_name,
           });
         });
+      } else {
+        results.push({
+          type: 'base',
+          userId: item.userId,
+          itemCode: item.itemCode,
+          ItemName: item.ItemName,
+          shortName: item.shortName,
+          price: getDisplayPrice(item.userId, item.price, selectedDeptId),
+        });
       }
     });
+
     
     console.log('Total results:', results.length);
     setCodeSearchResults(results.slice(0, 10)); // Limit to 10 results
@@ -509,42 +522,37 @@ const [loading, setLoading] = useState(true);
       item.shortName.toLowerCase().includes(value.toLowerCase())
     );
     
-    // Build name search results including variants
+      // Build name search results with variant priority logic
     const results: CodeSearchResult[] = [];
     
     matchedItems.forEach((item) => {
-      // Add base item with department price
-      results.push({
-        type: 'base',
-        userId: item.userId,
-        itemCode: item.itemCode,
-        ItemName: item.ItemName,
-        shortName: item.shortName,
-        price: getDisplayPrice(item.userId, item.price, selectedDeptId),
-      });
-      
-      // Get variants from menuItems filtered by department
       const menuItem = menuItems.find((m: any) => String(m.restitemid) === item.userId);
       
+      let hasValidVariants = false;
+      const validVariants: VariantOption[] = [];
+      
       if (menuItem && menuItem.department_details && menuItem.department_details.length > 0) {
-        // Filter variants by selected department
         const deptDetails = selectedDeptId 
           ? menuItem.department_details.filter((d: any) => d.departmentid === selectedDeptId)
           : menuItem.department_details;
         
-        // Extract unique variants from department_details
-        const variantMap = new Map<number, VariantOption>();
+        // Check for valid variants (variant_value_id, name, and price > 0)
         deptDetails.forEach((detail: any) => {
-          if (detail.variant_value_id && detail.variant_value_name) {
-            variantMap.set(detail.variant_value_id, {
+          if (detail.variant_value_id && detail.variant_value_name && detail.item_rate > 0) {
+            validVariants.push({
               variant_value_id: detail.variant_value_id,
               value_name: detail.variant_value_name,
-              price: detail.item_rate || 0
+              price: detail.item_rate
             });
+            hasValidVariants = true;
           }
         });
-        
-        // Add each variant
+      }
+      
+      if (hasValidVariants) {
+        // Show only variants if valid ones exist
+        const variantMap = new Map<number, VariantOption>();
+        validVariants.forEach(v => variantMap.set(v.variant_value_id, v));
         variantMap.forEach((variant) => {
           results.push({
             type: 'variant',
@@ -557,8 +565,19 @@ const [loading, setLoading] = useState(true);
             variantName: variant.value_name,
           });
         });
+      } else {
+        // Show base item if no valid variants
+        results.push({
+          type: 'base',
+          userId: item.userId,
+          itemCode: item.itemCode,
+          ItemName: item.ItemName,
+          shortName: item.shortName,
+          price: getDisplayPrice(item.userId, item.price, selectedDeptId),
+        });
       }
     });
+
     
     setNameSearchResults(results.slice(0, 10));
     
