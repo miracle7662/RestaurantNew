@@ -60,8 +60,9 @@ interface BillItem {
   revKotNo?: number;
   isValidCode?: boolean;
   // Variant fields
-  variantId?: number;
-  variantName?: string;
+  variantId?: number | null;
+  variantName?: string | null;
+
 }
 interface MenuItem {
   restitemid: number;
@@ -74,6 +75,9 @@ interface MenuItem {
 }
 
 interface DisplayedItem extends BillItem {
+  variantId?: number | null;
+  variantName?: string | null;
+
   type?: 'header' | 'item';
   groupName?: string;
   isEditable?: boolean;
@@ -180,7 +184,7 @@ const ModernBill = () => {
   const [activeTab, setActiveTab] = useState('Dine-in');
   const [restaurantName, setRestaurantName] = useState<string>('');
   const [outletName, setOutletName] = useState<string>('');
-  const [groupBy, setGroupBy] = useState<'none' | 'item' | 'group' | 'kot'>('group');
+  const [groupBy, setGroupBy] = useState<'none' | 'item' | 'group' | 'kot' | 'varianttype'>('group');
   const [deliveryType, setDeliveryType] = useState<'pickup' | 'homedelivery'>('pickup');
   const [isTableOccupied, setIsTableOccupied] = useState(false);
 
@@ -249,6 +253,13 @@ const ModernBill = () => {
       } else if (groupBy === 'kot') {
         groupKey = (item) => item.mkotNo || '';
         groupName = (key, item) => key ? "KOT " + key : "No KOT";
+      } else if (groupBy === 'varianttype') {
+        groupKey = (item) => `${item.itemId}-${item.variantId || 0}`;
+        groupName = (key, item) => {
+          const [itemId, variantId] = key.split('-');
+          const variantName = item.variantName || 'Standard';
+          return `${item.itemName} (${variantName})`;
+        };
       }
 
       // Exclude the last item (input row) from grouping so it stays editable
@@ -1560,7 +1571,7 @@ const ModernBill = () => {
     }
   }, [displayedItems, loading]);
 
-  const handleItemChange = (index: number, field: keyof BillItem, value: string | number) => {
+      const handleItemChange = (index: number, field: keyof BillItem, value: string | number) => {
     const item = displayedItems[index];
     if (!item.isEditable) return;
 
@@ -1591,11 +1602,12 @@ const ModernBill = () => {
       // Find the menu item
       const found = menuItems.find(i => i.item_no.toString() === itemCodeValue);
       if (found) {
-        currentItem.itemName = found.item_name;
+        // ✅ FIXED: Keep BASE itemName separate from variant
+        currentItem.itemName = found.item_name; // Base name only
         currentItem.itemId = found.restitemid;
         currentItem.isValidCode = true;
         
-        // If variant was selected, use variant-specific rate
+        // If variant was selected, use variant-specific rate & SET SEPARATE FIELDS
         if (variantId && found.department_details) {
           const variantDetail = found.department_details.find(
             (d: any) => d.variant_value_id === variantId
@@ -1603,9 +1615,8 @@ const ModernBill = () => {
           if (variantDetail) {
             currentItem.rate = variantDetail.item_rate || found.price;
             currentItem.variantId = variantId;
-            currentItem.variantName = variantDetail.variant_value_name;
-            currentItem.itemName = `${found.item_name} (${variantDetail.variant_value_name})`;
-            // After selecting from datalist, update the Code field to show only item_no
+            currentItem.variantName = variantDetail.variant_value_name; // ✅ SEPARATE
+            // ✅ NO CONCATENATION - keep itemName clean
             currentItem.itemCode = itemCodeValue;
           } else {
             // No specific variant found, fallback to first variant or base
@@ -1613,10 +1624,11 @@ const ModernBill = () => {
               const firstVariant = found.department_details[0];
               currentItem.rate = firstVariant.item_rate || found.price;
               currentItem.variantId = firstVariant.variant_value_id;
-              currentItem.variantName = firstVariant.variant_value_name;
-              currentItem.itemName = `${found.item_name} (${firstVariant.variant_value_name})`;
+              currentItem.variantName = firstVariant.variant_value_name; // ✅ SEPARATE
             } else {
               currentItem.rate = found.price;
+              currentItem.variantId = null;
+              currentItem.variantName = null;
             }
           }
         } else {
@@ -1625,16 +1637,19 @@ const ModernBill = () => {
             const firstVariant = found.department_details[0];
             currentItem.rate = firstVariant.item_rate || found.price;
             currentItem.variantId = firstVariant.variant_value_id;
-            currentItem.variantName = firstVariant.variant_value_name;
-            currentItem.itemName = `${found.item_name} (${firstVariant.variant_value_name})`;
+            currentItem.variantName = firstVariant.variant_value_name; // ✅ SEPARATE
           } else {
             currentItem.rate = found.price;
+            currentItem.variantId = null;
+            currentItem.variantName = null;
           }
         }
       } else {
         currentItem.itemName = "";
         currentItem.rate = 0;
         currentItem.itemId = 0;
+        currentItem.variantId = null;
+        currentItem.variantName = null;
         currentItem.isValidCode = false;
       }
     } else if (field === 'itemName') {
@@ -1650,12 +1665,16 @@ const ModernBill = () => {
         currentItem.itemCode = found.item_no.toString();
         currentItem.rate = found.price;
         currentItem.itemId = found.restitemid;
-        currentItem.itemName = found.item_name; // Ensure we set the full item name
+        currentItem.itemName = found.item_name; // Base name only ✅
+        currentItem.variantId = null;
+        currentItem.variantName = null;
         currentItem.isValidCode = true;
       } else {
         currentItem.itemCode = "";
         currentItem.rate = 0;
         currentItem.itemId = 0;
+        currentItem.variantId = null;
+        currentItem.variantName = null;
         currentItem.isValidCode = false;
       }
     } else {
@@ -3281,7 +3300,7 @@ const ModernBill = () => {
                                   inputRefs.current[index][2] = el;
                                 }}
                                 type="text"
-                                value={item.itemName}
+                                value={item.variantName ? `${item.itemName} (${item.variantName})` : item.itemName}
                                 disabled={!item.isEditable}
                                 onChange={(e) => handleItemChange(index, 'itemName', e.target.value)}
                                 onKeyDown={(e) => {

@@ -1156,7 +1156,14 @@ exports.createKOT = async (req, res) => {
         }
 
         console.log('Inserting item with order_tag:', order_tag)
-        insertDetailStmt.run({
+console.log('🚀 Saving KOT Item with Variant:', {
+            ItemID: item.ItemID,
+            item_name: item.item_name,
+            VariantID: item.VariantID || item.variantId,
+            VariantName: item.VariantName || item.variantName
+          });
+          
+          insertDetailStmt.run({
           TxnID: txnId,
           outletid: outletid,
           ItemID: item.ItemID,
@@ -1181,8 +1188,9 @@ exports.createKOT = async (req, res) => {
           item_name: item.item_name,
           order_tag: order_tag,
           KOTUsedDate: KOTUsedDate || null,
-          VariantID: item.variantId || null,
-          VariantName: item.variantName || null,
+VariantID: item.VariantID || item.variantId || null,
+          VariantName: item.VariantName || item.variantName || null,
+          // FIXED: Support both camelCase and PascalCase from frontend
         })
       }
 
