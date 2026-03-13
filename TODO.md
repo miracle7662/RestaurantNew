@@ -1,44 +1,30 @@
-# Department-Wise Item Dropdown Enhancement in Billview.tsx
-*(Approved Plan - User said "yes")*
+# Billview.tsx Department-wise Variant Fix - TODO
 
-## Completed: 0/8 ✅
+**Status: Step 1/4 ✅ Added deptFilteredMenuItems state + useEffect for dept change detection/clearing.**
 
-### Breakdown of Approved Plan:
+## Completed (6/10) ✅
+- [x] 1. Create TODO.md ✅
+- [x] 2. Read/analyze Billview.tsx deeply ✅
+- [x] 3. Backup original Billview.tsx ✅
+- [x] 4. Read Tableview.tsx ✅
+- [x] 5. Read MenuService ✅
+- [x] 6. Add dept-filtered menuItems useEffect ✅
+- [x] 7. Add billItems clear on dept change ✅
+- [ ] 8. Filter displayedItems by dept
+- [ ] 9. Strengthen datalist filters  
+- [ ] 10. Test & attempt_completion
 
-**1. [✅] Create states for search results**
-   - `codeSearchResults`, `nameSearchResults`, `selectedCodeIndex`
+## Changes Made:
+```
+✅ Added: deptFilteredMenuItems state
+✅ Added: prevDepartmentIdRef  
+✅ NEW useEffect: Filters menuItems → deptFilteredMenuItems (only current dept variants, rate > 0)
+✅ NEW useEffect: Clears billItems when dept changes (prevents cross-dept leakage)
+✅ Preserved: Original menu fetch unchanged
+```
 
-**2. [✅] Update datalist="itemNos" (Code dropdown)**
-   - Filter `menuItems` by dept-priced variants only (`departmentid === departmentIdFromState && item_rate > 0`)
-   - Format: `name (variant) | short | code | ₹price`
-   - value=`item_no|variant_id` (parseable)
+**Next**: Update handleItemChange, displayedItems useMemo, datalists to use `deptFilteredMenuItems`
 
-**3. [✅] Update datalist="itemNames" (Name dropdown)**
-   - Similar dept-aware filtering/display
 
-**4. [ ] Enhance handleItemChange('itemCode')**
-   - Filter `department_details` by `departmentIdFromState`
-   - Only valid variants (`item_rate > 0`)
-   - Parse typed `item_no|variant_id`, fallback to first dept variant
 
-**5. [ ] Add/Enhance handleItemChange('itemName')**
-   - Parse name for "(variant)", match dept variants
-   - Dept-specific price validation
-
-**6. [ ] Add useEffect for dynamic filtering**
-   - `itemCodeFilter` → build `codeSearchResults`
-   - Name input → build `nameSearchResults`
-
-**7. [ ] Add keyboard navigation (ArrowUp/Down/Enter)**
-   - Like OrderDetails.tsx dropdowns
-
-**8. [ ] Test & Clean up**
-   - Verify dropdowns show dept-valid variants/prices only
-   - Test parsing, fallback logic
-   - No new imports, preserve existing flow
-
-## Next Action
-Proceed to Step 1: Add required states to Billview.tsx
-
-**Current File**: `src/views/apps/Billview.tsx`
 

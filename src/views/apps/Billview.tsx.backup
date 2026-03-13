@@ -184,15 +184,9 @@ const ModernBill = () => {
   const [activeTab, setActiveTab] = useState('Dine-in');
   const [restaurantName, setRestaurantName] = useState<string>('');
   const [outletName, setOutletName] = useState<string>('');
-  const [groupBy, setGroupBy] = useState<'none' | 'item' | 'group' | 'kot' | 'varianttype'>('varianttype');
+const [groupBy, setGroupBy] = useState<'none' | 'item' | 'group' | 'kot' | 'varianttype'>('varianttype');
   const [deliveryType, setDeliveryType] = useState<'pickup' | 'homedelivery'>('pickup');
   const [isTableOccupied, setIsTableOccupied] = useState(false);
-
-  // NEW: Filtered menu for current department only
-  const [deptFilteredMenuItems, setDeptFilteredMenuItems] = useState<MenuItem[]>([]);
-
-  // Track previous department to detect changes
-  const prevDepartmentIdRef = useRef(departmentIdFromState);
 
   // Set deliveryType based on location.state?.orderType or loaded order's Order_Type
   useEffect(() => {
@@ -1440,75 +1434,40 @@ const ModernBill = () => {
   }, [location.state]);
 
   // Fetch menu items
-// NEW: Filter menuItems by current department
-  useEffect(() => {
-    if (!departmentIdFromState || !menuItems.length) return;
+  // Fetch menu items
+ useEffect(() => {
 
-    const prevDeptId = prevDepartmentIdRef.current;
-    const currDeptId = departmentIdFromState;
+  const fetchMenuItems = async () => {
+    try {
 
-    // Clear billItems when department changes (prevent cross-dept mixing)
-    if (prevDeptId && prevDeptId !== currDeptId) {
-      console.log(`Dept changed ${prevDeptId} → ${currDeptId}. Clearing billItems.`);
-      setBillItems([{ 
-        itemCode: '', itemgroupid: 0, itemId: 0, item_no: 0, itemName: '', 
-        qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, 
-        mkotNo: '', specialInstructions: '', isFetched: false 
-      }]);
-      setItemCodeFilter(''); // Clear search
+      if (!user?.hotelid || !selectedOutletId) return;
+
+      const response = await MenuService.list({
+        hotelid: user.hotelid,
+        outletid: selectedOutletId
+      });
+
+      if (response?.data) {
+
+        const mappedMenu = response.data.map((item) => ({
+          ...item,
+          item_no: item.item_no ?? "",   // null safe
+          short_name: item.short_name ?? "", 
+        }));
+
+        setMenuItems(mappedMenu);
+      }
+
+    } catch (error) {
+      console.error("Failed to fetch menu items:", error);
+      setMenuItems([]);
     }
 
-    // Filter menu to current department variants only
-    const filtered = menuItems
-      .filter(item => {
-        // Item must have dept_details for this department
-        const deptDetails = item.department_details || [];
-        return deptDetails.some((d: DepartmentDetail) => 
-          d.departmentid === currDeptId && d.item_rate && d.item_rate > 0
-        );
-      })
-      .map(item => ({
-        ...item,
-        // Filter department_details to ONLY current dept
-        department_details: (item.department_details || [])
-          .filter((d: DepartmentDetail) => 
-            d.departmentid === currDeptId && d.item_rate && d.item_rate > 0
-          )
-      }));
+  };
 
-    setDeptFilteredMenuItems(filtered);
-    prevDepartmentIdRef.current = currDeptId;
+  fetchMenuItems();
 
-    console.log(`Filtered ${filtered.length} menu items for dept ${currDeptId}`);
-  }, [departmentIdFromState, menuItems]);
-
-  // Original fetch (unchanged)
-  useEffect(() => {
-    const fetchMenuItems = async () => {
-      try {
-        if (!user?.hotelid || !selectedOutletId) return;
-
-        const response = await MenuService.list({
-          hotelid: user.hotelid,
-          outletid: selectedOutletId
-        });
-
-        if (response?.data) {
-          const mappedMenu = response.data.map((item) => ({
-            ...item,
-            item_no: item.item_no ?? "",
-            short_name: item.short_name ?? "",
-          }));
-          setMenuItems(mappedMenu);
-        }
-      } catch (error) {
-        console.error("Failed to fetch menu items:", error);
-        setMenuItems([]);
-      }
-    };
-
-    fetchMenuItems();
-  }, [selectedOutletId, user]);
+}, [selectedOutletId, user]);
 
 
   // Fetch waiter users
@@ -1645,12 +1604,8 @@ useEffect(() => {
         variantId = parseInt(parts[1]) || undefined;
       }
       
-      // Find the menu item from dept-filtered list FIRST (prioritize current dept)
-      let found = deptFilteredMenuItems.find(i => i.item_no.toString() === itemCodeValue);
-      if (!found) {
-        // Fallback to full menuItems if not in filtered
-        found = menuItems.find(i => i.item_no.toString() === itemCodeValue);
-      }
+      // Find the menu item
+      const found = menuItems.find(i => i.item_no.toString() === itemCodeValue);
       if (found) {
         // ✅ FIXED: Keep BASE itemName separate from variant
         currentItem.itemName = found.item_name; // Base name only
@@ -1723,19 +1678,11 @@ useEffect(() => {
       ? valueStr.split(" (")[0]
       : valueStr;
 
-    let found = deptFilteredMenuItems.find(
+    const found = menuItems.find(
       i =>
         i.item_name.toLowerCase() === baseName.toLowerCase() ||
         i.short_name?.toLowerCase() === baseName.toLowerCase()
     );
-    if (!found) {
-      // Fallback to full menuItems
-      found = menuItems.find(
-        i =>
-          i.item_name.toLowerCase() === baseName.toLowerCase() ||
-          i.short_name?.toLowerCase() === baseName.toLowerCase()
-      );
-    }
 
     if (found) {
 
@@ -3256,9 +3203,10 @@ useEffect(() => {
 
             {/* Datalist Item Names - Include variants from department_details */}
 <datalist id="itemNames">
-              {(() => {
-                const deptVariants = deptFilteredMenuItems
-                  .flatMap(item => {
+  {(() => {
+    const deptVariants = menuItems
+      .filter(item => departmentIdFromState)
+      .flatMap(item => {
         return (item.department_details || [])
           .filter((d: any) => 
             d.departmentid === departmentIdFromState && 
@@ -3291,7 +3239,8 @@ useEffect(() => {
             {/* Datalist Item Codes - Dynamic based on filter */}
 <datalist id="itemNos">
               {(() => {
-                const deptVariants = deptFilteredMenuItems
+                const deptVariants = menuItems
+                  .filter(item => departmentIdFromState)
                   .flatMap(item => {
                     return (item.department_details || [])
                       .filter((d: any) => 
@@ -3864,7 +3813,7 @@ useEffect(() => {
           isNCKOT: 0,
           NCName: '',
           NCPurpose: '',
-           item_no: item.item_no.toString(),
+          item_no: item.item_no.toString(),
           txnDetailId: item.txnDetailId,
           revQty: item.reversedQty || 0,
           kotNo: item.mkotNo ? parseInt(item.mkotNo.split('|')[0]) : undefined
