@@ -3254,38 +3254,51 @@ useEffect(() => {
 
             </Row>
 
-            {/* Datalist Item Names - Include variants from department_details */}
+           {/* Datalist Item Names */}
 <datalist id="itemNames">
-              {(() => {
-                const deptVariants = deptFilteredMenuItems
-                  .flatMap(item => {
-        return (item.department_details || [])
-          .filter((d: any) => 
-            d.departmentid === departmentIdFromState && 
-            d.item_rate > 0 && 
-            d.variant_value_id
-          )
-          .map((d: any) => ({
-            item_no: item.item_no,
-            item_name: item.item_name,
-            short_name: item.short_name || '',
-            variant_value_id: d.variant_value_id,
-            variant_value_name: d.variant_value_name,
-            price: d.item_rate
-          }));
-      });
+{(() => {
 
-    // Limit results
-    const limited = deptVariants.slice(0, 50);
+  const results = deptFilteredMenuItems.flatMap(item => {
 
-    return limited.map(variant => (
-      <option 
-        key={`${variant.item_no}|${variant.variant_value_id}`}
-        value={`${variant.item_name} (${variant.variant_value_name})`}
-        label={`${variant.item_name} (${variant.variant_value_name}) | ${variant.short_name} | ${variant.item_no} | ₹${variant.price}`}
-      />
-    ));
-  })()}
+    const variants = (item.department_details || []).filter((d: any) =>
+      d.departmentid === departmentIdFromState &&
+      d.item_rate > 0 &&
+      d.variant_value_id
+    );
+
+    // ✅ If variants exist → return variants
+    if (variants.length > 0) {
+      return variants.map((d: any) => ({
+        key: `${item.item_no}|${d.variant_value_id}`,
+        value: `${item.item_name} (${d.variant_value_name}) | ${item.short_name || ''} | ${item.item_no} | ₹${d.item_rate}`
+      }));
+    }
+
+    // ✅ If no variants → return base item
+    const baseRate = (item.department_details || []).find((d: any) =>
+      d.departmentid === departmentIdFromState && d.item_rate > 0
+    );
+
+    if (baseRate) {
+      return [{
+        key: `${item.item_no}|base`,
+        value: `${item.item_name} | ${item.short_name || ''} | ${item.item_no} | ₹${baseRate.item_rate}`
+      }];
+    }
+
+    return [];
+  });
+
+  const limited = results.slice(0, 50);
+
+  return limited.map(opt => (
+    <option
+      key={opt.key}
+      value={opt.value}
+    />
+  ));
+
+})()}
 </datalist>
 
             {/* Datalist Item Codes - Dynamic based on filter */}
