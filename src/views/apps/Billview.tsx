@@ -3270,7 +3270,8 @@ useEffect(() => {
     if (variants.length > 0) {
       return variants.map((d: any) => ({
         key: `${item.item_no}|${d.variant_value_id}`,
-        value: `${item.item_name} (${d.variant_value_name}) | ${item.short_name || ''} | ${item.item_no} | ₹${d.item_rate}`
+        value: `${item.item_name} (${d.variant_value_name})`,
+        label: `${item.item_name} (${d.variant_value_name}) | ${item.short_name || ''} | ${item.item_no} | ₹${d.item_rate}`
       }));
     }
 
@@ -3282,7 +3283,8 @@ useEffect(() => {
     if (baseRate) {
       return [{
         key: `${item.item_no}|base`,
-        value: `${item.item_name} | ${item.short_name || ''} | ${item.item_no} | ₹${baseRate.item_rate}`
+        value: `${item.item_name}`,
+        label: `${item.item_name} | ${item.short_name || ''} | ${item.item_no} | ₹${baseRate.item_rate}`
       }];
     }
 
@@ -3295,6 +3297,7 @@ useEffect(() => {
     <option
       key={opt.key}
       value={opt.value}
+      label={opt.label}
     />
   ));
 
