@@ -184,7 +184,7 @@ const ModernBill = () => {
   const [activeTab, setActiveTab] = useState('Dine-in');
   const [restaurantName, setRestaurantName] = useState<string>('');
   const [outletName, setOutletName] = useState<string>('');
-  const [groupBy, setGroupBy] = useState<'none' | 'item' | 'group' | 'kot' | 'varianttype'>('group');
+const [groupBy, setGroupBy] = useState<'none' | 'item' | 'group' | 'kot' | 'varianttype'>('varianttype');
   const [deliveryType, setDeliveryType] = useState<'pickup' | 'homedelivery'>('pickup');
   const [isTableOccupied, setIsTableOccupied] = useState(false);
 
