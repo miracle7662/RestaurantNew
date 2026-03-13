@@ -214,6 +214,11 @@ const [groupBy, setGroupBy] = useState<'none' | 'item' | 'group' | 'kot' | 'vari
 
   const [reverseQtyConfig, setReverseQtyConfig] = useState('PasswordRequired');
   const [roundOffEnabled, setRoundOffEnabled] = useState(false);
+  // Dept-aware dropdown states (Step 1/8 ✓)
+  const [codeSearchResults, setCodeSearchResults] = useState([]);
+  const [nameSearchResults, setNameSearchResults] = useState([]);
+  const [selectedCodeIndex, setSelectedCodeIndex] = useState(-1);
+  const [selectedNameIndex, setSelectedNameIndex] = useState(-1);
   const [itemCodeFilter, setItemCodeFilter] = useState('');
 
   // Form data for KOT settings
@@ -3197,91 +3202,77 @@ useEffect(() => {
             </Row>
 
             {/* Datalist Item Names - Include variants from department_details */}
-          <datalist id="itemNames">
-  {menuItems.map(item => {
-    const variants: JSX.Element[] = [];
-
-    // Check for valid variants
-    const validVariants = item.department_details?.filter(
-      (d: any) => d.variant_value_id && d.variant_value_name
-    );
-
-    if (validVariants && validVariants.length > 0) {
-      // Add each variant as separate option
-      validVariants.forEach((variant) => {
-        const price = variant.item_rate || item.price || 0;
-
-        variants.push(
-          <option
-            key={`${item.restitemid}-variant-${variant.variant_value_id}`}
-            value={`${item.item_name} (${variant.variant_value_name})${item.short_name ? ` (${item.short_name})` : ''} - ₹${price}`}
-          />
-        );
+<datalist id="itemNames">
+  {(() => {
+    const deptVariants = menuItems
+      .filter(item => departmentIdFromState)
+      .flatMap(item => {
+        return (item.department_details || [])
+          .filter((d: any) => 
+            d.departmentid === departmentIdFromState && 
+            d.item_rate > 0 && 
+            d.variant_value_id
+          )
+          .map((d: any) => ({
+            item_no: item.item_no,
+            item_name: item.item_name,
+            short_name: item.short_name || '',
+            variant_value_id: d.variant_value_id,
+            variant_value_name: d.variant_value_name,
+            price: d.item_rate
+          }));
       });
 
-      // If variants exist → return only variants
-      return variants;
-    }
+    // Limit results
+    const limited = deptVariants.slice(0, 50);
 
-    // No variants → return base item
-    const price = item.price || 0;
-
-    return (
-      <option
-        key={item.restitemid}
-        value={
-          item.short_name
-            ? `${item.item_name} (${item.short_name}) - ₹${price}`
-            : `${item.item_name} - ₹${price}`
-        }
+    return limited.map(variant => (
+      <option 
+        key={`${variant.item_no}|${variant.variant_value_id}`}
+        value={`${variant.item_name} (${variant.variant_value_name})`}
+        label={`${variant.item_name} (${variant.variant_value_name}) | ${variant.short_name} | ${variant.item_no} | ₹${variant.price}`}
       />
-    );
-  })}
+    ));
+  })()}
 </datalist>
 
             {/* Datalist Item Codes - Dynamic based on filter */}
-            <datalist id="itemNos">
+<datalist id="itemNos">
               {(() => {
-                // If there's a filter, only show variants for that item
-                if (itemCodeFilter) {
-                  const matchedItem = menuItems.find(item => 
-                    item.item_no.toString().toLowerCase().startsWith(itemCodeFilter.toLowerCase())
-                  );
-                  if (matchedItem && matchedItem.department_details) {
-                    const variants = matchedItem.department_details
-                      .filter((detail: any) => detail.variant_value_id && detail.variant_value_name)
-                      .map((detail: any) => ({
-                        variant_value_id: detail.variant_value_id,
-                        value_name: detail.variant_value_name,
-                        price: detail.item_rate || matchedItem.price || 0
-                      }))
-                      .filter((variant, index, self) => 
-                        index === self.findIndex(v => v.variant_value_id === variant.variant_value_id)
-                      );
-                    
-                    return variants.map(variant => (
-                      <option 
-                        key={`${matchedItem.item_no.toString()}-${variant.variant_value_id}`} 
-                        // Store item_no and variant_id in value for parsing
-                        value={`${matchedItem.item_no.toString()}|${variant.variant_value_id}`} 
-                        label={`${matchedItem.item_name} (${variant.value_name}) - ₹${variant.price}`} 
-                      />
-                    ));
-                  }
-                  // If no variants, show base item
-                  if (matchedItem) {
-                    return (
-                      <option 
-                        key={matchedItem.item_no.toString()} 
-                        value={matchedItem.item_no.toString()} 
-                        label={`${matchedItem.item_name} - ₹${matchedItem.price}`} 
-                      />
-                    );
-                  }
-                  return null;
-                }
-                // If no filter, show nothing (user must type first)
-                return null;
+                const deptVariants = menuItems
+                  .filter(item => departmentIdFromState)
+                  .flatMap(item => {
+                    return (item.department_details || [])
+                      .filter((d: any) => 
+                        d.departmentid === departmentIdFromState && 
+                        d.item_rate > 0 && 
+                        d.variant_value_id
+                      )
+                      .map((d: any) => ({
+                        item_no: item.item_no,
+                        item_name: item.item_name,
+                        short_name: item.short_name || '',
+                        variant_value_id: d.variant_value_id,
+                        variant_value_name: d.variant_value_name,
+                        price: d.item_rate
+                      }));
+                  });
+
+                // Filter by itemCodeFilter if typing
+                const filtered = itemCodeFilter 
+                  ? deptVariants.filter(v => 
+                      v.item_no.toString().toLowerCase().startsWith(itemCodeFilter.toLowerCase()) ||
+                      v.variant_value_name.toLowerCase().includes(itemCodeFilter.toLowerCase())
+                    )
+                  : deptVariants.slice(0, 50); // Limit if no filter
+
+                return filtered.map(variant => (
+                  <option 
+                    key={`${variant.item_no}|${variant.variant_value_id}`}
+                    value={`${variant.item_no}|${variant.variant_value_id}`}
+                    label={`${variant.item_name} (${variant.variant_value_name}) | ${variant.short_name} | ${variant.item_no} | ₹${variant.price}`}
+                  />
+                ));
               })()}
             </datalist>
 
