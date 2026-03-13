@@ -3019,25 +3019,28 @@ useEffect(() => {
       `}</style>
 
         {/* Header */}
-        <div className="bg-light border-bottom py-2">
+        <div className="bg-light border-bottom py-1">
           <div className="container-fluid px-2">
             <Row className="g-2 align-items-stretch">
 
               {/* Table / Order */}
-              <Col md={2}>
-                <div className="bg-white border rounded shadow-sm py-1 px-2 h-100">
-                  <div className="text-uppercase small fw-semibold text-secondary mb-1">
-                    <i className="fi fi-rr-table me-1"></i>
-                    {isTakeaway ? 'Order No' : 'Table No'}
-                  </div>
-                  <div className="fw-bold fs-6 text-dark">
-                    {isTakeaway ? (orderNo || '--') : (tableNo || '--')}
-                  </div>
-                </div>
-              </Col>
+             <Col style={{ flex: "0 0 150px", maxWidth: "150px" }}>
+  <div className="bg-white border rounded shadow-sm py-1 px-2 h-100 text-center">
+    
+    <div className="text-uppercase small fw-semibold text-secondary mb-1">
+      <i className="fi fi-rr-table me-1"></i>
+      {isTakeaway ? 'Order No' : 'Table No'}
+    </div>
+
+    <div className="fw-bold fs-5 text-dark">
+      {isTakeaway ? (orderNo || '--') : (tableNo || '--')}
+    </div>
+
+  </div>
+</Col>
 
               {/* Waiter */}
-              <Col md={1}>
+              <Col style={{ flex: "0 0 160px", maxWidth: "160px" }}>
                 <div className="bg-white border rounded shadow-sm py-1 px-2 h-100">
                   <div className="text-uppercase small fw-semibold text-secondary mb-1">
                     <i className="fi fi-rr-user me-1"></i> Waiter
@@ -3076,28 +3079,37 @@ useEffect(() => {
               </Col>
 
               {/* KOT */}
-              <Col md={2}>
-                <div className="bg-white border rounded shadow-sm py-1 px-2 h-100">
-                  <div className="text-uppercase small fw-semibold text-secondary mb-1">
-                    <i className="fi fi-rr-document me-1"></i> KOT No
-                  </div>
+              <Col style={{ flex: "0 0 190px", maxWidth: "160px" }}>
+  <div className="bg-white border rounded shadow-sm py-1 px-2 h-100">
 
-                  <div className="input-group input-group-sm">
-                    <span className="input-group-text fw-semibold">
-                      {defaultKot || '--'}
-                    </span>
-                    <input
-                      type="number"
-                      value={editableKot || ''}
-                      onChange={(e) =>
-                        setEditableKot(e.target.value ? Number(e.target.value) : null)
-                      }
-                      className="form-control text-center fw-semibold"
-                      placeholder="Edit"
-                    />
-                  </div>
-                </div>
-              </Col>
+    <div className="text-uppercase small fw-semibold text-secondary mb-1">
+      <i className="fi fi-rr-document me-1"></i> KOT No
+    </div>
+
+    <div className="input-group input-group-sm">
+      
+      <span
+        className="input-group-text fw-semibold text-center"
+        style={{ width: "50%", justifyContent: "center" }}
+      >
+        {defaultKot || '--'}
+      </span>
+
+      <input
+        type="number"
+        value={editableKot || ''}
+        onChange={(e) =>
+          setEditableKot(e.target.value ? Number(e.target.value) : null)
+        }
+        className="form-control text-center fw-semibold"
+        placeholder="Edit"
+        style={{ width: "50%" }}
+      />
+
+    </div>
+
+  </div>
+</Col>
 
               {/* Delivery Type (Takeaway Only) */}
               {isTakeaway && (
