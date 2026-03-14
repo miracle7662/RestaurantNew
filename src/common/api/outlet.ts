@@ -466,6 +466,7 @@ export interface OutletSettings {
   updated_by_id?: string
   default_waiter_id: number | null
   pax: number
+  ReverseQtyMode?: boolean
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════

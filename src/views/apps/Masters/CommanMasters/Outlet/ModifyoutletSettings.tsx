@@ -98,6 +98,7 @@ const ModifyOutletSettingsModal: React.FC<{
     updated_by_id: '',
     default_waiter_id: null,
     pax: 1,
+    ReverseQtyMode: false,
   };
 
   const [formData, setFormData] = useState<OutletSettings>(initialFormData);
@@ -410,6 +411,17 @@ const ModifyOutletSettingsModal: React.FC<{
                   value={formData.pax}
                   onChange={handleChange}
                   placeholder="Enter Pax"
+                />
+              </Form.Group>
+            </Col>
+            <Col md={3}>
+              <Form.Group controlId="ReverseQtyMode">
+                <Form.Label>Reverse Qty Mode</Form.Label>
+                <Form.Check
+                  type="switch"
+                  checked={formData.ReverseQtyMode}
+                  onChange={handleChange}
+                  aria-label="Toggle Reverse Qty Mode"
                 />
               </Form.Group>
             </Col>
