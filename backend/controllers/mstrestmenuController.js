@@ -6,7 +6,7 @@ exports.getAllMenuItems = (req, res) => {
     try {
         const { hotelid, outletid } = req.query;
         
-        let query = `
+let query = `
            SELECT DISTINCT m.*,
                             o.outlet_name,
                             h.hotel_name,
@@ -68,6 +68,9 @@ exports.getMenuItemById = (req, res) => {
         const menuItem = db.prepare(`
       SELECT m.*, 
                    md.itemdetailsid, md.item_rate, md.unitid, md.servingunitid, md.IsConversion,
+                   -- 🔥 NEW STOCK FIELDS 🔥
+                   m.is_ingredients_required, m.consume_on_bill, m.reverse_stock_cancel_kot,
+                   m.allow_negative_stock, m.opening_stock_quantity, m.opening_stock_unit_id,
                    o.outlet_name,
                    h.hotel_name,
                    d.department_name,
@@ -111,7 +114,10 @@ exports.createMenuItemWithDetails = async (req, res) => {
             kitchen_sub_category_id, kitchen_main_group_id, item_group_id, item_main_group_id,
             stock_unit, price, taxgroupid, is_runtime_rates, is_common_to_all_departments,
             item_description, item_hsncode, created_by_id, department_details,
-            variant_type_id, variant_values
+            variant_type_id, variant_values,
+            // 🔥 NEW STOCK FIELDS 🔥
+            is_ingredients_required, consume_on_bill, reverse_stock_cancel_kot, 
+            allow_negative_stock, opening_stock_quantity, opening_stock_unit_id
         } = req.body;
 
         if (!item_name || !price || !hotelid) {
@@ -142,15 +148,22 @@ exports.createMenuItemWithDetails = async (req, res) => {
                     hotelid, outletid, item_no, item_name, print_name, short_name, kitchen_category_id,
                     kitchen_sub_category_id, kitchen_main_group_id, item_group_id, item_main_group_id,
                     stock_unit, price, taxgroupid, is_runtime_rates, is_common_to_all_departments,
-                    item_description, item_hsncode, status, created_by_id, created_date
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, datetime('now'))
+                    item_description, item_hsncode, status, created_by_id, created_date,
+                    -- 🔥 NEW STOCK FIELDS 🔥
+                    is_ingredients_required, consume_on_bill, reverse_stock_cancel_kot, 
+                    allow_negative_stock, opening_stock_quantity, opening_stock_unit_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, datetime('now'),
+                    ?, ?, ?, ?, ?, ?)
             `);
 
             const result = stmt.run(
                 parsedHotelId, outletid ? parseInt(outletid) : null, item_no, item_name, print_name, short_name, kitchen_category_id,
                 kitchen_sub_category_id, kitchen_main_group_id, item_group_id, item_main_group_id,
                 stock_unit ? parseInt(stock_unit) : null, price, taxgroupid, is_runtime_rates || 0, is_common_to_all_departments || 0,
-                item_description, item_hsncode, created_by_id
+                item_description, item_hsncode, created_by_id,
+                // 🔥 NEW STOCK FIELD VALUES (default 0/null if not provided) 🔥
+                is_ingredients_required || 0, consume_on_bill || 1, reverse_stock_cancel_kot || 0, 
+                allow_negative_stock || 0, opening_stock_quantity || 0, opening_stock_unit_id || null
             );
 
             const restitemid = result.lastInsertRowid;
@@ -250,7 +263,10 @@ exports.updateMenuItemWithDetails = async (req, res) => {
             kitchen_sub_category_id, kitchen_main_group_id, item_group_id, item_main_group_id,
             stock_unit, price, taxgroupid, is_runtime_rates, is_common_to_all_departments,
             item_description, item_hsncode, status, updated_by_id, department_details,
-            variant_type_id, variant_values
+            variant_type_id, variant_values,
+            // 🔥 NEW STOCK FIELDS 🔥
+            is_ingredients_required, consume_on_bill, reverse_stock_cancel_kot, 
+            allow_negative_stock, opening_stock_quantity, opening_stock_unit_id
         } = req.body;
 
         const existingItem = db.prepare('SELECT restitemid, hotelid FROM mstrestmenu WHERE restitemid = ?').get(parseInt(id));
@@ -282,6 +298,13 @@ exports.updateMenuItemWithDetails = async (req, res) => {
             if (item_description !== undefined) { updateFields.push('item_description = ?'); params.push(item_description); }
             if (item_hsncode !== undefined) { updateFields.push('item_hsncode = ?'); params.push(item_hsncode); }
             if (status !== undefined) { updateFields.push('status = ?'); params.push(status); }
+            // 🔥 NEW STOCK FIELDS 🔥
+            if (is_ingredients_required !== undefined) { updateFields.push('is_ingredients_required = ?'); params.push(is_ingredients_required); }
+            if (consume_on_bill !== undefined) { updateFields.push('consume_on_bill = ?'); params.push(consume_on_bill); }
+            if (reverse_stock_cancel_kot !== undefined) { updateFields.push('reverse_stock_cancel_kot = ?'); params.push(reverse_stock_cancel_kot); }
+            if (allow_negative_stock !== undefined) { updateFields.push('allow_negative_stock = ?'); params.push(allow_negative_stock); }
+            if (opening_stock_quantity !== undefined) { updateFields.push('opening_stock_quantity = ?'); params.push(opening_stock_quantity); }
+            if (opening_stock_unit_id !== undefined) { updateFields.push('opening_stock_unit_id = ?'); params.push(opening_stock_unit_id); }
 
             updateFields.push('updated_by_id = ?');
             updateFields.push('updated_date = datetime(\'now\')');
@@ -478,12 +501,15 @@ exports.exportMenuItems = (req, res) => {
     const { hotelid, outletid } = req.query;
     const XLSX = require('xlsx');
     
-    let query = `
+let query = `
       SELECT DISTINCT m.restitemid, m.item_no, m.item_name, m.print_name, m.short_name,
              m.price, m.item_description, m.item_hsncode, m.status,
              m.kitchen_category_id, m.kitchen_sub_category_id, m.kitchen_main_group_id,
              m.item_group_id, m.item_main_group_id, m.stock_unit, m.taxgroupid,
              m.is_runtime_rates, m.is_common_to_all_departments,
+             -- 🔥 NEW STOCK FIELDS 🔥
+             m.is_ingredients_required, m.consume_on_bill, m.reverse_stock_cancel_kot,
+             m.allow_negative_stock, m.opening_stock_quantity, m.opening_stock_unit_id,
              o.outlet_name, h.hotel_name,
              ig.itemgroupname AS groupname,
              kmg.Kitchen_main_Group AS kitchen_main_group_name,

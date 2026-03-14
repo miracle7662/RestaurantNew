@@ -1255,6 +1255,21 @@ try {
   // Column might already exist, ignore error
 }
 
+// 🔥 NEW STOCK MANAGEMENT FIELDS MIGRATION 🔥
+try {
+  db.exec(`
+    ALTER TABLE mstrestmenu ADD COLUMN is_ingredients_required INTEGER DEFAULT 0 CHECK (is_ingredients_required IN (0,1));
+    ALTER TABLE mstrestmenu ADD COLUMN consume_on_bill INTEGER DEFAULT 1 CHECK (consume_on_bill IN (0,1));
+    ALTER TABLE mstrestmenu ADD COLUMN reverse_stock_cancel_kot INTEGER DEFAULT 0 CHECK (reverse_stock_cancel_kot IN (0,1));
+    ALTER TABLE mstrestmenu ADD COLUMN allow_negative_stock INTEGER DEFAULT 0 CHECK (allow_negative_stock IN (0,1));
+    ALTER TABLE mstrestmenu ADD COLUMN opening_stock_quantity REAL DEFAULT 0;
+    ALTER TABLE mstrestmenu ADD COLUMN opening_stock_unit_id INTEGER;
+  `);
+  console.log("✅ Stock management fields added to mstrestmenu");
+} catch (e) {
+  console.log("ℹ️ Stock fields already exist or partial migration:", e.message);
+}
+
 
 
 module.exports = db

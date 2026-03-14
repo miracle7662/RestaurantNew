@@ -61,6 +61,13 @@ interface MenuItem {
   unitid:  number | null;
   servingunitid: number | null;
   IsConversion: number | null;
+  // 🔥 NEW STOCK FIELDS 🔥
+  is_ingredients_required?: number;
+  consume_on_bill?: number;
+  reverse_stock_cancel_kot?: number;
+  allow_negative_stock?: number;
+  opening_stock_quantity?: number;
+  opening_stock_unit_id?: number | null;
 }
 
 interface CardItem {
@@ -759,6 +766,14 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
       setItemHsncode(null);
       setStatus(1);
       setNewItem({ departmentRates: [] });
+
+      // 🔥 RESET NEW STOCK FIELDS 🔥
+      setIsIngredientsRequired(false);
+      setConsumeOnBill(true);
+      setReverseStockCancelKot(false);
+      setAllowNegativeStock(false);
+      setOpeningStockQuantity(0);
+      setOpeningStockUnitId(null);
       
       // Fetch max item number for auto-generation when adding new item
       if (!isEdit) {
@@ -792,6 +807,20 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
       setItemDescription(mstmenu.item_description || null);
       setItemHsncode(mstmenu.item_hsncode || null);
       setStatus(mstmenu.status ?? 1);
+
+      // 🔥 FIXED: Load NEW STOCK FIELDS FROM API RESPONSE (0→false, 1→true) 🔥
+      console.log('Loading stock fields:', {
+        is_ingredients_required: mstmenu?.is_ingredients_required,
+        consume_on_bill: mstmenu?.consume_on_bill,
+        reverse_stock_cancel_kot: mstmenu?.reverse_stock_cancel_kot,
+        allow_negative_stock: mstmenu?.allow_negative_stock
+      });
+      setIsIngredientsRequired(mstmenu?.is_ingredients_required === 1);
+      setConsumeOnBill(mstmenu?.consume_on_bill === 1);
+      setReverseStockCancelKot(mstmenu?.reverse_stock_cancel_kot === 1);
+      setAllowNegativeStock(mstmenu?.allow_negative_stock === 1);
+      setOpeningStockQuantity(mstmenu?.opening_stock_quantity || 0);
+      setOpeningStockUnitId(mstmenu?.opening_stock_unit_id || null);
     }
   }, [mstmenu, isEdit]);
 
@@ -835,7 +864,13 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
   const [selectedVariantType, setSelectedVariantType] = useState<string>("");
   const [showVariantValueModal, setShowVariantValueModal] = useState<boolean>(false);
   const [selectedVariantValues, setSelectedVariantValues] = useState<number[]>([]);
-  const [openingStock, setOpeningStock] = useState(0);
+  // 🔥 NEW STOCK FIELDS STATE 🔥
+  const [isIngredientsRequired, setIsIngredientsRequired] = useState(false);
+  const [consumeOnBill, setConsumeOnBill] = useState(true);
+  const [reverseStockCancelKot, setReverseStockCancelKot] = useState(false);
+  const [allowNegativeStock, setAllowNegativeStock] = useState(false);
+  const [openingStockQuantity, setOpeningStockQuantity] = useState(0);
+  const [openingStockUnitId, setOpeningStockUnitId] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<string>('multiplePrice');
 
   useEffect(() => {
@@ -1088,6 +1123,13 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
       status,
       updated_by_id: user?.id || 2,
       created_by_id: user?.id || 2,
+      // 🔥 NEW STOCK FIELDS - send user selections as 1/0 🔥
+      is_ingredients_required: isIngredientsRequired ? 1 : 0,
+      consume_on_bill: consumeOnBill ? 1 : 0,
+      reverse_stock_cancel_kot: reverseStockCancelKot ? 1 : 0,
+      allow_negative_stock: allowNegativeStock ? 1 : 0,
+      opening_stock_quantity: openingStockQuantity || 0,
+      opening_stock_unit_id: openingStockUnitId || null,
       // Variant information
       variant_type_id: variantTypeId,
       variant_values: isVariantProduct ? selectedVariantValues : [],
@@ -1874,6 +1916,8 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                     <Col xs={12}>
                       <Form.Check
                         type="checkbox"
+                        checked={isIngredientsRequired}
+                        onChange={(e) => setIsIngredientsRequired(e.target.checked)}
                         label="Decide Ingredients for This Item"
                       />
                     </Col>
@@ -1904,15 +1948,15 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                       <Form.Label className="mb-0">Opening Stock</Form.Label>
                     </Col>
 
-                    {/* Opening Quantity */}
-                    <Col xs={6} md={2}>
-                      <Form.Control
-                        type="number"
-                        placeholder="0"
-                        value={openingStock}
-                        onChange={(e) => setOpeningStock(Number(e.target.value))}
-                      />
-                    </Col>
+                  {/* Opening Quantity */}
+                  <Col xs={6} md={2}>
+                    <Form.Control
+                      type="number"
+                      placeholder="0"
+                      value={openingStockQuantity}
+                      onChange={(e) => setOpeningStockQuantity(Number(e.target.value))}
+                    />
+                  </Col>
 
                     {/* Unit Dropdown (Fetch from DB) */}
                     <Col xs={6} md={2}>
@@ -1964,6 +2008,8 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                     <Col xs={12} md={6}>
                       <Form.Check
                         type="checkbox"
+                        checked={reverseStockCancelKot}
+                        onChange={(e) => setReverseStockCancelKot(e.target.checked)}
                         label="Reverse Stock During Cancel KOT"
                         className="mb-2"
                       />
@@ -1972,6 +2018,8 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                     <Col xs={12} md={6}>
                       <Form.Check
                         type="checkbox"
+                        checked={allowNegativeStock}
+                        onChange={(e) => setAllowNegativeStock(e.target.checked)}
                         label="Allow Negative Raw Material Stock"
                       />
                     </Col>
