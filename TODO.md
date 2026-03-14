@@ -1,34 +1,11 @@
-# Task: Add Department Tax Settings for Pickup/Delivery/Quick Bill in Settings General Tab
-
-Status: ✅ In Progress
+# Login Form Toggle Implementation Plan
 
 ## Steps:
+1. [x] Update Logo.tsx to support onClick prop
+2. [x] Update AuthMinmal.tsx to make logo clickable and toggle superadmin visibility
+3. [x] Update Login.tsx to default to admin login, remove radio toggle, add showSuperAdmin state, conditional fields
+4. [ ] Test the toggle functionality
+5. [ ] attempt_completion
 
-### 1. [✅ COMPLETE] Create this TODO.md file
-
-### 2. [✅ COMPLETE] Update src/views/apps/Settings.tsx
-   - [✅] Added states
-   - [✅] Added fetchDepartments(), fetchGeneralSettings(), handleSaveGeneralSettings()
-   - [✅] Added General tab JSX with selectors and table
-
-### 3. [ ] Backend Database
-   - Create table `order_type_departments` (outletid, order_type, departmentid, created_at)
-   - Add migration script if needed
-
-### 4. [ ] Backend Controller & Routes
-   - settingsController.js: listOrderTypeDepartments, createOrderTypeDepartment
-   - settingsRoutes.js: routes for endpoints
-
-### 5. [ ] Frontend API Service
-   - src/common/api/settings.ts: add getOrderTypeDepartments, saveOrderTypeDepartment
-
-### 6. [ ] Integration
-   - Update Billview.tsx/Orders.tsx to use settings for default department/tax
-
-### 7. [ ] Testing
-   - Test UI save/fetch
-   - Test ordering flow tax calculation
-   - [ ] attempt_completion
-
-Next: Update Settings.tsx General tab UI.
+Current progress: Starting implementation.
 
