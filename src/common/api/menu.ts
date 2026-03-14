@@ -118,13 +118,16 @@ export interface MenuPayload {
   status: number
   updated_by_id?: number
   created_by_id?: number
-  // 🔥 NEW STOCK FIELDS 🔥
+  // 🔥 NEW STOCK FIELDS + RAW MATERIALS FIELDS 🔥
   is_ingredients_required?: number
   consume_on_bill?: number
   reverse_stock_cancel_kot?: number
   allow_negative_stock?: number
   opening_stock_quantity?: number
   opening_stock_unit_id?: number | null
+  consume_raw_materials_on_bill?: number
+  consume_raw_materials_on_kot?: number
+  store_name?: number | null
   variant_type_id: number | null
   variant_values: number[]
   department_details: DepartmentDetail[]

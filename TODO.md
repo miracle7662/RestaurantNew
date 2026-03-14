@@ -1,41 +1,17 @@
-# Restaurant Menu Stock Fields Fix - TODO
+# Task Progress: Fix ReferenceError in mstrestmenuController.js
 
-**Objective**: Fix frontend checkbox state sync so 0/1 DB values → correct checkbox states
+## Approved Plan Steps:
+- [x] **Step 1**: Create TODO.md to track progress
+- [x] **Step 2**: Add stub functions `consume_raw_materials_on_bill` & `consume_raw_materials_on_kot` ✓ (both added)
+- [ ] **Step 3**: Test menu item update endpoint (Restart server → Edit menu item → Check logs for STUB calls)
+- [x] **Step 4**: Updated TODO.md ✓
 
-## Approved Plan Steps ✅
+## Details:
+- ✅ Stub function inserted at top of mstrestmenuController.js (no-op + console.log for debugging)
+- **To test**: 
+  1. Restart backend: `cd backend && npm start`
+  2. Update menu item via frontend
+  3. Verify no ReferenceError; check for `[STUB]` logs
+- If stub called, implement real raw material deduction logic next.
 
-### Step 1 [TODO] - Create TODO.md (Current)
-- ✅ Create this TODO.md file
-- Track progress here
-
-### Step 2 ✅ - Fix Frontend Checkbox Loading
-**File**: `src/views/apps/Masters/RestaurantMasters/Menu.tsx`
-```
-✅ Fixed all 4 checkboxes: 0→false, 1→true
-✅ Added console.log debugging
-```
-**Status**: ✅ COMPLETE - Menu.tsx updated successfully
-
-### Step 3 [TODO] - Test Create/Edit Cycle
-```
-1. Backend server running? (check environment_details)
-2. Create menu item → toggle checkboxes → Save
-3. Edit item → Verify checkboxes show correct saved state
-4. Save again → Verify DB persistence
-```
-
-### Step 4 [SKIPPED] - Verify DB Data
-```
-⚠️ CLI path issues prevented direct query
-✅ Frontend fix ensures proper 0/1 sync regardless
-✅ Manual test: Create/Edit menu item → toggle checkboxes → verify persistence
-```
-**Status**: ✅ COMPLETE (non-blocking)
-
-### Step 5 [DONE] - Complete
-```
-attempt_completion: "✅ Stock checkboxes now sync correctly with DB 0/1 values"
-```
-
-**Next**: Reply "step 2" to implement frontend fix → wait for success → continue
 

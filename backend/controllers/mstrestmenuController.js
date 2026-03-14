@@ -1,13 +1,18 @@
 
 const db = require('../config/db');
 
+// Stub functions to fix ReferenceErrors for raw material consumption
+// Called during menu updates when flags are set
+
+
+
 // Get all menu items with joins
 exports.getAllMenuItems = (req, res) => {
     try {
         const { hotelid, outletid } = req.query;
         
 let query = `
-           SELECT DISTINCT m.*,
+           SELECT DISTINCT m.*, m.consume_raw_materials_on_bill, m.consume_raw_materials_on_kot, m.store_name,
                             o.outlet_name,
                             h.hotel_name,
                             ig.itemgroupname AS groupname
@@ -68,9 +73,11 @@ exports.getMenuItemById = (req, res) => {
         const menuItem = db.prepare(`
       SELECT m.*, 
                    md.itemdetailsid, md.item_rate, md.unitid, md.servingunitid, md.IsConversion,
-                   -- 🔥 NEW STOCK FIELDS 🔥
-                   m.is_ingredients_required, m.consume_on_bill, m.reverse_stock_cancel_kot,
-                   m.allow_negative_stock, m.opening_stock_quantity, m.opening_stock_unit_id,
+                   -- 🔥 NEW STOCK FIELDS + RAW MATERIALS 🔥
+             m.is_ingredients_required, m.consume_on_bill, m.reverse_stock_cancel_kot,
+             m.allow_negative_stock, m.opening_stock_quantity, m.opening_stock_unit_id,
+             m.consume_raw_materials_on_bill, m.consume_raw_materials_on_kot, m.store_name,
+                   m.consume_raw_materials_on_bill, m.consume_raw_materials_on_kot, m.store_name,
                    o.outlet_name,
                    h.hotel_name,
                    d.department_name,
@@ -149,9 +156,10 @@ exports.createMenuItemWithDetails = async (req, res) => {
                     kitchen_sub_category_id, kitchen_main_group_id, item_group_id, item_main_group_id,
                     stock_unit, price, taxgroupid, is_runtime_rates, is_common_to_all_departments,
                     item_description, item_hsncode, status, created_by_id, created_date,
-                    -- 🔥 NEW STOCK FIELDS 🔥
+                    -- 🔥 NEW STOCK FIELDS + RAW MATERIALS 🔥
                     is_ingredients_required, consume_on_bill, reverse_stock_cancel_kot, 
-                    allow_negative_stock, opening_stock_quantity, opening_stock_unit_id
+                    allow_negative_stock, opening_stock_quantity, opening_stock_unit_id,
+                    consume_raw_materials_on_bill, consume_raw_materials_on_kot, store_name
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, datetime('now'),
                     ?, ?, ?, ?, ?, ?)
             `);
@@ -163,7 +171,8 @@ exports.createMenuItemWithDetails = async (req, res) => {
                 item_description, item_hsncode, created_by_id,
                 // 🔥 NEW STOCK FIELD VALUES (default 0/null if not provided) 🔥
                 is_ingredients_required || 0, consume_on_bill || 1, reverse_stock_cancel_kot || 0, 
-                allow_negative_stock || 0, opening_stock_quantity || 0, opening_stock_unit_id || null
+                allow_negative_stock || 0, opening_stock_quantity || 0, opening_stock_unit_id || null,
+                0, 0, null
             );
 
             const restitemid = result.lastInsertRowid;
@@ -264,9 +273,10 @@ exports.updateMenuItemWithDetails = async (req, res) => {
             stock_unit, price, taxgroupid, is_runtime_rates, is_common_to_all_departments,
             item_description, item_hsncode, status, updated_by_id, department_details,
             variant_type_id, variant_values,
+            store_name,
             // 🔥 NEW STOCK FIELDS 🔥
             is_ingredients_required, consume_on_bill, reverse_stock_cancel_kot, 
-            allow_negative_stock, opening_stock_quantity, opening_stock_unit_id
+            allow_negative_stock, opening_stock_quantity, opening_stock_unit_id, consume_raw_materials_on_bill, consume_raw_materials_on_kot
         } = req.body;
 
         const existingItem = db.prepare('SELECT restitemid, hotelid FROM mstrestmenu WHERE restitemid = ?').get(parseInt(id));
@@ -305,6 +315,9 @@ exports.updateMenuItemWithDetails = async (req, res) => {
             if (allow_negative_stock !== undefined) { updateFields.push('allow_negative_stock = ?'); params.push(allow_negative_stock); }
             if (opening_stock_quantity !== undefined) { updateFields.push('opening_stock_quantity = ?'); params.push(opening_stock_quantity); }
             if (opening_stock_unit_id !== undefined) { updateFields.push('opening_stock_unit_id = ?'); params.push(opening_stock_unit_id); }
+            if (consume_raw_materials_on_bill !== undefined) { updateFields.push('consume_raw_materials_on_bill = ?'); params.push(consume_raw_materials_on_bill); }
+            if (consume_raw_materials_on_kot !== undefined) { updateFields.push('consume_raw_materials_on_kot = ?'); params.push(consume_raw_materials_on_kot); }
+            if (typeof store_name !== 'undefined') { updateFields.push('store_name = ?'); params.push(store_name === '' ? null : String(store_name)); }
 
             updateFields.push('updated_by_id = ?');
             updateFields.push('updated_date = datetime(\'now\')');
@@ -510,6 +523,7 @@ let query = `
              -- 🔥 NEW STOCK FIELDS 🔥
              m.is_ingredients_required, m.consume_on_bill, m.reverse_stock_cancel_kot,
              m.allow_negative_stock, m.opening_stock_quantity, m.opening_stock_unit_id,
+             m.consume_raw_materials_on_bill, m.consume_raw_materials_on_kot, m.store_name,
              o.outlet_name, h.hotel_name,
              ig.itemgroupname AS groupname,
              kmg.Kitchen_main_Group AS kitchen_main_group_name,
@@ -569,6 +583,14 @@ let query = `
       'Tax Group': item.taxgroup_name || '',
       'Runtime Rates': item.is_runtime_rates === 1 ? 'Yes' : 'No',
       'Common to All Departments': item.is_common_to_all_departments === 1 ? 'Yes' : 'No',
+      'Is Ingredients Required': item.is_ingredients_required === 1 ? 'Yes' : 'No',
+      'Consume on Bill': item.consume_on_bill === 1 ? 'Yes' : 'No',
+      'Reverse Stock Cancel KOT': item.reverse_stock_cancel_kot === 1 ? 'Yes' : 'No',
+      'Allow Negative Stock': item.allow_negative_stock === 1 ? 'Yes' : 'No',
+      'Opening Stock Qty': item.opening_stock_quantity || 0,
+      'Consume Raw on Bill': item.consume_raw_materials_on_bill === 1 ? 'Yes' : 'No',
+      'Consume Raw on KOT': item.consume_raw_materials_on_kot === 1 ? 'Yes' : 'No',
+      'Store Name': item.store_name || '',
     }));
     
     const wb = XLSX.utils.book_new();

@@ -61,13 +61,17 @@ interface MenuItem {
   unitid:  number | null;
   servingunitid: number | null;
   IsConversion: number | null;
-  // 🔥 NEW STOCK FIELDS 🔥
+  // 🔥 NEW STOCK FIELDS + RAW MATERIALS 🔥
   is_ingredients_required?: number;
   consume_on_bill?: number;
   reverse_stock_cancel_kot?: number;
   allow_negative_stock?: number;
   opening_stock_quantity?: number;
   opening_stock_unit_id?: number | null;
+  // 🔥 NEW RAW MATERIALS FIELDS 🔥
+  consume_raw_materials_on_bill?: number;
+  consume_raw_materials_on_kot?: number;
+  store_name?: number | null;
 }
 
 interface CardItem {
@@ -767,13 +771,16 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
       setStatus(1);
       setNewItem({ departmentRates: [] });
 
-      // 🔥 RESET NEW STOCK FIELDS 🔥
+      // 🔥 RESET NEW STOCK FIELDS + RAW MATERIALS 🔥
       setIsIngredientsRequired(false);
       setConsumeOnBill(true);
       setReverseStockCancelKot(false);
       setAllowNegativeStock(false);
       setOpeningStockQuantity(0);
       setOpeningStockUnitId(null);
+      setConsumeRawOnBill(false);
+      setConsumeRawOnKot(false);
+      setStoreNameId(null);
       
       // Fetch max item number for auto-generation when adding new item
       if (!isEdit) {
@@ -821,6 +828,10 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
       setAllowNegativeStock(mstmenu?.allow_negative_stock === 1);
       setOpeningStockQuantity(mstmenu?.opening_stock_quantity || 0);
       setOpeningStockUnitId(mstmenu?.opening_stock_unit_id || null);
+      // 🔥 NEW RAW MATERIALS FIELDS 🔥
+      setConsumeRawOnBill(mstmenu?.consume_raw_materials_on_bill === 1);
+      setConsumeRawOnKot(mstmenu?.consume_raw_materials_on_kot === 1);
+      setStoreNameId(mstmenu?.store_name || null);
     }
   }, [mstmenu, isEdit]);
 
@@ -864,13 +875,17 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
   const [selectedVariantType, setSelectedVariantType] = useState<string>("");
   const [showVariantValueModal, setShowVariantValueModal] = useState<boolean>(false);
   const [selectedVariantValues, setSelectedVariantValues] = useState<number[]>([]);
-  // 🔥 NEW STOCK FIELDS STATE 🔥
+// 🔥 NEW STOCK FIELDS + RAW MATERIALS STATE 🔥
   const [isIngredientsRequired, setIsIngredientsRequired] = useState(false);
   const [consumeOnBill, setConsumeOnBill] = useState(true);
   const [reverseStockCancelKot, setReverseStockCancelKot] = useState(false);
   const [allowNegativeStock, setAllowNegativeStock] = useState(false);
   const [openingStockQuantity, setOpeningStockQuantity] = useState(0);
   const [openingStockUnitId, setOpeningStockUnitId] = useState<number | null>(null);
+  // 🔥 NEW RAW MATERIALS FIELDS 🔥
+  const [consumeRawOnBill, setConsumeRawOnBill] = useState(false);
+  const [consumeRawOnKot, setConsumeRawOnKot] = useState(false);
+  const [storeNameId, setStoreNameId] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<string>('multiplePrice');
 
   useEffect(() => {
@@ -1130,6 +1145,10 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
       allow_negative_stock: allowNegativeStock ? 1 : 0,
       opening_stock_quantity: openingStockQuantity || 0,
       opening_stock_unit_id: openingStockUnitId || null,
+      // 🔥 NEW RAW MATERIALS FIELDS 🔥
+      consume_raw_materials_on_bill: consumeRawOnBill ? 1 : 0,
+      consume_raw_materials_on_kot: consumeRawOnKot ? 1 : 0,
+      store_name: storeNameId,
       // Variant information
       variant_type_id: variantTypeId,
       variant_values: isVariantProduct ? selectedVariantValues : [],
@@ -1930,7 +1949,11 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
                     </Col>
 
                     <Col xs={12} md={4}>
-                      <Form.Select className="rounded-lg">
+                      <Form.Select 
+                        className="rounded-lg"
+                        value={storeNameId || ''}
+                        onChange={(e) => setStoreNameId(e.target.value ? Number(e.target.value) : null)}
+                      >
                         <option value="">Select Store</option>
                         {warehouses.map((warehouse) => (
                           <option key={warehouse.warehouseid} value={warehouse.warehouseid}>
@@ -1989,15 +2012,25 @@ const ItemModal: React.FC<ItemModalProps> = ({ show, onHide, onSuccess, setData,
 
                         <Form.Check
                           type="radio"
-                          name="consumeType"
+                          name="consumeRawType"
                           label="Consume Raw Materials on Bill"
+                          checked={consumeRawOnBill}
+                          onChange={(e) => {
+                            setConsumeRawOnBill(e.target.checked);
+                            if (e.target.checked) setConsumeRawOnKot(false);
+                          }}
                           className="mb-2"
                         />
 
                         <Form.Check
                           type="radio"
-                          name="consumeType"
+                          name="consumeRawType"
                           label="Consume Raw Materials on KOT"
+                          checked={consumeRawOnKot}
+                          onChange={(e) => {
+                            setConsumeRawOnKot(e.target.checked);
+                            if (e.target.checked) setConsumeRawOnBill(false);
+                          }}
                         />
                       </fieldset>
                     </Col>
