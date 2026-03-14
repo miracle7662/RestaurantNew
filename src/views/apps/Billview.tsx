@@ -1699,86 +1699,80 @@ const ModernBill = () => {
         currentItem.variantName = null;
         currentItem.isValidCode = false;
       }
-    } else if (field === "itemName") {
+    }else if (field === "itemName") {
 
-      const valueStr = value as string;
-      currentItem.itemName = valueStr;
+  const valueStr = value as string;
+  currentItem.itemName = valueStr;
 
-      // allow clearing (backspace)
-      if (valueStr.trim() === "") {
-        currentItem.itemCode = "";
-        currentItem.rate = 0;
-        currentItem.itemId = 0;
+  if (valueStr.trim() === "") {
+    currentItem.itemCode = "";
+    currentItem.rate = 0;
+    currentItem.itemId = 0;
+    currentItem.variantId = null;
+    currentItem.variantName = null;
+    currentItem.isValidCode = true;
+  }
+  else {
+
+    const variantMatch = valueStr.match(/\((.*?)\)/);
+
+    let baseName = valueStr;
+
+    if (variantMatch) {
+      baseName = valueStr.split(" (")[0];
+    }
+
+    let found = deptFilteredMenuItems.find(
+      i => i.item_name.toLowerCase() === baseName.toLowerCase()
+    );
+
+    if (!found) {
+      found = menuItems.find(
+        i => i.item_name.toLowerCase() === baseName.toLowerCase()
+      );
+    }
+
+    if (found) {
+
+      currentItem.itemCode = found.item_no.toString();
+      currentItem.itemId = found.restitemid;
+      currentItem.itemName = found.item_name;
+      currentItem.rate = found.price;
+
+      if (variantMatch && found.department_details?.length) {
+
+        const variantName = variantMatch[1];
+
+        const variantDetail = found.department_details.find(
+          (d: any) =>
+            d.variant_value_name?.toLowerCase() === variantName.toLowerCase()
+        );
+
+        if (variantDetail) {
+          currentItem.variantId = variantDetail.variant_value_id;
+          currentItem.variantName = variantDetail.variant_value_name;
+          currentItem.rate = variantDetail.item_rate || found.price;
+        }
+
+      } else {
         currentItem.variantId = null;
         currentItem.variantName = null;
-        currentItem.isValidCode = true;
       }
-      else {
 
-        // find base item
-        const baseName = valueStr.includes(" (")
-          ? valueStr.split(" (")[0]
-          : valueStr;
+      currentItem.isValidCode = true;
 
-        let found = deptFilteredMenuItems.find(
-          i =>
-            i.item_name.toLowerCase() === baseName.toLowerCase() ||
-            i.short_name?.toLowerCase() === baseName.toLowerCase()
-        );
-        if (!found) {
-          // Fallback to full menuItems
-          found = menuItems.find(
-            i =>
-              i.item_name.toLowerCase() === baseName.toLowerCase() ||
-              i.short_name?.toLowerCase() === baseName.toLowerCase()
-          );
-        }
+    } else {
 
-        if (found) {
+      // ❌ only search, no auto select
+      currentItem.itemCode = "";
+      currentItem.rate = 0;
+      currentItem.itemId = 0;
+      currentItem.variantId = null;
+      currentItem.variantName = null;
+      currentItem.isValidCode = false;
 
-          currentItem.itemCode = found.item_no.toString();
-          currentItem.itemId = found.restitemid;
-          currentItem.rate = found.price;
-          currentItem.itemName = found.item_name;
-
-          // ⭐ VARIANT DETECTION
-          const variantMatch = valueStr.match(/\((.*?)\)/);
-
-          if (variantMatch && found.department_details?.length) {
-
-            const variantName = variantMatch[1];
-
-            const variantDetail = found.department_details.find(
-              (d: any) =>
-                d.variant_value_name?.toLowerCase() === variantName.toLowerCase()
-            );
-
-            if (variantDetail) {
-              currentItem.variantId = variantDetail.variant_value_id;
-              currentItem.variantName = variantDetail.variant_value_name;
-              currentItem.rate = variantDetail.item_rate || found.price;
-            }
-
-          } else {
-
-            currentItem.variantId = null;
-            currentItem.variantName = null;
-
-          }
-
-          currentItem.isValidCode = true;
-
-        } else {
-
-          currentItem.itemCode = "";
-          currentItem.rate = 0;
-          currentItem.itemId = 0;
-          currentItem.variantId = null;
-          currentItem.variantName = null;
-          currentItem.isValidCode = false;
-
-        }
-      }
+    }
+  }
     } else {
       (currentItem[field] as any) = value;
     }

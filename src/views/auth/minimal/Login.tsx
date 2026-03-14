@@ -76,13 +76,9 @@ const Login = () => {
 
           <div className="text-center mb-4">
             <h3 className="fw-bold text-danger">
-              {showSuperAdmin ? "SuperAdmin Login" : "Admin Login"}
+              {showSuperAdmin ? "SuperAdmin" : "HotelAdmin"}
             </h3>
-            <p className="text-muted">
-              {showSuperAdmin
-                ? "Login with superadmin@miracle.com / superadmin123"
-                : "Enter your credentials to access admin panel"}
-            </p>
+           
           </div>
 
           <Form onSubmit={handleSubmit}>
