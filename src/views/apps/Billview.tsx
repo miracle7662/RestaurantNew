@@ -50,7 +50,7 @@ interface BillItem {
   igst: number;
   cess: number;
   mkotNo: string;
-  specialInstructions: string;
+  SpecialInst: string;
   itemgroupid: number;
   isBilled?: number;
   txnDetailId?: number;
@@ -128,7 +128,7 @@ interface FormData {
 const ModernBill = () => {
   const [headerHeight, setHeaderHeight] = useState(0);
   const [toolbarHeight, setToolbarHeight] = useState(0);
-  const [billItems, setBillItems] = useState<BillItem[]>([{ itemCode: '', itemgroupid: 0, itemId: 0, item_no: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '', isFetched: false }]);
+  const [billItems, setBillItems] = useState<BillItem[]>([{ itemCode: '', itemgroupid: 0, itemId: 0, item_no: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', SpecialInst: '', isFetched: false }]);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [grossAmount, setGrossAmount] = useState(0);
 
@@ -295,7 +295,7 @@ const ModernBill = () => {
             igst: 0,
             cess: 0,
             mkotNo: '',
-            specialInstructions: '',
+            SpecialInst: '',
             isEditable: false,
             originalIndex: item.originalIndex,
             isFetched: true
@@ -319,9 +319,9 @@ const ModernBill = () => {
           acc[key].mkotNo = existing.sort((a, b) => parseInt(a) - parseInt(b)).join('|');
         }
 
-        // Use first specialInstructions
-        if (!acc[key].specialInstructions && item.specialInstructions) {
-          acc[key].specialInstructions = item.specialInstructions;
+        // Use first SpecialInst
+        if (!acc[key].SpecialInst && item.SpecialInst) {
+          acc[key].SpecialInst = item.SpecialInst;
         }
         return acc;
       }, {} as Record<string, DisplayedItem>);
@@ -341,7 +341,7 @@ const ModernBill = () => {
           isFetched: false
         });
       } else {
-        result.push({ itemCode: '', itemgroupid: 0, itemId: 0, item_no: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '', isEditable: true, isFetched: false, originalIndex: 0 });
+        result.push({ itemCode: '', itemgroupid: 0, itemId: 0, item_no: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', SpecialInst: '', isEditable: true, isFetched: false, originalIndex: 0 });
       }
       return result;
     }
@@ -729,7 +729,7 @@ const ModernBill = () => {
               igst: 0,
               cess: 0,
               mkotNo: item.kotNo ? item.kotNo.toString() : '',
-              specialInstructions: '',
+              SpecialInst: '',
               isBilled: 1,
               txnDetailId: item.txnDetailId,
               isFetched: true,
@@ -756,7 +756,7 @@ const ModernBill = () => {
             igst: 0,
             cess: 0,
             mkotNo: '',
-            specialInstructions: '',
+            SpecialInst: '',
             isFetched: false
           });
 
@@ -875,7 +875,7 @@ const ModernBill = () => {
           igst: item.igst ?? 0,
           cess: item.cess ?? 0,
           mkotNo: item.kotNo ? item.kotNo.toString() : (item.KOTNo ? item.KOTNo.toString() : ''),
-          specialInstructions: item.specialInstructions || item.SpecialInst || '',
+          SpecialInst: item.SpecialInst || item.SpecialInst || '',
           isBilled: 0,
           txnDetailId: item.txnDetailId,
           isFetched: true,
@@ -901,7 +901,7 @@ const ModernBill = () => {
         igst: 0,
         cess: 0,
         mkotNo: '',
-        specialInstructions: '',
+        SpecialInst: '',
         isFetched: false
       });
 
@@ -1039,7 +1039,7 @@ const ModernBill = () => {
           cess: item.cess ?? 0,
 
           mkotNo: item.kotNo ? item.kotNo.toString() : (item.KOTNo ? item.KOTNo.toString() : ''),
-          specialInstructions: item.specialInstructions || item.SpecialInst || '',
+          SpecialInst: item.SpecialInst || item.SpecialInst || '',
           isBilled: 0,
           txnDetailId: item.txnDetailId,
           isFetched: true,
@@ -1065,7 +1065,7 @@ const ModernBill = () => {
         igst: 0,
         cess: 0,
         mkotNo: '',
-        specialInstructions: '',
+        SpecialInst: '',
         isFetched: false
       });
 
@@ -1450,7 +1450,7 @@ const ModernBill = () => {
       setBillItems([{
         itemCode: '', itemgroupid: 0, itemId: 0, item_no: 0, itemName: '',
         qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0,
-        mkotNo: '', specialInstructions: '', isFetched: false
+        mkotNo: '', SpecialInst: '', isFetched: false
       }]);
       setItemCodeFilter(''); // Clear search
     }
@@ -1622,7 +1622,7 @@ const ModernBill = () => {
 
     const updated = [...billItems];
     if (!updated[dataIndex]) {
-      updated[dataIndex] = { itemCode: '', itemgroupid: 0, itemId: 0, item_no: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '', isFetched: false, isValidCode: true };
+      updated[dataIndex] = { itemCode: '', itemgroupid: 0, itemId: 0, item_no: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', SpecialInst: '', isFetched: false, isValidCode: true };
     }
     const currentItem = { ...updated[dataIndex] };
 
@@ -1812,7 +1812,7 @@ const ModernBill = () => {
       } else if (field === 'qty') {
         // Only add new row if current item has data (itemId > 0 or itemName not empty)
         if (billItems[dataIndex].itemId > 0 || billItems[dataIndex].itemName.trim() !== '') {
-          const newBillItems = [...billItems, { itemCode: "", itemgroupid: 0, itemId: 0, item_no: 0, itemName: "", qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '', isFetched: false }];
+          const newBillItems = [...billItems, { itemCode: "", itemgroupid: 0, itemId: 0, item_no: 0, itemName: "", qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', SpecialInst: '', isFetched: false }];
           setBillItems(newBillItems);
           // Focus the new itemCode after state update
           setTimeout(() => {
@@ -1824,7 +1824,7 @@ const ModernBill = () => {
           }, 0);
         }
       }
-      // No action for rate and specialInstructions
+      // No action for rate and SpecialInst
     } else if (e.key === 'Backspace' && field === 'itemName' && (e.target as HTMLInputElement).value.trim() === '' && index < (isGrouped ? displayedItems.length : billItems.length) - 1) {
       // Remove the row if backspace is pressed on empty itemName field and it's not the last row
       if (isGrouped) return;
@@ -1966,7 +1966,7 @@ const ModernBill = () => {
             isNCKOT: isNoCharge,
             isbilled: print ? 1 : 0,
             DeptID: departmentIdFromState && departmentIdFromState > 0 ? departmentIdFromState : null,
-            SpecialInst: item.specialInstructions || null,
+            SpecialInst: item.SpecialInst || null,
             item_no: item.item_no,
             order_tag: order_tag,
             // Variant fields
@@ -2276,7 +2276,7 @@ const ModernBill = () => {
   };
 
   const resetBillState = () => {
-    setBillItems([{ itemCode: '', itemgroupid: 0, item_no: 0, itemId: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '', isFetched: false }]);
+    setBillItems([{ itemCode: '', itemgroupid: 0, item_no: 0, itemId: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', SpecialInst: '', isFetched: false }]);
     setTxnId(null);
     setWaiter('');
     setPax(1);
@@ -2285,7 +2285,7 @@ const ModernBill = () => {
     setEditableKot(null);
     setCustomerNo('');
     setCustomerName('');
-    calculateTotals([{ itemCode: '', itemgroupid: 0, item_no: 0, itemId: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', specialInstructions: '' }]);
+    calculateTotals([{ itemCode: '', itemgroupid: 0, item_no: 0, itemId: 0, itemName: '', qty: 1, rate: 0, total: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, mkotNo: '', SpecialInst: '' }]);
   };
 
   const fetchTableManagement = async () => {
@@ -3484,11 +3484,11 @@ const ModernBill = () => {
                             <td>
                               <Form.Control
                                 type="text"
-                                value={item.specialInstructions}
+value={item.SpecialInst}
                                 disabled={!item.isEditable}
-                                onChange={(e) => handleItemChange(index, 'specialInstructions', e.target.value)}
+                                onChange={(e) => handleItemChange(index, 'SpecialInst', e.target.value)}
                                 onKeyDown={(e) => {
-                                  handleKeyPress(index, 'specialInstructions')(e);
+                                  handleKeyPress(index, 'SpecialInst')(e);
                                   if (e.key.startsWith('Arrow')) {
                                     handleArrowNavigation(index, 4, e.key.slice(5).toLowerCase() as 'up' | 'down' | 'left' | 'right');
                                     e.preventDefault();

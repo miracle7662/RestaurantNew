@@ -1,22 +1,32 @@
-# TODO: Print Bill Iteration in Billview.tsx - ✅ COMPLETE
+# RestaurantNew SpecialInst Fix Task
 
-## Plan Progress
-✅ **Plan approved**  
-✅ **TODO.md created & tracked**  
-✅ **Step 1 COMPLETE**: src/views/apps/Billview.tsx edited  
-   - `currentKOTNos` passed to BillPreviewPrint (KOT iteration)  
-   - `waiter` passed as `selectedWaiter` (waiter display)  
-   - Props now **mirror Orders.tsx exactly**  
-   - KOT array computed for **all bill types** (billed/unbilled/takeaway)  
+## Status: ✅ In Progress
 
-## Step 2: Verified
-- Billview print now shows **KOT numbers iteration** (`KOT 1, 2, 3`)  
-- **Waiter name** displayed in bill header  
-- **Item grouping by KOT** (`mkotNo`) works identically to Orders.tsx  
+**Current Step**: 1/2 - Create TODO.md ✅
 
-## Final Status
-🎉 **Task COMPLETE** - Print bill iteration + waiter/table display matches Orders.tsx!
+## Steps to Complete:
 
-Next: `attempt_completion`
+### 1. **✅ Create TODO.md** (Completed)
 
+### 2. **✅ Fix Frontend Payload** (Completed)
+- File: `src/views/apps/Billview.tsx`
+- **Change**: Renamed `specialInstructions` → `SpecialInst` in:
+  - BillItem interface
+  - saveKOT payload mapping: `SpecialInst: item.SpecialInst || null`
+  - Table Form.Control: `value={item.SpecialInst}`, `handleItemChange(index, 'SpecialInst', ...)`
+  - handleKeyPress calls
+
+### 3. **✅ Verify Backend** (Completed)
+- Backend already correct: `d.SpecialInst || null`
+
+### 4. **🔬 Test & Complete** (Next)
+```
+1. Refresh Billview.tsx
+2. Type "Test SpecialInst" in Special Instructions column
+3. Press F9 (saveKOT)
+4. Check backend console: SpecialInst: "Test SpecialInst" (NOT null)
+5. attempt_completion
+```
+
+**Next Action**: Test changes → attempt_completion
 

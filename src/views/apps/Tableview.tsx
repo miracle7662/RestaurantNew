@@ -151,7 +151,7 @@ export default function App() {
                 // Fetch bill status for each table from backend using OrderService
                 const response = await OrderService.getBillStatus(item.tableid);
                 const data = response;
-                console.log(`Bill status for table ${item.tableid}:`, data);
+               
 
                 let txnId: number | null = null;
                 let billNo: string | null = null;
