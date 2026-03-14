@@ -3856,6 +3856,7 @@ const ModernBill = () => {
 
         onClose={() => setShowKotPrintModal(false)}
         selectedOutletId={selectedOutletId}
+        selectedWaiter={waiter}    
         date={user?.currDate}
         pax={pax}
         restaurantName={restaurantName}
@@ -3883,6 +3884,7 @@ const ModernBill = () => {
           kotNo: item.mkotNo ? parseInt(item.mkotNo.split('|')[0]) : undefined
         } as any))}
         currentKOTNos={currentKOTNos}
+        selectedWaiter={waiter}           
         orderNo={orderNo ?? undefined}
         selectedTable={tableNo}
         activeTab={isTakeaway ? "Takeaway" : "Dine-in"}

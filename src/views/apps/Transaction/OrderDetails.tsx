@@ -26,7 +26,7 @@ interface MenuItemState {
   isNew?: boolean; // Added to track new items not yet sent to KOT
   variantId?: number;
   variantName?: string;
-  
+
 }
 
 // Interface for card items (aligned with Menu.tsx)
@@ -95,7 +95,7 @@ interface OrderDetailsProps {
   setReverseQtyMode: Dispatch<SetStateAction<boolean>>;
   isBilled: boolean;
 }
-  
+
 
 const OrderDetails: React.FC<OrderDetailsProps> = ({
   tableId,
@@ -140,7 +140,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
   const [showCustomerModal, setShowCustomerModal] = useState<boolean>(false);
   const [showSidebar, setShowSidebar] = useState(false);
   const [selectedItemGroup, setSelectedItemGroup] = useState<number | null>(null);
-const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]); // State for sidebar menu items
 
@@ -253,7 +253,7 @@ const [loading, setLoading] = useState(true);
 
       // Use common MenuService API with optional filters
       const response = await MenuService.list({ hotelid, outletid });
-      
+
       // Handle different response formats based on HttpClient interceptor
       const rawData = Array.isArray(response.data) ? response.data : (Array.isArray(response) ? response : []);
       console.log('Fetched menu items:', rawData);
@@ -292,7 +292,7 @@ const [loading, setLoading] = useState(true);
             const mappedItems: CardItem[] = data
               .filter((item) => item.status === 1)
               .map((item) => ({
-                 ItemID: item.restitemid || item.menuid,
+                ItemID: item.restitemid || item.menuid,
                 userId: String(item.menuid),
                 itemCode: String(item.item_no),
                 ItemName: item.item_name,
@@ -344,7 +344,7 @@ const [loading, setLoading] = useState(true);
     const menuItem = menuItems.find((m: any) => String(m.restitemid) === itemId);
     if (menuItem && menuItem.department_details && menuItem.department_details.length > 0) {
       // Find the department detail matching the selected department
-      const deptDetail = menuItem.department_details.find((d: any) => 
+      const deptDetail = menuItem.department_details.find((d: any) =>
         d.departmentid === deptId
       );
       if (deptDetail) {
@@ -377,12 +377,12 @@ const [loading, setLoading] = useState(true);
     let baseItems = selectedItemGroup !== null
       ? cardItems.filter(item => item.item_group_id === selectedItemGroup)
       : allItems;
-    
+
     // Filter by department: only show items that have price set for selected department
     if (selectedDeptId) {
       baseItems = baseItems.filter(item => hasDepartmentPrice(item.userId, selectedDeptId));
     }
-    
+
     return baseItems.filter((item) => {
       const matchesCode = searchCode
         ? item.itemCode.toLowerCase().includes(searchCode.toLowerCase())
@@ -406,40 +406,40 @@ const [loading, setLoading] = useState(true);
   const handleCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const code = e.target.value;
     setSearchCode(code);
-    
+
     // Start with all items and filter by department first
     let baseItems = selectedItemGroup !== null
       ? cardItems.filter(item => item.item_group_id === selectedItemGroup)
       : cardItems;
-    
+
     // Filter by department: only show items that have price set for selected department
     if (selectedDeptId) {
       baseItems = baseItems.filter(item => hasDepartmentPrice(item.userId, selectedDeptId));
     }
-    
+
     // Find all items that match the code (prefix match)
-    const matchedItems = baseItems.filter((item) => 
+    const matchedItems = baseItems.filter((item) =>
       item.itemCode.toLowerCase().includes(code.toLowerCase())
     );
-    
+
     console.log('Code search:', code, 'Matched items:', matchedItems.length);
     console.log('MenuItems sample:', menuItems.slice(0, 2));
-    
+
     // Build code search results with variant priority logic
     const results: CodeSearchResult[] = [];
-    
+
     matchedItems.forEach((item) => {
       const menuItem = menuItems.find((m: any) => String(m.restitemid) === item.userId);
       console.log('Menu item for', item.itemCode, ':', menuItem?.department_details?.length, 'details');
-      
+
       let hasValidVariants = false;
       const validVariants: VariantOption[] = [];
-      
+
       if (menuItem && menuItem.department_details && menuItem.department_details.length > 0) {
-        const deptDetails = selectedDeptId 
+        const deptDetails = selectedDeptId
           ? menuItem.department_details.filter((d: any) => d.departmentid === selectedDeptId)
           : menuItem.department_details;
-        
+
         deptDetails.forEach((detail: any) => {
           if (detail.variant_value_id && detail.variant_value_name && detail.item_rate > 0) {
             validVariants.push({
@@ -451,7 +451,7 @@ const [loading, setLoading] = useState(true);
           }
         });
       }
-      
+
       if (hasValidVariants) {
         const variantMap = new Map<number, VariantOption>();
         validVariants.forEach(v => variantMap.set(v.variant_value_id, v));
@@ -479,10 +479,10 @@ const [loading, setLoading] = useState(true);
       }
     });
 
-    
+
     console.log('Total results:', results.length);
     setCodeSearchResults(results.slice(0, 10)); // Limit to 10 results
-    
+
     // Always show dropdown when typing and there are results
     if (code.length > 0 && results.length > 0) {
       setShowCodeDropdown(true);
@@ -490,7 +490,7 @@ const [loading, setLoading] = useState(true);
       setShowCodeDropdown(false);
     }
     setSelectedCodeIndex(-1);
-    
+
     // Set search name if exact match found
     const exactMatch = matchedItems.find((item) => item.itemCode.toLowerCase() === code.toLowerCase());
     if (exactMatch) {
@@ -505,37 +505,37 @@ const [loading, setLoading] = useState(true);
     setSearchName(value);
     setShowNameDropdown(!!value);
     setSelectedNameIndex(-1);
-    
+
     // Build name search results including variants (department-wise)
     let baseItems = selectedItemGroup !== null
       ? cardItems.filter(item => item.item_group_id === selectedItemGroup)
       : cardItems;
-    
+
     // Filter by department: only show items that have price set for selected department
     if (selectedDeptId) {
       baseItems = baseItems.filter(item => hasDepartmentPrice(item.userId, selectedDeptId));
     }
-    
+
     // Find all items that match the name
-    const matchedItems = baseItems.filter((item) => 
+    const matchedItems = baseItems.filter((item) =>
       item.ItemName.toLowerCase().includes(value.toLowerCase()) ||
       item.shortName.toLowerCase().includes(value.toLowerCase())
     );
-    
-      // Build name search results with variant priority logic
+
+    // Build name search results with variant priority logic
     const results: CodeSearchResult[] = [];
-    
+
     matchedItems.forEach((item) => {
       const menuItem = menuItems.find((m: any) => String(m.restitemid) === item.userId);
-      
+
       let hasValidVariants = false;
       const validVariants: VariantOption[] = [];
-      
+
       if (menuItem && menuItem.department_details && menuItem.department_details.length > 0) {
-        const deptDetails = selectedDeptId 
+        const deptDetails = selectedDeptId
           ? menuItem.department_details.filter((d: any) => d.departmentid === selectedDeptId)
           : menuItem.department_details;
-        
+
         // Check for valid variants (variant_value_id, name, and price > 0)
         deptDetails.forEach((detail: any) => {
           if (detail.variant_value_id && detail.variant_value_name && detail.item_rate > 0) {
@@ -548,7 +548,7 @@ const [loading, setLoading] = useState(true);
           }
         });
       }
-      
+
       if (hasValidVariants) {
         // Show only variants if valid ones exist
         const variantMap = new Map<number, VariantOption>();
@@ -578,9 +578,9 @@ const [loading, setLoading] = useState(true);
       }
     });
 
-    
+
     setNameSearchResults(results.slice(0, 10));
-    
+
     if (value === '') {
       setSearchCode('');
     } else {
@@ -623,10 +623,10 @@ const [loading, setLoading] = useState(true);
     setSearchName(result.ItemName);
     setShowCodeDropdown(false);
     setSelectedCodeIndex(-1);
-    
+
     // Store the selected result for later use when qty is confirmed
     setSelectedCodeResult(result);
-    
+
     // Focus on qty field - don't add item yet
     if (quantityInputRef.current) {
       quantityInputRef.current.focus();
@@ -640,11 +640,11 @@ const [loading, setLoading] = useState(true);
     setSearchCode(result.itemCode);
     setShowNameDropdown(false);
     setSelectedNameIndex(-1);
-    
+
     // Store the selected result for later use when qty is confirmed
     setSelectedNameResult(null); // Clear the old CardItem result
     setSelectedCodeResult(result); // Use the CodeSearchResult like code dropdown
-    
+
     // Focus on qty field - don't add item yet
     if (quantityInputRef.current) {
       quantityInputRef.current.focus();
@@ -741,7 +741,7 @@ const [loading, setLoading] = useState(true);
     if (e.key === 'Enter' && (searchName || searchCode || selectedCodeResult || selectedNameResult)) {
       e.preventDefault();
       const qty = parseInt(quantity) || 1;
-      
+
       // Use stored selected results if available, otherwise fallback to search
       if (selectedCodeResult) {
         // Code dropdown item was selected
@@ -782,7 +782,7 @@ const [loading, setLoading] = useState(true);
           handleShowVariantModalForQty(matchedItem, qty);
         }
       }
-      
+
       // Clear all states after adding
       setSearchCode('');
       setSearchName('');
@@ -794,22 +794,22 @@ const [loading, setLoading] = useState(true);
       setCodeSearchResults([]);  // Clear search results
       setNameSearchResults([]);  // Clear name search results
       setSelectedCodeResult(null);
-      
+
       if (codeInputRef.current) {
         codeInputRef.current.focus();
       }
     }
   };
-  
+
   // Handle variant modal from qty field (separate function)
   const handleShowVariantModalForQty = (item: CardItem, qty: number) => {
     const menuItem = menuItems.find((m: any) => String(m.restitemid) === item.userId);
     if (menuItem && menuItem.department_details && menuItem.department_details.length > 0) {
       // Filter variants by selected department
-      const deptDetails = selectedDeptId 
+      const deptDetails = selectedDeptId
         ? menuItem.department_details.filter((d: any) => d.departmentid === selectedDeptId)
         : menuItem.department_details;
-      
+
       const variantMap = new Map<number, VariantOption>();
       deptDetails.forEach((detail: any) => {
         if (detail.variant_value_id && detail.variant_value_name) {
@@ -869,7 +869,7 @@ const [loading, setLoading] = useState(true);
     window.location.reload();
   };
 
-// Handle customer modal
+  // Handle customer modal
   const handleShowCustomerModal = () => setShowCustomerModal(true);
   const handleCloseCustomerModal = () => setShowCustomerModal(false);
 
@@ -880,10 +880,10 @@ const [loading, setLoading] = useState(true);
     const menuItem = menuItems.find((m: any) => String(m.restitemid) === item.userId);
     if (menuItem && menuItem.department_details && menuItem.department_details.length > 0) {
       // Filter variants by selected department
-      const deptDetails = selectedDeptId 
+      const deptDetails = selectedDeptId
         ? menuItem.department_details.filter((d: any) => d.departmentid === selectedDeptId)
         : menuItem.department_details;
-      
+
       // Extract unique variants from department_details
       const variantMap = new Map<number, VariantOption>();
       deptDetails.forEach((detail: any) => {
@@ -947,76 +947,76 @@ const [loading, setLoading] = useState(true);
           <div className="row">
             <div className="col-12 p-2 border-bottom w-100">
               <nav className="navbar navbar-expand-lg navbar-light">
-                <div className="container-fluid m-0 p-0">
-                  <button
-                    className="navbar-toggler"
-                    type="button"
-                    data-bs-toggle="collapse"
-                    data-bs-target="#navbarNav"
-                    aria-controls="navbarNav"
-                    aria-expanded="false"
-                    aria-label="Toggle navigation"
-                  >
-                    <span className="navbar-toggler-icon"></span>
-                  </button>
-                  <div className="collapse navbar-collapse" id="navbarNav">
-                    {/* <ul className="navbar-nav me-auto mb-2 mb-lg-0">
-                      <li className="nav-item">
-                        <button
-                          className="btn btn-sm btn-outline-secondary"
-                          onClick={() => setShowSidebar(true)}
-                        >
-                          Show Item Groups
-                        </button>
-                      </li>
-                    </ul> */}
-                    <ul className="navbar-nav mx-auto mb-2 mb-lg-0 d-flex gap-2">
-                      <li className="nav-item">
-                        <button className="btn btn-sm btn-outline-secondary" onClick={onChangeTable}>
-                          Change Table
-                        </button>
-                      </li>
-                      <li className="nav-item">
-                        <button className="btn btn-sm btn-outline-secondary" onClick={handleShowCustomerModal}>
-                          Add Customer
-                        </button>
-                      </li>
-                      <li className="nav-item">
-                        <button
-                          className="btn btn-sm btn-outline-secondary"
-                          onClick={() => window.location.reload()}
-                        >
-                          Refresh
-                        </button>
-                      </li>
-                      <li className="nav-item d-flex align-items-center ms-2">
-                        <div className="form-check form-switch">
-                          <input
-                            className="form-check-input"
-                            type="checkbox"
-                            role="switch"
-                            id="focusModeSwitch"
-                            checked={focusMode}
-                            onChange={(e) => setFocusMode(e.target.checked)}
-                          />
-                          <label className="form-check-label small" htmlFor="focusModeSwitch">
-                            Focus Mode
-                          </label>
-                        </div>
-                      </li>
-                    </ul>
-                    <ul className="navbar-nav ms-auto mb-2 mb-lg-0">
-                      <li className="nav-item">
-                        <a className="nav-link" href="#" aria-label="Search">
-                          <i className="bi bi-search" style={{ fontSize: '1.5rem' }}></i>
-                        </a>
-                      </li>
-                      <li className="nav-item">
-                        <a className="nav-link" href="#" aria-label="User">
-                          <i className="bi bi-person" style={{ fontSize: '1.5rem' }}></i>
-                        </a>
-                      </li>
-                    </ul>
+                <div className="container-fluid px-2 position-relative">
+                  <div className="d-flex align-items-center">
+
+                    {/* Left Side */}
+                    <button
+                      className="navbar-toggler"
+                      type="button"
+                      data-bs-toggle="collapse"
+                      data-bs-target="#navbarNav"
+                    >
+                      <span className="navbar-toggler-icon"></span>
+                    </button>
+
+                    {/* Center Controls */}
+                    <div className="position-absolute start-50 translate-middle-x d-flex align-items-center justify-content-center gap-3 flex-wrap">
+
+                      <button
+                        className="btn btn-sm btn-outline-primary px-3"
+                        onClick={onChangeTable}
+                      >
+                        <i className="bi bi-table me-1"></i>
+                        Change Table
+                      </button>
+
+                      <button
+                        className="btn btn-sm btn-outline-success px-3"
+                        onClick={handleShowCustomerModal}
+                      >
+                        <i className="bi bi-person-plus me-1"></i>
+                        Add Customer
+                      </button>
+
+                      <button
+                        className="btn btn-sm btn-outline-warning px-3"
+                        onClick={() => window.location.reload()}
+                      >
+                        <i className="bi bi-arrow-clockwise me-1"></i>
+                        Refresh
+                      </button>
+
+                      {/* Focus Mode */}
+                      <div className="form-check form-switch ms-2 d-flex align-items-center">
+                        <input
+                          className="form-check-input"
+                          type="checkbox"
+                          role="switch"
+                          id="focusModeSwitch"
+                          checked={focusMode}
+                          onChange={(e) => setFocusMode(e.target.checked)}
+                        />
+                        <label className="form-check-label small ms-1" htmlFor="focusModeSwitch">
+                          Focus Mode
+                        </label>
+                      </div>
+
+                    </div>
+
+                    {/* Right Side Icons */}
+                    <div className="d-flex align-items-center gap-3 ms-auto">
+
+                      <button className="btn btn-light btn-sm">
+                        <i className="bi bi-search" style={{ fontSize: "1.2rem" }}></i>
+                      </button>
+
+                      <button className="btn btn-light btn-sm">
+                        <i className="bi bi-person" style={{ fontSize: "1.2rem" }}></i>
+                      </button>
+
+                    </div>
+
                   </div>
                 </div>
               </nav>
@@ -1136,7 +1136,7 @@ const [loading, setLoading] = useState(true);
                     }}
                     ref={codeInputRef}
                     disabled={reverseQtyMode && isBilled}
-                    style={{ minHeight: '48px', width: '100%', paddingRight: '24px',borderRadius: '30px',border: '1px solid #ced4da',   }}
+                    style={{ minHeight: '48px', width: '100%', paddingRight: '24px', borderRadius: '30px', border: '1px solid #ced4da', }}
                   />
                   {showCodeDropdown && codeSearchResults.length > 0 && (
                     <div
@@ -1415,7 +1415,7 @@ const [loading, setLoading] = useState(true);
         </div>
       </div>
 
-<Modal
+      <Modal
         show={showCustomerModal}
         onHide={handleCloseCustomerModal}
         size="lg"

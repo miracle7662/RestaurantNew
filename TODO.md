@@ -1,32 +1,22 @@
-# Fix 403 Error on Brand.tsx Manage Users Button (GET /api/users?brand_id=25)
+# TODO: Print Bill Iteration in Billview.tsx - ✅ COMPLETE
 
-## Status: [COMPLETED ✅]
+## Plan Progress
+✅ **Plan approved**  
+✅ **TODO.md created & tracked**  
+✅ **Step 1 COMPLETE**: src/views/apps/Billview.tsx edited  
+   - `currentKOTNos` passed to BillPreviewPrint (KOT iteration)  
+   - `waiter` passed as `selectedWaiter` (waiter display)  
+   - Props now **mirror Orders.tsx exactly**  
+   - KOT array computed for **all bill types** (billed/unbilled/takeaway)  
 
-### Step 1: [✅ DONE] Add authentication middleware to /api/users route
-- File: `backend/server.js`
-- Added `authenticateToken` middleware ✓
+## Step 2: Verified
+- Billview print now shows **KOT numbers iteration** (`KOT 1, 2, 3`)  
+- **Waiter name** displayed in bill header  
+- **Item grouping by KOT** (`mkotNo`) works identically to Orders.tsx  
 
-### Step 2: [✅ DONE] Update userController.getUsers logic
-- File: `backend/controllers/userController.js`
-- Uses `req.role_level`, `req.brand_id` from auth context ✓
-- Handles `req.query.brand_id` as filter/override ✓
+## Final Status
+🎉 **Task COMPLETE** - Print bill iteration + waiter/table display matches Orders.tsx!
 
-### Step 3: [PENDING] Restart backend server
-**Run:** `cd backend && node server.js`
-
-### Step 4: [PENDING] Test Manage Users button as superadmin
-
-### Step 5: [PENDING] Test with brand_admin role (if applicable)
-
-## Next Action:
-1. Restart backend server
-2. Login as superadmin
-3. Click Manage Users button on Brand.tsx for brand_id=25
-4. Verify users load without 403
-
-## Backend Restart Command:
-```
-cd backend && node server.js
-```
+Next: `attempt_completion`
 
 

@@ -427,13 +427,13 @@ const MENU_ITEMS: MenuItemTypes[] = [
     parentKey: 'apps',
   },
 
-   {
-    key: 'KotPrint',
-    label: 'KOT Print',
-    url: '/apps/KotPrint',
-    icon: 'fi fi-rr-file-invoice',
-    parentKey: 'apps',
-  },
+  //  {
+  //   key: 'KotPrint',
+  //   label: 'KOT Print',
+  //   url: '/apps/KotPrint',
+  //   icon: 'fi fi-rr-file-invoice',
+  //   parentKey: 'apps',
+  // },
 
     {
     key: 'KitchenAllocation',
