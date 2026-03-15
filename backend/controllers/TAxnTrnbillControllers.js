@@ -3056,8 +3056,9 @@ exports.getBillsByType = async (req, res) => {
 /* -------------------------------------------------------------------------- */
 exports.getAllBillsForBillingTab = async (req, res) => {
   try {
-    // This query fetches all completed (billed or settled) transactions.
-    // ✅ FIXED: Added table_name via JOIN with msttablemanagement
+
+    const { curr_date } = req.query;
+
     const sql = `
       SELECT 
         b.TxnID,
@@ -3075,23 +3076,26 @@ exports.getAllBillsForBillingTab = async (req, res) => {
         b.TxnDatetime as CreatedDate
       FROM TAxnTrnbill b
       LEFT JOIN msttablemanagement t ON b.TableID = t.tableid
-      WHERE b.isCancelled = 0 AND (b.isBilled = 1 OR b.isSetteled = 1)
+      WHERE 
+        b.isCancelled = 0 
+        AND (b.isBilled = 1 OR b.isSetteled = 1)
+        AND DATE(b.TxnDatetime) = DATE(?)
       ORDER BY b.TxnDatetime DESC
-    `
+    `;
 
-    const rows = db.prepare(sql).all()
+    const rows = db.prepare(sql).all(curr_date);
 
-    // The frontend expects 'data.data', so we wrap it.
-    res.json(ok('Fetched all bills for billing tab', rows))
+    res.json(ok('Fetched bills for selected date', rows));
+
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch all bills',
+      message: 'Failed to fetch bills',
       data: null,
       error: error.message,
-    })
+    });
   }
-}
+};
 
 /* -------------------------------------------------------------------------- */
 /* 19) reverseBill → Mark a bill as reversed (for F9 action)                  */

@@ -41,17 +41,18 @@ interface PaymentMode {
 }
 
 const EditSettlementPage: React.FC = () => {
-  const { user } = useAuthContext();
+const { user } = useAuthContext();
   const currentUser = user;
+  const currDate = user?.currDate || '';
 
   // ── Main States ───────────────────────────────────────────────────
   const [settlements, setSettlements] = useState<Settlement[]>([]);
-  const [filters, setFilters] = useState({
+const [filters, setFilters] = useState({
     orderNo: '',
     hotelId: '',
     outletId: '',
-    from: '',
-    to: '',
+    from: currDate,
+    to: currDate,
     paymentType: '',
   });
 
@@ -138,6 +139,17 @@ const EditSettlementPage: React.FC = () => {
       setSettlements([]);
     }
   };
+
+  // Sync date filters with business date
+  useEffect(() => {
+    if (currDate) {
+      setFilters(prev => ({
+        ...prev,
+        from: currDate,
+        to: currDate,
+      }));
+    }
+  }, [currDate]);
 
   useEffect(() => {
     fetchSettlements();
@@ -265,6 +277,8 @@ const EditSettlementPage: React.FC = () => {
   return (
     <div className="container-fluid p-3" style={{ minHeight: '100vh' }}>
       <h3 className="mb-4">Edit Settlements</h3>
+      
+      
 
       <Alert
         show={notification.show}

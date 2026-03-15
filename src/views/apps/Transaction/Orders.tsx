@@ -303,12 +303,11 @@ const Order = () => {
 
   const hasModifications = items.some(item => item.isNew) || reverseQtyItems.length > 0;
   const showKotButton = (selectedTable || ['Pickup', 'Delivery', 'Quick Bill'].includes(activeTab)) && hasModifications;
-  const fetchAllBills = async () => {
+const fetchAllBills = async (customFilters = {}) => {
     try {
-     const response = await OrderService.getAllBills();
-      const data = response.data;
+      const response = await OrderService.getAllBills(customFilters, user);
       if (response.success) {
-        setAllBills(data);
+        setAllBills(response.data);
       }
     } catch (err) {
       console.error("Error fetching all bills:", err);
@@ -960,10 +959,10 @@ const handleTabClick = (tab: string) => {
       }
 
       setShowOrderDetails(true);
-      if (tab === 'Billing') {
+if (tab === 'Billing') {
         setShowBillingPage(true);
         setShowOrderDetails(false); // Don't show order details for billing tab
-        fetchAllBills();
+        fetchAllBills(); // Auto-filters via service
       } else if (tab === 'Quick Bill') {
         // This is for the right-side panel tab. We want to show the order entry form.
         setShowPrintBoth(items.some(item => item.isNew));
@@ -3226,8 +3225,8 @@ const handleDecreaseQty = (itemId: number, variantId?: number) => {
                         overflowY: 'auto',
                       }}
                     >
-                      <h5 className="mb-3 text-center text-primary fw-semibold">
-                        All Bills
+<h5 className="mb-3 text-center text-primary fw-semibold">
+                        Today's Bills ({allBills.length})
                       </h5>
 
                       <Table

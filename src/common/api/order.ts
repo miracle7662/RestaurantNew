@@ -373,8 +373,17 @@ const OrderService = {
   /**
    * Get all bills
    */
-  getAllBills: (): Promise<ApiResponse<any[]>> =>
-    HttpClient.get<ApiResponse<any[]>>('/TAxnTrnbill/all'),
+getAllBills: (filters?: { curr_date?: string }, user?: any): Promise<ApiResponse<any[]>> => {
+  const defaultFilters = {
+    curr_date: user?.currDate || new Date().toISOString().split('T')[0],
+  };
+
+  const mergedFilters = { ...defaultFilters, ...filters };
+
+  return HttpClient.get<ApiResponse<any[]>>('/TAxnTrnbill/all', {
+    params: mergedFilters
+  });
+},
 
   /**
    * Get bill by ID
