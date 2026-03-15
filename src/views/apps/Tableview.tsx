@@ -699,11 +699,12 @@ const fetchTakeawayOrders = async () => {
                             orderId: order.id,
                             txnId: order.id,
                             outletId: order.outletid,
-                            departmentId: selectedDepartmentId !== 'all' ? selectedDepartmentId : null,
+                            departmentId: selectedDepartmentId !== 'all' ? selectedDepartmentId : departments[0]?.departmentid || null,
                             tableId: null,
                             tableName: 'TAKE AWAY'
                           }
                         })
+
                       }
                     >
                       <div className="d-flex align-items-center justify-content-between mb-1">

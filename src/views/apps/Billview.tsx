@@ -906,6 +906,7 @@ const ModernBill = () => {
       });
 
       setBillItems(mappedItems);
+      calculateTotals(mappedItems);  // 👇 FORCE TAX RECALC FOR TAKEAWAY CARDS
 
       if (data.reversedItems) {
         setReversedItems(
@@ -3317,12 +3318,11 @@ const ModernBill = () => {
                   });
 
                 // Filter by itemCodeFilter if typing
-                const filtered = itemCodeFilter
-                  ? deptVariants.filter(v =>
-                    v.item_no.toString().toLowerCase().startsWith(itemCodeFilter.toLowerCase()) ||
-                    v.variant_value_name.toLowerCase().includes(itemCodeFilter.toLowerCase())
-                  )
-                  : deptVariants.slice(0, 50); // Limit if no filter
+               const filtered = itemCodeFilter
+  ? deptVariants.filter(v =>
+      v.item_no.toString() === itemCodeFilter
+    )
+  : deptVariants.slice(0, 50);
 
                 return filtered.map(variant => (
                   <option
