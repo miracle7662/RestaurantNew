@@ -3241,12 +3241,15 @@ const handleDecreaseQty = (itemId: number, variantId?: number) => {
                       >
                         <thead className="table-info sticky-top">
                           <tr>
-                            <th style={{ width: '12%', ...cellStyle }}>Bill No</th>
-                            <th style={{ width: '15%', ...cellStyle }}>Order Type</th>
-                            <th style={{ width: '20%', ...cellStyle }}>Customer</th>
-                            <th style={{ width: '15%', ...cellStyle }}>Mobile</th>
-                            <th style={{ width: '18%', ...cellStyle }}>Payment</th>
+
+<th style={{ width: '12%', ...cellStyle }}>Bill No</th>
+                            <th style={{ width: '14%', ...cellStyle }}>Table Name</th>
+                            <th style={{ width: '12%', ...cellStyle }}>Order Type</th>
+                            <th style={{ width: '16%', ...cellStyle }}>Customer</th>
+                            <th style={{ width: '12%', ...cellStyle }}>Mobile</th>
+                            <th style={{ width: '14%', ...cellStyle }}>Payment</th>
                             <th style={{ width: '10%', ...cellStyle }}>Total</th>
+
                           </tr>
                         </thead>
 
@@ -3255,6 +3258,7 @@ const handleDecreaseQty = (itemId: number, variantId?: number) => {
                             currentBills.map((bill) => (
                               <tr key={bill.TxnID}>
                                 <td style={cellStyle}>{bill.TxnNo}</td>
+                                <td style={cellStyle}>{bill.table_name }</td>
                                 <td style={cellStyle}>{bill.OrderType}</td>
                                 <td style={cellStyle}>{bill.CustomerName}</td>
                                 <td style={cellStyle}>{bill.Mobile}</td>
@@ -3264,7 +3268,7 @@ const handleDecreaseQty = (itemId: number, variantId?: number) => {
                             ))
                           ) : (
                             <tr>
-                              <td colSpan={6} className="text-center text-muted">
+                              <td colSpan={7} className="text-center text-muted">
                                 No bills found.
                               </td>
                             </tr>

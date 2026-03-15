@@ -3058,10 +3058,12 @@ exports.getBillsByType = async (req, res) => {
 exports.getAllBillsForBillingTab = async (req, res) => {
   try {
     // This query fetches all completed (billed or settled) transactions.
+    // ✅ FIXED: Added table_name via JOIN with msttablemanagement
     const sql = `
       SELECT 
         b.TxnID,
         b.TxnNo,
+        COALESCE(t.table_name, b.table_name, b.Order_Type, 'Dine-in') as table_name,
         COALESCE(b.Order_Type, 'Dine-in') as OrderType,
         b.CustomerName,
         b.MobileNo as Mobile,
@@ -3073,6 +3075,7 @@ exports.getAllBillsForBillingTab = async (req, res) => {
         b.Amount as GrandTotal,
         b.TxnDatetime as CreatedDate
       FROM TAxnTrnbill b
+      LEFT JOIN msttablemanagement t ON b.TableID = t.tableid
       WHERE b.isCancelled = 0 AND (b.isBilled = 1 OR b.isSetteled = 1)
       ORDER BY b.TxnDatetime DESC
     `

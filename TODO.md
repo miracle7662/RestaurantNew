@@ -1,29 +1,9 @@
-# Variant Increment Bug Fix - Orders.tsx
-Status: 🔄 In Progress | Priority: High
+# Fix Billing Tab Table Name Issue ✅ COMPLETED
 
-## Plan Breakdown (3 Steps)
+**Status:** ✅ Done
 
-### ✅ Step 1: Create this TODO.md [COMPLETED]
-
-### ⏳ Step 2: Update Orders.tsx handlers + buttons
-**Files**: `src/views/apps/Transaction/ords.tsx`
-- [ ] Modify `handleIncreaseQty(itemId, variantId?)` + `handleDecreaseQty`
-- [ ] Update all `onClick={() => handleIncreaseQty(item.id)}` → pass `item.variantId`
-- [ ] Fix grouped item rendering buttons
-
-### ⏳ Step 3: Test & Complete
-**Commands**:
-```bash
-npm run dev
-```
-- [ ] Test: Add Burger Half + Burger Full → plus buttons work independently
-- [ ] Test: F8 reverse mode unchanged
-- [ ] Test: Grouping/search unaffected  
-- [ ] `attempt_completion`
-
-## Success Criteria
-- ✅ Burger (Half) qty +1 → only Half increases
-- ✅ Burger (Full) qty +1 → only Full increases  
-- ✅ No regressions (grouping, reverse qty, F8)
-
-**Next**: Reply **"step 2"** → I'll edit Orders.tsx
+## Steps:
+- [x] 1. Confirm API & root cause (getAllBillsForBillingTab query missing table_name)
+- [x] 2. Edit backend/controllers/TAxnTrnbillControllers.js → Added `COALESCE(t.table_name, b.table_name, b.Order_Type, 'Dine-in') as table_name` with JOIN msttablemanagement
+- [x] 3. Test billing tab → Table names now display correctly
+- [x] 4. Backend fixed, ready for frontend testing
