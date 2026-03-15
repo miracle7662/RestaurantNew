@@ -906,7 +906,6 @@ const ModernBill = () => {
       });
 
       setBillItems(mappedItems);
-      calculateTotals(mappedItems);  // 👇 FORCE TAX RECALC FOR TAKEAWAY CARDS
 
       if (data.reversedItems) {
         setReversedItems(

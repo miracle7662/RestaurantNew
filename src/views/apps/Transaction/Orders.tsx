@@ -1004,27 +1004,26 @@ const handleTabClick = (tab: string) => {
     setShowNewCustomerForm(false);
   };
 
-  const handleIncreaseQty = (itemId: number) => {
+const handleIncreaseQty = (itemId: number, variantId?: number) => {
     setItems(currentItems => {
       const newItems = [...currentItems];
-      // Find the specific 'isNew' item instance to increment.
-      const existingNewItemIndex = newItems.findIndex(i => i.id === itemId && i.isNew);
+      // 🔥 FIX: Match by id + variantId + isNew (prevents cross-variant increment)
+      const existingNewItemIndex = newItems.findIndex(i => i.id === itemId && i.variantId === variantId && i.isNew);
 
       if (existingNewItemIndex > -1) {
         const item = newItems[existingNewItemIndex];
         newItems[existingNewItemIndex] = { ...item, qty: item.qty + 1 };
         return newItems;
       }
-      // If no 'isNew' item is found, do nothing. This can happen if the button is clicked on a grouped item
-      // that contains only old items, but the button should be disabled in that case.
       return currentItems;
     });
   };
 
-  const handleDecreaseQty = (itemId: number) => {
+const handleDecreaseQty = (itemId: number, variantId?: number) => {
     setItems(currentItems => {
       const newItems = [...currentItems];
-      const existingNewItemIndex = newItems.findIndex(i => i.id === itemId && i.isNew);
+      // 🔥 FIX: Match by id + variantId + isNew
+      const existingNewItemIndex = newItems.findIndex(i => i.id === itemId && i.variantId === variantId && i.isNew);
 
       if (existingNewItemIndex > -1) {
         const item = newItems[existingNewItemIndex];
@@ -1032,7 +1031,7 @@ const handleTabClick = (tab: string) => {
           newItems[existingNewItemIndex] = { ...item, qty: item.qty - 1 };
           return newItems;
         } else {
-          // Remove the item if its quantity is 1
+          // Remove the specific item instance
           return newItems.filter((_, index) => index !== existingNewItemIndex);
         }
       }
@@ -3735,7 +3734,7 @@ const handleTabClick = (tab: string) => {
                             style={{ padding: '0 5px', lineHeight: '1' }}
                             onClick={() => {
                               if (isEditable) {
-                                handleDecreaseQty(item.id);
+                                handleDecreaseQty(item.id, item.variantId);
                               } else if (isReverseClickable) {
                                 handleReverseQty(item as MenuItem);
                               }
@@ -3766,12 +3765,14 @@ const handleTabClick = (tab: string) => {
                               const newQty = parseInt(e.target.value) || 0;
                               const originalItem = item as MenuItem;
                               if (newQty <= 0) {
-                                // remove this specific item
-                                setItems(items.filter(i => i !== originalItem));
+                                // 🔥 FIX: Filter by id + variantId (identity check unreliable)
+                                setItems(items.filter(i => !(i.id === originalItem.id && i.variantId === originalItem.variantId && i.isNew)));
                               } else {
                                 setItems(
                                   items.map((i) =>
-                                    i === originalItem ? { ...i, qty: newQty } : i
+                                    i.id === originalItem.id && i.variantId === originalItem.variantId && i.isNew
+                                      ? { ...i, qty: newQty }
+                                      : i
                                   )
                                 );
                               }
@@ -3784,7 +3785,7 @@ const handleTabClick = (tab: string) => {
                           <button
                             className="btn btn-success btn-sm"
                             style={{ padding: '0 5px', lineHeight: '1' }}
-                            onClick={() => handleIncreaseQty(item.id)}
+                            onClick={() => handleIncreaseQty(item.id, item.variantId)}
                             disabled={!isEditable}
                           >
                             +

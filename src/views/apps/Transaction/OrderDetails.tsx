@@ -1418,7 +1418,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
       <Modal
         show={showCustomerModal}
         onHide={handleCloseCustomerModal}
-        size="lg"
+        size="xl"
         aria-labelledby="customer-modal-title"
         centered
         backdrop="static"
