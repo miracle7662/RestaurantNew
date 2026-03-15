@@ -88,6 +88,7 @@ const SettlementService = {
    */
   replace: (payload: {
     OrderNo: string;
+    table_name?: string;
     newSettlements: Array<{
       PaymentType: string;
       Amount: number;

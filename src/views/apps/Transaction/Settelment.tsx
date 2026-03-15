@@ -17,6 +17,7 @@ import PaginationComponent from '@/components/Common/PaginationComponent';
 interface Settlement {
   SettlementID: number;
   OrderNo: string;
+  table_name?: string;
   PaymentType: string;
   Amount: number;
   TipAmount?: number;
@@ -324,6 +325,7 @@ const EditSettlementPage: React.FC = () => {
           <tr>
             <th>ID(s)</th>
             <th>Order No</th>
+            <th>Table</th>
             <th>Payment Breakdown</th>
             <th>Hotel ID</th>
             <th>Amount</th>
@@ -336,6 +338,7 @@ const EditSettlementPage: React.FC = () => {
             <tr key={group.SettlementIDs?.join('-')} className={group.isSettled === 0 ? 'table-danger' : ''}>
               <td>{group.SettlementIDs?.join(', ')}</td>
               <td>{group.OrderNo}</td>
+              <td>{group.table_name || 'N/A'}</td>
               <td>
                 {Object.entries(group.paymentBreakdown || {}).map(
                   ([type, amount]) => (

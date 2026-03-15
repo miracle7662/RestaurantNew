@@ -51,6 +51,7 @@ exports.getSettlements = async (req, res) => {
       SELECT 
         s.SettlementID,
         s.OrderNo,
+        s.table_name,
         s.PaymentType,
         s.Amount,
         s.TipAmount,
@@ -191,16 +192,19 @@ exports.createSettlement = async (req, res) => {
     db.prepare(`
       INSERT INTO TrnSettlement (
         OrderNo,
+        table_name,
         PaymentTypeID,
         PaymentType,
         Amount,
         HotelID,
         isSettled,
         InsertDate
+
       )
-      VALUES (?, ?, ?, ?, ?, 1, ?)
+      VALUES (?, ?, ?, ?, ?, ?, 1, ?)
     `).run(
       OrderNo,
+      req.body.table_name || null,
       paymentTypeID,
       PaymentType,
       Number(Amount),
@@ -302,9 +306,10 @@ if (!userId) {
     db.prepare(`DELETE FROM TrnSettlement WHERE OrderNo = ?`).run(OrderNo);
 
     // 5️⃣ Insert new settlements
-    const settlementInsertStmt = db.prepare(`
+    db.prepare(`
       INSERT INTO TrnSettlement (
         OrderNo,
+        table_name,
         PaymentTypeID,
         PaymentType,
         Amount,
@@ -347,6 +352,7 @@ if (!userId) {
 
       settlementInsertStmt.run(
         OrderNo,
+        req.body.table_name || originalSettlement.table_name || null,
         paymentTypeID,
         s.PaymentType,
         Number(s.Amount),

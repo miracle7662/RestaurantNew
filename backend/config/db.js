@@ -1255,6 +1255,13 @@ try {
   // Column might already exist, ignore error
 }
 
+// Migration: Add table_name column to TrnSettlement if it doesn't exist
+try {
+  db.exec("ALTER TABLE TrnSettlement ADD COLUMN table_name TEXT DEFAULT NULL");
+} catch (e) {
+  // Column might already exist, ignore error
+}
+
 // 🔥 NEW STOCK MANAGEMENT FIELDS MIGRATION 🔥
 try {
   db.exec(`
