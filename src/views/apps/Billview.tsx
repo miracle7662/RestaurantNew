@@ -3677,6 +3677,8 @@ value={item.SpecialInst}
         initialPaymentAmounts={paymentAmounts}
         initialIsMixed={isMixedPayment}
         initialTip={tip}
+        table_name={tableName || tableNo || null}
+
       />
       {/* KOT Transfer Modal */}
       <Modal show={showKotTransferModal} onHide={() => setShowKotTransferModal(false)} size="xl" centered>

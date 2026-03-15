@@ -9,10 +9,19 @@ interface PaymentMode {
   outletid: number;
 }
 
+interface Settlement {
+  table_name?: string;
+  PaymentType: string;
+  Amount: number;
+  received_amount: number;
+  refund_amount: number;
+  TipAmount: number;
+}
+
 interface SettlementModalProps {
   show: boolean;
   onHide: () => void;
-  onSettle: (settlements: any[], tip?: number) => Promise<void>;
+  onSettle: (settlements: Settlement[], tip?: number) => Promise<void>;
   grandTotal: number;
   subtotal: number;
   loading: boolean;
@@ -23,6 +32,7 @@ interface SettlementModalProps {
   initialIsMixed?: boolean;
   initialTip?: number;
   initialCashReceived?: number;  // FIXED: Added for received amount
+  table_name?: string | null;
 }
 
 const SettlementModal: React.FC<SettlementModalProps> = ({
@@ -38,6 +48,7 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
   initialIsMixed = false,
   initialTip = 0,
   initialCashReceived = 0,  // FIXED: Destructure the prop
+  table_name,
 }) => {
 
 
@@ -211,6 +222,7 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
     }
 
     const settlements = selectedPaymentModes.map(name => ({
+      table_name: table_name || '',
       PaymentType: name,
       Amount: Number(paymentAmounts[name] || 0),
       received_amount: receivedAmount, // Total amount given by customer
@@ -236,7 +248,7 @@ const SettlementModal: React.FC<SettlementModalProps> = ({
     >
       <Modal.Header closeButton className="pb-2 pt-3 border-0">
         <Modal.Title className="fw-bold fs-4 w-100 text-center">
-          Payment Settlement
+          {table_name ? `Table ${table_name} | ` : ''}Payment Settlement
         </Modal.Title>
       </Modal.Header>
 

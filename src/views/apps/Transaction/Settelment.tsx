@@ -386,7 +386,9 @@ const EditSettlementPage: React.FC = () => {
         initialIsMixed={initialIsMixed}
         initialTip={initialTip}
         initialCashReceived={initialCashReceived}
+        table_name={editing?.table_name || null}
       />
+
     </div>
   );
 };

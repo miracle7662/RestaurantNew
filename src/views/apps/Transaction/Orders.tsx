@@ -4538,6 +4538,7 @@ const handleDecreaseQty = (itemId: number, variantId?: number) => {
             initialPaymentAmounts={paymentAmounts}
             initialIsMixed={isMixedPayment}
             initialTip={tip}
+            table_name={selectedTable}
           />
           {/* F8PasswordModal */}
 
