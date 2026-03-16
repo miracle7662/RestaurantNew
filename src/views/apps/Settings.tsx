@@ -1,4 +1,8 @@
 import React, { useState, useEffect } from "react";
+import { Row, Col, Form } from 'react-bootstrap';
+import TableDepartmentService from '@/common/api/tabledepartment';
+
+
 import {
   Settings,
   Printer,
@@ -52,6 +56,14 @@ interface ReportPrinterSetting {
   size?: string;
   copies?: number;
   enablePrint?: boolean;
+}
+
+export interface Department {
+  departmentid: number;
+  department_name: string;
+  outletid: number;
+  hotelid: number;
+  status: number;
 }
 
 interface DepartmentWisePrinter {
@@ -147,6 +159,12 @@ function SettingsPage() {
   const [, setEditingReportId] = useState<number | null>(null);
   const [selectedOutlet, setSelectedOutlet] = useState<number | null>( null);
 
+  // General tab states
+  const [departmentId, setDepartmentId] = useState('');
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [deptLoading, ] = useState(false);
+  const [, setError] = useState("");
+
   const [labelPrinterName, setLabelPrinterName] = useState("");
   const [labelPaperWidth, setLabelPaperWidth] = useState("");
   const [labelIsEnabled, setLabelIsEnabled] = useState(true);
@@ -185,6 +203,24 @@ function SettingsPage() {
       fetchOutlets(user, setOutlets, setLoading);
     }
   }, [user]);
+
+  // Fetch departments
+  useEffect(() => {
+     const fetchDepartments = async () => {
+      try {
+        if (!user) {
+          throw new Error('User not authenticated');
+        }
+        const params = { hotelid: user?.hotelid };
+        const data = await TableDepartmentService.list(params);
+        setDepartments(data.data || data);
+      } catch (err: any) {
+        setError(err.message);
+      }
+    };
+
+    fetchDepartments();
+  }, [user, selectedOutlet]);
 
   // Fetch report printer settings on component mount
   useEffect(() => {
@@ -306,8 +342,8 @@ function SettingsPage() {
     if (activeTab === 'printer') {
       fetchKotPrinters();
       fetchBillPrinters();
-     fetchLabelPrinters();
--      fetchReportPrinters();
+      fetchLabelPrinters();
+-     fetchReportPrinters();
       fetchDepartmentPrinters();
       // fetchTableWiseKot();
       // fetchTableWiseBill();
@@ -792,10 +828,37 @@ function SettingsPage() {
 
 
           {/* PRINTER TAB */}
+          {activeTab === "general" && (
+            <div className="p-3">
+              <Row>
+                <Col md={6}>
+                  <Form.Group>
+                    <Form.Label>Order Type Name (Pickup/Delivery/QuickBill)</Form.Label>
+                    <Form.Select
+                      value={departmentId}
+                      onChange={(e) => setDepartmentId(e.target.value)}
+                      disabled={deptLoading}
+                    >
+                      <option value="">Select Department</option>
+                      {departments.map((dept) => (
+                        <option key={dept.departmentid} value={dept.departmentid}>
+                          {dept.department_name}
+                        </option>
+                      ))}
+                    </Form.Select>
+                  </Form.Group>
+                </Col>
+
+                
+              </Row>
+            </div>
+          )}
+
           {activeTab === "printer" && (
             <div className="p-3" style={{ maxHeight: '80vh', overflowY: 'auto' }}>
 
               {/* KOT PRINTER SETTINGS */}
+
               <PrinterSection title="KOT Printer Settings">
                 <div className="row g-3">
                    <div className="col-md-2">

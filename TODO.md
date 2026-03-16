@@ -1,40 +1,36 @@
-# Quick Bill Settlement List Refresh Fix
+## Department Tax Assignment - Implementation Plan
 
-## Plan: Add `await fetchQuickBillData()` in `handleSettleAndPrint()` success block when `activeTab === 'Quick Bill'`
+### Status: ✅ **PLAN APPROVED** - Implementing step-by-step
 
-**✅ APPROVED BY USER**
+## ⛏️ STEPS (7 Total)
 
-## Steps:
-- [ ] 1. Read Orders.tsx to confirm exact location for edit
-- [ ] 2. Create precise diff for `handleSettleAndPrint()` insertion
-- [ ] 3. Apply edit to Orders.tsx
-- [ ] 4. Verify syntax/no linter errors
-- [ ] 5. Test: Quick Bill → Load → Settle → List refresh
-- [ ] 6. Complete task
+### ✅ **PHASE 1: Backend APIs** (Current)
+- [x] 1. Create `backend/controllers/msttaxgroupController.js` (GET list by outlet)
+- [x] 2. Update `backend/controllers/msttableDepartmentController.js` (PUT update taxgroupid)  
+- [x] 3. Create `backend/routes/msttaxgroupRoutes.js` + register in server.js
+- [x] 4. Update `backend/routes/msttableDepartmentRoutes.js` (PUT /:id)
 
-**✅ Step 3 COMPLETE** - Edit applied successfully to Orders.tsx
+### ✅ **PHASE 2: Frontend Services** [2/2]
+- [x] 5. Create `src/common/api/taxgroups.ts` (TaxGroupService) ✅
+- [x] 6. `src/common/api/tabledepartment.ts` already has `update()` ✅
 
-## Steps:
-- [x] 1. Read Orders.tsx ✓
-- [x] 2. Create precise diff ✓  
-- [x] 3. Apply edit to Orders.tsx ✓
-- [ ] 4. Verify syntax/no linter errors
-- [ ] 5. Test: Quick Bill → Load → Settle → List refresh
-- [ ] 6. Complete task
+### 🎨 **PHASE 3: Settings UI**
+- [ ] 7. Update `src/views/apps/Settings.tsx` (+taxgroup dropdown + save form)
 
-**✅ Backend Fix APPROVED & READY**
+### 🧪 **PHASE 4: Test & Migrate**
+- [ ] 8. Test: Settings → assign tax → Billview → verify taxes
+- [ ] 9. SQL Migration: `UPDATE msttable_department SET taxgroupid=1 WHERE department_name LIKE '%Pickup%'`
+- [ ] 10. **COMPLETE** → attempt_completion
 
-## Final Fix: Backend SQL 
-`backend/controllers/TAxnTrnbillControllers.js` → `getBillsByType()`:
+## 📋 PROGRESS TRACKER
 ```
-❌ WHERE b.Order_Type = ? AND b.isCancelled = 0
-✅ WHERE b.Order_Type = ? AND b.isCancelled = 0 AND b.isSetteled = 0
+Phase 1: Backend APIs [4/4] ✅
+Phase 2: Services     [0/2] 
+Phase 3: UI           [0/1]  
+Phase 4: Test         [0/2] 
 ```
 
-## Progress:
-- [x] Frontend ✅ Orders.tsx refresh added + logs
-- [ ] Backend → Edit controllers/TAxnTrnbillControllers.js
-- [ ] Restart dev server
-- [ ] Retest complete flow
+**Next Step:** Backend controllers/routes → Mark complete → Phase 2
 
-**Current: Backend Edit → Step 6**
+**ETA:** 20 mins per phase → **~1 hour total**
+
