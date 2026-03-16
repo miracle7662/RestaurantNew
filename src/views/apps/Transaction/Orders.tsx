@@ -2541,6 +2541,15 @@ const handleDecreaseQty = (itemId: number, variantId?: number) => {
         throw new Error(result.message || 'Failed to settle bill.');
       }
 
+
+      
+      // Always refresh Quick Bill list after settlement (works regardless of tab)
+      if (activeTab === 'Quick Bill' || true) {  // Force refresh
+        console.log('🔄 Calling fetchQuickBillData()...');
+        await fetchQuickBillData();
+        console.log('✅ Quick Bill list refreshed');
+      }
+
       toast.success('Settlement successful and bill printed!');
 
       // Clear customer fields after successful settlement

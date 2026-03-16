@@ -3027,7 +3027,7 @@ exports.getBillsByType = async (req, res) => {
         b.Amount,
         (SELECT GROUP_CONCAT(s.PaymentType) FROM TrnSettlement s WHERE s.OrderNo = b.TxnNo) as PaymentMode
       FROM TAxnTrnbill b
-      WHERE b.Order_Type = ? AND b.isCancelled = 0
+WHERE b.Order_Type = ? AND b.isCancelled = 0 AND b.isSetteled = 0
       ORDER BY b.TxnDatetime DESC
     `
 
