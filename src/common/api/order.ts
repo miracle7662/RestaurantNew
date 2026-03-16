@@ -619,6 +619,12 @@ getAllBills: (filters?: { curr_date?: string }, user?: any): Promise<ApiResponse
   getWaiterUsers: (outletId: number): Promise<ApiResponse<WaiterUser[]>> =>
     HttpClient.get<ApiResponse<WaiterUser[]>>(`/outlet-users/waiters/${outletId}`),
 
+  /**
+   * Get mst_setting departmentid by outletid (for takeaway tax)
+   */
+  getMstSettingByOutlet: (outletId: number): Promise<ApiResponse<{departmentid: number}>> =>
+    HttpClient.get<ApiResponse<{departmentid: number}>>(`/settings/mst-setting/${outletId}`),
+
 /**
    * Get pending orders by type
    */

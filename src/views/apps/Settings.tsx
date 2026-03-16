@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Row, Col, Form } from 'react-bootstrap';
 import TableDepartmentService from '@/common/api/tabledepartment';
+import { toast } from 'react-toastify';
 
 
 import {
@@ -208,20 +209,38 @@ function SettingsPage() {
 
 // Fetch departments
   useEffect(() => {
-     const fetchDepartments = async () => {
+    const fetchDepartments = async () => {
       try {
-        if (!user) {
-          throw new Error('User not authenticated');
+        console.log('🔍 fetchDepartments: user =', user);
+        if (!user || !user.hotelid) {
+          console.warn('⚠️ fetchDepartments: No user or hotelid, skipping');
+          setDepartments([]);
+          return;
         }
-        const params = { hotelid: user?.hotelid };
-        const data = await TableDepartmentService.list(params);
-        setDepartments(data.data || data);
+
+        setDeptLoading(true);
+        const params = { hotelid: user.hotelid };
+        console.log('📡 fetchDepartments: calling API with params =', params);
+
+        const response = await TableDepartmentService.list(params);
+        console.log('📥 fetchDepartments: API response =', response);
+
+        const departmentsData = response.data || response || [];
+        setDepartments(Array.isArray(departmentsData) ? departmentsData : []);
+        console.log('✅ fetchDepartments: set departments count =', departmentsData.length);
       } catch (err: any) {
-        setError(err.message);
+        console.error('❌ fetchDepartments ERROR:', err);
+        // Using window toast if available, fallback to state
+        toast.error(err.response?.data?.message || 'Failed to fetch departments');
+        setDepartments([]);
+      } finally {
+        setDeptLoading(false);
       }
     };
 
-    fetchDepartments();
+    if (user) {
+      fetchDepartments();
+    }
   }, [user]);
 
   // Fetch current takeaway setting
@@ -229,20 +248,36 @@ function SettingsPage() {
     const fetchTakeawaySetting = async () => {
       if (!user) return;
       try {
+        console.log('🔍 fetchTakeawaySetting: user =', user);
         setDeptLoading(true);
-        const response = await SettingsService.getTakeawaySetting();
+        
+        // Prefer outlet 107, fallback to user.outletid, then first outlet
+        let outletId = 107  ;
+        if (user.outletid && user.outletid !== 0) {
+          outletId = user.outletid;
+        } else if (outlets[0]?.outletid && outlets[0].outletid !== 0) {
+          outletId = outlets[0].outletid;
+        }
+        
+        console.log('📡 fetchTakeawaySetting: using outletId =', outletId);
+        const response = await SettingsService.getTakeawaySetting(outletId);
+        console.log('📥 fetchTakeawaySetting response (outletId:', outletId, '):', response);
+        
         if (response && response.departmentid) {
           setDepartmentId(response.departmentid.toString());
+        } else {
+          console.log('No departmentid found, defaulting to 1');
+          setDepartmentId('1');
         }
       } catch (err) {
-        console.error('Failed to fetch takeaway setting:', err);
+        console.error('❌ fetchTakeawaySetting ERROR:', err);
       } finally {
         setDeptLoading(false);
       }
     };
 
     fetchTakeawaySetting();
-  }, [user]);
+  }, [user, outlets]); // Add outlets dependency
 
   // Fetch report printer settings on component mount
   useEffect(() => {
@@ -864,18 +899,19 @@ function SettingsPage() {
                         if (newDeptId && user) {
                           setSaveLoading(true);
                           try {
-                            const defaultOutletId = outlets[0]?.outletid || 1;
+                            const defaultOutletId = outlets[0]?.outletid || user.outletid || 1;
+                            console.log('💾 Saving takeaway with:', {hotelid: user.hotelid, outletid: defaultOutletId, departmentid: parseInt(newDeptId)});
                             await SettingsService.saveTakeawaySetting({
                               hotelid: user.hotelid,
                               outletid: defaultOutletId,
                               departmentid: parseInt(newDeptId),
                               created_by_id: user.id || 1
                             });
-                            setSaveMessage('Saved!');
+                            setSaveMessage('✅ Saved!');
                             setTimeout(() => setSaveMessage(''), 2000);
                           } catch (err) {
-                            console.error('Save failed:', err);
-                            setSaveMessage('Save failed');
+                            console.error('❌ Save failed:', err);
+                            setSaveMessage('❌ Save failed');
                           } finally {
                             setSaveLoading(false);
                           }
@@ -883,12 +919,16 @@ function SettingsPage() {
                       }}
                       disabled={deptLoading || saveLoading}
                     >
-                      <option value="">Select Department</option>
-                      {departments.map((dept) => (
-                        <option key={dept.departmentid} value={dept.departmentid}>
-                          {dept.department_name}
-                        </option>
-                      ))}
+                      <option value="">{deptLoading ? 'Loading departments...' : 'Select Department'}</option>
+                      {departments.length === 0 && !deptLoading ? (
+                        <option value="" disabled>No departments found</option>
+                      ) : (
+                        departments.map((dept) => (
+                          <option key={dept.departmentid} value={dept.departmentid}>
+                            {dept.department_name}
+                          </option>
+                        ))
+                      )}
                     </Form.Select>
                     {saveMessage && (
                       <div className={`small mt-1 ${saveMessage.includes('Saved') ? 'text-success' : 'text-danger'}`}>

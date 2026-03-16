@@ -537,20 +537,61 @@ exports.createKDSUser = async (req, res) => {
 // ------------------------------------------
 
 /**
+ * Get mst_setting departmentid by outletid for tax selection
+ */
+exports.getMstSettingByOutlet = async (req, res) => {
+  try {
+    const { outletid } = req.params;
+
+    const row = await getAll(
+      "SELECT departmentid FROM mst_setting WHERE outletid = ? LIMIT 1",
+      [outletid]
+    );
+
+    if (!row || row.length === 0) {
+      // Auto-create default takeaway setting (dept=1)
+      console.log(`Auto-creating mst_setting for outlet ${outletid}`);
+      await runQuery(
+        `INSERT INTO mst_setting (hotelid, outletid, departmentid, created_by_id)
+         VALUES (?, ?, 1, 1)`,
+        [req.user?.hotelid || 1, outletid]
+      );
+      // Return default dept=1
+      return res.json({ success: true, data: { departmentid: 1 } });
+    }
+
+    res.json({ success: true, data: { departmentid: row[0].departmentid } });
+  } catch (e) {
+    console.error('mst_setting GET ERROR:', e.message);
+    res.status(500).json({ success: false, error: e.message });
+  }
+};
+
+/**
  * Get Takeaway Setting by outletid
  * Matches pattern of other printer settings
  */
 exports.getTakeawaySetting = async (req, res) => {
   try {
-    const { id } = req.params; // outletid from route /takeaway/:id
+    const { id } = req.params;
 
-    const rows = await getAll(
-      "SELECT * FROM mst_setting WHERE outletid = ? AND departmentid = 1 LIMIT 1",
+    let rows = await getAll(
+      "SELECT * FROM mst_setting WHERE outletid = ? LIMIT 1",
       [id]
     );
 
     if (!rows || rows.length === 0) {
-      return res.json({ settingid: null });
+      console.log(`Auto-creating takeaway setting for outlet ${id}`);
+      await runQuery(
+        `INSERT INTO mst_setting (hotelid, outletid, departmentid, created_by_id)
+         VALUES (?, ?, 1, 1)`,
+        [req.user?.hotelid || 1, id]
+      );
+      // Fetch the newly created record
+      rows = await getAll(
+        "SELECT * FROM mst_setting WHERE outletid = ? LIMIT 1",
+        [id]
+      );
     }
 
     res.json(rows[0]);
@@ -565,7 +606,7 @@ exports.createTakeawaySetting = async (req, res) => {
     const {
       hotelid,
       outletid,
-      departmentid = 1, // Default for takeaway
+      departmentid , // Default for takeaway
       created_by_id
     } = req.body;
 

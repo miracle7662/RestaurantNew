@@ -924,21 +924,35 @@ const handleTabClick = (tab: string) => {
         const outletId = Number(user?.outletid);
         setSelectedOutletId(outletId);
         
-        // Set default department for Pickup/Delivery/Quick Bill to ensure tax calculation works
-        // Find the first department that belongs to the selected outlet
-        const defaultDept = departments.find(d => d.outletid === outletId);
-        let newDeptId: number | null = null;
-        if (defaultDept) {
-          newDeptId = defaultDept.departmentid;
-        } else if (departments.length > 0) {
-          // Fallback: use the first available department
-          newDeptId = departments[0].departmentid;
-        }
-        setSelectedDeptId(newDeptId);
+        // ✅ FIXED: Use mst_setting departmentid for pickup/delivery/quickbill tax
+        const fetchMstSettingDept = async () => {
+          try {
+            if (outletId) {
+              const mstRes = await OrderService.getMstSettingByOutlet(outletId);
+              if (mstRes.success && mstRes.data) {
+                const mstDeptId = mstRes.data.departmentid || 1; // Fallback to dept 1
+                console.log(`🔥 [${tab}] mst_setting.deptid =`, mstDeptId, 'outletId:', outletId);
+                setSelectedDeptId(mstDeptId);
+              } else {
+                // Fallback to first department
+                const defaultDept = departments.find(d => d.outletid === outletId);
+                console.log(`⚠️ [${tab}] mst_setting NOT FOUND, using fallback deptid:`, defaultDept?.departmentid);
+                setSelectedDeptId(defaultDept?.departmentid || (departments[0]?.departmentid || null));
+              }
+            }
+          } catch (error) {
+            console.error(`❌ [${tab}] Error fetching mst_setting:`, error);
+            // Fallback to first department
+            const defaultDept = departments.find(d => d.outletid === outletId);
+            setSelectedDeptId(defaultDept?.departmentid || (departments[0]?.departmentid || null));
+          }
+        };
+
+        fetchMstSettingDept();
         
         // Force reload outlet settings immediately after setting department
         // This ensures round off settings are loaded before any order is created
-        if (outletId && newDeptId) {
+        if (outletId) {
           loadOutletSettings(outletId);
           // Also fetch and set round off settings immediately
           const fetchRoundOffSettings = async () => {
@@ -1122,9 +1136,9 @@ const handleDecreaseQty = (itemId: number, variantId?: number) => {
     }
     (async () => {
       try {
-        console.log('Fetching taxes for:', { selectedDeptId, selectedOutletId });
+        console.log(`🔥 TAX FETCH → outletId: ${selectedOutletId}, deptId: ${selectedDeptId}, activeTab: ${activeTab}`);
         const resp = await OrderService.getTaxesByOutletAndDepartment({ outletid: selectedOutletId ?? undefined, departmentid: selectedDeptId });
-        console.log('Tax API response:', resp);
+        console.log('✅ Tax API response:', resp);
         if (resp?.success && resp?.data?.taxes) {
           const t = resp.data.taxes;
           const newRates = {
@@ -1133,18 +1147,18 @@ const handleDecreaseQty = (itemId: number, variantId?: number) => {
             igst: Number(t.igst) || 0,
             cess: Number(t.cess) || 0,
           };
-          console.log('Setting tax rates:', newRates);
+          console.log(`✅ [${activeTab}] APPLYING TAX → CGST:${newRates.cgst}% SGST:${newRates.sgst}% IGST:${newRates.igst}% CESS:${newRates.cess}%`);
           setTaxRates(newRates);
         } else {
-          console.log('No tax data found, setting zeros');
+          console.log(`⚠️ [${activeTab}] No tax data found, setting zeros`);
           setTaxRates({ cgst: 0, sgst: 0, igst: 0, cess: 0 });
         }
       } catch (e) {
-        console.error('Tax fetch error:', e);
+        console.error(`❌ [${activeTab}] Tax fetch error:`, e);
         setTaxRates({ cgst: 0, sgst: 0, igst: 0, cess: 0 });
       }
     })();
-  }, [selectedDeptId, selectedOutletId]);
+  }, [selectedDeptId, selectedOutletId, activeTab]);
 
   useEffect(() => {
     const cgstPer = Number(taxRates.cgst) || 0;

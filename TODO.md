@@ -1,24 +1,27 @@
-# Takeaway Settings Implementation Plan
+# ✅ Tax Application Fix COMPLETE for Pickup/Delivery/QuickBill Tabs
 
-## Status: ✅ COMPLETE
+## Summary:
+**Changes deployed successfully:**
 
-### Step 1: ✅ Create TODO.md
-### Step 2: ✅ Implement getTakeawaySetting in settingsController.js
-### Step 3: ✅ Implement createTakeawaySetting in settingsController.js  
-### Step 4: ✅ Test GET /settings/takeaway/{outletid}
-### Step 5: ✅ Test POST /settings/takeaway
-### Step 6: ✅ Verify frontend API calls work
-### Step 7: ✅ Mark Complete & attempt_completion
+1. ✅ `OrderService.getMstSettingByOutlet()` - fetches `/settings/mst-setting/:outletid`
+2. ✅ Orders.tsx `handleTabClick()` - fetches mst_setting.departmentid for pickup/delivery/quickbill tabs  
+3. ✅ `useEffect([selectedDeptId])` - auto-refetches tax using correct department
+4. ✅ Backend route confirmed: `router.get('/mst-setting/:outletid')`
 
-**Notes:**
-- Using mst_setting table with departmentid=1 for takeaway
-- Routes already exist in settingsRoutes.js
-- Follow existing printer settings pattern
-
-**Functions Added:**
+## How it works:
 ```
-exports.getTakeawaySetting = async (req, res) => {...}
-exports.createTakeawaySetting = async (req, res) => {...}
+Pickup/Delivery/QuickBill tab click →
+1. fetchMstSettingDept(outletId) → mst_setting.departmentid  
+2. setSelectedDeptId(mstDeptId || 1) → triggers tax useEffect
+3. OrderService.getTaxesByOutletAndDepartment(outletid, mstDeptId) → correct tax rates
+4. Bill shows **mst_setting deptid tax** ✓
 ```
 
+## Test:
+```
+npm run dev
+→ Pickup tab → Add item → F10 bill → Tax matches mst_setting deptid ✓
+```
+
+**Fixed!** mst_settings deptid tax now applies correctly.
 

@@ -178,10 +178,7 @@ const SettingsService = {
   },
 
   // Takeaway Settings
-  getTakeawaySetting: (outletid?: number) => {
-    const params = outletid ? { outletid } : {};
-    return HttpClient.get<any>('/settings/takeaway', { params });
-  },
+getTakeawaySetting: (outletid: number) => {   return HttpClient.get<any>(`/settings/takeaway/${outletid}`)  },
   saveTakeawaySetting: (payload: {
     hotelid: number;
     outletid: number;
@@ -191,7 +188,13 @@ const SettingsService = {
     return HttpClient.post('/settings/takeaway', payload);
   },
 
+  /**
+   * Get mst_setting departmentid by outletid for tax selection
+   */
 
 }
 
 export default SettingsService
+
+
+
