@@ -28,7 +28,7 @@
     "preview": "vite preview",
     "format": "prettier --write 'src/**/*.{ts,tsx}'",
     "electron-start": "electron main.cjs",
-    "dev-electron": "concurrently \"npm run dev\" \"npm run electron-start\"",
+    "dev-electron": "concurrently \"npm run dev\" \"npm run backend\" \"npm run electron-start\"",
     "build-electron": "npm run build && npm run electron-start",
     "backend": "cd backend && node server.js",
     "backend:install": "echo 'Backend dependencies are managed from root package.json'",
