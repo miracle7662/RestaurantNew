@@ -522,6 +522,7 @@ exports.createKDSUser = async (req, res) => {
       `INSERT INTO kds_department_user 
       (department, user, is_active, updated_at) 
       VALUES (?, ?, ?, ?)`,
+
       [department, user, is_active, updated_at]
     );
 
@@ -530,3 +531,59 @@ exports.createKDSUser = async (req, res) => {
     res.status(500).json({ error: e.message });
   }
 };
+
+// ------------------------------------------
+// 🚀 Takeaway Settings (NEW)
+// ------------------------------------------
+
+/**
+ * Get Takeaway Setting by outletid
+ * Matches pattern of other printer settings
+ */
+exports.getTakeawaySetting = async (req, res) => {
+  try {
+    const { id } = req.params; // outletid from route /takeaway/:id
+
+    const rows = await getAll(
+      "SELECT * FROM mst_setting WHERE outletid = ? AND departmentid = 1 LIMIT 1",
+      [id]
+    );
+
+    if (!rows || rows.length === 0) {
+      return res.json({ settingid: null });
+    }
+
+    res.json(rows[0]);
+  } catch (e) {
+    console.error('Takeaway GET ERROR:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+};
+
+exports.createTakeawaySetting = async (req, res) => {
+  try {
+    const {
+      hotelid,
+      outletid,
+      departmentid = 1, // Default for takeaway
+      created_by_id
+    } = req.body;
+
+    if (!hotelid || !outletid || !created_by_id) {
+      return res.status(400).json({ error: 'hotelid, outletid, and created_by_id required' });
+    }
+
+    await runQuery(
+      `INSERT INTO mst_setting
+      (hotelid, outletid, departmentid, created_by_id)
+      VALUES (?, ?, ?, ?)`,
+      [hotelid, outletid, departmentid, created_by_id]
+    );
+
+    res.json({ success: true, msg: 'Takeaway setting created successfully' });
+  } catch (e) {
+    console.error('Takeaway CREATE ERROR:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+};
+

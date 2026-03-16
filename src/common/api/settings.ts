@@ -172,10 +172,26 @@ const SettingsService = {
     return HttpClient.get<CategoryPrinterPayload[]>('/settings/category-wise-printer', { params })
   },
 
-  // KDS Users
+// KDS Users
   listKdsUsers: (params?: { q?: string }) => {
     return HttpClient.get<KDSUserPayload[]>('/settings/kds-users', { params })
   },
+
+  // Takeaway Settings
+  getTakeawaySetting: (outletid?: number) => {
+    const params = outletid ? { outletid } : {};
+    return HttpClient.get<any>('/settings/takeaway', { params });
+  },
+  saveTakeawaySetting: (payload: {
+    hotelid: number;
+    outletid: number;
+    departmentid: number;
+    created_by_id: number;
+  }) => {
+    return HttpClient.post('/settings/takeaway', payload);
+  },
+
+
 }
 
 export default SettingsService

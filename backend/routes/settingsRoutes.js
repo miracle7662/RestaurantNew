@@ -65,4 +65,8 @@ router.put("/report-printer/:id", settingsController.updateReportPrinter);
 router.get("/kds-users", settingsController.getKDSUsers);
 router.post("/kds-users", settingsController.createKDSUser);
 
+
+router.get('/takeaway', settingsController.getTakeawaySetting);
+router.post('/takeaway', settingsController.createTakeawaySetting);
+
 module.exports = router;

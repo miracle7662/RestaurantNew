@@ -1215,6 +1215,18 @@ CREATE TABLE IF NOT EXISTS mst_variant_values (
   FOREIGN KEY (variant_type_id) REFERENCES mst_variant_types(variant_type_id)
 );
 
+CREATE TABLE IF NOT EXISTS  mst_setting (
+    settingid INTEGER PRIMARY KEY AUTOINCREMENT,
+    hotelid INTEGER NOT NULL,
+    outletid INTEGER NOT NULL,
+    departmentid INTEGER NOT NULL,
+    created_by_id INTEGER,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+
+
 
 
 

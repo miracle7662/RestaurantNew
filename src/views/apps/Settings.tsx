@@ -162,8 +162,10 @@ function SettingsPage() {
   // General tab states
   const [departmentId, setDepartmentId] = useState('');
   const [departments, setDepartments] = useState<Department[]>([]);
-  const [deptLoading, ] = useState(false);
+  const [deptLoading, setDeptLoading] = useState(false);
+  const [saveLoading, setSaveLoading] = useState(false);
   const [, setError] = useState("");
+  const [saveMessage, setSaveMessage] = useState('');
 
   const [labelPrinterName, setLabelPrinterName] = useState("");
   const [labelPaperWidth, setLabelPaperWidth] = useState("");
@@ -204,7 +206,7 @@ function SettingsPage() {
     }
   }, [user]);
 
-  // Fetch departments
+// Fetch departments
   useEffect(() => {
      const fetchDepartments = async () => {
       try {
@@ -220,7 +222,27 @@ function SettingsPage() {
     };
 
     fetchDepartments();
-  }, [user, selectedOutlet]);
+  }, [user]);
+
+  // Fetch current takeaway setting
+  useEffect(() => {
+    const fetchTakeawaySetting = async () => {
+      if (!user) return;
+      try {
+        setDeptLoading(true);
+        const response = await SettingsService.getTakeawaySetting();
+        if (response && response.departmentid) {
+          setDepartmentId(response.departmentid.toString());
+        }
+      } catch (err) {
+        console.error('Failed to fetch takeaway setting:', err);
+      } finally {
+        setDeptLoading(false);
+      }
+    };
+
+    fetchTakeawaySetting();
+  }, [user]);
 
   // Fetch report printer settings on component mount
   useEffect(() => {
@@ -832,12 +854,34 @@ function SettingsPage() {
             <div className="p-3">
               <Row>
                 <Col md={6}>
-                  <Form.Group>
-                    <Form.Label>Order Type Name (Pickup/Delivery/QuickBill)</Form.Label>
+                  <Form.Group className="position-relative">
+                    <Form.Label> Takeaway </Form.Label>
                     <Form.Select
                       value={departmentId}
-                      onChange={(e) => setDepartmentId(e.target.value)}
-                      disabled={deptLoading}
+                      onChange={async (e) => {
+                        const newDeptId = e.target.value;
+                        setDepartmentId(newDeptId);
+                        if (newDeptId && user) {
+                          setSaveLoading(true);
+                          try {
+                            const defaultOutletId = outlets[0]?.outletid || 1;
+                            await SettingsService.saveTakeawaySetting({
+                              hotelid: user.hotelid,
+                              outletid: defaultOutletId,
+                              departmentid: parseInt(newDeptId),
+                              created_by_id: user.id || 1
+                            });
+                            setSaveMessage('Saved!');
+                            setTimeout(() => setSaveMessage(''), 2000);
+                          } catch (err) {
+                            console.error('Save failed:', err);
+                            setSaveMessage('Save failed');
+                          } finally {
+                            setSaveLoading(false);
+                          }
+                        }
+                      }}
+                      disabled={deptLoading || saveLoading}
                     >
                       <option value="">Select Department</option>
                       {departments.map((dept) => (
@@ -846,6 +890,11 @@ function SettingsPage() {
                         </option>
                       ))}
                     </Form.Select>
+                    {saveMessage && (
+                      <div className={`small mt-1 ${saveMessage.includes('Saved') ? 'text-success' : 'text-danger'}`}>
+                        {saveMessage}
+                      </div>
+                    )}
                   </Form.Group>
                 </Col>
 
