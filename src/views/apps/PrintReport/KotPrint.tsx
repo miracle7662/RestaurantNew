@@ -24,7 +24,7 @@ interface MenuItem {
   isNew?: boolean;
   alternativeItem?: string;
   modifier?: string[];
-   item_no?: number;
+  item_no?: number;
   originalQty?: number;
   kotNo?: number;
   txnDetailId?: number;
@@ -101,7 +101,7 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
   const [isLoadingNames, setIsLoadingNames] = useState(true);
   const [localFormData, setLocalFormData] = useState<OutletSettings>(formData);
   const [enableKotPrint, setEnableKotPrint] = useState<number>(0);
-const [, setLoadingSetting] = useState(true);
+  const [, setLoadingSetting] = useState(true);
 
 
   const loadOutletSettings = async (outletId: number) => {
@@ -144,7 +144,7 @@ const [, setLoadingSetting] = useState(true);
     }
   }, [show]);
 
-useEffect(() => {
+  useEffect(() => {
     const fetchPrinterAndOutlet = async () => {
       if (!outletId) return;
 
@@ -164,7 +164,7 @@ useEffect(() => {
 
       // Fetch outlet details if restaurantName or outletName are not provided or are defaults
       if (!restaurantName || restaurantName.trim() === '' || restaurantName === 'Restaurant Name' ||
-          !outletName || outletName.trim() === '' || outletName === 'Outlet Name') {
+        !outletName || outletName.trim() === '' || outletName === 'Outlet Name') {
         try {
           // Use PrintService for outlet details
           const outletRes = await PrintService.getOutletDetails(outletId);
@@ -196,28 +196,28 @@ useEffect(() => {
   }, [autoPrint, show, loading, hasPrinted, isLoadingNames]);
 
   // Direct API call for enableKotPrint setting
- useEffect(() => {
-  const outletId = selectedOutletId ?? Number(user?.outletid);
-  if (!outletId) return;
+  useEffect(() => {
+    const outletId = selectedOutletId ?? Number(user?.outletid);
+    if (!outletId) return;
 
-  const fetchKotSetting = async () => {
-    try {
-      // Use PrintService for KOT printer settings
-      const printerRes = await PrintService.getKotPrinterSettings(outletId);
-      // Handle both wrapped (res?.data) and unwrapped (res) responses due to HttpClient interceptor
-      const data = printerRes?.data || printerRes;
-      // IMPORTANT: backend sends 0 / 1
-      setEnableKotPrint(Number(data?.enableKotPrint) || 0);
-    } catch (err) {
-      console.error("KOT setting fetch failed", err);
-      setEnableKotPrint(0);
-    } finally {
-      setLoadingSetting(false);
-    }
-  };
+    const fetchKotSetting = async () => {
+      try {
+        // Use PrintService for KOT printer settings
+        const printerRes = await PrintService.getKotPrinterSettings(outletId);
+        // Handle both wrapped (res?.data) and unwrapped (res) responses due to HttpClient interceptor
+        const data = printerRes?.data || printerRes;
+        // IMPORTANT: backend sends 0 / 1
+        setEnableKotPrint(Number(data?.enableKotPrint) || 0);
+      } catch (err) {
+        console.error("KOT setting fetch failed", err);
+        setEnableKotPrint(0);
+      } finally {
+        setLoadingSetting(false);
+      }
+    };
 
-  fetchKotSetting();
-}, [selectedOutletId, user]);
+    fetchKotSetting();
+  }, [selectedOutletId, user]);
 
 
   const generateKOTHTML = () => {
@@ -319,7 +319,7 @@ useEffect(() => {
         setLoading(false);
         return;
       }
-      
+
       const systemPrintersRaw = await window.electronAPI?.getInstalledPrinters?.() || [];
       const systemPrinters = Array.isArray(systemPrintersRaw) ? systemPrintersRaw : [];
       console.log("System Printers:", systemPrinters);
@@ -365,8 +365,8 @@ useEffect(() => {
       }
 
       if (usedFallback) {
-  console.log("Fallback printer used");
-}
+        console.log("Fallback printer used");
+      }
 
       console.log(`Printing to printer: ${finalPrinterName}`);
 
@@ -399,19 +399,19 @@ useEffect(() => {
     }
   };
 
-const dateTime = date ? new Date(date).toLocaleString('en-GB', {
-  day: '2-digit',
-  month: '2-digit',
-  year: 'numeric',
-  hour: '2-digit',
-  minute: '2-digit'
-}) : new Date().toLocaleString('en-GB', {
-  day: '2-digit',
-  month: '2-digit',
-  year: 'numeric',
-  hour: '2-digit',
-  minute: '2-digit'
-})
+  const dateTime = date ? new Date(date).toLocaleString('en-GB', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  }) : new Date().toLocaleString('en-GB', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
 
 
 
@@ -469,33 +469,33 @@ const dateTime = date ? new Date(date).toLocaleString('en-GB', {
     const showUsername = localFormData.show_username && user?.username;
     const showTerminalUsername = localFormData.show_terminal_username && user?.terminal_username;
     const showCaptainUsername = localFormData.show_captain_username && user?.captain_username;
-const showCustomerOnKOT = (() => {
-  switch (activeTab) {
-    case 'Dine-in':
-      return localFormData.customer_on_kot_dine_in;
-    case 'Pickup':
-      return true; // Always show customer for Pickup
-    case 'Delivery':
-      return true; // Always show customer for Delivery
-    case 'Quick Bill':
-      return localFormData.customer_on_kot_quick_bill;
-    default:
-      return false;
-  }
-})();
-const displayOption =
-  localFormData.customer_kot_display_option ?? 'NAME_ONLY';
+    const showCustomerOnKOT = (() => {
+      switch (activeTab) {
+        case 'Dine-in':
+          return localFormData.customer_on_kot_dine_in;
+        case 'Pickup':
+          return true; // Always show customer for Pickup
+        case 'Delivery':
+          return true; // Always show customer for Delivery
+        case 'Quick Bill':
+          return localFormData.customer_on_kot_quick_bill;
+        default:
+          return false;
+      }
+    })();
+    const displayOption =
+      localFormData.customer_kot_display_option ?? 'NAME_ONLY';
 
 
-const showCustomerName =
-  showCustomerOnKOT &&
-  !!customerName &&
-  ['NAME_ONLY', 'NAME_AND_MOBILE'].includes(displayOption);
+    const showCustomerName =
+      showCustomerOnKOT &&
+      !!customerName &&
+      ['NAME_ONLY', 'NAME_AND_MOBILE'].includes(displayOption);
 
-const showCustomerMobile =
-  showCustomerOnKOT &&
-  !!mobileNumber &&
-  localFormData.customer_kot_display_option === 'NAME_AND_MOBILE';
+    const showCustomerMobile =
+      showCustomerOnKOT &&
+      !!mobileNumber &&
+      localFormData.customer_kot_display_option === 'NAME_AND_MOBILE';
 
     const showTable = selectedTable && (activeTab === 'Dine-in' || localFormData[`table_name_${tabKey}`]) && !(activeTab === 'Quick Bill' && localFormData.hide_table_name_quick_bill);
     const showRateColumn = localFormData.show_item_price;
@@ -537,16 +537,16 @@ const showCustomerMobile =
       <div><strong>${showOrderTypeSymbol ? '🔸 ' : ''}Order Type:</strong> ${activeTab} ${orderTag ? `- ${orderTag}` : ''}</div>
 
         ${showCustomerName
-  ? `<div style="font-size: 9pt; margin-bottom: 6px;">
+        ? `<div style="font-size: 9pt; margin-bottom: 6px;">
        <strong>Customer:</strong> ${customerName}
      </div>`
-  : ''}
+        : ''}
 
 ${showCustomerMobile
-  ? `<div style="font-size: 9pt; margin-bottom: 6px;">
+        ? `<div style="font-size: 9pt; margin-bottom: 6px;">
        <strong>Mobile:</strong> ${mobileNumber}
      </div>`
-  : ''}
+        : ''}
     </div>
 
     <hr style="border: none; border-top: 1px dashed #000; margin: 8px 0;" />
@@ -568,25 +568,25 @@ ${showCustomerMobile
     ${showTable ? selectedTable : activeTab}
   </div>
 
- <!-- RIGHT DETAILS -->
-<div style="
-  display: flex;
-  justify-content: flex-end;
-">
-  <div style="
-    display: grid;
-    grid-template-columns: 60px auto;
-    text-align: left;
-  ">
-     ${activeTab !== 'Quick Bill' || showKotNoQuickBill ? `<div><strong>KOT No:</strong></div><div>${displayKOTNo}</div>` : ''}
+    <!-- RIGHT DETAILS -->
+    <div style="
+      display: flex;
+      justify-content: flex-end;
+    ">
+      <div style="
+        display: grid;
+        grid-template-columns: 60px auto;
+        text-align: left;
+      ">
+        ${activeTab !== 'Quick Bill' || showKotNoQuickBill ? `<div><strong>KOT No:</strong></div><div>${displayKOTNo}</div>` : ''}
 
-    <div><strong>Date:</strong></div>
-    <div>${dateTime}</div>
-  </div>
-</div>
+        <div><strong>Date:</strong></div>
+        <div>${dateTime}</div>
+      </div>
+    </div>
 
 
-</div>
+   </div>
 
     </div>
 
@@ -604,9 +604,8 @@ ${showCustomerMobile
 
     <hr style="border: none; border-top: 1px dashed #000; margin: 8px 0;" />
     <!-- ITEM HEADER -->
-    <div style="display: grid; grid-template-columns: ${gridTemplateColumns}; font-weight: bold; border-bottom: 1px solid #000; padding-bottom: 4px; margin-bottom: 5px;">
-      <div style="text-align: center">Qty</div>
-      <div style="text-align: center">Item</div>
+    <div style="display: grid; grid-template-columns: ${gridTemplateColumns}; column-gap: 15px; font-weight: bold; border-bottom: 1px solid #000; padding-bottom: 4px; margin-bottom: 5px;">      <div style="text-align: center">Qty</div>
+      <div style="text-align: left">Item</div>
       ${showRateColumn ? `<div style="text-align: right">Rate</div>` : ''}
       ${showAmountColumn ? `<div style="text-align: right">Amt</div>` : ''}
     </div>
@@ -617,34 +616,36 @@ ${showCustomerMobile
     <div style="font-weight: bold;   margin-bottom: 5px;">Category: Main Course</div>
     ` : ''}
     ${kotItems.map((item) => {
-      const qty = item.originalQty ? item.qty - item.originalQty : item.qty;
-      const modifierHtml = modifierDefaultOption && item.modifier && item.modifier.length > 0 ? `<div style="font-size: 8pt; color: #666;">Modifiers: ${item.modifier.join(', ')}</div>` : '';
-      const alternativeHtml = showAlternativeItem && item.alternativeItem ? `<div style="font-size: 8pt; color: #666;">Alt: ${item.alternativeItem}</div>` : '';
-      return `
-      <div style="display: grid; grid-template-columns: ${gridTemplateColumns}; padding-bottom: 3px; margin-bottom: 3px; font-size: 10pt;">
-        <div style="text-align: center">${qty}</div>
-        <div style="text-align: center">\n          ${item.name} ${item.variantName ? `<span style="font-size:8pt; color:#0066cc; font-weight:bold;">(${item.variantName})</span>` : ''}\n          ${modifierHtml}\n          ${alternativeHtml}
-        </div>
-        ${showRateColumn ? `<div style="text-align: right">${item.price.toFixed(2)}</div>` : ''}
+          const qty = item.originalQty ? item.qty - item.originalQty : item.qty;
+          const modifierHtml = modifierDefaultOption && item.modifier && item.modifier.length > 0 ? `<div style="font-size: 8pt; color: #666;">Modifiers: ${item.modifier.join(', ')}</div>` : '';
+          const alternativeHtml = showAlternativeItem && item.alternativeItem ? `<div style="font-size: 8pt; color: #666;">Alt: ${item.alternativeItem}</div>` : '';
+          return `
+       <div style="display: grid; grid-template-columns: ${gridTemplateColumns}; column-gap: 15px; font-weight: bold;  border-bottom: 1px solid #000; padding-bottom: 4px; margin-bottom: 5px;">
+      <div style="text-align: center; font-size: 12pt; font-weight: bold;">
+    ${qty}
+  </div>
+  <div style="text-align: left; font-size: 12pt;">
+  ${item.name} 
+  ${item.variantName ? `<span style="font-size:11pt; color:#0066cc; font-weight:bold;">(${item.variantName})</span>` : ''}${modifierHtml}${alternativeHtml}
+</div> 
+</div>${showRateColumn ? `<div style="text-align: right">${item.price.toFixed(2)}</div>` : ''}
         ${showAmountColumn ? `<div style="text-align: right">${(item.price * qty).toFixed(2)}</div>` : ''}
       </div>
       `;
-    }).join('')}
+        }).join('')}
 
-    <hr style="border: none; border-top: 1px dashed #000; margin: 8px 0;" />
 
     <!-- TOTALS -->
     <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 10pt;">
 <div style="padding: 2px 11px;">
    ${kotItems.reduce(
-    (a, b) => a + (b.originalQty ? b.qty - b.originalQty : b.qty),
-    0
-  )}
+          (a, b) => a + (b.originalQty ? b.qty - b.originalQty : b.qty),
+          0
+        )}
 </div>
 
       ${showAmountColumn ? `<div> ₹${kotItems.reduce((a, b) => a + (b.price * (b.originalQty ? b.qty - b.originalQty : b.qty)), 0).toFixed(2)}</div>` : ''}
     </div>
-    <hr style="border: none; border-top: 1px dashed #000; margin: 8px 0;" />
     <!-- FOOTER -->
         ${showKotNote && kotNote ? `<div style="font-size: 9pt; margin-bottom: 6px;"><strong>Note:</strong> ${kotNote}</div>` : ''}
 
@@ -706,13 +707,13 @@ ${showCustomerMobile
         <Button variant="secondary" onClick={onHide}>
           Close
         </Button>
-       <Button
-  variant="primary"
-  onClick={handlePrintKOT}
-  disabled={enableKotPrint === 0 || loading}
->
-  Print KOT
-</Button>
+        <Button
+          variant="primary"
+          onClick={handlePrintKOT}
+          disabled={enableKotPrint === 0 || loading}
+        >
+          Print KOT
+        </Button>
 
       </Modal.Footer>
     </Modal>
