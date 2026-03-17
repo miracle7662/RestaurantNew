@@ -24,7 +24,7 @@ const MENU_ITEMS: MenuItemTypes[] = [
     key: '  Orders',
     label: 'POS',
     url: '/apps/orders',
-    icon: '<i class="bi bi-receipt"></i>',
+    icon: 'fi fi-rr-utensils',
     parentKey: 'apps',
   },
 
@@ -32,7 +32,7 @@ const MENU_ITEMS: MenuItemTypes[] = [
     key: 'Settlement',
     label: 'Settlement',
     url: '/apps/Settlement',
-    icon: 'fi fi-rs-sack-dollar',
+    icon: 'fi fi-rr-credit-card',
     parentKey: 'apps',
   },
 
@@ -40,7 +40,7 @@ const MENU_ITEMS: MenuItemTypes[] = [
     key: 'Handover',
     label: 'Handover',
     url: '/apps/Handover',
-    icon: 'fi fi-rr-hand-holding-seeding',
+    icon: 'fi fi-rr-exchange',
     parentKey: 'apps',
   },
 
@@ -48,7 +48,7 @@ const MENU_ITEMS: MenuItemTypes[] = [
     key: 'DayEnd',
     label: 'DayEnd',
     url: '/apps/DayEnd',
-    icon: 'fi fi-rr-apps-add',
+    icon: 'fi fi-rr-clock',
     parentKey: 'apps',
   },
 
@@ -56,7 +56,7 @@ const MENU_ITEMS: MenuItemTypes[] = [
     key: 'KotTransfer',
     label: 'KotTransfer',
     url: '/apps/KotTransfer',
-    icon: 'fi fi-rr-square-terminal',
+    icon: 'fi fi-rr-refresh',
     parentKey: 'apps',
   },
 
@@ -64,7 +64,7 @@ const MENU_ITEMS: MenuItemTypes[] = [
     key: 'Customers',
     label: 'Customers',
     url: '/apps/Customers',
-    icon: 'fi fi-rs-user-headset',
+    icon: 'fi fi-rr-user',
     parentKey: 'apps',
   },
 
@@ -80,7 +80,7 @@ const MENU_ITEMS: MenuItemTypes[] = [
     key: 'DailySalesReport',
     label: 'Report',
     url: '/Reports/DailySalesReport',
-    icon: 'fi fi-rr-file-chart-line',
+    icon: 'fi fi-rr-chart-histogram',
     parentKey: 'Reports',
   },
 
@@ -112,7 +112,7 @@ const MENU_ITEMS: MenuItemTypes[] = [
     key: 'Brand',
     label: 'Brand',
     url: '/OutletConfigration/Brand',
-    icon: 'fi fi-rr-dashboard ',
+    icon: 'fi fi-rr-building ',
     parentKey: 'OutletConfigration',
   },
 
@@ -120,7 +120,7 @@ const MENU_ITEMS: MenuItemTypes[] = [
     key: 'Warehouse',
     label: 'Warehouse',
     url: '/apps/Warehouse',
-    icon: 'fi fi-sr-sign-out-alt',
+    icon: 'fi fi-rr-boxes',
     parentKey: 'apps',
   },
 
@@ -128,7 +128,7 @@ const MENU_ITEMS: MenuItemTypes[] = [
     key: 'Tableview',
     label: 'Tableview',
     url: '/apps/Tableview',
-    icon: 'fi fi-sr-sign-out-alt',
+    icon: 'fi fi-rr-grid',
     parentKey: 'apps',
   },
 
@@ -136,7 +136,7 @@ const MENU_ITEMS: MenuItemTypes[] = [
     key: 'Billview',
     label: 'Billview',
     url: '/apps/Billview',
-    icon: 'fi fi-sr-sign-out-alt',
+    icon: 'fi fi-rr-file-invoice-dollar',
     parentKey: 'apps',
   },
 
@@ -150,7 +150,7 @@ const MENU_ITEMS: MenuItemTypes[] = [
     key: 'HotelConfigration',
     label: 'Hotel Configration',
     isTitle: false,
-    icon: 'fi fi-rr-dashboard ',
+    icon: 'fi fi-rr-hotel ',
     children: [
       {
         key: 'Market ',
@@ -235,7 +235,7 @@ const MENU_ITEMS: MenuItemTypes[] = [
     key: 'Masters',
     label: 'Masters ',
     isTitle: false,
-    icon: 'fi fi-rr-dashboard',
+    icon: 'fi fi-rr-folder',
     children: [
       {
         key: 'TaxProuductGroup',
@@ -305,7 +305,7 @@ const MENU_ITEMS: MenuItemTypes[] = [
     key: 'AccountingMasters',
     label: 'AccountingMasters ',
     isTitle: false,
-    icon: 'fi fi-rr-dashboard',
+    icon: 'fi fi-rr-book',
     children: [
      
       {
@@ -335,7 +335,7 @@ const MENU_ITEMS: MenuItemTypes[] = [
     key: 'MenuMasters',
     label: 'Menu Masters',
     isTitle: false,
-    icon: 'fi fi-rr-dashboard',
+    icon: 'fi fi-rr-hamburger',
     children: [
       {
         key: 'Menu',
@@ -390,27 +390,7 @@ const MENU_ITEMS: MenuItemTypes[] = [
     ],
   },
 
-  {
-    key: 'printsettings',
-    label: 'Print Settings',
-    isTitle: false,
-    icon: 'fi fi-rr-dashboard ',
-    children: [
-      // {
-      //   key: 'KOTPrintSettings',
-      //   label: 'KOTPrintSettings',
-      //   url: '/OutletConfigration/KOTPrintSettings',
-      //   parentKey: 'OutletConfigration',
-      // },
-      // {
-      //   key: 'BillPrintSettings',
-      //   label: 'BillPrintSettings',
-      //   url: '/OutletConfigration/BillPrintSettings',
-      //   parentKey: 'OutletConfigration',
-      // },
-    ],
-  },
-
+  
   // {
   //   key: 'OrderDetails',
   //   label: 'OrderDetails',
@@ -439,7 +419,7 @@ const MENU_ITEMS: MenuItemTypes[] = [
     key: 'KitchenAllocation',
     label: 'Kitchen Allocation',
     url: '/apps/KitchenAllocation',
-    icon: 'fi fi-rr-file-invoice',
+    icon: 'fi fi-rr-apps',
     parentKey: 'apps',
   },
 

@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react'
 import { Card } from 'react-bootstrap'
 import ReactApexChart from 'react-apexcharts'
 import Select from 'react-select'
-import axios from 'axios'
 import { useThemeContext } from '@/common/context'
 import colors from '@/constants/colors'
+import { SettlementService } from '@/common/api'
 
 const ProjectStatisticChart = () => {
   const { settings } = useThemeContext()
@@ -25,16 +25,23 @@ const ProjectStatisticChart = () => {
   ]
 
   const [settlements, setSettlements] = useState<any[]>([])
+  const [, setLoading] = useState(true)
+  const [, setError] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await axios.get('http://localhost:3001/api/settlements')
-        const data = res.data?.data?.settlements || res.data?.settlements || []
+        setLoading(true)
+        setError(null)
+        const response = await SettlementService.list()
+        const data = response.data || []
         setSettlements(data)
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error fetching settlement data:', error)
+        setError(error.message || 'Failed to fetch settlements')
         setSettlements([])
+      } finally {
+        setLoading(false)
       }
     }
     fetchData()

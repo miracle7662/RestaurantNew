@@ -31,7 +31,12 @@ const flaticonRegularData = [
   { iconClass: 'fi fi-rr-angle-circle-right', label: 'fi-rr-angle-circle-right' },
   { iconClass: 'fi fi-rr-angle-circle-up', label: 'fi-rr-angle-circle-up' },
   { iconClass: 'fi fi-rr-phone-call', label: 'fi-rr-phone-call' },
-  
+  { iconClass: 'fi fi-rr-receipt', label: 'Order (Receipt)' },
+{ iconClass: 'fi fi-rr-credit-card', label: 'Settlement' },
+{ iconClass: 'fi fi-rr-exchange', label: 'Handover' },
+{ iconClass: 'fi fi-rr-chart-line', label: 'Day End' },
+
+
 
   // Add more icons and labels as needed
 ]
@@ -68,6 +73,35 @@ const flaticonSolidData = [
   { iconClass: 'fi fi-sr-angle-circle-down', label: 'fi-sr-angle-circle-down' },
   { iconClass: 'fi fi-sr-angle-circle-left', label: 'fi-sr-angle-circle-left' },
   { iconClass: 'fi fi-sr-angle-circle-right', label: 'fi-sr-angle-circle-right' },
+  { iconClass: 'fi fi-rr-clock', label: 'Day End' },
+  { iconClass: 'fi fi-rr-refresh', label: 'KOT Transfer' },
+  { iconClass: 'fi fi-rr-user', label: 'Customer' },
+{ iconClass: 'fi fi-sr-user', label: 'Customer Solid' },
+{ iconClass: 'fi fi-rr-chart-histogram', label: 'Reports' },
+{ iconClass: 'fi fi-rr-building', label: 'Brand' },
+{ iconClass: 'fi fi-rr-boxes', label: 'Inventory' },
+{ iconClass: 'fi fi-rr-table', label: 'Table View' },
+{ iconClass: 'fi fi-rr-grid', label: 'Table Layout' },
+{ iconClass: 'fi fi-rr-file-invoice-dollar', label: 'Bill Payment' },
+{ iconClass: 'fi fi-rr-receipt', label: 'Bill View' },
+{ iconClass: 'fi fi-rr-hotel', label: 'Hotel' },
+{ iconClass: 'fi fi-rr-sliders-h', label: 'System Config' },
+{ iconClass: 'fi fi-rr-folder', label: 'Master' },
+{ iconClass: 'fi fi-rr-book', label: 'Accounting Master' },
+{ iconClass: 'fi fi-rr-hamburger', label: 'Food Items' },
+{ iconClass: 'fi fi-rr-apps', label: 'Allocation' },
+
+
+
+
+
+
+
+
+
+
+
+
   // Add more icons and labels as needed
 ]
 export { flaticonSolidData }

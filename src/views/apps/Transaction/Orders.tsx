@@ -2078,47 +2078,81 @@ const handleDecreaseQty = (itemId: number, variantId?: number) => {
   const handleLoadQuickBill = async (bill: any) => {
     try {
       setLoading(true);
-      // 1. Fetch full bill details from the backend using OrderService
-      const res = await OrderService.getBillById(bill.TxnID);
+// Keep Quick Bill list visible on left
+      // setShowOrderDetails(true); // Show order panel ONLY if needed
 
-      if (!res.success) {
-        throw new Error(res.message || 'Failed to fetch bill details.');
+      // 2. Fetch FULL bill data including header (tax, discount, dept)
+      const fullBillRes = await OrderService.getBillById(bill.TxnID);
+      if (!fullBillRes.success || !fullBillRes.data) {
+        toast.error('Failed to load bill details');
+        return;
+      }
+      const fullBill = fullBillRes.data;
+      const header = fullBill.header ?? {};
+
+      // 3. Set active tab
+      setActiveTab('Quick Bill');
+
+      // 4. Load FULL order data from header + details
+      setCurrentTxnId(fullBill.header.TxnID);
+      setPersistentTxnId(fullBill.header.TxnID);
+      setOrderNo(fullBill.header.TxnNo);
+      setCurrentKOTNo(fullBill.header.KOTNo || null);
+      setCurrentKOTNos([fullBill.header.KOTNo || 0].filter(Boolean));
+      
+      // ✅ RESTORE CUSTOMER
+      setCustomerName(fullBill.header.CustomerName || '');
+      setMobileNumber(fullBill.header.MobileNo || '');
+      setCustomerId(fullBill.header.customerid || null);
+
+      // ✅ RESTORE OUTLET + DEPT (CRITICAL for TAX)
+      setSelectedOutletId(header.outletid ?? null);      
+      // Dept fallback: header → mst_setting → first dept
+      let deptId = fullBill.header.departmentid;
+      if (!deptId && selectedOutletId) {
+        try {
+          const mstRes = await OrderService.getMstSettingByOutlet(selectedOutletId);
+          deptId = mstRes.data?.departmentid ?? 0;        
+        } catch {}
+      }
+      if (!deptId && departments.length > 0) {
+        deptId = departments[0].departmentid;
+      }
+      setSelectedDeptId(deptId ?? 0);
+
+      // ✅ RESTORE DISCOUNT (CRITICAL for TOTALS)
+      if (fullBill.header.Discount || fullBill.header.DiscPer) {
+        setDiscountType(fullBill.header.DiscountType ?? 1);
+        setDiscountInputValue(fullBill.header.DiscountType === 1 ? (fullBill.header.DiscPer || 0) : (fullBill.header.Discount || 0));
+        setDiscount(fullBill.header.Discount || 0);
       }
 
-      const fullBill = res.data;
+      // 5. Map FULL items from details (incl. reversed qty)
+      const fetchedItems = fullBill.details.map((item: any) => ({
+        ...item,
+        id: item.ItemID,
+        txnDetailId: item.TXnDetailID,
+        name: item.ItemName || 'Unknown',
+        price: item.RuntimeRate,
+        qty: Number(item.Qty) - Number(item.RevQty || 0),
+        isNew: false,
+        isBilled: item.isBilled ?? 0,
+        originalQty: item.Qty,
+        kotNo: item.KOTNo,
+        variantId: item.VariantID || null,
+        variantName: item.VariantName || null
+      })).filter(item => item.qty > 0);
+      setItems(fetchedItems);
 
-      if (fullBill && fullBill.details) {
-        // 2. Map the fetched items to the MenuItem interface
-        const fetchedItems: MenuItem[] = fullBill.details.map((item: any) => ({
-          id: item.ItemID,
-          txnDetailId: item.TxnDetailID,
-          name: item.ItemName || 'Unknown Item',
-          price: item.RuntimeRate,
-          qty: (Number(item.Qty) || 0) - (Number(item.RevQty) || 0),
-          isBilled: item.isBilled,
-          isNCKOT: item.isNCKOT,
-          NCName: '',
-          NCPurpose: '',
-          isNew: false, // All items are existing
-          originalQty: item.Qty,
-          kotNo: item.KOTNo,
-        })).filter((item: MenuItem) => item.qty > 0); // Filter out fully reversed items
+      // ✅ 6. FORCE TAX RECALC (100ms delay for useEffect)
+      setTimeout(() => {
+        console.log('🔥 QuickBill loaded → taxCalc:', taxCalc.grandTotal, 'vs list:', bill.GrandTotal);
+      }, 100);
 
-        // 3. Update the state to show the bill in the right panel
-        setActiveTab('Quick Bill');
-        // setShowOrderDetails(true); // Keep the quick bill list visible
-        setItems(fetchedItems);
-        setCurrentTxnId(fullBill.header.TxnID);
-        setOrderNo(fullBill.header.TxnNo);
-        setBillActionState('printOrSettle'); // The bill is already created
-        
-        // Set the outlet ID from the bill to ensure payment modes are fetched
-        if (fullBill.header.outletid) {
-          setSelectedOutletId(Number(fullBill.header.outletid));
-        }
-      }
+      toast.success('Quick Bill loaded with taxes & discount');
     } catch (error: any) {
-      toast.error(error.message || 'An error occurred while loading the bill.');
+      console.error('Error loading Quick Bill:', error);
+      toast.error('Failed to load bill details');
     } finally {
       setLoading(false);
     }
@@ -2790,7 +2824,7 @@ setSelectedDeptId(deptId ?? 0);
         console.log('🔥 Order loaded → taxCalc:', taxCalc.grandTotal, 'vs card:', order.total);
       }, 100);
 
-      toast.success('Order loaded with taxes & discount');
+      // toast.success('Order loaded with taxes & discount');
     } catch (error: any) {
       console.error('Error loading pending order:', error);
       toast.error('Failed to load order details');
@@ -2843,16 +2877,29 @@ setSelectedDeptId(deptId ?? 0);
     }
   };
 
-  const handlePendingMakePayment = (order: any) => {
+  const handlePendingMakePayment = async (order: any) => {
     setCurrentTxnId(order.id);
     setOrderNo(order.kotNo || `Order-${order.id}`);
     setItems(order.items.map((i: any) => ({ ...i, isBilled: 0, isNew: false }))); // Treat items as existing
-    setTaxCalc(prev => ({ ...prev, grandTotal: order.total, subtotal: order.total })); // Simplified for now
+    // 🔥 FIXED: Removed manual taxCalc override - let useEffect compute w/ taxes
     setDiscount(0); // Reset discount
     setSelectedOutletId(order.outletid); // Set the outlet ID from the order
-    fetchPaymentModesForOutlet(order.outletid).then(() => {
-      setShowSettlementModal(true); // Show modal after payment modes are fetched
-    });
+    
+    // 🔥 NEW: Load dept & taxes for accurate taxCalc
+    try {
+      const mstRes = await OrderService.getMstSettingByOutlet(order.outletid);
+      const deptId = mstRes.data?.departmentid || departments.find(d => d.outletid === order.outletid)?.departmentid;
+      if (deptId) {
+        setSelectedDeptId(deptId);
+        console.log(`✅ Pending order taxes loading: outlet=${order.outletid}, dept=${deptId}`);
+        // taxRates useEffect will auto-trigger on selectedDeptId change
+      }
+    } catch(e) {
+      console.error('Pending order tax setup failed:', e);
+    }
+    
+    await fetchPaymentModesForOutlet(order.outletid);
+    setShowSettlementModal(true); // Show modal after payment modes are fetched
   };
   const handlePendingOrderTabClick = (type: 'pickup' | 'delivery') => {
     setActiveNavTab(type.charAt(0).toUpperCase() + type.slice(1)); // Set the active tab

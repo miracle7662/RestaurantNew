@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Button, Card, Col, ProgressBar, Row, Spinner, Stack } from 'react-bootstrap'
-import axios from 'axios'
+import HandoverService from '@/common/api/handover';
 
 interface SummaryData {
   totalOrders: number
@@ -14,11 +14,11 @@ const CrmMiniCard = () => {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const fetchSummaryData = async () => {
+const fetchSummaryData = async () => {
       try {
-        const response = await axios.get('http://localhost:3001/api/handover/data')
-        if (response.data.success) {
-          setSummary(response.data.data.summary)
+        const response = await HandoverService.getHandoverData();
+        if (response.success) {
+          setSummary(response.data.summary)
         }
       } catch (error) {
         console.error('Error fetching summary data:', error)
