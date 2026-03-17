@@ -162,6 +162,7 @@ function SettingsPage() {
 
   // General tab states
   const [departmentId, setDepartmentId] = useState('');
+  const [settingId, setSettingId] = useState<number | null>(null);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [deptLoading, setDeptLoading] = useState(false);
   const [saveLoading, setSaveLoading] = useState(false);
@@ -263,7 +264,10 @@ function SettingsPage() {
         const response = await SettingsService.getTakeawaySetting(outletId);
         console.log('📥 fetchTakeawaySetting response (outletId:', outletId, '):', response);
         
-        if (response && response.departmentid) {
+        if (response && response.settingid) {
+          setSettingId(response.settingid);
+          setDepartmentId(response.departmentid.toString());
+        } else if (response && response.departmentid) {
           setDepartmentId(response.departmentid.toString());
         } else {
           console.log('No departmentid found, defaulting to 1');
@@ -900,14 +904,31 @@ function SettingsPage() {
                           setSaveLoading(true);
                           try {
                             const defaultOutletId = outlets[0]?.outletid || user.outletid || 1;
-                            console.log('💾 Saving takeaway with:', {hotelid: user.hotelid, outletid: defaultOutletId, departmentid: parseInt(newDeptId)});
-                            await SettingsService.saveTakeawaySetting({
+                            const payload = {
                               hotelid: user.hotelid,
                               outletid: defaultOutletId,
                               departmentid: parseInt(newDeptId),
                               created_by_id: user.id || 1
+                            };
+                            
+                            console.log('💾 Saving takeaway:', { 
+                              settingId, 
+                              ...payload 
                             });
-                            setSaveMessage('✅ Saved!');
+                            
+                            if (settingId) {
+                              // UPDATE existing setting
+                              await SettingsService.updateTakeawaySetting({
+                                settingid: settingId,
+                                ...payload
+                              });
+                              setSaveMessage('✅ Takeaway setting updated successfully!');
+                            } else {
+                              // CREATE new setting (fallback)
+                              await SettingsService.saveTakeawaySetting(payload);
+                              setSaveMessage('✅ Takeaway setting created!');
+                            }
+                            
                             setTimeout(() => setSaveMessage(''), 2000);
                           } catch (err) {
                             console.error('❌ Save failed:', err);

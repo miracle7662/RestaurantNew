@@ -601,30 +601,38 @@ exports.getTakeawaySetting = async (req, res) => {
   }
 };
 
-exports.createTakeawaySetting = async (req, res) => {
+exports.updateTakeawaySetting = async (req, res) => {
   try {
     const {
+      settingid,       // ID of the setting to update
       hotelid,
       outletid,
-      departmentid , // Default for takeaway
+      departmentid,
       created_by_id
     } = req.body;
 
-    if (!hotelid || !outletid || !created_by_id) {
-      return res.status(400).json({ error: 'hotelid, outletid, and created_by_id required' });
+    if (!settingid || !hotelid || !outletid || !created_by_id) {
+      return res.status(400).json({ error: 'settingid, hotelid, outletid, and created_by_id are required' });
     }
 
-    await runQuery(
-      `INSERT INTO mst_setting
-      (hotelid, outletid, departmentid, created_by_id)
-      VALUES (?, ?, ?, ?)`,
-      [hotelid, outletid, departmentid, created_by_id]
+    const result = await runQuery(
+      `UPDATE mst_setting
+       SET hotelid = ?,
+           outletid = ?,
+           departmentid = ?,
+           created_by_id = ?,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE settingid = ?`,
+      [hotelid, outletid, departmentid, created_by_id, settingid]
     );
 
-    res.json({ success: true, msg: 'Takeaway setting created successfully' });
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Takeaway setting not found' });
+    }
+
+    res.json({ success: true, msg: 'Takeaway setting updated successfully' });
   } catch (e) {
-    console.error('Takeaway CREATE ERROR:', e.message);
+    console.error('Takeaway UPDATE ERROR:', e.message);
     res.status(500).json({ error: e.message });
   }
 };
-

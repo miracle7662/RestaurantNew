@@ -69,6 +69,6 @@ router.post("/kds-users", settingsController.createKDSUser);
 router.get('/mst-setting/:outletid', settingsController.getMstSettingByOutlet);
 
 router.get('/takeaway/:id', settingsController.getTakeawaySetting);
-router.post('/takeaway', settingsController.createTakeawaySetting);
+router.put('/takeaway', settingsController.updateTakeawaySetting);
 
 module.exports = router;

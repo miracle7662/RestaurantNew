@@ -179,13 +179,23 @@ const SettingsService = {
 
   // Takeaway Settings
 getTakeawaySetting: (outletid: number) => {   return HttpClient.get<any>(`/settings/takeaway/${outletid}`)  },
-  saveTakeawaySetting: (payload: {
+
+saveTakeawaySetting: (payload: {
+  hotelid: number;
+  outletid: number;
+  departmentid: number;
+  created_by_id: number;
+}) => {
+  return HttpClient.post('/settings/takeaway', payload);
+},
+  updateTakeawaySetting: (payload: {
+    settingid: number;        // ID of the existing setting
     hotelid: number;
     outletid: number;
     departmentid: number;
     created_by_id: number;
   }) => {
-    return HttpClient.post('/settings/takeaway', payload);
+    return HttpClient.put('/settings/takeaway', payload);
   },
 
   /**
