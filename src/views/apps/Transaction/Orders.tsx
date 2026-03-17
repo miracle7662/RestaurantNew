@@ -4813,7 +4813,7 @@ onClose={() => {
             reverseQtyMode={reverseQtyMode}
             reverseQtyItems={reverseQtyItems}
             selectedOutletId={selectedOutletId}
-            // autoPrint={true}
+            autoPrint={true}
             kotNote={kotNote}
             orderNo={orderNo}
             date={user?.currDate}
