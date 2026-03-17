@@ -314,6 +314,7 @@ const fetchAllBills = async (customFilters = {}) => {
     }
   };
   const refreshItemsForTable = useCallback(async (tableIdNum: number) => {
+    if (tableIdNum <= 0) return;  // Virtual tables (pickup/delivery/quickbill) don't have backend items
     try {
       // Step 1: Try to fetch the latest billed (but not settled) bill
       const billedBillRes = await OrderService.getBilledBillByTable(tableIdNum);
@@ -921,6 +922,7 @@ const handleTabClick = (tab: string) => {
 
       // Ensure outlet ID is set for Pickup, Delivery, Quick Bill
       if (['Pickup', 'Delivery', 'Quick Bill'].includes(tab)) {
+        setSourceTableId(tab === 'Quick Bill' ? -1 : 0);  // Virtual table IDs for pickup/delivery/quickbill
         const outletId = Number(user?.outletid);
         setSelectedOutletId(outletId);
         
@@ -4023,7 +4025,7 @@ const handleDecreaseQty = (itemId: number, variantId?: number) => {
                           variant="secondary"
                           className="rounded-circle p-0 d-flex justify-content-center align-items-center"
                           style={{ width: '32px', height: '32px' }}
-                          disabled={!sourceTableId || items.length === 0}
+                          disabled={items.length === 0 || (activeTab === 'Dine-in' && !sourceTableId)}
                           onClick={() => {
                             setShowOptions(false);
                             setShowNCKOTModal(true);
@@ -4047,7 +4049,7 @@ const handleDecreaseQty = (itemId: number, variantId?: number) => {
                           variant="success"
                           className="rounded-circle p-0 d-flex justify-content-center align-items-center"
                           style={{ width: '32px', height: '32px' }}
-                          disabled={(!sourceTableId && !currentTxnId) || items.length === 0}
+                          disabled={items.length === 0 || (activeTab === 'Dine-in' && !sourceTableId)}
                           onClick={() => {
                             setShowOptions(false);
                             setShowDiscountModal(true);

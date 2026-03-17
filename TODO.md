@@ -1,22 +1,40 @@
-# Fix Pickup/Delivery/QuickBill Total Amount Display Bug
+# Task: Enable Discount/NCKOT buttons after adding items to Pickup/Delivery/QuickBill tabs
 
-## Plan Progress Tracker
-✅ **Step 1:** Create TODO.md [DONE]
+## Approved Plan Summary
+- **Objective**: Enable discount/NCKOT buttons immediately after first item added (`items.length > 0`) for pickup/delivery/quickbill tabs.
+- **File**: `src/views/apps/Transaction/Orders.tsx` only.
+- **Approach**: 
+  1. Set virtual `sourceTableId` for non-dinein tabs
+  2. Update button `disabled` conditions
+  3. Guard `refreshItemsForTable` for virtual IDs
 
-## Steps to Complete (from approved plan):
+## Steps to Complete [1/5]
 
-**Step 2: Edit src/views/apps/Transaction/Orders.tsx**
-- [ ] **2a.** Fix billing panel JSX: Change "Taxable Value" label + display `taxCalc.grandTotal` instead of `taxableValue`
-- [ ] **2b.** Add recalc trigger in `handleLoadQuickBill()` after `setItems()`
-- [ ] **2c.** Add recalc trigger in `handleLoadPendingOrder()` after `setItems()`
+### ✅ Step 1: Create this TODO.md [DONE]
 
-**Step 3: Test Changes**
-- [ ] Click pickup/delivery/quickbill cards → Verify "Total Amount" shows final grandTotal (incl tax)
-- [ ] Confirm matches backend bill totals
+### ⏳ Step 2: Read full Orders.tsx content again (use tail if needed)
+```
+Use: read_file(path="src/views/apps/Transaction/Orders.tsx")
+```
 
-**Step 4: Complete Task**
-- [ ] attempt_completion
+### ☐ Step 3: Implement virtual sourceTableId in handleTabClick()
+- Location: handleTabClick function (~line 1800)
+- Add: `setSourceTableId(tab === 'Quick Bill' ? -1 : 0);` inside pickup/delivery/quickbill block
 
-**Next Action:** Implement Step 2a, 2b, 2c → Mark as done → Test → Complete
+### ☐ Step 4: Update button disabled conditions
+- Location: Floating options buttons (~lines 3800-3850)
+```
+Discount: disabled={items.length === 0 || (activeTab === 'Dine-in' && !sourceTableId)}
+NCKOT:   disabled={items.length === 0 || (activeTab === 'Dine-in' && !sourceTableId)}
+```
 
+### ☐ Step 5: Guard refreshItemsForTable for virtual IDs
+- Location: refreshItemsForTable (~line 1200)  
+- Add: `if (tableIdNum <= 0) return;`
+
+### ☐ Step 6: Test & Complete
+- Manual test: Pickup tab → Add item → Discount/NCKOT buttons enable ✅
+- Run `attempt_completion`
+
+**Next Action**: Execute Step 2 by reading the file again for precise line matching.
 
