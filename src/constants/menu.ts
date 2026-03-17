@@ -24,7 +24,7 @@ const MENU_ITEMS: MenuItemTypes[] = [
     key: '  Orders',
     label: 'POS',
     url: '/apps/orders',
-    icon: 'fi fi-rr-shopping-cart',
+    icon: '<i class="bi bi-receipt"></i>',
     parentKey: 'apps',
   },
 

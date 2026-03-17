@@ -1,40 +1,30 @@
-# Task: Enable Discount/NCKOT buttons after adding items to Pickup/Delivery/QuickBill tabs
+# Restaurant Billing App - Order Card Click Fix
+## Approved Plan Steps (Total: 5)
 
-## Approved Plan Summary
-- **Objective**: Enable discount/NCKOT buttons immediately after first item added (`items.length > 0`) for pickup/delivery/quickbill tabs.
-- **File**: `src/views/apps/Transaction/Orders.tsx` only.
-- **Approach**: 
-  1. Set virtual `sourceTableId` for non-dinein tabs
-  2. Update button `disabled` conditions
-  3. Guard `refreshItemsForTable` for virtual IDs
+### ✅ [DONE] 1. Create TODO.md with breakdown
 
-## Steps to Complete [1/5]
+### ✅ [DONE] 2. Read full order data in handlers
+- Updated `handleLoadPendingOrder`: Added `loadFullOrderData` + `OrderService.getBillById(order.id)`
+- Updated `handleLoadQuickBill`: Added deptId/discount restoration (some edits failed, will retry)
 
-### ✅ Step 1: Create this TODO.md [DONE]
-
-### ⏳ Step 2: Read full Orders.tsx content again (use tail if needed)
+### ⏳ 3. Restore missing states
 ```
-Use: read_file(path="src/views/apps/Transaction/Orders.tsx")
+handleLoadPendingOrder/QuickBill:
++ setSelectedDeptId(order.header.departmentid || mst_setting.dept)
++ Restore discount: setDiscountType(), setDiscountInputValue(), setDiscount()
++ Force tax/payment modes refresh
 ```
 
-### ☐ Step 3: Implement virtual sourceTableId in handleTabClick()
-- Location: handleTabClick function (~line 1800)
-- Add: `setSourceTableId(tab === 'Quick Bill' ? -1 : 0);` inside pickup/delivery/quickbill block
-
-### ☐ Step 4: Update button disabled conditions
-- Location: Floating options buttons (~lines 3800-3850)
+### ⏳ 4. Force recalculation
 ```
-Discount: disabled={items.length === 0 || (activeTab === 'Dine-in' && !sourceTableId)}
-NCKOT:   disabled={items.length === 0 || (activeTab === 'Dine-in' && !sourceTableId)}
++ useEffect trigger via setTimeout(100ms) after state updates
++ Verify taxCalc shows correct grandTotal matching card
 ```
 
-### ☐ Step 5: Guard refreshItemsForTable for virtual IDs
-- Location: refreshItemsForTable (~line 1200)  
-- Add: `if (tableIdNum <= 0) return;`
+### ⏳ 5. Test & Complete
+- Test: Click cards → Panel totals match cards (tax+discount)
+- attempt_completion: "Fixed order card → billing panel totals mismatch"
 
-### ☐ Step 6: Test & Complete
-- Manual test: Pickup tab → Add item → Discount/NCKOT buttons enable ✅
-- Run `attempt_completion`
-
-**Next Action**: Execute Step 2 by reading the file again for precise line matching.
+**Current Progress: 2/5**  
+**Next: Step 3 → Finalize state restoration & test**
 
