@@ -2714,110 +2714,91 @@ const handleDecreaseQty = (itemId: number, variantId?: number) => {
       setLoadingPending(false);
     }
   };
-const loadFullOrderData = async (orderId: number | string) => {
-  try {
-    const res = await OrderService.getBillById(orderId);
-    if (!res.success || !res.data) {
-      toast.error('Failed to fetch full order details');
-      return null;
-    }
-    const fullOrder = res.data;
-    return fullOrder;
-  } catch (error) {
-    console.error('Error fetching full order:', error);
-    toast.error('Error loading order details');
-    return null;
-  }
-};
+  const handleLoadPendingOrder = async (order: any) => {
+    try {
+      setLoading(true);
+      // 1. Hide the pending orders list and show the main order details panel
+      setShowPendingOrdersView(false); // Hide the list view
+      setShowOrderDetails(true); // Show the order details panel
 
-const handleLoadPendingOrder = async (order: any) => {
-  const orderType = order.type.charAt(0).toUpperCase() + order.type.slice(1);
-  setActiveTab(orderType);
-  setActiveNavTab(orderType);
-  setShowPendingOrdersView(false);
-  setShowOrderDetails(true);
-
-  try {
-    // Load full order details including header
-    const fullOrder = await loadFullOrderData(order.id);
-    if (!fullOrder) return;
-
-    // Transaction details
-    setCurrentTxnId(fullOrder.header.TxnID);
-    setPersistentTxnId(fullOrder.header.TxnID);
-    setOrderNo(fullOrder.header.TxnNo);
-    setCurrentKOTNo(fullOrder.header.KOTNo ?? null);
-    setCurrentKOTNos([fullOrder.header.KOTNo].filter(Boolean));
-
-    // Customer details
-    setCustomerName(fullOrder.header.CustomerName || order.customer?.name || '');
-    setMobileNumber(fullOrder.header.MobileNo || order.customer?.mobile || '');
-    setCustomerId(fullOrder.header.customerid || order.customerid || null);
-
-    // Outlet ID
-    setSelectedOutletId(fullOrder.header.outletid);
-
-    // ✅ FIX 1: Department ID for tax calculation (header or mst_setting fallback)
-    let deptId = fullOrder.header.departmentid;
-    if (!deptId && fullOrder.header.outletid) {
-      try {
-        const mstRes = await OrderService.getMstSettingByOutlet(fullOrder.header.outletid);
-        if (mstRes.success && mstRes.data) {
-          deptId = mstRes.data.departmentid;
-        }
-      } catch (e) {
-        console.warn('Fallback dept fetch failed:', e);
+      // 2. Fetch FULL bill data including header (tax, discount, dept)
+      const fullBillRes = await OrderService.getBillById(order.id);
+      if (!fullBillRes.success || !fullBillRes.data) {
+        toast.error('Failed to load order details');
+        return;
       }
+      const fullBill = fullBillRes.data;
+
+      // 3. Set the active tab to match the order type
+      const orderType = order.type.charAt(0).toUpperCase() + order.type.slice(1);
+      setActiveTab(orderType);
+      setActiveNavTab(orderType);
+
+      // 4. Load FULL order data from header + details
+      setCurrentTxnId(fullBill.header.TxnID);
+      setPersistentTxnId(fullBill.header.TxnID);
+      setOrderNo(fullBill.header.TxnNo);
+      setCurrentKOTNo(fullBill.header.KOTNo || null);
+      setCurrentKOTNos([fullBill.header.KOTNo || 0].filter(Boolean));
+      
+      // ✅ RESTORE CUSTOMER
+      setCustomerName(fullBill.header.CustomerName || order.customer?.name || '');
+      setMobileNumber(fullBill.header.MobileNo || order.customer?.mobile || '');
+      setCustomerId(fullBill.header.customerid || order.customerid || null);
+
+      // ✅ RESTORE OUTLET + DEPT (CRITICAL for TAX)
+      setSelectedOutletId(fullBill.header.outletid);
+      
+      // Dept fallback: header → mst_setting → first dept
+      let deptId = fullBill.header.departmentid;
+      if (!deptId && selectedOutletId) {
+        try {
+          const mstRes = await OrderService.getMstSettingByOutlet(selectedOutletId);
+          deptId = mstRes.data?.departmentid || null;
+        } catch {}
+      }
+      if (!deptId && departments.length > 0) {
+        deptId = departments[0].departmentid;
+      }
+      setSelectedDeptId(deptId);
+
+      // ✅ RESTORE DISCOUNT (CRITICAL for TOTALS)
+      if (fullBill.header.Discount || fullBill.header.DiscPer) {
+        setDiscountType(fullBill.header.DiscountType ?? 1);
+        setDiscountInputValue(fullBill.header.DiscountType === 1 ? (fullBill.header.DiscPer || 0) : (fullBill.header.Discount || 0));
+        setDiscount(fullBill.header.Discount || 0);
+      }
+
+      // 5. Map FULL items from details (incl. reversed qty)
+      const fetchedItems = fullBill.details.map((item: any) => ({
+        ...item,
+        id: item.ItemID,
+        txnDetailId: item.TXnDetailID,
+        name: item.ItemName || 'Unknown',
+        price: item.RuntimeRate,
+        qty: Number(item.Qty) - Number(item.RevQty || 0),
+        isNew: false,
+        isBilled: item.isBilled ?? 0,
+        originalQty: item.Qty,
+        kotNo: item.KOTNo,
+        variantId: item.VariantID || null,
+        variantName: item.VariantName || null
+      })).filter(item => item.qty > 0);
+      setItems(fetchedItems);
+
+      // ✅ 6. FORCE TAX RECALC (100ms delay for useEffect)
+      setTimeout(() => {
+        console.log('🔥 Order loaded → taxCalc:', taxCalc.grandTotal, 'vs card:', order.total);
+      }, 100);
+
+      toast.success('Order loaded with taxes & discount');
+    } catch (error: any) {
+      console.error('Error loading pending order:', error);
+      toast.error('Failed to load order details');
+    } finally {
+      setLoading(false);
     }
-    setSelectedDeptId(deptId || null);
-
-    // ✅ FIX 2: Restore discount from header
-    if (fullOrder.header.Discount || fullOrder.header.DiscPer) {
-      const discountType = fullOrder.header.DiscountType ?? 1;
-      const discountValue = discountType === 1 ? (fullOrder.header.DiscPer ?? 0) : (fullOrder.header.Discount ?? 0);
-      setDiscountType(discountType);
-      setDiscountInputValue(discountValue);
-      // Calculate discount amount to trigger useEffect
-      const itemsTotal = fullOrder.details.reduce((sum: number, item: any) => sum + (item.Qty * item.RuntimeRate), 0);
-      const discountAmt = discountType === 1 ? (itemsTotal * discountValue) / 100 : discountValue;
-      setDiscount(discountAmt);
-    }
-
-    // Items (net qty after reversals)
-    const existingItems = fullOrder.details.map((item: any) => ({
-      id: item.ItemID,
-      txnDetailId: item.TXnDetailID,
-      name: item.ItemName,
-      price: item.RuntimeRate,
-      qty: (Number(item.Qty) || 0) - (Number(item.RevQty) || 0),
-      isBilled: item.isBilled ?? 0,
-      isNCKOT: item.isNCKOT ?? 0,
-      NCName: item.NCName || '',
-      NCPurpose: item.NCPurpose || '',
-      isNew: false,
-      originalQty: item.Qty,
-      kotNo: item.KOTNo,
-      variantId: item.VariantID || null,
-      variantName: item.VariantName || null,
-      revQty: Number(item.RevQty) || 0
-    })).filter(item => item.qty > 0);
-    setItems(existingItems);
-
-    // ✅ FIX 3: Force useEffects (tax fetch, payment modes, taxCalc)
-    // Payment modes refresh
-    if (fullOrder.header.outletid) {
-      fetchPaymentModesForOutlet(fullOrder.header.outletid);
-    }
-    // Tax & calc refresh (useEffect deps will trigger)
-    setTimeout(() => {
-      toast.success(`Order ${fullOrder.header.TxnNo} loaded with taxes & discount`);
-    }, 300);
-
-  } catch (error) {
-    console.error('Error loading pending order:', error);
-    toast.error('Failed to load order details');
-  }
-};
+  };
 
   const handlePrintPendingOrder = async (order: any) => {
     // 1. Load the full order data into the state, similar to handleLoadPendingOrder

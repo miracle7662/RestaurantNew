@@ -77,6 +77,8 @@ export interface BillHeader {
   TxnNo: string
   TableID: number
   Steward?: string
+    departmentid?: number; // ✅ ADD THIS
+
   PAX?: number
   pax?: number
   waiter?: string
