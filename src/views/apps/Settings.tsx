@@ -166,7 +166,7 @@ function SettingsPage() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [deptLoading, setDeptLoading] = useState(false);
   const [saveLoading, setSaveLoading] = useState(false);
-  const [, setError] = useState("");
+ 
   const [saveMessage, setSaveMessage] = useState('');
 
   const [labelPrinterName, setLabelPrinterName] = useState("");
