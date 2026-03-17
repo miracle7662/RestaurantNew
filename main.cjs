@@ -81,7 +81,7 @@ function startBackend() {
   backendProcess = spawn('node', [backendPath], {
     cwd: path.dirname(backendPath),
     stdio: "inherit",
-    windowsHide: false,  // 🔥 SHOW console for debug
+    windowsHide: true,   // ✅ Hide CMD window in dev
     env: env,
   });
 

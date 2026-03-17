@@ -188,9 +188,20 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({
     };
   }, []);
 
-  // Sync searchTable state with tableId prop
+// Sync searchTable state with tableId prop
   useEffect(() => {
     setSearchTable(tableId || '');
+  }, [tableId]);
+
+  // Auto-focus table input when NEW tableId arrives (table click opens page)
+  useEffect(() => {
+    if (tableId && tableInputRef.current) {
+      // Small delay ensures input value/ref ready after prop change
+      setTimeout(() => {
+        tableInputRef.current?.focus();
+        tableInputRef.current?.select();
+      }, 100);
+    }
   }, [tableId]);
 
   // Derive valid tables from filteredTables

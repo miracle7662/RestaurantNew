@@ -1443,6 +1443,17 @@ const handleDecreaseQty = (itemId: number, variantId?: number) => {
       }
 
       toast.success('Bill marked as printed!');
+        
+        // Focus Mode logic for Bill print: Navigate back when focusMode OFF
+        if (!focusMode && activeTab === 'Dine-in') {
+          setShowOrderDetails(false);
+          setTimeout(() => {
+            if (tableSearchInputRef.current) {
+              tableSearchInputRef.current.focus();
+              tableSearchInputRef.current.select();
+            }
+          }, 150);
+        }
 
       // Clear customer fields after successful print
       setMobileNumber('');
@@ -1748,6 +1759,17 @@ const handleDecreaseQty = (itemId: number, variantId?: number) => {
         console.log("KOT SAVE RESPONSE: ", resp.data);
 
         toast.success('KOT saved successfully!');
+        
+        // Focus Mode logic: Navigate back to table list when focusMode OFF
+        if (!focusMode && activeTab === 'Dine-in') {
+          setShowOrderDetails(false);
+          setTimeout(() => {
+            if (tableSearchInputRef.current) {
+              tableSearchInputRef.current.focus();
+              tableSearchInputRef.current.select();
+            }
+          }, 150);
+        }
 
         // Update TxnNo and TxnID from the response
         if (resp?.data) {
@@ -2149,7 +2171,7 @@ const handleDecreaseQty = (itemId: number, variantId?: number) => {
         console.log('🔥 QuickBill loaded → taxCalc:', taxCalc.grandTotal, 'vs list:', bill.GrandTotal);
       }, 100);
 
-      toast.success('Quick Bill loaded with taxes & discount');
+      // toast.success('Quick Bill loaded with taxes & discount');
     } catch (error: any) {
       console.error('Error loading Quick Bill:', error);
       toast.error('Failed to load bill details');
