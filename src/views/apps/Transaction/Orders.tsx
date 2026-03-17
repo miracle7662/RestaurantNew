@@ -3248,7 +3248,7 @@ const handleDecreaseQty = (itemId: number, variantId?: number) => {
                         overflowY: 'auto',
                       }}
                     >
-<h5 className="mb-3 text-center text-primary fw-semibold">
+                      <h5 className="mb-3 text-center text-primary fw-semibold">
                         Today's Bills ({allBills.length})
                       </h5>
 
@@ -3267,11 +3267,10 @@ const handleDecreaseQty = (itemId: number, variantId?: number) => {
                             <th style={{ width: '12%', ...cellStyle }}>Bill No</th>
                             <th style={{ width: '14%', ...cellStyle }}>Table Name</th>
                             <th style={{ width: '12%', ...cellStyle }}>Order Type</th>
-                           
-                            <th style={{ width: '14%', ...cellStyle }}>Payment</th>
-                            <th style={{ width: '10%', ...cellStyle }}>Total</th>
                             <th style={{ width: '16%', ...cellStyle }}>Customer</th>
                             <th style={{ width: '12%', ...cellStyle }}>Mobile</th>
+                            <th style={{ width: '14%', ...cellStyle }}>Payment</th>
+                            <th style={{ width: '10%', ...cellStyle }}>Total</th>
 
                           </tr>
                         </thead>
@@ -3283,11 +3282,10 @@ const handleDecreaseQty = (itemId: number, variantId?: number) => {
                                 <td style={cellStyle}>{bill.TxnNo}</td>
                                 <td style={cellStyle}>{bill.table_name }</td>
                                 <td style={cellStyle}>{bill.OrderType}</td>
-                               
-                                <td style={cellStyle}>{bill.PaymentMode}</td>
-                                <td style={cellStyle}>{bill.GrandTotal}</td>
                                 <td style={cellStyle}>{bill.CustomerName}</td>
                                 <td style={cellStyle}>{bill.Mobile}</td>
+                                <td style={cellStyle}>{bill.PaymentMode}</td>
+                                <td style={cellStyle}>{bill.GrandTotal}</td>
                               </tr>
                             ))
                           ) : (
