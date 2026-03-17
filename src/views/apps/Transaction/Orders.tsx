@@ -2728,6 +2728,8 @@ const handleDecreaseQty = (itemId: number, variantId?: number) => {
         return;
       }
       const fullBill = fullBillRes.data;
+      const header = fullBill.header ?? {};     // ✅ FIX 1
+   
 
       // 3. Set the active tab to match the order type
       const orderType = order.type.charAt(0).toUpperCase() + order.type.slice(1);
@@ -2747,21 +2749,18 @@ const handleDecreaseQty = (itemId: number, variantId?: number) => {
       setCustomerId(fullBill.header.customerid || order.customerid || null);
 
       // ✅ RESTORE OUTLET + DEPT (CRITICAL for TAX)
-      setSelectedOutletId(fullBill.header.outletid);
-      
+setSelectedOutletId(header.outletid ?? null);      
       // Dept fallback: header → mst_setting → first dept
       let deptId = fullBill.header.departmentid;
       if (!deptId && selectedOutletId) {
         try {
           const mstRes = await OrderService.getMstSettingByOutlet(selectedOutletId);
-          deptId = mstRes.data?.departmentid || null;
-        } catch {}
+deptId = mstRes.data?.departmentid ?? 0;        } catch {}
       }
       if (!deptId && departments.length > 0) {
         deptId = departments[0].departmentid;
       }
-      setSelectedDeptId(deptId);
-
+setSelectedDeptId(deptId ?? 0);
       // ✅ RESTORE DISCOUNT (CRITICAL for TOTALS)
       if (fullBill.header.Discount || fullBill.header.DiscPer) {
         setDiscountType(fullBill.header.DiscountType ?? 1);
