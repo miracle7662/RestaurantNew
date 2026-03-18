@@ -423,7 +423,6 @@ console.log("Lock DateTime selected:", lock_datetime);
   }
 };
 
-const { getBusinessDate } = require('../utils/businessDate');
 
 const getLatestCurrDate = (req, res) => {
   try {
@@ -664,12 +663,13 @@ function generateBillDetailsHTML(transactions) {
   let totalGross = 0, totalDisc = 0, totalCGST = 0, totalSGST = 0, totalNet = 0;
 
   transactions.forEach(t => {
-    html += `${t.billNo.padEnd(8)} ${String(t.tableNo).padEnd(6)} ${t.grossAmount.toFixed(2).padStart(7)} ${t.discount.toFixed(2).padStart(6)} ${t.cgst.toFixed(2).padStart(6)} ${t.sgst.toFixed(2).padStart(6)} ${t.netAmount.toFixed(2).padStart(6)} ${t.paymentMode.substring(0,8)}\n`;
-    totalGross += t.grossAmount;
-    totalDisc += t.discount;
-    totalCGST += t.cgst;
-    totalSGST += t.sgst;
-    totalNet += t.netAmount;
+    html += `${safeStr(t.billNo).padEnd(8)} ${safeStr(t.tableNo).padEnd(6)} ${safeNum(t.grossAmount).toFixed(2).padStart(7)} ${safeNum(t.discount).toFixed(2).padStart(6)} ${safeNum(t.cgst).toFixed(2).padStart(6)} ${safeNum(t.sgst).toFixed(2).padStart(6)} ${safeNum(t.netAmount).toFixed(2).padStart(6)} ${safeStr(t.paymentMode).substring(0,8)}\n`;
+
+    totalGross += safeNum(t.grossAmount);
+    totalDisc += safeNum(t.discount);
+    totalCGST += safeNum(t.cgst);
+    totalSGST += safeNum(t.sgst);
+    totalNet += safeNum(t.netAmount);
   });
 
   html += '-------- ------ ------- ------ ------ ------ ------ --------\n';
@@ -685,9 +685,10 @@ function generateCreditSummaryHTML(transactions) {
 
   let totalCredit = 0;
 
-  transactions.filter(t => t.creditAmount > 0).forEach(t => {
-    html += `${t.customerName.substring(0,23).padEnd(23)} ${t.creditAmount.toFixed(2).padStart(14)}\n`;
-    totalCredit += t.creditAmount;
+  transactions.filter(t => safeNum(t.creditAmount) > 0).forEach(t => {
+    const name = safeStr(t.customerName);
+    html += `${name.substring(0,23).padEnd(23)} ${safeNum(t.creditAmount).toFixed(2).padStart(14)}\n`;
+    totalCredit += safeNum(t.creditAmount);
   });
 
   html += '----------------------- --------------\n';
@@ -702,11 +703,14 @@ function generatePaymentSummaryHTML(transactions) {
   let cash = 0, card = 0, upi = 0, qr = 0, other = 0;
 
   transactions.forEach(t => {
-    cash += t.paymentMode.toLowerCase().includes('cash') ? t.netAmount : 0;
-    card += t.paymentMode.toLowerCase().includes('card') ? t.netAmount : 0;
-    upi += (t.paymentMode.toLowerCase().includes('gpay') || t.paymentMode.toLowerCase().includes('phonepe')) ? t.netAmount : 0;
-    qr += t.paymentMode.toLowerCase().includes('qr') ? t.netAmount : 0;
-    other += t.netAmount - (cash + card + upi + qr); // Approximation
+    const mode = safeStr(t.paymentMode).toLowerCase();
+    const amt = safeNum(t.netAmount);
+
+    if (mode.includes('cash')) cash += amt;
+    else if (mode.includes('card')) card += amt;
+    else if (mode.includes('gpay') || mode.includes('phonepe')) upi += amt;
+    else if (mode.includes('qr')) qr += amt;
+    else other += amt;
   });
 
   html += `Cash          ${cash.toFixed(2).padStart(10)}\n`;
@@ -727,10 +731,10 @@ function generateDiscountSummaryHTML(transactions) {
 
   let totalDiscount = 0;
 
-  transactions.filter(t => t.discount > 0).forEach(t => {
-    const discountReason = String(t.discountReason || 'N/A');
-    html += `${t.billNo.padEnd(8)} ${discountReason.substring(0,20).padEnd(20)} ${t.discount.toFixed(2).padStart(6)}\n`;
-    totalDiscount += t.discount;
+  transactions.filter(t => safeNum(t.discount) > 0).forEach(t => {
+    const reason = safeStr(t.discountReason);
+    html += `${safeStr(t.billNo).padEnd(8)} ${reason.substring(0,20).padEnd(20)} ${safeNum(t.discount).toFixed(2).padStart(6)}\n`;
+    totalDiscount += safeNum(t.discount);
   });
 
   html += '-------- -------------------- ------\n';
@@ -745,10 +749,14 @@ function generateReverseKOTsSummaryHTML(reverseKOTs) {
   html += '------- ------ ------------------ ---- --------- --------\n';
 
   reverseKOTs.forEach(r => {
-    const timeStr = new Date(r.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+    const timeStr = r.time
+      ? new Date(r.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+      : '';
+
     const itemName = String(r.itemName || 'N/A');
     const reason = String(r.reason || 'N/A');
-    html += `${r.kotNo.padEnd(7)} ${String(r.tableNo).padEnd(6)} ${itemName.substring(0,18).padEnd(18)} ${String(r.quantity).padStart(4)} ${reason.substring(0,9).padEnd(9)} ${timeStr}\n`;
+
+    html += `${String(r.kotNo || '').padEnd(7)} ${String(r.tableNo || '').padEnd(6)} ${itemName.substring(0,18).padEnd(18)} ${String(r.quantity || 0).padStart(4)} ${reason.substring(0,9).padEnd(9)} ${timeStr}\n`;
   });
 
   html += '\n';
@@ -761,8 +769,11 @@ function generateReverseBillSummaryHTML(reverseBills) {
   html += '-------- ------ ---------------- --------- --------\n';
 
   reverseBills.forEach(r => {
-    const timeStr = new Date(r.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
-    html += `${r.billNo.padEnd(8)} ${String(r.tableNo).padEnd(6)} ${r.reversedAmount.toFixed(2).padStart(16)} ${r.reason.substring(0,9).padEnd(9)} ${timeStr}\n`;
+    const timeStr = r.time
+      ? new Date(r.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+      : '';
+
+    html += `${String(r.billNo || '').padEnd(8)} ${String(r.tableNo || '').padEnd(6)} ${Number(r.reversedAmount || 0).toFixed(2).padStart(16)} ${String(r.reason || '').substring(0,9).padEnd(9)} ${timeStr}\n`;
   });
 
   html += '\n';
@@ -777,8 +788,8 @@ function generateNCKOTSalesSummaryHTML(ncKOTs) {
   let totalAmount = 0;
 
   ncKOTs.forEach(n => {
-    html += `${n.ncName.substring(0,10).padEnd(10)} ${n.purpose.substring(0,10).padEnd(10)} ${n.itemName.substring(0,18).padEnd(18)} ${String(n.quantity).padStart(4)} ${n.amount.toFixed(2).padStart(6)}\n`;
-    totalAmount += n.amount;
+    html += `${String(n.ncName || '').substring(0,10).padEnd(10)} ${String(n.purpose || '').substring(0,10).padEnd(10)} ${String(n.itemName || '').substring(0,18).padEnd(18)} ${String(n.quantity || 0).padStart(4)} ${Number(n.amount || 0).toFixed(2).padStart(6)}\n`;
+    totalAmount += Number(n.amount || 0);
   });
 
   html += '---------- ---------- ------------------ ---- ------\n';
