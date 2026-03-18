@@ -3748,7 +3748,7 @@ setSelectedDeptId(deptId ?? 0);
               <div className="d-flex justify-content-between align-items-center bg-white border rounded p-2">
                 <span className="fw-bold flex-grow-1 text-center">{getKOTLabel()}</span>
                 {reverseQtyMode && <span className="badge bg-danger me-2">Reverse Qty Mode: Active</span>}
-                {selectedTable && items.some(item => item.isNew) && (
+{(items.some(item => item.isNew) || ['Pickup', 'Delivery', 'Quick Bill'].includes(activeTab)) && (
                   <button
                     className="btn btn-sm btn-outline-primary p-1 me-1"
                     style={{ lineHeight: 1 }}

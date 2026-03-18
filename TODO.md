@@ -1,2 +1,40 @@
-# KOT Pickup/Delivery Header Fix - Task Progress\n\n## Completed Steps (2/4) ✅\n- [x] 1. Create TODO.md with implementation steps ✅\n- [x] 2. Edit Orders.tsx → Added `isPickup:1`/`isdelivery:1`/`isHomeDelivery:1` to `kotPayload` when tab=Pickup/Delivery ✅\n- [ ] 3. Test pickup/delivery KOT save → verify backend header flags\n- [ ] 4. Update TODO.md with test results → attempt_completion\n\n## Implementation Details\n**File**: `src/views/apps/Transaction/Orders.tsx`  \n**Location**: `handlePrintAndSaveKOT()` → `kotPayload` object ✅\n**Change**: Added:\n```js\n        isPickup: activeTab === 'Pickup' ? 1 : 0,\n        isdelivery: activeTab === 'Delivery' ? 1 : 0,\n        isHomeDelivery: activeTab === 'Delivery' ? 1 : 0,\n```\n\n**✅ Frontend fixed.** Backend expects these boolean flags in TAxnTrnbill header.\n\n**Next**: Test in browser → Pickup tab → add item → F9 (KOT) → check DB `isPickup=1`\n\n**Test command**: `npm run dev` → Orders page → Pickup tab → add/test
+# Restaurant Waiter Button Fix - Progress Tracker
+
+## ✅ PLAN APPROVED
+**Goal**: Show waiter button/modal for Pickup/Delivery/Quick Bill tabs before KOT save (like Dine-in).
+
+**Files**: `src/views/apps/Transaction/Orders.tsx` (main changes)
+
+## 📋 TODO Steps (8/8 remaining)
+
+### [ ] Step 1: Update waiter button condition
+- File: `Orders.tsx`
+- Change: `selectedTable && hasNewItems` → `hasNewItems || ['Pickup','Delivery','Quick Bill'].includes(activeTab)`
+
+### [ ] Step 2: Add auto-modal trigger for non-dine tabs
+- In `handleTabClick()`: Auto-open `showWaiterPaxModal` when switching to Pickup/Delivery/Quick Bill with items
+
+### [ ] Step 3: Test button visibility
+- Manual: Click Pickup tab → Add item → Verify waiter button appears
+
+### [ ] Step 4: Test KOT save with waiter
+- Save KOT → Check backend `Steward` field populated
+
+### [ ] Step 5: Visual polish (optional)
+- Show waiter name in KOT header for all tabs
+
+### [ ] Step 6: Cross-browser test
+- Chrome/Firefox → Verify modal + default waiter works
+
+### [ ] Step 7: Edge cases
+- Default waiter auto-select
+- Empty waiter field → KOT saves empty?
+
+### [ ] Step 8: Complete & cleanup
+- Update TODO.md ✅
+- attempt_completion
+
+**Next**: Step 1 - Edit Orders.tsx button condition
+
+**Status**: 🚀 Starting implementation...
 
