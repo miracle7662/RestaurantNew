@@ -53,12 +53,6 @@ function parseJsonSafelyBoolean<T extends Record<string, boolean>>(value: string
   }
 }
 
-
-
-
-
-
-
 interface OutletSettings {
   outletid: number;
   hotelid: number;

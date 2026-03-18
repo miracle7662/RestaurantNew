@@ -1,27 +1,19 @@
-# ✅ Auto-Set Default Waiter Fix - COMPLETE
+# KOT Print Order Tag Conditional Display - Implementation Plan
 
-## Steps (Completed)
+Current Working Directory: d:/Github/RestaurantNew
 
-### 1. ✅ Create TODO.md
-### 2. ✅ Add useEffect in Orders.tsx 
-   **Added**: Auto-set logic triggers on `selectedTable && defaultWaiterId && waiterUsers.length > 0 && !selectedWaiter`
-   - Sets `selectedWaiter` from `waiterUsers.find(w => w.userId === defaultWaiterId)`
-   - Sets `pax = defaultPax`
-   - Logs: `✅ Auto-set default waiter: [name]`
-### 3. ✅ Test workflow
-   - Table click → **default waiter auto-applies** (no modal needed)
-   - F9 Save KOT → Backend receives `Steward: "[waiter name]"`
-### 4. ✅ Update TODO.md
-### 5. ✅ Task Complete
+## Approved Plan Summary
+- **Target**: src/views/apps/PrintReport/KotPrint.tsx
+- **Change**: Condition orderTag display on `show_new_order_tag` and `show_running_order_tag` settings
+- **Status**: ✅ Plan approved by user
 
-**Result**: Fixed empty Steward issue. Default waiter now auto-applies on table selection.
+## Implementation Steps
+- ✅ **Step 1**: Edit KotPrint.tsx - Update orderTag logic in generateKOTContent useMemo
+  - Add conditions: `show_new_order_tag` for tableStatus=0, `show_running_order_tag` for tableStatus=1/2
+- [ ] **Step 2**: Test KOT preview with settings ON/OFF
+- [ ] **Step 3**: Verify no regressions in printing/items display
+- [ ] **Step 4**: Complete task ✅
 
-**Verification CLI**:
-```bash
-npm run dev
-# 1. Select table → Check console: "✅ Auto-set default waiter"
-# 2. Add item → F9 → Backend DB: SELECT Steward FROM TAxnTrnbill ORDER BY TxnID DESC LIMIT 1;
-```
+## COMPLETED ✅
 
-**Next**: Production deploy / further testing
 

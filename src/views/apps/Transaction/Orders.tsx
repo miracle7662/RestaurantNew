@@ -243,6 +243,8 @@ const Order = () => {
     }
   }, [selectedTable, defaultWaiterId, waiterUsers, defaultPax, selectedWaiter]);
 
+  
+
   // Original: Set default when modal opens (manual override)
   useEffect(() => {
     if (showWaiterPaxModal) {
@@ -4828,7 +4830,7 @@ onClose={() => {
             reverseQtyMode={reverseQtyMode}
             reverseQtyItems={reverseQtyItems}
             selectedOutletId={selectedOutletId}
-            autoPrint={true}
+            // autoPrint={true}
             kotNote={kotNote}
             orderNo={orderNo}
             date={user?.currDate}

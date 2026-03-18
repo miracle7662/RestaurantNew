@@ -444,12 +444,12 @@ const KotPreviewPrint: React.FC<KotPreviewPrintProps> = ({
     };
     const tabKey = tabKeyMap[activeTab] || 'dine_in';
 
-    // Determine order tag for KOT header
+    // Determine order tag for KOT header - only show if settings enabled
     const orderTag = (() => {
       if (activeTab === 'Dine-in' && selectedTable && tableStatus !== null) {
-        if (tableStatus === 0) {
+        if (tableStatus === 0 && localFormData.show_new_order_tag) {
           return localFormData.new_order_tag_label || 'New';
-        } else if (tableStatus === 1 || tableStatus === 2) {
+        } else if ((tableStatus === 1 || tableStatus === 2) && localFormData.show_running_order_tag) {
           return localFormData.running_order_tag_label || 'Running';
         }
       }
@@ -653,10 +653,10 @@ ${showCustomerMobile
     `;
   }, [localFormData, printItems, items, restaurantName, localRestaurantName, user, outletName, localOutletName, activeTab, currentKOTNo, selectedTable, customerName, mobileNumber, pax]);
 
-  if (autoPrint) {
-    // For auto print, don't show the modal, just handle printing in useEffect
-    return null;
-  }
+  // if (autoPrint) {
+  //   // For auto print, don't show the modal, just handle printing in useEffect
+  //   return null;
+  // }
 
   return (
     <Modal
