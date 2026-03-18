@@ -269,11 +269,11 @@ const HandoverPage = () => {
 
   const filteredOrders = orders.filter(order => {
     const search = (searchTerm || '').toLowerCase();
-    const matchesSearch = ((order.orderNo || '').toLowerCase().includes(search)) ||
-      ((order.table || '').toLowerCase().includes(search)) ||
-      ((order.waiter || '').toLowerCase().includes(search)) ||
-      ((order.captain || '').toLowerCase().includes(search)) ||
-      ((order.user || '').toLowerCase().includes(search));
+    const matchesSearch = (String(order.orderNo || '').toLowerCase().includes(search)) ||
+      (String(order.table || '').toLowerCase().includes(search)) ||
+      (String(order.waiter || '').toLowerCase().includes(search)) ||
+      (String(order.captain || '').toLowerCase().includes(search)) ||
+      (String(order.user || '').toLowerCase().includes(search));
     const matchesStatus = statusFilter === "all" || ((order.status || '').toLowerCase() === (statusFilter || '').toLowerCase());
     return matchesSearch && matchesStatus;
   });
@@ -712,7 +712,7 @@ const HandoverPage = () => {
                     },
                     {
                       title: "Total Tables",
-                      value: new Set(orders.map(o => o.table)).size,
+                      value: new Set(orders.map(o => String(o.table || ''))).size,
                       icon: <Printer className="text-warning" size={24} />,
                       subtitle: "Tables used"
                     },
