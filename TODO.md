@@ -1,26 +1,21 @@
-# Fix replaceSettlement SQL Error - TODO
+# Quick Bill Header Fix - TODO
 
-**Status: [IN PROGRESS]**
+**Goal:** Fix Quick Bill print header to show "Quick Bill" in table_name (like Pickup/Delivery).
 
-## Approved Plan Steps:
+## Steps (Approved Plan):
+✅ **1. [DONE]** Analyzed files: Orders.tsx (frontend), ordersController.js, TAxnTrnbillControllers.js (backend).  
+   - Confirmed root cause: missing Quick Bill case in `tableNameForKOT`.
 
-### 1. [PENDING] ✅ Create TODO.md (Current step - DONE)
-### 2. [✅ DONE] Edit backend/controllers/settlementController.js
-   - ✅ Prepare settlementInsertStmt properly
-   - ✅ Fix INSERT columns to match TrnSettlement schema (18 columns: OrderNo, TxnNo, userid, etc.)
-   - ✅ Fix UserId → userid  
-   - ✅ Fix VALUES params count/order (18 params)
-   - ✅ Remove receive/refund/table_name, hardcoded refund=1
-   
-### 3. [PENDING] Test the fix
-   - Restart backend server
-   - Test replaceSettlement API endpoint
-   - Verify no SQL errors
-   - Restart backend server
-   - Test replaceSettlement API endpoint
-   - Verify no SQL errors
+✅ **2. [DONE]** Created plan → User approved.
 
-### 4. [PENDING] attempt_completion
+✅ **3. [DONE]** Edited `src/views/apps/Transaction/Orders.tsx`:  
+   - In `handlePrintAndSaveKOT()` → Added `activeTab === 'Quick Bill' ? 'Quick Bill'` to `tableNameForKOT`.
 
-**Next step: Edit the controller file**
+**4. [PENDING]** Test:  
+   - Quick Bill tab → Add items → F9 (print/save) → Verify "Quick Bill" in header.  
+   - Ensure Pickup/Delivery unchanged.
+
+**5. [PENDING]** `attempt_completion`: Mark task complete.
+
+**Next Action:** Test the fix (step 4).
 

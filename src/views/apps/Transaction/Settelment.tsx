@@ -365,8 +365,11 @@ const [filters, setFilters] = useState({
 
               <td>{group.HotelID}</td>
               <td>₹{group.Amount.toFixed(2)}</td>
-              <td>{new Date(group.InsertDate.replace(' ', 'T') + 'Z').toLocaleString()}</td>
-              <td>
+<td>
+  {group.InsertDate
+    ? new Date(group.InsertDate).toLocaleString('en-IN')
+    : '-'}
+</td>              <td>
                 <Button size="sm" variant="primary" onClick={() => handleEdit(group)}>
                   Edit
                 </Button>

@@ -1583,12 +1583,14 @@ const handleDecreaseQty = (itemId: number, variantId?: number) => {
       const reverseItemsToKOT = reverseQtyMode ? reverseQtyItems : [];
       setLoading(true);
 
-      const tableNameForKOT =
-        activeTab === 'Pickup'
-          ? 'Pickup'
-          : activeTab === 'Delivery'
-            ? 'Delivery'
-            : selectedTable || null;
+const tableNameForKOT =
+  activeTab === 'Pickup'
+    ? 'Pickup'
+    : activeTab === 'Delivery'
+      ? 'Delivery'
+      : activeTab === 'Quick Bill'
+        ? 'Quick Bill'
+      : selectedTable || null;
       setSelectedTable(tableNameForKOT);
       const selectedTableRecord: any = (Array.isArray(filteredTables) ? filteredTables : tableItems)
         .find((t: any) => t && t.table_name && selectedTable && t.table_name.toLowerCase() === selectedTable.toLowerCase())
